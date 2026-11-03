@@ -39,6 +39,12 @@ export interface TeamStanding {
   points: number;
 }
 
+/** Who manages a club, as its card names him. */
+export interface TeamCardManager {
+  id: string;
+  name: string;
+}
+
 export interface TeamCard {
   team: TeamCardTeam;
   roster_size: number;
@@ -47,6 +53,8 @@ export interface TeamCard {
   total_value: number;
   league_pos: number;
   standing: TeamStanding | null;
+  /** Null for a club without a manager. */
+  manager: TeamCardManager | null;
 }
 
 export interface LeagueGroup {

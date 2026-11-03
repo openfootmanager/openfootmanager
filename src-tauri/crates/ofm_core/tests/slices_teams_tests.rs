@@ -9,8 +9,8 @@ use domain::team::Team;
 use ofm_core::clock::GameClock;
 use ofm_core::game::{Game, PotentialRange, ScoutedPlayer};
 use ofm_core::slices::teams::{
-    TeamCard, TeamsDirectoryQuery, UNGROUPED_LEAGUE_ID, query_club_league_standing,
-    query_directory, query_team_card,
+    TeamCard, TeamCardManager, TeamsDirectoryQuery, UNGROUPED_LEAGUE_ID,
+    query_club_league_standing, query_directory, query_team_card,
 };
 
 fn default_attrs() -> PlayerAttributes {
@@ -211,6 +211,100 @@ fn an_unemployed_manager_sees_no_clubs_average() {
     for club in ["mine", "rival", "faraway"] {
         assert_eq!(directory_card(&game, club).avg_ovr, None, "{club}");
     }
+}
+
+/// Given a club managed by one of the AI managers
+/// When its card is projected, in the directory and on its own
+/// Then the card names him
+#[test]
+fn a_card_names_the_clubs_manager() {
+    let mut game = managing(two_divisions(), "mine");
+    let mut boss = Manager::new(
+        "boss".to_string(),
+        "Ada".to_string(),
+        "Boss".to_string(),
+        "1970-01-01".to_string(),
+        "ENG".to_string(),
+    );
+    boss.team_id = Some("rival".to_string());
+    let name = boss.display_name.clone();
+    game.managers.push(boss);
+    game.teams
+        .iter_mut()
+        .find(|team| team.id == "rival")
+        .unwrap()
+        .manager_id = Some("boss".to_string());
+
+    let expected = Some(TeamCardManager {
+        id: "boss".to_string(),
+        name,
+    });
+    assert_eq!(directory_card(&game, "rival").manager, expected);
+    assert_eq!(query_team_card(&game, "rival").unwrap().manager, expected);
+}
+
+/// Given a club with no manager
+/// When its card is projected
+/// Then it names nobody
+#[test]
+fn a_vacant_clubs_card_names_no_manager() {
+    let game = managing(two_divisions(), "mine");
+
+    assert_eq!(directory_card(&game, "faraway").manager, None);
+}
+
+/// The game with the user in charge of `club` as its listed manager too.
+fn the_user_manages(club: &str) -> Game {
+    let mut game = managing(two_divisions(), club);
+    let user_id = game.manager.id.clone();
+    game.teams
+        .iter_mut()
+        .find(|team| team.id == club)
+        .unwrap()
+        .manager_id = Some(user_id);
+    game
+}
+
+/// Given the user's own club, and the user not in the managers list (only the game's manager)
+/// When its card is projected
+/// Then it names him: the lookup falls back on the game's manager
+#[test]
+fn the_users_club_card_names_the_user() {
+    let mut game = the_user_manages("mine");
+    let user_id = game.manager.id.clone();
+    game.managers.retain(|manager| manager.id != user_id);
+
+    let manager = directory_card(&game, "mine").manager.unwrap();
+
+    assert_eq!(manager.id, user_id);
+    assert_eq!(manager.name, game.manager.display_name);
+}
+
+/// Given the user's own club, and the managers list holding a copy of him that lags behind
+/// When its card is projected
+/// Then it names him as the live record has him, not as the copy does
+#[test]
+fn the_users_card_reads_his_live_record_not_the_listed_copy() {
+    let mut game = the_user_manages("mine");
+    let user_id = game.manager.id.clone();
+    game.managers
+        .iter_mut()
+        .find(|manager| manager.id == user_id)
+        .expect("Game::new lists the user")
+        .display_name = "Stale Copy".to_string();
+
+    let manager = directory_card(&game, "mine").manager.unwrap();
+
+    assert_eq!(manager.name, game.manager.display_name);
+    assert_ne!(manager.name, "Stale Copy");
+    assert_eq!(
+        query_team_card(&game, "mine")
+            .unwrap()
+            .manager
+            .unwrap()
+            .name,
+        manager.name
+    );
 }
 
 /// Given the manager's club, a division rival and a club in another division
