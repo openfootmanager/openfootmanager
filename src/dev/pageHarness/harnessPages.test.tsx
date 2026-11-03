@@ -1,4 +1,4 @@
-import { act } from "@testing-library/react";
+import { act, within } from "@testing-library/react";
 import { clearMocks } from "@tauri-apps/api/mocks";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 
@@ -26,6 +26,22 @@ beforeAll(async () => {
 });
 
 let mounted: Awaited<ReturnType<typeof mountPageHarness>> | null = null;
+
+/**
+ * What only each page draws, by role and accessible name (never by a name from the generated club:
+ * the names below come from the page's own labels). The shell (the header, the sidebar) draws on
+ * every page and proves nothing about the page itself.
+ */
+const PAGE_CONTENT: Record<HarnessPage, (view: ReturnType<typeof within>) => void> = {
+  home: (view) => expect(view.getByRole("heading", { name: "Next Match" })).toBeInTheDocument(),
+  squad: (view) => expect(view.getByRole("table", { name: /Squad$/ })).toBeInTheDocument(),
+  // The players table has no label of its own; its rows (the header and the fixture's page of players) are the page.
+  players: (view) => expect(view.getAllByRole("row").length).toBeGreaterThan(1),
+  teams: (view) => expect(view.getByRole("table", { name: /League$/ })).toBeInTheDocument(),
+  managers: (view) => expect(view.getByRole("table", { name: "Managers" })).toBeInTheDocument(),
+  // The shell has three headings; a staff member adds one each.
+  staff: (view) => expect(view.getAllByRole("heading").length).toBeGreaterThan(3),
+};
 
 afterEach(async () => {
   // Unmounted before the mocks go: the dashboard's event listeners unregister through them.
@@ -64,8 +80,8 @@ describe("the page harness's pages", () => {
       // An empty unanswered list means nothing only if the page rendered: a harness that never
       // activated the game draws nothing and asks for nothing.
       expect(useGameStore.getState().hasActiveGame).toBe(true);
-      expect(root.querySelectorAll("*").length).toBeGreaterThan(50);
       expect(root.querySelector('[role="alert"]')).toBeNull();
+      PAGE_CONTENT[page](within(root));
       expect(window.__pageHarness?.unanswered).toEqual([]);
     },
     15_000,
