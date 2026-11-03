@@ -3,19 +3,20 @@
 // of `domain`, and `ofm_core/turn/` is the single bridge between the two. The
 // live path and the instant path both build their sides from there, so there is
 // one answer to "who is playing" rather than one per code path.
+use crate::player_rating::formation_slots;
 use crate::turn::matchday_lookups::MatchdayLookups;
 pub use crate::turn::squad::auto_select_set_pieces;
-use crate::turn::squad::{build_team_with_bench_from, set_piece_takers_among};
+use crate::turn::squad::{build_team_with_bench_from, line_familiarity, set_piece_takers_among};
 
 use rand_chacha::ChaCha12Rng;
 use serde::{Deserialize, Serialize};
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 use crate::game::Game;
 
 use domain::league::{FixtureStatus, StandingEntry};
 use domain::manager::Manager;
-use domain::player::Player;
+use domain::player::{Player, Position as DomainPosition};
 use domain::team::MatchRoles;
 use engine::ai::{self, AiPersonality, AiProfile};
 use engine::{
@@ -160,6 +161,9 @@ pub struct LiveMatchSession {
     /// The career this match belongs to (`Game::career_token` when it was started), so a screen's
     /// step, command or finish meant for another career is refused instead of landing here.
     pub career_token: u64,
+    /// Both clubs' players as the game knows them, by id, so a swap before kick-off can work
+    /// out what the newcomer's slot asks of him (`refit_pre_match_swap`).
+    squad_players: HashMap<String, Player>,
 }
 
 impl LiveMatchSession {
@@ -237,7 +241,51 @@ impl LiveMatchSession {
         {
             return Err(SHOOTOUT_ORDER_NOT_YOUR_SIDE.into());
         }
+        if let MatchCommand::PreMatchSwap {
+            side,
+            player_off_id,
+            player_on_id,
+        } = &cmd
+        {
+            let (side, off, on) = (*side, player_off_id.clone(), player_on_id.clone());
+            let slot = self.slot_of(side, &off);
+            self.match_state.apply_command(cmd)?;
+            self.refit_pre_match_swap(side, &off, &on, slot.as_ref());
+            return Ok(());
+        }
         self.match_state.apply_command(cmd)
+    }
+
+    /// The formation slot `player_id` fills in `side`'s eleven: entry i plays slot i.
+    fn slot_of(&self, side: Side, player_id: &str) -> Option<DomainPosition> {
+        let team = self.match_state.team(side);
+        let index = team.players.iter().position(|p| p.id == player_id)?;
+        formation_slots(&team.formation).get(index).cloned()
+    }
+
+    /// After a swap before kick-off, the newcomer plays at the familiarity of the slot he took,
+    /// and the player he replaced, now on the bench, at his best in each line, as any bench
+    /// player does. The engine cannot work either out: it knows lines, not slots. A pre-kick-off
+    /// change of formation moves starters between slots too and is not refitted here.
+    fn refit_pre_match_swap(
+        &mut self,
+        side: Side,
+        off: &str,
+        on: &str,
+        slot: Option<&DomainPosition>,
+    ) {
+        for (player_id, slot) in [(on, slot), (off, None)] {
+            let Some(player) = self.squad_players.get(player_id) else {
+                continue;
+            };
+            let familiarity = line_familiarity(player, slot);
+            if !self
+                .match_state
+                .set_line_familiarity(side, player_id, familiarity)
+            {
+                log::warn!("[live_match] pre-match swap: {player_id} is not in the match");
+            }
+        }
     }
 
     /// Sets the user's own side's shootout order, for a caller that does not name the side.
@@ -411,6 +459,11 @@ fn create_live_match_with(
         }
     };
     let (home_club, away_club) = (club_of(&home_team_id), club_of(&away_team_id));
+    let squad_players = home_club
+        .iter()
+        .chain(&away_club)
+        .map(|player| (player.id.clone(), (*player).clone()))
+        .collect();
     let (home_xi, home_bench) =
         build_team_with_bench_from(game, &home_team_id, &home_club, lookups);
     let (away_xi, away_bench) =
@@ -514,6 +567,7 @@ fn create_live_match_with(
         ai_home,
         ai_away,
         career_token: game.career_token,
+        squad_players,
     })
 }
 

@@ -34,7 +34,7 @@ fn factor(familiarity: Familiarity) -> f64 {
 /// it is his best familiarity over the line's positions: the engine moves players only between
 /// lines (a substitution, a change of shape), never says where within one, and a manager moving
 /// a player puts him where he fits best. A bench player has no kickoff slot.
-pub(super) fn line_familiarity(player: &Player, kickoff_slot: Option<&Position>) -> [f64; 4] {
+pub(crate) fn line_familiarity(player: &Player, kickoff_slot: Option<&Position>) -> [f64; 4] {
     LINES.map(|line| {
         if let Some(slot) = kickoff_slot.filter(|slot| slot.to_group_position() == line) {
             return factor(familiarity(player, slot));

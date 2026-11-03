@@ -497,6 +497,11 @@ impl LiveMatchState {
         self.current_minute
     }
 
+    /// The side on the pitch, in slot order: entry i of its players plays its formation's slot i.
+    pub fn team(&self, side: Side) -> &TeamData {
+        self.team_ref(side)
+    }
+
     /// Get the bench for a side
     pub fn bench(&self, side: Side) -> &[PlayerData] {
         match side {
