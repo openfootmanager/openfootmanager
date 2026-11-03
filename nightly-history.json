@@ -1,7 +1,345 @@
 {
   "schemaVersion": 1,
-  "updatedAt": "2026-11-03T12:04:43.568Z",
+  "updatedAt": "2026-11-03T13:34:30.151Z",
   "builds": [
+    {
+      "schemaVersion": 1,
+      "product": "Openfoot Manager",
+      "repository": "openfootmanager/openfootmanager",
+      "tag": "nightly-20261103-acca05c",
+      "version": "0.3.0-nightly.20261103+acca05c",
+      "commit": "acca05cc0269eb5b1ec7e5e41f3d1ea9e1c3d664",
+      "prerelease": true,
+      "publishedAt": "2026-11-03T13:34:05Z",
+      "releaseName": "Openfoot Manager Nightly 0.3.0-nightly.20261103+acca05c",
+      "releaseUrl": "https://github.com/openfootmanager/openfootmanager/releases/tag/nightly-20261103-acca05c",
+      "assets": [
+        {
+          "id": 705709632,
+          "name": "Openfoot.Manager_0.3.0_aarch64.AppImage",
+          "label": "",
+          "size": 89192968,
+          "contentType": "application/zip",
+          "downloadUrl": "https://github.com/openfootmanager/openfootmanager/releases/download/nightly-20261103-acca05c/Openfoot.Manager_0.3.0_aarch64.AppImage",
+          "sha256": "04e51377e98be10e229b3e9ef1d6f8384a953318bba1a86f24071d7adadf2c21",
+          "platform": "linux",
+          "arch": "arm64",
+          "kind": "portable",
+          "extension": ".appimage"
+        },
+        {
+          "id": 705709452,
+          "name": "Openfoot.Manager_0.3.0_arm64.deb",
+          "label": "",
+          "size": 13632362,
+          "contentType": "application/zip",
+          "downloadUrl": "https://github.com/openfootmanager/openfootmanager/releases/download/nightly-20261103-acca05c/Openfoot.Manager_0.3.0_arm64.deb",
+          "sha256": "535d36f5c2666e13bbd1f484e922cc6c7c9055bc5383b2d83c2aa2ca11f75fab",
+          "platform": "linux",
+          "arch": "arm64",
+          "kind": "package",
+          "extension": ".deb"
+        },
+        {
+          "id": 705709545,
+          "name": "Openfoot.Manager-0.3.0-1.aarch64.rpm",
+          "label": "",
+          "size": 13633394,
+          "contentType": "application/zip",
+          "downloadUrl": "https://github.com/openfootmanager/openfootmanager/releases/download/nightly-20261103-acca05c/Openfoot.Manager-0.3.0-1.aarch64.rpm",
+          "sha256": "4230ec10e9be1ed68c31ebae6680bcdad91c1b9a60b8577a9bbcd4c74617f4ea",
+          "platform": "linux",
+          "arch": "arm64",
+          "kind": "package",
+          "extension": ".rpm"
+        },
+        {
+          "id": 705703704,
+          "name": "Openfoot.Manager_0.3.0_amd64.AppImage",
+          "label": "",
+          "size": 91703800,
+          "contentType": "application/zip",
+          "downloadUrl": "https://github.com/openfootmanager/openfootmanager/releases/download/nightly-20261103-acca05c/Openfoot.Manager_0.3.0_amd64.AppImage",
+          "sha256": "8bbde89f5955c003521c4085f88332b5af9dc3035d7bae89c3c0143188215b29",
+          "platform": "linux",
+          "arch": "x64",
+          "kind": "portable",
+          "extension": ".appimage"
+        },
+        {
+          "id": 705703407,
+          "name": "Openfoot.Manager_0.3.0_amd64.deb",
+          "label": "",
+          "size": 14185238,
+          "contentType": "application/zip",
+          "downloadUrl": "https://github.com/openfootmanager/openfootmanager/releases/download/nightly-20261103-acca05c/Openfoot.Manager_0.3.0_amd64.deb",
+          "sha256": "5c873200362b508ae74f8a3a1723aa16ec4e66653aa99b472fa9309ffdb2b7dd",
+          "platform": "linux",
+          "arch": "x64",
+          "kind": "package",
+          "extension": ".deb"
+        },
+        {
+          "id": 705703546,
+          "name": "Openfoot.Manager-0.3.0-1.x86_64.rpm",
+          "label": "",
+          "size": 14185768,
+          "contentType": "application/zip",
+          "downloadUrl": "https://github.com/openfootmanager/openfootmanager/releases/download/nightly-20261103-acca05c/Openfoot.Manager-0.3.0-1.x86_64.rpm",
+          "sha256": "9d15c258e8baa0f389b02462a7a0320935a8e7af10572fb4764a4e4bd873ede6",
+          "platform": "linux",
+          "arch": "x64",
+          "kind": "package",
+          "extension": ".rpm"
+        },
+        {
+          "id": 705726173,
+          "name": "Openfoot.Manager_0.3.0_aarch64.dmg",
+          "label": "",
+          "size": 12480901,
+          "contentType": "application/zip",
+          "downloadUrl": "https://github.com/openfootmanager/openfootmanager/releases/download/nightly-20261103-acca05c/Openfoot.Manager_0.3.0_aarch64.dmg",
+          "sha256": "4cfe0a5e509be64e7e363062d9a725936e9538cbf87d5399d3089b75123aed78",
+          "platform": "macos",
+          "arch": "arm64",
+          "kind": "installer",
+          "extension": ".dmg"
+        },
+        {
+          "id": 705721373,
+          "name": "Openfoot.Manager_0.3.0_x64.dmg",
+          "label": "",
+          "size": 13601427,
+          "contentType": "application/zip",
+          "downloadUrl": "https://github.com/openfootmanager/openfootmanager/releases/download/nightly-20261103-acca05c/Openfoot.Manager_0.3.0_x64.dmg",
+          "sha256": "060a8ea66e48ace923b9b5c05d0901089e3672d8c7d5658d20c1c0df47da0dff",
+          "platform": "macos",
+          "arch": "x64",
+          "kind": "installer",
+          "extension": ".dmg"
+        },
+        {
+          "id": 705723448,
+          "name": "Openfoot.Manager_0.3.0_x64_en-US.msi",
+          "label": "",
+          "size": 13213696,
+          "contentType": "application/zip",
+          "downloadUrl": "https://github.com/openfootmanager/openfootmanager/releases/download/nightly-20261103-acca05c/Openfoot.Manager_0.3.0_x64_en-US.msi",
+          "sha256": "2994bec4f1e70a889efa17caba7886d71da2a0c99c2e05306f8018eacc9c0721",
+          "platform": "windows",
+          "arch": "x64",
+          "kind": "installer",
+          "extension": ".msi"
+        },
+        {
+          "id": 705723500,
+          "name": "Openfoot.Manager_0.3.0_x64-setup.exe",
+          "label": "",
+          "size": 10048687,
+          "contentType": "application/zip",
+          "downloadUrl": "https://github.com/openfootmanager/openfootmanager/releases/download/nightly-20261103-acca05c/Openfoot.Manager_0.3.0_x64-setup.exe",
+          "sha256": "7abc5e154b5ff938431526a1db2b496bb62df8263820ed9303ef1dfdd50cf699",
+          "platform": "windows",
+          "arch": "x64",
+          "kind": "installer",
+          "extension": ".exe"
+        }
+      ],
+      "previousTag": "nightly-20261103-f2b660f",
+      "compareUrl": "https://github.com/openfootmanager/openfootmanager/compare/nightly-20261103-f2b660f...nightly-20261103-acca05c",
+      "checksumsUrl": "https://github.com/openfootmanager/openfootmanager/releases/download/nightly-20261103-acca05c/nightly-checksums.txt",
+      "commitCount": 47,
+      "commits": [
+        {
+          "sha": "c7186988",
+          "subject": "fix(ui): a context menu tells its owner it opened outside its own render"
+        },
+        {
+          "sha": "fceddaf3",
+          "subject": "test(squad): the fit and coverage tests wait for the squad's answer before looking"
+        },
+        {
+          "sha": "67ee6566",
+          "subject": "ci: Dependabot leaves dtolnay/rust-toolchain to a Rust bump"
+        },
+        {
+          "sha": "446718c7",
+          "subject": "ci: keep the token out of the release build checkouts too"
+        },
+        {
+          "sha": "85d8134c",
+          "subject": "test(teams): the squad average is pinned as rounded down, and the likely-eleven tile waits for the backend"
+        },
+        {
+          "sha": "a3961ab6",
+          "subject": "test(teams): the team-card test's Given/When/Then sits above it again"
+        },
+        {
+          "sha": "9acdd0a4",
+          "subject": "test(staff): the club-move test fails when the old club's fetch was never sent"
+        },
+        {
+          "sha": "e0bd8c8b",
+          "subject": "fix(staff): a staff rating stays on the 0 to 100 scale whatever a package authored"
+        },
+        {
+          "sha": "bb5b626f",
+          "subject": "test(engine): the shot-rate fixture's players are at home in every line"
+        },
+        {
+          "sha": "60510d96",
+          "subject": "ci: a weekly, grouped Dependabot update for the SHA-pinned actions"
+        },
+        {
+          "sha": "e016c76d",
+          "subject": "ci: pin every action by commit SHA, and keep the token out of checkouts that never push"
+        },
+        {
+          "sha": "a937fcde",
+          "subject": "fix(knowledge): a season's rollover alone refreshes what a screen knows, and the no-tag test waits for the answer"
+        },
+        {
+          "sha": "e95e9ecc",
+          "subject": "refactor(teams): team selection's ratings come from their own hook, and the backend groups the squads in one pass"
+        },
+        {
+          "sha": "5148648e",
+          "subject": "fix(teams): team selection awaits its ratings, so a reply that is not a promise is no crash"
+        },
+        {
+          "sha": "0cf52c15",
+          "subject": "feat(teams): team selection rates every club's squad from the backend, before a career begins"
+        },
+        {
+          "sha": "d34cb72f",
+          "subject": "test(staff): a move to another club keeps the new club's staff when the old club's fetch answers late"
+        },
+        {
+          "sha": "2eca5cf5",
+          "subject": "fix(staff): the page's first staff fetch can't undo a hire that answered before it"
+        },
+        {
+          "sha": "fdddd629",
+          "subject": "ci(build): pin build-check's Node major to 24 instead of lts/*"
+        },
+        {
+          "sha": "7707c461",
+          "subject": "fix(staff): a late, older staff refresh can't undo a newer one; the new tests query by role and text"
+        },
+        {
+          "sha": "f54972ca",
+          "subject": "fix(match): the bench fallback ranks by the line the substitute enters"
+        },
+        {
+          "sha": "1a9e8df2",
+          "subject": "chore(pages): regenerate the page fixture for the club card's manager"
+        },
+        {
+          "sha": "b0112218",
+          "subject": "fix(teams): a club's manager is read from the user's live record first, and the directory looks him up from the team in hand"
+        },
+        {
+          "sha": "96bb94ca",
+          "subject": "feat(teams): a club's card names its manager"
+        },
+        {
+          "sha": "dde73444",
+          "subject": "feat(staff): each staff row carries the rating the game computes for his role"
+        },
+        {
+          "sha": "fee87278",
+          "subject": "test(match): the familiarity probe counts only the match-day bench as an alternative"
+        },
+        {
+          "sha": "ad5a7194",
+          "subject": "fix(match): the AI's bench fallback ranks by what a player brings to the line"
+        },
+        {
+          "sha": "f3d7d610",
+          "subject": "test(match): a substitute from another line is chosen by what he brings to it"
+        },
+        {
+          "sha": "7fc93fb7",
+          "subject": "docs(match): name the three sites the out-of-position factor does not reach"
+        },
+        {
+          "sha": "714fc533",
+          "subject": "fix(squad): the fit filters are not offered until the lineup can be graded"
+        },
+        {
+          "sha": "5ef63022",
+          "subject": "test(squad): the familiarity stand-in knows the flank pairs"
+        },
+        {
+          "sha": "6cce3171",
+          "subject": "test(squad): a card whose player has no grade wears no slot chip"
+        },
+        {
+          "sha": "aa281131",
+          "subject": "feat(match): a player out of position plays worse in a club match"
+        },
+        {
+          "sha": "e969858c",
+          "subject": "fix(squad): a missing grade is no verdict; the counts wait and a status line says why"
+        },
+        {
+          "sha": "ac3d7ef5",
+          "subject": "test(squad): the cards view test grades through the familiarity stand-in"
+        },
+        {
+          "sha": "2a3be80d",
+          "subject": "fix(squad): the saved XI is drawn before get_squad answers; actions keep the strict pool"
+        },
+        {
+          "sha": "a2738504",
+          "subject": "test(squad): the natural-fit count is non-zero once the familiarity has arrived"
+        },
+        {
+          "sha": "32c7bec9",
+          "subject": "fix(squad): coverage and the needs-cover filter wait for the familiarity; one comment on lineupReady"
+        },
+        {
+          "sha": "693d37a8",
+          "subject": "test(match): a player out of position plays worse in a club match"
+        },
+        {
+          "sha": "3f213629",
+          "subject": "test(match): measure how often a club match starts a player out of position"
+        },
+        {
+          "sha": "cba92b1c",
+          "subject": "test(squad): the natural-fit count waits for the familiarity; the redundant persist guard goes"
+        },
+        {
+          "sha": "733c8570",
+          "subject": "test(squad): the helpers grade from the backend's familiarity when they are given it"
+        },
+        {
+          "sha": "1f3adb83",
+          "subject": "feat(squad): the roster grades a fit from the backend's familiarity"
+        },
+        {
+          "sha": "8eddc850",
+          "subject": "style(inbox): the prospect card's contract panel uses role tokens"
+        },
+        {
+          "sha": "7041fbb6",
+          "subject": "feat(inbox): the youth report shows the scout's opinion, not the prospect's numbers"
+        },
+        {
+          "sha": "a508277c",
+          "subject": "refactor(inbox): a youth report's prospect card is its own component"
+        },
+        {
+          "sha": "5bb8873f",
+          "subject": "feat(scouting): a youth report gives the scout's opinion of each prospect"
+        },
+        {
+          "sha": "3d7e83c1",
+          "subject": "chore(deps-dev): Bump undici from 7.30.0 to 7.30.1"
+        }
+      ]
+    },
     {
       "schemaVersion": 1,
       "product": "Openfoot Manager",
@@ -5277,172 +5615,6 @@
         {
           "sha": "83c1f89f",
           "subject": "test(training): pin recovery, the coaching bonus and fitness from training the weekly mutants run found untested"
-        }
-      ]
-    },
-    {
-      "schemaVersion": 1,
-      "product": "Openfoot Manager",
-      "repository": "openfootmanager/openfootmanager",
-      "tag": "nightly-20261101-98e2c8e",
-      "version": "0.3.0-nightly.20261101+98e2c8e",
-      "commit": "98e2c8ec4abac23b0930b40295ff9025c48a7d0d",
-      "prerelease": true,
-      "publishedAt": "2026-11-01T03:03:39Z",
-      "releaseName": "Openfoot Manager Nightly 0.3.0-nightly.20261101+98e2c8e",
-      "releaseUrl": "https://github.com/openfootmanager/openfootmanager/releases/tag/nightly-20261101-98e2c8e",
-      "assets": [
-        {
-          "id": 697157906,
-          "name": "Openfoot.Manager_0.3.0_aarch64.AppImage",
-          "label": "",
-          "size": 89111048,
-          "contentType": "application/zip",
-          "downloadUrl": "https://github.com/openfootmanager/openfootmanager/releases/download/nightly-20261101-98e2c8e/Openfoot.Manager_0.3.0_aarch64.AppImage",
-          "sha256": "103c29865002f73facf2db9f7f6043dc21d39b9ce1ce21ecd106f4147294154e",
-          "platform": "linux",
-          "arch": "arm64",
-          "kind": "portable",
-          "extension": ".appimage"
-        },
-        {
-          "id": 697157847,
-          "name": "Openfoot.Manager_0.3.0_arm64.deb",
-          "label": "",
-          "size": 13523498,
-          "contentType": "application/zip",
-          "downloadUrl": "https://github.com/openfootmanager/openfootmanager/releases/download/nightly-20261101-98e2c8e/Openfoot.Manager_0.3.0_arm64.deb",
-          "sha256": "ccb3bb3454f9b86519787c0cd8cfb67b7a5889e3dbc0437fd5356924f40cf5e5",
-          "platform": "linux",
-          "arch": "arm64",
-          "kind": "package",
-          "extension": ".deb"
-        },
-        {
-          "id": 697157885,
-          "name": "Openfoot.Manager-0.3.0-1.aarch64.rpm",
-          "label": "",
-          "size": 13525546,
-          "contentType": "application/zip",
-          "downloadUrl": "https://github.com/openfootmanager/openfootmanager/releases/download/nightly-20261101-98e2c8e/Openfoot.Manager-0.3.0-1.aarch64.rpm",
-          "sha256": "d547b573de20321dde76a64052bdf8d367043563cd2662d357275b4c3f406fcb",
-          "platform": "linux",
-          "arch": "arm64",
-          "kind": "package",
-          "extension": ".rpm"
-        },
-        {
-          "id": 697156592,
-          "name": "Openfoot.Manager_0.3.0_amd64.AppImage",
-          "label": "",
-          "size": 91572728,
-          "contentType": "application/zip",
-          "downloadUrl": "https://github.com/openfootmanager/openfootmanager/releases/download/nightly-20261101-98e2c8e/Openfoot.Manager_0.3.0_amd64.AppImage",
-          "sha256": "17815cae040fb4e49dda566d725a4f0b3427bcacc6b7806b868dbf9d4a8a13d0",
-          "platform": "linux",
-          "arch": "x64",
-          "kind": "portable",
-          "extension": ".appimage"
-        },
-        {
-          "id": 697156532,
-          "name": "Openfoot.Manager_0.3.0_amd64.deb",
-          "label": "",
-          "size": 14063452,
-          "contentType": "application/zip",
-          "downloadUrl": "https://github.com/openfootmanager/openfootmanager/releases/download/nightly-20261101-98e2c8e/Openfoot.Manager_0.3.0_amd64.deb",
-          "sha256": "9f22586b4c5c0695521814d468257d9eba838aba0598fead8536fabfc2d7f2c5",
-          "platform": "linux",
-          "arch": "x64",
-          "kind": "package",
-          "extension": ".deb"
-        },
-        {
-          "id": 697156558,
-          "name": "Openfoot.Manager-0.3.0-1.x86_64.rpm",
-          "label": "",
-          "size": 14063715,
-          "contentType": "application/zip",
-          "downloadUrl": "https://github.com/openfootmanager/openfootmanager/releases/download/nightly-20261101-98e2c8e/Openfoot.Manager-0.3.0-1.x86_64.rpm",
-          "sha256": "218a0cb55b0a07a941102fceae076f98ccc0007d0fcc01de89415615c0e31b30",
-          "platform": "linux",
-          "arch": "x64",
-          "kind": "package",
-          "extension": ".rpm"
-        },
-        {
-          "id": 697153828,
-          "name": "Openfoot.Manager_0.3.0_aarch64.dmg",
-          "label": "",
-          "size": 12378225,
-          "contentType": "application/zip",
-          "downloadUrl": "https://github.com/openfootmanager/openfootmanager/releases/download/nightly-20261101-98e2c8e/Openfoot.Manager_0.3.0_aarch64.dmg",
-          "sha256": "3e90f25c542fcc3422d109b9b068652b5a59797ce3dccc7757766244c0a4e284",
-          "platform": "macos",
-          "arch": "arm64",
-          "kind": "installer",
-          "extension": ".dmg"
-        },
-        {
-          "id": 697163197,
-          "name": "Openfoot.Manager_0.3.0_x64.dmg",
-          "label": "",
-          "size": 13494377,
-          "contentType": "application/zip",
-          "downloadUrl": "https://github.com/openfootmanager/openfootmanager/releases/download/nightly-20261101-98e2c8e/Openfoot.Manager_0.3.0_x64.dmg",
-          "sha256": "11fc23fd4a6929849bb2cfba1f06f351aa584658fc1f86d6451863c637003335",
-          "platform": "macos",
-          "arch": "x64",
-          "kind": "installer",
-          "extension": ".dmg"
-        },
-        {
-          "id": 697165087,
-          "name": "Openfoot.Manager_0.3.0_x64_en-US.msi",
-          "label": "",
-          "size": 13090816,
-          "contentType": "application/zip",
-          "downloadUrl": "https://github.com/openfootmanager/openfootmanager/releases/download/nightly-20261101-98e2c8e/Openfoot.Manager_0.3.0_x64_en-US.msi",
-          "sha256": "b4c776e6600ff4300159897d3d66f478991ecf7eb05563f02c3ee1e67bb8bc0f",
-          "platform": "windows",
-          "arch": "x64",
-          "kind": "installer",
-          "extension": ".msi"
-        },
-        {
-          "id": 697165107,
-          "name": "Openfoot.Manager_0.3.0_x64-setup.exe",
-          "label": "",
-          "size": 9957050,
-          "contentType": "application/zip",
-          "downloadUrl": "https://github.com/openfootmanager/openfootmanager/releases/download/nightly-20261101-98e2c8e/Openfoot.Manager_0.3.0_x64-setup.exe",
-          "sha256": "f71a27b15452e4a8be630e62221d7a8b9111ed4b7ea9b3052c278d029aff7e2f",
-          "platform": "windows",
-          "arch": "x64",
-          "kind": "installer",
-          "extension": ".exe"
-        }
-      ],
-      "previousTag": "nightly-20261101-3005253",
-      "compareUrl": "https://github.com/openfootmanager/openfootmanager/compare/nightly-20261101-3005253...nightly-20261101-98e2c8e",
-      "checksumsUrl": "https://github.com/openfootmanager/openfootmanager/releases/download/nightly-20261101-98e2c8e/nightly-checksums.txt",
-      "commitCount": 4,
-      "commits": [
-        {
-          "sha": "a910d1aa",
-          "subject": "fix(engine): a shootout ends as soon as one side cannot catch up"
-        },
-        {
-          "sha": "86cd90b2",
-          "subject": "fix(reputation): the cap on a season's movement counts the clubs measured, not the table's rows"
-        },
-        {
-          "sha": "126dcc88",
-          "subject": "fix(reputation): a season moves a reputation at most a place's worth per club in the division"
-        },
-        {
-          "sha": "065ca8c4",
-          "subject": "fix(reputation): a club is scored against the points its reputation predicted, so the top no longer drains"
         }
       ]
     }
