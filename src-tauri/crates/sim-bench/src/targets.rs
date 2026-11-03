@@ -56,6 +56,11 @@ pub enum Provenance {
         /// byte for byte.
         retrieved: String,
     },
+    /// A published league-wide figure, cited rather than derived from committed data. Shown for
+    /// orientation, like an unsourced band: it describes league seasons, not the bench's fixture.
+    Cited {
+        source: String,
+    },
     Unsourced,
 }
 
@@ -185,6 +190,36 @@ impl MeasuredBands {
     }
 }
 
+/// The Big Five's range of yellow and of red cards a match, lowest league to highest (CIES
+/// n°57). The calibration table and the HTML report's discipline panel both read them.
+pub(crate) const YELLOWS_BAND: (f64, f64) = (3.39, 5.27);
+pub(crate) const REDS_BAND: (f64, f64) = (0.12, 0.27);
+
+/// The Big Five's range of cards a match: England, Germany, France, Italy and Spain.
+const CIES_CARDS: &str = "CIES Football Observatory Monthly Report n°57 (Poli, Ravenel & Besson, Sep 2020): Big Five, 2015/16-2019/20";
+
+fn cited(
+    label: &'static str,
+    unit: Unit,
+    low: f64,
+    high: f64,
+    read: fn(&BenchStats) -> f64,
+    source: &str,
+) -> Target {
+    Target {
+        label,
+        unit,
+        low,
+        high,
+        read,
+        provenance: Provenance::Cited {
+            source: source.to_string(),
+        },
+        // Cited figures are league-season averages too, and the bench replays one fixture.
+        not_comparable: Some(ONE_FIXTURE_IS_NOT_A_LEAGUE),
+    }
+}
+
 fn unsourced(
     label: &'static str,
     unit: Unit,
@@ -258,19 +293,21 @@ pub fn all() -> Result<Vec<Target>, String> {
             40.0,
             BenchStats::goal_conversion_pct,
         ),
-        unsourced(
+        cited(
             "Yellow cards/game",
             Unit::PerGame,
-            2.0,
-            4.0,
+            YELLOWS_BAND.0,
+            YELLOWS_BAND.1,
             BenchStats::yellows_pg,
+            CIES_CARDS,
         ),
-        unsourced(
+        cited(
             "Red cards/game",
             Unit::PerGame,
-            0.05,
-            0.15,
+            REDS_BAND.0,
+            REDS_BAND.1,
             BenchStats::reds_pg,
+            CIES_CARDS,
         ),
         unsourced(
             "Fouls/game",
@@ -489,7 +526,8 @@ mod tests {
         }
     }
 
-    /// Given a measured band the bench plays, a measured band it does not, and an unsourced one,
+    /// Given a measured band the bench plays, a measured band it does not, a cited one and an
+    /// unsourced one,
     /// When each is asked whether it is judged,
     /// Then only the first is.
     #[test]
@@ -502,7 +540,48 @@ mod tests {
         };
         assert!(verdict_with(measured.clone(), None).is_judged());
         assert!(!verdict_with(measured, Some(ONE_FIXTURE_IS_NOT_A_LEAGUE)).is_judged());
+        let cited = Provenance::Cited { source: "s".into() };
+        assert!(!verdict_with(cited, None).is_judged());
         assert!(!verdict_with(Provenance::Unsourced, None).is_judged());
+    }
+
+    /// Given the calibration table,
+    /// When its card bands are read,
+    /// Then they are the Big Five's range from CIES n°57 (3.39 to 5.27 yellows, 0.12 to 0.27
+    /// reds a match), cited rather than unsourced, and shown for orientation, not judged.
+    #[test]
+    fn the_card_bands_are_the_big_fives_cited_range() {
+        let table = all().expect("the calibration table loads");
+        let band = |label: &str| {
+            let target = table
+                .iter()
+                .find(|target| target.label == label)
+                .expect("the band exists");
+            let cited = matches!(target.provenance, Provenance::Cited { .. });
+            (target.low, target.high, cited)
+        };
+        assert_eq!(band("Yellow cards/game"), (3.39, 5.27, true));
+        assert_eq!(band("Red cards/game"), (0.12, 0.27, true));
+    }
+
+    /// Given the calibration table,
+    /// When its cited card bands are read,
+    /// Then they carry the one-fixture caveat, as the measured bands do: CIES's figures are
+    /// league-season averages, and the bench replays one fixture.
+    #[test]
+    fn a_cited_band_carries_the_one_fixture_caveat() {
+        let table = all().expect("the calibration table loads");
+        for label in ["Yellow cards/game", "Red cards/game"] {
+            let target = table
+                .iter()
+                .find(|target| target.label == label)
+                .expect("the band exists");
+            assert_eq!(
+                target.not_comparable,
+                Some(ONE_FIXTURE_IS_NOT_A_LEAGUE),
+                "{label}"
+            );
+        }
     }
 
     /// Given a value exactly on a band's edge, and one just outside it,
