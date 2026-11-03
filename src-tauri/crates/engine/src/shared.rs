@@ -36,6 +36,8 @@ pub(crate) struct PlayerSnap {
     pub traits: Vec<String>,
     pub role: PlayerRole,
     pub injury_risk: f64,
+    /// The factor on this player's match rating for the line he was picked from.
+    pub familiarity: f64,
 }
 
 impl PlayerSnap {
@@ -71,6 +73,7 @@ impl PlayerSnap {
             traits: Vec::new(),
             role: PlayerRole::Standard,
             injury_risk: 1.0,
+            familiarity: 1.0,
         }
     }
 
@@ -99,6 +102,7 @@ impl PlayerSnap {
             traits: p.traits.clone(),
             role: p.role,
             injury_risk: p.injury_risk,
+            familiarity: p.familiarity_factor(),
         }
     }
 
@@ -581,6 +585,12 @@ pub(crate) fn home_mod(side: Side, config: &MatchConfig) -> f64 {
         Side::Away => 1.0,
     }
 }
+
+/// A booked player is carded at this share of the usual chance: he goes into a tackle knowing a
+/// second yellow sends him off, and a referee weighs a second caution harder. Without it, the
+/// real yellow-card rate would send off about twice the real number of players on a second
+/// yellow, since fouls fall on the few players in each duel.
+pub(crate) const BOOKED_CARD_FACTOR: f64 = 0.2;
 
 #[cfg(test)]
 mod phase_modifier_tests {

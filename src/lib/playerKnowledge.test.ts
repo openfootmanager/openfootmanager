@@ -141,6 +141,19 @@ describe("gameKnowledgeRevision", () => {
   });
 
   /**
+   * Given the same game before and after its season rolls over, its date and season start
+   *       unchanged
+   * When its knowledge revision is taken each time
+   * Then the two differ: a report scouted before the rollover is out of date after it
+   */
+  it("moves when the season rolls over, though nothing else does", () => {
+    const before = gameKnowledgeRevision({ ...game, last_season_rollover_on: "2025-06-30" });
+    const after = gameKnowledgeRevision({ ...game, last_season_rollover_on: "2026-06-30" });
+
+    expect(after).not.toBe(before);
+  });
+
+  /**
    * Given a profile that also depends on its player's club and wage
    * When its knowledge revision is taken
    * Then the key carries those too, beside the game's four

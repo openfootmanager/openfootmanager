@@ -420,6 +420,45 @@ fn scouts_opinion(game: &Game, player: &Player) -> Option<PotentialOpinion> {
         .scouted_players
         .iter()
         .find(|report| report.player_id == player.id)?;
+    report_opinion(game, player, report)
+}
+
+/// The scout's opinion of each prospect in the youth scouting report `message_id`, by prospect id:
+/// the opinion his report gave, read as a scout report reads (`prospect_report`). A prospect the
+/// report gave no opinion of (one written before reports carried them) is left out, as is every
+/// prospect of a message that is not a youth report.
+pub fn youth_prospect_opinions(game: &Game, message_id: &str) -> HashMap<String, PotentialOpinion> {
+    let Some(context) = game
+        .messages
+        .iter()
+        .find(|message| message.id == message_id)
+        .map(|message| &message.context)
+    else {
+        return HashMap::new();
+    };
+    let (Some(prospects), Some(opinions)) =
+        (&context.youth_prospects, &context.youth_prospect_opinions)
+    else {
+        return HashMap::new();
+    };
+    prospects
+        .iter()
+        .filter_map(|prospect| {
+            let opinion = opinions
+                .iter()
+                .find(|opinion| opinion.prospect_id == prospect.id)?;
+            let report = crate::scouting::prospect_report(prospect, opinion);
+            report_opinion(game, prospect, &report).map(|opinion| (prospect.id.clone(), opinion))
+        })
+        .collect()
+}
+
+/// The opinion a scout's `report` on `player` gives.
+fn report_opinion(
+    game: &Game,
+    player: &Player,
+    report: &ScoutedPlayer,
+) -> Option<PotentialOpinion> {
     let range = report.potential?;
     // The figure the report's attributes rate him at, never his true rating, which the club does
     // not know (maintainer, B3c).

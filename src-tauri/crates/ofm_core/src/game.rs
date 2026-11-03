@@ -258,6 +258,29 @@ pub struct Game {
 }
 
 impl Game {
+    /// The manager in charge of `club_id`: one of the AI managers, or the user's own. None for a
+    /// club without one, or an id no club has.
+    pub fn manager_of_club(&self, club_id: &str) -> Option<&Manager> {
+        let manager_id = self
+            .teams
+            .iter()
+            .find(|team| team.id == club_id)?
+            .manager_id
+            .as_deref()?;
+        self.manager_by_id(manager_id)
+    }
+
+    /// The manager with `manager_id`. The user's own record first: the managers list holds a copy
+    /// of him too, which can lag behind the live one until it is synced.
+    pub fn manager_by_id(&self, manager_id: &str) -> Option<&Manager> {
+        if self.manager.id == manager_id {
+            return Some(&self.manager);
+        }
+        self.managers
+            .iter()
+            .find(|manager| manager.id == manager_id)
+    }
+
     pub fn new(
         clock: GameClock,
         manager: Manager,

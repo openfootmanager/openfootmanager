@@ -157,6 +157,15 @@ pub struct PlayerData {
     /// a club match, ofm_core's fitness table). 1.0 is the match's own probability.
     #[serde(default = "default_injury_risk")]
     pub injury_risk: f64,
+    /// What playing in each line costs this player, as a factor on his match rating, in the order
+    /// goalkeeper, defence, midfield, attack. The engine applies the entry for the line he is in
+    /// now (`position`), so a substitution or a change of shape that moves him carries its own
+    /// cost. The caller decides the factors (for a club match, ofm_core's familiarity table);
+    /// all 1.0 is a player at home in every line. Both engines' line averages apply it, and the
+    /// live engine's duels; the instant engine's duels do not, since its callers (sim-bench, the
+    /// sim lab) build synthetic players at 1.0.
+    #[serde(default = "default_line_familiarity")]
+    pub line_familiarity: [f64; 4],
 
     // Physical
     pub pace: u8,
@@ -218,7 +227,27 @@ fn default_injury_risk() -> f64 {
     1.0
 }
 
+fn default_line_familiarity() -> [f64; 4] {
+    [1.0; 4]
+}
+
 impl PlayerData {
+    /// The factor on this player's match rating for the line he is in now.
+    pub fn familiarity_factor(&self) -> f64 {
+        self.familiarity_in(self.position)
+    }
+
+    /// The factor on this player's match rating were he to play in `line`.
+    pub fn familiarity_in(&self, line: Position) -> f64 {
+        let entry = match line {
+            Position::Goalkeeper => 0,
+            Position::Defender => 1,
+            Position::Midfielder => 2,
+            Position::Forward => 3,
+        };
+        self.line_familiarity[entry]
+    }
+
     /// Overall rating (simple mean of core 11 attributes).
     pub fn overall(&self) -> f64 {
         (self.pace as f64
@@ -401,7 +430,11 @@ impl TeamData {
         if players.is_empty() {
             return 40.0; // fallback
         }
-        players.iter().map(|p| attr_fn(p) as f64).sum::<f64>() / players.len() as f64
+        players
+            .iter()
+            .map(|p| attr_fn(p) as f64 * p.familiarity_factor())
+            .sum::<f64>()
+            / players.len() as f64
     }
 
     /// Composite defense rating (from defenders + goalkeeper).
@@ -421,7 +454,8 @@ impl TeamData {
     /// players still on it, divided by the places they must cover. A player who has left the
     /// pitch leaves an empty place that weighs the line down until a change of shape takes it
     /// away. The places are the line's slots in the side's shape, never more than the line has
-    /// players, so a line with nobody off is its plain average whatever the shape says.
+    /// players, so a line with nobody off is its plain average whatever the shape says. Each
+    /// player counts at his familiarity with the line, as in `position_attr_avg`.
     pub fn line_strength(
         &self,
         pos: Position,
@@ -439,7 +473,11 @@ impl TeamData {
         if places == 0 {
             return 40.0; // fallback
         }
-        on_the_pitch.iter().map(|p| attr_fn(p) as f64).sum::<f64>() / places as f64
+        on_the_pitch
+            .iter()
+            .map(|p| attr_fn(p) as f64 * p.familiarity_factor())
+            .sum::<f64>()
+            / places as f64
     }
 
     /// The composite midfield rating with players off the pitch (see `line_strength`).
@@ -518,8 +556,12 @@ impl Default for MatchConfig {
             goal_conversion_base: 0.28,
             fatigue_per_minute: 0.20,
             foul_probability: 0.40,
-            yellow_card_probability: 0.11,
-            red_card_probability: 0.04,
+            // Calibrated against CIES Football Observatory Monthly Report n°57 (Big Five: 3.39 to
+            // 5.27 yellows and 0.12 to 0.27 reds a match; cited, not derived), with the booked
+            // player's caution in `shared::BOOKED_CARD_FACTOR`: the shipped world shows about 4.0
+            // yellows and 0.21 reds a match (`engine/tests/card_rate_tests.rs`).
+            yellow_card_probability: 0.20,
+            red_card_probability: 0.02,
             penalty_probability: 0.50,
             stoppage_time_max: 4,
             injury_probability: 0.03,

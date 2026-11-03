@@ -842,6 +842,7 @@ fn to_engine_player(
         // Match fitness as it stands before the match: its wear is applied afterwards.
         injury_risk: crate::player_wear::injury_multiplier_from_fitness(p.fitness)
             / CLUB_MATCH_MEAN_INJURY_MULTIPLIER,
+        line_familiarity: familiarity::line_familiarity(p, deployed),
         pace: p.attributes.pace,
         stamina: p.attributes.stamina,
         strength: p.attributes.strength,
@@ -938,6 +939,8 @@ pub(crate) fn set_piece_takers_among(
 
     (captain, penalty, free_kick, corner)
 }
+
+mod familiarity;
 
 #[cfg(test)]
 mod tests;

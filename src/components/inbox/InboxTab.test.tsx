@@ -1368,13 +1368,13 @@ describe("InboxTab", (): void => {
   });
 
   /**
-   * Given a youth recruitment report with prospects whose ceilings are 77 (A), 76 (B) and 60 (the rest)
+   * Given a youth recruitment report with prospects whose true ceilings are 77 (A), 76 (B) and 60
    * When the report is read
-   * Then each ceiling is captioned with its backend tier's letter, and the rest has no caption.
+   * Then no ceiling shows, nor its tier's letter: the club has only the scout's opinion (B3d)
    */
-  it("captions a youth prospect's ceiling with its backend tier", async (): Promise<void> => {
+  it("never shows a youth prospect's true ceiling or its tier", async (): Promise<void> => {
     const prospect = (id: string, potential: number) =>
-      createProspect({ id, full_name: `Prospect ${potential}`, team_id: null, potential });
+      createProspect({ id, full_name: `Prospect ${id}`, team_id: null, potential });
     await renderInboxTab({
       gameState: createGameState([
         createMessage({
@@ -1395,9 +1395,12 @@ describe("InboxTab", (): void => {
       initialMessageId: "youth-tiers",
     });
 
-    expect(screen.getByText("A", { selector: "p" })).toBeInTheDocument();
-    expect(screen.getByText("B", { selector: "p" })).toBeInTheDocument();
-    expect(screen.queryByText("S", { selector: "p" })).not.toBeInTheDocument();
+    expect(screen.getByText("Prospect p-a")).toBeInTheDocument();
+    expect(screen.queryByText("A", { selector: "p" })).not.toBeInTheDocument();
+    expect(screen.queryByText("B", { selector: "p" })).not.toBeInTheDocument();
+    for (const ceiling of ["77", "76", "60"]) {
+      expect(screen.queryByText(new RegExp(`\\b${ceiling}\\b`))).not.toBeInTheDocument();
+    }
   });
 
   it("renders without crashing when gameState is null", async (): Promise<void> => {

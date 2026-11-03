@@ -260,10 +260,7 @@ fn assistant_delegation_score(
     player: &Player,
     current_date: NaiveDate,
 ) -> i32 {
-    let assistant_quality = (i32::from(assistant.attributes.coaching) * 4
-        + i32::from(assistant.attributes.judging_ability) * 3
-        + i32::from(assistant.attributes.judging_potential) * 3)
-        / 10;
+    let assistant_quality = crate::staff_rating::assistant_quality(assistant);
     let trust_bonus = i32::from(player.morale_core.manager_trust) / 3;
     let morale_bonus = i32::from(player.morale) / 2;
     let urgency_bonus = match contract_warning_stage(player.contract_end(), current_date) {

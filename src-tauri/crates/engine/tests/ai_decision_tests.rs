@@ -25,6 +25,7 @@ fn player(id: &str, position: Position, skill: u8, condition: u8) -> PlayerData 
         condition,
         fitness: 80,
         injury_risk: 1.0,
+        line_familiarity: [1.0; 4],
         pace: skill,
         stamina: skill,
         strength: skill,
@@ -687,4 +688,212 @@ fn the_player_taken_off_is_the_one_with_least_left_to_give() {
     }
 
     panic!("two goals down for a whole match and not one substitution was made");
+}
+
+/// Given a home defender out on his feet, and a bench with no defender on it: a midfielder rated
+/// 72 who is out of position at the back (0.90) and one rated 68 who can play there (0.967),
+/// When the manager replaces the tired defender,
+/// Then the 68 comes on: at the back he brings 68 x 0.967 = 65.8, the 72 only 72 x 0.90 = 64.8.
+#[test]
+fn a_substitute_from_another_line_is_chosen_by_what_he_brings_to_it() {
+    let mut starters = eleven("home", 60, 100);
+    for p in starters.iter_mut() {
+        if p.id == "home_def0" {
+            p.condition = 20;
+        }
+    }
+    let mut misplaced = player("home_sub_mid_72", Position::Midfielder, 72, 100);
+    misplaced.line_familiarity[1] = 0.90;
+    let mut familiar = player("home_sub_mid_68", Position::Midfielder, 68, 100);
+    familiar.line_familiarity[1] = 1.0 - 0.10 / 3.0;
+
+    let mut state = LiveMatchState::new(
+        team("home", starters),
+        team("away", eleven("away", 60, 100)),
+        MatchConfig::default(),
+        vec![misplaced, familiar],
+        bench("away", 55),
+        false,
+    );
+    let mut rng = StdRng::seed_from_u64(5);
+    let manager = profile(100, AiPersonality::Pragmatist);
+
+    loop {
+        if state.step_minute(&mut rng).is_finished {
+            break;
+        }
+        for cmd in ai_decide(&state, Side::Home, &manager, &mut rng) {
+            if let MatchCommand::Substitute {
+                ref player_off_id,
+                ref player_on_id,
+                ..
+            } = cmd
+            {
+                assert_eq!(player_off_id, "home_def0");
+                assert_eq!(
+                    player_on_id, "home_sub_mid_68",
+                    "the manager brought on {player_on_id} at the back"
+                );
+                return;
+            }
+        }
+    }
+
+    panic!("the exhausted defender was never replaced");
+}
+
+// ---------------------------------------------------------------------------
+// A manager who is ahead sees the lead out; one who presses wants a presser
+// ---------------------------------------------------------------------------
+
+/// Play out a match with the score pinned at `home_goals`–`away_goals` from kick-off, applying
+/// whatever the home manager decides, and hand back the substitutions the match accepted, in
+/// order, as (off, on).
+fn home_substitutions(
+    mut state: LiveMatchState,
+    home_goals: u8,
+    away_goals: u8,
+    manager: &AiProfile,
+) -> Vec<(String, String)> {
+    let mut rng = StdRng::seed_from_u64(5);
+    let mut made = Vec::new();
+    loop {
+        if state.step_minute(&mut rng).is_finished {
+            break;
+        }
+        state.test_set_score(home_goals, away_goals);
+        for cmd in ai_decide(&state, Side::Home, manager, &mut rng) {
+            let pair = match &cmd {
+                MatchCommand::Substitute {
+                    player_off_id,
+                    player_on_id,
+                    ..
+                } => Some((player_off_id.clone(), player_on_id.clone())),
+                _ => None,
+            };
+            // Only a substitution the match accepted happened.
+            if state.apply_command(cmd).is_ok() {
+                made.extend(pair);
+            }
+        }
+    }
+    made
+}
+
+/// Given a home side a goal up all match, one of its two forwards (home_fwd1) more spent than
+/// anyone else on the pitch, and a bench with one player in each position,
+/// When the manager looks up at eighty minutes to see the lead out,
+/// Then he takes that forward off for the defender on the bench.
+#[test]
+fn a_side_seeing_out_a_lead_brings_a_defender_on_for_its_most_spent_forward() {
+    let mut starters = eleven("home", 60, 100);
+    for p in starters.iter_mut() {
+        if p.id == "home_fwd1" {
+            p.condition = 85;
+        }
+    }
+    let state = LiveMatchState::new(
+        team("home", starters),
+        team("away", eleven("away", 60, 100)),
+        MatchConfig::default(),
+        bench("home", 55),
+        bench("away", 55),
+        false,
+    );
+
+    let made = home_substitutions(state, 1, 0, &profile(100, AiPersonality::Pragmatist));
+
+    assert_eq!(
+        made.first(),
+        Some(&("home_fwd1".to_string(), "home_sub_def".to_string())),
+        "a goal up at eighty, the manager's substitutions were {made:?}"
+    );
+}
+
+/// Given a home side a goal up all match in a 4-5-1, its lone forward fresh enough to finish it,
+/// When the manager looks up at eighty minutes to see the lead out,
+/// Then he leaves the forward on: somebody has to chase the clearances, so no defender comes on
+/// for him.
+#[test]
+fn a_side_seeing_out_a_lead_keeps_its_last_forward_up_front() {
+    let mut starters = eleven("home", 60, 100);
+    for p in starters.iter_mut() {
+        if p.id == "home_fwd1" {
+            p.position = Position::Midfielder;
+        }
+    }
+    let mut home = team("home", starters);
+    home.formation = "4-5-1".to_string();
+    let state = LiveMatchState::new(
+        home,
+        team("away", eleven("away", 60, 100)),
+        MatchConfig::default(),
+        bench("home", 55),
+        bench("away", 55),
+        false,
+    );
+
+    let made = home_substitutions(state, 1, 0, &profile(100, AiPersonality::Pragmatist));
+
+    assert!(
+        !made
+            .iter()
+            .any(|(off, on)| off == "home_fwd0" && on == "home_sub_def"),
+        "the manager took his only forward off for a defender: {made:?}"
+    );
+}
+
+/// A bench with two forwards: the better one (65) plays a standard role, the other (55) is a
+/// pressing forward.
+fn bench_with_a_pressing_forward() -> Vec<PlayerData> {
+    let mut presser = player("home_sub_presser", Position::Forward, 55, 100);
+    presser.role = PlayerRole::PressingForward;
+    let mut all = bench("home", 55);
+    all.retain(|p| p.position != Position::Forward);
+    all.push(player("home_sub_best_fwd", Position::Forward, 65, 100));
+    all.push(presser);
+    all
+}
+
+/// Two goals down all match, as `play_style`, against the pressing-forward bench: who comes on
+/// first.
+fn first_forward_on_when_chasing(play_style: PlayStyle) -> Option<String> {
+    let mut home = team("home", eleven("home", 60, 100));
+    home.play_style = play_style;
+    let state = LiveMatchState::new(
+        home,
+        team("away", eleven("away", 60, 100)),
+        MatchConfig::default(),
+        bench_with_a_pressing_forward(),
+        bench("away", 55),
+        false,
+    );
+    home_substitutions(state, 0, 2, &profile(100, AiPersonality::Pragmatist))
+        .into_iter()
+        .map(|(_, on)| on)
+        .next()
+}
+
+/// Given a HighPress side two goals down, with a 65-rated forward on the bench and a 55-rated
+/// pressing forward,
+/// When the manager brings on a forward to chase the game,
+/// Then he brings on the pressing forward: a side that presses wants a forward who presses.
+#[test]
+fn a_pressing_side_chasing_the_game_brings_on_a_pressing_forward() {
+    assert_eq!(
+        first_forward_on_when_chasing(PlayStyle::HighPress).as_deref(),
+        Some("home_sub_presser")
+    );
+}
+
+/// Given a Balanced side in the same position, with the same bench,
+/// When the manager brings on a forward to chase the game,
+/// Then he brings on the better forward: the pressing role is only a preference for a side that
+/// presses.
+#[test]
+fn a_side_that_does_not_press_chasing_the_game_brings_on_its_best_forward() {
+    assert_eq!(
+        first_forward_on_when_chasing(PlayStyle::Balanced).as_deref(),
+        Some("home_sub_best_fwd")
+    );
 }
