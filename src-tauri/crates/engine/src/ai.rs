@@ -264,7 +264,13 @@ fn put_someone_in_goal<R: Rng>(
 
     // `find_best_bench_replacement` falls back to the best player of any
     // position, which is the right answer everywhere else and useless here.
-    let keeper_on = find_best_bench_replacement(obs.bench, Position::Goalkeeper, obs, None)?;
+    let keeper_on = find_best_bench_replacement(
+        obs.bench,
+        Position::Goalkeeper,
+        Position::Goalkeeper,
+        obs,
+        None,
+    )?;
     if keeper_on.position != Position::Goalkeeper {
         return None;
     }
@@ -323,7 +329,13 @@ fn replace_the_exhausted(obs: &AiObservation<'_>, profile: &AiProfile) -> Option
     }
 
     let (tired_player, _) = worst?;
-    let replacement = find_best_bench_replacement(obs.bench, tired_player.position, obs, None)?;
+    let replacement = find_best_bench_replacement(
+        obs.bench,
+        tired_player.position,
+        tired_player.position,
+        obs,
+        None,
+    )?;
     Some(MatchCommand::Substitute {
         side: obs.side,
         player_off_id: tired_player.id.clone(),
@@ -361,8 +373,13 @@ fn chase_the_game<R: Rng>(
     // A side that presses wants a forward who presses.
     let preferred_role =
         (obs.team.play_style == PlayStyle::HighPress).then_some(PlayerRole::PressingForward);
-    let attacker_on =
-        find_best_bench_replacement(obs.bench, Position::Forward, obs, preferred_role)?;
+    let attacker_on = find_best_bench_replacement(
+        obs.bench,
+        Position::Forward,
+        player_off.position,
+        obs,
+        preferred_role,
+    )?;
 
     Some(MatchCommand::Substitute {
         side: obs.side,
@@ -389,7 +406,13 @@ fn protect_the_lead<R: Rng>(
     }
 
     let player_off = least_missed(&forwards, obs, profile, rng)?;
-    let defender_on = find_best_bench_replacement(obs.bench, Position::Defender, obs, None)?;
+    let defender_on = find_best_bench_replacement(
+        obs.bench,
+        Position::Defender,
+        player_off.position,
+        obs,
+        None,
+    )?;
 
     Some(MatchCommand::Substitute {
         side: obs.side,
@@ -448,6 +471,7 @@ fn least_missed<'a, R: Rng>(
 fn find_best_bench_replacement<'a>(
     bench: &'a [PlayerData],
     preferred_position: Position,
+    entering_line: Position,
     obs: &AiObservation<'_>,
     preferred_role: Option<PlayerRole>,
 ) -> Option<&'a PlayerData> {
@@ -482,11 +506,15 @@ fn find_best_bench_replacement<'a>(
         return Some(*best);
     }
 
-    // Fallback: any bench player
+    // Fallback: any bench player, by what he would bring to the line he enters. A substitute
+    // takes the replaced player's line (`entering_line`), which is not always the one the
+    // manager hoped to fill, so a higher-rated player who is out of position there can bring
+    // less than a slightly lower-rated one who can play it.
+    let in_line = |p: &PlayerData| p.overall() * p.familiarity_in(entering_line);
     let mut all: Vec<&PlayerData> = bench.iter().filter(|p| obs.available(p)).collect();
     all.sort_by(|a, b| {
-        b.overall()
-            .partial_cmp(&a.overall())
+        in_line(b)
+            .partial_cmp(&in_line(a))
             .unwrap_or(std::cmp::Ordering::Equal)
     });
     all.first().copied()
@@ -637,5 +665,111 @@ fn bolder_formation(current: &str) -> Option<&'static str> {
         "4-4-2" => Some("4-3-3"),
         "4-3-3" | "4-5-1" => Some("4-2-3-1"),
         _ => None,
+    }
+}
+
+#[cfg(test)]
+mod bench_fallback_tests {
+    use super::find_best_bench_replacement;
+    use crate::live_match::LiveMatchState;
+    use crate::types::{
+        MatchConfig, PlayStyle, PlayerData, PlayerRole, Position, Side, TacticsConfig, TeamData,
+    };
+
+    fn player(id: &str, position: Position, skill: u8) -> PlayerData {
+        PlayerData {
+            id: id.to_string(),
+            name: id.to_string(),
+            position,
+            ovr: skill,
+            condition: 100,
+            fitness: 100,
+            injury_risk: 1.0,
+            line_familiarity: [1.0; 4],
+            pace: skill,
+            stamina: skill,
+            strength: skill,
+            agility: skill,
+            passing: skill,
+            shooting: skill,
+            tackling: skill,
+            dribbling: skill,
+            defending: skill,
+            positioning: skill,
+            vision: skill,
+            decisions: skill,
+            composure: skill,
+            aggression: skill,
+            teamwork: skill,
+            leadership: skill,
+            handling: skill,
+            reflexes: skill,
+            aerial: skill,
+            traits: vec![],
+            role: PlayerRole::Standard,
+        }
+    }
+
+    fn eleven(prefix: &str) -> TeamData {
+        let lines = [
+            Position::Goalkeeper,
+            Position::Defender,
+            Position::Defender,
+            Position::Defender,
+            Position::Defender,
+            Position::Midfielder,
+            Position::Midfielder,
+            Position::Midfielder,
+            Position::Midfielder,
+            Position::Forward,
+            Position::Forward,
+        ];
+        TeamData {
+            id: prefix.to_string(),
+            name: prefix.to_string(),
+            formation: "4-4-2".to_string(),
+            play_style: PlayStyle::Balanced,
+            tactics: TacticsConfig::default(),
+            players: lines
+                .iter()
+                .enumerate()
+                .map(|(n, line)| player(&format!("{prefix}_{n}"), *line, 60))
+                .collect(),
+        }
+    }
+
+    /// Given a bench with no defender on it: a midfielder rated 72 who is at home at the back
+    /// but out of position up front (0.90), and one rated 68 who is out of position at the back
+    /// (0.90) but can play up front (0.967),
+    /// When the manager looks for a defender to replace a forward (seeing out a lead), and so
+    /// falls back to anyone,
+    /// Then the 68 comes on: a substitute takes the forward's line, where he brings
+    /// 68 x 0.967 = 65.8 against the 72's 72 x 0.90 = 64.8.
+    #[test]
+    fn the_fallback_ranks_by_the_line_the_substitute_enters() {
+        let mut at_home_at_the_back = player("sub_72", Position::Midfielder, 72);
+        at_home_at_the_back.line_familiarity = [0.9, 1.0, 1.0, 0.90];
+        let mut can_play_up_front = player("sub_68", Position::Midfielder, 68);
+        can_play_up_front.line_familiarity = [0.9, 0.90, 1.0, 1.0 - 0.10 / 3.0];
+        let state = LiveMatchState::new(
+            eleven("h"),
+            eleven("a"),
+            MatchConfig::default(),
+            vec![at_home_at_the_back, can_play_up_front],
+            vec![],
+            false,
+        );
+        let obs = state.observe(Side::Home);
+
+        let on = find_best_bench_replacement(
+            obs.bench,
+            Position::Defender,
+            Position::Forward,
+            &obs,
+            None,
+        )
+        .expect("someone comes on");
+
+        assert_eq!(on.id, "sub_68");
     }
 }

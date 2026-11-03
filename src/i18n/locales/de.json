@@ -640,7 +640,8 @@
     "nextPage": "Nächste Seite",
     "lastPage": "Letzte Seite",
     "sortBy": "Sortieren nach",
-    "sortAscending": "Aufsteigend"
+    "sortAscending": "Aufsteigend",
+    "lineupLoading": "Die Positionsdaten werden noch geladen, daher sind Aufstellungsänderungen noch nicht möglich."
   },
   "teamSelection": {
     "title": "Wähle Deinen Verein",
@@ -922,8 +923,7 @@
       "sharp": "Scharf",
       "managing": "Verwaltet",
       "risk": "Risiko"
-    },
-    "positionsLoading": "Die Positionsdaten werden noch geladen, daher sind Aufstellungsänderungen noch nicht möglich."
+    }
   },
   "training": {
     "weeklySchedule": "Wochenplan",

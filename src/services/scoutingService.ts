@@ -43,6 +43,13 @@ export async function getPotentialOpinion(playerId: string): Promise<PotentialOp
   return invoke<PotentialOpinion | null>("get_potential_opinion", { playerId });
 }
 
+/** The reporting scout's opinion of each prospect in a youth scouting report, by prospect id. */
+export async function getYouthProspectOpinions(
+  messageId: string,
+): Promise<Record<string, PotentialOpinion>> {
+  return invoke<Record<string, PotentialOpinion>>("get_youth_prospect_opinions", { messageId });
+}
+
 export async function getScoutedReport(playerId: string): Promise<ScoutedPlayerView | null> {
   return invoke<ScoutedPlayerView | null>("get_scouted_report", { playerId });
 }

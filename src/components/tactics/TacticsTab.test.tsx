@@ -438,7 +438,7 @@ describe("TacticsTab", () => {
       const { unmount } = render(
         <TacticsTab gameState={makeGameState()} onSelectPlayer={vi.fn()} onGameUpdate={vi.fn()} />,
       );
-      expect(screen.getByRole("status")).toHaveTextContent("tactics.positionsLoading");
+      expect(screen.getByRole("status")).toHaveTextContent("common.lineupLoading");
       unmount();
     } finally {
       positionTableState.arrived = true;
@@ -448,7 +448,7 @@ describe("TacticsTab", () => {
       <TacticsTab gameState={makeGameState()} onSelectPlayer={vi.fn()} onGameUpdate={vi.fn()} />,
     );
     await act(async () => {}); // and the squad has answered for this revision
-    expect(screen.queryByText("tactics.positionsLoading")).toBeNull();
+    expect(screen.queryByText("common.lineupLoading")).toBeNull();
   });
 
   it("saves no lineup change before the position table has loaded", async () => {
@@ -484,10 +484,10 @@ describe("TacticsTab", () => {
     mockedInvoke.mockReturnValue(new Promise((resolve) => (answer = resolve)));
 
     render(<TacticsTab gameState={state} onSelectPlayer={vi.fn()} onGameUpdate={vi.fn()} />);
-    expect(screen.getByRole("status")).toHaveTextContent("tactics.positionsLoading");
+    expect(screen.getByRole("status")).toHaveTextContent("common.lineupLoading");
 
     await act(async () => answer(state.players.filter((player) => player.team_id === "team1")));
-    expect(screen.queryByText("tactics.positionsLoading")).toBeNull();
+    expect(screen.queryByText("common.lineupLoading")).toBeNull();
   });
 
   /**

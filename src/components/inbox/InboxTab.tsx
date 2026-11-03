@@ -14,6 +14,7 @@ import {
   resolveMessageAction,
 } from "../../services/inboxService";
 import { resolveBackendText, resolveMessage } from "../../utils/backendI18n";
+import { gameKnowledgeRevision } from "../../lib/playerKnowledge";
 import ArchivedMessages from "./ArchivedMessages";
 import InboxDeleteConfirmModal from "./InboxDeleteConfirmModal";
 import InboxMessageDetailPane from "./InboxMessageDetailPane";
@@ -52,6 +53,7 @@ export default function InboxTab({
   const clockDate = sessionState?.clock.current_date ?? gameState?.clock.current_date ?? null;
   const currentTeamId = sessionState?.manager?.team_id ?? gameState?.manager?.team_id ?? null;
   const currentTeamName = sessionState?.team?.name ?? null;
+  const knowledgeRevision = gameState ? gameKnowledgeRevision(gameState) : "no-game";
 
   useEffect(() => {
     let cancelled = false;
@@ -402,6 +404,7 @@ export default function InboxTab({
             currentTeamId={currentTeamId}
             currentTeamName={currentTeamName}
             language={i18n.language}
+            knowledgeRevision={knowledgeRevision}
             selectedMessage={selectedMessage}
             onAction={(messageId, actionId, optionId) => {
               void handleAction(messageId, actionId, optionId);

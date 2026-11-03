@@ -80,7 +80,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           persist-credentials: false
 
@@ -93,14 +93,14 @@ jobs:
         uses: dtolnay/rust-toolchain@1.95.0
 
       - name: Rust cache
-        uses: swatinem/rust-cache@v2
+        uses: swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2
         with:
           workspaces: ./src-tauri -> target
 
       # Pinned for the same reason every other tool here is: the mutation operators change between
       # releases, so an unpinned tool turns someone else's release into a different report.
       - name: Install cargo-mutants
-        uses: taiki-e/install-action@v2
+        uses: taiki-e/install-action@682ce6c3c696a4cd5168a05f98e51aa02b877941 # v2
         with:
           tool: cargo-mutants@25.3.1
 
@@ -264,7 +264,7 @@ jobs:
       # first scheduled run lost its entire report to exactly that default.
       - name: Upload the survivor list
         if: ${{ !cancelled() }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: mutants-${{ steps.crate.outputs.label }}
           path: mutants-out/
