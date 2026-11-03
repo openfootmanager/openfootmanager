@@ -7,6 +7,7 @@ mod generation;
 pub mod package;
 mod package_warnings;
 pub mod scaffold;
+mod staff_bell;
 pub mod world_io;
 mod youth;
 
@@ -281,7 +282,7 @@ pub fn generate_national_team_player(
         slot,
         &nationality,
         opening_year,
-        None,
+        PlayerRoll::unscaled(None),
         &names_def,
         rng,
     );
@@ -775,7 +776,7 @@ fn build_club(
             slot,
             &nationality,
             opening_year,
-            None,
+            PlayerRoll::unscaled(None),
             names_def,
             rng,
         );
@@ -817,7 +818,7 @@ fn build_club(
         youth_keeper_slot,
         &nationality,
         opening_year,
-        None,
+        PlayerRoll::unscaled(None),
         names_def,
         rng,
     );
@@ -859,7 +860,7 @@ fn generate_opening_free_agents(
                 senior_slot_for(&group),
                 nationality,
                 opening_year,
-                None,
+                PlayerRoll::unscaled(None),
                 names_def,
                 rng,
             );

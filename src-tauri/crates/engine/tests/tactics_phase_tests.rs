@@ -146,13 +146,45 @@ fn neutral_is_reproducible() {
 
 // --- keep / win the ball → possession ---
 
+/// Tempo moves possession by a third of a point, against a spread of about 5.4 points from match
+/// to match, so a fixed lead over a few hundred matches is noise: at 1,000 matches the lead was
+/// 0.7 standard errors before #1132's card rates and 1.6 after, and which arm led depended on the
+/// seeds. Over TEMPO_SEEDS matches an arm the lead is measured against its own standard error.
+const TEMPO_SEEDS: u64 = 10_000;
+
+/// How many standard errors Patient's lead must clear: about 95% one-sided, and well inside the
+/// leads measured (3.2 standard errors at this size before #1132's card rates, 4.9 after).
+const TEMPO_STANDARD_ERRORS: f64 = 2.0;
+
+/// The mean and the standard error of the mean of `home`'s possession share per match.
+fn possession_over_tempo_seeds(home: &TacticsConfig) -> (f64, f64) {
+    let shares: Vec<f64> = (0..TEMPO_SEEDS)
+        .map(|seed| play(home.clone(), seed).home_possession as f64)
+        .collect();
+    let n = shares.len() as f64;
+    let mean = shares.iter().sum::<f64>() / n;
+    let variance = shares
+        .iter()
+        .map(|share| (share - mean).powi(2))
+        .sum::<f64>()
+        / (n - 1.0);
+    (mean, (variance / n).sqrt())
+}
+
+/// Given a home side on Patient tempo and one on Direct, each against the same neutral side,
+/// When each plays TEMPO_SEEDS matches,
+/// Then Patient keeps more of the ball by more than TEMPO_STANDARD_ERRORS standard errors of the
+/// difference: the dial's effect is small, but real.
 #[test]
 fn patient_tempo_keeps_more_possession_than_direct() {
-    let patient = band(with(|c| c.tempo = Tempo::Patient), |t| t.home_possession);
-    let direct = band(with(|c| c.tempo = Tempo::Direct), |t| t.home_possession);
+    let (patient, patient_se) = possession_over_tempo_seeds(&with(|c| c.tempo = Tempo::Patient));
+    let (direct, direct_se) = possession_over_tempo_seeds(&with(|c| c.tempo = Tempo::Direct));
+    let lead = patient - direct;
+    let standard_error = (patient_se.powi(2) + direct_se.powi(2)).sqrt();
     assert!(
-        patient > direct,
-        "Patient should hold the ball more than Direct: {patient} vs {direct}"
+        lead > TEMPO_STANDARD_ERRORS * standard_error,
+        "Patient should hold the ball more than Direct: {patient:.3}% against {direct:.3}%, a lead \
+         of {lead:.3} with a standard error of {standard_error:.3}"
     );
 }
 
