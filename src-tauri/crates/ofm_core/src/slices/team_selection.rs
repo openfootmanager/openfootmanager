@@ -125,6 +125,7 @@ mod tests {
                 rated("n1", "north", 70),
                 rated("n2", "north", 81),
                 rated("n3", "north", 74),
+                rated("n4", "north", 73),
                 rated("s1", "south", 60),
             ],
             vec![],
@@ -135,7 +136,7 @@ mod tests {
     /// Given a world before any career
     /// When the team-selection screen asks for the squads
     /// Then every club comes with its players best rated first and its average by the club card's
-    ///      rule (rounded down: 70, 81, 74 average 75)
+    ///      rule, rounded down: 70, 81, 74 and 73 average 74.5, shown as 74
     #[test]
     fn before_a_career_every_club_is_rated() {
         let ratings = query_team_selection(&world());
@@ -147,8 +148,8 @@ mod tests {
             .iter()
             .map(|rated| (rated.player_id.as_str(), rated.ovr))
             .collect();
-        assert_eq!(order, vec![("n2", 81), ("n3", 74), ("n1", 70)]);
-        assert_eq!(north.average_rating, 75);
+        assert_eq!(order, vec![("n2", 81), ("n3", 74), ("n4", 73), ("n1", 70)]);
+        assert_eq!(north.average_rating, 74);
         assert_eq!(ratings.clubs[1].average_rating, 60);
     }
 

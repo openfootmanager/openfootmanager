@@ -60,6 +60,27 @@ describe("TeamSelectionSidebar", () => {
         getPlayerRating={() => null}
       />,
     );
-    expect(screen.getAllByText("–")).toHaveLength(2);
+    expect(screen.getAllByText("–")).toHaveLength(3);
+  });
+
+  /**
+   * Given a club with a full squad that the backend has not rated yet (its likely eleven is still
+   * empty)
+   * When the sidebar shows it
+   * Then the likely-eleven tile shows a dash, not "0 players"
+   */
+  it("shows a dash for the likely eleven before the backend answers", () => {
+    render(
+      <TeamSelectionSidebar
+        selectedTeam={createTeam()}
+        selectedTeamXi={[]}
+        selectedTeamCompetitions={[]}
+        getTeamAvgOvr={() => null}
+        getPlayerRating={() => null}
+      />,
+    );
+
+    expect(screen.getByText("teamSelect.likelyXi").nextElementSibling?.textContent).toBe("–");
+    expect(screen.queryByText("teamSelect.playersCount")).not.toBeInTheDocument();
   });
 });

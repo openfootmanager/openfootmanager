@@ -61,7 +61,13 @@ export default function TeamSelectionSidebar({
               <DetailTile
                 icon={<Users className="h-4 w-4" />}
                 label={t("teamSelect.likelyXi")}
-                value={t("teamSelect.playersCount", { count: selectedTeamXi.length })}
+                value={
+                  // The likely eleven is the backend's; until it answers the list is empty, and
+                  // "0 players" would misreport a full squad.
+                  getTeamAvgOvr(selectedTeam.id) === null
+                    ? visibleRatingText(null)
+                    : t("teamSelect.playersCount", { count: selectedTeamXi.length })
+                }
               />
               <DetailTile
                 icon={<Globe className="h-4 w-4" />}
