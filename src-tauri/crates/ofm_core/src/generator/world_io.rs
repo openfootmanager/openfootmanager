@@ -775,7 +775,9 @@ mod tests {
 
         assert_eq!(world.teams[0].football_nation, "ENG");
         assert_eq!(world.players[0].football_nation, "ENG");
-        assert_eq!(world.players[0].birth_country, None);
+        // From the nationality the upgrade resolved ("GB" at an English club is "ENG"), in the
+        // same pass: the value a career's next load used to fill in.
+        assert_eq!(world.players[0].birth_country.as_deref(), Some("ENG"));
         assert!(world.managers.is_empty());
         assert!(world.league.is_none());
         assert!(world.news.is_empty());

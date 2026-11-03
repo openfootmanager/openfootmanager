@@ -686,6 +686,18 @@ impl SaveManager {
             needs_resave = true;
         }
 
+        // After the rebuild of a lost sent-ledger above, the version seeding and every repair, so
+        // the notice is judged against the finished ledger. (Sent before the rebuild, it would be
+        // deduped the same way, since the rebuild adopts the inbox the notice is in; after is
+        // simply the order that needs no such argument.) Not a reason to resave: the next save
+        // keeps the notice, and a load that is never saved tells the player again, since they
+        // never kept it.
+        let kept_cells = crate::json_column::unreadable_cells(db.conn()).unwrap_or_else(|error| {
+            log::warn!("[save_manager] could not count the save's set-aside cells: {error}");
+            Vec::new()
+        });
+        ofm_core::save_notice::announce_set_aside_data(&mut game, kept_cells.len());
+
         if league_repo::needs_cleanup(
             db.conn(),
             game.league.as_ref().map(|league| league.id.as_str()),
@@ -2418,7 +2430,9 @@ mod tests {
 
         assert_eq!(loaded.manager.nationality, "ENG");
         assert_eq!(loaded.manager.football_nation, "ENG");
-        assert_eq!(loaded.manager.birth_country, None);
+        // Derived from the nationality this load resolved, as the next load used to derive it:
+        // the settled value, reached in one load.
+        assert_eq!(loaded.manager.birth_country.as_deref(), Some("ENG"));
         assert_eq!(loaded.teams[0].football_nation, "ENG");
         assert_eq!(loaded.players[0].football_nation, "GB");
         assert_eq!(loaded.players[0].birth_country, None);
@@ -2496,6 +2510,39 @@ mod tests {
         let loaded = sm.load_game(&save_id).unwrap();
 
         assert!(loaded.emitted_events.contains("world_cup_champion_2030"));
+    }
+
+    /// Given a save written before identities were upgraded: a "British" manager at a "GB" club,
+    ///       neither with a football nation or birth country yet
+    /// When it is loaded, and then loaded again
+    /// Then the first load resolves the manager to "ENG" through his club, birth country included,
+    ///      and the second writes nothing: one load settles it, not one load per field
+    #[test]
+    fn one_load_settles_a_legacy_gb_identity() {
+        let dir = tempfile::tempdir().unwrap();
+        let saves_dir = dir.path().join("saves");
+        let mut sm = SaveManager::init(&saves_dir).unwrap();
+        let mut game = sample_game();
+        // `Game::new` upgrades identities itself, so the legacy fields are set back after it, as a
+        // save from before the upgrade holds them.
+        game.manager.nationality = "British".to_string();
+        game.manager.football_nation.clear();
+        game.manager.birth_country = None;
+        game.teams[0].football_nation.clear();
+        let save_id = sm.create_save(&game, "Legacy GB").unwrap();
+        let db_path = saves_dir.join(format!("{save_id}.db"));
+
+        let first = sm.load_game(&save_id).unwrap();
+        let settled = compute_checksum(&db_path).unwrap();
+        sm.load_game(&save_id).unwrap();
+
+        assert_eq!(first.manager.nationality, "ENG");
+        assert_eq!(first.manager.birth_country.as_deref(), Some("ENG"));
+        assert_eq!(
+            compute_checksum(&db_path).unwrap(),
+            settled,
+            "the second load wrote the save again"
+        );
     }
 
     /// Given a current-format save whose inbox holds an announcement, and whose sent-ledger cell
@@ -2601,6 +2648,118 @@ mod tests {
             "{:?}",
             loaded.emitted_events
         );
+    }
+
+    /// The set-aside-data notices in a loaded game.
+    fn set_aside_notices(game: &Game) -> usize {
+        game.messages
+            .iter()
+            .filter(|message| {
+                message.subject_key.as_deref() == Some("be.msg.savedDataSetAside.subject")
+            })
+            .count()
+    }
+
+    /// A save on disk, its id and its file.
+    fn saved(game: &Game) -> (tempfile::TempDir, SaveManager, String, std::path::PathBuf) {
+        let dir = tempfile::tempdir().unwrap();
+        let saves_dir = dir.path().join("saves");
+        let mut sm = SaveManager::init(&saves_dir).unwrap();
+        let save_id = sm.create_save(game, "Damaged").unwrap();
+        let db_path = saves_dir.join(format!("{save_id}.db"));
+        (dir, sm, save_id, db_path)
+    }
+
+    fn corrupt(db_path: &std::path::Path, sql: &str) {
+        GameDatabase::open(db_path)
+            .unwrap()
+            .conn()
+            .execute(sql, [])
+            .unwrap();
+    }
+
+    /// Given a save whose player career no longer parses
+    /// When it is loaded, saved, and loaded again
+    /// Then the first load tells the user once, and the second, of a save that kept the notice,
+    ///      does not
+    #[test]
+    fn a_load_that_sets_data_aside_tells_the_user_once() {
+        let (_dir, mut sm, save_id, db_path) = saved(&sample_game());
+        corrupt(&db_path, "UPDATE players SET career = '[oops'");
+
+        let first = sm.load_game(&save_id).unwrap();
+        assert_eq!(set_aside_notices(&first), 1);
+        sm.save_game(&first, &save_id).unwrap();
+        let second = sm.load_game(&save_id).unwrap();
+
+        assert_eq!(
+            set_aside_notices(&second),
+            1,
+            "the same notice, not a new one"
+        );
+    }
+
+    /// Given a save with nothing unreadable
+    /// When it is loaded
+    /// Then no notice is sent
+    #[test]
+    fn a_clean_load_tells_the_user_nothing() {
+        let (_dir, mut sm, save_id, _db_path) = saved(&sample_game());
+
+        let loaded = sm.load_game(&save_id).unwrap();
+
+        assert_eq!(set_aside_notices(&loaded), 0);
+    }
+
+    /// Given a save that set a cell aside and kept the notice, and later a second cell that no
+    ///       longer parses
+    /// When it is loaded again
+    /// Then one more notice is sent: a new loss is told
+    #[test]
+    fn a_later_loss_is_told_again() {
+        let (_dir, mut sm, save_id, db_path) = saved(&sample_game());
+        corrupt(&db_path, "UPDATE players SET career = '[oops'");
+        let first = sm.load_game(&save_id).unwrap();
+        sm.save_game(&first, &save_id).unwrap();
+        corrupt(&db_path, "UPDATE teams SET form = '[oops'");
+
+        let second = sm.load_game(&save_id).unwrap();
+
+        assert_eq!(set_aside_notices(&second), 2);
+    }
+
+    /// Given a save whose sent-ledger itself no longer parses
+    /// When it is loaded, saved, and loaded again
+    /// Then the first load tells the user once (after the ledger was rebuilt), and the next none
+    #[test]
+    fn a_lost_ledger_is_told_once_too() {
+        let (_dir, mut sm, save_id, db_path) = saved(&sample_game());
+        corrupt(
+            &db_path,
+            "UPDATE game_meta SET emitted_events_json = '[oops'",
+        );
+
+        let first = sm.load_game(&save_id).unwrap();
+        assert_eq!(set_aside_notices(&first), 1);
+        sm.save_game(&first, &save_id).unwrap();
+        let second = sm.load_game(&save_id).unwrap();
+
+        assert_eq!(set_aside_notices(&second), 1);
+    }
+
+    /// Given a save that set a cell aside, loaded and then left without an explicit save
+    /// When it is loaded again
+    /// Then it shows one notice, never two: either the load's own repair resave kept the first,
+    ///      or it was never kept and is told again
+    #[test]
+    fn a_reload_without_saving_still_shows_one_notice() {
+        let (_dir, mut sm, save_id, db_path) = saved(&sample_game());
+        corrupt(&db_path, "UPDATE players SET career = '[oops'");
+        sm.load_game(&save_id).unwrap();
+
+        let again = sm.load_game(&save_id).unwrap();
+
+        assert_eq!(set_aside_notices(&again), 1);
     }
 
     /// Given a save written before games had a seed,

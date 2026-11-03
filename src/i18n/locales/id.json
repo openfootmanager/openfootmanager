@@ -428,6 +428,11 @@
       "other": "ke-{{n}}"
     },
     "pts": "Poin",
+    "playedFull": "Main",
+    "wonFull": "Menang",
+    "drawnFull": "Seri",
+    "lostFull": "Kalah",
+    "ptsFull": "Poin",
     "played": "M",
     "won": "M",
     "drawn": "S",
@@ -3020,7 +3025,11 @@
         "invalidFormation": "Formasi itu tidak dikenal permainan.",
         "invalidPlayStyle": "Gaya bermain itu tidak dikenal permainan.",
         "notFound": "Taktik itu sudah tidak ada."
-      }
+      },
+      "anotherClubsSquad": "Skuad itu milik klub lain.",
+      "startingXiPlayerNotEligible": "Salah satu pemain dalam susunan ini tidak dapat menjadi starter untuk klubmu.",
+      "startingXiDuplicatePlayer": "Seorang pemain muncul dua kali dalam susunan ini.",
+      "startingXiWrongSize": "Starting eleven harus berisi tepat sebelas pemain, atau semua pemain yang memenuhi syarat jika klub memiliki lebih sedikit."
     },
     "sender": {
       "boardOfDirectors": "Dewan Direksi",
@@ -3627,6 +3636,10 @@
       "matchesMoved": {
         "subject": "Jadwal pertandingan diubah",
         "body": "Beberapa pertandingan kamu dipindahkan agar para pemain kamu tetap mendapat waktu istirahat dan jeda internasional dihormati:\n{{matches}}"
+      },
+      "savedDataSetAside": {
+        "subject": "Sebagian data simpanan disisihkan",
+        "body": "Sebagian dari simpanan ini tidak dapat dibaca saat dimuat. Bagian itu disisihkan, bukan hilang, dan kariermu tetap berlanjut. Jika ada yang terasa hilang, laporan bug ({{settings}} → {{reportBug}}, dengan simpanan terlampir) membantu kami memeriksanya."
       }
     },
     "news": {
