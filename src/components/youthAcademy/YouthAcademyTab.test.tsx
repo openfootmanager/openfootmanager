@@ -435,6 +435,38 @@ describe("YouthAcademyTab", () => {
     expect(onSelectPlayer).toHaveBeenCalledWith("player-young");
   });
 
+  /**
+   * Given a youth prospect in the academy's list
+   * When his actions menu is opened from its button and closed with Escape
+   * Then the button says so through aria-expanded, open and then closed again.
+   */
+  it("says on a prospect's actions button whether his menu is open", async () => {
+    const youthPlayer = createPlayer({
+      id: "player-young",
+      full_name: "Rising Star",
+      date_of_birth: "2008-01-01",
+      squad_role: "Youth",
+    });
+    const state = createGameState([youthPlayer]);
+    mockedInvoke.mockImplementation(async (command: string) => {
+      if (command === "get_squad") return state.players.filter((p) => p.team_id === "team-1");
+      if (command === "get_staff") return makeEmptyStaffSlice();
+      return state;
+    });
+
+    render(<YouthAcademyTab gameState={state} onSelectPlayer={vi.fn()} />);
+    const button = await screen.findByRole("button", { name: "common.playerActions" });
+    expect(button).toHaveAttribute("aria-expanded", "false");
+
+    fireEvent.click(button);
+    expect(await screen.findByRole("menu")).toBeInTheDocument();
+    expect(button).toHaveAttribute("aria-expanded", "true");
+
+    fireEvent.keyDown(document.activeElement ?? document.body, { key: "Escape" });
+    await waitFor(() => expect(screen.queryByRole("menu")).toBeNull());
+    expect(button).toHaveAttribute("aria-expanded", "false");
+  });
+
   // Regression (issue #250): the prospects list is rendered from the cached
   // get_squad fetch, which only refreshes on remount or when the game clock
   // advances. Promoting a player must patch that cache from the mutation

@@ -303,6 +303,28 @@ describe("PlayerProfileActionsMenu", () => {
     expect(props.onOpenFreeAgentContract).toHaveBeenCalled();
   });
 
+  /**
+   * Given the manager's own player's profile
+   * When the actions menu is opened and closed with Escape
+   * Then the Actions button says so through aria-expanded, open and then closed again.
+   */
+  it("says on its button whether the actions menu is open", async () => {
+    const player = buildPlayer();
+    const props = baseProps(player, buildGameState([player]));
+
+    render(<PlayerProfileActionsMenu {...props} isManagerOwnedProfile />);
+    const button = screen.getByRole("button", { name: "common.playerActions" });
+    expect(button).toHaveAttribute("aria-expanded", "false");
+
+    openMenu();
+    expect(await screen.findByRole("menu")).toBeInTheDocument();
+    expect(button).toHaveAttribute("aria-expanded", "true");
+
+    fireEvent.keyDown(document.activeElement ?? document.body, { key: "Escape" });
+    await waitFor(() => expect(screen.queryByRole("menu")).toBeNull());
+    expect(button).toHaveAttribute("aria-expanded", "false");
+  });
+
   it("renders nothing for retired players outside the manager's club", () => {
     const player = buildPlayer({ id: "p4", team_id: null, retired: true });
     const props = baseProps(player, buildGameState([player]));
