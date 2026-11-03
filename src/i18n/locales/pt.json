@@ -428,6 +428,11 @@
       "other": "{{n}}º"
     },
     "pts": "Pts",
+    "playedFull": "Jogos",
+    "wonFull": "Vitórias",
+    "drawnFull": "Empates",
+    "lostFull": "Derrotas",
+    "ptsFull": "Pontos",
     "played": "J",
     "won": "V",
     "drawn": "E",
@@ -3021,7 +3026,10 @@
         "invalidPlayStyle": "O jogo não conhece esse estilo de jogo.",
         "notFound": "Essa tática já não existe."
       },
-      "anotherClubsSquad": "Esse plantel pertence a outro clube."
+      "anotherClubsSquad": "Esse plantel pertence a outro clube.",
+      "startingXiPlayerNotEligible": "Um jogador desta equipa não pode ser titular no teu clube.",
+      "startingXiDuplicatePlayer": "Um jogador aparece duas vezes nesta equipa.",
+      "startingXiWrongSize": "O onze inicial tem de ter exatamente onze jogadores, ou todos os jogadores elegíveis se o clube tiver menos."
     },
     "sender": {
       "boardOfDirectors": "Conselho de Administração",
@@ -3628,6 +3636,10 @@
       "matchesMoved": {
         "subject": "Jogos reagendados",
         "body": "Alguns dos seus jogos foram alterados para que os seus jogadores mantenham o descanso e as pausas internacionais sejam respeitadas:\n{{matches}}"
+      },
+      "savedDataSetAside": {
+        "subject": "Alguns dados guardados foram postos de parte",
+        "body": "Uma parte deste jogo guardado não pôde ser lida ao carregar. Foi posta de parte em vez de se perder, e a sua carreira continua. Se faltar alguma coisa, um relatório de erro ({{settings}} → {{reportBug}}, com o jogo guardado em anexo) permite-nos analisá-lo."
       }
     },
     "news": {

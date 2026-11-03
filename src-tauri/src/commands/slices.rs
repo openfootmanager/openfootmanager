@@ -4,6 +4,7 @@ use std::sync::Arc;
 use tauri::State;
 
 use domain::message::InboxMessage;
+use ofm_core::familiarity_projection::{familiarity_projection, FamiliarityProjection};
 use ofm_core::player_knowledge::{
     players_knowledge, potential_opinion, visible_wage, PlayerKnowledge, VisibleWage,
 };
@@ -168,6 +169,21 @@ pub async fn get_position_ratings(
     player_id: String,
 ) -> Result<Option<PositionRatings>, String> {
     get_position_ratings_internal(&state, &player_id)
+}
+
+/// How each of the manager's club's players stands at every position (natural, can play, out of
+/// position), for the squad and tactics screens.
+#[tauri::command]
+pub async fn get_familiarity(
+    state: State<'_, Arc<StateManager>>,
+) -> Result<FamiliarityProjection, String> {
+    get_familiarity_internal(&state)
+}
+
+fn get_familiarity_internal(state: &StateManager) -> Result<FamiliarityProjection, String> {
+    state
+        .get_game(familiarity_projection)
+        .ok_or_else(|| NO_ACTIVE_GAME.to_string())?
 }
 
 fn get_position_ratings_internal(
@@ -694,5 +710,41 @@ mod tests {
         state.set_game(game);
 
         assert_eq!(get_position_ratings_internal(&state, "nobody"), Ok(None));
+    }
+
+    /// Given no game is loaded and then a game whose manager has no club
+    /// When the familiarity adapter reads it
+    /// Then the first is the no-session key and the second the no-team key
+    #[test]
+    fn the_familiarity_adapter_answers_a_key_for_no_session_and_no_club() {
+        use chrono::TimeZone;
+        use domain::manager::Manager;
+        let state = StateManager::new();
+        assert_eq!(
+            get_familiarity_internal(&state),
+            Err(NO_ACTIVE_GAME.to_string())
+        );
+        let game = ofm_core::game::Game::new(
+            ofm_core::clock::GameClock::new(
+                chrono::Utc.with_ymd_and_hms(2026, 9, 15, 12, 0, 0).unwrap(),
+            ),
+            Manager::new(
+                "m".into(),
+                "M".into(),
+                "Gr".into(),
+                "1980-01-01".into(),
+                "GB".into(),
+            ),
+            vec![],
+            vec![],
+            vec![],
+            vec![],
+        );
+        state.set_game(game);
+
+        assert_eq!(
+            get_familiarity_internal(&state),
+            Err("be.error.noTeamAssigned".to_string())
+        );
     }
 }

@@ -104,12 +104,14 @@ export default function TeamsLeagueTable({
     {
       key: "played",
       header: t("common.played"),
+      headerLabel: t("common.playedFull"),
       numeric: true,
       cell: (card) => card.standing?.played ?? "—",
     },
     {
       key: "points",
       header: t("common.pts"),
+      headerLabel: t("common.ptsFull"),
       numeric: true,
       sortable: true,
       cell: (card) => card.standing?.points ?? "—",

@@ -1,9 +1,15 @@
-import { fireEvent, render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { act, fireEvent, render, screen, within } from "@testing-library/react";
+import { invoke } from "@tauri-apps/api/core";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { GameStateData, ManagerData, TeamData } from "../../store/gameStore";
+import { useSettingsStore } from "../../store/settingsStore";
 import ManagersWorldTab from "./ManagersWorldTab";
 import { createSeasonContext } from "../../test-utils/factories";
+
+// The view switch saves the choice through the backend; a save that fails puts the view back.
+vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn(async () => undefined) }));
+const mockedInvoke = vi.mocked(invoke);
 
 vi.mock("react-i18next", () => ({
   useTranslation: () => ({
@@ -20,6 +26,10 @@ vi.mock("react-i18next", () => ({
       if (key === "managersWorld.openRole") return `Open role at ${params?.team}`;
       if (key === "managersWorld.vacancyBadge") return "Board searching";
       if (key === "managersWorld.noManagers") return "No managers available";
+      if (key === "dashboard.manager") return "Manager";
+      if (key === "manager.trophies") return "Trophies";
+      if (key === "common.listViewTable") return "Table";
+      if (key === "common.listViewCards") return "Cards";
       return key;
     },
     i18n: { language: "en" },
@@ -152,7 +162,15 @@ function createGameState(): GameStateData {
   };
 }
 
+function setListView(view: "table" | "cards") {
+  useSettingsStore.setState({
+    settings: { ...useSettingsStore.getState().settings, list_view: view },
+  });
+}
+
 describe("ManagersWorldTab", () => {
+  beforeEach(() => setListView("cards"));
+
   it("renders employed managers, unemployed managers, and explicit vacancies", () => {
     render(<ManagersWorldTab gameState={createGameState()} />);
 
@@ -201,5 +219,208 @@ describe("ManagersWorldTab", () => {
     render(<ManagersWorldTab gameState={createGameState()} />);
 
     expect(screen.getByText("46")).toBeInTheDocument();
+  });
+});
+
+/**
+ * Jane (72, Alpha FC, 120 matches, 2 trophies), Marco (58, between jobs, 84 matches, 3 trophies)
+ * and Abe (50, between jobs, 300 matches, 5 trophies): each sort gives its own order.
+ */
+function gameStateWithThree(): GameStateData {
+  const state = createGameState();
+  const [jane, marco] = state.managers ?? [];
+  state.managers = [
+    jane,
+    // Three trophies, so the trophy order (Abe, Marco, Jane) differs from the match order.
+    { ...marco, career_stats: { ...marco.career_stats, trophies: 3 } },
+    createManager({
+      id: "manager-3",
+      first_name: "Abe",
+      last_name: "Zed",
+      display_name: "Abe Zed",
+      team_id: null,
+      reputation: 50,
+      career_stats: {
+        matches_managed: 300,
+        wins: 150,
+        draws: 70,
+        losses: 80,
+        trophies: 5,
+        best_finish: 1,
+      },
+    }),
+  ];
+  return state;
+}
+
+const MANAGER_NAMES = ["Jane Doe", "Marco Rossi", "Abe Zed"];
+
+/** The managers table's rows, top down, by the manager each names. */
+function managerOrder(): string[] {
+  return within(screen.getByRole("table", { name: "Managers" }))
+    .getAllByRole("row")
+    .slice(1)
+    .map((row) => {
+      const text = within(row).getAllByRole("cell")[0].textContent ?? "";
+      return MANAGER_NAMES.find((name) => text.includes(name)) ?? text;
+    });
+}
+
+/** A manager's row, read by the header above each cell. */
+function managerRow(name: string): Record<string, string> {
+  const table = screen.getByRole("table", { name: "Managers" });
+  const headers = within(table)
+    .getAllByRole("columnheader")
+    .map((header) => header.textContent?.trim() ?? "");
+  const row = within(table)
+    .getAllByRole("row")
+    .find((candidate) => candidate.textContent?.includes(name));
+  if (!row) throw new Error(`no row for ${name}`);
+  const cells = within(row).getAllByRole("cell");
+  return Object.fromEntries(
+    headers.map((header, index) => [header, cells[index].textContent ?? ""]),
+  );
+}
+
+describe("ManagersWorldTab as a table", () => {
+  beforeEach(() => setListView("table"));
+
+  /**
+   * Given two managers in work or between jobs, and a third between jobs with the longest record
+   * When the Managers page opens in the table view (the default)
+   * Then they are one table, highest reputation first, with the columns Manager, Current club,
+   *      Reputation, Matches and Trophies; a manager between jobs reads "Unemployed".
+   */
+  it("lists the managers as a table, highest reputation first", () => {
+    render(<ManagersWorldTab gameState={gameStateWithThree()} />);
+
+    expect(managerOrder()).toEqual(["Jane Doe", "Marco Rossi", "Abe Zed"]);
+    expect(managerRow("Jane Doe")).toEqual({
+      Manager: expect.stringContaining("Jane Doe"),
+      "Current club": "Alpha FC",
+      Reputation: "72",
+      Matches: "120",
+      Trophies: "2",
+    });
+    expect(managerRow("Marco Rossi")["Current club"]).toBe("Unemployed");
+  });
+
+  /**
+   * Given the table in reputation order
+   * When the Manager header is pressed
+   * Then the managers run A to Z by name: a name column starts from A.
+   */
+  it("sorts by name from A", () => {
+    render(<ManagersWorldTab gameState={gameStateWithThree()} />);
+    fireEvent.click(screen.getByRole("button", { name: "Manager" }));
+    expect(managerOrder()).toEqual(["Abe Zed", "Jane Doe", "Marco Rossi"]);
+  });
+
+  /**
+   * Given the table in reputation order
+   * When the Trophies header is pressed
+   * Then the managers run from the most trophies (Abe 5, Marco 3, Jane 2): a figure starts from
+   *      the best.
+   */
+  it("sorts by trophies, most first", () => {
+    render(<ManagersWorldTab gameState={gameStateWithThree()} />);
+    fireEvent.click(screen.getByRole("button", { name: "Trophies" }));
+    expect(managerOrder()).toEqual(["Abe Zed", "Marco Rossi", "Jane Doe"]);
+  });
+
+  /**
+   * Given the table in reputation order
+   * When the Matches header is pressed
+   * Then the managers run from the most matches (Abe 300, Jane 120, Marco 84).
+   */
+  it("sorts by matches, most first", () => {
+    render(<ManagersWorldTab gameState={gameStateWithThree()} />);
+    fireEvent.click(screen.getByRole("button", { name: "Matches" }));
+    expect(managerOrder()).toEqual(["Abe Zed", "Jane Doe", "Marco Rossi"]);
+  });
+
+  /**
+   * Given the table opened on reputation, highest first
+   * When the Reputation header is pressed
+   * Then the order turns round, lowest first.
+   */
+  it("turns the order round when the sorted header is pressed again", () => {
+    render(<ManagersWorldTab gameState={gameStateWithThree()} />);
+    fireEvent.click(screen.getByRole("button", { name: "Reputation" }));
+    expect(managerOrder()).toEqual(["Abe Zed", "Marco Rossi", "Jane Doe"]);
+  });
+
+  /**
+   * Given Jane at Alpha FC, Marco at Gamma Athletic and Abe between jobs
+   * When the Current club header is pressed, and then pressed again
+   * Then the clubs run A to Z and then Z to A, and Abe, who has none, is last both times.
+   */
+  it("sorts by club from A, with a manager between jobs last both ways", () => {
+    const state = gameStateWithThree();
+    state.teams.push(createTeam({ id: "team-3", name: "Gamma Athletic", manager_id: "manager-2" }));
+    state.managers = (state.managers ?? []).map((manager) =>
+      manager.id === "manager-2" ? { ...manager, team_id: "team-3" } : manager,
+    );
+    render(<ManagersWorldTab gameState={state} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Current club" }));
+    expect(managerOrder()).toEqual(["Jane Doe", "Marco Rossi", "Abe Zed"]);
+
+    fireEvent.click(screen.getByRole("button", { name: "Current club" }));
+    expect(managerOrder()).toEqual(["Marco Rossi", "Jane Doe", "Abe Zed"]);
+  });
+
+  /**
+   * Given a manager's row and the vacancies table below it
+   * When his club's name is pressed, and then the open club's
+   * Then each opens that club. A manager's own row opens nothing yet: his profile page comes with
+   *      the manager profile work (M3).
+   */
+  it("opens a club from a manager's row or a vacancy, and opens no manager yet", () => {
+    const onSelectTeam = vi.fn();
+    render(<ManagersWorldTab gameState={gameStateWithThree()} onSelectTeam={onSelectTeam} />);
+
+    const managers = screen.getByRole("table", { name: "Managers" });
+    fireEvent.click(within(managers).getByRole("button", { name: "Alpha FC" }));
+    const vacancies = screen.getByRole("table", { name: "Vacancy" });
+    fireEvent.click(within(vacancies).getByRole("button", { name: "Beta United" }));
+
+    expect(onSelectTeam).toHaveBeenNthCalledWith(1, "team-1");
+    expect(onSelectTeam).toHaveBeenNthCalledWith(2, "team-2");
+    expect(within(managers).queryByRole("button", { name: "Jane Doe" })).toBeNull();
+  });
+
+  /**
+   * Given a club without a manager, of reputation 650
+   * When the vacancies table is drawn
+   * Then it lists that club and its reputation, and no club that has a manager.
+   */
+  it("lists each open job with its club's reputation", () => {
+    render(<ManagersWorldTab gameState={gameStateWithThree()} />);
+
+    const vacancies = screen.getByRole("table", { name: "Vacancy" });
+    const rows = within(vacancies).getAllByRole("row").slice(1);
+    expect(rows.map((row) => row.textContent)).toEqual([expect.stringMatching(/Beta United.*650/)]);
+  });
+
+  /**
+   * Given the Managers page as a table
+   * When Cards is picked on the view switch
+   * Then the managers are drawn as cards, and the choice is saved as the one list view every list
+   *      opens with.
+   */
+  it("switches to cards from the view switch and saves the choice", async () => {
+    render(<ManagersWorldTab gameState={gameStateWithThree()} />);
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("radio", { name: "Cards" }));
+    });
+
+    expect(useSettingsStore.getState().settings.list_view).toBe("cards");
+    expect(mockedInvoke).toHaveBeenCalledWith("save_settings", {
+      settings: expect.objectContaining({ list_view: "cards" }),
+    });
+    expect(screen.queryByRole("table")).toBeNull();
+    expect(screen.getByText("Open role at Beta United")).toBeInTheDocument();
   });
 });

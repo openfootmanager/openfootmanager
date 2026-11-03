@@ -424,8 +424,18 @@ fn prepare_seeded_managers(game: &mut Game, first_season: u32) {
     }
 }
 
-fn upsert_manager_history(game: &mut Game, tables: &[Vec<StandingEntry>]) {
+/// Adds each generated season to the record of the manager in charge of each club, through the
+/// one routine every season reaches a manager's record by (`manager_records::credit_league_season`),
+/// so a generated past and a played season count alike. Every employed manager has an open spell
+/// at his club by now (`prepare_seeded_managers`), so the season lands on it.
+fn upsert_manager_history(game: &mut Game, tables: &[Vec<StandingEntry>], season: u32) {
     let standings_by_team = positions_by_team(tables);
+    let team_names: HashMap<&str, &str> = game
+        .teams
+        .iter()
+        .map(|team| (team.id.as_str(), team.name.as_str()))
+        .collect();
+    let on = season_start_string(season);
 
     for manager in game.managers.iter_mut() {
         let Some(team_id) = manager.team_id.clone() else {
@@ -434,39 +444,22 @@ fn upsert_manager_history(game: &mut Game, tables: &[Vec<StandingEntry>]) {
         let Some((position, standing)) = standings_by_team.get(team_id.as_str()) else {
             continue;
         };
-        let total_matches = standing.won + standing.drawn + standing.lost;
-
-        manager.career_stats.matches_managed += total_matches;
-        manager.career_stats.wins += standing.won;
-        manager.career_stats.draws += standing.drawn;
-        manager.career_stats.losses += standing.lost;
-        if *position == 1 {
-            manager.career_stats.trophies += 1;
-        }
-        if manager
-            .career_stats
-            .best_finish
-            .is_none_or(|best_finish| *position < best_finish)
-        {
-            manager.career_stats.best_finish = Some(*position);
-        }
-
-        if let Some(entry) = manager
-            .career_history
-            .iter_mut()
-            .find(|entry| entry.team_id == team_id && entry.end_date.is_none())
-        {
-            entry.matches += total_matches;
-            entry.wins += standing.won;
-            entry.draws += standing.drawn;
-            entry.losses += standing.lost;
-            if entry
-                .best_league_position
-                .is_none_or(|best_finish| *position < best_finish)
-            {
-                entry.best_league_position = Some(*position);
-            }
-        }
+        let team_name = team_names
+            .get(team_id.as_str())
+            .copied()
+            .unwrap_or_default();
+        crate::manager_records::credit_league_season(
+            manager,
+            &crate::manager_records::LeagueSeason {
+                team_id: &team_id,
+                team_name,
+                won: standing.won,
+                drawn: standing.drawn,
+                lost: standing.lost,
+                position: *position,
+                on: &on,
+            },
+        );
     }
 }
 
@@ -704,7 +697,7 @@ pub fn generate_past_world_history(game: &mut Game, start_year: i32, history_dep
         let season = season_year as u32;
         let standings: Vec<StandingEntry> = tables.iter().flatten().cloned().collect();
         upsert_team_history(game, season, tables, &league_ids);
-        upsert_manager_history(game, tables);
+        upsert_manager_history(game, tables, season);
         upsert_player_career(game, season, &standings);
 
         game.clock.current_date = Utc
@@ -1898,7 +1891,7 @@ mod tests {
         }
         let before = totals(&game);
 
-        super::upsert_manager_history(&mut game, &[vec![row("team-1", 5, 2, 3)]]);
+        super::upsert_manager_history(&mut game, &[vec![row("team-1", 5, 2, 3)]], 2031);
 
         let after = totals(&game);
         assert_eq!(
@@ -1927,7 +1920,7 @@ mod tests {
             ],
         );
 
-        super::upsert_manager_history(&mut game, &[vec![row("team-1", 5, 2, 3)]]);
+        super::upsert_manager_history(&mut game, &[vec![row("team-1", 5, 2, 3)]], 2031);
 
         let manager = manager(&game, &id);
         let earlier = &manager.career_history[0];
@@ -1958,7 +1951,7 @@ mod tests {
             vec![row("team-1", 6, 0, 0), row("team-2", 3, 0, 3)],
             vec![row("team-2", 6, 0, 0), row("team-1", 3, 0, 3)],
         ] {
-            super::upsert_manager_history(&mut game, &[table]);
+            super::upsert_manager_history(&mut game, &[table], 2031);
         }
 
         let manager = manager(&game, &id);
