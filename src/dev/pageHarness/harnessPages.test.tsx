@@ -1,7 +1,8 @@
 import { act } from "@testing-library/react";
 import { clearMocks } from "@tauri-apps/api/mocks";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 
+import { i18nReady } from "../../i18n";
 import { useGameStore } from "../../store/gameStore";
 import { readStyleGuideOptions } from "../styleGuide/styleGuideOptions";
 import { HARNESS_PAGES, type HarnessPage } from "./harnessPage";
@@ -9,6 +10,20 @@ import { mountPageHarness } from "./mount";
 
 /** Long enough for the dashboard and the page to ask for everything they ask for on mount. */
 const SETTLE_MS = 500;
+
+beforeAll(async () => {
+  // jsdom has no matchMedia; ThemeProvider asks it for the system theme.
+  Object.defineProperty(window, "matchMedia", {
+    writable: true,
+    value: vi.fn().mockImplementation((query: string) => ({
+      matches: false,
+      media: query,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+    })),
+  });
+  await i18nReady;
+});
 
 afterEach(() => {
   clearMocks();
