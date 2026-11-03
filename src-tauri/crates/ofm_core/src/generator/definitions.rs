@@ -240,6 +240,20 @@ pub struct NamesDefinition {
     pub pools: HashMap<String, NamePool>,
 }
 
+impl NamesDefinition {
+    /// Folds `later` into `self`: the one rule for name pools wherever they accumulate (files of
+    /// one package, packages in a stack). The version is the highest seen, the description the
+    /// last non-empty one, and a pool for a country already present is replaced by the later one;
+    /// the other countries are kept.
+    pub fn absorb(&mut self, later: NamesDefinition) {
+        self.version = self.version.max(later.version);
+        if !later.description.is_empty() {
+            self.description = later.description;
+        }
+        self.pools.extend(later.pools);
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NamePool {
     pub first_names: Vec<String>,
@@ -410,6 +424,11 @@ pub struct WorldShardRefs {
     pub players: String,
     pub staff: String,
     pub managers: String,
+    /// Absent from a manifest written before the archives existed.
+    #[serde(default)]
+    pub retired_managers: String,
+    #[serde(default)]
+    pub retired_players: String,
     pub competitions: String,
     pub national_teams: String,
     pub news: String,
@@ -444,6 +463,13 @@ pub struct WorldData {
     pub players: Vec<domain::player::Player>,
     pub staff: Vec<domain::staff::Staff>,
     pub managers: Vec<domain::manager::Manager>,
+    /// Managers who left the active pool, kept whole so a club's history stays readable. A
+    /// world without any omits the key, and an older file simply has none.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub retired_managers: Vec<domain::manager::Manager>,
+    /// People who have stopped playing, frozen at retirement.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub retired_players: Vec<domain::retired_player::RetiredPlayer>,
     pub competitions: Vec<domain::league::CompetitionState>,
     /// Optional authored competition definitions resolved at game creation.
     #[serde(

@@ -56,18 +56,13 @@ function ErrorFallback({ onRetry }: { onRetry: () => void }) {
   const { t } = useTranslation();
 
   return (
-    <div
-      role="alert"
-      className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-navy-900 px-6 py-12"
-    >
-      <div className="w-full max-w-md bg-white dark:bg-navy-800 rounded-2xl border border-gray-200 dark:border-navy-700 shadow-sm p-8 text-center">
+    <div role="alert" className="min-h-screen flex items-center justify-center bg-page px-6 py-12">
+      <div className="w-full max-w-md bg-panel rounded-lg border border-line p-8 text-center">
         <AlertTriangle aria-hidden="true" className="w-10 h-10 mx-auto text-accent-400" />
-        <h1 className="mt-4 font-heading font-bold uppercase tracking-wider text-xl text-gray-900 dark:text-gray-100">
+        <h1 className="mt-4 font-heading font-bold uppercase tracking-label text-title text-fg">
           {t("errorBoundary.title")}
         </h1>
-        <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
-          {t("errorBoundary.description")}
-        </p>
+        <p className="mt-2 text-body text-fg-muted">{t("errorBoundary.description")}</p>
         <div className="mt-6 flex flex-col sm:flex-row gap-3 justify-center">
           <Button onClick={onRetry}>{t("errorBoundary.retry")}</Button>
           <Button

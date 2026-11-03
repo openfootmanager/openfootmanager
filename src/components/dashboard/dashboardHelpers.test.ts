@@ -1,14 +1,17 @@
 import { describe, expect, it } from "vitest";
 
+import { cannedPositionTable } from "../../test-utils/positionTable";
 import type { GameStateData, MessageData, PlayerData, TeamData } from "../../store/gameStore";
 import type { TeamFinanceSnapshotData } from "../../services/financeService";
 import {
   getDashboardAlerts,
   getDashboardSearchResults,
+  clubCompetitionLabel,
   getManagerTeamName,
   getTodayMatchFixture,
   getUnreadMessagesCount,
 } from "./dashboardHelpers";
+import { createSeasonContext, createSquadFitness } from "../../test-utils/factories";
 
 function createTeam(overrides: Partial<TeamData> = {}): TeamData {
   return {
@@ -126,11 +129,13 @@ function createMessage(overrides: Partial<MessageData> = {}): MessageData {
 
 function createGameState(overrides: Partial<GameStateData> = {}): GameStateData {
   return {
+    season_context: createSeasonContext(),
     clock: {
       current_date: "2025-01-10T00:00:00Z",
       start_date: "2025-01-01T00:00:00Z",
     },
     manager: {
+      display_name: "Jane Doe",
       id: "manager-1",
       first_name: "Jane",
       last_name: "Doe",
@@ -201,6 +206,8 @@ describe("dashboardHelpers", (): void => {
       home_team_id: "team-1",
       away_team_id: "team-2",
       competition: "League" as const,
+      competitive: true,
+      advancing_team_id: null,
       status: "Scheduled" as const,
       result: null,
     };
@@ -310,13 +317,52 @@ describe("dashboardHelpers", (): void => {
       messages: [createMessage({ id: "urgent-1", priority: "Urgent", read: false })],
     });
 
-    const alerts = getDashboardAlerts(gameState, true, translateDashboardAlert);
+    // The backend counts three players in a critical state (injured ones are not in the squad that
+    // can play, so they are not among them).
+    const fitness = createSquadFitness({ exhausted_count: 3, critical_count: 3 });
+    const alerts = getDashboardAlerts(
+      gameState,
+      cannedPositionTable(),
+      true,
+      translateDashboardAlert,
+      null,
+      fitness,
+    );
     const alertIds = alerts.map((alert) => alert.id);
 
     expect(alertIds).toContain("exhausted");
     expect(alertIds).toContain("injured_xi");
     expect(alertIds).toContain("urgent");
     expect(alertIds).toContain("matchxi");
+  });
+
+  /**
+   * Given a squad with exhausted players on the injured list, for which the backend counts five
+   *       exhausted (below 40) but only one critical (below 25)
+   * When the dashboard alerts are built
+   * Then there is no exhaustion alert: it follows the backend's critical count, not the exhausted
+   *      count and not every player below 25.
+   */
+  it("raises the exhaustion alert from the backend's critical count, not from the roster", (): void => {
+    const roster = ["p1", "p2", "p3"].map((id) =>
+      createPlayer({ id, condition: 20, injury: { name: "Hamstring", days_remaining: 5 } }),
+    );
+    const gameState = createGameState({
+      teams: [createTeam({ starting_xi_ids: [] })],
+      players: roster,
+    });
+    const fitness = createSquadFitness({ exhausted_count: 5, critical_count: 1 });
+
+    const alerts = getDashboardAlerts(
+      gameState,
+      cannedPositionTable(),
+      false,
+      translateDashboardAlert,
+      null,
+      fitness,
+    );
+
+    expect(alerts.map((alert) => alert.id)).not.toContain("exhausted");
   });
 
   it("builds dashboard alerts for finance pressure", (): void => {
@@ -331,6 +377,7 @@ describe("dashboardHelpers", (): void => {
 
     const alerts = getDashboardAlerts(
       gameState,
+      cannedPositionTable(),
       false,
       translateDashboardAlert,
       financeVerdict({
@@ -370,7 +417,13 @@ describe("dashboardHelpers", (): void => {
       ],
     });
 
-    const alerts = getDashboardAlerts(gameState, false, translateDashboardAlert, financeVerdict());
+    const alerts = getDashboardAlerts(
+      gameState,
+      cannedPositionTable(),
+      false,
+      translateDashboardAlert,
+      financeVerdict(),
+    );
     const alertIds = alerts.map((alert) => alert.id);
 
     expect(alertIds).not.toContain("wage_pressure");
@@ -384,6 +437,7 @@ describe("dashboardHelpers", (): void => {
 
     const alerts = getDashboardAlerts(
       gameState,
+      cannedPositionTable(),
       false,
       translateDashboardAlert,
       financeVerdict({ projectedWeeklyNet: 5200 }),
@@ -398,7 +452,12 @@ describe("dashboardHelpers", (): void => {
       players: [createPlayer({ wage: 10000 })],
     });
 
-    const alerts = getDashboardAlerts(gameState, false, translateDashboardAlert);
+    const alerts = getDashboardAlerts(
+      gameState,
+      cannedPositionTable(),
+      false,
+      translateDashboardAlert,
+    );
 
     expect(alerts.some((alert) => alert.tab === "Finances")).toBe(false);
   });
@@ -408,6 +467,7 @@ describe("dashboardHelpers", (): void => {
 
     const alerts = getDashboardAlerts(
       gameState,
+      cannedPositionTable(),
       false,
       translateDashboardAlert,
       financeVerdict({ runwayStatus: "critical", cashRunwayWeeks: 2 }),
@@ -438,11 +498,75 @@ describe("dashboardHelpers", (): void => {
       players: roster,
     });
 
-    const alerts = getDashboardAlerts(gameState, true, translateDashboardAlert);
+    const alerts = getDashboardAlerts(
+      gameState,
+      cannedPositionTable(),
+      true,
+      translateDashboardAlert,
+    );
     const alertIds = alerts.map((alert) => alert.id);
 
     expect(alertIds).not.toContain("xi");
     expect(alertIds).not.toContain("matchxi");
     expect(alertIds).not.toContain("injured_xi");
+  });
+});
+
+describe("clubCompetitionLabel", () => {
+  const standing = { competition_id: "league-1", competition_name: "Raw League Name" };
+  const translate = (key: string, options?: Record<string, unknown>) =>
+    key === "league.template"
+      ? `${options?.country} First Division`
+      : String(options?.defaultValue ?? key);
+
+  /**
+   * Given the backend names the club's league and the game holds that competition with a name key
+   * When the sidebar label is built
+   * Then it is the translated display name, with the nation filled in.
+   */
+  it("uses the translated display name of the backend's competition", () => {
+    const gameState = {
+      competitions: [
+        { id: "league-1", name: "Raw", name_key: "league.template", country_id: "BR" },
+      ],
+    } as unknown as GameStateData;
+
+    expect(clubCompetitionLabel(gameState, standing, translate)).toBe("BR First Division");
+  });
+
+  /**
+   * Given the game carries two competitions and the backend names the second
+   * When the sidebar label is built
+   * Then it is the second's name, found by the backend's id, not the first competition's.
+   */
+  it("finds the competition by the backend's id, not by position", () => {
+    const gameState = {
+      competitions: [
+        { id: "cup-1", name: "First Cup" },
+        { id: "league-1", name: "The League" },
+      ],
+    } as unknown as GameStateData;
+
+    expect(clubCompetitionLabel(gameState, standing, translate)).toBe("The League");
+  });
+
+  /**
+   * Given the backend names a competition the loaded game does not carry
+   * When the sidebar label is built
+   * Then it falls back to the backend's own name.
+   */
+  it("falls back to the backend's name when the game has no such competition", () => {
+    const gameState = { competitions: [] } as unknown as GameStateData;
+
+    expect(clubCompetitionLabel(gameState, standing, translate)).toBe("Raw League Name");
+  });
+
+  /**
+   * Given the club has no league table (no standing from the backend)
+   * When the sidebar label is built
+   * Then there is no label.
+   */
+  it("has no label without a standing", () => {
+    expect(clubCompetitionLabel({} as GameStateData, null, translate)).toBeNull();
   });
 });

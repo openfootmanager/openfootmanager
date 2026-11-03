@@ -56,7 +56,7 @@ pub(super) fn maybe_foul<R: Rng>(
 
     maybe_card(ctx, minute, fouling_side, &fouler_snap.id, zone, rng);
 
-    if rng.random_range(0.0..1.0f64) < ctx.config.injury_probability {
+    if rng.random_range(0.0..1.0f64) < ctx.config.injury_probability * fouled_snap.injury_risk {
         ctx.emit(
             MatchEvent::new(minute, EventType::Injury, att_side, zone).with_player(&fouled_snap.id),
         );
@@ -80,7 +80,13 @@ pub(super) fn maybe_card<R: Rng>(
         .find(|p| p.id == fouler_id)
         .map(|p| p.aggression as f64 / 100.0)
         .unwrap_or(0.5);
-    let card_chance = ctx.config.yellow_card_probability * (0.5 + aggression_factor);
+    let booked = ctx.yellows.contains_key(fouler_id);
+    let caution = if booked {
+        crate::shared::BOOKED_CARD_FACTOR
+    } else {
+        1.0
+    };
+    let card_chance = ctx.config.yellow_card_probability * (0.5 + aggression_factor) * caution;
     if rng.random_range(0.0..1.0f64) >= card_chance {
         return;
     }

@@ -1,7 +1,9 @@
 import { AlertTriangle } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
+import { naturalPositionOf } from "../../lib/positions";
 import type { PlayerData } from "../../store/gameStore";
+import { translatePositionLabel } from "../squad/SquadTab.helpers";
 import { Badge, Card, CardBody, CardHeader, PlayerAvatar } from "../ui";
 
 interface HomeUnavailablePlayersCardProps {
@@ -66,9 +68,7 @@ export default function HomeUnavailablePlayersCard({
                 </div>
               </div>
               <div className="text-xs font-heading font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500">
-                {t(`common.positions.${player.position}`, {
-                  defaultValue: player.position,
-                })}
+                {translatePositionLabel(t, naturalPositionOf(player))}
               </div>
             </div>
           ))}

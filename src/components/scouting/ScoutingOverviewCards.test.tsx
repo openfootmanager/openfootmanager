@@ -9,6 +9,7 @@ function createScout(overrides: Partial<StaffData> = {}): StaffData {
     id: "staff-1",
     first_name: "Sam",
     last_name: "Scout",
+    display_name: "Sam Scout",
     date_of_birth: "1985-01-01",
     nationality: "GB",
     role: "Scout",

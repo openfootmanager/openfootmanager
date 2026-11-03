@@ -3,14 +3,15 @@ import { invoke } from "@tauri-apps/api/core";
 import { useTranslation } from "react-i18next";
 
 import type { GameStateData, LeagueData, PlayerData, TeamData } from "../store/gameStore";
-import { getActiveCompetitions, getPlayerOvr } from "../lib/helpers";
-import { buildRegionLabel, inferRegionId } from "../lib/teamRegions";
+import { getActiveCompetitions } from "../lib/helpers";
+import { useTeamSelectionRatings } from "./useTeamSelectionRatings";
+import { buildRegionLabel } from "../lib/teamRegions";
 import { competitionDisplayName } from "../lib/competitionName";
 import { resolveBackendError } from "../utils/backendI18n";
 import { prewarmManagerSquadPortraits } from "../services/portraitService";
 import { showError } from "../lib/errorDialog";
 import {
-  buildFallbackRegions,
+  regionsFromCompetitions,
   competitionRequiredRegions,
   likelyXi,
   sortCompetitions,
@@ -49,19 +50,21 @@ export function useTeamSelection({
   const [competitionSelection, setCompetitionSelection] = useState<CompetitionSelection>({});
   const [scopeMessage, setScopeMessage] = useState<ScopeMessage | null>(null);
   const [isConfirming, setIsConfirming] = useState(false);
+  const { clubRatings, getTeamAvgOvr, getPlayerRating } = useTeamSelectionRatings(gameState);
+  const playersById = useMemo(
+    () => new Map((gameState?.players ?? []).map((player) => [player.id, player])),
+    [gameState],
+  );
 
   const competitions = useMemo(
     () => (gameState ? sortCompetitions(getActiveCompetitions(gameState)) : []),
     [gameState],
   );
 
+  // The game carries no region list: the regions are the ones the competitions declare for the
+  // clubs' countries.
   const regions = useMemo(
-    () =>
-      gameState
-        ? gameState.regions && gameState.regions.length > 0
-          ? gameState.regions
-          : buildFallbackRegions(t, gameState, competitions)
-        : [],
+    () => (gameState ? regionsFromCompetitions(t, gameState, competitions) : []),
     [competitions, gameState, t],
   );
 
@@ -156,7 +159,7 @@ export function useTeamSelection({
       return team.country === selectedCountryCode;
     }
     if (selectedHomeRegionId) {
-      return inferRegionId(team.country) === selectedHomeRegionId;
+      return regionCountries.includes(team.country);
     }
     return true;
   });
@@ -241,17 +244,8 @@ export function useTeamSelection({
   const getTeamPlayers = (teamId: string): PlayerData[] =>
     (gameState?.players ?? []).filter((player) => player.team_id === teamId);
 
-  const getTeamAvgOvr = (teamId: string): number => {
-    const players = getTeamPlayers(teamId);
-    if (players.length === 0) return 0;
-    return Math.round(
-      players.reduce((sum, player) => sum + getPlayerOvr(player), 0) / players.length,
-    );
-  };
-
   const selectedTeam = teams.find((team) => team.id === selectedTeamId) ?? teams[0] ?? null;
-  const selectedTeamPlayers = selectedTeam ? getTeamPlayers(selectedTeam.id) : [];
-  const selectedTeamXi = likelyXi(selectedTeamPlayers);
+  const selectedTeamXi = selectedTeam ? likelyXi(clubRatings(selectedTeam.id), playersById) : [];
   const selectedTeamCompetitions = selectedTeam
     ? teamCompetitions(selectedTeam.id, competitions)
     : [];
@@ -408,7 +402,7 @@ export function useTeamSelection({
       }
       setGameState(updatedGame);
       const mgr = updatedGame.manager;
-      setGameActive(true, `${mgr.first_name} ${mgr.last_name}`);
+      setGameActive(true, mgr.display_name);
       navigate("/dashboard");
     } catch (error) {
       console.error("Failed to select team:", error);
@@ -444,6 +438,7 @@ export function useTeamSelection({
     teamGroups,
     getTeamPlayers,
     getTeamAvgOvr,
+    getPlayerRating,
     selectedTeam,
     selectedTeamXi,
     selectedTeamCompetitions,

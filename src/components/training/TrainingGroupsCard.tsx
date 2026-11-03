@@ -16,6 +16,8 @@ import {
   reassignPlayerTrainingGroup,
   sortTrainingRoster,
 } from "./trainingGroupsModel";
+import { naturalPositionOf } from "../../lib/positions";
+import { usePositionTable } from "../../hooks/usePositionGroups";
 
 type TrainingGroup = TrainingGroupData;
 
@@ -39,6 +41,7 @@ export default function TrainingGroupsCard({
   trainingFocusIcons,
 }: TrainingGroupsCardProps) {
   const { t } = useTranslation();
+  const positions = usePositionTable();
   const groups: TrainingGroup[] = team?.training_groups ?? [];
   const teamFocus = team?.training_focus || "Physical";
 
@@ -105,7 +108,7 @@ export default function TrainingGroupsCard({
   };
 
   const playerGroupMap = buildPlayerGroupMap(groups);
-  const sortedRoster = sortTrainingRoster(roster);
+  const sortedRoster = sortTrainingRoster(roster, positions);
 
   return (
     <Card>
@@ -223,10 +226,7 @@ export default function TrainingGroupsCard({
                         {player.jersey_number != null ? ` (#${player.jersey_number})` : ""}
                       </td>
                       <td className="py-1.5 px-3 text-xs text-gray-500 dark:text-gray-400">
-                        {translatePositionAbbreviation(
-                          t,
-                          player.natural_position || player.position,
-                        )}
+                        {translatePositionAbbreviation(t, naturalPositionOf(player))}
                       </td>
                       <td
                         className={`py-1.5 px-3 text-xs font-heading font-bold tabular-nums ${condColor(player.condition)}`}

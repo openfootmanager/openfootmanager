@@ -1,8 +1,7 @@
 use domain::team::Team;
 use ofm_core::game::Game;
-use ofm_core::state::StateManager;
+use ofm_core::state::{Career, StateManager};
 
-const NO_ACTIVE_GAME: &str = "be.error.noActiveGameSession";
 const NO_TEAM_ASSIGNED: &str = "be.error.noTeamAssigned";
 const TEAM_NOT_FOUND: &str = "be.error.teamNotFound";
 
@@ -39,16 +38,18 @@ pub fn user_team_mut(game: &mut Game) -> Result<&mut Team, String> {
 /// The closure performs validation **before** mutation: because it mutates the
 /// live game rather than a throwaway clone, any change made before it returns
 /// `Err` would persist. Existing callers already validate up front.
-pub fn mutate_active_game<F>(state: &StateManager, mutate: F) -> Result<Game, String>
+pub fn mutate_active_game_for<F>(
+    state: &StateManager,
+    career: Career,
+    mutate: F,
+) -> Result<Game, String>
 where
     F: FnOnce(&mut Game) -> Result<(), String>,
 {
-    state
-        .update_game(|game| {
-            mutate(game)?;
-            Ok(game.clone())
-        })
-        .unwrap_or_else(|| Err(NO_ACTIVE_GAME.to_string()))
+    state.update_game_for(career, |game| {
+        mutate(game)?;
+        Ok(game.clone())
+    })?
 }
 
 pub use crate::application::saving::persist_active_game;
@@ -122,6 +123,40 @@ mod tests {
         );
     }
 
+    /// Given career B is active (token 2), already saved, with changes since
+    /// When a save meant for career A (token 1) arrives
+    /// Then it is refused with the career-changed key and the .db still holds the earlier state;
+    ///      a save for B's own token (and Active) then writes it.
+    #[test]
+    fn saving_for_a_replaced_career_is_refused_and_writes_nothing_to_the_db() {
+        use super::persist_active_game;
+        use db::save_manager::SaveManager;
+        use ofm_core::state::{Career, StateManager};
+
+        let dir = tempfile::tempdir().expect("temp dir");
+        let mut save_manager = SaveManager::init(dir.path()).expect("save manager");
+        let mut team = make_team("team-1");
+        team.finance = 500_000;
+        let mut game = make_game(Some("team-1"), vec![team]);
+        game.career_token = 2;
+        let save_id = save_manager.create_save(&game, "Career B").expect("save");
+        let state = StateManager::new();
+        state.set_game(game);
+        state.set_save_id(save_id.clone());
+        state
+            .update_game_for(Career::Active, |live| live.teams[0].finance = 123)
+            .expect("update");
+
+        let refused = persist_active_game(&state, &mut save_manager, Career::Token(1));
+
+        assert_eq!(refused, Err("be.error.careerChanged".to_string()));
+        let on_disk = save_manager.load_game(&save_id).expect("load");
+        assert_eq!(on_disk.teams[0].finance, 500_000);
+        persist_active_game(&state, &mut save_manager, Career::Token(2)).expect("own token");
+        let on_disk = save_manager.load_game(&save_id).expect("reload");
+        assert_eq!(on_disk.teams[0].finance, 123);
+    }
+
     #[test]
     fn persist_active_game_flushes_dirty_ids_and_is_idempotent() {
         use super::persist_active_game;
@@ -164,7 +199,8 @@ mod tests {
             })
             .expect("update");
 
-        persist_active_game(&state, &mut save_manager).expect("first persist");
+        persist_active_game(&state, &mut save_manager, ofm_core::state::Career::Active)
+            .expect("first persist");
         assert!(state
             .get_game(|live| live.cash_journal_dirty_ids.is_empty())
             .expect("live game"));
@@ -173,7 +209,8 @@ mod tests {
         let first_len = first.cash_journal.len();
         assert!(first_len >= 2, "seed + wages");
 
-        persist_active_game(&state, &mut save_manager).expect("second persist");
+        persist_active_game(&state, &mut save_manager, ofm_core::state::Career::Active)
+            .expect("second persist");
         let second = save_manager.load_game(&save_id).expect("reload");
         assert_eq!(second.cash_journal.len(), first_len);
 
@@ -189,7 +226,8 @@ mod tests {
                 .expect("post");
             })
             .expect("update");
-        persist_active_game(&state, &mut save_manager).expect("third persist");
+        persist_active_game(&state, &mut save_manager, ofm_core::state::Career::Active)
+            .expect("third persist");
         let third = save_manager.load_game(&save_id).expect("reload");
         assert_eq!(third.cash_journal.len(), first_len + 1);
 

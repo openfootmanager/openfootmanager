@@ -28,10 +28,24 @@ pub struct PlayerStatsOverviewMetricsDto {
     pub fouls_committed: PlayerAdvancedMetricDto,
 }
 
+/// The league and position a player's percentiles are measured within.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct PeerGroupDto {
+    pub competition_id: String,
+    pub competition_name: String,
+    pub competition_name_key: Option<String>,
+    pub country_id: Option<String>,
+    /// The natural position the peers share, as `Position`'s name (e.g. `Striker`).
+    pub position: String,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct PlayerStatsOverviewDto {
     pub percentile_eligible: bool,
+    /// Who the percentiles compare the player with; `None` when the player has no league.
+    pub peer_group: Option<PeerGroupDto>,
     pub season_rating_rated: bool,
     pub metrics: PlayerStatsOverviewMetricsDto,
 }

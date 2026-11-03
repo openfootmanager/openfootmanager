@@ -24,6 +24,10 @@ pub(super) const MAX_PENDING_INCOMING_OFFERS_PER_USER_PLAYER: usize = 3;
 /// Applies to a refusal and to talks that expired, and across both deal types, so a club cannot
 /// come back the next morning — or come back as a loan approach after a permanent bid was refused.
 pub(super) const REBID_COOLDOWN_DAYS: i64 = 30;
+/// The round at which an owner who has not been met breaks talks off. Three rounds of counters
+/// or refusals are patience; a fourth bid that still falls short is the club walking away, and
+/// it will not talk to that buyer again until [`REBID_COOLDOWN_DAYS`] have passed.
+pub(super) const NEGOTIATION_BREAK_OFF_ROUND: u8 = 4;
 /// How long a rejected or withdrawn offer is kept before being dropped.
 ///
 /// Long enough for the UI to show recent history and for later work to tell how recently a club
@@ -46,6 +50,7 @@ pub(super) const ERR_INSUFFICIENT_FUNDS: &str = "be.error.transfers.insufficient
 pub(super) const ERR_TRANSFER_BUDGET_TOO_LOW: &str = "be.error.transfers.transferBudgetTooLow";
 pub(super) const ERR_PLAYER_NOT_OWNED_BY_USER: &str = "be.error.transfers.playerNotOwnedByUser";
 pub(super) const ERR_OFFER_NOT_PENDING: &str = "be.error.transfers.offerNotPending";
+pub(super) const ERR_TALKS_BROKEN_OFF: &str = "be.error.transfers.talksBrokenOff";
 pub(super) const ERR_COUNTER_OFFER_MUST_EXCEED_CURRENT: &str =
     "be.error.transfers.counterOfferMustExceedCurrentOffer";
 pub(super) const ERR_LOAN_COUNTER_MUST_IMPROVE_TERMS: &str =

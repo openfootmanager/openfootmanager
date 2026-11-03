@@ -146,6 +146,12 @@ fn execute_ai_firing_on_date(game: &mut Game, manager_index: usize, today: &str)
     }
 
     game.managers[manager_index].fire(today);
+    // A stand-in was never a candidate: they go back to being only an assistant, so the directory
+    // and the unemployed pool never list them while they wait for the season-end clear-out.
+    if game.managers[manager_index].interim {
+        let stand_in = game.managers.remove(manager_index);
+        game.retired_managers.push(stand_in);
+    }
     game.news.push(ai_managerial_change_article(
         &manager.id,
         &manager.full_name(),
@@ -216,6 +222,8 @@ fn execute_firing(game: &mut Game) {
     }
 
     // Close career history and unassign
+    game.manager
+        .ensure_open_career_entry(&team_id, &team_name, &today);
     game.manager.fire(&today);
 
     // Send dismissal message (unique ID so it doesn't collide with a future firing at another club)
@@ -347,6 +355,32 @@ mod tests {
         team.manager_id = Some("mgr1".to_string());
 
         Game::new(clock, manager, vec![team], vec![], vec![], vec![])
+    }
+
+    /// Given a save from before career history existed: the manager has a club, an empty history
+    /// and no matches on record, because `matches_managed` only grows at season end
+    /// When the board sacks the manager in that first season
+    /// Then the career stage is Unemployed (job offers), not AwaitingClub (any club for free).
+    #[test]
+    fn a_pre_history_save_sacked_in_its_first_season_is_unemployed() {
+        let mut game = make_game(0);
+        game.manager.career_history.clear();
+        game.manager.career_stats.matches_managed = 0;
+
+        execute_firing(&mut game);
+
+        assert_eq!(
+            crate::career_stage::career_stage(&game),
+            crate::career_stage::CareerStage::Unemployed
+        );
+        let entry = game
+            .manager
+            .career_history
+            .first()
+            .expect("backfilled entry");
+        assert_eq!(entry.team_id, "team1");
+        assert_eq!(entry.team_name, "Test FC");
+        assert_eq!(entry.end_date.as_deref(), Some("2026-10-15"));
     }
 
     #[test]

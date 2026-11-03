@@ -180,6 +180,29 @@ mod tests {
     }
 
     /// Generate a minimal valid Game JSON.
+    /// A save from before `natural_position` existed: the player has a `position` and no
+    /// `natural_position` or `alternate_positions` keys at all, so serde fills in the defaults
+    /// (a natural goalkeeper). A second player is a real keeper written the same way.
+    fn legacy_game_json_without_natural_position() -> String {
+        let mut json: serde_json::Value =
+            serde_json::from_str(&minimal_game_json()).expect("minimal game json should parse");
+
+        json["players"][0]["position"] = serde_json::json!("LeftBack");
+        let mut keeper = json["players"][0].clone();
+        keeper["id"] = serde_json::json!("p-keeper");
+        keeper["position"] = serde_json::json!("Goalkeeper");
+        for player in [&mut json["players"][0], &mut keeper] {
+            let fields = player.as_object_mut().expect("a player is an object");
+            fields.remove("natural_position");
+            fields.remove("alternate_positions");
+        }
+        json["players"]
+            .as_array_mut()
+            .expect("players is an array")
+            .push(keeper);
+        serde_json::to_string(&json).expect("legacy json should serialize")
+    }
+
     fn minimal_game_json() -> String {
         use chrono::{TimeZone, Utc};
         use domain::player::{PlayerAttributes, Position};
@@ -858,6 +881,51 @@ mod tests {
                 .alternate_positions
                 .contains(&domain::player::Position::LeftWingBack)
         );
+    }
+
+    /// Given a save from before `natural_position` existed: an outfielder and a keeper, neither
+    ///       with a `natural_position` key
+    /// When it is migrated and loaded
+    /// Then the outfielder is a defender, not the serde default goalkeeper, and the keeper is
+    ///      still a goalkeeper
+    ///
+    /// It passes on develop by design. It fails if `is_legacy_bucket` stops counting the
+    /// goalkeeper, which is what lets the identity upgrade see the default for what it is.
+    #[test]
+    fn test_migrate_legacy_save_without_natural_position_reads_position() {
+        let dir = tempfile::tempdir().unwrap();
+        let legacy_path = dir.path().join("saves.db");
+        let saves_dir = dir.path().join("saves");
+        let json = legacy_game_json_without_natural_position();
+
+        create_legacy_db(
+            &legacy_path,
+            &[("old-save-9", "No Natural Position", "Test Manager", &json)],
+        );
+
+        let mut sm = SaveManager::init(&saves_dir).unwrap();
+        let results = migrate_legacy_saves(dir.path(), &mut sm).unwrap();
+        assert!(matches!(&results[0], LegacyMigrationResult::Success { .. }));
+
+        let save_id = sm.list_saves()[0].id.clone();
+        let loaded = sm.load_game(&save_id).unwrap();
+        let natural_of = |id: &str| {
+            loaded
+                .players
+                .iter()
+                .find(|player| player.id == id)
+                .unwrap_or_else(|| panic!("{id} is in the save"))
+                .natural_position
+                .clone()
+        };
+
+        let outfielder = natural_of("p-001");
+        assert_ne!(outfielder, domain::player::Position::Goalkeeper);
+        assert_eq!(
+            outfielder.to_group_position(),
+            domain::player::Position::Defender
+        );
+        assert_eq!(natural_of("p-keeper"), domain::player::Position::Goalkeeper);
     }
 
     #[test]

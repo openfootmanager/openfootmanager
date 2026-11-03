@@ -28,8 +28,9 @@ pub(super) fn parse_competition_definitions(
 pub(super) fn validate_against_world(
     file: &ofm_core::generator::CompetitionDefinitionFile,
     world: &ofm_core::generator::WorldData,
+    basis: ofm_core::generator::ReputationBasis<'_>,
 ) -> Vec<CompetitionDefinitionIssue> {
-    ofm_core::generator::validate_definitions_for_world(file, world)
+    ofm_core::generator::validate_definitions_for_world_ranked(file, world, basis)
         .into_iter()
         .map(|error| CompetitionDefinitionIssue {
             code: error.code,
@@ -49,8 +50,25 @@ pub fn validate_competition_definitions(
     definitions_json: String,
 ) -> Result<Vec<CompetitionDefinitionIssue>, String> {
     let file = parse_competition_definitions(&definitions_json)?;
-    let world = load_world_data(world_source.as_deref(), &definition_sources(&app_handle))?;
-    Ok(validate_against_world(&file, &world))
+    let (world, authored) =
+        load_world_data(world_source.as_deref(), &definition_sources(&app_handle))?;
+    Ok(validate_against_world(
+        &file,
+        &world,
+        ofm_core::generator::ReputationBasis::Authored(&authored),
+    ))
+}
+
+/// Whether a manager's date of birth will do on the day a career opens, for the create-manager
+/// form: `None` when it will, else the translation key of the problem. The age rule is the one
+/// `start_new_game` applies, so the form cannot disagree with it about the opening date.
+#[tauri::command]
+pub fn validate_manager_dob(
+    dob: String,
+    start_year: i32,
+    start_phase: String,
+) -> Result<Option<String>, String> {
+    super::manager_dob_error(&dob, start_year, &start_phase)
 }
 
 /// One problem found while loading a world package, shaped for the UI.
@@ -213,5 +231,25 @@ competitions:
         assert_eq!(package_folder_name("turkish-league"), "turkish-league");
         // No usable component → a sensible default rather than an empty name.
         assert_eq!(package_folder_name(""), "World Package");
+    }
+
+    /// Given the command the create-manager form calls, with no game and no state
+    /// When it is asked about a manager born on 15 June 1996 for a 2026 career (opening 1 June), one
+    ///      born in 1980, and a start phase that does not exist
+    /// Then it answers the too-young key, nothing, and an error: it is the age rule, not a stub.
+    #[test]
+    fn validate_manager_dob_answers_from_the_age_rule() {
+        assert_eq!(
+            validate_manager_dob("1996-06-15".to_string(), 2026, "seasonStart".to_string()),
+            Ok(Some("be.error.createManager.minAge".to_string()))
+        );
+        assert_eq!(
+            validate_manager_dob("1980-01-01".to_string(), 2026, "seasonStart".to_string()),
+            Ok(None)
+        );
+        assert_eq!(
+            validate_manager_dob("1980-01-01".to_string(), 2026, "nextWeek".to_string()),
+            Err("be.error.createManager.invalidStartPhase".to_string())
+        );
     }
 }

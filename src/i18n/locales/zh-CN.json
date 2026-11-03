@@ -58,10 +58,7 @@
   "validation": {
     "required": "{{field}} 为必填项",
     "maxLength": "{{field}} 不能超过 {{max}} 个字符",
-    "minStartYear": "开始年份必须为 {{min}} 或之后",
-    "minAge": "经理年龄必须至少为 {{min}} 岁 — 请修改出生日期以继续。",
-    "invalidDate": "无效日期",
-    "invalidDob": "无效的出生日期"
+    "minStartYear": "开始年份必须为 {{min}} 或之后"
   },
   "worldSelect": {
     "title": "选择世界",
@@ -173,6 +170,7 @@
     "digestSimulating": "模拟中...",
     "digestMatchDay": "比赛日",
     "digestMatchDayDesc": "您的球队今天有一场比赛。",
+    "matchModeMenu": "选择比赛模式",
     "digestReturnHome": "返回主页",
     "digestBlocked": "需要操作",
     "digestBlockedDesc": "在继续之前，有些问题需要您的关注。",
@@ -397,17 +395,31 @@
     "traits": "特质",
     "condition": "状态",
     "delegateToYouthAcademy": "下放至青训营",
-    "promoteToSeniorSquad": "提拔至一线队",
-    "potWorldClass": "世界级",
-    "potExcellent": "优秀",
-    "potPromising": "有前途",
-    "potDecent": "尚可",
-    "potLimited": "有限"
+    "promoteToSeniorSquad": "提拔至一线队"
   },
   "common": {
+    "ratingTier": {
+      "S": "S",
+      "A": "A",
+      "B": "B"
+    },
+    "ordinal": {
+      "one": "第{{n}}",
+      "two": "第{{n}}",
+      "few": "第{{n}}",
+      "other": "第{{n}}"
+    },
     "currentWage": "当前工资",
     "loading": "加载中……",
     "loadingGameState": "加载游戏状态中……",
+    "detailsFor": "{{name}} 的详情",
+    "overallRating": "综合实力 {{value}}",
+    "overallRatingTier": "综合实力 {{value}}，等级 {{tier}}",
+    "namedRating": "{{name}} {{value}}",
+    "namedRatingTier": "{{name}} {{value}}，等级 {{tier}}",
+    "listViewLabel": "显示方式",
+    "listViewTable": "表格",
+    "listViewCards": "卡片",
     "noResults": "未找到结果。",
     "place": {
       "1": "第1",
@@ -416,6 +428,11 @@
       "other": "第{{n}}"
     },
     "pts": "积分",
+    "playedFull": "已赛场次",
+    "wonFull": "胜场",
+    "drawnFull": "平局",
+    "lostFull": "负场",
+    "ptsFull": "积分",
     "played": "赛",
     "won": "胜",
     "drawn": "平",
@@ -576,7 +593,11 @@
       "twistedAnkle": "脚踝扭伤",
       "kneeBruise": "膝盖挫伤",
       "hamstringTightness": "腿筋紧张",
-      "calfStrain": "小腿拉伤"
+      "calfStrain": "小腿拉伤",
+      "ankleLigamentSprain": "踝关节韧带扭伤",
+      "hamstringTear": "腘绳肌撕裂",
+      "kneeLigamentTear": "膝关节韧带撕裂",
+      "metatarsalFracture": "跖骨骨折"
     },
     "scoutRatings": {
       "excellent": "极佳",
@@ -613,7 +634,14 @@
     "center": "中路",
     "right": "右侧",
     "competition": "赛事",
-    "confirmDelete": "确认删除"
+    "confirmDelete": "确认删除",
+    "firstPage": "第一页",
+    "previousPage": "上一页",
+    "nextPage": "下一页",
+    "lastPage": "最后一页",
+    "sortBy": "排序方式",
+    "sortAscending": "升序",
+    "lineupLoading": "位置数据仍在加载，暂时无法调整阵容。"
   },
   "teamSelection": {
     "title": "选择您的俱乐部",
@@ -689,21 +717,15 @@
     "coverageNeedsAttention": "{{count}} 个角色组需要补强",
     "coverageBadge": "XI {{starters}}/{{required}} · 替补 {{bench}}",
     "bestRole": "最佳角色",
-    "formationFit": "阵型适配",
     "startingXi": "首发阵容",
-    "styleFit": "风格适配",
+    "notMatchDayEligible": "无法入选比赛名单",
     "starter": "首发",
     "benchOption": "替补",
-    "naturalFit": "自然适配",
-    "adaptedFit": "适应角色",
+    "naturalFit": "惯用位置",
+    "adaptedFit": "可胜任",
     "needsCover": "需要轮换",
     "makeStarter": "设为首发",
-    "sendToBench": "放到替补席",
-    "styleFitValues": {
-      "strong": "风格适配：强",
-      "good": "风格适配：良好",
-      "risky": "风格适配：有风险"
-    }
+    "sendToBench": "放到替补席"
   },
   "tactics": {
     "formationStyle": "阵型与风格",
@@ -766,6 +788,11 @@
     "myTactics": "我的战术",
     "newTactic": "新建战术",
     "duplicateTactic": "复制",
+    "deleteTactic": "删除",
+    "deleteTacticTitle": "删除这个战术？",
+    "deleteTacticBody": "“{{name}}”将从战术库中移除。球队保留当前的阵型和打法风格。",
+    "deleteTacticConfirm": "删除",
+    "resetTactic": "恢复默认",
     "saveAsTactic": "保存为战术",
     "updateTactic": "更新战术",
     "tacticSaved": "已保存",
@@ -849,8 +876,8 @@
     "setCornerTaker": "指定角球手",
     "inspector": "检视面板",
     "inspectorEmptyTitle": "未选择任何内容",
-    "naturalFit": "自然适配",
-    "adaptedFit": "适应角色",
+    "naturalFit": "惯用位置",
+    "adaptedFit": "可胜任",
     "tokenStates": {
       "ready": "就绪",
       "adjusted": "调整中",
@@ -866,7 +893,7 @@
     "clearSelection": "清除选择",
     "compareWithSelected": "与已选球员比较",
     "selectForSwap": "选择用于交换",
-    "assignBestFit": "分配到最佳位置",
+    "assignBestFit": "分配最佳位置",
     "moveToBench": "移到替补席",
     "promoteToLineup": "提入首发",
     "tableView": "表格视图",
@@ -881,7 +908,6 @@
     "positionSelector": "战术位置",
     "playablePositions": "可踢位置",
     "slotFit": "位置适配",
-    "styleFit": "风格适配",
     "responsibilities": "职责",
     "noSpecialRoles": "没有特殊角色",
     "moraleLevels": {
@@ -897,11 +923,6 @@
       "sharp": "状态上佳",
       "managing": "需要管理",
       "risk": "风险"
-    },
-    "styleFitLevels": {
-      "strong": "高度适配",
-      "good": "适配良好",
-      "risky": "适配风险高"
     }
   },
   "training": {
@@ -1044,6 +1065,7 @@
     "youthSearches": "项青训搜索",
     "hireStaff": "聘用员工",
     "best": "最佳",
+    "staffActions": "{{name}} 的员工操作",
     "roles": {
       "AssistantManager": "助理教练",
       "Coach": "教练",
@@ -1081,6 +1103,7 @@
     "seasonIncome": "赛季收入",
     "seasonExpenses": "赛季支出",
     "perWeekSuffix": "/周",
+    "snapshotLoadFailed": "无法加载俱乐部财务数据。",
     "perYearSuffix": "/年",
     "wagePerWeek": "周薪",
     "wagePerYear": "年薪",
@@ -1145,6 +1168,15 @@
   },
   "inbox": {
     "title": "收件箱",
+    "archive": {
+      "heading": "较早的消息",
+      "load": "加载较早的消息",
+      "loadMore": "加载更多较早的消息",
+      "loading": "正在加载较早的消息…",
+      "empty": "没有较早的消息。",
+      "end": "没有更多较早的消息了。",
+      "error": "无法加载较早的消息。"
+    },
     "nMessages": "{{count}} 条消息",
     "noMessages": "暂无消息",
     "noMessagesInCategory": "此分类下暂无消息",
@@ -1167,6 +1199,7 @@
     "sortNewest": "最新优先",
     "sortOldest": "最早优先",
     "selectMessages": "选择消息",
+    "selectAll": "全选",
     "cancelSelection": "取消选择",
     "selectedCount": "已选 {{count}} 条",
     "deleteSelected": "删除所选",
@@ -1335,6 +1368,7 @@
     "bidImpactWagePressure": "预计工资预算占用 {{percent}}%",
     "bidImpactOverTransferBudget": "这笔报价超出了你的转会预算",
     "bidImpactOverBalance": "这笔报价会让俱乐部陷入负债",
+    "bidImpactOverWagePolicy": "董事会会拒绝他的薪资：它超出了俱乐部的薪资政策",
     "bidAccepted": "出价被接受!球员已签下。",
     "bidCountered": "对方提出了修改后的条款。",
     "bidRejected": "出价被拒绝 — 报价过低。",
@@ -1407,6 +1441,9 @@
     "resumeNegotiationHint": "与该俱乐部的谈判仍在进行中。",
     "resumeNegotiationHeadline": "对方俱乐部正等待你的下一步。",
     "resumeNegotiationDetail": "他们上次的信号暗示价位在 {{fee}} 左右。",
+    "resumeRefusedHeadline": "对方拒绝了你上一次的报价。",
+    "resumeRefusedDetail": "新的报价将从这里继续谈判。对方最后一次的表态接近 {{fee}}。",
+    "talksResumeOn": "谈判可于 {{date}} 恢复。",
     "transferFeedbackAcceptedHeadline": "对方俱乐部已准备成交。",
     "transferFeedbackAcceptedDetail": "你的报价落在他们可接受的范围内,谈判迅速推进。",
     "transferFeedbackScheduledHeadline": "交易已约定在下个注册窗口完成。",
@@ -1415,6 +1452,8 @@
     "transferFeedbackCounterDetail": "出价已足够接近,谈判仍在继续,但对方暗示的价位更接近 {{fee}}。",
     "transferFeedbackRejectedHeadline": "他们这一轮直接关闭了谈判。",
     "transferFeedbackRejectedDetail": "该报价未能打动他们。你需要更有力的报价,接近 {{fee}},才能重启正式谈判。",
+    "transferFeedbackBrokeOffHeadline": "对方已终止谈判。",
+    "transferFeedbackBrokeOffDetail": "在数次报价都不够之后，俱乐部结束了谈判。本需要接近 {{fee}} 的转会费。请先等一等再重试。",
     "registrationFailureInsufficientFunds": "注册失败：买方资金不足",
     "registrationFailureLoanConflict": "注册失败：租借冲突",
     "registrationFailurePlayerUnavailable": "注册失败：球员不可转会",
@@ -1444,6 +1483,8 @@
     "fixtures": "赛程",
     "standings": "积分榜",
     "matchday": "第 {{number}} 轮",
+    "movedFrom": "由 {{date}} 改期",
+    "dateRange": "{{from}} 至 {{to}}",
     "season": "第 {{number}} 赛季",
     "international": "国际",
     "internationalDuty": "国家队征召",
@@ -1472,6 +1513,10 @@
   "players": {
     "searchPlaceholder": "按姓名或国籍搜索...",
     "allPos": "所有位置",
+    "filterAgeMin": "最低年龄",
+    "filterAgeMax": "最高年龄",
+    "filterOvrMin": "最低能力",
+    "filterOvrMax": "最高能力",
     "allTeams": "所有球队",
     "nPlayersFound": "找到 {{count}} 名球员",
     "noMatch": "没有球员符合您的筛选条件。",
@@ -1592,6 +1637,7 @@
     "dateOfBirth": "出生日期",
     "noContract": "无合同",
     "weeklyWage": "周薪",
+    "approximateWage": "约 {{wage}}",
     "annualWage": "年薪",
     "yearsRemaining": "剩余年限",
     "contractRisk": "合同风险",
@@ -1658,6 +1704,7 @@
     "passAccuracy": "传球成功率",
     "percentile": "百分位",
     "percentileUnavailable": "百分位不可用",
+    "percentileGroup": "对比对象：{{league}} 的{{position}}",
     "recentMatches": "近期比赛",
     "recentMatchesScore": "比分",
     "recentMatchesGoalsAssists": "进 / 助",
@@ -1710,7 +1757,27 @@
     "renewalProjectionWageBill": "周薪总支出 {{before}} → {{after}}",
     "renewalProjectionBudgetUsage": "薪资预算占用 {{before}}% → {{after}}%",
     "renewalProjectionRunway": "现金储备 {{before}} → {{after}}",
-    "ratingTrend": "评分趋势"
+    "ratingTrend": "评分趋势",
+    "potentialOpinion": {
+      "scoutsOpinion": "球探意见",
+      "coachesOpinion": "教练组意见",
+      "bandS": "有望成为顶尖球员",
+      "bandA": "有望成为主力",
+      "bandB": "可以成为有用的轮换球员",
+      "bandRest": "不太可能再有大的进步",
+      "range": "潜力 {{low}}–{{high}}",
+      "confident": "把握很大",
+      "fairlySure": "比较有把握",
+      "unsure": "没有把握",
+      "guess": "只是猜测",
+      "byScout": "球探 {{scout}} 于 {{date}} 考察"
+    },
+    "positions": {
+      "title": "位置",
+      "wherePlayed": "您安排他踢的位置"
+    },
+    "loadFailed": "无法加载",
+    "retryWage": "重新加载工资"
   },
   "teamProfile": {
     "clubInfo": "俱乐部信息",
@@ -1783,6 +1850,8 @@
     "confirmAdvanceDesc": "推进一天前请求确认",
     "continueToNextEvent": "继续将跳至下一个事件",
     "continueToNextEventDesc": "继续会推进到你的下一场比赛、需要处理的事项、转会截止日或重要新闻",
+    "skipShootoutPicker": "跳过点球顺序选择",
+    "skipShootoutPickerDesc": "点球大战直接使用自动顺序，不再询问你",
     "savesData": "存档与数据",
     "autoSave": "自动存档",
     "autoSaveDesc": "每天结束后自动保存游戏",
@@ -1810,6 +1879,21 @@
     },
     "uiScale": "界面缩放",
     "uiScaleDesc": "调整字号与间距以提升可读性",
+    "sidebarWidth": "侧边栏宽度",
+    "sidebarWidthDesc": "展开时侧边栏的宽度。“宽”可让每个菜单名称显示在一行内。",
+    "sidebarWidthOptions": {
+      "compact": "紧凑",
+      "standard": "标准",
+      "wide": "宽"
+    },
+    "sidebarBehaviour": "侧边栏",
+    "sidebarBehaviourDesc": "侧边栏的打开方式。窗口太窄时，它会在页面上方打开。",
+    "sidebarBehaviourOptions": {
+      "normal": "常规",
+      "hover": "悬停时展开",
+      "click": "点击时展开",
+      "icons": "仅图标"
+    },
     "uiScaleOptions": {
       "small": "小",
       "normal": "标准",
@@ -1827,7 +1911,12 @@
     "help": "帮助",
     "reportBug": "报告错误",
     "reportBugDesc": "告诉我们出了什么问题，日志会自动附上。",
-    "report": "报告"
+    "report": "报告",
+    "yourReports": "你的报告",
+    "yourReportsDesc": "你已发送报告的参考编号。提供编号即可询问报告情况或要求删除。",
+    "noReports": "你还没有发送过任何报告。",
+    "reportOutcomeUnknown": "结果未知：可能已送达。再次发送可能会送达两次。",
+    "reportIncludedSave": "附带存档"
   },
   "preMatch": {
     "formationFit": "阵型契合度",
@@ -1923,6 +2012,7 @@
     "step1Min": "步进1分钟",
     "teamControls": "球队控制",
     "subs": "替补",
+    "subsClosed": "加时赛结束后不能再换人",
     "formation": "阵型",
     "playStyle": "打法风格",
     "keyEvents": "关键事件",
@@ -1953,6 +2043,16 @@
     "benchPlayers": "替补球员",
     "selectBenchToCompare": "选择替补球员进行比较",
     "confirmSubstitution": "确认换人",
+    "queueSubstitution": "加入队列",
+    "queuedSubstitutions": "排队中的换人",
+    "confirmAllSubstitutions": "全部确认（{{count}}）",
+    "confirmSubstitutions": "确认 {{count}} 次换人",
+    "removeQueuedSubstitution": "将 {{off}} → {{on}} 从队列中移除",
+    "alreadyQueued": "已排队等待换人",
+    "substitutionsPartlyMade": "已完成 {{applied}}/{{total}} 次换人",
+    "substitutionRefused": "换人被拒绝：{{off}} 换 {{on}}。{{reason}}",
+    "roleFor": "{{player}}的角色",
+    "roleChangeRefused": "无法更改{{player}}的角色。{{reason}}",
     "noBenchAvailable": "没有可用的替补球员",
     "history": "历史",
     "player": "球员",
@@ -1966,7 +2066,47 @@
       "suddenDeath": "突然死亡法",
       "shootoutScore": "点球：{{h}} – {{a}}",
       "homeKick": "主队主罚...",
-      "awayKick": "客队主罚..."
+      "awayKick": "客队主罚...",
+      "kickScored": "第 {{n}} 罚，罚进",
+      "kickMissed": "第 {{n}} 罚，罚失",
+      "kickToCome": "第 {{n}} 罚，尚未主罚",
+      "kickSheet": "点球记录表",
+      "kickColumn": "轮次",
+      "sheetCaption": "点球大战每一轮：谁主罚、结果如何",
+      "scored": "罚进",
+      "missed": "罚失",
+      "toCome": "待罚",
+      "notTaken": "未罚",
+      "afterExtraTime": "加时赛后 {{home}} – {{away}}",
+      "kickAnnounceScored": "第 {{n}} 罚，{{team}}：{{kicker}} 罚进。",
+      "kickAnnounceMissed": "第 {{n}} 罚，{{team}}：{{kicker}} 罚失。",
+      "stepFailed": "点球大战无法继续，请重试。",
+      "nextKick": "下一罚",
+      "orderHeading": "你的点球顺序",
+      "orderStep": "第 1 步，共 2 步",
+      "orderHint": "指定点球手第一个罚，然后是射术最好的球员，门将最后。拖动球员，或按空格键或回车键拿起球员，再用方向键移动。",
+      "useAutoOrder": "使用自动顺序",
+      "startShootout": "开始点球大战",
+      "penTaker": "点球手",
+      "moving": "移动中",
+      "sitsOut": "不出场",
+      "sitsOutNote": "双方各派 {{k}} 名罚球手",
+      "sitsOutLine": "此线以下不出场：{{n}} 人。双方各派 {{k}} 名罚球手。",
+      "moveKicker": "移动 {{name}}，第 {{n}} 罚，共 {{k}} 罚",
+      "moveSitter": "移动 {{name}}，不出场",
+      "liftedKick": "{{name}}，第 {{n}} 罚，共 {{k}} 罚。方向键移动，空格键放下，Esc 键放回原位。",
+      "liftedSitsOut": "{{name}}，不出场。方向键移动，空格键放下，Esc 键放回原位。",
+      "movedKick": "{{name}}，第 {{n}} 罚，共 {{k}} 罚",
+      "movedSitsOut": "{{name}} 不出场",
+      "droppedKick": "{{name}} 已放在第 {{n}} 罚，共 {{k}} 罚。",
+      "droppedSitsOut": "{{name}} 已放下：不出场。",
+      "putBackKick": "{{name}} 已放回第 {{n}} 罚，共 {{k}} 罚。",
+      "putBackSitsOut": "{{name}} 已放回：不出场。",
+      "autoOrderRestored": "已恢复自动顺序。",
+      "columnShooting": "射门",
+      "columnComposure": "镇定",
+      "opponentOrderHidden": "{{team}} 的顺序将保密，直到每名球员走上点球点。",
+      "orderFailed": "无法设置你的顺序，请重试。"
     },
     "fullTime": "全场结束",
     "ft": "全场",
@@ -2019,12 +2159,13 @@
     "postMatchTeamTalk": "赛后讲话",
     "addressPlayers": "在赛后对球员发表讲话。",
     "matchOver": "比赛结束",
-    "performance": "{{team}} 表现",
+    "ratings": "{{team}} 评分",
     "motm": "全场最佳",
     "roundSummary": "本轮综述",
     "roundSummaryUnavailable": "本轮综述暂不可用。",
     "otherMatches": "其他比赛",
     "otherMatchesToday": "今日其他比赛",
+    "elsewhereInYourLeague": "联赛中的其他比赛",
     "otherMatchesUnavailable": "本场比赛暂无其他比赛信息。",
     "viewDetails": "查看详情",
     "matchDetails": "比赛详情",
@@ -2213,7 +2354,7 @@
     "preMatchPrep": "赛前准备",
     "startingLineup": "首发阵容",
     "setPiecesCaptain": "定位球与队长",
-    "formationFit": "阵型契合度",
+    "formationFit": "阵型",
     "selecting": "选择中……",
     "autoSelectXI": "自动选择最佳首发11人",
     "startingXI": "首发11人",
@@ -2529,7 +2670,7 @@
       }
     },
     "matchReport": "比赛报告",
-    "playerPerformance": "球员表现",
+    "playerRatings": "球员评分",
     "tacticsTab": "战术",
     "goalSources": "进球来源",
     "openPlay": "进攻中的进球",
@@ -2541,7 +2682,14 @@
     "yourResult": "你的成绩",
     "continue": "继续",
     "notableUpset": "重大爆冷",
-    "pts": "分"
+    "pts": "分",
+    "cupPenalties": "（点球 {{home}}–{{away}}）",
+    "cupAdvances": "{{team}} 晋级",
+    "cupTiesPending": "部分对阵尚未进行",
+    "resume": "继续",
+    "pausedResumesAt": "已暂停 · 将以{{speed}}继续",
+    "playingAt": "正在以{{speed}}进行",
+    "spaceKey": "空格"
   },
   "endOfSeason": {
     "seasonComplete": "赛季结束",
@@ -2582,12 +2730,19 @@
     "compare": "比较"
   },
   "be": {
+    "condition": {
+      "fresh": "精力充沛",
+      "tiring": "体力下降",
+      "exhausted": "筋疲力尽",
+      "critical": "体能危急"
+    },
     "error": {
       "squadFloor": {
         "wouldLeaveShort": "该球员无法离队：阵容将低于俱乐部必须保留的最低人数。涉及位置：{{group}}。",
         "wouldLeaveSeniorsShort": "该球员无法离队：俱乐部一线队将少于 {{floor}} 名球员，低于俱乐部必须保留的最低人数。"
       },
       "noActiveGameSession": "当前没有活动中的游戏会话",
+      "careerChanged": "在保存之前，生涯已经切换。",
       "noActiveSaveSession": "当前没有活动中的存档会话",
       "saveNotFound": "未找到存档“{{saveId}}”。",
       "teamNotFound": "未找到球队",
@@ -2624,6 +2779,10 @@
         "maxSubstitutionsReached": "已达到最大换人次数",
         "preMatchSwapTooLate": "赛前对调只能在开球前进行",
         "cannotSubstituteSentOffPlayer": "不能换下被罚下的球员",
+        "noSubstitutionsForShootout": "加时赛结束后不能再换人：点球大战由终场哨响时在场上的球员主罚。",
+        "shootoutOrderNotNow": "只能在加时赛结束后、第一轮点球之前设定罚球顺序。",
+        "shootoutOrderNotYourSide": "你只能设定本队的罚球顺序。",
+        "shootoutOrderNotEligible": "罚球顺序必须包含你每一名可以罚球的球员，且每人仅出现一次。",
         "playerNotOnPitch": "球员不在场上",
         "playerAlreadySubstitutedOff": "该球员已经被换下",
         "playerNotOnBench": "球员不在替补席上",
@@ -2643,7 +2802,8 @@
         "worldExportNotPackage": "此文件夹是导出的世界存档，而不是软件包项目。导出的世界使用不同的格式，无法在此处编辑。",
         "notAProjectDirectory": "这不是数据包项目文件夹。请选择包含数据包 package.json 的文件夹；如果是已安装的 .ofm 数据包，请使用“打开 .ofm 文件”。",
         "unknownSchema": "未知的 schema \"{{schema}}\"。",
-        "invalidEntity": "\"{{schema}}\" 条目无效。",
+        "invalidEntity": "\"{{schema}}\" 条目无效：{{detail}}",
+        "duplicateWorld": "该包已在“{{first}}”中有清单；一个包只能有一个“world”文件。",
         "missingId": "某个 {{kind}} 条目缺少 id。",
         "missingMetadata": "包清单缺少必填字段“{{field}}”。",
         "duplicateId": "重复的 {{kind}} id \"{{id}}\"。",
@@ -2704,6 +2864,7 @@
         "bothParticipantSources": "请提供明确列表或选择器，二者不可兼用。",
         "tooFewParticipants": "至少需要两个参赛者。",
         "unknownTeam": "未知球队“{{team}}”。",
+        "duplicateTeam": "球队“{{team}}”被重复列出。",
         "selectorMissingCountry": "该选择器需要一个国家。",
         "selectorCountTooSmall": "该选择器的数量至少为 2。",
         "selectorMissingRegion": "该选择器需要一个地区。",
@@ -2720,6 +2881,7 @@
       "saveLoad": {
         "corrupted": "该存档文件已损坏，无法加载。",
         "incompatibleVersion": "该存档由更新版本的游戏创建（存档 v{{saveVersion}}；当前版本最高支持 v{{supported}}）。请更新游戏后再加载。",
+        "incompatibleLayout": "该存档的数据与其声明的版本不符，无法安全加载。文件未被改动。",
         "missingData": "该存档缺少必要数据，无法加载。",
         "invalidWorld": "该存档的世界或模组数据无效，无法加载。",
         "unknown": "由于发生意外错误，无法加载该存档。"
@@ -2746,7 +2908,25 @@
       "saveManagerUnavailable": "存档数据暂时不可用。",
       "report": {
         "bundleFailed": "无法写入报告文件。请检查你是否有权写入所选文件夹。",
-        "saveMissing": "找不到你的存档文件，因此什么都没有写入。请取消勾选存档后重试，或先重新加载你的生涯。"
+        "saveMissing": "找不到你的存档文件，因此什么都没有写入。请取消勾选存档后重试，或先重新加载你的生涯。",
+        "upload": {
+          "consentRequired": "请先勾选同意发送这些文件。",
+          "notConfigured": "此版本的游戏无法直接发送报告，请改用 GitHub 表单。",
+          "attachmentsUnavailable": "暂时无法附加文件。",
+          "alreadySending": "仍有报告正在发送。请等待完成后再试。",
+          "disabled": "目前已关闭报告发送。请改用 GitHub 表单。",
+          "tooManyFiles": "此报告附带的文件过多。",
+          "capacity": "报告服务器目前已满。请改用 GitHub 表单。",
+          "imagesUnavailable": "报告服务器目前无法处理截图。请去掉截图重试，或改用 GitHub 表单。",
+          "rateLimitedWait": "你的网络最近发送的报告过多。请在约 {{minutes}} 分钟后重试。",
+          "tooLarge": "报告太大，无法直接发送。",
+          "rateLimited": "你的网络最近发送的报告过多，请稍后再试。",
+          "rejected": "报告服务器未接受此报告。",
+          "serverError": "报告服务器出现问题，无法接收此报告。",
+          "unreachable": "无法连接到报告服务器，因此没有发送任何内容。请检查你的网络连接。",
+          "unconfirmed": "服务器作出响应之前连接中断。你的报告可能已送达。如果再次发送，团队可能会收到两次。",
+          "prepareFailed": "无法准备要发送的报告。你仍然可以保存报告并使用 GitHub 表单。"
+        }
       },
       "saveDeleteFailed": "无法删除存档文件。",
       "settings": {
@@ -2795,6 +2975,7 @@
         "transferBudgetTooLow": "转会预算过低",
         "playerNotOwnedByUser": "未找到该球员，或该球员不属于你",
         "offerNotPending": "未找到报价，或该报价已不再处于待处理状态",
+        "talksBrokenOff": "该俱乐部已终止这名球员的谈判。请稍后再试。",
         "loanBorrowerCannotAffordWages": "租借俱乐部负担不起这部分薪资。其每周薪资预算为 {{budget}}。",
         "counterOfferMustExceedCurrentOffer": "还价必须高于当前报价",
         "loanCounterMustImproveTerms": "租借还价必须优于当前报价",
@@ -2839,7 +3020,17 @@
       "notice": {
         "fallbackLeagueGenerated": "未定义任何赛事。已自动为所有球队生成默认的单级别联赛。",
         "fallbackTeamsFilled": "仅定义了一支球队。已自动生成程序化对手以使游戏可玩。"
-      }
+      },
+      "customTactic": {
+        "nameRequired": "请为战术起一个不超过 60 个字符的名称。",
+        "invalidFormation": "游戏不认识该阵型。",
+        "invalidPlayStyle": "游戏不认识该打法。",
+        "notFound": "该战术已不存在。"
+      },
+      "anotherClubsSquad": "该阵容属于另一家俱乐部。",
+      "startingXiPlayerNotEligible": "此阵容中有球员无法为你的俱乐部首发。",
+      "startingXiDuplicatePlayer": "此阵容中同一名球员出现了两次。",
+      "startingXiWrongSize": "首发阵容必须正好有十一名球员；如果俱乐部球员不足，则为所有可出场球员。"
     },
     "sender": {
       "boardOfDirectors": "董事会",
@@ -2937,12 +3128,21 @@
       },
       "wageOverBudget": {
         "subject": "薪资支出超出预算",
-        "body": "我们的每周薪资支出({{annualWages}})目前已超过分配的薪资预算({{wageBudget}})。\n\n短期内尚可维持,但董事会希望看到薪资支出得到控制。"
+        "body": "我们的每周薪资支出({{weeklyWageBill}})目前已超过分配的薪资预算({{wageBudget}})。\n\n短期内尚可维持,但董事会希望看到薪资支出得到控制。"
       },
       "financeBoardPressure": {
         "subject": "董事会审查——财务压力",
         "bodyWarning": "董事会仍然担忧俱乐部的财务状况。本周其对你执教的信心下降了 {{penalty}} 点。\n\n你需要改善薪资结构和短期现金状况，否则他们的耐心会继续下降。",
         "bodyCritical": "董事会已经审查了俱乐部持续恶化的财务状况，本周其对你执教的信心下降了 {{penalty}} 点。\n\n现金储备和薪资承诺都已处于危险状态，董事会希望你立即采取纠正措施。"
+      },
+      "financeLevers": {
+        "subject": "俱乐部现已开放财务恢复选项",
+        "body": "资金紧张，这将开放恢复选项。俱乐部目前可用的选项列在下方，每一项都会带你前往“财务”标签页。",
+        "action": {
+          "boardSupport": "向董事会申请支持",
+          "sponsorPitch": "洽谈新赞助商",
+          "marketingCampaign": "开展营销活动"
+        }
       },
       "marketingCampaign": {
         "subject": "营销活动报告",
@@ -3131,6 +3331,11 @@
         "subject": "伤病——{{player}}({{injury}})",
         "body0": "训练场传来坏消息。{{player}}在今天的训练中遭遇了{{injury}}。\n\n医疗团队估计需要缺阵{{days}}天。我们会密切关注恢复情况。",
         "body1": "不幸的是,{{player}}今天在训练中因{{injury}}倒下。\n\n初步评估:缺阵约{{days}}天。我们会随时向您通报进展。"
+      },
+      "matchInjury": {
+        "subject": "比赛伤病 — {{player}}（{{injury}}）",
+        "body0": "比赛传来坏消息：{{player}} 在场上受伤了。\n\n诊断：{{injury}}。医疗团队预计需要休养 {{days}} 天，我们会密切关注恢复情况。",
+        "body1": "{{player}} 在今天的比赛中受了伤。\n\n诊断：{{injury}}。初步评估：缺阵约 {{days}} 天。我们会随时向你通报进展。"
       },
       "mediaPositive": {
         "subject": "正面媒体报道——{{player}}",
@@ -3428,6 +3633,14 @@
         "LoanConflict": "{{player}} 以 {{fee}} 转会至 {{buyer}} 的协议未能在 {{start}} 完成注册，因为球员仍在租借中，或已有一份等待注册的租借协议。此次转会未支付任何转会费。",
         "PlayerUnavailable": "{{player}} 以 {{fee}} 转会至 {{buyer}} 的协议未能在 {{start}} 完成注册，因为球员已无法从出售方俱乐部转会。此次转会未支付任何转会费。",
         "RegistrationBlocked": "{{player}} 以 {{fee}} 转会至 {{buyer}} 的协议未能在 {{start}} 完成注册，因为某项注册条件已不再满足。此次转会未支付任何转会费。"
+      },
+      "matchesMoved": {
+        "subject": "比赛已改期",
+        "body": "您的部分比赛已改期，以保证球员的休息时间并避开国际比赛日：\n{{matches}}"
+      },
+      "savedDataSetAside": {
+        "subject": "部分存档数据已被单独保留",
+        "body": "加载时，此存档的一部分无法读取。这部分数据已被单独保留而没有丢失，您的生涯将继续进行。如果发现有内容缺失，请提交错误报告（{{settings}} → {{reportBug}}，并附上存档），以便我们查看。"
       }
     },
     "news": {
@@ -3464,6 +3677,10 @@
         "reportPreseason": {
           "title": "{{home}} {{homeGoals}} - {{awayGoals}} {{away}}: 季前锦标赛战报",
           "body": "在季前锦标赛中,{{home}} {{homeGoals}} - {{awayGoals}} {{away}}。双方都把这场比赛当作正式赛季开始前的热身机会。{{scorersSection}}"
+        },
+        "reportCompetition": {
+          "title": "{{home}} {{homeGoals}} - {{awayGoals}} {{away}}:战报({{competition}})",
+          "body": "{{competition}}:比赛结束,比分为 {{home}} {{homeGoals}} - {{awayGoals}} {{away}}。{{scorersSection}}"
         }
       },
       "roundup": {
@@ -3537,7 +3754,9 @@
       "weeklyDigest": {
         "headline": "每周摘要——{{weekStart}}当周",
         "bodyNoTopScorer": "最新的每周摘要来了。{{leader}}领跑积分榜,本周有{{storylineCount}}条故事线影响着联赛格局。",
-        "bodyWithTopScorer": "最新的每周摘要来了。{{leader}}领跑积分榜,{{topScorer}}以{{topScorerGoals}}球位居射手榜首。本周有{{storylineCount}}条故事线影响着联赛格局。"
+        "bodyWithTopScorer": "最新的每周摘要来了。{{leader}}领跑积分榜,{{topScorer}}以{{topScorerGoals}}球位居射手榜首。本周有{{storylineCount}}条故事线影响着联赛格局。",
+        "bodyNoTopScorerNoStorylines": "最新的每周摘要来了。{{leader}}领跑积分榜。",
+        "bodyWithTopScorerNoStorylines": "最新的每周摘要来了。{{leader}}领跑积分榜,{{topScorer}}以{{topScorerGoals}}球位居射手榜首。"
       },
       "preseasonDigest": {
         "headline": "季前摘要——{{weekStart}}当周",
@@ -3599,6 +3818,13 @@
     },
     "save": {
       "defaultName": "{{manager}} 的生涯"
+    },
+    "warning": {
+      "package": {
+        "countryWithoutRegion": "该包定义了不在游戏国家列表中的国家“{{name}}”（{{code}}），且未将其归入任何联合会，因此其俱乐部会被归入欧洲。请为其指定一个联合会。",
+        "freeAgentFieldIgnored": "球员“{{id}}”没有俱乐部，因此是没有合同的自由球员：“{{field}}”会被忽略。请为其指定一个俱乐部，或删除该字段。",
+        "repeatedNamePool": "{{country}} 的姓名库已在 {{first}} 中给出；本文件中的姓名库会将其替换。请只保留一个，或将它们分配给不同的国家。"
+      }
     }
   },
   "traits": {
@@ -3846,6 +4072,7 @@
     "saveSuccess": "已保存",
     "saveTeam": "保存球队",
     "issues": "{{count}} 个问题",
+    "warnings": "{{count}} 条警告",
     "packageId": "包 ID",
     "packageName": "包名称",
     "description": "描述",
@@ -3926,6 +4153,7 @@
     "playerPosition": "位置",
     "playerFoot": "惯用脚",
     "playerDateOfBirth": "出生日期",
+    "playerAgeToday": "今天 {{age}} 岁",
     "playerAge": "年龄",
     "playerAgeHelp": "未填写出生日期时使用：球员在生涯开始当天是这个年龄，无论是哪一年。",
     "playerContractSection": "合同",
@@ -4003,6 +4231,7 @@
     "openPackageFileInvalid": "请选择有效的 .ofm 包文件",
     "noItemSelected": "从列表中选择一项，或点击添加以创建",
     "issuesBadge": "{{count}} 个问题",
+    "warningsBadge": "{{count}} 条警告",
     "issuesTitle": "验证问题",
     "noIssues": "没有问题 — 世界有效",
     "saving": "保存中…",
@@ -4077,6 +4306,8 @@
     "staffId": "ID",
     "staffFirstName": "名",
     "staffLastName": "姓",
+    "staffKnownAs": "通称（可选）",
+    "staffKnownAsPlaceholder": "例如：卡福",
     "staffClub": "俱乐部",
     "staffNationality": "国籍",
     "staffDateOfBirth": "出生日期",
@@ -4176,14 +4407,37 @@
     "itemCrashDesc": "包含在内，因为你上次游戏时有程序崩溃。",
     "optionalHeading": "可选添加 — 默认关闭",
     "includeSave": "我的存档",
-      "includeSaveDesc": "让我们能重现你当时的确切情况。",
+    "includeSaveDesc": "让我们能重现你当时的确切情况。",
     "includeSaveNoCareer": "当前没有进行中的生涯，没有可附加的内容。",
     "nothingSentYet": "在你点击下方按钮之前，不会保存或打开任何内容。提交表单需要 GitHub 账号 —— 无论如何，文件都是你的。",
     "savedTo": "你的报告文件已保存在：",
     "dragItIn": "把它拖到浏览器中的 GitHub 表单里，然后提交。就这么简单。",
-      "browserDidNotOpen": "浏览器没有打开。上方的文件已保存 —— 方便时把它附加到 GitHub 上的新 issue 里。",
+    "browserDidNotOpen": "浏览器没有打开。上方的文件已保存 —— 方便时把它附加到 GitHub 上的新 issue 里。",
     "review": "查看将发送的内容",
     "saveAndOpen": "保存文件并打开 GitHub",
-    "working": "处理中……"
+    "working": "处理中……",
+    "previewIntroUpload": "仅包含以下内容，别无其他。在你点击“发送”或自行保存文件之前，任何内容都不会离开这台电脑。",
+    "consentLabel": "将这些文件发送给 OpenFoot Manager 团队",
+    "consentDesc": "我已查看上面的列表并同意上传。无需账号。报告会保留到团队处理完毕为止。",
+    "send": "发送",
+    "saveAndOpenInstead": "改为保存文件并使用 GitHub",
+    "nothingSentYetUpload": "在你点击“发送”之前，任何内容都不会离开这台电脑。更想用 GitHub？保存文件并自行附加到表单中 —— 这需要 GitHub 账号。",
+    "uploadFailedFallback": "你仍然可以通过 GitHub 发送：保存文件并将其附加到表单中。",
+    "technicalDetails": "技术详情",
+    "tooLargeUntickSave": "取消勾选存档会让报告小得多。",
+    "sentTitle": "报告已发送",
+    "sentIntro": "谢谢。你的报告已送达 OpenFoot Manager 团队，并会保留到处理完毕为止。",
+    "referenceCode": "你的参考编号",
+    "referenceCodeHint": "询问你的报告时请提供此编号。如需删除，请携带此编号发邮件至 bugreport@openfootmanager.com。它不是密码：任何人都无法凭它查看你的报告。",
+    "referenceCodeSaved": "你可以在 设置 → 帮助 → 你的报告 中再次找到它。",
+    "notRecorded": "无法将此编号添加到你的报告列表中，请把它记下来。",
+    "copyCodeFor": "复制编号 {{code}}",
+    "codeCopied": "已复制"
+  },
+  "crashPrompt": {
+    "title": "游戏意外关闭",
+    "body": "你上次游戏时发生了崩溃。报告它能帮助我们修复问题 —— 在任何内容离开你的电脑之前，你都会看到将要发送的全部内容。",
+    "report": "报告",
+    "notNow": "以后再说"
   }
 }

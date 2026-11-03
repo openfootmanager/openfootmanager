@@ -9,9 +9,9 @@ type ActiveDealWorkspaceProps = {
   state: Pick<
     TransfersTabController,
     | "dealWorkspaceTarget"
+    | "visibleOf"
     | "gameState"
     | "myTeam"
-    | "weeklySuffix"
     | "transferWindowBlocksRegistration"
     | "transferWindowSummary"
     | "loanWindowNoticeDetail"
@@ -27,6 +27,7 @@ type ActiveDealWorkspaceProps = {
     | "bidFeedback"
     | "activeBidOffer"
     | "hasExistingOffer"
+    | "talksResumeOn"
     | "bidResult"
     | "bidError"
     | "bidLoading"
@@ -83,6 +84,7 @@ type TransferBidDialogProps = {
     | "bidFeedback"
     | "activeBidOffer"
     | "hasExistingOffer"
+    | "talksResumeOn"
     | "bidResult"
     | "bidError"
     | "bidLoading"
@@ -142,6 +144,7 @@ type LoanOfferDialogProps = {
     TransfersTabController,
     | "loanTarget"
     | "dealWorkspaceTarget"
+    | "visibleOf"
     | "gameState"
     | "loanPeriodId"
     | "loanPeriodOptions"
@@ -172,6 +175,7 @@ type LoanCounterDialogProps = {
   state: Pick<
     TransfersTabController,
     | "loanCounterTarget"
+    | "visibleOf"
     | "gameState"
     | "loanCounterPeriodId"
     | "loanCounterPeriodOptions"
@@ -202,9 +206,9 @@ type LoanCounterDialogProps = {
 export function ActiveDealWorkspace({ state }: ActiveDealWorkspaceProps) {
   const {
     dealWorkspaceTarget,
+    visibleOf,
     gameState,
     myTeam,
-    weeklySuffix,
     transferWindowBlocksRegistration,
     transferWindowSummary,
     loanWindowNoticeDetail,
@@ -220,6 +224,7 @@ export function ActiveDealWorkspace({ state }: ActiveDealWorkspaceProps) {
     bidFeedback,
     activeBidOffer,
     hasExistingOffer,
+    talksResumeOn,
     bidResult,
     bidError,
     bidLoading,
@@ -265,9 +270,9 @@ export function ActiveDealWorkspace({ state }: ActiveDealWorkspaceProps) {
     dealWorkspaceTarget && (
       <PlayerDealWorkspace
         player={dealWorkspaceTarget}
+        figures={visibleOf(dealWorkspaceTarget.id)}
         teams={gameState.teams}
         myTeam={myTeam ?? null}
-        weeklySuffix={weeklySuffix}
         transferWindowBlocksRegistration={transferWindowBlocksRegistration}
         transferWindowSummary={transferWindowSummary}
         loanNoticeDetail={loanWindowNoticeDetail}
@@ -289,6 +294,7 @@ export function ActiveDealWorkspace({ state }: ActiveDealWorkspaceProps) {
                 bidFeedback={bidFeedback}
                 activeBidOffer={activeBidOffer}
                 hasExistingOffer={hasExistingOffer}
+                talksResumeOn={talksResumeOn}
                 bidResult={bidResult}
                 bidError={bidError}
                 bidLoading={bidLoading}
@@ -306,6 +312,7 @@ export function ActiveDealWorkspace({ state }: ActiveDealWorkspaceProps) {
             return (
               <LoanOfferForm
                 loanTarget={loanTarget}
+                visibleWage={visibleOf(loanTarget.id).wage}
                 teams={gameState.teams}
                 periodId={loanPeriodId}
                 periodOptions={loanPeriodOptions}
@@ -384,6 +391,7 @@ export function TransferBidDialog({ state }: TransferBidDialogProps) {
     bidFeedback,
     activeBidOffer,
     hasExistingOffer,
+    talksResumeOn,
     bidResult,
     bidError,
     bidLoading,
@@ -408,6 +416,7 @@ export function TransferBidDialog({ state }: TransferBidDialogProps) {
         bidFeedback={bidFeedback}
         activeBidOffer={activeBidOffer}
         hasExistingOffer={hasExistingOffer}
+        talksResumeOn={talksResumeOn}
         bidResult={bidResult}
         bidError={bidError}
         bidLoading={bidLoading}
@@ -515,6 +524,7 @@ export function LoanOfferDialog({ state }: LoanOfferDialogProps) {
   const {
     loanTarget,
     dealWorkspaceTarget,
+    visibleOf,
     gameState,
     loanPeriodId,
     loanPeriodOptions,
@@ -545,6 +555,7 @@ export function LoanOfferDialog({ state }: LoanOfferDialogProps) {
     !dealWorkspaceTarget && (
       <LoanOfferModal
         loanTarget={loanTarget}
+        visibleWage={visibleOf(loanTarget.id).wage}
         teams={gameState.teams}
         periodId={loanPeriodId}
         periodOptions={loanPeriodOptions}
@@ -580,6 +591,7 @@ export function LoanOfferDialog({ state }: LoanOfferDialogProps) {
 export function LoanCounterDialog({ state }: LoanCounterDialogProps) {
   const {
     loanCounterTarget,
+    visibleOf,
     gameState,
     loanCounterPeriodId,
     loanCounterPeriodOptions,
@@ -609,6 +621,7 @@ export function LoanCounterDialog({ state }: LoanCounterDialogProps) {
     loanCounterTarget && (
       <LoanOfferModal
         loanTarget={loanCounterTarget.player}
+        visibleWage={visibleOf(loanCounterTarget.player.id).wage}
         teams={gameState.teams}
         periodId={loanCounterPeriodId}
         periodOptions={loanCounterPeriodOptions}

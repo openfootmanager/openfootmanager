@@ -1,8 +1,28 @@
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { invoke } from "@tauri-apps/api/core";
+import { invoke, type InvokeArgs } from "@tauri-apps/api/core";
 import type { GameStateData, PlayerData, TeamData } from "../../store/gameStore";
+import type { CustomTactic } from "../../services/customTacticsService";
 import TacticsTab from "./TacticsTab";
+import { ratingTierClass } from "../../lib/ratingTier";
+import { createSeasonContext } from "../../test-utils/factories";
+
+// Whether the backend's position table has arrived; a test says it has not.
+const positionTableState = vi.hoisted(() => ({ arrived: true }));
+
+vi.mock("../../hooks/usePositionGroups", async () => {
+  const { cannedPositionsModule } = await import("../../test-utils/positionTable");
+  const { createPositionTable } = await import("../../lib/positionTable");
+  const canned = cannedPositionsModule();
+  const notArrived = createPositionTable([]);
+  return {
+    ...canned,
+    usePositionTable: () => {
+      const arrived = canned.usePositionTable();
+      return positionTableState.arrived ? arrived : notArrived;
+    },
+  };
+});
 
 vi.mock("react-i18next", () => ({
   useTranslation: () => ({
@@ -21,6 +41,11 @@ vi.mock("react-i18next", () => ({
     i18n: { language: "en" },
   }),
 }));
+
+vi.mock("../../hooks/useRatingTiers", async () => {
+  const { cannedRatingTiersModule } = await import("../../test-utils/ratingTiers");
+  return cannedRatingTiersModule();
+});
 
 vi.mock("@tauri-apps/api/core", () => ({
   invoke: vi.fn(),
@@ -66,6 +91,9 @@ const makePlayer = (
   condition: 100,
   morale: 80,
   injury: null,
+  // The backend's verdict for the match day (a healthy senior is eligible); a test that needs a
+  // different verdict says so.
+  match_day_eligible: true,
   team_id: "team1",
   retired: false,
   contract_end: "2027-06-30",
@@ -178,11 +206,13 @@ const makeGameState = (): GameStateData => {
   ];
 
   return {
+    season_context: createSeasonContext(),
     clock: {
       current_date: "2026-08-01",
       start_date: "2026-08-01",
     },
     manager: {
+      display_name: "Test Manager",
       id: "mgr1",
       first_name: "Test",
       last_name: "Manager",
@@ -324,6 +354,7 @@ describe("TacticsTab", () => {
 
     await waitFor(() => {
       expect(mockedInvoke).toHaveBeenCalledWith("apply_tactic_preset", {
+        careerToken: 0,
         formation: "3-4-3",
         playStyle: "HighPress",
       });
@@ -391,10 +422,107 @@ describe("TacticsTab", () => {
     });
   });
 
+  /**
+   * Given the position table has not arrived
+   * When a bench defender is dropped onto a defensive slot of the pitch
+   * Then nothing is saved: a lineup worked out without the lines must not be written.
+   */
+  /**
+   * Given the position table has not arrived, and then has
+   * When the tactics screen is drawn
+   * Then it says why lineup changes are not available yet, and says nothing once it has loaded.
+   */
+  it("says lineup changes wait for the position table, only until it has loaded", async () => {
+    positionTableState.arrived = false;
+    try {
+      const { unmount } = render(
+        <TacticsTab gameState={makeGameState()} onSelectPlayer={vi.fn()} onGameUpdate={vi.fn()} />,
+      );
+      expect(screen.getByRole("status")).toHaveTextContent("common.lineupLoading");
+      unmount();
+    } finally {
+      positionTableState.arrived = true;
+    }
+
+    render(
+      <TacticsTab gameState={makeGameState()} onSelectPlayer={vi.fn()} onGameUpdate={vi.fn()} />,
+    );
+    await act(async () => {}); // and the squad has answered for this revision
+    expect(screen.queryByText("common.lineupLoading")).toBeNull();
+  });
+
+  it("saves no lineup change before the position table has loaded", async () => {
+    positionTableState.arrived = false;
+    try {
+      render(
+        <TacticsTab gameState={makeGameState()} onSelectPlayer={vi.fn()} onGameUpdate={vi.fn()} />,
+      );
+
+      const benchPlayer = screen.getByTestId("pitch-bench-player-d5");
+      const pitchSlot = screen.getByTestId("pitch-slot-1");
+      const dataTransfer = createDataTransfer();
+      fireEvent.dragStart(benchPlayer, { dataTransfer });
+      fireEvent.drop(pitchSlot, { dataTransfer });
+      await act(async () => {});
+
+      expect(mockedInvoke).not.toHaveBeenCalledWith("set_starting_xi", expect.anything());
+    } finally {
+      positionTableState.arrived = true;
+    }
+  });
+
+  /**
+   * Given get_squad has not answered for this revision
+   * When the tactics screen is drawn
+   * Then it says why lineup changes are not available yet, and says nothing once the squad has
+   *      answered.
+   */
+  it("says lineup changes wait while the squad has not answered", async () => {
+    let answer: (players: PlayerData[]) => void = () => {};
+    const state = makeGameState();
+    mockedInvoke.mockReset();
+    mockedInvoke.mockReturnValue(new Promise((resolve) => (answer = resolve)));
+
+    render(<TacticsTab gameState={state} onSelectPlayer={vi.fn()} onGameUpdate={vi.fn()} />);
+    expect(screen.getByRole("status")).toHaveTextContent("common.lineupLoading");
+
+    await act(async () => answer(state.players.filter((player) => player.team_id === "team1")));
+    expect(screen.queryByText("common.lineupLoading")).toBeNull();
+  });
+
+  /**
+   * Given the squad answered once, and then the game moved on (a new revision) with its fetch
+   *       still in flight
+   * When a bench defender is dropped onto a defensive slot
+   * Then nothing is saved: the squad's eligibility is the previous revision's until it answers.
+   */
+  it("saves no lineup change while a newer get_squad is in flight", async () => {
+    const state = makeGameState();
+    const roster = state.players.filter((player) => player.team_id === "team1");
+    mockedInvoke.mockReset();
+    mockedInvoke.mockResolvedValueOnce(roster).mockReturnValue(new Promise(() => {}));
+
+    const { rerender } = render(
+      <TacticsTab gameState={state} onSelectPlayer={vi.fn()} onGameUpdate={vi.fn()} />,
+    );
+    await act(async () => {});
+    rerender(
+      <TacticsTab gameState={{ ...state }} onSelectPlayer={vi.fn()} onGameUpdate={vi.fn()} />,
+    );
+
+    const dataTransfer = createDataTransfer();
+    fireEvent.dragStart(screen.getByTestId("pitch-bench-player-d5"), { dataTransfer });
+    fireEvent.drop(screen.getByTestId("pitch-slot-1"), { dataTransfer });
+    await act(async () => {});
+
+    expect(mockedInvoke).not.toHaveBeenCalledWith("set_starting_xi", expect.anything());
+  });
+
   it("sends the correct starting xi order when a pitch-view bench defender is dropped onto a defensive slot", async () => {
     render(
       <TacticsTab gameState={makeGameState()} onSelectPlayer={vi.fn()} onGameUpdate={vi.fn()} />,
     );
+    await act(async () => {}); // the squad has answered for this revision
 
     const benchPlayer = screen.getByTestId("pitch-bench-player-d5");
     const pitchSlot = screen.getByTestId("pitch-slot-1");
@@ -405,6 +533,7 @@ describe("TacticsTab", () => {
 
     await waitFor(() => {
       expect(mockedInvoke).toHaveBeenCalledWith("set_starting_xi", {
+        careerToken: 0,
         playerIds: ["gk1", "d5", "d2", "d3", "d4", "m1", "m2", "m3", "m4", "f1", "f2"],
       });
     });
@@ -458,61 +587,125 @@ describe("TacticsTab", () => {
     expect(screen.getByRole("option", { name: /tactics.copyOfTactic/i })).toBeInTheDocument();
   });
 
-  it("persists custom tactics across remounts", () => {
+  /** Makes the faked backend keep saved tactics, as the save does, on top of its other answers. */
+  function keepSavedTactics() {
+    const saved: CustomTactic[] = [];
+    const others = mockedInvoke.getMockImplementation();
+    mockedInvoke.mockImplementation(async (command: string, args?: InvokeArgs) => {
+      if (command === "list_custom_tactics") return structuredClone(saved);
+      if (command === "save_custom_tactic") {
+        const tactic = (args as { tactic: CustomTactic }).tactic;
+        const at = saved.findIndex((existing) => existing.id === tactic.id);
+        if (at === -1) saved.push(tactic);
+        else saved[at] = tactic;
+        return structuredClone(saved);
+      }
+      return others ? others(command, args) : undefined;
+    });
+    return saved;
+  }
+
+  /**
+   * Given a custom tactic made and saved
+   * When the screen is closed and opened again
+   * Then the tactic is still in the library: it comes from the save, not from the screen.
+   */
+  it("keeps custom tactics across a save and reload", async () => {
+    keepSavedTactics();
     const gameState = makeGameState();
     const { unmount } = render(
       <TacticsTab gameState={gameState} onSelectPlayer={vi.fn()} onGameUpdate={vi.fn()} />,
     );
 
     fireEvent.click(screen.getByRole("button", { name: "tactics.duplicateTactic" }));
-
+    await waitFor(() =>
+      expect(mockedInvoke).toHaveBeenCalledWith(
+        "save_custom_tactic",
+        expect.objectContaining({ tactic: expect.objectContaining({ formation: "4-4-2" }) }),
+      ),
+    );
     unmount();
 
     render(<TacticsTab gameState={gameState} onSelectPlayer={vi.fn()} onGameUpdate={vi.fn()} />);
-
     fireEvent.click(screen.getByRole("button", { name: "tactics.chooseTactic" }));
 
-    expect(screen.getByRole("option", { name: /tactics.copyOfTactic/i })).toBeInTheDocument();
+    expect(
+      await screen.findByRole("option", { name: /tactics.copyOfTactic/i }),
+    ).toBeInTheDocument();
   });
 
-  it("does not leak custom tactics across manager or team storage scopes", () => {
+  /**
+   * Given a custom tactic made while managing one club
+   * When the same manager takes charge of another club
+   * Then the tactic is still in the library: the library belongs to the career, not the club.
+   */
+  it("keeps custom tactics when the manager changes club", async () => {
+    keepSavedTactics();
     const originalState = makeGameState();
-    const otherState = makeGameState();
-    otherState.clock.start_date = "2026-09-01";
-    otherState.manager.id = "mgr2";
-    otherState.manager.team_id = "team2";
-    otherState.teams = [makeTeam({ id: "team2", manager_id: "mgr2" })];
-    otherState.players = otherState.players.map((player) => ({
-      ...player,
-      team_id: "team2",
-    }));
+    const otherClub = makeGameState();
+    otherClub.manager.team_id = "team2";
+    otherClub.teams = [makeTeam({ id: "team2", manager_id: otherClub.manager.id })];
+    otherClub.players = otherClub.players.map((player) => ({ ...player, team_id: "team2" }));
 
     const { unmount } = render(
       <TacticsTab gameState={originalState} onSelectPlayer={vi.fn()} onGameUpdate={vi.fn()} />,
     );
-
     fireEvent.click(screen.getByRole("button", { name: "tactics.duplicateTactic" }));
-
+    await waitFor(() =>
+      expect(mockedInvoke).toHaveBeenCalledWith("save_custom_tactic", expect.anything()),
+    );
     unmount();
 
-    const secondRender = render(
-      <TacticsTab gameState={otherState} onSelectPlayer={vi.fn()} onGameUpdate={vi.fn()} />,
-    );
-
+    render(<TacticsTab gameState={otherClub} onSelectPlayer={vi.fn()} onGameUpdate={vi.fn()} />);
     fireEvent.click(screen.getByRole("button", { name: "tactics.chooseTactic" }));
 
-    expect(screen.queryByRole("option", { name: /tactics.copyOfTactic/i })).not.toBeInTheDocument();
+    expect(
+      await screen.findByRole("option", { name: /tactics.copyOfTactic/i }),
+    ).toBeInTheDocument();
+  }, 15000);
 
+  /**
+   * Given a library an older version kept in the browser
+   * When the screen opens, and opens again
+   * Then its tactics are saved once, the old key is gone, and the second opening adds nothing.
+   */
+  it("copies an old browser library into the save once", async () => {
+    const saved = keepSavedTactics();
+    const gameState = makeGameState();
+    localStorage.setItem(
+      `ofm:tactics:custom:${gameState.manager.id}:${gameState.clock.start_date}:team1`,
+      JSON.stringify([
+        {
+          id: "custom:old",
+          type: "custom",
+          name: "Old favourite",
+          description: "",
+          formation: "4-4-2",
+          playStyle: "Balanced",
+          sourcePresetName: null,
+        },
+      ]),
+    );
+
+    const first = render(
+      <TacticsTab gameState={gameState} onSelectPlayer={vi.fn()} onGameUpdate={vi.fn()} />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "tactics.chooseTactic" }));
+    expect(await screen.findByRole("option", { name: /Old favourite/ })).toBeInTheDocument();
+    first.unmount();
+    const secondRender = render(
+      <TacticsTab gameState={gameState} onSelectPlayer={vi.fn()} onGameUpdate={vi.fn()} />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "tactics.chooseTactic" }));
+    expect(await screen.findByRole("option", { name: /Old favourite/ })).toBeInTheDocument();
     secondRender.unmount();
 
-    render(
-      <TacticsTab gameState={originalState} onSelectPlayer={vi.fn()} onGameUpdate={vi.fn()} />,
-    );
-
-    fireEvent.click(screen.getByRole("button", { name: "tactics.chooseTactic" }));
-
-    expect(screen.getByRole("option", { name: /tactics.copyOfTactic/i })).toBeInTheDocument();
-  }, 15000);
+    expect(saved.map((tactic) => tactic.id)).toEqual(["custom:old"]);
+    // Copied, never moved: the old key is shared by careers begun the same year.
+    expect(localStorage.length).toBe(1);
+    const saves = mockedInvoke.mock.calls.filter(([command]) => command === "save_custom_tactic");
+    expect(saves).toHaveLength(1);
+  });
 
   it("does not mark a preset as active when applying it fails", async () => {
     const gameState = makeGameState();
@@ -541,6 +734,7 @@ describe("TacticsTab", () => {
 
     await waitFor(() => {
       expect(mockedInvoke).toHaveBeenCalledWith("apply_tactic_preset", {
+        careerToken: 0,
         formation: "3-4-3",
         playStyle: "HighPress",
       });
@@ -568,6 +762,7 @@ describe("TacticsTab", () => {
     render(
       <TacticsTab gameState={makeGameState()} onSelectPlayer={vi.fn()} onGameUpdate={vi.fn()} />,
     );
+    await act(async () => {}); // the squad has answered for this revision
 
     fireEvent.click(screen.getByTestId("pitch-bench-player-d5"));
 
@@ -583,6 +778,7 @@ describe("TacticsTab", () => {
 
     await waitFor(() => {
       expect(mockedInvoke).toHaveBeenCalledWith("set_starting_xi", {
+        careerToken: 0,
         playerIds: ["gk1", "d1", "d5", "d3", "d4", "m1", "m2", "m3", "m4", "f1", "f2"],
       });
     });
@@ -598,6 +794,7 @@ describe("TacticsTab", () => {
         onGameUpdate={vi.fn()}
       />,
     );
+    await act(async () => {}); // the squad has answered for this revision
 
     fireEvent.click(screen.getByTestId("pitch-player-d1"));
 
@@ -615,6 +812,7 @@ describe("TacticsTab", () => {
 
     await waitFor(() => {
       expect(mockedInvoke).toHaveBeenCalledWith("set_starting_xi", {
+        careerToken: 0,
         playerIds: ["gk1", "d2", "d1", "d3", "d4", "m1", "m2", "m3", "m4", "f1", "f2"],
       });
     });
@@ -650,6 +848,31 @@ describe("TacticsTab", () => {
     expect(onSelectPlayer).not.toHaveBeenCalled();
     // Modal stays closed until a second player is selected
     expect(screen.queryByText("tactics.selectedPlayer")).not.toBeInTheDocument();
+  });
+
+  /**
+   * Given starters rated 76 and 77, either side of the A-tier cut-off
+   * When the lineup list renders
+   * Then each rating badge takes the colour of its backend tier (B and A).
+   */
+  it("colours each starter's rating badge by its backend tier", () => {
+    const gameState = makeGameState();
+    gameState.players = gameState.players.map((player) =>
+      player.id === "d1"
+        ? { ...player, ovr: 76 }
+        : player.id === "f1"
+          ? { ...player, ovr: 77 }
+          : player,
+    );
+
+    render(<TacticsTab gameState={gameState} onSelectPlayer={vi.fn()} onGameUpdate={vi.fn()} />);
+
+    expect(within(screen.getByTestId("xi-player-f1")).getByText("77")).toHaveClass(
+      ...ratingTierClass("A", "badge").split(" "),
+    );
+    expect(within(screen.getByTestId("xi-player-d1")).getByText("76")).toHaveClass(
+      ...ratingTierClass("B", "badge").split(" "),
+    );
   });
 
   it("shows all starting XI players in the left panel list", () => {
@@ -711,6 +934,7 @@ describe("TacticsTab", () => {
         ? {
             ...player,
             injury: { name: "Hamstring strain", days_remaining: 7 },
+            match_day_eligible: false,
           }
         : player,
     );
@@ -725,6 +949,37 @@ describe("TacticsTab", () => {
     expect(mockedInvoke).not.toHaveBeenCalledWith("set_starting_xi", expect.anything());
   });
 
+  /**
+   * Given an injury crisis in which the backend fields an injured player anyway
+   * When the manager opens his bench context menu
+   * Then he can be promoted: the lineup follows the backend's match-day verdict, not its own
+   *      injury test.
+   */
+  it("promotes an injured bench player the backend has made eligible", async () => {
+    const gameState = makeGameState();
+    gameState.players = gameState.players.map((player) =>
+      player.id === "d5"
+        ? {
+            ...player,
+            injury: { name: "Hamstring strain", days_remaining: 7 },
+            match_day_eligible: true,
+          }
+        : player,
+    );
+    mockedInvoke.mockImplementation(async (command: string) =>
+      command === "get_squad" ? gameState.players.filter((p) => p.team_id === "team1") : {},
+    );
+
+    render(<TacticsTab gameState={gameState} onSelectPlayer={vi.fn()} onGameUpdate={vi.fn()} />);
+
+    fireEvent.contextMenu(await screen.findByTestId("bench-player-d5"));
+    fireEvent.click(await screen.findByRole("menuitem", { name: "tactics.promoteToLineup" }));
+
+    await waitFor(() => {
+      expect(mockedInvoke).toHaveBeenCalledWith("set_starting_xi", expect.anything());
+    });
+  });
+
   it("does not allow swapping an injured bench player into the starting XI", () => {
     const gameState = makeGameState();
     gameState.players = gameState.players.map((player) =>
@@ -732,6 +987,7 @@ describe("TacticsTab", () => {
         ? {
             ...player,
             injury: { name: "Hamstring strain", days_remaining: 7 },
+            match_day_eligible: false,
           }
         : player,
     );
@@ -748,14 +1004,18 @@ describe("TacticsTab", () => {
     render(
       <TacticsTab gameState={makeGameState()} onSelectPlayer={vi.fn()} onGameUpdate={vi.fn()} />,
     );
+    await act(async () => {}); // the squad has answered for this revision
 
     const benchRow = screen.getByTestId("bench-player-d5");
     fireEvent.contextMenu(benchRow);
     fireEvent.click(screen.getByRole("menuitem", { name: "tactics.promoteToLineup" }));
 
+    // d5 is a coarse "Defender", graded as a centre back as the backend reads him: he is natural at
+    // the first centre-back slot (replacing d2), not at the first slot that merely adapts him.
     await waitFor(() => {
       expect(mockedInvoke).toHaveBeenCalledWith("set_starting_xi", {
-        playerIds: ["gk1", "d5", "d2", "d3", "d4", "m1", "m2", "m3", "m4", "f1", "f2"],
+        careerToken: 0,
+        playerIds: ["gk1", "d1", "d5", "d3", "d4", "m1", "m2", "m3", "m4", "f1", "f2"],
       });
     });
   });
@@ -764,68 +1024,284 @@ describe("TacticsTab", () => {
     render(
       <TacticsTab gameState={makeGameState()} onSelectPlayer={vi.fn()} onGameUpdate={vi.fn()} />,
     );
+    await act(async () => {}); // the squad has answered for this revision
 
     fireEvent.contextMenu(screen.getByTestId("pitch-player-d1"));
     fireEvent.click(screen.getByRole("menuitem", { name: "tactics.moveToBench" }));
 
     await waitFor(() => {
       expect(mockedInvoke).toHaveBeenCalledWith("set_starting_xi", {
+        careerToken: 0,
         playerIds: ["gk1", "d5", "d2", "d3", "d4", "m1", "m2", "m3", "m4", "f1", "f2"],
       });
     });
   });
 
   it("assigns captaincy from the tactics table context menu", async () => {
-    render(
-      <TacticsTab gameState={makeGameState()} onSelectPlayer={vi.fn()} onGameUpdate={vi.fn()} />,
-    );
+    const gameState = makeGameState();
+    const roster = gameState.players.filter((p) => p.team_id === "team1");
+    mockedInvoke.mockImplementation(async (command: string) => {
+      if (command === "get_squad") return roster;
+      if (command === "auto_select_set_pieces") {
+        return { captain: "m2", penalty_taker: "f2", free_kick_taker: "m3", corner_taker: "d4" };
+      }
+      return gameState;
+    });
+    render(<TacticsTab gameState={gameState} onSelectPlayer={vi.fn()} onGameUpdate={vi.fn()} />);
+    // The backend's picks are on screen, so a save built from what is displayed would carry them.
+    await waitFor(() => {
+      expect(mockedInvoke).toHaveBeenCalledWith("auto_select_set_pieces", expect.anything());
+    });
+    await waitFor(() => expect(screen.getAllByText("match.notAssigned")).toHaveLength(1));
 
     fireEvent.contextMenu(screen.getByTestId("xi-player-d1"));
     fireEvent.click(screen.getByRole("menuitem", { name: "tactics.makeCaptain" }));
 
     await waitFor(() => {
       expect(mockedInvoke).toHaveBeenCalledWith("set_team_match_roles", {
-        matchRoles: expect.objectContaining({
+        careerToken: 0,
+        matchRoles: {
           captain: "d1",
-        }),
+          vice_captain: null,
+          penalty_taker: null,
+          free_kick_taker: null,
+          corner_taker: null,
+        },
       });
     });
   });
 
   it("assigns captaincy from the pitch context menu", async () => {
-    render(
-      <TacticsTab gameState={makeGameState()} onSelectPlayer={vi.fn()} onGameUpdate={vi.fn()} />,
-    );
+    const gameState = makeGameState();
+    const roster = gameState.players.filter((p) => p.team_id === "team1");
+    mockedInvoke.mockImplementation(async (command: string) => {
+      if (command === "get_squad") return roster;
+      if (command === "auto_select_set_pieces") {
+        return { captain: "m2", penalty_taker: "f2", free_kick_taker: "m3", corner_taker: "d4" };
+      }
+      return gameState;
+    });
+    render(<TacticsTab gameState={gameState} onSelectPlayer={vi.fn()} onGameUpdate={vi.fn()} />);
+    // The backend's picks are on screen, so a save built from what is displayed would carry them.
+    await waitFor(() => {
+      expect(mockedInvoke).toHaveBeenCalledWith("auto_select_set_pieces", expect.anything());
+    });
+    await waitFor(() => expect(screen.getAllByText("match.notAssigned")).toHaveLength(1));
 
     fireEvent.contextMenu(screen.getByTestId("pitch-player-d1"));
     fireEvent.click(screen.getByRole("menuitem", { name: "tactics.makeCaptain" }));
 
     await waitFor(() => {
       expect(mockedInvoke).toHaveBeenCalledWith("set_team_match_roles", {
-        matchRoles: expect.objectContaining({
+        careerToken: 0,
+        matchRoles: {
           captain: "d1",
-        }),
+          vice_captain: null,
+          penalty_taker: null,
+          free_kick_taker: null,
+          corner_taker: null,
+        },
       });
     });
   });
 
-  it("persists default set piece and team role assignments from the right panel", async () => {
-    render(
-      <TacticsTab gameState={makeGameState()} onSelectPlayer={vi.fn()} onGameUpdate={vi.fn()} />,
-    );
+  /** Given the backend's own set-piece picks for the eleven, when the manager auto-selects,
+   * then those picks are saved, and no vice-captain is invented for them. */
+  it("persists the backend's set-piece picks when the manager auto-selects", async () => {
+    const gameState = makeGameState();
+    const roster = gameState.players.filter((p) => p.team_id === "team1");
+    mockedInvoke.mockImplementation(async (command: string) => {
+      if (command === "get_squad") return roster;
+      if (command === "auto_select_set_pieces") {
+        return { captain: "m2", penalty_taker: "f2", free_kick_taker: "m3", corner_taker: "d4" };
+      }
+      return gameState;
+    });
+    render(<TacticsTab gameState={gameState} onSelectPlayer={vi.fn()} onGameUpdate={vi.fn()} />);
+    await waitFor(() => {
+      expect(mockedInvoke).toHaveBeenCalledWith("auto_select_set_pieces", {
+        playerIds: ["gk1", "d1", "d2", "d3", "d4", "m1", "m2", "m3", "m4", "f1", "f2"],
+      });
+    });
 
     fireEvent.click(screen.getByRole("button", { name: "tactics.autoSelectAssignments" }));
 
     await waitFor(() => {
       expect(mockedInvoke).toHaveBeenCalledWith("set_team_match_roles", {
-        matchRoles: expect.objectContaining({
-          captain: expect.any(String),
-          vice_captain: expect.any(String),
-          penalty_taker: expect.any(String),
-          free_kick_taker: expect.any(String),
-          corner_taker: expect.any(String),
-        }),
+        careerToken: 0,
+        matchRoles: {
+          captain: "m2",
+          vice_captain: null,
+          penalty_taker: "f2",
+          free_kick_taker: "m3",
+          corner_taker: "d4",
+        },
       });
     });
+  });
+
+  /** Given the backend's picks changed after the panel last asked (the squad moved on),
+   * when the manager auto-selects, then what is saved is the answer asked for at the click,
+   * and a failed ask saves nothing so that clicking again is the retry. */
+  it("saves the picks the backend gives at the click, and nothing when the ask fails", async () => {
+    const gameState = makeGameState();
+    const roster = gameState.players.filter((p) => p.team_id === "team1");
+    let answer: "stale" | "fresh" | "fails" = "stale";
+    mockedInvoke.mockImplementation(async (command: string) => {
+      if (command === "get_squad") return roster;
+      if (command === "auto_select_set_pieces") {
+        if (answer === "fails") throw new Error("backend busy");
+        return answer === "stale"
+          ? { captain: "m1", penalty_taker: "f1", free_kick_taker: "m1", corner_taker: "d1" }
+          : { captain: "m2", penalty_taker: "f2", free_kick_taker: "m3", corner_taker: "d4" };
+      }
+      return gameState;
+    });
+    render(<TacticsTab gameState={gameState} onSelectPlayer={vi.fn()} onGameUpdate={vi.fn()} />);
+    await waitFor(() => {
+      expect(mockedInvoke).toHaveBeenCalledWith("auto_select_set_pieces", expect.anything());
+    });
+    const rolesSaved = () =>
+      mockedInvoke.mock.calls.filter(([command]) => command === "set_team_match_roles");
+
+    answer = "fails";
+    fireEvent.click(screen.getByRole("button", { name: "tactics.autoSelectAssignments" }));
+    await waitFor(() => {
+      expect(mockedInvoke.mock.calls.filter(([c]) => c === "auto_select_set_pieces").length).toBe(
+        2,
+      );
+    });
+    expect(rolesSaved()).toHaveLength(0);
+
+    answer = "fresh";
+    fireEvent.click(screen.getByRole("button", { name: "tactics.autoSelectAssignments" }));
+    await waitFor(() => {
+      expect(rolesSaved()).toHaveLength(1);
+    });
+    expect(rolesSaved()[0][1]).toEqual({
+      careerToken: 0,
+      matchRoles: {
+        captain: "m2",
+        vice_captain: null,
+        penalty_taker: "f2",
+        free_kick_taker: "m3",
+        corner_taker: "d4",
+      },
+    });
+  });
+
+  /** Given an auto-select still waiting on the backend, when the manager's roles change
+   * meanwhile, then the late answer is dropped instead of overwriting them. */
+  it("drops a late auto-select answer when the roles changed while it was pending", async () => {
+    const gameState = makeGameState();
+    const roster = gameState.players.filter((p) => p.team_id === "team1");
+    const releases: Array<(picks: object) => void> = [];
+    let pending = false;
+    mockedInvoke.mockImplementation(async (command: string) => {
+      if (command === "get_squad") return roster;
+      if (command === "auto_select_set_pieces") {
+        if (!pending)
+          return { captain: "m1", penalty_taker: "f1", free_kick_taker: "m1", corner_taker: "d1" };
+        return new Promise((resolve) => releases.push(resolve));
+      }
+      return gameState;
+    });
+    const props = { onSelectPlayer: vi.fn(), onGameUpdate: vi.fn() };
+    const { rerender } = render(<TacticsTab gameState={gameState} {...props} />);
+    await waitFor(() => {
+      expect(mockedInvoke).toHaveBeenCalledWith("auto_select_set_pieces", expect.anything());
+    });
+    pending = true;
+    fireEvent.click(screen.getByRole("button", { name: "tactics.autoSelectAssignments" }));
+    await waitFor(() => expect(releases).toHaveLength(1));
+
+    const reassigned = {
+      ...gameState,
+      teams: gameState.teams.map((team) =>
+        team.id === "team1"
+          ? {
+              ...team,
+              match_roles: {
+                captain: "d2",
+                vice_captain: null,
+                penalty_taker: null,
+                free_kick_taker: null,
+                corner_taker: null,
+              },
+            }
+          : team,
+      ),
+    };
+    rerender(<TacticsTab gameState={reassigned} {...props} />);
+    // The panel's own display refreshes with the new game too; every pending ask is answered.
+    for (const release of releases) {
+      release({ captain: "m2", penalty_taker: "f2", free_kick_taker: "m3", corner_taker: "d4" });
+    }
+    await new Promise((resolve) => setTimeout(resolve, 50));
+
+    expect(mockedInvoke.mock.calls.filter(([c]) => c === "set_team_match_roles")).toHaveLength(0);
+  });
+
+  /** Given the backend would pick takers for the unassigned roles, when the manager assigns
+   * one role, then only that role is saved: the others stay null for the backend to choose. */
+  it("saves only the manager's own roles on a manual assignment", async () => {
+    const gameState = makeGameState();
+    const roster = gameState.players.filter((p) => p.team_id === "team1");
+    mockedInvoke.mockImplementation(async (command: string) => {
+      if (command === "get_squad") return roster;
+      if (command === "auto_select_set_pieces") {
+        return { captain: "m2", penalty_taker: "f2", free_kick_taker: "m3", corner_taker: "d4" };
+      }
+      return gameState;
+    });
+    render(<TacticsTab gameState={gameState} onSelectPlayer={vi.fn()} onGameUpdate={vi.fn()} />);
+    await waitFor(() => {
+      expect(mockedInvoke).toHaveBeenCalledWith("auto_select_set_pieces", expect.anything());
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: /preMatch\.cornerTaker/ }));
+    // The right panel comes last in the page, so its list is the last match.
+    const options = await screen.findAllByRole("button", { name: /D3/ });
+    fireEvent.click(options[options.length - 1]);
+
+    await waitFor(() => {
+      expect(mockedInvoke).toHaveBeenCalledWith("set_team_match_roles", expect.anything());
+    });
+    const saved = mockedInvoke.mock.calls.find(([c]) => c === "set_team_match_roles")?.[1] as {
+      matchRoles: Record<string, string | null>;
+    };
+    expect(saved.matchRoles.captain).toBeNull();
+    expect(saved.matchRoles.penalty_taker).toBeNull();
+    expect(saved.matchRoles.free_kick_taker).toBeNull();
+    expect(saved.matchRoles.vice_captain).toBeNull();
+  });
+
+  /** Given the fallback takers are shown, when the game updates with the same eleven, then
+   * they stay shown while the new picks are on their way (only the vice-captain is blank). */
+  it("keeps the fallback takers shown across a game update with the same eleven", async () => {
+    const gameState = makeGameState();
+    const roster = gameState.players.filter((p) => p.team_id === "team1");
+    let slow = false;
+    mockedInvoke.mockImplementation(async (command: string) => {
+      if (command === "get_squad") return roster;
+      if (command === "auto_select_set_pieces") {
+        if (slow) return new Promise(() => {});
+        return { captain: "m2", penalty_taker: "f2", free_kick_taker: "m3", corner_taker: "d4" };
+      }
+      return gameState;
+    });
+    const props = { onSelectPlayer: vi.fn(), onGameUpdate: vi.fn() };
+    const { rerender } = render(<TacticsTab gameState={gameState} {...props} />);
+    await waitFor(() => expect(screen.getAllByText("match.notAssigned")).toHaveLength(1));
+    slow = true;
+
+    rerender(<TacticsTab gameState={{ ...gameState }} {...props} />);
+    await waitFor(() => {
+      expect(mockedInvoke.mock.calls.filter(([c]) => c === "auto_select_set_pieces")).toHaveLength(
+        2,
+      );
+    });
+
+    expect(screen.getAllByText("match.notAssigned")).toHaveLength(1);
   });
 });

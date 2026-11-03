@@ -72,9 +72,22 @@ impl LiveMatchState {
                 home_scored: self.penalty_state.home_scored,
                 away_scored: self.penalty_state.away_scored,
                 sudden_death: self.penalty_state.sudden_death,
+                home_order: None,
+                away_order: None,
             })
         } else {
             None
+        };
+
+        let player_ratings = if self.phase == MatchPhase::Finished {
+            self.report_from(self.events.clone())
+                .player_stats
+                .into_iter()
+                .filter(|(_, stats)| stats.rating > 0.0)
+                .map(|(id, stats)| (id, stats.rating))
+                .collect()
+        } else {
+            HashMap::new()
         };
 
         MatchSnapshot {
@@ -102,6 +115,7 @@ impl LiveMatchState {
             away_yellows,
             sent_off: self.sent_off.clone(),
             penalty_shootout,
+            player_ratings,
         }
     }
 }

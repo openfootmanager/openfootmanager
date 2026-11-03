@@ -58,10 +58,7 @@
   "validation": {
     "required": "{{field}} è obbligatorio",
     "maxLength": "{{field}} non deve superare {{max}} caratteri",
-    "minStartYear": "L'anno di inizio deve essere {{min}} o successivo",
-    "minAge": "L'allenatore deve avere almeno {{min}} anni — modifica la data di nascita per continuare.",
-    "invalidDate": "Data non valida",
-    "invalidDob": "Data di nascita non valida"
+    "minStartYear": "L'anno di inizio deve essere {{min}} o successivo"
   },
   "worldSelect": {
     "title": "Scegli Mondo",
@@ -173,6 +170,7 @@
     "digestSimulating": "Simulazione...",
     "digestMatchDay": "Giorno di gara",
     "digestMatchDayDesc": "La tua squadra ha una partita in programma oggi.",
+    "matchModeMenu": "Scegli la modalità di partita",
     "digestReturnHome": "Torna alla dashboard",
     "digestBlocked": "Azione richiesta",
     "digestBlockedDesc": "Ci sono problemi che richiedono la tua attenzione prima di avanzare.",
@@ -415,18 +413,32 @@
     "growth": "Crescita",
     "traits": "Tratti",
     "condition": "Condizione",
-    "potWorldClass": "Di livello mondiale",
-    "potExcellent": "Eccellente",
-    "potPromising": "Promettente",
-    "potDecent": "Discreto",
-    "potLimited": "Limitato",
     "delegateToYouthAcademy": "Delega al settore giovanile",
     "promoteToSeniorSquad": "Promuovi in prima squadra"
   },
   "common": {
+    "ratingTier": {
+      "S": "S",
+      "A": "A",
+      "B": "B"
+    },
+    "ordinal": {
+      "one": "{{n}}º",
+      "two": "{{n}}º",
+      "few": "{{n}}º",
+      "other": "{{n}}º"
+    },
     "currentWage": "Stipendio attuale",
     "loading": "Caricamento...",
     "loadingGameState": "Caricamento stato di gioco...",
+    "detailsFor": "Dettagli di {{name}}",
+    "overallRating": "Valutazione generale {{value}}",
+    "overallRatingTier": "Valutazione generale {{value}}, fascia {{tier}}",
+    "namedRating": "{{name}} {{value}}",
+    "namedRatingTier": "{{name}} {{value}}, fascia {{tier}}",
+    "listViewLabel": "Mostra come",
+    "listViewTable": "Tabella",
+    "listViewCards": "Schede",
     "noResults": "Nessun risultato trovato.",
     "place": {
       "1": "1°",
@@ -435,6 +447,11 @@
       "other": "{{n}}°"
     },
     "pts": "Pt",
+    "playedFull": "Giocate",
+    "wonFull": "Vinte",
+    "drawnFull": "Pareggiate",
+    "lostFull": "Perse",
+    "ptsFull": "Punti",
     "played": "G",
     "won": "V",
     "drawn": "N",
@@ -595,7 +612,11 @@
       "twistedAnkle": "Distorsione alla caviglia",
       "kneeBruise": "Contusione al ginocchio",
       "hamstringTightness": "Tensione al bicipite femorale",
-      "calfStrain": "Stiramento al polpaccio"
+      "calfStrain": "Stiramento al polpaccio",
+      "ankleLigamentSprain": "Distorsione dei legamenti della caviglia",
+      "hamstringTear": "Strappo ai flessori",
+      "kneeLigamentTear": "Rottura dei legamenti del ginocchio",
+      "metatarsalFracture": "Frattura del metatarso"
     },
     "scoutRatings": {
       "excellent": "Eccellente",
@@ -632,7 +653,14 @@
     "center": "Centro",
     "right": "Destra",
     "competition": "Competizione",
-    "confirmDelete": "Conferma eliminazione"
+    "confirmDelete": "Conferma eliminazione",
+    "firstPage": "Prima pagina",
+    "previousPage": "Pagina precedente",
+    "nextPage": "Pagina successiva",
+    "lastPage": "Ultima pagina",
+    "sortBy": "Ordina per",
+    "sortAscending": "Crescente",
+    "lineupLoading": "I dati sulle posizioni sono ancora in caricamento, quindi le modifiche alla formazione non sono ancora disponibili."
   },
   "teamSelection": {
     "title": "Scegli il tuo club",
@@ -708,21 +736,15 @@
     "coverageNeedsAttention": "{{count}} gruppi di ruoli hanno bisogno di copertura",
     "coverageBadge": "XI {{starters}}/{{required}} · Panchina {{bench}}",
     "bestRole": "Ruolo migliore",
-    "formationFit": "Adattamento al modulo",
     "startingXi": "Undici titolare",
-    "styleFit": "Adattamento allo stile",
+    "notMatchDayEligible": "Non disponibile per la convocazione",
     "starter": "Titolare",
     "benchOption": "Panchina",
-    "naturalFit": "Adattamento naturale",
-    "adaptedFit": "Ruolo adattato",
+    "naturalFit": "Ruolo naturale",
+    "adaptedFit": "Può giocare lì",
     "needsCover": "Serve copertura",
     "makeStarter": "Metti titolare",
-    "sendToBench": "Manda in panchina",
-    "styleFitValues": {
-      "strong": "Adattamento allo stile: Forte",
-      "good": "Adattamento allo stile: Buono",
-      "risky": "Adattamento allo stile: Rischioso"
-    }
+    "sendToBench": "Manda in panchina"
   },
   "tactics": {
     "formationStyle": "Formazione e stile",
@@ -785,6 +807,11 @@
     "myTactics": "Le mie tattiche",
     "newTactic": "Nuova tattica",
     "duplicateTactic": "Duplica",
+    "deleteTactic": "Elimina",
+    "deleteTacticTitle": "Eliminare questa tattica?",
+    "deleteTacticBody": "«{{name}}» verrà rimossa dalla libreria. La squadra mantiene modulo e stile di gioco attuali.",
+    "deleteTacticConfirm": "Elimina",
+    "resetTactic": "Ripristina predefiniti",
     "saveAsTactic": "Salva come tattica",
     "updateTactic": "Aggiorna tattica",
     "tacticSaved": "Salvato",
@@ -868,8 +895,8 @@
     "setCornerTaker": "Assegna angoli",
     "inspector": "Ispettore",
     "inspectorEmptyTitle": "Nessuna selezione",
-    "naturalFit": "Adattamento naturale",
-    "adaptedFit": "Ruolo adattato",
+    "naturalFit": "Ruolo naturale",
+    "adaptedFit": "Può giocare lì",
     "tokenStates": {
       "ready": "Pronto",
       "adjusted": "Adattato",
@@ -885,7 +912,7 @@
     "clearSelection": "Cancella selezione",
     "compareWithSelected": "Confronta con selezionato",
     "selectForSwap": "Seleziona per scambio",
-    "assignBestFit": "Assegna al ruolo migliore",
+    "assignBestFit": "Assegna il ruolo migliore",
     "moveToBench": "Sposta in panchina",
     "promoteToLineup": "Promuovi nell'undici",
     "tableView": "Vista tabella",
@@ -900,7 +927,6 @@
     "positionSelector": "Slot tattico",
     "playablePositions": "Posizioni",
     "slotFit": "Adattamento al ruolo",
-    "styleFit": "Adattamento allo stile",
     "responsibilities": "Responsabilità",
     "noSpecialRoles": "Nessun ruolo speciale",
     "moraleLevels": {
@@ -916,11 +942,6 @@
       "sharp": "Brillante",
       "managing": "Da gestire",
       "risk": "Rischio"
-    },
-    "styleFitLevels": {
-      "strong": "Ottimo incastro",
-      "good": "Buon incastro",
-      "risky": "Incastro rischioso"
     }
   },
   "training": {
@@ -1063,6 +1084,7 @@
     "youthSearches": "ricerche giovanili",
     "hireStaff": "Assumi membro dello staff",
     "best": "Migliore",
+    "staffActions": "Azioni per {{name}}",
     "roles": {
       "AssistantManager": "Vice allenatore",
       "Coach": "Allenatore",
@@ -1100,6 +1122,7 @@
     "seasonIncome": "Entrate stagionali",
     "seasonExpenses": "Spese stagionali",
     "perWeekSuffix": "/sett",
+    "snapshotLoadFailed": "Impossibile caricare le finanze del club.",
     "perYearSuffix": "/anno",
     "wagePerWeek": "Stipendio/sett",
     "wagePerYear": "Stipendio/anno",
@@ -1164,6 +1187,15 @@
   },
   "inbox": {
     "title": "Posta",
+    "archive": {
+      "heading": "Messaggi precedenti",
+      "load": "Carica i messaggi precedenti",
+      "loadMore": "Carica altri messaggi precedenti",
+      "loading": "Caricamento dei messaggi precedenti…",
+      "empty": "Nessun messaggio precedente.",
+      "end": "Non ci sono altri messaggi precedenti.",
+      "error": "Impossibile caricare i messaggi precedenti."
+    },
     "nMessages": "{{count}} messaggio/i",
     "noMessages": "Nessun messaggio",
     "noMessagesInCategory": "Nessun messaggio in questa categoria",
@@ -1186,6 +1218,7 @@
     "sortNewest": "Più recenti prima",
     "sortOldest": "Meno recenti prima",
     "selectMessages": "Seleziona messaggi",
+    "selectAll": "Seleziona tutto",
     "cancelSelection": "Annulla selezione",
     "selectedCount": "{{count}} selezionato/i",
     "deleteSelected": "Elimina selezionati",
@@ -1354,6 +1387,7 @@
     "bidImpactWagePressure": "Utilizzo previsto del budget stipendi {{percent}}%",
     "bidImpactOverTransferBudget": "Questa offerta supera il tuo budget trasferimenti",
     "bidImpactOverBalance": "Questa offerta manderebbe il club in rosso",
+    "bidImpactOverWagePolicy": "Il consiglio rifiuterebbe il suo stipendio: supera la politica salariale del club",
     "bidAccepted": "Offerta accettata! Giocatore ingaggiato.",
     "bidCountered": "Sono tornati con nuove condizioni.",
     "bidRejected": "Offerta respinta — cifra troppo bassa.",
@@ -1426,6 +1460,9 @@
     "resumeNegotiationHint": "I colloqui con questo club sono ancora aperti.",
     "resumeNegotiationHeadline": "L'altro club sta aspettando la tua prossima mossa.",
     "resumeNegotiationDetail": "Il loro ultimo segnale puntava verso {{fee}}.",
+    "resumeRefusedHeadline": "Hanno respinto la tua ultima offerta.",
+    "resumeRefusedDetail": "Una nuova offerta riprende la trattativa da qui. Il loro ultimo segnale puntava verso {{fee}}.",
+    "talksResumeOn": "La trattativa può riprendere il {{date}}.",
     "transferFeedbackAcceptedHeadline": "L'altro club è pronto a chiudere.",
     "transferFeedbackAcceptedDetail": "La tua cifra è rientrata nella loro zona di comfort, quindi la trattativa è andata avanti in fretta.",
     "transferFeedbackScheduledHeadline": "Accordo definito per la prossima finestra di registrazione.",
@@ -1434,6 +1471,8 @@
     "transferFeedbackCounterDetail": "L'offerta era abbastanza vicina per continuare a parlare, ma la controparte segnala un prezzo più vicino a {{fee}}.",
     "transferFeedbackRejectedHeadline": "Hanno chiuso questo round.",
     "transferFeedbackRejectedDetail": "La proposta non li ha smossi abbastanza. Servirebbe una cifra più forte, più vicina a {{fee}}, per riaprire una trattativa seria.",
+    "transferFeedbackBrokeOffHeadline": "Si sono alzati dal tavolo.",
+    "transferFeedbackBrokeOffDetail": "Dopo diverse offerte insufficienti, il club ha chiuso la trattativa. Sarebbe servita una cifra vicina a {{fee}}. Dai loro tempo prima di riprovare.",
     "registrationFailureInsufficientFunds": "Registrazione fallita: fondi insufficienti del compratore",
     "registrationFailureLoanConflict": "Registrazione fallita: conflitto con un prestito",
     "registrationFailurePlayerUnavailable": "Registrazione fallita: giocatore non disponibile",
@@ -1463,6 +1502,8 @@
     "fixtures": "Partite",
     "standings": "Classifica",
     "matchday": "Giornata {{number}}",
+    "movedFrom": "Spostata da {{date}}",
+    "dateRange": "dal {{from}} al {{to}}",
     "season": "Stagione {{number}}",
     "international": "Internazionale",
     "internationalDuty": "In nazionale",
@@ -1491,6 +1532,10 @@
   "players": {
     "searchPlaceholder": "Cerca per nome o nazionalità...",
     "allPos": "Tutte le pos",
+    "filterAgeMin": "Età min.",
+    "filterAgeMax": "Età max.",
+    "filterOvrMin": "Valore min.",
+    "filterOvrMax": "Valore max.",
     "allTeams": "Tutte le squadre",
     "nPlayersFound": "{{count}} giocatore/i trovato/i",
     "noMatch": "Nessun giocatore corrisponde ai filtri.",
@@ -1611,6 +1656,7 @@
     "dateOfBirth": "Data di nascita",
     "noContract": "Nessun contratto",
     "weeklyWage": "Stipendio settimanale",
+    "approximateWage": "circa {{wage}}",
     "annualWage": "Stipendio annuale",
     "yearsRemaining": "Anni rimanenti",
     "contractRisk": "Rischio contrattuale",
@@ -1677,6 +1723,7 @@
     "passAccuracy": "Precisione passaggi",
     "percentile": "Percentile",
     "percentileUnavailable": "Percentile non disponibile",
+    "percentileGroup": "Confronto con: {{position}} in {{league}}",
     "recentMatches": "Partite recenti",
     "recentMatchesScore": "Risultato",
     "recentMatchesGoalsAssists": "R / A",
@@ -1729,7 +1776,27 @@
     "renewalProjectionWageBill": "Costo salariale settimanale {{before}} → {{after}}",
     "renewalProjectionBudgetUsage": "Utilizzo budget salariale {{before}}% → {{after}}%",
     "renewalProjectionRunway": "Riserva di cassa {{before}} → {{after}}",
-    "ratingTrend": "Tendenza del voto"
+    "ratingTrend": "Tendenza del voto",
+    "potentialOpinion": {
+      "scoutsOpinion": "Parere dell'osservatore",
+      "coachesOpinion": "Parere dello staff tecnico",
+      "bandS": "Potrebbe diventare uno dei migliori",
+      "bandA": "Potrebbe diventare un titolare fisso",
+      "bandB": "Potrebbe essere un utile giocatore di rosa",
+      "bandRest": "Difficilmente migliorerà ancora molto",
+      "range": "Potenziale {{low}}–{{high}}",
+      "confident": "Sicuro",
+      "fairlySure": "Abbastanza sicuro",
+      "unsure": "Incerto",
+      "guess": "Un'ipotesi",
+      "byScout": "Osservato da {{scout}} il {{date}}"
+    },
+    "positions": {
+      "title": "Posizioni",
+      "wherePlayed": "dove lo fai giocare"
+    },
+    "loadFailed": "Impossibile caricare",
+    "retryWage": "Riprova a caricare lo stipendio"
   },
   "teamProfile": {
     "clubInfo": "Informazioni club",
@@ -1802,6 +1869,8 @@
     "confirmAdvanceDesc": "Chiedi conferma prima di avanzare di un giorno",
     "continueToNextEvent": "Continua salta al prossimo evento",
     "continueToNextEventDesc": "Continua avanza fino alla prossima partita, un blocco, una scadenza di mercato o una notizia importante",
+    "skipShootoutPicker": "Salta la scelta dei rigoristi",
+    "skipShootoutPickerDesc": "Avvia i calci di rigore nell'ordine automatico, senza chiederti di impostarlo",
     "savesData": "Salvataggi e dati",
     "autoSave": "Salvataggio automatico",
     "autoSaveDesc": "Salva automaticamente la partita dopo ogni giorno",
@@ -1829,6 +1898,21 @@
     },
     "uiScale": "Scala interfaccia",
     "uiScaleDesc": "Regola dimensione del testo e spaziatura per migliorare la leggibilità",
+    "sidebarWidth": "Larghezza della barra laterale",
+    "sidebarWidthDesc": "Quanto è larga la barra laterale aperta. «Larga» mostra ogni voce del menu su una riga.",
+    "sidebarWidthOptions": {
+      "compact": "Compatta",
+      "standard": "Standard",
+      "wide": "Larga"
+    },
+    "sidebarBehaviour": "Barra laterale",
+    "sidebarBehaviourDesc": "Come si apre la barra laterale. Se la finestra è troppo stretta, si apre sopra la pagina.",
+    "sidebarBehaviourOptions": {
+      "normal": "Normale",
+      "hover": "Apri al passaggio del mouse",
+      "click": "Apri con un clic",
+      "icons": "Solo icone"
+    },
     "uiScaleOptions": {
       "small": "Piccola",
       "normal": "Normale",
@@ -1846,7 +1930,12 @@
     "help": "Aiuto",
     "reportBug": "Segnala un bug",
     "reportBugDesc": "Raccontaci cosa è andato storto; i tuoi log vengono allegati in automatico.",
-    "report": "Segnala"
+    "report": "Segnala",
+    "yourReports": "Le tue segnalazioni",
+    "yourReportsDesc": "I codici di riferimento delle segnalazioni che hai inviato. Indicane uno per chiedere di una segnalazione o farla cancellare.",
+    "noReports": "Non hai ancora inviato nessuna segnalazione.",
+    "reportOutcomeUnknown": "Esito sconosciuto: potrebbe essere arrivato. Reinviarlo potrebbe consegnarlo due volte.",
+    "reportIncludedSave": "Con salvataggio"
   },
   "preMatch": {
     "formationFit": "Adattamento alla formazione",
@@ -1942,6 +2031,7 @@
     "step1Min": "Avanza di 1 minuto",
     "teamControls": "Controlli squadra",
     "subs": "Sostituzioni",
+    "subsClosed": "Le sostituzioni sono chiuse dopo i tempi supplementari",
     "formation": "Formazione",
     "playStyle": "Stile di gioco",
     "keyEvents": "Eventi chiave",
@@ -1972,6 +2062,16 @@
     "benchPlayers": "Giocatori in panchina",
     "selectBenchToCompare": "Seleziona una riserva da confrontare",
     "confirmSubstitution": "Conferma sostituzione",
+    "queueSubstitution": "Aggiungi alla coda",
+    "queuedSubstitutions": "Sostituzioni in coda",
+    "confirmAllSubstitutions": "Conferma tutte ({{count}})",
+    "confirmSubstitutions": "Conferma {{count}} sostituzioni",
+    "removeQueuedSubstitution": "Rimuovi {{off}} → {{on}} dalla coda",
+    "alreadyQueued": "Già in coda per una sostituzione",
+    "substitutionsPartlyMade": "{{applied}} sostituzioni su {{total}} effettuate",
+    "substitutionRefused": "Sostituzione rifiutata: {{off}} per {{on}}. {{reason}}",
+    "roleFor": "Ruolo di {{player}}",
+    "roleChangeRefused": "Impossibile cambiare il ruolo di {{player}}. {{reason}}",
     "noBenchAvailable": "Nessun giocatore disponibile in panchina",
     "history": "Cronologia",
     "player": "Giocatore",
@@ -1985,7 +2085,47 @@
       "suddenDeath": "Morte Improvvisa",
       "shootoutScore": "Rigori: {{h}} – {{a}}",
       "homeKick": "Calcio della squadra di casa...",
-      "awayKick": "Calcio della squadra ospite..."
+      "awayKick": "Calcio della squadra ospite...",
+      "kickScored": "Rigore {{n}}, segnato",
+      "kickMissed": "Rigore {{n}}, sbagliato",
+      "kickToCome": "Rigore {{n}}, ancora da calciare",
+      "kickSheet": "Foglio dei rigori",
+      "kickColumn": "Rigore",
+      "sheetCaption": "Ogni turno della serie: chi ha tirato e com'è andata",
+      "scored": "Segnato",
+      "missed": "Sbagliato",
+      "toCome": "Da calciare",
+      "notTaken": "Non calciato",
+      "afterExtraTime": "{{home}} – {{away}} dopo i supplementari",
+      "kickAnnounceScored": "Rigore {{n}}, {{team}}: {{kicker}} segna.",
+      "kickAnnounceMissed": "Rigore {{n}}, {{team}}: {{kicker}} sbaglia.",
+      "stepFailed": "La serie non è potuta proseguire. Riprova.",
+      "nextKick": "Prossimo rigore",
+      "orderHeading": "Il tuo ordine dei rigoristi",
+      "orderStep": "Passo 1 di 2",
+      "orderHint": "Il tuo rigorista calcia per primo, poi i migliori tiratori, con il portiere per ultimo. Trascina un giocatore, oppure prendilo con Spazio o Invio e spostalo con le frecce.",
+      "useAutoOrder": "Usa ordine automatico",
+      "startShootout": "Inizia i rigori",
+      "penTaker": "Rigorista",
+      "moving": "In spostamento",
+      "sitsOut": "Non calcia",
+      "sitsOutNote": "Entrambe le squadre calciano con {{k}} rigoristi",
+      "sitsOutLine": "Non calciano sotto questa linea: {{n}}. Entrambe le squadre calciano con {{k}} rigoristi.",
+      "moveKicker": "Sposta {{name}}, rigore {{n}} di {{k}}",
+      "moveSitter": "Sposta {{name}}, non calcia",
+      "liftedKick": "{{name}}, rigore {{n}} di {{k}}. Frecce per spostare, Spazio per lasciare, Esc per rimettere a posto.",
+      "liftedSitsOut": "{{name}}, non calcia. Frecce per spostare, Spazio per lasciare, Esc per rimettere a posto.",
+      "movedKick": "{{name}}, rigore {{n}} di {{k}}",
+      "movedSitsOut": "{{name}} non calcia",
+      "droppedKick": "{{name}} lasciato al rigore {{n}} di {{k}}.",
+      "droppedSitsOut": "{{name}} lasciato: non calcia.",
+      "putBackKick": "{{name}} rimesso al rigore {{n}} di {{k}}.",
+      "putBackSitsOut": "{{name}} rimesso a posto: non calcia.",
+      "autoOrderRestored": "Tornato all'ordine automatico.",
+      "columnShooting": "Tiro",
+      "columnComposure": "Fredd.",
+      "opponentOrderHidden": "L'ordine di {{team}} resta nascosto finché ogni suo giocatore non si presenta sul dischetto.",
+      "orderFailed": "Impossibile impostare il tuo ordine. Riprova."
     },
     "fullTime": "Fine partita",
     "ft": "FIN",
@@ -2038,12 +2178,13 @@
     "postMatchTeamTalk": "Discorso post-partita",
     "addressPlayers": "Rivolgiti ai tuoi giocatori dopo la partita.",
     "matchOver": "Partita terminata",
-    "performance": "Prestazioni di {{team}}",
+    "ratings": "Voti di {{team}}",
     "motm": "Migliore in campo",
     "roundSummary": "Riepilogo del Turno",
     "roundSummaryUnavailable": "Riepilogo del turno non disponibile.",
     "otherMatches": "Altre Partite",
     "otherMatchesToday": "Altre Partite di Oggi",
+    "elsewhereInYourLeague": "Altrove nel tuo campionato",
     "otherMatchesUnavailable": "Il contesto delle altre partite non è ancora disponibile per questa gara.",
     "viewDetails": "Vedi dettagli",
     "matchDetails": "Dettagli Partita",
@@ -2232,7 +2373,7 @@
     "preMatchPrep": "Preparazione pre-partita",
     "startingLineup": "Formazione titolare",
     "setPiecesCaptain": "Piazzati e capitano",
-    "formationFit": "Adattamento alla formazione",
+    "formationFit": "Modulo",
     "selecting": "Selezione in corso...",
     "autoSelectXI": "Seleziona automaticamente il miglior XI",
     "startingXI": "XI titolare",
@@ -2548,7 +2689,7 @@
       }
     },
     "matchReport": "Rapporto partita",
-    "playerPerformance": "Prestazioni dei giocatori",
+    "playerRatings": "Valutazioni",
     "tacticsTab": "Tattica",
     "goalSources": "Fonti dei gol",
     "openPlay": "Azione da gioco",
@@ -2560,7 +2701,14 @@
     "yourResult": "Il tuo risultato",
     "continue": "Continua",
     "notableUpset": "Sorpresa del turno",
-    "pts": "pts."
+    "pts": "pts.",
+    "cupPenalties": "({{home}}–{{away}} ai rigori)",
+    "cupAdvances": "{{team}} passa il turno",
+    "cupTiesPending": "Alcune sfide sono ancora da giocare",
+    "resume": "Riprendi",
+    "pausedResumesAt": "In pausa · riprende a {{speed}}",
+    "playingAt": "In corso a {{speed}}",
+    "spaceKey": "Spazio"
   },
   "notifications": {
     "attentionRequired": "Attenzione Richiesta",
@@ -2582,12 +2730,19 @@
     "compare": "Confronta"
   },
   "be": {
+    "condition": {
+      "fresh": "Fresco",
+      "tiring": "Affaticato",
+      "exhausted": "Esausto",
+      "critical": "Critico"
+    },
     "error": {
       "squadFloor": {
         "wouldLeaveShort": "Questo giocatore non può partire: la rosa scenderebbe sotto il minimo che un club deve mantenere. Reparto interessato: {{group}}.",
         "wouldLeaveSeniorsShort": "Questo giocatore non può partire: il club resterebbe con meno di {{floor}} giocatori in prima squadra, il minimo che un club deve mantenere."
       },
       "noActiveGameSession": "Nessuna partita attiva",
+      "careerChanged": "La carriera è cambiata prima che fosse possibile salvare.",
       "noActiveSaveSession": "Nessuna sessione di salvataggio attiva",
       "saveNotFound": "Salvataggio '{{saveId}}' non trovato.",
       "teamNotFound": "Squadra non trovata",
@@ -2624,6 +2779,10 @@
         "maxSubstitutionsReached": "Raggiunto il numero massimo di sostituzioni",
         "preMatchSwapTooLate": "Gli scambi pre-partita sono consentiti solo prima del calcio d'inizio",
         "cannotSubstituteSentOffPlayer": "Non puoi sostituire un giocatore espulso",
+        "noSubstitutionsForShootout": "Nessuna sostituzione dopo i tempi supplementari: i rigori li calciano i giocatori in campo al fischio finale.",
+        "shootoutOrderNotNow": "L'ordine dei rigoristi si può decidere solo dopo i supplementari, prima del primo tiro.",
+        "shootoutOrderNotYourSide": "Puoi decidere solo l'ordine dei rigoristi della tua squadra.",
+        "shootoutOrderNotEligible": "L'ordine dei rigoristi deve includere una sola volta ciascuno dei tuoi giocatori disponibili.",
         "playerNotOnPitch": "Il giocatore non è in campo",
         "playerAlreadySubstitutedOff": "Quel giocatore è già stato sostituito",
         "playerNotOnBench": "Il giocatore non è in panchina",
@@ -2643,7 +2802,8 @@
         "worldExportNotPackage": "Questa cartella è un mondo esportato, non un progetto di pacchetto. I mondi esportati usano un formato diverso e non possono essere modificati qui.",
         "notAProjectDirectory": "Questa non è una cartella di progetto di un pacchetto. Scegli la cartella che contiene il package.json del pacchetto — oppure, per un pacchetto .ofm installato, usa «Apri file .ofm».",
         "unknownSchema": "Schema sconosciuto \"{{schema}}\".",
-        "invalidEntity": "Una voce \"{{schema}}\" non è valida.",
+        "invalidEntity": "Una voce \"{{schema}}\" non è valida: {{detail}}",
+        "duplicateWorld": "Il pacchetto ha già un manifesto in \"{{first}}\"; un pacchetto può avere un solo file \"world\".",
         "missingId": "A una voce {{kind}} manca l’id.",
         "missingMetadata": "Nel manifest del pacchetto manca il campo obbligatorio \"{{field}}\".",
         "duplicateId": "Id {{kind}} duplicato \"{{id}}\".",
@@ -2704,6 +2864,7 @@
         "bothParticipantSources": "Fornisci un elenco esplicito oppure un selettore, non entrambi.",
         "tooFewParticipants": "Sono richiesti almeno due partecipanti.",
         "unknownTeam": "Squadra sconosciuta \"{{team}}\".",
+        "duplicateTeam": "La squadra \"{{team}}\" è elencata più di una volta.",
         "selectorMissingCountry": "Questo selettore richiede un paese.",
         "selectorCountTooSmall": "Questo selettore richiede un numero di almeno 2.",
         "selectorMissingRegion": "Questo selettore richiede una regione.",
@@ -2720,6 +2881,7 @@
       "saveLoad": {
         "corrupted": "Questo file di salvataggio è danneggiato e non può essere caricato.",
         "incompatibleVersion": "Questo salvataggio è stato creato con una versione più recente del gioco (salvataggio v{{saveVersion}}; questa versione supporta fino alla v{{supported}}). Aggiorna il gioco per caricarlo.",
+        "incompatibleLayout": "I dati di questo salvataggio non corrispondono alla versione dichiarata, quindi non può essere caricato in sicurezza. Il file non è stato modificato.",
         "missingData": "A questo salvataggio mancano dati necessari e non può essere caricato.",
         "invalidWorld": "I dati del mondo o della mod di questo salvataggio non sono validi e non possono essere caricati.",
         "unknown": "Impossibile caricare questo salvataggio a causa di un errore imprevisto."
@@ -2746,7 +2908,25 @@
       "saveManagerUnavailable": "I dati di salvataggio non sono temporaneamente disponibili.",
       "report": {
         "bundleFailed": "Non è stato possibile scrivere il file del report. Verifica di poter scrivere nella cartella scelta.",
-        "saveMissing": "Non è stato possibile trovare il tuo salvataggio, quindi non è stato scritto nulla. Togli la spunta al salvataggio e riprova, oppure ricarica prima la carriera."
+        "saveMissing": "Non è stato possibile trovare il tuo salvataggio, quindi non è stato scritto nulla. Togli la spunta al salvataggio e riprova, oppure ricarica prima la carriera.",
+        "upload": {
+          "consentRequired": "Prima spunta la casella per accettare l'invio di questi file.",
+          "notConfigured": "Questa versione del gioco non può inviare segnalazioni direttamente. Usa il modulo di GitHub.",
+          "attachmentsUnavailable": "Allegare file non è ancora disponibile.",
+          "alreadySending": "Un rapporto è ancora in invio. Aspetta che finisca e riprova.",
+          "disabled": "L'invio dei rapporti è al momento disattivato. Usa il modulo di GitHub.",
+          "tooManyFiles": "A questo rapporto sono allegati troppi file.",
+          "capacity": "Il server dei rapporti è al momento pieno. Usa il modulo di GitHub.",
+          "imagesUnavailable": "Il server dei rapporti non può elaborare gli screenshot in questo momento. Riprova senza o usa il modulo di GitHub.",
+          "rateLimitedWait": "Di recente sono stati inviati troppi rapporti dalla tua connessione. Riprova tra circa {{minutes}} min.",
+          "tooLarge": "La segnalazione è troppo grande per essere inviata direttamente.",
+          "rateLimited": "Di recente sono state inviate troppe segnalazioni dalla tua connessione. Attendi un po' prima di riprovare.",
+          "rejected": "Il server delle segnalazioni non ha accettato questa segnalazione.",
+          "serverError": "Il server delle segnalazioni ha avuto un problema e non ha potuto ricevere la segnalazione.",
+          "unreachable": "Non è stato possibile raggiungere il server delle segnalazioni, quindi non è stato inviato nulla. Controlla la tua connessione a internet.",
+          "unconfirmed": "La connessione è caduta prima che il server rispondesse. Il tuo rapporto potrebbe essere arrivato. Se lo reinvii, il team potrebbe riceverlo due volte.",
+          "prepareFailed": "Non è stato possibile preparare la segnalazione per l'invio. Puoi comunque salvarla e usare il modulo di GitHub."
+        }
       },
       "saveDeleteFailed": "Impossibile eliminare il file di salvataggio.",
       "settings": {
@@ -2795,6 +2975,7 @@
         "transferBudgetTooLow": "Il budget trasferimenti è troppo basso",
         "playerNotOwnedByUser": "Giocatore non trovato o non appartiene al tuo club",
         "offerNotPending": "Offerta non trovata o non più in sospeso",
+        "talksBrokenOff": "Questo club ha chiuso la trattativa per questo giocatore. Riprova più tardi.",
         "loanBorrowerCannotAffordWages": "Il club che riceve il giocatore non può permettersi questa quota di stipendio. Il suo budget salariale settimanale è {{budget}}.",
         "counterOfferMustExceedCurrentOffer": "La controfferta deve superare l'offerta attuale",
         "loanCounterMustImproveTerms": "La controfferta di prestito deve migliorare l'offerta attuale",
@@ -2839,7 +3020,17 @@
       "notice": {
         "fallbackLeagueGenerated": "Nessuna competizione è stata definita. È stato generato automaticamente un campionato a girone unico predefinito per tutte le squadre.",
         "fallbackTeamsFilled": "È stata definita una sola squadra. Sono stati generati automaticamente avversari procedurali per rendere il gioco giocabile."
-      }
+      },
+      "customTactic": {
+        "nameRequired": "Dai alla tattica un nome di al massimo 60 caratteri.",
+        "invalidFormation": "Il gioco non conosce questo modulo.",
+        "invalidPlayStyle": "Il gioco non conosce questo stile di gioco.",
+        "notFound": "Questa tattica non esiste più."
+      },
+      "anotherClubsSquad": "Quella rosa appartiene a un altro club.",
+      "startingXiPlayerNotEligible": "Un giocatore di questa formazione non può essere titolare nel tuo club.",
+      "startingXiDuplicatePlayer": "Un giocatore compare due volte in questa formazione.",
+      "startingXiWrongSize": "L'undici titolare deve avere esattamente undici giocatori, oppure tutti i giocatori idonei se il club ne ha meno."
     },
     "sender": {
       "boardOfDirectors": "Consiglio di amministrazione",
@@ -2921,6 +3112,11 @@
         "body0": "Brutte notizie dal campo di allenamento. {{player}} ha riportato un {{injury}} durante la sessione di oggi.\n\nLo staff medico stima {{days}} giorni di stop. Monitoreremo attentamente il recupero.",
         "body1": "Purtroppo {{player}} si è fermato in allenamento oggi a causa di un {{injury}}.\n\nPrima valutazione: circa {{days}} giorni ai box. Ti terremo aggiornato sui progressi."
       },
+      "matchInjury": {
+        "subject": "Infortunio in partita — {{player}} ({{injury}})",
+        "body0": "Brutte notizie dalla partita: {{player}} si è infortunato in campo.\n\nDiagnosi: {{injury}}. Lo staff medico stima {{days}} giorni di stop e seguiremo il recupero da vicino.",
+        "body1": "{{player}} non è uscito indenne dalla partita di oggi.\n\nDiagnosi: {{injury}}. Prima valutazione: fuori per circa {{days}} giorni. Ti terremo aggiornato sui progressi."
+      },
       "mediaPositive": {
         "subject": "Stampa positiva — {{player}}",
         "body": "I giornali locali stanno dedicando oggi un articolo molto positivo a {{player}}.\n\nMettono in evidenza l'ottimo momento di forma recente e l'impegno mostrato per il {{team}}. Questo tipo di copertura fa bene sia alla fiducia del giocatore sia all'immagine del club."
@@ -2954,12 +3150,21 @@
       },
       "wageOverBudget": {
         "subject": "Monte ingaggi oltre il budget",
-        "body": "Il nostro monte ingaggi settimanale ({{annualWages}}) supera attualmente il budget stipendi assegnato ({{wageBudget}}).\n\nAnche se possiamo sostenerlo nel breve periodo, il consiglio preferirebbe vedere il monte ingaggi tornare sotto controllo."
+        "body": "Il nostro monte ingaggi settimanale ({{weeklyWageBill}}) supera attualmente il budget stipendi assegnato ({{wageBudget}}).\n\nAnche se possiamo sostenerlo nel breve periodo, il consiglio preferirebbe vedere il monte ingaggi tornare sotto controllo."
       },
       "financeBoardPressure": {
         "subject": "Consiglio — Pressione finanziaria",
         "bodyWarning": "Il consiglio resta preoccupato per la situazione finanziaria del club. La fiducia nel tuo operato è scesa di {{penalty}} punti questa settimana.\n\nDevi migliorare la situazione salariale e la liquidità a breve termine prima che la pazienza si assottigli ulteriormente.",
         "bodyCritical": "Il consiglio ha riesaminato il peggioramento della situazione finanziaria del club e la fiducia nel tuo operato è scesa di {{penalty}} punti questa settimana.\n\nLiquidità e impegni salariali sono ormai in stato critico. Ci si aspetta un intervento immediato."
+      },
+      "financeLevers": {
+        "subject": "Si aprono opzioni di recupero per il club",
+        "body": "I soldi scarseggiano, e questo apre opzioni di recupero. Quelle aperte al club in questo momento sono elencate qui sotto; ognuna ti porta alla scheda Finanze.",
+        "action": {
+          "boardSupport": "Chiedere sostegno al consiglio",
+          "sponsorPitch": "Proporsi a un nuovo sponsor",
+          "marketingCampaign": "Avviare una campagna di marketing"
+        }
       },
       "marketingCampaign": {
         "subject": "Rapporto campagna marketing",
@@ -3428,6 +3633,14 @@
         "LoanConflict": "Il trasferimento concordato di {{player}} a {{buyer}} per {{fee}} non è stato registrato il {{start}} perché il giocatore è in prestito o ha un prestito concordato in attesa di registrazione. Non è stato pagato alcun importo per il trasferimento.",
         "PlayerUnavailable": "Il trasferimento concordato di {{player}} a {{buyer}} per {{fee}} non è stato registrato il {{start}} perché il giocatore non è più disponibile presso un club venditore. Non è stato pagato alcun importo per il trasferimento.",
         "RegistrationBlocked": "Il trasferimento concordato di {{player}} a {{buyer}} per {{fee}} non è stato registrato il {{start}} perché un requisito di registrazione non è più soddisfatto. Non è stato pagato alcun importo per il trasferimento."
+      },
+      "matchesMoved": {
+        "subject": "Partite riprogrammate",
+        "body": "Alcune delle tue partite sono state spostate affinché i tuoi giocatori mantengano il loro riposo e le pause internazionali siano rispettate:\n{{matches}}"
+      },
+      "savedDataSetAside": {
+        "subject": "Alcuni dati salvati sono stati messi da parte",
+        "body": "Una parte di questo salvataggio non è stata letta al caricamento. È stata messa da parte invece di andare persa, e la tua carriera continua. Se ti sembra che manchi qualcosa, una segnalazione di bug ({{settings}} → {{reportBug}}, con il salvataggio allegato) ci permette di controllare."
       }
     },
     "news": {
@@ -3464,6 +3677,10 @@
         "reportPreseason": {
           "title": "{{home}} {{homeGoals}} - {{awayGoals}} {{away}}: Rapporto torneo di pre-stagione",
           "body": "Nel torneo di pre-stagione, {{home}} {{homeGoals}} - {{awayGoals}} {{away}}. Entrambe le squadre hanno usato la partita per affinare la forma.{{scorersSection}}"
+        },
+        "reportCompetition": {
+          "title": "{{home}} {{homeGoals}} - {{awayGoals}} {{away}}: Cronaca della partita ({{competition}})",
+          "body": "{{competition}}: la partita è finita {{home}} {{homeGoals}} - {{awayGoals}} {{away}}.{{scorersSection}}"
         }
       },
       "roundup": {
@@ -3537,7 +3754,9 @@
       "weeklyDigest": {
         "headline": "Digest Settimanale — Settimana del {{weekStart}}",
         "bodyNoTopScorer": "È arrivato l'ultimo digest settimanale. {{leader}} guida la classifica e {{storylineCount}} trama/e stanno plasmando la divisione questa settimana.",
-        "bodyWithTopScorer": "È arrivato l'ultimo digest settimanale. {{leader}} guida la classifica, mentre {{topScorer}} comanda la classifica marcatori con {{topScorerGoals}} gol. {{storylineCount}} trama/e stanno plasmando la divisione questa settimana."
+        "bodyWithTopScorer": "È arrivato l'ultimo digest settimanale. {{leader}} guida la classifica, mentre {{topScorer}} comanda la classifica marcatori con {{topScorerGoals}} gol. {{storylineCount}} trama/e stanno plasmando la divisione questa settimana.",
+        "bodyNoTopScorerNoStorylines": "È arrivato l'ultimo digest settimanale. {{leader}} guida la classifica.",
+        "bodyWithTopScorerNoStorylines": "È arrivato l'ultimo digest settimanale. {{leader}} guida la classifica, mentre {{topScorer}} comanda la classifica marcatori con {{topScorerGoals}} gol."
       },
       "preseasonDigest": {
         "headline": "Digest precampionato — Settimana del {{weekStart}}",
@@ -3599,6 +3818,13 @@
     },
     "save": {
       "defaultName": "Carriera di {{manager}}"
+    },
+    "warning": {
+      "package": {
+        "countryWithoutRegion": "Questo pacchetto definisce il paese \"{{name}}\" ({{code}}) fuori dall'elenco dei paesi del gioco e non lo colloca in nessuna confederazione, quindi i suoi club sono archiviati in Europa. Assegnagli una confederazione.",
+        "freeAgentFieldIgnored": "Il giocatore «{{id}}» non ha un club, quindi è svincolato e senza contratto: «{{field}}» viene ignorato. Assegnagli un club per usarlo, oppure rimuovi il campo.",
+        "repeatedNamePool": "Il gruppo di nomi di {{country}} è già stato dato in {{first}}; quello di questo file lo sostituisce. Tieni solo uno dei due, oppure assegnali a paesi diversi."
+      }
     }
   },
   "traits": {
@@ -3846,6 +4072,7 @@
     "saveSuccess": "Salvato",
     "saveTeam": "Salva squadra",
     "issues": "{{count}} problema/i",
+    "warnings": "{{count}} avviso/i",
     "packageId": "ID Pacchetto",
     "packageName": "Nome Pacchetto",
     "description": "Descrizione",
@@ -3926,6 +4153,7 @@
     "playerPosition": "Ruolo",
     "playerFoot": "Piede Preferito",
     "playerDateOfBirth": "Data di nascita",
+    "playerAgeToday": "{{age}} anni oggi",
     "playerAge": "Età",
     "playerAgeHelp": "Usata quando manca la data di nascita: il giocatore ha questa età il giorno in cui inizia la carriera, in qualunque anno sia.",
     "playerContractSection": "Contratto",
@@ -4003,6 +4231,7 @@
     "openPackageFileInvalid": "Seleziona un file di pacchetto .ofm valido",
     "noItemSelected": "Seleziona un elemento dall'elenco o fai clic su Aggiungi",
     "issuesBadge": "{{count}} problema/i",
+    "warningsBadge": "{{count}} avvisi",
     "issuesTitle": "Problemi di validazione",
     "noIssues": "Nessun problema — il mondo è valido",
     "saving": "Salvataggio…",
@@ -4077,6 +4306,8 @@
     "staffId": "ID",
     "staffFirstName": "Nome",
     "staffLastName": "Cognome",
+    "staffKnownAs": "Noto come (facoltativo)",
+    "staffKnownAsPlaceholder": "es. Cafu",
     "staffClub": "Club",
     "staffNationality": "Nazionalità",
     "staffDateOfBirth": "Data di nascita",
@@ -4176,14 +4407,37 @@
     "itemCrashDesc": "Incluso perché qualcosa si è bloccato durante la tua ultima sessione.",
     "optionalHeading": "Aggiungi se vuoi — disattivato di default",
     "includeSave": "Il mio salvataggio",
-      "includeSaveDesc": "Ci permette di riprodurre la situazione esatta in cui ti trovavi.",
+    "includeSaveDesc": "Ci permette di riprodurre la situazione esatta in cui ti trovavi.",
     "includeSaveNoCareer": "Nessuna carriera aperta, quindi non c'è nulla da allegare.",
     "nothingSentYet": "Nulla viene salvato o aperto finché non premi il pulsante qui sotto. Inviare il modulo richiede un account GitHub: il file è tuo in ogni caso.",
     "savedTo": "Il file della segnalazione è stato salvato qui:",
     "dragItIn": "Trascinalo sul modulo GitHub nel browser e invialo. Tutto qui.",
-      "browserDidNotOpen": "Il browser non si è aperto. Il file qui sopra è salvato: allegalo a una nuova issue su GitHub quando puoi.",
+    "browserDidNotOpen": "Il browser non si è aperto. Il file qui sopra è salvato: allegalo a una nuova issue su GitHub quando puoi.",
     "review": "Controlla cosa viene inviato",
     "saveAndOpen": "Salva il file e apri GitHub",
-    "working": "In corso…"
+    "working": "In corso…",
+    "previewIntroUpload": "Tutto ciò che è qui sotto, e nient'altro. Nulla lascia questo computer finché non premi Invia o salvi tu il file.",
+    "consentLabel": "Invia questi file al team di OpenFoot Manager",
+    "consentDesc": "Ho controllato l'elenco qui sopra e accetto di inviarlo. Non serve un account. I rapporti vengono conservati finché il team non li ha gestiti.",
+    "send": "Invia",
+    "saveAndOpenInstead": "Salva il file e usa GitHub",
+    "nothingSentYetUpload": "Nulla lascia questo computer finché non premi Invia. Preferisci GitHub? Salva il file e allegalo tu al modulo: serve un account GitHub.",
+    "uploadFailedFallback": "Puoi comunque inviarla tramite GitHub: salva il file e allegalo al modulo.",
+    "technicalDetails": "Dettagli tecnici",
+    "tooLargeUntickSave": "Togliendo la spunta al salvataggio la segnalazione diventerà molto più piccola.",
+    "sentTitle": "Segnalazione inviata",
+    "sentIntro": "Grazie. Il tuo rapporto è arrivato al team di OpenFoot Manager e viene conservato finché non è stato gestito.",
+    "referenceCode": "Il tuo codice di riferimento",
+    "referenceCodeHint": "Cita questo codice se chiedi del tuo rapporto. Per farlo eliminare, scrivi a bugreport@openfootmanager.com indicando questo codice. Non è una password: nessuno può usarlo per vedere il tuo rapporto.",
+    "referenceCodeSaved": "Puoi ritrovarlo in Impostazioni → Aiuto → Le tue segnalazioni.",
+    "notRecorded": "Non è stato possibile aggiungere questo codice al tuo elenco di segnalazioni. Annotalo, per favore.",
+    "copyCodeFor": "Copia il codice {{code}}",
+    "codeCopied": "Copiato"
+  },
+  "crashPrompt": {
+    "title": "Il gioco si è chiuso inaspettatamente",
+    "body": "La tua ultima sessione è terminata con un arresto anomalo. Segnalarlo ci aiuta a risolverlo: vedrai tutto ciò che verrebbe inviato prima che qualcosa lasci il tuo computer.",
+    "report": "Segnala",
+    "notNow": "Non ora"
   }
 }

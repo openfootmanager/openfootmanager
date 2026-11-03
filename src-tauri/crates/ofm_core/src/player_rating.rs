@@ -1,13 +1,12 @@
+use crate::player_tier::{PlayerTier, player_tier};
 use domain::player::{
-    Footedness, Player, PlayerAttributes, PlayerTrait, Position, WEAK_FOOT_MAX, WEAK_FOOT_MIN,
+    AttributeKey, Footedness, Player, PlayerAttributes, PlayerTrait, Position, WEAK_FOOT_MAX,
+    WEAK_FOOT_MIN,
 };
 use rand::RngExt;
 
-const WONDERKID_MAX_AGE: u32 = 20;
-const WONDERKID_MIN_POTENTIAL: u8 = 90;
-const WONDERKID_MIN_GROWTH_ROOM: u8 = 14;
-// Wonderkid rebalance for v0.2.1: tightened from age <= 21, potential >= 85,
-// and growth room >= 10 to reduce how often the tag appears in playtesting.
+pub(crate) const WONDERKID_MAX_AGE: u32 = 20;
+pub(crate) const WONDERKID_MIN_GROWTH_ROOM: u8 = 14;
 
 pub fn formation_slots(formation: &str) -> Vec<Position> {
     formation_slot_rows(formation)
@@ -34,17 +33,17 @@ pub fn deployed_position(team: &domain::team::Team, player_id: &str) -> Option<P
 /// - `ovr` is recomputed from the player's natural position using position-weighted attributes.
 /// - `potential` is set only if it is currently 0 (unset), using a random bonus based on age.
 ///   Once set it is preserved so training gains can grow OVR toward the ceiling naturally.
-/// - `traits` are recomputed from current attributes, and the `Wonderkid` trait is applied only
-///   after the v0.2.1 rebalance for age <= 20, potential >= 90, and growth room >= 14.
+/// - `traits` are recomputed from current attributes, and the `Wonderkid` trait is applied by
+///   `qualifies_for_wonderkid`: age 20 or under, an S-tier ceiling, and 14 or more to grow.
 ///
-/// Pass `current_year` for accurate age calculation (use the game clock year).
-pub fn refresh_player_derived(player: &mut Player, current_year: u32) {
+/// Ages are reckoned on `on`: the game's date, or `domain::age::season_midpoint` when only a
+/// year is known.
+pub fn refresh_player_derived(player: &mut Player, on: chrono::NaiveDate) {
     // 1. Compute position-weighted OVR
-    let ovr_f = natural_ovr(player);
-    let ovr = ovr_f.round() as u8;
+    let ovr = natural_rating_from(player, &player.attributes);
 
     // 2. Compute potential if not yet set (initial generation or legacy saves)
-    let age = player_age(&player.date_of_birth, current_year);
+    let age = domain::age::playing_age(on, &player.date_of_birth);
     let potential = if player.potential == 0 {
         // A player with no potential yet (a legacy save, a hand-built player): drawn from
         // the player's own id, so the same player gets the same ceiling every time.
@@ -67,45 +66,148 @@ pub fn refresh_player_derived(player: &mut Player, current_year: u32) {
     player.traits = traits;
 }
 
+/// Apply the wonderkid rule to a player's stored traits without touching anything else: add the tag
+/// when he qualifies and lacks it, take it off when he has it and no longer qualifies. `true` when a
+/// trait changed. Used on load, so a save written under an older rule is judged by the current one.
+pub fn reconcile_wonderkid_trait(player: &mut Player, on: chrono::NaiveDate) -> bool {
+    let age = domain::age::playing_age(on, &player.date_of_birth);
+    let qualifies = qualifies_for_wonderkid(age, player.potential, player.ovr);
+    let tagged = player.traits.contains(&PlayerTrait::Wonderkid);
+    match (qualifies, tagged) {
+        (true, false) => player.traits.push(PlayerTrait::Wonderkid),
+        (false, true) => player.traits.retain(|t| *t != PlayerTrait::Wonderkid),
+        _ => return false,
+    }
+    true
+}
+
 /// Returns `true` when a player qualifies as a wonderkid: they are at or below
-/// `WONDERKID_MAX_AGE`, have at least `WONDERKID_MIN_POTENTIAL`, and their
-/// remaining growth (`potential - ovr`) meets `WONDERKID_MIN_GROWTH_ROOM`,
-/// reducing the number of qualifying players after playtesting.
+/// `WONDERKID_MAX_AGE`, have an S-tier ceiling (the game's one definition of elite, see
+/// `player_tier`), and their remaining growth (`potential - ovr`) meets
+/// `WONDERKID_MIN_GROWTH_ROOM`. The gate is read from the tier so it moves with the scale, and is
+/// applied alike to a player generated now and to one loaded from an older save.
 pub fn qualifies_for_wonderkid(age: u32, potential: u8, ovr: u8) -> bool {
     age <= WONDERKID_MAX_AGE
-        && potential >= WONDERKID_MIN_POTENTIAL
+        && player_tier(potential) == PlayerTier::S
         && potential.saturating_sub(ovr) >= WONDERKID_MIN_GROWTH_ROOM
 }
 
-/// Generate a potential rating for a newly-created player based on current OVR and age.
-/// Returns a value in [1, 99] that is always >= `ovr`.
+/// How far above his current rating a player of `age` can still grow: the one rule for the gap
+/// between current ability and ceiling. Read forwards (ceiling minus this) when a player is
+/// generated ceiling-first, and backwards (rating plus this) when an author gave a rating and no
+/// ceiling, so the two can never disagree about what a 17-year-old's headroom is.
+pub fn growth_headroom_range(age: u32) -> std::ops::RangeInclusive<u8> {
+    match age {
+        ..=18 => 15..=30,
+        19..=20 => 8..=22,
+        21..=22 => 4..=14,
+        23..=25 => 0..=7,
+        _ => 0..=0,
+    }
+}
+
+/// A headroom drawn from `growth_headroom_range(age)`. A range of one value is returned without
+/// drawing, so a veteran costs the stream nothing.
+pub fn roll_growth_headroom(age: u32, rng: &mut impl rand::Rng) -> u8 {
+    let range = growth_headroom_range(age);
+    if range.start() == range.end() {
+        *range.start()
+    } else {
+        rng.random_range(range)
+    }
+}
+
+/// Generate a potential rating for a player whose current rating is already known: `ovr` plus a
+/// headroom for `age`. Returns a value in [1, 99] that is always >= `ovr`.
 /// The lower bound of 1 (via `ovr.max(1)`) ensures potential is never 0 even when `ovr` is 0.
 pub fn generate_potential(ovr: u8, age: u32, rng: &mut impl rand::Rng) -> u8 {
-    let bonus: u8 = match age {
-        ..=18 => rng.random_range(15u8..=30),
-        19..=20 => rng.random_range(8u8..=22),
-        21..=22 => rng.random_range(4u8..=14),
-        23..=25 => rng.random_range(0u8..=7),
-        _ => 0,
-    };
+    let bonus = roll_growth_headroom(age, rng);
     (ovr.saturating_add(bonus)).min(99).max(ovr.max(1))
 }
 
-/// Parse birth year from a "YYYY-MM-DD" date string and return approximate age.
-fn player_age(date_of_birth: &str, current_year: u32) -> u32 {
-    let birth_year: u32 = date_of_birth
+/// Move every attribute by the same amount, one point at a time in one direction, until the
+/// position-weighted rating reaches `target_ovr` or passes it, then keep whichever of the last two
+/// steps is closer (or stop at an attribute running into 1 or 99). Keeps the shape of the player (a
+/// keeper stays a keeper) and moves only his level: down, a ceiling becomes a younger, less
+/// developed self; up, a rolled rating is lifted onto a ceiling. A rating already within half a
+/// point of the target is left alone. Moving in one direction only is what guarantees it ends.
+pub fn move_attributes_to(attributes: &mut PlayerAttributes, position: &Position, target_ovr: u8) {
+    let target = f64::from(target_ovr);
+    let mut current = ovr_from_attributes(attributes, position);
+    if (current - target).abs() <= 0.5 {
+        return;
+    }
+    let step: i8 = if current > target { -1 } else { 1 };
+    loop {
+        let before = attributes.clone();
+        if !shift_each_attribute(attributes, step) {
+            return;
+        }
+        let next = ovr_from_attributes(attributes, position);
+        let passed = (step < 0 && next <= target) || (step > 0 && next >= target);
+        if passed {
+            if (current - target).abs() < (next - target).abs() {
+                *attributes = before;
+            }
+            return;
+        }
+        current = next;
+    }
+}
+
+fn every_attribute_mut(a: &mut PlayerAttributes) -> [&mut u8; 19] {
+    [
+        &mut a.pace,
+        &mut a.stamina,
+        &mut a.strength,
+        &mut a.agility,
+        &mut a.passing,
+        &mut a.shooting,
+        &mut a.tackling,
+        &mut a.dribbling,
+        &mut a.defending,
+        &mut a.positioning,
+        &mut a.vision,
+        &mut a.decisions,
+        &mut a.composure,
+        &mut a.aggression,
+        &mut a.teamwork,
+        &mut a.leadership,
+        &mut a.handling,
+        &mut a.reflexes,
+        &mut a.aerial,
+    ]
+}
+
+/// Moves every attribute by `step` (+1 or -1) inside 1..=99. `false` when none could move.
+fn shift_each_attribute(attributes: &mut PlayerAttributes, step: i8) -> bool {
+    let mut moved = false;
+    for value in every_attribute_mut(attributes) {
+        let shifted = (i16::from(*value) + i16::from(step)).clamp(1, 99) as u8;
+        moved |= shifted != *value;
+        *value = shifted;
+    }
+    moved
+}
+
+/// The lines of a formation read strictly: `"4-4-2"` is `[4, 4, 2]` and `"4-1-4-1"` is
+/// `[4, 1, 4, 1]`. Three or four numeric parts, none empty, adding up to the ten outfield
+/// players; anything else is not a formation the game can lay out.
+pub fn parse_formation(formation: &str) -> Option<Vec<usize>> {
+    let parts: Vec<usize> = formation
         .split('-')
-        .next()
-        .and_then(|y| y.parse().ok())
-        .unwrap_or(2000);
-    current_year.saturating_sub(birth_year)
+        .map(|part| part.parse::<usize>().ok())
+        .collect::<Option<_>>()?;
+    let well_formed = matches!(parts.len(), 3 | 4)
+        && parts.iter().all(|&line| line > 0)
+        && parts.iter().sum::<usize>() == 10;
+    well_formed.then_some(parts)
 }
 
 fn formation_slot_rows(formation: &str) -> Vec<Vec<Position>> {
-    let parts: Vec<usize> = formation
-        .split('-')
-        .filter_map(|part| part.parse::<usize>().ok())
-        .collect();
+    // A formation that does not parse is 4-4-2: old saves may hold one, and the lineup must
+    // still be laid out. New ones are refused where they are set (`parse_formation`).
+    let parts = parse_formation(formation).unwrap_or_else(|| vec![4, 4, 2]);
 
     match parts.as_slice() {
         [defenders, midfielders, forwards] => vec![
@@ -121,13 +223,21 @@ fn formation_slot_rows(formation: &str) -> Vec<Vec<Position>> {
             attacking_midfield_line(*attacking_midfielders),
             forward_line(*forwards),
         ],
-        _ => formation_slot_rows("4-4-2"),
+        // `parse_formation` yields three or four lines, so this is not reached.
+        _ => Vec::new(),
     }
 }
 
 pub fn natural_ovr(player: &Player) -> f64 {
     let natural_position = primary_position(player);
     ovr_for_position(player, &natural_position)
+}
+
+/// The whole-number rating `attributes` give the player at his natural position: his `ovr` when
+/// they are his own, and the figure a scout's report rates him at when they are the report's
+/// snapshot (`player_knowledge`). One rounding for both, so the two can be compared.
+pub(crate) fn natural_rating_from(player: &Player, attributes: &PlayerAttributes) -> u8 {
+    ovr_from_attributes(attributes, &primary_position(player)).round() as u8
 }
 
 pub fn ovr_for_position(player: &Player, position: &Position) -> f64 {
@@ -251,7 +361,9 @@ fn forward_line(count: usize) -> Vec<Position> {
     }
 }
 
-fn primary_position(player: &Player) -> Position {
+/// His natural position, granular: `natural_position`, or the coarse `position` for a player still
+/// on a legacy bucket. `pub(crate)` for the position ratings (`crate::position_ratings`).
+pub(crate) fn primary_position(player: &Player) -> Position {
     let preferred = if player.natural_position.is_legacy_bucket() {
         player.position.clone()
     } else {
@@ -261,7 +373,9 @@ fn primary_position(player: &Player) -> Position {
     canonical_position(&preferred)
 }
 
-fn canonical_position(position: &Position) -> Position {
+/// A legacy bucket as the granular position it is scored as; any other position as it is.
+/// `pub(crate)` for the position ratings (`crate::position_ratings`).
+pub(crate) fn canonical_position(position: &Position) -> Position {
     match position {
         Position::Goalkeeper => Position::Goalkeeper,
         Position::Defender => Position::CenterBack,
@@ -271,24 +385,77 @@ fn canonical_position(position: &Position) -> Position {
     }
 }
 
-fn compatibility_penalty(player: &Player, slot_position: &Position) -> f64 {
+/// How far a granular `slot_position` is from what a player plays: his own position, one of his
+/// alternates, another position in the same line, or another line. The AI's selection penalty
+/// (`compatibility_penalty`) and the screens' words (`familiarity`) both read it.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+enum PositionStep {
+    Natural,
+    Alternate,
+    SameLine,
+    OtherLine,
+}
+
+fn position_step(player: &Player, slot_position: &Position) -> PositionStep {
     let primary = primary_position(player);
     if &primary == slot_position {
-        return 0.0;
+        return PositionStep::Natural;
     }
-
-    let alternates = player
+    let is_alternate = player
         .alternate_positions
         .iter()
         .map(canonical_position)
-        .collect::<Vec<_>>();
-
-    if alternates.iter().any(|position| position == slot_position) {
-        4.0
-    } else if primary.to_group_position() == slot_position.to_group_position() {
-        8.0
+        .any(|position| &position == slot_position);
+    if is_alternate {
+        PositionStep::Alternate
+    } else if primary.to_group_position() == slot_position.to_group_position()
+        || is_flank_partner(&primary, slot_position)
+    {
+        PositionStep::SameLine
     } else {
-        14.0
+        PositionStep::OtherLine
+    }
+}
+
+/// A winger and the wide midfielder on his side play the same flank, one line apart, so the step
+/// between them is priced and named like a step within a line. Only familiarity reads this: the
+/// winger still counts in the forward line (`to_group_position`).
+fn is_flank_partner(primary: &Position, slot_position: &Position) -> bool {
+    matches!(
+        (primary, slot_position),
+        (Position::RightWinger, Position::RightMidfielder)
+            | (Position::RightMidfielder, Position::RightWinger)
+            | (Position::LeftWinger, Position::LeftMidfielder)
+            | (Position::LeftMidfielder, Position::LeftWinger)
+    )
+}
+
+fn compatibility_penalty(player: &Player, slot_position: &Position) -> f64 {
+    match position_step(player, slot_position) {
+        PositionStep::Natural => 0.0,
+        PositionStep::Alternate => 4.0,
+        PositionStep::SameLine => 8.0,
+        PositionStep::OtherLine => 14.0,
+    }
+}
+
+/// How a player stands at a position, in the screens' three words: his natural position, one he
+/// can play (an alternate, or another position in his own line), or out of position. Never a
+/// verdict on how well he would do there (maintainer, 21 Oct): the rating says that.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, ts_rs::TS)]
+#[serde(rename_all = "snake_case")]
+pub enum Familiarity {
+    Natural,
+    CanPlay,
+    OutOfPosition,
+}
+
+/// `player`'s familiarity with `position` (a legacy bucket is read as its granular position).
+pub fn familiarity(player: &Player, position: &Position) -> Familiarity {
+    match position_step(player, &canonical_position(position)) {
+        PositionStep::Natural => Familiarity::Natural,
+        PositionStep::Alternate | PositionStep::SameLine => Familiarity::CanPlay,
+        PositionStep::OtherLine => Familiarity::OutOfPosition,
     }
 }
 
@@ -409,28 +576,44 @@ fn weighted_score(attrs: &PlayerAttributes, position: &Position) -> f64 {
     }
 }
 
-fn critical_penalty(attrs: &PlayerAttributes, position: &Position) -> f64 {
-    let critical_min = match position {
-        Position::Goalkeeper => attrs.handling.min(attrs.reflexes).min(attrs.positioning),
-        Position::RightBack | Position::LeftBack => {
-            attrs.tackling.min(attrs.defending).min(attrs.positioning)
-        }
-        Position::CenterBack => attrs.defending.min(attrs.tackling).min(attrs.positioning),
-        Position::RightWingBack | Position::LeftWingBack => {
-            attrs.pace.min(attrs.stamina).min(attrs.tackling)
-        }
-        Position::DefensiveMidfielder => attrs.tackling.min(attrs.positioning).min(attrs.passing),
-        Position::CentralMidfielder => attrs.passing.min(attrs.vision).min(attrs.decisions),
-        Position::AttackingMidfielder => attrs.vision.min(attrs.passing).min(attrs.dribbling),
-        Position::RightMidfielder | Position::LeftMidfielder => {
-            attrs.pace.min(attrs.passing).min(attrs.stamina)
-        }
-        Position::RightWinger | Position::LeftWinger => {
-            attrs.pace.min(attrs.dribbling).min(attrs.passing)
-        }
-        Position::Striker => attrs.shooting.min(attrs.positioning).min(attrs.decisions),
-        Position::Defender | Position::Midfielder | Position::Forward => 50,
+/// The three attributes a player in `position` cannot do without: a weakness in any of them costs
+/// him rating there, however good the rest are (`critical_penalty`), and the profile names them
+/// beside his rating at the position. One list for both. A legacy bucket reads as its granular
+/// position (`canonical_position`).
+pub fn key_attributes(position: &Position) -> [AttributeKey; 3] {
+    use AttributeKey::{
+        Decisions, Defending, Dribbling, Handling, Pace, Passing, Positioning, Reflexes, Shooting,
+        Stamina, Tackling, Vision,
     };
+    match position {
+        Position::Goalkeeper => [Handling, Reflexes, Positioning],
+        Position::RightBack | Position::LeftBack => [Tackling, Defending, Positioning],
+        Position::CenterBack | Position::Defender => [Defending, Tackling, Positioning],
+        Position::RightWingBack | Position::LeftWingBack => [Pace, Stamina, Tackling],
+        Position::DefensiveMidfielder => [Tackling, Positioning, Passing],
+        Position::CentralMidfielder | Position::Midfielder => [Passing, Vision, Decisions],
+        Position::AttackingMidfielder => [Vision, Passing, Dribbling],
+        Position::RightMidfielder | Position::LeftMidfielder => [Pace, Passing, Stamina],
+        Position::RightWinger | Position::LeftWinger => [Pace, Dribbling, Passing],
+        Position::Striker | Position::Forward => [Shooting, Positioning, Decisions],
+    }
+}
+
+fn critical_penalty(attrs: &PlayerAttributes, position: &Position) -> f64 {
+    // An outfield bucket is never scored here (`ovr_from_attributes` canonicalises first); it has
+    // always carried no penalty. Not `is_legacy_bucket`: it counts the goalkeeper too, on purpose (see
+    // its doc).
+    if matches!(
+        position,
+        Position::Defender | Position::Midfielder | Position::Forward
+    ) {
+        return 0.0;
+    }
+    let critical_min = key_attributes(position)
+        .iter()
+        .map(|key| key.value_in(attrs))
+        .min()
+        .unwrap_or(u8::MAX);
 
     if critical_min >= 45 {
         0.0
@@ -470,6 +653,353 @@ fn slot_side(position: &Position) -> Option<Side> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    // --- Characterization: key attributes and familiarity keep the penalties as they were ---
+
+    /// `critical_penalty` before its key attributes became `key_attributes`, kept verbatim as the
+    /// oracle the refactor is held to.
+    fn critical_penalty_before(attrs: &PlayerAttributes, position: &Position) -> f64 {
+        let critical_min = match position {
+            Position::Goalkeeper => attrs.handling.min(attrs.reflexes).min(attrs.positioning),
+            Position::RightBack | Position::LeftBack => {
+                attrs.tackling.min(attrs.defending).min(attrs.positioning)
+            }
+            Position::CenterBack => attrs.defending.min(attrs.tackling).min(attrs.positioning),
+            Position::RightWingBack | Position::LeftWingBack => {
+                attrs.pace.min(attrs.stamina).min(attrs.tackling)
+            }
+            Position::DefensiveMidfielder => {
+                attrs.tackling.min(attrs.positioning).min(attrs.passing)
+            }
+            Position::CentralMidfielder => attrs.passing.min(attrs.vision).min(attrs.decisions),
+            Position::AttackingMidfielder => attrs.vision.min(attrs.passing).min(attrs.dribbling),
+            Position::RightMidfielder | Position::LeftMidfielder => {
+                attrs.pace.min(attrs.passing).min(attrs.stamina)
+            }
+            Position::RightWinger | Position::LeftWinger => {
+                attrs.pace.min(attrs.dribbling).min(attrs.passing)
+            }
+            Position::Striker => attrs.shooting.min(attrs.positioning).min(attrs.decisions),
+            Position::Defender | Position::Midfielder | Position::Forward => 50,
+        };
+        if critical_min >= 45 {
+            0.0
+        } else {
+            (45 - critical_min) as f64 * 0.6
+        }
+    }
+
+    /// `compatibility_penalty` before its steps became `position_step`, kept verbatim.
+    fn compatibility_penalty_before(player: &Player, slot_position: &Position) -> f64 {
+        let primary = primary_position(player);
+        if &primary == slot_position {
+            return 0.0;
+        }
+        let alternates = player
+            .alternate_positions
+            .iter()
+            .map(canonical_position)
+            .collect::<Vec<_>>();
+        if alternates.iter().any(|position| position == slot_position) {
+            4.0
+        } else if primary.to_group_position() == slot_position.to_group_position() {
+            8.0
+        } else {
+            14.0
+        }
+    }
+
+    /// Attribute blocks that reach every branch: all fine, all weak, one key attribute weak at a
+    /// time, two key attributes tied at the minimum, and an irregular block.
+    fn characterization_blocks() -> Vec<PlayerAttributes> {
+        use crate::test_support::uniform_attributes as uniform;
+        // One attribute set by name, through the block's own field names.
+        fn with(attrs: PlayerAttributes, key: AttributeKey, value: u8) -> PlayerAttributes {
+            let mut json = serde_json::to_value(attrs).unwrap();
+            json[serde_json::to_value(key).unwrap().as_str().unwrap()] = value.into();
+            serde_json::from_value(json).unwrap()
+        }
+        let mut blocks = vec![uniform(70), uniform(30), uniform(45), uniform(44)];
+        for key in AttributeKey::ALL {
+            blocks.push(with(uniform(70), key, 20));
+        }
+        // Two attributes tied at the minimum, in every pair that some position counts as key.
+        for position in Position::ALL {
+            let [first, second, _] = key_attributes(&position);
+            blocks.push(with(with(uniform(70), first, 31), second, 31));
+        }
+        let mut irregular = uniform(55);
+        for (index, key) in AttributeKey::ALL.iter().enumerate() {
+            irregular = with(irregular, *key, 25 + (index as u8 * 7) % 60);
+        }
+        blocks.push(irregular);
+        blocks
+    }
+
+    /// Given every position and attribute blocks that reach every branch of the penalty, a tie at
+    ///       the minimum included
+    /// When the critical penalty is read through `key_attributes`
+    /// Then it is what it was before, and so is every rating built on it
+    #[test]
+    fn the_critical_penalty_is_unchanged_by_naming_its_key_attributes() {
+        for attrs in characterization_blocks() {
+            for position in Position::ALL {
+                assert_eq!(
+                    critical_penalty(&attrs, &position),
+                    critical_penalty_before(&attrs, &position),
+                    "{position:?} {attrs:?}"
+                );
+            }
+        }
+    }
+
+    /// Given a centre back who can also play right back, a right back with no alternates, and a
+    ///       legacy-bucket midfielder
+    /// When the selection penalty is read at every position through `position_step`
+    /// Then it is what it was before
+    #[test]
+    fn the_selection_penalty_is_unchanged_by_naming_its_steps() {
+        let mut centre_back = make_player(Position::CenterBack);
+        centre_back.natural_position = Position::CenterBack;
+        centre_back.alternate_positions = vec![Position::RightBack];
+        let mut right_back = make_player(Position::RightBack);
+        right_back.natural_position = Position::RightBack;
+        let bucket = make_player(Position::Midfielder);
+        for player in [&centre_back, &right_back, &bucket] {
+            for position in Position::ALL {
+                let slot = canonical_position(&position);
+                assert_eq!(
+                    compatibility_penalty(player, &slot),
+                    compatibility_penalty_before(player, &slot),
+                    "{:?} at {slot:?}",
+                    player.natural_position
+                );
+            }
+        }
+    }
+
+    /// Given a centre back who can also play right back
+    /// When his familiarity with centre back, right back, left back and striker is read
+    /// Then it is natural, can play (an alternate), can play (his own line) and out of position
+    #[test]
+    fn familiarity_reads_natural_alternate_line_and_out_of_position() {
+        let mut player = make_player(Position::CenterBack);
+        player.natural_position = Position::CenterBack;
+        player.alternate_positions = vec![Position::RightBack];
+
+        assert_eq!(
+            familiarity(&player, &Position::CenterBack),
+            Familiarity::Natural
+        );
+        assert_eq!(
+            familiarity(&player, &Position::RightBack),
+            Familiarity::CanPlay
+        );
+        assert_eq!(
+            familiarity(&player, &Position::LeftBack),
+            Familiarity::CanPlay
+        );
+        assert_eq!(
+            familiarity(&player, &Position::Striker),
+            Familiarity::OutOfPosition
+        );
+    }
+
+    /// A player whose natural position is `natural`, with no alternates.
+    fn natural_at(natural: Position) -> Player {
+        let mut player = make_player(natural.clone());
+        player.natural_position = natural;
+        player
+    }
+
+    /// Given a natural right winger, left winger, right midfielder and left midfielder
+    /// When each is read at the wide position on his own flank in the other line
+    /// Then each can play it: a winger and the wide midfielder on his side play the same flank
+    #[test]
+    fn a_winger_can_play_wide_midfield_on_his_own_flank() {
+        let flank_pairs = [
+            (Position::RightWinger, Position::RightMidfielder),
+            (Position::RightMidfielder, Position::RightWinger),
+            (Position::LeftWinger, Position::LeftMidfielder),
+            (Position::LeftMidfielder, Position::LeftWinger),
+        ];
+        for (natural, slot) in flank_pairs {
+            assert_eq!(
+                familiarity(&natural_at(natural.clone()), &slot),
+                Familiarity::CanPlay,
+                "a natural {natural:?} at {slot:?}"
+            );
+        }
+    }
+
+    /// Given a natural right winger
+    /// When he is read at left midfield, the other flank in the other line
+    /// Then he is out of position: only his own flank's wide midfield is one step away
+    #[test]
+    fn a_winger_at_wide_midfield_on_the_other_flank_is_out_of_position() {
+        assert_eq!(
+            familiarity(
+                &natural_at(Position::RightWinger),
+                &Position::LeftMidfielder
+            ),
+            Familiarity::OutOfPosition
+        );
+    }
+
+    /// Given a natural right winger
+    /// When the lineup choice prices him at right midfield
+    /// Then it charges a step within a line (8), not another line (14): the AI and the screens
+    ///      read the one table
+    #[test]
+    fn the_ai_prices_a_winger_at_wide_midfield_as_a_step_within_a_line() {
+        assert_eq!(
+            compatibility_penalty(
+                &natural_at(Position::RightWinger),
+                &Position::RightMidfielder
+            ),
+            8.0
+        );
+    }
+
+    /// Given a natural right winger and a natural right midfielder
+    /// When their lines are read
+    /// Then the winger is still a forward and the midfielder a midfielder: the flank step changes
+    ///      familiarity only, never which line a player counts in
+    #[test]
+    fn a_winger_still_counts_in_the_forward_line() {
+        assert_eq!(Position::RightWinger.to_group_position(), Position::Forward);
+        assert_eq!(
+            Position::RightMidfielder.to_group_position(),
+            Position::Midfielder
+        );
+    }
+
+    /// Where the screens' copy of this grid lives: the frontend reads it to check that the
+    /// helpers it still has for the squad and tactics tones grade a player the way `familiarity`
+    /// does, until those helpers are replaced by the backend's answer.
+    const FAMILIARITY_FIXTURE: &str = "src/components/squad/familiarity.generated.json";
+
+    /// The players the fixture grades: every position as a natural position, each with no
+    /// alternate, a right back as his alternate and a striker as his alternate, and a few legacy
+    /// buckets (the old coarse natural position, with a granular `position` or without), and a
+    /// natural goalkeeper whose `position` says otherwise (`is_legacy_bucket` counts the goalkeeper
+    /// among the buckets, so the backend reads his `position`).
+    fn familiarity_fixture_players() -> Vec<Player> {
+        let mut players = Vec::new();
+        for natural in Position::ALL {
+            let alternates: [Vec<Position>; 3] =
+                [vec![], vec![Position::RightBack], vec![Position::Striker]];
+            for alternate_positions in alternates {
+                if alternate_positions.contains(&natural) {
+                    continue;
+                }
+                let mut player = make_player(natural.clone());
+                player.natural_position = natural.clone();
+                player.alternate_positions = alternate_positions;
+                players.push(player);
+            }
+        }
+        for (position, natural) in [
+            (Position::LeftBack, Position::Defender),
+            (Position::DefensiveMidfielder, Position::Midfielder),
+            (Position::RightWinger, Position::Forward),
+            (Position::CenterBack, Position::Goalkeeper),
+        ] {
+            let mut player = make_player(position);
+            player.natural_position = natural;
+            players.push(player);
+        }
+        players
+    }
+
+    /// Given the same players and slots
+    /// When the selection penalty (what the lineup choice and the team rating subtract for playing a
+    ///      player out of his position) is set beside `familiarity`
+    /// Then no penalty is natural, the alternate and same-line penalties are can play, and the
+    ///      other-line penalty is out of position: the screens' words are the penalties' bands
+    #[test]
+    fn familiarity_is_the_band_of_the_selection_penalty() {
+        for player in familiarity_fixture_players() {
+            for slot in Position::ALL {
+                let canonical = canonical_position(&slot);
+                let penalty = compatibility_penalty(&player, &canonical);
+                let expected = if penalty == 0.0 {
+                    Familiarity::Natural
+                } else if penalty == 14.0 {
+                    Familiarity::OutOfPosition
+                } else {
+                    Familiarity::CanPlay
+                };
+                assert_eq!(
+                    familiarity(&player, &slot),
+                    expected,
+                    "{:?} (alternates {:?}) at {slot:?}: penalty {penalty}",
+                    player.natural_position,
+                    player.alternate_positions,
+                );
+            }
+        }
+    }
+
+    /// Given every position as a natural position (with and without an alternate) and every
+    ///       position as a slot
+    /// When `familiarity` is read for each pair
+    /// Then it is exactly what the frontend's fixture records
+    ///
+    /// Regenerate with:
+    ///   OFM_UPDATE_FAMILIARITY_FIXTURE=1 cargo test --manifest-path src-tauri/Cargo.toml -p ofm_core --lib the_familiarity_fixture
+    #[test]
+    fn the_familiarity_fixture_is_what_the_backend_says() {
+        let rows: Vec<serde_json::Value> = familiarity_fixture_players()
+            .iter()
+            .map(|player| {
+                let mut by_slot = serde_json::Map::new();
+                for slot in Position::ALL {
+                    by_slot.insert(
+                        serde_json::to_value(&slot)
+                            .map(|v| v.as_str().unwrap_or_default().to_string())
+                            .expect("a position serializes"),
+                        serde_json::to_value(familiarity(player, &slot))
+                            .expect("a familiarity serializes"),
+                    );
+                }
+                serde_json::json!({
+                    "position": player.position,
+                    "natural_position": player.natural_position,
+                    "alternate_positions": player.alternate_positions,
+                    "familiarity": by_slot,
+                })
+            })
+            .collect();
+        let rendered = format!(
+            "{}\n",
+            serde_json::to_string_pretty(&rows).expect("the fixture serializes")
+        );
+        let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../../")
+            .join(FAMILIARITY_FIXTURE);
+
+        if std::env::var("OFM_UPDATE_FAMILIARITY_FIXTURE").is_ok() {
+            std::fs::create_dir_all(path.parent().expect("has a parent")).ok();
+            std::fs::write(&path, &rendered).expect("the fixture is writable");
+            return;
+        }
+
+        let on_disk = std::fs::read_to_string(&path).unwrap_or_else(|e| {
+            panic!(
+                "cannot read {} ({e}). Regenerate with \
+                 OFM_UPDATE_FAMILIARITY_FIXTURE=1 cargo test --manifest-path src-tauri/Cargo.toml -p ofm_core --lib the_familiarity_fixture",
+                path.display()
+            )
+        });
+        assert_eq!(
+            on_disk.trim(),
+            rendered.trim(),
+            "familiarity changed but {FAMILIARITY_FIXTURE} is stale. Regenerate with \
+             OFM_UPDATE_FAMILIARITY_FIXTURE=1 cargo test --manifest-path src-tauri/Cargo.toml -p ofm_core --lib the_familiarity_fixture, \
+             then check the frontend's parity test."
+        );
+    }
 
     /// A specialist keeper: elite at keeping, poor at everything an outfielder
     /// does. The flat attribute average buries him; the weighted OVR does not.
@@ -735,24 +1265,120 @@ mod tests {
         assert_eq!(slots[10], Position::Striker);
     }
 
+    /// Given a high-potential player born in December of the year he turns 21, when his derived
+    /// ratings are refreshed in 2026, then he is still 20 in July and is a Wonderkid: the year of
+    /// his birth alone would call him 21.
+    #[test]
+    fn a_december_birthday_does_not_age_a_player_a_year_early() {
+        let mut player = make_player(Position::Striker);
+        player.date_of_birth = "2005-12-01".to_string();
+        player.natural_position = Position::Striker;
+        player.potential = 95;
+
+        refresh_player_derived(&mut player, domain::age::season_midpoint(2026));
+
+        assert!(player.traits.contains(&PlayerTrait::Wonderkid));
+    }
+
+    /// Given the same player born in January, when refreshed, then he is a Wonderkid too:
+    /// the fix moves the December birthdays, not the January ones.
+    #[test]
+    fn a_january_birthday_is_the_same_age_as_before() {
+        let mut player = make_player(Position::Striker);
+        player.date_of_birth = "2006-01-01".to_string();
+        player.natural_position = Position::Striker;
+        player.potential = 95;
+
+        refresh_player_derived(&mut player, domain::age::season_midpoint(2026));
+
+        assert!(player.traits.contains(&PlayerTrait::Wonderkid));
+    }
+
     #[test]
     fn refresh_does_not_award_wonderkid_below_elite_potential_threshold() {
         let mut player = make_player(Position::Striker);
         player.date_of_birth = "2007-01-01".to_string();
         player.natural_position = Position::Striker;
-        player.attributes.shooting = 70;
-        player.attributes.positioning = 70;
-        player.attributes.decisions = 70;
-        player.attributes.pace = 70;
-        player.attributes.dribbling = 70;
-        player.attributes.strength = 70;
-        player.attributes.composure = 70;
-        player.attributes.aerial = 70;
-        player.potential = 84;
+        player.attributes.shooting = 55;
+        player.attributes.positioning = 55;
+        player.attributes.decisions = 55;
+        player.attributes.pace = 55;
+        player.attributes.dribbling = 55;
+        player.attributes.strength = 55;
+        player.attributes.composure = 55;
+        player.attributes.aerial = 55;
+        player.potential = 80;
 
-        refresh_player_derived(&mut player, 2026);
+        refresh_player_derived(&mut player, domain::age::season_midpoint(2026));
 
-        assert!(player.potential >= player.ovr.saturating_add(10));
+        assert!(player.potential >= player.ovr.saturating_add(14));
         assert!(!player.traits.contains(&PlayerTrait::Wonderkid));
+    }
+
+    /// Given the 3-5-2 formation
+    /// When its slots are laid out
+    /// Then the five in midfield are left, defensive, central, attacking and right midfielders
+    #[test]
+    fn formation_slots_352_lays_out_a_five_man_midfield() {
+        assert_eq!(
+            formation_slots("3-5-2")[4..9],
+            [
+                Position::LeftMidfielder,
+                Position::DefensiveMidfielder,
+                Position::CentralMidfielder,
+                Position::AttackingMidfielder,
+                Position::RightMidfielder,
+            ]
+        );
+    }
+
+    fn footed(footedness: Footedness, weak_foot: u8) -> Player {
+        let mut player = make_player(Position::LeftBack);
+        player.footedness = footedness;
+        player.weak_foot = weak_foot;
+        player
+    }
+
+    /// Given right-footed players with weak-foot ratings 1 to 5
+    /// When each plays left back
+    /// Then the wrong foot costs 10 less twice the weak-foot rating: 8, 6, 4, 2 and 0
+    #[test]
+    fn the_wrong_foot_costs_ten_less_twice_the_weak_foot_rating() {
+        let penalties: Vec<f64> = (1..=5)
+            .map(|weak_foot| {
+                footedness_penalty(&footed(Footedness::Right, weak_foot), &Position::LeftBack)
+            })
+            .collect();
+
+        assert_eq!(penalties, vec![8.0, 6.0, 4.0, 2.0, 0.0]);
+    }
+
+    /// Given a right-footed player at right back and a left-footed one at left back, both with the
+    ///       poorest weak foot
+    /// When their foot penalty is worked out
+    /// Then neither pays one: each plays on his strong side
+    #[test]
+    fn a_player_on_his_strong_side_pays_no_foot_penalty() {
+        assert_eq!(
+            (
+                footedness_penalty(&footed(Footedness::Right, 1), &Position::RightBack),
+                footedness_penalty(&footed(Footedness::Left, 1), &Position::LeftBack)
+            ),
+            (0.0, 0.0)
+        );
+    }
+
+    /// Given a two-footed player with the poorest weak-foot rating
+    /// When he plays left back and right back
+    /// Then he pays no foot penalty on either side
+    #[test]
+    fn a_two_footed_player_pays_no_foot_penalty_on_either_side() {
+        assert_eq!(
+            (
+                footedness_penalty(&footed(Footedness::Both, 1), &Position::LeftBack),
+                footedness_penalty(&footed(Footedness::Both, 1), &Position::RightBack)
+            ),
+            (0.0, 0.0)
+        );
     }
 }

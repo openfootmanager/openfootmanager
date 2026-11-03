@@ -25,6 +25,7 @@ import {
   formatMatchDate,
 } from "../../lib/helpers";
 import { useTranslation } from "react-i18next";
+import { isSeasonComplete } from "../../lib/seasonContext";
 
 interface TournamentsTabProps {
   gameState: GameStateData;
@@ -82,7 +83,10 @@ export default function TournamentsTab({
   const competitiveFixtures = getCompetitiveFixtures(league.fixtures);
 
   const progress = summarizeCompetitionProgress(competitiveFixtures);
-  const { sortedMatchdays, seasonComplete } = progress;
+  const { sortedMatchdays } = progress;
+  // The backend decides when the season is over; counting played matchdays here asked only the
+  // selected competition, which need not be the user's.
+  const seasonComplete = isSeasonComplete(gameState);
 
   // Build fallback player name lookup from gameState.players while slice loads.
   const fallbackPlayerNames = Object.fromEntries(

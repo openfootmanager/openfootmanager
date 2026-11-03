@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import ContextMenu from "../ContextMenu";
 import { buildViewTeamMenuItem } from "../playerActions/playerContextMenuItems";
 import { Badge } from "../ui";
+import MovedFromNote from "../schedule/MovedFromNote";
 import type { TournamentsTeamLookup } from "./teamLookup";
 import type { FixtureData } from "../../store/gameStore";
 
@@ -74,6 +75,12 @@ export default function TournamentsFixtureRow({
             <Badge variant="neutral" size="sm">
               {t("common.vs")}
             </Badge>
+          )}
+          {fixture.postponement && (
+            <MovedFromNote
+              originalDate={fixture.postponement.original_date}
+              testId={`moved-from-${fixture.id}`}
+            />
           )}
         </div>
         {teamName(fixture.away_team_id, "text-left")}

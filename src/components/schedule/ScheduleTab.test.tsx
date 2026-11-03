@@ -6,16 +6,10 @@ import type { FixtureData, GameStateData, TeamData } from "../../store/gameStore
 import type { MatchdayGroup, ScheduleSlice } from "../../services/scheduleService";
 import { formatMatchDate } from "../../lib/dateFormatting";
 import ScheduleTab from "./ScheduleTab";
+import { createSeasonContext } from "../../test-utils/factories";
 
 vi.mock("@tauri-apps/api/core", () => ({
   invoke: vi.fn(),
-}));
-
-vi.mock("../../lib/seasonContext", () => ({
-  resolveSeasonContext: () => ({
-    phase: "RegularSeason",
-    season_start: "2026-08-01",
-  }),
 }));
 
 vi.mock("react-i18next", () => ({
@@ -30,6 +24,8 @@ vi.mock("react-i18next", () => ({
       if (key === "schedule.relegationZone") return "Relegation";
       if (key === "schedule.loadMore") return "Load more";
       if (key === "schedule.nextMatch") return "Next match";
+      if (key === "schedule.movedFrom")
+        return `Moved from ${(params as Record<string, string>)?.date}`;
       if (key === "schedule.noUpcoming") return "No upcoming fixtures.";
       if (key === "schedule.pastResults") return "Past results";
       if (key === "schedule.calendar.title") return "Calendar";
@@ -94,6 +90,8 @@ function makeTeam(overrides: Partial<TeamData> = {}): TeamData {
 
 function makeFixture(overrides: Partial<FixtureData> = {}): FixtureData {
   return {
+    competitive: true,
+    advancing_team_id: null,
     id: "fixture-1",
     matchday: 1,
     date: "2026-08-01",
@@ -180,8 +178,11 @@ function makeGameState(withCompetition: boolean): GameStateData {
     : [];
 
   return {
+    // The season is under way, so the standings are live.
+    season_context: createSeasonContext({ phase: "InSeason", season_start: "2026-08-01" }),
     clock: { current_date: "2026-08-10T00:00:00Z", start_date: "2026-07-01T00:00:00Z" },
     manager: {
+      display_name: "Jane Doe",
       id: "manager-1",
       first_name: "Jane",
       last_name: "Doe",
@@ -246,6 +247,22 @@ describe("ScheduleTab", () => {
     expect(mockedInvoke).toHaveBeenCalledWith("get_schedule", {
       query: { competition_id: "league-1" },
     });
+  });
+
+  it("names the date a moved fixture was first scheduled for, and only on moved fixtures", async () => {
+    const moved = { ...makeGroup().fixtures[0], id: "moved", rescheduled_from: "2026-09-02" };
+    const unmoved = { ...makeGroup().fixtures[0], id: "unmoved", rescheduled_from: null };
+    mockedInvoke.mockResolvedValue(
+      makeSlice({ upcoming_groups: [makeGroup({ fixtures: [moved, unmoved] })] }),
+    );
+    render(<ScheduleTab gameState={makeGameState(true)} onSelectTeam={vi.fn()} />);
+    await waitFor(() => {
+      expect(screen.getByTestId("schedule-fixture-moved")).toBeInTheDocument();
+    });
+    expect(screen.getByTestId("moved-from-moved")).toHaveTextContent(
+      `Moved from ${formatMatchDate("2026-09-02")}`,
+    );
+    expect(screen.queryByTestId("moved-from-unmoved")).not.toBeInTheDocument();
   });
 
   it("marks the next user match group with a badge", async () => {

@@ -5,7 +5,8 @@ use crate::commands::round_summary::{build_round_summary_dto, RoundSummaryDto};
 use ofm_core::advance_results::{collect_advance_results, AdvanceMatchResult};
 use ofm_core::game::Game;
 use ofm_core::live_match_manager::{self, MatchMode};
-use ofm_core::state::StateManager;
+use ofm_core::state::{Career, StateManager};
+use ofm_core::turn::{build_cup_round_summaries, CupRoundSummary};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AdvanceTimeWithModeResponse {
@@ -19,6 +20,9 @@ pub struct AdvanceTimeWithModeResponse {
     pub fixture_id: Option<String>,
     pub mode: Option<String>,
     pub round_summary: Option<RoundSummaryDto>,
+    /// The user's cup ties of the day, shown beside the league round; empty on a league-only day.
+    #[serde(default)]
+    pub cup_round_summaries: Vec<CupRoundSummary>,
     /// Matches finished during this advance (user's competitions + nationals).
     #[serde(default)]
     pub results: Vec<AdvanceMatchResult>,
@@ -89,6 +93,7 @@ fn scheduled_user_fixture_index(game: &Game, today: &str) -> Option<(Option<usiz
 
 pub fn advance_time_with_mode(
     state: &StateManager,
+    career: Career,
     mode: &str,
 ) -> Result<AdvanceTimeWithModeResponse, String> {
     let _operation = super::live_session::idle_operation(state)?;
@@ -100,9 +105,9 @@ pub fn advance_time_with_mode(
     // stored only after the game lock is released, so the two state mutexes
     // are never held at once.
     let mut captures = Vec::new();
-    let (response, session_out) = state
-        .update_game(|game| advance_day_in_mode(game, mode, &mut captures))
-        .ok_or("be.error.noActiveGameSession")??;
+    let (response, session_out) = state.update_game_for(career, |game| {
+        advance_day_in_mode(game, mode, &mut captures)
+    })??;
 
     for capture in captures {
         state.append_stats_state(capture);
@@ -114,7 +119,7 @@ pub fn advance_time_with_mode(
     Ok(response)
 }
 
-type LeagueRoundContext = (u32, Vec<domain::league::StandingEntry>);
+use ofm_core::matchday::LeagueRoundContext;
 
 fn advance_day_in_mode(
     game: &mut Game,
@@ -128,6 +133,8 @@ fn advance_day_in_mode(
     String,
 > {
     let today = game.clock.current_date.format("%Y-%m-%d").to_string();
+    // Before anything is played, so a round drawn by today's results is known to be new.
+    ofm_core::turn::begin_day(game);
     let round_context = ofm_core::matchday::user_league_round_context(game);
     let user_fixture = scheduled_user_fixture_index(game, &today);
     info!(
@@ -214,9 +221,7 @@ fn advance_live_matchday(
     }
     let round_summary = round_context
         .as_ref()
-        .and_then(|(matchday, previous_standings)| {
-            build_round_summary_dto(game, *matchday, previous_standings)
-        });
+        .and_then(|context| build_round_summary_dto(game, context));
 
     Ok((
         AdvanceTimeWithModeResponse {
@@ -228,6 +233,7 @@ fn advance_live_matchday(
             fixture_id: Some(fixture_id),
             mode: Some(mode.to_string()),
             round_summary,
+            cup_round_summaries: build_cup_round_summaries(game, today),
             results: Vec::new(),
         },
         session,
@@ -257,11 +263,10 @@ fn advance_delegated_matchday(
     // The baseline comes from the session, captured before the round was played;
     // reading the table now would report every delta as zero. Built after the day
     // so it describes the round the response is carrying.
-    let round_summary = outcome.league_round_context.or(round_context).and_then(
-        |(matchday, previous_standings)| {
-            build_round_summary_dto(game, matchday, &previous_standings)
-        },
-    );
+    let round_summary = outcome
+        .league_round_context
+        .or(round_context)
+        .and_then(|context| build_round_summary_dto(game, &context));
 
     Ok(advanced_day_response(game, today, round_summary))
 }
@@ -282,9 +287,7 @@ fn advance_simulated_day(
     });
     let round_summary = round_context
         .as_ref()
-        .and_then(|(matchday, previous_standings)| {
-            build_round_summary_dto(game, *matchday, previous_standings)
-        });
+        .and_then(|context| build_round_summary_dto(game, context));
 
     advanced_day_response(game, today, round_summary)
 }
@@ -304,6 +307,7 @@ fn advanced_day_response(
         fixture_id: None,
         mode: None,
         round_summary,
+        cup_round_summaries: build_cup_round_summaries(game, today),
         results,
     }
 }
@@ -406,6 +410,96 @@ mod tests {
         );
     }
 
+    fn cup_tie(id: &str, date: &str) -> Fixture {
+        Fixture {
+            competition_id: "cup".to_string(),
+            competition: FixtureCompetition::Cup,
+            status: FixtureStatus::Completed,
+            result: Some(domain::league::MatchResult {
+                home_goals: 2,
+                away_goals: 1,
+                ..Default::default()
+            }),
+            ..scheduled(id, date, "eng-00", "eng-02")
+        }
+    }
+
+    /// A game on 1 May whose user club plays in a knockout cup and a league.
+    fn game_with_cup_and_league(cup_fixtures: Vec<Fixture>, league_fixtures: Vec<Fixture>) -> Game {
+        let mut cup = league("cup", cup_fixtures);
+        cup.rules.format = domain::league::CompetitionFormat::Knockout;
+        cup.participant_ids = vec!["eng-00".to_string(), "eng-02".to_string()];
+        let domestic = league("league", league_fixtures);
+        game_with(vec![domestic.clone(), cup], Some(domestic))
+    }
+
+    fn cup_ties_in_response(game: &Game, today: &str) -> Vec<String> {
+        super::advanced_day_response(game, today, None)
+            .cup_round_summaries
+            .iter()
+            .flat_map(|summary| summary.results.iter().map(|r| r.result.fixture_id.clone()))
+            .collect()
+    }
+
+    /// **Given** the user's cup tie is the only match of the day,
+    /// **when** the day is advanced,
+    /// **then** the response carries the cup summary.
+    #[test]
+    fn a_cup_only_day_carries_the_cup_summary() {
+        let game = game_with_cup_and_league(vec![cup_tie("tie", "2036-05-01")], vec![]);
+        assert_eq!(cup_ties_in_response(&game, "2036-05-01"), vec!["tie"]);
+    }
+
+    /// **Given** a cup tie and a league match on the same day,
+    /// **when** the day is advanced,
+    /// **then** the cup summary is carried beside the league round, not instead of it.
+    #[test]
+    fn a_cup_and_league_day_carries_both_summaries() {
+        let game = game_with_cup_and_league(
+            vec![cup_tie("tie", "2036-05-01")],
+            vec![Fixture {
+                status: FixtureStatus::Completed,
+                result: Some(domain::league::MatchResult {
+                    home_goals: 1,
+                    away_goals: 0,
+                    ..Default::default()
+                }),
+                ..scheduled("league-1", "2036-05-01", "eng-00", "eng-01")
+            }],
+        );
+        let context = ofm_core::matchday::LeagueRoundContext {
+            date: "2036-05-01".to_string(),
+            matchday: 1,
+            previous_standings: vec![],
+        };
+        let response = super::advanced_day_response(
+            &game,
+            "2036-05-01",
+            super::build_round_summary_dto(&game, &context),
+        );
+        assert!(response.round_summary.is_some());
+        assert_eq!(response.cup_round_summaries.len(), 1);
+    }
+
+    /// **Given** a day with only league fixtures,
+    /// **when** the day is advanced,
+    /// **then** no cup summary is carried.
+    #[test]
+    fn a_league_only_day_carries_no_cup_summary() {
+        let game = game_with_cup_and_league(vec![cup_tie("tie", "2036-05-08")], vec![]);
+        assert!(cup_ties_in_response(&game, "2036-05-01").is_empty());
+    }
+
+    /// **Given** a cup tie moved from 1 May to 4 May,
+    /// **when** each day is advanced,
+    /// **then** the tie appears on 4 May and not on the date it was moved from.
+    #[test]
+    fn a_moved_cup_tie_appears_on_the_day_it_is_played() {
+        let game = game_with_cup_and_league(vec![cup_tie("tie", "2036-05-04")], vec![]);
+        assert!(cup_ties_in_response(&game, "2036-05-01").is_empty());
+        assert_eq!(cup_ties_in_response(&game, "2036-05-04"), vec!["tie"]);
+    }
+
     fn senior(id: &str, team_id: Option<&str>, position: domain::player::Position) -> Player {
         let attributes = domain::player::PlayerAttributes {
             pace: 60,
@@ -498,7 +592,8 @@ mod tests {
         let state = StateManager::new();
         state.set_game(game);
 
-        advance_time_with_mode(&state, "live").expect("the live match starts");
+        advance_time_with_mode(&state, ofm_core::state::Career::Active, "live")
+            .expect("the live match starts");
 
         let signed = state
             .get_game(|game| {
@@ -543,7 +638,7 @@ mod tests {
         let state = StateManager::new();
         state.set_game(game);
 
-        let outcome = advance_time_with_mode(&state, "live");
+        let outcome = advance_time_with_mode(&state, ofm_core::state::Career::Active, "live");
 
         assert!(
             outcome.is_err(),

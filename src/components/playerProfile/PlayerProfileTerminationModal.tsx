@@ -1,5 +1,6 @@
-import DashboardModalFrame from "../dashboard/DashboardModalFrame";
-import { Button } from "../ui";
+import { useId } from "react";
+
+import { Button, Dialog } from "../ui";
 import { formatExactMoney } from "../../lib/helpers";
 import type { ContractTerminationPreviewData } from "../../services/contractService";
 
@@ -31,15 +32,25 @@ export default function PlayerProfileTerminationModal({
   onCancel,
   onConfirm,
 }: PlayerProfileTerminationModalProps) {
+  const titleId = useId();
   if (!show) {
     return null;
   }
 
   return (
-    <DashboardModalFrame maxWidthClassName="max-w-lg">
+    <Dialog
+      labelledBy={titleId}
+      // While the release is being submitted, Cancel is disabled, and Escape asks for nothing either.
+      onClose={submitting ? undefined : onCancel}
+      busy={submitting}
+      className="w-full max-w-lg rounded-2xl p-6"
+    >
       <div className="space-y-4">
         <div>
-          <h2 className="font-heading text-lg font-bold text-gray-900 dark:text-gray-100">
+          <h2
+            id={titleId}
+            className="font-heading text-lg font-bold text-gray-900 dark:text-gray-100"
+          >
             {t("playerProfile.terminateContractTitle")}
           </h2>
           <p className="mt-1 text-sm text-gray-600 dark:text-gray-300">
@@ -93,6 +104,6 @@ export default function PlayerProfileTerminationModal({
           </Button>
         </div>
       </div>
-    </DashboardModalFrame>
+    </Dialog>
   );
 }

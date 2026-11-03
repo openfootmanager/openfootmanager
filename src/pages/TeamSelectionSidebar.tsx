@@ -2,7 +2,9 @@ import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 
 import type { LeagueData, PlayerData, TeamData } from "../store/gameStore";
-import { getPlayerOvr } from "../lib/helpers";
+import { visibleRatingText } from "../lib/playerKnowledge";
+import { naturalPositionOf } from "../lib/positions";
+import { translatePositionLabel } from "../components/squad/SquadTab.helpers";
 import { competitionDisplayName } from "../lib/competitionName";
 import { Badge, Card, CardBody, TeamLocation } from "../components/ui";
 import { Globe, Shield, Target, Users } from "lucide-react";
@@ -11,7 +13,8 @@ interface TeamSelectionSidebarProps {
   selectedTeam: TeamData | null;
   selectedTeamXi: PlayerData[];
   selectedTeamCompetitions: LeagueData[];
-  getTeamAvgOvr: (teamId: string) => number;
+  getTeamAvgOvr: (teamId: string) => number | null;
+  getPlayerRating: (playerId: string) => number | null;
 }
 
 export default function TeamSelectionSidebar({
@@ -19,6 +22,7 @@ export default function TeamSelectionSidebar({
   selectedTeamXi,
   selectedTeamCompetitions,
   getTeamAvgOvr,
+  getPlayerRating,
 }: TeamSelectionSidebarProps) {
   const { t, i18n } = useTranslation();
   const compName = (c: LeagueData) => competitionDisplayName(c, t);
@@ -52,12 +56,18 @@ export default function TeamSelectionSidebar({
               <DetailTile
                 icon={<Shield className="h-4 w-4" />}
                 label={t("teamSelect.overall")}
-                value={String(getTeamAvgOvr(selectedTeam.id))}
+                value={visibleRatingText(getTeamAvgOvr(selectedTeam.id))}
               />
               <DetailTile
                 icon={<Users className="h-4 w-4" />}
                 label={t("teamSelect.likelyXi")}
-                value={t("teamSelect.playersCount", { count: selectedTeamXi.length })}
+                value={
+                  // The likely eleven is the backend's; until it answers the list is empty, and
+                  // "0 players" would misreport a full squad.
+                  getTeamAvgOvr(selectedTeam.id) === null
+                    ? visibleRatingText(null)
+                    : t("teamSelect.playersCount", { count: selectedTeamXi.length })
+                }
               />
               <DetailTile
                 icon={<Globe className="h-4 w-4" />}
@@ -80,9 +90,11 @@ export default function TeamSelectionSidebar({
                       <p className="font-semibold text-gray-900 dark:text-white">
                         {player.match_name}
                       </p>
-                      <p className="text-xs text-gray-500 dark:text-gray-400">{player.position}</p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">
+                        {translatePositionLabel(t, naturalPositionOf(player))}
+                      </p>
                     </div>
-                    <Badge variant="accent">{getPlayerOvr(player)}</Badge>
+                    <Badge variant="accent">{visibleRatingText(getPlayerRating(player.id))}</Badge>
                   </div>
                 ))}
               </div>

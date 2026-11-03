@@ -24,6 +24,10 @@ mod determinism;
 mod fixtures;
 #[path = "turn_tests/live_match_day.rs"]
 mod live_match_day;
+#[path = "turn_tests/match_injuries.rs"]
+mod match_injuries;
+#[path = "turn_tests/post_match_reactions.rs"]
+mod post_match_reactions;
 #[path = "turn_tests/squad_floor.rs"]
 mod squad_floor;
 #[path = "turn_tests/training_ground.rs"]
@@ -49,6 +53,7 @@ fn process_day_simulates_due_national_team_fixture() {
     let mut home = NationalTeam::new("nt-eng".into(), "England".into(), "ENG".into(), None);
     home.squad_player_ids = home_squad;
     home.fixtures.push(Fixture {
+        postponement: None,
         id: "ntf-x".into(),
         competition_id: "international-friendlies".into(),
         matchday: 1,
@@ -98,6 +103,7 @@ fn process_day_routes_world_cup_fixtures_to_the_national_team_engine() {
     cup.rules.format = domain::league::CompetitionFormat::Knockout;
     cup.standings.clear();
     cup.fixtures.push(Fixture {
+        postponement: None,
         id: "wc-final".to_string(),
         competition_id: "wc".to_string(),
         matchday: 1,
@@ -221,6 +227,62 @@ fn process_day_hires_replacement_for_long_vacant_ai_club() {
     assert!(!game.vacant_team_days.contains_key("team2"));
 }
 
+/// Given an AI club covered for two months by an interim and an unemployed manager of matching standing
+/// When a day is processed
+/// Then the unemployed manager takes the club and the interim leaves the active pool.
+#[test]
+fn process_day_replaces_a_long_serving_interim_from_the_unemployed_market() {
+    let mut game = make_game_without_match_today();
+    let reputation = game
+        .teams
+        .iter()
+        .find(|t| t.id == "team2")
+        .unwrap()
+        .reputation;
+    let mut stand_in = Manager::new(
+        "mgr_team2_assistant".to_string(),
+        "Stand".to_string(),
+        "In".to_string(),
+        "1975-01-01".to_string(),
+        "England".to_string(),
+    );
+    stand_in.interim = true;
+    stand_in.hire("team2".to_string());
+    stand_in.satisfaction = 80;
+    stand_in
+        .career_history
+        .push(domain::manager::ManagerCareerEntry::open(
+            "team2".to_string(),
+            "Rival FC".to_string(),
+            "2020-01-01".to_string(),
+        ));
+    game.teams
+        .iter_mut()
+        .find(|t| t.id == "team2")
+        .unwrap()
+        .manager_id = Some(stand_in.id.clone());
+    game.managers.push(stand_in);
+    let mut free = Manager::new(
+        "free-agent".to_string(),
+        "Free".to_string(),
+        "Agent".to_string(),
+        "1975-01-01".to_string(),
+        "England".to_string(),
+    );
+    free.reputation = reputation;
+    game.managers.push(free);
+
+    turn::process_day(&mut game);
+
+    let team2 = game.teams.iter().find(|t| t.id == "team2").unwrap();
+    assert_eq!(team2.manager_id.as_deref(), Some("free-agent"));
+    assert!(
+        game.retired_managers
+            .iter()
+            .any(|m| m.id == "mgr_team2_assistant")
+    );
+}
+
 // ---------------------------------------------------------------------------
 
 #[test]
@@ -334,7 +396,7 @@ fn process_day_releases_players_with_expired_contracts() {
     let message = game
         .messages
         .iter()
-        .find(|message| message.id == "contract_expired_t1_fwd0")
+        .find(|message| message.id == "contract_expired_t1_fwd0_2025-06-15_1")
         .expect("An inbox message should explain that the player left on a free");
     assert_eq!(
         message.subject_key.as_deref(),
@@ -1313,8 +1375,8 @@ fn process_day_full_integration() {
 #[test]
 fn build_round_summary_collects_results_and_deltas() {
     let game = make_round_summary_game();
-    let summary = turn::build_round_summary(&game, 7, &previous_round_standings())
-        .expect("expected round summary");
+    let summary =
+        turn::build_round_summary(&game, &round_context(7)).expect("expected round summary");
 
     assert_eq!(summary.matchday, 7);
     assert!(summary.is_complete);
@@ -1352,8 +1414,8 @@ fn build_round_summary_collects_results_and_deltas() {
 #[test]
 fn build_round_summary_picks_biggest_overall_gap_upset() {
     let game = make_round_summary_game();
-    let summary = turn::build_round_summary(&game, 7, &previous_round_standings())
-        .expect("expected round summary");
+    let summary =
+        turn::build_round_summary(&game, &round_context(7)).expect("expected round summary");
 
     let upset = summary.notable_upset.expect("expected notable upset");
     assert_eq!(upset.fixture_id, "fix1");
@@ -1390,8 +1452,8 @@ fn build_round_summary_detects_a_penalty_decided_upset() {
         });
     }
 
-    let summary = turn::build_round_summary(&game, 7, &previous_round_standings())
-        .expect("expected round summary");
+    let summary =
+        turn::build_round_summary(&game, &round_context(7)).expect("expected round summary");
     let upset = summary
         .notable_upset
         .expect("a penalty-decided upset is reported");
@@ -1407,7 +1469,7 @@ fn build_round_summary_handles_incomplete_rounds() {
     league.fixtures[1].status = FixtureStatus::Scheduled;
     league.fixtures[1].result = None;
 
-    let summary = turn::build_round_summary(&game, 7, &previous_round_standings())
+    let summary = turn::build_round_summary(&game, &round_context(7))
         .expect("expected partial round summary");
 
     assert!(!summary.is_complete);
@@ -1424,7 +1486,7 @@ fn build_round_summary_returns_none_when_round_has_no_completed_matches() {
         fixture.result = None;
     });
 
-    let summary = turn::build_round_summary(&game, 7, &previous_round_standings());
+    let summary = turn::build_round_summary(&game, &round_context(7));
 
     assert!(summary.is_none());
 }
@@ -1439,7 +1501,7 @@ fn build_round_summary_ignores_non_competitive_matchday_zero_fixtures() {
         fixture.competition = FixtureCompetition::Friendly;
     });
 
-    let summary = turn::build_round_summary(&game, 0, &previous_round_standings());
+    let summary = turn::build_round_summary(&game, &round_context(0));
 
     assert!(summary.is_none());
 }
@@ -1472,4 +1534,46 @@ fn no_generator_dates_a_message_ahead_of_the_clock() {
              when it is sent, not at the event it is about."
         );
     }
+}
+
+fn read_mail_from(id: &str, date: &str) -> domain::message::InboxMessage {
+    let mut message = domain::message::InboxMessage::new(
+        id.into(),
+        "Subject".into(),
+        "Body".into(),
+        "Board".into(),
+        date.into(),
+    );
+    message.read = true;
+    message
+}
+
+/// Given read mail from long ago
+/// When the day processed is the 1st of the month
+/// Then it leaves the live inbox for the archive.
+#[test]
+fn the_first_of_the_month_archives_old_read_mail() {
+    let mut game = make_game_without_match_today();
+    game.clock.current_date = Utc.with_ymd_and_hms(2025, 7, 1, 12, 0, 0).unwrap();
+    game.messages.push(read_mail_from("ancient", "2024-01-01"));
+
+    turn::process_day(&mut game);
+
+    assert!(game.messages.iter().all(|m| m.id != "ancient"));
+    assert!(game.archived_messages.iter().any(|m| m.id == "ancient"));
+}
+
+/// Given the same old read mail
+/// When the day processed is not the 1st
+/// Then the live inbox is left alone.
+#[test]
+fn another_day_of_the_month_leaves_old_mail_in_the_inbox() {
+    let mut game = make_game_without_match_today();
+    game.clock.current_date = Utc.with_ymd_and_hms(2025, 7, 2, 12, 0, 0).unwrap();
+    game.messages.push(read_mail_from("ancient", "2024-01-01"));
+
+    turn::process_day(&mut game);
+
+    assert!(game.messages.iter().any(|m| m.id == "ancient"));
+    assert!(game.archived_messages.is_empty());
 }

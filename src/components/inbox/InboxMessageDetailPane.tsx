@@ -4,15 +4,14 @@ import type { JSX } from "react";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 
-import { calcAge, formatDateFull, formatVal, formatWeeklyAmount } from "../../lib/helpers";
-import { countryName } from "../../lib/countries";
-import { positionBadgeVariant } from "../../lib/playerRating";
+import { formatDateFull } from "../../lib/helpers";
 import type { MessageData } from "../../store/gameStore";
 import ScoutPlayerCard from "../ScoutPlayerCard";
 import SwitchClubConfirmModal from "../SwitchClubConfirmModal";
-import { Badge, Button, Card, CardBody, CountryFlag, ProgressBar } from "../ui";
-import { translatePositionAbbreviation } from "../squad/SquadTab.helpers";
+import { Badge, Button } from "../ui";
 import InboxDelegatedRenewalReport from "./InboxDelegatedRenewalReport";
+import InboxYouthProspectCard from "./InboxYouthProspectCard";
+import { useYouthProspectOpinions } from "../../hooks/useYouthProspectOpinions";
 import {
   getActionButtonClassName,
   getCategoryColor,
@@ -34,6 +33,8 @@ interface InboxMessageDetailPaneProps {
   currentTeamId: string | null;
   currentTeamName: string | null;
   language: string;
+  /** The game's knowledge revision (`gameKnowledgeRevision`): the scout's opinions are asked again when it moves. */
+  knowledgeRevision: string;
   selectedMessage: MessageData | null;
   onAction: (messageId: string, actionId: string, optionId?: string) => void;
   onCloseSelectedMessage: () => void;
@@ -46,6 +47,7 @@ export default function InboxMessageDetailPane({
   currentTeamId,
   currentTeamName,
   language,
+  knowledgeRevision,
   selectedMessage,
   onAction,
   onCloseSelectedMessage,
@@ -64,6 +66,10 @@ export default function InboxMessageDetailPane({
 
   const currentClubName = currentTeamName ?? "";
   const hasYouthProspects = Boolean(selectedMessage?.context?.youth_prospects?.length);
+  const prospectOpinions = useYouthProspectOpinions(
+    hasYouthProspects && selectedMessage ? selectedMessage.id : null,
+    knowledgeRevision,
+  );
   const linkedPlayerId = selectedMessage?.context?.player_id ?? null;
 
   const handleOptionClick = (messageId: string, actionId: string, optionId: string) => {
@@ -84,7 +90,6 @@ export default function InboxMessageDetailPane({
     const newClubName = selectedMessage.context?.team_name ?? "";
     setPendingSwitch({ messageId, actionId, optionId, newClubName });
   };
-  const weeklySuffix = t("finances.perWeekSuffix", "/wk");
 
   if (!selectedMessage) {
     return (
@@ -221,155 +226,22 @@ export default function InboxMessageDetailPane({
 
               {selectedMessage.context?.youth_prospects?.length ? (
                 <div className="grid gap-3">
-                  {selectedMessage.context.youth_prospects.map((prospect) => {
-                    const action = selectedMessage.actions.find(
-                      (candidate) => candidate.id === `prospect:${prospect.id}`,
-                    );
-                    const chooseOptionActionType =
-                      action && isChooseOptionAction(action.action_type)
-                        ? action.action_type
-                        : null;
-                    const chooseOptionActionId = action?.id ?? null;
-                    const options = chooseOptionActionType
-                      ? chooseOptionActionType.ChooseOption.options
-                      : [];
-                    const signedToAcademy = prospect.team_id === currentTeamId;
-                    const potential = prospect.potential ?? 0;
-                    const potentialLabel = getProspectPotentialLabel(potential, t);
-                    const growthRoom = Math.max(0, potential - (prospect.ovr ?? 0));
-
-                    return (
-                      <Card key={prospect.id}>
-                        <CardBody className="space-y-4">
-                          <div className="flex flex-wrap items-start justify-between gap-3">
-                            <div className="min-w-0">
-                              <div className="flex flex-wrap items-center gap-2">
-                                <p className="font-heading font-bold text-base text-gray-900 dark:text-gray-100">
-                                  {prospect.full_name}
-                                </p>
-                                <Badge variant={positionBadgeVariant(prospect.position)} size="sm">
-                                  {translatePositionAbbreviation(t, prospect.position)}
-                                </Badge>
-                                {signedToAcademy ? (
-                                  <Badge variant="success" size="sm">
-                                    {t("inbox.youthProspectSigned")}
-                                  </Badge>
-                                ) : null}
-                              </div>
-                              <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-gray-500 dark:text-gray-400">
-                                <span>{t(`common.positions.${prospect.position}`)}</span>
-                                <span>
-                                  {t("common.age")} {calcAge(prospect.date_of_birth)}
-                                </span>
-                                <span className="inline-flex items-center gap-1">
-                                  <CountryFlag
-                                    code={prospect.nationality}
-                                    locale={language}
-                                    className="text-xs leading-none"
-                                  />
-                                  <span>{countryName(prospect.nationality, language)}</span>
-                                </span>
-                              </div>
-                            </div>
-
-                            <div className="flex flex-wrap gap-2">
-                              <Badge variant="neutral" size="sm">
-                                {t("youthAcademy.ovr")} {prospect.ovr ?? 0}
-                              </Badge>
-                              <Badge variant="neutral" size="sm">
-                                {t("youthAcademy.potential")} {prospect.potential ?? 0}
-                              </Badge>
-                            </div>
-                          </div>
-
-                          <div className="grid gap-3 sm:grid-cols-2">
-                            <div className="rounded-xl border border-gray-100 bg-gray-50 px-3 py-2 dark:border-navy-600 dark:bg-navy-700/40">
-                              <p className="text-[10px] font-heading font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500">
-                                {t("youthAcademy.growth")}
-                              </p>
-                              <div className="mt-2 flex items-center gap-2">
-                                <ProgressBar
-                                  value={Math.min(
-                                    100,
-                                    potential > 0 ? ((prospect.ovr ?? 0) / potential) * 100 : 0,
-                                  )}
-                                  variant={
-                                    growthRoom > 15 ? "accent" : growthRoom > 5 ? "primary" : "auto"
-                                  }
-                                  size="sm"
-                                />
-                                <span className="w-8 text-right text-xs font-heading font-bold tabular-nums text-gray-500 dark:text-gray-400">
-                                  +{growthRoom}
-                                </span>
-                              </div>
-                              <p
-                                className={`mt-1 text-[10px] font-heading uppercase tracking-wider ${potentialLabel.color}`}
-                              >
-                                {potentialLabel.label}
-                              </p>
-                            </div>
-
-                            <div className="rounded-xl border border-gray-100 bg-gray-50 px-3 py-2 dark:border-navy-600 dark:bg-navy-700/40">
-                              <p className="text-[10px] font-heading font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500">
-                                {t("playerProfile.contractInfo")}
-                              </p>
-                              <div className="mt-2 flex flex-wrap gap-2 text-xs text-gray-600 dark:text-gray-300">
-                                <Badge variant="neutral" size="sm">
-                                  {t("finances.wagePerWeek")}:{" "}
-                                  {formatWeeklyAmount(formatVal(prospect.wage ?? 0), weeklySuffix)}
-                                </Badge>
-                                {prospect.contract_end ? (
-                                  <Badge variant="neutral" size="sm">
-                                    {formatDateFull(prospect.contract_end, language)}
-                                  </Badge>
-                                ) : null}
-                                <Badge variant="neutral" size="sm">
-                                  {t("finances.marketValue")}:{" "}
-                                  {formatVal(prospect.market_value ?? 0)}
-                                </Badge>
-                              </div>
-                            </div>
-                          </div>
-
-                          {signedToAcademy ? (
-                            <div className="flex flex-wrap items-center gap-2">
-                              <div className="text-xs font-heading font-bold uppercase tracking-wider text-primary-500">
-                                {t("inbox.youthProspectSigned")}
-                              </div>
-                              <Button
-                                type="button"
-                                size="sm"
-                                variant="outline"
-                                onClick={() => onScoutPlayerClick(prospect.id)}
-                              >
-                                {t("squad.viewProfile")}
-                              </Button>
-                            </div>
-                          ) : action?.resolved ? (
-                            <div className="mt-3 text-xs font-heading font-bold uppercase tracking-wider text-primary-500">
-                              {t("inbox.responded")}
-                            </div>
-                          ) : chooseOptionActionId && options.length > 0 ? (
-                            <div className="mt-3 flex flex-wrap gap-2">
-                              {options.map((option: (typeof options)[number]) => (
-                                <Button
-                                  key={option.id}
-                                  type="button"
-                                  size="sm"
-                                  variant={option.id === "discard" ? "outline" : "primary"}
-                                  onClick={() =>
-                                    onAction(selectedMessage.id, chooseOptionActionId, option.id)
-                                  }
-                                >
-                                  {option.label}
-                                </Button>
-                              ))}
-                            </div>
-                          ) : null}
-                        </CardBody>
-                      </Card>
-                    );
-                  })}
+                  {selectedMessage.context.youth_prospects.map((prospect) => (
+                    <InboxYouthProspectCard
+                      key={prospect.id}
+                      prospect={prospect}
+                      opinion={prospectOpinions[prospect.id] ?? null}
+                      action={selectedMessage.actions.find(
+                        (candidate) => candidate.id === `prospect:${prospect.id}`,
+                      )}
+                      messageId={selectedMessage.id}
+                      currentTeamId={currentTeamId}
+                      language={language}
+                      t={t}
+                      onAction={onAction}
+                      onScoutPlayerClick={onScoutPlayerClick}
+                    />
+                  ))}
                 </div>
               ) : null}
             </div>
@@ -499,24 +371,4 @@ function translateYouthSearchObjective(t: TFunction, value: string): string {
   }
 
   return t("scouting.objectiveBalanced");
-}
-
-function getProspectPotentialLabel(
-  potential: number,
-  t: TFunction,
-): { label: string; color: string } {
-  if (potential >= 85) {
-    return { label: t("youthAcademy.potWorldClass"), color: "text-accent-400" };
-  }
-  if (potential >= 75) {
-    return { label: t("youthAcademy.potExcellent"), color: "text-green-400" };
-  }
-  if (potential >= 65) {
-    return { label: t("youthAcademy.potPromising"), color: "text-primary-400" };
-  }
-  if (potential >= 55) {
-    return { label: t("youthAcademy.potDecent"), color: "text-gray-400" };
-  }
-
-  return { label: t("youthAcademy.potLimited"), color: "text-gray-500" };
 }

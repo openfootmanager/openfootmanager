@@ -228,6 +228,7 @@ mod tests {
         status: FixtureStatus,
     ) -> Fixture {
         Fixture {
+            postponement: None,
             id: id.to_string(),
             competition_id: "league1".to_string(),
             matchday: 1,

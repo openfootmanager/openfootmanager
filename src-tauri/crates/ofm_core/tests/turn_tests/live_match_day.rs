@@ -42,6 +42,7 @@ fn game_with_a_second_competition() -> Game {
         &["team3".to_string(), "team4".to_string()],
     );
     other.fixtures.push(Fixture {
+        postponement: None,
         id: "fix2".to_string(),
         competition_id: "league2".to_string(),
         matchday: 1,
@@ -85,6 +86,7 @@ fn finishing_a_live_match_plays_a_national_team_fixture_due_today() {
     let mut england = NationalTeam::new("nt-eng".into(), "England".into(), "ENG".into(), None);
     england.squad_player_ids = vec!["t1_fwd0".into(), "t1_mid0".into(), "t1_def0".into()];
     england.fixtures.push(Fixture {
+        postponement: None,
         id: "ntf-1".into(),
         competition_id: "international-friendlies".into(),
         matchday: 1,
@@ -132,6 +134,7 @@ fn finishing_a_live_match_plays_a_world_cup_fixture_due_today() {
     cup.rules.format = domain::league::CompetitionFormat::Knockout;
     cup.standings.clear();
     cup.fixtures.push(Fixture {
+        postponement: None,
         id: "wc-final".to_string(),
         competition_id: "wc".to_string(),
         matchday: 1,
@@ -183,6 +186,7 @@ fn finishing_a_live_match_resolves_a_dormant_competition_due_today() {
         &["dormant_home".to_string(), "dormant_away".to_string()],
     );
     dormant.fixtures.push(Fixture {
+        postponement: None,
         id: "dormant_fix".to_string(),
         competition_id: "dormant_league".to_string(),
         matchday: 1,

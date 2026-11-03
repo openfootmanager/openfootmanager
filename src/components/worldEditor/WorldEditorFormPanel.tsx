@@ -64,6 +64,7 @@ interface WorldEditorFormPanelProps {
   };
   // Issues
   issues: PackageProjectData["issues"];
+  warnings: PackageProjectData["warnings"];
   // Entity editors
   teamEditor: EditorAPI<TeamDef>;
   confEditor: EditorAPI<ConfederationDef>;
@@ -97,6 +98,7 @@ export function WorldEditorFormPanel({
   onAssetError,
   counts,
   issues,
+  warnings,
   teamEditor,
   confEditor,
   countryEditor,
@@ -148,10 +150,13 @@ export function WorldEditorFormPanel({
         <h2 className="text-lg font-heading font-bold uppercase tracking-wide text-gray-900 dark:text-white mb-5">
           {t("worldEditor.issuesTitle")}
         </h2>
-        {issues.length === 0 ? (
+        {issues.length === 0 && warnings.length === 0 ? (
           <p className="text-sm text-gray-400 dark:text-gray-500">{t("worldEditor.noIssues")}</p>
         ) : (
-          <IssueList issues={issues} />
+          <div className="space-y-3">
+            <IssueList issues={issues} />
+            <IssueList issues={warnings} severity="warning" />
+          </div>
         )}
       </div>
     );

@@ -1,8 +1,8 @@
 import { useState } from "react";
-import { invoke } from "@tauri-apps/api/core";
 import { useTranslation } from "react-i18next";
 import type { GameStateData, SeasonAwardsData } from "../store/gameStore";
 import { useGameStore } from "../store/gameStore";
+import { invokeForCareer } from "../services/careerInvoke";
 import { Card, CardBody } from "./ui";
 import { competitionDisplayName } from "../lib/competitionName";
 import AwardsCeremonyScreen from "./season/AwardsCeremonyScreen";
@@ -65,7 +65,7 @@ export default function EndOfSeasonScreen({ gameState, onGameUpdate }: EndOfSeas
     if (loading) return;
     setLoading(true);
     try {
-      const result = await invoke<{
+      const result = await invokeForCareer<{
         action?: string;
         game: GameStateData;
         summary: EndOfSeasonSummary;

@@ -27,6 +27,33 @@ function renderCard(props: Partial<Parameters<typeof PlayerProfileAttributesCard
 
 describe("PlayerProfileAttributesCard", () => {
   /**
+   * Given a player whose attributes the club may not see, and a positions inset handed in anyway
+   *       (an answer still in flight, or a failed report request)
+   * When the card renders
+   * Then the inset does not show: no key attribute values under "scout to view"
+   */
+  it("shows no positions inset while the attributes are hidden", () => {
+    renderCard({ positionRatings: <section aria-label="Positions">Passing 72</section> });
+
+    expect(screen.getByText("Attributes Hidden")).toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "Positions" })).not.toBeInTheDocument();
+  });
+
+  /**
+   * Given a player whose attributes the club sees, and his positions inset
+   * When the card renders
+   * Then the inset shows
+   */
+  it("shows the positions inset with the attributes", () => {
+    renderCard({
+      attributesVisible: true,
+      positionRatings: <section aria-label="Positions">Passing 72</section>,
+    });
+
+    expect(screen.getByRole("region", { name: "Positions" })).toBeInTheDocument();
+  });
+
+  /**
    * Given a player nobody has scouted or signed
    * When the card renders
    * Then the attributes are hidden behind the placeholder
@@ -100,5 +127,49 @@ describe("PlayerProfileAttributesCard", () => {
       expect(button.className).toContain("focus-visible:ring-2");
       expect(button.className).toContain("dark:focus-visible:ring-primary-400");
     }
+  });
+
+  /**
+   * Given a player nobody has scouted
+   * When the card renders
+   * Then it says the attributes are unknown, and shows no attribute names, bars or numbers
+   */
+  it("shows an explicit unknown state instead of invented bars", () => {
+    renderCard({});
+
+    expect(screen.getByText("Attributes Hidden")).toBeInTheDocument();
+    expect(screen.getByText("Scout this player")).toBeInTheDocument();
+    // Substring matches, so a name leaking inside a longer string would still be caught.
+    expect(screen.queryByText(/Physical/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Pace/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/\?\?/)).not.toBeInTheDocument();
+  });
+
+  /**
+   * Given the same unscouted player in two game languages (attribute names translated)
+   * When the card renders in each
+   * Then the unknown state is identical: nothing in it is derived from the translated names
+   */
+  it("does not change with the language of the attribute names", () => {
+    const rendered = (label: string, name: string) => {
+      const { container, unmount } = render(
+        <PlayerProfileAttributesCard
+          attrGroups={[{ label, attrs: [{ name, value: 71 }], average: 71 }]}
+          player={{} as PlayerData}
+          attributesVisible={false}
+          title="Attributes"
+          averageLabel="Average"
+          hiddenTitle="Attributes Hidden"
+          hiddenBody="Scout this player"
+          listLabel="List"
+          radarLabel="Radar"
+        />,
+      );
+      const html = container.innerHTML;
+      unmount();
+      return html;
+    };
+
+    expect(rendered("Physical", "Pace")).toBe(rendered("Físico", "Ritmo"));
   });
 });

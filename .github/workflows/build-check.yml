@@ -27,10 +27,17 @@ jobs:
   # whose failures are usually about something else entirely.
   toolchain-pin:
     runs-on: ubuntu-latest
+    # Every job has a ceiling, about twice its longest cold-cache run (measured 31 Oct 2026:
+    # backend 28-32 min, tauri-smoke 9-13, frontend about 5, the small jobs under 1). Without one
+    # GitHub waits six hours: a test that hangs, like the stand-in id loop a mutation showed,
+    # would hold the merge queue for six hours instead of failing in an hour.
+    timeout-minutes: 10
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
 
       # The fixtures run first. They are the only thing that proves the check still rejects what
       # it claims to reject: the real repository is correct, so a loosened regex would sail
@@ -50,15 +57,28 @@ jobs:
       - name: Check the mutation-testing exit-status check
         run: ./scripts/mutation-outcome.test.sh
 
+      # The /preflight mutants step runs on contributors' machines, never in CI, so its refusals
+      # (a patch that matches nothing, a run that tests nothing) are proved here against a fake.
+      - name: Check the preflight mutants step refuses an empty run
+        run: ./scripts/mutants-in-diff.test.sh
+
       # The AppImage check itself only runs at release time, against a real AppImage that should
       # pass. That run can't show the check still rejects a bad one, so its fixtures run on every
       # pull request instead. They need no toolchain either, hence this job.
       - name: Check the AppImage library check still rejects violations
         run: ./scripts/check-appimage-libs.test.sh
 
-      - uses: actions/setup-node@v4
+      # Every job's timeout-minutes, guarded the same way: the fixtures first, because the real
+      # file is correct and a check that had stopped working would pass on it.
+      - name: Check the job-timeout check still rejects violations
+        run: ./scripts/check-job-timeouts.test.sh
+
+      - name: Check every build-check job has a timeout
+        run: ./scripts/check-job-timeouts.sh .github/workflows/build-check.yml
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
-          node-version: lts/*
+          node-version: 24 # pinned with the frontend job; see the reason there
       - name: Check stable releases wait for AppImage validation
         run: bash scripts/check-stable-release.test.sh
 
@@ -70,11 +90,13 @@ jobs:
   # is not the tip. It is not needed by the format check itself.
   format:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
+          persist-credentials: false
           fetch-depth: 0
 
       - name: Install Rust 1.95.0
@@ -109,16 +131,19 @@ jobs:
   # `.github/workflows/dependency-advisories.yml`.
   dependencies:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
 
       # Pinned exactly, and for the same reason the compiler is: cargo-deny's built-in
       # defaults and advisory handling change between releases, so an unpinned tool turns
       # someone else's release into a red build on an unrelated PR.
       - name: Install cargo-deny
-        uses: taiki-e/install-action@v2
+        uses: taiki-e/install-action@682ce6c3c696a4cd5168a05f98e51aa02b877941 # v2
         with:
           tool: cargo-deny@0.20.2
 
@@ -148,7 +173,7 @@ jobs:
       # Pinned for the same reason cargo-deny is: the heuristic changes between releases, and
       # an unpinned tool turns someone else's release into a red build on an unrelated PR.
       - name: Install cargo-machete
-        uses: taiki-e/install-action@v2
+        uses: taiki-e/install-action@682ce6c3c696a4cd5168a05f98e51aa02b877941 # v2
         with:
           tool: cargo-machete@0.9.2
 
@@ -168,15 +193,24 @@ jobs:
 
   frontend:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
-          node-version: lts/*
+          persist-credentials: false
+
+      # A pinned major, not `lts/*`. On 2 Nov 2026 `lts/*` moved from Node 24 to Node 26 between one
+      # merge group and the next, with no change in this repository, and a test that spied on
+      # Storage.prototype stopped seeing calls: Node 26 has a global Storage of its own, which is
+      # not jsdom's (#1153). Every PR after it went red. What lets this move: a PR that bumps the
+      # major here and in the toolchain-pin and tauri-smoke jobs, and shows the whole frontend
+      # suite green on the new one.
+      - name: Setup Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 24
           cache: npm
 
       - name: Install frontend dependencies
@@ -227,10 +261,13 @@ jobs:
 
   tauri-smoke:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
 
       - name: Install Linux build dependencies
         run: |
@@ -238,9 +275,9 @@ jobs:
           sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf xdg-utils
 
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
-          node-version: lts/*
+          node-version: 24 # pinned with the frontend job; see the reason there
           cache: npm
 
       - name: Install frontend dependencies
@@ -250,7 +287,7 @@ jobs:
         uses: dtolnay/rust-toolchain@1.95.0
 
       - name: Rust cache
-        uses: swatinem/rust-cache@v2
+        uses: swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2
         with:
           workspaces: ./src-tauri -> target
 
@@ -259,10 +296,38 @@ jobs:
 
   backend:
     runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    # Line tables instead of full debug info for every build and test binary here. This job
+    # builds the workspace for tests, for tests with `mcp`, for check and for clippy twice, and on
+    # 31 Oct it ran the runner out of disk mid-test in two merge-group runs (41213539072,
+    # 41222195390). Measured from a cold cache, `target/` peaks at 17 GB with full debug info and
+    # 8.5 GB with line tables, and the cargo steps take 20 minutes instead of 27. Line tables keep
+    # what a CI failure needs, the file and line in a panic's backtrace; what they drop is
+    # variable inspection in a debugger, which nobody does on a runner. Changing these changes the
+    # Rust cache key once.
+    env:
+      CARGO_PROFILE_DEV_DEBUG: line-tables-only
+      CARGO_PROFILE_TEST_DEBUG: line-tables-only
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+
+      # The image ships SDKs this job never touches. These six are the ones that are quick to
+      # delete: measured cold on ubuntu-24.04 (20261025) they free 16.7 GB in about 16 seconds
+      # (Swift 3.5 GB, GHCup 3.7, .NET 5.9, PowerShell 1.4, the JVMs 1.5, Chromium 0.7). The
+      # hosted tool cache (5.3 GB, 34 s) and the Android SDK (11.3 GB, 79 s) would free as much
+      # again for two minutes on every run, which the build does not need: with line tables its
+      # `target/` peaks at 8.5 GB. `df` before and after puts the numbers in the log, so the
+      # next "No space left on device" can be read rather than guessed.
+      - name: Free disk space
+        run: |
+          df -h /
+          sudo rm -rf /usr/share/swift /usr/local/.ghcup /usr/share/dotnet /usr/local/share/powershell /usr/lib/jvm /usr/local/share/chromium
+          df -h /
 
       - name: Install Linux build dependencies
         run: |
@@ -280,9 +345,12 @@ jobs:
           components: clippy, rustfmt
 
       - name: Rust cache
-        uses: swatinem/rust-cache@v2
+        uses: swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2
         with:
           workspaces: ./src-tauri -> target
+
+      - name: Disk after the cache restore
+        run: df -h / | tail -n 1 && (du -sh src-tauri/target 2>/dev/null || echo "no target/ restored")
 
       # Every cargo invocation below passes `--locked`. Committing `Cargo.lock` only buys a
       # reproducible build if something refuses to silently resolve around it — without this,
@@ -291,6 +359,13 @@ jobs:
       # accompanied by its lockfile fails here and says so.
       - name: Run backend tests
         run: cargo test --locked --manifest-path src-tauri/Cargo.toml --workspace
+
+      # One line after each cargo step: how full the disk is and what `target/` weighs. Cheap, and
+      # it shows which step a future disk failure happened in. `always()` so a failed step still
+      # reports.
+      - name: Disk after the tests
+        if: always()
+        run: df -h / | tail -n 1 && (du -sh src-tauri/target 2>/dev/null || echo "no target/ present")
 
       # `mod mcp_server` is behind a Cargo feature, so the step above never
       # compiles it — nine tests under src/mcp_server/ (167 vs 176 in the lib
@@ -306,18 +381,45 @@ jobs:
       - name: Run backend tests (mcp feature)
         run: cargo test --locked --manifest-path src-tauri/Cargo.toml --lib --features mcp
 
+      - name: Disk after the mcp tests
+        if: always()
+        run: df -h / | tail -n 1 && (du -sh src-tauri/target 2>/dev/null || echo "no target/ present")
+
       - name: Check backend compilation
         run: cargo check --locked --manifest-path src-tauri/Cargo.toml --workspace
+
+      - name: Disk after the check
+        if: always()
+        run: df -h / | tail -n 1 && (du -sh src-tauri/target 2>/dev/null || echo "no target/ present")
 
       # Clippy is a hard gate: any warning fails the build. Run the same command
       # locally before pushing (or use the /preflight skill).
       - name: Clippy
         run: cargo clippy --locked --manifest-path src-tauri/Cargo.toml --workspace --all-targets -- -D warnings
 
+      - name: Disk after clippy
+        if: always()
+        run: df -h / | tail -n 1 && (du -sh src-tauri/target 2>/dev/null || echo "no target/ present")
+
       # The MCP server sits behind a Cargo feature, so the step above never
       # compiles it. Without this, ~90 tools' worth of code is unlinted.
       - name: Clippy (mcp feature)
         run: cargo clippy --locked --manifest-path src-tauri/Cargo.toml --workspace --all-targets --features mcp -- -D warnings
+
+      - name: Disk after clippy with mcp
+        if: always()
+        run: df -h / | tail -n 1 && (du -sh src-tauri/target 2>/dev/null || echo "no target/ present")
+
+      # Only when the job fails: where the disk went. Every runner image measured on 31 Oct
+      # (ubuntu-latest, 24.04 and 26.04) starts with 86 to 88 GB free, and the build's `target/`
+      # peaks at 8.5 GB, so a "No space left on device" means something else wrote tens of GB in
+      # minutes. This names it. `-x` stays on the root filesystem; `|| true` because a full disk
+      # can make even `du` complain, and this step must never be the one that fails.
+      - name: Disk usage by directory (on failure)
+        if: failure()
+        run: |
+          df -h
+          sudo du -xh --max-depth=3 / 2>/dev/null | sort -rh | head -n 30 || true
 
 # ── Gates deliberately NOT enabled yet ───────────────────────────────────────
 #

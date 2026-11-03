@@ -4,6 +4,7 @@ use super::definitions::{
 use std::path::{Path, PathBuf};
 
 const WORLD_PARSE_FAILED_ERROR: &str = "be.error.worldParseFailed";
+const WORLD_READ_FILE_FAILED_ERROR: &str = "be.error.worldReadFileFailed";
 const WORLD_SERIALIZE_FAILED_ERROR: &str = "be.error.worldSerializeFailed";
 const RANDOM_WORLD_NAME_KEY: &str = "be.msg.world.randomName";
 const RANDOM_WORLD_DESCRIPTION_KEY: &str = "be.msg.world.randomDescription";
@@ -78,6 +79,15 @@ fn normalize_world(mut world: WorldData) -> WorldData {
         &mut world.staff,
     );
     crate::football_identity::upgrade_world_manager_identities(&world.teams, &mut world.managers);
+    // A world file written before the display name existed carries none.
+    world
+        .staff
+        .iter_mut()
+        .for_each(domain::staff::Staff::refresh_display_name);
+    world
+        .managers
+        .iter_mut()
+        .for_each(domain::manager::Manager::refresh_display_name);
     if world.competitions.is_empty()
         && let Some(league) = world.league.clone()
     {
@@ -166,6 +176,8 @@ fn world_data_from_parts(
         players,
         staff,
         managers: vec![],
+        retired_managers: vec![],
+        retired_players: vec![],
         competitions: vec![],
         competition_definitions: None,
         national_teams: vec![],
@@ -187,21 +199,62 @@ const COMPETITION_DEFINITIONS_INVALID_ERROR: &str = "be.error.competitionDef.inv
 
 /// Reject a world whose embedded competition definitions don't validate, so a
 /// broken definition file never loads half-applied.
-fn validate_embedded_definitions(world: &WorldData) -> Result<(), String> {
+fn validate_embedded_definitions(
+    world: &WorldData,
+    basis: super::ReputationBasis<'_>,
+) -> Result<(), String> {
     if let Some(file) = &world.competition_definitions
-        && !super::competition_def::validate_definitions_for_world(file, world).is_empty()
+        && !super::competition_def::validate_definitions_for_world_ranked(file, world, basis)
+            .is_empty()
     {
         return Err(COMPETITION_DEFINITIONS_INVALID_ERROR.to_string());
     }
     Ok(())
 }
 
+/// The `WorldData` fields that hold a roster or its history, under the names a world file uses.
+/// A file must carry at least one: `name`, `description`, `metadata` and `regions` are shared
+/// with settings files, package manifests and `package.json`, so they prove nothing.
+const WORLD_CONTENT_KEYS: &[&str] = &[
+    "teams",
+    "players",
+    "staff",
+    "managers",
+    "retired_managers",
+    "retired_players",
+    "competitions",
+    "competitionDefinitions",
+    "national_teams",
+    "league",
+    "news",
+    "stats",
+    "world_history",
+];
+
+/// Whether `value` is an object carrying at least one roster or history collection.
+///
+/// `WorldData` is `serde(default)` throughout, so without this check any JSON object (a settings
+/// file, a manifest whose shards failed to parse) loads as an empty world. Shape rather than
+/// emptiness is tested, so a blank world still loads.
+fn has_world_shape(value: &serde_json::Value) -> bool {
+    value.as_object().is_some_and(|object| {
+        WORLD_CONTENT_KEYS
+            .iter()
+            .any(|key| object.contains_key(*key))
+    })
+}
+
 /// Parse a JSON string into a `WorldData`.
 pub fn load_world_from_json(json: &str) -> Result<WorldData, String> {
-    let world: WorldData =
+    let value: serde_json::Value =
         serde_json::from_str(json).map_err(|_| WORLD_PARSE_FAILED_ERROR.to_string())?;
+    if !has_world_shape(&value) {
+        return Err(WORLD_PARSE_FAILED_ERROR.to_string());
+    }
+    let world: WorldData =
+        serde_json::from_value(value).map_err(|_| WORLD_PARSE_FAILED_ERROR.to_string())?;
     let world = normalize_world(world);
-    validate_embedded_definitions(&world)?;
+    validate_embedded_definitions(&world, super::ReputationBasis::Stored)?;
     Ok(world)
 }
 
@@ -213,12 +266,39 @@ pub fn build_world_from_package(
     opening_year: Option<u32>,
     sources: &super::DefinitionSources,
 ) -> Result<WorldData, String> {
-    let world = normalize_world(super::build_world_data_from_package(
-        package,
-        opening_year,
-        sources,
-    ));
-    validate_embedded_definitions(&world)?;
+    let world = super::build_world_data_from_package(package, opening_year, sources);
+    finish_package_world(package, world)
+}
+
+/// [`build_world_from_package`] from `seed`: the same package, year and seed give the same world.
+pub fn build_world_from_package_seeded(
+    seed: u64,
+    package: &super::package::WorldPackage,
+    opening_year: Option<u32>,
+    sources: &super::DefinitionSources,
+) -> Result<WorldData, String> {
+    use rand::{RngExt, SeedableRng};
+    let mut rng = rand::rngs::StdRng::seed_from_u64(seed);
+    let mut world =
+        super::build_world_data_from_package_with_rng(package, opening_year, sources, &mut rng);
+    // The world's identity is part of the world: left empty it is a fresh UUID per build.
+    world.metadata.world_id = uuid::Builder::from_random_bytes(rng.random())
+        .into_uuid()
+        .to_string();
+    let mut world = finish_package_world(package, world)?;
+    world.generation_seed = Some(seed);
+    Ok(world)
+}
+
+fn finish_package_world(
+    package: &super::package::WorldPackage,
+    world: WorldData,
+) -> Result<WorldData, String> {
+    let world = normalize_world(world);
+    // Ranked by the package's authored reputations, as `resolve_definitions_ranked` will be when a
+    // career starts, so a package that builds here is not refused there on a reputation roll.
+    let authored = super::authored_reputations(package);
+    validate_embedded_definitions(&world, super::ReputationBasis::Authored(&authored))?;
     Ok(world)
 }
 
@@ -242,6 +322,19 @@ fn load_world_from_manifest_path(
     let players = read_json_file(&manifest_shard_path(path, &manifest.shards.players))?;
     let staff = read_json_file(&manifest_shard_path(path, &manifest.shards.staff))?;
     let managers = read_json_file(&manifest_shard_path(path, &manifest.shards.managers))?;
+    // Absent from a manifest written before the archives existed: nothing to read.
+    fn read_optional<T: serde::de::DeserializeOwned>(
+        manifest_path: &Path,
+        shard: &str,
+    ) -> Result<Vec<T>, String> {
+        if shard.is_empty() {
+            Ok(Vec::new())
+        } else {
+            read_json_file(&manifest_shard_path(manifest_path, shard))
+        }
+    }
+    let retired_managers = read_optional(path, &manifest.shards.retired_managers)?;
+    let retired_players = read_optional(path, &manifest.shards.retired_players)?;
     let competitions = read_json_file(&manifest_shard_path(path, &manifest.shards.competitions))?;
     let national_teams =
         read_json_file(&manifest_shard_path(path, &manifest.shards.national_teams))?;
@@ -256,6 +349,8 @@ fn load_world_from_manifest_path(
         players,
         staff,
         managers,
+        retired_managers,
+        retired_players,
         competitions,
         competition_definitions: None,
         national_teams,
@@ -280,11 +375,20 @@ fn load_world_from_manifest_path(
 }
 
 pub fn load_world_from_path(path: &Path) -> Result<WorldData, String> {
-    let json = std::fs::read_to_string(path).map_err(|_| WORLD_PARSE_FAILED_ERROR.to_string())?;
-    if let Ok(manifest) = serde_json::from_str::<WorldManifestV2>(&json)
-        && manifest.format_version >= 2
-        && !manifest.shards.teams.is_empty()
-    {
+    let json =
+        std::fs::read_to_string(path).map_err(|_| WORLD_READ_FILE_FAILED_ERROR.to_string())?;
+    let value: serde_json::Value =
+        serde_json::from_str(&json).map_err(|_| WORLD_PARSE_FAILED_ERROR.to_string())?;
+    let manifest_shaped = value.as_object().is_some_and(|object| {
+        object.contains_key("shards") || object.contains_key("formatVersion")
+    });
+    if manifest_shaped {
+        let manifest: WorldManifestV2 =
+            serde_json::from_value(value).map_err(|_| WORLD_PARSE_FAILED_ERROR.to_string())?;
+        // No loader reads an older manifest; its `name` must not pass it off as a world file.
+        if manifest.format_version < 2 {
+            return Err(WORLD_PARSE_FAILED_ERROR.to_string());
+        }
         return load_world_from_manifest_path(path, manifest);
     }
     load_world_from_json(&json)
@@ -313,6 +417,14 @@ pub fn export_world_package(world: &WorldData, manifest_path: &Path) -> Result<S
     write_json(&shard_dir.join("staff.json"), &normalized.staff)?;
     write_json(&shard_dir.join("managers.json"), &normalized.managers)?;
     write_json(
+        &shard_dir.join("retired_managers.json"),
+        &normalized.retired_managers,
+    )?;
+    write_json(
+        &shard_dir.join("retired_players.json"),
+        &normalized.retired_players,
+    )?;
+    write_json(
         &shard_dir.join("competitions.json"),
         &normalized.competitions,
     )?;
@@ -340,6 +452,8 @@ pub fn export_world_package(world: &WorldData, manifest_path: &Path) -> Result<S
             players: format!("{stem}.shards/players.json"),
             staff: format!("{stem}.shards/staff.json"),
             managers: format!("{stem}.shards/managers.json"),
+            retired_managers: format!("{stem}.shards/retired_managers.json"),
+            retired_players: format!("{stem}.shards/retired_players.json"),
             competitions: format!("{stem}.shards/competitions.json"),
             national_teams: format!("{stem}.shards/national_teams.json"),
             news: format!("{stem}.shards/news.json"),
@@ -497,6 +611,90 @@ mod tests {
         }
     }
 
+    /// Given a world file whose managers predate the display name (no `display_name` in their JSON)
+    /// When it is loaded
+    /// Then each is displayed by their known-as name or their full name, not left blank (#557).
+    #[test]
+    fn a_world_file_without_manager_display_names_gets_them_on_load() {
+        let json = r#"{"managers":[
+            {"id":"m1","first_name":"Josep","last_name":"Guardiola i Sala","date_of_birth":"1971-01-18",
+             "nationality":"ES","reputation":900,"satisfaction":80,"team_id":null,"known_as":"Pep Guardiola",
+             "career_stats":{"matches_managed":0,"wins":0,"draws":0,"losses":0,"trophies":0,"best_finish":null},
+             "career_history":[]},
+            {"id":"m2","first_name":"Alice","last_name":"Boss","date_of_birth":"1970-05-10",
+             "nationality":"GB","reputation":500,"satisfaction":50,"team_id":null,
+             "career_stats":{"matches_managed":0,"wins":0,"draws":0,"losses":0,"trophies":0,"best_finish":null},
+             "career_history":[]}]}"#;
+
+        let world = load_world_from_json(json).expect("the world loads");
+
+        let name = |id: &str| {
+            world
+                .managers
+                .iter()
+                .find(|m| m.id == id)
+                .unwrap()
+                .display_name
+                .clone()
+        };
+        assert_eq!(name("m1"), "Pep Guardiola");
+        assert_eq!(name("m2"), "Alice Boss");
+    }
+
+    /// Given a world file whose manager and staff member carry a blank known-as name
+    /// When it is loaded
+    /// Then they are called by their full name and keep no known-as, the same as when it is set by hand (#557).
+    #[test]
+    fn a_blank_known_as_in_a_world_file_is_treated_as_none() {
+        let json = r#"{"managers":[
+            {"id":"m1","first_name":"Alice","last_name":"Boss","date_of_birth":"1970-05-10",
+             "nationality":"GB","reputation":500,"satisfaction":50,"team_id":null,"known_as":"   ",
+             "career_stats":{"matches_managed":0,"wins":0,"draws":0,"losses":0,"trophies":0,"best_finish":null},
+             "career_history":[]}],
+            "staff":[
+            {"id":"s1","first_name":"Alice","last_name":"Coach","date_of_birth":"1980-05-10",
+             "nationality":"GB","role":"Physio","known_as":"  ",
+             "attributes":{"coaching":80,"judgingAbility":50,"judgingPotential":50,"physiotherapy":10},
+             "team_id":null}]}"#;
+
+        let world = load_world_from_json(json).expect("the world loads");
+
+        assert_eq!(world.managers[0].display_name, "Alice Boss");
+        assert_eq!(world.managers[0].known_as, None);
+        assert_eq!(world.staff[0].display_name, "Alice Coach");
+        assert_eq!(world.staff[0].known_as, None);
+    }
+
+    /// Given a world file whose staff predate the display name (no `display_name` in their JSON)
+    /// When it is loaded
+    /// Then each is displayed by their known-as name or their full name, not left blank (#557).
+    #[test]
+    fn a_world_file_without_display_names_gets_them_on_load() {
+        let json = r#"{"staff":[
+            {"id":"s1","first_name":"Josep","last_name":"Guardiola i Sala","date_of_birth":"1971-01-18",
+             "nationality":"ES","role":"Coach","known_as":"Pep Guardiola",
+             "attributes":{"coaching":80,"judgingAbility":50,"judgingPotential":50,"physiotherapy":10},
+             "team_id":null},
+            {"id":"s2","first_name":"Alice","last_name":"Coach","date_of_birth":"1980-05-10",
+             "nationality":"GB","role":"Physio",
+             "attributes":{"coaching":80,"judgingAbility":50,"judgingPotential":50,"physiotherapy":10},
+             "team_id":null}]}"#;
+
+        let world = load_world_from_json(json).expect("the world loads");
+
+        let name = |id: &str| {
+            world
+                .staff
+                .iter()
+                .find(|s| s.id == id)
+                .unwrap()
+                .display_name
+                .clone()
+        };
+        assert_eq!(name("s1"), "Pep Guardiola");
+        assert_eq!(name("s2"), "Alice Coach");
+    }
+
     #[test]
     fn load_world_from_json_normalizes_legacy_english_world_data() {
         let json = r##"
@@ -577,7 +775,9 @@ mod tests {
 
         assert_eq!(world.teams[0].football_nation, "ENG");
         assert_eq!(world.players[0].football_nation, "ENG");
-        assert_eq!(world.players[0].birth_country, None);
+        // From the nationality the upgrade resolved ("GB" at an English club is "ENG"), in the
+        // same pass: the value a career's next load used to fill in.
+        assert_eq!(world.players[0].birth_country.as_deref(), Some("ENG"));
         assert!(world.managers.is_empty());
         assert!(world.league.is_none());
         assert!(world.news.is_empty());
@@ -685,6 +885,265 @@ mod tests {
             everything(&one) == everything(&again),
             "the same seed gave different worlds"
         );
+    }
+
+    fn load_file(contents: &str) -> Result<WorldData, String> {
+        let dir = TempWorldDir::new();
+        let path = dir.path().join("world.json");
+        fs::write(&path, contents).unwrap();
+        load_world_from_path(&path)
+    }
+
+    /// Given a world manifest whose shard references do not parse (a number where a file name
+    ///       belongs, as a newer or damaged manifest might have)
+    /// When it is loaded
+    /// Then it is an error, not an empty world that every field of `WorldData` would default to.
+    #[test]
+    fn a_manifest_whose_shards_do_not_parse_is_an_error_not_an_empty_world() {
+        let result = load_file(
+            r#"{"formatVersion":2,"worldId":"w","name":"W","description":"","shards":{"teams":5}}"#,
+        );
+
+        assert_eq!(result.unwrap_err(), WORLD_PARSE_FAILED_ERROR);
+    }
+
+    /// Given a version-2 world manifest that names no teams shard
+    /// When it is loaded
+    /// Then it is an error: a manifest with nowhere to read its clubs from is not a world.
+    #[test]
+    fn a_manifest_without_a_teams_shard_is_an_error_not_an_empty_world() {
+        let result = load_file(
+            r#"{"formatVersion":2,"worldId":"w","name":"W","description":"",
+                "shards":{"teams":"","players":"p.json","staff":"s.json","managers":"m.json",
+                "competitions":"c.json","nationalTeams":"n.json","news":"nw.json",
+                "stats":"st.json","worldHistory":"h.json"}}"#,
+        );
+
+        assert_eq!(result.unwrap_err(), WORLD_PARSE_FAILED_ERROR);
+    }
+
+    /// Given JSON that is not a world at all: an object with none of a world's keys, an empty
+    ///       object, and a value that is not an object
+    /// When each is loaded, from a file and as text
+    /// Then each is an error, not an empty world.
+    #[test]
+    fn json_that_is_not_a_world_is_refused() {
+        for text in [r#"{"foo":1}"#, "{}", "[1,2]", "3"] {
+            assert_eq!(
+                load_file(text).unwrap_err(),
+                WORLD_PARSE_FAILED_ERROR,
+                "{text}"
+            );
+            assert_eq!(
+                load_world_from_json(text).unwrap_err(),
+                WORLD_PARSE_FAILED_ERROR,
+                "{text}"
+            );
+        }
+    }
+
+    /// Given JSON that carries only the generic fields a world shares with other files: a settings
+    ///       file with a name and a description, a package's own manifest, an npm package.json
+    /// When each is loaded, from a file and as text
+    /// Then each is an error: a name is not a roster, so none of them is an empty world.
+    #[test]
+    fn a_file_with_only_a_name_and_a_description_is_not_a_world() {
+        for text in [
+            r#"{"name":"My settings","description":"not a world"}"#,
+            r#"{"schema":"world","id":"pkg","name":"Some Package","version":"1.0.0"}"#,
+            r#"{"name":"app","version":"1.0.0","description":"x","metadata":{"a":1},"regions":[]}"#,
+        ] {
+            assert_eq!(
+                load_file(text).unwrap_err(),
+                WORLD_PARSE_FAILED_ERROR,
+                "{text}"
+            );
+            assert_eq!(
+                load_world_from_json(text).unwrap_err(),
+                WORLD_PARSE_FAILED_ERROR,
+                "{text}"
+            );
+        }
+    }
+
+    /// Given a manifest of format version 1 whose shard files are all there (a real export with
+    ///       its version lowered), which this build has no loader for
+    /// When it is loaded
+    /// Then it is an error, not read as a version-2 manifest and not an empty world via its `name`.
+    #[test]
+    fn a_manifest_of_an_older_format_is_an_error_not_an_empty_world() {
+        let dir = TempWorldDir::new();
+        let manifest = dir.path().join("world.json");
+        export_world_package(&WorldData::default(), &manifest).unwrap();
+        assert!(
+            load_world_from_path(&manifest).is_ok(),
+            "the export loads as it is"
+        );
+        let written = fs::read_to_string(&manifest).unwrap();
+        assert!(written.contains("\"formatVersion\": 2"), "{written}");
+        fs::write(
+            &manifest,
+            written.replace("\"formatVersion\": 2", "\"formatVersion\": 1"),
+        )
+        .unwrap();
+
+        let result = load_world_from_path(&manifest);
+
+        assert_eq!(result.unwrap_err(), WORLD_PARSE_FAILED_ERROR);
+    }
+
+    /// Given a blank world: every list present and empty, as one saved from nothing would be
+    /// When it is loaded
+    /// Then it loads: refusing a file that is not a world must not refuse an empty one.
+    #[test]
+    fn a_blank_world_still_loads() {
+        let blank = serde_json::to_string(&WorldData::default()).unwrap();
+
+        assert!(load_file(&blank).is_ok());
+        assert!(load_world_from_json(r#"{"teams":[],"players":[]}"#).is_ok());
+    }
+
+    /// Given a worlds folder that also holds an unrelated JSON file
+    /// When the folder is scanned
+    /// Then the unrelated file is not listed as a world.
+    #[test]
+    fn an_unrelated_json_file_is_not_listed_as_a_world_database() {
+        let dir = TempWorldDir::new();
+        fs::write(dir.path().join("notes.json"), r#"{"todo":["buy boots"]}"#).unwrap();
+
+        assert!(scan_world_databases(dir.path()).is_empty());
+    }
+
+    /// Given a fully populated world (every collection non-empty, including the ones skipped when
+    ///       empty)
+    /// When it is serialized
+    /// Then every key the shape check accepts is a key a world file really has: a typo in the list
+    ///      (`nationalTeams` for `national_teams`) would otherwise refuse real worlds silently.
+    #[test]
+    fn every_content_key_is_a_key_a_world_file_has() {
+        let mut world = world_with_archives();
+        world.competition_definitions = Some(Default::default());
+        let written = serde_json::to_value(&world).unwrap();
+
+        for key in WORLD_CONTENT_KEYS {
+            assert!(written.get(key).is_some(), "{key} is not a WorldData field");
+        }
+    }
+
+    /// Given a path with no file behind it
+    /// When it is loaded
+    /// Then the error says the file could not be read, not that it could not be parsed.
+    #[test]
+    fn a_missing_world_file_is_a_read_error_not_a_parse_error() {
+        let dir = TempWorldDir::new();
+
+        let result = load_world_from_path(&dir.path().join("nothing-here.json"));
+
+        assert_eq!(result.unwrap_err(), WORLD_READ_FILE_FAILED_ERROR);
+    }
+
+    fn world_with_archives() -> WorldData {
+        let mut world = generate_world_data(&crate::generator::DefinitionSources::embedded_only());
+        let mut manager = domain::manager::Manager::new(
+            "retired-boss".to_string(),
+            "Old".to_string(),
+            "Boss".to_string(),
+            "1950-01-01".to_string(),
+            "England".to_string(),
+        );
+        manager
+            .career_history
+            .push(domain::manager::ManagerCareerEntry::open(
+                world.teams[0].id.clone(),
+                world.teams[0].name.clone(),
+                "2010-07-01".to_string(),
+            ));
+        world.retired_managers.push(manager);
+        let mut veteran = world.players[0].clone();
+        veteran.id = "retired-veteran".to_string();
+        veteran.retired = true;
+        veteran.team_id = None;
+        world
+            .retired_players
+            .push(domain::retired_player::RetiredPlayer::from_player(
+                &veteran,
+                "2030-06-30",
+                2030,
+            ));
+        world
+    }
+
+    /// Given a world carrying archived managers and retired players (#814, #799)
+    /// When it is exported as a sharded package, and as one JSON, and loaded back
+    /// Then both archives come back intact, so a re-import does not forget a club's past managers.
+    #[test]
+    fn the_archives_survive_a_world_export_round_trip() {
+        let world = world_with_archives();
+        let dir = std::env::temp_dir().join(format!(
+            "ofm-export-archives-{}",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        std::fs::create_dir_all(&dir).unwrap();
+        let manifest = dir.join("world.json");
+
+        export_world_package(&world, &manifest).unwrap();
+        let from_shards = load_world_from_path(&manifest).unwrap();
+        let from_json = load_world_from_json(&export_world_to_json(&world).unwrap()).unwrap();
+        std::fs::remove_dir_all(&dir).ok();
+
+        for loaded in [from_shards, from_json] {
+            assert_eq!(loaded.retired_players, world.retired_players);
+            assert_eq!(
+                serde_json::to_value(&loaded.retired_managers).unwrap(),
+                serde_json::to_value(&world.retired_managers).unwrap()
+            );
+        }
+    }
+
+    /// Given a world exported before the archives existed (no archive keys, in either format)
+    /// When it is loaded
+    /// Then it loads, with both archives empty: old exports keep working.
+    #[test]
+    fn an_export_from_before_the_archives_loads_with_none() {
+        let world = world_with_archives();
+
+        let mut single = serde_json::to_value(&world).unwrap();
+        single.as_object_mut().unwrap().remove("retired_managers");
+        single.as_object_mut().unwrap().remove("retired_players");
+        let from_json =
+            load_world_from_json(&single.to_string()).expect("an old single JSON loads");
+
+        let dir = std::env::temp_dir().join(format!(
+            "ofm-old-export-{}",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        std::fs::create_dir_all(&dir).unwrap();
+        let manifest = dir.join("world.json");
+        export_world_package(&world, &manifest).unwrap();
+        let mut old: serde_json::Value =
+            serde_json::from_str(&std::fs::read_to_string(&manifest).unwrap()).unwrap();
+        let shards = old["shards"].as_object_mut().unwrap();
+        shards.remove("retiredManagers");
+        shards.remove("retiredPlayers");
+        std::fs::write(&manifest, old.to_string()).unwrap();
+        let from_shards = load_world_from_path(&manifest);
+        std::fs::remove_dir_all(&dir).ok();
+        let from_shards = from_shards.expect("an old manifest loads");
+
+        for loaded in [from_json, from_shards] {
+            // The world itself came through: a file that failed to parse and fell back to an
+            // empty world would also have empty archives.
+            assert_eq!(loaded.players.len(), world.players.len());
+            assert_eq!(loaded.teams.len(), world.teams.len());
+            assert!(loaded.retired_managers.is_empty());
+            assert!(loaded.retired_players.is_empty());
+        }
     }
 
     #[test]
@@ -954,7 +1413,7 @@ mod tests {
         let archive = fs::File::open(&out).expect("archive should open");
         let mut zip = zip::ZipArchive::new(archive).expect("archive should be a valid zip");
         let names: Vec<String> = (0..zip.len())
-            .map(|i| zip.by_index(i).unwrap().name().to_string())
+            .map(|i| zip.by_index(i).unwrap().name().unwrap().into_owned())
             .collect();
         assert!(names.contains(&"world.json".to_string()));
         // The nested file proves the recursive read_dir walk still descends after
@@ -1203,5 +1662,69 @@ mod tests {
                 );
             }
         }
+    }
+
+    /// Given a package and a seed,
+    /// When a world is built from them twice,
+    /// Then it is the same world, ids included, it records the seed, and another seed gives
+    ///      another world.
+    #[test]
+    fn a_seed_builds_the_same_package_world_ids_included() {
+        let sources = crate::generator::DefinitionSources::embedded_only();
+        let dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("../../../docs/modding/examples/classic-sixteen");
+        let (package, errors) = crate::generator::load_world_package(&dir);
+        assert!(errors.is_empty(), "{errors:?}");
+        let everything = |world: &WorldData| {
+            serde_json::to_value((&world.teams, &world.players, &world.staff))
+                .unwrap()
+                .to_string()
+        };
+
+        let one = build_world_from_package_seeded(5, &package, Some(2033), &sources).unwrap();
+        let again = build_world_from_package_seeded(5, &package, Some(2033), &sources).unwrap();
+        let other = build_world_from_package_seeded(6, &package, Some(2033), &sources).unwrap();
+
+        assert_eq!(one.generation_seed, Some(5));
+        assert_eq!(everything(&one), everything(&again));
+        assert_ne!(everything(&one), everything(&other));
+        assert_eq!(one.metadata.world_id, again.metadata.world_id);
+        let world_id = uuid::Uuid::parse_str(&one.metadata.world_id).expect("a world id is a UUID");
+        assert_eq!(
+            world_id.get_version_num(),
+            4,
+            "a seeded id is still a version 4 UUID"
+        );
+        assert_ne!(one.metadata.world_id, other.metadata.world_id);
+    }
+
+    /// Given a package of one club and no competitions, which the builder pads with generated
+    ///       opponents,
+    /// When it is built twice from one seed,
+    /// Then the padding is the same too — clubs, players and staff — so the dice drawn for it come
+    ///      from the seed like every other.
+    #[test]
+    fn a_seed_builds_the_same_padded_one_club_package() {
+        let sources = crate::generator::DefinitionSources::embedded_only();
+        let dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("../../../docs/modding/examples/classic-sixteen");
+        let (mut package, errors) = crate::generator::load_world_package(&dir);
+        assert!(errors.is_empty(), "{errors:?}");
+        package.teams.truncate(1);
+        package.competitions.clear();
+        package.players.clear();
+        let everything = |world: &WorldData| {
+            serde_json::to_value((&world.teams, &world.players, &world.staff))
+                .unwrap()
+                .to_string()
+        };
+
+        let one = build_world_from_package_seeded(5, &package, Some(2033), &sources).unwrap();
+        let again = build_world_from_package_seeded(5, &package, Some(2033), &sources).unwrap();
+        let other = build_world_from_package_seeded(6, &package, Some(2033), &sources).unwrap();
+
+        assert!(one.teams.len() > 1, "the opponents were generated");
+        assert_eq!(everything(&one), everything(&again));
+        assert_ne!(everything(&one), everything(&other));
     }
 }

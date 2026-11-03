@@ -21,7 +21,7 @@ pub use web_process::watch_web_processes;
 /// DMABuf/NVIDIA problem that `linux_graphics` exists to work around, and neither reads the
 /// environment variables it sets — so there is deliberately nothing to do here.
 #[cfg(not(target_os = "linux"))]
-pub fn configure_graphics() {}
+pub fn configure_graphics(_headless: bool) {}
 
 /// See [`configure_graphics`] — no rendering policy is chosen off Linux, so there is no
 /// startup attempt to record and nothing to clear.

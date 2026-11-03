@@ -15,7 +15,7 @@ pub const MIGRATION_COUNT: usize = MIGRATIONS.len();
 /// **Lowering this is almost always wrong.** A save written by a release with N migrations
 /// reports `user_version = N` and expects every column those migrations added; a build with
 /// fewer can neither open it nor recreate it.
-const EXPECTED_MIGRATION_COUNT: usize = 51;
+const EXPECTED_MIGRATION_COUNT: usize = 63;
 
 // Compile-time rather than a test: adding or removing a migration should fail the build, not
 // merely turn a suite red.
@@ -149,10 +149,131 @@ const MIGRATIONS: &[(&str, &str)] = &[
     ),
     // V51: Persisted competition name key
     ("v051_competition_name_key.sql", include_str!("sql/v051_competition_name_key.sql")),
+    // V52: Retired players, archived out of the active roster
+    ("v052_retired_players.sql", include_str!("sql/v052_retired_players.sql")),
+    // V53: Retired managers, archived out of the active pool
+    ("v053_retired_managers.sql", include_str!("sql/v053_retired_managers.sql")),
+    // V54: Interim (stand-in) managers
+    ("v054_manager_interim.sql", include_str!("sql/v054_manager_interim.sql")),
+    // V55: What a staff member is called
+    ("v055_staff_known_as.sql", include_str!("sql/v055_staff_known_as.sql")),
+    // V56: The player's saved tactics
+    ("v056_custom_tactics.sql", include_str!("sql/v056_custom_tactics.sql")),
+    // V57: What a manager is called
+    ("v057_manager_known_as.sql", include_str!("sql/v057_manager_known_as.sql")),
+    // V58: Archived (old, read) inbox mail
+    ("v058_archived_messages.sql", include_str!("sql/v058_archived_messages.sql")),
+    // V59: Whether the old browser library of tactics has been copied in
+    (
+        "v059_legacy_tactics_imported.sql",
+        include_str!("sql/v059_legacy_tactics_imported.sql"),
+    ),
+    // V60: The first date a completed home fixture is paid a gate for
+    (
+        "v060_gate_settled_from.sql",
+        include_str!("sql/v060_gate_settled_from.sql"),
+    ),
+    // V61: The day the last season ended, so a scout report from before it reads as out of date
+    (
+        "v061_last_season_rollover.sql",
+        include_str!("sql/v061_last_season_rollover.sql"),
+    ),
+    // V62: A scout report's opinion of the player's potential (a range) and the scout's name
+    (
+        "v062_scouted_potential_opinion.sql",
+        include_str!("sql/v062_scouted_potential_opinion.sql"),
+    ),
+    // V63: JSON cells that did not parse on load, kept as they were (`json_column`)
+    (
+        "v063_unreadable_records.sql",
+        include_str!("sql/v063_unreadable_records.sql"),
+    ),
 ];
 
 /// All migrations for a per-save game database.
 /// Each save `.db` file gets this schema applied via `rusqlite_migration`.
+/// Table name -> column names, as the first `applied` migrations create them.
+pub(crate) type Layout = std::collections::BTreeMap<String, std::collections::BTreeSet<String>>;
+
+/// The layout a save at schema version `applied` must have, built by running the
+/// first `applied` migrations on an empty in-memory database.
+pub(crate) fn expected_layout(applied: usize) -> Result<Layout, String> {
+    if applied == 0 {
+        // `Migrations` refuses an empty list, and a fresh file has no tables.
+        return Ok(Layout::new());
+    }
+    let mut reference = rusqlite::Connection::open_in_memory().map_err(|e| e.to_string())?;
+    Migrations::new(
+        MIGRATIONS
+            .iter()
+            .take(applied)
+            .map(|(_, sql)| M::up(sql))
+            .collect(),
+    )
+    .to_latest(&mut reference)
+    .map_err(|e| e.to_string())?;
+    layout_of(&reference)
+}
+
+/// Every user table of `conn` with its columns (SQLite's own tables excluded).
+pub(crate) fn layout_of(conn: &rusqlite::Connection) -> Result<Layout, String> {
+    let mut layout = Layout::new();
+    let mut tables = conn
+        .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'")
+        .map_err(|e| e.to_string())?;
+    let names: Vec<String> = tables
+        .query_map([], |row| row.get(0))
+        .map_err(|e| e.to_string())?
+        .collect::<Result<_, _>>()
+        .map_err(|e| e.to_string())?;
+    for name in names {
+        // Bound, not interpolated: a foreign table may be named anything, quotes included. `xinfo`
+        // rather than `info`, which leaves out generated and hidden columns.
+        let mut info = conn
+            .prepare("SELECT name FROM pragma_table_xinfo(?1)")
+            .map_err(|e| e.to_string())?;
+        let columns = info
+            .query_map([&name], |row| row.get::<_, String>(0))
+            .map_err(|e| e.to_string())?
+            .collect::<Result<_, _>>()
+            .map_err(|e| e.to_string())?;
+        layout.insert(name, columns);
+    }
+    Ok(layout)
+}
+
+/// Every table any shipped migration creates: the names a save must never hold unless its
+/// version says it should.
+pub(crate) fn migration_owned_tables() -> Result<std::collections::BTreeSet<String>, String> {
+    Ok(expected_layout(MIGRATIONS.len())?.into_keys().collect())
+}
+
+/// The first table or column on which `found` disagrees with `expected`, if any. A table no
+/// migration ever creates is somebody's own (a debugging probe, a tool's cache) and harms
+/// nothing; but a table a *later* migration creates is not foreign, and one already present
+/// would make that migration's `CREATE TABLE IF NOT EXISTS` skip it and fail halfway.
+pub(crate) fn first_layout_difference(
+    expected: &Layout,
+    found: &Layout,
+    migration_owned: &std::collections::BTreeSet<String>,
+) -> Option<String> {
+    for (table, columns) in expected {
+        let Some(found_columns) = found.get(table) else {
+            return Some(format!("missing table {table}"));
+        };
+        if let Some(column) = columns.difference(found_columns).next() {
+            return Some(format!("missing column {table}.{column}"));
+        }
+        if let Some(column) = found_columns.difference(columns).next() {
+            return Some(format!("unexpected column {table}.{column}"));
+        }
+    }
+    found
+        .keys()
+        .find(|table| !expected.contains_key(*table) && migration_owned.contains(*table))
+        .map(|table| format!("unexpected table {table}"))
+}
+
 pub fn all_migrations() -> Migrations<'static> {
     Migrations::new(MIGRATIONS.iter().map(|(_, sql)| M::up(sql)).collect())
 }
@@ -534,6 +655,172 @@ mod tests {
         }
     }
 
+    /// Given a real v061 save holding a scout report, written before reports carried an opinion of
+    ///       the player's potential
+    /// When it is migrated, twice
+    /// Then the report reads "no opinion, no scout named" (NULLs), so that player shows no opinion
+    ///      until he is scouted again, and the report's date and attributes are untouched
+    #[test]
+    fn scouted_potential_v062_upgrades_a_v061_report_with_no_opinion() {
+        let mut conn = Connection::open_in_memory().unwrap();
+        Migrations::new(
+            MIGRATIONS
+                .iter()
+                .take(61)
+                .map(|(_, sql)| M::up(sql))
+                .collect(),
+        )
+        .to_latest(&mut conn)
+        .unwrap();
+        conn.execute(
+            "INSERT INTO scouted_players (player_id, scouted_on, attributes_json) VALUES ('p1', '2033-03-10', '{\"pace\":71}')",
+            [],
+        )
+        .unwrap();
+        assert!(
+            conn.prepare("SELECT potential_low FROM scouted_players")
+                .is_err()
+        );
+
+        for _ in 0..2 {
+            all_migrations().to_latest(&mut conn).unwrap();
+            let row: (String, String, Option<i64>, Option<i64>, Option<String>) = conn
+                .query_row(
+                    "SELECT scouted_on, attributes_json, potential_low, potential_high, scout_name FROM scouted_players",
+                    [],
+                    |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?, row.get(4)?)),
+                )
+                .expect("v062 must add the columns to a real v061 report");
+            assert_eq!(
+                row,
+                (
+                    "2033-03-10".to_string(),
+                    "{\"pace\":71}".to_string(),
+                    None,
+                    None,
+                    None
+                )
+            );
+        }
+    }
+
+    /// Given a real v060 save, written before the season rollover date was kept
+    /// When it is migrated, twice
+    /// Then its game_meta row reads "no rollover recorded" (NULL), so no scout report in it is
+    ///      called out of date until the next season ends, and the rest of the row is untouched.
+    #[test]
+    fn rollover_v061_upgrades_a_v060_save_with_no_rollover_recorded() {
+        let mut conn = Connection::open_in_memory().unwrap();
+        Migrations::new(
+            MIGRATIONS
+                .iter()
+                .take(60)
+                .map(|(_, sql)| M::up(sql))
+                .collect(),
+        )
+        .to_latest(&mut conn)
+        .unwrap();
+        conn.execute(
+            "INSERT INTO game_meta (save_id, save_name, manager_id, start_date, game_date) VALUES ('save', 'Old career', 'manager', '2033-02-01', '2033-06-30')",
+            [],
+        )
+        .unwrap();
+        assert!(
+            conn.prepare("SELECT last_season_rollover_on FROM game_meta")
+                .is_err()
+        );
+
+        for _ in 0..2 {
+            all_migrations().to_latest(&mut conn).unwrap();
+            let row: (String, Option<String>) = conn
+                .query_row(
+                    "SELECT save_name, last_season_rollover_on FROM game_meta",
+                    [],
+                    |row| Ok((row.get(0)?, row.get(1)?)),
+                )
+                .expect("v061 must add the column to a real v060 save");
+            assert_eq!(row, ("Old career".to_string(), None));
+        }
+    }
+
+    /// Given a real v058 save (written before the old-tactics import was recorded)
+    /// When it is migrated, twice
+    /// Then its game_meta row reads "not imported yet", so the import runs once more and is then
+    ///      marked, and the rest of the row is untouched.
+    #[test]
+    fn legacy_tactics_v059_upgrades_a_v058_save_as_not_imported_yet() {
+        let mut conn = Connection::open_in_memory().unwrap();
+        Migrations::new(
+            MIGRATIONS
+                .iter()
+                .take(58)
+                .map(|(_, sql)| M::up(sql))
+                .collect(),
+        )
+        .to_latest(&mut conn)
+        .unwrap();
+        conn.execute(
+            "INSERT INTO game_meta (save_id, save_name, manager_id, start_date, game_date) VALUES ('save', 'Old career', 'manager', '2033-02-01', '2033-06-30')",
+            [],
+        )
+        .unwrap();
+        assert!(
+            conn.prepare("SELECT legacy_tactics_imported FROM game_meta")
+                .is_err()
+        );
+
+        for _ in 0..2 {
+            all_migrations().to_latest(&mut conn).unwrap();
+            let row: (String, i64) = conn
+                .query_row(
+                    "SELECT save_name, legacy_tactics_imported FROM game_meta",
+                    [],
+                    |row| Ok((row.get(0)?, row.get(1)?)),
+                )
+                .expect("v059 must add the column to a real v058 save");
+            assert_eq!(row, ("Old career".to_string(), 0));
+        }
+    }
+
+    /// Given a real v059 save (written before per-fixture gates)
+    /// When it is migrated, twice
+    /// Then its game_meta row has no gate cutover yet, so the first settlement fixes one, and the
+    ///      rest of the row is untouched.
+    #[test]
+    fn gate_settled_from_v060_upgrades_a_v059_save_with_no_cutover_yet() {
+        let mut conn = Connection::open_in_memory().unwrap();
+        Migrations::new(
+            MIGRATIONS
+                .iter()
+                .take(59)
+                .map(|(_, sql)| M::up(sql))
+                .collect(),
+        )
+        .to_latest(&mut conn)
+        .unwrap();
+        conn.execute(
+            "INSERT INTO game_meta (save_id, save_name, manager_id, start_date, game_date) VALUES ('save', 'Old career', 'manager', '2033-02-01', '2033-06-30')",
+            [],
+        )
+        .unwrap();
+        assert!(
+            conn.prepare("SELECT gate_settled_from FROM game_meta")
+                .is_err()
+        );
+
+        for _ in 0..2 {
+            all_migrations().to_latest(&mut conn).unwrap();
+            let row: (String, Option<String>) = conn
+                .query_row(
+                    "SELECT save_name, gate_settled_from FROM game_meta",
+                    [],
+                    |row| Ok((row.get(0)?, row.get(1)?)),
+                )
+                .expect("v060 must add the column to a real v059 save");
+            assert_eq!(row, ("Old career".to_string(), None));
+        }
+    }
+
     /// Given a real v048 save, when migrated twice, then the archive table exists and is empty.
     #[test]
     fn edition_archive_v049_upgrades_a_v048_save_without_touching_competitions() {
@@ -758,6 +1045,112 @@ mod tests {
             version, MIGRATION_COUNT as i64,
             "expected schema version {} after migrations",
             MIGRATION_COUNT
+        );
+    }
+
+    /// FNV-1a 64 over the file with carriage returns removed, so a Windows checkout of the
+    /// same migration hashes the same.
+    fn fingerprint(sql: &str) -> u64 {
+        sql.bytes()
+            .filter(|byte| *byte != b'\r')
+            .fold(0xcbf2_9ce4_8422_2325, |hash, byte| {
+                (hash ^ u64::from(byte)).wrapping_mul(0x0100_0000_01b3)
+            })
+    }
+
+    /// Shipped migrations, frozen. A save at version N was built by exactly these statements,
+    /// so editing one in place leaves existing saves at N with a layout the code no longer expects.
+    /// Add a new migration instead, and append its row here in the same change.
+    #[rustfmt::skip]
+    const SHIPPED: &[(&str, u64)] = &[
+    ("v001_initial_schema.sql", 0xed06e3806a80b990),
+    ("v002_training_groups.sql", 0x587e38819ef431d9),
+    ("v003_alternate_positions.sql", 0xae3ea2435e3d379e),
+    ("v004_natural_position.sql", 0xdf0a07b5a2d9c817),
+    ("v005_player_training_focus.sql", 0x5d98ec87b69e464c),
+    ("v006_team_match_roles.sql", 0x1d15390749d7d4a6),
+    ("v007_team_financial_ledger.sql", 0x31ec6a65bba43a34),
+    ("v008_team_sponsorship.sql", 0x2dec841687f8768c),
+    ("v009_team_facilities.sql", 0x73e7cfdbe588a760),
+    ("v010_player_morale_core.sql", 0x0241fb7805c6c2f5),
+    ("v011_player_footedness.sql", 0x8f6f5dd143459cff),
+    ("v012_fixture_competition.sql", 0xc54ab8e93659ddd1),
+    ("v013_player_fitness.sql", 0x0cc110dadfa27314),
+    ("v014_football_identity.sql", 0x478f5c28a51338ac),
+    ("v015_match_stats_history.sql", 0x57db76c8adc2f71b),
+    ("v016_manager_warning_stage.sql", 0x17e9fd6a796d799b),
+    ("v017_vacant_team_days.sql", 0xc54c0d585e586259),
+    ("v018_transfer_log.sql", 0x4e907c47cf4227bb),
+    ("v019_player_squad_role.sql", 0xa79ca67590bea7c2),
+    ("v020_player_ovr_potential.sql", 0x111e1fe83f07b2e9),
+    ("v021_youth_scouting_assignments.sql", 0xf8ca0afb47d51b60),
+    ("v022_youth_scouting_target_position.sql", 0x4f4ade988d8c15fa),
+    ("v023_youth_scouting_search_profile.sql", 0xed647b5f2f4af448),
+    ("v024_transfer_rumours.sql", 0x8ff846041844443b),
+    ("v025_player_retired.sql", 0x8ab28eca23a856bf),
+    ("v026_world_history_archive.sql", 0x253356d90eb53aab),
+    ("v027_available_staff_market_activity.sql", 0x967da647d9e138f5),
+    ("v028_entity_media.sql", 0x0fea8f4c1c27fd45),
+    ("v029_competition_save_metadata.sql", 0x661e6f978b415c5c),
+    ("v030_competitions_and_national_teams.sql", 0xb8865abfb0e6efe0),
+    ("v031_competition_groups.sql", 0xb6d4975982237820),
+    ("v032_competition_berths.sql", 0xa7e0bf974ee1bc6a),
+    ("v033_competition_season_start.sql", 0xd6a4033e79226f72),
+    ("v034_player_jersey_number.sql", 0xd7e28bd1d7122806),
+    ("v035_team_kit_pattern.sql", 0x7a375c40d876005f),
+    ("v036_player_jersey_number_unique.sql", 0x3b68eca99a6b9200),
+    ("v037_team_tactics.sql", 0x5ba0aa051c92396f),
+    ("v038_national_team_name_key.sql", 0xd6b369d67c57720a),
+    ("v039_game_extra_translations.sql", 0xf9ce5e9d4fd53d9b),
+    ("v040_player_loan_state.sql", 0xf430c87823e79d49),
+    ("v041_player_movement_history.sql", 0x35b7a832c4c19d47),
+    ("v042_game_package_lockfile.sql", 0x7427606582204a20),
+    ("v043_emitted_events.sql", 0x7973ce887e85964c),
+    ("v044_cash_journal.sql", 0x0f2cda907bb330f8),
+    ("v045_player_contract_start.sql", 0xe82234613477d74d),
+    ("v046_game_seed.sql", 0xd9cddb1327e8fb92),
+    ("v047_legacy_world_cup_draw.sql", 0x45671a737bc8f6f9),
+    ("v048_competition_calendar.sql", 0x24d66bf320f0a2dc),
+    ("v049_competition_edition_archive.sql", 0xce105022e5bed8c0),
+    ("v050_scouted_players.sql", 0x3536cbfaf1572f2b),
+    ("v051_competition_name_key.sql", 0x834ad58e7ffc2f0a),
+    ("v052_retired_players.sql", 0x0c2e01efde5465fa),
+    ("v053_retired_managers.sql", 0xf6c0ab807199ea9d),
+    ("v054_manager_interim.sql", 0x9e73288fe3dd855b),
+    ("v055_staff_known_as.sql", 0x19c8bd47a3686f10),
+    ("v056_custom_tactics.sql", 0x59e3007d9e1c4a9b),
+    ("v057_manager_known_as.sql", 0x1a62f523b6d15799),
+    ("v058_archived_messages.sql", 0x853776cba0dffed1),
+    ("v059_legacy_tactics_imported.sql", 0xf2fdbc95bf5fdc99),
+    ("v060_gate_settled_from.sql", 0x8040d9e0256352d4),
+    ("v061_last_season_rollover.sql", 0x111c4c4f40b3952a),
+    ("v062_scouted_potential_opinion.sql", 0xd409624c4d0ca76f),
+    ("v063_unreadable_records.sql", 0xf03c1e895ee13d83),
+    ];
+
+    /// Given the migrations already shipped
+    /// When their SQL is compared with the pinned fingerprints
+    /// Then none was edited in place, renamed or reordered, and none is missing from the pinned list.
+    #[test]
+    fn shipped_migrations_are_never_edited_in_place() {
+        for (position, (name, pinned)) in SHIPPED.iter().enumerate() {
+            let (registered, sql) = MIGRATIONS[position];
+            assert_eq!(
+                registered,
+                *name,
+                "migration {} moved or was renamed",
+                position + 1
+            );
+            assert_eq!(
+                fingerprint(sql),
+                *pinned,
+                "{name} was edited after shipping; write a new migration instead"
+            );
+        }
+        assert_eq!(
+            MIGRATIONS.len(),
+            SHIPPED.len(),
+            "a migration was added without its fingerprint row in SHIPPED"
         );
     }
 }

@@ -47,6 +47,7 @@ beforeAll(async () => {
     {
       "test.subject": "Resolved Subject",
       "test.body": "Hello {{name}}, welcome!",
+      "test.bidBody": "Offer: {{fee}}",
       "test.sender": "The Board",
       "test.senderRole": "Board of Directors",
       "test.actionLabel": "Accept Offer",
@@ -212,7 +213,7 @@ describe("resolveAction", () => {
 
     expect(actionType.ChooseOption.options[0].label).toBe("Accept the deal");
     expect(actionType.ChooseOption.options[0].description).toBe(
-      "Receive €250,000 in sponsorship income.",
+      "Receive €250K in sponsorship income.",
     );
   });
 
@@ -276,7 +277,7 @@ describe("resolveAction", () => {
     }
 
     expect(actionType.ChooseOption.options[0].description).toBe(
-      "Receive £215,000 in sponsorship income.",
+      "Receive £215K in sponsorship income.",
     );
   });
 
@@ -313,7 +314,7 @@ describe("resolveAction", () => {
         }),
       );
 
-      expect(result.actions[0].label).toBe("Akzeptiere €1,8M");
+      expect(result.actions[0].label).toBe("Akzeptiere 1,8\u00a0Mio.\u00a0€");
     } finally {
       useSettingsStore.setState({ settings: previousSettings });
       await i18n.changeLanguage(previousLanguage);
@@ -442,7 +443,7 @@ describe("resolveMessage", () => {
         }),
       );
       expect(result.body).toContain("2. Juli 2026");
-      expect(result.body).toContain("€800.001");
+      expect(result.body).toContain("800.001\u00a0€");
       expect(result.body).not.toContain("2026-07-02");
     } finally {
       await i18n.changeLanguage(previousLanguage);
@@ -505,9 +506,9 @@ describe("resolveMessage", () => {
       expect(result.body).toContain(
         "Chefe, revisei nossa lista de renovações no Lisbon Sporting. 4 concluídas, 2 ainda pendentes e 1 falhas.",
       );
-      expect(result.body).toContain("Concluída: Claes aceitou 1 ano(s) por €5,000/semana.");
+      expect(result.body).toContain("Concluída: Claes aceitou 1 ano(s) por €5K/semana.");
       expect(result.body).toContain(
-        "Continua difícil: Vieira — O estafe deles quer cerca de €25,000/semana por 3 anos, acima dos limites da delegação.",
+        "Continua difícil: Vieira — O estafe deles quer cerca de €25K/semana por 3 anos, acima dos limites da delegação.",
       );
       expect(result.body).toContain(
         "Falhou: Fernandes — Você me disse para ainda não reabrir as conversas contratuais.",
@@ -717,7 +718,7 @@ describe("resolveNewsArticle", () => {
 
       const result = resolveNewsArticle(article);
 
-      expect(result.body).toContain("Adam Smith: Alpha FC -> Beta FC (£1.5M)");
+      expect(result.body).toContain("Adam Smith: Alpha FC -> Beta FC (£1.55M)");
     } finally {
       await i18n.changeLanguage(previousLanguage);
     }
@@ -757,6 +758,82 @@ describe("resolveNewsArticle", () => {
       expect(result.body).toContain("No amistoso, Alpha FC 2 - 1 Beta FC.");
       expect(result.body).toContain("Gols: Alice (10', Alpha FC)");
       expect(result.source).toBe("Gazeta Esportiva");
+    } finally {
+      await i18n.changeLanguage(previousLanguage);
+    }
+  });
+
+  // Given a cup-tie report with one scorer, when it is resolved in German,
+  // then it names its competition and lists the scorer instead of ending at the score.
+  it("writes the scorers into a competition match report", async () => {
+    const previousLanguage = i18n.language;
+    await i18n.changeLanguage("de");
+
+    try {
+      const article = makeNewsArticle({
+        headline: "",
+        headline_key: "be.news.matchReport.reportCompetition.title",
+        body: "",
+        body_key: "be.news.matchReport.reportCompetition.body",
+        source: "",
+        source_key: "be.source.sportsGazette",
+        i18n_params: {
+          home: "Alpha FC",
+          away: "Beta FC",
+          homeGoals: "2",
+          awayGoals: "1",
+          competition: "Landespokal",
+          scorers: "",
+          scorersSection: "",
+          scorersData: JSON.stringify([{ player: "Alice", minute: 10, team: "Alpha FC" }]),
+        },
+      });
+
+      const result = resolveNewsArticle(article);
+
+      expect(result.headline).toBe("Alpha FC 2 - 1 Beta FC: Spielbericht (Landespokal)");
+      expect(result.body).toContain("Landespokal: Die Partie endete Alpha FC 2 - 1 Beta FC.");
+      expect(result.body).toContain("Tore: Alice (10. Min., Alpha FC)");
+    } finally {
+      await i18n.changeLanguage(previousLanguage);
+    }
+  });
+
+  // Given a generated national cup, whose stored name is the English template "Germany Cup",
+  // when its report is resolved in German,
+  // then the competition is named the way every other screen names it: from its key.
+  it("translates a generated competition's name in its match report", async () => {
+    const previousLanguage = i18n.language;
+    await i18n.changeLanguage("de");
+
+    try {
+      const article = makeNewsArticle({
+        headline: "",
+        headline_key: "be.news.matchReport.reportCompetition.title",
+        body: "",
+        body_key: "be.news.matchReport.reportCompetition.body",
+        source: "",
+        source_key: "be.source.sportsGazette",
+        i18n_params: {
+          home: "Alpha FC",
+          away: "Beta FC",
+          homeGoals: "1",
+          awayGoals: "0",
+          competition: "Germany Cup",
+          competitionKey: "tournaments.competitions.nationalCup",
+          competitionCountry: "DE",
+          competitionSeason: "2026",
+          scorers: "",
+          scorersSection: "",
+          scorersData: "[]",
+        },
+      });
+
+      const result = resolveNewsArticle(article);
+
+      expect(result.headline).toBe("Alpha FC 1 - 0 Beta FC: Spielbericht (Deutschland Pokal)");
+      expect(result.body).toContain("Deutschland Pokal: Die Partie endete");
+      expect(result.body).not.toContain("Germany Cup");
     } finally {
       await i18n.changeLanguage(previousLanguage);
     }
@@ -1050,6 +1127,19 @@ describe("resolveBoardObjective", () => {
 });
 
 describe("resolveBackendText", () => {
+  // Given the set-aside-data notice, whose params name the frontend's own labels by key
+  // When its body is resolved
+  // Then it says where the bug report is in the player's words, as the sidebar and Settings do
+  it("names the bug report by the labels the screens show", () => {
+    const body = resolveBackendText("be.msg.savedDataSetAside.body", "fallback", {
+      settings: "dashboard.settings",
+      reportBug: "settings.reportBug",
+    });
+
+    expect(body).toContain(`${i18n.t("dashboard.settings")} → ${i18n.t("settings.reportBug")}`);
+    expect(body).not.toContain("dashboard.settings");
+  });
+
   it("resolves backend effect keys with params", () => {
     i18n.addResourceBundle(
       "en",
@@ -1312,5 +1402,80 @@ describe("accepted deal messages", () => {
     } finally {
       await i18n.changeLanguage(previous);
     }
+  });
+});
+
+describe("the weekly wage bill in the over-budget message", () => {
+  const key = "be.msg.wageOverBudget.body";
+
+  it("shows the bill and the budget the backend sends as whole numbers, compact and precise", () => {
+    const text = resolveBackendText(key, "fallback", {
+      weeklyWageBill: "1700",
+      wageBudget: "1500",
+    });
+
+    expect(text).toContain("€1.7K");
+    expect(text).toContain("€1.5K");
+    expect(text).not.toContain("{{");
+  });
+
+  it("still reads a message saved with the old annualWages name and a formatted amount", () => {
+    const text = resolveBackendText(key, "fallback", {
+      annualWages: "€1.7K",
+      wageBudget: "€1.5K",
+    });
+
+    expect(text).toContain("€1.7K");
+    expect(text).not.toContain("{{");
+  });
+});
+
+describe("money in inbox and news lines is compact and precise", () => {
+  it("shows a whole-number fee with up to three significant digits", () => {
+    const text = resolveBackendText("test.bidBody", "fallback", { fee: "1250000" });
+
+    expect(text).toBe("Offer: €1.25M");
+  });
+
+  it("converts the whole number to the selected currency before it is shortened", () => {
+    useSettingsStore.setState({
+      settings: { ...useSettingsStore.getState().settings, currency: "USD" },
+      currency: { code: "USD", symbol: "$", exchange_rate: 1.08 },
+    });
+
+    const text = resolveBackendText("test.bidBody", "fallback", { fee: "1000000" });
+
+    expect(text).toBe("Offer: $1.08M");
+  });
+});
+
+describe("the loan offer's purchase option", () => {
+  const key = "be.msg.loanOffer.body";
+  const terms = {
+    team: "Alpha FC",
+    player: "Golden Boot",
+    endDate: "2026-12-31",
+    wageContribution: "70",
+  };
+
+  it("reads the whole-number option as money, compact and precise", () => {
+    expect(resolveBackendText(key, "fallback", { ...terms, buyOption: "1200000" })).toContain(
+      "Purchase option: €1.2M.",
+    );
+    expect(resolveBackendText(key, "fallback", { ...terms, buyOption: "1250000" })).toContain(
+      "Purchase option: €1.25M.",
+    );
+  });
+
+  it("keeps the dash for a loan with no purchase option", () => {
+    expect(resolveBackendText(key, "fallback", { ...terms, buyOption: "—" })).toContain(
+      "Purchase option: —.",
+    );
+  });
+});
+
+describe("a compact string already in a saved message", () => {
+  it("keeps the figure it carries instead of rounding it to one decimal", () => {
+    expect(resolveBackendText("test.bidBody", "fallback", { fee: "€1.25M" })).toBe("Offer: €1.25M");
   });
 });

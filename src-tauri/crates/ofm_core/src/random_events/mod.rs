@@ -7,6 +7,7 @@ pub use responses::{RandomEventResponseEffect, apply_event_response};
 
 use crate::contracts::{ContractWarningStage, contract_warning_stage};
 use crate::game::Game;
+use crate::morale::apply_morale_change;
 use chrono::Datelike;
 use domain::message::*;
 use rand::RngExt;
@@ -48,22 +49,6 @@ fn rival_interest_name(index: usize) -> String {
     ];
     let (prefix, suffix) = RIVALS[index % RIVALS.len()];
     [prefix, suffix].join(" ")
-}
-
-/// Injury probability multiplier based on fitness. Less fit players are more
-/// prone to training ground injuries.
-fn injury_probability_from_fitness(fitness: u8) -> f64 {
-    if fitness < 30 {
-        3.0
-    } else if fitness < 50 {
-        2.0
-    } else if fitness < 70 {
-        1.5
-    } else if fitness >= 90 {
-        0.7
-    } else {
-        1.0
-    }
 }
 
 fn action(id: &str, label: &str, label_key: &str, action_type: ActionType) -> MessageAction {
@@ -128,7 +113,8 @@ pub fn check_random_events(game: &mut Game) {
             if !eligible.is_empty() {
                 let player = eligible[rng.random_range(0..eligible.len())];
                 // Base 2% chance, scaled by fitness: less fit → higher probability
-                let fitness_mult = injury_probability_from_fitness(player.fitness);
+                let fitness_mult =
+                    crate::player_wear::injury_multiplier_from_fitness(player.fitness);
                 let base_prob = 1.0_f64 / 50.0;
                 let injury_prob = (base_prob * fitness_mult).min(1.0);
                 if rng.random_bool(injury_prob) {
@@ -239,7 +225,7 @@ pub fn check_random_events(game: &mut Game) {
                     } else {
                         rng.random_range(-5..=-1)
                     };
-                    p.morale = ((p.morale as i16) + delta).clamp(10, 100) as u8;
+                    p.morale = apply_morale_change(p.morale, delta);
                 }
             }
         }
@@ -282,7 +268,7 @@ pub fn check_random_events(game: &mut Game) {
                     // Morale boost for being called up
                     let pid = player.id.clone();
                     if let Some(p) = game.players.iter_mut().find(|p| p.id == pid) {
-                        p.morale = (p.morale as i16 + rng.random_range(3..=8)).clamp(10, 100) as u8;
+                        p.morale = apply_morale_change(p.morale, rng.random_range(3..=8));
                     }
                 }
             }
@@ -469,4 +455,99 @@ fn choose_rival_interest_target<'a, R: rand::Rng + ?Sized>(
     }
 
     eligible.last().copied()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use domain::player::{Player, PlayerAttributes, Position};
+    use rand::SeedableRng;
+
+    /// Given rival indices 3 and 8
+    /// When each is named
+    /// Then both are Real Progress: the five rivals repeat in turn
+    #[test]
+    fn rival_names_cycle_through_all_five_clubs() {
+        assert_eq!(
+            (rival_interest_name(3), rival_interest_name(8)),
+            ("Real Progress".to_string(), "Real Progress".to_string())
+        );
+    }
+
+    fn squad_player(id: &str, contract_end: Option<&str>, market_value: u64) -> Player {
+        let mut player = Player::new(
+            id.to_string(),
+            id.to_string(),
+            id.to_string(),
+            "1995-01-01".to_string(),
+            "England".to_string(),
+            Position::Midfielder,
+            PlayerAttributes {
+                pace: 60,
+                stamina: 60,
+                strength: 60,
+                agility: 60,
+                passing: 60,
+                shooting: 60,
+                tackling: 60,
+                dribbling: 60,
+                defending: 60,
+                positioning: 60,
+                vision: 60,
+                decisions: 60,
+                composure: 60,
+                aggression: 60,
+                teamwork: 60,
+                leadership: 60,
+                handling: 30,
+                reflexes: 30,
+                aerial: 60,
+            },
+        );
+        player.stage_contract_end(contract_end.map(str::to_string));
+        player.market_value = market_value;
+        player
+    }
+
+    fn mid_june() -> chrono::NaiveDate {
+        chrono::NaiveDate::from_ymd_opt(2025, 6, 15).unwrap()
+    }
+
+    /// Given a squad of one eligible player
+    /// When a rival picks a target
+    /// Then it is him: a lone player is always chosen
+    #[test]
+    fn a_lone_eligible_player_is_the_rivals_target() {
+        let only = squad_player("only", None, 0);
+        let eligible = [&only];
+        let mut rng = rand::rngs::StdRng::seed_from_u64(7);
+
+        let target = choose_rival_interest_target(&eligible, mid_june(), &mut rng);
+
+        assert_eq!(target.map(|player| player.id.as_str()), Some("only"));
+    }
+
+    /// Given ten players on long contracts (weight 2 each) and one in the final weeks of his
+    ///       (weight 17)
+    /// When a rival picks a target 10,000 times
+    /// Then the expiring player is picked at least 30% of the time (17 in 37 is about 46%)
+    #[test]
+    fn rival_interest_falls_mostly_on_a_player_whose_contract_is_running_out() {
+        let secure: Vec<Player> = (0..10)
+            .map(|i| squad_player(&format!("secure{i}"), None, 0))
+            .collect();
+        let expiring = squad_player("expiring", Some("2025-07-05"), 0);
+        let mut eligible: Vec<&Player> = secure.iter().collect();
+        eligible.push(&expiring);
+        let mut rng = rand::rngs::StdRng::seed_from_u64(7);
+
+        let picks = (0..10_000)
+            .filter(|_| {
+                choose_rival_interest_target(&eligible, mid_june(), &mut rng)
+                    .is_some_and(|player| player.id == "expiring")
+            })
+            .count();
+
+        assert!(picks >= 3_000, "{picks} of 10,000");
+    }
 }

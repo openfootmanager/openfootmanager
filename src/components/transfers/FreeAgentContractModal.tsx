@@ -4,9 +4,10 @@ import type { PlayerData, TeamData } from "../../store/gameStore";
 import type { FreeAgentContractProjection } from "../../services/freeAgentService";
 import type { NegotiationFeedbackPanelData } from "../NegotiationFeedbackPanel";
 import NegotiationFeedbackPanel from "../NegotiationFeedbackPanel";
-import { Badge } from "../ui";
-import { formatExactMoney, formatVal, getTeamName, positionBadgeVariant } from "../../lib/helpers";
-import { translatePositionAbbreviation } from "../squad/SquadTab.helpers";
+import { Dialog } from "../ui";
+import { formatExactMoney, formatVal, getTeamName } from "../../lib/helpers";
+import { naturalPositionOf } from "../../lib/positions";
+import PlayerPositionBadge from "../PlayerPositionBadge";
 
 const MAX_CONTRACT_YEARS = 5;
 
@@ -67,9 +68,7 @@ export function FreeAgentContractForm({
       </h3>
       {showPlayerSummary ? (
         <div className="flex items-center gap-3 mb-4">
-          <Badge variant={positionBadgeVariant(player.position)} size="sm">
-            {translatePositionAbbreviation(t, player.position)}
-          </Badge>
+          <PlayerPositionBadge position={naturalPositionOf(player)} />
           <div>
             <p className="font-semibold text-sm text-gray-800 dark:text-gray-200">
               {player.full_name}
@@ -197,19 +196,13 @@ export default function FreeAgentContractModal(props: FreeAgentContractModalProp
   const titleId = `free-agent-contract-title-${props.player.id}`;
 
   return (
-    <div
-      className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
-      onClick={props.onClose}
+    <Dialog
+      labelledBy={titleId}
+      onClose={props.onClose}
+      dismissOnBackdrop
+      className="w-full max-w-sm rounded-xl p-6"
     >
-      <div
-        className="bg-white dark:bg-navy-800 rounded-xl shadow-2xl border border-gray-200 dark:border-navy-600 p-6 w-full max-w-sm"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby={titleId}
-        onClick={(event) => event.stopPropagation()}
-      >
-        <FreeAgentContractForm {...props} />
-      </div>
-    </div>
+      <FreeAgentContractForm {...props} />
+    </Dialog>
   );
 }

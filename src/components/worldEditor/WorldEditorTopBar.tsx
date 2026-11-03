@@ -7,6 +7,7 @@ import {
   Package,
   Loader2,
   AlertCircle,
+  AlertTriangle,
   Undo2,
   Redo2,
   Save,
@@ -24,6 +25,7 @@ interface WorldEditorTopBarProps {
   saveState: SaveState;
   isBusy: boolean;
   issueCount: number;
+  warningCount: number;
   autoSave: boolean;
   canUndo: boolean;
   canRedo: boolean;
@@ -42,6 +44,7 @@ export function WorldEditorTopBar({
   saveState,
   isBusy,
   issueCount,
+  warningCount,
   autoSave,
   canUndo,
   canRedo,
@@ -165,6 +168,8 @@ export function WorldEditorTopBar({
             <Loader2 className="w-3.5 h-3.5 animate-spin" />
           ) : issueCount > 0 ? (
             <AlertCircle className="w-3.5 h-3.5 text-red-500" />
+          ) : warningCount > 0 ? (
+            <AlertTriangle className="w-3.5 h-3.5 text-amber-500" />
           ) : (
             <CheckCircle className="w-3.5 h-3.5" />
           )}
@@ -172,6 +177,11 @@ export function WorldEditorTopBar({
           {issueCount > 0 && (
             <span className="ml-0.5 bg-red-500 text-white text-[10px] rounded-full px-1.5 py-0.5 leading-none">
               {issueCount}
+            </span>
+          )}
+          {warningCount > 0 && (
+            <span className="ml-0.5 bg-amber-500 text-white text-[10px] rounded-full px-1.5 py-0.5 leading-none">
+              {warningCount}
             </span>
           )}
         </button>

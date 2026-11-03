@@ -220,21 +220,8 @@ pub fn switch_manager_team(
         .map(|t| t.name.clone())
         .unwrap_or_default();
 
-    // Saves created before career_history was added (e.g. via `select_team`
-    // prior to that fix) may not have an open entry to close. Backfill one
-    // so the previous tenure still appears in history after the switch.
-    let has_open_entry = game
-        .manager
-        .career_history
-        .iter()
-        .any(|e| e.end_date.is_none());
-    if !has_open_entry {
-        game.manager.career_history.push(ManagerCareerEntry::open(
-            previous_team_id.clone(),
-            previous_team_name.clone(),
-            date.to_string(),
-        ));
-    }
+    game.manager
+        .ensure_open_career_entry(&previous_team_id, &previous_team_name, date);
 
     if let Some(t) = game.teams.iter_mut().find(|t| t.id == previous_team_id) {
         t.manager_id = None;

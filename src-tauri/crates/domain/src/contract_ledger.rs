@@ -21,10 +21,12 @@
 
 use crate::player::{Player, PlayerMovementEntry, PlayerMovementKind};
 use serde::{Deserialize, Serialize};
+use std::borrow::Cow;
+use ts_rs::TS;
 
 /// How a contract came to exist. Mirrors the `ContractSource` in the contract spec
 /// (#350), so the ledger can become that entity's history without a rewrite.
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, TS)]
 #[serde(rename_all = "snake_case")]
 pub enum ContractSource {
     /// In force when the career opened.
@@ -40,7 +42,7 @@ pub enum ContractSource {
 }
 
 /// Why a player left his club's books.
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, TS)]
 #[serde(rename_all = "snake_case")]
 pub enum ReleaseReason {
     Expired,
@@ -48,7 +50,7 @@ pub enum ReleaseReason {
 }
 
 /// The terms of one agreement.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, TS)]
 pub struct ContractRecord {
     /// `None` is an honest unknown (a save from before starts were recorded), never
     /// "expired" and never a guessed date.
@@ -76,18 +78,19 @@ struct StagedContract {
     wage: u32,
 }
 
-/// What a saved or serialized player says about his contract and moves, under the keys
-/// it has always used.
-#[derive(Deserialize)]
-struct LedgerKeys {
+/// What a player says about his contract and moves, under the keys it has always used. One struct
+/// writes them (borrowing the ledger) and reads them back (owning what a save holds), so the two
+/// directions cannot drift apart. The TypeScript player type is generated from it.
+#[derive(Serialize, Deserialize, TS)]
+struct LedgerKeys<'a> {
     #[serde(default)]
-    movement_history: Vec<PlayerMovementEntry>,
+    movement_history: Cow<'a, [PlayerMovementEntry]>,
     #[serde(default)]
     wage: u32,
     #[serde(default)]
-    contract_start: Option<String>,
+    contract_start: Option<Cow<'a, str>>,
     #[serde(default)]
-    contract_end: Option<String>,
+    contract_end: Option<Cow<'a, str>>,
 }
 
 /// A player's moves and contracts. Reads like the list of entries it holds; only
@@ -197,13 +200,41 @@ impl<'a> IntoIterator for &'a MovementLedger {
 
 impl Serialize for MovementLedger {
     fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        use serde::ser::SerializeMap;
-        let mut map = serializer.serialize_map(Some(4))?;
-        map.serialize_entry("movement_history", &self.entries)?;
-        map.serialize_entry("wage", &self.wage())?;
-        map.serialize_entry("contract_start", &self.start())?;
-        map.serialize_entry("contract_end", &self.end())?;
-        map.end()
+        LedgerKeys {
+            movement_history: Cow::Borrowed(&self.entries),
+            wage: self.wage(),
+            contract_start: self.start().map(Cow::Borrowed),
+            contract_end: self.end().map(Cow::Borrowed),
+        }
+        .serialize(serializer)
+    }
+}
+
+/// By hand because the ledger is flattened into a player and `ts-rs` cannot flatten a type
+/// declared `#[ts(as = ..)]`. Every answer is [`LedgerKeys`]'s. It has no declaration of its own,
+/// so its name is its inline shape: were it ever used unflattened, the TypeScript would still be
+/// complete rather than name a type no file declares.
+impl TS for MovementLedger {
+    type WithoutGenerics = Self;
+    type OptionInnerType = Self;
+
+    fn name(config: &ts_rs::Config) -> String {
+        Self::inline(config)
+    }
+
+    fn inline(config: &ts_rs::Config) -> String {
+        LedgerKeys::inline(config)
+    }
+
+    fn inline_flattened(config: &ts_rs::Config) -> String {
+        LedgerKeys::inline_flattened(config)
+    }
+
+    fn visit_dependencies(visitor: &mut impl ts_rs::TypeVisitor)
+    where
+        Self: 'static,
+    {
+        LedgerKeys::visit_dependencies(visitor);
     }
 }
 
@@ -211,9 +242,9 @@ impl<'de> Deserialize<'de> for MovementLedger {
     fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
         let keys = LedgerKeys::deserialize(deserializer)?;
         Ok(Self::restore(
-            keys.movement_history,
-            keys.contract_start,
-            keys.contract_end,
+            keys.movement_history.into_owned(),
+            keys.contract_start.map(Cow::into_owned),
+            keys.contract_end.map(Cow::into_owned),
             keys.wage,
         ))
     }
@@ -260,6 +291,26 @@ impl Player {
             .as_ref()
             .map(|loan| loan.parent_team_id.as_str())
             .or(self.team_id.as_deref())
+    }
+
+    /// The day he last arrived at the club he is with now, by transfer, free signing or the opening
+    /// contract. A renewal, a loan and a loan's return are not arrivals: the club did not change.
+    /// Anything recorded about him before this day (a refused bid, say) was said to a previous owner.
+    pub fn joined_current_club_on(&self) -> Option<&str> {
+        let club = self.contract_club_id()?;
+        self.movement_history
+            .iter()
+            .rev()
+            .find(|entry| {
+                matches!(
+                    entry.kind,
+                    PlayerMovementKind::PermanentTransfer
+                        | PlayerMovementKind::FreeAgentSigning
+                        | PlayerMovementKind::LoanToBuy
+                        | PlayerMovementKind::InitialContract
+                ) && entry.to_team_id.as_deref() == Some(club)
+            })
+            .map(|entry| entry.date.as_str())
     }
 
     pub fn contract_start(&self) -> Option<&str> {
@@ -408,6 +459,97 @@ mod tests {
         )
     }
 
+    /// The ledger is only ever written flattened into a player, between his other fields.
+    #[derive(Serialize)]
+    struct FlattenedLedger<'a> {
+        before: u8,
+        #[serde(flatten)]
+        ledger: &'a MovementLedger,
+        after: u8,
+    }
+
+    fn flattened_json(ledger: &MovementLedger) -> String {
+        serde_json::to_string(&FlattenedLedger {
+            before: 1,
+            ledger,
+            after: 2,
+        })
+        .unwrap()
+    }
+
+    /// Given a ledger with a contract staged from a save's old columns and no entries
+    /// When it is written into a player
+    /// Then its four keys sit in place, in order, carrying the staged terms.
+    #[test]
+    fn a_staged_contract_is_written_under_the_old_keys() {
+        let ledger = MovementLedger::restore(
+            Vec::new(),
+            Some("2026-07-01".into()),
+            Some("2029-06-30".into()),
+            1200,
+        );
+
+        assert_eq!(
+            flattened_json(&ledger),
+            concat!(
+                r#"{"before":1,"movement_history":[],"wage":1200,"#,
+                r#""contract_start":"2026-07-01","contract_end":"2029-06-30","after":2}"#,
+            )
+        );
+    }
+
+    /// Given a ledger whose latest entry records a transfer with terms
+    /// When it is written into a player
+    /// Then the entries and the recorded terms are written under the same four keys.
+    #[test]
+    fn a_recorded_contract_is_written_under_the_old_keys() {
+        let entry = PlayerMovementEntry {
+            from_team_id: Some("old".into()),
+            to_team_id: Some("new".into()),
+            fee: Some(5_000_000),
+            contract: Some(ContractRecord {
+                start: Some("2026-07-01".into()),
+                end: Some("2030-06-30".into()),
+                weekly_wage: 900,
+                source: ContractSource::Transfer,
+            }),
+            ..PlayerMovementEntry::new("2026-07-01", PlayerMovementKind::PermanentTransfer)
+        };
+        let ledger = MovementLedger::restore(vec![entry], None, None, 0);
+
+        assert_eq!(
+            flattened_json(&ledger),
+            concat!(
+                r#"{"before":1,"movement_history":[{"date":"2026-07-01","#,
+                r#""kind":"permanent_transfer","from_team_id":"old","to_team_id":"new","#,
+                r#""fee":5000000,"contract":{"start":"2026-07-01","end":"2030-06-30","#,
+                r#""weekly_wage":900,"source":"transfer"}}],"wage":900,"#,
+                r#""contract_start":"2026-07-01","contract_end":"2030-06-30","after":2}"#,
+            )
+        );
+    }
+
+    /// Given a ledger whose entries record a transfer with terms
+    /// When it is written into a player and the player is read back
+    /// Then the same entries come back, not just the contract they imply.
+    #[test]
+    fn a_written_ledger_reads_back_whole() {
+        let entry = PlayerMovementEntry {
+            contract: Some(ContractRecord {
+                start: Some("2026-07-01".into()),
+                end: Some("2030-06-30".into()),
+                weekly_wage: 900,
+                source: ContractSource::Transfer,
+            }),
+            ..PlayerMovementEntry::new("2026-07-01", PlayerMovementKind::PermanentTransfer)
+        };
+        let ledger = MovementLedger::restore(vec![entry], None, None, 0);
+
+        let back: MovementLedger = serde_json::from_str(&flattened_json(&ledger)).unwrap();
+
+        assert_eq!(back, ledger);
+    }
+
     fn contract(
         start: Option<&str>,
         end: &str,
@@ -431,6 +573,66 @@ mod tests {
             contract: record,
             ..PlayerMovementEntry::new(date, kind)
         }
+    }
+
+    fn move_to(p: &mut Player, date: &str, kind: PlayerMovementKind, from: &str, to: &str) {
+        p.record_movement(PlayerMovementEntry {
+            from_team_id: Some(from.to_string()),
+            to_team_id: Some(to.to_string()),
+            ..PlayerMovementEntry::new(date, kind)
+        })
+        .unwrap();
+    }
+
+    /// Given a player who moved to club B, then renewed there, and was loaned out and came back
+    /// When the day he joined his current club is asked
+    /// Then it is the transfer's day: a renewal, a loan and its return are not arrivals.
+    #[test]
+    fn he_joined_his_current_club_on_the_transfer_not_on_a_renewal_or_loan() {
+        let mut p = player();
+        p.team_id = Some("B".to_string());
+        move_to(
+            &mut p,
+            "2026-08-10",
+            PlayerMovementKind::PermanentTransfer,
+            "A",
+            "B",
+        );
+        move_to(&mut p, "2026-08-20", PlayerMovementKind::Renewal, "B", "B");
+        move_to(
+            &mut p,
+            "2026-09-01",
+            PlayerMovementKind::LoanStart,
+            "B",
+            "C",
+        );
+        move_to(
+            &mut p,
+            "2026-10-01",
+            PlayerMovementKind::LoanReturn,
+            "C",
+            "B",
+        );
+
+        assert_eq!(p.joined_current_club_on(), Some("2026-08-10"));
+    }
+
+    /// Given a player with no movement into his current club
+    /// When the day he joined is asked
+    /// Then there is none, so nothing said about him is treated as stale.
+    #[test]
+    fn a_player_with_no_arrival_on_record_has_no_joining_day() {
+        let mut p = player();
+        p.team_id = Some("B".to_string());
+        move_to(
+            &mut p,
+            "2026-08-10",
+            PlayerMovementKind::PermanentTransfer,
+            "A",
+            "C",
+        );
+
+        assert_eq!(p.joined_current_club_on(), None);
     }
 
     #[test]

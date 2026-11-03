@@ -1,6 +1,6 @@
 import { Card, Badge } from "../ui";
 import { TrendingUp } from "lucide-react";
-import { formatVal, formatWeeklyAmount } from "../../lib/helpers";
+import { formatVal, formatWeeklyWage } from "../../lib/helpers";
 import type { TransfersTabController } from "./useTransfersTabController";
 type TransfersBudgetHeaderProps = {
   state: Pick<
@@ -10,16 +10,12 @@ type TransfersBudgetHeaderProps = {
     | "transferWindowVariant"
     | "transferWindow"
     | "transferWindowSummary"
-    | "annualWageBudget"
-    | "weeklySuffix"
+    | "weeklyWageBudget"
     | "myListedPlayers"
   >;
 };
 type TransfersTabNavigationProps = {
-  state: Pick<
-    TransfersTabController,
-    "tabs" | "setView" | "setMarketPage" | "setAvailabilityFilter" | "view"
-  >;
+  state: Pick<TransfersTabController, "tabs" | "setView" | "view">;
 };
 
 export function TransfersBudgetHeader({ state }: TransfersBudgetHeaderProps) {
@@ -29,8 +25,7 @@ export function TransfersBudgetHeader({ state }: TransfersBudgetHeaderProps) {
     transferWindowVariant,
     transferWindow,
     transferWindowSummary,
-    annualWageBudget,
-    weeklySuffix,
+    weeklyWageBudget,
     myListedPlayers,
   } = state;
   return (
@@ -69,7 +64,7 @@ export function TransfersBudgetHeader({ state }: TransfersBudgetHeaderProps) {
                 {t("finances.wageBudget")}
               </p>
               <p className="font-heading font-bold text-lg text-white">
-                {formatWeeklyAmount(formatVal(annualWageBudget), weeklySuffix)}
+                {formatWeeklyWage(weeklyWageBudget, "compact")}
               </p>
             </div>
             <div className="bg-white/5 rounded-xl px-4 py-2 text-center">
@@ -86,20 +81,14 @@ export function TransfersBudgetHeader({ state }: TransfersBudgetHeaderProps) {
 }
 
 export function TransfersTabNavigation({ state }: TransfersTabNavigationProps) {
-  const { tabs, setView, setMarketPage, setAvailabilityFilter, view } = state;
+  const { tabs, setView, view } = state;
   return (
     <div className="flex gap-2 mb-4 flex-wrap">
       {tabs.map((tab) => (
         <button
           type="button"
           key={tab.id}
-          onClick={() => {
-            setView(tab.id);
-            setMarketPage(1);
-            if (tab.id !== "players") {
-              setAvailabilityFilter("all");
-            }
-          }}
+          onClick={() => setView(tab.id)}
           className={`focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-600 dark:focus-visible:ring-primary-400 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-navy-800 motion-reduce:transition-none px-4 py-2 rounded-lg font-heading font-bold text-sm uppercase tracking-wider transition-all flex items-center gap-1.5 ${
             view === tab.id
               ? "bg-primary-700 text-white shadow-md shadow-primary-700/20"

@@ -13,14 +13,20 @@ use rand::Rng;
 
 const CATCHUP_XI: usize = 11;
 
-/// Average OVR of a club's best XI, used as scoreline strength. Falls back to a
-/// neutral rating when the club has no players on the books.
+/// [`club_strength_among`] for the club `club_id`, found by scanning `players`.
 pub(crate) fn club_strength(players: &[Player], club_id: &str) -> f64 {
-    let mut ovrs: Vec<u8> =
-        crate::match_day_eligibility::match_day_eligible_players(players, club_id)
-            .into_iter()
-            .map(|p| p.ovr)
-            .collect();
+    club_strength_among(&crate::match_day_eligibility::club_players(
+        players, club_id,
+    ))
+}
+
+/// Average OVR of the best XI among one club's players (`club`), used as scoreline strength.
+/// Falls back to a neutral rating when the club has no players on the books.
+pub(crate) fn club_strength_among(club: &[&Player]) -> f64 {
+    let mut ovrs: Vec<u8> = crate::match_day_eligibility::eligible_among(club)
+        .into_iter()
+        .map(|p| p.ovr)
+        .collect();
     if ovrs.is_empty() {
         return 50.0;
     }
@@ -52,7 +58,7 @@ pub(crate) fn resolve_fixture_by_scoreline(
 /// [`resolve_fixture_by_scoreline`], with each club's strength read from
 /// `strength_of` rather than recounted from the players: the one resolver,
 /// for a caller that settles many fixtures and has the strengths to hand.
-fn resolve_fixture_with_strengths(
+pub(crate) fn resolve_fixture_with_strengths(
     competition: &mut League,
     fixture_index: usize,
     strength_of: impl Fn(&str) -> f64,
@@ -134,11 +140,11 @@ fn apply_simulated_result(
 /// filling in random scorelines and updating standings. Called once at
 /// new-game creation for leagues that started before the game's anchor date.
 ///
-/// Returns how many fixtures it resolved. Note the due list is computed **once**, before any of it
-/// is played, while resolving a knockout round *seeds the next one* — dated later, but often still
-/// before `cutoff`. So one call advances a bracket by exactly one round. A caller that needs the
-/// whole bracket resolved must call again while the count is non-zero; see
-/// [`repair_stranded_fixtures`], which does.
+/// Resolving a knockout round *seeds the next one* — dated later, but often still before `cutoff` —
+/// so this plays again until a pass finds nothing due, and a bracket that ended before the career
+/// began finishes with a champion. [`MAX_REPAIR_PASSES`] is only a backstop.
+///
+/// Returns how many fixtures it resolved in all.
 pub fn simulate_past_fixtures(
     competition: &mut League,
     players: &[Player],
@@ -156,22 +162,27 @@ pub fn simulate_past_fixtures(
         .map(|id| (id.clone(), club_strength(players, id)))
         .collect();
 
-    let due: Vec<usize> = competition
-        .fixtures
-        .iter()
-        .enumerate()
-        .filter(|(_, fixture)| crate::matchday::is_stranded(fixture, on_or_before))
-        .map(|(i, _)| i)
-        .collect();
-
-    let resolved = due.len();
-    for idx in due {
-        resolve_fixture_with_strengths(
-            competition,
-            idx,
-            |team_id| strengths.get(team_id).copied().unwrap_or(50.0),
-            rng,
-        );
+    let mut resolved = 0;
+    for _ in 0..MAX_REPAIR_PASSES {
+        let due: Vec<usize> = competition
+            .fixtures
+            .iter()
+            .enumerate()
+            .filter(|(_, fixture)| crate::matchday::is_stranded(fixture, on_or_before))
+            .map(|(i, _)| i)
+            .collect();
+        if due.is_empty() {
+            break;
+        }
+        resolved += due.len();
+        for idx in due {
+            resolve_fixture_with_strengths(
+                competition,
+                idx,
+                |team_id| strengths.get(team_id).copied().unwrap_or(50.0),
+                rng,
+            );
+        }
     }
 
     resolved
@@ -297,13 +308,9 @@ fn repair_one_pass(game: &mut Game, today: NaiveDate, pass: usize) -> usize {
     // Replaying a past date also produces the news that date would have produced, a crowned
     // champion included. That is correct — the player learns what happened — but it does mean a load
     // can deliver months-old international news.
-    let mut rng = game.rng_for(
-        &format!("catchup/international/pass{pass}"),
-        &today.to_string(),
-    );
     for date in stranded_international_dates(game, today) {
         resolved += crate::national_team::process_national_team_fixtures_due(game, &date);
-        resolved += crate::world_cup::process_world_cup_fixtures_due(game, &date, &mut rng);
+        resolved += crate::world_cup::process_world_cup_fixtures_due(game, &date);
     }
 
     // A national-team competition the processors above cannot reach at all:
@@ -394,6 +401,7 @@ mod tests {
                 ..CompetitionRules::default()
             },
             fixtures: vec![Fixture {
+                postponement: None,
                 id: "fix-1".to_string(),
                 competition_id: "cup".to_string(),
                 matchday: 1,
@@ -477,6 +485,7 @@ mod tests {
             StandingEntry::new("away".to_string()),
         ];
         league.fixtures = vec![Fixture {
+            postponement: None,
             id: "fix-1".to_string(),
             competition_id: "league1".to_string(),
             matchday: 1,
@@ -763,6 +772,7 @@ mod tests {
         cup.rules.format = CompetitionFormat::Knockout;
         for (index, pair) in clubs.chunks(2).enumerate() {
             cup.fixtures.push(Fixture {
+                postponement: None,
                 id: format!("r1-{index}"),
                 competition_id: "cup".to_string(),
                 matchday: 1,
@@ -820,6 +830,31 @@ mod tests {
         );
     }
 
+    /// Given a knockout cup whose every round is dated before the career opens (#653)
+    /// When new-game catch-up plays the competition once
+    /// Then every round is played, including the ones earlier results seed, and the cup has a champion.
+    #[test]
+    fn new_game_catch_up_plays_every_round_of_a_past_cup() {
+        use rand::SeedableRng;
+
+        let mut cup = eight_team_cup_starting_on("2030-08-10");
+        let cutoff = game_on("2030-12-01").clock.current_date;
+        let mut rng = rand::rngs::StdRng::seed_from_u64(653);
+
+        let played = super::simulate_past_fixtures(&mut cup, &[], cutoff, &mut rng);
+
+        assert_eq!(
+            played, 7,
+            "four quarter-finals, two semi-finals and a final"
+        );
+        assert!(
+            cup.fixtures
+                .iter()
+                .all(|fixture| fixture.status == FixtureStatus::Completed)
+        );
+        assert!(cup.knockout_rounds.iter().all(|round| round.completed));
+    }
+
     // -----------------------------------------------------------------------
     // National-team football is not club football (the user ruling on #642).
     // -----------------------------------------------------------------------
@@ -831,6 +866,7 @@ mod tests {
 
     fn international_fixture(id: &str, date: &str, home: &str, away: &str) -> Fixture {
         Fixture {
+            postponement: None,
             id: id.to_string(),
             competition_id: "wc-2030".to_string(),
             matchday: 1,
@@ -940,6 +976,80 @@ mod tests {
         assert!(
             ranked.contains(&"ENG".to_string()) && ranked.contains(&"BRA".to_string()),
             "both nations are in the world ranking after playing: {ranked:?}"
+        );
+    }
+
+    /// Given a national-team competition a package authored at continental scope, with one tie
+    ///       stranded in June while the clock reads December
+    /// When stranded fixtures are repaired
+    /// Then the tie is resolved: the World Cup's processors serve international scope only, so
+    ///      this one is the fallback sweep's to settle, or nobody's
+    #[test]
+    fn repairs_a_stranded_fixture_in_a_continental_national_team_competition() {
+        let mut game = game_with_two_national_squads("2030-12-01");
+        let mut competition = League::new(
+            "nations-cup-2030".to_string(),
+            "Nations Cup 2030".to_string(),
+            2030,
+            &["nt-eng".to_string(), "nt-bra".to_string()],
+        );
+        competition.kind = CompetitionType::InternationalNation;
+        competition.scope = CompetitionScope::Continental;
+        let mut tie = international_fixture("nc-g1", "2030-06-12", "nt-eng", "nt-bra");
+        tie.competition_id = competition.id.clone();
+        competition.fixtures = vec![tie];
+        game.competitions = vec![competition];
+
+        let repaired = super::repair_stranded_fixtures(&mut game);
+
+        assert_eq!(
+            (repaired, game.competitions[0].fixtures[0].status.clone()),
+            (1, FixtureStatus::Completed)
+        );
+    }
+
+    /// Given a league match and a knockout tie between sides of equal strength
+    /// When each is resolved by scoreline, seed after seed, until the league match has been drawn
+    ///      and the knockout tie both drawn and won outright
+    /// Then only the drawn knockout tie goes to penalties: a drawn league match stays a draw, and
+    ///      a decided tie needs no shootout
+    #[test]
+    fn catch_up_rolls_a_shootout_only_for_a_level_knockout_tie() {
+        use rand::SeedableRng;
+        let (mut drawn_league, mut drawn_tie, mut decided_tie) = (false, false, false);
+        for seed in 0..400u64 {
+            let mut league = league_with_fixture_on("2030-06-01");
+            super::resolve_fixture_with_strengths(
+                &mut league,
+                0,
+                |_| 50.0,
+                &mut rand::rngs::StdRng::seed_from_u64(seed),
+            );
+            let result = league.fixtures[0].result.as_ref().expect("resolved");
+            if result.home_goals == result.away_goals {
+                drawn_league = true;
+                assert_eq!(result.home_penalties, None, "seed {seed}: a league draw");
+            }
+
+            let mut cup = eight_team_cup_starting_on("2030-06-01");
+            super::resolve_fixture_with_strengths(
+                &mut cup,
+                0,
+                |_| 50.0,
+                &mut rand::rngs::StdRng::seed_from_u64(seed),
+            );
+            let result = cup.fixtures[0].result.as_ref().expect("resolved");
+            if result.home_goals == result.away_goals {
+                drawn_tie = true;
+                assert!(result.home_penalties.is_some(), "seed {seed}: a level tie");
+            } else {
+                decided_tie = true;
+                assert_eq!(result.home_penalties, None, "seed {seed}: a decided tie");
+            }
+        }
+        assert!(
+            drawn_league && drawn_tie && decided_tie,
+            "every case must occur: {drawn_league} {drawn_tie} {decided_tie}"
         );
     }
 

@@ -1,5 +1,7 @@
-import { ArrowLeft } from "lucide-react";
 import { useTranslation } from "react-i18next";
+
+import { usePlayerKnowledge } from "../../hooks/usePlayerKnowledge";
+import { gameKnowledgeRevision } from "../../lib/playerKnowledge";
 
 import type { TeamProfileProps } from "./TeamProfile.types";
 import TeamProfileAdvancedStatsCard from "./TeamProfileAdvancedStatsCard";
@@ -10,33 +12,40 @@ import TeamProfileLeagueStandingCard from "./TeamProfileLeagueStandingCard";
 import TeamProfileRecentMatchesCard from "./TeamProfileRecentMatchesCard";
 import TeamProfileRosterCard from "./TeamProfileRosterCard";
 import TeamProfileSummaryCard from "./TeamProfileSummaryCard";
+import { useClubLeagueStanding } from "./useClubLeagueStanding";
+import { useTeamAverageRating } from "./useTeamAverageRating";
 import { useTeamProfileStats } from "./useTeamProfileStats";
 import { buildTeamProfileViewModel } from "./TeamProfile.viewModel";
+import { usePositionTable } from "../../hooks/usePositionGroups";
 
 export default function TeamProfile({
   team,
   gameState,
   isOwnTeam,
-  onClose,
   onSelectPlayer,
 }: TeamProfileProps) {
   const { t, i18n } = useTranslation();
-  const weeklySuffix = t("finances.perWeekSuffix", "/wk");
-  const viewModel = buildTeamProfileViewModel(team, gameState);
+  const { standing: leagueStanding } = useClubLeagueStanding(team.id, gameState.clock.current_date);
+  const positions = usePositionTable();
+  const viewModel = buildTeamProfileViewModel(team, gameState, leagueStanding, positions);
   const { teamStatsOverview, recentMatches } = useTeamProfileStats(team.id);
+  const revision = gameKnowledgeRevision(gameState, { playerClubId: team.id });
+  const knowledgeOf = usePlayerKnowledge(
+    viewModel.roster.map((player) => player.id),
+    revision,
+  );
+  // The backend's average, never one worked out here: none for a club outside the division.
+  const averageRating = useTeamAverageRating(team.id, revision);
 
   return (
     <div className="max-w-6xl mx-auto">
-      <button
-        type="button"
-        onClick={onClose}
-        className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 transition-colors mb-4"
-      >
-        <ArrowLeft className="w-4 h-4" />
-        <span className="font-heading font-bold uppercase tracking-wider">{t("common.back")}</span>
-      </button>
-
-      <TeamProfileHeroCard team={team} viewModel={viewModel} locale={i18n.language} t={t} />
+      <TeamProfileHeroCard
+        team={team}
+        viewModel={viewModel}
+        averageRating={averageRating}
+        locale={i18n.language}
+        t={t}
+      />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
         <TeamProfileClubDetailsCard team={team} t={t} />
@@ -44,7 +53,7 @@ export default function TeamProfile({
           team={team}
           isOwnTeam={isOwnTeam}
           viewModel={viewModel}
-          weeklySuffix={weeklySuffix}
+          averageRating={averageRating}
           t={t}
         />
         <TeamProfileLeagueStandingCard standings={viewModel.standings} t={t} />
@@ -55,6 +64,7 @@ export default function TeamProfile({
 
         <TeamProfileRosterCard
           roster={viewModel.roster}
+          knowledgeOf={knowledgeOf}
           isOwnTeam={isOwnTeam}
           locale={i18n.language}
           t={t}

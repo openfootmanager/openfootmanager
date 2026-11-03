@@ -198,6 +198,11 @@ pub struct WorldGenConfig {
     pub color_palette: Vec<(String, String)>,
     /// Fallback city names for a country with no curated pool.
     pub generic_cities: Vec<String>,
+    /// The calendar year the world opens in — the one its players are aged and
+    /// their contracts dated against. `None` is the real current year, which is
+    /// right for a game a player starts and wrong for anything that must not
+    /// change with the date it is run on.
+    pub opening_year: Option<u32>,
 }
 
 impl WorldGenConfig {
@@ -227,6 +232,7 @@ impl WorldGenConfig {
                 .map(|pair| (pair.primary, pair.secondary))
                 .collect(),
             generic_cities: def.generic_cities,
+            opening_year: None,
         }
     }
 

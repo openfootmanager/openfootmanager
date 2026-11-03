@@ -25,6 +25,7 @@ function createScout(overrides: Partial<StaffData> = {}): StaffData {
     id: "staff-1",
     first_name: "Sam",
     last_name: "Scout",
+    display_name: "Sam Scout",
     date_of_birth: "1985-01-01",
     nationality: "GB",
     role: "Scout",
@@ -126,5 +127,25 @@ describe("ScoutingScoutDetailsCard", () => {
     expect(screen.getByText(/1\/1 slots/i)).toBeInTheDocument();
     expect(screen.getByText(/John Smith/)).toBeInTheDocument();
     expect(screen.getByText(/4d/)).toBeInTheDocument();
+  });
+
+  /**
+   * Given a scout known as "Cafu" (Marcos Evangelista)
+   * When the scout details are drawn
+   * Then the heading is the backend's display name.
+   */
+  it("shows the scout's display name", () => {
+    render(
+      <ScoutingScoutDetailsCard
+        scouts={[
+          createScout({ first_name: "Marcos", last_name: "Evangelista", display_name: "Cafu" }),
+        ]}
+        assignments={[]}
+        players={[]}
+      />,
+    );
+
+    expect(screen.getByText("Cafu")).toBeInTheDocument();
+    expect(screen.queryByText("Marcos Evangelista")).not.toBeInTheDocument();
   });
 });

@@ -1,3 +1,4 @@
+import { RetryButton } from "./ProfileLoadFailed";
 import {
   Activity,
   Briefcase,
@@ -11,24 +12,30 @@ import {
   UserPlus,
 } from "lucide-react";
 import {
+  contractExpiryLabel,
   formatDate,
   getContractRiskBadgeVariant,
   getContractYearsRemaining,
 } from "../../lib/helpers";
-import { formatPlayerAnnualWage, formatPlayerMarketValue } from "./PlayerProfile.helpers";
+import { formatPlayerMarketValue } from "./PlayerProfile.helpers";
 import { Badge, Button, Card, CardBody, CardHeader } from "../ui";
 
 type TranslateFn = (key: string, options?: Record<string, string | number>) => string;
+
+const NO_DATA = "–";
 
 interface PlayerProfileContractCardProps {
   dateOfBirth: string;
   contractEnd: string | null;
   currentDate: string;
-  condition: number;
-  morale: number;
+  /** Null when the club may not see it: only its own player's condition, morale and wage show. */
+  condition: number | null;
+  morale: number | null;
   marketValue: number;
-  wage: number;
-  wageSuffix: string;
+  /** His weekly wage as the club may see it, already written: exact, approximate or "–". */
+  wageText: string;
+  /** Set when the wage failed to load: the row then reads "Couldn't load" with a retry. */
+  wageRetry?: () => void;
   language: string;
   contractRiskLevel: "critical" | "warning" | "stable";
   contractRiskLabel: string;
@@ -51,8 +58,8 @@ export default function PlayerProfileContractCard({
   condition,
   morale,
   marketValue,
-  wage,
-  wageSuffix,
+  wageText,
+  wageRetry,
   language,
   contractRiskLevel,
   contractRiskLabel,
@@ -82,7 +89,7 @@ export default function PlayerProfileContractCard({
             label={t("common.contract")}
             value={
               contractEnd
-                ? t("finances.contractExpiresOn", { date: contractEnd })
+                ? contractExpiryLabel(contractEnd, language, t)
                 : t("playerProfile.noContract")
             }
           />
@@ -108,17 +115,28 @@ export default function PlayerProfileContractCard({
           <InfoRow
             icon={<TrendingUp className="w-4 h-4" />}
             label={t("playerProfile.weeklyWage")}
-            value={formatPlayerAnnualWage(wage, wageSuffix)}
+            value={
+              wageRetry ? (
+                <span className="inline-flex items-center gap-2">
+                  {t("playerProfile.loadFailed")}
+                  <RetryButton onRetry={wageRetry} description={t("playerProfile.retryWage")}>
+                    {t("common.retry")}
+                  </RetryButton>
+                </span>
+              ) : (
+                wageText
+              )
+            }
           />
           <InfoRow
             icon={<Heart className="w-4 h-4" />}
             label={t("common.condition")}
-            value={`${condition}%`}
+            value={condition === null ? NO_DATA : `${condition}%`}
           />
           <InfoRow
             icon={<Activity className="w-4 h-4" />}
             label={t("common.morale")}
-            value={`${morale}%`}
+            value={morale === null ? NO_DATA : `${morale}%`}
           />
         </div>
         {isOwnClub ? (

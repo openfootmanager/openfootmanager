@@ -2,7 +2,7 @@ use rand::{Rng, RngExt};
 
 use crate::event::{EventDetail, EventType, MatchEvent};
 use crate::shared::{
-    PlayStylePhase, PlayerSnap, TraitContext, play_style_modifier, role_attribute_modifier,
+    PlayStylePhase, PlayerSnap, TraitContext, play_style_modifier, role_modifier,
     tactics_buildup_mod, tactics_cross_probability, tactics_defensive_conversion_mod,
     tactics_foul_modifier, tactics_shape_modifier, tactics_tempo_progression,
     tactics_width_versus_shape, trait_bonus,
@@ -43,7 +43,7 @@ impl LiveMatchState {
         let mut events = Vec::new();
         let passer = self.snap_player(att_side, Position::Defender, rng);
         let pass_skill = self.condition_adjusted_skill(
-            &passer.id,
+            &passer,
             (passer.passing as f64
                 + passer.vision as f64
                 + passer.composure as f64
@@ -98,21 +98,27 @@ impl LiveMatchState {
             + defender.decisions as f64
             + defender.teamwork as f64)
             / 4.0;
-        let att_rating = self.condition_adjusted_skill(&attacker.id, att_raw)
+        let att_rating = self.condition_adjusted_skill(&attacker, att_raw)
             * trait_bonus(&attacker, TraitContext::Midfield);
-        let def_rating = self.condition_adjusted_skill(&defender.id, def_raw)
-            * trait_bonus(&defender, TraitContext::Tackling);
+        let def_rating = self.condition_adjusted_skill(&defender, def_raw)
+            * trait_bonus(&defender, TraitContext::Tackling)
+            * self.short_handed_cover(def_side);
 
         let att_mod = play_style_modifier(
             self.team_ref(att_side).play_style,
             PlayStylePhase::Midfield,
             true,
-        ) * role_attribute_modifier(attacker.role, PlayStylePhase::Midfield);
-        let def_mod = play_style_modifier(
-            self.team_ref(def_side).play_style,
+        ) * role_modifier(
+            Position::Midfielder,
+            attacker.role,
             PlayStylePhase::Midfield,
-            false,
-        ) * role_attribute_modifier(defender.role, PlayStylePhase::Defense);
+        );
+        let def_mod =
+            play_style_modifier(
+                self.team_ref(def_side).play_style,
+                PlayStylePhase::Midfield,
+                false,
+            ) * role_modifier(Position::Midfielder, defender.role, PlayStylePhase::Defense);
         let att_eff = att_rating
             * att_mod
             * crate::shared::home_mod(att_side, &self.config)
@@ -184,21 +190,22 @@ impl LiveMatchState {
             + defender.positioning as f64
             + defender.aerial as f64)
             / 4.0;
-        let att_rating = self.condition_adjusted_skill(&attacker.id, att_raw)
+        let att_rating = self.condition_adjusted_skill(&attacker, att_raw)
             * trait_bonus(&attacker, TraitContext::Dribbling);
-        let def_rating = self.condition_adjusted_skill(&defender.id, def_raw)
-            * trait_bonus(&defender, TraitContext::Tackling);
+        let def_rating = self.condition_adjusted_skill(&defender, def_raw)
+            * trait_bonus(&defender, TraitContext::Tackling)
+            * self.short_handed_cover(def_side);
 
         let att_mod = play_style_modifier(
             self.team_ref(att_side).play_style,
             PlayStylePhase::Attack,
             true,
-        ) * role_attribute_modifier(attacker.role, PlayStylePhase::Attack);
+        ) * role_modifier(Position::Forward, attacker.role, PlayStylePhase::Attack);
         let def_mod = play_style_modifier(
             self.team_ref(def_side).play_style,
             PlayStylePhase::Defense,
-            false,
-        ) * role_attribute_modifier(defender.role, PlayStylePhase::Defense);
+            true,
+        ) * role_modifier(Position::Defender, defender.role, PlayStylePhase::Defense);
         let att_eff = att_rating * att_mod * crate::shared::home_mod(att_side, &self.config);
         let def_eff = def_rating
             * def_mod
@@ -330,13 +337,13 @@ impl LiveMatchState {
 
         let shoot_raw =
             (shooter.shooting as f64 + shooter.composure as f64 + shooter.decisions as f64) / 3.0;
-        let shoot_rating = self.condition_adjusted_skill(&shooter.id, shoot_raw)
+        let shoot_rating = self.condition_adjusted_skill(&shooter, shoot_raw)
             * trait_bonus(&shooter, TraitContext::Shooting);
         let gk_raw = (goalkeeper.handling as f64
             + goalkeeper.reflexes as f64
             + goalkeeper.positioning as f64)
             / 3.0;
-        let gk_rating = self.condition_adjusted_skill(&goalkeeper.id, gk_raw)
+        let gk_rating = self.condition_adjusted_skill(&goalkeeper, gk_raw)
             * trait_bonus(&goalkeeper, TraitContext::Goalkeeping);
 
         let accuracy =
@@ -371,6 +378,7 @@ impl LiveMatchState {
 
         let def_line_mod = tactics_defensive_conversion_mod(&self.team_ref(def_side).tactics);
         let conversion = (self.config.goal_conversion_base * def_line_mod
+            / self.short_handed_cover(def_side)
             + (shoot_rating - gk_rating) / 150.0)
             .clamp(0.10, 0.70);
 
@@ -468,7 +476,7 @@ impl LiveMatchState {
         let card_events = self.maybe_card(minute, fouling_side, &fouler.id, zone, rng);
         events.extend(card_events);
 
-        if rng.random_range(0.0..1.0f64) < self.config.injury_probability {
+        if rng.random_range(0.0..1.0f64) < self.config.injury_probability * fouled.injury_risk {
             let evt =
                 MatchEvent::new(minute, EventType::Injury, att_side, zone).with_player(&fouled.id);
             self.events.push(evt.clone());
@@ -495,7 +503,13 @@ impl LiveMatchState {
             .find(|p| p.id == fouler_id)
             .map(|p| p.aggression as f64 / 100.0)
             .unwrap_or(0.5);
-        let card_chance = self.config.yellow_card_probability * (0.5 + aggression_factor);
+        let booked = self.yellows.contains_key(fouler_id);
+        let caution = if booked {
+            crate::shared::BOOKED_CARD_FACTOR
+        } else {
+            1.0
+        };
+        let card_chance = self.config.yellow_card_probability * (0.5 + aggression_factor) * caution;
         if rng.random_range(0.0..1.0f64) >= card_chance {
             return events;
         }
@@ -546,6 +560,8 @@ mod event_detail_tests {
             ovr: 70,
             condition: 90,
             fitness: 75,
+            injury_risk: 1.0,
+            line_familiarity: [1.0; 4],
             pace: 70,
             stamina: 70,
             strength: 70,

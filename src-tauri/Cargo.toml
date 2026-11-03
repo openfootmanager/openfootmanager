@@ -16,7 +16,7 @@ name = "openfootmanager_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [workspace]
-members = ["crates/ofm_core", "crates/db", "crates/domain", "crates/engine", "crates/sim-bench", "crates/ofm-cli", "crates/mcp-results", "crates/mcp-e2e"]
+members = ["crates/ofm_core", "crates/db", "crates/domain", "crates/engine", "crates/sim-bench", "crates/ofm-cli", "crates/mcp-results", "crates/mcp-e2e", "crates/season-harness"]
 
 # Lint levels live here so a plain `cargo clippy` applies the levels CI enforces, instead of only
 # doing so when someone remembers to append `-- -D warnings`. Every member opts in with
@@ -83,9 +83,14 @@ csv = "1"
 
 # Reused rather than re-implemented: the .ofm packager already writes zips with this exact crate
 # and version (crates/ofm_core). A report bundle is the same problem — a handful of files the user
-# will hand to someone else — so it uses the same writer.
-zip = { version = "2", features = ["deflate"] }
+# will hand to someone else — so it uses the same writer. Keep the two declarations identical.
+zip = { version = "9", default-features = false, features = ["deflate"] }
 tempfile = "3"
+# The bug-report upload (#569). Blocking, because the upload already runs on `spawn_blocking` beside
+# the bundle export, and an async client would mean a runtime this crate does not otherwise need
+# outside the `mcp` feature. `rustls` (ring + bundled webpki roots) rather than native TLS, so the
+# three platforms trust the same roots and no system OpenSSL is linked.
+ureq = { version = "3", default-features = false, features = ["rustls"] }
 
 [target.'cfg(target_os = "linux")'.dependencies]
 # WebKitGTK exposes child-process termination; reuse the version Tauri already links.
@@ -93,6 +98,14 @@ webkit2gtk = { version = "2.0", features = ["v2_20"] }
 
 [target.'cfg(target_os = "linux")'.dev-dependencies]
 gtk = "0.18"
+
+# `tauri::test` is what lets a test hand a real `tauri::State` to a `#[tauri::command]` wrapper. Without it
+# the wrapper (the line that turns the IPC `career_token` into `Career::Token`) was the one thing no test
+# could call, and a mutant that emptied it survived (cloud mutants on #930).
+[dev-dependencies]
+tauri = { version = "2", features = ["test"] }
+# Pinned for the reason given in `crates/domain/Cargo.toml`.
+ts-rs = "=12.0.1"
 
 # Dev builds (`tauri dev`) otherwise run the whole simulation unoptimized, which
 # is the dominant cause of the in-app sluggishness. Lightly optimizing our own

@@ -1,3 +1,5 @@
+import { routeForActiveCareer } from "../services/careerService";
+import { useManagerDobError } from "../hooks/useManagerDobError";
 import { Suspense, lazy, useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
@@ -18,6 +20,7 @@ import { prewarmManagerSquadPortraits } from "../services/portraitService";
 import { FolderOpen, Settings, PlusCircle, ChevronRight, Power, Package, Bug } from "lucide-react";
 import { DISCORD_INVITE_URL, GITHUB_REPO_URL } from "../lib/communityLinks";
 import { ReportBugModal } from "../components/diagnostics/ReportBugModal";
+import { CrashReportPrompt } from "../components/diagnostics/CrashReportPrompt";
 import { showError } from "../lib/errorDialog";
 
 function DiscordIcon({ className }: { className?: string }) {
@@ -53,10 +56,6 @@ interface SaveEntry {
   last_played_at: string;
 }
 
-/**
- * Minimum manager age (years) on create.
- */
-const MANAGER_MINIMUM_AGE = 30;
 /**
  * Earliest year a career may start. Historical world packages recreate eras
  * decades before the modern game, so the floor only keeps the clock inside a
@@ -131,84 +130,6 @@ function buildStartupOptions(
     startPhase: formData.startPhase,
     historyDepthYears: normalizedHistoryDepthYears,
   };
-}
-
-type IsoDateParts = {
-  year: number;
-  month: number;
-  day: number;
-};
-
-function parseIsoDateParts(isoDob: string): IsoDateParts | null {
-  if (!isoDob) return null;
-
-  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(isoDob);
-  if (!match) return null;
-
-  const year = Number(match[1]);
-  const month = Number(match[2]);
-  const day = Number(match[3]);
-  const birthDate = new Date(Date.UTC(year, month - 1, day));
-
-  if (
-    Number.isNaN(birthDate.getTime()) ||
-    birthDate.getUTCFullYear() !== year ||
-    birthDate.getUTCMonth() !== month - 1 ||
-    birthDate.getUTCDate() !== day
-  ) {
-    return null;
-  }
-
-  return { year, month, day };
-}
-
-function careerStartReferenceDate(startYear: number, startPhase: CareerStartPhase): Date {
-  const referenceDate = new Date(Date.UTC(startYear, 6, 1));
-  if (startPhase === "midSeason") {
-    referenceDate.setUTCDate(referenceDate.getUTCDate() + 120);
-  }
-  return referenceDate;
-}
-
-function flooredAgeFromIsoDate(isoDob: string, referenceDate: Date): number | null {
-  const parts = parseIsoDateParts(isoDob);
-  if (!parts) return null;
-
-  let age = referenceDate.getUTCFullYear() - parts.year;
-  const hasHadBirthdayThisYear =
-    referenceDate.getUTCMonth() > parts.month - 1 ||
-    (referenceDate.getUTCMonth() === parts.month - 1 && referenceDate.getUTCDate() >= parts.day);
-
-  if (!hasHadBirthdayThisYear) {
-    age -= 1;
-  }
-  return Number.isNaN(age) ? null : age;
-}
-
-function dobValidationMessage(
-  formData: CreateManagerFormData,
-  historyDepthYears: number,
-  t: (key: string, options?: Record<string, unknown>) => string,
-): string | null {
-  if (!formData.dob) return null;
-
-  if (parseIsoDateParts(formData.dob) === null) {
-    return t("validation.invalidDate");
-  }
-
-  const startupOptions = buildStartupOptions(formData, historyDepthYears);
-  if (!startupOptions) return null;
-
-  const age = flooredAgeFromIsoDate(
-    formData.dob,
-    careerStartReferenceDate(startupOptions.startYear, startupOptions.startPhase),
-  );
-  if (age === null) return t("validation.invalidDate");
-  if (age < MANAGER_MINIMUM_AGE) {
-    return t("validation.minAge", { min: MANAGER_MINIMUM_AGE });
-  }
-  if (age > 99) return t("validation.invalidDob");
-  return null;
 }
 
 const CREATE_MANAGER_FIELD_ORDER = [
@@ -308,11 +229,11 @@ export default function MainMenu() {
   useEffect(() => {
     invoke<GameStateData>("get_active_game")
       .then((state) => {
-        const mgrName = `${state.manager.first_name} ${state.manager.last_name}`;
+        const mgrName = state.manager.display_name;
         applyExtraTranslations(state.extra_translations);
         setGameState(state);
         setGameActive(true, mgrName);
-        navigate("/dashboard");
+        return routeForActiveCareer().then(navigate);
       })
       .catch(() => {
         // No active game — stay on menu
@@ -324,11 +245,11 @@ export default function MainMenu() {
     const unlisten = listen("game-state-changed", async () => {
       try {
         const state = await invoke<GameStateData>("get_active_game");
-        const mgrName = `${state.manager.first_name} ${state.manager.last_name}`;
+        const mgrName = state.manager.display_name;
         applyExtraTranslations(state.extra_translations);
         setGameState(state);
         setGameActive(true, mgrName);
-        navigate("/dashboard");
+        navigate(await routeForActiveCareer());
       } catch {
         // Game not actually active — ignore
       }
@@ -338,8 +259,14 @@ export default function MainMenu() {
     };
   }, [setGameState, setGameActive, navigate]);
 
-  /** Same messages as `validateForm` for DOB, so the age rule surfaces as the user edits. */
-  const dobLiveRuleMessage = dobValidationMessage(formData, historyDepthYears, t);
+  /** The backend's answer about the date of birth, shown as the user edits and again on submit. */
+  const dobStartup = buildStartupOptions(formData, historyDepthYears);
+  const dobRuleKey = useManagerDobError(
+    formData.dob,
+    dobStartup?.startYear ?? null,
+    dobStartup?.startPhase ?? null,
+  );
+  const dobLiveRuleMessage = dobRuleKey ? resolveBackendError(dobRuleKey) : null;
   const dobDisplayedError = formErrors.dob || dobLiveRuleMessage;
 
   const updateFormField = (field: keyof CreateManagerFormData, value: string) => {
@@ -386,9 +313,8 @@ export default function MainMenu() {
     if (!formData.dob) {
       errors.dob = t("validation.required", { field: t("createManager.dob") });
     } else {
-      const dobError = dobValidationMessage(formData, historyDepthYears, t);
-      if (dobError) {
-        errors.dob = dobError;
+      if (dobLiveRuleMessage) {
+        errors.dob = dobLiveRuleMessage;
       }
     }
     if (!formData.startYear.trim()) {
@@ -555,7 +481,7 @@ export default function MainMenu() {
       }
       setGameState(activeGame);
       setGameActive(true, managerName);
-      navigate("/dashboard");
+      navigate(await routeForActiveCareer());
     } catch (error) {
       console.error("Failed to load game:", error);
       setLoadingSaveId(null);
@@ -908,6 +834,7 @@ export default function MainMenu() {
         {formatAppVersion()}
       </div>
 
+      <CrashReportPrompt onReport={() => setReportingBug(true)} />
       {reportingBug && <ReportBugModal onClose={() => setReportingBug(false)} />}
     </div>
   );

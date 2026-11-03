@@ -1,5 +1,6 @@
 pub mod club;
 pub mod contracts;
+pub mod custom_tactics;
 pub mod finances;
 pub mod game;
 pub mod jobs;
@@ -8,8 +9,10 @@ pub mod messages;
 pub mod package_csv;
 pub mod package_editor;
 pub mod portraits;
+pub mod position;
 pub mod profiles;
 pub mod report;
+pub mod retirees;
 pub mod round_summary;
 pub mod season;
 pub mod settings;
@@ -25,6 +28,7 @@ pub mod world;
 
 pub use club::*;
 pub use contracts::*;
+pub use custom_tactics::*;
 pub use finances::*;
 pub use game::*;
 pub use jobs::*;
@@ -36,7 +40,9 @@ pub use package_editor::{
     extract_ofm_for_editing, read_file_as_data_url, read_package_project, save_package_project,
 };
 pub use portraits::*;
+pub use position::*;
 pub use profiles::*;
+pub use retirees::*;
 pub use season::*;
 pub use settings::*;
 pub use sim_lab::*;
@@ -47,3 +53,6 @@ pub use stats::*;
 pub use time::*;
 pub use transfers::*;
 pub use world::*;
+
+#[cfg(test)]
+pub(crate) mod wrapper_testkit;

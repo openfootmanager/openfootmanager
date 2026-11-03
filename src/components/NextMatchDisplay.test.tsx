@@ -2,6 +2,7 @@ import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import type { GameStateData } from "../store/gameStore";
 import NextMatchDisplay from "./NextMatchDisplay";
+import { createSeasonContext } from "../test-utils/factories";
 
 vi.mock("react-i18next", () => ({
   useTranslation: () => ({
@@ -11,11 +12,13 @@ vi.mock("react-i18next", () => ({
 
 function createGameState(): GameStateData {
   return {
+    season_context: createSeasonContext(),
     clock: {
       current_date: "2026-07-10T12:00:00Z",
       start_date: "2026-07-01T12:00:00Z",
     },
     manager: {
+      display_name: "Hansi Flick",
       id: "manager-1",
       first_name: "Hansi",
       last_name: "Flick",
@@ -100,6 +103,8 @@ function createGameState(): GameStateData {
       standings: [],
       fixtures: [
         {
+          competitive: false,
+          advancing_team_id: null,
           id: "friendly-1",
           matchday: 0,
           date: "2026-07-17",
@@ -114,6 +119,65 @@ function createGameState(): GameStateData {
     scouting_assignments: [],
     board_objectives: [],
   };
+}
+
+const seasonContext: NonNullable<GameStateData["season_context"]> = {
+  phase: "InSeason",
+  season_complete: false,
+  season_start: "2026-08-01",
+  season_end: "2027-05-31",
+  days_until_season_start: null,
+  transfer_window: {
+    status: "Closed",
+    opens_on: null,
+    closes_on: null,
+    days_until_opens: null,
+    days_remaining: null,
+  },
+};
+
+/** Both clubs have played both league fixtures: the case where counting fixtures says "complete". */
+function completedTwoClubLeague(): GameStateData {
+  const state = createGameState();
+  const base = state.league!;
+  state.league = {
+    ...base,
+    standings: [
+      {
+        team_id: "barcelona",
+        played: 2,
+        won: 1,
+        drawn: 0,
+        lost: 1,
+        goals_for: 2,
+        goals_against: 2,
+        points: 3,
+      },
+      {
+        team_id: "bayern",
+        played: 2,
+        won: 1,
+        drawn: 0,
+        lost: 1,
+        goals_for: 2,
+        goals_against: 2,
+        points: 3,
+      },
+    ],
+    fixtures: [1, 2].map((matchday) => ({
+      competitive: true,
+      advancing_team_id: null,
+      id: `league-${matchday}`,
+      matchday,
+      date: `2026-08-0${matchday}`,
+      home_team_id: matchday === 1 ? "barcelona" : "bayern",
+      away_team_id: matchday === 1 ? "bayern" : "barcelona",
+      competition: "League" as const,
+      status: "Completed" as const,
+      result: { home_goals: 1, away_goals: 1, home_scorers: [], away_scorers: [] },
+    })),
+  };
+  return state;
 }
 
 describe("NextMatchDisplay", () => {
@@ -153,5 +217,37 @@ describe("NextMatchDisplay", () => {
 
     expect(screen.getByText("Copa Nacional")).toBeInTheDocument();
     expect(screen.queryByText("National Cup")).not.toBeInTheDocument();
+  });
+
+  /**
+   * Given a league whose two clubs have played all their league fixtures, so that counting
+   * fixtures says "complete", while the backend says the season is not over (a sibling league in
+   * the pyramid is still playing)
+   * When there is no next fixture
+   * Then the card follows the backend and does not announce the season complete.
+   */
+  it("does not call the season complete when the backend says it is not", () => {
+    const state = completedTwoClubLeague();
+    state.season_context = { ...seasonContext, season_complete: false };
+
+    render(<NextMatchDisplay gameState={state} />);
+
+    expect(screen.getByText("home.noUpcomingOpponent")).toBeInTheDocument();
+    expect(screen.queryByText("home.seasonComplete")).not.toBeInTheDocument();
+  });
+
+  /**
+   * Given the backend says the season is over while the fixture count cannot tell
+   * When there is no next fixture
+   * Then the card announces the season complete.
+   */
+  it("calls the season complete when the backend says so", () => {
+    const state = completedTwoClubLeague();
+    state.league!.fixtures = [];
+    state.season_context = { ...seasonContext, season_complete: true };
+
+    render(<NextMatchDisplay gameState={state} />);
+
+    expect(screen.getByText("home.seasonComplete")).toBeInTheDocument();
   });
 });

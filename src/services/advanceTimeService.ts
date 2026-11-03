@@ -1,5 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 
+import { invokeForCareer } from "./careerInvoke";
+
 import type { GameStateData } from "../store/gameStore";
 
 export interface BlockerData {
@@ -34,6 +36,7 @@ export interface AdvanceTimeWithModeResponse {
   fixture_id?: string;
   mode?: string;
   round_summary?: unknown;
+  cup_round_summaries?: unknown;
   results?: AdvanceMatchResultData[];
 }
 
@@ -46,9 +49,7 @@ export interface SkipToMatchDayResponse {
 }
 
 export async function advanceTimeWithMode(mode: string): Promise<AdvanceTimeWithModeResponse> {
-  return invoke<AdvanceTimeWithModeResponse>("advance_time_with_mode", {
-    mode,
-  });
+  return invokeForCareer<AdvanceTimeWithModeResponse>("advance_time_with_mode", { mode });
 }
 
 export async function checkBlockingActions(logContext: string): Promise<BlockerData[]> {
@@ -66,7 +67,7 @@ export async function checkBlockingActions(logContext: string): Promise<BlockerD
 }
 
 export async function skipToMatchDay(): Promise<SkipToMatchDayResponse> {
-  return invoke<SkipToMatchDayResponse>("skip_to_match_day");
+  return invokeForCareer<SkipToMatchDayResponse>("skip_to_match_day");
 }
 
 /** Per-day response used by the digest feed loop. */
@@ -86,5 +87,5 @@ export interface OneDayResponse {
  * without ever auto-simulating the user's own match.
  */
 export async function advanceOneDay(): Promise<OneDayResponse> {
-  return invoke<OneDayResponse>("advance_one_day");
+  return invokeForCareer<OneDayResponse>("advance_one_day");
 }

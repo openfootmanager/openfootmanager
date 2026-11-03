@@ -4,18 +4,31 @@ use crate::commands::round_summary::{build_round_summary_dto, RoundSummaryDto};
 use domain::league::FixtureStatus;
 use ofm_core::game::Game;
 use ofm_core::live_match_manager::{self, MatchMode};
-use ofm_core::state::StateManager;
+use ofm_core::state::{Career, StateManager};
+use ofm_core::turn::{build_cup_round_summaries, CupRoundSummary};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FinishLiveMatchResponse {
     pub game: Game,
     pub round_summary: Option<RoundSummaryDto>,
+    #[serde(default)]
+    pub cup_round_summaries: Vec<CupRoundSummary>,
 }
 
-pub fn finish_live_match(state: &StateManager) -> Result<FinishLiveMatchResponse, String> {
+type FinishedDay = (Game, Option<RoundSummaryDto>, Vec<CupRoundSummary>);
+
+pub fn finish_live_match(
+    state: &StateManager,
+    career: Career,
+) -> Result<FinishLiveMatchResponse, String> {
     let _operation = super::live_session::operation();
     info!("[cmd] finish_live_match");
+    // Checked before the session is taken, under the career lock `install_career` also holds, so
+    // a finish meant for another career leaves this one's match where it is.
+    state
+        .with_live_match(|session| career.check_token(session.career_token))
+        .ok_or("be.error.noActiveLiveMatch")??;
     let mut session = state
         .take_live_match()
         .ok_or("be.error.noActiveLiveMatch")?;
@@ -50,8 +63,8 @@ pub fn finish_live_match(state: &StateManager) -> Result<FinishLiveMatchResponse
     // GUI/MCP write is never clobbered by a stale whole-game clone. Stats
     // captures are appended after the lock is released.
     let mut captures = Vec::new();
-    let (game, round_summary) = state
-        .update_game(|game| -> Result<(Game, Option<RoundSummaryDto>), String> {
+    let (game, round_summary, cup_round_summaries) =
+        state.update_game_for(career, |game| -> Result<FinishedDay, String> {
             // Check the authoritative competition before changing the legacy
             // mirror. A stale session must not replay a completed fixture or
             // leave the mirror pointing at a cup when finish is rejected.
@@ -85,6 +98,9 @@ pub fn finish_live_match(state: &StateManager) -> Result<FinishLiveMatchResponse
                 game.league = Some(game.competitions[idx].clone());
             }
 
+            // A no-op when the day was begun at kick-off; otherwise it notes what was shown before
+            // the player's result is applied, which may draw the next round.
+            ofm_core::turn::begin_day(game);
             ofm_core::turn::apply_match_report_with_capture(
                 game,
                 fixture_index,
@@ -126,6 +142,9 @@ pub fn finish_live_match(state: &StateManager) -> Result<FinishLiveMatchResponse
             let summary_context = league_round_context
                 .or_else(|| ofm_core::matchday::user_league_round_context(game));
 
+            // The sweep advances the clock, and the cup summary is scoped to the day just played.
+            let played_on = game.clock.current_date.format("%Y-%m-%d").to_string();
+
             ofm_core::turn::finish_live_match_day_with_capture(game, &mut |capture| {
                 captures.push(capture)
             });
@@ -135,13 +154,13 @@ pub fn finish_live_match(state: &StateManager) -> Result<FinishLiveMatchResponse
             // back `None`, so the digest read "unavailable" for a round the response was
             // carrying. The matchday and standings are captured above, so the advanced clock
             // does not affect it.
-            let round_summary = summary_context.and_then(|(matchday, previous)| {
-                build_round_summary_dto(game, matchday, &previous)
-            });
+            let round_summary =
+                summary_context.and_then(|context| build_round_summary_dto(game, &context));
 
-            Ok((game.clone(), round_summary))
-        })
-        .ok_or("be.error.noActiveGameSession")??;
+            let cup_round_summaries = build_cup_round_summaries(game, &played_on);
+
+            Ok((game.clone(), round_summary, cup_round_summaries))
+        })??;
     for capture in captures {
         state.append_stats_state(capture);
     }
@@ -149,11 +168,13 @@ pub fn finish_live_match(state: &StateManager) -> Result<FinishLiveMatchResponse
     Ok(FinishLiveMatchResponse {
         game,
         round_summary,
+        cup_round_summaries,
     })
 }
 
 pub fn start_live_match_with_identity(
     state: &StateManager,
+    career: Career,
     fixture_index: usize,
     mode: &str,
     _allows_extra_time: bool,
@@ -175,18 +196,16 @@ pub fn start_live_match_with_identity(
     // GUI/MCP write is never clobbered; captures and the live session are
     // stored after the lock is released.
     let mut captures = Vec::new();
-    let (snapshot, session) = state
-        .update_game(|game| {
-            start_selected_fixture(
-                game,
-                fixture_index,
-                match_mode,
-                competition_id,
-                fixture_id,
-                &mut captures,
-            )
-        })
-        .ok_or("be.error.noActiveGameSession")??;
+    let (snapshot, session) = state.update_game_for(career, |game| {
+        start_selected_fixture(
+            game,
+            fixture_index,
+            match_mode,
+            competition_id,
+            fixture_id,
+            &mut captures,
+        )
+    })??;
     for capture in captures {
         state.append_stats_state(capture);
     }
@@ -336,18 +355,20 @@ fn start_selected_fixture(
 
 pub fn step_live_match(
     state: &StateManager,
+    career: Career,
     minutes: u16,
 ) -> Result<Vec<engine::MinuteResult>, String> {
     log::debug!("[cmd] step_live_match: minutes={}", minutes);
     let results = state
         .with_live_match(|session| {
-            if minutes <= 1 {
+            career.check_token(session.career_token)?;
+            Ok::<_, String>(if minutes <= 1 {
                 vec![session.step()]
             } else {
                 session.step_many(minutes)
-            }
+            })
         })
-        .ok_or_else(|| "be.error.noActiveLiveMatch".to_string())?;
+        .ok_or_else(|| "be.error.noActiveLiveMatch".to_string())??;
 
     if let Some(last) = results.last() {
         info!(
@@ -365,11 +386,13 @@ pub fn step_live_match(
 
 pub fn apply_match_command(
     state: &StateManager,
+    career: Career,
     command: engine::MatchCommand,
 ) -> Result<engine::MatchSnapshot, String> {
     info!("[cmd] apply_match_command: {:?}", command);
     let snapshot = state
         .with_live_match(|session| {
+            career.check_token(session.career_token)?;
             session.apply_command(command)?;
             Ok::<engine::MatchSnapshot, String>(session.snapshot())
         })

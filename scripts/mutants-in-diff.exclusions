@@ -1,0 +1,18 @@
+# Functions the /preflight mutants step does not mutate: glue whose mutants no unit test can
+# observe, so every one of them "survives" and buries the real findings. Each was a survivor in
+# the 13-27 Oct 2026 trial, triaged as unobservable in its PR.
+#
+# One entry per line: <path under src-tauri/> <function> <why>. scripts/mutants-in-diff.sh checks
+# every entry against the code before it runs, and refuses if a file or function has gone, so a
+# rename cannot quietly drop an exclusion (or leave a dead one behind).
+#
+# Tauri commands are not listed here. The script finds them itself: a `#[tauri::command]` whose
+# `<name>_internal` is in the same file only forwards to it, and the `_internal` is what is
+# tested and mutated (#883, #927). A command with logic of its own stays in.
+
+src/lib.rs run  the app's entry point; no test starts the Tauri app (#883, #905, #927)
+src/mcp_server/tools.rs tool_catalog  a static table of tool names and descriptions (#905)
+src/mcp_server/tools.rs build_tool_router  wires tools into rmcp's router; mcp-e2e covers it end to end (#905)
+crates/sim-bench/src/terminal.rs print_report  writes the benchmark report to stdout (#1001)
+crates/sim-bench/src/terminal.rs metric  writes one report line to stdout (#1001)
+crates/sim-bench/src/main.rs main  the benchmark binary's entry point (#1001)

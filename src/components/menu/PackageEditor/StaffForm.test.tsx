@@ -17,7 +17,7 @@ vi.mock("react-i18next", () => ({
   }),
 }));
 
-function renderForm(staff: Partial<StaffDef> = {}) {
+function renderForm(staff: Partial<StaffDef> = {}, updateField = vi.fn()) {
   render(
     <StaffForm
       editing={{ ...emptyStaff(), ...staff }}
@@ -26,7 +26,7 @@ function renderForm(staff: Partial<StaffDef> = {}) {
       teams={[]}
       onBack={() => {}}
       onSave={() => {}}
-      updateField={vi.fn()}
+      updateField={updateField}
     />,
   );
 }
@@ -74,5 +74,47 @@ describe("StaffForm", () => {
 
     expect(field).toContainElement(screen.getByRole("textbox", { name: "date.dayLabel" }));
     expect(field).toContainElement(screen.getByRole("textbox", { name: "date.yearLabel" }));
+  });
+
+  /**
+   * Given a staff member authored with a known-as name
+   * When the form opens
+   * Then the known-as field shows it, apart from the real first name.
+   */
+  it("shows the staff member's known-as name", () => {
+    renderForm({ firstName: "Marcos", lastName: "Evangelista", knownAs: "Cafu" });
+
+    expect(screen.getByLabelText("worldEditor.staffKnownAs")).toHaveValue("Cafu");
+    expect(screen.getByLabelText("worldEditor.staffFirstName")).toHaveValue("Marcos");
+  });
+
+  /**
+   * Given a modder who types a known-as name
+   * When the field changes
+   * Then it is stored as `knownAs`, leaving the real name alone.
+   */
+  it("stores what is typed as knownAs", () => {
+    const updateField = vi.fn();
+    renderForm({}, updateField);
+
+    fireEvent.change(screen.getByLabelText("worldEditor.staffKnownAs"), {
+      target: { value: "Cafu" },
+    });
+
+    expect(updateField).toHaveBeenCalledWith("knownAs", "Cafu");
+  });
+
+  /**
+   * Given a staff member with a known-as name
+   * When the modder clears the field
+   * Then knownAs becomes null, so the package omits it and the full name shows again.
+   */
+  it("stores an emptied known-as field as null", () => {
+    const updateField = vi.fn();
+    renderForm({ knownAs: "Cafu" }, updateField);
+
+    fireEvent.change(screen.getByLabelText("worldEditor.staffKnownAs"), { target: { value: "" } });
+
+    expect(updateField).toHaveBeenCalledWith("knownAs", null);
   });
 });

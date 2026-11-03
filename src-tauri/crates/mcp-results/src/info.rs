@@ -202,16 +202,25 @@ pub struct FixtureRow {
     pub score: Option<String>,
     pub matchup: String,
     pub matchday: u32,
+    /// The date the match was first scheduled for, when it has been moved.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub rescheduled_from: Option<String>,
 }
 
 impl FixtureRow {
     fn write_row(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let moved = self
+            .rescheduled_from
+            .as_deref()
+            .map(|original| format!(" (moved from {original})"))
+            .unwrap_or_default();
         writeln!(
             f,
-            "| {} | {} | {} | MD{} |",
+            "| {} | {} | {}{} | MD{} |",
             self.date,
             self.score.as_deref().unwrap_or("-"),
             self.matchup,
+            moved,
             self.matchday
         )
     }
@@ -252,7 +261,9 @@ pub struct Attribute {
     pub value: u8,
 }
 
-/// What the profile shows depends on whose player it is.
+/// What the profile shows depends on what the club knows about the player
+/// (`ofm_core::player_knowledge`): the whole player, a rival's rating and attributes, a scout's
+/// report as it was, or nothing beyond who he is.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "visibility", rename_all = "snake_case")]
 pub enum PlayerDetail {
@@ -266,11 +277,34 @@ pub enum PlayerDetail {
         injury: Option<String>,
         attributes: Vec<Attribute>,
     },
-    Other {
-        ovr: u8,
-        /// Shown to the agent as "Form".
-        condition: u8,
+    /// A player at a club in the manager's own division.
+    Known { ovr: u8, attributes: Vec<Attribute> },
+    /// A player a scout reported on: the attributes are the report's, as of `scouted_on`.
+    Scouted {
+        scouted_on: String,
+        /// Whether the report still describes him (it is out of date once a season has started
+        /// since it was made).
+        current: bool,
+        attributes: Vec<Attribute>,
     },
+    /// Nothing beyond what is public: the identity fields of the profile.
+    Unknown,
+}
+
+fn write_attributes(f: &mut fmt::Formatter<'_>, attributes: &[Attribute]) -> fmt::Result {
+    write!(
+        f,
+        "\n### Attributes\n\n| Attr | Val | Attr | Val | Attr | Val |\n|------|-----|------|-----|------|-----|\n"
+    )?;
+    // Three attributes a row; 19 leave a short last row (Aerial), which is written too.
+    for row in attributes.chunks(3) {
+        let cells: Vec<String> = row
+            .iter()
+            .flat_map(|a| [a.name.clone(), a.value.to_string()])
+            .collect();
+        writeln!(f, "| {} |", cells.join(" | "))?;
+    }
+    Ok(())
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -325,23 +359,24 @@ impl fmt::Display for PlayerProfile {
                 if let Some(injury) = injury {
                     writeln!(f, "| Injury | ⚠️ {injury} |")?;
                 }
-                write!(
-                    f,
-                    "\n### Attributes\n\n| Attr | Val | Attr | Val | Attr | Val |\n|------|-----|------|-----|------|-----|\n"
-                )?;
-                // Three attributes a row; a short last row is left out, as it always was.
-                for row in attributes.chunks_exact(3) {
-                    let cells: Vec<String> = row
-                        .iter()
-                        .flat_map(|a| [a.name.clone(), a.value.to_string()])
-                        .collect();
-                    writeln!(f, "| {} |", cells.join(" | "))?;
-                }
-                Ok(())
+                write_attributes(f, attributes)
             }
-            PlayerDetail::Other { ovr, condition } => write!(
+            PlayerDetail::Known { ovr, attributes } => {
+                writeln!(f, "| OVR | {ovr} |")?;
+                write_attributes(f, attributes)
+            }
+            PlayerDetail::Scouted {
+                scouted_on,
+                current,
+                attributes,
+            } => {
+                let note = if *current { "" } else { " (out of date)" };
+                writeln!(f, "| Scouted On | {scouted_on}{note} |")?;
+                write_attributes(f, attributes)
+            }
+            PlayerDetail::Unknown => write!(
                 f,
-                "| OVR | {ovr} |\n| Form | {condition} |\n\n*Use `scout_send` for detailed attributes.*"
+                "\n*Nothing is known about this player beyond who he is. Use `scout_send` to find out more.*"
             ),
         }
     }
@@ -786,3 +821,47 @@ tool_results!(
     TeamStats,
     TeamMatchHistory,
 );
+
+#[cfg(test)]
+mod fixture_row_tests {
+    use super::*;
+
+    fn row(rescheduled_from: Option<&str>) -> FixtureRow {
+        FixtureRow {
+            date: "2033-03-08".into(),
+            score: None,
+            matchup: "Ajax vs PSV".into(),
+            matchday: 24,
+            rescheduled_from: rescheduled_from.map(str::to_owned),
+        }
+    }
+
+    /// Given a moved match, when the fixtures table is rendered, then the original date is shown.
+    #[test]
+    fn a_moved_match_shows_where_it_was_first_scheduled() {
+        let table = Fixtures {
+            upcoming: vec![row(Some("2033-03-01"))],
+            recent: vec![],
+        }
+        .to_string();
+        assert!(
+            table.contains("Ajax vs PSV (moved from 2033-03-01)"),
+            "{table}"
+        );
+    }
+
+    /// Given an unmoved match, when the fixtures table is rendered, then nothing is added.
+    #[test]
+    fn an_unmoved_match_renders_as_before() {
+        let table = Fixtures {
+            upcoming: vec![row(None)],
+            recent: vec![],
+        }
+        .to_string();
+        assert!(!table.contains("moved from"), "{table}");
+        assert!(serde_json::to_value(row(None))
+            .unwrap()
+            .get("rescheduled_from")
+            .is_none());
+    }
+}

@@ -12,13 +12,16 @@ use serde::{Deserialize, Serialize};
 use serde_yaml::Value;
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
+use ts_rs::TS;
 
 use domain::league::CompetitionScope;
 use domain::player::{PlayerAttributes, Position};
 use domain::staff::{CoachingSpecialization, StaffAttributes, StaffRole};
 
-use super::authored_player::authored_player_errors;
-use super::{CompetitionDefinition, NamePool, NamesDefinition, TeamDef};
+use super::authored_player::{
+    authored_player_errors, invalid_date_of_birth_error, is_valid_date_of_birth,
+};
+use super::{CompetitionDefinition, NamesDefinition, TeamDef};
 
 // ---------------------------------------------------------------------------
 // Authoring structs for the entity types a package can contain
@@ -187,6 +190,10 @@ pub struct StaffDef {
     pub date_of_birth: Option<String>,
     #[serde(default)]
     pub age: Option<u32>,
+    /// What they are called when it differs from their name ("Pep Guardiola" for Josep Guardiola
+    /// i Sala). `firstName`/`lastName` stay the real name.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub known_as: Option<String>,
 }
 
 /// Package-level metadata (at most one per package).
@@ -288,6 +295,14 @@ pub struct PackageInfo {
     pub logo_data_url: Option<String>,
 }
 
+/// A country given a name pool by two files of one package; the later file replaced the earlier.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(super) struct RepeatedNamePool {
+    pub(super) country: String,
+    pub(super) first_file: String,
+    pub(super) later_file: String,
+}
+
 /// Everything a package declares, aggregated across all its files.
 #[derive(Debug, Default)]
 pub struct WorldPackage {
@@ -299,6 +314,10 @@ pub struct WorldPackage {
     pub staff: Vec<StaffDef>,
     pub competitions: Vec<CompetitionDefinition>,
     pub names: Option<NamesDefinition>,
+    /// The file each country's name pool came from, to notice a country given twice.
+    name_pool_files: std::collections::HashMap<String, String>,
+    /// Each pool a later file of this package replaced.
+    pub(super) repeated_name_pools: Vec<RepeatedNamePool>,
     /// Per-locale translation bundles supplied by the package, keyed by locale
     /// code (e.g. `"de"`, `"fr"`). Loaded from `translations.{locale}.json`
     /// files found anywhere in the package directory tree.
@@ -375,7 +394,7 @@ impl WorldPackage {
     /// The file the `index`-th entity of `schema` was declared in, or `""` when
     /// it is not known — a package assembled in memory rather than loaded from
     /// disk has no files to name.
-    fn source_at(&self, schema: &str, index: usize) -> String {
+    pub(super) fn source_at(&self, schema: &str, index: usize) -> String {
         self.sources
             .get(schema)
             .and_then(|files| files.get(index))
@@ -436,6 +455,7 @@ const MISSING_ID: &str = "be.error.package.missingId";
 /// fragment inside a translated sentence.
 const MISSING_METADATA: &str = "be.error.package.missingMetadata";
 const DUPLICATE_ID: &str = "be.error.package.duplicateId";
+const DUPLICATE_WORLD: &str = "be.error.package.duplicateWorld";
 const INVALID_PACKAGE_ID: &str = "be.error.package.invalidPackageId";
 const WORLD_EXPORT_NOT_PACKAGE: &str = "be.error.package.worldExportNotPackage";
 const UNKNOWN_CONFEDERATION: &str = "be.error.package.unknownConfederation";
@@ -521,10 +541,48 @@ fn parse_entity<T: serde::de::DeserializeOwned>(
 ) -> Option<T> {
     match serde_yaml::from_value::<T>(value) {
         Ok(parsed) => Some(parsed),
-        Err(_) => {
-            errors.push(PackageError::new(INVALID_ENTITY, file).with("schema", schema));
+        // `detail` is serde's own diagnostic (the field, the unexpected value, a location), shown
+        // verbatim after the translated message: it names what the author has to fix.
+        Err(error) => {
+            errors.push(
+                PackageError::new(INVALID_ENTITY, file)
+                    .with("schema", schema)
+                    .with("detail", error.to_string()),
+            );
             None
         }
+    }
+}
+
+/// Name pools accumulate within a package like every other schema does, a repeated country key
+/// being last-wins; a second file used to replace the first and drop its pools silently.
+/// "Last" means last in the sorted relative-path order of the data files. Within one file, the
+/// top-level `pools` win over `items` for the same key.
+fn add_name_pools(package: &mut WorldPackage, def: NamesDefinition, file: &str) {
+    // A country whose pool an earlier file of this package already gave is reported (as a warning,
+    // `package_warnings`): the later file replaces it, which an author who split their pools over
+    // files rarely meant. Within one file, `pools` over `items` is the documented order.
+    let mut keys: Vec<&String> = def.pools.keys().collect();
+    keys.sort();
+    for key in keys {
+        if let Some(first) = package
+            .name_pool_files
+            .get(key)
+            .filter(|first| *first != file)
+        {
+            package.repeated_name_pools.push(RepeatedNamePool {
+                country: key.clone(),
+                first_file: first.clone(),
+                later_file: file.to_string(),
+            });
+        }
+        package
+            .name_pool_files
+            .insert(key.clone(), file.to_string());
+    }
+    match package.names.as_mut() {
+        Some(existing) => existing.absorb(def),
+        None => package.names = Some(def),
     }
 }
 
@@ -574,14 +632,19 @@ fn classify_entity(
         }
         "names" => {
             if let Some(def) = parse_entity::<NamesDefinition>(value, file, schema, errors) {
-                package.names = Some(def);
+                add_name_pools(package, def, file);
             }
         }
         "world" => {
-            if let Some(def) = parse_entity::<WorldMetaDef>(value, file, schema, errors) {
+            // One manifest per package: a second used to replace the first, quietly changing the
+            // package's identity and default regions depending on which file was read last.
+            if package.meta.is_some() {
+                errors.push(
+                    PackageError::new(DUPLICATE_WORLD, file)
+                        .with("first", package.manifest_file.clone()),
+                );
+            } else if let Some(def) = parse_entity::<WorldMetaDef>(value, file, schema, errors) {
                 package.meta = Some(def);
-                // Overwritten alongside `meta`, so the recorded path always
-                // belongs to the manifest that actually survived.
                 package.manifest_file = file.to_string();
             }
         }
@@ -612,10 +675,17 @@ fn classify_file(
 
     // A file holds one entity (its fields at the top level) or a bulk `items`
     // list of entities of the same schema.
-    let entities: Vec<Value> = match map.get("items") {
+    let mut entities: Vec<Value> = match map.get("items") {
         Some(Value::Sequence(items)) => items.clone(),
         _ => vec![value.clone()],
     };
+    // `ofm-cli add names --append-to` adds an `items` list to a file that already declares
+    // `pools` at the top level; both halves are name pools, so neither may be dropped.
+    if schema == "names" && map.contains_key("items") && map.contains_key("pools") {
+        let mut own_pools = map.clone();
+        own_pools.remove("items");
+        entities.push(Value::Mapping(own_pools));
+    }
     for entity in entities {
         classify_entity(&schema, entity, file, package, errors);
     }
@@ -1218,6 +1288,15 @@ pub fn validate_references(package: &WorldPackage) -> Vec<PackageError> {
                     .with("country", &staff.nationality),
             );
         }
+        if let Some(value) = &staff.date_of_birth
+            && !is_valid_date_of_birth(value)
+        {
+            errors.push(invalid_date_of_birth_error(
+                &staff.id,
+                &package.source_at("staff", index),
+                value,
+            ));
+        }
     }
 
     // Check that every id in defaultActiveCompetitions exists as a competition
@@ -1299,6 +1378,23 @@ pub fn validate_references(package: &WorldPackage) -> Vec<PackageError> {
     errors
 }
 
+/// The reputation each club of `package` ranks by in competition selectors: the middle of its
+/// authored range (the default range when it has none). A world built from the package samples a
+/// reputation inside that range for each club, and ranking by the sample would change who
+/// qualifies from one career to the next.
+pub fn authored_reputations(package: &WorldPackage) -> std::collections::HashMap<String, u32> {
+    package
+        .teams
+        .iter()
+        .map(|team| {
+            let [min, max] = team
+                .reputation_range
+                .unwrap_or(super::DEFAULT_TEAM_REPUTATION_RANGE);
+            (team.id.clone(), min.midpoint(max))
+        })
+        .collect()
+}
+
 /// Validate the package's constructed world with the same competition rules as
 /// the game loader. Preserve source locations when surfacing definition errors.
 fn validate_competition_references(package: &WorldPackage) -> Vec<PackageError> {
@@ -1306,81 +1402,78 @@ fn validate_competition_references(package: &WorldPackage) -> Vec<PackageError> 
         return Vec::new();
     }
 
-    // Reuse production construction for country and regional membership;
-    // project reputation below for a stable authoring check.
-    let mut world = super::build_world_data_from_package(
+    // Reuse production construction for country and regional membership. Clubs are ranked by their
+    // authored reputation, the same basis a career resolves the competitions with, so the verdict
+    // here is the verdict there however the world's reputations roll.
+    let world = super::build_world_data_from_package(
         package,
         None,
         &super::DefinitionSources::embedded_only(),
     );
-    // Only selector inputs need a fixed projection here. Game construction
-    // keeps sampling ranges, but a package's authoring verdict must not roll
-    // fresh reputations and change exclusion-chain membership on every run.
-    for (team, definition) in world.teams.iter_mut().zip(&package.teams) {
-        let [min, max] = definition
-            .reputation_range
-            .unwrap_or(super::DEFAULT_TEAM_REPUTATION_RANGE);
-        team.reputation = min.midpoint(max);
-    }
+    let authored = authored_reputations(package);
     let file = super::CompetitionDefinitionFile {
         format_version: super::SUPPORTED_DEFINITION_FORMAT_VERSION,
         competitions: package.competitions.clone(),
     };
 
-    super::validate_definitions_for_world(&file, &world)
-        .into_iter()
-        .map(|error| {
-            let mut params = error.params;
-            // Located by occurrence, which is what `source_at` is keyed on and
-            // what every other error path in this file uses. An error the
-            // validator raises about the package as a whole carries no
-            // occurrence and stays unlocated, which is honest: it is not about
-            // one entity.
-            let file = error
-                .competition_index
-                .map(|index| package.source_at("competition", index))
-                .unwrap_or_default();
-            if !error.competition_id.is_empty() {
-                params.push(("competition".to_string(), error.competition_id));
-            }
-            (
-                error.competition_index,
-                PackageError {
-                    code: error.code,
-                    file,
-                    params,
-                },
-            )
-        })
-        // One competition can raise the same problem from more than one field —
-        // an unknown country reaches the validator once as `countryId` and again
-        // as the participant selector's `country`, and the author sees the
-        // identical line twice with nothing to tell them apart. Collapse exact
-        // duplicates; two competitions with the same bad country still report
-        // separately, because the `competition` param differs.
-        //
-        // Keyed on the occurrence, so one competition raising the same problem
-        // from two fields — an unknown country reaches the validator once as
-        // `countryId` and again as the participant selector's `country` —
-        // collapses to one line, while two competitions each raising it stay
-        // two. Keying on the id instead cannot separate those two cases: a
-        // blank or repeated id makes distinct competitions indistinguishable,
-        // and every scheme built on it either hides a broken competition or
-        // prints one problem twice.
-        //
-        // Kept on a seen-set rather than scanning the output for each error: a
-        // package is untrusted input, and one with many broken competitions
-        // would make a linear scan quadratic in the size of its own mistakes.
-        .fold(
-            (Vec::new(), HashSet::new()),
-            |(mut unique, mut seen), (index, error)| {
-                if seen.insert((index, error.code.clone(), error.params.clone())) {
-                    unique.push(error);
-                }
-                (unique, seen)
+    super::validate_definitions_for_world_ranked(
+        &file,
+        &world,
+        super::ReputationBasis::Authored(&authored),
+    )
+    .into_iter()
+    .map(|error| {
+        let mut params = error.params;
+        // Located by occurrence, which is what `source_at` is keyed on and
+        // what every other error path in this file uses. An error the
+        // validator raises about the package as a whole carries no
+        // occurrence and stays unlocated, which is honest: it is not about
+        // one entity.
+        let file = error
+            .competition_index
+            .map(|index| package.source_at("competition", index))
+            .unwrap_or_default();
+        if !error.competition_id.is_empty() {
+            params.push(("competition".to_string(), error.competition_id));
+        }
+        (
+            error.competition_index,
+            PackageError {
+                code: error.code,
+                file,
+                params,
             },
         )
-        .0
+    })
+    // One competition can raise the same problem from more than one field —
+    // an unknown country reaches the validator once as `countryId` and again
+    // as the participant selector's `country`, and the author sees the
+    // identical line twice with nothing to tell them apart. Collapse exact
+    // duplicates; two competitions with the same bad country still report
+    // separately, because the `competition` param differs.
+    //
+    // Keyed on the occurrence, so one competition raising the same problem
+    // from two fields — an unknown country reaches the validator once as
+    // `countryId` and again as the participant selector's `country` —
+    // collapses to one line, while two competitions each raising it stay
+    // two. Keying on the id instead cannot separate those two cases: a
+    // blank or repeated id makes distinct competitions indistinguishable,
+    // and every scheme built on it either hides a broken competition or
+    // prints one problem twice.
+    //
+    // Kept on a seen-set rather than scanning the output for each error: a
+    // package is untrusted input, and one with many broken competitions
+    // would make a linear scan quadratic in the size of its own mistakes.
+    .fold(
+        (Vec::new(), HashSet::new()),
+        |(mut unique, mut seen), (index, error)| {
+            if seen.insert((index, error.code.clone(), error.params.clone())) {
+                unique.push(error);
+            }
+            (unique, seen)
+        },
+    )
+    .0
 }
 
 // ---------------------------------------------------------------------------
@@ -1594,11 +1687,7 @@ pub fn merge_world_packages(packages: Vec<WorldPackage>) -> (WorldPackage, Vec<P
     // Name pools are unioned per-key across packages (like every other entity
     // collection) rather than wholesale-replaced, so stacking packages that each
     // supply distinct pools keeps them all.
-    let mut merged_pools: std::collections::HashMap<String, NamePool> =
-        std::collections::HashMap::new();
-    let mut names_version = 0u32;
-    let mut names_description = String::new();
-    let mut saw_names = false;
+    let mut merged_names: Option<NamesDefinition> = None;
 
     for package in databases.into_iter().chain(patches) {
         if let Some(meta) = package.meta {
@@ -1684,17 +1773,16 @@ pub fn merge_world_packages(packages: Vec<WorldPackage>) -> (WorldPackage, Vec<P
             competitions.insert(c.id.clone(), (c, file_of("competition", i)));
         }
         if let Some(names) = package.names {
-            saw_names = true;
-            if names.version > names_version {
-                names_version = names.version;
-            }
-            if !names.description.is_empty() {
-                names_description = names.description;
-            }
-            for (key, pool) in names.pools {
-                merged_pools.insert(key, pool);
+            match merged_names.as_mut() {
+                Some(merged_names) => merged_names.absorb(names),
+                None => merged_names = Some(names),
             }
         }
+        // A repeat inside one package is that package's own mistake and travels with it; a later
+        // package replacing an earlier one's pool is stacking, and is not recorded.
+        merged
+            .repeated_name_pools
+            .extend(package.repeated_name_pools);
         for (locale, bundle) in package.extra_translations {
             merged.extra_translations.insert(locale, bundle);
         }
@@ -1710,13 +1798,7 @@ pub fn merge_world_packages(packages: Vec<WorldPackage>) -> (WorldPackage, Vec<P
         merged.manifest_file = merged_manifest_file;
     }
 
-    if saw_names {
-        merged.names = Some(NamesDefinition {
-            version: names_version,
-            description: names_description,
-            pools: merged_pools,
-        });
-    }
+    merged.names = merged_names;
 
     let (confederations, confederations_files): (Vec<_>, Vec<_>) = confeds.into_values().unzip();
     merged.confederations = confederations;
@@ -1767,7 +1849,7 @@ pub fn merge_world_packages(packages: Vec<WorldPackage>) -> (WorldPackage, Vec<P
 // ---------------------------------------------------------------------------
 
 /// Records which `.ofm` package was used to build a save, for reproducibility.
-#[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq, TS)]
 pub struct PackageLock {
     pub id: String,
     pub version: String,
@@ -1953,6 +2035,16 @@ pub fn qualify_package_asset_paths(package: &mut WorldPackage, package_id: &str)
     }
 }
 
+fn entry_name_for_report<R: std::io::Read + std::io::Seek>(
+    archive: &zip::ZipArchive<R>,
+    index: usize,
+) -> String {
+    match archive.name_for_index(index) {
+        Some(Ok(name)) => name.into_owned(),
+        _ => format!("#{index}"),
+    }
+}
+
 /// Shared, hardened extraction. `keep` selects which entries are written; every
 /// entry is still checked for symlinks, zip-slip and decompressed size first, so
 /// a filtered extraction is no less safe than a full one.
@@ -1974,17 +2066,26 @@ fn extract_archive_entries(
     let mut errors = Vec::new();
     let mut total_uncompressed: u64 = 0;
     for i in 0..archive.len() {
+        // An entry zip cannot open, such as one compressed with a codec we do not build, is
+        // reported: skipping it would install the package as if that file had never existed.
         let Ok(mut entry) = archive.by_index(i) else {
+            let entry_name = entry_name_for_report(&archive, i);
+            if keep(&entry_name) {
+                errors.push(PackageError::new(READ_FAILED, &entry_name));
+            }
+            continue;
+        };
+        let Ok(entry_name) = entry.name().map(std::borrow::Cow::into_owned) else {
+            errors.push(PackageError::new(READ_FAILED, &format!("#{i}")));
             continue;
         };
         if entry.is_dir() {
             continue;
         }
         if entry.is_symlink() {
-            errors.push(PackageError::new(SYMLINK_ERROR, entry.name()));
+            errors.push(PackageError::new(SYMLINK_ERROR, &entry_name));
             continue;
         }
-        let entry_name = entry.name().to_string();
         let Some(dest) = safe_entry_path(dest_dir, &entry_name) else {
             errors.push(PackageError::new(ZIPSLIP_ERROR, &entry_name));
             continue;
@@ -2076,7 +2177,9 @@ pub fn read_package_manifest_from_ofm(path: &Path) -> Option<WorldMetaDef> {
         if entry.is_dir() {
             continue;
         }
-        let name = entry.name().to_string();
+        let Ok(name) = entry.name() else {
+            continue;
+        };
         let lower = name.to_ascii_lowercase();
         if !lower.ends_with(".json") && !lower.ends_with(".yaml") && !lower.ends_with(".yml") {
             continue;
@@ -2119,7 +2222,10 @@ pub fn read_logo_from_ofm(archive_path: &Path, logo_path: &str) -> Option<String
         if entry.is_dir() {
             continue;
         }
-        let entry_lower = entry.name().to_ascii_lowercase();
+        let Ok(name) = entry.name() else {
+            continue;
+        };
+        let entry_lower = name.to_ascii_lowercase();
         // Match the relative path or the file's trailing suffix.
         if entry_lower != logo_lower && !entry_lower.ends_with(&format!("/{logo_lower}")) {
             continue;
@@ -3007,6 +3113,252 @@ mod tests {
         let _ = std::fs::remove_dir_all(&dest);
     }
 
+    fn files_under(root: &Path) -> std::collections::BTreeMap<String, Vec<u8>> {
+        fn walk(root: &Path, dir: &Path, out: &mut std::collections::BTreeMap<String, Vec<u8>>) {
+            for entry in std::fs::read_dir(dir).unwrap() {
+                let path = entry.unwrap().path();
+                if path.is_dir() {
+                    walk(root, &path, out);
+                } else {
+                    let rel = path.strip_prefix(root).unwrap().to_string_lossy();
+                    out.insert(rel.replace('\\', "/"), std::fs::read(&path).unwrap());
+                }
+            }
+        }
+        let mut out = std::collections::BTreeMap::new();
+        walk(root, root, &mut out);
+        out
+    }
+
+    /// A source tree with a manifest, a nested data file, a binary asset holding every byte
+    /// value, and a non-data file large and repetitive enough that deflate really compresses it.
+    fn packable_tree() -> PathBuf {
+        let dir = temp_package();
+        write(
+            &dir,
+            "package.json",
+            r#"{"schema":"world","id":"round-trip","name":"Round Trip","logo":"assets/logo.png"}"#,
+        );
+        write(
+            &dir,
+            "teams/europe/teams.json",
+            r##"{"schema":"team","items":[{"id":"sao","name":"São Paulo FC","city":"São Paulo",
+                 "country":"BR","colors":{"primary":"#f00","secondary":"#000"}}]}"##,
+        );
+        let every_byte: Vec<u8> = (0..=255u8).cycle().take(4096).collect();
+        std::fs::create_dir_all(dir.join("assets")).unwrap();
+        std::fs::write(dir.join("assets/logo.png"), &every_byte).unwrap();
+        write(
+            &dir,
+            "docs/changelog.txt",
+            &"Ünal joins São Paulo.\n".repeat(20_000),
+        );
+        dir
+    }
+
+    /// Given a package directory packed by the exporter
+    /// When the archive is unpacked by the installer's extractor
+    /// Then every file comes back with the same path and the same bytes, and nothing is added.
+    #[test]
+    fn an_exported_package_extracts_to_the_files_it_was_packed_from() {
+        let source = packable_tree();
+        let archive = temp_package().join("round-trip.ofm");
+        super::super::world_io::export_directory_to_ofm(&source, &archive).unwrap();
+        let dest = temp_package();
+
+        let errors = extract_archive_safely(&archive, &dest).unwrap();
+
+        assert!(errors.is_empty(), "unexpected errors: {errors:?}");
+        assert_eq!(files_under(&dest), files_under(&source));
+        std::fs::remove_dir_all(&source).ok();
+        std::fs::remove_dir_all(archive.parent().unwrap()).ok();
+        std::fs::remove_dir_all(&dest).ok();
+    }
+
+    /// Given a package directory packed by the exporter
+    /// When the package list reads its manifest and logo and the installer loads it
+    /// Then its manifest, its logo and its teams read back from the archive unchanged.
+    #[test]
+    fn an_exported_package_reads_back_its_manifest_logo_and_teams() {
+        use base64::{Engine, engine::general_purpose::STANDARD};
+        let source = packable_tree();
+        let archive = temp_package().join("round-trip.ofm");
+        super::super::world_io::export_directory_to_ofm(&source, &archive).unwrap();
+
+        let manifest = read_package_manifest_from_ofm(&archive).expect("manifest");
+        let logo = read_logo_from_ofm(&archive, "assets/logo.png").expect("logo");
+        let (package, errors) = load_world_package_from_ofm(&archive);
+
+        assert_eq!(manifest.id, "round-trip");
+        assert_eq!(manifest.name, "Round Trip");
+        let logo_bytes = std::fs::read(source.join("assets/logo.png")).unwrap();
+        assert_eq!(
+            logo,
+            format!("data:image/png;base64,{}", STANDARD.encode(logo_bytes))
+        );
+        assert!(errors.is_empty(), "unexpected errors: {errors:?}");
+        let team_names: Vec<&str> = package.teams.iter().map(|t| t.name.as_str()).collect();
+        assert_eq!(team_names, ["São Paulo FC"]);
+        std::fs::remove_dir_all(&source).ok();
+        std::fs::remove_dir_all(archive.parent().unwrap()).ok();
+    }
+
+    /// Given an archive holding a symlink entry ahead of an ordinary data file
+    /// When it is extracted
+    /// Then the symlink is reported and never created, and the data file still lands.
+    #[test]
+    fn a_symlink_entry_is_reported_and_never_created() {
+        use std::io::Write;
+        use zip::write::SimpleFileOptions;
+        let archive = temp_package().join("symlink.ofm");
+        let mut zip = zip::ZipWriter::new(std::fs::File::create(&archive).unwrap());
+        let opts = SimpleFileOptions::default();
+        zip.add_symlink("teams/link.json", "/etc/passwd", opts)
+            .unwrap();
+        zip.start_file("teams/teams.json", opts).unwrap();
+        zip.write_all(b"[]").unwrap();
+        zip.finish().unwrap();
+        let dest = temp_package();
+
+        let errors = extract_archive_safely(&archive, &dest).unwrap();
+
+        assert_eq!(
+            errors.iter().map(|e| e.code.as_str()).collect::<Vec<_>>(),
+            [SYMLINK_ERROR]
+        );
+        assert!(std::fs::symlink_metadata(dest.join("teams/link.json")).is_err());
+        assert!(dest.join("teams/teams.json").exists());
+        std::fs::remove_dir_all(archive.parent().unwrap()).ok();
+        std::fs::remove_dir_all(&dest).ok();
+    }
+
+    /// Given an archive with one entry more than the file-count cap
+    /// When it is extracted
+    /// Then extraction is refused before anything is written.
+    #[test]
+    fn an_archive_over_the_file_count_cap_is_refused() {
+        let names: Vec<String> = (0..=MAX_FILE_COUNT)
+            .map(|i| format!("f/{i}.json"))
+            .collect();
+        let entries: Vec<(&str, &[u8])> = names.iter().map(|n| (n.as_str(), &b""[..])).collect();
+        let archive = build_zip(&entries);
+        let dest = temp_package();
+
+        let result = extract_archive_safely(&archive, &dest);
+
+        assert_eq!(result, Err(TOO_MANY_FILES_ERROR.to_string()));
+        assert!(files_under(&dest).is_empty());
+        std::fs::remove_file(&archive).ok();
+        std::fs::remove_dir_all(&dest).ok();
+    }
+
+    /// Given a `.ofm` file that is not a zip archive at all
+    /// When the installer, the package list and the logo reader open it
+    /// Then each reports it unreadable instead of returning a package.
+    #[test]
+    fn a_file_that_is_not_a_zip_archive_is_unreadable() {
+        let dir = temp_package();
+        let archive = dir.join("broken.ofm");
+        std::fs::write(&archive, b"{\"schema\":\"world\"} is not a zip").unwrap();
+
+        let (_, errors) = load_world_package_from_ofm(&archive);
+
+        assert_eq!(
+            errors.iter().map(|e| e.code.as_str()).collect::<Vec<_>>(),
+            [READ_FAILED]
+        );
+        assert!(read_package_manifest_from_ofm(&archive).is_none());
+        assert!(read_logo_from_ofm(&archive, "assets/logo.png").is_none());
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    /// Archives written by an earlier build of the game, so a change of zip crate is tested
+    /// against bytes it did not write. Never regenerate them with the current writer.
+    fn testdata(name: &str) -> PathBuf {
+        Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("src/generator/testdata")
+            .join(name)
+    }
+
+    /// Given a package that an earlier build exported with zip 2.4.2
+    /// When the current installer extracts it
+    /// Then every file comes back with the same path and the same bytes.
+    #[test]
+    fn a_package_exported_by_an_earlier_build_still_extracts_to_its_files() {
+        let source = packable_tree();
+        let dest = temp_package();
+
+        let errors = extract_archive_safely(&testdata("exported-by-zip-2.ofm"), &dest).unwrap();
+
+        assert!(errors.is_empty(), "unexpected errors: {errors:?}");
+        assert_eq!(files_under(&dest), files_under(&source));
+        std::fs::remove_dir_all(&source).ok();
+        std::fs::remove_dir_all(&dest).ok();
+    }
+
+    /// Given a package whose team file is compressed with zstd, a method the game does not build
+    /// When it is extracted and when it is loaded
+    /// Then that entry is reported unreadable and never written, and the package is not loaded
+    /// as if the file had never been there.
+    #[test]
+    fn an_entry_compressed_with_an_unsupported_method_is_reported_unreadable() {
+        let archive = testdata("zstd-entry.ofm");
+        let dest = temp_package();
+
+        let errors = extract_archive_safely(&archive, &dest).unwrap();
+        let (_, load_errors) = load_world_package_from_ofm(&archive);
+
+        assert_eq!(
+            errors
+                .iter()
+                .map(|e| (e.code.as_str(), e.file.as_str()))
+                .collect::<Vec<_>>(),
+            [(READ_FAILED, "teams/teams.json")]
+        );
+        assert!(!dest.join("teams/teams.json").exists());
+        assert!(dest.join("package.json").exists());
+        assert!(load_errors.iter().any(|e| e.code == READ_FAILED));
+        std::fs::remove_dir_all(&dest).ok();
+    }
+
+    /// Given a package zipped by hand with no compression (Store), by a tool other than ours
+    /// When it is extracted, listed and loaded
+    /// Then every file comes back unchanged and the package loads without errors.
+    #[test]
+    fn a_hand_made_package_with_stored_entries_installs() {
+        use base64::{Engine, engine::general_purpose::STANDARD};
+        let archive = testdata("stored-by-hand.ofm");
+        let manifest = r#"{"schema":"world","id":"stored-by-hand","name":"Stored By Hand","logo":"assets/logo.png"}"#;
+        let teams = r##"{"schema":"team","items":[{"id":"store","name":"Störe FC","city":"Störe","country":"BR","colors":{"primary":"#0f0","secondary":"#fff"}}]}"##;
+        let logo: Vec<u8> = [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]
+            .into_iter()
+            .chain(0..=255u8)
+            .collect();
+        let expected = std::collections::BTreeMap::from([
+            ("assets/logo.png".to_string(), logo.clone()),
+            ("package.json".to_string(), manifest.as_bytes().to_vec()),
+            ("teams/teams.json".to_string(), teams.as_bytes().to_vec()),
+        ]);
+        let dest = temp_package();
+
+        let errors = extract_archive_safely(&archive, &dest).unwrap();
+        let listed = read_package_manifest_from_ofm(&archive).expect("manifest");
+        let listed_logo = read_logo_from_ofm(&archive, "assets/logo.png").expect("logo");
+        let (package, load_errors) = load_world_package_from_ofm(&archive);
+
+        assert!(errors.is_empty(), "unexpected errors: {errors:?}");
+        assert_eq!(files_under(&dest), expected);
+        assert_eq!(listed.id, "stored-by-hand");
+        assert_eq!(
+            listed_logo,
+            format!("data:image/png;base64,{}", STANDARD.encode(&logo))
+        );
+        assert!(load_errors.is_empty(), "unexpected errors: {load_errors:?}");
+        let team_names: Vec<&str> = package.teams.iter().map(|t| t.name.as_str()).collect();
+        assert_eq!(team_names, ["Störe FC"]);
+        std::fs::remove_dir_all(&dest).ok();
+    }
+
     #[test]
     fn player_def_deserializes_footedness_from_frontend_key() {
         // The package-editor frontend sends the chosen foot under the camelCase
@@ -3682,6 +4034,245 @@ colors:
         std::fs::remove_dir_all(&dir).ok();
     }
 
+    /// Given a package whose player has a position that is not one
+    /// When it is loaded
+    /// Then the invalid-entity error carries serde's own account of what is wrong, so the author
+    ///      is told which value, not only that one of the file's entries is bad (#550).
+    #[test]
+    fn an_invalid_entity_says_what_is_wrong_with_it() {
+        let dir = temp_package();
+        write(
+            &dir,
+            "players/players.json",
+            r#"{ "schema": "player", "id": "p1", "name": "Pat", "position": "CM" }"#,
+        );
+
+        let (_package, errors) = load_world_package(&dir);
+
+        let error = errors
+            .iter()
+            .find(|e| e.code == INVALID_ENTITY)
+            .expect("the bad position is reported");
+        let detail = error
+            .params
+            .iter()
+            .find(|(key, _)| key == "detail")
+            .map(|(_, value)| value.as_str())
+            .unwrap_or_default();
+        assert!(detail.contains("CM"), "{error:?}");
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    const ENG_POOL: &str = r#""ENG": { "first_names": ["Tom"], "last_names": ["Smith"] }"#;
+    const BRA_POOL: &str = r#""BRA": { "first_names": ["Joao"], "last_names": ["Silva"] }"#;
+
+    fn pool_keys(package: &WorldPackage) -> Vec<String> {
+        let mut keys: Vec<String> = package
+            .names
+            .as_ref()
+            .map(|names| names.pools.keys().cloned().collect())
+            .unwrap_or_default();
+        keys.sort();
+        keys
+    }
+
+    /// Given a package with two name-pool files
+    /// When it is loaded
+    /// Then both files' pools are in the package, not only the last one's (#471).
+    #[test]
+    fn two_name_files_in_one_package_both_count() {
+        let dir = temp_package();
+        write(
+            &dir,
+            "names/a.json",
+            &format!(r#"{{ "schema": "names", "pools": {{ {BRA_POOL} }} }}"#),
+        );
+        write(
+            &dir,
+            "names/b.json",
+            &format!(r#"{{ "schema": "names", "pools": {{ {ENG_POOL} }} }}"#),
+        );
+
+        let (package, errors) = load_world_package(&dir);
+
+        assert!(errors.is_empty(), "{errors:?}");
+        assert_eq!(pool_keys(&package), ["BRA", "ENG"]);
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    /// Given one names file with top-level `pools` and an `items` list, the shape
+    /// `ofm-cli add names --append-to` produces
+    /// When it is loaded
+    /// Then the pools from both halves are read.
+    #[test]
+    fn a_names_file_with_pools_and_items_keeps_both() {
+        let dir = temp_package();
+        write(
+            &dir,
+            "names/names.json",
+            &format!(
+                r#"{{ "schema": "names", "pools": {{ {BRA_POOL} }},
+                    "items": [ {{ "pools": {{ {ENG_POOL} }} }} ] }}"#
+            ),
+        );
+
+        let (package, errors) = load_world_package(&dir);
+
+        assert!(errors.is_empty(), "{errors:?}");
+        assert_eq!(pool_keys(&package), ["BRA", "ENG"]);
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    /// Given one names file whose top-level `pools` and `items` both give England, with different names
+    /// When it is loaded
+    /// Then the top-level `pools` win: they are folded in after the `items`.
+    #[test]
+    fn in_one_names_file_the_top_level_pools_win_over_items() {
+        let dir = temp_package();
+        write(
+            &dir,
+            "names/names.json",
+            r#"{ "schema": "names",
+                "pools": { "ENG": { "first_names": ["Top"], "last_names": ["Level"] } },
+                "items": [ { "pools": { "ENG": { "first_names": ["Item"], "last_names": ["Entry"] } } } ] }"#,
+        );
+
+        let (package, errors) = load_world_package(&dir);
+
+        assert!(errors.is_empty(), "{errors:?}");
+        let eng = &package.names.as_ref().unwrap().pools["ENG"];
+        assert_eq!(eng.first_names, ["Top"]);
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    /// Given two packages that each supply name pools, the later with a newer version, a
+    ///       description and an overlapping country
+    /// When they are merged as a stack
+    /// Then the version is the highest, the description the last non-empty one, the overlapping
+    ///      country is the later package's, and the other countries are kept: the same rule as
+    ///      the files of one package.
+    #[test]
+    fn stacked_packages_fold_name_pools_by_the_same_rule() {
+        use super::super::definitions::NamePool;
+        let pool = |first: &str| NamePool {
+            first_names: vec![first.to_string()],
+            last_names: vec!["X".to_string()],
+        };
+        let named = |version: u32, description: &str, pools: Vec<(&str, &str)>| WorldPackage {
+            names: Some(NamesDefinition {
+                version,
+                description: description.to_string(),
+                pools: pools
+                    .into_iter()
+                    .map(|(country, first)| (country.to_string(), pool(first)))
+                    .collect(),
+            }),
+            ..WorldPackage::default()
+        };
+        let earlier = named(3, "first", vec![("ENG", "Early"), ("BRA", "Joao")]);
+        let later = named(2, "", vec![("ENG", "Late")]);
+
+        let (merged, _) = merge_world_packages(vec![earlier, later]);
+
+        let names = merged.names.expect("names survive the merge");
+        assert_eq!(names.version, 3);
+        assert_eq!(names.description, "first");
+        assert_eq!(names.pools["ENG"].first_names, ["Late"]);
+        assert_eq!(names.pools["BRA"].first_names, ["Joao"]);
+    }
+
+    /// Given a package with two files whose schema is `world`
+    /// When it is loaded
+    /// Then the second is reported as a duplicate manifest naming the first, and the first stays
+    ///      the package's identity (SCHEMA_REFERENCE promises one world per package; #595).
+    #[test]
+    fn a_second_world_manifest_is_an_error_not_a_silent_replacement() {
+        let dir = temp_package();
+        write(
+            &dir,
+            "a-package.json",
+            r#"{"schema":"world","id":"first","name":"First"}"#,
+        );
+        write(
+            &dir,
+            "b-other.json",
+            r#"{"schema":"world","id":"second","name":"Second"}"#,
+        );
+
+        let (package, errors) = load_world_package(&dir);
+
+        let duplicate = errors
+            .iter()
+            .find(|e| e.code == DUPLICATE_WORLD)
+            .unwrap_or_else(|| panic!("a second manifest is reported, got {errors:?}"));
+        assert_eq!(duplicate.file, "b-other.json");
+        assert_eq!(
+            duplicate.params,
+            vec![("first".to_string(), "a-package.json".to_string())]
+        );
+        assert_eq!(package.meta.as_ref().map(|m| m.id.as_str()), Some("first"));
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    /// Given a package whose players and staff carry a good date of birth, a year only, garbage and an empty one (#594)
+    /// When it is validated
+    /// Then the three bad ones are `invalidDate` errors naming the file, the person and the value,
+    ///      for players and for staff alike, and the good ones are not.
+    #[test]
+    fn an_unreadable_date_of_birth_is_refused_for_players_and_staff() {
+        let dir = temp_package();
+        write(
+            &dir,
+            "players/players.json",
+            r#"{"schema":"player","items":[
+                {"id":"ok","name":"Ok","dateOfBirth":"1990-05-17"},
+                {"id":"year","name":"Year","dateOfBirth":"1990"},
+                {"id":"junk","name":"Junk","dateOfBirth":"garbage"},
+                {"id":"blank","name":"Blank","dateOfBirth":""}]}"#,
+        );
+        write(
+            &dir,
+            "staff/staff.json",
+            r#"{"schema":"staff","items":[
+                {"id":"coach-ok","firstName":"A","lastName":"B","dateOfBirth":"1975-01-01"},
+                {"id":"coach-year","firstName":"C","lastName":"D","dateOfBirth":"1975"}]}"#,
+        );
+
+        let (package, load_errors) = load_world_package(&dir);
+        std::fs::remove_dir_all(&dir).ok();
+        let mut errors = load_errors;
+        errors.extend(validate_package(&package));
+
+        let flagged = |entity: &str| {
+            errors.iter().any(|e| {
+                e.code == "be.error.package.invalidDate"
+                    && e.params
+                        .contains(&("entity".to_string(), entity.to_string()))
+                    && e.params
+                        .contains(&("field".to_string(), "dateOfBirth".to_string()))
+            })
+        };
+        for bad in ["year", "junk", "blank", "coach-year"] {
+            assert!(flagged(bad), "{bad} should be refused: {errors:?}");
+        }
+        for good in ["ok", "coach-ok"] {
+            assert!(!flagged(good), "{good} should pass: {errors:?}");
+        }
+        let year = errors
+            .iter()
+            .find(|e| {
+                e.params
+                    .contains(&("entity".to_string(), "year".to_string()))
+                    && e.code == "be.error.package.invalidDate"
+            })
+            .unwrap();
+        assert_eq!(year.file, "players/players.json");
+        assert!(
+            year.params
+                .contains(&("value".to_string(), "1990".to_string()))
+        );
+    }
+
     #[test]
     fn a_duplicate_id_names_the_file_that_repeats_it() {
         // Two files declaring the same id is the other "go and find it" error:
@@ -3878,6 +4469,77 @@ colors:
             .filter_map(|year| year.parse::<i32>().ok())
             .max()
             .expect("world should have players with parseable birth years")
+    }
+
+    /// Given a package with a player who names no club (#595)
+    /// When the world is built
+    /// Then the player exists, as a free agent with their authored identity, instead of being dropped.
+    #[test]
+    fn an_authored_player_with_no_club_becomes_a_free_agent() {
+        let dir = temp_package();
+        write(
+            &dir,
+            "teams/teams.json",
+            r##"{"schema":"team","id":"fc","name":"FC","city":"C","country":"ENG",
+                "colors":{"primary":"#000000","secondary":"#ffffff"}}"##,
+        );
+        write(
+            &dir,
+            "players/free.json",
+            r#"{"schema":"player","id":"free-agent-1","firstName":"Free","lastName":"Agent",
+                "nationality":"ENG","position":"Striker","dateOfBirth":"1995-03-04","overall":71}"#,
+        );
+        let (package, errors) = load_world_package(&dir);
+        assert!(errors.is_empty(), "{errors:?}");
+        let world =
+            crate::generator::build_world_data_from_package(&package, Some(2026), &embedded());
+        std::fs::remove_dir_all(&dir).ok();
+
+        let player = world
+            .players
+            .iter()
+            .find(|p| p.id == "free-agent-1")
+            .expect("an authored player with no club still exists");
+        assert_eq!(player.team_id, None);
+        assert_eq!(player.full_name, "Free Agent");
+        assert_eq!(player.date_of_birth, "1995-03-04");
+        assert_eq!(player.wage(), 0);
+        assert!(player.contract_end().is_none());
+    }
+
+    /// Given a club-less authored player flagged `youth` (a flag only a club's academy can honour)
+    /// When the world is built
+    /// Then they are a senior free agent: the youth squad role does not outlive the club it
+    ///      belonged to, so the warning that `youth` is ignored is true.
+    #[test]
+    fn a_clubless_player_flagged_youth_is_a_senior_free_agent() {
+        let dir = temp_package();
+        write(
+            &dir,
+            "teams/teams.json",
+            r##"{"schema":"team","id":"fc","name":"FC","city":"C","country":"ENG",
+                "colors":{"primary":"#000000","secondary":"#ffffff"}}"##,
+        );
+        write(
+            &dir,
+            "players/free.json",
+            r#"{"schema":"player","id":"free-youth","firstName":"Free","lastName":"Youth",
+                "nationality":"ENG","position":"Striker","dateOfBirth":"2008-03-04","overall":55,
+                "youth":true}"#,
+        );
+        let (package, errors) = load_world_package(&dir);
+        assert!(errors.is_empty(), "{errors:?}");
+        let world =
+            crate::generator::build_world_data_from_package(&package, Some(2026), &embedded());
+        std::fs::remove_dir_all(&dir).ok();
+
+        let player = world
+            .players
+            .iter()
+            .find(|p| p.id == "free-youth")
+            .expect("the player exists");
+        assert_eq!(player.team_id, None);
+        assert_eq!(player.squad_role, domain::player::SquadRole::Senior);
     }
 
     #[test]
@@ -4201,6 +4863,122 @@ colors:
                 "the midpoint field has four clubs: {expected:?}"
             );
         }
+    }
+
+    /// Six clubs whose reputation is anywhere in 0..=1000, a cup that takes two named clubs, a cup that
+    /// takes the top two by reputation, and a group cup that takes everyone else. The group cup only
+    /// has a playable field when the first two cups hold four clubs between them, which a rolled
+    /// reputation order does not guarantee.
+    fn package_whose_field_depends_on_reputation() -> WorldPackage {
+        WorldPackage {
+            teams: (b'a'..=b'f')
+                .map(|id| {
+                    serde_json::from_value(serde_json::json!({
+                        "id": char::from(id).to_string(), "name": "Club", "city": "City",
+                        "country": "ENG", "reputationRange": [0, 1000],
+                        "colors": {"primary": "#000000", "secondary": "#ffffff"}
+                    }))
+                    .unwrap()
+                })
+                .collect(),
+            competitions: serde_json::from_value(serde_json::json!([
+                {"id":"a-cup", "name":"A", "type":"Cup", "scope":"Domestic",
+                 "format":{"kind":"Knockout"}, "participants":{"explicit":["a", "b"]}},
+                {"id":"b-cup", "name":"B", "type":"Cup", "scope":"Domestic",
+                 "format":{"kind":"Knockout"}, "participants":{"selector":{
+                     "kind":"topByReputation", "country":"ENG", "count":2}}},
+                {"id":"c-cup", "name":"C", "type":"Cup", "scope":"Domestic",
+                 "format":{"kind":"GroupAndKnockout", "groupSize":2, "qualifiersPerGroup":2},
+                 "participants":{"selector":{"kind":"allInCountry", "country":"ENG",
+                     "excludeCompetitions":["a-cup", "b-cup"]}}}
+            ]))
+            .unwrap(),
+            ..Default::default()
+        }
+    }
+
+    /// Given a package the validator accepts, whose competition field depends on club reputation
+    /// When careers are created from it many times, each rolling fresh reputations
+    /// Then none is refused for a competition-qualification reason (#707).
+    #[test]
+    fn an_accepted_package_never_fails_career_creation_on_a_reputation_roll() {
+        let package = package_whose_field_depends_on_reputation();
+        assert!(validate_package(&package).is_empty());
+
+        let refusals: Vec<String> = (0..200)
+            .filter_map(|_| {
+                crate::generator::build_world_from_package(&package, Some(2031), &embedded()).err()
+            })
+            .collect();
+
+        assert!(
+            refusals.is_empty(),
+            "{} of 200 careers were refused: {:?}",
+            refusals.len(),
+            refusals.first()
+        );
+    }
+
+    /// Given a package whose cups select and exclude clubs by reputation
+    /// When careers are created from it with different rolls
+    /// Then the cup fields resolve to the same clubs every time, the ones validation saw.
+    #[test]
+    fn authored_selector_resolves_the_same_at_validation_and_career_start() {
+        use chrono::TimeZone;
+        let package = package_whose_field_depends_on_reputation();
+        let start = chrono::Utc.with_ymd_and_hms(2031, 7, 1, 0, 0, 0).unwrap();
+        let authored = crate::generator::authored_reputations(&package);
+
+        let fields: std::collections::BTreeSet<Vec<(String, Vec<String>)>> = (0..60)
+            .filter_map(|_| {
+                let world =
+                    crate::generator::build_world_from_package(&package, Some(2031), &embedded())
+                        .ok()?;
+                // As a career resolves them: ranked by the package's authored reputations.
+                let leagues = crate::generator::resolve_definitions_ranked(
+                    world.competition_definitions.as_ref()?,
+                    &world,
+                    crate::generator::ReputationBasis::Authored(&authored),
+                    2031,
+                    start,
+                );
+                let mut fields: Vec<(String, Vec<String>)> = leagues
+                    .iter()
+                    .map(|league| {
+                        let mut ids = league.participant_ids.clone();
+                        ids.sort();
+                        (league.id.clone(), ids)
+                    })
+                    .collect();
+                fields.sort();
+                Some(fields)
+            })
+            .collect();
+
+        assert_eq!(
+            fields.len(),
+            1,
+            "the fields differed between rolls: {fields:?}"
+        );
+    }
+
+    /// Given a package whose clubs have a reputation range
+    /// When careers are created with different rolls
+    /// Then the clubs' reputations still differ, because only the selectors use the authored value.
+    #[test]
+    fn sampled_reputations_still_vary_where_selectors_do_not_depend_on_them() {
+        let package = package_whose_field_depends_on_reputation();
+        let reputations = |_: usize| -> Vec<u32> {
+            crate::generator::build_world_data_from_package(&package, Some(2031), &embedded())
+                .teams
+                .iter()
+                .map(|team| team.reputation)
+                .collect()
+        };
+
+        let distinct: std::collections::BTreeSet<Vec<u32>> = (0..10).map(reputations).collect();
+
+        assert!(distinct.len() > 1, "every roll gave {:?}", distinct.first());
     }
 
     #[test]
@@ -4784,6 +5562,38 @@ colors:
         let keys: Vec<_> = names.pools.keys().cloned().collect();
         assert!(names.pools.contains_key("ENG"), "ENG pool kept: {keys:?}");
         assert!(names.pools.contains_key("BRA"), "BRA pool kept: {keys:?}");
+
+        std::fs::remove_dir_all(&dir_a).ok();
+        std::fs::remove_dir_all(&dir_b).ok();
+    }
+
+    /// Given one package whose own two files both give England a name pool, and a second package
+    ///       that gives England a pool again
+    /// When the two are stacked and the merged package is checked
+    /// Then the repeat inside the first package is still warned about, and the second package
+    ///      overriding England is not (overriding is what stacking is for).
+    #[test]
+    fn stacking_keeps_a_repeat_inside_one_package_and_stays_silent_across_packages() {
+        use super::super::package_warnings::{REPEATED_NAME_POOL, package_warnings};
+        let pool = "schema: names\nversion: 1\npools:\n  ENG:\n    first_names:\n      - John\n    last_names:\n      - Smith\n";
+        let dir_a = temp_package();
+        write(&dir_a, "world.yaml", "schema: world\nid: a\nname: A\n");
+        write(&dir_a, "names/a.yaml", pool);
+        write(&dir_a, "names/b.yaml", pool);
+        let (pkg_a, _) = load_world_package(&dir_a);
+        let dir_b = temp_package();
+        write(&dir_b, "world.yaml", "schema: world\nid: b\nname: B\n");
+        write(&dir_b, "names.yaml", pool);
+        let (pkg_b, _) = load_world_package(&dir_b);
+
+        let (merged, _) = merge_world_packages(vec![pkg_a, pkg_b]);
+
+        let repeats: Vec<_> = package_warnings(&merged)
+            .into_iter()
+            .filter(|w| w.code == REPEATED_NAME_POOL)
+            .collect();
+        assert_eq!(repeats.len(), 1, "{repeats:?}");
+        assert_eq!(repeats[0].file, "names/b.yaml");
 
         std::fs::remove_dir_all(&dir_a).ok();
         std::fs::remove_dir_all(&dir_b).ok();

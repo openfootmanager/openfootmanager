@@ -35,6 +35,9 @@ pub(crate) struct PlayerSnap {
     pub aerial: u8,
     pub traits: Vec<String>,
     pub role: PlayerRole,
+    pub injury_risk: f64,
+    /// The factor on this player's match rating for the line he was picked from.
+    pub familiarity: f64,
 }
 
 impl PlayerSnap {
@@ -69,6 +72,8 @@ impl PlayerSnap {
             aerial: 0,
             traits: Vec::new(),
             role: PlayerRole::Standard,
+            injury_risk: 1.0,
+            familiarity: 1.0,
         }
     }
 
@@ -96,6 +101,18 @@ impl PlayerSnap {
             aerial: p.aerial,
             traits: p.traits.clone(),
             role: p.role,
+            injury_risk: p.injury_risk,
+            familiarity: p.familiarity_factor(),
+        }
+    }
+
+    /// `p` picked to play in `line`, at his factor there. Picked from his own line this is
+    /// `from`; picked from another (an outfielder in goal, a midfielder up front because no
+    /// forward is left), he keeps his own attributes but plays out of position.
+    pub(crate) fn playing_in(p: &PlayerData, line: Position) -> Self {
+        Self {
+            familiarity: p.familiarity_in(line),
+            ..Self::from(p)
         }
     }
 
@@ -151,10 +168,20 @@ pub(crate) fn snap_from_squad<R: Rng>(
         &candidates
     };
     if !pool.is_empty() {
-        return Some(PlayerSnap::from(pool[rng.random_range(0..pool.len())]));
+        let picked = pool[rng.random_range(0..pool.len())];
+        return Some(PlayerSnap::playing_in(picked, preferred));
     }
     // Everyone available has been sent off: anyone on the teamsheet will do.
-    players.first().map(PlayerSnap::from)
+    players
+        .first()
+        .map(|player| PlayerSnap::playing_in(player, preferred))
+}
+
+/// The share of his skill a player brings at `condition` (0 to 100): all of it fresh, about 80%
+/// half spent, 60% at nothing left. The live match plays him at it, and the AI weighs a
+/// substitute by it.
+pub(crate) fn condition_factor(condition: f64) -> f64 {
+    0.6 + 0.4 * (condition / 100.0)
 }
 
 pub(crate) fn trait_bonus(snap: &PlayerSnap, context: TraitContext) -> f64 {
@@ -242,7 +269,7 @@ pub(crate) fn trait_bonus(snap: &PlayerSnap, context: TraitContext) -> f64 {
 // Play-style modifiers
 // ---------------------------------------------------------------------------
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum PlayStylePhase {
     Midfield,
     Attack,
@@ -277,10 +304,37 @@ pub(crate) fn play_style_modifier(
 // Role attribute modifier — applied per-player during zone resolution
 // ---------------------------------------------------------------------------
 
+/// The phases the resolvers ask a player of this position about. A table entry
+/// for any other phase can never fire.
+pub(crate) fn consulted_phases(position: Position) -> &'static [PlayStylePhase] {
+    match position {
+        Position::Goalkeeper => &[],
+        Position::Defender => &[PlayStylePhase::Defense],
+        Position::Midfielder => &[PlayStylePhase::Midfield, PlayStylePhase::Defense],
+        Position::Forward => &[PlayStylePhase::Attack],
+    }
+}
+
+/// What the resolvers call: the table, but only for a phase the position is
+/// actually consulted on, so an entry nobody asks about stays inert.
+/// `position` is the position the resolver asked for in this phase, not the picked
+/// player's own: `snap_from_squad` can fall back to any available player.
+pub(crate) fn role_modifier(position: Position, role: PlayerRole, phase: PlayStylePhase) -> f64 {
+    if consulted_phases(position).contains(&phase) {
+        role_attribute_modifier(role, phase)
+    } else {
+        1.0
+    }
+}
+
 /// Returns a multiplier (0.88–1.20) applied to the player's effective skill
 /// calculation based on their assigned tactical role. Values reflect the
 /// attribute biases described in domain::team::PlayerRole documentation.
-pub(crate) fn role_attribute_modifier(role: PlayerRole, phase: PlayStylePhase) -> f64 {
+//
+// The penalty half of AttackingFB, WingBack and ShadowStriker is gone: their boost is on
+// a phase the resolvers never ask their position about, so only the penalty fired.
+// Restore both halves together when that phase is wired.
+fn role_attribute_modifier(role: PlayerRole, phase: PlayStylePhase) -> f64 {
     match (role, phase) {
         // Goalkeepers
         (PlayerRole::SweeperKeeper, PlayStylePhase::Defense) => 1.06,
@@ -291,11 +345,9 @@ pub(crate) fn role_attribute_modifier(role: PlayerRole, phase: PlayStylePhase) -
         (PlayerRole::CoverCB, PlayStylePhase::Defense) => 1.05,
         // Full Backs
         (PlayerRole::AttackingFB, PlayStylePhase::Attack) => 1.08,
-        (PlayerRole::AttackingFB, PlayStylePhase::Defense) => 0.93,
         (PlayerRole::DefensiveFB, PlayStylePhase::Defense) => 1.08,
         (PlayerRole::DefensiveFB, PlayStylePhase::Attack) => 0.93,
         (PlayerRole::WingBack, PlayStylePhase::Attack) => 1.10,
-        (PlayerRole::WingBack, PlayStylePhase::Defense) => 0.97,
         (PlayerRole::InvertedFB, PlayStylePhase::Midfield) => 1.06,
         // Defensive Midfielders
         (PlayerRole::AnchorMan, PlayStylePhase::Defense) => 1.10,
@@ -311,7 +363,6 @@ pub(crate) fn role_attribute_modifier(role: PlayerRole, phase: PlayStylePhase) -
         // Attacking Midfielders
         (PlayerRole::AdvancedPlaymaker, PlayStylePhase::Attack) => 1.10,
         (PlayerRole::ShadowStriker, PlayStylePhase::Attack) => 1.08,
-        (PlayerRole::ShadowStriker, PlayStylePhase::Defense) => 0.92,
         // Wide
         (PlayerRole::WideForward, PlayStylePhase::Attack) => 1.08,
         (PlayerRole::InsideForward, PlayStylePhase::Attack) => 1.10,
@@ -555,8 +606,77 @@ pub(crate) fn home_mod(side: Side, config: &MatchConfig) -> f64 {
     }
 }
 
+/// A booked player is carded at this share of the usual chance: he goes into a tackle knowing a
+/// second yellow sends him off, and a referee weighs a second caution harder. Without it, the
+/// real yellow-card rate would send off about twice the real number of players on a second
+/// yellow, since fouls fall on the few players in each duel.
+pub(crate) const BOOKED_CARD_FACTOR: f64 = 0.2;
+
 #[cfg(test)]
 mod phase_modifier_tests {
+    /// Given every role and the phases its position is consulted on,
+    /// When the modifiers the engine can actually apply are collected,
+    /// Then none is a penalty without a boost: no role is strictly worse than Standard.
+    #[test]
+    fn no_role_is_strictly_worse_than_standard_where_the_engine_consults_it() {
+        for role in PlayerRole::ALL {
+            for &group in role.position_groups() {
+                let applied: Vec<f64> = consulted_phases(group)
+                    .iter()
+                    .map(|phase| role_modifier(group, role, *phase))
+                    .filter(|modifier| *modifier != 1.0)
+                    .collect();
+                assert!(
+                    applied.is_empty() || applied.iter().any(|modifier| *modifier > 1.0),
+                    "{role:?} as a {group:?} only ever gets penalties from the engine: {applied:?}"
+                );
+            }
+        }
+    }
+
+    /// Given a table entry for a phase the position is never consulted on,
+    /// When the resolvers ask for it, Then it is inert.
+    #[test]
+    fn an_entry_for_a_phase_nobody_asks_about_never_fires() {
+        assert_eq!(
+            role_modifier(
+                Position::Defender,
+                PlayerRole::AttackingFB,
+                PlayStylePhase::Attack
+            ),
+            1.0
+        );
+        assert_eq!(
+            role_modifier(
+                Position::Goalkeeper,
+                PlayerRole::SweeperKeeper,
+                PlayStylePhase::Defense
+            ),
+            1.0
+        );
+    }
+
+    /// Given the entries the engine does consult, When asked, Then they still apply.
+    #[test]
+    fn an_entry_for_a_consulted_phase_still_fires() {
+        assert_eq!(
+            role_modifier(
+                Position::Defender,
+                PlayerRole::Stopper,
+                PlayStylePhase::Defense
+            ),
+            1.08
+        );
+        assert_eq!(
+            role_modifier(
+                Position::Forward,
+                PlayerRole::Poacher,
+                PlayStylePhase::Attack
+            ),
+            1.12
+        );
+    }
+
     use super::*;
 
     fn cfg(f: impl FnOnce(&mut TacticsConfig)) -> TacticsConfig {
@@ -706,5 +826,83 @@ mod phase_modifier_tests {
         );
         let fast = tactics_break_speed_counter(&cfg(|c| c.break_speed = BreakSpeed::Fast));
         assert!(0.0 < fast && fast < 1.0);
+    }
+}
+
+#[cfg(test)]
+mod emergency_keeper_tests {
+    use super::snap_from_squad;
+    use crate::types::{PlayerData, PlayerRole, Position};
+    use rand::SeedableRng;
+    use rand::rngs::StdRng;
+    use std::collections::HashSet;
+
+    fn player(id: &str, position: Position) -> PlayerData {
+        PlayerData {
+            id: id.to_string(),
+            name: id.to_string(),
+            position,
+            ovr: 70,
+            condition: 100,
+            fitness: 100,
+            injury_risk: 1.0,
+            // Natural in his own line; in goal, half the player he is (a factor no real cost
+            // reaches, so only the goalkeeping entry can produce it).
+            line_familiarity: [0.5, 1.0, 1.0, 1.0],
+            pace: 70,
+            stamina: 70,
+            strength: 70,
+            agility: 70,
+            passing: 70,
+            shooting: 70,
+            tackling: 70,
+            dribbling: 70,
+            defending: 70,
+            positioning: 70,
+            vision: 70,
+            decisions: 70,
+            composure: 70,
+            aggression: 70,
+            teamwork: 70,
+            leadership: 70,
+            handling: 70,
+            reflexes: 70,
+            aerial: 70,
+            traits: vec![],
+            role: PlayerRole::Standard,
+        }
+    }
+
+    /// Given a side with no goalkeeper, only defenders who are half the player in goal,
+    /// When a resolver asks for its goalkeeper,
+    /// Then the defender who goes in keeps his own attributes but plays at his goalkeeping
+    /// factor: out of position, not in his own line.
+    #[test]
+    fn a_keeper_picked_from_the_outfield_plays_at_his_goalkeeping_factor() {
+        let players = vec![
+            player("d1", Position::Defender),
+            player("d2", Position::Defender),
+        ];
+        let mut rng = StdRng::seed_from_u64(1);
+
+        let keeper = snap_from_squad(&players, &HashSet::new(), Position::Goalkeeper, &mut rng)
+            .expect("someone goes in goal");
+
+        assert_eq!(keeper.familiarity, 0.5);
+    }
+
+    /// Given the same side with every player sent off,
+    /// When a resolver still asks for its goalkeeper (the last resort, anyone on the teamsheet),
+    /// Then that player too plays at his goalkeeping factor.
+    #[test]
+    fn a_keeper_picked_as_the_last_resort_plays_at_his_goalkeeping_factor() {
+        let players = vec![player("d1", Position::Defender)];
+        let sent_off: HashSet<String> = ["d1".to_string()].into();
+        let mut rng = StdRng::seed_from_u64(1);
+
+        let keeper = snap_from_squad(&players, &sent_off, Position::Goalkeeper, &mut rng)
+            .expect("the teamsheet still names someone");
+
+        assert_eq!(keeper.familiarity, 0.5);
     }
 }

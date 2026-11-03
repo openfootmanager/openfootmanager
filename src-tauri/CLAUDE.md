@@ -20,6 +20,8 @@ Read [`../CLAUDE.md`](../CLAUDE.md) first for the project-wide rules, and
   ofm-cli          standalone CLI binary     → ofm_core
   sim-bench        balance benchmark harness → engine
   mcp-results      MCP tool result structs   → nothing in this workspace (serde only)
+  mcp-e2e          MCP end-to-end suite      → mcp-results, db
+  season-harness   multi-season invariants   → domain, ofm_core
 ```
 
 - **`domain`** — data, constructors, `Default`, and pure value semantics. Outcome-deciding game
@@ -111,6 +113,26 @@ into an `_internal` function and have both call it.
 
 Adding an MCP tool has its own checklist, in `src/mcp_server/tools.rs` at `tool_catalog()` and in
 [`../docs/MCP_SERVER.md`](../docs/MCP_SERVER.md). Use `/add-mcp-tool`.
+
+### Wire types are generated
+
+`src/store/generated/` holds TypeScript that `ts-rs` writes from the Rust types the screens
+receive: everything `Game` and `SquadPlayer` reach. `tests/wire_types.rs` byte-compares it with
+what the Rust types generate today, so CI fails when the two disagree.
+
+- **Changed a type the screens receive?** Regenerate and commit the result:
+  `OFM_UPDATE_TS_TYPES=1 cargo test --manifest-path src-tauri/Cargo.toml --test wire_types`.
+- **A new type on such a struct** needs `#[derive(TS)]` beside its `Serialize`, or it will not
+  compile. If its Rust name clashes with another wire type, give one a `#[ts(rename = "…")]`;
+  the same test fails on a clash, because `ts-rs` would silently keep only one.
+- **A response type outside those roots**, returned only by its own command, is reached from
+  neither `Game` nor `SquadPlayer`, so regenerating writes nothing for it. Add it to
+  `visit_wire_roots` in `src-tauri/tests/wire_types.rs`, then regenerate.
+- **Never edit `src/store/generated/` by hand.** The next regeneration overwrites it, and the test
+  fails until then.
+
+Until the screens are switched over (#589), these files sit beside the hand-written types in
+`src/store/types.ts`, which the screens still use.
 
 ---
 

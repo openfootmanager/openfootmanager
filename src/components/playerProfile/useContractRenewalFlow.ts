@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 
 import type { GameStateData, PlayerData } from "../../store/gameStore";
 import { resolveBackendText } from "../../utils/backendI18n";
+import { invokeForCareer } from "../../services/careerInvoke";
 import { resolveTranslatedErrorMessage } from "../../utils/errorMessage";
 import {
   type DelegatedRenewalCaseData,
@@ -227,7 +228,7 @@ export function useContractRenewalFlow({
     setRenewalCooledOff(false);
 
     try {
-      const result = await invoke<RenewalResponseData>("propose_renewal", {
+      const result = await invokeForCareer<RenewalResponseData>("propose_renewal", {
         playerId: player.id,
         weeklyWage: renewalOfferedWage,
         contractYears: renewalOfferedYears,
@@ -308,7 +309,7 @@ export function useContractRenewalFlow({
     setRenewalCooledOff(false);
 
     try {
-      const result = await invoke<DelegatedRenewalResponseData>("delegate_renewals", {
+      const result = await invokeForCareer<DelegatedRenewalResponseData>("delegate_renewals", {
         playerIds: [player.id],
         maxWageIncreasePct: 35,
         maxContractYears: 3,

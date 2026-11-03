@@ -1,11 +1,17 @@
 use chrono::{TimeZone, Utc};
-use domain::league::{CompetitionScope, CompetitionType, League, StandingEntry};
+use domain::league::{
+    CompetitionFormat, CompetitionScope, CompetitionType, Fixture, FixtureStatus, League,
+    StandingEntry,
+};
 use domain::manager::Manager;
 use domain::player::{Player, PlayerAttributes, Position};
 use domain::team::Team;
 use ofm_core::clock::GameClock;
-use ofm_core::game::Game;
-use ofm_core::slices::teams::{TeamsDirectoryQuery, UNGROUPED_LEAGUE_ID, query_directory};
+use ofm_core::game::{Game, PotentialRange, ScoutedPlayer};
+use ofm_core::slices::teams::{
+    TeamCard, TeamCardManager, TeamsDirectoryQuery, UNGROUPED_LEAGUE_ID,
+    query_club_league_standing, query_directory, query_team_card,
+};
 
 fn default_attrs() -> PlayerAttributes {
     PlayerAttributes {
@@ -101,6 +107,224 @@ fn empty_query() -> TeamsDirectoryQuery {
     TeamsDirectoryQuery { search: None }
 }
 
+/// The game with the manager in charge of `club`: what the club knows decides which averages show.
+fn managing(mut game: Game, club: &str) -> Game {
+    game.manager.team_id = Some(club.to_string());
+    game
+}
+
+/// The card the directory shows for `club_id`.
+fn directory_card(game: &Game, club_id: &str) -> TeamCard {
+    query_directory(game, &empty_query())
+        .regions
+        .into_iter()
+        .flat_map(|region| region.leagues)
+        .flat_map(|league| league.teams)
+        .find(|card| card.team.id == club_id)
+        .expect("the directory lists every club")
+}
+
+/// Two divisions: "mine" and "rival" share one, "faraway" plays in the other. Each squad's players
+/// are rated so their average is known: mine 70, rival 80, faraway 60.
+fn two_divisions() -> Game {
+    let teams = vec![
+        make_team("mine", "Mine FC", "ENG", "A"),
+        make_team("rival", "Rival FC", "ENG", "B"),
+        make_team("faraway", "Faraway FC", "ENG", "C"),
+    ];
+    let players = vec![
+        make_player("m1", Some("mine"), 70, 1),
+        make_player("r1", Some("rival"), 80, 1),
+        make_player("f1", Some("faraway"), 60, 1),
+    ];
+    let leagues = vec![
+        make_domestic_league("one", "One", "ENG", Some("UEFA"), &["mine", "rival"]),
+        make_domestic_league("two", "Two", "ENG", Some("UEFA"), &["faraway"]),
+    ];
+    make_game(teams, players, leagues)
+}
+
+/// Given the manager's club and a rival in his division
+/// When the clubs directory shows their cards
+/// Then each card carries its squad's average rating: the club sees both squads every week
+#[test]
+fn a_card_shows_the_average_of_the_managers_club_and_his_division_rivals() {
+    let game = managing(two_divisions(), "mine");
+
+    assert_eq!(directory_card(&game, "mine").avg_ovr, Some(70));
+    assert_eq!(directory_card(&game, "rival").avg_ovr, Some(80));
+}
+
+/// Given a club in another division, whose players the manager's club does not know
+/// When the clubs directory shows its card
+/// Then the card carries no average rating, not even one made from the players it has scouted
+#[test]
+fn a_card_hides_the_average_of_a_club_outside_the_managers_division() {
+    let game = managing(two_divisions(), "mine");
+
+    assert_eq!(directory_card(&game, "faraway").avg_ovr, None);
+}
+
+/// Given a club in another division, every one of whose players the manager's scouts have
+///       reported on
+/// When the clubs directory and the team profile show its card
+/// Then neither carries an average: a squad average is never made from scouted players, however
+///      many there are (maintainer's ruling for L2c), so the club's card reads "–" as before
+#[test]
+fn scouting_a_clubs_players_never_reveals_its_average() {
+    let mut game = managing(two_divisions(), "mine");
+    let faraway_players: Vec<String> = game
+        .players
+        .iter()
+        .filter(|player| player.team_id.as_deref() == Some("faraway"))
+        .map(|player| player.id.clone())
+        .collect();
+    assert!(
+        !faraway_players.is_empty(),
+        "the fixture gives faraway players"
+    );
+    for player_id in faraway_players {
+        // A full report, opinion of potential included: still no squad average.
+        game.scouted_players.push(ScoutedPlayer {
+            player_id,
+            scouted_on: "2026-06-20".to_string(),
+            attributes: default_attrs(),
+            potential: Some(PotentialRange { low: 56, high: 64 }),
+            scout_name: Some("Ann Scout".to_string()),
+        });
+    }
+
+    assert_eq!(directory_card(&game, "faraway").avg_ovr, None);
+    assert_eq!(
+        query_team_card(&game, "faraway").and_then(|card| card.avg_ovr),
+        None
+    );
+}
+
+/// Given a manager without a club
+/// When the clubs directory shows its cards
+/// Then no card carries an average rating: no division is his
+#[test]
+fn an_unemployed_manager_sees_no_clubs_average() {
+    let game = two_divisions();
+
+    for club in ["mine", "rival", "faraway"] {
+        assert_eq!(directory_card(&game, club).avg_ovr, None, "{club}");
+    }
+}
+
+/// Given a club managed by one of the AI managers
+/// When its card is projected, in the directory and on its own
+/// Then the card names him
+#[test]
+fn a_card_names_the_clubs_manager() {
+    let mut game = managing(two_divisions(), "mine");
+    let mut boss = Manager::new(
+        "boss".to_string(),
+        "Ada".to_string(),
+        "Boss".to_string(),
+        "1970-01-01".to_string(),
+        "ENG".to_string(),
+    );
+    boss.team_id = Some("rival".to_string());
+    let name = boss.display_name.clone();
+    game.managers.push(boss);
+    game.teams
+        .iter_mut()
+        .find(|team| team.id == "rival")
+        .unwrap()
+        .manager_id = Some("boss".to_string());
+
+    let expected = Some(TeamCardManager {
+        id: "boss".to_string(),
+        name,
+    });
+    assert_eq!(directory_card(&game, "rival").manager, expected);
+    assert_eq!(query_team_card(&game, "rival").unwrap().manager, expected);
+}
+
+/// Given a club with no manager
+/// When its card is projected
+/// Then it names nobody
+#[test]
+fn a_vacant_clubs_card_names_no_manager() {
+    let game = managing(two_divisions(), "mine");
+
+    assert_eq!(directory_card(&game, "faraway").manager, None);
+}
+
+/// The game with the user in charge of `club` as its listed manager too.
+fn the_user_manages(club: &str) -> Game {
+    let mut game = managing(two_divisions(), club);
+    let user_id = game.manager.id.clone();
+    game.teams
+        .iter_mut()
+        .find(|team| team.id == club)
+        .unwrap()
+        .manager_id = Some(user_id);
+    game
+}
+
+/// Given the user's own club, and the user not in the managers list (only the game's manager)
+/// When its card is projected
+/// Then it names him: the lookup falls back on the game's manager
+#[test]
+fn the_users_club_card_names_the_user() {
+    let mut game = the_user_manages("mine");
+    let user_id = game.manager.id.clone();
+    game.managers.retain(|manager| manager.id != user_id);
+
+    let manager = directory_card(&game, "mine").manager.unwrap();
+
+    assert_eq!(manager.id, user_id);
+    assert_eq!(manager.name, game.manager.display_name);
+}
+
+/// Given the user's own club, and the managers list holding a copy of him that lags behind
+/// When its card is projected
+/// Then it names him as the live record has him, not as the copy does
+#[test]
+fn the_users_card_reads_his_live_record_not_the_listed_copy() {
+    let mut game = the_user_manages("mine");
+    let user_id = game.manager.id.clone();
+    game.managers
+        .iter_mut()
+        .find(|manager| manager.id == user_id)
+        .expect("Game::new lists the user")
+        .display_name = "Stale Copy".to_string();
+
+    let manager = directory_card(&game, "mine").manager.unwrap();
+
+    assert_eq!(manager.name, game.manager.display_name);
+    assert_ne!(manager.name, "Stale Copy");
+    assert_eq!(
+        query_team_card(&game, "mine")
+            .unwrap()
+            .manager
+            .unwrap()
+            .name,
+        manager.name
+    );
+}
+
+/// Given the manager's club, a division rival and a club in another division
+/// When the team profile asks for one club's card
+/// Then it gets the same card the directory shows, average included or withheld alike, and an id
+///      no club has gets none
+#[test]
+fn a_team_card_is_the_directory_card_for_that_club() {
+    let game = managing(two_divisions(), "mine");
+
+    for club in ["mine", "rival", "faraway"] {
+        assert_eq!(
+            query_team_card(&game, club),
+            Some(directory_card(&game, club)),
+            "{club}"
+        );
+    }
+    assert_eq!(query_team_card(&game, "nobody"), None);
+}
+
 #[test]
 fn directory_groups_teams_under_their_domestic_league_and_region() {
     let teams = vec![
@@ -131,13 +355,14 @@ fn cards_include_roster_stats_and_league_position() {
         make_player("p1", Some("t1"), 80, 1_000_000),
         make_player("p2", Some("t1"), 70, 500_000),
     ];
-    let game = make_game(vec![team], players, vec![league]);
+    // The manager's own club, so the club may see its average.
+    let game = managing(make_game(vec![team], players, vec![league]), "t1");
 
     let dir = query_directory(&game, &empty_query());
 
     let card = &dir.regions[0].leagues[0].teams[0];
     assert_eq!(card.roster_size, 2);
-    assert_eq!(card.avg_ovr, 75);
+    assert_eq!(card.avg_ovr, Some(75));
     assert_eq!(card.total_value, 1_500_000);
     assert_eq!(card.league_pos, 1);
     let standing = card.standing.as_ref().expect("standing");
@@ -276,6 +501,32 @@ fn search_filters_team_name_case_insensitively() {
 }
 
 #[test]
+fn search_ignores_case_for_every_letter_in_a_club_or_city() {
+    let teams = vec![
+        make_team("t1", "Çaykur Rizespor", "TUR", "Rize"),
+        make_team("t2", "Aalesund FK", "NOR", "Ålesund"),
+    ];
+    let league = make_domestic_league("l", "League", "TUR", Some("UEFA"), &["t1", "t2"]);
+    let game = make_game(teams, vec![], vec![league]);
+    let found = |text: &str| {
+        let mut q = empty_query();
+        q.search = Some(text.to_string());
+        let dir = query_directory(&game, &q);
+        dir.regions
+            .iter()
+            .flat_map(|region| &region.leagues)
+            .flat_map(|league| &league.teams)
+            .map(|card| card.team.id.clone())
+            .collect::<Vec<_>>()
+    };
+
+    assert_eq!(found("çaykur"), vec!["t1"]);
+    assert_eq!(found("ÇAYKUR"), vec!["t1"]);
+    assert_eq!(found("ålesund"), vec!["t2"]);
+    assert_eq!(found("ÅLESUND"), vec!["t2"]);
+}
+
+#[test]
 fn search_filters_team_city_case_insensitively() {
     let teams = vec![
         make_team("t1", "Alpha FC", "ENG", "London"),
@@ -319,7 +570,8 @@ fn roster_stats_use_only_team_members() {
         make_player("bp2", Some("b"), 60, 200_000),
     ];
     let league = make_domestic_league("epl", "Premier", "ENG", Some("UEFA"), &["a", "b"]);
-    let game = make_game(vec![team_a, team_b], players, vec![league]);
+    // The manager runs "a", so both squads are his division's and both averages show.
+    let game = managing(make_game(vec![team_a, team_b], players, vec![league]), "a");
 
     let dir = query_directory(&game, &empty_query());
     let teams = &dir.regions[0].leagues[0].teams;
@@ -327,10 +579,182 @@ fn roster_stats_use_only_team_members() {
     let card_b = teams.iter().find(|c| c.team.id == "b").unwrap();
 
     assert_eq!(card_a.roster_size, 1);
-    assert_eq!(card_a.avg_ovr, 90);
+    assert_eq!(card_a.avg_ovr, Some(90));
     assert_eq!(card_a.total_value, 1_000_000);
 
     assert_eq!(card_b.roster_size, 2);
-    assert_eq!(card_b.avg_ovr, 55);
+    assert_eq!(card_b.avg_ovr, Some(55));
     assert_eq!(card_b.total_value, 300_000);
+}
+
+fn with_points(mut league: League, points: &[(&str, u32)]) -> League {
+    for (team_id, pts) in points {
+        league
+            .standings
+            .iter_mut()
+            .find(|entry| entry.team_id == *team_id)
+            .expect("a club in the table")
+            .points = *pts;
+    }
+    league
+}
+
+/// The two orders a pair of competitions can be stored in. A tie resolved by storage order
+/// passes in one of them and fails in the other, so a test that tries both cannot be rescued
+/// by where its expected answer happens to sit.
+fn in_both_orders(first: League, second: League) -> [Vec<League>; 2] {
+    [vec![first.clone(), second.clone()], vec![second, first]]
+}
+
+fn completed_on(date: &str) -> Fixture {
+    Fixture {
+        date: date.to_string(),
+        status: FixtureStatus::Completed,
+        ..Default::default()
+    }
+}
+
+/// Given the manager's club in one division and another club in a second division
+/// When the other club's league standing is asked for
+/// Then it is its own division's position and standing
+#[test]
+fn a_club_in_another_division_gets_its_own_divisions_position() {
+    let teams = vec![
+        make_team("t1", "One FC", "ENG", "A"),
+        make_team("t8", "Eight FC", "ENG", "B"),
+        make_team("t9", "Nine FC", "ENG", "C"),
+    ];
+    let top = make_domestic_league("div1", "Division 1", "ENG", None, &["t1"]);
+    let second = with_points(
+        make_domestic_league("div2", "Division 2", "ENG", None, &["t8", "t9"]),
+        &[("t8", 6), ("t9", 3)],
+    );
+    let game = make_game(teams, vec![], vec![top, second]);
+
+    let standing = query_club_league_standing(&game, "t9").expect("t9 is in a league");
+
+    assert_eq!(standing.competition_id, "div2");
+    assert_eq!(standing.league_pos, 2);
+    assert_eq!(standing.standing.points, 3);
+}
+
+/// Given a split season whose Apertura finished with the club 3rd and whose Clausura is in play
+/// with the club 1st
+/// When its league standing is asked for
+/// Then the Clausura counts, because it is the table the year is now on
+#[test]
+fn in_a_split_season_the_half_in_play_counts() {
+    let teams = vec![
+        make_team("a", "A FC", "ARG", "A"),
+        make_team("b", "B FC", "ARG", "B"),
+        make_team("c", "C FC", "ARG", "C"),
+    ];
+    let mut apertura = with_points(
+        make_domestic_league("apertura", "Apertura", "ARG", None, &["a", "b", "c"]),
+        &[("a", 10), ("b", 20), ("c", 30)],
+    );
+    apertura.priority = 1;
+    apertura.fixtures = vec![completed_on("2026-11-30")];
+    let mut clausura = with_points(
+        make_domestic_league("clausura", "Clausura", "ARG", None, &["a", "b", "c"]),
+        &[("a", 9), ("b", 6), ("c", 3)],
+    );
+    clausura.priority = 2;
+    clausura.fixtures = vec![completed_on("2027-03-15")];
+    let game = make_game(teams, vec![], vec![apertura, clausura]);
+
+    let standing = query_club_league_standing(&game, "a").expect("a is in a league");
+
+    assert_eq!(standing.competition_id, "clausura");
+    assert_eq!(standing.league_pos, 1);
+}
+
+/// Given a split season whose two halves last played on the same day, stored in either order
+/// When a club's league standing is asked for
+/// Then the half that ranks higher (the lower priority number) counts
+#[test]
+fn halves_that_last_played_together_resolve_to_the_higher_ranked() {
+    let teams = vec![
+        make_team("a", "A FC", "ARG", "A"),
+        make_team("b", "B FC", "ARG", "B"),
+    ];
+    let mut apertura = with_points(
+        make_domestic_league("apertura", "Apertura", "ARG", None, &["a", "b"]),
+        &[("a", 1), ("b", 2)],
+    );
+    apertura.priority = 1;
+    apertura.fixtures = vec![completed_on("2027-03-15")];
+    let mut clausura = with_points(
+        make_domestic_league("clausura", "Clausura", "ARG", None, &["a", "b"]),
+        &[("a", 2), ("b", 1)],
+    );
+    clausura.priority = 2;
+    clausura.fixtures = vec![completed_on("2027-03-15")];
+
+    for competitions in in_both_orders(apertura, clausura) {
+        let game = make_game(teams.clone(), vec![], competitions);
+
+        let standing = query_club_league_standing(&game, "a").expect("a is in a league");
+
+        assert_eq!(standing.competition_id, "apertura");
+    }
+}
+
+/// Given a club that is only in a knockout cup
+/// When its league standing is asked for
+/// Then it has none
+#[test]
+fn a_club_only_in_a_cup_has_no_league_standing() {
+    let teams = vec![
+        make_team("t1", "One FC", "ENG", "A"),
+        make_team("t5", "Five FC", "ENG", "B"),
+    ];
+    let league = make_domestic_league("div1", "Division 1", "ENG", None, &["t1"]);
+    let mut cup = make_domestic_league("cup", "Cup", "ENG", None, &["t1", "t5"]);
+    cup.kind = CompetitionType::Cup;
+    cup.rules.format = CompetitionFormat::Knockout;
+    let game = make_game(teams, vec![], vec![league, cup]);
+
+    assert!(query_club_league_standing(&game, "t5").is_none());
+}
+
+/// Given a club that is in no competition
+/// When its league standing is asked for
+/// Then it has none
+#[test]
+fn a_club_in_no_competition_has_no_league_standing() {
+    let teams = vec![make_team("t1", "One FC", "ENG", "A")];
+    let game = make_game(
+        teams,
+        vec![],
+        vec![make_domestic_league(
+            "div1",
+            "Division 1",
+            "ENG",
+            None,
+            &["t1"],
+        )],
+    );
+
+    assert!(query_club_league_standing(&game, "t404").is_none());
+}
+
+/// Given a club in both a cup and a league, stored in either order
+/// When its league standing is asked for
+/// Then the league table is used
+#[test]
+fn a_club_in_a_cup_and_a_league_gets_the_league() {
+    let teams = vec![make_team("t1", "One FC", "ENG", "A")];
+    let mut cup = make_domestic_league("cup", "Cup", "ENG", None, &["t1"]);
+    cup.kind = CompetitionType::Cup;
+    cup.rules.format = CompetitionFormat::Knockout;
+    let league = make_domestic_league("div1", "Division 1", "ENG", None, &["t1"]);
+
+    for competitions in in_both_orders(cup, league) {
+        let game = make_game(teams.clone(), vec![], competitions);
+
+        let standing = query_club_league_standing(&game, "t1").expect("in a league");
+
+        assert_eq!(standing.competition_id, "div1");
+    }
 }

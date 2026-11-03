@@ -139,6 +139,13 @@ export function StaffForm({
         />
       </div>
 
+      <LabeledInput
+        label={t("worldEditor.staffKnownAs")}
+        value={editing.knownAs ?? ""}
+        onChange={(v) => updateField("knownAs", v === "" ? null : v)}
+        placeholder={t("worldEditor.staffKnownAsPlaceholder")}
+      />
+
       {/* Role + Specialization */}
       <div className="grid grid-cols-2 gap-3">
         {/*

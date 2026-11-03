@@ -1,4 +1,5 @@
 use crate::game::Game;
+use crate::morale::apply_morale_change;
 use chrono::Days;
 use domain::player::{
     ContractExitIntent, ContractRenewalState, Player, PlayerPromise, PlayerPromiseKind,
@@ -589,8 +590,7 @@ pub fn apply_player_response(
             .i18n_params
             .insert("delta".to_string(), signed_delta(outcome.delta));
 
-        let base = player.morale as i16;
-        player.morale = (base + outcome.delta as i16).clamp(5, 100) as u8;
+        player.morale = apply_morale_change(player.morale, outcome.delta as i16);
 
         let trust = (i16::from(player.morale_core.manager_trust) + trust_delta).clamp(0, 100) as u8;
         player.morale_core.manager_trust = trust;
@@ -647,7 +647,7 @@ pub fn apply_player_response(
         for p in game.players.iter_mut() {
             if p.id != player_id && p.team_id.as_deref() == Some(&user_team_id) {
                 let loss = rng.random_range(2..=5);
-                p.morale = (p.morale as i16 - loss as i16).clamp(10, 100) as u8;
+                p.morale = apply_morale_change(p.morale, -(loss as i16));
                 affected += 1;
             }
         }
@@ -672,4 +672,42 @@ pub fn apply_player_response(
         i18n_key: outcome.effect_key,
         i18n_params: outcome.i18n_params,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Given morale deltas of +4, −5 and 0
+    /// When the effect's parameters are written
+    /// Then each carries only its signed delta: "+4", "-5" and "+0"
+    #[test]
+    fn effect_params_carry_only_the_signed_morale_delta() {
+        let delta = base_effect_params;
+
+        assert_eq!(
+            (delta(4), delta(-5), delta(0)),
+            (
+                HashMap::from([("delta".to_string(), "+4".to_string())]),
+                HashMap::from([("delta".to_string(), "-5".to_string())]),
+                HashMap::from([("delta".to_string(), "+0".to_string())])
+            )
+        );
+    }
+
+    /// Given band weights of 1, 2, 3, 4 and 5
+    /// When their total is taken
+    /// Then it is 15: every band counted once
+    #[test]
+    fn band_weight_total_adds_all_five_bands() {
+        let weights = ResponseBandWeights {
+            strong_positive: 1,
+            mild_positive: 2,
+            neutral: 3,
+            mild_negative: 4,
+            strong_negative: 5,
+        };
+
+        assert_eq!(weights.total(), 15);
+    }
 }

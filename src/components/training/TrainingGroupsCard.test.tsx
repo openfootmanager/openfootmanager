@@ -3,9 +3,15 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { GameStateData, PlayerData, TeamData } from "../../store/gameStore";
 import TrainingGroupsCard from "./TrainingGroupsCard";
+import { createSeasonContext } from "../../test-utils/factories";
 
 const setTrainingGroupsMock = vi.fn();
 const setPlayerTrainingFocusMock = vi.fn();
+
+vi.mock("../../hooks/usePositionGroups", async () => {
+  const { cannedPositionsModule } = await import("../../test-utils/positionTable");
+  return cannedPositionsModule();
+});
 
 vi.mock("../../services/trainingService", () => ({
   setTrainingGroups: (...args: unknown[]) => setTrainingGroupsMock(...args),
@@ -123,11 +129,13 @@ function createPlayer(overrides: Partial<PlayerData> = {}): PlayerData {
 
 function createGameState(team: TeamData): GameStateData {
   return {
+    season_context: createSeasonContext(),
     clock: {
       current_date: "2026-08-11T00:00:00Z",
       start_date: "2026-07-01T00:00:00Z",
     },
     manager: {
+      display_name: "Jane Doe",
       id: "manager-1",
       first_name: "Jane",
       last_name: "Doe",

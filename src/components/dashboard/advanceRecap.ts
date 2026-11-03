@@ -1,7 +1,6 @@
 import type { AdvanceMatchResultData } from "../../services/advanceTimeService";
 import type { GameStateData } from "../../store/gameStore";
 import { getUserCompetition } from "../../lib/fixtures";
-import { resolveSeasonContext } from "../../lib/seasonContext";
 
 /** Match result enriched with the user's outcome (win/draw/loss) when they were involved. */
 export interface RecapMatch extends AdvanceMatchResultData {
@@ -311,7 +310,7 @@ export function detectAttentionEvents(
   if (recap.userTransferInWindow) events.push("userTransfer");
   if (recap.userNewsInWindow) events.push("userNews");
 
-  const window = resolveSeasonContext(game).transfer_window;
+  const window = game.season_context.transfer_window;
   const landedOn = recap.advancedTo;
   if (
     landedOn &&

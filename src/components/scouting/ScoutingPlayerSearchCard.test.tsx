@@ -1,8 +1,18 @@
-import { fireEvent, render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { fireEvent, render, screen, within } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { formatWeeklyWage } from "../../lib/helpers";
+import type { PlayersPageQuery } from "../../services/playersService";
 import type { PlayerData, TeamData } from "../../store/gameStore";
+import { useSettingsStore } from "../../store/settingsStore";
 import ScoutingPlayerSearchCard from "./ScoutingPlayerSearchCard";
+
+vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn(async () => undefined) }));
+
+vi.mock("../../hooks/usePositionGroups", async () => {
+  const { cannedPositionsModule } = await import("../../test-utils/positionTable");
+  return cannedPositionsModule();
+});
 
 vi.mock("react-i18next", () => ({
   useTranslation: () => ({
@@ -30,7 +40,7 @@ vi.mock("react-i18next", () => ({
       if (key === "common.freeAgent") return "Free Agent";
       if (key === "common.viewTeam") return "View team";
       if (key === "squad.viewProfile") return "View profile";
-      return key;
+      return typeof params?.defaultValue === "string" ? params.defaultValue : key;
     },
     i18n: { language: "en" },
   }),
@@ -125,10 +135,29 @@ function createPlayer(overrides: Partial<PlayerData> = {}): PlayerData {
   };
 }
 
+const baseQuery: PlayersPageQuery = {
+  search: null,
+  position: null,
+  positions: [],
+  age_min: null,
+  age_max: null,
+  ovr_min: null,
+  ovr_max: null,
+  value_min: null,
+  value_max: null,
+  in_budget: false,
+  scope: "scoutable",
+  team_id: null,
+  status: "all",
+  sort_key: "ovr",
+  sort_asc: false,
+  page: 1,
+  page_size: 20,
+};
+
 describe("ScoutingPlayerSearchCard", () => {
   it("renders players and delegates search, filter, selection, scout, and pagination actions", () => {
-    const onPositionFilterChange = vi.fn();
-    const onSearchQueryChange = vi.fn();
+    const onFilterChange = vi.fn();
     const onSelectPlayer = vi.fn();
     const onSelectTeam = vi.fn();
     const onSendScout = vi.fn();
@@ -142,8 +171,7 @@ describe("ScoutingPlayerSearchCard", () => {
           createTeam(),
           createTeam({ id: "team-2", name: "Beta FC", manager_id: "manager-2" }),
         ]}
-        posFilter="All"
-        searchQuery=""
+        query={baseQuery}
         alreadyScoutingIds={new Set<string>()}
         availableScoutCount={1}
         sendingPlayerId={null}
@@ -151,8 +179,7 @@ describe("ScoutingPlayerSearchCard", () => {
         totalPages={2}
         totalPlayers={21}
         pageSize={20}
-        onPositionFilterChange={onPositionFilterChange}
-        onSearchQueryChange={onSearchQueryChange}
+        onFilterChange={onFilterChange}
         onSelectPlayer={onSelectPlayer}
         onSelectTeam={onSelectTeam}
         onSendScout={onSendScout}
@@ -164,13 +191,13 @@ describe("ScoutingPlayerSearchCard", () => {
     expect(screen.getByText("Find Players")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "John Smith" })).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: "Def" }));
-    expect(onPositionFilterChange).toHaveBeenCalledWith("Defender");
+    fireEvent.click(screen.getByRole("button", { name: "Defender" }));
+    expect(onFilterChange).toHaveBeenCalledWith({ positions: [{ group: "Defender" }] });
 
     fireEvent.change(screen.getByPlaceholderText("Search players"), {
       target: { value: "john" },
     });
-    expect(onSearchQueryChange).toHaveBeenCalledWith("john");
+    expect(onFilterChange).toHaveBeenCalledWith({ search: "john" });
 
     fireEvent.click(screen.getByRole("button", { name: "John Smith" }));
     expect(onSelectPlayer).toHaveBeenCalledWith("player-1");
@@ -191,5 +218,217 @@ describe("ScoutingPlayerSearchCard", () => {
     fireEvent.contextMenu(playerRow as HTMLTableRowElement);
     fireEvent.click(screen.getByRole("menuitem", { name: "View profile" }));
     expect(onSelectPlayer).toHaveBeenCalledWith("player-1");
+  });
+
+  function renderCard(player: PlayerData) {
+    return render(
+      <ScoutingPlayerSearchCard
+        players={[player]}
+        teams={[createTeam(), createTeam({ id: "team-2", name: "Beta FC" })]}
+        query={baseQuery}
+        alreadyScoutingIds={new Set<string>()}
+        availableScoutCount={1}
+        sendingPlayerId={null}
+        safePage={0}
+        totalPages={1}
+        totalPlayers={1}
+        pageSize={20}
+        onFilterChange={vi.fn()}
+        onSelectPlayer={vi.fn()}
+        onSelectTeam={vi.fn()}
+        onSendScout={vi.fn()}
+        onPreviousPage={vi.fn()}
+        onNextPage={vi.fn()}
+      />,
+    );
+  }
+
+  /**
+   * Given a player whose `position` is still the legacy bucket and whose natural position is granular
+   * When the search card renders the row
+   * Then the badge reads the granular abbreviation.
+   */
+  it("shows the granular natural position, not the legacy bucket", () => {
+    renderCard(createPlayer({ position: "Defender", natural_position: "LeftBack" }));
+
+    expect(screen.getByText("LB")).toBeInTheDocument();
+  });
+
+  /**
+   * Given a left back
+   * When the search card renders the row
+   * Then the badge takes the defender colour, not the forward fallback red.
+   */
+  it("colours a granular defender as a defender", () => {
+    renderCard(createPlayer({ position: "LeftBack", natural_position: "LeftBack" }));
+
+    expect(screen.getByText("LB").className).not.toContain("text-red-700");
+  });
+});
+
+function setListView(view: "table" | "cards") {
+  useSettingsStore.setState({
+    settings: { ...useSettingsStore.getState().settings, list_view: view },
+  });
+}
+
+describe("ScoutingPlayerSearchCard cards view", () => {
+  afterEach(() => setListView("table"));
+
+  function renderCards(over: Partial<Parameters<typeof ScoutingPlayerSearchCard>[0]> = {}) {
+    const handlers = {
+      onSelectPlayer: vi.fn(),
+      onSelectTeam: vi.fn(),
+      onSendScout: vi.fn(),
+    };
+    render(
+      <ScoutingPlayerSearchCard
+        players={[
+          createPlayer(),
+          createPlayer({ id: "free", full_name: "Free Man", team_id: null }),
+        ]}
+        teams={[createTeam({ id: "team-2", name: "Beta FC" })]}
+        query={baseQuery}
+        alreadyScoutingIds={new Set<string>()}
+        availableScoutCount={1}
+        sendingPlayerId={null}
+        safePage={0}
+        totalPages={1}
+        totalPlayers={2}
+        pageSize={20}
+        onFilterChange={vi.fn()}
+        onPreviousPage={vi.fn()}
+        onNextPage={vi.fn()}
+        {...handlers}
+        {...over}
+      />,
+    );
+    return handlers;
+  }
+
+  /**
+   * Given list_view is "cards"
+   * When the search renders two players, one at a club and one a free agent
+   * Then each is a card, there is no table, the free agent is labelled so, and no rating or wage
+   *      is shown, as in the table.
+   */
+  it("draws each player as a card with no rating and no wage", () => {
+    setListView("cards");
+    renderCards();
+
+    expect(screen.queryByRole("table")).toBeNull();
+    const card = screen.getByRole("article", { name: "John Smith" });
+    expect(within(card).getByText("Beta FC")).toBeInTheDocument();
+    expect(within(card).queryByText("–")).toBeNull();
+    expect(screen.getByRole("article", { name: "Free Man" })).toHaveTextContent("Free Agent");
+  });
+
+  /**
+   * Given a player whose rating (77) and weekly wage (12,000) are on the record the search holds
+   * When his card is drawn
+   * Then neither shows: the club has not scouted him, so the search card carries his value and
+   *      nothing of his rating or wage (as the table does).
+   */
+  it("does not show a rating or a wage the club has not scouted", () => {
+    setListView("cards");
+    renderCards({ players: [createPlayer({ id: "known", ovr: 77, wage: 12000 })] });
+    const card = screen.getByRole("article", { name: "John Smith" });
+
+    expect(within(card).queryByText("77")).toBeNull();
+    expect(within(card).queryByText(formatWeeklyWage(12000, "compact"))).toBeNull();
+    expect(within(card).queryByText("Wage")).toBeNull();
+  });
+
+  /**
+   * Given the cards view
+   * When the card's name, its club and its Scout button are chosen
+   * Then the player opens, the club is selected without opening him, and the scout is sent.
+   */
+  it("opens a player, selects his club and sends a scout from the card", () => {
+    setListView("cards");
+    const { onSelectPlayer, onSelectTeam, onSendScout } = renderCards();
+    const card = screen.getByRole("article", { name: "John Smith" });
+
+    fireEvent.click(within(card).getByRole("button", { name: "Beta FC" }));
+    expect(onSelectTeam).toHaveBeenCalledWith("team-2");
+    expect(onSelectPlayer).not.toHaveBeenCalled();
+
+    fireEvent.click(within(card).getByRole("button", { name: "John Smith" }));
+    expect(onSelectPlayer).toHaveBeenCalledWith("player-1");
+
+    fireEvent.click(within(card).getByRole("button", { name: /^Scout$/i }));
+    expect(onSendScout).toHaveBeenCalledWith("player-1");
+  });
+
+  /**
+   * Given a player already being scouted, and a search with no free scout
+   * When the cards render
+   * Then the first card says so in progress, with no Scout button.
+   */
+  it("shows the scout's progress instead of the Scout button", () => {
+    setListView("cards");
+    renderCards({ alreadyScoutingIds: new Set(["player-1"]) });
+    const card = screen.getByRole("article", { name: "John Smith" });
+
+    expect(within(card).getByText("Scouting in progress")).toBeInTheDocument();
+    expect(within(card).queryByRole("button", { name: /^Scout$/i })).toBeNull();
+  });
+
+  /**
+   * Given the table view
+   * When the player picks Cards in the view switch
+   * Then the search becomes cards, and an empty search still says no player was found.
+   */
+  it("switches to cards, and keeps the empty message in both views", () => {
+    renderCards();
+    fireEvent.click(screen.getByRole("radio", { name: "common.listViewCards" }));
+    expect(screen.getAllByRole("article")).toHaveLength(2);
+    expect(screen.queryByRole("table")).toBeNull();
+  });
+
+  /**
+   * Given the cards view, which has no column headers
+   * When the sort field is changed to Age, and then the direction is flipped
+   * Then the search is asked to sort by it: the same sort_key / sort_asc the query carries.
+   */
+  it("sorts the cards with the shared sort control", () => {
+    setListView("cards");
+    const onFilterChange = vi.fn();
+    renderCards({ onFilterChange });
+
+    fireEvent.click(screen.getByRole("combobox", { name: "common.sortBy" }));
+    fireEvent.click(screen.getByRole("option", { name: "common.age" }));
+    expect(onFilterChange).toHaveBeenCalledWith({ sort_key: "age", sort_asc: false });
+
+    fireEvent.click(screen.getByRole("button", { name: "common.sortAscending" }));
+    expect(onFilterChange).toHaveBeenCalledWith({ sort_key: "ovr", sort_asc: true });
+  });
+
+  /**
+   * Given the cards view
+   * When a card's Scout button and the no-scout note are drawn
+   * Then the button shows keyboard focus with the offset ring, and the note takes a role token.
+   */
+  it("gives the scout action a focus ring and role-token colours", () => {
+    setListView("cards");
+    renderCards();
+    expect(screen.getAllByRole("button", { name: /^Scout$/i })[0]).toHaveClass(
+      "focus-visible:ring-focus",
+      "focus-visible:ring-offset-2",
+    );
+  });
+
+  it("shows the no-free-scout note in a role token and the type role size", () => {
+    setListView("cards");
+    renderCards({ availableScoutCount: 0 });
+    const note = screen.getAllByText("No scouts free")[0];
+    expect(note).toHaveClass("text-fg-muted", "text-caption");
+    expect(note.className).not.toMatch(/text-gray|text-xs/);
+  });
+
+  it.each(["table", "cards"] as const)("says no player was found in the %s view", (view) => {
+    setListView(view);
+    renderCards({ players: [], totalPlayers: 0 });
+    expect(screen.getByText("No players found")).toBeInTheDocument();
   });
 });

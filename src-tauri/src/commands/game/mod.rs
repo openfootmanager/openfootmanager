@@ -2,12 +2,10 @@ use log::info;
 use std::sync::Arc;
 use tauri::{Manager as TauriManager, State};
 
-use chrono::Datelike;
-
 use db::save_index::SaveEntry;
 use domain::manager::Manager;
 use ofm_core::game::Game;
-use ofm_core::state::StateManager;
+use ofm_core::state::{Career, StateManager};
 
 use crate::commands::util::persist_active_game;
 use crate::SaveManagerState;
@@ -25,7 +23,7 @@ mod world_load;
 // No private glob for `bootstrap`: everything this module still calls is
 // something `mcp_server/tools_impl/game.rs` drives a whole career opening
 // through, so it needs a real path anyway.
-pub(crate) use bootstrap::create_new_save;
+pub(crate) use bootstrap::{delete_save_internal, persist_chosen_club};
 #[cfg(feature = "mcp")]
 pub(crate) use bootstrap::{
     start_career_for_mcp, McpCareerOptions, McpNewCareer, AUTO_START_NEEDS_CLUB_ERROR,
@@ -41,6 +39,30 @@ use world_load::*;
 // their signatures. `commands/mod.rs` re-exports them again for the invoke
 // handler in `lib.rs`, so the path must stay `crate::commands::<name>`.
 pub use validation::*;
+
+/// What a career start asks of the app's environment, resolved once by the command so the rest of
+/// it can be driven without a Tauri handle.
+pub(crate) struct StartEnvironment {
+    /// Where installed packages live. Only read when packages are asked for, so failing to find it
+    /// matters only then.
+    pub(crate) packages_dir: Result<std::path::PathBuf, String>,
+    /// Where a package's artwork is kept, when that is known.
+    pub(crate) asset_root: Option<std::path::PathBuf>,
+    pub(crate) sources: ofm_core::generator::DefinitionSources,
+}
+
+/// What the player chose on the create-manager and world screens.
+pub(crate) struct NewGameRequest {
+    pub(crate) first_name: String,
+    pub(crate) last_name: String,
+    pub(crate) dob: String,
+    pub(crate) nationality: String,
+    pub(crate) startup_options: Option<RawStartupOptions>,
+    /// "random" (default) or a file path to a JSON world database.
+    pub(crate) world_source: Option<String>,
+    pub(crate) competition_definitions_json: Option<String>,
+    pub(crate) package_ids: Option<Vec<String>>,
+}
 
 /// Step 1: Create manager + generate world. No team assigned yet.
 /// Returns the Game object so the frontend can show team selection.
@@ -59,6 +81,48 @@ pub async fn start_new_game(
     competition_definitions_json: Option<String>,
     package_ids: Option<Vec<String>>,
 ) -> Result<Game, String> {
+    let environment = StartEnvironment {
+        packages_dir: app_handle
+            .path()
+            .app_data_dir()
+            .map(|dir| dir.join("packages"))
+            .map_err(|e| e.to_string()),
+        asset_root: crate::commands::world::package_assets_dir(&app_handle).ok(),
+        sources: definition_sources(&app_handle),
+    };
+    start_new_game_internal(
+        &state,
+        NewGameRequest {
+            first_name,
+            last_name,
+            dob,
+            nationality,
+            startup_options,
+            world_source,
+            competition_definitions_json,
+            package_ids,
+        },
+        &environment,
+    )
+}
+
+/// Validates the request, builds the world and opens the career, installing it as the active game.
+/// Everything the command does except reading the app's directories, so a test can drive it.
+pub(crate) fn start_new_game_internal(
+    state: &StateManager,
+    request: NewGameRequest,
+    environment: &StartEnvironment,
+) -> Result<Game, String> {
+    let NewGameRequest {
+        first_name,
+        last_name,
+        dob,
+        nationality,
+        startup_options,
+        world_source,
+        competition_definitions_json,
+        package_ids,
+    } = request;
     // Before any validation can return — see `StartRequestSummary` for why, and for what it omits.
     log::info!(
         "[cmd] start_new_game {}",
@@ -93,37 +157,34 @@ pub async fn start_new_game(
         .map_err(|_| "be.error.createManager.invalidDobFormat".to_string())?;
 
     let startup_options = normalize_startup_options(startup_options)?;
-    let (mut world, package_lockfile) =
+    let (mut world, package_lockfile, authored_reputations) =
         if let Some(ids) = package_ids.as_deref().filter(|ids| !ids.is_empty()) {
-            let packages_dir = app_handle
-                .path()
-                .app_data_dir()
-                .map_err(|e| e.to_string())?
-                .join("packages");
+            let packages_dir = environment.packages_dir.clone()?;
             // The career start year wins over the package's declared `baseYear`:
             // squads must be aged against the clock the player actually gets.
             let opening_year = u32::try_from(startup_options.start_year).ok();
-            let asset_root = crate::commands::world::package_assets_dir(&app_handle).ok();
             load_world_data_from_package_ids(
                 &packages_dir,
                 ids,
                 opening_year,
-                asset_root.as_deref(),
-                &definition_sources(&app_handle),
+                environment.asset_root.as_deref(),
+                &environment.sources,
             )?
         } else {
-            (
-                load_world_data(world_source.as_deref(), &definition_sources(&app_handle))?,
-                vec![],
-            )
+            let (world, authored) = load_world_data(world_source.as_deref(), &environment.sources)?;
+            (world, vec![], authored)
         };
+
+    // Competitions are resolved, here and below, with clubs ranked by the package's authored
+    // reputations; a world that did not come from a package has none and ranks by its own.
+    let reputation_basis = ofm_core::generator::ReputationBasis::Authored(&authored_reputations);
 
     // Layer a user-picked standalone definition file onto the world. It is
     // validated strictly; the UI has already shown any details via
     // validate_competition_definitions.
     if let Some(json) = &competition_definitions_json {
         let file = parse_competition_definitions(json)?;
-        if !validate_against_world(&file, &world).is_empty() {
+        if !validate_against_world(&file, &world, reputation_basis).is_empty() {
             return Err("be.error.competitionDef.invalidStandalone".to_string());
         }
         world.competition_definitions = Some(file);
@@ -132,22 +193,7 @@ pub async fn start_new_game(
     let clock = game_clock_for_world(&startup_options, &world.metadata)?;
     let is_non_random = package_ids.as_deref().is_some_and(|ids| !ids.is_empty())
         || matches!(world_source.as_deref(), Some(source) if source != "random");
-    if is_non_random {
-        // Staff generated to fill an imported world are aged against the year the
-        // career actually opens in, so a historical world does not get a backroom
-        // team born decades after the season it models.
-        let opening_year = u32::try_from(clock.start_date.year())
-            .unwrap_or_else(|_| ofm_core::generator::default_opening_year());
-        ofm_core::generator::normalize_imported_world_for_career_start(&mut world, opening_year);
-    }
-    let reference_date = clock.current_date.date_naive();
-    let age = age_on_date(birth_date, reference_date);
-    if age < 30 {
-        return Err("be.error.createManager.minAge".to_string());
-    }
-    if age > 99 {
-        return Err("be.error.createManager.invalidDob".to_string());
-    }
+    check_manager_age(birth_date, &clock)?;
 
     let manager = Manager::new(
         "mgr_user".to_string(),
@@ -167,19 +213,32 @@ pub async fn start_new_game(
         world_source
     );
 
-    let (mut new_game, stats_state) =
-        build_game_from_world_data(clock, manager, &startup_options, world);
+    // An imported world (a package or a world file) is made ready for a career as it is built, by
+    // the one preparation `ofm_core` owns; a generated one is built as it is.
+    let build = if is_non_random {
+        build_game_from_imported_world_ranked
+    } else {
+        build_game_from_world_data_ranked
+    };
+    let built = build(clock, manager, &startup_options, world, reputation_basis);
+    Ok(install_new_game(state, built, package_lockfile))
+}
 
+/// Installs a freshly built game as the active career, and returns it as the screen must hold it
+/// (with the career's token).
+fn install_new_game(
+    state: &StateManager,
+    (mut new_game, stats_state): (Game, domain::stats::StatsState),
+    package_lockfile: Vec<ofm_core::generator::PackageLock>,
+) -> Game {
     new_game.package_lockfile = package_lockfile;
-
     info!(
         "[cmd] start_new_game: world generated with {} teams, {} players, {} staff",
         new_game.teams.len(),
         new_game.players.len(),
         new_game.staff.len()
     );
-    crate::application::career::install_career(&state, new_game.clone(), stats_state, None);
-    Ok(new_game)
+    crate::application::career::install_career_for_screen(state, new_game, stats_state, None)
 }
 
 /// Step 2: User picks a team. Assigns manager, generates welcome message, saves to DB.
@@ -192,8 +251,25 @@ pub async fn select_team(
     active_competition_ids: Option<Vec<String>>,
 ) -> Result<Game, String> {
     info!("[cmd] select_team: team_id={}", team_id);
-    let mut game = state
-        .get_game(|g: &Game| g.clone())
+    let mut sm = map_save_manager_lock_error(sm_state.0.lock())?;
+    select_team_internal(
+        &state,
+        &mut sm,
+        &team_id,
+        active_region_ids,
+        active_competition_ids,
+    )
+}
+
+/// Takes the club, saves the career and installs it; returns the game as the screen must hold it.
+fn select_team_internal(
+    state: &StateManager,
+    sm: &mut db::save_manager::SaveManager,
+    team_id: &str,
+    active_region_ids: Option<Vec<String>>,
+    active_competition_ids: Option<Vec<String>>,
+) -> Result<Game, String> {
+    let (mut game, loaded_save_id) = crate::application::career::snapshot_career(state)
         .ok_or("be.error.noActiveGameSession".to_string())?;
     let current_stats_state = state
         .get_stats_state(|stats| stats.clone())
@@ -203,16 +279,15 @@ pub async fn select_team(
         regions: active_region_ids,
         competitions: active_competition_ids,
     };
-    let stats_state = begin_career(&mut game, &team_id, scope, current_stats_state)?;
+    let stats_state = begin_career(&mut game, team_id, scope, current_stats_state)?;
 
-    // Save to new per-save DB
-    let manager_name = format!("{} {}", game.manager.first_name, game.manager.last_name);
-    let save_name = default_save_name(&manager_name);
-
-    let mut sm = map_save_manager_lock_error(sm_state.0.lock())?;
-    let save_id = create_new_save(&mut sm, &game, &stats_state, &save_name)?;
-    crate::application::career::install_career(&state, game.clone(), stats_state, Some(save_id));
-    Ok(game)
+    let save_id = persist_chosen_club(loaded_save_id.as_deref(), sm, &game, &stats_state)?;
+    Ok(crate::application::career::install_career_for_screen(
+        state,
+        game,
+        stats_state,
+        Some(save_id),
+    ))
 }
 
 #[tauri::command]
@@ -226,12 +301,13 @@ pub async fn get_saves(
 
 #[tauri::command]
 pub async fn delete_save(
+    state: State<'_, Arc<StateManager>>,
     sm_state: State<'_, Arc<SaveManagerState>>,
     save_id: String,
 ) -> Result<bool, String> {
     info!("[cmd] delete_save: save_id={}", save_id);
     let mut sm = map_save_manager_lock_error(sm_state.0.lock())?;
-    sm.delete_save(&save_id)
+    delete_save_internal(&state, &mut sm, &save_id)
 }
 
 #[tauri::command]
@@ -251,6 +327,24 @@ pub async fn load_game(
 
     crate::application::career::install_career(&state, game, stats_state, Some(save_id));
     Ok(mgr_name)
+}
+
+/// Whether the active career still has to pick its first club, so the frontend only routes on the
+/// answer and holds no copy of the rule.
+#[tauri::command]
+pub async fn get_career_stage(
+    state: State<'_, Arc<StateManager>>,
+) -> Result<ofm_core::career_stage::CareerStage, String> {
+    get_career_stage_internal(&state)
+}
+
+/// The career stage of the active game, or the no-session error key when there is none.
+pub fn get_career_stage_internal(
+    state: &StateManager,
+) -> Result<ofm_core::career_stage::CareerStage, String> {
+    state
+        .get_game(ofm_core::career_stage::career_stage)
+        .ok_or("be.error.noActiveGameSession".to_string())
 }
 
 #[tauri::command]
@@ -273,10 +367,11 @@ pub async fn get_active_save_id(
 pub async fn save_game(
     state: State<'_, Arc<StateManager>>,
     sm_state: State<'_, Arc<SaveManagerState>>,
+    career_token: u64,
 ) -> Result<(), String> {
     info!("[cmd] save_game");
     let mut sm = map_save_manager_lock_error(sm_state.0.lock())?;
-    persist_active_game(&state, &mut sm)
+    persist_active_game(&state, &mut sm, Career::Token(career_token))
 }
 
 /// Save the current game and clear the active session so the player returns to the main menu.

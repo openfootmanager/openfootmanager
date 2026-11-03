@@ -1,5 +1,7 @@
+pub mod age;
 pub mod competition_calendar;
 pub mod contract_ledger;
+pub mod custom_tactic;
 pub mod edition_archive;
 pub mod finance;
 pub mod identity;
@@ -10,6 +12,7 @@ pub mod national_team;
 pub mod negotiation;
 pub mod news;
 pub mod player;
+pub mod retired_player;
 pub mod season;
 pub mod staff;
 pub mod stats;

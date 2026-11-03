@@ -1,0 +1,88 @@
+//! A new world's players open at the rating the game computes for them (#869).
+//!
+//! A generated player is rated at his coarse slot position (Defender, Midfielder, Forward) and
+//! only later given a specific natural position (RightBack, LeftWinger, ...). The daily rating
+//! refresh rates him at that specific position, which is on average 1.4 points higher, so every
+//! rating used to jump on the first day. These tests pin that the opening world is already what
+//! the refresh would make it, and that it still has the tiers, mean and wonderkids the maintainer
+//! set.
+
+use domain::age::age_on_or_unknown;
+use ofm_core::player_rating::natural_ovr;
+use season_harness::distribution::distribution_report;
+use season_harness::worlds::WorldSpec;
+
+/// Given the shipped world on its opening day,
+/// When each player's stored overall is compared with the rating formula's for his natural
+///      position,
+/// Then they are the same for every player.
+#[test]
+fn every_player_opens_at_the_rating_the_game_computes_for_him() {
+    for seed in [1, 2] {
+        let game = WorldSpec::shipped(seed).build().expect("the world builds");
+        let on = game.clock.current_date.date_naive();
+        let differing: Vec<String> = game
+            .players
+            .iter()
+            .filter(|player| !player.retired)
+            .filter(|player| natural_ovr(player).round() as u8 != player.ovr)
+            .take(5)
+            .map(|player| {
+                format!(
+                    "{} age {} stored {} formula {:.1}",
+                    player.id,
+                    age_on_or_unknown(on, &player.date_of_birth),
+                    player.ovr,
+                    natural_ovr(player)
+                )
+            })
+            .collect();
+
+        assert!(
+            differing.is_empty(),
+            "seed {seed}: stored ratings differ from the formula's, e.g. {differing:?}"
+        );
+    }
+}
+
+/// Given the shipped world on its opening day,
+/// When the whole world is read,
+/// Then it opens at the ratings the game really computes: senior S 1.9 to 3.0%, A 9.3 to 10.5% and a
+///      mean of 69.4 to 70.0 (the figures a world showed on day 1 before, S 1.2%, A 6.5% and 68.2, were
+///      1.4 points low), and the wonderkids no more common than the maintainer's rare rate
+///      (develop opened at 0.34% and 0.29% on these seeds; the normal bell opens at 0.38% and 0.26%). The settled world, which is what the
+///      tier targets are about, moves on purpose in this change (the intake constants, checked by
+///      the nightly `settled_distribution`, runs qm-9b, qm-10a and qm-10b); these bands pin the
+///      opening only. They are tight: wonderkids 0.25 to 0.40% against 0.38% and 0.26% measured.
+#[test]
+fn the_opening_world_keeps_its_tiers_mean_and_rare_wonderkids() {
+    for seed in [1, 2] {
+        let game = WorldSpec::shipped(seed).build().expect("the world builds");
+        let world = distribution_report(&game);
+        let message = format!(
+            "seed {seed}: S {:.2}% A {:.2}% mean {:.2} wonderkids {:.2}%",
+            world.senior_ovr_s_share * 100.0,
+            world.senior_ovr_a_share * 100.0,
+            world.mean_senior_ovr,
+            world.wonderkid_share * 100.0
+        );
+        eprintln!("OPENING {message}");
+
+        assert!(
+            (0.019..=0.030).contains(&world.senior_ovr_s_share),
+            "S share; {message}"
+        );
+        assert!(
+            (0.093..=0.105).contains(&world.senior_ovr_a_share),
+            "A share; {message}"
+        );
+        assert!(
+            (69.4..=70.0).contains(&world.mean_senior_ovr),
+            "mean rating; {message}"
+        );
+        assert!(
+            (0.0025..=0.0040).contains(&world.wonderkid_share),
+            "wonderkids; {message}"
+        );
+    }
+}

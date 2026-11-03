@@ -9,6 +9,8 @@
 #   * 27 Sep 2026 — the report was looked for one directory above where cargo-mutants writes it.
 #   * 6 Oct 2026  — exit 3 (a mutant timed out) was treated as a tool failure. cargo-mutants ranks
 #                   it above exit 2, so one slow mutant reds a slot whatever else it found.
+#   * 13 Oct 2026 — not a lost run but a false pass: an `--in-diff` whose paths match nothing
+#                   tests zero mutants and exits 0. Seen while measuring the /preflight trial.
 #
 # Every case below pins one of those, or the failures this check must still catch.
 
@@ -23,8 +25,13 @@ failed=0
 scratch="$(mktemp -d)"
 trap 'rm -rf "$scratch"' EXIT
 
+# The shape cargo-mutants 25.3.1 writes: `total_mutants` and the per-outcome counts lead the file.
 report="$scratch/outcomes.json"
-printf '{"outcomes": []}\n' > "$report"
+printf '{"outcomes": [], "total_mutants": 3, "missed": 1, "caught": 2, "timeout": 0, "unviable": 0}\n' > "$report"
+none_tested="$scratch/none-tested.json"
+printf '{"outcomes": [], "total_mutants": 0, "missed": 0, "caught": 0, "timeout": 0, "unviable": 0}\n' > "$none_tested"
+no_total="$scratch/no-total.json"
+printf '{"outcomes": []}\n' > "$no_total"
 empty_report="$scratch/empty.json"
 : > "$empty_report"
 missing_report="$scratch/missing.json"
@@ -59,6 +66,8 @@ expect 124 124 "$report" "killed from outside, as by a timeout wrapper"
 expect 1 2 "$missing_report" "survivors claimed, but no report was written"
 expect 1 0 "$empty_report" "a clean exit with an empty report"
 expect 1 3 "$missing_report" "a timeout claimed, but no report was written"
+expect 1 0 "$none_tested" "a clean exit from a run that tested no mutant at all"
+expect 1 0 "$no_total" "a report that does not say how many mutants it tested"
 
 echo "mutation-outcome.test: arguments that cannot be trusted"
 expect 1 "" "$report" "no status at all"

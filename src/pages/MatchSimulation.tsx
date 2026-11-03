@@ -8,9 +8,11 @@ import type {
   MatchSnapshot,
   MatchEvent,
   MatchDayStage,
+  CupRoundSummary,
   RoundSummary,
 } from "../components/match/types";
 import { resolveMatchFixture } from "../components/match/helpers";
+import { resetMatchCommands } from "../components/match/matchCommands";
 import PreMatchSetup from "../components/match/PreMatchSetup";
 import MatchLive from "../components/match/MatchLive";
 import HalfTimeBreak from "../components/match/HalfTimeBreak";
@@ -18,6 +20,7 @@ import PostMatchScreen from "../components/match/PostMatchScreen";
 import RoundDigestScreen from "../components/match/RoundDigestScreen";
 import PressConference from "../components/match/PressConference";
 import PenaltyShootoutScreen from "../components/match/PenaltyShootoutScreen";
+import { invokeForCareer } from "../services/careerInvoke";
 
 // ---------------------------------------------------------------------------
 // Multi-stage Match Day Orchestrator
@@ -34,6 +37,7 @@ interface MatchRouteState {
 interface FinishLiveMatchResponse {
   game: GameStateData;
   round_summary?: RoundSummary | null;
+  cup_round_summaries?: CupRoundSummary[];
 }
 
 export default function MatchSimulation() {
@@ -50,9 +54,15 @@ export default function MatchSimulation() {
   const [userSide, setUserSide] = useState<"Home" | "Away" | null>(null);
   const [isSpectator, setIsSpectator] = useState(matchMode === "spectator");
   const [roundSummary, setRoundSummary] = useState<RoundSummary | null>(null);
+  const [cupRoundSummaries, setCupRoundSummaries] = useState<CupRoundSummary[]>([]);
   const [hasFinalizedMatch, setHasFinalizedMatch] = useState(false);
   const [preferredSpeed, setPreferredSpeed] = useState<"slow" | "normal" | "fast">("normal");
   const [hasUserOverriddenSpeed, setHasUserOverriddenSpeed] = useState(false);
+
+  // Each match screen is a new live session; commands from an earlier one must not hold it up.
+  useEffect(() => {
+    resetMatchCommands();
+  }, []);
 
   useEffect(() => {
     console.info("[MatchSimulation] mount", {
@@ -146,7 +156,7 @@ export default function MatchSimulation() {
           // domestic league after a restart. Use stable fixture identity.
           // The backend derives extra-time eligibility from the fixture; the
           // argument is still required by the command signature.
-          const restoredSnapshot = await invoke<MatchSnapshot>("start_live_match", {
+          const restoredSnapshot = await invokeForCareer<MatchSnapshot>("start_live_match", {
             allowsExtraTime: false,
             fixtureIndex: routeState.fixtureIndex,
             competitionId: routeState.competitionId,
@@ -225,13 +235,14 @@ export default function MatchSimulation() {
 
     try {
       console.info("[MatchSimulation] finalizeMatch:start");
-      const response = await invoke<FinishLiveMatchResponse>("finish_live_match");
+      const response = await invokeForCareer<FinishLiveMatchResponse>("finish_live_match");
       console.info("[MatchSimulation] finalizeMatch:success", {
         hasRoundSummary: !!response.round_summary,
         hasUpdatedGame: !!response.game,
       });
       setGameState(response.game);
       setRoundSummary(response.round_summary ?? null);
+      setCupRoundSummaries(response.cup_round_summaries ?? []);
       setHasFinalizedMatch(true);
       return true;
     } catch (err) {
@@ -307,7 +318,7 @@ export default function MatchSimulation() {
     );
   }
 
-  const currentFixture = resolveMatchFixture(gameState, snapshot, routeState?.fixtureIndex);
+  const currentFixture = resolveMatchFixture(gameState, snapshot, routeState ?? undefined);
 
   // Render the current stage
   switch (stage) {
@@ -389,18 +400,14 @@ export default function MatchSimulation() {
       );
 
     case "digest": {
-      const isLeagueFixture = currentFixture
-        ? currentFixture.competition !== "Friendly" &&
-          currentFixture.competition !== "PreseasonTournament"
-        : roundSummary !== null;
       return (
         <RoundDigestScreen
           snapshot={snapshot}
           gameState={gameState}
           currentFixture={currentFixture}
           userSide={userSide}
-          isLeagueFixture={isLeagueFixture}
           roundSummary={roundSummary}
+          cupRoundSummaries={cupRoundSummaries}
           onPressConference={handlePressConference}
           onFinish={handleFinishMatch}
         />

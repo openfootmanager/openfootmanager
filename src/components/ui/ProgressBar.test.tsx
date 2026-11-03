@@ -28,22 +28,22 @@ describe("ProgressBar", () => {
     expect(screen.queryByText("75%")).not.toBeInTheDocument();
   });
 
-  it("uses auto variant: success for >= 70", () => {
+  it("uses auto variant: positive for >= 70", () => {
     const { container } = render(<ProgressBar value={80} />);
     const bar = container.querySelector("[style]") as HTMLElement;
-    expect(bar.className).toContain("bg-success-400");
+    expect(bar.className).toContain("bg-positive-solid");
   });
 
-  it("uses auto variant: accent for 40-69", () => {
+  it("uses auto variant: warning for 40-69", () => {
     const { container } = render(<ProgressBar value={55} />);
     const bar = container.querySelector("[style]") as HTMLElement;
-    expect(bar.className).toContain("bg-accent-400");
+    expect(bar.className).toContain("bg-warning-solid");
   });
 
   it("uses auto variant: danger for < 40", () => {
     const { container } = render(<ProgressBar value={20} />);
     const bar = container.querySelector("[style]") as HTMLElement;
-    expect(bar.className).toContain("bg-red-500");
+    expect(bar.className).toContain("bg-danger-solid");
   });
 
   it("uses explicit variant when specified", () => {
@@ -74,6 +74,42 @@ describe("ProgressBar", () => {
     const { container } = render(<ProgressBar value={65} />);
     const bar = container.querySelector("[style]") as HTMLElement;
     expect(bar.style.width).toBe("65%");
+  });
+
+  /**
+   * Given a value of 95 that the backend rates bad
+   * When the bar is drawn with the backend's tone
+   * Then it fills in that tone, not in a colour of its own picked from the number.
+   */
+  it("fills with the backend's tone, not a colour from the value", () => {
+    render(<ProgressBar value={95} tone="bad" label="Condition" />);
+    const fill = screen.getByRole("progressbar", { name: "Condition" }).firstElementChild;
+    expect(fill?.className).toContain("bg-tone-bad-solid");
+    expect(fill?.className).not.toContain("bg-positive-solid");
+  });
+
+  /**
+   * Given a caller that names the bar
+   * When it is drawn
+   * Then a screen reader hears a progress bar with that name, its value (clamped to 0-100) and its
+   *      range.
+   */
+  it("is a named progress bar with its value and range when the caller labels it", () => {
+    render(<ProgressBar value={130} label="Average condition" />);
+    const bar = screen.getByRole("progressbar", { name: "Average condition" });
+    expect(bar).toHaveAttribute("aria-valuenow", "100");
+    expect(bar).toHaveAttribute("aria-valuemin", "0");
+    expect(bar).toHaveAttribute("aria-valuemax", "100");
+  });
+
+  /**
+   * Given a caller that draws the bar beside a figure without naming it
+   * When it is drawn
+   * Then it is no unnamed progress bar: an unnamed one is announced with no idea what it measures.
+   */
+  it("is no progress bar without a label", () => {
+    render(<ProgressBar value={50} />);
+    expect(screen.queryByRole("progressbar")).toBeNull();
   });
 
   it("merges custom className", () => {

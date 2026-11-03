@@ -1,3 +1,4 @@
+pub mod gate;
 pub mod journal;
 
 pub use domain::finance::{CashJournal, CashKind};
@@ -15,8 +16,8 @@ use domain::message::*;
 use domain::team::{
     FinancialTransaction, FinancialTransactionKind, Sponsorship, SponsorshipBonusCriterion, Team,
 };
-use rand::RngExt;
 use serde::Serialize;
+use std::collections::HashMap;
 
 const BOARD_SUPPORT_MIN_AMOUNT: i64 = 150_000;
 const BOARD_SUPPORT_MAX_AMOUNT: i64 = 1_000_000;
@@ -98,11 +99,25 @@ pub struct MarketingCampaignPreview {
     pub cooldown_days: u32,
 }
 
+/// What upgrading one facility would cost and whether the club may do it now.
+///
+/// The UI renders this and decides nothing: the same verdict gates `upgrade_facility`.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct FacilityUpgradePreview {
+    /// The id `upgrade_facility` takes: `Training`, `Medical` or `Scouting`.
+    pub facility: String,
+    pub next_cost: i64,
+    pub can_afford: bool,
+    /// A `be.error.finance.*` key when the club's finances forbid any upgrade.
+    pub block_reason: Option<String>,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Default)]
 pub struct FinanceActionPreviews {
     pub board_support: Option<BoardSupportResult>,
     pub sponsor_pitch: Option<SponsorPitchPreview>,
     pub marketing_campaign: Option<MarketingCampaignPreview>,
+    pub facility_upgrades: Vec<FacilityUpgradePreview>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -122,15 +137,54 @@ pub struct MarketingCampaignResult {
     pub cooldown_days: u32,
 }
 
-fn wage_budget_status(usage_percent: u32) -> FinanceHealthLevel {
-    if usage_percent > 110 {
+/// A wage bill more than this share of the budget puts a club's wages at Critical.
+const WAGE_CRITICAL_PERCENT: u32 = 110;
+
+/// A wage bill of at least this share of the budget puts a club's wages at Warning.
+///
+/// 101, not 100: a bill up to 1% over budget stays at Watch, with no satisfaction penalty and no
+/// board message. That is where the rounded-down percentage put the line, and the maintainer
+/// ruled (on #978) that fixing how the bill is compared must not change the balance. The club
+/// is still over budget for every other purpose: the snapshot's flag, the finance director's
+/// warning and the board's wage policy all read `wage_bill_over_budget`.
+const WAGE_WARNING_PERCENT: u32 = 101;
+
+/// How a club's wage bill compares with `percent` of its wage budget, exactly.
+///
+/// Every wage threshold reads this rather than `wage_budget_usage_percent`. That percentage is a
+/// whole number rounded down, so a bill up to 1% past a line read as on it: a club 0.5% over
+/// budget was Watch, 110.5% was Warning rather than Critical, and met "wages within budget".
+pub(crate) fn wage_bill_against_percent(
+    wage_bill: i64,
+    wage_budget: i64,
+    percent: u32,
+) -> std::cmp::Ordering {
+    (i128::from(wage_bill) * 100).cmp(&(i128::from(wage_budget) * i128::from(percent)))
+}
+
+/// Whether a club's wage bill is over its wage budget: the one definition behind the finance
+/// snapshot's flag, its wage status, the finance director's warning and the board's wage policy.
+pub(crate) fn wage_bill_over_budget(wage_bill: i64, wage_budget: i64) -> bool {
+    wage_bill_against_percent(wage_bill, wage_budget, 100) == std::cmp::Ordering::Greater
+}
+
+fn wage_budget_status(wage_bill: i64, wage_budget: i64, usage_percent: u32) -> FinanceHealthLevel {
+    // A budget of 0 is read as 1, as the usage percentage reads it: otherwise no wages against
+    // no budget sit exactly on the Warning line.
+    let wage_budget = wage_budget.max(1);
+    if wage_bill_against_percent(wage_bill, wage_budget, WAGE_CRITICAL_PERCENT)
+        == std::cmp::Ordering::Greater
+    {
         return FinanceHealthLevel::Critical;
     }
 
-    if usage_percent > 100 {
+    if wage_bill_against_percent(wage_bill, wage_budget, WAGE_WARNING_PERCENT)
+        != std::cmp::Ordering::Less
+    {
         return FinanceHealthLevel::Warning;
     }
 
+    // Exact as it stands: a whole number rounded down reaches 85 exactly when the bill does.
     if usage_percent >= 85 {
         return FinanceHealthLevel::Watch;
     }
@@ -205,6 +259,38 @@ pub fn calc_wages(game: &Game, team_id: &str) -> i64 {
         .sum();
 
     player_wages + staff_wages
+}
+
+/// [`calc_wages`] for every club at once, in one pass over the players and staff. A club paying
+/// nothing is absent. Anything that asks of many clubs in a row reads this; the per-club answer
+/// scans every player.
+pub fn wage_bills_by_club(game: &Game) -> HashMap<String, i64> {
+    let mut bills: HashMap<String, i64> = HashMap::new();
+    for player in &game.players {
+        let wage = i64::from(player.wage());
+        // Only these can be paying him: the borrower and the parent on a loan, else his club.
+        let paying: [Option<&str>; 2] = match &player.active_loan {
+            Some(loan) => [
+                Some(loan.loan_team_id.as_str()),
+                (loan.parent_team_id != loan.loan_team_id).then_some(loan.parent_team_id.as_str()),
+            ],
+            None => [player.team_id.as_deref(), None],
+        };
+        for team_id in paying.into_iter().flatten() {
+            let share = weekly_share(player, team_id, wage, false);
+            if share != 0 {
+                *bills.entry(team_id.to_string()).or_default() += share;
+            }
+        }
+    }
+    for staff_member in &game.staff {
+        if let Some(team_id) = staff_member.team_id.as_deref()
+            && staff_member.wage != 0
+        {
+            *bills.entry(team_id.to_string()).or_default() += i64::from(staff_member.wage);
+        }
+    }
+    bills
 }
 
 /// This club's share of `player.wage` this week (loan split, otherwise the
@@ -287,28 +373,8 @@ pub fn calc_cash_runway_weeks(balance: i64, projected_weekly_net: i64) -> Option
     Some(std::cmp::max(0, balance / projected_weekly_net.abs()))
 }
 
-pub fn calc_matchday(
-    stadium_capacity: u32,
-    home_match_count: i64,
-    attendance_pct: f64,
-    avg_ticket: f64,
-) -> i64 {
-    let revenue_per_match = (stadium_capacity as f64 * attendance_pct * avg_ticket) as i64;
-
-    revenue_per_match * home_match_count
-}
-
 pub fn calc_upkeep(_team: &Team) -> i64 {
     0
-}
-
-fn estimated_weekly_matchday_income(game: &Game, team: &Team) -> i64 {
-    let recent_home_match_count = count_recent_home_matches(game, &team.id);
-    if recent_home_match_count == 0 {
-        return 0;
-    }
-
-    calc_matchday(team.stadium_capacity, recent_home_match_count, 0.76, 20.0)
 }
 
 pub fn team_finance_snapshot(game: &Game, team_id: &str) -> Option<TeamFinanceSnapshot> {
@@ -325,13 +391,19 @@ pub fn team_finance_snapshot(game: &Game, team_id: &str) -> Option<TeamFinanceSn
                 + evaluate_sponsorship_bonus(current_position, &team.form, sponsorship)
         })
         .unwrap_or(0);
-    let weekly_matchday_income = estimated_weekly_matchday_income(game, team);
+    let weekly_matchday_income =
+        gate::expected_gate_next_week(game, &team.id, team.stadium_capacity);
     let weekly_recurring_income = weekly_sponsor_income + weekly_matchday_income;
     let projected_weekly_net = weekly_recurring_income - weekly_wage_spend;
     let cash_runway_weeks = calc_cash_runway_weeks(team.finance, projected_weekly_net);
     let wage_budget_usage_percent = ((annual_wage_bill * 100) / std::cmp::max(1, team.wage_budget))
         .clamp(0, u32::MAX as i64) as u32;
-    let wage_budget_status = wage_budget_status(wage_budget_usage_percent);
+    let currently_over_budget = wage_bill_over_budget(annual_wage_bill, team.wage_budget);
+    let wage_budget_status = wage_budget_status(
+        annual_wage_bill,
+        team.wage_budget,
+        wage_budget_usage_percent,
+    );
     let runway_status = runway_status(team.finance, cash_runway_weeks);
 
     Some(TeamFinanceSnapshot {
@@ -344,7 +416,7 @@ pub fn team_finance_snapshot(game: &Game, team_id: &str) -> Option<TeamFinanceSn
         cash_runway_weeks,
         wage_budget_usage_percent,
         currently_in_debt: team.finance < 0,
-        currently_over_budget: annual_wage_bill > team.wage_budget,
+        currently_over_budget,
         wage_budget_status,
         runway_status,
         overall_status: most_severe_level(wage_budget_status, runway_status),
@@ -459,6 +531,101 @@ fn marketing_campaign_message(
         "be.msg.event.ack",
         ActionType::Acknowledge,
     ))
+}
+
+/// Tells the manager, once a season per distinct set, which recovery levers are open to the club
+/// right now and takes them to the Finances tab.
+///
+/// The levers come from `finance_action_previews`, the same verdicts the tab consumes, so the
+/// message names exactly what the tab would allow and never a lever it would refuse (board support
+/// already used this season, a sponsor already signed or a pitch pending, a campaign cooling
+/// down). Each open lever is an action; the body only introduces them. Nothing open, no message.
+fn finance_levers_message(game: &Game, team_id: &str, today: &str) -> Option<InboxMessage> {
+    let previews = finance_action_previews(game, team_id)?;
+    let open: Vec<(&str, &str)> = [
+        (
+            previews.board_support.is_some(),
+            (
+                "lever_board_support",
+                "be.msg.financeLevers.action.boardSupport",
+            ),
+        ),
+        (
+            previews.sponsor_pitch.is_some(),
+            (
+                "lever_sponsor_pitch",
+                "be.msg.financeLevers.action.sponsorPitch",
+            ),
+        ),
+        (
+            previews.marketing_campaign.is_some(),
+            (
+                "lever_marketing_campaign",
+                "be.msg.financeLevers.action.marketingCampaign",
+            ),
+        ),
+    ]
+    .into_iter()
+    .filter_map(|(is_open, lever)| is_open.then_some(lever))
+    .collect();
+
+    // Only a lever not yet announced this season is news. A lever closing never triggers a
+    // message and the same lever reopening does not either, so a club gets at most one message per
+    // lever per season (three at most), and each still names everything open now.
+    let season = board_support_season(game);
+    let announced = announced_levers(game, season, team_id);
+    if open
+        .iter()
+        .all(|(id, _)| announced.contains(id.trim_start_matches("lever_")))
+    {
+        return None;
+    }
+
+    let open_set = open
+        .iter()
+        .map(|(id, _)| id.trim_start_matches("lever_"))
+        .collect::<Vec<_>>()
+        .join("+");
+    let mut message = InboxMessage::new(
+        format!("finance_levers_{season}_{team_id}_{open_set}"),
+        String::new(),
+        String::new(),
+        String::new(),
+        today.to_string(),
+    )
+    .with_category(MessageCategory::Finance)
+    .with_priority(MessagePriority::High)
+    .with_sender_role("")
+    .with_i18n(
+        "be.msg.financeLevers.subject",
+        "be.msg.financeLevers.body",
+        std::collections::HashMap::new(),
+    )
+    .with_sender_i18n("be.sender.financialDirector", "be.role.financialDirector");
+    for (id, label_key) in open {
+        message = message.with_action(action(
+            id,
+            "",
+            label_key,
+            ActionType::NavigateTo {
+                route: "/dashboard?tab=Finances".to_string(),
+            },
+        ));
+    }
+    Some(message)
+}
+
+/// The levers already announced to `team_id` in `season`, read back from the sent-ledger: each
+/// lever message's key (`finance_levers_{season}_{team_id}_{lever}+{lever}...`) names the levers it
+/// announced. Keyed by club so a manager who moves clubs mid-season still hears about the new one.
+fn announced_levers(game: &Game, season: u32, team_id: &str) -> std::collections::HashSet<String> {
+    let prefix = format!("finance_levers_{season}_{team_id}_");
+    game.emitted_events
+        .iter()
+        .filter_map(|key| key.strip_prefix(&prefix))
+        .flat_map(|levers| levers.split('+'))
+        .map(str::to_string)
+        .collect()
 }
 
 fn board_support_season(game: &Game) -> u32 {
@@ -743,13 +910,54 @@ pub fn preview_marketing_campaign(
     })
 }
 
+/// The finance-health reason a club may not upgrade any facility, shared by the preview the UI
+/// renders and the `upgrade_facility` command that enforces it.
+pub fn facility_upgrade_block_reason(snapshot: &TeamFinanceSnapshot) -> Option<&'static str> {
+    if snapshot.currently_over_budget {
+        return Some("be.error.finance.facilityUpgradeOverBudget");
+    }
+    if matches!(
+        snapshot.overall_status,
+        FinanceHealthLevel::Warning | FinanceHealthLevel::Critical
+    ) {
+        return Some("be.error.finance.facilityUpgradeCritical");
+    }
+    None
+}
+
+fn facility_upgrade_previews(
+    team: &domain::team::Team,
+    snapshot: &TeamFinanceSnapshot,
+) -> Vec<FacilityUpgradePreview> {
+    let block_reason = facility_upgrade_block_reason(snapshot);
+
+    [
+        ("Training", domain::team::FacilityType::Training),
+        ("Medical", domain::team::FacilityType::Medical),
+        ("Scouting", domain::team::FacilityType::Scouting),
+    ]
+    .into_iter()
+    .map(|(facility, facility_type)| {
+        let next_cost = crate::club::next_upgrade_cost(team, &facility_type);
+        FacilityUpgradePreview {
+            facility: facility.to_string(),
+            next_cost,
+            can_afford: team.finance >= next_cost,
+            block_reason: block_reason.map(str::to_string),
+        }
+    })
+    .collect()
+}
+
 pub fn finance_action_previews(game: &Game, team_id: &str) -> Option<FinanceActionPreviews> {
-    game.teams.iter().find(|team| team.id == team_id)?;
+    let team = game.teams.iter().find(|team| team.id == team_id)?;
+    let snapshot = team_finance_snapshot(game, team_id)?;
 
     Some(FinanceActionPreviews {
         board_support: preview_board_support(game, team_id).ok(),
         sponsor_pitch: preview_sponsor_pitch(game, team_id).ok(),
         marketing_campaign: preview_marketing_campaign(game, team_id).ok(),
+        facility_upgrades: facility_upgrade_previews(team, &snapshot),
     })
 }
 
@@ -914,32 +1122,6 @@ fn current_league_position(game: &Game, team_id: &str) -> Option<u32> {
         .map(|index| index as u32 + 1)
 }
 
-fn count_recent_home_matches(game: &Game, team_id: &str) -> i64 {
-    let Some(league) = &game.league else {
-        return 0;
-    };
-
-    let current = game.clock.current_date.date_naive();
-    let week_ago = current - chrono::Duration::days(7);
-
-    league
-        .fixtures
-        .iter()
-        .filter(|fixture| {
-            fixture.status == domain::league::FixtureStatus::Completed
-                && fixture.home_team_id == team_id
-                && fixture.result.is_some()
-        })
-        .filter(|fixture| {
-            if let Ok(date) = chrono::NaiveDate::parse_from_str(&fixture.date, "%Y-%m-%d") {
-                date > week_ago && date <= current
-            } else {
-                false
-            }
-        })
-        .count() as i64
-}
-
 fn add_weekly_wage(map: &mut std::collections::HashMap<String, i64>, team_id: &str, amount: i64) {
     if amount == 0 {
         return;
@@ -1093,29 +1275,7 @@ pub fn process_weekly_finances(game: &mut Game) {
         }
     }
 
-    if game.league.is_some() {
-        let team_ids: Vec<String> = game.teams.iter().map(|team| team.id.clone()).collect();
-        for team_id in team_ids {
-            let home_count = count_recent_home_matches(game, &team_id);
-            if home_count == 0 {
-                continue;
-            }
-            let stadium_capacity = game
-                .teams
-                .iter()
-                .find(|team| team.id == team_id)
-                .map(|team| team.stadium_capacity)
-                .unwrap_or(0);
-            // One gate per club per week, drawn from that club's own stream.
-            let mut rng = game.rng_today(&format!("finances/matchday/{team_id}"));
-            let attendance_pct = rng.random_range(60..=92) as f64 / 100.0;
-            let avg_ticket = rng.random_range(15..=25) as f64;
-            let total_revenue =
-                calc_matchday(stadium_capacity, home_count, attendance_pct, avg_ticket);
-            let req = PostRequest::new(&team_id, total_revenue, CashKind::Matchday, post_date);
-            let _ = commit_weekly_posts(game, std::slice::from_ref(&req));
-        }
-    }
+    gate::settle_gate_income(game, post_date);
 
     // --- Financial health warnings for user's team ---
     generate_financial_warnings(game, &today);
@@ -1153,7 +1313,6 @@ fn generate_financial_warnings(game: &mut Game, today: &str) {
     };
 
     let weekly_wages = calc_wages(game, &user_team_id);
-    let annual_wages = weekly_wages;
     let weeks_left = snapshot.cash_runway_weeks.unwrap_or(999);
 
     // Critical: finances negative
@@ -1176,7 +1335,7 @@ fn generate_financial_warnings(game: &mut Game, today: &str) {
                     "be.msg.financeCritical.body",
                     {
                         let mut p = std::collections::HashMap::new();
-                        p.insert("amount".to_string(), format_money((-team.finance) as u64));
+                        p.insert("amount".to_string(), (-team.finance).to_string());
                         p
                     },
                 )
@@ -1212,7 +1371,7 @@ fn generate_financial_warnings(game: &mut Game, today: &str) {
                     "be.msg.financeWarning.body",
                     {
                         let mut p = std::collections::HashMap::new();
-                        p.insert("weeklyWages".to_string(), format_money(weekly_wages as u64));
+                        p.insert("weeklyWages".to_string(), weekly_wages.to_string());
                         p.insert("weeksLeft".to_string(), weeks_left.to_string());
                         p
                     },
@@ -1230,7 +1389,7 @@ fn generate_financial_warnings(game: &mut Game, today: &str) {
         }
     }
     // Over budget warning: wages exceed budget
-    else if annual_wages > team.wage_budget {
+    else if wage_bill_over_budget(weekly_wages, team.wage_budget) {
         let msg_id = format!("wage_over_budget_{}", today);
         if !existing_ids.contains(&msg_id) {
             new_messages.push(
@@ -1249,11 +1408,8 @@ fn generate_financial_warnings(game: &mut Game, today: &str) {
                     "be.msg.wageOverBudget.body",
                     {
                         let mut p = std::collections::HashMap::new();
-                        p.insert("annualWages".to_string(), format_money(annual_wages as u64));
-                        p.insert(
-                            "wageBudget".to_string(),
-                            format_money(team.wage_budget as u64),
-                        );
+                        p.insert("weeklyWageBill".to_string(), weekly_wages.to_string());
+                        p.insert("wageBudget".to_string(), team.wage_budget.to_string());
                         p
                     },
                 )
@@ -1282,12 +1438,9 @@ fn generate_financial_warnings(game: &mut Game, today: &str) {
         }
     }
 
-    crate::inbox::emit_all(game, new_messages);
-}
+    new_messages.extend(finance_levers_message(game, &user_team_id, today));
 
-fn format_money(amount: u64) -> String {
-    crate::currency::format_compact_number(amount, crate::currency::DEFAULT_CURRENCY_CODE)
-        .unwrap_or_else(|| amount.to_string())
+    crate::inbox::emit_all(game, new_messages);
 }
 
 #[cfg(test)]
@@ -1372,6 +1525,111 @@ mod tests {
         assert!(
             leader_pitch.weekly_amount > trailing_pitch.weekly_amount,
             "A stronger league position should improve sponsor pitch value when other club factors are equal"
+        );
+    }
+
+    /// Given clubs with plain contracts, a loan split between parent and borrower, a loan whose
+    /// parent is also the borrower, and staff, When every club's bill is read at once, Then each
+    /// is the bill `calc_wages` gives it alone, and a club paying nothing has none.
+    #[test]
+    fn every_clubs_wage_bill_in_one_pass_is_the_bill_it_has_alone() {
+        use domain::player::{ActiveLoan, Player, PlayerAttributes, Position};
+        use domain::staff::{Staff, StaffAttributes, StaffRole};
+
+        let mut game = make_game();
+        let attrs = PlayerAttributes {
+            pace: 60,
+            stamina: 60,
+            strength: 60,
+            agility: 60,
+            passing: 60,
+            shooting: 60,
+            tackling: 60,
+            dribbling: 60,
+            defending: 60,
+            positioning: 60,
+            vision: 60,
+            decisions: 60,
+            composure: 60,
+            aggression: 60,
+            teamwork: 60,
+            leadership: 60,
+            handling: 60,
+            reflexes: 60,
+            aerial: 60,
+        };
+        let player = |id: &str, team: &str, wage: u32, loan: Option<(&str, &str, u8)>| {
+            let mut p = Player::new(
+                id.to_string(),
+                id.to_string(),
+                id.to_string(),
+                "1998-01-01".to_string(),
+                "England".to_string(),
+                Position::Midfielder,
+                attrs.clone(),
+            );
+            p.team_id = Some(team.to_string());
+            p.stage_wage(wage);
+            p.active_loan = loan.map(|(parent, borrower, pct)| ActiveLoan {
+                parent_team_id: parent.to_string(),
+                loan_team_id: borrower.to_string(),
+                start_date: "2026-01-01".to_string(),
+                end_date: "2026-12-31".to_string(),
+                wage_contribution_pct: pct,
+                buy_option_fee: None,
+                loan_start_minutes: 0,
+                loan_start_appearances: 0,
+                development_reported_minutes: 0,
+                development_reported_appearances: 0,
+            });
+            p
+        };
+        game.players = vec![
+            player("plain", "team1", 10_000, None),
+            player("split", "team2", 20_000, Some(("team1", "team2", 60))),
+            player("self-loan", "team2", 7_000, Some(("team2", "team2", 50))),
+            player("free", "team1", 0, None),
+            player("idle", "zero-club", 0, None),
+        ];
+        game.players[3].team_id = None;
+        let mut coach = Staff::new(
+            "coach".to_string(),
+            "C".to_string(),
+            "C".to_string(),
+            "1970-01-01".to_string(),
+            StaffRole::AssistantManager,
+            StaffAttributes {
+                coaching: 50,
+                judging_ability: 50,
+                judging_potential: 50,
+                physiotherapy: 50,
+            },
+        );
+        coach.team_id = Some("team2".to_string());
+        coach.wage = 500;
+        let mut volunteer = coach.clone();
+        volunteer.id = "volunteer".to_string();
+        volunteer.team_id = Some("volunteer-club".to_string());
+        volunteer.wage = 0;
+        game.staff = vec![coach, volunteer];
+
+        let bills = super::wage_bills_by_club(&game);
+
+        for club in ["team1", "team2", "nobody", "volunteer-club", "zero-club"] {
+            assert_eq!(
+                bills.get(club).copied().unwrap_or(0),
+                super::calc_wages(&game, club),
+                "{club}"
+            );
+        }
+        assert!(!bills.contains_key("nobody"));
+        assert!(
+            !bills.contains_key("zero-club"),
+            "a club whose players all earn nothing is absent too"
+        );
+        assert!(
+            !bills.contains_key("volunteer-club"),
+            "a club paying nobody is absent, as documented"
         );
     }
 }

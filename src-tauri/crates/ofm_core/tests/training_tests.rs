@@ -10,10 +10,14 @@ use ofm_core::training;
 
 #[path = "training_tests/determinism.rs"]
 mod determinism;
+#[path = "training_tests/fitness.rs"]
+mod fitness;
 #[path = "training_tests/fixtures.rs"]
 mod fixtures;
 #[path = "training_tests/recovery.rs"]
 mod recovery;
+#[path = "training_tests/warnings.rs"]
+mod warnings;
 
 use fixtures::*;
 
@@ -920,13 +924,7 @@ fn peaked_player_does_not_gain_from_training() {
 
     // Prime-age player (age ~27 in 2025). Compute their natural OVR from
     // default_attrs, then peg potential to it so they have no headroom.
-    let year = game
-        .clock
-        .current_date
-        .date_naive()
-        .format("%Y")
-        .to_string();
-    let year: u32 = year.parse().unwrap();
+    let today = game.clock.current_date.date_naive();
     let peaked_id = "p2".to_string();
     {
         let p = game
@@ -934,7 +932,7 @@ fn peaked_player_does_not_gain_from_training() {
             .iter_mut()
             .find(|p| p.id == peaked_id)
             .expect("prime player exists");
-        refresh_player_derived(p, year);
+        refresh_player_derived(p, today);
         p.potential = p.ovr;
     }
 

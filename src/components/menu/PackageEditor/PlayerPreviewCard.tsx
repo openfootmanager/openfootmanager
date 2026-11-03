@@ -1,3 +1,6 @@
+import { useRatingTiers } from "../../../hooks/useRatingTiers";
+import { ratingTierClass } from "../../../lib/ratingTier";
+import { calcAgeOnDate, localDateIso } from "../../../lib/valueFormatting";
 import { User } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { GeneratedAvatar } from "../../ui/GeneratedAvatar";
@@ -5,14 +8,6 @@ import { GeneratedCrest } from "../../ui/GeneratedCrest";
 import { POSITION_COLOR, PLAYER_ATTR_GROUPS } from "./helpers";
 import type { PlayerAttributesDef, PlayerDef, Position, TeamDef } from "./types";
 import { useAssetDataUrl } from "../../../hooks/useAssetDataUrl";
-
-function attrColor(val: number): string {
-  if (val >= 80) return "bg-success-500";
-  if (val >= 65) return "bg-primary-500";
-  if (val >= 50) return "bg-accent-500";
-  if (val >= 35) return "bg-yellow-500";
-  return "bg-red-500";
-}
 
 function estimateAttributesFromOvr(overall: number, position: Position): PlayerAttributesDef {
   const b = Math.max(30, Math.min(97, overall));
@@ -49,11 +44,11 @@ function estimateAttributesFromOvr(overall: number, position: Position): PlayerA
   };
 }
 
-function calcAge(dob: string | null): number | null {
-  if (!dob) return null;
-  const ms = Date.now() - new Date(dob).getTime();
-  const age = Math.floor(ms / (365.25 * 24 * 60 * 60 * 1000));
-  return Number.isNaN(age) || age < 0 || age > 80 ? null : age;
+/** The editor has no game clock, so the age is as of the real date: "age today". */
+function ageToday(dob: string | null): number | null {
+  if (!dob || Number.isNaN(new Date(dob).getTime())) return null;
+  const age = calcAgeOnDate(dob, localDateIso());
+  return age < 0 ? null : age;
 }
 
 interface PlayerPreviewCardProps {
@@ -69,6 +64,7 @@ export function PlayerPreviewCard({
   teams,
   projectDir,
 }: PlayerPreviewCardProps) {
+  const tierOf = useRatingTiers();
   const { t } = useTranslation();
 
   const displayName =
@@ -79,7 +75,7 @@ export function PlayerPreviewCard({
   });
   const posColor = POSITION_COLOR[editing.position] ?? "bg-gray-500";
 
-  const age = calcAge(editing.dateOfBirth);
+  const age = ageToday(editing.dateOfBirth);
   const initials = displayName ? displayName.slice(0, 2).toUpperCase() : "?";
 
   const club = teams?.find((t) => t.id === editing.club);
@@ -130,15 +126,7 @@ export function PlayerPreviewCard({
           <div className="flex items-baseline gap-1.5">
             <span className="text-[10px] uppercase tracking-wide text-gray-400">OVR</span>
             <span
-              className="text-2xl font-heading font-black leading-none"
-              style={{
-                color:
-                  editing.overall >= 80
-                    ? "var(--color-success-500, #22c55e)"
-                    : editing.overall >= 65
-                      ? "var(--color-primary-500, #3b82f6)"
-                      : "#9ca3af",
-              }}
+              className={`text-2xl font-heading font-black leading-none ${ratingTierClass(tierOf(editing.overall), "text")}`}
             >
               {editing.overall}
             </span>
@@ -171,7 +159,7 @@ export function PlayerPreviewCard({
                           </span>
                           <div className="flex-1 h-1 bg-gray-100 dark:bg-navy-600 rounded-full overflow-hidden">
                             <div
-                              className={`h-full rounded-full ${attrColor(val)}`}
+                              className={`h-full rounded-full ${ratingTierClass(tierOf(val), "bar")}`}
                               style={{ width: `${(val / 99) * 100}%` }}
                             />
                           </div>
@@ -226,7 +214,12 @@ export function PlayerPreviewCard({
             <p>
               {t("worldEditor.playerDateOfBirth")}:{" "}
               <span className="text-gray-700 dark:text-gray-200">{editing.dateOfBirth}</span>
-              {age !== null && <span className="text-gray-400 dark:text-gray-500"> ({age}y)</span>}
+              {age !== null && (
+                <span className="text-gray-400 dark:text-gray-500">
+                  {" "}
+                  ({t("worldEditor.playerAgeToday", { age })})
+                </span>
+              )}
             </p>
           )}
           {editing.footedness && editing.footedness !== "Right" && (

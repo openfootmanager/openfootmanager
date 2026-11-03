@@ -1,10 +1,20 @@
 use serde::{Deserialize, Serialize};
+use ts_rs::TS;
+
+/// The scale every manager's reputation is created on: the generator's opening draw (uniform over
+/// it), a stand-in's coaching-based standing and a retired player's.
+///
+/// `Manager::rating` still reads reputation over the 300–900 club scale. Moving it onto this one
+/// lifts every AI club's management quality and changes the match side (measured on #1167:
+/// substitutions down about 4.5% a season on three seeds), so it waits for the PR that gives
+/// reputation its season-to-season movement and its 100..=900 bounds.
+pub const CREATED_REPUTATION: std::ops::RangeInclusive<u32> = 200..=700;
 
 fn default_fan_approval() -> u8 {
     50
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
 pub struct Manager {
     pub id: String,
     pub first_name: String,
@@ -31,9 +41,23 @@ pub struct Manager {
 
     // Employment history
     pub career_history: Vec<ManagerCareerEntry>,
+
+    /// A stand-in: an assistant manager covering a vacant post until the club appoints someone.
+    /// Never a market candidate, and archived when the permanent appointment arrives.
+    #[serde(default)]
+    pub interim: bool,
+
+    /// What they are called when it differs from their name ("Pep" for Josep Guardiola i Sala).
+    #[serde(default)]
+    pub known_as: Option<String>,
+    /// The one name to show for them: `known_as` if set, else first and last name. Kept up to
+    /// date by [`Manager::new`], [`Manager::set_known_as`] and the loaders, so a reader renders
+    /// it as it is and never decides between the names itself.
+    #[serde(default)]
+    pub display_name: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default, TS)]
 pub struct ManagerCareerStats {
     pub matches_managed: u32,
     pub wins: u32,
@@ -43,7 +67,7 @@ pub struct ManagerCareerStats {
     pub best_finish: Option<u32>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
 pub struct ManagerCareerEntry {
     pub team_id: String,
     pub team_name: String,
@@ -97,12 +121,53 @@ impl Manager {
             warning_stage: 0,
             career_stats: ManagerCareerStats::default(),
             career_history: Vec::new(),
+            interim: false,
+            known_as: None,
+            display_name: String::new(),
         }
+        .with_display_name_refreshed()
+    }
+
+    fn with_display_name_refreshed(mut self) -> Self {
+        self.refresh_display_name();
+        self
+    }
+
+    /// Sets what they are called; blank means nothing in particular.
+    pub fn set_known_as(&mut self, known_as: Option<String>) {
+        self.known_as = known_as;
+        self.refresh_display_name();
+    }
+
+    /// Tidies `known_as` and recomputes `display_name` from the names it depends on. Every way a
+    /// record enters the game (a setter, a world file, a save) ends here, so a blank known-as
+    /// can never survive as a blank display name.
+    pub fn refresh_display_name(&mut self) {
+        self.known_as = crate::identity::tidy_known_as(self.known_as.take());
+        self.display_name = crate::identity::display_name(
+            self.known_as.as_deref(),
+            &self.first_name,
+            &self.last_name,
+        );
     }
 
     pub fn hire(&mut self, team_id: String) {
         self.team_id = Some(team_id);
         self.warning_stage = 0;
+    }
+
+    /// Saves from before `career_history` existed can hold a club with no open entry, so leaving
+    /// that club would leave no trace of it and `career_stage` would read the manager as one who
+    /// never had a club. Open the missing entry so the tenure that is about to end is recorded.
+    pub fn ensure_open_career_entry(&mut self, team_id: &str, team_name: &str, date: &str) {
+        if self.career_history.iter().any(|e| e.end_date.is_none()) {
+            return;
+        }
+        self.career_history.push(ManagerCareerEntry::open(
+            team_id.to_string(),
+            team_name.to_string(),
+            date.to_string(),
+        ));
     }
 
     pub fn fire(&mut self, date: &str) {
@@ -163,6 +228,23 @@ mod tests {
             "1980-01-01".to_string(),
             "GB".to_string(),
         )
+    }
+
+    /// Given a manager with and without a known-as name (#557)
+    /// When their display name is read
+    /// Then it is the known-as name when set, else the full name, and a blank known-as is none.
+    #[test]
+    fn the_display_name_is_the_known_as_name_or_the_full_name() {
+        let mut m = manager();
+        assert_eq!(m.display_name, "Test Manager");
+
+        m.set_known_as(Some("Pep Guardiola".into()));
+        assert_eq!(m.display_name, "Pep Guardiola");
+        assert_eq!(m.full_name(), "Test Manager");
+
+        m.set_known_as(Some("   ".into()));
+        assert_eq!(m.known_as, None);
+        assert_eq!(m.display_name, "Test Manager");
     }
 
     #[test]

@@ -80,12 +80,15 @@ fn youth_recruit(
         slot_index,
         &nationality,
         current_year,
-        age,
+        PlayerRoll::for_intake(age),
         &names_def,
         rng,
     );
     player.squad_role = SquadRole::Youth;
     player.transfer_listed = false;
     player.loan_listed = false;
+    // A specific position (LB, CM, ...) from the day he arrives: the upgrade used to run only on
+    // a new game's squads and on load, so a signed prospect showed the generic group until a reload.
+    crate::player_identity::upgrade_player_identity(&mut player, None);
     player
 }

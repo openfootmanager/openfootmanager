@@ -35,6 +35,7 @@ import { WorldEditorHome, type RecentProject } from "../components/worldEditor/W
 import type { SamplePackage } from "../components/menu/PackageEditor/sampleData";
 import { WorldEditorLayout } from "../components/worldEditor/WorldEditorLayout";
 import { WorldEditorTopBar, type SaveState } from "../components/worldEditor/WorldEditorTopBar";
+import { findingsToShow } from "../components/worldEditor/validationOutcome";
 import { WorldEditorSidebar } from "../components/worldEditor/WorldEditorSidebar";
 import {
   WorldEditorFormPanel,
@@ -89,6 +90,7 @@ export default function WorldEditor() {
   const [names, setNames] = useState<NamesDefinition>(emptyNamesDefinition());
   const [competitions, setCompetitions] = useState<CompetitionDef[]>([]);
   const [issues, setIssues] = useState<PackageProjectData["issues"]>([]);
+  const [warnings, setWarnings] = useState<PackageProjectData["warnings"]>([]);
 
   // Layout state
   const [selectedSection, setSelectedSection] = useState<EditTab>("metadata");
@@ -220,6 +222,7 @@ export default function WorldEditor() {
     setNames(data.names ?? emptyNamesDefinition());
     setCompetitions(data.competitions);
     setIssues(data.issues);
+    setWarnings(data.warnings ?? []);
     clearHistory();
     setIsDirty(false);
   }
@@ -423,6 +426,9 @@ export default function WorldEditor() {
       await persist();
       const data = await invoke<PackageProjectData>("read_package_project", { dir: projectDir });
       setIssues(data.issues);
+      setWarnings(data.warnings ?? []);
+      // An explicit Validate shows what it found, warnings included.
+      if (findingsToShow(data)) setFormPanel("issues");
     } catch {
       // persist already handled the error
     } finally {
@@ -680,6 +686,7 @@ export default function WorldEditor() {
             saveState={saveState}
             isBusy={isBusy}
             issueCount={issues.length}
+            warningCount={warnings.length}
             autoSave={autoSave}
             canUndo={canUndo}
             canRedo={canRedo}
@@ -711,6 +718,7 @@ export default function WorldEditor() {
             namePoolCount={Object.keys(names.pools).length}
             competitionCount={competitions.length}
             issueCount={issues.length}
+            warningCount={warnings.length}
             onShowIssues={handleShowIssues}
             showingIssues={formPanel === "issues"}
           />
@@ -745,6 +753,7 @@ export default function WorldEditor() {
               namePools: Object.keys(names.pools).length,
             }}
             issues={issues}
+            warnings={warnings}
             teamEditor={teamEditor}
             confEditor={confEditor}
             countryEditor={countryEditor}

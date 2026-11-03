@@ -1,20 +1,26 @@
 import { useState } from "react";
-import { invoke } from "@tauri-apps/api/core";
 import { useTranslation } from "react-i18next";
 import type { GameStateData } from "../../store/gameStore";
 import {
   type MatchSnapshot,
+  type SubstitutionOutcome,
+  type SubstitutionSwap,
   type MatchEvent,
   FORMATIONS,
   PLAY_STYLES,
   getTeamTalkOptions,
   type TeamTalkTone,
 } from "./types";
+import MatchEventSideBadge from "./MatchEventSideBadge";
 import { getEventDisplay, getPlayerName, makeTeamFallback } from "./helpers";
 import { getTalkIcon } from "./TeamTalkIcons";
 import { SubPanel } from "./SubPanel";
+import { applyRoleChange } from "./applyRoleChange";
+import { sendMatchCommand } from "./matchCommands";
+import { applySubstitutions } from "./applySubstitutions";
 import { Badge, TeamLogo, ThemeToggle } from "../ui";
 import { Play, RefreshCw, Shield, Zap, Target, Crosshair, Flag, MessageCircle } from "lucide-react";
+import { invokeForCareer } from "../../services/careerInvoke";
 
 interface HalfTimeBreakProps {
   snapshot: MatchSnapshot;
@@ -49,6 +55,8 @@ export default function HalfTimeBreak({
   const [selectedTalk, setSelectedTalk] = useState<TeamTalkTone | null>(null);
   const [showSubPanel, setShowSubPanel] = useState(false);
   const [talkDelivered, setTalkDelivered] = useState(false);
+  const [talkPending, setTalkPending] = useState(false);
+  const [talkError, setTalkError] = useState<string | null>(null);
   const [talkResults, setTalkResults] = useState<
     {
       player_id: string;
@@ -61,6 +69,8 @@ export default function HalfTimeBreak({
 
   const homeFullTeam = gameState.teams.find((t) => t.id === snapshot.home_team.id);
   const awayFullTeam = gameState.teams.find((t) => t.id === snapshot.away_team.id);
+  const homeTeam = homeFullTeam ?? makeTeamFallback(snapshot.home_team.name);
+  const awayTeam = awayFullTeam ?? makeTeamFallback(snapshot.away_team.name);
   const homeTeamColor = homeFullTeam?.colors?.primary || "#10b981";
   const awayTeamColor = awayFullTeam?.colors?.primary || "#6366f1";
 
@@ -81,19 +91,20 @@ export default function HalfTimeBreak({
 
   const handleFormationChange = async (formation: string) => {
     try {
-      const snap = await invoke<MatchSnapshot>("apply_match_command", {
-        command: { ChangeFormation: { side: userSide, formation } },
-      });
+      const snap = await sendMatchCommand({ ChangeFormation: { side: userSide, formation } });
       onUpdateSnapshot(snap);
     } catch (err) {
       console.error("Formation change failed:", err);
     }
   };
 
+  const handleRoleChange = (playerId: string, role: string) =>
+    applyRoleChange(userSide, playerId, role, onUpdateSnapshot);
+
   const handlePlayStyleChange = async (playStyle: string) => {
     try {
-      const snap = await invoke<MatchSnapshot>("apply_match_command", {
-        command: { ChangePlayStyle: { side: userSide, play_style: playStyle } },
+      const snap = await sendMatchCommand({
+        ChangePlayStyle: { side: userSide, play_style: playStyle },
       });
       onUpdateSnapshot(snap);
     } catch (err) {
@@ -101,31 +112,23 @@ export default function HalfTimeBreak({
     }
   };
 
-  const handleSubstitution = async (playerOffId: string, playerOnId: string) => {
-    try {
-      const snap = await invoke<MatchSnapshot>("apply_match_command", {
-        command: {
-          Substitute: {
-            side: userSide,
-            player_off_id: playerOffId,
-            player_on_id: playerOnId,
-          },
-        },
-      });
-      onUpdateSnapshot(snap);
+  const handleSubstitutions = async (swaps: SubstitutionSwap[]): Promise<SubstitutionOutcome> => {
+    const outcome = await applySubstitutions(userSide, swaps, onUpdateSnapshot);
+    if (outcome.applied) {
       setShowSubPanel(false);
-    } catch (err) {
-      console.error("Substitution failed:", err);
     }
+    return outcome;
   };
 
   const handleDeliverTalk = async () => {
-    if (!selectedTalk) return;
+    if (!selectedTalk || talkPending) return;
     const userScore = userSide === "Home" ? snapshot.home_score : snapshot.away_score;
     const oppScore = userSide === "Home" ? snapshot.away_score : snapshot.home_score;
     const context = userScore > oppScore ? "winning" : userScore < oppScore ? "losing" : "drawing";
+    setTalkPending(true);
+    setTalkError(null);
     try {
-      const results = await invoke<
+      const results = await invokeForCareer<
         {
           player_id: string;
           player_name: string;
@@ -135,10 +138,15 @@ export default function HalfTimeBreak({
         }[]
       >("apply_team_talk", { tone: selectedTalk, context });
       setTalkResults(results);
+      // Delivered only once the backend applied it: a refused talk (the career changed, say)
+      // moved no morale, so the choices must stay for another try.
+      setTalkDelivered(true);
     } catch (err) {
       console.error("Team talk failed:", err);
+      setTalkError(t("match.teamTalkFailed"));
+    } finally {
+      setTalkPending(false);
     }
-    setTalkDelivered(true);
   };
 
   return (
@@ -160,7 +168,7 @@ export default function HalfTimeBreak({
           <div className="flex items-center justify-center gap-8">
             <div className="flex items-center gap-3">
               <TeamLogo
-                team={homeFullTeam ?? makeTeamFallback(snapshot.home_team.name)}
+                team={homeTeam}
                 className="w-12 h-12 rounded-xl flex items-center justify-center font-heading font-bold overflow-hidden"
                 imageClassName="h-9 w-9 object-contain drop-shadow"
                 style={{
@@ -198,7 +206,7 @@ export default function HalfTimeBreak({
                 {snapshot.away_team.name}
               </p>
               <TeamLogo
-                team={awayFullTeam ?? makeTeamFallback(snapshot.away_team.name)}
+                team={awayTeam}
                 className="w-12 h-12 rounded-xl flex items-center justify-center font-heading font-bold overflow-hidden"
                 imageClassName="h-9 w-9 object-contain drop-shadow"
                 style={{
@@ -260,11 +268,11 @@ export default function HalfTimeBreak({
                         <span className={`${display.color} font-medium truncate`}>
                           {getPlayerName(snapshot, evt.player_id)}
                         </span>
-                        <Badge variant={evt.side === "Home" ? "primary" : "accent"} size="sm">
-                          {evt.side === "Home"
-                            ? snapshot.home_team.name.substring(0, 3)
-                            : snapshot.away_team.name.substring(0, 3)}
-                        </Badge>
+                        <MatchEventSideBadge
+                          side={evt.side}
+                          homeTeam={homeTeam}
+                          awayTeam={awayTeam}
+                        />
                       </div>
                     );
                   })}
@@ -323,10 +331,16 @@ export default function HalfTimeBreak({
                       <button
                         type="button"
                         onClick={handleDeliverTalk}
-                        className="w-full mt-3 py-2.5 bg-primary-500/20 hover:bg-primary-500/30 text-primary-400 rounded-lg font-heading font-bold text-sm uppercase tracking-wider transition-colors"
+                        disabled={talkPending}
+                        className="w-full mt-3 py-2.5 bg-primary-500/20 hover:bg-primary-500/30 text-primary-400 rounded-lg font-heading font-bold text-sm uppercase tracking-wider transition-colors disabled:opacity-50"
                       >
                         {t("match.deliverTeamTalk")}
                       </button>
+                    )}
+                    {talkError && (
+                      <p role="alert" className="text-sm text-danger mt-2">
+                        {talkError}
+                      </p>
                     )}
                   </>
                 ) : (
@@ -467,9 +481,10 @@ export default function HalfTimeBreak({
         <SubPanel
           snapshot={snapshot}
           side={userSide}
-          onSubstitute={handleSubstitution}
+          onSubstitute={handleSubstitutions}
           onFormationChange={handleFormationChange}
           onPlayStyleChange={handlePlayStyleChange}
+          onChangeRole={handleRoleChange}
           onClose={() => setShowSubPanel(false)}
         />
       )}

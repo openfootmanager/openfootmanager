@@ -1,18 +1,13 @@
+import { useRatingTiers } from "../../hooks/useRatingTiers";
+import { ratingTierClass } from "../../lib/ratingTier";
 import { History } from "lucide-react";
 import type { MouseEventHandler } from "react";
 import type { LoanOfferData, PlayerData, TransferOfferData } from "../../store/gameStore";
 import { Badge, CountryFlag, PlayerAvatar } from "../ui";
 import ContextMenu from "../ContextMenu";
-import {
-  getTeamName,
-  calcAge,
-  formatVal,
-  formatWeeklyAmount,
-  getPlayerOvr,
-  positionBadgeVariant,
-} from "../../lib/helpers";
+import { getTeamName, calcAge, formatVal, formatWeeklyWage } from "../../lib/helpers";
+import { type VisibleFigures, visibleRatingText, visibleWageText } from "../../lib/playerKnowledge";
 import { countryName } from "../../lib/countries";
-import { translatePositionAbbreviation } from "../squad/SquadTab.helpers";
 import {
   buildDividerMenuItem,
   buildScoutPlayerMenuItem,
@@ -24,6 +19,8 @@ import {
 import type { TransfersTabController } from "./useTransfersTabController";
 import { getRelevantTransferOffers, getRelevantLoanOffers } from "./TransfersTab.model";
 import { PlayerOffersCell } from "./TransfersPlayerOffers";
+import { naturalPositionOf } from "../../lib/positions";
+import PlayerPositionBadge from "../PlayerPositionBadge";
 type PlayerRowDetailsProps = {
   state: Pick<
     TransfersTabController,
@@ -32,7 +29,6 @@ type PlayerRowDetailsProps = {
     | "i18n"
     | "onSelectTeam"
     | "gameState"
-    | "weeklySuffix"
     | "view"
     | "userTeamId"
     | "handleRespondOffer"
@@ -49,7 +45,8 @@ type PlayerRowDetailsProps = {
   player: PlayerData;
   onContextMenu?: MouseEventHandler<HTMLTableRowElement>;
   age: number;
-  ovr: number;
+  /** His rating and wage as the club may see them (the market page's projection). */
+  figures: VisibleFigures;
   hasOffersForThisPlayer: boolean;
   transferOffersForThisPlayer: TransferOfferData[];
   loanOffersForThisPlayer: LoanOfferData[];
@@ -74,41 +71,56 @@ type TransferPlayerRowProps = {
     | "openDealHistory"
     | "i18n"
     | "gameState"
-    | "weeklySuffix"
     | "userTeamId"
     | "handleRespondOffer"
     | "openCounterNegotiation"
     | "handleRespondLoanOffer"
     | "openLoanCounterOffer"
     | "handleExerciseLoanBuyOption"
+    | "visibleOf"
   >;
   player: PlayerData;
 };
+
+type TransferDealButtonProps = {
+  state: Pick<
+    TransfersTabController,
+    "view" | "t" | "openDealEntry" | "openDealHistory" | "getDealEntryIcon" | "getDealEntryLabel"
+  >;
+  player: PlayerData;
+};
+
+/** The deal button of a scouting or offers row or card: the offer history, or the deal entry. */
+export function TransferDealButton({ state, player }: TransferDealButtonProps) {
+  const { view, t, openDealEntry, openDealHistory, getDealEntryIcon, getDealEntryLabel } = state;
+  return (
+    <button
+      type="button"
+      onClick={(e) => {
+        e.stopPropagation();
+        if (view === "offers") openDealHistory(player);
+        else openDealEntry(player);
+      }}
+      className="focus:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 focus-visible:ring-offset-page motion-reduce:transition-none flex items-center gap-1 px-3 py-1.5 bg-primary-500/10 hover:bg-primary-500/20 text-primary-700 dark:text-primary-400 rounded-lg text-xs font-heading font-bold uppercase tracking-wider transition-colors"
+    >
+      {view === "offers" ? <History className="w-3 h-3" /> : getDealEntryIcon(player, "w-3 h-3")}
+      {view === "offers" ? t("transfers.viewOfferHistory") : getDealEntryLabel(player)}
+    </button>
+  );
+}
 
 export function PlayerRowDetails({
   state,
   onContextMenu,
   player,
   age,
-  ovr,
+  figures,
   hasOffersForThisPlayer,
   transferOffersForThisPlayer,
   loanOffersForThisPlayer,
 }: PlayerRowDetailsProps) {
-  const {
-    view,
-    onSelectPlayer,
-    t,
-    i18n,
-    onSelectTeam,
-    gameState,
-    weeklySuffix,
-    isScoutingView,
-    openDealEntry,
-    openDealHistory,
-    getDealEntryIcon,
-    getDealEntryLabel,
-  } = state;
+  const tierOf = useRatingTiers();
+  const { view, onSelectPlayer, t, i18n, onSelectTeam, gameState, isScoutingView } = state;
   return (
     <tr
       onContextMenu={onContextMenu}
@@ -117,9 +129,7 @@ export function PlayerRowDetails({
       onClick={() => onSelectPlayer(player.id)}
     >
       <td className="py-2.5 px-4">
-        <Badge variant={positionBadgeVariant(player.natural_position || player.position)} size="sm">
-          {translatePositionAbbreviation(t, player.natural_position || player.position)}
-        </Badge>
+        <PlayerPositionBadge position={naturalPositionOf(player)} />
       </td>
       <td className="py-2.5 px-4">
         <div className="flex items-center gap-3">
@@ -160,13 +170,16 @@ export function PlayerRowDetails({
         {formatVal(player.market_value)}
       </td>
       <td className="py-2.5 px-4 text-sm text-gray-600 dark:text-gray-400 tabular-nums">
-        {formatWeeklyAmount(formatVal(player.wage), weeklySuffix)}
+        {visibleWageText(figures.wage, (weekly) => formatWeeklyWage(weekly, "compact"), t)}
       </td>
       <td className="py-2.5 px-4">
         <span
-          className={`font-heading font-bold text-base tabular-nums ${ovr >= 75 ? "text-primary-700 dark:text-primary-400" : ovr >= 55 ? "text-accent-700 dark:text-accent-400" : "text-gray-500 dark:text-gray-300"}`}
+          className={`font-heading font-bold text-base tabular-nums ${ratingTierClass(
+            figures.ovr === null ? "Rest" : tierOf(figures.ovr),
+            "text",
+          )}`}
         >
-          {ovr}
+          {visibleRatingText(figures.ovr)}
         </span>
       </td>
       <td className="py-2.5 px-4">
@@ -199,29 +212,18 @@ export function PlayerRowDetails({
       }
       {(isScoutingView || view === "offers") && (
         <td className="py-2.5 px-4">
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              if (view === "offers") openDealHistory(player);
-              else openDealEntry(player);
-            }}
-            className="focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-600 dark:focus-visible:ring-primary-400 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-navy-800 motion-reduce:transition-none flex items-center gap-1 px-3 py-1.5 bg-primary-500/10 hover:bg-primary-500/20 text-primary-700 dark:text-primary-400 rounded-lg text-xs font-heading font-bold uppercase tracking-wider transition-colors"
-          >
-            {view === "offers" ? (
-              <History className="w-3 h-3" />
-            ) : (
-              getDealEntryIcon(player, "w-3 h-3")
-            )}
-            {view === "offers" ? t("transfers.viewOfferHistory") : getDealEntryLabel(player)}
-          </button>
+          <TransferDealButton state={state} player={player} />
         </td>
       )}
     </tr>
   );
 }
 
-export function TransferPlayerRow({ state, player }: TransferPlayerRowProps) {
+/**
+ * What one market player's row or card shows beside his own data: his age, the offers that
+ * concern the club, and his context menu. Both views draw from it, so they cannot drift apart.
+ */
+export function transferPlayerRowModel(state: TransferPlayerRowProps["state"], player: PlayerData) {
   const {
     userTeamId,
     alreadyScoutingIds,
@@ -238,9 +240,9 @@ export function TransferPlayerRow({ state, player }: TransferPlayerRowProps) {
     getDealEntryLabel,
     getDealEntryIcon,
     openDealEntry,
+    visibleOf,
   } = state;
 
-  const ovr = getPlayerOvr(player);
   const age = calcAge(player.date_of_birth);
   const transferOffersForThisPlayer = getRelevantTransferOffers(player, userTeamId);
   const loanOffersForThisPlayer = getRelevantLoanOffers(player, userTeamId);
@@ -291,21 +293,32 @@ export function TransferPlayerRow({ state, player }: TransferPlayerRowProps) {
       onClick: () => openDealEntry(player),
     });
   }
+  return {
+    age,
+    figures: visibleOf(player.id),
+    hasOffersForThisPlayer,
+    transferOffersForThisPlayer,
+    loanOffersForThisPlayer,
+    contextItems,
+  };
+}
 
+export function TransferPlayerRow({ state, player }: TransferPlayerRowProps) {
+  const model = transferPlayerRowModel(state, player);
   const row = (
     <PlayerRowDetails
       state={state}
       player={player}
-      age={age}
-      ovr={ovr}
-      hasOffersForThisPlayer={hasOffersForThisPlayer}
-      transferOffersForThisPlayer={transferOffersForThisPlayer}
-      loanOffersForThisPlayer={loanOffersForThisPlayer}
+      age={model.age}
+      figures={model.figures}
+      hasOffersForThisPlayer={model.hasOffersForThisPlayer}
+      transferOffersForThisPlayer={model.transferOffersForThisPlayer}
+      loanOffersForThisPlayer={model.loanOffersForThisPlayer}
     />
   );
 
   return (
-    <ContextMenu items={contextItems} key={player.id}>
+    <ContextMenu items={model.contextItems} key={player.id}>
       {row}
     </ContextMenu>
   );

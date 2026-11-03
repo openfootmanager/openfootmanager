@@ -1,7 +1,7 @@
 import type { GameStateData, MessageAction, MessageData } from "../../store/gameStore";
+import { getAllFixturesAcrossCompetitions } from "../../lib/fixtures";
 import { formatVal } from "../../lib/helpers";
-import type { TeamFinanceSnapshot } from "../../lib/finance";
-import type { FinanceSnapshotData, TeamFinanceSnapshotData } from "../../services/financeService";
+import type { FinanceSnapshotData } from "../../services/financeService";
 
 export type FacilityId = "Training" | "Medical" | "Scouting";
 
@@ -44,71 +44,74 @@ export const FACILITY_DEFINITIONS: FacilityDefinition[] = [
   },
 ];
 
-export function getFacilityUpgradeCost(level: number): number {
-  return level * 250_000;
-}
-
 export function formatSignedAmount(value: number): string {
   // formatVal already renders the sign (see prefixCurrency), so taking the
   // absolute value and re-attaching "-" here only duplicated that work.
   return formatVal(value);
 }
 
-export function facilityUpgradeBlockReason(snapshot: TeamFinanceSnapshotData): string | null {
-  if (snapshot.currentlyOverBudget) {
-    return "be.error.finance.facilityUpgradeOverBudget";
-  }
-
-  if (snapshot.overallStatus === "warning" || snapshot.overallStatus === "critical") {
-    return "be.error.finance.facilityUpgradeCritical";
-  }
-
-  return null;
+function completedFixtureCount(gameState: GameStateData, teamId: string): number {
+  return getAllFixturesAcrossCompetitions(gameState).filter(
+    (fixture) =>
+      fixture.status === "Completed" &&
+      (fixture.home_team_id === teamId || fixture.away_team_id === teamId),
+  ).length;
 }
 
-export function boardSupportAvailable(snapshot: TeamFinanceSnapshotData): boolean {
-  return (
-    snapshot.currentlyInDebt ||
-    snapshot.runwayStatus === "warning" ||
-    snapshot.runwayStatus === "critical"
+/**
+ * Identifies the club state a backend finance snapshot was computed from, so a snapshot fetched
+ * for an older state is recognised as stale.
+ */
+export function buildFinanceSnapshotKey(
+  gameState: GameStateData,
+  myTeam: GameStateData["teams"][number],
+): string {
+  const financePlayers = gameState.players.filter(
+    (player) =>
+      player.team_id === myTeam.id ||
+      player.active_loan?.parent_team_id === myTeam.id ||
+      player.active_loan?.loan_team_id === myTeam.id,
   );
-}
-
-export function sponsorPitchAvailable(snapshot: TeamFinanceSnapshotData): boolean {
-  return (
-    snapshot.currentlyOverBudget ||
-    snapshot.currentlyInDebt ||
-    snapshot.wageBudgetStatus === "warning" ||
-    snapshot.wageBudgetStatus === "critical" ||
-    snapshot.runwayStatus === "warning" ||
-    snapshot.runwayStatus === "critical"
-  );
-}
-
-export function marketingCampaignAvailable(snapshot: TeamFinanceSnapshotData): boolean {
-  return sponsorPitchAvailable(snapshot);
-}
-
-export function mapLocalFinanceSnapshot(
-  team: GameStateData["teams"][number],
-  snapshot: TeamFinanceSnapshot,
-): TeamFinanceSnapshotData {
-  return {
-    annualWageBill: snapshot.annualWageBill,
-    weeklyWageSpend: snapshot.weeklyWageSpend,
-    weeklyWageBudget: snapshot.weeklyWageBudget,
-    weeklyRecurringIncome: snapshot.weeklySponsorIncome,
-    weeklySponsorIncome: snapshot.weeklySponsorIncome,
-    projectedWeeklyNet: snapshot.projectedWeeklyNet,
-    cashRunwayWeeks: snapshot.cashRunwayWeeks,
-    wageBudgetUsagePercent: snapshot.wageBudgetUsagePercent,
-    currentlyInDebt: team.finance < 0,
-    currentlyOverBudget: snapshot.annualWageBill > team.wage_budget,
-    wageBudgetStatus: snapshot.wageBudgetStatus,
-    runwayStatus: snapshot.runwayStatus,
-    overallStatus: snapshot.overallStatus,
-    marketingCampaignCooldownDaysRemaining: snapshot.marketingCampaignCooldownDaysRemaining,
-  };
+  const teamStaff = gameState.staff.filter((staffMember) => staffMember.team_id === myTeam.id);
+  return [
+    myTeam.id,
+    gameState.clock.current_date,
+    myTeam.finance,
+    myTeam.wage_budget,
+    myTeam.transfer_budget,
+    myTeam.season_income,
+    myTeam.season_expenses,
+    myTeam.facilities?.training ?? DEFAULT_FACILITIES.training,
+    myTeam.facilities?.medical ?? DEFAULT_FACILITIES.medical,
+    myTeam.facilities?.scouting ?? DEFAULT_FACILITIES.scouting,
+    myTeam.sponsorship?.sponsor_name ?? "",
+    myTeam.sponsorship?.base_value ?? 0,
+    myTeam.sponsorship?.remaining_weeks ?? 0,
+    financePlayers
+      .map((player) =>
+        [
+          player.id,
+          player.team_id ?? "",
+          player.wage,
+          player.contract_end ?? "",
+          player.active_loan?.parent_team_id ?? "",
+          player.active_loan?.loan_team_id ?? "",
+          player.active_loan?.wage_contribution_pct ?? "",
+          player.active_loan?.end_date ?? "",
+        ].join(":"),
+      )
+      .join("|"),
+    teamStaff.map((staffMember) => `${staffMember.id}:${staffMember.wage}`).join("|"),
+    gameState.messages
+      .filter(isPendingSponsorOffer)
+      .map((message) => message.id)
+      .join("|"),
+    // A live match can finish without the date moving, and it changes the form, the standings
+    // and the matchday income the backend bases its figures on. These two are the cheap
+    // post-match signals; the backend stays the only one that computes from them.
+    myTeam.form.join(""),
+    completedFixtureCount(gameState, myTeam.id),
+  ].join("::");
 }
 
 export interface ResolveMessageActionResult {
@@ -129,6 +132,7 @@ export interface DelegatedRenewalResponseData {
 
 export interface TaggedFinanceSnapshotData {
   key: string;
+  teamId: string;
   data: FinanceSnapshotData;
 }
 

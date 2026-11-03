@@ -39,13 +39,22 @@ export interface TeamStanding {
   points: number;
 }
 
+/** Who manages a club, as its card names him. */
+export interface TeamCardManager {
+  id: string;
+  name: string;
+}
+
 export interface TeamCard {
   team: TeamCardTeam;
   roster_size: number;
-  avg_ovr: number;
+  /** Null for a club outside the manager's division: the club does not know that squad. */
+  avg_ovr: number | null;
   total_value: number;
   league_pos: number;
   standing: TeamStanding | null;
+  /** Null for a club without a manager. */
+  manager: TeamCardManager | null;
 }
 
 export interface LeagueGroup {
@@ -68,4 +77,32 @@ export interface TeamsDirectory {
 
 export function fetchTeamsDirectory(query: TeamsDirectoryQuery): Promise<TeamsDirectory> {
   return invoke<TeamsDirectory>("get_teams_directory", { query });
+}
+
+/** One player of a club's squad on the team-selection screen. */
+export interface RatedPlayer {
+  player_id: string;
+  ovr: number;
+}
+
+/** A club's squad as team selection rates it: its average (the club card's rule) and its players,
+ * best rated first. */
+export interface ClubSquadRatings {
+  team_id: string;
+  average_rating: number;
+  players: RatedPlayer[];
+}
+
+/** Every club's squad before a career begins; no club once one has (`slices::team_selection`). */
+export interface TeamSelectionRatings {
+  clubs: ClubSquadRatings[];
+}
+
+export function fetchTeamSelectionRatings(): Promise<TeamSelectionRatings> {
+  return invoke<TeamSelectionRatings>("get_team_selection_ratings");
+}
+
+/** One club's card, as the directory shows it; null for an id no club has. */
+export function fetchTeamCard(teamId: string): Promise<TeamCard | null> {
+  return invoke<TeamCard | null>("get_team_card", { teamId });
 }

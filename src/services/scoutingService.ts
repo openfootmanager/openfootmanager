@@ -1,6 +1,8 @@
 import { invoke } from "@tauri-apps/api/core";
 
 import type { GameStateData, ScoutedPlayerView } from "../store/gameStore";
+import type { PotentialOpinion } from "../store/generated/PotentialOpinion";
+import { invokeForCareer } from "./careerInvoke";
 
 export interface StartYouthScoutingInput {
   scoutId: string;
@@ -9,19 +11,58 @@ export interface StartYouthScoutingInput {
   targetPosition?: string | null;
 }
 
+/** What the manager's club knows about a player, as `ofm_core::player_knowledge` decides it. */
+export type PlayerKnowledge =
+  | { kind: "own" }
+  | { kind: "known" }
+  | { kind: "scouted"; scouted_on: string; current: boolean }
+  | { kind: "unknown" };
+
+export async function getPlayerKnowledge(
+  playerIds: string[],
+): Promise<Record<string, PlayerKnowledge>> {
+  return invoke<Record<string, PlayerKnowledge>>("get_player_knowledge", { playerIds });
+}
+
+/** The weekly wage the club may see, as `ofm_core::player_knowledge::visible_wage` decides it. */
+export type VisibleWage =
+  | { kind: "exact"; weekly: number }
+  | { kind: "approximate"; weekly: number }
+  | { kind: "hidden" };
+
+export async function getVisibleWage(playerId: string): Promise<VisibleWage | null> {
+  return invoke<VisibleWage | null>("get_visible_wage", { playerId });
+}
+
+/**
+ * The club's opinion of one player's potential (a range, never the number), as
+ * `ofm_core::player_knowledge::potential_opinion` decides it; null when the club holds none.
+ * For his profile only: no list carries potential.
+ */
+export async function getPotentialOpinion(playerId: string): Promise<PotentialOpinion | null> {
+  return invoke<PotentialOpinion | null>("get_potential_opinion", { playerId });
+}
+
+/** The reporting scout's opinion of each prospect in a youth scouting report, by prospect id. */
+export async function getYouthProspectOpinions(
+  messageId: string,
+): Promise<Record<string, PotentialOpinion>> {
+  return invoke<Record<string, PotentialOpinion>>("get_youth_prospect_opinions", { messageId });
+}
+
 export async function getScoutedReport(playerId: string): Promise<ScoutedPlayerView | null> {
   return invoke<ScoutedPlayerView | null>("get_scouted_report", { playerId });
 }
 
 export async function sendScout(scoutId: string, playerId: string): Promise<GameStateData> {
-  return invoke<GameStateData>("send_scout", {
+  return invokeForCareer<GameStateData>("send_scout", {
     scoutId,
     playerId,
   });
 }
 
 export async function startYouthScouting(input: StartYouthScoutingInput): Promise<GameStateData> {
-  return invoke<GameStateData>("start_youth_scouting", {
+  return invokeForCareer<GameStateData>("start_youth_scouting", {
     scoutId: input.scoutId,
     region: input.region ?? null,
     objective: input.objective ?? null,
@@ -30,7 +71,7 @@ export async function startYouthScouting(input: StartYouthScoutingInput): Promis
 }
 
 export async function cancelYouthScouting(assignmentId: string): Promise<GameStateData> {
-  return invoke<GameStateData>("cancel_youth_scouting", {
+  return invokeForCareer<GameStateData>("cancel_youth_scouting", {
     assignmentId,
   });
 }
@@ -39,7 +80,7 @@ export async function reassignYouthScouting(
   assignmentId: string,
   scoutId: string,
 ): Promise<GameStateData> {
-  return invoke<GameStateData>("reassign_youth_scouting", {
+  return invokeForCareer<GameStateData>("reassign_youth_scouting", {
     assignmentId,
     scoutId,
   });

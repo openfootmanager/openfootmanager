@@ -1,13 +1,18 @@
 //! MCP tool implementations: inbox
 
 use mcp_results::inbox::{
-    ActionResolved, AllMessagesMarkedRead, InboxMessage, InboxMessages, MessageDeleted,
-    MessageMarkedRead, OldMessagesCleared,
+    ActionResolved, AllMessagesMarkedRead, ArchivedMessage, ArchivedMessages, InboxMessage,
+    InboxMessages, MessageDeleted, MessageMarkedRead, OldMessagesCleared,
 };
 
 use crate::mcp_server::context::McpContext;
 use crate::mcp_server::tools_impl::helpers::require_game;
+use ofm_core::inbox_archive::{ArchiveCursor, ArchivedMessagesPage};
+use ofm_core::state::Career;
 use std::sync::Arc;
+
+/// Archive messages per page when the agent does not say.
+const DEFAULT_ARCHIVE_PAGE: usize = 50;
 
 // ─── inbox_get_messages ─────────────────────────────────────────────────────
 
@@ -57,6 +62,44 @@ pub fn inbox_get_messages(
     })
 }
 
+// ─── inbox_get_archived ─────────────────────────────────────────────────────
+
+/// Read mail older than half a year, which `inbox_get_messages` no longer lists. Newest first.
+pub fn inbox_get_archived(
+    ctx: Arc<McpContext>,
+    before_date: Option<String>,
+    before_id: Option<String>,
+    limit: Option<u64>,
+) -> Result<ArchivedMessages, String> {
+    let before = ArchiveCursor::from_parts(before_date, before_id)?;
+    let limit = limit.map_or(DEFAULT_ARCHIVE_PAGE, |n| n as usize);
+    let page = crate::commands::messages::get_archived_messages_internal(
+        &ctx.state_manager,
+        before,
+        limit,
+    )?;
+    Ok(archived_messages_result(page))
+}
+
+/// The page as an agent reads it: the cursor split into the two values it passes back.
+fn archived_messages_result(page: ArchivedMessagesPage) -> ArchivedMessages {
+    ArchivedMessages {
+        messages: page
+            .items
+            .into_iter()
+            .map(|m| ArchivedMessage {
+                id: m.id,
+                subject: m.subject,
+                body: m.body,
+                category: format!("{:?}", m.category),
+                date: m.date,
+            })
+            .collect(),
+        next_before_date: page.next_before.as_ref().map(|c| c.date.clone()),
+        next_before_id: page.next_before.map(|c| c.id),
+    }
+}
+
 // ─── inbox_mark_read ────────────────────────────────────────────────────────
 
 // ─── inbox_mark_read ────────────────────────────────────────────────────────
@@ -65,7 +108,11 @@ pub fn inbox_mark_read(
     ctx: Arc<McpContext>,
     message_id: String,
 ) -> Result<MessageMarkedRead, String> {
-    crate::commands::messages::mark_message_read_internal(&ctx.state_manager, &message_id)?;
+    crate::commands::messages::mark_message_read_internal(
+        &ctx.state_manager,
+        Career::Active,
+        &message_id,
+    )?;
 
     {
         use tauri::Emitter;
@@ -80,7 +127,7 @@ pub fn inbox_mark_read(
 // ─── inbox_mark_all_read ────────────────────────────────────────────────────
 
 pub fn inbox_mark_all_read(ctx: Arc<McpContext>) -> Result<AllMessagesMarkedRead, String> {
-    crate::commands::messages::mark_all_messages_read_internal(&ctx.state_manager)?;
+    crate::commands::messages::mark_all_messages_read_internal(&ctx.state_manager, Career::Active)?;
 
     {
         use tauri::Emitter;
@@ -95,7 +142,11 @@ pub fn inbox_mark_all_read(ctx: Arc<McpContext>) -> Result<AllMessagesMarkedRead
 // ─── inbox_delete ───────────────────────────────────────────────────────────
 
 pub fn inbox_delete(ctx: Arc<McpContext>, message_id: String) -> Result<MessageDeleted, String> {
-    crate::commands::messages::delete_message_internal(&ctx.state_manager, &message_id)?;
+    crate::commands::messages::delete_message_internal(
+        &ctx.state_manager,
+        Career::Active,
+        &message_id,
+    )?;
 
     {
         use tauri::Emitter;
@@ -110,7 +161,7 @@ pub fn inbox_delete(ctx: Arc<McpContext>, message_id: String) -> Result<MessageD
 // ─── inbox_clear_old ────────────────────────────────────────────────────────
 
 pub fn inbox_clear_old(ctx: Arc<McpContext>) -> Result<OldMessagesCleared, String> {
-    crate::commands::messages::clear_old_messages_internal(&ctx.state_manager)?;
+    crate::commands::messages::clear_old_messages_internal(&ctx.state_manager, Career::Active)?;
 
     {
         use tauri::Emitter;
@@ -132,6 +183,7 @@ pub fn inbox_resolve_action(
 ) -> Result<ActionResolved, String> {
     crate::commands::messages::resolve_message_action_internal(
         &ctx.state_manager,
+        Career::Active,
         &message_id,
         &action_id,
         option_id.as_deref(),
@@ -149,3 +201,37 @@ pub fn inbox_resolve_action(
 }
 
 // ─── info_player_profile ────────────────────────────────────────────────────
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use domain::message::InboxMessage;
+
+    /// Given a page of archived mail with more behind it
+    /// When it is turned into the agent's result
+    /// Then the messages keep their text and category, and the cursor is split for the next call.
+    #[test]
+    fn an_archive_page_becomes_a_result_with_the_cursor_split() {
+        let page = ArchivedMessagesPage {
+            items: vec![InboxMessage::new(
+                "m1".into(),
+                "Old news".into(),
+                "Body".into(),
+                "Board".into(),
+                "2030-01-01".into(),
+            )],
+            next_before: Some(ArchiveCursor {
+                date: "2030-01-01".into(),
+                id: "m1".into(),
+            }),
+        };
+
+        let result = archived_messages_result(page);
+
+        assert_eq!(result.messages[0].subject, "Old news");
+        assert_eq!(result.messages[0].body, "Body");
+        assert_eq!(result.messages[0].category, "System");
+        assert_eq!(result.next_before_date.as_deref(), Some("2030-01-01"));
+        assert_eq!(result.next_before_id.as_deref(), Some("m1"));
+    }
+}

@@ -39,7 +39,6 @@ export interface CompetitionProgress {
    * Awards only become final once the competition's season has fully played
    * out; before that the standings-based winners are just current leaders.
    */
-  seasonComplete: boolean;
   totalGoals: number;
   completedMatches: number;
 }
@@ -64,7 +63,6 @@ export function summarizeCompetitionProgress(
     sortedMatchdays,
     completedMatchdays,
     totalMatchdays,
-    seasonComplete: totalMatchdays > 0 && completedMatchdays >= totalMatchdays,
     totalGoals: competitiveFixtures
       .filter((fixture) => fixture.result)
       .reduce((sum, fixture) => sum + (fixture.result!.home_goals + fixture.result!.away_goals), 0),

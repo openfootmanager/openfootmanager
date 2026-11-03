@@ -1,0 +1,39 @@
+{
+  "schema": "competition",
+  "id": "harness-d2",
+  "name": "Harness Division Two",
+  "type": "League",
+  "scope": "Domestic",
+  "countryId": "ENG",
+  "priority": 1,
+  "format": {
+    "kind": "LeagueTable",
+    "legs": 2
+  },
+  "participants": {
+    "explicit": [
+      "upton-fc",
+      "vernham-fc",
+      "walcott-fc",
+      "yarnton-fc",
+      "zennor-fc",
+      "appleby-fc",
+      "bampton-fc",
+      "cranleigh-fc",
+      "dartford-fc",
+      "elmsworth-fc",
+      "frodsham-fc",
+      "glossop-fc",
+      "hexham-fc",
+      "ilkley-fc",
+      "kendal-fc",
+      "ludlow-fc",
+      "matlock-fc",
+      "nantwich-fc",
+      "ormskirk-fc",
+      "pewsey-fc"
+    ]
+  },
+  "seasonStartMonth": 8,
+  "seasonStartDay": 1
+}

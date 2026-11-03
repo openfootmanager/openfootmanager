@@ -381,6 +381,8 @@ pub(super) fn make_historical_snapshot_world() -> WorldData {
         players: base_game.players,
         staff: base_game.staff,
         managers: vec![incumbent],
+        retired_managers: Vec::new(),
+        retired_players: Vec::new(),
         competitions: Vec::new(),
         competition_definitions: None,
         national_teams: Vec::new(),

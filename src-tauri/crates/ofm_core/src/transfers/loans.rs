@@ -76,7 +76,6 @@ pub fn seed_opening_ai_loan_market(game: &mut Game) -> usize {
             .enumerate()
             .filter(|(_, player)| {
                 player.team_id.as_deref() == Some(team_id.as_str())
-                    && !player.retired
                     && !player.transfer_listed
                     && !player.loan_listed
                     && !player_has_pending_registration(player)
@@ -182,6 +181,37 @@ pub(crate) fn default_loan_end_date(
 
     Some(end_date.format("%Y-%m-%d").to_string())
 }
+/// The loan negotiation `club_id` is in over this player: its live offer, or the one the owner
+/// refused within [`REBID_COOLDOWN_DAYS`], which the next approach continues. The same rule as
+/// `latest_negotiation_with_club` for permanent bids, and the same cooldown.
+pub(crate) fn latest_loan_negotiation_with_club<'a>(
+    player: &'a domain::player::Player,
+    club_id: &str,
+    today: NaiveDate,
+) -> Option<&'a domain::player::LoanOffer> {
+    player
+        .loan_offers
+        .iter()
+        .find(|offer| offer.from_team_id == club_id && offer.status == LoanOfferStatus::Pending)
+        .or_else(|| {
+            player
+                .loan_offers
+                .iter()
+                .filter(|offer| {
+                    offer.from_team_id == club_id
+                        && offer.status == LoanOfferStatus::Rejected
+                        && within_rebid_cooldown(offer.closed_on.as_deref(), &offer.date, today)
+                        && loan_made_to_current_owner(player, offer)
+                })
+                .max_by_key(|offer| {
+                    offer
+                        .closed_on
+                        .clone()
+                        .unwrap_or_else(|| offer.date.clone())
+                })
+        })
+}
+
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn upsert_loan_offer(
     player: &mut domain::player::Player,
@@ -201,9 +231,17 @@ pub(crate) fn upsert_loan_offer(
         LoanOfferStatus::Rejected | LoanOfferStatus::Withdrawn
     );
 
-    if let Some(offer) = player.loan_offers.iter_mut().find(|offer| {
-        offer.from_team_id == from_team_id && offer.status == LoanOfferStatus::Pending
-    }) {
+    let reusable = latest_loan_negotiation_with_club(
+        player,
+        from_team_id,
+        NaiveDate::parse_from_str(date, "%Y-%m-%d").unwrap_or_default(),
+    )
+    .map(|offer| offer.id.clone());
+    if let Some(offer) = player
+        .loan_offers
+        .iter_mut()
+        .find(|offer| reusable.as_deref() == Some(offer.id.as_str()))
+    {
         offer.parent_team_id = parent_team_id.to_string();
         offer.start_date = start_date.to_string();
         offer.end_date = end_date.to_string();
@@ -503,6 +541,18 @@ pub fn make_loan_offer(
 
     validate_loan_end_before_contract(player, end_date)?;
 
+    // An owner who has refused this club four times has stopped taking its calls.
+    let earlier = latest_loan_negotiation_with_club(player, &user_team_id, current_date);
+    if earlier.is_some_and(|offer| {
+        offer.status == LoanOfferStatus::Rejected
+            && offer.negotiation_round >= NEGOTIATION_BREAK_OFF_ROUND
+    }) {
+        return Err(ERR_TALKS_BROKEN_OFF.into());
+    }
+    let round = earlier
+        .map(|offer| offer.negotiation_round.max(1).saturating_add(1))
+        .unwrap_or(1);
+
     let owner_team_id = player.team_id.clone().ok_or(ERR_PLAYER_HAS_NO_TEAM)?;
     let owner_team = game
         .teams
@@ -552,6 +602,20 @@ pub fn make_loan_offer(
             &today,
         )
     };
+    // The round the owner has reached with this club: upserting resets a reused row to one.
+    if let Some(offer) = game
+        .players
+        .iter_mut()
+        .find(|player| player.id == player_id)
+        .and_then(|player| {
+            player
+                .loan_offers
+                .iter_mut()
+                .find(|offer| offer.id == offer_id)
+        })
+    {
+        offer.negotiation_round = round;
+    }
 
     if accepted {
         if register_immediately {
@@ -807,7 +871,8 @@ pub(crate) fn ai_should_exercise_loan_buy_option(
     loan_minutes: u32,
     loan_appearances: u32,
 ) -> bool {
-    if fee == 0 || loan_team.finance < fee as i64 || loan_team.transfer_budget < fee as i64 {
+    // A zero buy option is no option at all, so it is refused before the club's means are asked.
+    if fee == 0 || !can_afford_fee(loan_team, fee) {
         return false;
     }
 
@@ -924,7 +989,7 @@ pub(crate) fn improve_loan_player_attributes(player: &mut domain::player::Player
 pub(crate) fn apply_loan_development(
     player: &mut domain::player::Player,
     loan_team_reputation: u32,
-    current_year: u32,
+    on: chrono::NaiveDate,
     loan_minutes: u32,
     loan_appearances: u32,
 ) -> (u8, u8, u8) {
@@ -957,7 +1022,7 @@ pub(crate) fn apply_loan_development(
     }
 
     if attribute_gains > 0 {
-        crate::player_rating::refresh_player_derived(player, current_year);
+        crate::player_rating::refresh_player_derived(player, on);
     }
 
     (ovr_before, player.ovr, attribute_gains)
@@ -996,7 +1061,6 @@ pub(crate) fn record_loan_development_report(game: &mut Game, player_id: &str, f
         .map(|team| team.name.clone())
         .unwrap_or_else(|| loan.loan_team_id.clone());
     let loan_team_reputation = loan_team.map(|team| team.reputation).unwrap_or(0);
-    let current_year = current_date.year() as u32;
 
     let (player_name, ovr_before, ovr_after, attribute_gains) = {
         let player = &mut game.players[player_index];
@@ -1010,7 +1074,7 @@ pub(crate) fn record_loan_development_report(game: &mut Game, player_id: &str, f
         let (ovr_before, ovr_after, attribute_gains) = apply_loan_development(
             player,
             loan_team_reputation,
-            current_year,
+            current_date,
             loan_minutes,
             loan_appearances,
         );
@@ -1156,6 +1220,100 @@ mod tests {
     use super::*;
     use crate::transfers::tests::{make_game, sample_attributes};
     use chrono::{TimeZone, Utc};
+
+    fn buy_option_candidate(market_value: u64) -> (Player, Team) {
+        let mut player = Player::new(
+            "p".to_string(),
+            "P".to_string(),
+            "P".to_string(),
+            "2000-01-01".to_string(),
+            "GB".to_string(),
+            Position::Midfielder,
+            sample_attributes(),
+        );
+        player.market_value = market_value;
+        let mut club = Team::new(
+            "club".to_string(),
+            "Club".to_string(),
+            "CLB".to_string(),
+            "England".to_string(),
+            "Town".to_string(),
+            "Ground".to_string(),
+            10_000,
+        );
+        club.finance = 10_000_000;
+        club.transfer_budget = 10_000_000;
+        (player, club)
+    }
+
+    /// Given a club that could pay anything, when the buy option's fee is zero, then the AI still
+    /// declines: a zero buy option is no option at all.
+    #[test]
+    fn a_zero_buy_option_is_never_exercised() {
+        let (player, club) = buy_option_candidate(1_000_000);
+
+        assert!(!ai_should_exercise_loan_buy_option(
+            &player, &club, 0, 2_000, 30
+        ));
+    }
+
+    /// Given a fee within the fair ceiling, when the club has too little cash or too little
+    /// transfer budget for it, then the AI declines.
+    #[test]
+    fn a_buy_option_the_club_cannot_pay_is_not_exercised() {
+        let (player, mut club) = buy_option_candidate(1_000_000);
+        club.finance = 100_000;
+        assert!(!ai_should_exercise_loan_buy_option(
+            &player, &club, 900_000, 2_000, 30
+        ));
+
+        let (player, mut club) = buy_option_candidate(1_000_000);
+        club.transfer_budget = 100_000;
+        assert!(!ai_should_exercise_loan_buy_option(
+            &player, &club, 900_000, 2_000, 30
+        ));
+    }
+
+    /// Given a fair fee the club can pay, when the AI weighs the buy option, then it exercises it.
+    #[test]
+    fn a_fair_buy_option_the_club_can_pay_is_exercised() {
+        let (player, club) = buy_option_candidate(1_000_000);
+
+        assert!(ai_should_exercise_loan_buy_option(
+            &player, &club, 900_000, 2_000, 30
+        ));
+    }
+
+    /// Given a 19-year-old midfielder with room to grow who plays a season on loan,
+    /// When the loan's development is applied on a date,
+    /// Then his attributes rise and his rating is recomputed from them, as of that date.
+    #[test]
+    fn loan_development_refreshes_the_rating_it_raised() {
+        let mut player = Player::new(
+            "loanee".to_string(),
+            "Loanee".to_string(),
+            "Loanee".to_string(),
+            "2007-01-01".to_string(),
+            "England".to_string(),
+            Position::Midfielder,
+            sample_attributes(),
+        );
+        player.potential = 99;
+        let on = chrono::NaiveDate::from_ymd_opt(2026, 3, 1).unwrap();
+        crate::player_rating::refresh_player_derived(&mut player, on);
+        player.potential = 99;
+
+        let (ovr_before, ovr_after, gains) = apply_loan_development(&mut player, 500, on, 900, 10);
+
+        assert_eq!(gains, 6, "two cycles of three attributes");
+        assert!(ovr_after > ovr_before, "{ovr_before} -> {ovr_after}");
+        assert_eq!(ovr_after, player.ovr);
+        assert_eq!(
+            player.ovr,
+            crate::player_rating::natural_ovr(&player).round() as u8,
+            "the stored rating is not the one the raised attributes give"
+        );
+    }
 
     fn contract_end_loan_game(user_is_parent: bool) -> Game {
         let mut game = make_game();
@@ -1458,6 +1616,184 @@ mod tests {
         );
         assert_eq!(game.players[0].loan_offers[0].end_date, "2026-04-01");
         assert!(game.players[0].active_loan.is_none());
+    }
+    /// A 19-year-old midfielder with every attribute short of the top and room to grow, so each
+    /// development cycle raises three attributes.
+    fn loanee() -> Player {
+        let mut player = Player::new(
+            "loanee".to_string(),
+            "Loanee".to_string(),
+            "Loanee".to_string(),
+            "2007-01-01".to_string(),
+            "England".to_string(),
+            Position::Midfielder,
+            sample_attributes(),
+        );
+        player.potential = 99;
+        player
+    }
+
+    fn loan_development_gains(
+        loan_team_reputation: u32,
+        loan_minutes: u32,
+        loan_appearances: u32,
+    ) -> u8 {
+        let on = chrono::NaiveDate::from_ymd_opt(2026, 3, 1).unwrap();
+        let (_, _, gains) = apply_loan_development(
+            &mut loanee(),
+            loan_team_reputation,
+            on,
+            loan_minutes,
+            loan_appearances,
+        );
+        gains
+    }
+
+    /// Given a loanee with eight appearances but only 400 minutes since his last report
+    /// When his loan development is applied
+    /// Then he gets two cycles (six attributes): eight appearances alone is a full spell.
+    #[test]
+    fn eight_loan_appearances_earn_two_development_cycles_whatever_the_minutes() {
+        assert_eq!(loan_development_gains(500, 400, 8), 6);
+    }
+
+    /// Given a loanee with 360 minutes at a club of ordinary standing (reputation 500)
+    /// When his loan development is applied
+    /// Then he gets one cycle: 180 minutes are enough, whatever the loan club's standing.
+    #[test]
+    fn regular_loan_minutes_earn_a_development_cycle_at_an_ordinary_club() {
+        assert_eq!(loan_development_gains(500, 360, 4), 3);
+    }
+
+    /// Given loanees at a club of ordinary standing with 180 minutes and no appearance on record,
+    ///       with two appearances and no minutes, and with 179 minutes in one appearance
+    /// When their loan development is applied
+    /// Then the first two get a cycle each and the third none: either threshold alone is enough
+    #[test]
+    fn either_ordinary_threshold_alone_earns_a_development_cycle() {
+        assert_eq!(
+            [
+                loan_development_gains(500, 180, 0),
+                loan_development_gains(500, 0, 2),
+                loan_development_gains(500, 179, 1),
+            ],
+            [3, 3, 0]
+        );
+    }
+
+    /// Given loanees with exactly 900 minutes, and with 899, and no appearances on record
+    /// When their loan development is applied
+    /// Then 900 minutes earn two cycles and 899 one
+    #[test]
+    fn nine_hundred_loan_minutes_earn_two_development_cycles() {
+        assert_eq!(
+            [
+                loan_development_gains(500, 900, 0),
+                loan_development_gains(500, 899, 0)
+            ],
+            [6, 3]
+        );
+    }
+
+    /// Given loanees with one appearance and no minutes at clubs of reputation 650 and 649
+    /// When their loan development is applied
+    /// Then the first gets a cycle and the second none: a little football counts only at a
+    ///      reputable club, 650 and up
+    #[test]
+    fn a_little_loan_football_counts_from_a_reputation_of_650() {
+        assert_eq!(
+            [
+                loan_development_gains(650, 0, 1),
+                loan_development_gains(649, 0, 1)
+            ],
+            [3, 0]
+        );
+    }
+
+    /// Given a loanee whose only football at a reputable club (700) is one appearance of 0 minutes
+    /// When his loan development is applied
+    /// Then he gets one cycle: an appearance is new football even without minutes.
+    #[test]
+    fn a_single_appearance_at_a_reputable_club_earns_a_development_cycle() {
+        assert_eq!(loan_development_gains(700, 0, 1), 3);
+    }
+
+    /// Given a loanee whose only football at a reputable club (700) is 90 minutes without an
+    ///       appearance on record
+    /// When his loan development is applied
+    /// Then he gets one cycle: minutes are new football even without an appearance.
+    #[test]
+    fn minutes_without_an_appearance_at_a_reputable_club_earn_a_development_cycle() {
+        assert_eq!(loan_development_gains(700, 90, 0), 3);
+    }
+
+    /// Given an AI loan club that can pay a 1,200,000 buy option on a player valued 1,000,000,
+    ///       over the fair 1,100,000 but within the 1,250,000 a heavily used loanee is worth
+    /// When the loanee played 1,000 minutes in five appearances
+    /// Then the club exercises the option: 900 minutes alone make a meaningful spell.
+    #[test]
+    fn a_buy_option_up_to_a_quarter_over_value_is_exercised_after_a_long_spell_in_minutes() {
+        let (player, club) = buy_option_candidate(1_000_000);
+
+        assert!(ai_should_exercise_loan_buy_option(
+            &player, &club, 1_200_000, 1_000, 5
+        ));
+    }
+
+    /// Given a 1,260,000 buy option on a player valued 1,000,000, just over the 1,250,000 a
+    ///       heavily used loanee is worth
+    /// When the loanee played 1,000 minutes in eight appearances
+    /// Then the club does not exercise it
+    #[test]
+    fn a_buy_option_over_a_quarter_above_value_is_not_exercised_however_long_the_spell() {
+        let (player, club) = buy_option_candidate(1_000_000);
+
+        assert!(!ai_should_exercise_loan_buy_option(
+            &player, &club, 1_260_000, 1_000, 8
+        ));
+    }
+
+    /// Given the same 1,200,000 buy option on a player valued 1,000,000
+    /// When the loanee played eight appearances in 300 minutes
+    /// Then the club exercises the option: eight appearances alone make a meaningful spell.
+    #[test]
+    fn a_buy_option_up_to_a_quarter_over_value_is_exercised_after_a_long_spell_in_appearances() {
+        let (player, club) = buy_option_candidate(1_000_000);
+
+        assert!(ai_should_exercise_loan_buy_option(
+            &player, &club, 1_200_000, 300, 8
+        ));
+    }
+
+    fn listed_for_loan(ovr: u8, potential: u8, appearances: u32) -> Player {
+        let (mut player, _) = buy_option_candidate(1_000_000);
+        player.loan_listed = true;
+        player.ovr = ovr;
+        player.potential = potential;
+        player.stats.appearances = appearances;
+        player
+    }
+
+    /// Given a loan-listed prospect valued 1,000,000, rated 60 with potential 72, three appearances
+    /// When an AI club makes its loan offer
+    /// Then it offers no buy option: an unproven prospect is not worth committing to.
+    #[test]
+    fn a_loan_offer_for_an_unproven_prospect_carries_no_buy_option() {
+        assert_eq!(
+            suggested_loan_buy_option_fee(&listed_for_loan(60, 72, 3)),
+            None
+        );
+    }
+
+    /// Given a loan-listed player valued 1,000,000, rated 60 with potential 60, ten appearances
+    /// When an AI club makes its loan offer
+    /// Then it carries a buy option ten percent over his value, 1,100,000.
+    #[test]
+    fn a_loan_offer_carries_a_buy_option_ten_percent_over_value() {
+        assert_eq!(
+            suggested_loan_buy_option_fee(&listed_for_loan(60, 60, 10)),
+            Some(1_100_000)
+        );
     }
 }
 

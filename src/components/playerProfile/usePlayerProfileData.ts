@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 
-import type { GameStateData, PlayerData } from "../../store/gameStore";
+import type { PlayerData } from "../../store/gameStore";
 import { buildPlayerAdvancedStats, type PlayerAdvancedStatsSummary } from "./PlayerProfile.helpers";
 import type { PlayerRecentMatchEntry } from "./PlayerProfileRecentMatchesCard";
 
@@ -9,7 +9,8 @@ const RECENT_MATCH_LIMIT = 5;
 
 interface UsePlayerProfileDataArgs {
   player: PlayerData;
-  gameState: GameStateData;
+  /** The game date: the league peer group changes with a transfer or a split season's second half. */
+  currentDate: string;
 }
 
 interface UsePlayerProfileDataResult {
@@ -46,13 +47,13 @@ function haveSameFixtures(
  */
 export function usePlayerProfileData({
   player,
-  gameState,
+  currentDate,
 }: UsePlayerProfileDataArgs): UsePlayerProfileDataResult {
   const [advancedStatsOverride, setAdvancedStatsOverride] =
     useState<PlayerAdvancedStatsSummary | null>(null);
   const [recentMatches, setRecentMatches] = useState<PlayerRecentMatchEntry[]>([]);
 
-  const fallbackAdvancedStats = buildPlayerAdvancedStats(player, gameState.players);
+  const fallbackAdvancedStats = buildPlayerAdvancedStats(player);
 
   useEffect(() => {
     let cancelled = false;
@@ -85,6 +86,8 @@ export function usePlayerProfileData({
     // on each one.
   }, [
     player.id,
+    player.team_id,
+    currentDate,
     player.stats.minutes_played,
     player.stats.shots,
     player.stats.shots_on_target,

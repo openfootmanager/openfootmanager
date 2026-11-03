@@ -1,3 +1,4 @@
+import { useSquadFitness } from "../../hooks/useSquadFitness";
 import { useState, type ReactNode } from "react";
 import {
   AlertTriangle,
@@ -20,7 +21,7 @@ import { isFirstTeamSquadPlayer } from "../../lib/playerSquad";
 import { useFetchedSquad } from "../../hooks/useFetchedSquad";
 import { useTrainingFocusAttributes } from "../../hooks/useTrainingFocusAttributes";
 import { setTraining, setTrainingSchedule } from "../../services/trainingService";
-import { Card, CardBody, CardHeader, ProgressBar } from "../ui";
+import { Card, CardBody, CardHeader, ProgressBar, TONE_TEXT } from "../ui";
 import TrainingGroupsCard from "./TrainingGroupsCard";
 import TrainingSettingsPanel from "./TrainingSettingsPanel";
 import { getTrainingStaffAdvice } from "./trainingAdvice";
@@ -95,6 +96,7 @@ export default function TrainingTab({ gameState, onGameUpdate }: TrainingTabProp
     sessionState ?? gameState,
   );
   const focusAttributes = useTrainingFocusAttributes();
+  const fitness = useSquadFitness(sessionState ?? gameState);
 
   const team = sessionState?.team ?? gameState?.teams.find((t) => t.id === teamId) ?? null;
 
@@ -109,16 +111,16 @@ export default function TrainingTab({ gameState, onGameUpdate }: TrainingTabProp
   const allSquadPlayers =
     fetchedSquad ?? gameState?.players.filter((p) => p.team_id === teamId) ?? [];
   const roster = allSquadPlayers.filter(isFirstTeamSquadPlayer);
+  // Fitness is the backend's: injured players are not in the squad that can play.
   const avgCondition =
-    roster.length > 0
-      ? Math.round(roster.reduce((sum, player) => sum + player.condition, 0) / roster.length)
-      : 0;
+    fitness?.average_condition != null ? Math.round(fitness.average_condition) : null;
+  const averageTone = fitness?.average_status?.tone;
   const avgMorale =
     roster.length > 0
       ? Math.round(roster.reduce((sum, player) => sum + player.morale, 0) / roster.length)
       : 0;
-  const exhaustedCount = roster.filter((player) => player.condition < 40).length;
-  const criticalCount = roster.filter((player) => player.condition < 25).length;
+  const exhaustedCount = fitness?.exhausted_count ?? 0;
+  const criticalCount = fitness?.critical_count ?? 0;
 
   const todayWeekday = getWeekdayFromDate(clockDate);
   const trainingDays = SCHEDULE_TRAINING_DAYS[currentSchedule] || SCHEDULE_TRAINING_DAYS.Balanced;
@@ -148,13 +150,17 @@ export default function TrainingTab({ gameState, onGameUpdate }: TrainingTabProp
     }
   };
 
-  const staffAdvice = getTrainingStaffAdvice(t, {
-    criticalCount,
-    avgCondition,
-    exhaustedCount,
-    currentSchedule,
-    currentFocus,
-  });
+  // No advice until the backend has said how fit the squad is: an unanswered 0% is not "tired".
+  const staffAdvice =
+    avgCondition !== null
+      ? getTrainingStaffAdvice(t, {
+          criticalCount,
+          avgCondition,
+          exhaustedCount,
+          currentSchedule,
+          currentFocus,
+        })
+      : null;
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
@@ -248,10 +254,18 @@ export default function TrainingTab({ gameState, onGameUpdate }: TrainingTabProp
                     {t("training.avgCondition")}
                   </span>
                   <span className="font-heading font-bold text-gray-800 dark:text-gray-100">
-                    {avgCondition}%
+                    {avgCondition !== null ? `${avgCondition}%` : "—"}
                   </span>
                 </div>
-                <ProgressBar value={avgCondition} variant="auto" size="md" />
+                {/* The backend's band for the average; neutral until it answers. */}
+                <ProgressBar
+                  value={avgCondition ?? 0}
+                  variant={averageTone ? undefined : "muted"}
+                  tone={averageTone}
+                  size="md"
+                  // No average, no progress bar: "0%" would be read out for a number that doesn't exist.
+                  label={avgCondition !== null ? t("training.avgCondition") : undefined}
+                />
               </div>
               <div>
                 <div className="flex justify-between text-sm mb-1">
@@ -287,33 +301,45 @@ export default function TrainingTab({ gameState, onGameUpdate }: TrainingTabProp
         <Card>
           <CardHeader>{t("training.playerFitness")}</CardHeader>
           <CardBody className="p-0 max-h-64 overflow-y-auto">
-            <div className="divide-y divide-gray-100 dark:divide-navy-600">
+            <ul className="divide-y divide-gray-100 dark:divide-navy-600">
               {[...roster]
                 .sort((left, right) => left.condition - right.condition)
-                .map((player) => (
-                  <div key={player.id} className="flex items-center px-4 py-2 gap-3">
-                    <span
-                      className={`text-sm font-medium flex-1 truncate ${
-                        player.condition < 25
-                          ? "text-red-600 dark:text-red-400"
-                          : player.condition < 40
-                            ? "text-amber-600 dark:text-amber-400"
-                            : "text-gray-800 dark:text-gray-200"
-                      }`}
+                .map((player) => {
+                  // The band, its word and its tone are the backend's; until it answers the bar
+                  // stays neutral rather than guessing from the number.
+                  const status = fitness?.statuses[player.id];
+                  const nameId = `fitness-name-${player.id}`;
+                  return (
+                    <li
+                      key={player.id}
+                      aria-labelledby={nameId}
+                      className="flex items-center px-4 py-2 gap-3"
                     >
-                      {player.match_name}
-                      {player.jersey_number != null ? ` (#${player.jersey_number})` : ""}
-                    </span>
-                    <ProgressBar
-                      value={player.condition}
-                      variant="auto"
-                      size="sm"
-                      showLabel
-                      className="w-24"
-                    />
-                  </div>
-                ))}
-            </div>
+                      <span
+                        id={nameId}
+                        className="text-sm font-medium flex-1 truncate text-gray-800 dark:text-gray-200"
+                      >
+                        {player.match_name}
+                        {player.jersey_number != null ? ` (#${player.jersey_number})` : ""}
+                      </span>
+                      {status ? (
+                        <span className={`text-caption font-semibold ${TONE_TEXT[status.tone]}`}>
+                          {t(status.label_key)}
+                        </span>
+                      ) : null}
+                      <ProgressBar
+                        value={player.condition}
+                        variant={status ? undefined : "muted"}
+                        tone={status?.tone}
+                        size="sm"
+                        showLabel
+                        label={t("common.condition")}
+                        className="w-24"
+                      />
+                    </li>
+                  );
+                })}
+            </ul>
           </CardBody>
         </Card>
       </div>

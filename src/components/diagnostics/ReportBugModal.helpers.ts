@@ -1,5 +1,5 @@
 import type { GameStateData } from "../../store/types";
-import type { BundleSummary, DiagnosticsReport } from "../../services/reportService";
+import type { BundleSummary, DiagnosticsReport, UploadFailure } from "../../services/reportService";
 
 export type Frequency = "everyTime" | "sometimes" | "once";
 
@@ -27,19 +27,32 @@ export function missingRequiredFields(draft: ReportDraft): Array<keyof ReportDra
   return (["whatHappened", "expected"] as const).filter((field) => draft[field].trim() === "");
 }
 
-/** Human-readable size. Used on the preview, where the whole point is that nothing is hidden. */
-export function formatBytes(bytes: number): string {
+const BYTE_UNITS = ["byte", "kilobyte", "megabyte", "gigabyte"] as const;
+
+/**
+ * Human-readable size, in the UI language. Used on the preview, where the whole point is that
+ * nothing is hidden.
+ *
+ * `Intl` supplies both the number and the unit, so the decimal separator and the unit symbol
+ * follow the player's locale instead of the English "KB"/"MB" this used to hard-code.
+ */
+export function formatBytes(bytes: number, locale: string): string {
   if (!Number.isFinite(bytes) || bytes < 0) return "—";
-  if (bytes < 1024) return `${bytes} B`;
-  const units = ["KB", "MB", "GB"];
-  let value = bytes / 1024;
+  let value = bytes;
   let unit = 0;
-  while (value >= 1024 && unit < units.length - 1) {
+  while (value >= 1024 && unit < BYTE_UNITS.length - 1) {
     value /= 1024;
     unit += 1;
   }
   // One decimal below 10 so "1.4 MB" does not round to "1 MB", none above, where it is noise.
-  return `${value < 10 ? value.toFixed(1) : Math.round(value)} ${units[unit]}`;
+  const fractionDigits = unit > 0 && value < 10 ? 1 : 0;
+  return new Intl.NumberFormat(locale, {
+    style: "unit",
+    unit: BYTE_UNITS[unit],
+    unitDisplay: "short",
+    minimumFractionDigits: fractionDigits,
+    maximumFractionDigits: fractionDigits,
+  }).format(value);
 }
 
 /**
@@ -133,6 +146,25 @@ export function describeCareer(gameState: GameStateData | null): string {
 }
 
 /** A sentence naming where the bundle landed and how big it turned out. */
-export function describeBundle(summary: BundleSummary): string {
-  return `${summary.path} (${formatBytes(summary.bytes)})`;
+export function describeBundle(summary: BundleSummary, locale: string): string {
+  return `${summary.path} (${formatBytes(summary.bytes, locale)})`;
+}
+
+/** What a rejected upload carries, whether the backend sent a failure object or just a key. */
+export function toUploadFailure(error: unknown): UploadFailure {
+  if (typeof error === "object" && error !== null && "key" in error) {
+    const { kind, key, retry_after_seconds: wait, detail } = error as Partial<UploadFailure>;
+    return {
+      kind: kind ?? "other",
+      key: String(key),
+      retry_after_seconds: typeof wait === "number" ? wait : null,
+      detail: typeof detail === "string" && detail.trim() !== "" ? detail : null,
+    };
+  }
+  return { kind: "other", key: String(error), retry_after_seconds: null, detail: null };
+}
+
+/** Whole minutes to wait, never fewer than one: "try again in 0 minutes" invites an instant retry. */
+export function minutesToWait(seconds: number): number {
+  return Math.max(1, Math.ceil(seconds / 60));
 }

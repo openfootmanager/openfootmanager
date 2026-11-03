@@ -540,3 +540,324 @@ fn authored_group_size_reaches_the_game_built_from_a_loaded_world() {
             .all(|g| g.team_ids.len() == size.unwrap_or(4)));
     }
 }
+
+/// Given an active career whose manager has no club and no history
+/// When the career stage command reads it
+/// Then it answers awaitingClub, from the active game and nothing else.
+#[test]
+fn get_career_stage_reads_the_active_game() {
+    let state = ofm_core::state::StateManager::new();
+    let mut game = make_bootstrap_test_game();
+    game.manager.team_id = None;
+    state.set_game(game);
+
+    assert_eq!(
+        super::get_career_stage_internal(&state),
+        Ok(ofm_core::career_stage::CareerStage::AwaitingClub)
+    );
+}
+
+/// Given no active game session
+/// When the career stage command is called
+/// Then it fails with the no-session translation key.
+#[test]
+fn get_career_stage_without_a_session_fails_with_the_session_key() {
+    let state = ofm_core::state::StateManager::new();
+
+    assert_eq!(
+        super::get_career_stage_internal(&state),
+        Err("be.error.noActiveGameSession".to_string())
+    );
+}
+
+/// A package whose cup fields depend on how its clubs rank by reputation: six clubs rated anywhere
+/// in 0..=1000, a cup of two named clubs, a cup of the top two by reputation, and a group cup of
+/// everyone left. The same package as the one `ofm_core`'s package tests use.
+fn package_dir_whose_cups_depend_on_reputation() -> std::path::PathBuf {
+    let teams: Vec<_> = (b'a'..=b'f')
+        .map(|id| {
+            serde_json::json!({
+                "id": char::from(id).to_string(), "name": "Club", "city": "City",
+                "country": "ENG", "reputationRange": [0, 1000],
+                "colors": {"primary": "#000000", "secondary": "#ffffff"}
+            })
+        })
+        .collect();
+    let competitions = serde_json::json!([
+        {"id":"a-cup", "name":"A", "type":"Cup", "scope":"Domestic",
+         "format":{"kind":"Knockout"}, "participants":{"explicit":["a", "b"]}},
+        {"id":"b-cup", "name":"B", "type":"Cup", "scope":"Domestic",
+         "format":{"kind":"Knockout"}, "participants":{"selector":{
+             "kind":"topByReputation", "country":"ENG", "count":2}}},
+        {"id":"c-cup", "name":"C", "type":"Cup", "scope":"Domestic",
+         "format":{"kind":"GroupAndKnockout", "groupSize":2, "qualifiersPerGroup":2},
+         "participants":{"selector":{"kind":"allInCountry", "country":"ENG",
+             "excludeCompetitions":["a-cup", "b-cup"]}}}
+    ]);
+    let dir = temp_pkg_dir("reputation-cups");
+    std::fs::write(
+        dir.join("package.json"),
+        r#"{"schema":"world","id":"reputation-cups","name":"Reputation cups","formatVersion":1,"version":"1.0.0","license":"CC0-1.0"}"#,
+    )
+    .unwrap();
+    std::fs::create_dir_all(dir.join("teams")).unwrap();
+    std::fs::write(
+        dir.join("teams/teams.json"),
+        serde_json::json!({"schema":"team", "items": teams}).to_string(),
+    )
+    .unwrap();
+    std::fs::create_dir_all(dir.join("competitions")).unwrap();
+    std::fs::write(
+        dir.join("competitions/competitions.json"),
+        serde_json::json!({"schema":"competition", "items": competitions}).to_string(),
+    )
+    .unwrap();
+    dir
+}
+
+/// The cups of a career started from `package`, as (id, sorted participants), the way
+/// `start_new_game` builds it: ranked by the package's authored reputations.
+fn cup_fields_of_a_career_from(
+    loaded: (ofm_core::generator::WorldData, super::AuthoredReputations),
+) -> (ofm_core::game::Game, Vec<(String, Vec<String>)>) {
+    let (world, authored) = loaded;
+    let options = StartupOptions {
+        start_year: 2031,
+        start_phase: StartPhase::SeasonStart,
+        history_depth_years: 0,
+    };
+    let clock = game_clock_for_world(&options, &world.metadata).unwrap();
+    let manager = domain::manager::Manager::new(
+        "mgr-user".into(),
+        "Alex".into(),
+        "Manager".into(),
+        "1980-01-01".into(),
+        "England".into(),
+    );
+    let (game, _) = super::build_game_from_world_data_ranked(
+        clock,
+        manager,
+        &options,
+        world,
+        ofm_core::generator::ReputationBasis::Authored(&authored),
+    );
+    let mut cups: Vec<(String, Vec<String>)> = game
+        .competitions
+        .iter()
+        .filter(|c| c.id.ends_with("-cup"))
+        .map(|c| {
+            let mut ids = c.participant_ids.clone();
+            ids.sort();
+            (c.id.clone(), ids)
+        })
+        .collect();
+    cups.sort();
+    (game, cups)
+}
+
+/// Given a package whose cups select and exclude clubs by reputation (#707)
+/// When careers are started from it with different rolls, and one is saved and reloaded
+/// Then every career has the same cups, the reload keeps them, and the rolled reputations still differ.
+#[test]
+fn a_package_career_keeps_the_cups_it_was_validated_with_on_every_roll_and_after_a_reload() {
+    let dir = package_dir_whose_cups_depend_on_reputation();
+    let (package, errors) = ofm_core::generator::load_world_package(&dir);
+    assert!(errors.is_empty(), "{errors:?}");
+    assert!(ofm_core::generator::validate_package(&package).is_empty());
+    let sources = ofm_core::generator::DefinitionSources::embedded_only();
+
+    // The same package reaches a career by two routes (an installed `.ofm` by id, and a
+    // directory as `world_source`); both must hand the career the reputations it was validated with.
+    let packages = tempfile::tempdir().unwrap();
+    ofm_core::generator::export_directory_to_ofm(
+        &dir,
+        &packages.path().join("reputation-cups.ofm"),
+    )
+    .unwrap();
+    let by_id = || {
+        let (world, _, authored) = super::load_world_data_from_package_ids(
+            packages.path(),
+            &["reputation-cups".to_string()],
+            Some(2031),
+            None,
+            &sources,
+        )
+        .unwrap();
+        (world, authored)
+    };
+    let by_directory =
+        || super::load_world_data(Some(dir.to_string_lossy().as_ref()), &sources).unwrap();
+
+    for (route, load) in [
+        ("package id", &by_id as &dyn Fn() -> _),
+        ("directory", &by_directory as &dyn Fn() -> _),
+    ] {
+        assert_cups_stable_across_rolls_and_reload(route, load);
+    }
+    std::fs::remove_dir_all(&dir).ok();
+}
+
+fn assert_cups_stable_across_rolls_and_reload(
+    route: &str,
+    load: &dyn Fn() -> (ofm_core::generator::WorldData, super::AuthoredReputations),
+) {
+    let careers: Vec<_> = (0..40)
+        .map(|_| cup_fields_of_a_career_from(load()))
+        .collect();
+
+    let distinct_fields: std::collections::BTreeSet<_> =
+        careers.iter().map(|(_, cups)| cups.clone()).collect();
+    assert_eq!(distinct_fields.len(), 1, "{route}: {distinct_fields:?}");
+    let distinct_reputations: std::collections::BTreeSet<Vec<u32>> = careers
+        .iter()
+        .map(|(game, _)| game.teams.iter().map(|t| t.reputation).collect())
+        .collect();
+    assert!(
+        distinct_reputations.len() > 1,
+        "{route}: every roll gave the same reputations"
+    );
+
+    let (game, cups) = &careers[0];
+    let dir = tempfile::tempdir().unwrap();
+    let mut saves = db::save_manager::SaveManager::init(dir.path()).unwrap();
+    let save_id = saves.create_save(game, "Package career").unwrap();
+    let reloaded = saves.load_game(&save_id).unwrap();
+    let mut reloaded_cups: Vec<(String, Vec<String>)> = reloaded
+        .competitions
+        .iter()
+        .filter(|c| c.id.ends_with("-cup"))
+        .map(|c| {
+            let mut ids = c.participant_ids.clone();
+            ids.sort();
+            (c.id.clone(), ids)
+        })
+        .collect();
+    reloaded_cups.sort();
+    assert_eq!(
+        &reloaded_cups, cups,
+        "{route}: a reload must not change who is in the cups"
+    );
+}
+
+/// Given a package loaded for a career,
+/// When the game is built from it,
+/// Then the game carries the seed the package world was built from, so the world a player started
+///      can be rebuilt from a bug report; and loading again draws another seed.
+#[test]
+fn a_package_career_records_the_seed_its_world_was_built_from() {
+    let dir = concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../docs/modding/examples/classic-sixteen"
+    );
+    let sources = ofm_core::generator::DefinitionSources::embedded_only();
+    let load = || super::load_world_data_from_package(dir, &sources).unwrap();
+
+    let (world, authored) = load();
+    let seed = world
+        .generation_seed
+        .expect("a package world is built from a seed");
+    let options = StartupOptions {
+        start_year: 2031,
+        start_phase: StartPhase::SeasonStart,
+        history_depth_years: 0,
+    };
+    let clock = game_clock_for_world(&options, &world.metadata).unwrap();
+    let manager = domain::manager::Manager::new(
+        "mgr-user".into(),
+        "Alex".into(),
+        "Manager".into(),
+        "1980-01-01".into(),
+        "England".into(),
+    );
+    let (game, _) = super::build_game_from_world_data_ranked(
+        clock,
+        manager,
+        &options,
+        world,
+        ofm_core::generator::ReputationBasis::Authored(&authored),
+    );
+
+    assert_eq!(game.seed, seed);
+    assert_ne!(load().0.generation_seed, Some(seed));
+}
+
+/// Given a clubless career that has not been saved, installed as the active game
+/// When the player picks a club
+/// Then the game handed back to the screen carries the token of the career that was installed,
+///      not 0: the tactics writes that follow send that token and would all be refused otherwise.
+#[test]
+fn select_team_hands_the_screen_the_installed_careers_token() {
+    use crate::application::career::install_career;
+    let dir = tempfile::tempdir().unwrap();
+    let mut save_manager = db::save_manager::SaveManager::init(dir.path()).unwrap();
+    let state = ofm_core::state::StateManager::new();
+    let mut game = make_bootstrap_test_game();
+    game.manager.team_id = None;
+    install_career(&state, game, sample_stats_state(), None);
+
+    let shown =
+        super::select_team_internal(&state, &mut save_manager, "team1", None, None).unwrap();
+
+    let installed = state.get_game(|game| game.career_token).unwrap();
+    assert_ne!(installed, 0);
+    assert_eq!(shown.career_token, installed);
+}
+
+/// Given a freshly built game and the package lockfile it was built from
+/// When it is installed as the new career
+/// Then the game handed back to the screen carries the installed career's token and the lockfile.
+#[test]
+fn a_new_game_handed_to_the_screen_carries_the_installed_careers_token() {
+    let state = ofm_core::state::StateManager::new();
+    let lock = ofm_core::generator::PackageLock {
+        id: "pack".to_string(),
+        version: "1".to_string(),
+        hash: "h".to_string(),
+    };
+
+    let shown = super::install_new_game(
+        &state,
+        (make_bootstrap_test_game(), sample_stats_state()),
+        vec![lock.clone()],
+    );
+
+    let installed = state.get_game(|game| game.career_token).unwrap();
+    assert_ne!(installed, 0);
+    assert_eq!(shown.career_token, installed);
+    assert_eq!(shown.package_lockfile, vec![lock]);
+}
+
+/// Given an active career saved once, then changed in memory
+/// When the screen's Save arrives through the command with the career's own token
+/// Then the save on disk holds the change.
+#[test]
+fn save_game_writes_the_active_career_to_its_save() {
+    let app = crate::commands::wrapper_testkit::WrapperApp::new(make_bootstrap_test_game(), true);
+    app.state()
+        .update_game(|game| game.manager.first_name = "Renamed".to_string())
+        .expect("game");
+    assert_ne!(app.saved_game().manager.first_name, "Renamed");
+
+    let saved =
+        tauri::async_runtime::block_on(super::save_game(app.state(), app.saves(), app.token));
+
+    assert_eq!(saved, Ok(()));
+    assert_eq!(app.saved_game().manager.first_name, "Renamed");
+}
+
+/// Given career B is active and a screen still holds career A's token
+/// When that screen's Save arrives
+/// Then it is refused with the career-changed key and the save on disk is not touched.
+#[test]
+fn save_game_for_a_replaced_career_is_refused_and_writes_nothing() {
+    let app = crate::commands::wrapper_testkit::WrapperApp::new(make_bootstrap_test_game(), true);
+    app.state()
+        .update_game(|game| game.manager.first_name = "Renamed".to_string())
+        .expect("game");
+    let stale = app.token + 1;
+
+    let refused = tauri::async_runtime::block_on(super::save_game(app.state(), app.saves(), stale));
+
+    assert_eq!(refused, Err("be.error.careerChanged".to_string()));
+    assert_ne!(app.saved_game().manager.first_name, "Renamed");
+}

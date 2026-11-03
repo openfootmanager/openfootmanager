@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { FixtureData, GameStateData, PlayerData, TeamData } from "../../store/gameStore";
 import TournamentsTab from "./TournamentsTab";
+import { createSeasonContext } from "../../test-utils/factories";
 
 vi.mock("@tauri-apps/api/core", () => ({
   invoke: vi.fn(),
@@ -159,6 +160,8 @@ function createPlayer(overrides: Partial<PlayerData> = {}): PlayerData {
 
 function createFixture(overrides: Partial<FixtureData> = {}): FixtureData {
   return {
+    competitive: true,
+    advancing_team_id: null,
     id: "fixture-1",
     matchday: 1,
     date: "2026-08-01",
@@ -178,11 +181,25 @@ function createFixture(overrides: Partial<FixtureData> = {}): FixtureData {
 
 function createGameState(withLeague = true): GameStateData {
   return {
+    // What the backend sends for a season under way on 10 August: the window is still open.
+    season_context: createSeasonContext({
+      phase: "InSeason",
+      season_start: "2026-08-01",
+      season_end: "2027-05-31",
+      transfer_window: {
+        status: "Open",
+        opens_on: "2026-07-02",
+        closes_on: "2026-08-31",
+        days_until_opens: null,
+        days_remaining: 21,
+      },
+    }),
     clock: {
       current_date: "2026-08-10T00:00:00Z",
       start_date: "2026-07-01T00:00:00Z",
     },
     manager: {
+      display_name: "Jane Doe",
       id: "manager-1",
       first_name: "Jane",
       last_name: "Doe",
@@ -679,5 +696,68 @@ describe("TournamentsTab", () => {
 
     expect(await screen.findByText("Manager of the Season")).toBeInTheDocument();
     expect(screen.getByText("Jane Doe")).toBeInTheDocument();
+  });
+
+  const emptyAwards = {
+    golden_boot: [],
+    assist_king: [],
+    player_of_year: [],
+    clean_sheet_king: [],
+    most_appearances: [],
+    young_player: [],
+    manager_of_season: [],
+  };
+  const contextWith = (seasonComplete: boolean): GameStateData["season_context"] => ({
+    phase: "InSeason",
+    season_complete: seasonComplete,
+    season_start: "2026-08-01",
+    season_end: "2027-05-31",
+    days_until_season_start: null,
+    transfer_window: {
+      status: "Closed",
+      opens_on: null,
+      closes_on: null,
+      days_until_opens: null,
+      days_remaining: null,
+    },
+  });
+
+  /**
+   * Given every matchday of the selected league is played, but the backend says the season is not
+   * over (a sibling league in the pyramid is still playing)
+   * When the awards view opens
+   * Then it is captioned as the current leaders, not as honours.
+   */
+  it("captions the awards as current leaders while the backend says the season is not over", async () => {
+    vi.mocked(invoke).mockResolvedValue(emptyAwards);
+    const state = createGameState(true);
+    state.season_context = contextWith(false);
+
+    render(<TournamentsTab gameState={state} onSelectTeam={vi.fn()} />);
+    fireEvent.click(screen.getByRole("button", { name: /Awards/i }));
+
+    expect(await screen.findByText("tournaments.awards.currentLeaders")).toBeInTheDocument();
+  });
+
+  /**
+   * Given the backend says the season is over
+   * When the awards view opens
+   * Then no "current leaders" caption is shown, whatever the matchday count says.
+   */
+  it("shows the awards as honours once the backend says the season is over", async () => {
+    vi.mocked(invoke).mockResolvedValue(emptyAwards);
+    const state = createGameState(true);
+    state.league!.fixtures = state.league!.fixtures.map((fixture) => ({
+      ...fixture,
+      status: "Scheduled" as const,
+      result: null,
+    }));
+    state.season_context = contextWith(true);
+
+    render(<TournamentsTab gameState={state} onSelectTeam={vi.fn()} />);
+    fireEvent.click(screen.getByRole("button", { name: /Awards/i }));
+    await screen.findByText("Manager of the Season");
+
+    expect(screen.queryByText("tournaments.awards.currentLeaders")).not.toBeInTheDocument();
   });
 });

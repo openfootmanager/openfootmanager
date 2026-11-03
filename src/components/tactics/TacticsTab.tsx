@@ -37,6 +37,7 @@ export default function TacticsTab({
     pitchSlots,
     outOfPositionCount,
     effectiveMatchRoles,
+    autoSetPieces,
     selectedPlayer,
     comparePlayer,
     selectedPlayerId,
@@ -61,6 +62,7 @@ export default function TacticsTab({
     resetDragState,
     handleAssignMatchRole,
     handleTacticsPhaseChange,
+    lineupReady,
   } = useTacticsLineup({ gameState, onGameUpdate });
 
   const {
@@ -77,10 +79,14 @@ export default function TacticsTab({
     activeTactic,
     tacticLibrary,
     isCommandBarDirty,
+    canResetTactic,
+    handleResetTactic,
     applyTacticSelection,
     handleCreateCustomTactic,
     handleDuplicateTactic,
     handleSaveTactic,
+    canDeleteTactic,
+    handleDeleteTactic,
   } = useTacticsLibrary({
     gameState,
     formation,
@@ -107,7 +113,13 @@ export default function TacticsTab({
         activePlayStyle={activePlayStyle}
         formation={formation}
         isDirty={isCommandBarDirty}
+        canReset={canResetTactic}
+        onReset={() => {
+          void handleResetTactic();
+        }}
+        canDelete={canDeleteTactic}
         onCreateNew={handleCreateCustomTactic}
+        onDelete={handleDeleteTactic}
         onDuplicate={handleDuplicateTactic}
         onFormationChange={(nextFormation) => {
           void handleFormationChange(nextFormation);
@@ -126,6 +138,12 @@ export default function TacticsTab({
         }}
         tacticLibrary={tacticLibrary}
       />
+
+      {lineupReady ? null : (
+        <p role="status" className="text-caption text-fg-muted">
+          {t("common.lineupLoading")}
+        </p>
+      )}
 
       <div className="grid grid-cols-1 gap-5 xl:grid-cols-[260px_1fr_270px] xl:items-start">
         {/* Left: player list */}
@@ -210,6 +228,7 @@ export default function TacticsTab({
         {/* Right: roles + phase blueprint */}
         <TacticsRightPanel
           allSquad={roster}
+          autoSetPieces={autoSetPieces}
           matchRoles={team.match_roles}
           onGameUpdate={onGameUpdate}
           onTacticsPhaseChange={(patch) => {

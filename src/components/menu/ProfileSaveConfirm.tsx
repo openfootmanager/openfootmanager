@@ -1,6 +1,6 @@
+import { useId } from "react";
 import { useTranslation } from "react-i18next";
-import { Button } from "../ui";
-import DashboardModalFrame from "../dashboard/DashboardModalFrame";
+import { Button, Dialog } from "../ui";
 import type { ManagerProfile } from "./types";
 
 interface ProfileSaveConfirmProps {
@@ -20,10 +20,14 @@ export default function ProfileSaveConfirm({
 }: ProfileSaveConfirmProps) {
   const { t } = useTranslation();
   const profileName = `${loadedProfile.first_name} ${loadedProfile.last_name}`;
+  const titleId = useId();
 
   return (
-    <DashboardModalFrame maxWidthClassName="max-w-sm">
-      <h3 className="text-lg font-heading font-bold uppercase tracking-wide text-gray-900 dark:text-white">
+    <Dialog labelledBy={titleId} onClose={onClose} className="w-full max-w-sm rounded-2xl p-6">
+      <h3
+        id={titleId}
+        className="text-lg font-heading font-bold uppercase tracking-wide text-gray-900 dark:text-white"
+      >
         {t("managerProfiles.saveConfirm.title")}
       </h3>
 
@@ -52,6 +56,6 @@ export default function ProfileSaveConfirm({
       >
         {t("menu.cancel")}
       </button>
-    </DashboardModalFrame>
+    </Dialog>
   );
 }

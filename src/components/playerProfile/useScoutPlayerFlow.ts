@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
-import { invoke } from "@tauri-apps/api/core";
 import { useTranslation } from "react-i18next";
 
 import type { GameStateData, PlayerData } from "../../store/gameStore";
+import { sendScout as sendScoutRequest } from "../../services/scoutingService";
 import { resolveTranslatedErrorMessage } from "../../utils/errorMessage";
 import {
   getScoutAvailability,
@@ -67,10 +67,7 @@ export function useScoutPlayerFlow({
       setScoutError(null);
 
       try {
-        const updated = await invoke<GameStateData>("send_scout", {
-          scoutId: availableScout.id,
-          playerId: player.id,
-        });
+        const updated = await sendScoutRequest(availableScout.id, player.id);
         onGameUpdate(updated);
         setScoutStatus("sent");
       } catch (err) {

@@ -1,4 +1,4 @@
-import { Fragment, useState } from "react";
+import { Fragment, useState, type ReactNode } from "react";
 import { Shield } from "lucide-react";
 import { getAttributeColorClass } from "./PlayerProfile.helpers";
 import { getAttributeColors } from "../../lib/playerAttributeDisplay";
@@ -8,21 +8,15 @@ import { Card, CardBody, CardHeader, ProgressBar } from "../ui";
 import { PlayerAttributeRadarChart } from "./PlayerAttributeRadarChart";
 import PlayerProfileStatCard from "./PlayerProfileStatCard";
 
-// Deterministic placeholder bar width (20-79%) for hidden attributes, derived
-// from the attribute name. Stable across renders, unlike Math.random().
-function placeholderWidth(name: string): number {
-  let hash = 0;
-  for (let i = 0; i < name.length; i++) {
-    hash = (hash * 31 + name.charCodeAt(i)) % 60;
-  }
-  return hash + 20;
-}
-
 interface PlayerProfileAttributesCardProps {
   attrGroups: PlayerAttributeGroup[];
   player: PlayerData;
   attributesVisible: boolean;
   scoutNote?: { scoutedLabel: string; outOfDate: boolean; outOfDateLabel: string };
+  /** The club's opinion of his potential, shown above his attributes when it holds one. */
+  potentialOpinion?: ReactNode;
+  /** His ratings at the positions he plays, shown below his attributes when the club knows them. */
+  positionRatings?: ReactNode;
   isGk?: boolean;
   title: string;
   averageLabel: string;
@@ -37,6 +31,8 @@ export default function PlayerProfileAttributesCard({
   player,
   attributesVisible,
   scoutNote,
+  potentialOpinion,
+  positionRatings,
   isGk = false,
   title,
   averageLabel,
@@ -76,6 +72,7 @@ export default function PlayerProfileAttributesCard({
         {title}
       </CardHeader>
       <CardBody>
+        {potentialOpinion}
         {attributesVisible && scoutNote ? (
           <p className="mb-3 flex flex-wrap items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
             <span>{scoutNote.scoutedLabel}</span>
@@ -135,41 +132,9 @@ export default function PlayerProfileAttributesCard({
             <p className="text-xs text-gray-400 dark:text-gray-500 mt-1 max-w-xs mx-auto">
               {hiddenBody}
             </p>
-            <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-4 sm:auto-rows-fr text-left">
-              {attrGroups.map((group) => (
-                <PlayerProfileStatCard
-                  key={group.label}
-                  label={group.label}
-                  labelClassName="text-gray-400 dark:text-gray-500"
-                  headerRight={
-                    <span className="font-heading font-bold text-sm text-gray-400 dark:text-gray-500">
-                      ??
-                    </span>
-                  }
-                >
-                  <div className="grid grid-cols-[auto_1fr_1.75rem] items-center gap-x-3 gap-y-2.5">
-                    {group.attrs.map((attr) => (
-                      <Fragment key={attr.name}>
-                        <span className="text-xs text-gray-400 dark:text-gray-500 whitespace-nowrap">
-                          {attr.name}
-                        </span>
-                        <ProgressBar
-                          value={placeholderWidth(attr.name)}
-                          variant="muted"
-                          size="sm"
-                          className="min-w-0"
-                        />
-                        <span className="text-xs text-gray-400 dark:text-gray-500 text-right">
-                          ??
-                        </span>
-                      </Fragment>
-                    ))}
-                  </div>
-                </PlayerProfileStatCard>
-              ))}
-            </div>
           </div>
         )}
+        {attributesVisible ? positionRatings : null}
       </CardBody>
     </Card>
   );

@@ -2,6 +2,7 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { invoke } from "@tauri-apps/api/core";
 
+import { resetMatchCommands } from "../components/match/matchCommands";
 import MatchSimulation from "./MatchSimulation";
 
 const navigateMock = vi.fn();
@@ -11,6 +12,16 @@ let gameStoreState: {
   gameState: Record<string, unknown> | null;
   setGameState: typeof setGameStateMock;
 };
+
+vi.mock("../hooks/usePositionGroups", async () => {
+  const { cannedPositionsModule } = await import("../test-utils/positionTable");
+  return cannedPositionsModule();
+});
+
+vi.mock("../components/match/matchCommands", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../components/match/matchCommands")>();
+  return { ...actual, resetMatchCommands: vi.fn(actual.resetMatchCommands) };
+});
 
 vi.mock("@tauri-apps/api/core", () => ({
   invoke: vi.fn(),
@@ -22,6 +33,7 @@ vi.mock("react-router-dom", () => ({
 }));
 
 vi.mock("react-i18next", () => ({
+  initReactI18next: { type: "3rdParty", init: () => {} },
   useTranslation: () => ({
     t: (key: string, fallback?: string) => fallback ?? key,
     i18n: { language: "en" },
@@ -29,7 +41,7 @@ vi.mock("react-i18next", () => ({
 }));
 
 vi.mock("../store/gameStore", () => ({
-  useGameStore: () => gameStoreState,
+  useGameStore: Object.assign(() => gameStoreState, { getState: () => gameStoreState }),
 }));
 
 vi.mock("../store/settingsStore", () => ({
@@ -114,12 +126,12 @@ vi.mock("../components/match/PostMatchScreen", () => ({
 vi.mock("../components/match/RoundDigestScreen", () => ({
   default: ({
     roundSummary,
-    isLeagueFixture,
+    currentFixture,
     onPressConference,
     onFinish,
   }: {
     roundSummary?: unknown;
-    isLeagueFixture?: boolean;
+    currentFixture?: { id: string } | null;
     onPressConference?: () => void;
     onFinish?: () => void;
   }) => (
@@ -127,7 +139,7 @@ vi.mock("../components/match/RoundDigestScreen", () => ({
       <div data-testid="digest-round-summary">
         {roundSummary ? JSON.stringify(roundSummary) : "null"}
       </div>
-      <div data-testid="digest-is-league">{isLeagueFixture ? "true" : "false"}</div>
+      <div data-testid="digest-fixture">{currentFixture?.id ?? "none"}</div>
       <button type="button" data-testid="digest-press" onClick={onPressConference}>
         Press Conference
       </button>
@@ -317,7 +329,7 @@ function makeGameState(): Record<string, unknown> {
   };
 }
 
-function makeGameStateWithFriendly() {
+function makeGameStateWithFriendly(competition = "Friendly") {
   const base = makeGameState();
   return {
     ...base,
@@ -327,7 +339,7 @@ function makeGameStateWithFriendly() {
       fixtures: [
         {
           id: "fix1",
-          competition: "Friendly",
+          competition,
           home_team_id: "home1",
           away_team_id: "away1",
           date: "2026-08-01",
@@ -353,6 +365,22 @@ describe("MatchSimulation", (): void => {
       gameState: makeGameState(),
       setGameState: setGameStateMock,
     };
+  });
+
+  /**
+   * Given a match screen opens
+   * When it mounts
+   * Then the in-play command chain is started afresh, so a hung command from an earlier match
+   *      cannot hold up this one.
+   */
+  it("starts a fresh command chain for each match screen", async (): Promise<void> => {
+    mockedInvoke.mockResolvedValueOnce(makeSnapshot());
+
+    render(<MatchSimulation />);
+
+    await waitFor((): void => {
+      expect(resetMatchCommands).toHaveBeenCalledTimes(1);
+    });
   });
 
   it("renders the current live snapshot when get_match_snapshot succeeds", async (): Promise<void> => {
@@ -406,6 +434,7 @@ describe("MatchSimulation", (): void => {
 
       await waitFor((): void => {
         expect(mockedInvoke).toHaveBeenCalledWith("start_live_match", {
+          careerToken: 0,
           allowsExtraTime: false,
           fixtureIndex: 4,
           competitionId: "cup1",
@@ -464,7 +493,7 @@ describe("MatchSimulation", (): void => {
     fireEvent.click(screen.getByTestId("match-live"));
 
     await waitFor((): void => {
-      expect(mockedInvoke).toHaveBeenLastCalledWith("finish_live_match");
+      expect(mockedInvoke).toHaveBeenLastCalledWith("finish_live_match", { careerToken: 0 });
       expect(screen.getByTestId("postmatch-finish")).toBeInTheDocument();
     });
 
@@ -514,7 +543,7 @@ describe("MatchSimulation", (): void => {
     fireEvent.click(screen.getByTestId("match-live"));
 
     await waitFor((): void => {
-      expect(mockedInvoke).toHaveBeenLastCalledWith("finish_live_match");
+      expect(mockedInvoke).toHaveBeenLastCalledWith("finish_live_match", { careerToken: 0 });
       expect(screen.getByTestId("postmatch-finish")).toBeInTheDocument();
     });
 
@@ -536,46 +565,64 @@ describe("MatchSimulation", (): void => {
     });
   });
 
-  it("routes a manager's friendly through digest with isLeagueFixture=false", async (): Promise<void> => {
+  /**
+   * Given a cup tie, which lives in the cup's competition and never in the league mirror, whose
+   *       route carries its competition and fixture ids, while the league mirror holds a league
+   *       match between other clubs at the route's index and the backend answers with a league
+   *       round summary
+   * When the match reaches the digest
+   * Then the digest is given the cup tie as the match the user played, not that league match.
+   */
+  it("hands the digest the cup tie the route names, not the league match at its index", async (): Promise<void> => {
+    const base = makeGameStateWithFriendly("League");
+    const league = base.league;
+    const otherLeagueMatch = {
+      ...league.fixtures[0],
+      id: "other-league-match",
+      home_team_id: "x1",
+      away_team_id: "y1",
+    };
+    const cupTie = { ...league.fixtures[0], id: "cup-tie", competition: "Cup" };
     locationState = {
       mode: "live",
       fixtureIndex: 0,
+      competitionId: "cup1",
+      fixtureId: "cup-tie",
       snapshot: makeSnapshot(),
     };
-
     gameStoreState = {
-      gameState: makeGameStateWithFriendly(),
+      gameState: {
+        ...base,
+        league: { ...league, fixtures: [otherLeagueMatch] },
+        competitions: [
+          { ...league, fixtures: [otherLeagueMatch] },
+          { ...league, id: "cup1", name: "Cup", fixtures: [cupTie] },
+        ],
+      },
       setGameState: setGameStateMock,
     };
-
     mockedInvoke.mockResolvedValueOnce(makeSnapshot()).mockResolvedValueOnce({
       game: makeGameState(),
-      round_summary: null,
+      round_summary: { matchday: 3, completed_results: [] },
     });
 
     render(<MatchSimulation />);
 
-    // Manager sees prematch; click Start to advance to first_half
     await waitFor((): void => {
       expect(screen.getByTestId("prematch-start")).toBeInTheDocument();
     });
-
     fireEvent.click(screen.getByTestId("prematch-start"));
-
     await waitFor((): void => {
       expect(screen.getByTestId("match-live")).toBeInTheDocument();
     });
-
     fireEvent.click(screen.getByTestId("match-live"));
-
     await waitFor((): void => {
       expect(screen.getByTestId("postmatch-continue")).toBeInTheDocument();
     });
-
     fireEvent.click(screen.getByTestId("postmatch-continue"));
 
     await waitFor((): void => {
-      expect(screen.getByTestId("digest-is-league")).toHaveTextContent("false");
+      expect(screen.getByTestId("digest-fixture")).toHaveTextContent("cup-tie");
     });
   });
 

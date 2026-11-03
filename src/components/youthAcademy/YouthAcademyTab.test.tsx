@@ -1,9 +1,15 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { invoke } from "@tauri-apps/api/core";
 
 import type { GameStateData, PlayerData, StaffData, TeamData } from "../../store/gameStore";
 import YouthAcademyTab from "./YouthAcademyTab";
+import { createSeasonContext } from "../../test-utils/factories";
+
+vi.mock("../../hooks/useRatingTiers", async () => {
+  const { cannedRatingTiersModule } = await import("../../test-utils/ratingTiers");
+  return cannedRatingTiersModule();
+});
 
 vi.mock("@tauri-apps/api/core", () => ({
   invoke: vi.fn(),
@@ -43,6 +49,7 @@ vi.mock("react-i18next", () => ({
       if (key === "youthAcademy.traits") return "Traits";
       if (key === "youthAcademy.condition") return "Condition";
       if (key.startsWith("youthAcademy.pot")) return key.replace("youthAcademy.", "");
+      if (key.startsWith("common.ratingTier.")) return key.replace("common.ratingTier.", "");
       if (key.startsWith("common.posAbbr.")) return key.replace("common.posAbbr.", "");
       if (key === "scouting.youthRecruitment") return "Youth Recruitment";
       if (key === "scouting.youthRecruitmentHint")
@@ -174,11 +181,13 @@ function createPlayer(overrides: Partial<PlayerData> = {}): PlayerData {
 
 function createGameState(players: PlayerData[]): GameStateData {
   return {
+    season_context: createSeasonContext(),
     clock: {
       current_date: "2026-08-10T00:00:00Z",
       start_date: "2026-07-01T00:00:00Z",
     },
     manager: {
+      display_name: "Jane Doe",
       id: "manager-1",
       first_name: "Jane",
       last_name: "Doe",
@@ -214,6 +223,7 @@ function createScout(overrides: Partial<StaffData> = {}): StaffData {
     id: "staff-1",
     first_name: "Sam",
     last_name: "Scout",
+    display_name: "Sam Scout",
     date_of_birth: "1985-01-01",
     nationality: "GB",
     role: "Scout",
@@ -303,6 +313,7 @@ describe("YouthAcademyTab", () => {
 
     await waitFor(() => {
       expect(mockedInvoke).toHaveBeenCalledWith("set_player_squad_role", {
+        careerToken: 0,
         playerId: "player-young-senior",
         squadRole: "Youth",
       });
@@ -382,6 +393,7 @@ describe("YouthAcademyTab", () => {
 
     await waitFor(() => {
       expect(mockedInvoke).toHaveBeenCalledWith("start_youth_scouting", {
+        careerToken: 0,
         scoutId: "staff-1",
         region: "Domestic",
         objective: "Balanced",
@@ -423,11 +435,83 @@ describe("YouthAcademyTab", () => {
     expect(onSelectPlayer).toHaveBeenCalledWith("player-young");
   });
 
+  /**
+   * Given a youth prospect in the academy's list
+   * When his actions menu is opened from its button and closed with Escape
+   * Then the button says so through aria-expanded, open and then closed again.
+   */
+  it("says on a prospect's actions button whether his menu is open", async () => {
+    const youthPlayer = createPlayer({
+      id: "player-young",
+      full_name: "Rising Star",
+      date_of_birth: "2008-01-01",
+      squad_role: "Youth",
+    });
+    const state = createGameState([youthPlayer]);
+    mockedInvoke.mockImplementation(async (command: string) => {
+      if (command === "get_squad") return state.players.filter((p) => p.team_id === "team-1");
+      if (command === "get_staff") return makeEmptyStaffSlice();
+      return state;
+    });
+
+    render(<YouthAcademyTab gameState={state} onSelectPlayer={vi.fn()} />);
+    const button = await screen.findByRole("button", { name: "common.playerActions" });
+    expect(button).toHaveAttribute("aria-expanded", "false");
+
+    fireEvent.click(button);
+    expect(await screen.findByRole("menu")).toBeInTheDocument();
+    expect(button).toHaveAttribute("aria-expanded", "true");
+
+    fireEvent.keyDown(document.activeElement ?? document.body, { key: "Escape" });
+    await waitFor(() => expect(screen.queryByRole("menu")).toBeNull());
+    expect(button).toHaveAttribute("aria-expanded", "false");
+  });
+
   // Regression (issue #250): the prospects list is rendered from the cached
   // get_squad fetch, which only refreshes on remount or when the game clock
   // advances. Promoting a player must patch that cache from the mutation
   // response, or the promoted player lingers in the list until the user
   // switches pages.
+  /**
+   * Given youth prospects with ceilings of 81 (S), 77 (A), 76 (B) and 60 (the rest)
+   * When the academy lists them
+   * Then each ceiling carries its backend tier's letter (none for the rest), and the "high potential"
+   *      count is the S and A prospects: two.
+   */
+  it("shows each prospect's ceiling as its backend tier", async () => {
+    const prospect = (id: string, potential: number) =>
+      createPlayer({
+        id,
+        full_name: `Prospect ${potential}`,
+        date_of_birth: "2008-01-01",
+        squad_role: "Youth",
+        potential,
+        ovr: 50,
+      });
+    const state = createGameState([
+      prospect("s", 81),
+      prospect("a", 77),
+      prospect("b", 76),
+      prospect("r", 60),
+    ]);
+    mockedInvoke.mockImplementation(async (command: string) => {
+      if (command === "get_squad") return state.players.filter((p) => p.team_id === "team-1");
+      if (command === "get_staff") return makeEmptyStaffSlice();
+      return state;
+    });
+
+    render(<YouthAcademyTab gameState={state} />);
+
+    // The ceiling cell reads as its number and, for a tiered prospect, the tier letter: "81 S".
+    const ceilingOf = async (potential: number) =>
+      within(await screen.findByRole("row", { name: new RegExp(`Prospect ${potential}\\b`) }));
+    expect((await ceilingOf(81)).getByRole("cell", { name: "81 S" })).toBeInTheDocument();
+    expect((await ceilingOf(77)).getByRole("cell", { name: "77 A" })).toBeInTheDocument();
+    expect((await ceilingOf(76)).getByRole("cell", { name: "76 B" })).toBeInTheDocument();
+    expect((await ceilingOf(60)).getByRole("cell", { name: "60" })).toBeInTheDocument();
+    expect(screen.getByText("High Potential").previousElementSibling).toHaveTextContent("2");
+  });
+
   it("removes a promoted player from the prospects list without a refetch", async () => {
     const youthPlayer = createPlayer({
       id: "player-young",
@@ -508,10 +592,44 @@ describe("YouthAcademyTab", () => {
 
     await waitFor(() => {
       expect(mockedInvoke).toHaveBeenCalledWith("set_player_squad_role", {
+        careerToken: 0,
         playerId: "player-young",
         squadRole: "Senior",
       });
       expect(onGameUpdate).toHaveBeenCalledWith(updatedGameState);
     });
+  });
+
+  /**
+   * Given a youth coach known as "Cafu" (Marcos Evangelista)
+   * When the youth academy is drawn
+   * Then the coach badge shows the backend's display name.
+   */
+  it("names the youth coach by their display name", async () => {
+    const coach = createScout({
+      id: "staff-coach",
+      first_name: "Marcos",
+      last_name: "Evangelista",
+      display_name: "Cafu",
+      role: "Coach",
+      specialization: "Youth",
+    });
+    const state = { ...createGameState([createPlayer({ squad_role: "Youth" })]), staff: [coach] };
+    mockedInvoke.mockImplementation(async (command: string) => {
+      if (command === "get_squad") return state.players.filter((p) => p.team_id === "team-1");
+      if (command === "get_staff")
+        return {
+          team_staff: [coach],
+          available_staff: [],
+          scouting_assignments: [],
+          youth_scouting_assignments: [],
+        };
+      return state;
+    });
+
+    render(<YouthAcademyTab gameState={state} onSelectPlayer={vi.fn()} />);
+
+    expect(await screen.findByText(/Cafu \(/)).toBeInTheDocument();
+    expect(screen.queryByText(/Marcos Evangelista/)).not.toBeInTheDocument();
   });
 });

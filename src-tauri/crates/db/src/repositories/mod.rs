@@ -1,4 +1,6 @@
+pub mod archived_message_repo;
 pub mod competition_repo;
+pub mod custom_tactic_repo;
 pub mod edition_archive_repo;
 mod fixture_competition;
 pub(crate) mod journal_repo;
@@ -10,7 +12,10 @@ pub mod national_team_repo;
 pub mod news_repo;
 pub mod objective_repo;
 pub mod player_repo;
+pub mod retired_manager_repo;
+pub mod retired_player_repo;
 pub mod scouting_repo;
 pub mod staff_repo;
 pub mod stats_repo;
+mod stored_fixtures;
 pub mod team_repo;

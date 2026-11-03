@@ -122,6 +122,15 @@ fn should_track_startup(profile: GpuProfile, policy: Policy) -> bool {
     profile == GpuProfile::Auto && policy != Policy::DisableDmabuf
 }
 
+/// Whether this launch records a startup attempt, and later clears it.
+///
+/// A headless (`--no-gui`) run never presents a window, so it proves nothing about rendering: it
+/// must not clear the record a real GUI crash left (that would erase the evidence the fallback
+/// counts), and it must not add one of its own.
+fn tracks_this_launch(headless: bool, profile: GpuProfile, policy: Policy) -> bool {
+    !headless && should_track_startup(profile, policy)
+}
+
 fn vars_for(policy: Policy) -> &'static [(&'static str, &'static str)] {
     match policy {
         Policy::Nothing => &[],
@@ -266,7 +275,7 @@ static WROTE: OnceLock<String> = OnceLock::new();
 ///
 /// Must be called before Tauri builds the webview — WebKitGTK and the NVIDIA driver read these
 /// variables when the web process starts, so setting them later has no effect.
-pub fn configure_graphics() {
+pub fn configure_graphics(headless: bool) {
     let raw = std::env::var("OFM_GPU_PROFILE").unwrap_or_default();
     let profile = GpuProfile::parse(&raw);
 
@@ -283,7 +292,7 @@ pub fn configure_graphics() {
         std::env::set_var(name, value);
     }
 
-    let tracking = should_track_startup(profile, policy);
+    let tracking = tracks_this_launch(headless, profile, policy);
 
     let mut decision = format!(
         "Linux graphics: profile={profile:?} policy={policy:?} gpus={:?} (OFM_GPU_PROFILE={}), set {to_set:?}",
@@ -358,6 +367,20 @@ pub fn watch_startup() {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Given a headless run on a machine whose policy would otherwise track the launch
+    /// When the launch decides whether to record and clear a startup attempt
+    /// Then it does neither, so it cannot erase a GUI crash's evidence; a GUI run is unchanged.
+    #[test]
+    fn a_headless_run_leaves_the_startup_record_alone() {
+        assert!(!tracks_this_launch(true, GpuProfile::Auto, Policy::Nothing));
+        assert!(tracks_this_launch(false, GpuProfile::Auto, Policy::Nothing));
+        assert!(!tracks_this_launch(
+            false,
+            GpuProfile::Auto,
+            Policy::DisableDmabuf
+        ));
+    }
 
     fn nothing_set(_: &str) -> bool {
         false

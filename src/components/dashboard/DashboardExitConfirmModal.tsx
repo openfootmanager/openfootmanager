@@ -1,7 +1,7 @@
-import type { JSX } from "react";
+import { type JSX, useId } from "react";
 import { useTranslation } from "react-i18next";
 
-import DashboardModalFrame from "./DashboardModalFrame";
+import { Dialog } from "../ui";
 
 interface DashboardExitConfirmModalProps {
   onCancel: () => void;
@@ -13,10 +13,14 @@ export default function DashboardExitConfirmModal({
   onConfirm,
 }: DashboardExitConfirmModalProps): JSX.Element {
   const { t } = useTranslation();
+  const titleId = useId();
 
   return (
-    <DashboardModalFrame maxWidthClassName="max-w-sm">
-      <h3 className="text-lg font-heading font-bold uppercase tracking-wide text-gray-900 dark:text-white">
+    <Dialog labelledBy={titleId} onClose={onCancel} className="w-full max-w-sm rounded-2xl p-6">
+      <h3
+        id={titleId}
+        className="text-lg font-heading font-bold uppercase tracking-wide text-gray-900 dark:text-white"
+      >
         {t("exitConfirm.title")}
       </h3>
       <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">{t("exitConfirm.message")}</p>
@@ -36,6 +40,6 @@ export default function DashboardExitConfirmModal({
           {t("exitConfirm.saveExit")}
         </button>
       </div>
-    </DashboardModalFrame>
+    </Dialog>
   );
 }

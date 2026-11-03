@@ -18,6 +18,10 @@ pub struct ScoutedPlayerRow {
     pub player_id: String,
     pub scouted_on: String,
     pub attributes_json: String,
+    /// The scout's range for the player's potential (v062); both NULL for an older report.
+    pub potential_low: Option<u8>,
+    pub potential_high: Option<u8>,
+    pub scout_name: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -87,9 +91,17 @@ pub fn upsert_scouted_players_list(
         .map_err(|_| GAME_PERSISTENCE_WRITE_ERROR.to_string())?;
     for row in scouted {
         conn.execute(
-            "INSERT INTO scouted_players (player_id, scouted_on, attributes_json)
-             VALUES (?1, ?2, ?3)",
-            params![row.player_id, row.scouted_on, row.attributes_json],
+            "INSERT INTO scouted_players (player_id, scouted_on, attributes_json,
+                 potential_low, potential_high, scout_name)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+            params![
+                row.player_id,
+                row.scouted_on,
+                row.attributes_json,
+                row.potential_low,
+                row.potential_high,
+                row.scout_name
+            ],
         )
         .map_err(|_| GAME_PERSISTENCE_WRITE_ERROR.to_string())?;
     }
@@ -99,7 +111,8 @@ pub fn upsert_scouted_players_list(
 pub fn load_all_scouted_players(conn: &Connection) -> Result<Vec<ScoutedPlayerRow>, String> {
     let mut stmt = conn
         .prepare(
-            "SELECT player_id, scouted_on, attributes_json FROM scouted_players ORDER BY player_id",
+            "SELECT player_id, scouted_on, attributes_json, potential_low, potential_high, scout_name
+             FROM scouted_players ORDER BY player_id",
         )
         .map_err(|_| GAME_PERSISTENCE_LOAD_ERROR.to_string())?;
     let rows = stmt
@@ -108,6 +121,9 @@ pub fn load_all_scouted_players(conn: &Connection) -> Result<Vec<ScoutedPlayerRo
                 player_id: row.get(0)?,
                 scouted_on: row.get(1)?,
                 attributes_json: row.get(2)?,
+                potential_low: row.get(3)?,
+                potential_high: row.get(4)?,
+                scout_name: row.get(5)?,
             })
         })
         .map_err(|_| GAME_PERSISTENCE_LOAD_ERROR.to_string())?;

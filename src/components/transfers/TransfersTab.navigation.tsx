@@ -1,5 +1,5 @@
 import { TrendingUp, ShoppingCart, Handshake } from "lucide-react";
-import type { TransferAvailabilityFilter, TransferTabView } from "./TransfersTab.model";
+import type { TransferTabView } from "./TransfersTab.model";
 import type { TFunction } from "i18next";
 import type { TransferCollections } from "./TransfersTab.model";
 import type { PlayerData } from "../../store/gameStore";
@@ -9,9 +9,7 @@ interface Input {
   t: TFunction<"translation", undefined>;
 }
 export function getTransferNavigation({ collections, myListedPlayers, t }: Input) {
-  const { availablePlayers, playersWithOffers, marketPlayers, loanPlayers, freeAgentPlayers } =
-    collections;
-  const positions = ["Goalkeeper", "Defender", "Midfielder", "Forward"];
+  const { availablePlayers, playersWithOffers } = collections;
   const tabs: {
     id: TransferTabView;
     label: string;
@@ -37,31 +35,5 @@ export function getTransferNavigation({ collections, myListedPlayers, t }: Input
       count: playersWithOffers.length,
     },
   ];
-  const availabilityFilters: {
-    id: TransferAvailabilityFilter;
-    label: string;
-    count: number;
-  }[] = [
-    {
-      id: "all",
-      label: t("common.all"),
-      count: availablePlayers.length,
-    },
-    {
-      id: "transfer",
-      label: t("transfers.transfer"),
-      count: marketPlayers.length,
-    },
-    {
-      id: "loan",
-      label: t("transfers.loan"),
-      count: loanPlayers.length,
-    },
-    {
-      id: "free_agent",
-      label: t("common.freeAgent"),
-      count: freeAgentPlayers.length,
-    },
-  ];
-  return { positions, tabs, availabilityFilters };
+  return { tabs };
 }

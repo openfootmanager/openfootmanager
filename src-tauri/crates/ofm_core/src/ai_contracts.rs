@@ -14,6 +14,8 @@
 //! paid under the same `wage_policy_verdict` — there is no AI-only copy of the
 //! wage, contract-length or wage-policy rules.
 
+use std::collections::HashMap;
+
 use chrono::NaiveDate;
 use domain::player::Player;
 use domain::team::Team;
@@ -21,8 +23,7 @@ use domain::team::Team;
 use crate::contract_wage_policy::wage_policy_verdict;
 use crate::contracts::{
     RenewalDecision, RenewalOffer, apply_agreed_renewal, evaluate_renewal_offer,
-    expected_contract_years, expected_wage, next_renewal_round, player_age_on,
-    remaining_contract_days,
+    expected_contract_years, expected_wage, next_renewal_round, remaining_contract_days,
 };
 use crate::game::Game;
 use crate::squad_floor::{
@@ -44,11 +45,16 @@ const PROSPECT_AGE_LIMIT: i32 = 23;
 /// Run every AI club's contract review that falls on this weekday.
 pub(crate) fn apply_ai_contract_decisions(game: &mut Game, weekday_num: u32) {
     let current_date = game.clock.current_date.date_naive();
+    // Found once for every club reviewing today: a renewal changes a player's terms, never the
+    // club that holds his contract, so no club's group goes stale during the reviews.
+    let contracts = contracts_by_club(&game.players);
     for team_id in crate::ai_tactics::ai_clubs_reviewing_on(game, weekday_num) {
         let Some(team) = game.teams.iter().find(|team| team.id == team_id).cloned() else {
             continue;
         };
-        for player_index in contracts_running_down(game, &team_id, current_date) {
+        let held = contracts.get(&team_id).map_or(&[][..], Vec::as_slice);
+        debug_assert_contracts_are_current(&game.players, &team_id, held);
+        for player_index in contracts_running_down(&game.players, held, current_date) {
             if keeps(game, &team, &game.players[player_index], current_date) {
                 renew(game, &team, player_index, current_date);
             }
@@ -80,21 +86,27 @@ pub(crate) fn plan_every_ai_squad(game: &mut Game) {
 
 fn plan_squads(game: &mut Game, clubs: &[String]) {
     let current_date = game.clock.current_date.date_naive();
+    // Where each club's players are, found once. A signing changes one club's list and is
+    // recounted where it happens; nothing else here moves a player between clubs.
+    let mut positions = crate::match_day_eligibility::positions_by_club(&game.players);
     for team_id in clubs {
         let Some(team) = game.teams.iter().find(|team| &team.id == team_id).cloned() else {
             continue;
         };
-        graduate_overage_academy_players(game, team_id, current_date);
-        plan_squad_depth(game, &team);
+        let club = positions.entry(team_id.clone()).or_default();
+        crate::match_day_eligibility::debug_assert_group_is_current(&game.players, team_id, club);
+        graduate_overage_academy_players(game, club, current_date);
+        plan_squad_depth(game, &team, club);
     }
 }
 
-/// An academy player past the academy's age limit joins the senior squad.
-fn graduate_overage_academy_players(game: &mut Game, team_id: &str, current_date: NaiveDate) {
-    for player in game.players.iter_mut() {
-        if player.team_id.as_deref() == Some(team_id)
-            && player.squad_role == domain::player::SquadRole::Youth
-            && player_age_on(current_date, &player.date_of_birth)
+/// An academy player past the academy's age limit joins the senior squad. `club` is where the
+/// club's players stand in `game.players`.
+fn graduate_overage_academy_players(game: &mut Game, club: &[usize], current_date: NaiveDate) {
+    for &position in club {
+        let player = &mut game.players[position];
+        if player.squad_role == domain::player::SquadRole::Youth
+            && domain::age::age_on_or_unknown(current_date, &player.date_of_birth)
                 > crate::roster::YOUTH_ACADEMY_MAX_AGE
         {
             player.squad_role = domain::player::SquadRole::Senior;
@@ -110,34 +122,35 @@ fn graduate_overage_academy_players(game: &mut Game, team_id: &str, current_date
 /// contract he may walk. Generated contracts share an end date, so several can
 /// leave a group on the same day — planning replaces them before they go, not
 /// after.
-fn plan_squad_depth(game: &mut Game, team: &Team) {
+fn plan_squad_depth(game: &mut Game, team: &Team, club: &mut Vec<usize>) {
     use crate::squad_floor::{MIN_PLAYERS_PER_GROUP, bring_in_one, groups_thinnest_first};
 
     for (group, floor) in MIN_PLAYERS_PER_GROUP {
-        while seniors_in(game, &team.id, Some(&group)) < floor + PLANNING_MARGIN_PER_GROUP {
+        while seniors_in(game, club, Some(&group)) < floor + PLANNING_MARGIN_PER_GROUP {
             if bring_in_one(game, team, &group).is_none() {
                 break;
             }
+            *club = crate::match_day_eligibility::club_positions(&game.players, &team.id);
         }
     }
-    while seniors_in(game, &team.id, None) < PLANNING_TARGET_SENIORS {
+    while seniors_in(game, club, None) < PLANNING_TARGET_SENIORS {
         let groups = groups_thinnest_first(game, &team.id);
-        if !groups
+        let brought_one = groups
             .iter()
-            .any(|group| bring_in_one(game, team, group).is_some())
-        {
+            .any(|group| bring_in_one(game, team, group).is_some());
+        if !brought_one {
             break;
         }
+        *club = crate::match_day_eligibility::club_positions(&game.players, &team.id);
     }
 }
 
-/// Seniors registered to the club who will still be under contract past the
-/// renewal horizon, in one group or in all.
-fn seniors_in(game: &Game, team_id: &str, group: Option<&domain::player::Position>) -> usize {
+/// Seniors among the club's players (`club`: where they stand in `game.players`) who will still
+/// be under contract past the renewal horizon, in one group or in all.
+fn seniors_in(game: &Game, club: &[usize], group: Option<&domain::player::Position>) -> usize {
     let current_date = game.clock.current_date.date_naive();
-    game.players
-        .iter()
-        .filter(|player| player.team_id.as_deref() == Some(team_id))
+    club.iter()
+        .map(|&position| &game.players[position])
         .filter(|player| player.squad_role == domain::player::SquadRole::Senior)
         // No end date is a contract the expiry sweep never ends: he stays.
         .filter(|player| {
@@ -148,16 +161,51 @@ fn seniors_in(game: &Game, team_id: &str, group: Option<&domain::player::Positio
         .count()
 }
 
-/// The club's own players (its loaned-out ones included) whose contracts end
-/// within the horizon.
-fn contracts_running_down(game: &Game, team_id: &str, current_date: NaiveDate) -> Vec<usize> {
-    game.players
-        .iter()
-        .enumerate()
-        .filter(|(_, player)| !player.retired && player.contract_end().is_some())
-        .filter(|(_, player)| player.contract_club_id() == Some(team_id))
-        .filter(|(_, player)| remaining_contract_days(player, current_date) <= RENEWAL_HORIZON_DAYS)
-        .map(|(index, _)| index)
+/// Where each club's contracted players (its loaned-out ones included) stand in `players`, found
+/// in one pass, each club's in the order of `players`. Looked up by club, never iterated.
+fn contracts_by_club(players: &[Player]) -> HashMap<String, Vec<usize>> {
+    let mut by_club: HashMap<String, Vec<usize>> = HashMap::new();
+    for (position, player) in players.iter().enumerate() {
+        let Some(club) = player.contract_club_id() else {
+            continue;
+        };
+        match by_club.get_mut(club) {
+            Some(held) => held.push(position),
+            None => {
+                by_club.insert(club.to_string(), vec![position]);
+            }
+        }
+    }
+    by_club
+}
+
+/// In a debug build, panics unless `held` is where the players whose contracts `team_id` holds
+/// stand in `players` now. A release build checks nothing.
+fn debug_assert_contracts_are_current(players: &[Player], team_id: &str, held: &[usize]) {
+    debug_assert_eq!(
+        held,
+        players
+            .iter()
+            .enumerate()
+            .filter(|(_, player)| player.contract_club_id() == Some(team_id))
+            .map(|(position, _)| position)
+            .collect::<Vec<_>>()
+            .as_slice(),
+        "the contracts kept for {team_id} are stale: a contract changed club and was not found again"
+    );
+}
+
+fn contracts_running_down(
+    players: &[Player],
+    held: &[usize],
+    current_date: NaiveDate,
+) -> Vec<usize> {
+    held.iter()
+        .copied()
+        .filter(|&position| players[position].contract_end().is_some())
+        .filter(|&position| {
+            remaining_contract_days(&players[position], current_date) <= RENEWAL_HORIZON_DAYS
+        })
         .collect()
 }
 
@@ -178,7 +226,7 @@ fn needed_for_depth(game: &Game, team_id: &str, player: &Player) -> bool {
 
 /// Good enough and young enough to want.
 fn worth_keeping(game: &Game, team: &Team, player: &Player, current_date: NaiveDate) -> bool {
-    let age = player_age_on(current_date, &player.date_of_birth);
+    let age = domain::age::age_on_or_unknown(current_date, &player.date_of_birth);
     age <= PROSPECT_AGE_LIMIT
         || (age <= PEAK_AGE_LIMIT && player.ovr >= squad_median_ovr(game, &team.id))
 }
@@ -329,26 +377,7 @@ mod tests {
             "England".to_string(),
         );
         manager.hire("user".to_string());
-        let mut players = Vec::new();
-        for club in ["user", "ai"] {
-            for (group, count) in [
-                (Position::Goalkeeper, 3),
-                (Position::Defender, 6),
-                (Position::Midfielder, 6),
-                (Position::Forward, 4),
-            ] {
-                for i in 0..count {
-                    players.push(player(
-                        &format!("{club}_{group:?}{i}"),
-                        club,
-                        group.clone(),
-                        60,
-                        26,
-                        1_000,
-                    ));
-                }
-            }
-        }
+        let players = ["user", "ai"].into_iter().flat_map(squad).collect();
         Game::new(
             clock,
             manager,
@@ -359,8 +388,58 @@ mod tests {
         )
     }
 
+    /// Nineteen seniors of `club`, rated 60, aged 26, with long contracts.
+    fn squad(club: &str) -> Vec<Player> {
+        let mut players = Vec::new();
+        for (group, count) in [
+            (Position::Goalkeeper, 3),
+            (Position::Defender, 6),
+            (Position::Midfielder, 6),
+            (Position::Forward, 4),
+        ] {
+            for i in 0..count {
+                players.push(player(
+                    &format!("{club}_{group:?}{i}"),
+                    club,
+                    group.clone(),
+                    60,
+                    26,
+                    1_000,
+                ));
+            }
+        }
+        players
+    }
+
     fn review_day() -> u32 {
         crate::ai_tactics::review_weekday("ai")
+    }
+
+    /// A second AI club, with the same squad as "ai", that reviews on the same day.
+    fn add_club_reviewing_with_ai(game: &mut Game) -> String {
+        let id = (0..)
+            .map(|n| format!("ai{n}"))
+            .find(|id| crate::ai_tactics::review_weekday(id) == review_day())
+            .unwrap();
+        game.teams.push(team(&id));
+        game.players.extend(squad(&id));
+        id
+    }
+
+    fn loan_out(player: &mut Player, parent: &str, borrower: &str) {
+        player.team_id = Some(borrower.to_string());
+        player.active_loan = Some(domain::player::ActiveLoan {
+            parent_team_id: parent.to_string(),
+            loan_team_id: borrower.to_string(),
+            start_date: "2026-07-01".to_string(),
+            end_date: "2027-06-30".to_string(),
+            wage_contribution_pct: 100,
+            buy_option_fee: None,
+            loan_start_minutes: 0,
+            loan_start_appearances: 0,
+            development_reported_minutes: 0,
+            development_reported_appearances: 0,
+        });
     }
 
     fn contract_end(game: &Game, id: &str) -> String {
@@ -609,19 +688,7 @@ mod tests {
             .iter_mut()
             .find(|p| p.id == "ai_Goalkeeper2")
             .unwrap();
-        loaned.team_id = Some("user".to_string());
-        loaned.active_loan = Some(domain::player::ActiveLoan {
-            parent_team_id: "ai".to_string(),
-            loan_team_id: "user".to_string(),
-            start_date: "2026-07-01".to_string(),
-            end_date: "2027-06-30".to_string(),
-            wage_contribution_pct: 100,
-            buy_option_fee: None,
-            loan_start_minutes: 0,
-            loan_start_appearances: 0,
-            development_reported_minutes: 0,
-            development_reported_appearances: 0,
-        });
+        loan_out(loaned, "ai", "user");
         game.players
             .push(player("old_keeper", "ai", Position::Goalkeeper, 50, 34, 90));
         let before = contract_end(&game, "old_keeper");
@@ -655,6 +722,67 @@ mod tests {
             star.contract_end() > Some(day.format("%Y-%m-%d").to_string().as_str()),
             "his contract was not renewed"
         );
+    }
+
+    /// Given two AI clubs that review on the same day, each with a wanted player running down his
+    /// contract, when the day's reviews run, then both are renewed: the first club's renewal
+    /// leaves the second club's contracts where the review found them.
+    #[test]
+    fn two_clubs_reviewing_on_one_day_each_renew_their_own_player() {
+        let mut game = world();
+        let other = add_club_reviewing_with_ai(&mut game);
+        game.players
+            .push(player("ai_star", "ai", Position::Midfielder, 75, 27, 90));
+        game.players.push(player(
+            "other_star",
+            &other,
+            Position::Midfielder,
+            75,
+            27,
+            90,
+        ));
+        let ai_before = contract_end(&game, "ai_star");
+        let other_before = contract_end(&game, "other_star");
+
+        apply_ai_contract_decisions(&mut game, review_day());
+
+        assert!(contract_end(&game, "ai_star") > ai_before);
+        assert!(contract_end(&game, "other_star") > other_before);
+    }
+
+    /// Given a wanted player on loan from one AI club to another, both reviewing on the same day,
+    /// when the reviews run, then the club that holds his contract renews him; the borrower does
+    /// not decide on a contract it does not hold.
+    #[test]
+    fn a_player_out_on_loan_is_renewed_by_the_club_that_holds_his_contract() {
+        let mut game = world();
+        let borrower = add_club_reviewing_with_ai(&mut game);
+        let mut star = player("star", "ai", Position::Midfielder, 75, 27, 90);
+        loan_out(&mut star, "ai", &borrower);
+        game.players.push(star);
+        let before = contract_end(&game, "star");
+
+        apply_ai_contract_decisions(&mut game, review_day());
+
+        let star = game.players.iter().find(|p| p.id == "star").unwrap();
+        assert!(star.contract_end().unwrap() > before.as_str());
+        let renewal = star.movement_history.last().unwrap();
+        assert_eq!(renewal.kind, domain::player::PlayerMovementKind::Renewal);
+        assert_eq!(renewal.to_team_id.as_deref(), Some("ai"));
+    }
+
+    /// Given each club's contracts found once, when a player's contract moves to another club and
+    /// the old group is used again, then a debug build refuses it.
+    #[cfg(debug_assertions)]
+    #[test]
+    #[should_panic(expected = "the contracts kept for ai are stale")]
+    fn a_stale_contract_group_is_refused() {
+        let mut game = world();
+        let groups = contracts_by_club(&game.players);
+        let held = groups.get("ai").unwrap();
+        game.players[held[0]].team_id = Some("user".to_string());
+
+        debug_assert_contracts_are_current(&game.players, "ai", held);
     }
 
     // --- Ordinary squad planning ------------------------------------------------
@@ -743,6 +871,47 @@ mod tests {
             domain::player::PlayerMovementKind::FreeAgentSigning
         );
         assert_eq!(entry.to_team_id.as_deref(), Some("ai"));
+    }
+
+    fn signed_by_ai(game: &Game, ids: &[&str]) -> usize {
+        ids.iter()
+            .filter(|id| club_of(game, id) == Some("ai"))
+            .count()
+    }
+
+    /// Given an AI club one keeper below its margin and three affordable free-agent keepers, when
+    /// it plans its squad, then it signs exactly one: the signing is counted before it asks again.
+    #[test]
+    fn a_club_one_keeper_below_its_margin_signs_exactly_one_of_three_free_keepers() {
+        let mut game = world();
+        game.players.retain(|p| p.id != "ai_Goalkeeper2");
+        let keepers = ["free_keeper_a", "free_keeper_b", "free_keeper_c"];
+        for id in keepers {
+            game.players.push(free_agent(id, Position::Goalkeeper, 70));
+        }
+
+        apply_ai_squad_planning(&mut game, review_day());
+
+        assert_eq!(signed_by_ai(&game, &keepers), 1);
+    }
+
+    /// Given an AI club whose groups all meet their margin but whose squad is two short of the
+    /// planning target, and five affordable free-agent midfielders, when it plans its squad, then
+    /// it signs exactly two: each signing is counted toward the squad before it asks again.
+    #[test]
+    fn a_club_two_below_its_squad_target_signs_exactly_two_of_five_free_players() {
+        let mut game = world();
+        game.players.retain(|p| {
+            !["ai_Defender5", "ai_Midfielder5", "ai_Forward3"].contains(&p.id.as_str())
+        });
+        let agents = ["free_a", "free_b", "free_c", "free_d", "free_e"];
+        for id in agents {
+            game.players.push(free_agent(id, Position::Midfielder, 70));
+        }
+
+        apply_ai_squad_planning(&mut game, review_day());
+
+        assert_eq!(signed_by_ai(&game, &agents), 2);
     }
 
     /// The same, but paying him would break the wage policy: he is not signed,
@@ -850,5 +1019,88 @@ mod tests {
             !squad_shortfall(&game, "user").is_empty(),
             "the club nobody renewed for kept its squad too, so this test proves nothing"
         );
+    }
+
+    /// Given an AI club with a 21-year-old academy player, the oldest the academy takes
+    /// When its review day comes
+    /// Then he stays in the academy: only a player over 21 graduates
+    #[test]
+    fn an_ai_club_keeps_a_21_year_old_in_its_academy() {
+        let mut game = world();
+        game.players
+            .push(academy("twenty_one", "ai", Position::Midfielder, 21));
+
+        apply_ai_squad_planning(&mut game, review_day());
+
+        assert_eq!(role(&game, "twenty_one"), domain::player::SquadRole::Youth);
+    }
+
+    /// Given an AI club with three senior keepers, one of whose contracts ends in exactly 183
+    ///       days (the renewal horizon), and an 18-year-old academy keeper
+    /// When its review day comes
+    /// Then the academy keeper is promoted: a keeper whose contract ends on the horizon is not
+    ///      counted toward the depth the club plans for
+    #[test]
+    fn a_senior_whose_contract_ends_on_the_renewal_horizon_does_not_count_toward_planned_depth() {
+        let mut game = world();
+        let horizon = (today() + Duration::days(RENEWAL_HORIZON_DAYS))
+            .format("%Y-%m-%d")
+            .to_string();
+        game.players
+            .iter_mut()
+            .find(|p| p.id == "ai_Goalkeeper2")
+            .unwrap()
+            .stage_contract_end(Some(horizon));
+        game.players
+            .push(academy("young_keeper", "ai", Position::Goalkeeper, 18));
+
+        apply_ai_squad_planning(&mut game, review_day());
+
+        assert_eq!(
+            role(&game, "young_keeper"),
+            domain::player::SquadRole::Senior
+        );
+    }
+
+    /// Given an AI club with three senior keepers, one of whose contracts ends 184 days away, a day
+    ///       past the renewal horizon, and an 18-year-old academy keeper
+    /// When its review day comes
+    /// Then the academy keeper stays in the academy: that keeper still counts toward planned depth
+    #[test]
+    fn a_senior_whose_contract_ends_a_day_past_the_horizon_counts_toward_planned_depth() {
+        let mut game = world();
+        let past_horizon = (today() + Duration::days(RENEWAL_HORIZON_DAYS + 1))
+            .format("%Y-%m-%d")
+            .to_string();
+        game.players
+            .iter_mut()
+            .find(|p| p.id == "ai_Goalkeeper2")
+            .unwrap()
+            .stage_contract_end(Some(past_horizon));
+        game.players
+            .push(academy("young_keeper", "ai", Position::Goalkeeper, 18));
+
+        apply_ai_squad_planning(&mut game, review_day());
+
+        assert_eq!(
+            role(&game, "young_keeper"),
+            domain::player::SquadRole::Youth
+        );
+    }
+
+    /// Given an AI club with three keepers on long contracts, and a fourth, 34 and rated 50, whose
+    ///       contract ends in 90 days
+    /// When its review day comes
+    /// Then his contract runs out: three other keepers already meet the planned depth of three
+    #[test]
+    fn a_fading_keeper_with_three_other_keepers_is_let_go() {
+        let mut game = world();
+        game.players
+            .push(player("old_keeper", "ai", Position::Goalkeeper, 50, 34, 90));
+        let before = contract_end(&game, "old_keeper");
+
+        apply_ai_contract_decisions(&mut game, review_day());
+
+        assert_eq!(contract_end(&game, "old_keeper"), before);
     }
 }

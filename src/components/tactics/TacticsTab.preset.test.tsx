@@ -1,11 +1,12 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { useState } from "react";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { invoke } from "@tauri-apps/api/core";
 import { i18nReady } from "../../i18n";
 import type { GameStateData, PlayerData, TeamData } from "../../store/gameStore";
 import TacticsTab from "./TacticsTab";
-import { saveCustomTactics } from "./TacticsCustomTactics.helpers";
+import type { CustomTactic } from "../../services/customTacticsService";
+import { createSeasonContext } from "../../test-utils/factories";
 
 /**
  * #365 — picking a tactic preset asks the backend for the whole preset
@@ -15,6 +16,11 @@ import { saveCustomTactics } from "./TacticsCustomTactics.helpers";
  * Real i18n hook, and a controlled parent that really re-renders from the
  * game the (faked) backend returns.
  */
+
+vi.mock("../../hooks/usePositionGroups", async () => {
+  const { cannedPositionsModule } = await import("../../test-utils/positionTable");
+  return cannedPositionsModule();
+});
 
 vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
 const mockedInvoke = vi.mocked(invoke);
@@ -103,8 +109,10 @@ const makeTeam = (): TeamData => ({
 });
 
 const makeGame = (): GameStateData => ({
+  season_context: createSeasonContext(),
   clock: { current_date: "2026-08-01", start_date: "2026-08-01" },
   manager: {
+    display_name: "Test Manager",
     id: "mgr1",
     first_name: "Test",
     last_name: "Manager",
@@ -141,16 +149,52 @@ const makeGame = (): GameStateData => ({
 
 /** The faked backend: applies commands to its own copy and returns it. */
 let backend: GameStateData;
+/** The backend's verdict on whether the phase dials still equal the style's blueprint. */
+let blueprintModified = false;
+/** The tactics the faked save holds, in the order made. */
+let savedTactics: CustomTactic[] = [];
+
+/** Puts tactics in the faked save, as if the player had made them earlier. */
+function seedSavedTactics(
+  entries: Array<{
+    id: string;
+    name: string;
+    description: string;
+    formation: string;
+    playStyle: string;
+  }>,
+) {
+  savedTactics = entries.map((entry) => ({ ...entry, sourcePresetName: null }));
+}
 
 function fakeBackend(failPreset = false) {
   mockedInvoke.mockImplementation(async (command: string, args?: unknown) => {
     const params = (args ?? {}) as Record<string, string>;
     if (command === "get_squad") return backend.players;
+    if (command === "list_custom_tactics") return structuredClone(savedTactics);
+    if (command === "save_custom_tactic") {
+      const tactic = (args as { tactic: CustomTactic }).tactic;
+      const at = savedTactics.findIndex((saved) => saved.id === tactic.id);
+      if (at === -1) savedTactics.push(tactic);
+      else savedTactics[at] = tactic;
+      return structuredClone(savedTactics);
+    }
     const team = backend.teams[0];
+    if (command === "get_tactics_blueprint_status") return { modified: blueprintModified };
+    if (command === "set_tactics_phase") {
+      team.tactics_phase = {
+        ...(team.tactics_phase as object),
+        width: params.width,
+      } as TeamData["tactics_phase"];
+      blueprintModified = true;
+    }
     if (command === "apply_tactic_preset") {
       if (failPreset) throw new Error("boom");
       team.formation = params.formation;
       team.play_style = params.playStyle;
+      // The real command puts the dials back to the style's blueprint.
+      team.tactics_phase = {} as TeamData["tactics_phase"];
+      blueprintModified = false;
     }
     if (command === "set_formation") team.formation = params.formation;
     if (command === "set_play_style") team.play_style = params.playStyle;
@@ -163,9 +207,21 @@ function ControlledTacticsTab() {
   return <TacticsTab gameState={game} onSelectPlayer={vi.fn()} onGameUpdate={setGame} />;
 }
 
+/** The phase dials sit in a collapsible section; open it when it is closed. */
+function openPhaseBlueprint() {
+  const toggle = screen.getByRole("button", { name: /Phase Blueprint/i });
+  if (toggle.getAttribute("aria-expanded") !== "true") fireEvent.click(toggle);
+}
+
 const commandsCalled = () => mockedInvoke.mock.calls.map(([command]) => command);
 
-describe("TacticsTab preset selection", () => {
+// Every case mounts the whole TacticsTab with the real i18n and then drives several controls; that
+// takes 2-5 s on a CI runner under load, and vitest's default 5 s cut-off turned the slowest cases
+// into flaky failures. A generous per-describe limit keeps them honest without making them faster
+// than the screen they exercise.
+const TACTICS_TAB_CASE_TIMEOUT_MS = 20_000;
+
+describe("TacticsTab preset selection", { timeout: TACTICS_TAB_CASE_TIMEOUT_MS }, () => {
   beforeAll(async () => {
     await i18nReady;
   });
@@ -173,6 +229,8 @@ describe("TacticsTab preset selection", () => {
   beforeEach(() => {
     localStorage.clear();
     mockedInvoke.mockReset();
+    blueprintModified = false;
+    savedTactics = [];
     backend = makeGame();
   });
 
@@ -191,6 +249,7 @@ describe("TacticsTab preset selection", () => {
 
     await waitFor(() => {
       expect(mockedInvoke).toHaveBeenCalledWith("apply_tactic_preset", {
+        careerToken: 0,
         formation: "3-4-3",
         playStyle: "HighPress",
       });
@@ -211,6 +270,7 @@ describe("TacticsTab preset selection", () => {
     fireEvent.click(screen.getByRole("option", { name: /Balanced Control/ }));
     await waitFor(() =>
       expect(mockedInvoke).toHaveBeenCalledWith("apply_tactic_preset", {
+        careerToken: 0,
         formation: "4-4-2",
         playStyle: "Balanced",
       }),
@@ -223,10 +283,9 @@ describe("TacticsTab preset selection", () => {
   it.each(["custom:saved", "preset:imported-custom"])(
     "keeps the blueprint when selecting saved custom tactic %s",
     async (id) => {
-      saveCustomTactics(backend, [
+      seedSavedTactics([
         {
           id,
-          type: "custom",
           name: "Saved custom",
           description: "Custom setup",
           formation: "3-4-3",
@@ -236,11 +295,17 @@ describe("TacticsTab preset selection", () => {
       fakeBackend();
       render(<ControlledTacticsTab />);
       fireEvent.click(screen.getByRole("button", { name: "Choose tactic" }));
-      fireEvent.click(screen.getByRole("option", { name: /Saved custom/ }));
+      fireEvent.click(await screen.findByRole("option", { name: /Saved custom/ }));
       await waitFor(() =>
-        expect(mockedInvoke).toHaveBeenCalledWith("set_play_style", { playStyle: "HighPress" }),
+        expect(mockedInvoke).toHaveBeenCalledWith("set_play_style", {
+          careerToken: 0,
+          playStyle: "HighPress",
+        }),
       );
-      expect(mockedInvoke).toHaveBeenCalledWith("set_formation", { formation: "3-4-3" });
+      expect(mockedInvoke).toHaveBeenCalledWith("set_formation", {
+        careerToken: 0,
+        formation: "3-4-3",
+      });
       expect(commandsCalled()).not.toContain("apply_tactic_preset");
       await waitFor(() =>
         expect(screen.getByRole("button", { name: "Choose tactic" })).toHaveTextContent(
@@ -273,7 +338,10 @@ describe("TacticsTab preset selection", () => {
     fireEvent.click(screen.getByRole("option", { name: /Defensive/ }));
 
     await waitFor(() => {
-      expect(mockedInvoke).toHaveBeenCalledWith("set_play_style", { playStyle: "Defensive" });
+      expect(mockedInvoke).toHaveBeenCalledWith("set_play_style", {
+        careerToken: 0,
+        playStyle: "Defensive",
+      });
     });
     expect(commandsCalled()).not.toContain("apply_tactic_preset");
   });
@@ -297,5 +365,165 @@ describe("TacticsTab preset selection", () => {
     expect(screen.getByRole("button", { name: "Choose tactic" })).toHaveTextContent(
       "Balanced Control",
     );
+  });
+
+  /**
+   * Given a manager on the Balanced Control preset who has moved to a formation no preset uses
+   * When they press Reset
+   * Then the preset is applied again in one apply_tactic_preset call (its formation, style and
+   *      blueprint), and the tactic is still the preset.
+   */
+  it("resets a customised preset with apply_tactic_preset", async () => {
+    fakeBackend();
+    render(<ControlledTacticsTab />);
+    fireEvent.click(screen.getByRole("combobox", { name: "Formation" }));
+    fireEvent.click(screen.getByRole("option", { name: "5-3-2" }));
+    await waitFor(() =>
+      expect(mockedInvoke).toHaveBeenCalledWith("set_formation", {
+        careerToken: 0,
+        formation: "5-3-2",
+      }),
+    );
+    mockedInvoke.mockClear();
+
+    fireEvent.click(screen.getByRole("button", { name: "Reset to defaults" }));
+
+    await waitFor(() =>
+      expect(mockedInvoke).toHaveBeenCalledWith("apply_tactic_preset", {
+        careerToken: 0,
+        formation: "4-4-2",
+        playStyle: "Balanced",
+      }),
+    );
+    expect(screen.getByRole("button", { name: "Choose tactic" })).toHaveTextContent(
+      "Balanced Control",
+    );
+  });
+
+  /**
+   * Given a manager on the Balanced Control preset with nothing changed
+   * When they look at Reset
+   * Then it is disabled, as the badge says Synced.
+   */
+  it("disables Reset on an untouched preset", () => {
+    fakeBackend();
+    render(<ControlledTacticsTab />);
+
+    expect(screen.getByText("Synced")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Reset to defaults" })).toBeDisabled();
+  });
+
+  /**
+   * Given a preset whose phase dial was tuned
+   * When the manager presses Reset
+   * Then Reset was enabled by the tuned dial, apply_tactic_preset restores the blueprint, and both
+   *      the badge and the button return to their idle state.
+   */
+  it("enables Reset when a dial is tuned and clears badge and button after resetting", async () => {
+    fakeBackend();
+    render(<ControlledTacticsTab />);
+    openPhaseBlueprint();
+    const widthRow = screen.getByText("Width").parentElement as HTMLElement;
+    fireEvent.click(within(widthRow).getByRole("combobox"));
+    fireEvent.click(screen.getByRole("option", { name: "Wide" }));
+    await waitFor(() => expect(screen.getByText("Unsaved changes")).toBeInTheDocument());
+    const reset = screen.getByRole("button", { name: "Reset to defaults" });
+    expect(reset).toBeEnabled();
+
+    fireEvent.click(reset);
+
+    await waitFor(() =>
+      expect(mockedInvoke).toHaveBeenCalledWith("apply_tactic_preset", {
+        careerToken: 0,
+        formation: "4-4-2",
+        playStyle: "Balanced",
+      }),
+    );
+    await waitFor(() => expect(screen.getByText("Synced")).toBeInTheDocument());
+    expect(screen.getByRole("button", { name: "Reset to defaults" })).toBeDisabled();
+  });
+
+  /**
+   * Given a saved custom tactic whose formation was then changed
+   * When the manager presses Reset
+   * Then the formation goes back to the saved one, and no preset is applied.
+   */
+  it("resets a customised custom tactic to its saved setup without applying a preset", async () => {
+    seedSavedTactics([
+      {
+        id: "custom:saved",
+        name: "Saved custom",
+        description: "Custom setup",
+        formation: "4-4-2",
+        playStyle: "Balanced",
+      },
+    ]);
+    fakeBackend();
+    render(<ControlledTacticsTab />);
+    fireEvent.click(screen.getByRole("button", { name: "Choose tactic" }));
+    fireEvent.click(await screen.findByRole("option", { name: /Saved custom/ }));
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Choose tactic" })).toHaveTextContent(
+        "Saved custom",
+      ),
+    );
+    fireEvent.click(screen.getByRole("combobox", { name: "Formation" }));
+    fireEvent.click(screen.getByRole("option", { name: "5-3-2" }));
+    await waitFor(() =>
+      expect(mockedInvoke).toHaveBeenCalledWith("set_formation", {
+        careerToken: 0,
+        formation: "5-3-2",
+      }),
+    );
+    mockedInvoke.mockClear();
+
+    fireEvent.click(screen.getByRole("button", { name: "Reset to defaults" }));
+
+    await waitFor(() =>
+      expect(mockedInvoke).toHaveBeenCalledWith("set_formation", {
+        careerToken: 0,
+        formation: "4-4-2",
+      }),
+    );
+    expect(commandsCalled()).not.toContain("apply_tactic_preset");
+  });
+
+  /**
+   * Given a manager on a preset whose formation and style are untouched
+   * When they tune a phase dial
+   * Then the badge turns from Synced to Unsaved changes, because the backend says the dials no
+   *      longer match the style's blueprint.
+   */
+  it("shows the unsaved-changes badge once a phase dial is tuned", async () => {
+    fakeBackend();
+    render(<ControlledTacticsTab />);
+    expect(screen.getByText("Synced")).toBeInTheDocument();
+
+    openPhaseBlueprint();
+    const widthRow = screen.getByText("Width").parentElement as HTMLElement;
+    fireEvent.click(within(widthRow).getByRole("combobox"));
+    fireEvent.click(screen.getByRole("option", { name: "Wide" }));
+
+    await waitFor(() => expect(screen.getByText("Unsaved changes")).toBeInTheDocument());
+  });
+
+  /**
+   * Given a preset whose dials were tuned
+   * When the manager picks that preset again
+   * Then the badge returns to Synced.
+   */
+  it("clears the badge when the preset is picked again", async () => {
+    fakeBackend();
+    render(<ControlledTacticsTab />);
+    openPhaseBlueprint();
+    const widthRow = screen.getByText("Width").parentElement as HTMLElement;
+    fireEvent.click(within(widthRow).getByRole("combobox"));
+    fireEvent.click(screen.getByRole("option", { name: "Wide" }));
+    await waitFor(() => expect(screen.getByText("Unsaved changes")).toBeInTheDocument());
+
+    fireEvent.click(screen.getByRole("button", { name: "Choose tactic" }));
+    fireEvent.click(screen.getByRole("option", { name: /Balanced Control/ }));
+
+    await waitFor(() => expect(screen.getByText("Synced")).toBeInTheDocument());
   });
 });

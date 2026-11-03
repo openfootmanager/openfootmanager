@@ -56,6 +56,21 @@ allow = [
     "MPL-2.0",
 ]
 
+# Per crate rather than in `allow`, so these licences cannot quietly admit anything else. All
+# four arrive together with the bug-report upload's TLS stack (`ureq` → `rustls`, #569), and
+# both licences are permissive and GPL-compatible:
+#   - ISC is functionally MIT. `ring` is `Apache-2.0 AND ISC` (its BoringSSL-derived parts), and
+#     `untrusted` and `rustls-webpki` are ISC alone.
+#   - CDLA-Permissive-2.0 covers only the data in `webpki-roots` — the bundled Mozilla CA list —
+#     and asks for nothing beyond keeping the licence text with it.
+# Removing the upload (or moving it to native TLS) would let these four lines go.
+exceptions = [
+    { crate = "ring", allow = ["ISC"] },
+    { crate = "untrusted", allow = ["ISC"] },
+    { crate = "rustls-webpki", allow = ["ISC"] },
+    { crate = "webpki-roots", allow = ["CDLA-Permissive-2.0"] },
+]
+
 # All seven workspace members declare no `license` field, so without this cargo-deny rejects
 # our own crates. `publish = false` in each manifest is what marks them private; it is also
 # true, since none of them are published to crates.io. (Two of the seven — `ofm-cli` and

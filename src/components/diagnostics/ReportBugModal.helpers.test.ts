@@ -10,7 +10,9 @@ import {
   describeMachine,
   describeResolution,
   formatBytes,
+  minutesToWait,
   missingRequiredFields,
+  toUploadFailure,
 } from "./ReportBugModal.helpers";
 
 describe("missingRequiredFields", () => {
@@ -37,27 +39,38 @@ describe("missingRequiredFields", () => {
 
 describe("formatBytes", () => {
   it("keeps small sizes in bytes", () => {
-    expect(formatBytes(0)).toBe("0 B");
-    expect(formatBytes(999)).toBe("999 B");
+    expect(formatBytes(0, "en")).toBe("0 byte");
+    expect(formatBytes(999, "en")).toBe("999 byte");
   });
 
   it("shows one decimal below ten so a size does not round away", () => {
     // "1 MB" for a 1.4 MB bundle understates it on the one screen that promises full disclosure.
-    expect(formatBytes(1_468_006)).toBe("1.4 MB");
+    expect(formatBytes(1_468_006, "en")).toBe("1.4 MB");
   });
 
   it("drops the decimal above ten, where it is noise", () => {
-    expect(formatBytes(24 * 1024 * 1024)).toBe("24 MB");
+    expect(formatBytes(24 * 1024 * 1024, "en")).toBe("24 MB");
   });
 
   it("steps up through the units", () => {
-    expect(formatBytes(2048)).toBe("2.0 KB");
-    expect(formatBytes(3 * 1024 ** 3)).toBe("3.0 GB");
+    expect(formatBytes(2048, "en")).toBe("2.0 kB");
+    expect(formatBytes(3 * 1024 ** 3, "en")).toBe("3.0 GB");
   });
 
   it("does not invent a size it was not given", () => {
-    expect(formatBytes(Number.NaN)).toBe("—");
-    expect(formatBytes(-1)).toBe("—");
+    expect(formatBytes(Number.NaN, "en")).toBe("—");
+    expect(formatBytes(-1, "en")).toBe("—");
+  });
+
+  /**
+   * Given the UI language is German or Russian
+   * When a size is formatted
+   * Then the decimal separator and the unit both follow it.
+   */
+  it("follows the UI language for the number and the unit", () => {
+    expect(formatBytes(1_468_006, "de")).toBe("1,4 MB");
+    expect(formatBytes(1_468_006, "ru")).toBe("1,4 МБ");
+    expect(formatBytes(999, "ru")).toBe("999 Б");
   });
 });
 
@@ -107,13 +120,16 @@ describe("describeContext", () => {
 
 describe("describeBundle", () => {
   it("names the file and its size", () => {
-    const out = describeBundle({
-      path: "/home/x/ofm-report.zip",
-      bytes: 1_468_006,
-      log_files: ["a.log"],
-      included_save: false,
-      included_crash: false,
-    });
+    const out = describeBundle(
+      {
+        path: "/home/x/ofm-report.zip",
+        bytes: 1_468_006,
+        log_files: ["a.log"],
+        included_save: false,
+        included_crash: false,
+      },
+      "en",
+    );
 
     expect(out).toBe("/home/x/ofm-report.zip (1.4 MB)");
   });
@@ -218,5 +234,60 @@ describe("describeCareer", () => {
     } as unknown as GameStateData;
 
     expect(describeCareer(sparse)).toBe("2026-03-14");
+  });
+});
+
+describe("toUploadFailure", () => {
+  /**
+   * Given a rejection that is the backend's failure object, a bare key, or a malformed wait
+   * When it is normalised
+   * Then the key and the numeric wait survive, and anything else gives no wait
+   */
+  it("reads the key and the wait from whatever the backend rejected with", () => {
+    expect(toUploadFailure({ kind: "capacity", key: "k", retry_after_seconds: 90 })).toEqual({
+      kind: "capacity",
+      key: "k",
+      retry_after_seconds: 90,
+      detail: null,
+    });
+    expect(toUploadFailure("k")).toEqual({
+      kind: "other",
+      key: "k",
+      retry_after_seconds: null,
+      detail: null,
+    });
+    expect(toUploadFailure({ key: "k", retry_after_seconds: "soon" })).toEqual({
+      kind: "other",
+      key: "k",
+      retry_after_seconds: null,
+      detail: null,
+    });
+  });
+
+  /**
+   * Given a backend failure that carries what the server said
+   * When it is normalised
+   * Then the detail survives verbatim, and a blank or non-string detail becomes none
+   */
+  it("keeps the server's detail verbatim", () => {
+    const detail = 'HTTP 422 · invalid · bundle: Entry "report.md" has a disallowed file type';
+    expect(toUploadFailure({ kind: "rejected", key: "k", detail }).detail).toBe(detail);
+    expect(toUploadFailure({ kind: "rejected", key: "k", detail: "  " }).detail).toBeNull();
+    expect(toUploadFailure({ kind: "rejected", key: "k", detail: 422 }).detail).toBeNull();
+  });
+});
+
+describe("minutesToWait", () => {
+  /**
+   * Given waits that are short, exact and just over a minute
+   * When they are converted
+   * Then they round up and are never less than one minute
+   */
+  it("rounds up and never says zero", () => {
+    expect(minutesToWait(0)).toBe(1);
+    expect(minutesToWait(30)).toBe(1);
+    expect(minutesToWait(60)).toBe(1);
+    expect(minutesToWait(61)).toBe(2);
+    expect(minutesToWait(3600)).toBe(60);
   });
 });

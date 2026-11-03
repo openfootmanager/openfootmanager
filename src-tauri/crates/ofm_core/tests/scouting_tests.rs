@@ -1,3 +1,6 @@
+#[path = "scouting_tests/timing.rs"]
+mod timing;
+
 use chrono::{TimeZone, Utc};
 use domain::manager::Manager;
 use domain::message::*;
@@ -336,6 +339,28 @@ fn report_has_scout_report_data() {
     assert_eq!(report.team_name.as_deref(), Some("Rival FC"));
 }
 
+/// Given a scouted player whose position is the coarse Defender group but who is a left back
+/// When the scout's report is built
+/// Then it names the left back: the card shows the natural position, not the group.
+#[test]
+fn the_report_carries_the_natural_position_not_the_coarse_group() {
+    let mut game = make_game();
+    let target = game.players.iter_mut().find(|p| p.id == "p2").unwrap();
+    target.position = Position::Defender;
+    target.natural_position = Position::LeftBack;
+    send_scout(&mut game, "scout1", "p2").unwrap();
+    complete_scouting(&mut game);
+
+    let report = game
+        .messages
+        .iter()
+        .find(|m| m.category == MessageCategory::ScoutReport)
+        .and_then(|m| m.context.scout_report.as_ref())
+        .expect("a scout report");
+
+    assert_eq!(report.position, "LeftBack");
+}
+
 #[test]
 fn process_scouting_completes_youth_recruitment_report() {
     let mut game = make_game();
@@ -462,6 +487,78 @@ fn youth_recruitment_response_signs_selected_prospect() {
         .find(|player| player.id == prospect_id)
         .expect("expected signed prospect to remain visible");
     assert_eq!(signed_prospect.team_id.as_deref(), Some("team1"));
+}
+
+fn youth_report_with_a_prospect() -> (Game, String, String, String) {
+    let mut game = make_game();
+    start_youth_scouting(
+        &mut game,
+        "scout1",
+        YouthScoutingRegion::Domestic,
+        YouthScoutingObjective::Balanced,
+        Some(Position::Defender),
+    )
+    .unwrap();
+    complete_scouting(&mut game);
+    let message = game
+        .messages
+        .iter()
+        .find(|candidate| {
+            candidate.subject_key.as_deref() == Some("be.msg.youthRecruitmentReport.subject")
+        })
+        .expect("expected youth recruitment report")
+        .clone();
+    let action_id = message.actions[0].id.clone();
+    let prospect_id = action_id.trim_start_matches("prospect:").to_string();
+    (game, message.id, action_id, prospect_id)
+}
+
+/// Given a youth report whose prospect was signed and has since retired into the archive,
+/// when the report's sign action is replayed, then the archived person is not admitted again.
+#[test]
+fn replaying_a_sign_action_cannot_bring_back_an_archived_player() {
+    let (mut game, message_id, action_id, prospect_id) = youth_report_with_a_prospect();
+    apply_youth_recruitment_response(&mut game, &message_id, &action_id, "sign")
+        .expect("the first signing works");
+    let index = game
+        .players
+        .iter()
+        .position(|player| player.id == prospect_id)
+        .expect("he was signed");
+    let mut retired = game.players.remove(index);
+    retired.retired = true;
+    game.retired_players
+        .push(domain::retired_player::RetiredPlayer::from_player(
+            &retired,
+            "2040-06-30",
+            2040,
+        ));
+    game.messages
+        .iter_mut()
+        .find(|message| message.id == message_id)
+        .unwrap()
+        .actions[0]
+        .resolved = false;
+
+    let replay = apply_youth_recruitment_response(&mut game, &message_id, &action_id, "sign");
+
+    assert!(replay.is_none());
+    assert!(game.players.iter().all(|player| player.id != prospect_id));
+}
+
+/// Given a sign action that is already resolved, when it is replayed, then nobody is signed twice
+/// and the roster is unchanged.
+#[test]
+fn replaying_a_resolved_sign_action_signs_nobody() {
+    let (mut game, message_id, action_id, prospect_id) = youth_report_with_a_prospect();
+    apply_youth_recruitment_response(&mut game, &message_id, &action_id, "sign")
+        .expect("the first signing works");
+    game.players.retain(|player| player.id != prospect_id);
+
+    let replay = apply_youth_recruitment_response(&mut game, &message_id, &action_id, "sign");
+
+    assert!(replay.is_none());
+    assert!(game.players.iter().all(|player| player.id != prospect_id));
 }
 
 #[test]
@@ -1066,6 +1163,32 @@ fn a_scouted_snapshot_does_not_follow_later_attribute_changes() {
     assert_eq!(game.scouted_players[0].attributes.pace, pace_seen);
 }
 
+/// Given a player whose true potential is 70, and a scout with an eye for potential of 75
+/// When the scout's assignment on him completes
+/// Then the report keeps the scout's name and his opinion of the potential: a range 8 points wide
+///      (his band) that holds the true 70, the same range his eye always gives that player
+#[test]
+fn a_finished_scouting_job_stores_the_scouts_opinion_and_name() {
+    let mut game = make_game();
+    game.players
+        .iter_mut()
+        .find(|p| p.id == "p2")
+        .unwrap()
+        .potential = 70;
+    send_scout(&mut game, "scout1", "p2").unwrap();
+    complete_scouting(&mut game);
+
+    let report = &game.scouted_players[0];
+    let range = report.potential.expect("the scout gives a range");
+    assert_eq!(report.scout_name.as_deref(), Some("Scout Nrscout1"));
+    assert_eq!(range.high - range.low, 8);
+    assert!(range.low <= 70 && 70 <= range.high, "{range:?}");
+    assert_eq!(
+        range,
+        ofm_core::potential_opinion::judged_range("p2", "scout1", 70, 75)
+    );
+}
+
 /// Given a player already scouted
 /// When a second assignment on him completes later
 /// Then there is still one record, with the newer date and attributes
@@ -1087,4 +1210,132 @@ fn scouting_a_player_again_replaces_the_record() {
     assert_eq!(game.scouted_players.len(), 1);
     assert_eq!(game.scouted_players[0].attributes.pace, 99);
     assert!(game.scouted_players[0].scouted_on.as_str() > first_scouted_on.as_str());
+}
+
+// ---------------------------------------------------------------------------
+// The youth report's opinion of each prospect's potential (B3d)
+// ---------------------------------------------------------------------------
+
+/// The opinion the youth report `message_id` gives of `prospect_id`, as its screen reads it.
+fn report_opinion_of(
+    game: &Game,
+    message_id: &str,
+    prospect_id: &str,
+) -> Option<ofm_core::potential_opinion::PotentialOpinion> {
+    ofm_core::player_knowledge::youth_prospect_opinions(game, message_id).remove(prospect_id)
+}
+
+fn message<'a>(game: &'a Game, message_id: &str) -> &'a InboxMessage {
+    game.messages
+        .iter()
+        .find(|message| message.id == message_id)
+        .expect("the message")
+}
+
+/// Given a youth scouting assignment for scout1 (Scout Nrscout1, an eye of 75)
+/// When the report arrives
+/// Then it gives his opinion of every prospect: a fairly sure range of 8 that holds the prospect's
+///      potential, in his name, dated the report's day, and current
+#[test]
+fn a_youth_report_gives_the_scouts_opinion_of_each_prospect() {
+    let (game, message_id, _, _) = youth_report_with_a_prospect();
+    let report = message(&game, &message_id);
+    let prospects = report.context.youth_prospects.as_ref().unwrap();
+
+    for prospect in prospects {
+        let opinion = report_opinion_of(&game, &message_id, &prospect.id).expect("an opinion");
+        assert!(
+            opinion.low <= prospect.potential && prospect.potential <= opinion.high,
+            "{opinion:?} holds {}",
+            prospect.potential
+        );
+        assert_eq!(opinion.high - opinion.low, 8);
+        assert_eq!(
+            opinion.source,
+            ofm_core::potential_opinion::OpinionSource::Scout {
+                scout_name: Some("Scout Nrscout1".to_string()),
+                scouted_on: report.date.clone(),
+                current: true,
+            }
+        );
+    }
+}
+
+/// Given a youth report's prospect and the scout's opinion of him
+/// When he is signed
+/// Then his profile shows the same opinion: the same range, scout and day, now from his scout
+///      report, as his coaches have not yet watched him for six weeks
+#[test]
+fn signing_a_prospect_hands_the_scouts_opinion_to_his_profile() {
+    let (mut game, message_id, action_id, prospect_id) = youth_report_with_a_prospect();
+    let before = report_opinion_of(&game, &message_id, &prospect_id).expect("an opinion");
+
+    apply_youth_recruitment_response(&mut game, &message_id, &action_id, "sign").unwrap();
+
+    let signed = game
+        .players
+        .iter()
+        .find(|player| player.id == prospect_id)
+        .unwrap();
+    assert_eq!(
+        ofm_core::player_knowledge::potential_opinion(&game, signed),
+        Some(before)
+    );
+}
+
+/// Given a youth report's prospect
+/// When he is shortlisted
+/// Then the shortlist message gives the same opinion of him as the report did
+#[test]
+fn shortlisting_a_prospect_keeps_the_scouts_opinion() {
+    let (mut game, message_id, action_id, prospect_id) = youth_report_with_a_prospect();
+    let before = report_opinion_of(&game, &message_id, &prospect_id).expect("an opinion");
+
+    apply_youth_recruitment_response(&mut game, &message_id, &action_id, "shortlist").unwrap();
+
+    let shortlist_id = format!("youth-shortlist-{prospect_id}");
+    assert_eq!(
+        report_opinion_of(&game, &shortlist_id, &prospect_id),
+        Some(before)
+    );
+}
+
+/// Given a youth report written before reports carried an opinion (its context has none)
+/// When its prospects' opinions are read, and one of them is signed
+/// Then it gives no opinion of any of them, and signing works and writes no scout report
+#[test]
+fn an_old_youth_report_gives_no_opinion_and_still_signs() {
+    let (mut game, message_id, action_id, prospect_id) = youth_report_with_a_prospect();
+    game.messages
+        .iter_mut()
+        .find(|message| message.id == message_id)
+        .unwrap()
+        .context
+        .youth_prospect_opinions = None;
+
+    assert!(ofm_core::player_knowledge::youth_prospect_opinions(&game, &message_id).is_empty());
+    apply_youth_recruitment_response(&mut game, &message_id, &action_id, "sign").expect("he signs");
+    assert!(game.players.iter().any(|player| player.id == prospect_id));
+    assert!(
+        game.scouted_players
+            .iter()
+            .all(|report| report.player_id != prospect_id)
+    );
+}
+
+/// Given a youth report's context saved before reports carried opinions (no such key in its JSON)
+/// When it is read back
+/// Then it reads, with no opinions
+#[test]
+fn a_youth_report_saved_before_opinions_still_reads() {
+    let context: MessageContext = serde_json::from_value(serde_json::json!({
+        "team_id": "team1",
+        "player_id": null,
+        "fixture_id": null,
+        "match_result": null,
+        "youth_prospects": []
+    }))
+    .expect("an old context reads");
+
+    assert!(context.youth_prospect_opinions.is_none());
 }

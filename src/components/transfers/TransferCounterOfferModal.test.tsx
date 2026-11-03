@@ -190,7 +190,33 @@ describe("TransferCounterOfferModal", () => {
     expect(screen.getByText("Recent exchange")).toBeInTheDocument();
     expect(screen.getByText("Counter countered")).toBeInTheDocument();
     expect(screen.getByText("Negotiation warning")).toBeInTheDocument();
-    expect(screen.getByText("€1,600,000")).toBeInTheDocument();
+    // Once in the exchange history (their current offer), once as the typed counter amount.
+    expect(screen.getAllByText("€1,600,000")).toHaveLength(2);
+  });
+
+  /**
+   * Given a club's offer of €1,400,000 being answered
+   * When the counter-offer dialog opens
+   * Then the offer is shown exactly, not as "€1.4M", since the counter is chosen against it.
+   */
+  it("shows the offer being answered exactly", () => {
+    render(
+      <TransferCounterOfferModal
+        counterTarget={createCounterTarget()}
+        teams={[createTeam(), createTeam({ id: "team-2", name: "Buyer FC" })]}
+        counterAmount=""
+        onCounterAmountChange={vi.fn()}
+        counterFeedback={null}
+        activeCounterOffer={createOffer()}
+        counterResult={null}
+        counterError={null}
+        counterLoading={false}
+        onSubmit={vi.fn()}
+        onClose={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText(/Current offer €1,400,000/)).toBeInTheDocument();
   });
 
   it("wires counter amount, submit, and close interactions through props", () => {
@@ -223,5 +249,33 @@ describe("TransferCounterOfferModal", () => {
     expect(onCounterAmountChange).toHaveBeenCalledWith("1800000");
     expect(onSubmit).toHaveBeenCalledTimes(1);
     expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  /**
+   * Given a counter target whose `position` is the legacy bucket and whose natural position is granular
+   * When the counter-offer modal opens
+   * Then the badge reads the granular position.
+   */
+  it("badges the player by their granular natural position", () => {
+    render(
+      <TransferCounterOfferModal
+        counterTarget={{
+          ...createCounterTarget(),
+          player: createPlayer({ position: "Defender", natural_position: "LeftBack" }),
+        }}
+        teams={[createTeam(), createTeam({ id: "team-2", name: "Buyer FC" })]}
+        counterAmount="1600000"
+        onCounterAmountChange={vi.fn()}
+        counterFeedback={null}
+        activeCounterOffer={createOffer()}
+        counterResult={null}
+        counterError={null}
+        counterLoading={false}
+        onSubmit={vi.fn()}
+        onClose={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText("common.posAbbr.LeftBack")).toBeInTheDocument();
   });
 });

@@ -61,7 +61,7 @@ describe("Select", () => {
     );
 
     const combobox = screen.getByRole("combobox", { name: "Language" });
-    expect(combobox.className).toContain("bg-gray-100");
+    expect(combobox.className).toContain("bg-sunken");
     expect(combobox.className).toContain("my-select");
     expect(document.querySelector("svg")).toBeInTheDocument();
   });

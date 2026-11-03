@@ -129,7 +129,7 @@ impl LiveMatchState {
         if self.home_score == self.away_score {
             // Go to penalty shootout
             self.phase = MatchPhase::PenaltyShootout;
-            self.penalty_state = super::PenaltyShootoutState::default();
+            self.begin_penalty_shootout();
 
             let evt = MatchEvent::new(
                 self.current_minute,

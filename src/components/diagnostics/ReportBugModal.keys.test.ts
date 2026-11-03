@@ -19,6 +19,8 @@ const DYNAMIC_KEYS = [
   "reportBug.previewIntro",
   "reportBug.doneTitle",
   "reportBug.doneIntro",
+  "reportBug.sentTitle",
+  "reportBug.sentIntro",
   // `t(`reportBug.${key}`)` and `…Placeholder`
   "reportBug.whatHappened",
   "reportBug.whatHappenedPlaceholder",

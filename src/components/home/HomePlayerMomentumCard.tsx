@@ -2,6 +2,7 @@ import { TrendingDown, TrendingUp } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 import type { PlayerData } from "../../store/gameStore";
+import { naturalPositionOf } from "../../lib/positions";
 import { Badge, Card, CardBody, CardHeader, PlayerAvatar } from "../ui";
 import { translatePositionAbbreviation } from "../squad/SquadTab.helpers";
 
@@ -61,7 +62,7 @@ export default function HomePlayerMomentumCard({
                       {player.full_name}
                     </span>
                     <Badge variant="success" size="sm">
-                      {translatePositionAbbreviation(t, player.position)}
+                      {translatePositionAbbreviation(t, naturalPositionOf(player))}
                     </Badge>
                     <span className="text-xs font-heading font-bold text-green-500 tabular-nums w-8 text-right">
                       {player.morale}
@@ -93,7 +94,7 @@ export default function HomePlayerMomentumCard({
                       {player.full_name}
                     </span>
                     <Badge variant="danger" size="sm">
-                      {translatePositionAbbreviation(t, player.position)}
+                      {translatePositionAbbreviation(t, naturalPositionOf(player))}
                     </Badge>
                     <span className="text-xs font-heading font-bold text-red-500 tabular-nums w-8 text-right">
                       {player.morale}

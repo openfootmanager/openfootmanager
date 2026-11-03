@@ -34,6 +34,26 @@ pub fn contract_warning_stage(
     None
 }
 
+/// The warning stage of each requested player's contract on the game's date: the one the daily
+/// warnings, the morale pressure and the renewal urgency use, so a screen shows the same stage.
+/// A player with no stage (beyond a year, or already over) maps to `None`; an unknown id is left out.
+pub fn contract_warning_stages(
+    game: &Game,
+    player_ids: &[String],
+) -> std::collections::HashMap<String, Option<ContractWarningStage>> {
+    let today = game.clock.current_date.date_naive();
+    player_ids
+        .iter()
+        .filter_map(|id| {
+            let player = game.players.iter().find(|player| &player.id == id)?;
+            Some((
+                id.clone(),
+                contract_warning_stage(player.contract_end(), today),
+            ))
+        })
+        .collect()
+}
+
 pub fn process_contract_expiries(game: &mut Game) {
     let current_date = game.clock.current_date.date_naive();
 
@@ -83,6 +103,13 @@ pub(crate) fn release_player_contract(
     else {
         return;
     };
+    // Expiry releases every club's players, so whether the user hears about it is decided per
+    // player: the contract is theirs, or the player is in their squad on loan and leaves it.
+    let user_team_id = game.manager.team_id.as_deref();
+    let leaves_user_squad = user_team_id.is_some_and(|user_team_id| {
+        user_team_id == team_id
+            || game.players[player_index].team_id.as_deref() == Some(user_team_id)
+    });
 
     for team in &mut game.teams {
         remove_player_from_team_references(team, &player_id);
@@ -110,13 +137,22 @@ pub(crate) fn release_player_contract(
         },
     );
 
+    if !leaves_user_squad {
+        return;
+    }
+    // Each release appends one entry to the append-only movement history, so its position names
+    // this release and no other: a player can be released, re-signed and released again, even
+    // on the same day, and a key that named only the player or the day would let the ledger
+    // silence the second release.
+    let release_number = game.players[player_index].movement_history.len();
+    let release_id = format!("{player_id}_{today}_{release_number}");
     let message = match reason {
         ContractReleaseReason::Expired => {
-            contract_expired_message(&player_id, &player_name, &team_name, &today)
+            contract_expired_message(&release_id, &player_name, &team_name, &today)
         }
         ContractReleaseReason::ManagerTermination { severance_cost } => {
             contract_terminated_message(
-                &player_id,
+                &release_id,
                 &player_name,
                 &team_name,
                 severance_cost,
@@ -125,11 +161,11 @@ pub(crate) fn release_player_contract(
         }
     };
 
-    game.messages.push(message);
+    crate::inbox::emit(game, message);
 }
 
 pub(crate) fn contract_expired_message(
-    player_id: &str,
+    release_id: &str,
     player_name: &str,
     team_name: &str,
     date: &str,
@@ -139,7 +175,7 @@ pub(crate) fn contract_expired_message(
     i18n_params.insert("team".to_string(), team_name.to_string());
 
     InboxMessage::new(
-        format!("contract_expired_{}", player_id),
+        format!("contract_expired_{release_id}"),
         String::new(),
         String::new(),
         String::new(),

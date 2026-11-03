@@ -1,4 +1,5 @@
-import { act, renderHook } from "@testing-library/react";
+import { act, renderHook, waitFor } from "@testing-library/react";
+import { invoke } from "@tauri-apps/api/core";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { GameStateData, LeagueData } from "../store/gameStore";
@@ -9,13 +10,17 @@ vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
 vi.mock("../services/portraitService", () => ({
   prewarmManagerSquadPortraits: vi.fn(),
 }));
+// One `t` for every render, as react-i18next gives: a fresh function each time would make anything
+// memoised on it (the derived regions) a new value on every render.
+const translate = vi.hoisted(
+  () => (key: string, params?: Record<string, string | number>) =>
+    params?.defaultValue !== undefined ? String(params.defaultValue) : key,
+);
+const i18nState = vi.hoisted(() => ({ language: "en" }));
+
 vi.mock("react-i18next", () => ({
   initReactI18next: { type: "3rdParty", init: () => {} },
-  useTranslation: () => ({
-    t: (key: string, params?: Record<string, string | number>) =>
-      params?.defaultValue !== undefined ? String(params.defaultValue) : key,
-    i18n: { language: "en" },
-  }),
+  useTranslation: () => ({ t: translate, i18n: i18nState }),
 }));
 
 function league(overrides: Partial<LeagueData> = {}): LeagueData {
@@ -37,11 +42,6 @@ function buildGameState(): GameStateData {
   return {
     teams: [createTeam({ id: "team-1", country: "GB", short_name: "ALP" })],
     players: [createPlayer({ id: "p1", team_id: "team-1" })],
-    regions: [
-      { id: "europe", name: "Europe", country_codes: ["GB"] },
-      { id: "south_america", name: "South America", country_codes: ["BR"] },
-      { id: "asia", name: "Asia", country_codes: ["JP"] },
-    ],
     competitions: [
       league({
         id: "epl",
@@ -176,5 +176,56 @@ describe("useTeamSelection scope toggles", () => {
 
     expect(result.current.competitionSelection.asia_cup).toBe(false);
     expect(result.current.scopeMessage).toBeNull();
+  });
+});
+
+describe("useTeamSelection home-region club filter", () => {
+  /**
+   * Given a club in a country that no competition places in a region
+   * When team selection derives its regions
+   * Then there is none and no home region is picked, so there is nothing to filter by and the club
+   * is still listed: the frontend invents no region of its own, as it did when it guessed a club's
+   * region from a table of country codes.
+   */
+  it("derives no region for a country no competition places, and still lists the club", () => {
+    const gameState = {
+      teams: [createTeam({ id: "team-gb", country: "GB", short_name: "ENG" })],
+      players: [],
+      competitions: [],
+      league: null,
+      manager: { first_name: "Sam", last_name: "Boss" },
+    } as unknown as GameStateData;
+    const externals = { setGameState: vi.fn(), setGameActive: vi.fn(), navigate: vi.fn() };
+    const { result } = renderHook(() => useTeamSelection({ gameState, ...externals }));
+
+    expect(result.current.selectedHomeRegionId).toBeNull();
+    expect(result.current.filteredTeams.map((team) => team.id)).toEqual(["team-gb"]);
+  });
+});
+
+describe("useTeamSelection ratings", () => {
+  /**
+   * Given the backend rates team-1's squad before the career (p1 at 77, the club's average 73,
+   *       which no player of the game state carries)
+   * When the hook has its answer
+   * Then the club's average, the player's rating and the likely eleven are the backend's, not
+   *      figures read off the game state
+   */
+  it("reads the squads' ratings from the backend", async () => {
+    vi.mocked(invoke).mockImplementation(async (command: string) =>
+      command === "get_team_selection_ratings"
+        ? {
+            clubs: [
+              { team_id: "team-1", average_rating: 73, players: [{ player_id: "p1", ovr: 77 }] },
+            ],
+          }
+        : undefined,
+    );
+
+    const { result } = renderController();
+
+    await waitFor(() => expect(result.current.getTeamAvgOvr("team-1")).toBe(73));
+    expect(result.current.getPlayerRating("p1")).toBe(77);
+    expect(result.current.selectedTeamXi.map((player) => player.id)).toEqual(["p1"]);
   });
 });

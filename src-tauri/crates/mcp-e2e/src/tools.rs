@@ -86,6 +86,7 @@ pub const CATALOG: &[CatalogEntry] = &[
         &[("player_id", "string")],
         &["player_id"],
     ),
+    ("dev_full_game_state", &[], &[]),
     ("game_delete_save", &[("save_id", "string")], &["save_id"]),
     ("game_exit", &[], &[]),
     ("game_export_world", &[], &[]),
@@ -116,6 +117,15 @@ pub const CATALOG: &[CatalogEntry] = &[
     (
         "inbox_get_messages",
         &[("category", "string"), ("unread_only", "boolean")],
+        &[],
+    ),
+    (
+        "inbox_get_archived",
+        &[
+            ("before_date", "string"),
+            ("before_id", "string"),
+            ("limit", "integer"),
+        ],
         &[],
     ),
     ("inbox_mark_all_read", &[], &[]),
@@ -557,6 +567,23 @@ impl Client {
         )
     }
 
+    /// One page of archived mail. `before` is the `(date, id)` the previous page ended at, `None`
+    /// for the newest page; `limit` is how many to return, `None` for the tool's default.
+    pub fn inbox_get_archived(
+        &self,
+        before: Option<(&str, &str)>,
+        limit: Option<u64>,
+    ) -> Reply<inbox::ArchivedMessages> {
+        self.call(
+            "inbox_get_archived",
+            object([
+                ("before_date", before.map(|(date, _)| json!(date))),
+                ("before_id", before.map(|(_, id)| json!(id))),
+                ("limit", limit.map(|v| json!(v))),
+            ]),
+        )
+    }
+
     pub fn inbox_mark_all_read(&self) -> Reply<inbox::AllMessagesMarkedRead> {
         self.call("inbox_mark_all_read", object([]))
     }
@@ -604,6 +631,11 @@ impl Client {
 
     pub fn info_game_state(&self) -> Reply<info::GameState> {
         self.call("info_game_state", object([]))
+    }
+
+    /// Only a sandbox app started with `--dev-full-state` (every harness launch) has this tool.
+    pub fn dev_full_game_state(&self) -> Reply<info::GameState> {
+        self.call("dev_full_game_state", object([]))
     }
 
     pub fn info_game_summary(&self) -> Reply<info::GameSummary> {

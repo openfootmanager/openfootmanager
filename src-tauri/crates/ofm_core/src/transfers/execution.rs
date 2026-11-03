@@ -201,14 +201,10 @@ pub(super) fn reserve_player_for_pending_transfer(
 }
 
 pub(super) fn transfer_buyer_can_register(game: &Game, buyer_team_id: &str, fee: u64) -> bool {
-    let Ok(fee_i64) = i64::try_from(fee) else {
-        return false;
-    };
-
     game.teams
         .iter()
         .find(|team| team.id == buyer_team_id)
-        .is_some_and(|team| team.finance >= fee_i64 && team.transfer_budget >= fee_i64)
+        .is_some_and(|team| can_afford_fee(team, fee))
 }
 
 pub(super) fn ensure_transfer_cash_postable(

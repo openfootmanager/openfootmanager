@@ -13,15 +13,57 @@ use ofm_core::game::Game;
 #[cfg(feature = "mcp")]
 use {
     super::{
-        build_game_from_world_data, default_save_name, game_clock_for_world,
-        load_world_data_from_path, map_save_manager_lock_error, normalize_startup_options,
-        RawStartupOptions, StartupOptions,
+        build_game_from_imported_world_ranked, build_game_from_world_data, default_save_name,
+        game_clock_for_world, load_world_data_from_path, map_save_manager_lock_error,
+        normalize_startup_options, RawStartupOptions, StartupOptions,
     },
-    chrono::Datelike,
     domain::manager::Manager,
     log::info,
     ofm_core::state::StateManager,
 };
+
+/// Persists a career that has just chosen its first club.
+///
+/// A career loaded from a save already has one, and the club goes into it; only a career that has
+/// never been saved gets a new save. Creating one regardless would fork the loaded career: the
+/// player continues in a second save and the one they loaded stays clubless.
+///
+/// `loaded_save_id` is the save id read together with `game` (see `snapshot_career`), never one
+/// read later from the state: a load that lands in between would otherwise redirect this write
+/// onto another career's save.
+pub(crate) fn persist_chosen_club(
+    loaded_save_id: Option<&str>,
+    save_manager: &mut SaveManager,
+    game: &Game,
+    stats_state: &StatsState,
+) -> Result<String, String> {
+    if let Some(save_id) = loaded_save_id {
+        save_manager.save_game_with_stats(game, stats_state, save_id)?;
+        return Ok(save_id.to_string());
+    }
+
+    let manager_name = format!("{} {}", game.manager.first_name, game.manager.last_name);
+    create_new_save(
+        save_manager,
+        game,
+        stats_state,
+        &super::default_save_name(&manager_name),
+    )
+}
+
+/// Deletes a save, and forgets it as the active one if it was: the career in memory would
+/// otherwise keep writing to, and choosing a club would target, a save that no longer exists.
+pub(crate) fn delete_save_internal(
+    state: &ofm_core::state::StateManager,
+    save_manager: &mut SaveManager,
+    save_id: &str,
+) -> Result<bool, String> {
+    let deleted = save_manager.delete_save(save_id)?;
+    if deleted && state.get_save_id().as_deref() == Some(save_id) {
+        state.clear_save_id();
+    }
+    Ok(deleted)
+}
 
 pub(crate) fn create_new_save(
     save_manager: &mut SaveManager,
@@ -75,20 +117,21 @@ pub fn start_career_for_mcp(
     )))?;
     let mut world = load_world_for_mcp(request.world_source, request.options.seed)?;
 
-    let opening_year = u32::try_from(
-        game_clock_for_world(&startup_options, &world.metadata)?
-            .start_date
-            .year(),
-    )
-    .unwrap_or_else(|_| ofm_core::generator::default_opening_year());
-    if is_world_file(request.world_source) {
-        ofm_core::generator::normalize_imported_world_for_career_start(&mut world, opening_year);
-    }
-
     let manager = take_or_create_manager(&mut world, request, &startup_options)?;
     let clock = game_clock_for_world(&startup_options, &world.metadata)?;
-    let (mut game, current_stats_state) =
-        build_game_from_world_data(clock, manager, &startup_options, world);
+    // A world file is made ready for a career as it is built, by the one preparation `ofm_core`
+    // owns; a generated world is built as it is.
+    let (mut game, current_stats_state) = if is_world_file(request.world_source) {
+        build_game_from_imported_world_ranked(
+            clock,
+            manager,
+            &startup_options,
+            world,
+            ofm_core::generator::ReputationBasis::Stored,
+        )
+    } else {
+        build_game_from_world_data(clock, manager, &startup_options, world)
+    };
 
     info!(
         "[mcp-bootstrap] Built game: {} teams, {} players, manager.team_id={:?}",
@@ -218,6 +261,104 @@ mod tests {
         assert_eq!(loaded_stats.team_matches[0].team_id, "team1");
 
         std::fs::remove_dir_all(&saves_dir).unwrap();
+    }
+
+    /// Given a clubless career loaded from a save
+    /// When the player picks a club
+    /// Then the loaded save is updated in place: same id, now with the club, and no second save.
+    #[test]
+    fn choosing_a_club_in_a_loaded_career_updates_its_own_save() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut save_manager = SaveManager::init(dir.path()).unwrap();
+        let state = ofm_core::state::StateManager::new();
+        let mut game = make_bootstrap_test_game();
+        game.manager.team_id = None;
+        let loaded_id =
+            create_new_save(&mut save_manager, &game, &sample_stats_state(), "Loaded").unwrap();
+        state.set_save_id(loaded_id.clone());
+
+        game.manager.team_id = Some("team1".to_string());
+        let saved_id = persist_chosen_club(
+            state.get_save_id().as_deref(),
+            &mut save_manager,
+            &game,
+            &sample_stats_state(),
+        )
+        .unwrap();
+
+        assert_eq!(saved_id, loaded_id);
+        assert_eq!(save_manager.load_saves().unwrap().len(), 1);
+        assert_eq!(
+            save_manager.load_game(&loaded_id).unwrap().manager.team_id,
+            Some("team1".to_string())
+        );
+    }
+
+    /// Given a career that has never been saved
+    /// When the player picks a club
+    /// Then a new save is created and its id returned.
+    #[test]
+    fn choosing_a_club_in_a_never_saved_career_creates_a_save() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut save_manager = SaveManager::init(dir.path()).unwrap();
+        let state = ofm_core::state::StateManager::new();
+        let mut game = make_bootstrap_test_game();
+        game.manager.team_id = Some("team1".to_string());
+
+        let saved_id = persist_chosen_club(
+            state.get_save_id().as_deref(),
+            &mut save_manager,
+            &game,
+            &sample_stats_state(),
+        )
+        .unwrap();
+
+        assert_eq!(save_manager.load_saves().unwrap().len(), 1);
+        assert_eq!(save_manager.load_saves().unwrap()[0].id, saved_id);
+        // Read back through a fresh connection to the .db, not just the index.
+        assert_eq!(
+            save_manager.load_game(&saved_id).unwrap().manager.team_id,
+            Some("team1".to_string())
+        );
+    }
+
+    /// Given an active career whose save is deleted from the menu
+    /// When the active save id is read afterwards
+    /// Then it is cleared, so choosing a club cannot target a deleted save.
+    #[test]
+    fn deleting_the_active_save_clears_the_active_save_id() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut save_manager = SaveManager::init(dir.path()).unwrap();
+        let state = ofm_core::state::StateManager::new();
+        let game = make_bootstrap_test_game();
+        let active_id =
+            create_new_save(&mut save_manager, &game, &sample_stats_state(), "Active").unwrap();
+        state.set_save_id(active_id.clone());
+
+        let deleted = delete_save_internal(&state, &mut save_manager, &active_id).unwrap();
+
+        assert!(deleted);
+        assert_eq!(state.get_save_id(), None);
+    }
+
+    /// Given an active career and a different save
+    /// When the other save is deleted
+    /// Then the active save id is untouched.
+    #[test]
+    fn deleting_another_save_keeps_the_active_save_id() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut save_manager = SaveManager::init(dir.path()).unwrap();
+        let state = ofm_core::state::StateManager::new();
+        let game = make_bootstrap_test_game();
+        let active_id =
+            create_new_save(&mut save_manager, &game, &sample_stats_state(), "Active").unwrap();
+        let other_id =
+            create_new_save(&mut save_manager, &game, &sample_stats_state(), "Other").unwrap();
+        state.set_save_id(active_id.clone());
+
+        delete_save_internal(&state, &mut save_manager, &other_id).unwrap();
+
+        assert_eq!(state.get_save_id(), Some(active_id));
     }
 }
 

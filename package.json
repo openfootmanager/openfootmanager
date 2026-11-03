@@ -11,6 +11,7 @@
     "lint": "biome lint --error-on-warnings",
     "lint:fix": "biome lint --write",
     "format:check": "biome format",
+    "fixture:pages": "cargo run --release --manifest-path src-tauri/Cargo.toml -p ofm_core --example page_fixture -- src/dev/pageHarness/fixture.generated.ts",
     "knip": "knip --no-progress",
     "test": "vitest run",
     "test:watch": "vitest",
@@ -19,6 +20,7 @@
   },
   "dependencies": {
     "@fontsource/barlow-condensed": "^5.2.8",
+    "@fontsource/fira-sans-extra-condensed": "^5.3.0",
     "@fontsource/inter": "^5.2.8",
     "@tauri-apps/api": "2.11",
     "@tauri-apps/plugin-dialog": "^2.7.1",
@@ -50,7 +52,7 @@
     "knip": "^6.35.1",
     "tailwindcss": "^4.2.2",
     "typescript": "~6.0.2",
-    "vite": "^8.0.16",
+    "vite": "^8.3.5",
     "vitest": "^4.1.11"
   }
 }

@@ -63,9 +63,16 @@ pub struct Client {
     session: Option<String>,
     next_id: AtomicU64,
     transcript: Mutex<Vec<Exchange>>,
+    server_version: String,
 }
 
 impl Client {
+    /// The server's reported version: the package version, then `+<source revision>` when the
+    /// binary knows which sources it was built from.
+    pub fn server_version(&self) -> &str {
+        &self.server_version
+    }
+
     /// Opens a session: `initialize`, then the `initialized` notification.
     pub fn connect(url: &str, timeout: Duration) -> Result<Self, CallError> {
         let http = Http::builder()
@@ -78,8 +85,9 @@ impl Client {
             session: None,
             next_id: AtomicU64::new(1),
             transcript: Mutex::new(Vec::new()),
+            server_version: String::new(),
         };
-        let (_, session) = client.rpc(
+        let (initialized, session) = client.rpc(
             "initialize",
             json!({
                 "protocolVersion": PROTOCOL_VERSION,
@@ -88,6 +96,10 @@ impl Client {
             }),
         )?;
         client.session = session;
+        client.server_version = initialized["serverInfo"]["version"]
+            .as_str()
+            .unwrap_or_default()
+            .to_string();
         client.notify("notifications/initialized")?;
         Ok(client)
     }

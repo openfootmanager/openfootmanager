@@ -1,12 +1,13 @@
-use chrono::Datelike;
 use log::info;
 use std::sync::Arc;
 use tauri::State;
 
 use ofm_core::game::Game;
-use ofm_core::state::StateManager;
+use ofm_core::match_day_eligibility::validate_starting_xi;
+use ofm_core::state::{Career, StateManager};
+use ofm_core::training::SquadFitness;
 
-use crate::commands::util::{mutate_active_game, user_team_id, user_team_mut};
+use crate::commands::util::{mutate_active_game_for, user_team_id, user_team_mut};
 
 fn parse_squad_role(squad_role: &str) -> Option<domain::player::SquadRole> {
     match squad_role {
@@ -16,19 +17,11 @@ fn parse_squad_role(squad_role: &str) -> Option<domain::player::SquadRole> {
     }
 }
 
-fn player_age_on(current_date: chrono::NaiveDate, date_of_birth: &str) -> Option<i32> {
-    let dob = chrono::NaiveDate::parse_from_str(date_of_birth, "%Y-%m-%d").ok()?;
-    let mut age = current_date.year() - dob.year();
-
-    if (current_date.month(), current_date.day()) < (dob.month(), dob.day()) {
-        age -= 1;
-    }
-
-    Some(age)
-}
-
 /// Sets the user's formation and drops roles the new shape no longer admits.
 fn apply_formation(game: &mut Game, formation: &str) -> Result<(), String> {
+    if ofm_core::player_rating::parse_formation(formation).is_none() {
+        return Err(ofm_core::custom_tactics::INVALID_FORMATION_ERROR.to_string());
+    }
     let team_id = user_team_id(game)?;
 
     // Note: `player.position` is intentionally NOT mutated here. A player's
@@ -56,8 +49,12 @@ fn parse_play_style(play_style: &str) -> domain::team::PlayStyle {
     }
 }
 
-pub fn set_formation_internal(state: &StateManager, formation: &str) -> Result<Game, String> {
-    mutate_active_game(state, |game| apply_formation(game, formation))
+pub fn set_formation_internal(
+    state: &StateManager,
+    career: Career,
+    formation: &str,
+) -> Result<Game, String> {
+    mutate_active_game_for(state, career, |game| apply_formation(game, formation))
 }
 
 /// Picks a tactic preset: its formation and play style, and the phase blueprint
@@ -68,10 +65,11 @@ pub fn set_formation_internal(state: &StateManager, formation: &str) -> Result<G
 /// a request for that preset's setup (#365).
 pub fn apply_tactic_preset_internal(
     state: &StateManager,
+    career: Career,
     formation: &str,
     play_style: &str,
 ) -> Result<Game, String> {
-    mutate_active_game(state, |game| {
+    mutate_active_game_for(state, career, |game| {
         apply_formation(game, formation)?;
 
         let style = parse_play_style(play_style);
@@ -88,17 +86,57 @@ pub fn apply_tactic_preset(
     state: State<'_, Arc<StateManager>>,
     formation: String,
     play_style: String,
+    career_token: u64,
 ) -> Result<Game, String> {
     info!("[cmd] apply_tactic_preset: {} / {}", formation, play_style);
-    apply_tactic_preset_internal(&state, &formation, &play_style)
+    apply_tactic_preset_internal(&state, Career::Token(career_token), &formation, &play_style)
+}
+
+/// Whether the manager's phase dials differ from the blueprint their play style implies.
+///
+/// The Tactics screen's unsaved-changes badge compares formation and style on its own; this is the
+/// part only the backend can answer, because `blueprint_for` is the rule that defines a style's
+/// dials and the frontend holds no copy of it.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+pub struct TacticsBlueprintStatus {
+    pub modified: bool,
+}
+
+pub fn get_tactics_blueprint_status_internal(
+    state: &StateManager,
+) -> Result<TacticsBlueprintStatus, String> {
+    state
+        .get_game(|game| {
+            let team_id = user_team_id(game)?;
+            let team = game
+                .teams
+                .iter()
+                .find(|team| team.id == team_id)
+                .ok_or_else(|| "be.error.managedTeamNotFound".to_string())?;
+            Ok(TacticsBlueprintStatus {
+                modified: team.tactics_phase
+                    != ofm_core::ai_tactics::blueprint_for(&team.play_style),
+            })
+        })
+        .ok_or_else(|| "be.error.noActiveGameSession".to_string())?
+}
+
+#[tauri::command]
+pub fn get_tactics_blueprint_status(
+    state: State<'_, Arc<StateManager>>,
+) -> Result<TacticsBlueprintStatus, String> {
+    get_tactics_blueprint_status_internal(&state)
 }
 
 pub fn set_starting_xi_internal(
     state: &StateManager,
+    career: Career,
     player_ids: Vec<String>,
 ) -> Result<Game, String> {
-    mutate_active_game(state, |game| {
+    mutate_active_game_for(state, career, |game| {
         let team_id = user_team_id(game)?;
+        // Refused before anything is written: the screens and an MCP agent both save through here.
+        validate_starting_xi(&game.players, &team_id, &player_ids)?;
 
         let team = user_team_mut(game)?;
         team.starting_xi_ids = player_ids;
@@ -113,31 +151,38 @@ pub fn set_starting_xi_internal(
 pub fn set_formation(
     state: State<'_, Arc<StateManager>>,
     formation: String,
+    career_token: u64,
 ) -> Result<Game, String> {
     info!("[cmd] set_formation: {}", formation);
-    set_formation_internal(&state, &formation)
+    set_formation_internal(&state, Career::Token(career_token), &formation)
 }
 
 #[tauri::command]
 pub fn set_starting_xi(
     state: State<'_, Arc<StateManager>>,
     player_ids: Vec<String>,
+    career_token: u64,
 ) -> Result<Game, String> {
     info!("[cmd] set_starting_xi: {} players", player_ids.len());
-    set_starting_xi_internal(&state, player_ids)
+    set_starting_xi_internal(&state, Career::Token(career_token), player_ids)
 }
 
 #[tauri::command]
 pub fn set_play_style(
     state: State<'_, Arc<StateManager>>,
     play_style: String,
+    career_token: u64,
 ) -> Result<Game, String> {
     info!("[cmd] set_play_style: {}", play_style);
-    set_play_style_internal(&state, &play_style)
+    set_play_style_internal(&state, Career::Token(career_token), &play_style)
 }
 
-pub fn set_play_style_internal(state: &StateManager, play_style: &str) -> Result<Game, String> {
-    mutate_active_game(state, |game| {
+pub fn set_play_style_internal(
+    state: &StateManager,
+    career: Career,
+    play_style: &str,
+) -> Result<Game, String> {
+    mutate_active_game_for(state, career, |game| {
         let team = user_team_mut(game)?;
         team.play_style = parse_play_style(play_style);
 
@@ -149,16 +194,18 @@ pub fn set_play_style_internal(state: &StateManager, play_style: &str) -> Result
 pub fn set_team_match_roles(
     state: State<'_, Arc<StateManager>>,
     match_roles: domain::team::MatchRoles,
+    career_token: u64,
 ) -> Result<Game, String> {
     info!("[cmd] set_team_match_roles");
-    set_team_match_roles_internal(&state, match_roles)
+    set_team_match_roles_internal(&state, Career::Token(career_token), match_roles)
 }
 
 pub fn set_team_match_roles_internal(
     state: &StateManager,
+    career: Career,
     match_roles: domain::team::MatchRoles,
 ) -> Result<Game, String> {
-    mutate_active_game(state, |game| {
+    mutate_active_game_for(state, career, |game| {
         let team = user_team_mut(game)?;
         team.match_roles = match_roles;
 
@@ -167,24 +214,44 @@ pub fn set_team_match_roles_internal(
 }
 
 #[tauri::command]
+pub fn get_squad_fitness(
+    state: State<'_, Arc<StateManager>>,
+) -> Result<Option<SquadFitness>, String> {
+    get_squad_fitness_internal(&state)
+}
+
+/// How fit the user's squad is, from the one summary the staff's warnings read too; none when the
+/// user has no club.
+pub fn get_squad_fitness_internal(state: &StateManager) -> Result<Option<SquadFitness>, String> {
+    state
+        .get_game(|game| {
+            let team_id = game.manager.team_id.as_deref()?;
+            Some(ofm_core::training::squad_fitness(game, team_id))
+        })
+        .ok_or_else(|| "be.error.noActiveGameSession".to_string())
+}
+
+#[tauri::command]
 pub fn set_training(
     state: State<'_, Arc<StateManager>>,
     focus: String,
     intensity: String,
+    career_token: u64,
 ) -> Result<Game, String> {
     info!(
         "[cmd] set_training: focus={}, intensity={}",
         focus, intensity
     );
-    set_training_internal(&state, &focus, &intensity)
+    set_training_internal(&state, Career::Token(career_token), &focus, &intensity)
 }
 
 pub fn set_training_internal(
     state: &StateManager,
+    career: Career,
     focus: &str,
     intensity: &str,
 ) -> Result<Game, String> {
-    mutate_active_game(state, |game| {
+    mutate_active_game_for(state, career, |game| {
         let training_focus = match focus {
             "Physical" => domain::team::TrainingFocus::Physical,
             "Technical" => domain::team::TrainingFocus::Technical,
@@ -210,6 +277,13 @@ pub fn set_training_internal(
     })
 }
 
+/// Every rating's tier, 0 to 99, for the screens that colour a rating. Needs no game, so the
+/// package editor, which works on package data alone, reads it too.
+#[tauri::command]
+pub fn get_rating_tiers() -> Vec<ofm_core::player_tier::PlayerTier> {
+    ofm_core::player_tier::rating_tiers()
+}
+
 #[tauri::command]
 pub fn get_training_focus_attributes() -> Vec<ofm_core::training::TrainingFocusAttributes> {
     ofm_core::training::training_focus_attributes()
@@ -219,16 +293,18 @@ pub fn get_training_focus_attributes() -> Vec<ofm_core::training::TrainingFocusA
 pub fn set_training_schedule(
     state: State<'_, Arc<StateManager>>,
     schedule: String,
+    career_token: u64,
 ) -> Result<Game, String> {
     info!("[cmd] set_training_schedule: {}", schedule);
-    set_training_schedule_internal(&state, &schedule)
+    set_training_schedule_internal(&state, Career::Token(career_token), &schedule)
 }
 
 pub fn set_training_schedule_internal(
     state: &StateManager,
+    career: Career,
     schedule: &str,
 ) -> Result<Game, String> {
-    mutate_active_game(state, |game| {
+    mutate_active_game_for(state, career, |game| {
         let training_schedule = match schedule {
             "Intense" => domain::team::TrainingSchedule::Intense,
             "Balanced" => domain::team::TrainingSchedule::Balanced,
@@ -247,16 +323,18 @@ pub fn set_training_schedule_internal(
 pub fn set_training_groups(
     state: State<'_, Arc<StateManager>>,
     groups: Vec<domain::team::TrainingGroup>,
+    career_token: u64,
 ) -> Result<Game, String> {
     info!("[cmd] set_training_groups: {} groups", groups.len());
-    set_training_groups_internal(&state, groups)
+    set_training_groups_internal(&state, Career::Token(career_token), groups)
 }
 
 pub fn set_training_groups_internal(
     state: &StateManager,
+    career: Career,
     groups: Vec<domain::team::TrainingGroup>,
 ) -> Result<Game, String> {
-    mutate_active_game(state, |game| {
+    mutate_active_game_for(state, career, |game| {
         let team = user_team_mut(game)?;
         team.training_groups = groups;
 
@@ -269,12 +347,19 @@ pub fn set_player_training_focus(
     state: State<'_, Arc<StateManager>>,
     player_id: String,
     focus: Option<String>,
+    career_token: u64,
 ) -> Result<Game, String> {
-    set_player_training_focus_internal(&state, &player_id, focus.as_deref())
+    set_player_training_focus_internal(
+        &state,
+        Career::Token(career_token),
+        &player_id,
+        focus.as_deref(),
+    )
 }
 
 pub fn set_player_training_focus_internal(
     state: &StateManager,
+    career: Career,
     player_id: &str,
     focus: Option<&str>,
 ) -> Result<Game, String> {
@@ -282,7 +367,7 @@ pub fn set_player_training_focus_internal(
         "[cmd] set_player_training_focus: player={}, focus={:?}",
         player_id, focus
     );
-    mutate_active_game(state, |game| {
+    mutate_active_game_for(state, career, |game| {
         let team_id = user_team_id(game)?;
 
         let training_focus = focus.and_then(|f| match f {
@@ -314,12 +399,14 @@ pub fn set_player_squad_role(
     state: State<'_, Arc<StateManager>>,
     player_id: String,
     squad_role: String,
+    career_token: u64,
 ) -> Result<Game, String> {
-    set_player_squad_role_internal(&state, &player_id, &squad_role)
+    set_player_squad_role_internal(&state, Career::Token(career_token), &player_id, &squad_role)
 }
 
 pub fn set_player_squad_role_internal(
     state: &StateManager,
+    career: Career,
     player_id: &str,
     squad_role: &str,
 ) -> Result<Game, String> {
@@ -327,7 +414,7 @@ pub fn set_player_squad_role_internal(
         "[cmd] set_player_squad_role: player={}, squad_role={}",
         player_id, squad_role
     );
-    mutate_active_game(state, |game| {
+    mutate_active_game_for(state, career, |game| {
         let team_id = user_team_id(game)?;
         let target_role =
             parse_squad_role(squad_role).ok_or("be.error.invalidSquadRole".to_string())?;
@@ -344,7 +431,7 @@ pub fn set_player_squad_role_internal(
         }
 
         if matches!(target_role, domain::player::SquadRole::Youth) {
-            let age = player_age_on(current_date, &game.players[player_index].date_of_birth)
+            let age = domain::age::age_on(current_date, &game.players[player_index].date_of_birth)
                 .ok_or("be.error.invalidDateOfBirth".to_string())?;
             if age > ofm_core::roster::YOUTH_ACADEMY_MAX_AGE {
                 return Err("be.error.youthAcademyOverage".to_string());
@@ -395,10 +482,11 @@ pub fn auto_select_set_pieces_internal(
 
 pub fn assign_jersey_number_internal(
     state: &StateManager,
+    career: Career,
     player_id: &str,
     jersey_number: Option<u8>,
 ) -> Result<Game, String> {
-    mutate_active_game(state, |game| {
+    mutate_active_game_for(state, career, |game| {
         let team_id = user_team_id(game)?;
 
         if let Some(n) = jersey_number {
@@ -431,19 +519,26 @@ pub fn assign_jersey_number(
     state: State<'_, Arc<StateManager>>,
     player_id: String,
     jersey_number: Option<u8>,
+    career_token: u64,
 ) -> Result<Game, String> {
     info!(
         "[cmd] assign_jersey_number: player={}, number={:?}",
         player_id, jersey_number
     );
-    assign_jersey_number_internal(&state, &player_id, jersey_number)
+    assign_jersey_number_internal(
+        &state,
+        Career::Token(career_token),
+        &player_id,
+        jersey_number,
+    )
 }
 
 pub fn set_team_kit_pattern_internal(
     state: &StateManager,
+    career: Career,
     kit_pattern: domain::team::KitPattern,
 ) -> Result<Game, String> {
-    mutate_active_game(state, |game| {
+    mutate_active_game_for(state, career, |game| {
         if game.season_context.phase != domain::season::SeasonPhase::Preseason {
             return Err("be.error.kitChangesLockedInSeason".to_string());
         }
@@ -465,9 +560,10 @@ pub fn set_team_kit_pattern_internal(
 pub fn set_team_kit_pattern(
     state: State<'_, Arc<StateManager>>,
     kit_pattern: domain::team::KitPattern,
+    career_token: u64,
 ) -> Result<Game, String> {
     info!("[cmd] set_team_kit_pattern: {:?}", kit_pattern);
-    set_team_kit_pattern_internal(&state, kit_pattern)
+    set_team_kit_pattern_internal(&state, Career::Token(career_token), kit_pattern)
 }
 
 /// Drop any assigned player function (role) that is no longer valid for the
@@ -540,12 +636,14 @@ pub fn set_player_role(
     state: State<'_, Arc<StateManager>>,
     player_id: String,
     role: Option<String>,
+    career_token: u64,
 ) -> Result<Game, String> {
-    set_player_role_internal(&state, player_id, role)
+    set_player_role_internal(&state, Career::Token(career_token), player_id, role)
 }
 
 pub fn set_player_role_internal(
     state: &StateManager,
+    career: Career,
     player_id: String,
     role: Option<String>,
 ) -> Result<Game, String> {
@@ -553,7 +651,7 @@ pub fn set_player_role_internal(
         "[cmd] set_player_role: player={} role={:?}",
         player_id, role
     );
-    mutate_active_game(state, |game| {
+    mutate_active_game_for(state, career, |game| {
         let team_id = user_team_id(game)?;
 
         // Validate the role against where the player is actually deployed (the
@@ -606,10 +704,11 @@ pub fn set_tactics_phase(
     marking_style: Option<String>,
     counter_press_duration: Option<String>,
     break_speed: Option<String>,
+    career_token: u64,
 ) -> Result<Game, String> {
     use domain::team::*;
     info!("[cmd] set_tactics_phase");
-    mutate_active_game(&state, |game| {
+    mutate_active_game_for(&state, Career::Token(career_token), |game| {
         let team = user_team_mut(game)?;
         let p = &mut team.tactics_phase;
         if let Some(v) = build_up_style {
@@ -682,10 +781,12 @@ pub fn set_tactics_phase(
 
 #[cfg(test)]
 mod tests {
+    use super::TacticsBlueprintStatus;
     use super::{
-        apply_tactic_preset_internal, set_formation_internal, set_play_style_internal,
+        apply_tactic_preset_internal, get_rating_tiers, get_squad_fitness_internal,
+        get_tactics_blueprint_status_internal, set_formation_internal, set_play_style_internal,
         set_player_role_internal, set_player_squad_role_internal,
-        set_player_training_focus_internal,
+        set_player_training_focus_internal, set_starting_xi_internal,
     };
     use chrono::{TimeZone, Utc};
     use domain::manager::Manager;
@@ -696,6 +797,7 @@ mod tests {
     use ofm_core::ai_tactics::blueprint_for;
     use ofm_core::clock::GameClock;
     use ofm_core::game::Game;
+    use ofm_core::state::Career;
     use ofm_core::state::StateManager;
 
     fn default_attrs() -> PlayerAttributes {
@@ -789,17 +891,159 @@ mod tests {
         game
     }
 
+    /// Given an active game whose club has one fit player on 30 and one injured player on 10
+    /// When the squad fitness is asked for
+    /// Then the figures are over the fit player alone; with no game the command says so, and a
+    ///      manager with no club has none.
+    #[test]
+    fn get_squad_fitness_internal_answers_from_the_users_club() {
+        let state = StateManager::new();
+        assert_eq!(
+            get_squad_fitness_internal(&state).err().as_deref(),
+            Some("be.error.noActiveGameSession")
+        );
+
+        let mut fit = make_player("1998-01-01");
+        fit.condition = 30;
+        let mut injured = make_player_for_team("player-2", "team-1", "1998-01-01");
+        injured.condition = 10;
+        injured.injury = Some(domain::player::Injury {
+            name: "knock".to_string(),
+            days_remaining: 5,
+        });
+        let mut game = make_game(fit);
+        game.players.push(injured);
+        state.set_game(game.clone());
+
+        let fitness = get_squad_fitness_internal(&state)
+            .expect("fitness")
+            .expect("a summary");
+
+        assert_eq!(fitness.players, 1);
+        assert_eq!(fitness.average_condition, Some(30.0));
+        assert_eq!(fitness.exhausted_count, 1);
+        assert_eq!(fitness.critical_count, 0);
+        // The injured player is outside the figures but not outside the lists.
+        assert_eq!(fitness.statuses.len(), 2);
+        assert_eq!(
+            fitness.statuses["player-2"].band,
+            ofm_core::training::FitnessStatus::Critical
+        );
+
+        game.manager.team_id = None;
+        state.set_game(game);
+        assert_eq!(get_squad_fitness_internal(&state), Ok(None));
+    }
+
     #[test]
     fn set_formation_internal_reports_a_team_id_that_matches_no_club() {
         let state = StateManager::new();
         state.set_game(make_game_with_dangling_team_id(make_player("1998-01-01")));
 
-        let result = set_formation_internal(&state, "4-3-3");
+        let result = set_formation_internal(&state, Career::Active, "4-3-3");
 
         assert_eq!(result.err(), Some("be.error.teamNotFound".into()));
 
         let stored = state.get_game(|game| game.clone()).expect("stored game");
         assert_ne!(stored.teams[0].formation, "4-3-3");
+    }
+
+    /// Given career B is active (token 2) and a screen still holds career A's token (1)
+    /// When the lineup, formation, style, role and training writes arrive with A's token
+    /// Then each is refused with the career-changed key and career B's club is untouched.
+    #[test]
+    fn squad_writes_for_a_replaced_career_are_refused_and_change_nothing() {
+        use super::{set_starting_xi_internal, set_training_internal};
+        let state = StateManager::new();
+        let mut game = make_game(make_player("1998-01-01"));
+        game.career_token = 2;
+        state.set_game(game);
+        let before = state.get_game(|game| game.teams.clone()).unwrap();
+        let stale = Career::Token(1);
+        let careers_changed = "be.error.careerChanged".to_string();
+
+        let refusals = [
+            set_formation_internal(&state, stale, "4-3-3").map(|_| ()),
+            set_play_style_internal(&state, stale, "Attacking").map(|_| ()),
+            set_starting_xi_internal(&state, stale, vec!["player-1".to_string()]).map(|_| ()),
+            set_training_internal(&state, stale, "Physical", "High").map(|_| ()),
+        ];
+
+        for refusal in refusals {
+            assert_eq!(refusal, Err(careers_changed.clone()));
+        }
+        let after = state.get_game(|game| game.teams.clone()).unwrap();
+        assert_eq!(
+            serde_json::to_value(&after).unwrap(),
+            serde_json::to_value(&before).unwrap()
+        );
+        assert!(set_formation_internal(&state, Career::Token(2), "4-3-3").is_ok());
+    }
+
+    /// The user's club with twelve healthy seniors (`own-0` .. `own-11`) and a rival's player.
+    fn state_with_twelve_players_and_a_rival() -> StateManager {
+        let mut game = make_game(make_player_for_team("own-0", "team-1", "1998-01-01"));
+        for index in 1..12 {
+            game.players.push(make_player_for_team(
+                &format!("own-{index}"),
+                "team-1",
+                "1998-01-01",
+            ));
+        }
+        game.players
+            .push(make_player_for_team("rival-0", "team-2", "1998-01-01"));
+        let state = StateManager::new();
+        state.set_game(game);
+        state
+    }
+
+    fn own_ids(range: std::ops::Range<usize>) -> Vec<String> {
+        range.map(|index| format!("own-{index}")).collect()
+    }
+
+    fn stored_xi(state: &StateManager) -> Vec<String> {
+        state
+            .get_game(|game| game.teams[0].starting_xi_ids.clone())
+            .expect("stored game")
+    }
+
+    /// Given a club of twelve healthy players,
+    /// When eleven of them are saved as the starting XI (the entry the screens and the MCP tool share),
+    /// Then the XI is stored as given.
+    #[test]
+    fn set_starting_xi_internal_saves_a_valid_xi() {
+        let state = state_with_twelve_players_and_a_rival();
+
+        let result = set_starting_xi_internal(&state, Career::Active, own_ids(1..12));
+
+        assert!(result.is_ok());
+        assert_eq!(stored_xi(&state), own_ids(1..12));
+    }
+
+    /// Given a club's saved XI and an attempt (from a screen or an MCP agent) to save one that
+    ///       names a rival's player, one too short, and one with a player twice,
+    /// When each is saved,
+    /// Then each is refused with its own translation key and the saved XI is unchanged.
+    #[test]
+    fn set_starting_xi_internal_refuses_a_bad_xi_and_changes_nothing() {
+        let state = state_with_twelve_players_and_a_rival();
+        let before = stored_xi(&state);
+        let mut with_rival = own_ids(0..10);
+        with_rival.push("rival-0".to_string());
+        let mut with_a_repeat = own_ids(0..10);
+        with_a_repeat.push("own-3".to_string());
+
+        let refusals = [
+            (with_rival, "be.error.startingXiPlayerNotEligible"),
+            (own_ids(0..10), "be.error.startingXiWrongSize"),
+            (with_a_repeat, "be.error.startingXiDuplicatePlayer"),
+        ];
+
+        for (ids, key) in refusals {
+            let result = set_starting_xi_internal(&state, Career::Active, ids).map(|_| ());
+            assert_eq!(result, Err(key.to_string()));
+            assert_eq!(stored_xi(&state), before);
+        }
     }
 
     /// A club whose manager has hand-tuned two dials away from its style's blueprint.
@@ -827,12 +1071,68 @@ mod tests {
     fn apply_tactic_preset_resets_the_blueprint_to_the_presets_style() {
         let state = state_with_custom_dials();
 
-        apply_tactic_preset_internal(&state, "3-4-3", "Defensive").expect("preset applies");
+        apply_tactic_preset_internal(&state, Career::Active, "3-4-3", "Defensive")
+            .expect("preset applies");
 
         let team = stored_team(&state);
         assert_eq!(team.formation, "3-4-3");
         assert_eq!(team.play_style, PlayStyle::Defensive);
         assert_eq!(team.tactics_phase, blueprint_for(&PlayStyle::Defensive));
+    }
+
+    /// Given a manager whose phase dials were tuned away from their style's blueprint
+    /// When the blueprint status is read
+    /// Then it reports the blueprint as modified
+    #[test]
+    fn tuned_dials_report_the_blueprint_as_modified() {
+        let state = state_with_custom_dials();
+
+        assert_eq!(
+            get_tactics_blueprint_status_internal(&state),
+            Ok(TacticsBlueprintStatus { modified: true })
+        );
+    }
+
+    /// Given a manager whose dials are exactly their style's blueprint
+    /// When the blueprint status is read
+    /// Then it reports the blueprint as unmodified
+    #[test]
+    fn a_style_blueprint_left_alone_is_not_modified() {
+        let state = state_with_custom_dials();
+        apply_tactic_preset_internal(&state, Career::Active, "4-4-2", "Defensive")
+            .expect("preset applies");
+
+        assert_eq!(
+            get_tactics_blueprint_status_internal(&state),
+            Ok(TacticsBlueprintStatus { modified: false })
+        );
+    }
+
+    /// Given dials that equal the blueprint of the previous style
+    /// When only the play style changes
+    /// Then the blueprint reads as modified, because it no longer matches the new style
+    #[test]
+    fn changing_the_style_alone_leaves_the_old_blueprint_modified() {
+        let state = state_with_custom_dials();
+        apply_tactic_preset_internal(&state, Career::Active, "4-4-2", "Balanced")
+            .expect("preset applies");
+        set_play_style_internal(&state, Career::Active, "Attacking").expect("style applies");
+
+        assert_eq!(
+            get_tactics_blueprint_status_internal(&state),
+            Ok(TacticsBlueprintStatus { modified: true })
+        );
+    }
+
+    /// Given no active game session
+    /// When the blueprint status is read
+    /// Then it fails with the no-session key
+    #[test]
+    fn the_blueprint_status_needs_a_session() {
+        assert_eq!(
+            get_tactics_blueprint_status_internal(&StateManager::new()),
+            Err("be.error.noActiveGameSession".to_string())
+        );
     }
 
     /// Given a manager with custom dials
@@ -842,7 +1142,7 @@ mod tests {
     fn changing_the_play_style_alone_keeps_the_custom_dials() {
         let state = state_with_custom_dials();
 
-        set_play_style_internal(&state, "Defensive").expect("style applies");
+        set_play_style_internal(&state, Career::Active, "Defensive").expect("style applies");
 
         let team = stored_team(&state);
         assert_eq!(team.play_style, PlayStyle::Defensive);
@@ -857,7 +1157,8 @@ mod tests {
     fn re_picking_the_active_preset_restores_its_blueprint() {
         let state = state_with_custom_dials();
 
-        apply_tactic_preset_internal(&state, "4-4-2", "Balanced").expect("preset applies");
+        apply_tactic_preset_internal(&state, Career::Active, "4-4-2", "Balanced")
+            .expect("preset applies");
 
         assert_eq!(
             stored_team(&state).tactics_phase,
@@ -873,7 +1174,7 @@ mod tests {
         let state = StateManager::new();
         state.set_game(make_game_with_dangling_team_id(make_player("1998-01-01")));
 
-        let result = apply_tactic_preset_internal(&state, "3-4-3", "Attacking");
+        let result = apply_tactic_preset_internal(&state, Career::Active, "3-4-3", "Attacking");
 
         assert_eq!(result.err(), Some("be.error.teamNotFound".into()));
         let team = stored_team(&state);
@@ -892,9 +1193,26 @@ mod tests {
         state.set_game(game);
 
         assert_eq!(
-            apply_tactic_preset_internal(&state, "3-4-3", "Attacking").err(),
+            apply_tactic_preset_internal(&state, Career::Active, "3-4-3", "Attacking").err(),
             Some("be.error.noTeamAssigned".into())
         );
+    }
+
+    /// Given a managed club
+    /// When a formation the game cannot lay out is set
+    /// Then it is refused and the club keeps the one it had.
+    #[test]
+    fn set_formation_internal_refuses_a_formation_that_does_not_parse() {
+        let state = state_with_custom_dials();
+        let before = stored_team(&state).formation;
+
+        let result = set_formation_internal(&state, Career::Active, "10-0-0");
+
+        assert_eq!(
+            result.err(),
+            Some("be.error.customTactic.invalidFormation".to_string())
+        );
+        assert_eq!(stored_team(&state).formation, before);
     }
 
     #[test]
@@ -905,7 +1223,7 @@ mod tests {
         state.set_game(game);
 
         assert_eq!(
-            set_formation_internal(&state, "4-3-3").err(),
+            set_formation_internal(&state, Career::Active, "4-3-3").err(),
             Some("be.error.noTeamAssigned".into())
         );
     }
@@ -915,7 +1233,7 @@ mod tests {
         let state = StateManager::new();
         state.set_game(make_game_with_dangling_team_id(make_player("2008-01-01")));
 
-        let result = set_player_squad_role_internal(&state, "player-1", "Youth");
+        let result = set_player_squad_role_internal(&state, Career::Active, "player-1", "Youth");
 
         assert_eq!(result.err(), Some("be.error.teamNotFound".into()));
 
@@ -930,8 +1248,8 @@ mod tests {
         let state = StateManager::new();
         state.set_game(make_game(make_player("2008-01-01")));
 
-        let response =
-            set_player_squad_role_internal(&state, "player-1", "Youth").expect("response");
+        let response = set_player_squad_role_internal(&state, Career::Active, "player-1", "Youth")
+            .expect("response");
 
         assert_eq!(response.players[0].squad_role, SquadRole::Youth);
         assert!(response.teams[0].starting_xi_ids.is_empty());
@@ -1030,7 +1348,7 @@ mod tests {
         // player-1 is a Forward and the only outfield player on the team.
         state.set_game(make_game(make_player("1998-01-01")));
 
-        set_formation_internal(&state, "4-4-2").expect("formation set");
+        set_formation_internal(&state, Career::Active, "4-4-2").expect("formation set");
 
         let stored = state.get_game(|game| game.clone()).expect("stored game");
         // Previously set_formation stat-ranked this player into the Defender
@@ -1064,6 +1382,7 @@ mod tests {
         // natural position is Forward (the issue #257 repro).
         let result = set_player_role_internal(
             &state,
+            Career::Active,
             "player-1".to_string(),
             Some("DefensiveFB".to_string()),
         )
@@ -1074,9 +1393,13 @@ mod tests {
         );
 
         // A midfield role is not valid at the RB slot.
-        let error =
-            set_player_role_internal(&state, "player-1".to_string(), Some("BoxToBox".to_string()))
-                .expect_err("BoxToBox is not valid at the RB slot");
+        let error = set_player_role_internal(
+            &state,
+            Career::Active,
+            "player-1".to_string(),
+            Some("BoxToBox".to_string()),
+        )
+        .expect_err("BoxToBox is not valid at the RB slot");
         assert_eq!(error, "be.error.roleNotValidForPosition");
     }
 
@@ -1247,7 +1570,8 @@ mod tests {
         let state = StateManager::new();
         state.set_game(make_game(make_player("1998-01-01")));
 
-        let error = set_player_squad_role_internal(&state, "player-1", "Youth").expect_err("error");
+        let error = set_player_squad_role_internal(&state, Career::Active, "player-1", "Youth")
+            .expect_err("error");
 
         assert_eq!(error, "be.error.youthAcademyOverage");
     }
@@ -1276,8 +1600,13 @@ mod tests {
         );
         state.set_game(game);
 
-        let error = set_player_training_focus_internal(&state, "player-2", Some("Technical"))
-            .expect_err("cross-team player should be rejected");
+        let error = set_player_training_focus_internal(
+            &state,
+            Career::Active,
+            "player-2",
+            Some("Technical"),
+        )
+        .expect_err("cross-team player should be rejected");
 
         assert_eq!(error, "be.error.playerNotFound");
 
@@ -1295,5 +1624,23 @@ mod tests {
             .find(|player| player.id == "player-1")
             .expect("user player");
         assert_ne!(user_player.training_focus, Some(TrainingFocus::Technical));
+    }
+
+    /// Given the command that names every rating's tier,
+    /// When it is asked for,
+    /// Then it is the backend's table: a 69 is the rest, a 70 and a 76 are B, a 77 an A, an 81 an S,
+    ///      and it needs no game.
+    #[test]
+    fn get_rating_tiers_is_the_backends_table() {
+        use ofm_core::player_tier::PlayerTier;
+
+        let tiers = get_rating_tiers();
+
+        assert_eq!(tiers.len(), 100);
+        assert_eq!(tiers[69], PlayerTier::Rest);
+        assert_eq!(tiers[70], PlayerTier::B);
+        assert_eq!(tiers[76], PlayerTier::B);
+        assert_eq!(tiers[77], PlayerTier::A);
+        assert_eq!(tiers[81], PlayerTier::S);
     }
 }

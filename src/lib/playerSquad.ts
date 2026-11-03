@@ -20,6 +20,24 @@ export function canDelegateToYouthAcademy(
   return isSeniorSquadPlayer(player) && calcAge(player.date_of_birth) <= 21;
 }
 
+/**
+ * Whether the backend lets this player be picked for the match day. Its verdict, not an injury
+ * test: when fewer than eleven are healthy it fields injured players too, and the builder only
+ * knows the squad it was given. Absent until the squad has been fetched, which reads as "not yet".
+ */
+export function isMatchDayEligible(player: Pick<PlayerData, "match_day_eligible">): boolean {
+  return player.match_day_eligible === true;
+}
+
+/**
+ * Whether the backend has said this player can't be picked for the match day: only its explicit
+ * "no". Before the squad is fetched the verdict is absent, which is neither yes nor no, so a
+ * warning drawn from it waits.
+ */
+export function isRuledOutOfMatchDay(player: Pick<PlayerData, "match_day_eligible">): boolean {
+  return player.match_day_eligible === false;
+}
+
 /** Seniors remain manageable during injury; youth visibility comes from the backend call-up. */
 export function isFirstTeamSquadPlayer(
   player: Pick<PlayerData, "squad_role" | "match_day_eligible">,

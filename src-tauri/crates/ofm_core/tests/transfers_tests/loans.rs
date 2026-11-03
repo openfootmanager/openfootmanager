@@ -100,6 +100,176 @@ fn opening_loan_market_is_idempotent_after_each_ai_club_reaches_target() {
     );
 }
 
+fn loan_negotiation_game(id: &str) -> Game {
+    let mut player = make_player(id);
+    player.loan_listed = true;
+    player.ovr = 62;
+    player.potential = 74;
+    player.stats.appearances = 2;
+    player.stats.minutes_played = 180;
+    player.stage_wage(520_000);
+    make_game_with_player(player, vec![id.to_string()], 5_000_000, 2_000_000)
+}
+
+fn own_loan_offers(game: &Game, id: &str) -> Vec<LoanOffer> {
+    find_player(game, id)
+        .loan_offers
+        .iter()
+        .filter(|offer| offer.from_team_id == "team-1")
+        .cloned()
+        .collect()
+}
+
+/// Given a loan approach the owner turns down (#302)
+/// When the same club asks again the next day
+/// Then it is the same negotiation one round on, not a fresh row.
+#[test]
+fn a_loan_bid_after_a_rejection_continues_the_negotiation() {
+    let mut game = loan_negotiation_game("player-loan-memory");
+    let first = make_loan_offer(&mut game, "player-loan-memory", "2027-01-01", 0, None)
+        .expect("first approach");
+    assert_eq!(first.decision, LoanOfferDecision::Rejected);
+
+    game.clock.advance_days(1);
+    make_loan_offer(&mut game, "player-loan-memory", "2027-01-01", 0, None)
+        .expect("second approach");
+
+    let offers = own_loan_offers(&game, "player-loan-memory");
+    assert_eq!(offers.len(), 1, "one negotiation, one row: {offers:?}");
+    assert_eq!(offers[0].negotiation_round, 2);
+}
+
+/// Given a loan approach the owner (team-2) turned down
+/// When the player is sold to another club (team-3) and the user asks them for a loan
+/// Then it is a new negotiation at round one: team-3 has refused nobody.
+#[test]
+fn a_loan_refusal_by_the_previous_owner_is_not_remembered_by_the_new_one() {
+    let mut game = loan_negotiation_game("player-loan-sold-on");
+    let first = make_loan_offer(&mut game, "player-loan-sold-on", "2027-01-01", 0, None)
+        .expect("first approach");
+    assert_eq!(first.decision, LoanOfferDecision::Rejected);
+
+    game.clock.advance_days(1);
+    let mut third = make_seller_team(vec![]);
+    third.id = "team-3".to_string();
+    third.name = "Third Town".to_string();
+    game.teams.push(third);
+    give_every_club_squad_depth(&mut game);
+    let today = game.clock.current_date.format("%Y-%m-%d").to_string();
+    let player = game
+        .players
+        .iter_mut()
+        .find(|player| player.id == "player-loan-sold-on")
+        .expect("player present");
+    player.team_id = Some("team-3".to_string());
+    player
+        .record_movement(domain::player::PlayerMovementEntry {
+            from_team_id: Some("team-2".to_string()),
+            to_team_id: Some("team-3".to_string()),
+            ..domain::player::PlayerMovementEntry::new(
+                today,
+                domain::player::PlayerMovementKind::PermanentTransfer,
+            )
+        })
+        .expect("the move is recorded");
+
+    game.clock.advance_days(1);
+    make_loan_offer(&mut game, "player-loan-sold-on", "2027-01-01", 0, None)
+        .expect("an approach to the new owner");
+
+    let offers = own_loan_offers(&game, "player-loan-sold-on");
+    let rounds: Vec<u8> = offers.iter().map(|offer| offer.negotiation_round).collect();
+    assert!(
+        rounds.iter().all(|round| *round == 1),
+        "the new owner starts afresh: {rounds:?}"
+    );
+    // A new offer row, addressed to the new owner, beside the refused one.
+    assert_eq!(offers.len(), 2, "{offers:?}");
+    assert_ne!(offers[0].id, offers[1].id);
+    assert!(
+        offers.iter().any(|offer| offer.parent_team_id == "team-3"),
+        "{offers:?}"
+    );
+}
+
+/// Given a loan approach the owner turned down, and the player then leaves the club and comes back
+/// When the same club asks again
+/// Then it is a new negotiation at round one: the refusal was said in an earlier spell there.
+#[test]
+fn a_loan_refusal_from_an_earlier_spell_at_the_same_club_is_not_remembered() {
+    let mut game = loan_negotiation_game("player-loan-returned");
+    let first = make_loan_offer(&mut game, "player-loan-returned", "2027-01-01", 0, None)
+        .expect("first approach");
+    assert_eq!(first.decision, LoanOfferDecision::Rejected);
+
+    for (days, from, to) in [(1, "team-2", "team-3"), (1, "team-3", "team-2")] {
+        game.clock.advance_days(days);
+        let on = game.clock.current_date.format("%Y-%m-%d").to_string();
+        game.players
+            .iter_mut()
+            .find(|player| player.id == "player-loan-returned")
+            .expect("player present")
+            .record_movement(domain::player::PlayerMovementEntry {
+                from_team_id: Some(from.to_string()),
+                to_team_id: Some(to.to_string()),
+                ..domain::player::PlayerMovementEntry::new(
+                    on,
+                    domain::player::PlayerMovementKind::PermanentTransfer,
+                )
+            })
+            .expect("the move is recorded");
+    }
+
+    game.clock.advance_days(1);
+    make_loan_offer(&mut game, "player-loan-returned", "2027-01-01", 0, None)
+        .expect("an approach after the return");
+
+    let offers = own_loan_offers(&game, "player-loan-returned");
+    let rounds: Vec<u8> = offers.iter().map(|offer| offer.negotiation_round).collect();
+    assert!(
+        rounds.iter().all(|round| *round == 1),
+        "a second spell starts afresh: {rounds:?}"
+    );
+    // The return starts a new offer row beside the refused one, rather than reusing it.
+    assert_eq!(offers.len(), 2, "{offers:?}");
+    assert_ne!(offers[0].id, offers[1].id);
+}
+
+/// Given a club that keeps lowballing the same loan
+/// When it reaches the fourth refusal
+/// Then the owner ends the talks until the shared cooldown has passed, after which it starts at
+///      round one: the same rule as a permanent bid.
+#[test]
+fn the_owner_stops_taking_loan_approaches_after_four_refusals() {
+    let mut game = loan_negotiation_game("player-loan-walkaway");
+    for day in 0..4 {
+        if day > 0 {
+            game.clock.advance_days(1);
+        }
+        let outcome = make_loan_offer(&mut game, "player-loan-walkaway", "2027-01-01", 0, None)
+            .expect("an approach");
+        assert_eq!(outcome.decision, LoanOfferDecision::Rejected);
+    }
+
+    game.clock.advance_days(1);
+    assert_eq!(
+        make_loan_offer(&mut game, "player-loan-walkaway", "2027-01-01", 0, None).unwrap_err(),
+        "be.error.transfers.talksBrokenOff"
+    );
+
+    game.clock.advance_days(31);
+    make_loan_offer(&mut game, "player-loan-walkaway", "2027-01-01", 0, None)
+        .expect("talks reopen after the cooldown");
+    let rounds: Vec<u8> = own_loan_offers(&game, "player-loan-walkaway")
+        .iter()
+        .map(|offer| offer.negotiation_round)
+        .collect();
+    assert!(
+        rounds.contains(&1),
+        "a new negotiation starts at round one: {rounds:?}"
+    );
+}
+
 #[test]
 fn accepted_loan_offer_moves_player_until_return_date() {
     let mut player = make_player("player-loan-target");
@@ -1748,4 +1918,287 @@ fn a_loan_to_buy_is_judged_at_the_whole_wage_not_the_loan_share() {
         .unwrap();
     assert!(target.active_loan.is_some(), "he is still on loan");
     assert_eq!(game.teams[0].finance, 5_000_000, "no fee was paid");
+}
+
+/// The owner's answer to a loan bid at full wage with a buy option of `fee`, for a loan-listed
+/// team-2 player valued `market_value` with no games this season. `in_owners_eleven` makes him
+/// a key player.
+fn loan_bid_with_buy_option(
+    market_value: u64,
+    in_owners_eleven: bool,
+    fee: u64,
+) -> LoanOfferDecision {
+    let mut player = make_player("player-buy-option-price");
+    player.loan_listed = true;
+    player.market_value = market_value;
+    player.stats.appearances = 0;
+    let owners_eleven = if in_owners_eleven {
+        vec!["player-buy-option-price".to_string()]
+    } else {
+        vec![]
+    };
+    let mut game = make_game_with_player(player, owners_eleven, 5_000_000, 5_000_000);
+
+    make_loan_offer(
+        &mut game,
+        "player-buy-option-price",
+        "2027-01-01",
+        100,
+        Some(fee),
+    )
+    .expect("the bid is answered")
+    .decision
+}
+
+/// Given a loan-listed fringe player valued 1,000,000 who has not played: his owner wants a buy
+///       option of at least 900,000
+/// When the user bids for him on loan at full wage, with a buy option of 500,000, 899,999 and
+///      then 900,000
+/// Then the first two are rejected and the third accepted.
+#[test]
+fn a_loan_bid_with_a_buy_option_below_a_fringe_players_price_is_rejected() {
+    assert_eq!(
+        loan_bid_with_buy_option(1_000_000, false, 500_000),
+        LoanOfferDecision::Rejected
+    );
+    assert_eq!(
+        loan_bid_with_buy_option(1_000_000, false, 899_999),
+        LoanOfferDecision::Rejected
+    );
+    assert_eq!(
+        loan_bid_with_buy_option(1_000_000, false, 900_000),
+        LoanOfferDecision::Accepted
+    );
+}
+
+/// Given a loan-listed player valued 1,000,000 in his owner's starting eleven: the owner wants a
+///       buy option of at least 1,200,000 for a key player
+/// When the user bids with a buy option of 1,000,000 and then 1,200,000
+/// Then the first is rejected and the second accepted.
+#[test]
+fn a_loan_bid_with_a_buy_option_below_a_key_players_price_is_rejected() {
+    assert_eq!(
+        loan_bid_with_buy_option(1_000_000, true, 1_000_000),
+        LoanOfferDecision::Rejected
+    );
+    assert_eq!(
+        loan_bid_with_buy_option(1_000_000, true, 1_200_000),
+        LoanOfferDecision::Accepted
+    );
+}
+
+/// Given a loan-listed regular valued 2,000,000, outside his owner's eleven: the owner wants a
+///       buy option of at least 2,100,000
+/// When the user bids with a buy option of 2,000,000 and then 2,100,000
+/// Then the first is rejected and the second accepted.
+#[test]
+fn a_loan_bid_with_a_buy_option_below_a_regulars_price_is_rejected() {
+    assert_eq!(
+        loan_bid_with_buy_option(2_000_000, false, 2_000_000),
+        LoanOfferDecision::Rejected
+    );
+    assert_eq!(
+        loan_bid_with_buy_option(2_000_000, false, 2_100_000),
+        LoanOfferDecision::Accepted
+    );
+}
+
+/// Given a team-2 player at the head of the player list holding a pending loan offer from team-3
+/// When the user tries to accept that offer as if he were theirs
+/// Then it is refused as not the user's player, and he stays at team-2 with no loan.
+#[test]
+fn accepting_a_loan_offer_for_another_clubs_player_is_refused() {
+    let mut player = make_player("player-not-ours");
+    let mut offer = make_pending_incoming_loan_offer("loan-not-ours", 75, None);
+    offer.from_team_id = "team-3".to_string();
+    offer.parent_team_id = "team-2".to_string();
+    player.loan_offers.push(offer);
+    let mut game = make_game_with_player(player, vec![], 5_000_000, 2_000_000);
+    game.teams
+        .push(make_ai_team("team-3", "Third FC", 6_000_000, 3_000_000));
+    give_every_club_squad_depth(&mut game);
+    assert_eq!(game.players[0].id, "player-not-ours");
+
+    let result = respond_to_loan_offer(&mut game, "player-not-ours", "loan-not-ours", true);
+
+    assert_eq!(
+        result.err().as_deref(),
+        Some("be.error.transfers.playerNotOwnedByUser")
+    );
+    let player = find_player(&game, "player-not-ours");
+    assert_eq!(player.team_id.as_deref(), Some("team-2"));
+    assert!(player.active_loan.is_none());
+}
+
+/// Given two of the user's players, the second of them holding a pending loan offer from team-2
+/// When the user accepts that offer
+/// Then the named player goes out on loan, not the first of the user's players.
+#[test]
+fn accepting_a_loan_offer_loans_out_the_named_player() {
+    let mut player = make_user_player("player-named");
+    player.loan_listed = true;
+    player.stage_wage(520_000);
+    player
+        .loan_offers
+        .push(make_pending_incoming_loan_offer("loan-named", 75, None));
+    let mut game = make_game_with_player(player, vec![], 5_000_000, 2_000_000);
+    game.players
+        .insert(0, make_user_player("player-listed-first"));
+    game.teams[1].wage_budget = 500_000;
+
+    respond_to_loan_offer(&mut game, "player-named", "loan-named", true)
+        .expect("the user's player can be loaned out");
+
+    assert_eq!(
+        find_player(&game, "player-named").team_id.as_deref(),
+        Some("team-2")
+    );
+    assert_eq!(
+        find_player(&game, "player-listed-first").team_id.as_deref(),
+        Some("team-1")
+    );
+}
+
+/// Given a user player out on loan at team-2 since 2026-08-01, playing regularly
+/// When the daily loan reports run on his first day, after fifteen days and after thirty days
+/// Then only the thirty-day run writes a development report.
+#[test]
+fn a_loan_development_report_comes_every_thirty_days_and_never_on_the_first_day() {
+    let mut player = make_user_player("player-report-cadence");
+    player.team_id = Some("team-2".to_string());
+    player.ovr = 60;
+    player.potential = 75;
+    player.stats.minutes_played = 360;
+    player.active_loan = Some(ActiveLoan {
+        parent_team_id: "team-1".to_string(),
+        loan_team_id: "team-2".to_string(),
+        start_date: "2026-08-01".to_string(),
+        end_date: "2027-01-01".to_string(),
+        wage_contribution_pct: 75,
+        buy_option_fee: None,
+        loan_start_minutes: 0,
+        loan_start_appearances: 0,
+        development_reported_minutes: 0,
+        development_reported_appearances: 0,
+    });
+    let mut game = make_game_with_player(player, vec![], 5_000_000, 2_000_000);
+    game.teams[1].reputation = 700;
+
+    for day in [1, 16, 31] {
+        game.clock.current_date = Utc.with_ymd_and_hms(2026, 8, day, 12, 0, 0).unwrap();
+        process_loan_development_reports(&mut game);
+    }
+
+    let report_days: Vec<&str> = game
+        .messages
+        .iter()
+        .filter_map(|message| {
+            message
+                .id
+                .strip_prefix("loan_development_player-report-cadence_")
+        })
+        .collect();
+    assert_eq!(report_days, vec!["2026-08-31"]);
+}
+
+/// Given a user player rated 60 with potential 66 on a 520,000 wage, and team-2 offering to pay
+///       40% of it on loan
+/// When the user counters at 70%
+/// Then team-2 counters at 66%: 20 points more for a player with some room to grow, plus 6 for a
+///      modest wage, and no further.
+#[test]
+fn a_borrower_concedes_twenty_more_points_of_wage_for_a_promising_loanee() {
+    let mut player = make_user_player("player-promising-loanee");
+    player.loan_listed = true;
+    player.stage_wage(520_000);
+    player.ovr = 60;
+    player.potential = 66;
+    player
+        .loan_offers
+        .push(make_pending_incoming_loan_offer("loan-promising", 40, None));
+    let mut game = make_game_with_player(player, vec![], 5_000_000, 2_000_000);
+
+    let outcome = counter_loan_offer(
+        &mut game,
+        "player-promising-loanee",
+        "loan-promising",
+        "2027-01-01",
+        70,
+        None,
+    )
+    .expect("the counter is answered");
+
+    assert_eq!(outcome.decision, LoanOfferDecision::CounterOffer);
+    assert_eq!(outcome.suggested_wage_contribution_pct, Some(66));
+}
+
+/// Given the user has a player on loan from team-2 with a 1,250,000 buy option, and exactly
+///       1,250,000 left in the transfer budget
+/// When the user exercises the option
+/// Then the purchase goes through: the budget covers the fee to the last unit.
+#[test]
+fn a_buy_option_can_be_exercised_with_exactly_the_fee_left_in_the_transfer_budget() {
+    let mut player = make_player("player-exact-budget");
+    player.loan_listed = true;
+    player.ovr = 62;
+    player.potential = 74;
+    player.stats.appearances = 0;
+    player.stage_wage(520_000);
+    let mut game = make_game_with_player(player, vec![], 5_000_000, 2_000_000);
+    make_loan_offer(
+        &mut game,
+        "player-exact-budget",
+        "2027-01-01",
+        40,
+        Some(1_250_000),
+    )
+    .expect("loan-to-buy terms the owner accepts");
+    game.teams[0].transfer_budget = 1_250_000;
+
+    exercise_loan_buy_option(&mut game, "player-exact-budget")
+        .expect("the fee fits the budget exactly");
+
+    assert_eq!(
+        find_player(&game, "player-exact-budget").team_id.as_deref(),
+        Some("team-1")
+    );
+    assert_eq!(game.teams[0].transfer_budget, 0);
+}
+
+/// Given the user has a player on loan at 40% of his 520,000 wage (about 208,000 a week on the
+///       bill), and a wage budget 400,000 above the current bill
+/// When the user exercises the buy option, putting him on the buyer's whole wage (about 570,000)
+/// Then the purchase goes through: the bill rises by the whole wage less the loan share it already
+///      carries, about 362,000, within the board's 10% over budget. Counting the loan share twice
+///      would put it about 778,000 up and refuse it.
+#[test]
+fn a_loan_to_buy_within_the_whole_wage_budget_is_not_charged_the_loan_share_twice() {
+    let mut player = make_player("player-buy-within-policy");
+    player.loan_listed = true;
+    player.ovr = 62;
+    player.potential = 74;
+    player.stats.appearances = 0;
+    player.stage_wage(520_000);
+    let mut game = make_game_with_player(player, vec![], 5_000_000, 2_000_000);
+    attach_transfer_log_league(&mut game);
+    give_depth(&mut game, "team-1");
+    make_loan_offer(
+        &mut game,
+        "player-buy-within-policy",
+        "2027-01-01",
+        40,
+        Some(1_250_000),
+    )
+    .expect("the loan fits the budget it was agreed under");
+    game.teams[0].wage_budget = calc_wages(&game, "team-1") + 400_000;
+
+    exercise_loan_buy_option(&mut game, "player-buy-within-policy")
+        .expect("the whole wage, less the share already paid, is within the board's policy");
+
+    assert_eq!(
+        find_player(&game, "player-buy-within-policy")
+            .team_id
+            .as_deref(),
+        Some("team-1")
+    );
 }

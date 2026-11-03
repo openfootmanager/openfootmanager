@@ -1,0 +1,39 @@
+{
+  "schema": "competition",
+  "id": "harness-d1",
+  "name": "Harness Division One",
+  "type": "League",
+  "scope": "Domestic",
+  "countryId": "ENG",
+  "priority": 0,
+  "format": {
+    "kind": "LeagueTable",
+    "legs": 2
+  },
+  "participants": {
+    "explicit": [
+      "ashford-fc",
+      "brackley-fc",
+      "carlow-fc",
+      "dunmore-fc",
+      "eastleigh-fc",
+      "fenwick-fc",
+      "garston-fc",
+      "hartley-fc",
+      "ivybridge-fc",
+      "jarrow-fc",
+      "kenton-fc",
+      "lydford-fc",
+      "marlow-fc",
+      "netley-fc",
+      "oakham-fc",
+      "penrith-fc",
+      "queensbury-fc",
+      "redcar-fc",
+      "sandford-fc",
+      "thornbury-fc"
+    ]
+  },
+  "seasonStartMonth": 8,
+  "seasonStartDay": 1
+}

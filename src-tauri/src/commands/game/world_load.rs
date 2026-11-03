@@ -23,21 +23,32 @@ pub(super) fn load_world_data_from_path(
     world_source: &str,
 ) -> Result<ofm_core::generator::WorldData, String> {
     let path = world_source.strip_prefix("file:").unwrap_or(world_source);
+    // The loader's own key is the answer: a file that is there but not a world says so, instead
+    // of "failed to read".
     ofm_core::generator::load_world_from_path(std::path::Path::new(path))
-        .map_err(|_| "be.error.worldReadFileFailed".to_string())
 }
+
+/// A world with the reputations its competitions were validated against: a package
+/// authors them, any other source ranks by the clubs' own.
+pub(super) type LoadedWorld = (ofm_core::generator::WorldData, AuthoredReputations);
 
 /// Load a world from a modular package directory (recursively scanned, schema
 /// typed). Rejects an invalid package so a broken mod never loads half-applied.
 pub(super) fn load_world_data_from_package(
     dir: &str,
     sources: &ofm_core::generator::DefinitionSources,
-) -> Result<ofm_core::generator::WorldData, String> {
+) -> Result<LoadedWorld, String> {
     let (package, errors) = ofm_core::generator::load_world_package(std::path::Path::new(dir));
     if !errors.is_empty() {
         return Err(first_package_error_message(&errors));
     }
-    ofm_core::generator::build_world_from_package(&package, None, sources)
+    let world = ofm_core::generator::build_world_from_package_seeded(
+        rand::random(),
+        &package,
+        None,
+        sources,
+    )?;
+    Ok((world, ofm_core::generator::authored_reputations(&package)))
 }
 
 /// Where the generator looks for definition files, in priority order.
@@ -64,19 +75,28 @@ pub(super) fn definition_sources(
 pub(super) fn load_world_data(
     world_source: Option<&str>,
     sources: &ofm_core::generator::DefinitionSources,
-) -> Result<ofm_core::generator::WorldData, String> {
+) -> Result<LoadedWorld, String> {
     match world_source {
-        None | Some("random") => Ok(ofm_core::generator::generate_world_data(sources)),
+        None | Some("random") => Ok((
+            ofm_core::generator::generate_world_data(sources),
+            AuthoredReputations::new(),
+        )),
         Some(source) => {
             let raw = source.strip_prefix("file:").unwrap_or(source);
             if std::path::Path::new(raw).is_dir() {
                 load_world_data_from_package(raw, sources)
             } else {
-                load_world_data_from_path(source)
+                Ok((
+                    load_world_data_from_path(source)?,
+                    AuthoredReputations::new(),
+                ))
             }
         }
     }
 }
+
+/// The authored reputation of each club by id, which competition selectors rank by.
+pub(super) type AuthoredReputations = std::collections::HashMap<String, u32>;
 
 /// Load world data from a stack of installed `.ofm` packages (by id).
 /// Packages are merged in order with last-wins semantics for duplicate ids.
@@ -91,6 +111,7 @@ pub(super) fn load_world_data_from_package_ids(
     (
         ofm_core::generator::WorldData,
         Vec<ofm_core::generator::PackageLock>,
+        AuthoredReputations,
     ),
     String,
 > {
@@ -138,11 +159,20 @@ pub(super) fn load_world_data_from_package_ids(
     if !errors.is_empty() {
         return Err(first_package_error_message(&errors));
     }
-    let world = ofm_core::generator::build_world_from_package(&merged, opening_year, sources)?;
+    let world = ofm_core::generator::build_world_from_package_seeded(
+        rand::random(),
+        &merged,
+        opening_year,
+        sources,
+    )?;
     if world.teams.is_empty() {
         return Err("be.error.package.noDatabasePackage".to_string());
     }
-    Ok((world, lockfile))
+    Ok((
+        world,
+        lockfile,
+        ofm_core::generator::authored_reputations(&merged),
+    ))
 }
 
 pub(super) fn world_start_year(
@@ -206,11 +236,16 @@ mod tests {
         )
         .unwrap();
 
-        let world = super::load_world_data(
+        let (world, authored) = super::load_world_data(
             Some(dir.to_string_lossy().as_ref()),
             &ofm_core::generator::DefinitionSources::embedded_only(),
         )
         .expect("package loads");
+        assert_eq!(
+            authored.len(),
+            2,
+            "a package directory brings its reputations"
+        );
         assert!(world.teams.iter().any(|t| t.id == "zed-fc"));
         assert!(world.teams.iter().any(|t| t.id == "zed-utd"));
 
@@ -223,6 +258,28 @@ mod tests {
             load_world_data_from_path("file:Z:/definitely-missing/openfootmanager-world.json");
 
         assert_eq!(result.unwrap_err(), "be.error.worldReadFileFailed");
+    }
+
+    /// Given a file that exists but is not a world
+    /// When it is loaded for a new game
+    /// Then the error says it could not be parsed, not that it could not be read.
+    #[test]
+    fn load_world_data_from_path_says_parse_failed_for_a_file_that_is_not_a_world() {
+        let dir = std::env::temp_dir().join(format!(
+            "ofm-world-load-parse-{}",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        std::fs::create_dir_all(&dir).unwrap();
+        let file = dir.join("settings.json");
+        std::fs::write(&file, r#"{"name":"settings"}"#).unwrap();
+
+        let result = load_world_data_from_path(file.to_str().unwrap());
+        std::fs::remove_dir_all(&dir).ok();
+
+        assert_eq!(result.unwrap_err(), "be.error.worldParseFailed");
     }
 
     #[test]

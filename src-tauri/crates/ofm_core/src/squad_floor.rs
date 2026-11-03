@@ -90,6 +90,38 @@ pub(crate) fn senior_counts(game: &Game, team_id: &str) -> [usize; 4] {
     seniors
 }
 
+/// [`senior_counts`] for the two clubs of a fixture, in one pass over the world's players.
+pub(crate) fn senior_counts_of_two(
+    game: &Game,
+    first_team_id: &str,
+    second_team_id: &str,
+) -> ([usize; 4], [usize; 4]) {
+    let mut first = [0; 4];
+    let mut second = [0; 4];
+    for player in &game.players {
+        if holds_up_the_floor(player, first_team_id) {
+            first[group_index(&player.position)] += 1;
+        }
+        if holds_up_the_floor(player, second_team_id) {
+            second[group_index(&player.position)] += 1;
+        }
+    }
+    (first, second)
+}
+
+/// [`senior_counts`] for a club whose players are already found: `club` is where they stand in
+/// `game.players`.
+pub(crate) fn senior_counts_among(game: &Game, team_id: &str, club: &[usize]) -> [usize; 4] {
+    let mut seniors = [0; 4];
+    for &position in club {
+        let player = &game.players[position];
+        if holds_up_the_floor(player, team_id) {
+            seniors[group_index(&player.position)] += 1;
+        }
+    }
+    seniors
+}
+
 /// Every way this club is short of the floor, and by how many players. Group
 /// shortages come first; [`Shortage::Seniors`] counts only the players still
 /// needed once every group is at its minimum. Empty when the club is sound.
@@ -242,13 +274,19 @@ const WOULD_LEAVE_SENIORS_SHORT_ERROR: &str = "be.error.squadFloor.wouldLeaveSen
 /// players on a manager's behalf is his decision until a match cannot go ahead
 /// without them ([`ready_for_kick_off`]).
 pub(crate) fn keep_squads_at_the_floor(game: &mut Game) {
+    let users_club = game.manager.team_id.clone();
+    let mut users_shortfall = Vec::new();
     for (team_id, shortfall) in clubs_below_the_floor(game) {
-        if Some(&team_id) == game.manager.team_id.as_ref() {
-            warn_user_club_is_short(game, &team_id, &shortfall);
+        if Some(&team_id) == users_club.as_ref() {
+            users_shortfall = shortfall;
         } else {
             let top_up = restore_minimum_squad(game, &team_id);
             report_unfilled_ai_club(&team_id, &top_up);
         }
+    }
+    // Every day, short or not: a club that has recovered has to clear what it was warned about.
+    if let Some(team_id) = users_club {
+        warn_user_club_is_short(game, &team_id, &users_shortfall);
     }
 }
 
@@ -268,17 +306,22 @@ pub fn repair_squads_on_load(game: &mut Game) -> bool {
         });
     // Only what changed the game counts: a save whose one short club is the
     // player's, already warned, must not be rewritten on every load.
+    let users_club = game.manager.team_id.clone();
+    let mut users_shortfall = Vec::new();
     let mut changed = false;
     for (team_id, shortfall) in clubs_below_the_floor(game) {
-        if Some(&team_id) == game.manager.team_id.as_ref() {
-            if !user_club_plays_today {
-                changed |= warn_user_club_is_short(game, &team_id, &shortfall);
-            }
+        if Some(&team_id) == users_club.as_ref() {
+            users_shortfall = shortfall;
         } else {
             let top_up = restore_minimum_squad(game, &team_id);
             changed |= !top_up.brought_in().is_empty();
             report_unfilled_ai_club(&team_id, &top_up);
         }
+    }
+    if let Some(team_id) = users_club
+        && !user_club_plays_today
+    {
+        changed |= warn_user_club_is_short(game, &team_id, &users_shortfall);
     }
     changed
 }
@@ -294,10 +337,18 @@ pub fn repair_squads_on_load(game: &mut Game) -> bool {
 /// and told what nobody could fill. An AI club is topped up whenever it is
 /// short, and the top-up is logged as the bug it is: ordinary squad planning
 /// should have got there first.
-pub(crate) fn ready_for_kick_off(game: &mut Game, team_id: &str) {
+///
+/// The caller counts the club's `seniors` ([`senior_counts_of_two`] for a fixture's two clubs):
+/// a sound club, nearly every club on every matchday, is then left alone without another pass
+/// over the players. Returns whether anyone was brought in, so a caller that keeps track of where
+/// the clubs' players are knows to look again.
+pub(crate) fn ready_for_kick_off(game: &mut Game, team_id: &str, seniors: [usize; 4]) -> bool {
     let is_users_club = Some(team_id) == game.manager.team_id.as_deref();
-    if is_users_club && can_put_a_side_out(game, team_id) {
-        return;
+    if is_users_club && can_field_a_side(seniors) {
+        return false;
+    }
+    if shortfall_of(seniors).is_empty() {
+        return false;
     }
     let top_up = restore_minimum_squad(game, team_id);
     if is_users_club {
@@ -315,6 +366,7 @@ pub(crate) fn ready_for_kick_off(game: &mut Game, team_id: &str) {
         }
         report_unfilled_ai_club(team_id, &top_up);
     }
+    !top_up.brought_in().is_empty()
 }
 
 /// An AI club nobody could fill is a world running out of players, and worth
@@ -334,8 +386,11 @@ const PLAYERS_ON_THE_PITCH: usize = 11;
 /// Whether the club has eleven seniors, a goalkeeper among them — counted as
 /// the floor counts. Injured players count: the match builder fields them when
 /// it must.
-fn can_put_a_side_out(game: &Game, team_id: &str) -> bool {
-    let seniors = senior_counts(game, team_id);
+pub fn can_put_a_side_out(game: &Game, team_id: &str) -> bool {
+    can_field_a_side(senior_counts(game, team_id))
+}
+
+fn can_field_a_side(seniors: [usize; 4]) -> bool {
     seniors.iter().sum::<usize>() >= PLAYERS_ON_THE_PITCH
         && seniors[group_index(&Position::Goalkeeper)] > 0
 }
@@ -417,27 +472,63 @@ fn have_for(game: &Game, team_id: &str, shortage: &Shortage) -> usize {
     }
 }
 
-/// One message per shortage. Keyed on the season, the shortage and how many are
-/// left, so the player hears once when the club goes short and again if it gets
-/// worse — not every day it stays that way. Returns whether any was new.
+/// Tells the player about each shortage the club has just entered, and keeps note of which
+/// are being warned about now.
+///
+/// The rule (the maintainer's, 12 Oct 2026): warn when the club enters a shortfall, warn again
+/// when it changes, never repeat one that has not. So the ledger holds one marker per shortage
+/// currently being warned about, `(season, shortage, how many seniors)`: a shortage without a
+/// marker is news, a marker whose shortage has gone is cleared. That is what lets a shape
+/// warned about before warn again once the club has recovered and fallen back into it, which
+/// a permanent per-shape message id could not. A deleted message leaves its marker, so it is
+/// not resent. Returns whether the ledger or the inbox changed.
 fn warn_user_club_is_short(
     game: &mut Game,
     team_id: &str,
     shortfall: &[(Shortage, usize)],
 ) -> bool {
-    let mut sent = false;
     let season = crate::inbox::recurrence_season(game);
     let date = game.clock.current_date.format("%Y-%m-%d").to_string();
     let team_name = game.team_name_or_id(team_id);
-    for (shortage, _) in shortfall {
-        let have = have_for(game, team_id, shortage);
+    let prefix = format!("squad_floor_state:{team_id}:");
+
+    let now: Vec<(String, &Shortage, usize)> = shortfall
+        .iter()
+        .map(|(shortage, _)| {
+            let have = have_for(game, team_id, shortage);
+            (
+                format!("{prefix}{season}:{shortage:?}:{have}"),
+                shortage,
+                have,
+            )
+        })
+        .collect();
+    let previous: Vec<String> = game
+        .emitted_events
+        .range(prefix.clone()..)
+        .take_while(|marker| marker.starts_with(&prefix))
+        .cloned()
+        .collect();
+
+    let mut changed = false;
+    for marker in &previous {
+        if !now.iter().any(|(current, _, _)| current == marker) {
+            game.emitted_events.remove(marker);
+            changed = true;
+        }
+    }
+    for (marker, shortage, have) in now {
+        if previous.contains(&marker) {
+            continue;
+        }
+        game.emitted_events.insert(marker);
+        changed = true;
         let (subject, body, params) =
             shortage_message_parts("be.msg.squadBelowFloor", &team_name, shortage, have);
-        let id = format!("squad_below_floor_{team_id}_{season}_{shortage:?}_{have}");
-        let message = shortage_message(id, &date, &subject, &body, params);
-        sent |= crate::inbox::emit(game, message);
+        let id = format!("squad_below_floor_{team_id}_{date}_{shortage:?}_{have}");
+        crate::inbox::emit(game, shortage_message(id, &date, &subject, &body, params));
     }
-    sent
+    changed
 }
 
 /// One message per shortage nobody could fill, for the player's club. Keyed on
@@ -654,6 +745,8 @@ fn free_agents_best_first(game: &Game, group: &Position) -> Vec<usize> {
         .players
         .iter()
         .enumerate()
+        // Retiring archives a player at once, so none should be here; the filter keeps this
+        // list honest if one ever is (the same check free-agent signing makes).
         .filter(|(_, player)| player.team_id.is_none() && !player.retired)
         .filter(|(_, player)| player.position.to_group_position() == *group)
         .map(|(index, _)| index)
@@ -1000,7 +1093,31 @@ mod tests {
     }
 
     #[test]
-    fn a_retired_player_is_never_signed() {
+    fn an_archived_retiree_is_never_signed() {
+        let mut game = club_with([1, 5, 5, 4]);
+        let mut retired = free_agent("retired_keeper", Position::Goalkeeper, 90);
+        retired.retired = true;
+        game.retired_players
+            .push(domain::retired_player::RetiredPlayer::from_player(
+                &retired,
+                "2040-06-30",
+                2040,
+            ));
+
+        let top_up = restore_minimum_squad(&mut game, "club");
+
+        assert!(top_up.brought_in().is_empty());
+        assert_eq!(top_up.unfilled, vec![(GK, 1)]);
+        assert!(game.players.iter().all(|p| p.id != "retired_keeper"));
+    }
+
+    /// Given a club a keeper short, and a retired keeper left on the roster with no club (no path
+    ///       leaves him there today: retiring archives him at once, and every load and world build
+    ///       archives any it finds)
+    /// When the club tops up its squad
+    /// Then he is not signed: a retiree is never a free agent, wherever he is kept
+    #[test]
+    fn a_retiree_left_on_the_roster_is_never_signed() {
         let mut game = club_with([1, 5, 5, 4]);
         let mut retired = free_agent("retired_keeper", Position::Goalkeeper, 90);
         retired.retired = true;
@@ -1084,6 +1201,29 @@ mod tests {
         );
     }
 
+    /// Given two clubs with different squads and a free agent, When both are counted together,
+    /// Then each gets the count it would get alone and the free agent counts for neither.
+    #[test]
+    fn two_clubs_are_counted_in_one_pass_as_each_is_counted_alone() {
+        let mut game = club_with([1, 5, 5, 4]);
+        for (index, position) in [Position::Goalkeeper, Position::Forward, Position::Forward]
+            .into_iter()
+            .enumerate()
+        {
+            game.players
+                .push(player(&format!("rival_{index}"), Some("rival"), position));
+        }
+        game.players
+            .push(free_agent("loose", Position::Goalkeeper, 60));
+
+        let (club, rival) = senior_counts_of_two(&game, "club", "rival");
+
+        assert_eq!(club, senior_counts(&game, "club"));
+        assert_eq!(club, [1, 5, 5, 4]);
+        assert_eq!(rival, senior_counts(&game, "rival"));
+        assert_eq!(rival, [1, 0, 0, 2]);
+    }
+
     // --- The daily check -------------------------------------------------------
 
     #[test]
@@ -1158,6 +1298,121 @@ mod tests {
         );
     }
 
+    // --- The warning follows the shortfall (#787) ----------------------------------
+
+    fn bodies_of_warnings(game: &Game) -> usize {
+        game.messages
+            .iter()
+            .filter(|m| m.id.starts_with("squad_below_floor_"))
+            .count()
+    }
+
+    /// Given the player's club meets the floor, then loses its keeper
+    /// When the day runs
+    /// Then one warning names the shortfall; before the loss there was none.
+    #[test]
+    fn entering_the_below_floor_state_warns() {
+        let mut game = users_club_with(SOUND);
+        keep_squads_at_the_floor(&mut game);
+        assert_eq!(bodies_of_warnings(&game), 0);
+
+        game.players
+            .retain(|p| p.id != "Goalkeeper0" && p.id != "Goalkeeper1");
+        keep_squads_at_the_floor(&mut game);
+
+        assert_eq!(bodies_of_warnings(&game), 1);
+    }
+
+    /// Given a club short of a keeper and warned
+    /// When its defence also falls short
+    /// Then only the new shortage is announced, not the keeper again.
+    #[test]
+    fn a_changed_shortfall_warns_about_what_changed() {
+        let mut game = users_club_with([1, 5, 5, 4]);
+        keep_squads_at_the_floor(&mut game);
+        game.messages.clear();
+
+        game.players
+            .retain(|p| p.id != "Defender0" && p.id != "Defender1");
+        keep_squads_at_the_floor(&mut game);
+
+        assert_eq!(game.messages.len(), 1, "{:?}", body_keys(&game));
+        assert_eq!(
+            game.messages[0]
+                .i18n_params
+                .get("group")
+                .map(String::as_str),
+            Some("common.positionGroups.Defender")
+        );
+    }
+
+    /// Given a club short in a shape it was already warned about, which then recovers
+    /// When it falls short in that same shape again within the same season
+    /// Then it is warned again: the earlier warning belonged to an earlier shortfall.
+    #[test]
+    fn returning_to_an_earlier_shape_warns_again() {
+        let mut game = users_club_with([1, 5, 5, 4]);
+        keep_squads_at_the_floor(&mut game);
+        assert_eq!(bodies_of_warnings(&game), 1);
+
+        game.players
+            .push(player("keeper_back", Some("club"), Position::Goalkeeper));
+        game.clock.advance_days(1);
+        keep_squads_at_the_floor(&mut game);
+        assert_eq!(bodies_of_warnings(&game), 1, "recovering is not a warning");
+
+        game.players.retain(|p| p.id != "keeper_back");
+        game.clock.advance_days(1);
+        keep_squads_at_the_floor(&mut game);
+        assert_eq!(bodies_of_warnings(&game), 2);
+    }
+
+    /// Given a club short and warned
+    /// When days pass with the same shortfall
+    /// Then nothing more is sent.
+    #[test]
+    fn an_unchanged_shortfall_is_not_repeated() {
+        let mut game = users_club_with([1, 5, 5, 4]);
+        for _ in 0..5 {
+            keep_squads_at_the_floor(&mut game);
+            game.clock.advance_days(1);
+        }
+        assert_eq!(bodies_of_warnings(&game), 1);
+    }
+
+    /// Given a warning the player deleted
+    /// When the same shortfall persists
+    /// Then it is not sent again.
+    #[test]
+    fn a_deleted_warning_is_not_resent_for_the_same_shortfall() {
+        let mut game = users_club_with([1, 5, 5, 4]);
+        keep_squads_at_the_floor(&mut game);
+        game.messages.clear();
+
+        game.clock.advance_days(1);
+        keep_squads_at_the_floor(&mut game);
+
+        assert!(game.messages.is_empty());
+    }
+
+    /// Given a club still short in the same shape when a new season begins
+    /// When the day runs
+    /// Then the player is reminded once for the new season.
+    #[test]
+    fn a_new_season_reminds_once() {
+        let mut game = users_club_with([1, 5, 5, 4]);
+        keep_squads_at_the_floor(&mut game);
+        game.clock.advance_days(365);
+        keep_squads_at_the_floor(&mut game);
+        keep_squads_at_the_floor(&mut game);
+        assert_eq!(bodies_of_warnings(&game), 2);
+    }
+
+    fn kick_off(game: &mut Game, team_id: &str) {
+        let seniors = senior_counts(game, team_id);
+        let _ = ready_for_kick_off(game, team_id, seniors);
+    }
+
     // --- Kick-off -----------------------------------------------------------------
 
     /// Given the player's club with no keeper, one academy keeper and one
@@ -1171,7 +1426,7 @@ mod tests {
         game.players
             .push(free_agent("free_keeper", Position::Goalkeeper, 70));
 
-        ready_for_kick_off(&mut game, "club");
+        kick_off(&mut game, "club");
 
         assert!(squad_shortfall(&game, "club").is_empty());
         assert_eq!(body_keys(&game), vec!["be.msg.squadToppedUp.body"]);
@@ -1192,7 +1447,7 @@ mod tests {
         game.players
             .push(free_agent("keeper", Position::Goalkeeper, 70));
 
-        ready_for_kick_off(&mut game, "club");
+        kick_off(&mut game, "club");
 
         assert!(game.messages.is_empty());
         assert_eq!(team_of(&game, "keeper"), None);
@@ -1204,7 +1459,7 @@ mod tests {
         let mut game = users_club_with([1, 4, 4, 1]);
         free_agent_pool(&mut game);
 
-        ready_for_kick_off(&mut game, "club");
+        kick_off(&mut game, "club");
 
         assert!(squad_shortfall(&game, "club").is_empty());
         assert_eq!(body_keys(&game), vec!["be.msg.squadToppedUp.body"]);
@@ -1216,7 +1471,7 @@ mod tests {
     fn the_players_club_is_told_when_it_cannot_be_filled() {
         let mut game = users_club_with([0, 5, 5, 5]);
 
-        ready_for_kick_off(&mut game, "club");
+        kick_off(&mut game, "club");
 
         assert_eq!(body_keys(&game), vec!["be.msg.squadCannotBeFilled.body"]);
         assert_eq!(
@@ -1232,7 +1487,7 @@ mod tests {
     fn at_kick_off_an_ai_club_is_topped_up_without_a_message() {
         let mut game = club_with([0, 0, 0, 0]);
         free_agent_pool(&mut game);
-        ready_for_kick_off(&mut game, "club");
+        kick_off(&mut game, "club");
         assert!(squad_shortfall(&game, "club").is_empty());
         assert!(game.messages.is_empty());
     }
@@ -1242,7 +1497,7 @@ mod tests {
         let mut game = users_club_with(SOUND);
         game.players
             .push(free_agent("keeper", Position::Goalkeeper, 70));
-        ready_for_kick_off(&mut game, "club");
+        kick_off(&mut game, "club");
         assert!(game.messages.is_empty());
         assert_eq!(team_of(&game, "keeper"), None);
     }
@@ -1254,6 +1509,7 @@ mod tests {
         let mut league =
             domain::league::League::new("league".to_string(), "League".to_string(), 2026, &teams);
         league.fixtures.push(domain::league::Fixture {
+            postponement: None,
             id: "fixture".to_string(),
             competition_id: "league".to_string(),
             matchday: 1,

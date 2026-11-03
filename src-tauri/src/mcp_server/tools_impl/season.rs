@@ -7,6 +7,7 @@ use mcp_results::season::{
 
 use crate::mcp_server::context::McpContext;
 use crate::mcp_server::tools_impl::helpers::require_game;
+use ofm_core::state::Career;
 use std::sync::Arc;
 
 // ─── season_check_complete ──────────────────────────────────────────────────
@@ -43,7 +44,7 @@ pub fn season_advance(ctx: Arc<McpContext>) -> Result<SeasonAdvanced, String> {
 fn season_advance_for_state(
     state: &ofm_core::state::StateManager,
 ) -> Result<SeasonAdvanced, String> {
-    let response = crate::commands::season::advance_to_next_season_internal(state)?;
+    let response = crate::commands::season::advance_to_next_season_internal(state, Career::Active)?;
     Ok(SeasonAdvanced {
         fired: response["action"] == "fired",
         summary: response["summary"].clone(),
@@ -120,8 +121,9 @@ pub fn jobs_apply(ctx: Arc<McpContext>, team_id: String) -> Result<JobApplicatio
     // nothing except closing the window between the read and the write.
     let result = ctx
         .state_manager
-        .update_game(|game| ofm_core::job_offers::apply_for_job(game, &team_id))
-        .ok_or_else(|| "be.error.noActiveGameSession".to_string())?;
+        .update_game_for(ofm_core::state::Career::Active, |game| {
+            ofm_core::job_offers::apply_for_job(game, &team_id)
+        })?;
 
     {
         use tauri::Emitter;
@@ -270,7 +272,7 @@ mod tests {
         let tool = StateManager::new();
         command.set_game(first);
         tool.set_game(second);
-        advance_to_next_season_internal(&command).unwrap();
+        advance_to_next_season_internal(&command, ofm_core::state::Career::Active).unwrap();
         season_advance_for_state(&tool).unwrap();
         let command_game = game_value(&command);
         let tool_game = game_value(&tool);

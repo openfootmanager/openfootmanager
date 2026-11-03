@@ -1,3 +1,4 @@
+use crate::json_column::{self, Cell};
 use domain::staff::{CoachingSpecialization, Staff, StaffAttributes, StaffRole};
 use rusqlite::{Connection, params};
 
@@ -14,8 +15,8 @@ pub fn upsert_staff(conn: &Connection, s: &Staff) -> Result<(), String> {
     conn.execute(
         "INSERT OR REPLACE INTO staff
          (id, first_name, last_name, date_of_birth, nationality, football_nation, birth_country, role,
-          attributes, team_id, specialization, wage, contract_end)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)",
+          attributes, team_id, specialization, wage, contract_end, known_as)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)",
         params![
             s.id,
             s.first_name,
@@ -30,6 +31,7 @@ pub fn upsert_staff(conn: &Connection, s: &Staff) -> Result<(), String> {
             spec_str,
             s.wage,
             s.contract_end,
+            s.known_as,
         ],
     )
     .map_err(|_| GAME_PERSISTENCE_WRITE_ERROR.to_string())?;
@@ -87,13 +89,13 @@ pub fn load_all_staff(conn: &Connection) -> Result<Vec<Staff>, String> {
     let mut stmt = conn
         .prepare(
             "SELECT id, first_name, last_name, date_of_birth, nationality, football_nation, birth_country, role,
-                    attributes, team_id, specialization, wage, contract_end
+                    attributes, team_id, specialization, wage, contract_end, known_as
              FROM staff",
         )
         .map_err(|_| GAME_PERSISTENCE_LOAD_ERROR.to_string())?;
 
     let rows = stmt
-        .query_map([], row_to_staff)
+        .query_map([], |row| row_to_staff(conn, row))
         .map_err(|_| GAME_PERSISTENCE_LOAD_ERROR.to_string())?;
 
     let mut staff = Vec::new();
@@ -103,13 +105,27 @@ pub fn load_all_staff(conn: &Connection) -> Result<Vec<Staff>, String> {
     Ok(staff)
 }
 
-fn row_to_staff(row: &rusqlite::Row) -> rusqlite::Result<Staff> {
+fn row_to_staff(conn: &Connection, row: &rusqlite::Row) -> rusqlite::Result<Staff> {
+    let id: String = row.get(0)?;
     let role_str: String = row.get(7)?;
     let attrs_json: String = row.get(8)?;
     let spec_str: Option<String> = row.get(10)?;
 
-    Ok(Staff {
-        id: row.get(0)?,
+    let mut staff = Staff {
+        // Attributes that do not parse read as an average block and are kept in
+        // unreadable_records, never silently lost (`json_column`).
+        attributes: json_column::read_or_else(
+            conn,
+            Cell::new("staff", &id, "attributes"),
+            &attrs_json,
+            || StaffAttributes {
+                coaching: 50,
+                judging_ability: 50,
+                judging_potential: 50,
+                physiotherapy: 50,
+            },
+        ),
+        id,
         first_name: row.get(1)?,
         last_name: row.get(2)?,
         date_of_birth: row.get(3)?,
@@ -117,17 +133,15 @@ fn row_to_staff(row: &rusqlite::Row) -> rusqlite::Result<Staff> {
         football_nation: row.get(5)?,
         birth_country: row.get(6)?,
         role: parse_role(&role_str),
-        attributes: serde_json::from_str(&attrs_json).unwrap_or(StaffAttributes {
-            coaching: 50,
-            judging_ability: 50,
-            judging_potential: 50,
-            physiotherapy: 50,
-        }),
         team_id: row.get(9)?,
         specialization: spec_str.and_then(|s| parse_specialization(&s)),
         wage: row.get(11)?,
         contract_end: row.get(12)?,
-    })
+        known_as: row.get(13)?,
+        display_name: String::new(),
+    };
+    staff.refresh_display_name();
+    Ok(staff)
 }
 
 #[cfg(test)]
@@ -221,6 +235,28 @@ mod tests {
         assert_eq!(all[0].wage, 3000);
         assert_eq!(all[0].football_nation, "SCO");
         assert_eq!(all[0].birth_country, Some("SCO".to_string()));
+    }
+
+    /// Given staff known by a short name, and staff who are not
+    /// When both are stored and read back
+    /// Then each keeps its known-as name and its display name (#557).
+    #[test]
+    fn what_a_staff_member_is_called_survives_a_round_trip() {
+        let db = test_db();
+        let mut pep = sample_staff("pep", StaffRole::Coach);
+        pep.first_name = "Josep".to_string();
+        pep.last_name = "Guardiola i Sala".to_string();
+        pep.set_known_as(Some("Pep Guardiola".to_string()));
+        let alice = sample_staff("alice", StaffRole::Physio);
+
+        upsert_staff_list(db.conn(), &[pep, alice]).unwrap();
+
+        let loaded = load_all_staff(db.conn()).unwrap();
+        let find = |id: &str| loaded.iter().find(|s| s.id == id).unwrap();
+        assert_eq!(find("pep").known_as.as_deref(), Some("Pep Guardiola"));
+        assert_eq!(find("pep").display_name, "Pep Guardiola");
+        assert_eq!(find("alice").known_as, None);
+        assert_eq!(find("alice").display_name, "Alice Coach");
     }
 
     #[test]

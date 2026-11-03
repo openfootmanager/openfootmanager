@@ -1,6 +1,7 @@
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { NOTHING_VISIBLE } from "../../lib/playerKnowledge";
 import type { PlayerData, TeamData } from "../../store/gameStore";
 import PlayerDealWorkspace from "./PlayerDealWorkspace";
 
@@ -111,15 +112,125 @@ function createPlayer(overrides: Partial<PlayerData> = {}): PlayerData {
 }
 
 describe("PlayerDealWorkspace", () => {
+  /**
+   * Given a player on €12,345 a week and a club with a €50,000 weekly wage budget
+   * When the deal workspace, where an offer is decided, shows their figures
+   * Then wages are exact and carry the per-week unit, not shortened to "€12K".
+   */
+  it("shows wages exactly, with the weekly unit, on the decision surface", () => {
+    render(
+      <PlayerDealWorkspace
+        player={createPlayer({ wage: 12345 })}
+        figures={{ ovr: 74, wage: { kind: "exact", weekly: 12345 } }}
+        teams={[createTeam()]}
+        myTeam={createTeam()}
+        transferWindowBlocksRegistration={false}
+        transferWindowSummary="Window open"
+        loanNoticeDetail={null}
+        selectedKind="transfer"
+        onSelectKind={vi.fn()}
+        onClose={vi.fn()}
+        renderDealPanel={() => <div>Deal panel</div>}
+      />,
+    );
+
+    expect(screen.getByText("€12,345/wk")).toBeInTheDocument();
+    expect(screen.getByText("€50,000/wk")).toBeInTheDocument();
+  });
+
+  /**
+   * Given another club's player on €12,345 a week whom the club has neither scouted nor shares a
+   *       division with, so the market page sends neither his rating nor his wage
+   * When his deal workspace shows his figures
+   * Then his rating and his current wage read "–", and his real wage appears nowhere.
+   */
+  it("shows a dash for the rating and wage of a player the club does not know", () => {
+    render(
+      <PlayerDealWorkspace
+        player={createPlayer({ wage: 12345 })}
+        figures={NOTHING_VISIBLE}
+        teams={[createTeam()]}
+        myTeam={createTeam()}
+        transferWindowBlocksRegistration={false}
+        transferWindowSummary="Window open"
+        loanNoticeDetail={null}
+        selectedKind="transfer"
+        onSelectKind={vi.fn()}
+        onClose={vi.fn()}
+        renderDealPanel={() => <div>Deal panel</div>}
+      />,
+    );
+
+    expect(screen.getByText("OVR").nextElementSibling).toHaveTextContent(/^–$/);
+    expect(screen.getByText("Current Wage").nextElementSibling).toHaveTextContent(/^–$/);
+    expect(screen.queryByText("€12,345/wk")).not.toBeInTheDocument();
+  });
+
+  /**
+   * Given a scouted player, whose wage the club puts at about €12,000 a week and whose rating the
+   *       page does not send (a report carries no rating until a scout's estimate exists)
+   * When his deal workspace shows his figures
+   * Then it shows "about €12,000/wk", and "–" for his rating.
+   */
+  it("shows a scouted player's wage as about and no rating", () => {
+    render(
+      <PlayerDealWorkspace
+        player={createPlayer({ wage: 12345 })}
+        figures={{ ovr: null, wage: { kind: "approximate", weekly: 12000 } }}
+        teams={[createTeam()]}
+        myTeam={createTeam()}
+        transferWindowBlocksRegistration={false}
+        transferWindowSummary="Window open"
+        loanNoticeDetail={null}
+        selectedKind="transfer"
+        onSelectKind={vi.fn()}
+        onClose={vi.fn()}
+        renderDealPanel={() => <div>Deal panel</div>}
+      />,
+    );
+
+    expect(screen.getByText("OVR").nextElementSibling).toHaveTextContent(/^–$/);
+    expect(screen.getByText("Current Wage").nextElementSibling).toHaveTextContent(
+      /^about €12,000\/wk$/,
+    );
+  });
+
+  /**
+   * Given a player at a club in the manager's division, whose rating of 71 the page sends and
+   *       whose wage it hides
+   * When his deal workspace shows his figures
+   * Then it shows the 71, and "–" for his current wage.
+   */
+  it("shows a division rival's rating and a dash for his wage", () => {
+    render(
+      <PlayerDealWorkspace
+        player={createPlayer({ wage: 12345 })}
+        figures={{ ovr: 71, wage: { kind: "hidden" } }}
+        teams={[createTeam()]}
+        myTeam={createTeam()}
+        transferWindowBlocksRegistration={false}
+        transferWindowSummary="Window open"
+        loanNoticeDetail={null}
+        selectedKind="transfer"
+        onSelectKind={vi.fn()}
+        onClose={vi.fn()}
+        renderDealPanel={() => <div>Deal panel</div>}
+      />,
+    );
+
+    expect(screen.getByText("OVR").nextElementSibling).toHaveTextContent(/^71$/);
+    expect(screen.getByText("Current Wage").nextElementSibling).toHaveTextContent(/^–$/);
+  });
+
   it("uses a page-style back affordance instead of a close icon", () => {
     const onClose = vi.fn();
 
     render(
       <PlayerDealWorkspace
         player={createPlayer()}
+        figures={NOTHING_VISIBLE}
         teams={[createTeam(), createTeam({ id: "team-2", name: "Beta FC", short_name: "BET" })]}
         myTeam={createTeam()}
-        weeklySuffix="/wk"
         transferWindowBlocksRegistration={false}
         transferWindowSummary="Window open"
         loanNoticeDetail={null}
@@ -141,9 +252,9 @@ describe("PlayerDealWorkspace", () => {
     render(
       <PlayerDealWorkspace
         player={createPlayer({ team_id: null, wage: 0 })}
+        figures={{ ovr: 60, wage: { kind: "exact", weekly: 0 } }}
         teams={[createTeam()]}
         myTeam={createTeam()}
-        weeklySuffix="/wk"
         transferWindowBlocksRegistration={false}
         transferWindowSummary="Window open"
         loanNoticeDetail={null}
@@ -165,9 +276,9 @@ describe("PlayerDealWorkspace", () => {
     render(
       <PlayerDealWorkspace
         player={createPlayer()}
+        figures={NOTHING_VISIBLE}
         teams={[createTeam(), createTeam({ id: "team-2", name: "Beta FC", short_name: "BET" })]}
         myTeam={createTeam()}
-        weeklySuffix="/wk"
         transferWindowBlocksRegistration={false}
         transferWindowSummary="Window open"
         loanNoticeDetail={null}
@@ -187,9 +298,9 @@ describe("PlayerDealWorkspace", () => {
     render(
       <PlayerDealWorkspace
         player={createPlayer({ transfer_listed: false, loan_listed: true })}
+        figures={NOTHING_VISIBLE}
         teams={[createTeam(), createTeam({ id: "team-2", name: "Beta FC", short_name: "BET" })]}
         myTeam={createTeam()}
-        weeklySuffix="/wk"
         transferWindowBlocksRegistration={false}
         transferWindowSummary="Window open"
         loanNoticeDetail={null}
@@ -245,9 +356,9 @@ function workspace(
   return (
     <PlayerDealWorkspace
       player={player}
+      figures={NOTHING_VISIBLE}
       teams={[createTeam(), createTeam({ id: "team-2", name: "Beta FC" })]}
       myTeam={createTeam()}
-      weeklySuffix="/wk"
       transferWindowBlocksRegistration={false}
       transferWindowSummary="Window open"
       loanNoticeDetail={null}

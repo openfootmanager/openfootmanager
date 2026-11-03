@@ -20,7 +20,7 @@ describe("Card", () => {
   it("applies 'none' accent by default (no top border)", () => {
     const { container } = render(<Card>Default</Card>);
     const el = container.firstChild as HTMLElement;
-    expect(el.className).toContain("border-gray-200");
+    expect(el.className).toContain("border-line");
     expect(el.className).not.toContain("border-t-4");
   });
 
@@ -46,7 +46,7 @@ describe("Card", () => {
   it("applies danger accent border", () => {
     const { container } = render(<Card accent="danger">Danger</Card>);
     const el = container.firstChild as HTMLElement;
-    expect(el.className).toContain("border-t-red-500");
+    expect(el.className).toContain("border-t-danger-solid");
   });
 
   it("merges custom className", () => {

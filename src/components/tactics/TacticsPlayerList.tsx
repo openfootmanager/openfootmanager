@@ -1,3 +1,5 @@
+import { useRatingTiers } from "../../hooks/useRatingTiers";
+import { ratingTierClass } from "../../lib/ratingTier";
 import type { DragEvent, JSX } from "react";
 import { useTranslation } from "react-i18next";
 import type { PlayerData, TeamMatchRolesData } from "../../store/gameStore";
@@ -8,6 +10,8 @@ import { Badge, InjuryBadge } from "../ui";
 import ContextMenu from "../ContextMenu";
 import { buildTacticsPlayerContextMenuItems } from "./TacticsContextMenu.helpers";
 import TacticsFilters from "./TacticsFilters";
+import { naturalPositionOf } from "../../lib/positions";
+import { isMatchDayEligible } from "../../lib/playerSquad";
 
 interface TacticsPlayerListProps {
   bench: PlayerData[];
@@ -76,13 +80,11 @@ function PlayerRow({
 }): JSX.Element {
   const { t } = useTranslation();
   const ovr = getPlayerOvr(player);
+  const tierOf = useRatingTiers();
   const isCompare = comparePlayerId === player.id;
   // Starters show the slot they are deployed in (issue #272); the natural
   // position remains for bench players, who have no deployed slot.
-  const position = translatePositionAbbreviation(
-    t,
-    deployedPosition || player.natural_position || player.position,
-  );
+  const position = translatePositionAbbreviation(t, deployedPosition || naturalPositionOf(player));
   const contextItems = buildTacticsPlayerContextMenuItems({
     isSelected,
     matchRoles,
@@ -126,13 +128,7 @@ function PlayerRow({
             {player.match_name || player.full_name}
           </span>
           <span
-            className={`shrink-0 rounded-full px-1.5 py-0.5 text-xs font-heading font-bold ${
-              ovr >= 80
-                ? "bg-primary-500 text-white"
-                : ovr >= 60
-                  ? "bg-accent-500/20 text-accent-600 dark:text-accent-400"
-                  : "bg-gray-100 text-gray-500 dark:bg-navy-700 dark:text-gray-400"
-            }`}
+            className={`shrink-0 rounded-full px-1.5 py-0.5 text-xs font-heading font-bold ${ratingTierClass(tierOf(ovr), "badge")}`}
           >
             {ovr}
           </span>
@@ -147,10 +143,10 @@ function PlayerRow({
         <button
           type="button"
           data-testid={`pitch-bench-player-${player.id}`}
-          draggable={!player.injury}
+          draggable={isMatchDayEligible(player)}
           onClick={() => onTacticalSelect(player.id, "bench")}
           onDragStart={(event) => {
-            if (!player.injury) {
+            if (isMatchDayEligible(player)) {
               onDragStart(event, player.id, "bench", null);
             }
           }}
@@ -170,11 +166,7 @@ function PlayerRow({
             <InjuryBadge injury={player.injury} />
           ) : (
             <span
-              className={`shrink-0 rounded-full px-1.5 py-0.5 text-xs font-heading font-bold ${
-                ovr >= 80
-                  ? "bg-primary-500 text-white"
-                  : "bg-gray-100 text-gray-500 dark:bg-navy-700 dark:text-gray-400"
-              }`}
+              className={`shrink-0 rounded-full px-1.5 py-0.5 text-xs font-heading font-bold ${ratingTierClass(tierOf(ovr), "badge")}`}
             >
               {ovr}
             </span>

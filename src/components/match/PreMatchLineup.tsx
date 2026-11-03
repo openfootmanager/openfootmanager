@@ -1,3 +1,5 @@
+import { useRatingTiers } from "../../hooks/useRatingTiers";
+import { ratingTierClass } from "../../lib/ratingTier";
 import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import type { MatchSnapshot, EnginePlayerData } from "./types";
@@ -7,6 +9,8 @@ import ContextMenu from "../ContextMenu";
 import { translatePositionAbbreviation } from "../squad/SquadTab.helpers";
 import { condColor } from "../../lib/playerConditionDisplay";
 import { sortByPositionGroup } from "./SubPanel.helpers";
+import { usePositionTable } from "../../hooks/usePositionGroups";
+import { parseColor } from "../../lib/colorContrast";
 
 export const POSITION_KEY_STATS: Record<string, { label: string; key: string }[]> = {
   Goalkeeper: [
@@ -31,34 +35,6 @@ export const POSITION_KEY_STATS: Record<string, { label: string; key: string }[]
   ],
 };
 
-export function statColor(v: number): string {
-  if (v >= 75) return "text-primary-500 dark:text-primary-400 font-bold";
-  if (v >= 60) return "text-gray-700 dark:text-gray-200";
-  return "text-gray-500 dark:text-gray-400";
-}
-
-export function starterOvrColor(ovr: number): string {
-  if (ovr >= 70) return "text-primary-600 dark:text-primary-400";
-  if (ovr >= 50) return "text-gray-700 dark:text-gray-300";
-  return "text-red-600 dark:text-red-400";
-}
-
-function hexToRgb(color: string): { red: number; green: number; blue: number } | null {
-  const normalized = normalizeHexColor(color);
-
-  if (!normalized) {
-    return null;
-  }
-
-  const hex = normalized.slice(1);
-
-  return {
-    red: Number.parseInt(hex.slice(0, 2), 16),
-    green: Number.parseInt(hex.slice(2, 4), 16),
-    blue: Number.parseInt(hex.slice(4, 6), 16),
-  };
-}
-
 function normalizeHexColor(color: string): string | null {
   const normalized = color.trim();
   const hex = normalized.startsWith("#") ? normalized.slice(1) : normalized;
@@ -79,13 +55,13 @@ function normalizeHexColor(color: string): string | null {
 }
 
 function isLightColor(color: string): boolean {
-  const rgb = hexToRgb(color);
+  const rgb = parseColor(color);
 
   if (!rgb) {
     return false;
   }
 
-  const brightness = (rgb.red * 299 + rgb.green * 587 + rgb.blue * 114) / 1000;
+  const brightness = (rgb.r * 299 + rgb.g * 587 + rgb.b * 114) / 1000;
   return brightness >= 205;
 }
 
@@ -181,8 +157,10 @@ export default function PreMatchLineup({
   formationControls,
   showStartingList = true,
 }: PreMatchLineupProps) {
+  const tierOf = useRatingTiers();
   const { t } = useTranslation();
-  const positions = ["Goalkeeper", "Defender", "Midfielder", "Forward"];
+  const positionTable = usePositionTable();
+  const positions = positionTable.lines();
 
   const jerseyChip = (playerId: string) =>
     jerseyNumberById ? (
@@ -201,7 +179,7 @@ export default function PreMatchLineup({
         </span>
         {formationControls}
         <div className="grid grid-cols-4 gap-1.5">
-          {(["Goalkeeper", "Defender", "Midfielder", "Forward"] as const).map((pos) => {
+          {positions.map((pos) => {
             const needed = formationNeeds[pos] || 0;
             const actual = userTeam.players.filter((p) => p.position === pos).length;
             const ok = actual === needed;
@@ -226,9 +204,10 @@ export default function PreMatchLineup({
         <button
           type="button"
           onClick={onAutoSelect}
-          disabled={isAutoSelecting}
+          // Until the table arrives there are no lines to pick from, and the pick would ignore position.
+          disabled={isAutoSelecting || !positionTable.loaded}
           className={`flex w-full items-center justify-center gap-2 px-4 py-2 rounded-lg text-xs font-heading font-bold uppercase tracking-wider transition-all ${
-            isAutoSelecting
+            isAutoSelecting || !positionTable.loaded
               ? "bg-gray-200 dark:bg-navy-700 text-gray-600 dark:text-gray-400 cursor-wait"
               : "bg-accent-100 text-accent-700 hover:bg-accent-200 dark:bg-accent-500/20 dark:text-accent-300 dark:hover:bg-accent-500/30"
           }`}
@@ -335,14 +314,14 @@ export default function PreMatchLineup({
                       )}
                       <div className="flex items-center gap-0">
                         <span
-                          className={`text-[10px] font-heading font-bold tabular-nums w-7 text-center ${starterOvrColor(posOvr)}`}
+                          className={`text-[10px] font-heading font-bold tabular-nums w-7 text-center ${ratingTierClass(tierOf(posOvr), "text")}`}
                         >
                           {posOvr}
                         </span>
                         {keyStats.map((s) => (
                           <span
                             key={s.label}
-                            className={`text-[10px] font-heading tabular-nums w-7 text-center ${statColor(getStatVal(p, s.key))}`}
+                            className={`text-[10px] font-heading tabular-nums w-7 text-center ${ratingTierClass(tierOf(getStatVal(p, s.key)), "text")}`}
                           >
                             {getStatVal(p, s.key)}
                           </span>
@@ -402,7 +381,7 @@ export default function PreMatchLineup({
                 COND
               </span>
             </div>
-            {sortByPositionGroup(userBench).map((bp) => {
+            {sortByPositionGroup(userBench, positionTable).map((bp) => {
               const posOvr = bp.ovr;
               const keyStats = POSITION_KEY_STATS[bp.position] || [];
               const canSwap = Boolean(selectedStarterId);
@@ -435,20 +414,14 @@ export default function PreMatchLineup({
                     {keyStats.map((s) => (
                       <span
                         key={s.label}
-                        className={`text-[10px] font-heading tabular-nums w-7 text-center ${statColor(getStatVal(bp, s.key))}`}
+                        className={`text-[10px] font-heading tabular-nums w-7 text-center ${ratingTierClass(tierOf(getStatVal(bp, s.key)), "text")}`}
                       >
                         {getStatVal(bp, s.key)}
                       </span>
                     ))}
                   </div>
                   <span
-                    className={`shrink-0 rounded-full px-1.5 py-0.5 text-xs font-heading font-bold ${
-                      posOvr >= 80
-                        ? "bg-primary-500 text-white"
-                        : posOvr >= 60
-                          ? "bg-accent-500/20 text-accent-600 dark:text-accent-400"
-                          : "bg-gray-100 text-gray-500 dark:bg-navy-700 dark:text-gray-400"
-                    }`}
+                    className={`shrink-0 rounded-full px-1.5 py-0.5 text-xs font-heading font-bold ${ratingTierClass(tierOf(posOvr), "badge")}`}
                   >
                     {posOvr}
                   </span>

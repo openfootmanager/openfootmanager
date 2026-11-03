@@ -1,6 +1,7 @@
-import DashboardModalFrame from "../dashboard/DashboardModalFrame";
+import { useId } from "react";
+
 import NegotiationFeedbackPanel from "../NegotiationFeedbackPanel";
-import { Button } from "../ui";
+import { Button, Dialog } from "../ui";
 import { formatPlayerWage } from "./PlayerProfile.helpers";
 import type { NegotiationFeedbackData, RenewalProjection } from "./PlayerProfile.renewal";
 
@@ -10,7 +11,6 @@ interface PlayerProfileRenewalModalProps {
   show: boolean;
   playerName: string;
   t: TranslateFn;
-  weeklySuffix: string;
   renewalWage: string;
   renewalLength: string;
   renewalIsTerminal: boolean;
@@ -34,7 +34,6 @@ export default function PlayerProfileRenewalModal({
   show,
   playerName,
   t,
-  weeklySuffix,
   renewalWage,
   renewalLength,
   renewalIsTerminal,
@@ -53,15 +52,19 @@ export default function PlayerProfileRenewalModal({
   onDelegate,
   onSubmit,
 }: PlayerProfileRenewalModalProps) {
+  const titleId = useId();
   if (!show) {
     return null;
   }
 
   return (
-    <DashboardModalFrame maxWidthClassName="max-w-md">
+    <Dialog labelledBy={titleId} onClose={onClose} className="w-full max-w-md rounded-2xl p-6">
       <div className="space-y-4">
         <div>
-          <h3 className="text-lg font-heading font-bold uppercase tracking-wider text-gray-900 dark:text-gray-100">
+          <h3
+            id={titleId}
+            className="text-lg font-heading font-bold uppercase tracking-wider text-gray-900 dark:text-gray-100"
+          >
             {t("playerProfile.renewalTitle")}
           </h3>
           <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{playerName}</p>
@@ -123,8 +126,8 @@ export default function PlayerProfileRenewalModal({
             </p>
             <p className="text-xs text-gray-600 dark:text-gray-300">
               {t("playerProfile.renewalProjectionWageBill", {
-                before: formatPlayerWage(renewalProjection.current_annual_wage_bill, weeklySuffix),
-                after: formatPlayerWage(renewalProjection.projected_annual_wage_bill, weeklySuffix),
+                before: formatPlayerWage(renewalProjection.current_weekly_wage_spend),
+                after: formatPlayerWage(renewalProjection.projected_weekly_wage_spend),
               })}
             </p>
             <p className="text-xs text-gray-600 dark:text-gray-300">
@@ -132,7 +135,7 @@ export default function PlayerProfileRenewalModal({
                 before:
                   renewalProjection.annual_wage_budget > 0
                     ? Math.round(
-                        (renewalProjection.current_annual_wage_bill /
+                        (renewalProjection.current_weekly_wage_spend /
                           renewalProjection.annual_wage_budget) *
                           100,
                       )
@@ -140,7 +143,7 @@ export default function PlayerProfileRenewalModal({
                 after:
                   renewalProjection.annual_wage_budget > 0
                     ? Math.round(
-                        (renewalProjection.projected_annual_wage_bill /
+                        (renewalProjection.projected_weekly_wage_spend /
                           renewalProjection.annual_wage_budget) *
                           100,
                       )
@@ -209,6 +212,6 @@ export default function PlayerProfileRenewalModal({
           )}
         </div>
       </div>
-    </DashboardModalFrame>
+    </Dialog>
   );
 }

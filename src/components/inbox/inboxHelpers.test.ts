@@ -6,6 +6,7 @@ import {
   getNavigationTarget,
   isPlayerEventMessage,
   sortInboxMessages,
+  toggleVisibleSelection,
   UNREAD_FILTER,
 } from "./inboxHelpers";
 
@@ -96,5 +97,34 @@ describe("inboxHelpers", () => {
     expect(isPlayerEventMessage("morale_talk_p1")).toBe(true);
     expect(isPlayerEventMessage("contract_concern_p2")).toBe(true);
     expect(isPlayerEventMessage("plain_message")).toBe(false);
+  });
+});
+
+describe("toggleVisibleSelection", () => {
+  /**
+   * Given some visible messages are selected and others are not
+   * When the visible set is toggled
+   * Then every visible message becomes selected.
+   */
+  it("selects every visible message", () => {
+    expect(toggleVisibleSelection(["a"], ["a", "b", "c"])).toEqual(["a", "b", "c"]);
+  });
+
+  /**
+   * Given every visible message is already selected
+   * When the visible set is toggled
+   * Then nothing is selected.
+   */
+  it("clears the selection when every visible message is selected", () => {
+    expect(toggleVisibleSelection(["a", "b"], ["a", "b"])).toEqual([]);
+  });
+
+  /**
+   * Given nothing is visible
+   * When the visible set is toggled
+   * Then nothing is selected.
+   */
+  it("selects nothing when no message is visible", () => {
+    expect(toggleVisibleSelection(["x"], [])).toEqual([]);
   });
 });

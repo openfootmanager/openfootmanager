@@ -1,5 +1,4 @@
 use crate::game::Game;
-use chrono::{Datelike, NaiveDate};
 use domain::league::League;
 use domain::manager::Manager;
 use domain::player::{Player, Position};
@@ -31,18 +30,34 @@ pub struct ManagerAwardEntry {
 pub struct SeasonAwards {
     pub golden_boot: Vec<AwardEntry>,      // Top scorers
     pub assist_king: Vec<AwardEntry>,      // Top assists
-    pub player_of_year: Vec<AwardEntry>,   // Best avg rating (min 5 apps)
+    pub player_of_year: Vec<AwardEntry>,   // Best avg rating over half the club's season
     pub clean_sheet_king: Vec<AwardEntry>, // Most clean sheets (GKs only)
     pub most_appearances: Vec<AwardEntry>,
     pub young_player: Vec<AwardEntry>, // Best avg rating, age <= 21
     pub manager_of_season: Vec<ManagerAwardEntry>,
 }
 
+/// A rating-based award goes to someone who played a real share of his club's
+/// season: a handful of brilliant matches is not a season.
+const AWARD_MIN_SHARE_OF_MATCHES: f64 = 0.5;
+/// The least a rating-based award asks, however short the season.
+const PLAYER_OF_YEAR_MIN_RATED_MATCHES: u32 = 5;
+const YOUNG_PLAYER_MIN_RATED_MATCHES: u32 = 3;
+
 struct PlayerAwardContext<'a> {
     player: &'a Player,
     team_id: String,
     team_name: String,
     age: i32,
+    club_matches_played: u32,
+}
+
+impl PlayerAwardContext<'_> {
+    fn has_rated_share_of_season(&self, floor: u32) -> bool {
+        let share = (AWARD_MIN_SHARE_OF_MATCHES * self.club_matches_played as f64).ceil() as u32;
+        crate::match_rating::is_rated(self.player.stats.avg_rating)
+            && self.player.stats.rated_appearances >= share.max(floor)
+    }
 }
 
 struct ManagerAwardContext<'a> {
@@ -56,18 +71,6 @@ struct ManagerAwardContext<'a> {
 
 fn free_agent_team_name() -> String {
     ["Free", "Agent"].join(" ")
-}
-
-fn player_age_on(today: &NaiveDate, date_of_birth: &str) -> i32 {
-    if let Ok(dob) = NaiveDate::parse_from_str(date_of_birth, "%Y-%m-%d") {
-        let mut age = today.year() - dob.year();
-        if today.ordinal() < dob.ordinal() {
-            age -= 1;
-        }
-        age
-    } else {
-        30
-    }
 }
 
 fn resolve_team_info(game: &Game, player: &Player) -> (String, String) {
@@ -96,15 +99,36 @@ fn division_team_ids(division: &League) -> HashSet<String> {
     }
 }
 
+/// Matches each club has played. Inside a division that is its table; across
+/// the world a club may sit in a league and several cups, and the league is
+/// the competition it plays most matches in.
+fn matches_played_by_club<'a>(
+    game: &'a Game,
+    division: Option<&'a League>,
+) -> std::collections::HashMap<&'a str, u32> {
+    let tables: Vec<&League> = match division {
+        Some(division) => vec![division],
+        None => game.competitions_in_play().iter().collect(),
+    };
+    let mut played = std::collections::HashMap::new();
+    for standing in tables.iter().flat_map(|table| &table.standings) {
+        let most = played.entry(standing.team_id.as_str()).or_insert(0);
+        *most = (*most).max(standing.played);
+    }
+    played
+}
+
 fn build_player_award_contexts<'a>(
     game: &'a Game,
     scope: Option<&HashSet<String>>,
+    division: Option<&League>,
 ) -> Vec<PlayerAwardContext<'a>> {
     let today = game.clock.current_date.date_naive();
+    let matches_played_by_club = matches_played_by_club(game, division);
 
     game.players
         .iter()
-        .filter(|player| !player.retired && player.stats.appearances > 0)
+        .filter(|player| player.stats.appearances > 0)
         .filter(|player| match scope {
             Some(team_ids) => player
                 .team_id
@@ -114,12 +138,17 @@ fn build_player_award_contexts<'a>(
         })
         .map(|player| {
             let (team_id, team_name) = resolve_team_info(game, player);
+            let club_matches_played = matches_played_by_club
+                .get(team_id.as_str())
+                .copied()
+                .unwrap_or(0);
 
             PlayerAwardContext {
                 player,
                 team_id,
                 team_name,
-                age: player_age_on(&today, &player.date_of_birth),
+                age: domain::age::age_on_or_unknown(today, &player.date_of_birth),
+                club_matches_played,
             }
         })
         .collect()
@@ -284,7 +313,7 @@ pub fn compute_division_season_awards(game: &Game, division: &League) -> SeasonA
 
 fn compute_awards(game: &Game, division: Option<&League>) -> SeasonAwards {
     let player_scope = division.map(division_team_ids);
-    let contexts = build_player_award_contexts(game, player_scope.as_ref());
+    let contexts = build_player_award_contexts(game, player_scope.as_ref(), division);
     let manager_contexts = build_manager_award_contexts(game, division);
 
     // Golden Boot — top scorers
@@ -301,13 +330,10 @@ fn compute_awards(game: &Game, division: Option<&League>) -> SeasonAwards {
         |context| context.player.stats.assists as f64,
     );
 
-    // Player of the Year — best avg rating, min 5 appearances
+    // Player of the Year — best avg rating over a real share of the season
     let player_of_year = top_awards(
         &contexts,
-        |context| {
-            context.player.stats.appearances >= 5
-                && crate::match_rating::is_rated(context.player.stats.avg_rating)
-        },
+        |context| context.has_rated_share_of_season(PLAYER_OF_YEAR_MIN_RATED_MATCHES),
         |context| context.player.stats.avg_rating as f64,
     );
 
@@ -327,13 +353,11 @@ fn compute_awards(game: &Game, division: Option<&League>) -> SeasonAwards {
         |context| context.player.stats.appearances as f64,
     );
 
-    // Young Player of the Year — age <= 21, best avg rating, min 3 apps
+    // Young Player of the Year — age <= 21, best avg rating over the same share
     let young_player = top_awards(
         &contexts,
         |context| {
-            context.age <= 21
-                && context.player.stats.appearances >= 3
-                && crate::match_rating::is_rated(context.player.stats.avg_rating)
+            context.age <= 21 && context.has_rated_share_of_season(YOUNG_PLAYER_MIN_RATED_MATCHES)
         },
         |context| context.player.stats.avg_rating as f64,
     );
@@ -504,12 +528,14 @@ mod tests {
             "only the division's own scorer is eligible"
         );
         assert!(awards.golden_boot.iter().all(|e| e.team_id == "team1"));
-        assert!(
+        assert_eq!(
             awards
                 .manager_of_season
                 .iter()
-                .all(|e| e.team_id == "team1"),
-            "manager award is scoped to the division"
+                .map(|e| e.manager_id.as_str())
+                .collect::<Vec<_>>(),
+            vec!["m1"],
+            "manager award is scoped to the division, and its own manager is in it"
         );
 
         // The unscoped computation still sees the whole world.
@@ -639,6 +665,7 @@ mod tests {
                 "2001-02-10",
                 PlayerSeasonStats {
                     appearances: 6,
+                    rated_appearances: 6,
                     avg_rating: 8.4,
                     ..PlayerSeasonStats::default()
                 },
@@ -651,6 +678,7 @@ mod tests {
                 "2004-06-15",
                 PlayerSeasonStats {
                     appearances: 5,
+                    rated_appearances: 5,
                     avg_rating: 7.8,
                     ..PlayerSeasonStats::default()
                 },
@@ -663,6 +691,7 @@ mod tests {
                 "2004-09-10",
                 PlayerSeasonStats {
                     appearances: 4,
+                    rated_appearances: 4,
                     avg_rating: 9.0,
                     ..PlayerSeasonStats::default()
                 },
@@ -675,6 +704,7 @@ mod tests {
                 "2005-03-10",
                 PlayerSeasonStats {
                     appearances: 2,
+                    rated_appearances: 2,
                     avg_rating: 9.5,
                     ..PlayerSeasonStats::default()
                 },
@@ -687,6 +717,7 @@ mod tests {
                 "unknown",
                 PlayerSeasonStats {
                     appearances: 6,
+                    rated_appearances: 6,
                     avg_rating: 8.1,
                     ..PlayerSeasonStats::default()
                 },
@@ -713,8 +744,213 @@ mod tests {
         assert_eq!(young_player_ids, vec!["young-four-apps", "young-eligible"]);
     }
 
+    fn standing_after(team_id: &str, played: u32) -> domain::league::StandingEntry {
+        let mut standing = domain::league::StandingEntry::new(team_id.to_string());
+        standing.played = played;
+        standing
+    }
+
+    fn rated_player(id: &str, dob: &str, rated_appearances: u32, avg_rating: f32) -> Player {
+        make_player(
+            id,
+            id,
+            Some("team1"),
+            Position::Forward,
+            dob,
+            PlayerSeasonStats {
+                appearances: rated_appearances,
+                rated_appearances,
+                avg_rating,
+                ..PlayerSeasonStats::default()
+            },
+        )
+    }
+
+    fn division_awards(players: Vec<Player>, club_played: u32) -> super::SeasonAwards {
+        let game = make_game(players, vec![make_team("team1", "Test FC")]);
+        let division = League {
+            standings: vec![standing_after("team1", club_played)],
+            ..Default::default()
+        };
+        compute_division_season_awards(&game, &division)
+    }
+
+    /// Given a 38-match season and a forward who was brilliant in six matches,
+    /// when awards are computed, then the regular starter wins Player of the Year.
     #[test]
-    fn retired_players_are_excluded_from_award_tables() {
+    fn a_six_match_forward_cannot_win_player_of_the_year() {
+        let cameo_star = rated_player("cameo-star", "1998-01-01", 6, 8.7);
+        let regular = rated_player("regular", "1998-01-01", 35, 7.2);
+
+        let awards = division_awards(vec![cameo_star, regular], 38);
+
+        let ids: Vec<_> = awards
+            .player_of_year
+            .iter()
+            .map(|e| e.player_id.as_str())
+            .collect();
+        assert_eq!(ids, vec!["regular"]);
+    }
+
+    /// Given a 38-match season, when a player has exactly half the club's matches rated
+    /// and another one fewer, then only the first is eligible.
+    #[test]
+    fn half_of_the_clubs_matches_is_the_player_of_the_year_line() {
+        let on_the_line = rated_player("on-the-line", "1998-01-01", 19, 7.0);
+        let just_short = rated_player("just-short", "1998-01-01", 18, 9.0);
+
+        let awards = division_awards(vec![on_the_line, just_short], 38);
+
+        let ids: Vec<_> = awards
+            .player_of_year
+            .iter()
+            .map(|e| e.player_id.as_str())
+            .collect();
+        assert_eq!(ids, vec!["on-the-line"]);
+    }
+
+    /// Given a world-wide ranking and a club that sits in a league and a short cup table, when
+    /// awards are computed without a division, then its league matches set the threshold.
+    #[test]
+    fn world_awards_measure_a_club_by_its_league_matches() {
+        let mut game = make_game(
+            vec![
+                rated_player("cameo-star", "1998-01-01", 6, 8.7),
+                rated_player("regular", "1998-01-01", 35, 7.2),
+            ],
+            vec![make_team("team1", "Test FC")],
+        );
+        game.competitions = vec![
+            League {
+                standings: vec![standing_after("team1", 38)],
+                ..Default::default()
+            },
+            League {
+                standings: vec![standing_after("team1", 6)],
+                ..Default::default()
+            },
+        ];
+
+        let awards = compute_season_awards(&game);
+
+        let ids: Vec<_> = awards
+            .player_of_year
+            .iter()
+            .map(|e| e.player_id.as_str())
+            .collect();
+        assert_eq!(ids, vec!["regular"]);
+    }
+
+    /// Given a player born on a leap-year 15 June who turns 22 today in a common year, when awards
+    /// are computed, then he is no longer a young player (day-of-year would call him 21).
+    #[test]
+    fn a_player_turning_twenty_two_today_is_no_longer_young() {
+        let birthday_boy = rated_player("turns-22", "2004-06-15", 30, 7.9);
+        let still_21 = rated_player("still-21", "2004-06-16", 30, 7.0);
+        let mut game = make_game(
+            vec![birthday_boy, still_21],
+            vec![make_team("team1", "Test FC")],
+        );
+        game.clock = GameClock::new(Utc.with_ymd_and_hms(2026, 6, 15, 12, 0, 0).unwrap());
+
+        let awards = compute_season_awards(&game);
+
+        let ids: Vec<_> = awards
+            .young_player
+            .iter()
+            .map(|e| e.player_id.as_str())
+            .collect();
+        assert_eq!(ids, vec!["still-21"]);
+    }
+
+    /// Given a stale legacy league mirror that disagrees with the competitions, when world awards
+    /// are computed, then the competitions are the source of the club's matches played.
+    #[test]
+    fn world_awards_ignore_a_stale_legacy_league_mirror() {
+        let mut game = make_game(
+            vec![rated_player("regular", "1998-01-01", 19, 7.2)],
+            vec![make_team("team1", "Test FC")],
+        );
+        game.competitions = vec![League {
+            standings: vec![standing_after("team1", 38)],
+            ..Default::default()
+        }];
+        game.league = Some(League {
+            standings: vec![standing_after("team1", 60)],
+            ..Default::default()
+        });
+
+        let awards = compute_season_awards(&game);
+
+        assert_eq!(
+            awards.player_of_year.len(),
+            1,
+            "19 of 38 is half the season"
+        );
+    }
+
+    /// Given a club with no table anywhere, when world awards are computed, then the
+    /// absolute floor is all that is asked of its players.
+    #[test]
+    fn a_club_without_a_table_falls_back_to_the_floor() {
+        let game = make_game(
+            vec![rated_player("tableless", "1998-01-01", 5, 7.0)],
+            vec![make_team("team1", "Test FC")],
+        );
+
+        let awards = compute_season_awards(&game);
+
+        assert_eq!(awards.player_of_year.len(), 1);
+    }
+
+    /// Given a season so short that half the matches is under the absolute floor,
+    /// when awards are computed, then the floor decides.
+    #[test]
+    fn a_short_season_keeps_the_absolute_floor() {
+        let at_floor = rated_player("at-floor", "1998-01-01", 5, 7.0);
+        let under_floor = rated_player("under-floor", "1998-01-01", 4, 9.0);
+
+        let awards = division_awards(vec![at_floor, under_floor], 6);
+
+        let ids: Vec<_> = awards
+            .player_of_year
+            .iter()
+            .map(|e| e.player_id.as_str())
+            .collect();
+        assert_eq!(ids, vec!["at-floor"]);
+    }
+
+    /// Given a young forward with a few brilliant matches, when awards are computed in a
+    /// full season, then Young Player of the Year needs the same share of matches.
+    #[test]
+    fn young_player_of_the_year_needs_the_same_share_of_matches() {
+        let cameo_prospect = rated_player("cameo-prospect", "2006-01-01", 3, 9.0);
+        let regular_prospect = rated_player("regular-prospect", "2006-01-01", 25, 6.8);
+
+        let awards = division_awards(vec![cameo_prospect, regular_prospect], 38);
+
+        let ids: Vec<_> = awards
+            .young_player
+            .iter()
+            .map(|e| e.player_id.as_str())
+            .collect();
+        assert_eq!(ids, vec!["regular-prospect"]);
+    }
+
+    /// Given a player with many appearances but few of them rated, when awards are computed,
+    /// then only the rated ones count towards the threshold.
+    #[test]
+    fn unrated_appearances_do_not_count_towards_the_threshold() {
+        let mut mostly_unrated = rated_player("mostly-unrated", "1998-01-01", 3, 8.9);
+        mostly_unrated.stats.appearances = 30;
+
+        let awards = division_awards(vec![mostly_unrated], 38);
+
+        assert!(awards.player_of_year.is_empty());
+    }
+
+    #[test]
+    fn archived_retirees_are_excluded_from_award_tables() {
         let team = make_team("team1", "Test FC");
         let mut retired_star = make_player(
             "retired-star",
@@ -725,11 +961,14 @@ mod tests {
             PlayerSeasonStats {
                 appearances: 30,
                 goals: 25,
+                rated_appearances: 30,
                 avg_rating: 8.5,
                 ..PlayerSeasonStats::default()
             },
         );
         retired_star.retired = true;
+        let archived_star =
+            domain::retired_player::RetiredPlayer::from_player(&retired_star, "2025-06-01", 2024);
 
         let active_player = make_player(
             "active-star",
@@ -740,13 +979,15 @@ mod tests {
             PlayerSeasonStats {
                 appearances: 28,
                 goals: 18,
+                rated_appearances: 28,
                 avg_rating: 7.8,
                 ..PlayerSeasonStats::default()
             },
         );
 
-        let awards =
-            compute_season_awards(&make_game(vec![retired_star, active_player], vec![team]));
+        let mut game = make_game(vec![active_player], vec![team]);
+        game.retired_players.push(archived_star);
+        let awards = compute_season_awards(&game);
 
         assert_eq!(awards.golden_boot[0].player_id, "active-star");
         assert_eq!(awards.player_of_year[0].player_id, "active-star");
@@ -770,6 +1011,7 @@ mod tests {
             lost: 5,
             goals_for: 72,
             goals_against: 30,
+            competition_id: String::new(),
         });
         alpha.manager_id = Some("mgr1".to_string());
 
@@ -783,6 +1025,7 @@ mod tests {
             lost: 7,
             goals_for: 65,
             goals_against: 35,
+            competition_id: String::new(),
         });
         beta.manager_id = Some("mgr2".to_string());
 
@@ -797,6 +1040,110 @@ mod tests {
 
         assert_eq!(awards.manager_of_season[0].manager_name, "Alex Winner");
         assert_eq!(awards.manager_of_season[0].team_name, "Alpha FC");
+        assert_eq!(
+            awards.manager_of_season[0].value, 83.0,
+            "25 wins and 8 draws"
+        );
+    }
+
+    fn team_with_season(id: &str, name: &str, place: u32, won: u32, drawn: u32) -> Team {
+        let mut team = make_team(id, name);
+        team.history.push(domain::team::TeamSeasonRecord {
+            season: 2025,
+            league_position: place,
+            played: 38,
+            won,
+            drawn,
+            lost: 38 - won - drawn,
+            goals_for: 50,
+            goals_against: 40,
+            competition_id: String::new(),
+        });
+        team
+    }
+
+    fn manager_ids(awards: &super::SeasonAwards) -> Vec<&str> {
+        awards
+            .manager_of_season
+            .iter()
+            .map(|entry| entry.manager_id.as_str())
+            .collect()
+    }
+
+    /// Given two clubs with no table this season, read from their records: Alpha first on 60
+    ///       points, Beta second on 70 in another league
+    /// When the world's manager of the season is ranked
+    /// Then Alpha's manager comes first: finishing place outranks points
+    #[test]
+    fn world_manager_award_ranks_by_finishing_place_before_points() {
+        let mut game = make_game(
+            vec![],
+            vec![
+                team_with_season("alpha", "Alpha FC", 1, 18, 6),
+                team_with_season("beta", "Beta FC", 2, 22, 4),
+            ],
+        );
+        game.managers = vec![
+            make_manager("m-alpha", "Ann", "Alpha", Some("alpha")),
+            make_manager("m-beta", "Bo", "Beta", Some("beta")),
+        ];
+
+        let awards = compute_season_awards(&game);
+
+        assert_eq!(manager_ids(&awards), vec!["m-alpha", "m-beta"]);
+    }
+
+    /// Given the league mirror's table, A first and B second, and a club C outside it whose
+    ///       record says it won its own league on fewer points than B
+    /// When the world's manager of the season is ranked
+    /// Then the two champions come first, A on more points ahead of C, and then B: a place in
+    ///      the mirror's table counts from 1, like every other league's
+    #[test]
+    fn a_mirror_league_champion_ties_with_other_leagues_champions_on_place() {
+        let mut game = make_game(
+            vec![],
+            vec![
+                make_team("a", "A FC"),
+                make_team("b", "B FC"),
+                team_with_season("c", "C FC", 1, 10, 0),
+            ],
+        );
+        let mut league = League::new(
+            "mirror".to_string(),
+            "Mirror League".to_string(),
+            2025,
+            &["a".to_string(), "b".to_string()],
+        );
+        league.standings = vec![
+            domain::league::StandingEntry {
+                team_id: "a".to_string(),
+                played: 20,
+                won: 16,
+                drawn: 2,
+                lost: 2,
+                points: 50,
+                ..domain::league::StandingEntry::new("a".to_string())
+            },
+            domain::league::StandingEntry {
+                team_id: "b".to_string(),
+                played: 20,
+                won: 13,
+                drawn: 1,
+                lost: 6,
+                points: 40,
+                ..domain::league::StandingEntry::new("b".to_string())
+            },
+        ];
+        game.league = Some(league);
+        game.managers = vec![
+            make_manager("m-a", "Ana", "A", Some("a")),
+            make_manager("m-b", "Ben", "B", Some("b")),
+            make_manager("m-c", "Cy", "C", Some("c")),
+        ];
+
+        let awards = compute_season_awards(&game);
+
+        assert_eq!(manager_ids(&awards), vec!["m-a", "m-c", "m-b"]);
     }
 
     #[test]
@@ -811,6 +1158,7 @@ mod tests {
             lost: 5,
             goals_for: 30,
             goals_against: 18,
+            competition_id: String::new(),
         });
         alpha.manager_id = Some("mgr1".to_string());
 
@@ -887,6 +1235,82 @@ mod tests {
                 .all(|entry| entry.player_id != "defender")
         );
     }
+    /// Given two forwards, one who scored four and one who played all season without scoring
+    /// When the golden boot and the assist king are ranked
+    /// Then only the scorer is in the golden boot, and only the forward with an assist is in the
+    ///      assist king: a season without one is no claim to either
+    #[test]
+    fn scoring_and_assist_awards_exclude_players_without_one() {
+        let forward = |id: &str, goals: u32, assists: u32| {
+            make_player(
+                id,
+                id,
+                Some("team1"),
+                Position::Forward,
+                "1998-01-01",
+                PlayerSeasonStats {
+                    appearances: 20,
+                    goals,
+                    assists,
+                    ..PlayerSeasonStats::default()
+                },
+            )
+        };
+        let game = make_game(
+            vec![forward("scorer", 4, 0), forward("provider", 0, 3)],
+            vec![make_team("team1", "Test FC")],
+        );
+
+        let awards = compute_season_awards(&game);
+
+        let ids = |entries: &[super::AwardEntry]| -> Vec<String> {
+            entries
+                .iter()
+                .map(|entry| entry.player_id.clone())
+                .collect()
+        };
+        assert_eq!(
+            (ids(&awards.golden_boot), ids(&awards.assist_king)),
+            (vec!["scorer".to_string()], vec!["provider".to_string()])
+        );
+    }
+
+    /// Given a regular goalkeeper who kept no clean sheet all season, and one who kept three
+    /// When the clean sheet king is ranked
+    /// Then only the keeper with a clean sheet is listed: none is no claim to the award
+    #[test]
+    fn clean_sheet_king_excludes_goalkeepers_without_a_clean_sheet() {
+        let keeper = |id: &str, clean_sheets: u32| {
+            make_player(
+                id,
+                id,
+                Some("team1"),
+                Position::Goalkeeper,
+                "1998-01-01",
+                PlayerSeasonStats {
+                    appearances: 20,
+                    clean_sheets,
+                    ..PlayerSeasonStats::default()
+                },
+            )
+        };
+        let game = make_game(
+            vec![keeper("blank", 0), keeper("three", 3)],
+            vec![make_team("team1", "Test FC")],
+        );
+
+        let awards = compute_season_awards(&game);
+
+        assert_eq!(
+            awards
+                .clean_sheet_king
+                .iter()
+                .map(|entry| entry.player_id.as_str())
+                .collect::<Vec<_>>(),
+            vec!["three"]
+        );
+    }
+
     /// Given unrated player seasons, when world and division awards are computed,
     /// then both rating awards are absent and counting awards survive.
     #[test]

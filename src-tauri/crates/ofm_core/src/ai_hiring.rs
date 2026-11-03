@@ -3,7 +3,7 @@ use chrono::{Datelike, NaiveDate};
 use domain::manager::{Manager, ManagerCareerEntry};
 use domain::staff::{Staff, StaffRole};
 
-const BASE_AI_MANAGER_SATISFACTION: i32 = 50;
+pub(crate) const BASE_AI_MANAGER_SATISFACTION: i32 = 50;
 const AI_MANAGER_REPLACEMENT_DELAY_DAYS: u32 = 7;
 const USER_RIVALRY_SATISFACTION_PENALTY: i32 = 10;
 const USER_RIVALRY_LOOKBACK_DAYS: i64 = 14;
@@ -33,14 +33,14 @@ fn manager_seed_staff<'a>(staff: &'a [Staff], team_id: &str) -> Option<&'a Staff
 
 fn next_seeded_manager_id(game: &Game, team_id: &str, source_staff: &Staff) -> String {
     let base_id = format!("mgr_{}_{}", team_id, source_staff.id);
-    if !game.managers.iter().any(|manager| manager.id == base_id) {
+    if !manager_id_in_use(game, &base_id) {
         return base_id;
     }
 
     let mut sequence = 2;
     loop {
         let candidate = format!("{}_{}", base_id, sequence);
-        if !game.managers.iter().any(|manager| manager.id == candidate) {
+        if !manager_id_in_use(game, &candidate) {
             return candidate;
         }
         sequence += 1;
@@ -52,30 +52,39 @@ fn next_seeded_manager_id(game: &Game, team_id: &str, source_staff: &Staff) -> S
 /// Deliberately not the club's reputation, which is what this used to take: a
 /// manager carried a standing they had not earned, and being at a big club was
 /// itself what made them well regarded. `coaching` is the attribute that most
-/// directly says "can run a football team", mapped onto the same `200..=700`
-/// band `generate_random_unemployed_manager` draws from so that a stand-in and
+/// directly says "can run a football team", mapped onto `CREATED_REPUTATION`, the
+/// band `generate_random_unemployed_manager` draws from, so that a stand-in and
 /// a manager off the market are comparable.
 fn stand_in_manager_reputation(source_staff: &Staff) -> u32 {
-    const FLOOR: u32 = 200;
     const PER_POINT: u32 = 5;
-    FLOOR + u32::from(source_staff.attributes.coaching.min(100)) * PER_POINT
+    domain::manager::CREATED_REPUTATION.start()
+        + u32::from(source_staff.attributes.coaching.min(100)) * PER_POINT
 }
 
 /// A stable id for a club's invented manager, in the shape of the stand-in ids.
 fn next_generated_manager_id(game: &Game, team_id: &str) -> String {
     let base_id = format!("mgr_{}", team_id);
-    if !game.managers.iter().any(|manager| manager.id == base_id) {
+    if !manager_id_in_use(game, &base_id) {
         return base_id;
     }
 
     let mut sequence = 2;
     loop {
         let candidate = format!("{}_{}", base_id, sequence);
-        if !game.managers.iter().any(|manager| manager.id == candidate) {
+        if !manager_id_in_use(game, &candidate) {
             return candidate;
         }
         sequence += 1;
     }
+}
+
+/// Whether `id` belongs to anyone on record, the archive included: an archived record is
+/// insert-only by id, so a new manager reusing its id would never be saved.
+fn manager_id_in_use(game: &Game, id: &str) -> bool {
+    game.managers
+        .iter()
+        .chain(&game.retired_managers)
+        .any(|manager| manager.id == id)
 }
 
 /// Invent a manager for a club that has none, leaving its staff untouched.
@@ -134,6 +143,7 @@ fn create_seeded_manager(
     manager.reputation = stand_in_manager_reputation(source_staff);
     manager.satisfaction = BASE_AI_MANAGER_SATISFACTION as u8;
     manager.fan_approval = 50;
+    manager.interim = true;
     manager.hire(team.id.clone());
     manager.career_history.push(ManagerCareerEntry::open(
         team.id.clone(),
@@ -218,13 +228,16 @@ fn recent_loss_to_user_penalty(game: &Game, team_id: &str) -> i32 {
 }
 
 fn team_has_manager_history(game: &Game, team_id: &str) -> bool {
-    game.managers.iter().any(|manager| {
-        manager.team_id.as_deref() == Some(team_id)
-            || manager
-                .career_history
-                .iter()
-                .any(|entry| entry.team_id == team_id)
-    })
+    game.managers
+        .iter()
+        .chain(&game.retired_managers)
+        .any(|manager| {
+            manager.team_id.as_deref() == Some(team_id)
+                || manager
+                    .career_history
+                    .iter()
+                    .any(|entry| entry.team_id == team_id)
+        })
 }
 
 pub fn seed_ai_managers(game: &mut Game) {
@@ -472,6 +485,94 @@ mod tests {
             ],
             vec![],
         )
+    }
+
+    fn on_record(game: &mut Game, id: &str) {
+        game.retired_managers.push(Manager::new(
+            id.to_string(),
+            "Former".to_string(),
+            "Manager".to_string(),
+            "1950-01-01".to_string(),
+            "England".to_string(),
+        ));
+    }
+
+    fn manager_id_of(game: &Game, team_id: &str) -> Option<String> {
+        game.teams
+            .iter()
+            .find(|team| team.id == team_id)
+            .and_then(|team| team.manager_id.clone())
+    }
+
+    fn vacant_long_enough(game: &mut Game, team_id: &str) {
+        game.vacant_team_days.insert(
+            team_id.to_string(),
+            super::AI_MANAGER_REPLACEMENT_DELAY_DAYS - 1,
+        );
+    }
+
+    /// Given an AI club with no manager at world start
+    /// When managers are seeded
+    /// Then the invented manager's id is the club's own readable one, `mgr_<club>`
+    #[test]
+    fn a_clubs_first_invented_manager_is_named_after_the_club() {
+        let mut game = make_game();
+
+        seed_ai_managers(&mut game);
+
+        assert_eq!(manager_id_of(&game, "team2").as_deref(), Some("mgr_team2"));
+    }
+
+    /// Given a vacant AI club with no assistant, whose readable id `mgr_<club>` is already on record
+    /// When the vacancy is filled
+    /// Then the invented manager takes the next free id, not the one on record
+    #[test]
+    fn an_invented_manager_whose_id_is_on_record_takes_the_next_free_one() {
+        let mut game = make_game();
+        game.staff
+            .retain(|member| member.team_id.as_deref() != Some("team2"));
+        on_record(&mut game, "mgr_team2");
+        vacant_long_enough(&mut game, "team2");
+
+        process_vacant_ai_clubs(&mut game);
+
+        assert_eq!(
+            manager_id_of(&game, "team2").as_deref(),
+            Some("mgr_team2_2")
+        );
+    }
+
+    /// Given a vacant AI club with an assistant manager
+    /// When the vacancy is filled
+    /// Then the stand-in's id is the readable `mgr_<club>_<assistant>`
+    #[test]
+    fn a_clubs_first_stand_in_is_named_after_the_club_and_the_assistant() {
+        let mut game = make_game();
+        vacant_long_enough(&mut game, "team2");
+
+        process_vacant_ai_clubs(&mut game);
+
+        assert_eq!(
+            manager_id_of(&game, "team2").as_deref(),
+            Some("mgr_team2_staff2")
+        );
+    }
+
+    /// Given a vacant AI club with an assistant, whose readable stand-in id is already on record
+    /// When the vacancy is filled
+    /// Then the stand-in takes the next free id, not the one on record
+    #[test]
+    fn a_stand_in_whose_id_is_on_record_takes_the_next_free_one() {
+        let mut game = make_game();
+        on_record(&mut game, "mgr_team2_staff2");
+        vacant_long_enough(&mut game, "team2");
+
+        process_vacant_ai_clubs(&mut game);
+
+        assert_eq!(
+            manager_id_of(&game, "team2").as_deref(),
+            Some("mgr_team2_staff2_2")
+        );
     }
 
     #[test]
@@ -975,6 +1076,376 @@ mod tests {
         assert_eq!(
             offer.body_key.as_deref(),
             Some("be.msg.jobOfferExpired.body")
+        );
+    }
+
+    /// Given a club whose only manager on record has since retired into the archive
+    /// When managers are seeded
+    /// Then the club still counts as having had a manager, so nobody is conjured for it.
+    #[test]
+    fn a_retired_managers_club_is_not_seeded_as_if_it_never_had_one() {
+        let mut game = make_game();
+        let mut retired = Manager::new(
+            "retired".to_string(),
+            "Old".to_string(),
+            "Boss".to_string(),
+            "1950-01-01".to_string(),
+            "England".to_string(),
+        );
+        retired
+            .career_history
+            .push(domain::manager::ManagerCareerEntry::open(
+                "team2".to_string(),
+                "Rival FC".to_string(),
+                "2020-07-01".to_string(),
+            ));
+        game.retired_managers.push(retired);
+
+        seed_ai_managers(&mut game);
+
+        let rival = game.teams.iter().find(|t| t.id == "team2").unwrap();
+        assert_eq!(rival.manager_id, None);
+    }
+
+    /// Given an AI club that falls vacant and has an assistant
+    /// When the assistant steps up
+    /// Then the stand-in is marked interim, while an invented manager (no assistant) is not.
+    #[test]
+    fn only_a_stand_in_is_marked_interim() {
+        let mut game = make_game();
+        seed_ai_managers(&mut game);
+        vacate_club(&mut game, "team2");
+        process_vacant_ai_clubs(&mut game);
+        let stand_in = game
+            .managers
+            .iter()
+            .find(|m| m.team_id.as_deref() == Some("team2"))
+            .unwrap();
+        assert!(stand_in.interim);
+
+        game.staff.retain(|s| s.team_id.as_deref() != Some("team2"));
+        vacate_club(&mut game, "team2");
+        process_vacant_ai_clubs(&mut game);
+        let invented = game
+            .managers
+            .iter()
+            .find(|m| m.team_id.as_deref() == Some("team2"))
+            .unwrap();
+        assert!(!invented.interim);
+    }
+
+    /// Given an assistant who stood in once and whose manager record was then archived
+    /// When the club falls vacant again and the same assistant steps up
+    /// Then the new stand-in gets a fresh id instead of colliding with the archived one.
+    #[test]
+    fn a_second_stand_in_does_not_reuse_an_archived_id() {
+        let mut game = make_game();
+        seed_ai_managers(&mut game);
+        vacate_club(&mut game, "team2");
+        process_vacant_ai_clubs(&mut game);
+        let first = game
+            .managers
+            .iter()
+            .position(|m| m.team_id.as_deref() == Some("team2"))
+            .unwrap();
+        let first = game.managers.remove(first);
+        let first_id = first.id.clone();
+        game.teams
+            .iter_mut()
+            .find(|t| t.id == "team2")
+            .unwrap()
+            .manager_id = None;
+        game.retired_managers.push(first);
+
+        game.vacant_team_days.insert(
+            "team2".to_string(),
+            super::AI_MANAGER_REPLACEMENT_DELAY_DAYS - 1,
+        );
+        process_vacant_ai_clubs(&mut game);
+
+        let second = game
+            .managers
+            .iter()
+            .find(|m| m.team_id.as_deref() == Some("team2"))
+            .unwrap();
+        assert_ne!(second.id, first_id);
+    }
+
+    /// Given an assistant standing in for a vacant club
+    /// When the board sacks them
+    /// Then they leave the active pool at once for the archive, not at the season end (an ordinary
+    ///      sacked manager stays on the market: see `vacate_club`).
+    #[test]
+    fn a_sacked_stand_in_is_archived_at_once() {
+        let mut game = make_game();
+        seed_ai_managers(&mut game);
+        vacate_club(&mut game, "team2");
+        process_vacant_ai_clubs(&mut game);
+        let stand_in_id = game
+            .managers
+            .iter()
+            .find(|m| m.team_id.as_deref() == Some("team2"))
+            .map(|m| m.id.clone())
+            .unwrap();
+
+        let today = game.clock.current_date.format("%Y-%m-%d").to_string();
+        assert!(crate::firing::fire_ai_manager_for_team(
+            &mut game, "team2", &today
+        ));
+
+        assert!(game.managers.iter().all(|m| m.id != stand_in_id));
+        let archived = game
+            .retired_managers
+            .iter()
+            .find(|m| m.id == stand_in_id)
+            .expect("the sacked stand-in is archived");
+        assert_eq!(archived.team_id, None);
+        assert_eq!(
+            archived
+                .career_history
+                .last()
+                .and_then(|e| e.end_date.as_deref()),
+            Some(today.as_str())
+        );
+    }
+
+    /// An AI manager's standing from a form written as a string of results, e.g. "WDL".
+    fn standing(results: &str) -> i32 {
+        let form: Vec<String> = results.chars().map(String::from).collect();
+        i32::from(super::ai_manager_satisfaction(&form))
+    }
+
+    /// Given an AI club with no results yet, as every club is after the season's reset
+    /// When its manager's standing is worked out
+    /// Then it is the 50 they were appointed with: an empty form is not a losing run
+    #[test]
+    fn an_ai_manager_with_no_results_yet_keeps_the_standing_they_were_appointed_with() {
+        assert_eq!(standing(""), 50);
+    }
+
+    /// Given a form of one win
+    /// When the manager's standing is worked out
+    /// Then it is 8 better than with no results
+    #[test]
+    fn a_win_lifts_an_ai_managers_standing_by_eight() {
+        assert_eq!(standing("W") - standing(""), 8);
+    }
+
+    /// Given a form of one draw
+    /// When the manager's standing is worked out
+    /// Then it is 1 better than with no results
+    #[test]
+    fn a_draw_lifts_an_ai_managers_standing_by_one() {
+        assert_eq!(standing("D") - standing(""), 1);
+    }
+
+    /// Given a form of one defeat
+    /// When the manager's standing is worked out
+    /// Then it is 12 worse than with no results
+    #[test]
+    fn a_defeat_costs_an_ai_manager_twelve() {
+        assert_eq!(standing("L") - standing(""), -12);
+    }
+
+    /// Given four straight wins
+    /// When the manager's standing is worked out
+    /// Then it is 32 better than with no results: four wins, and no losing-run penalty
+    #[test]
+    fn four_straight_wins_earn_no_losing_run_penalty() {
+        assert_eq!(standing("WWWW") - standing(""), 32);
+    }
+
+    /// A completed match played on 1 July 2026, the fixture's day.
+    fn played(home: &str, away: &str, home_goals: u8, away_goals: u8) -> Fixture {
+        Fixture {
+            id: format!("{home}-v-{away}"),
+            matchday: 1,
+            date: "2026-07-01".to_string(),
+            home_team_id: home.to_string(),
+            away_team_id: away.to_string(),
+            status: FixtureStatus::Completed,
+            result: Some(MatchResult {
+                home_goals,
+                away_goals,
+                ..MatchResult::default()
+            }),
+            ..Fixture::default()
+        }
+    }
+
+    /// The AI club team2's rivalry penalty on 1 July 2026, with these matches in the league.
+    fn rivalry_penalty_with(fixtures: Vec<Fixture>) -> i32 {
+        let mut game = make_game();
+        game.league = Some(League {
+            fixtures,
+            ..Default::default()
+        });
+        super::recent_loss_to_user_penalty(&game, "team2")
+    }
+
+    /// The game on 1 July 2026 with a completed league match that day: the AI club, team2, away
+    /// at the user's club, team1.
+    fn rival_away_at_the_user(home_goals: u8, away_goals: u8) -> Game {
+        let mut game = make_game();
+        game.league = Some(League {
+            fixtures: vec![played("team1", "team2", home_goals, away_goals)],
+            ..Default::default()
+        });
+        game
+    }
+
+    /// Given the AI club beaten 1-0 away at the user's club today
+    /// When its rivalry penalty is worked out
+    /// Then it is 10: a defeat to the user counts away from home too
+    #[test]
+    fn an_ai_club_beaten_away_by_the_user_is_penalised() {
+        assert_eq!(
+            super::recent_loss_to_user_penalty(&rival_away_at_the_user(1, 0), "team2"),
+            10
+        );
+    }
+
+    /// Given the AI club held 1-1 away at the user's club today
+    /// When its rivalry penalty is worked out
+    /// Then it is 0: a draw is not a defeat
+    #[test]
+    fn an_ai_club_held_to_a_draw_away_at_the_user_is_not_penalised() {
+        assert_eq!(
+            super::recent_loss_to_user_penalty(&rival_away_at_the_user(1, 1), "team2"),
+            0
+        );
+    }
+
+    /// Given a vacant AI club with an assistant, whose stand-in id and the one after it are both
+    ///       on record
+    /// When the vacancy is filled
+    /// Then the stand-in takes the third: `mgr_team2_staff2_3`
+    #[test]
+    fn a_third_stand_in_takes_the_next_free_id_after_two_on_record() {
+        let mut game = make_game();
+        on_record(&mut game, "mgr_team2_staff2");
+        on_record(&mut game, "mgr_team2_staff2_2");
+        vacant_long_enough(&mut game, "team2");
+
+        let game = within_five_seconds(game, process_vacant_ai_clubs);
+
+        assert_eq!(
+            manager_id_of(&game, "team2").as_deref(),
+            Some("mgr_team2_staff2_3")
+        );
+    }
+
+    /// Given a vacant AI club with no assistant, whose invented manager's id and the one after it
+    ///       are both on record
+    /// When the vacancy is filled
+    /// Then the invented manager takes the third: `mgr_team2_3`
+    #[test]
+    fn a_third_invented_manager_takes_the_next_free_id_after_two_on_record() {
+        let mut game = make_game();
+        game.staff
+            .retain(|member| member.team_id.as_deref() != Some("team2"));
+        on_record(&mut game, "mgr_team2");
+        on_record(&mut game, "mgr_team2_2");
+        vacant_long_enough(&mut game, "team2");
+
+        let game = within_five_seconds(game, process_vacant_ai_clubs);
+
+        assert_eq!(
+            manager_id_of(&game, "team2").as_deref(),
+            Some("mgr_team2_3")
+        );
+    }
+
+    /// Runs `step` on `game` in a thread and hands the game back, failing the test if the step has
+    /// not finished within five seconds.
+    ///
+    /// The id loops search upward until they find a free id, so a regression that stops them
+    /// advancing hangs rather than fails, and `cargo test` has no timeout of its own: the suite
+    /// would sit until CI's job limit. This turns such a hang into a named failure. A step that
+    /// panics instead is re-raised with its own message, not reported as a hang. A thread left
+    /// spinning dies with the test process.
+    fn within_five_seconds(mut game: Game, step: fn(&mut Game)) -> Game {
+        let (sender, receiver) = std::sync::mpsc::channel();
+        let worker = std::thread::spawn(move || {
+            step(&mut game);
+            let _ = sender.send(game);
+        });
+        match receiver.recv_timeout(std::time::Duration::from_secs(5)) {
+            Ok(game) => game,
+            Err(std::sync::mpsc::RecvTimeoutError::Timeout) => panic!(
+                "the step did not finish within five seconds: an id search may have stopped advancing"
+            ),
+            Err(std::sync::mpsc::RecvTimeoutError::Disconnected) => match worker.join() {
+                Err(panic) => std::panic::resume_unwind(panic),
+                Ok(()) => panic!("the step returned without handing the game back"),
+            },
+        }
+    }
+
+    /// Given a step that panics with its own message
+    /// When it runs under the five-second guard
+    /// Then the test fails with that message at once, not with the guard's "did not finish"
+    #[test]
+    #[should_panic(expected = "a step that fails on its own")]
+    fn a_step_that_panics_fails_with_its_own_message_not_as_a_hang() {
+        within_five_seconds(make_game(), |_| panic!("a step that fails on its own"));
+    }
+
+    /// Given a vacant AI club whose assistant has coaching 60
+    /// When the assistant steps up
+    /// Then the stand-in's reputation is 500: 200, plus 5 a point of coaching
+    #[test]
+    fn a_stand_ins_reputation_comes_from_their_coaching() {
+        let mut game = make_game();
+        vacant_long_enough(&mut game, "team2");
+
+        process_vacant_ai_clubs(&mut game);
+
+        let stand_in = manager_id_of(&game, "team2").expect("the assistant stepped up");
+        let reputation = game
+            .managers
+            .iter()
+            .find(|manager| manager.id == stand_in)
+            .map(|manager| manager.reputation);
+        assert_eq!(reputation, Some(500));
+    }
+
+    /// Given the AI club held 1-1 at home by the user's club today
+    /// When its rivalry penalty is worked out
+    /// Then it is 0: a draw is not a defeat at home either
+    #[test]
+    fn an_ai_club_held_to_a_draw_at_home_by_the_user_is_not_penalised() {
+        assert_eq!(
+            rivalry_penalty_with(vec![played("team2", "team1", 1, 1)]),
+            0
+        );
+    }
+
+    /// Given the AI club beaten 1-0 away by the user's club today, in the cup
+    /// When its rivalry penalty is worked out
+    /// Then it is 0: only league defeats to the user count
+    #[test]
+    fn a_cup_defeat_to_the_user_carries_no_rivalry_penalty() {
+        let cup_tie = Fixture {
+            competition: domain::league::FixtureCompetition::Cup,
+            ..played("team1", "team2", 1, 0)
+        };
+
+        assert_eq!(rivalry_penalty_with(vec![cup_tie]), 0);
+    }
+
+    /// Given the AI club beaten today by a third club, once at home and once away, and never by
+    ///       the user
+    /// When its rivalry penalty is worked out
+    /// Then it is 0: only a defeat to the user's club counts
+    #[test]
+    fn a_defeat_to_another_club_carries_no_rivalry_penalty() {
+        assert_eq!(
+            rivalry_penalty_with(vec![
+                played("team2", "team3", 0, 1),
+                played("team3", "team2", 1, 0),
+            ]),
+            0
         );
     }
 }

@@ -100,6 +100,27 @@ describe("ThemeProvider", () => {
     );
     expect(screen.getByTestId("theme").textContent).toBe("light");
   });
+
+  /**
+   * Given a provider with its own storage key (the dev style guide's) and an app theme stored,
+   * when it reads, toggles and writes,
+   * then it uses only its own key and the app's stored theme is untouched.
+   */
+  it("keeps to its own storage key when given one", () => {
+    localStorage.setItem("ofm-theme", "dark");
+    localStorage.setItem("ofm-style-guide-theme", "light");
+    render(
+      <ThemeProvider storageKey="ofm-style-guide-theme">
+        <ThemeConsumer />
+      </ThemeProvider>,
+    );
+    expect(screen.getByTestId("theme").textContent).toBe("light");
+    fireEvent.click(screen.getByText("Toggle"));
+    expect(localStorage.getItem("ofm-style-guide-theme")).toBe("dark");
+    fireEvent.click(screen.getByText("Toggle"));
+    expect(localStorage.getItem("ofm-style-guide-theme")).toBe("light");
+    expect(localStorage.getItem("ofm-theme")).toBe("dark");
+  });
 });
 
 describe("useTheme", () => {

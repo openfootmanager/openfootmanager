@@ -4,8 +4,10 @@ import type { ReactNode } from "react";
 
 import type { GameStateData } from "../../store/gameStore";
 import { countryName } from "../../lib/countries";
+import { translatePositionLabel } from "../squad/SquadTab.helpers";
 import { Badge, Card, CardBody, CardHeader, CountryFlag, TeamLogo } from "../ui";
-import { deriveHallOfFameLegends, derivePastChampions } from "./HallOfFameWorldTab.model";
+import { useHallOfFameChampions } from "./useHallOfFameChampions";
+import { useHallOfFameLegends } from "./useHallOfFameLegends";
 
 interface HallOfFameWorldTabProps {
   gameState: GameStateData;
@@ -19,8 +21,15 @@ export default function HallOfFameWorldTab({
   onSelectTeam,
 }: HallOfFameWorldTabProps) {
   const { t, i18n } = useTranslation();
-  const legends = deriveHallOfFameLegends(gameState);
-  const champions = derivePastChampions(gameState);
+  // A career switch can keep this tab mounted under an unchanged date.
+  const careerToken = gameState.career_token ?? 0;
+  const legends = useHallOfFameLegends(gameState.clock.current_date, careerToken);
+  const titles = useHallOfFameChampions(gameState.clock.current_date, careerToken);
+  // The backend names the titles; the screen only attaches the club it shows.
+  const champions = titles.flatMap(({ season, team_id, record }) => {
+    const team = gameState.teams.find((candidate) => candidate.id === team_id);
+    return team ? [{ season, team, record }] : [];
+  });
   const worldCupChampions = gameState.world_history?.world_cup_champions ?? [];
 
   return (
@@ -111,10 +120,10 @@ export default function HallOfFameWorldTab({
         ) : (
           <div className="grid grid-cols-1 gap-5 xl:grid-cols-2">
             {legends.map((legend) => {
-              const footballNation = legend.player.football_nation ?? legend.player.nationality;
+              const footballNation = legend.football_nation || legend.nationality;
 
               return (
-                <Card key={legend.player.id} accent="primary">
+                <Card key={legend.player_id} accent="primary">
                   <CardHeader
                     action={
                       <Badge variant="accent">{`${t("hallOfFameWorld.titles")}: ${legend.titles}`}</Badge>
@@ -122,10 +131,10 @@ export default function HallOfFameWorldTab({
                   >
                     <button
                       type="button"
-                      onClick={() => onSelectPlayer?.(legend.player.id)}
+                      onClick={() => onSelectPlayer?.(legend.player_id)}
                       className="text-left transition-colors hover:text-primary-500"
                     >
-                      {legend.player.full_name}
+                      {legend.full_name}
                     </button>
                   </CardHeader>
                   <CardBody className="space-y-4">
@@ -140,11 +149,11 @@ export default function HallOfFameWorldTab({
                           <span>{countryName(footballNation, i18n.language)}</span>
                         </div>
                         <p className="mt-2 text-xl font-heading font-bold uppercase tracking-wide text-gray-900 dark:text-gray-100">
-                          {legend.player.position}
+                          {translatePositionLabel(t, legend.position)}
                         </p>
-                        {legend.lastClubName ? (
+                        {legend.last_club_name ? (
                           <p className="mt-1 text-sm text-primary-500">
-                            {`${t("hallOfFameWorld.lastClub")}: ${legend.lastClubName}`}
+                            {`${t("hallOfFameWorld.lastClub")}: ${legend.last_club_name}`}
                           </p>
                         ) : null}
                       </div>
@@ -168,7 +177,7 @@ export default function HallOfFameWorldTab({
                       />
                       <StatTile
                         label={t("hallOfFameWorld.finalSeason")}
-                        value={legend.finalSeason?.toString() ?? "-"}
+                        value={legend.final_season?.toString() ?? "-"}
                       />
                     </div>
                   </CardBody>

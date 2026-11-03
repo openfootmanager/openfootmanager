@@ -28,7 +28,7 @@ impl OfmMcpHandler {
         app_handle: tauri::AppHandle,
     ) -> Self {
         // Build tool router, respecting disabled tools from config
-        let disabled = Self::collect_disabled_tools(&config);
+        let disabled = config.hidden_tools();
         let context = Arc::new(McpContext {
             state_manager,
             save_manager_state,
@@ -43,18 +43,12 @@ impl OfmMcpHandler {
             tool_router,
         }
     }
+}
 
-    /// Collect all disabled tool names from mode + denylist.
-    fn collect_disabled_tools(config: &McpConfig) -> Vec<String> {
-        let mut disabled: Vec<String> = config
-            .mode
-            .disabled_tools()
-            .iter()
-            .map(|s| s.to_string())
-            .collect();
-        disabled.extend(config.disabled_tools.clone());
-        disabled
-    }
+/// The package version, with the sources the binary was built from as semver build metadata
+/// (`0.3.0+<revision>`), so a client can tell a stale binary from a current one.
+fn server_version() -> String {
+    crate::build_info::build_version()
 }
 
 impl ServerHandler for OfmMcpHandler {
@@ -62,7 +56,7 @@ impl ServerHandler for OfmMcpHandler {
         let capabilities = ServerCapabilities::builder().enable_tools().build();
         rmcp::model::ServerInfo::new(capabilities).with_server_info(Implementation::new(
             "OpenFoot Manager MCP Server",
-            env!("CARGO_PKG_VERSION"),
+            server_version(),
         ))
     }
 

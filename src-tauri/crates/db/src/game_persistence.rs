@@ -1,3 +1,4 @@
+use crate::json_column::{self, Cell};
 use chrono::Utc;
 use domain::stats::StatsState;
 use domain::world_history::WorldHistoryArchive;
@@ -5,15 +6,16 @@ use rusqlite::Connection;
 
 use ofm_core::clock::GameClock;
 use ofm_core::game::{
-    BoardObjective, Game, ObjectiveType, ScoutedPlayer, ScoutingAssignment,
+    BoardObjective, Game, ObjectiveType, PotentialRange, ScoutedPlayer, ScoutingAssignment,
     YouthScoutingAssignment, YouthScoutingObjective, YouthScoutingRegion,
 };
 
 use crate::game_database::GameDatabase;
 use crate::repositories::{
-    competition_repo, edition_archive_repo, journal_repo, league_repo, manager_repo, message_repo,
-    meta_repo, national_team_repo, news_repo, objective_repo, player_repo, scouting_repo,
-    staff_repo, stats_repo, team_repo,
+    archived_message_repo, competition_repo, custom_tactic_repo, edition_archive_repo,
+    journal_repo, league_repo, manager_repo, message_repo, meta_repo, national_team_repo,
+    news_repo, objective_repo, player_repo, retired_manager_repo, retired_player_repo,
+    scouting_repo, staff_repo, stats_repo, team_repo,
 };
 
 pub struct GamePersistenceWriter;
@@ -52,7 +54,7 @@ impl GamePersistenceWriter {
             .unchecked_transaction()
             .map_err(|_| game_persistence_write_error())?;
         write_game_to_connection(&transaction, game, save_id, save_name)?;
-        stats_repo::replace_stats_state(&transaction, stats)?;
+        stats_repo::persist_stats_state(&transaction, stats)?;
         transaction
             .commit()
             .map_err(|_| game_persistence_write_error())?;
@@ -64,7 +66,7 @@ impl GamePersistenceWriter {
             .conn()
             .unchecked_transaction()
             .map_err(|_| game_persistence_write_error())?;
-        stats_repo::replace_stats_state(&transaction, stats)?;
+        stats_repo::persist_stats_state(&transaction, stats)?;
         transaction
             .commit()
             .map_err(|_| game_persistence_write_error())?;
@@ -117,6 +119,9 @@ fn write_game_to_connection(
             // Same bits, read back the same way in `read_game`.
             seed: game.seed as i64,
             legacy_world_cup_draw: game.legacy_world_cup_draw,
+            legacy_tactics_imported: game.legacy_tactics_imported,
+            gate_settled_from: game.gate_settled_from.clone(),
+            last_season_rollover_on: game.last_season_rollover_on.clone(),
             available_staff_market_last_activity_date: game
                 .available_staff_market_last_activity_date
                 .clone(),
@@ -148,13 +153,17 @@ fn write_game_to_connection(
     player_repo::upsert_players(conn, &game.players)?;
     staff_repo::replace_staff_list(conn, &game.staff)?;
     message_repo::replace_messages(conn, &game.messages)?;
-    news_repo::replace_news_list(conn, &game.news)?;
+    archived_message_repo::archive_messages(conn, &game.archived_messages)?;
+    news_repo::sync_news_list(conn, &game.news)?;
 
     if let Some(ref league) = game.league {
         league_repo::upsert_league(conn, league)?;
     }
     competition_repo::replace_competitions(conn, &game.competitions)?;
     edition_archive_repo::persist_new_editions(conn, &game.edition_archive)?;
+    custom_tactic_repo::replace_custom_tactics(conn, &game.custom_tactics)?;
+    retired_player_repo::archive_retired_players(conn, &game.retired_players)?;
+    retired_manager_repo::archive_retired_managers(conn, &game.retired_managers)?;
     national_team_repo::replace_national_teams(conn, &game.national_teams)?;
 
     let objective_rows: Vec<objective_repo::BoardObjectiveRow> = game
@@ -191,6 +200,9 @@ fn write_game_to_connection(
                 scouted_on: scouted.scouted_on.clone(),
                 attributes_json: serde_json::to_string(&scouted.attributes)
                     .map_err(|_| game_persistence_write_error())?,
+                potential_low: scouted.potential.map(|range| range.low),
+                potential_high: scouted.potential.map(|range| range.high),
+                scout_name: scouted.scout_name.clone(),
             })
         })
         .collect::<Result<Vec<_>, String>>()?;
@@ -255,6 +267,9 @@ fn game_persistence_load_error() -> String {
 impl GamePersistenceReader {
     pub fn read_game(db: &GameDatabase) -> Result<Game, String> {
         let conn = db.conn();
+        // The meta row's JSON columns: one that does not parse reads as its default and is kept in
+        // unreadable_records, never silently lost (`json_column`).
+        let meta_cell = |column: &'static str| Cell::new("game_meta", "singleton", column);
 
         let meta = meta_repo::load_meta(conn)?.ok_or_else(game_meta_missing_error)?;
 
@@ -278,10 +293,14 @@ impl GamePersistenceReader {
         let players = player_repo::load_all_players(conn)?;
         let staff = staff_repo::load_all_staff(conn)?;
         let messages = message_repo::load_all_messages(conn)?;
+        let archived_messages = archived_message_repo::load_archived_messages(conn)?;
         let news = news_repo::load_all_news(conn)?;
         let league = league_repo::load_league(conn)?;
         let mut competitions = competition_repo::load_competitions(conn)?;
         let edition_archive = edition_archive_repo::load_editions(conn)?;
+        let custom_tactics = custom_tactic_repo::load_custom_tactics(conn)?;
+        let retired_players = retired_player_repo::load_retired_players(conn)?;
+        let retired_managers = retired_manager_repo::load_retired_managers(conn)?;
         let national_teams = national_team_repo::load_national_teams(conn)?;
         if competitions.is_empty()
             && let Some(existing_league) = league.clone()
@@ -321,6 +340,12 @@ impl GamePersistenceReader {
                     scouted_on: row.scouted_on,
                     attributes: serde_json::from_str(&row.attributes_json)
                         .map_err(|_| game_persistence_load_error())?,
+                    // Both ends or neither: a half-written range is no opinion.
+                    potential: row
+                        .potential_low
+                        .zip(row.potential_high)
+                        .map(|(low, high)| PotentialRange { low, high }),
+                    scout_name: row.scout_name,
                 })
             })
             .collect::<Result<Vec<_>, String>>()?;
@@ -345,6 +370,10 @@ impl GamePersistenceReader {
         let mut game = Game {
             seed: meta.seed as u64,
             legacy_world_cup_draw: meta.legacy_world_cup_draw,
+            legacy_tactics_imported: meta.legacy_tactics_imported,
+            gate_settled_from: meta.gate_settled_from.clone(),
+            last_season_rollover_on: meta.last_season_rollover_on.clone(),
+            career_token: 0,
             clock,
             manager_id: meta.manager_id.clone(),
             managers,
@@ -356,10 +385,16 @@ impl GamePersistenceReader {
             news,
             competitions,
             national_teams,
-            active_region_ids: serde_json::from_str(&meta.active_region_ids_json)
-                .unwrap_or_default(),
-            active_competition_ids: serde_json::from_str(&meta.active_competition_ids_json)
-                .unwrap_or_default(),
+            active_region_ids: json_column::read(
+                conn,
+                meta_cell("active_region_ids_json"),
+                &meta.active_region_ids_json,
+            ),
+            active_competition_ids: json_column::read(
+                conn,
+                meta_cell("active_competition_ids_json"),
+                &meta.active_competition_ids_json,
+            ),
             league,
             scouting_assignments,
             youth_scouting_assignments,
@@ -369,25 +404,39 @@ impl GamePersistenceReader {
             days_since_last_job_offer: None,
             available_staff_market_last_activity_date: meta
                 .available_staff_market_last_activity_date,
-            vacant_team_days: serde_json::from_str(&meta.vacant_team_days_json).unwrap_or_default(),
+            vacant_team_days: json_column::read(
+                conn,
+                meta_cell("vacant_team_days_json"),
+                &meta.vacant_team_days_json,
+            ),
             edition_archive,
-            world_history: serde_json::from_str(&meta.world_history_json)
-                .unwrap_or_else(|_| WorldHistoryArchive::default()),
-            // A malformed ledger degrades to the legacy-save path rather than
-            // failing the load: `seed_ledger_from_save` below re-seeds it from
-            // the inbox, which is exactly what a pre-v043 save does. Refusing to
-            // open an entire career over one bookkeeping column would be the
-            // worse trade — but it is not silent, because a repeat announcement
-            // months later is impossible to trace back to this line otherwise.
-            emitted_events: serde_json::from_str(&meta.emitted_events_json).unwrap_or_else(|_| {
-                log::warn!(
-                    "[load] sent-ledger JSON is malformed; reseeding it from the inbox. \
-                     Events whose messages were already deleted may be announced once more."
-                );
-                Default::default()
-            }),
-            extra_translations: serde_json::from_str(&meta.extra_translations_json)
-                .unwrap_or_default(),
+            custom_tactics,
+            retired_players,
+            calendar_fingerprint: None,
+            day_start: None,
+            retired_managers,
+            archived_messages,
+            world_history: json_column::read_or_else(
+                conn,
+                meta_cell("world_history_json"),
+                &meta.world_history_json,
+                WorldHistoryArchive::default,
+            ),
+            // A malformed ledger reads as empty rather than failing the load:
+            // refusing to open an entire career over one bookkeeping column would
+            // be the worse trade. The cell is logged and kept in unreadable_records,
+            // and `SaveManager::load_game` rebuilds the ledger from the inbox; this
+            // reader only reports what is stored.
+            emitted_events: json_column::read(
+                conn,
+                meta_cell("emitted_events_json"),
+                &meta.emitted_events_json,
+            ),
+            extra_translations: json_column::read(
+                conn,
+                meta_cell("extra_translations_json"),
+                &meta.extra_translations_json,
+            ),
             package_lockfile: if meta.package_lockfile_json.trim().is_empty() {
                 Vec::new()
             } else {
@@ -519,6 +568,9 @@ mod tests {
             emitted_events_json: "[]".to_string(),
             seed: 0,
             legacy_world_cup_draw: false,
+            legacy_tactics_imported: false,
+            gate_settled_from: None,
+            last_season_rollover_on: None,
         }
     }
 
@@ -613,6 +665,86 @@ mod tests {
 
             assert_eq!(loaded.legacy_world_cup_draw, legacy);
         }
+    }
+
+    /// Given a career whose old browser tactics have been copied in, and one whose have not
+    /// When each is saved
+    /// Then the .db itself holds the mark (read back with plain SQL, not through the loader), and
+    ///      each loads as it was saved.
+    #[test]
+    fn the_legacy_tactics_import_mark_is_written_to_the_save() {
+        for imported in [true, false] {
+            let db = GameDatabase::open_in_memory().unwrap();
+            let mut game = sample_game_with_clock(2026, 1);
+            game.legacy_tactics_imported = imported;
+            GamePersistenceWriter::write_game(&db, &game, "save-1", "Career").unwrap();
+
+            let stored: bool = db
+                .conn()
+                .query_row("SELECT legacy_tactics_imported FROM game_meta", [], |row| {
+                    row.get(0)
+                })
+                .unwrap();
+            let loaded = GamePersistenceReader::read_game(&db).unwrap();
+
+            assert_eq!(stored, imported);
+            assert_eq!(loaded.legacy_tactics_imported, imported);
+        }
+    }
+
+    /// Given a career whose last season ended on 25 May 2027, and one that has not reached a season
+    ///      end yet
+    /// When each is saved
+    /// Then the .db itself holds the date, or NULL (read back with plain SQL, not through the
+    ///      loader), and each loads as it was saved.
+    #[test]
+    fn the_last_season_rollover_is_written_to_the_save() {
+        for rollover in [Some("2027-05-25"), None] {
+            let db = GameDatabase::open_in_memory().unwrap();
+            let mut game = sample_game_with_clock(2027, 6);
+            game.last_season_rollover_on = rollover.map(str::to_string);
+            GamePersistenceWriter::write_game(&db, &game, "save-1", "Career").unwrap();
+
+            let stored: Option<String> = db
+                .conn()
+                .query_row("SELECT last_season_rollover_on FROM game_meta", [], |row| {
+                    row.get(0)
+                })
+                .unwrap();
+            let loaded = GamePersistenceReader::read_game(&db).unwrap();
+
+            assert_eq!(stored.as_deref(), rollover);
+            assert_eq!(loaded.last_season_rollover_on.as_deref(), rollover);
+        }
+    }
+
+    /// Given a career whose gates are settled from a date, with a gate paid for one fixture
+    /// When it is saved and loaded
+    /// Then the date and the fixture-keyed gate come back, and the journal still matches cash.
+    #[test]
+    fn per_fixture_gates_survive_a_save_and_load() {
+        use domain::finance::CashKind;
+        use ofm_core::finances::journal::{PostRequest, journal_matches_cash, post_all};
+
+        let db = GameDatabase::open_in_memory().unwrap();
+        let mut game = sample_game_with_clock(2026, 6);
+        game.gate_settled_from = Some("2026-07-01".to_string());
+        let paid_on = game.clock.current_date.date_naive();
+        post_all(
+            &mut game,
+            &[PostRequest::new("team-1", 480_000, CashKind::Matchday, paid_on).with_id("gate-f1")],
+        )
+        .unwrap();
+        GamePersistenceWriter::write_game(&db, &game, "save-1", "Career").unwrap();
+
+        let loaded = GamePersistenceReader::read_game(&db).unwrap();
+
+        assert_eq!(loaded.gate_settled_from.as_deref(), Some("2026-07-01"));
+        assert!(loaded.cash_journal.iter().any(|post| post.id == "gate-f1"
+            && post.amount == 480_000
+            && post.kind == CashKind::Matchday));
+        assert_eq!(loaded.teams[0].finance, game.teams[0].finance);
+        assert!(journal_matches_cash(&loaded));
     }
 
     #[test]

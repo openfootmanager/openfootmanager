@@ -1,7 +1,7 @@
-import { DollarSign, Trophy, Users } from "lucide-react";
+import { DollarSign, Star, Trophy, Users } from "lucide-react";
 
 import { weeklyWageAmount } from "../../lib/finance";
-import { formatVal, formatWeeklyAmount } from "../../lib/helpers";
+import { formatVal, formatWeeklyWage } from "../../lib/helpers";
 import type { TeamData } from "../../store/gameStore";
 import { Card, CardBody, CardHeader } from "../ui";
 import type { TeamProfileTranslate, TeamProfileViewModel } from "./TeamProfile.types";
@@ -11,7 +11,8 @@ interface TeamProfileSummaryCardProps {
   team: TeamData;
   isOwnTeam: boolean;
   viewModel: TeamProfileViewModel;
-  weeklySuffix: string;
+  /** The squad's average rating as the backend gives it; null when the club may not see it. */
+  averageRating: number | null;
   t: TeamProfileTranslate;
 }
 
@@ -19,7 +20,7 @@ export default function TeamProfileSummaryCard({
   team,
   isOwnTeam,
   viewModel,
-  weeklySuffix,
+  averageRating,
   t,
 }: TeamProfileSummaryCardProps) {
   if (isOwnTeam) {
@@ -36,10 +37,7 @@ export default function TeamProfileSummaryCard({
             <InfoRow
               icon={<DollarSign className="w-4 h-4" />}
               label={t("finances.wageBudget")}
-              value={formatWeeklyAmount(
-                formatVal(weeklyWageAmount(team.wage_budget)),
-                weeklySuffix,
-              )}
+              value={formatWeeklyWage(weeklyWageAmount(team.wage_budget), "compact")}
             />
             <InfoRow
               icon={<DollarSign className="w-4 h-4" />}
@@ -49,10 +47,7 @@ export default function TeamProfileSummaryCard({
             <InfoRow
               icon={<DollarSign className="w-4 h-4" />}
               label={t("teamProfile.totalWages")}
-              value={formatWeeklyAmount(
-                formatVal(weeklyWageAmount(viewModel.totalWages)),
-                weeklySuffix,
-              )}
+              value={formatWeeklyWage(weeklyWageAmount(viewModel.totalWages), "compact")}
             />
             <InfoRow
               icon={<DollarSign className="w-4 h-4" />}
@@ -85,11 +80,21 @@ export default function TeamProfileSummaryCard({
             label={t("finances.squadValue")}
             value={formatVal(viewModel.totalValue)}
           />
-          <InfoRow
-            icon={<Trophy className="w-4 h-4" />}
-            label={t("teams.avgOvr")}
-            value={String(viewModel.avgOvr)}
-          />
+          {/* A squad the club does not know shows the club's public standing instead of its
+              average: never an average of the few players a scout has seen (maintainer, L2c). */}
+          {averageRating === null ? (
+            <InfoRow
+              icon={<Star className="w-4 h-4" />}
+              label={t("manager.reputation")}
+              value={String(team.reputation)}
+            />
+          ) : (
+            <InfoRow
+              icon={<Trophy className="w-4 h-4" />}
+              label={t("teams.avgOvr")}
+              value={String(averageRating)}
+            />
+          )}
         </div>
       </CardBody>
     </Card>

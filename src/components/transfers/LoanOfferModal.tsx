@@ -2,14 +2,19 @@ import { BadgeEuro, CalendarClock, CalendarDays, Percent } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 import type { PlayerData, TeamData } from "../../store/gameStore";
-import { formatExactMoney, formatVal, getTeamName, positionBadgeVariant } from "../../lib/helpers";
+import { formatExactMoney, formatVal, getTeamName } from "../../lib/helpers";
+import { visibleWageText } from "../../lib/playerKnowledge";
+import type { VisibleWage } from "../../services/scoutingService";
 import { formatDate } from "../../lib/dateFormatting";
-import { Badge } from "../ui";
-import { translatePositionAbbreviation } from "../squad/SquadTab.helpers";
+import { Dialog } from "../ui";
+import { naturalPositionOf } from "../../lib/positions";
 import type { LoanPeriodOption, LoanPeriodOptionId } from "./TransfersTab.helpers";
+import PlayerPositionBadge from "../PlayerPositionBadge";
 
 export interface LoanOfferFormProps {
   loanTarget: PlayerData;
+  /** His wage as the club may see it: the share the offer would cover is worked out from this. */
+  visibleWage: VisibleWage;
   teams: TeamData[];
   periodId: LoanPeriodOptionId | "";
   periodOptions: LoanPeriodOption[];
@@ -47,6 +52,7 @@ type LoanOfferModalProps = LoanOfferFormProps;
 
 export function LoanOfferForm({
   loanTarget,
+  visibleWage,
   teams,
   periodId,
   periodOptions,
@@ -87,9 +93,7 @@ export function LoanOfferForm({
       </h3>
       {showPlayerSummary ? (
         <div className="flex items-center gap-3 mb-4">
-          <Badge variant={positionBadgeVariant(loanTarget.position)} size="sm">
-            {translatePositionAbbreviation(t, loanTarget.position)}
-          </Badge>
+          <PlayerPositionBadge position={naturalPositionOf(loanTarget)} />
           <div>
             <p className="font-semibold text-sm text-gray-800 dark:text-gray-200">
               {loanTarget.full_name}
@@ -206,7 +210,15 @@ export function LoanOfferForm({
       <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
         {t("transfers.loanWageSummary", {
           percent: wageContributionPct,
-          wage: formatExactMoney(Math.round((loanTarget.wage * wageContributionPct) / 100)),
+          // Covering none of his wage costs nothing whatever it is, so 0% tells nothing hidden.
+          wage:
+            wageContributionPct === 0
+              ? formatExactMoney(0)
+              : visibleWageText(
+                  visibleWage,
+                  (weekly) => formatExactMoney(Math.round((weekly * wageContributionPct) / 100)),
+                  t,
+                ),
         })}
       </p>
 
@@ -314,20 +326,13 @@ export function LoanOfferForm({
 
 export default function LoanOfferModal(props: LoanOfferModalProps) {
   return (
-    <div
-      role="presentation"
-      className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
-      onClick={props.onClose}
+    <Dialog
+      labelledBy="loan-offer-modal-title"
+      onClose={props.onClose}
+      dismissOnBackdrop
+      className="w-full max-w-md rounded-xl p-6"
     >
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="loan-offer-modal-title"
-        className="bg-white dark:bg-navy-800 rounded-xl shadow-2xl border border-gray-200 dark:border-navy-600 p-6 w-full max-w-md"
-        onClick={(event) => event.stopPropagation()}
-      >
-        <LoanOfferForm {...props} />
-      </div>
-    </div>
+      <LoanOfferForm {...props} />
+    </Dialog>
   );
 }

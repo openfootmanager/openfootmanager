@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { useGameStore } from "./gameStore";
 import type { GameStateData } from "./types";
+import { createSeasonContext } from "../test-utils/factories";
 
 // ---------------------------------------------------------------------------
 // Reset store between tests
@@ -17,8 +18,10 @@ beforeEach(() => {
 
 // Minimal GameStateData stub — only the fields the store cares about
 const makeGameState = (overrides: Partial<GameStateData> = {}): GameStateData => ({
+  season_context: createSeasonContext(),
   clock: { current_date: "2026-08-01", start_date: "2026-08-01" },
   manager: {
+    display_name: "Test Manager",
     id: "mgr1",
     first_name: "Test",
     last_name: "Manager",
@@ -161,6 +164,7 @@ describe("useGameStore", () => {
             id: "s1",
             first_name: "Sam",
             last_name: "Coach",
+            display_name: "Sam Coach",
             date_of_birth: "1980-01-01",
             nationality: "British",
             football_nation: "ENG",

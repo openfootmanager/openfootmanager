@@ -1,7 +1,8 @@
 import i18n from "../i18n";
-import { formatExactMoney, formatVal } from "../lib/helpers";
+import { formatExactMoney, formatPreciseCompact } from "../lib/helpers";
 import { formatDate } from "../lib/dateFormatting";
 import { countryName } from "../lib/countries";
+import { competitionDisplayName } from "../lib/competitionName";
 import { useSettingsStore } from "../store/settingsStore";
 import type {
   MessageActionOption,
@@ -108,7 +109,7 @@ export function resolveBackendError(error: unknown): string {
   const message = extractErrorMessage(error).trim();
   if (!message) return "";
   const parsed = parseBackendMessage(message);
-  return resolve(parsed.key, parsed.fallback, resolveParamValues(parsed.params));
+  return resolve(parsed.key, parsed.fallback, resolveParamValues(parsed.params, "exact"));
 }
 
 function boardObjectiveFallback(objective: BoardObjective): string {
@@ -132,8 +133,8 @@ function boardObjectiveFallback(objective: BoardObjective): string {
  */
 const MONEY_PARAM_KEYS = new Set([
   "amount",
-  "annualWages",
   "budget",
+  "buyOption",
   "campaignCost",
   "cost",
   "fee",
@@ -142,6 +143,7 @@ const MONEY_PARAM_KEYS = new Set([
   "transferBudgetReduction",
   "wage",
   "wageBudget",
+  "weeklyWageBill",
   "weeklyWages",
 ]);
 
@@ -195,7 +197,13 @@ function parseMoneyValue(value: string): { amount: number; compact: boolean } | 
   };
 }
 
-function resolveMoneyParamValue(key: string, value: string): string {
+/**
+ * How a whole-number money param is shown. The lines of the inbox and the news read it in passing,
+ * so they get it compact but precise; an error has to say exactly what is short, so it is exact.
+ */
+type MoneyStyle = "compact" | "exact";
+
+function resolveMoneyParamValue(key: string, value: string, style: MoneyStyle): string {
   if (!MONEY_PARAM_KEYS.has(key)) {
     return value;
   }
@@ -205,7 +213,13 @@ function resolveMoneyParamValue(key: string, value: string): string {
     return value;
   }
 
-  return parsed.compact ? formatVal(parsed.amount) : formatExactMoney(parsed.amount);
+  // A string the backend shortened itself (an old saved message: "€1.25M") is read back as the
+  // number it says and shown compact to three digits, so it keeps the digits it carries (and is
+  // not made to look exact, which it never was).
+  if (parsed.compact) {
+    return formatPreciseCompact(parsed.amount, "round");
+  }
+  return style === "exact" ? formatExactMoney(parsed.amount) : formatPreciseCompact(parsed.amount);
 }
 
 function resolveCountryParamValue(key: string, value: string): string {
@@ -229,9 +243,24 @@ function resolveDateParamValue(key: string, value: string): string {
   return formatDate(value, i18n.resolvedLanguage || i18n.language || "en");
 }
 
-function resolveParamValues(params?: Record<string, string>): Record<string, string> | undefined {
+/**
+ * Param names the backend used to send under another name. Messages already saved carry the old
+ * name, and the translated text now names the new one, so a saved message is read under both.
+ * `annualWages` held the WEEKLY wage bill all along.
+ */
+const LEGACY_PARAM_NAMES: Record<string, string> = { annualWages: "weeklyWageBill" };
+
+function resolveParamValues(
+  params?: Record<string, string>,
+  moneyStyle: MoneyStyle = "compact",
+): Record<string, string> | undefined {
   if (!params) return params;
   const resolved = { ...params };
+  for (const [legacy, current] of Object.entries(LEGACY_PARAM_NAMES)) {
+    if (legacy in resolved && !(current in resolved)) {
+      resolved[current] = resolved[legacy];
+    }
+  }
   for (const [key, value] of Object.entries(resolved)) {
     if (value.includes(".")) {
       const attempted = i18n.t(value);
@@ -243,7 +272,7 @@ function resolveParamValues(params?: Record<string, string>): Record<string, str
 
     resolved[key] = resolveDateParamValue(
       key,
-      resolveCountryParamValue(key, resolveMoneyParamValue(key, resolved[key])),
+      resolveCountryParamValue(key, resolveMoneyParamValue(key, resolved[key], moneyStyle)),
     );
   }
   return resolved;
@@ -448,6 +477,36 @@ function normalizeStandingsParams(
   }
 }
 
+/**
+ * A generated competition is stored under an English template name ("Germany Cup"); its
+ * report carries the name key, country and season so it reads as every other screen names it.
+ */
+function normalizeReportCompetitionName(
+  article: NewsArticle,
+  params?: Record<string, string>,
+): Record<string, string> | undefined {
+  if (
+    article.body_key !== "be.news.matchReport.reportCompetition.body" ||
+    !params?.competitionKey
+  ) {
+    return params;
+  }
+
+  const season = Number(params.competitionSeason);
+  return {
+    ...params,
+    competition: competitionDisplayName(
+      {
+        name: params.competition,
+        name_key: params.competitionKey,
+        country_id: params.competitionCountry ?? null,
+        season: Number.isFinite(season) ? season : undefined,
+      },
+      (key, options) => i18n.t(key, options),
+    ),
+  };
+}
+
 function normalizeMatchReportParams(
   article: NewsArticle,
   params?: Record<string, string>,
@@ -455,7 +514,8 @@ function normalizeMatchReportParams(
   if (
     !article.body_key?.startsWith("be.news.matchReport.body") &&
     article.body_key !== "be.news.matchReport.reportFriendly.body" &&
-    article.body_key !== "be.news.matchReport.reportPreseason.body"
+    article.body_key !== "be.news.matchReport.reportPreseason.body" &&
+    article.body_key !== "be.news.matchReport.reportCompetition.body"
   ) {
     return params;
   }
@@ -549,7 +609,7 @@ function normalizeTransferRoundupParams(
         .map((deal) => {
           const resolvedDeal = {
             ...deal,
-            fee: resolveMoneyParamValue("fee", deal.fee),
+            fee: resolveMoneyParamValue("fee", deal.fee, "compact"),
           };
 
           return resolve(
@@ -658,6 +718,7 @@ const ARTICLE_PARAM_NORMALIZERS: ArticleParamNormalizer[] = [
   normalizeRoundupParams,
   normalizeStandingsParams,
   normalizeMatchReportParams,
+  normalizeReportCompetitionName,
   normalizePressConferenceParams,
   normalizeTransferRoundupParams,
 ];

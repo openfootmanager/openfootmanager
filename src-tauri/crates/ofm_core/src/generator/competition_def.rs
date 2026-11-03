@@ -662,17 +662,50 @@ fn validate_group_qualification(
     }
 }
 
+/// How the `topByReputation` and `championsOf` selectors rank clubs.
+///
+/// A package's clubs have a reputation *range*, and a world built from it samples one value per
+/// club. Ranking by the sampled value would let the same package resolve to different fields from
+/// one career to the next, and differently from the editor's check, so a package ranks by the
+/// authored value, the middle of the range (see [`authored_reputations`]). Every other world ranks
+/// by the reputation its clubs already have.
+#[derive(Clone, Copy)]
+pub enum ReputationBasis<'a> {
+    /// The club's own `reputation`.
+    Stored,
+    /// The authored reputation of each club by id; a club that is not in the map ranks by its own.
+    Authored(&'a HashMap<String, u32>),
+}
+
+impl ReputationBasis<'_> {
+    fn of(&self, team: &Team) -> u32 {
+        match self {
+            Self::Stored => team.reputation,
+            Self::Authored(authored) => authored.get(&team.id).copied().unwrap_or(team.reputation),
+        }
+    }
+}
+
 /// Validate against the actual selector results, using the same resolver as
 /// construction. A selector's requested count is only an upper bound.
 pub fn validate_definitions_for_world(
     file: &CompetitionDefinitionFile,
     world: &super::WorldData,
 ) -> Vec<DefinitionError> {
+    validate_definitions_for_world_ranked(file, world, ReputationBasis::Stored)
+}
+
+/// [`validate_definitions_for_world`], ranking clubs by `basis`.
+pub fn validate_definitions_for_world_ranked(
+    file: &CompetitionDefinitionFile,
+    world: &super::WorldData,
+    basis: ReputationBasis<'_>,
+) -> Vec<DefinitionError> {
     let mut errors = validate_definitions(file, &WorldValidationContext::from_world(world));
     if !errors.is_empty() {
         return errors;
     }
-    let participants = resolve_definition_participants(file, world);
+    let participants = resolve_definition_participants(file, world, basis);
     for (index, competition) in file.competitions.iter().enumerate() {
         if competition.participants.selector.is_none() {
             continue; // Explicit lists were checked by validate_format.
@@ -707,26 +740,45 @@ fn validate_participants(
             &competition.id,
         )),
         (Some(explicit), None) => {
-            if explicit.len() < 2 {
-                errors.push(DefinitionError::new(
-                    "be.error.competitionDef.tooFewParticipants",
-                    &competition.id,
-                ));
-            }
-            for team_id in explicit {
-                if !ctx.team_ids.contains(team_id.as_str()) {
-                    errors.push(
-                        DefinitionError::new(
-                            "be.error.competitionDef.unknownTeam",
-                            &competition.id,
-                        )
-                        .with("team", team_id.clone()),
-                    );
-                }
-            }
+            validate_explicit_participants(competition, explicit, ctx, errors)
         }
         (None, Some(selector)) => {
             validate_selector(competition, selector, ctx, known_ids, errors);
+        }
+    }
+}
+
+fn validate_explicit_participants(
+    competition: &CompetitionDefinition,
+    explicit: &[String],
+    ctx: &WorldValidationContext,
+    errors: &mut Vec<DefinitionError>,
+) {
+    if explicit.len() < 2 {
+        errors.push(DefinitionError::new(
+            "be.error.competitionDef.tooFewParticipants",
+            &competition.id,
+        ));
+    }
+    for team_id in explicit {
+        if !ctx.team_ids.contains(team_id.as_str()) {
+            errors.push(
+                DefinitionError::new("be.error.competitionDef.unknownTeam", &competition.id)
+                    .with("team", team_id.clone()),
+            );
+        }
+    }
+    // A club listed twice would get two rows in a league table, and its
+    // reputation would be judged once per row. Selectors draw from the world's
+    // clubs, whose ids are unique, so only an authored list can repeat one.
+    let mut seen = HashSet::new();
+    let mut reported = HashSet::new();
+    for team_id in explicit {
+        if !seen.insert(team_id.as_str()) && reported.insert(team_id.as_str()) {
+            errors.push(
+                DefinitionError::new("be.error.competitionDef.duplicateTeam", &competition.id)
+                    .with("team", team_id.clone()),
+            );
         }
     }
 }
@@ -957,6 +1009,7 @@ fn dependency_ids(def: &CompetitionDefinition) -> Vec<String> {
 fn resolve_participants(
     def: &CompetitionDefinition,
     world: &super::WorldData,
+    basis: ReputationBasis<'_>,
     region_by_country: &HashMap<String, String>,
     resolved: &HashMap<String, Vec<String>>,
 ) -> Vec<String> {
@@ -985,7 +1038,7 @@ fn resolve_participants(
                 .filter(|team| team_country(team) == country)
                 .filter(|team| !excluded.contains(&team.id))
                 .collect();
-            clubs.sort_by(|a, b| b.reputation.cmp(&a.reputation).then(a.id.cmp(&b.id)));
+            clubs.sort_by(|a, b| basis.of(b).cmp(&basis.of(a)).then(a.id.cmp(&b.id)));
             clubs
                 .into_iter()
                 .take(take.unwrap_or(usize::MAX))
@@ -1031,7 +1084,7 @@ fn resolve_participants(
                         .collect()
                 })
                 .unwrap_or_default();
-            clubs.sort_by(|a, b| b.reputation.cmp(&a.reputation).then(a.id.cmp(&b.id)));
+            clubs.sort_by(|a, b| basis.of(b).cmp(&basis.of(a)).then(a.id.cmp(&b.id)));
             clubs
                 .into_iter()
                 .take(take.unwrap_or(usize::MAX))
@@ -1118,6 +1171,7 @@ fn build_competition(
 fn resolve_definition_participants(
     file: &CompetitionDefinitionFile,
     world: &super::WorldData,
+    basis: ReputationBasis<'_>,
 ) -> HashMap<String, Vec<String>> {
     let region_by_country = country_to_region(world);
 
@@ -1133,7 +1187,7 @@ fn resolve_definition_participants(
                 .iter()
                 .all(|dep| resolved.contains_key(dep));
             if ready {
-                let ids = resolve_participants(def, world, &region_by_country, &resolved);
+                let ids = resolve_participants(def, world, basis, &region_by_country, &resolved);
                 resolved.insert(def.id.clone(), ids);
                 progressed = true;
                 false
@@ -1148,7 +1202,7 @@ fn resolve_definition_participants(
     // Any unresolved (e.g. a dependency pointing outside the file) resolve
     // ignoring the missing dependency, so nothing is silently dropped.
     for def in pending {
-        let ids = resolve_participants(def, world, &region_by_country, &resolved);
+        let ids = resolve_participants(def, world, basis, &region_by_country, &resolved);
         resolved.insert(def.id.clone(), ids);
     }
 
@@ -1169,7 +1223,18 @@ pub fn resolve_definitions(
     season: u32,
     game_start: DateTime<Utc>,
 ) -> Vec<League> {
-    let resolved = resolve_definition_participants(file, world);
+    resolve_definitions_ranked(file, world, ReputationBasis::Stored, season, game_start)
+}
+
+/// [`resolve_definitions`], ranking clubs by `basis`.
+pub fn resolve_definitions_ranked(
+    file: &CompetitionDefinitionFile,
+    world: &super::WorldData,
+    basis: ReputationBasis<'_>,
+    season: u32,
+    game_start: DateTime<Utc>,
+) -> Vec<League> {
+    let resolved = resolve_definition_participants(file, world, basis);
 
     // Build in authoring order so priorities line up predictably.
     file.competitions
@@ -1479,6 +1544,34 @@ mod tests {
         assert!(codes(&errors).contains(&"be.error.competitionDef.unknownTeam"));
         assert!(codes(&errors).contains(&"be.error.competitionDef.unknownCountry"));
         assert!(codes(&errors).contains(&"be.error.competitionDef.unknownRegion"));
+    }
+
+    /// Given a league whose explicit list names one club three times
+    /// When the definitions are validated
+    /// Then the repeat is reported once, naming that club, because a club
+    /// listed twice would be given two rows in the league table
+    #[test]
+    fn a_club_listed_twice_in_an_explicit_list_is_rejected() {
+        let file = CompetitionDefinitionFile {
+            format_version: 1,
+            competitions: vec![explicit(
+                "tr-1",
+                &["team-a", "team-b", "team-a", "team-c", "team-a"],
+            )],
+        };
+
+        let errors = validate_definitions(&file, &ctx());
+
+        let repeats: Vec<_> = errors
+            .iter()
+            .filter(|e| e.code == "be.error.competitionDef.duplicateTeam")
+            .collect();
+        assert_eq!(repeats.len(), 1, "reported once: {:?}", codes(&errors));
+        assert_eq!(repeats[0].competition_id, "tr-1");
+        assert_eq!(
+            repeats[0].params,
+            vec![("team".to_string(), "team-a".to_string())]
+        );
     }
 
     #[test]

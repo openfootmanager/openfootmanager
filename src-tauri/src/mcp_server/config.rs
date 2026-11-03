@@ -34,6 +34,10 @@ pub struct McpConfig {
 
     /// Allowed hosts for DNS rebinding protection.
     pub allowed_hosts: Vec<String>,
+
+    /// Registers `dev_full_game_state`, the whole game as JSON, for the end-to-end harness. Test
+    /// infrastructure: refused in competition mode, where an agent must not hold the oracle.
+    pub dev_full_state: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -85,8 +89,33 @@ impl McpMode {
                 "game_export_world",
                 "game_exit",
                 "game_load_save",
+                // The raw dump holds every club's players and finances; competition agents follow
+                // the same knowledge rule as players (maintainer ruling, 22 Oct).
+                "info_game_state",
+                "dev_full_game_state",
             ],
         }
+    }
+}
+
+/// The tool that exists only for the end-to-end harness (see [`McpConfig::dev_full_state`]).
+pub const DEV_FULL_STATE_TOOL: &str = "dev_full_game_state";
+
+impl McpConfig {
+    /// Every tool left out of `tools/list`: the mode's restrictions, the `--mcp-disable-tools`
+    /// list, and the dev dump unless `--dev-full-state` asked for it.
+    pub fn hidden_tools(&self) -> Vec<String> {
+        let mut hidden: Vec<String> = self
+            .mode
+            .disabled_tools()
+            .iter()
+            .map(|tool| tool.to_string())
+            .collect();
+        hidden.extend(self.disabled_tools.iter().cloned());
+        if !self.dev_full_state {
+            hidden.push(DEV_FULL_STATE_TOOL.to_string());
+        }
+        hidden
     }
 }
 
@@ -116,6 +145,7 @@ where
     let mut auto_start: Option<AutoStartConfig> = None;
     let mut career_options = crate::commands::game::McpCareerOptions::default();
     let mut no_gui = false;
+    let mut dev_full_state = false;
     let mut min_tick_delay_ms: u64 = 0;
     let mut auto_save_interval_days: u32 = 7;
     let mut manager_name: Option<String> = None;
@@ -173,6 +203,9 @@ where
             }
             "--no-gui" => {
                 no_gui = true;
+            }
+            "--dev-full-state" => {
+                dev_full_state = true;
             }
             "--min-tick-delay-ms" => {
                 i += 1;
@@ -245,6 +278,15 @@ where
         );
     }
 
+    // The full dump lets an agent read every club's players and finances, which competition mode
+    // exists to withhold: an agent must not be able to start its own server with it.
+    if mode == McpMode::Competition && dev_full_state {
+        return Err(
+            "--dev-full-state is test infrastructure and cannot be combined with --mcp-mode competition"
+                .to_string(),
+        );
+    }
+
     Ok(Some(McpConfig {
         port: p,
         mode,
@@ -257,6 +299,7 @@ where
         manager_last_name,
         manager_nationality,
         allowed_hosts: vec!["localhost".into(), "127.0.0.1".into(), "::1".into()],
+        dev_full_state,
     }))
 }
 
@@ -383,9 +426,9 @@ mod tests {
     }
 
     /// Given competition mode, when the mode restrictions are collected,
-    /// then exactly the five setup tools are hidden and the state dump remains available.
+    /// then the five setup tools and the two state dumps are hidden.
     #[test]
-    fn the_five_restricted_tools_stay_hidden() {
+    fn competition_hides_the_setup_tools_and_the_state_dumps() {
         assert_eq!(
             McpMode::Competition.disabled_tools(),
             [
@@ -394,9 +437,74 @@ mod tests {
                 "game_export_world",
                 "game_exit",
                 "game_load_save",
+                "info_game_state",
+                "dev_full_game_state",
             ]
         );
         assert!(McpMode::Sandbox.disabled_tools().is_empty());
+    }
+
+    /// Given the dev flag is not passed, in either mode
+    /// When the hidden tools are listed
+    /// Then the dev dump is hidden, and with the flag in sandbox mode it is not.
+    #[test]
+    fn the_dev_dump_exists_only_when_asked_for() {
+        let config = |args: &[&str]| {
+            let mut all = vec!["--mcp-port", "3001"];
+            all.extend_from_slice(args);
+            parse_mcp_config_from_iter(all).unwrap().expect("config")
+        };
+
+        assert!(config(&[])
+            .hidden_tools()
+            .contains(&DEV_FULL_STATE_TOOL.to_string()));
+        let with_flag = config(&["--dev-full-state"]);
+        assert!(with_flag.dev_full_state);
+        assert!(!with_flag
+            .hidden_tools()
+            .contains(&DEV_FULL_STATE_TOOL.to_string()));
+    }
+
+    /// Given the dev flag together with competition mode
+    /// When the arguments are parsed
+    /// Then startup is refused: a competition agent cannot launch its own server with the oracle.
+    #[test]
+    fn the_dev_flag_cannot_be_combined_with_competition_mode() {
+        let refused = parse_mcp_config_from_iter([
+            "--mcp-port",
+            "3001",
+            "--mcp-mode",
+            "competition",
+            "--mcp-auto-start",
+            "world.json",
+            "--dev-full-state",
+        ]);
+
+        let message = refused.expect_err("the combination is refused");
+        assert!(message.contains("--dev-full-state"), "{message}");
+    }
+
+    /// Given competition mode
+    /// When the hidden tools are listed
+    /// Then neither state dump is available to the agent.
+    #[test]
+    fn competition_never_lists_a_state_dump() {
+        let config = parse_mcp_config_from_iter([
+            "--mcp-port",
+            "3001",
+            "--mcp-mode",
+            "competition",
+            "--mcp-auto-start",
+            "world.json",
+        ])
+        .unwrap()
+        .expect("config");
+
+        let hidden = config.hidden_tools();
+
+        for tool in ["info_game_state", DEV_FULL_STATE_TOOL] {
+            assert!(hidden.contains(&tool.to_string()), "{tool} is available");
+        }
     }
 
     #[test]

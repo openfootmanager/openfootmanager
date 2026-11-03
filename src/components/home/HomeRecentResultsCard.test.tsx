@@ -51,6 +51,8 @@ function createTeam(overrides: Partial<TeamData> = {}): TeamData {
 function createRecentResult(): HomeRecentResult {
   return {
     fixture: {
+      competitive: true,
+      advancing_team_id: null,
       id: "fixture-1",
       matchday: 1,
       date: "2025-01-10",

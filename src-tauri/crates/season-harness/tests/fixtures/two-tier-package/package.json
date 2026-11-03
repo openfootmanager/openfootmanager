@@ -1,0 +1,15 @@
+{
+  "schema": "world",
+  "id": "harness-two-tier",
+  "name": "Harness Two Tier",
+  "description": "Forty fictional English clubs in two divisions of twenty and a cup: a season as long as the game's, the fixture the season harness builds a world from the way the app builds one from a package.",
+  "version": "1.0.0",
+  "author": "OpenFoot Manager",
+  "license": "CC0-1.0",
+  "packageType": "database",
+  "gameMinVersion": "0.3.0",
+  "formatVersion": 1,
+  "baseYear": 2033,
+  "defaultActiveRegions": [],
+  "defaultActiveCompetitions": []
+}

@@ -86,7 +86,7 @@ pub fn query_competitions(game: &Game, _query: &CompetitionsQuery) -> Competitio
         })
         .collect();
 
-    let player_names: BTreeMap<String, PlayerNameEntry> = game
+    let on_roster = game
         .players
         .iter()
         .filter(|p| scorer_ids.contains(p.id.as_str()))
@@ -105,8 +105,24 @@ pub fn query_competitions(game: &Game, _query: &CompetitionsQuery) -> Competitio
                     team_name,
                 },
             )
-        })
-        .collect();
+        });
+    // A scorer who has since retired into the archive still scored that goal.
+    let retired = game
+        .retired_players
+        .iter()
+        .filter(|p| scorer_ids.contains(p.id.as_str()))
+        .map(|p| {
+            (
+                p.id.clone(),
+                PlayerNameEntry {
+                    match_name: p.match_name.clone(),
+                    full_name: p.full_name.clone(),
+                    team_id: None,
+                    team_name: None,
+                },
+            )
+        });
+    let player_names: BTreeMap<String, PlayerNameEntry> = retired.chain(on_roster).collect();
 
     CompetitionsView {
         competitions,
@@ -117,5 +133,107 @@ pub fn query_competitions(game: &Game, _query: &CompetitionsQuery) -> Competitio
         world_cup_champions: game.world_history.world_cup_champions.clone(),
         manager_team_id: game.manager.team_id.clone(),
         active_competition_ids: game.active_competition_ids.clone(),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use chrono::{TimeZone, Utc};
+    use domain::league::{Fixture, FixtureStatus, GoalEvent, League, MatchResult};
+    use domain::manager::Manager;
+    use domain::player::{Player, PlayerAttributes, Position};
+    use domain::retired_player::RetiredPlayer;
+
+    use crate::clock::GameClock;
+
+    fn scorer(id: &str, name: &str) -> Player {
+        let value = 60;
+        let attributes = PlayerAttributes {
+            pace: value,
+            stamina: value,
+            strength: value,
+            agility: value,
+            passing: value,
+            shooting: value,
+            tackling: value,
+            dribbling: value,
+            defending: value,
+            positioning: value,
+            vision: value,
+            decisions: value,
+            composure: value,
+            aggression: value,
+            teamwork: value,
+            leadership: value,
+            handling: value,
+            reflexes: value,
+            aerial: value,
+        };
+        Player::new(
+            id.into(),
+            format!("{name} (match)"),
+            name.into(),
+            "1988-01-01".into(),
+            "England".into(),
+            Position::Forward,
+            attributes,
+        )
+    }
+
+    fn game_where_both_scored(active: Player, retired: Player) -> Game {
+        let scored = |player: &Player| GoalEvent {
+            player_id: player.id.clone(),
+            minute: 30,
+        };
+        let fixture = Fixture {
+            status: FixtureStatus::Completed,
+            home_team_id: "home".into(),
+            away_team_id: "away".into(),
+            result: Some(MatchResult {
+                home_goals: 1,
+                away_goals: 1,
+                home_scorers: vec![scored(&active)],
+                away_scorers: vec![scored(&retired)],
+                ..Default::default()
+            }),
+            ..Default::default()
+        };
+        let league = League {
+            id: "league".into(),
+            participant_ids: vec!["home".into(), "away".into()],
+            fixtures: vec![fixture],
+            ..Default::default()
+        };
+        let manager = Manager::new(
+            "mgr".into(),
+            "Alex".into(),
+            "Manager".into(),
+            "1980-01-01".into(),
+            "England".into(),
+        );
+        let clock = GameClock::new(Utc.with_ymd_and_hms(2040, 6, 1, 12, 0, 0).unwrap());
+        let mut game = Game::new(clock, manager, vec![], vec![active], vec![], vec![]);
+        game.competitions = vec![league];
+        game.retired_players
+            .push(RetiredPlayer::from_player(&retired, "2039-06-30", 2039));
+        game
+    }
+
+    /// Given an old result whose scorer has since retired into the archive, when the competitions
+    /// view is built, then both scorers' names resolve and the retiree has no club.
+    #[test]
+    fn a_retired_scorer_in_an_old_result_still_has_a_name() {
+        let game =
+            game_where_both_scored(scorer("p-active", "Ann Active"), scorer("p-old", "Ada Old"));
+
+        let view = query_competitions(&game, &CompetitionsQuery {});
+
+        assert_eq!(view.player_names["p-active"].full_name, "Ann Active");
+        let retired = &view.player_names["p-old"];
+        assert_eq!(retired.full_name, "Ada Old");
+        assert_eq!(retired.match_name, "Ada Old (match)");
+        assert_eq!(retired.team_id, None);
+        assert_eq!(retired.team_name, None);
     }
 }

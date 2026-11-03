@@ -1,12 +1,15 @@
 use domain::player::{Player, PlayerAttributes, Position};
-use domain::staff::{Staff, StaffAttributes, StaffRole};
+use domain::staff::{Staff, StaffRole};
 use domain::team::PlayStyle;
 use rand::{Rng, RngExt};
 
-use super::authored_player::resolve_authored_contract;
+use super::authored_player::{is_valid_date_of_birth, resolve_authored_contract};
 use super::definitions::{NamePool, NamesDefinition};
 use crate::nations;
-use crate::player_rating::{generate_potential, refresh_player_derived};
+use crate::player_rating::{
+    generate_potential, move_attributes_to, natural_ovr, ovr_from_attributes,
+    refresh_player_derived, roll_growth_headroom,
+};
 
 pub(super) fn standard_available_staff_roles() -> [StaffRole; 12] {
     [
@@ -470,49 +473,185 @@ pub(super) fn senior_slot(slot: usize) -> usize {
     }
 }
 
-/// A generated player for squad slot `index`. `age` fixes his age; `None`
-/// draws it from the slot (17–21 for a youth-reserved slot, 17–35 otherwise),
-/// exactly as before the parameter existed, so every seeded world — all of
-/// which pass `None` — is unchanged by it.
-pub(super) fn generate_random_player_from_def(
-    team_id: &str,
-    index: usize,
-    nationality: &str,
-    opening_year: u32,
-    age: Option<u32>,
-    names_def: &NamesDefinition,
-    rng: &mut impl Rng,
-) -> Player {
-    let (first_name, last_name) = pick_name_from_def(nationality, names_def, rng);
-    let full_name = format!("{} {}", first_name, last_name);
-    let match_name = last_name.clone();
+/// Where the generated ceilings centre. Young players open below their ceiling, so the ceilings
+/// sit above the mean rating a world should open at (about 68).
+///
+/// 70.1 since the ceiling follows a falling player's rating (#869): that rule takes the room
+/// veterans used to train into, and S by rating settled at 0.8 to 0.9% of seniors, under its 1%
+/// floor. +0.5 on the centre (it was 69.6) brought the shipped world back to S 1.0 to 1.8% and A
+/// 5.9 to 8.2% in every one of 20 seasons on two seeds.
+const CEILING_MEAN: f64 = 70.1;
 
-    let position = position_for_slot(index);
+/// The spread (standard deviation) of the ceilings a world holds at 25, once every ceiling has
+/// stopped drifting.
+const CEILING_SD: f64 = 5.0;
 
-    let p_id = seeded_id(rng);
-    let nationality = nationality.to_string();
+/// How far above the opening players' centre the youth intake's ceilings sit. The settled world is
+/// made by the intake (everyone alive after about 15 seasons was an intake recruit), and the opening
+/// cohort it replaces carries less of the A tier on a normal bell than the old light-tailed one did,
+/// so an intake on the opening's own centre settles below the band #965 set (S 1.0 to 1.8%, A 5.9
+/// to 8.2%). Measured over 20 seasons on two seeds of the shipped world with the spread kept at
+/// 0.95, on the engine of the day: 1.0 misses A at season 10 (5.79%, run qm-9b, floor 5.9%); 1.2
+/// held on an earlier develop (run qm-10a) but missed A at season 10 once the engine changes of
+/// 1 Nov landed (5.82% and 5.86%, runs qm-13 and qm-14); 1.3 holds every checkpoint (A 5.91 to
+/// 8.17%, run qm-15); 1.4 reached 8.20% by season 20 (run qm-10b). A at season 10 (5.91%) and
+/// season 20 (8.17%) sit within 0.03 of the band's edges.
+const INTAKE_CEILING_OFFSET: f64 = 1.3;
+/// The share of the opening's pre-drift bell the intake keeps (the ceiling's `spread_kept`, applied
+/// before the development drift still to come is added, as for every player). A 16-year-old
+/// recruit therefore settles at about 0.96 of the opening's spread, not 0.95: the drift variance is
+/// the same for both and weighs a little more against the narrower bell. The value was chosen by
+/// measurement on this formula, not derived: the offset alone raises the settled wonderkid rate, and
+/// 0.95 holds it to 0.11 to 0.16% at offset 1.3 (run qm-15; 0.09 to 0.19% at 1.2, run qm-10a)
+/// against 0.06 to 0.13% on the old bell, at a cost of about 0.1 points of S.
+const INTAKE_SPREAD_KEPT: f64 = 0.95;
 
-    // Reserve one slot per position group (GK + back line + midfield + attack) as
-    // youth-aged so scouted youth recruits land at a consistent age across positions
-    // and clubs can open with real academy prospects instead of an empty youth squad.
-    let age = age.unwrap_or_else(|| {
-        if is_youth_reserved_slot(index) {
-            rng.random_range(17..22)
-        } else {
-            rng.random_range(17..36)
+/// How a ceiling bell is moved: `shift` rating points up, keeping `spread_kept` of its spread.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub(super) struct Standard {
+    shift: f64,
+    spread_kept: f64,
+}
+
+/// How a generated player is rolled besides his slot: the age to fix, and the bell his ceiling is
+/// drawn from.
+#[derive(Debug, Clone, Copy, Default, PartialEq)]
+pub(super) struct PlayerRoll {
+    /// `None` draws the age from the slot (17 to 21 for a youth-reserved slot, 17 to 35 otherwise).
+    pub age: Option<u32>,
+    /// `None` is the opening's bell.
+    pub standard: Option<Standard>,
+}
+
+impl PlayerRoll {
+    /// A player on the opening's bell, of `age` (or the slot's age).
+    pub(super) fn unscaled(age: Option<u32>) -> Self {
+        Self {
+            age,
+            standard: None,
         }
-    });
-    let birth_year = opening_year.saturating_sub(age);
-    let birth_month = rng.random_range(1..13);
-    let birth_day = rng.random_range(1..29);
-    let dob = format!("{:04}-{:02}-{:02}", birth_year, birth_month, birth_day);
+    }
 
-    let group = position.to_group_position();
+    /// A youth intake recruit or scouted prospect, of `age` (or the slot's age).
+    pub(super) fn for_intake(age: Option<u32>) -> Self {
+        Self {
+            age,
+            standard: Some(Standard {
+                shift: INTAKE_CEILING_OFFSET,
+                spread_kept: INTAKE_SPREAD_KEPT,
+            }),
+        }
+    }
+}
+
+/// The z grid [`ROLLED_AT_Z`] is tabulated on: -3.5 to 3.5 in steps of 0.25.
+const ROLLED_Z_MIN: f64 = -3.5;
+const ROLLED_Z_STEP: f64 = 0.25;
+
+/// For each position group (goalkeeper, defender, midfielder, forward), the rolled rating
+/// `ovr_from_attributes` gives at the standard-normal quantile of each grid point of
+/// [`ROLLED_Z_MIN`] and [`ROLLED_Z_STEP`].
+///
+/// A rolled rating is a weighted mean of bounded uniform draws, so its tail is lighter than a
+/// normal's (the S tier, in the tail, came out at 0.56 to 0.72 of a normal bell's share). Mapping a
+/// rolled rating through this table to the z of a standard normal gives ceilings a true normal
+/// bell, so a shift of the bell (a club's standard) moves the tail as normal maths says.
+///
+/// Baked from four million seeded draws per group; regenerate with
+/// `cargo test --release -p ofm_core --lib print_the_rolled_quantile_table -- --ignored --nocapture`
+/// whenever `roll_attributes` or the rating formula change, and paste the four `TABLE` lines here.
+const ROLLED_AT_Z: [[f64; 29]; 4] = [
+    // Goalkeeper
+    [
+        51.100, 52.200, 53.350, 54.530, 55.750, 57.000, 58.310, 59.660, 61.060, 62.530, 64.050,
+        65.600, 67.180, 68.770, 70.360, 71.950, 73.530, 75.100, 76.630, 78.130, 79.580, 80.950,
+        82.250, 83.470, 84.630, 85.710, 86.720, 87.640, 88.490,
+    ],
+    // Defender
+    [
+        48.300, 49.420, 50.620, 51.880, 53.220, 54.640, 56.100, 57.600, 59.140, 60.680, 62.260,
+        63.840, 65.420, 67.000, 68.580, 70.140, 71.680, 73.200, 74.700, 76.160, 77.600, 78.980,
+        80.320, 81.620, 82.860, 84.040, 85.120, 86.180, 87.120,
+    ],
+    // Midfielder
+    [
+        46.130, 47.290, 48.510, 49.790, 51.150, 52.580, 54.070, 55.600, 57.170, 58.780, 60.390,
+        62.020, 63.650, 65.270, 66.890, 68.480, 70.060, 71.610, 73.130, 74.620, 76.070, 77.470,
+        78.840, 80.150, 81.430, 82.650, 83.810, 84.930, 85.980,
+    ],
+    // Forward
+    [
+        44.420, 45.580, 46.800, 48.060, 49.440, 50.900, 52.420, 54.000, 55.640, 57.320, 59.060,
+        60.800, 62.560, 64.320, 66.080, 67.800, 69.520, 71.180, 72.820, 74.400, 75.920, 77.380,
+        78.780, 80.120, 81.380, 82.580, 83.740, 84.820, 85.860,
+    ],
+];
+
+/// The standard-normal z a rolled rating of `group` stands at: its place in [`ROLLED_AT_Z`], read
+/// by linear interpolation, and extended past the table's ends at the end slopes.
+fn rolled_to_z(group: &Position, rolled: f64) -> f64 {
+    // Every variant is listed, so a new position cannot silently take the forwards' row.
+    let row = match group {
+        Position::Goalkeeper => 0,
+        Position::Defender
+        | Position::RightBack
+        | Position::CenterBack
+        | Position::LeftBack
+        | Position::RightWingBack
+        | Position::LeftWingBack => 1,
+        Position::Midfielder
+        | Position::DefensiveMidfielder
+        | Position::CentralMidfielder
+        | Position::AttackingMidfielder
+        | Position::RightMidfielder
+        | Position::LeftMidfielder => 2,
+        Position::Forward | Position::RightWinger | Position::LeftWinger | Position::Striker => 3,
+    };
+    let table = &ROLLED_AT_Z[row];
+    let last = table.len() - 1;
+    if rolled <= table[0] {
+        return ROLLED_Z_MIN - (table[0] - rolled) / (table[1] - table[0]) * ROLLED_Z_STEP;
+    }
+    if rolled >= table[last] {
+        let z_max = ROLLED_Z_MIN + last as f64 * ROLLED_Z_STEP;
+        return z_max + (rolled - table[last]) / (table[last] - table[last - 1]) * ROLLED_Z_STEP;
+    }
+    let upper = table.partition_point(|value| *value <= rolled);
+    let lower = upper - 1;
+    let fraction = (rolled - table[lower]) / (table[upper] - table[lower]);
+    ROLLED_Z_MIN + (lower as f64 + fraction) * ROLLED_Z_STEP
+}
+
+/// The ceiling a rolled rating becomes for a player of `group` and `age` on the opening's bell, or
+/// on `standard`'s moved one: the same ranking, on the
+/// normal bell the world is meant to have at 25. A young player's ceiling will still drift
+/// (`development`), so he is drawn from a bell narrower by the variance that drift will add; by 25
+/// everyone's ceiling follows one bell, and a teenager's ceiling stays a good guide to where he
+/// ends up.
+///
+/// The centre is not raised for the drift's small pull down: a player closes the gap to his
+/// ceiling by 19 to 21, after which his rating holds the ceiling up, so the pull is mostly absorbed
+/// (measured on the shipped world: ceilings of 72.2 at 16 are 72.4 at 25).
+fn shaped_ceiling(group: &Position, rolled: f64, age: u32, standard: Option<Standard>) -> u8 {
+    let (_, drift_variance) = crate::development::ceiling_drift_still_to_come(age);
+    let narrowing = (1.0 - drift_variance / CEILING_SD.powi(2)).max(0.0).sqrt();
+    let Standard { shift, spread_kept } = standard.unwrap_or(Standard {
+        shift: 0.0,
+        spread_kept: 1.0,
+    });
+    (CEILING_MEAN + shift + narrowing * CEILING_SD * spread_kept * rolled_to_z(group, rolled))
+        .round()
+        .clamp(1.0, 99.0) as u8
+}
+
+/// The attributes a generated player of a position group is rolled with: each drawn uniformly from a
+/// range that depends on the group. The player at his best; his rating and ceiling follow from them.
+fn roll_attributes(group: &Position, rng: &mut impl Rng) -> PlayerAttributes {
     let is_gk = matches!(group, Position::Goalkeeper);
     let is_def = matches!(group, Position::Defender);
     let is_fwd = matches!(group, Position::Forward);
 
-    let attributes = PlayerAttributes {
+    PlayerAttributes {
         pace: rng.random_range(40..95),
         stamina: rng.random_range(40..95),
         strength: rng.random_range(40..95),
@@ -564,14 +703,67 @@ pub(super) fn generate_random_player_from_def(
         } else {
             rng.random_range(30..75)
         },
-    };
+    }
+}
 
+/// A generated player for squad slot `index`. `roll` says how he is rolled beyond the slot: his
+/// age (`None` draws it from the slot, 17–21 for a youth-reserved slot and 17–35 otherwise) and
+/// the bell of his ceiling. `PlayerRoll::unscaled(None)` is the opening's bell with the slot's age.
+pub(super) fn generate_random_player_from_def(
+    team_id: &str,
+    index: usize,
+    nationality: &str,
+    opening_year: u32,
+    roll: PlayerRoll,
+    names_def: &NamesDefinition,
+    rng: &mut impl Rng,
+) -> Player {
+    let (first_name, last_name) = pick_name_from_def(nationality, names_def, rng);
+    let full_name = format!("{} {}", first_name, last_name);
+    let match_name = last_name.clone();
+
+    let position = position_for_slot(index);
+
+    let p_id = seeded_id(rng);
+    let nationality = nationality.to_string();
+
+    // Reserve one slot per position group (GK + back line + midfield + attack) as
+    // youth-aged so scouted youth recruits land at a consistent age across positions
+    // and clubs can open with real academy prospects instead of an empty youth squad.
+    let age = roll.age.unwrap_or_else(|| {
+        if is_youth_reserved_slot(index) {
+            rng.random_range(17..22)
+        } else {
+            rng.random_range(17..36)
+        }
+    });
+    let birth_year = opening_year.saturating_sub(age);
+    let birth_month = rng.random_range(1..13);
+    let birth_day = rng.random_range(1..29);
+    let dob = format!("{:04}-{:02}-{:02}", birth_year, birth_month, birth_day);
+
+    let group = position.to_group_position();
+    let is_gk = matches!(group, Position::Goalkeeper);
+
+    let mut attributes = roll_attributes(&group, rng);
+
+    // The attributes just rolled are the player at his best: they set his ceiling, and a player
+    // who has years of growth left is lowered from it by the headroom for his age. Ceiling
+    // first, rating second, so the whole world's ceilings follow one bell and a teenager is an
+    // earlier version of a prime-age player rather than a better one.
+    let ceiling = shaped_ceiling(
+        &group,
+        ovr_from_attributes(&attributes, &position),
+        age,
+        roll.standard,
+    );
+    let headroom = roll_growth_headroom(age, rng);
+    move_attributes_to(&mut attributes, &position, ceiling.saturating_sub(headroom));
     // Size market value and wage from the same position-weighted rating the
     // player will be shown with, so a keeper is priced on keeping.
     let current_year: u32 = opening_year;
 
-    let approx_ovr =
-        crate::player_rating::ovr_from_attributes(&attributes, &position).round() as u32;
+    let approx_ovr = ovr_from_attributes(&attributes, &position).round() as u32;
 
     let age_factor = if age <= 23 {
         1.5
@@ -622,15 +814,14 @@ pub(super) fn generate_random_player_from_def(
         }
     }
 
-    // Set position-weighted OVR, potential, and traits (Wonderkid included if applicable)
-    let player_age = current_year.saturating_sub(birth_year);
-    // Pre-generate a potential so Wonderkid trait is assigned correctly on first refresh
-    let temp_ovr = {
-        use crate::player_rating::natural_ovr;
-        natural_ovr(&player).round() as u8
-    };
-    player.potential = generate_potential(temp_ovr, player_age, rng);
-    refresh_player_derived(&mut player, current_year);
+    // Set position-weighted OVR and traits (Wonderkid included if applicable) around the ceiling.
+    player.potential = (natural_ovr(&player).round() as u8)
+        .saturating_add(headroom)
+        .min(99);
+    refresh_player_derived(
+        &mut player,
+        domain::age::season_midpoint(current_year as i32),
+    );
 
     player.jersey_number = jersey_number_for_slot(index);
 
@@ -684,32 +875,7 @@ pub(super) fn generate_random_staff_from_def(
         rng.random_range(1..29)
     );
 
-    let attributes = match &role {
-        StaffRole::AssistantManager => StaffAttributes {
-            coaching: rng.random_range(50..90),
-            judging_ability: rng.random_range(50..85),
-            judging_potential: rng.random_range(40..80),
-            physiotherapy: rng.random_range(20..50),
-        },
-        StaffRole::Coach => StaffAttributes {
-            coaching: rng.random_range(55..95),
-            judging_ability: rng.random_range(40..75),
-            judging_potential: rng.random_range(30..70),
-            physiotherapy: rng.random_range(20..45),
-        },
-        StaffRole::Scout => StaffAttributes {
-            coaching: rng.random_range(20..50),
-            judging_ability: rng.random_range(60..95),
-            judging_potential: rng.random_range(55..95),
-            physiotherapy: rng.random_range(10..30),
-        },
-        StaffRole::Physio => StaffAttributes {
-            coaching: rng.random_range(10..40),
-            judging_ability: rng.random_range(20..50),
-            judging_potential: rng.random_range(15..45),
-            physiotherapy: rng.random_range(60..95),
-        },
-    };
+    let attributes = super::staff_bell::club_staff_attributes(&role, rng);
 
     let mut s = Staff::new(seeded_id(rng), first_name, last_name, dob, role, attributes);
     s.nationality = nationality.to_string();
@@ -734,12 +900,7 @@ pub(super) fn generate_random_staff_unattached_from_def(
         rng.random_range(1..29)
     );
 
-    let attributes = StaffAttributes {
-        coaching: rng.random_range(30..80),
-        judging_ability: rng.random_range(30..80),
-        judging_potential: rng.random_range(25..75),
-        physiotherapy: rng.random_range(25..75),
-    };
+    let attributes = super::staff_bell::free_agent_staff_attributes(&role, rng);
 
     let mut s = Staff::new(seeded_id(rng), first_name, last_name, dob, role, attributes);
     s.nationality = nationality.to_string();
@@ -778,19 +939,21 @@ pub(super) fn generate_staff_from_authored_def(
     };
 
     let current_year: u32 = opening_year;
-    let birth_year = if let Some(dob) = &def.date_of_birth {
-        dob.split('-')
-            .next()
-            .and_then(|y| y.parse::<u32>().ok())
-            .unwrap_or(current_year.saturating_sub(40))
+    // Validation refuses an unreadable date of birth; one that reaches here anyway counts as
+    // not written, never as a guessed year.
+    let authored_dob = def
+        .date_of_birth
+        .as_deref()
+        .filter(|dob| is_valid_date_of_birth(dob));
+    let birth_year = if let Some(year) = authored_dob.and_then(birth_year_of) {
+        year
     } else if let Some(age) = def.age {
         current_year.saturating_sub(age)
     } else {
         current_year.saturating_sub(rng.random_range(30..55))
     };
-    let dob = def
-        .date_of_birth
-        .clone()
+    let dob = authored_dob
+        .map(str::to_string)
         .unwrap_or_else(|| format!("{birth_year:04}-01-01"));
 
     let attributes = def.attributes.clone().unwrap_or_else(|| {
@@ -814,6 +977,7 @@ pub(super) fn generate_staff_from_authored_def(
     s.nationality = nationality.to_string();
     s.team_id = team_id.map(|t| t.to_string());
     s.specialization = def.specialization.clone();
+    s.set_known_as(def.known_as.clone());
     s
 }
 
@@ -821,8 +985,52 @@ pub(super) fn generate_staff_from_authored_def(
 // Authored players (world packages)
 // ---------------------------------------------------------------------------
 
+/// `base` plus or minus `spread`, kept within `lo..=hi`. The floor gives way to a base so low
+/// that the spread reaches under it, but never below 1: an attribute of 0 reads as missing.
 fn jitter(base: i32, spread: i32, lo: u8, hi: u8, rng: &mut impl Rng) -> u8 {
-    (base + rng.random_range(-spread..=spread)).clamp(lo as i32, hi as i32) as u8
+    let lo = i32::from(lo).min((base - spread).max(1));
+    (base + rng.random_range(-spread..=spread)).clamp(lo, i32::from(hi)) as u8
+}
+
+/// How many times the attribute centre is corrected against the real rating.
+const OVERALL_CORRECTION_STEPS: usize = 8;
+
+/// Attributes whose rating, as `player_rating::ovr_from_attributes` computes it, lands on
+/// `overall`.
+///
+/// Jittering every attribute around `overall` does not give an `ovr` of `overall`: the rating
+/// subtracts a penalty for a weak critical attribute, so a low target came out far from itself.
+/// Rather than invert that formula here (a second copy of the rating rule), the centre is
+/// moved by the remaining difference, computed with the real rating, until it lands within one
+/// point. The same seed is replayed each time so only the centre moves, and the result is
+/// deterministic for a seeded `rng`.
+fn attributes_matching_overall(
+    overall: u8,
+    position: &Position,
+    rng: &mut impl Rng,
+) -> PlayerAttributes {
+    let seed: u64 = rng.random();
+    let target = i32::from(overall);
+    let mut centre = target;
+    let mut closest: Option<(i32, PlayerAttributes)> = None;
+    for _ in 0..OVERALL_CORRECTION_STEPS {
+        let mut replay = crate::seed::rng_from_u64(seed);
+        let attributes = attributes_for_overall(centre.clamp(1, 99) as u8, position, &mut replay);
+        let rated = crate::player_rating::ovr_from_attributes(&attributes, position).round() as i32;
+        let off = target - rated;
+        if closest.as_ref().is_none_or(|(best, _)| off.abs() < *best) {
+            closest = Some((off.abs(), attributes));
+        }
+        if off.abs() <= 1 {
+            break;
+        }
+        centre += off;
+    }
+    closest
+        .map(|(_, attributes)| attributes)
+        .unwrap_or_else(|| {
+            attributes_for_overall(overall, position, &mut crate::seed::rng_from_u64(seed))
+        })
 }
 
 /// Build a realistic attribute spread centred on a target `overall`, shaped by
@@ -913,20 +1121,31 @@ fn resolve_def_name(
     }
 }
 
-fn resolve_birth_year(
+/// The year of a `YYYY-MM-DD` date of birth.
+fn birth_year_of(dob: &str) -> Option<u32> {
+    dob.get(0..4)?.parse().ok()
+}
+
+/// The year an authored player was born and the date of birth to store: the authored date when
+/// it is a real one, else the authored age, else a rolled one. An unreadable date is refused by
+/// package validation; one that reaches here anyway counts as not written, never as a guess.
+fn resolve_birth(
     def: &super::package::PlayerDef,
     opening_year: u32,
     rng: &mut impl Rng,
-) -> u32 {
-    if let Some(dob) = &def.date_of_birth {
-        dob.get(0..4)
-            .and_then(|year| year.parse::<u32>().ok())
-            .unwrap_or(opening_year.saturating_sub(24))
-    } else if let Some(age) = def.age {
-        opening_year.saturating_sub(age)
-    } else {
-        opening_year.saturating_sub(rng.random_range(18..34))
+) -> (u32, String) {
+    let authored = def
+        .date_of_birth
+        .as_deref()
+        .filter(|dob| is_valid_date_of_birth(dob));
+    if let Some((dob, year)) = authored.and_then(|dob| Some((dob, birth_year_of(dob)?))) {
+        return (year, dob.to_string());
     }
+    let year = match def.age {
+        Some(age) => opening_year.saturating_sub(age),
+        None => opening_year.saturating_sub(rng.random_range(18..34)),
+    };
+    (year, format!("{year:04}-01-01"))
 }
 
 /// Convert a hand-authored [`PlayerDef`](super::package::PlayerDef) into a full
@@ -998,6 +1217,34 @@ fn bound_attributes_by_ceiling(
     }
 }
 
+/// What the player is called on the pitch.
+///
+/// The authored `name` without the leading words it shares with the first name, so "Alfredo Di
+/// Stefano" is "Di Stefano" and "Nicolás de la Cruz" keeps its particles; a `name` that shares
+/// none ("Pelé", "Kaká") is the whole `name`. With no `name`, the last name (or the full name
+/// when there is none), as before. `firstName`/`lastName` stay the real name.
+fn authored_match_name(name: &str, first_name: &str, last_name: &str, full_name: &str) -> String {
+    let name_words: Vec<&str> = name.split_whitespace().collect();
+    if name_words.is_empty() {
+        return if last_name.is_empty() {
+            full_name.to_string()
+        } else {
+            last_name.to_string()
+        };
+    }
+    let shared = name_words
+        .iter()
+        .zip(first_name.split_whitespace())
+        .take_while(|(called, real)| called.to_lowercase() == real.to_lowercase())
+        .count();
+    // A name that is only the first name stays whole rather than becoming empty.
+    if shared == 0 || shared == name_words.len() {
+        name_words.join(" ")
+    } else {
+        name_words[shared..].join(" ")
+    }
+}
+
 pub(super) fn generate_player_from_def(
     def: &super::package::PlayerDef,
     team_id: &str,
@@ -1008,22 +1255,14 @@ pub(super) fn generate_player_from_def(
     let nationality = canonicalize_generated_nationality(&def.nationality);
     let (first_name, last_name) = resolve_def_name(def, &nationality, names_def, rng);
     let full_name = format!("{first_name} {last_name}").trim().to_string();
-    let match_name = if last_name.is_empty() {
-        full_name.clone()
-    } else {
-        last_name
-    };
+    let match_name = authored_match_name(&def.name, &first_name, &last_name, &full_name);
 
     let current_year: u32 = opening_year;
-    let birth_year = resolve_birth_year(def, opening_year, rng);
-    let dob = def
-        .date_of_birth
-        .clone()
-        .unwrap_or_else(|| format!("{birth_year:04}-01-01"));
+    let (birth_year, dob) = resolve_birth(def, opening_year, rng);
     let age = current_year.saturating_sub(birth_year);
 
     let mut attributes = def.attributes.clone().unwrap_or_else(|| {
-        attributes_for_overall(
+        attributes_matching_overall(
             def.overall.unwrap_or(DEFAULT_AUTHORED_OVERALL),
             &def.position,
             rng,
@@ -1146,7 +1385,10 @@ pub(super) fn generate_player_from_def(
     player.potential = def
         .potential
         .unwrap_or_else(|| generate_potential(temp_ovr, age, rng));
-    refresh_player_derived(&mut player, current_year);
+    refresh_player_derived(
+        &mut player,
+        domain::age::season_midpoint(current_year as i32),
+    );
     player
 }
 
@@ -1167,7 +1409,7 @@ pub(super) fn generate_random_unemployed_manager(
         rng.random_range(1u32..13u32),
         rng.random_range(1u32..29u32)
     );
-    let reputation = rng.random_range(200u32..=700u32);
+    let reputation = rng.random_range(domain::manager::CREATED_REPUTATION);
 
     let mut mgr = domain::manager::Manager::new(
         seeded_id(rng),
@@ -1207,6 +1449,607 @@ mod tests {
             &names_def,
             &mut rng,
         )
+    }
+
+    /// A fixed-seed league's worth of generated players, 23 slots a club, with the age each was
+    /// generated at (the opening year less the year of birth, which is what the generator sets
+    /// its headroom by).
+    fn generated_players(clubs: usize) -> Vec<(Player, i32)> {
+        use rand::SeedableRng;
+        let names_def = super::super::definitions::default_names_definition();
+        let mut rng = rand::rngs::StdRng::seed_from_u64(869);
+        (0..clubs * 23)
+            .map(|n| {
+                let player = generate_random_player_from_def(
+                    "club-id",
+                    n % 23,
+                    "ENG",
+                    2026,
+                    PlayerRoll::unscaled(None),
+                    &names_def,
+                    &mut rng,
+                );
+                let birth_year: i32 = player.date_of_birth[..4].parse().unwrap();
+                (player, 2026 - birth_year)
+            })
+            .collect()
+    }
+
+    /// Given rolled ratings at, above and below the rolled mean,
+    /// When they are shaped onto the ceiling bell,
+    /// Then the mean maps to the bell's centre and a distance from it is kept at the spread.
+    #[test]
+    fn a_rolled_rating_is_shaped_onto_the_ceiling_bell() {
+        // The grid point z = 0 is index 14; z = +-2 are indices 22 and 6.
+        for (row, group) in [
+            Position::Goalkeeper,
+            Position::Defender,
+            Position::Midfielder,
+            Position::Forward,
+        ]
+        .iter()
+        .enumerate()
+        {
+            let centre = CEILING_MEAN.round() as u8;
+            assert_eq!(
+                shaped_ceiling(group, ROLLED_AT_Z[row][14], 25, None),
+                centre
+            );
+            let two_sd = (2.0 * CEILING_SD).round() as u8;
+            assert_eq!(
+                shaped_ceiling(group, ROLLED_AT_Z[row][22], 25, None),
+                centre + two_sd
+            );
+            assert_eq!(
+                shaped_ceiling(group, ROLLED_AT_Z[row][6], 25, None),
+                centre - two_sd
+            );
+        }
+    }
+
+    /// Given the rolled rating two standard deviations up for a teenager and for a prime-age player,
+    /// When it is shaped onto the ceiling bell,
+    /// Then the teenager's ceiling is closer to the centre (his bell is narrower) and the centre
+    /// itself is the same.
+    #[test]
+    fn a_teenagers_ceiling_bell_is_narrower_than_a_prime_players() {
+        let group = Position::Midfielder;
+        let prime = shaped_ceiling(&group, ROLLED_AT_Z[2][24], 25, None);
+        let teenager = shaped_ceiling(&group, ROLLED_AT_Z[2][24], 16, None);
+        assert!(teenager < prime, "{teenager} vs {prime}");
+        assert_eq!(
+            shaped_ceiling(&group, ROLLED_AT_Z[2][14], 16, None),
+            shaped_ceiling(&group, ROLLED_AT_Z[2][14], 25, None)
+        );
+    }
+
+    /// Given a rolled rating between two grid points of the table, and one beyond each end,
+    /// When it is mapped to a z,
+    /// Then the z is interpolated between the points, and beyond the ends it keeps rising.
+    #[test]
+    fn the_rolled_rating_map_interpolates_and_extends_past_the_table() {
+        let group = Position::Defender;
+        let (low, high) = (ROLLED_AT_Z[1][14], ROLLED_AT_Z[1][15]);
+
+        let half = rolled_to_z(&group, (low + high) / 2.0);
+        assert!((half - 0.125).abs() < 1e-9, "{half}");
+        assert!(rolled_to_z(&group, ROLLED_AT_Z[1][28] + 3.0) > 3.5);
+        assert!(rolled_to_z(&group, ROLLED_AT_Z[1][0] - 3.0) < -3.5);
+        assert!(rolled_to_z(&group, 60.0) < rolled_to_z(&group, 61.0));
+    }
+
+    /// Given generated teenagers (18 or younger),
+    /// When their rating is compared with their ceiling,
+    /// Then the ceiling is the headroom for their age above the rating: they are an earlier self.
+    #[test]
+    fn a_generated_teenager_is_an_earlier_version_of_his_ceiling() {
+        let teenagers: Vec<_> = generated_players(120)
+            .into_iter()
+            .filter(|(_, age)| *age <= 18)
+            .collect();
+        assert!(teenagers.len() > 200, "the fixture has too few teenagers");
+        for (player, age) in teenagers {
+            let room = player.potential - player.ovr;
+            assert!(
+                (13..=32).contains(&room),
+                "a {age}-year-old rated {} has a ceiling of {}, {room} above",
+                player.ovr,
+                player.potential
+            );
+        }
+    }
+
+    /// Given generated players of 26 or older,
+    /// When their rating is compared with their ceiling,
+    /// Then they are at it: a prime-age player has nothing left to grow into.
+    #[test]
+    fn a_generated_veteran_is_at_his_ceiling() {
+        let veterans: Vec<_> = generated_players(120)
+            .into_iter()
+            .filter(|(_, age)| *age >= 26)
+            .collect();
+        assert!(veterans.len() > 500, "the fixture has too few veterans");
+        for (player, age) in veterans {
+            assert!(
+                player.potential - player.ovr <= 1,
+                "a {age}-year-old rated {} has a ceiling of {}",
+                player.ovr,
+                player.potential
+            );
+        }
+    }
+
+    /// Given the same generated world,
+    /// When the average ceiling of its teenagers is compared with the average rating of its veterans,
+    /// Then they match: a teenager's ceiling is where a veteran's rating ends up, not that plus his
+    /// headroom.
+    #[test]
+    fn a_teenagers_ceiling_is_where_a_veterans_rating_ends_up() {
+        let world = generated_players(360);
+        let mean = |values: Vec<u8>| {
+            values.iter().map(|v| f64::from(*v)).sum::<f64>() / values.len() as f64
+        };
+        let teenage_ceiling = mean(
+            world
+                .iter()
+                .filter(|(_, age)| *age <= 18)
+                .map(|(p, _)| p.potential)
+                .collect(),
+        );
+        let veteran_rating = mean(
+            world
+                .iter()
+                .filter(|(_, age)| *age >= 26)
+                .map(|(p, _)| p.ovr)
+                .collect(),
+        );
+
+        assert!(
+            (teenage_ceiling - veteran_rating).abs() < 1.5,
+            "teenagers' ceilings average {teenage_ceiling:.1}, veterans' ratings {veteran_rating:.1}"
+        );
+    }
+
+    /// Given a generated world of 360 clubs,
+    /// When its senior players are averaged,
+    /// Then the world opens near the mean the maintainer asked to keep (about 68).
+    #[test]
+    fn a_new_world_opens_near_the_intended_mean_rating() {
+        let seniors: Vec<f64> = generated_players(360)
+            .into_iter()
+            .filter(|(_, age)| *age >= 21)
+            .map(|(player, _)| f64::from(player.ovr))
+            .collect();
+        let mean = seniors.iter().sum::<f64>() / seniors.len() as f64;
+
+        assert!((67.0..=68.5).contains(&mean), "seniors average {mean:.2}");
+    }
+
+    /// Given the same world,
+    /// When the players the game tags as wonderkids are counted,
+    /// Then they are rare: between 0.2% and 1.2% of everyone.
+    #[test]
+    fn a_new_worlds_wonderkids_are_rare() {
+        let world = generated_players(360);
+        let wonderkids = world
+            .iter()
+            .filter(|(player, _)| {
+                player
+                    .traits
+                    .contains(&domain::player::PlayerTrait::Wonderkid)
+            })
+            .count();
+        let share = wonderkids as f64 / world.len() as f64;
+
+        assert!(
+            (0.002..=0.012).contains(&share),
+            "{wonderkids} of {} are wonderkids ({:.2}%)",
+            world.len(),
+            share * 100.0
+        );
+    }
+
+    /// Given a generated world of 360 clubs,
+    /// When the ceilings of its senior players are tiered,
+    /// Then S is 1 to 3.5% and A is 4.5 to 9%, the maintainer's targets.
+    #[test]
+    fn the_ceilings_of_senior_players_follow_the_tier_targets() {
+        use crate::player_tier::{PlayerTier, player_tier};
+        let seniors: Vec<_> = generated_players(360)
+            .into_iter()
+            .filter(|(_, age)| *age >= 21)
+            .collect();
+        let share = |tier: PlayerTier| {
+            seniors
+                .iter()
+                .filter(|(player, _)| player_tier(player.potential) == tier)
+                .count() as f64
+                / seniors.len() as f64
+        };
+
+        let (s, a) = (share(PlayerTier::S), share(PlayerTier::A));
+
+        assert!(
+            (0.01..=0.035).contains(&s),
+            "S ceilings are {:.1}%",
+            s * 100.0
+        );
+        assert!(
+            (0.045..=0.09).contains(&a),
+            "A ceilings are {:.1}%",
+            a * 100.0
+        );
+    }
+
+    fn normal_cdf(z: f64) -> f64 {
+        // Abramowitz and Stegun 7.1.26 (|error| < 1.5e-7).
+        let x = z.abs() / std::f64::consts::SQRT_2;
+        let t = 1.0 / (1.0 + 0.327_591_1 * x);
+        let poly = t
+            * (0.254_829_592
+                + t * (-0.284_496_736
+                    + t * (1.421_413_741 + t * (-1.453_152_027 + t * 1.061_405_429))));
+        let erf = 1.0 - poly * (-x * x).exp();
+        if z >= 0.0 {
+            0.5 * (1.0 + erf)
+        } else {
+            0.5 * (1.0 - erf)
+        }
+    }
+
+    /// Prints the table `ROLLED_AT_Z` is baked from: for each position group, the rolled rating at
+    /// the standard-normal quantiles of a z grid from -3.5 to 3.5 in steps of 0.25, from four
+    /// million seeded draws of [`roll_attributes`] rated by `ovr_from_attributes`.
+    ///
+    /// `cargo test --release -p ofm_core --lib print_the_rolled_quantile_table -- --ignored --nocapture`
+    #[test]
+    #[ignore = "prints the baked quantile table; run it to regenerate the table"]
+    fn print_the_rolled_quantile_table() {
+        use rand::SeedableRng;
+        const SAMPLES: usize = 4_000_000;
+
+        for (index, group) in [
+            Position::Goalkeeper,
+            Position::Defender,
+            Position::Midfielder,
+            Position::Forward,
+        ]
+        .iter()
+        .enumerate()
+        {
+            let mut rng = rand::rngs::StdRng::seed_from_u64(0x0F51_0000 + index as u64);
+            let mut rolled: Vec<f64> = (0..SAMPLES)
+                .map(|_| ovr_from_attributes(&roll_attributes(group, &mut rng), group))
+                .collect();
+            rolled.sort_by(f64::total_cmp);
+            let cells: Vec<String> = (0..29)
+                .map(|step| {
+                    let p = normal_cdf(-3.5 + 0.25 * step as f64);
+                    let position = (p * SAMPLES as f64 - 0.5).clamp(0.0, (SAMPLES - 1) as f64);
+                    let (low, fraction) = (position.floor() as usize, position.fract());
+                    let high = (low + 1).min(SAMPLES - 1);
+                    let value = rolled[low] * (1.0 - fraction) + rolled[high] * fraction;
+                    format!("{value:.3}")
+                })
+                .collect();
+            eprintln!("TABLE {group:?}: [{}],", cells.join(", "));
+        }
+    }
+
+    /// Given generated players aged 28, whose ceiling is their rating (no headroom left),
+    /// When the share of ceilings 2.0 and 2.5 standard deviations above the mean is counted,
+    /// Then each is within 15% of what a normal bell of the same mean and spread has there: the S
+    ///      tier sits in this tail, and a bell that is light in it makes every shift fall short.
+    #[test]
+    fn the_ceiling_bell_has_a_normal_tail() {
+        use rand::SeedableRng;
+        const PLAYERS: usize = 160_000;
+        let names_def = super::super::definitions::default_names_definition();
+        let mut rng = rand::rngs::StdRng::seed_from_u64(0x7A11);
+        let ceilings: Vec<f64> = (0..PLAYERS)
+            .map(|n| {
+                f64::from(
+                    generate_random_player_from_def(
+                        "club-id",
+                        senior_slot(n % 23),
+                        "ENG",
+                        2026,
+                        PlayerRoll::unscaled(Some(28)),
+                        &names_def,
+                        &mut rng,
+                    )
+                    .potential,
+                )
+            })
+            .collect();
+        let mean = ceilings.iter().sum::<f64>() / PLAYERS as f64;
+        let sd = (ceilings.iter().map(|c| (c - mean).powi(2)).sum::<f64>() / PLAYERS as f64).sqrt();
+
+        for z in [2.0, 2.5] {
+            // Ceilings are whole numbers: compare the share at or above the first whole number
+            // past the line with the normal's share of that whole number's interval.
+            let line = (mean + z * sd).ceil();
+            let observed = ceilings.iter().filter(|c| **c >= line).count() as f64 / PLAYERS as f64;
+            let normal = 1.0 - normal_cdf((line - 0.5 - mean) / sd);
+            let ratio = observed / normal;
+            assert!(
+                (0.85..=1.15).contains(&ratio),
+                "{z} sd above the mean ({mean:.2}, sd {sd:.2}): {:.3}% of ceilings against {:.3}% for a normal bell (ratio {ratio:.2})",
+                observed * 100.0,
+                normal * 100.0
+            );
+        }
+    }
+
+    /// Ceilings of `count` players of age 28 (no headroom: rating is ceiling) rolled with `roll`.
+    fn ceilings_rolled_with(roll: PlayerRoll, count: usize, seed: u64) -> Vec<f64> {
+        use rand::SeedableRng;
+        let names_def = super::super::definitions::default_names_definition();
+        let mut rng = rand::rngs::StdRng::seed_from_u64(seed);
+        (0..count)
+            .map(|n| {
+                f64::from(
+                    generate_random_player_from_def(
+                        "club-id",
+                        senior_slot(n % 23),
+                        "ENG",
+                        2026,
+                        roll,
+                        &names_def,
+                        &mut rng,
+                    )
+                    .potential,
+                )
+            })
+            .collect()
+    }
+
+    fn mean_and_sd(values: &[f64]) -> (f64, f64) {
+        let mean = values.iter().sum::<f64>() / values.len() as f64;
+        let variance = values.iter().map(|v| (v - mean).powi(2)).sum::<f64>() / values.len() as f64;
+        (mean, variance.sqrt())
+    }
+
+    /// Given the same slots rolled once on the opening's bell and once as youth intake recruits,
+    ///       both fixed at 28 so that rating is ceiling,
+    /// When their ceilings are compared,
+    /// Then the intake's centre is higher by the intake offset and its spread is the kept fraction
+    ///      of the opening's.
+    #[test]
+    fn the_intake_is_rolled_on_its_own_centre_and_spread() {
+        let opening = ceilings_rolled_with(PlayerRoll::unscaled(Some(28)), 80_000, 31);
+        let intake = ceilings_rolled_with(PlayerRoll::for_intake(Some(28)), 80_000, 31);
+
+        let ((opening_mean, opening_sd), (intake_mean, intake_sd)) =
+            (mean_and_sd(&opening), mean_and_sd(&intake));
+
+        assert!(
+            ((intake_mean - opening_mean) - INTAKE_CEILING_OFFSET).abs() < 0.15,
+            "centres {opening_mean:.2} and {intake_mean:.2}"
+        );
+        assert!(
+            ((intake_sd / opening_sd) - INTAKE_SPREAD_KEPT).abs() < 0.04,
+            "spreads {opening_sd:.2} and {intake_sd:.2}"
+        );
+    }
+
+    /// Given staff authored with and without a `knownAs` name (#557)
+    /// When they are generated
+    /// Then the one with it is displayed by it, keeping the real name, and the other by first and last.
+    #[test]
+    fn authored_staff_are_displayed_by_what_they_are_called() {
+        let names_def = super::super::definitions::default_names_definition();
+        let generate = |value: serde_json::Value| {
+            let def: super::super::package::StaffDef = serde_json::from_value(value).unwrap();
+            generate_staff_from_authored_def(
+                &def,
+                Some("club-id"),
+                2026,
+                &names_def,
+                &mut rand::rng(),
+            )
+        };
+
+        let pep = generate(serde_json::json!({
+            "id": "pep", "firstName": "Josep", "lastName": "Guardiola i Sala",
+            "knownAs": "Pep Guardiola", "role": "AssistantManager",
+        }));
+        let plain = generate(serde_json::json!({
+            "id": "alice", "firstName": "Alice", "lastName": "Coach", "role": "Coach",
+        }));
+
+        assert_eq!(pep.display_name, "Pep Guardiola");
+        assert_eq!(pep.full_name(), "Josep Guardiola i Sala");
+        assert_eq!(plain.display_name, "Alice Coach");
+    }
+
+    fn authored_names(value: serde_json::Value) -> (String, String) {
+        let mut def = serde_json::json!({
+            "id": "p1", "club": "club-id", "nationality": "BRA", "position": "Striker",
+            "dateOfBirth": "1990-01-01", "overall": 70,
+        });
+        def.as_object_mut()
+            .unwrap()
+            .extend(value.as_object().unwrap().clone());
+        let player = generate_from_json(def, 2026);
+        (player.full_name, player.match_name)
+    }
+
+    /// Given players authored with a `name` beside their real first and last names (#556)
+    /// When they are generated
+    /// Then `full_name` is the real name and `match_name` is what they are called: the `name`
+    ///      without the words it shares with the first name, or the whole `name` when it
+    ///      shares none (a nickname).
+    #[test]
+    fn an_authored_name_is_what_the_player_is_called() {
+        let cases = [
+            // nickname: shares nothing with the first name
+            (
+                serde_json::json!({"name": "Kaká", "firstName": "Ricardo Izecson", "lastName": "dos Santos Leite"}),
+                "Ricardo Izecson dos Santos Leite",
+                "Kaká",
+            ),
+            // plain "First Last" that repeats the first name
+            (
+                serde_json::json!({"name": "Iker Casillas", "firstName": "Iker", "lastName": "Casillas Fernández"}),
+                "Iker Casillas Fernández",
+                "Casillas",
+            ),
+            // the first name is longer than the part of it the name repeats
+            (
+                serde_json::json!({"name": "Lionel Messi", "firstName": "Lionel Andrés", "lastName": "Messi Cuccittini"}),
+                "Lionel Andrés Messi Cuccittini",
+                "Messi",
+            ),
+            // compound surname with particles: nothing past the first name is dropped
+            (
+                serde_json::json!({"name": "Nicolás de la Cruz", "firstName": "Nicolás", "lastName": "de la Cruz Bascuñán"}),
+                "Nicolás de la Cruz Bascuñán",
+                "de la Cruz",
+            ),
+            (
+                serde_json::json!({"name": "Alfredo Di Stefano", "firstName": "Alfredo", "lastName": "Di Stéfano Laulhé"}),
+                "Alfredo Di Stéfano Laulhé",
+                "Di Stefano",
+            ),
+            // the comparison ignores case
+            (
+                serde_json::json!({"name": "Nicolás de la Cruz", "firstName": "nicolás", "lastName": "de la Cruz Bascuñán"}),
+                "nicolás de la Cruz Bascuñán",
+                "de la Cruz",
+            ),
+            // a name that is only the first name stays whole, never empty
+            (
+                serde_json::json!({"name": "Ronaldo", "firstName": "Ronaldo", "lastName": "Nazário de Lima"}),
+                "Ronaldo Nazário de Lima",
+                "Ronaldo",
+            ),
+            // no `name`: today's fallback, the last name
+            (
+                serde_json::json!({"firstName": "John", "lastName": "Smith"}),
+                "John Smith",
+                "Smith",
+            ),
+            // only a `name`, no first or last: it is split, and the first word is the first name
+            (
+                serde_json::json!({"name": "Lionel Messi"}),
+                "Lionel Messi",
+                "Messi",
+            ),
+        ];
+        for (authored, full_name, match_name) in cases {
+            assert_eq!(
+                authored_names(authored.clone()),
+                (full_name.to_string(), match_name.to_string()),
+                "{authored}"
+            );
+        }
+    }
+
+    /// Given a date of birth that validation would have refused, reaching generation anyway (#594).
+    ///       "1990" is chosen because its first four characters read as a year: only the date check
+    ///       keeps it from being stored as the date
+    /// When the player is generated
+    /// Then it is treated as if none were written (here, the authored age decides), not read as
+    ///      a year or as "24 years before the opening", the invented value it used to become.
+    #[test]
+    fn an_unreadable_date_of_birth_is_not_replaced_by_an_invented_age() {
+        let player = generate_from_json(
+            serde_json::json!({
+                "id": "p", "firstName": "A", "lastName": "B", "club": "club-id",
+                "nationality": "ENG", "position": "Striker",
+                "dateOfBirth": "1990", "age": 31, "overall": 60,
+            }),
+            2026,
+        );
+
+        assert_eq!(
+            player.date_of_birth, "1995-01-01",
+            "{:?}",
+            player.date_of_birth
+        );
+    }
+
+    /// Given staff authored with a date of birth validation would have refused ("1990" reads as a
+    ///       year but is not a date), and an age
+    /// When they are generated
+    /// Then the age decides and the stored date is a real one, as for a player.
+    #[test]
+    fn an_unreadable_staff_date_of_birth_is_not_replaced_by_an_invented_age() {
+        use rand::SeedableRng;
+        let names_def = super::super::definitions::default_names_definition();
+        let def: super::super::package::StaffDef = serde_json::from_value(serde_json::json!({
+            "id": "coach-1", "firstName": "A", "lastName": "B", "role": "Coach",
+            "dateOfBirth": "1990", "age": 31,
+        }))
+        .unwrap();
+
+        let staff = generate_staff_from_authored_def(
+            &def,
+            Some("club-id"),
+            2026,
+            &names_def,
+            &mut rand::rngs::StdRng::seed_from_u64(7),
+        );
+
+        assert_eq!(staff.date_of_birth, "1995-01-01");
+    }
+
+    /// The rating of 100 players authored at `overall`, one per seed.
+    fn ovrs_of_authored(overall: u8, position: &str) -> Vec<u8> {
+        use rand::SeedableRng;
+        let names_def = super::super::definitions::default_names_definition();
+        let def = player_def_from_json(serde_json::json!({
+            "id": "p", "firstName": "A", "lastName": "B", "club": "club-id",
+            "nationality": "ENG", "position": position,
+            "dateOfBirth": "1995-01-01", "overall": overall,
+        }));
+        (0..100u64)
+            .map(|seed| {
+                let mut rng = rand::rngs::StdRng::seed_from_u64(seed);
+                generate_player_from_def(&def, "club-id", 2026, &names_def, &mut rng).ovr
+            })
+            .collect()
+    }
+
+    /// Given players authored at a low, middling and high `overall` (#495)
+    /// When many are generated
+    /// Then the mean rating of each lands within 3 of what was written, for any position.
+    #[test]
+    fn an_authored_overall_comes_out_near_itself() {
+        for position in ["Striker", "CenterBack", "Goalkeeper"] {
+            for overall in [10u8, 20, 30, 40, 50, 70, 90] {
+                let ovrs = ovrs_of_authored(overall, position);
+
+                // The balance: no lean to one side.
+                let mean = ovrs.iter().map(|ovr| f64::from(*ovr)).sum::<f64>() / ovrs.len() as f64;
+                assert!(
+                    (mean - f64::from(overall)).abs() <= 3.0,
+                    "{position} authored {overall} averaged {mean}"
+                );
+                // The spread: a mean can hide ratings too high and too low cancelling out, so
+                // every player is bounded too. Measured over these seeds the worst is 2 (1 at 70
+                // and 90); 3 leaves a point of room. ±1 does not hold: the attributes are whole
+                // numbers and the position weights round.
+                for ovr in &ovrs {
+                    assert!(
+                        (i32::from(*ovr) - i32::from(overall)).abs() <= 3,
+                        "{position} authored {overall} produced a player rated {ovr}"
+                    );
+                }
+            }
+        }
+    }
+
+    /// Given a base so low the spread would reach below zero
+    /// When attributes are jittered around it
+    /// Then none is ever below 1: the floor is pinned, since 0 reads as "missing" elsewhere.
+    #[test]
+    fn jittered_attributes_never_fall_below_one() {
+        use rand::SeedableRng;
+        let mut rng = rand::rngs::StdRng::seed_from_u64(7);
+        let draws: Vec<u8> = (0..2000).map(|_| jitter(1, 8, 30, 97, &mut rng)).collect();
+        assert_eq!(draws.iter().copied().min(), Some(1));
     }
 
     /// An authored ceiling is the author's to set.
@@ -1281,10 +2124,11 @@ mod tests {
             2026,
         );
 
-        // `generate_potential` gives an under-18 a 15..=30 bonus over ovr,
-        // capped at 99.
-        let floor = player.ovr.saturating_add(15).min(99);
-        let ceiling = player.ovr.saturating_add(30).min(99);
+        // The inverse of the ceiling-first roll: an authored rating gets the headroom for his
+        // age above it, from the same range a generated player's ceiling is lowered by.
+        let headroom = crate::player_rating::growth_headroom_range(17);
+        let floor = player.ovr.saturating_add(*headroom.start()).min(99);
+        let ceiling = player.ovr.saturating_add(*headroom.end()).min(99);
         assert!(
             (floor..=ceiling).contains(&player.potential),
             "a 17-year-old's rolled ceiling should sit {floor}..={ceiling}, got {}",

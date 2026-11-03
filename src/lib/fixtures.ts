@@ -48,12 +48,8 @@ export function getFixtureCompetitionName(
   return competition ? competitionDisplayName(competition, t) : undefined;
 }
 
-export function isCompetitiveFixture(fixture: FixtureData): boolean {
-  return !fixture.competition || !["Friendly", "PreseasonTournament"].includes(fixture.competition);
-}
-
 export function getCompetitiveFixtures(fixtures: FixtureData[]): FixtureData[] {
-  return fixtures.filter(isCompetitiveFixture);
+  return fixtures.filter((fixture) => fixture.competitive);
 }
 
 export function findNextFixture(fixtures: FixtureData[], teamId: string): FixtureData | undefined {
@@ -78,33 +74,6 @@ export function findNextFixture(fixtures: FixtureData[], teamId: string): Fixtur
 
     return fixture.id < nextFixture.id ? fixture : nextFixture;
   }, undefined);
-}
-
-export function expectedFixtureCount(teamCount: number): number | null {
-  if (teamCount >= 2) {
-    // Double round robin; odd-sized leagues reach the same total via byes.
-    return teamCount * (teamCount - 1);
-  }
-
-  return null;
-}
-
-export function hasFullLeagueSchedule(league: LeagueData): boolean {
-  const expectedCount = expectedFixtureCount(league.standings.length);
-
-  if (expectedCount === null) {
-    return false;
-  }
-
-  return getCompetitiveFixtures(league.fixtures).length === expectedCount;
-}
-
-export function isSeasonComplete(league: LeagueData | null | undefined): boolean {
-  if (!league || !hasFullLeagueSchedule(league)) {
-    return false;
-  }
-
-  return getCompetitiveFixtures(league.fixtures).every((fixture) => fixture.status === "Completed");
 }
 
 export function getActiveCompetitions(

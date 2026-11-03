@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import type { GameStateData, TeamData } from "../../store/gameStore";
 import ManagerTab from "./ManagerTab";
+import { createSeasonContext } from "../../test-utils/factories";
 
 vi.mock("react-i18next", () => ({
   useTranslation: () => ({
@@ -76,11 +77,13 @@ function createTeam(overrides: Partial<TeamData> = {}): TeamData {
 
 function createGameState(withHistory: boolean): GameStateData {
   return {
+    season_context: createSeasonContext(),
     clock: {
       current_date: "2026-08-10T00:00:00Z",
       start_date: "2026-07-01T00:00:00Z",
     },
     manager: {
+      display_name: "Jane Doe",
       id: "manager-1",
       first_name: "Jane",
       last_name: "Doe",

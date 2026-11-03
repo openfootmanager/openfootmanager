@@ -1,8 +1,19 @@
-import { fireEvent, render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { GameStateData, PlayerData, TeamData } from "../../store/gameStore";
+import { fetchHallOfFameChampions, fetchHallOfFameLegends } from "../../services/retireesService";
+import type { GameStateData, TeamData } from "../../store/gameStore";
+import type { HallOfFameLegendData, PastChampionData } from "../../store/types";
 import HallOfFameWorldTab from "./HallOfFameWorldTab";
+import { createSeasonContext } from "../../test-utils/factories";
+
+vi.mock("../../services/retireesService", () => ({
+  fetchHallOfFameLegends: vi.fn(),
+  fetchHallOfFameChampions: vi.fn(),
+}));
+
+const mockedFetchLegends = vi.mocked(fetchHallOfFameLegends);
+const mockedFetchChampions = vi.mocked(fetchHallOfFameChampions);
 
 vi.mock("react-i18next", () => ({
   useTranslation: () => ({
@@ -63,92 +74,50 @@ function createTeam(overrides: Partial<TeamData> = {}): TeamData {
   };
 }
 
-function createPlayer(overrides: Partial<PlayerData> = {}): PlayerData {
+function createLegend(overrides: Partial<HallOfFameLegendData> = {}): HallOfFameLegendData {
   return {
-    id: "player-1",
-    match_name: "V. Vale",
+    player_id: "player-1",
     full_name: "Victor Vale",
-    date_of_birth: "1988-01-01",
     nationality: "ENG",
     football_nation: "ENG",
     position: "Forward",
-    natural_position: "Forward",
-    alternate_positions: [],
-    training_focus: null,
-    attributes: {
-      pace: 60,
-      stamina: 60,
-      strength: 60,
-      agility: 60,
-      passing: 60,
-      shooting: 60,
-      tackling: 60,
-      dribbling: 60,
-      defending: 60,
-      positioning: 60,
-      vision: 60,
-      decisions: 60,
-      composure: 60,
-      aggression: 60,
-      teamwork: 60,
-      leadership: 60,
-      handling: 20,
-      reflexes: 20,
-      aerial: 60,
+    appearances: 305,
+    goals: 138,
+    assists: 47,
+    titles: 2,
+    last_club_name: "Beta United",
+    final_season: 2,
+    ...overrides,
+  };
+}
+
+function createTitle(overrides: Partial<PastChampionData> & { team_id: string }): PastChampionData {
+  return {
+    season: 1,
+    record: {
+      season: 1,
+      league_position: 1,
+      played: 38,
+      won: 25,
+      drawn: 8,
+      lost: 5,
+      goals_for: 72,
+      goals_against: 30,
+      competition_id: "div-1",
     },
-    condition: 0,
-    morale: 0,
-    injury: null,
-    team_id: null,
-    retired: true,
-    contract_end: null,
-    wage: 0,
-    market_value: 0,
-    stats: {
-      appearances: 0,
-      goals: 0,
-      assists: 0,
-      clean_sheets: 0,
-      yellow_cards: 0,
-      red_cards: 0,
-      avg_rating: 0,
-      minutes_played: 0,
-    },
-    career: [
-      {
-        season: 1,
-        team_id: "team-1",
-        team_name: "Alpha FC",
-        appearances: 210,
-        goals: 110,
-        assists: 35,
-      },
-      {
-        season: 2,
-        team_id: "team-2",
-        team_name: "Beta United",
-        appearances: 95,
-        goals: 28,
-        assists: 12,
-      },
-    ],
-    transfer_listed: false,
-    loan_listed: false,
-    transfer_offers: [],
-    traits: [],
-    ovr: 82,
-    potential: 82,
     ...overrides,
   };
 }
 
 function createGameState(): GameStateData {
   return {
+    season_context: createSeasonContext(),
     clock: {
       current_date: "2026-08-10T00:00:00Z",
       start_date: "2026-07-01T00:00:00Z",
     },
     manager: {
+      display_name: "Jane Doe",
       id: "manager-1",
       first_name: "Jane",
       last_name: "Doe",
@@ -181,6 +150,7 @@ function createGameState(): GameStateData {
             lost: 5,
             goals_for: 72,
             goals_against: 30,
+            competition_id: "div-1",
           },
         ],
       }),
@@ -199,36 +169,12 @@ function createGameState(): GameStateData {
             lost: 5,
             goals_for: 69,
             goals_against: 28,
+            competition_id: "div-1",
           },
         ],
       }),
     ],
-    players: [
-      createPlayer(),
-      createPlayer({
-        id: "player-2",
-        match_name: "N. North",
-        full_name: "Nico North",
-        career: [
-          {
-            season: 2,
-            team_id: "team-2",
-            team_name: "Beta United",
-            appearances: 80,
-            goals: 12,
-            assists: 18,
-          },
-        ],
-      }),
-      createPlayer({
-        id: "active-player",
-        match_name: "C. Current",
-        full_name: "Current Pro",
-        retired: false,
-        team_id: "team-1",
-        career: [],
-      }),
-    ],
+    players: [],
     staff: [],
     messages: [],
     news: [],
@@ -239,16 +185,76 @@ function createGameState(): GameStateData {
 }
 
 describe("HallOfFameWorldTab", () => {
-  it("renders retired legends and past champions from the existing game payload", () => {
+  beforeEach(() => {
+    mockedFetchLegends.mockReset();
+    mockedFetchLegends.mockResolvedValue([]);
+    mockedFetchChampions.mockReset();
+    mockedFetchChampions.mockResolvedValue([
+      createTitle({ team_id: "team-1", season: 1 }),
+      createTitle({ team_id: "team-2", season: 2 }),
+    ]);
+  });
+
+  /**
+   * Given a world whose players list holds no retirees (they live in the archive)
+   * When the Hall of Fame renders
+   * Then the legends and the champions are the ones the backend names
+   */
+  it("renders the backend's retired legends and past champions", async () => {
+    mockedFetchLegends.mockResolvedValue([
+      createLegend(),
+      createLegend({ player_id: "player-2", full_name: "Nico North", titles: 1 }),
+    ]);
+
     render(<HallOfFameWorldTab gameState={createGameState()} />);
 
+    expect(await screen.findByText("Victor Vale")).toBeInTheDocument();
     expect(screen.getByText("Hall of Fame")).toBeInTheDocument();
-    expect(screen.getByText("Victor Vale")).toBeInTheDocument();
     expect(screen.getByText("Nico North")).toBeInTheDocument();
-    expect(screen.queryByText("Current Pro")).not.toBeInTheDocument();
     expect(screen.getByText("Titles: 2")).toBeInTheDocument();
+    expect(mockedFetchLegends).toHaveBeenCalledTimes(1);
     expect(screen.getByText("Alpha FC")).toBeInTheDocument();
     expect(screen.getByText("Beta United")).toBeInTheDocument();
+  });
+
+  /**
+   * Given a club whose history holds a first place that the backend does not name a title
+   *       (it was won in a second division)
+   * When the Hall of Fame renders
+   * Then only the titles the backend names are listed, and the count follows it.
+   */
+  it("lists the titles the backend names, not every first place in a club's history", async () => {
+    mockedFetchChampions.mockResolvedValue([createTitle({ team_id: "team-2", season: 2 })]);
+
+    render(<HallOfFameWorldTab gameState={createGameState()} />);
+
+    expect(await screen.findByText("Beta United")).toBeInTheDocument();
+    expect(screen.queryByText("Alpha FC")).not.toBeInTheDocument();
+    expect(screen.getByText("1 title-winning seasons")).toBeInTheDocument();
+  });
+
+  /**
+   * Given the Hall of Fame is open on one career
+   * When another career is installed under the same game date (an MCP career switch)
+   * Then the legends and the champions are asked for again, so the old career's do not stay on screen.
+   */
+  it("asks the backend again when the career changes under an unchanged date", async () => {
+    const first = { ...createGameState(), career_token: 1 };
+    const { rerender } = render(<HallOfFameWorldTab gameState={first} />);
+    await screen.findByText("Beta United");
+    expect(mockedFetchChampions).toHaveBeenCalledTimes(1);
+    expect(mockedFetchLegends).toHaveBeenCalledTimes(1);
+
+    rerender(<HallOfFameWorldTab gameState={{ ...first, career_token: 2 }} />);
+
+    await waitFor(() => expect(mockedFetchChampions).toHaveBeenCalledTimes(2));
+    expect(mockedFetchLegends).toHaveBeenCalledTimes(2);
+  });
+
+  it("says so when the world has no legends yet", async () => {
+    render(<HallOfFameWorldTab gameState={createGameState()} />);
+
+    expect(await screen.findByText("No retired legends recorded yet.")).toBeInTheDocument();
   });
 
   it("shows World Cup champions when the world has crowned one", () => {
@@ -273,7 +279,8 @@ describe("HallOfFameWorldTab", () => {
     expect(screen.queryByText("World Cup Champions")).not.toBeInTheDocument();
   });
 
-  it("routes player and team selection from the hall of fame cards", () => {
+  it("routes player and team selection from the hall of fame cards", async () => {
+    mockedFetchLegends.mockResolvedValue([createLegend()]);
     const onSelectPlayer = vi.fn();
     const onSelectTeam = vi.fn();
 
@@ -285,10 +292,24 @@ describe("HallOfFameWorldTab", () => {
       />,
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "Victor Vale" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Victor Vale" }));
     fireEvent.click(screen.getByRole("button", { name: "Beta United" }));
 
     expect(onSelectPlayer).toHaveBeenCalledWith("player-1");
     expect(onSelectTeam).toHaveBeenCalledWith("team-2");
+  });
+
+  /**
+   * Given a legend whose backend position is granular
+   * When the hall of fame lists them
+   * Then the position is the translated granular label, not the raw string.
+   */
+  it("shows a legend's granular natural position as a translated label", async () => {
+    mockedFetchLegends.mockResolvedValue([createLegend({ position: "LeftBack" })]);
+
+    render(<HallOfFameWorldTab gameState={createGameState()} />);
+
+    expect(await screen.findByText("common.positions.LeftBack")).toBeInTheDocument();
+    expect(screen.queryByText("LeftBack")).not.toBeInTheDocument();
   });
 });
