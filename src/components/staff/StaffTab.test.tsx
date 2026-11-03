@@ -405,6 +405,20 @@ describe("StaffTab", () => {
     expect(screen.getByRole("button", { name: /My Staff 2/i })).toBeInTheDocument();
   });
 
+  /**
+   * Given the Staff page
+   * When a screen reader reaches its search box
+   * Then the box is named "Search staff", not left to a placeholder that disappears once typed in
+   *      and that not every screen reader reads.
+   */
+  it("names its search box for a screen reader", async () => {
+    render(<StaffTab gameState={createGameState([createStaff()])} />);
+
+    const searchBox = await screen.findByRole("textbox", { name: "Search staff" });
+    // A placeholder alone can stand in for a name in some readers; the label is what holds.
+    expect(searchBox).toHaveAttribute("aria-label", "Search staff");
+  });
+
   it("switches to available staff and filters by role and search", async () => {
     const staff = [
       createStaff(),
