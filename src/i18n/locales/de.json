@@ -3026,7 +3026,10 @@
         "invalidPlayStyle": "Diesen Spielstil kennt das Spiel nicht.",
         "notFound": "Diese Taktik gibt es nicht mehr."
       },
-      "anotherClubsSquad": "Dieser Kader gehört zu einem anderen Verein."
+      "anotherClubsSquad": "Dieser Kader gehört zu einem anderen Verein.",
+      "startingXiPlayerNotEligible": "Ein Spieler in dieser Aufstellung darf für deinen Verein nicht starten.",
+      "startingXiDuplicatePlayer": "Ein Spieler kommt in dieser Aufstellung zweimal vor.",
+      "startingXiWrongSize": "Die Startelf muss genau elf Spieler haben, oder alle spielberechtigten Spieler, wenn der Verein weniger hat."
     },
     "sender": {
       "boardOfDirectors": "Vorstand",

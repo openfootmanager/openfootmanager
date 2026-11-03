@@ -3026,7 +3026,10 @@
         "invalidPlayStyle": "O jogo não conhece esse estilo de jogo.",
         "notFound": "Essa tática não existe mais."
       },
-      "anotherClubsSquad": "Esse elenco pertence a outro clube."
+      "anotherClubsSquad": "Esse elenco pertence a outro clube.",
+      "startingXiPlayerNotEligible": "Um jogador desta escalação não pode ser titular no seu clube.",
+      "startingXiDuplicatePlayer": "Um jogador aparece duas vezes nesta escalação.",
+      "startingXiWrongSize": "O time titular precisa ter exatamente onze jogadores, ou todos os jogadores elegíveis se o clube tiver menos."
     },
     "sender": {
       "boardOfDirectors": "Diretoria",

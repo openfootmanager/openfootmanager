@@ -45,7 +45,7 @@ pub mod knockout_dates;
 pub mod live_match_manager;
 pub mod manager_records;
 pub mod manager_retirement;
-mod match_day_eligibility;
+pub mod match_day_eligibility;
 pub mod match_rating;
 pub mod matchday;
 pub mod messages;

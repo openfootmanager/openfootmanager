@@ -3,6 +3,7 @@ use std::sync::Arc;
 use tauri::State;
 
 use ofm_core::game::Game;
+use ofm_core::match_day_eligibility::validate_starting_xi;
 use ofm_core::state::{Career, StateManager};
 use ofm_core::training::SquadFitness;
 
@@ -134,6 +135,8 @@ pub fn set_starting_xi_internal(
 ) -> Result<Game, String> {
     mutate_active_game_for(state, career, |game| {
         let team_id = user_team_id(game)?;
+        // Refused before anything is written: the screens and an MCP agent both save through here.
+        validate_starting_xi(&game.players, &team_id, &player_ids)?;
 
         let team = user_team_mut(game)?;
         team.starting_xi_ids = player_ids;
@@ -783,7 +786,7 @@ mod tests {
         apply_tactic_preset_internal, get_rating_tiers, get_squad_fitness_internal,
         get_tactics_blueprint_status_internal, set_formation_internal, set_play_style_internal,
         set_player_role_internal, set_player_squad_role_internal,
-        set_player_training_focus_internal,
+        set_player_training_focus_internal, set_starting_xi_internal,
     };
     use chrono::{TimeZone, Utc};
     use domain::manager::Manager;
@@ -975,6 +978,72 @@ mod tests {
             serde_json::to_value(&before).unwrap()
         );
         assert!(set_formation_internal(&state, Career::Token(2), "4-3-3").is_ok());
+    }
+
+    /// The user's club with twelve healthy seniors (`own-0` .. `own-11`) and a rival's player.
+    fn state_with_twelve_players_and_a_rival() -> StateManager {
+        let mut game = make_game(make_player_for_team("own-0", "team-1", "1998-01-01"));
+        for index in 1..12 {
+            game.players.push(make_player_for_team(
+                &format!("own-{index}"),
+                "team-1",
+                "1998-01-01",
+            ));
+        }
+        game.players
+            .push(make_player_for_team("rival-0", "team-2", "1998-01-01"));
+        let state = StateManager::new();
+        state.set_game(game);
+        state
+    }
+
+    fn own_ids(range: std::ops::Range<usize>) -> Vec<String> {
+        range.map(|index| format!("own-{index}")).collect()
+    }
+
+    fn stored_xi(state: &StateManager) -> Vec<String> {
+        state
+            .get_game(|game| game.teams[0].starting_xi_ids.clone())
+            .expect("stored game")
+    }
+
+    /// Given a club of twelve healthy players,
+    /// When eleven of them are saved as the starting XI (the entry the screens and the MCP tool share),
+    /// Then the XI is stored as given.
+    #[test]
+    fn set_starting_xi_internal_saves_a_valid_xi() {
+        let state = state_with_twelve_players_and_a_rival();
+
+        let result = set_starting_xi_internal(&state, Career::Active, own_ids(1..12));
+
+        assert!(result.is_ok());
+        assert_eq!(stored_xi(&state), own_ids(1..12));
+    }
+
+    /// Given a club's saved XI and an attempt (from a screen or an MCP agent) to save one that
+    ///       names a rival's player, one too short, and one with a player twice,
+    /// When each is saved,
+    /// Then each is refused with its own translation key and the saved XI is unchanged.
+    #[test]
+    fn set_starting_xi_internal_refuses_a_bad_xi_and_changes_nothing() {
+        let state = state_with_twelve_players_and_a_rival();
+        let before = stored_xi(&state);
+        let mut with_rival = own_ids(0..10);
+        with_rival.push("rival-0".to_string());
+        let mut with_a_repeat = own_ids(0..10);
+        with_a_repeat.push("own-3".to_string());
+
+        let refusals = [
+            (with_rival, "be.error.startingXiPlayerNotEligible"),
+            (own_ids(0..10), "be.error.startingXiWrongSize"),
+            (with_a_repeat, "be.error.startingXiDuplicatePlayer"),
+        ];
+
+        for (ids, key) in refusals {
+            let result = set_starting_xi_internal(&state, Career::Active, ids).map(|_| ());
+            assert_eq!(result, Err(key.to_string()));
+            assert_eq!(stored_xi(&state), before);
+        }
     }
 
     /// A club whose manager has hand-tuned two dials away from its style's blueprint.

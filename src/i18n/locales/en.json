@@ -3026,7 +3026,10 @@
         "invalidPlayStyle": "That play style isn't one the game knows.",
         "notFound": "That tactic no longer exists."
       },
-      "anotherClubsSquad": "That squad belongs to another club."
+      "anotherClubsSquad": "That squad belongs to another club.",
+      "startingXiPlayerNotEligible": "A player in this lineup is not eligible to start for your club.",
+      "startingXiDuplicatePlayer": "A player appears twice in this lineup.",
+      "startingXiWrongSize": "The starting eleven must have exactly eleven players, or every eligible player if the club has fewer."
     },
     "sender": {
       "boardOfDirectors": "Board of Directors",

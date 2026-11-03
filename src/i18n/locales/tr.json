@@ -3026,7 +3026,10 @@
         "invalidPlayStyle": "Oyun bu oyun tarzını tanımıyor.",
         "notFound": "Bu taktik artık yok."
       },
-      "anotherClubsSquad": "Bu kadro başka bir kulübe ait."
+      "anotherClubsSquad": "Bu kadro başka bir kulübe ait.",
+      "startingXiPlayerNotEligible": "Bu diziliştaki bir oyuncu kulübünde ilk 11'de yer alamaz.",
+      "startingXiDuplicatePlayer": "Bir oyuncu bu dizilişte iki kez yer alıyor.",
+      "startingXiWrongSize": "İlk 11 tam olarak on bir oyuncudan oluşmalıdır; kulübün oyuncusu daha azsa uygun tüm oyuncular."
     },
     "sender": {
       "boardOfDirectors": "Yönetim Kurulu",

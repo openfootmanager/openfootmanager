@@ -3026,7 +3026,10 @@
         "invalidPlayStyle": "Il gioco non conosce questo stile di gioco.",
         "notFound": "Questa tattica non esiste più."
       },
-      "anotherClubsSquad": "Quella rosa appartiene a un altro club."
+      "anotherClubsSquad": "Quella rosa appartiene a un altro club.",
+      "startingXiPlayerNotEligible": "Un giocatore di questa formazione non può essere titolare nel tuo club.",
+      "startingXiDuplicatePlayer": "Un giocatore compare due volte in questa formazione.",
+      "startingXiWrongSize": "L'undici titolare deve avere esattamente undici giocatori, oppure tutti i giocatori idonei se il club ne ha meno."
     },
     "sender": {
       "boardOfDirectors": "Consiglio di amministrazione",

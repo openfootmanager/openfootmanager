@@ -3026,7 +3026,10 @@
         "invalidPlayStyle": "游戏不认识该打法。",
         "notFound": "该战术已不存在。"
       },
-      "anotherClubsSquad": "该阵容属于另一家俱乐部。"
+      "anotherClubsSquad": "该阵容属于另一家俱乐部。",
+      "startingXiPlayerNotEligible": "此阵容中有球员无法为你的俱乐部首发。",
+      "startingXiDuplicatePlayer": "此阵容中同一名球员出现了两次。",
+      "startingXiWrongSize": "首发阵容必须正好有十一名球员；如果俱乐部球员不足，则为所有可出场球员。"
     },
     "sender": {
       "boardOfDirectors": "董事会",
