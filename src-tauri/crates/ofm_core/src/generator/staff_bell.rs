@@ -154,8 +154,10 @@ mod tests {
         generate_random_staff_from_def, generate_random_staff_unattached_from_def,
     };
     use super::*;
+    use crate::player_tier::PlayerTier;
     use crate::seed::normal_cdf;
     use crate::staff_rating::staff_rating;
+    use crate::staff_tier::staff_tier;
     use domain::staff::Staff;
     use rand::SeedableRng;
 
@@ -405,6 +407,45 @@ mod tests {
             assert!(
                 (got - want).abs() <= 0.3,
                 "{pool:?} {role:?} {name}: mean {got:.2}, want {want}"
+            );
+        }
+    }
+
+    /// Given staff of each role generated for clubs
+    /// When each is tiered among his own role (`staff_tier`)
+    /// Then S holds about 2.5% of the role (within 0.75 points), A the next 9% (within 1.5) and B
+    ///      the next 40% (within 2.5, as one whole rating moves B by about 6 points): the
+    ///      maintainer's tiers, which this bell and the cut-offs must keep together.
+    #[test]
+    fn each_roles_tiers_hold_the_shares_the_maintainer_set() {
+        for (index, role) in ROLES.iter().enumerate() {
+            let staff = generated(Pool::Club, role, 0x71E2_0000 + index as u64);
+            let share = |tier: PlayerTier| {
+                staff
+                    .iter()
+                    .filter(|member| staff_tier(role, staff_rating(member)) == tier)
+                    .count() as f64
+                    / staff.len() as f64
+            };
+            let (s, a, b) = (
+                share(PlayerTier::S),
+                share(PlayerTier::A),
+                share(PlayerTier::B),
+            );
+            assert!(
+                (0.0175..=0.0325).contains(&s),
+                "{role:?}: S {:.2}%",
+                s * 100.0
+            );
+            assert!(
+                (0.075..=0.105).contains(&a),
+                "{role:?}: A {:.2}%",
+                a * 100.0
+            );
+            assert!(
+                (0.375..=0.425).contains(&b),
+                "{role:?}: B {:.2}%",
+                b * 100.0
             );
         }
     }

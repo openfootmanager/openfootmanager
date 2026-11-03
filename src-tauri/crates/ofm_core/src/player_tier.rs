@@ -14,12 +14,16 @@ pub const A_TIER_MIN_RATING: u8 = 77;
 /// screens call good.
 pub const B_TIER_MIN_RATING: u8 = 70;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, ts_rs::TS)]
+/// The four tiers, shared by players and, cut per role, by staff (`staff_tier`).
+#[derive(
+    Debug, Clone, Copy, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize, ts_rs::TS,
+)]
 pub enum PlayerTier {
     S,
     A,
     B,
     /// Everyone below B: the game names no lower tier.
+    #[default]
     Rest,
 }
 

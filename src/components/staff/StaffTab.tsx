@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { type GameStateData, type StaffData, useGameStore } from "../../store/gameStore";
 import { visibleRatingText } from "../../lib/playerKnowledge";
 import { getStaff, type StaffRow, type StaffSlice } from "../../services/staffService";
-import { Card, CardBody, Badge, CountryFlag, ProgressBar } from "../ui";
+import { Card, CardBody, Badge, CountryFlag, ProgressBar, RatingChip } from "../ui";
 import {
   UserCog,
   Search,
@@ -284,20 +284,14 @@ export default function StaffTab({ gameState, onGameUpdate, onNavigate }: StaffT
                           <h3 className="font-heading font-bold text-sm text-gray-800 dark:text-gray-100 uppercase tracking-wide truncate">
                             {staff.display_name}
                           </h3>
-                          <Badge
-                            variant={
-                              ovr === undefined
-                                ? "neutral"
-                                : ovr >= 65
-                                  ? "success"
-                                  : ovr >= 45
-                                    ? "primary"
-                                    : "neutral"
-                            }
-                            size="sm"
-                          >
-                            {visibleRatingText(ovr ?? null)} OVR
-                          </Badge>
+                          {ovr === undefined ? (
+                            <Badge variant="neutral" size="sm">
+                              {visibleRatingText(null)} OVR
+                            </Badge>
+                          ) : (
+                            // The tone is the backend's tier among his own role (staff_tier).
+                            <RatingChip value={ovr} tier={staff.tier ?? "Rest"} />
+                          )}
                         </div>
                         <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
                           {t(`staff.roles.${staff.role}`)} — {t("common.age")} {age}

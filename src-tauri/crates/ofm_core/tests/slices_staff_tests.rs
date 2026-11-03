@@ -5,8 +5,10 @@ use domain::staff::{Staff, StaffAttributes, StaffRole};
 use domain::team::Team;
 use ofm_core::clock::GameClock;
 use ofm_core::game::{Game, ScoutingAssignment, YouthScoutingAssignment};
+use ofm_core::player_tier::PlayerTier;
 use ofm_core::slices::staff::query_staff;
 use ofm_core::staff_rating::staff_rating;
+use ofm_core::staff_tier::staff_tier;
 
 fn default_player_attrs() -> PlayerAttributes {
     PlayerAttributes {
@@ -247,6 +249,51 @@ fn every_staff_row_carries_its_roles_rating() {
         ratings,
         vec![("coach", 70), ("scout", 60), ("physio", 40), ("free", 64)]
     );
+}
+
+/// Given a club's coach rated 88 (his role's S), its assistant rated 64, a physio rated 40, and a
+///       scout on the market rated 76 (his role's B)
+/// When the Staff page's slice is built
+/// Then every row carries the tier his rating has among his own role: S, the rest, the rest and B.
+#[test]
+fn every_staff_row_carries_its_rating_tier_among_its_role() {
+    let mut coach = make_staff("coach", Some("t1"), StaffRole::Coach);
+    coach.attributes.coaching = 88;
+    let mut scout = make_staff("scout", None, StaffRole::Scout);
+    scout.attributes.judging_ability = 76;
+    scout.attributes.judging_potential = 76;
+    let game = make_game(vec![
+        coach,
+        make_staff("assistant", Some("t1"), StaffRole::AssistantManager),
+        make_staff("physio", Some("t1"), StaffRole::Physio),
+        scout,
+    ]);
+
+    let slice = query_staff(&game, "t1");
+
+    let tiers: Vec<(&str, u8, PlayerTier)> = slice
+        .team_staff
+        .iter()
+        .chain(slice.available_staff.iter())
+        .map(|row| (row.staff.id.as_str(), row.rating, row.tier))
+        .collect();
+    assert_eq!(
+        tiers,
+        vec![
+            ("coach", 88, PlayerTier::S),
+            ("assistant", 64, PlayerTier::Rest),
+            ("physio", 40, PlayerTier::Rest),
+            ("scout", 76, PlayerTier::B),
+        ]
+    );
+    for row in slice.team_staff.iter().chain(slice.available_staff.iter()) {
+        assert_eq!(
+            row.tier,
+            staff_tier(&row.staff.role, row.rating),
+            "{}",
+            row.staff.id
+        );
+    }
 }
 
 /// Given a staff row

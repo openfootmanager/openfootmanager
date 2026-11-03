@@ -2,6 +2,7 @@ import { act, fireEvent, render, screen, waitFor, within } from "@testing-librar
 import { describe, expect, it, vi, beforeEach } from "vitest";
 
 import type { GameStateData, StaffData, TeamData } from "../../store/gameStore";
+import type { RatingTier } from "../../services/squadService";
 import StaffTab from "./StaffTab";
 import { createSeasonContext } from "../../test-utils/factories";
 
@@ -29,6 +30,10 @@ vi.mock("react-i18next", () => ({
       if (key === "staff.youthSearch") return "youth search";
       if (key === "staff.youthSearches") return "youth searches";
       if (key === "common.age") return "Age";
+      if (key === "common.overallRating") return `Overall ${params?.value}`;
+      if (key === "common.overallRatingTier")
+        return `Overall ${params?.value}, tier ${params?.tier}`;
+      if (key.startsWith("common.ratingTier.")) return key.replace("common.ratingTier.", "");
       if (key === "staff.best") return "Best";
       if (key.startsWith("staff.roles.")) return key.replace("staff.roles.", "");
       if (key.startsWith("staff.attrs.")) return key.replace("staff.attrs.", "");
@@ -145,9 +150,14 @@ function makeStaffSlice(
     scouting_assignments: unknown[];
     youth_scouting_assignments: unknown[];
     ratings: Record<string, number>;
+    tiers: Record<string, RatingTier>;
   }> = {},
 ) {
-  const row = (member: StaffData) => ({ ...member, rating: overrides.ratings?.[member.id] ?? 50 });
+  const row = (member: StaffData) => ({
+    ...member,
+    rating: overrides.ratings?.[member.id] ?? 50,
+    tier: overrides.tiers?.[member.id] ?? "Rest",
+  });
   return {
     team_staff: staff.filter((s) => s.team_id).map(row),
     available_staff: staff.filter((s) => !s.team_id).map(row),
@@ -195,7 +205,41 @@ describe("StaffTab", () => {
       />,
     );
 
-    expect(await screen.findByText("77 OVR")).toBeInTheDocument();
+    expect(await screen.findByText("Overall 77")).toBeInTheDocument();
+  });
+
+  /**
+   * Given a coach the backend rates 88 and tiers S among coaches, and a physio it rates 80 and
+   *       tiers as the rest among physios
+   * When their cards are drawn
+   * Then each rating is painted in the tone of the tier the backend sent, and its tier is said in
+   *      words: the page holds no cut-off of its own, so the coach's 88 is S and the physio's 80
+   *      is not.
+   */
+  it("paints each member's rating in his tier among his role, as the backend sends it", async () => {
+    const coach = createStaff({ id: "staff-coach", role: "Coach" });
+    const physio = createStaff({ id: "staff-physio", role: "Physio" });
+    invokeMock.mockImplementation(async (command: string) => {
+      if (command === "get_staff")
+        return makeStaffSlice([coach, physio], {
+          ratings: { "staff-coach": 88, "staff-physio": 80 },
+          tiers: { "staff-coach": "S", "staff-physio": "Rest" },
+        });
+      return createGameState([coach, physio]);
+    });
+
+    render(
+      <StaffTab
+        gameState={createGameState([coach, physio])}
+        onGameUpdate={() => {}}
+        onNavigate={() => {}}
+      />,
+    );
+
+    const coachChip = (await screen.findByText("Overall 88, tier S")).parentElement;
+    expect(coachChip).toHaveClass("bg-tone-top-tint", "text-tone-top");
+    const physioChip = screen.getByText("Overall 80").parentElement;
+    expect(physioChip).toHaveClass("bg-sunken", "text-fg-muted");
   });
 
   /**
@@ -253,7 +297,7 @@ describe("StaffTab", () => {
 
     await waitFor(() => expect(hiredYet).toBe(true));
     fireEvent.click(await screen.findByRole("button", { name: /My Staff 1/i }));
-    expect(await screen.findByText("64 OVR")).toBeInTheDocument();
+    expect(await screen.findByText("Overall 64")).toBeInTheDocument();
   });
 
   /**
@@ -546,7 +590,7 @@ describe("StaffTab", () => {
     const card = await screen.findByTestId("staff-card-staff-1");
     // The backend rates him 63. The camelCase guard rests on the attribute
     // assertions below, not on this number.
-    expect(within(card).getByText("63 OVR")).toBeInTheDocument();
+    expect(within(card).getByText("Overall 63")).toBeInTheDocument();
     expect(within(card).getByText("52")).toBeInTheDocument();
     expect(within(card).getByText("71")).toBeInTheDocument();
     expect(within(card).getByText(/judgingPotential \(71\)/)).toBeInTheDocument();
