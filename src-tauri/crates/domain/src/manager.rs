@@ -1,6 +1,11 @@
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
+/// The scale every manager's reputation is created on: the generator's opening draw (uniform over
+/// it), a stand-in's coaching-based standing and a retired player's. [`Manager::rating`] reads
+/// reputation against it.
+pub const CREATED_REPUTATION: std::ops::RangeInclusive<u32> = 200..=700;
+
 fn default_fan_approval() -> u8 {
     50
 }
@@ -192,12 +197,14 @@ impl Manager {
     /// experience (matches managed). A fresh mid-reputation manager sits near 50;
     /// a decorated, experienced one approaches the high 80s.
     ///
-    /// Reputation is normalised against the 300–900 club-reputation domain (the
-    /// same scale `management_quality` uses) because AI managers inherit their
-    /// club's reputation; a narrower domain would saturate every elite club at
-    /// the top and flatten the rotation gradient.
+    /// Reputation is normalised against [`CREATED_REPUTATION`], the scale every manager
+    /// is created on. It used to be the 300–900 club scale, from when AI managers
+    /// inherited their club's reputation; they no longer do, so a manager at the top
+    /// of the scale only reached two thirds of the reputation share.
     pub fn rating(&self) -> u8 {
-        let reputation = ((f64::from(self.reputation) - 300.0) / 600.0).clamp(0.0, 1.0);
+        let floor = f64::from(*CREATED_REPUTATION.start());
+        let span = f64::from(CREATED_REPUTATION.end() - CREATED_REPUTATION.start());
+        let reputation = ((f64::from(self.reputation) - floor) / span).clamp(0.0, 1.0);
         let experience = (f64::from(self.career_stats.matches_managed) / 250.0).clamp(0.0, 1.0);
         let win_rate = (f64::from(self.win_rate()) / 100.0).clamp(0.0, 1.0);
         let trophies = (f64::from(self.career_stats.trophies) / 10.0).clamp(0.0, 1.0);
@@ -240,9 +247,9 @@ mod tests {
 
     #[test]
     fn rating_for_fresh_mid_reputation_manager_is_mid_range() {
-        // Mid of the 300–900 reputation domain, no career → sits around the middle.
+        // Mid of the 200–700 created scale, no career → sits around the middle.
         let mut m = manager();
-        m.reputation = 600;
+        m.reputation = 450;
         let r = m.rating();
         assert!((45..=55).contains(&r), "expected mid-range rating, got {r}");
     }
@@ -275,5 +282,33 @@ mod tests {
             (30..=99).contains(&elite_rating) && (30..=99).contains(&journeyman_rating),
             "ratings stay in the OVR-like band"
         );
+    }
+
+    /// Given two fresh managers, one at the bottom of the created scale (200) and one at its
+    /// top (700)
+    /// When they are rated
+    /// Then the top one carries the whole reputation share, half of 65: 33 points more (the
+    ///      300–900 range gave him 22)
+    #[test]
+    fn the_top_of_the_created_scale_takes_the_whole_reputation_share() {
+        let mut bottom = manager();
+        bottom.reputation = 200;
+        let mut top = manager();
+        top.reputation = 700;
+
+        assert_eq!(top.rating() - bottom.rating(), 33);
+    }
+
+    /// Given two fresh managers at 700 and at 900
+    /// When they are rated
+    /// Then they rate the same: reputation past the created scale adds nothing
+    #[test]
+    fn reputation_past_the_created_scale_adds_nothing() {
+        let mut top = manager();
+        top.reputation = 700;
+        let mut above = manager();
+        above.reputation = 900;
+
+        assert_eq!(above.rating(), top.rating());
     }
 }

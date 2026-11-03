@@ -1292,7 +1292,7 @@ pub(super) fn generate_random_unemployed_manager(
         rng.random_range(1u32..13u32),
         rng.random_range(1u32..29u32)
     );
-    let reputation = rng.random_range(200u32..=700u32);
+    let reputation = rng.random_range(domain::manager::CREATED_REPUTATION);
 
     let mut mgr = domain::manager::Manager::new(
         seeded_id(rng),
