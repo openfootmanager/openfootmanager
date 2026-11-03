@@ -49,14 +49,30 @@ export default function TeamCard({ card, isUser, onOpen }: TeamCardProps) {
         <dl className="flex flex-wrap gap-x-4 gap-y-1 tabular-nums">
           {standing ? (
             <>
-              <StatusFigure label={t("common.won")} value={standing.won} />
-              <StatusFigure label={t("common.drawn")} value={standing.drawn} />
-              <StatusFigure label={t("common.lost")} value={standing.lost} />
-              <StatusFigure label={t("common.pts")} value={standing.points} />
+              <StatusFigure
+                label={t("common.wonFull")}
+                abbreviation={t("common.won")}
+                value={standing.won}
+              />
+              <StatusFigure
+                label={t("common.drawnFull")}
+                abbreviation={t("common.drawn")}
+                value={standing.drawn}
+              />
+              <StatusFigure
+                label={t("common.lostFull")}
+                abbreviation={t("common.lost")}
+                value={standing.lost}
+              />
+              <StatusFigure
+                label={t("common.ptsFull")}
+                abbreviation={t("common.pts")}
+                value={standing.points}
+              />
             </>
           ) : (
             // No table yet: one dash, not a row of zeros that reads as a record.
-            <StatusFigure label={t("common.pts")} value="—" />
+            <StatusFigure label={t("common.ptsFull")} abbreviation={t("common.pts")} value="—" />
           )}
           {/* Withheld ("–") for a club whose squad the manager doesn't know. */}
           <StatusFigure label={t("teams.avgOvr")} value={visibleRatingText(card.avg_ovr)} />
@@ -71,10 +87,31 @@ export default function TeamCard({ card, isUser, onOpen }: TeamCardProps) {
   );
 }
 
-function StatusFigure({ label, value }: { label: string; value: string | number }) {
+/**
+ * One figure of the status band. A standing's letter ("W") is drawn for the eye and read out as its
+ * word ("Won"), which a screen reader would otherwise spell as a letter.
+ */
+function StatusFigure({
+  label,
+  abbreviation,
+  value,
+}: {
+  label: string;
+  abbreviation?: string;
+  value: string | number;
+}) {
   return (
     <div className="flex items-baseline gap-1">
-      <dt className="text-caption text-fg-muted">{label}</dt>
+      <dt className="text-caption text-fg-muted">
+        {abbreviation ? (
+          <>
+            <span aria-hidden="true">{abbreviation}</span>
+            <span className="sr-only">{label}</span>
+          </>
+        ) : (
+          label
+        )}
+      </dt>
       <dd className="font-semibold">{value}</dd>
     </div>
   );

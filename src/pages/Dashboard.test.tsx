@@ -412,6 +412,44 @@ vi.mock("../components/dashboard/DashboardBlockerModal", () => ({
   default: () => null,
 }));
 
+/**
+ * A Storage that records every key read, installed as `window.localStorage` until `restore`: the
+ * object the dashboard reads, whatever Storage the runtime itself provides.
+ */
+function installRecordingStorage(): { reads: string[]; restore: () => void } {
+  const reads: string[] = [];
+  const values = new Map<string, string>();
+  const storage: Storage = {
+    get length() {
+      return values.size;
+    },
+    clear: () => values.clear(),
+    getItem: (key: string) => {
+      reads.push(key);
+      return values.get(key) ?? null;
+    },
+    key: (index: number) => [...values.keys()][index] ?? null,
+    removeItem: (key: string) => {
+      values.delete(key);
+    },
+    setItem: (key: string, value: string) => {
+      values.set(key, String(value));
+    },
+  };
+  const own = Object.getOwnPropertyDescriptor(window, "localStorage");
+  Object.defineProperty(window, "localStorage", { configurable: true, value: storage });
+  return {
+    reads,
+    restore: () => {
+      if (own) {
+        Object.defineProperty(window, "localStorage", own);
+      } else {
+        Reflect.deleteProperty(window, "localStorage");
+      }
+    },
+  };
+}
+
 describe("Dashboard", () => {
   beforeEach(async () => {
     await i18nReady;
@@ -1049,7 +1087,11 @@ describe("Dashboard", () => {
   it("clears a stale active save id when a later refresh cannot load it", async () => {
     const saveStorageKey = "ofm-onboarding-visited-tabs:save:save-1";
     const legacyStorageKey = `ofm-onboarding-visited-tabs:legacy:${gameState.manager.id}:${gameState.clock.start_date}`;
-    const getItemSpy = vi.spyOn(Storage.prototype, "getItem");
+    // A recording Storage in place of window.localStorage, which the dashboard reads. Spying on a
+    // runtime's Storage held on one Node major only: on Node 22 and 24, jsdom's localStorage turns
+    // `localStorage.getItem = spy` into a stored item, and on Node 26 the global Storage is not
+    // jsdom's, so a Storage.prototype spy sees nothing.
+    const storage = installRecordingStorage();
     let saveIdRequestCount = 0;
 
     invokeMock.mockImplementation(async (command: string) => {
@@ -1075,21 +1117,25 @@ describe("Dashboard", () => {
 
     render(<Dashboard />);
 
-    await waitFor(() => {
-      expect(getItemSpy).toHaveBeenCalledWith(saveStorageKey);
-    });
+    try {
+      await waitFor(() => {
+        expect(storage.reads).toContain(saveStorageKey);
+      });
 
-    getItemSpy.mockClear();
-    const gameStateChangedHandler = registeredEventHandlers.get("game-state-changed");
-    expect(gameStateChangedHandler).toBeTypeOf("function");
+      storage.reads.length = 0;
+      const gameStateChangedHandler = registeredEventHandlers.get("game-state-changed");
+      expect(gameStateChangedHandler).toBeTypeOf("function");
 
-    await gameStateChangedHandler?.();
+      // Inside act, so React has applied the cleared save id and run the effect that reads the
+      // onboarding key before the assertion, as every other event-driven call in this file does.
+      await act(async () => {
+        await gameStateChangedHandler?.();
+      });
 
-    await waitFor(() => {
-      expect(getItemSpy).toHaveBeenCalledWith(legacyStorageKey);
-    });
-
-    getItemSpy.mockRestore();
+      expect(storage.reads).toContain(legacyStorageKey);
+    } finally {
+      storage.restore();
+    }
   });
 
   /**

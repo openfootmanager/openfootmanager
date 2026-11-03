@@ -51,11 +51,10 @@ export function useFamiliarityRevision(): string {
     // A screen test's stand-in game may carry no player list.
     const squad = (Array.isArray(players) ? players : [])
       .filter((player) => player.team_id === clubId)
-      .map(
-        (player) =>
-          `${player.id}:${player.natural_position}:${(player.alternate_positions ?? []).join("+")}`,
-      );
-    return `${careerToken}|${clubId}|${squad.join(",")}`;
+      .map((player) => [player.id, player.natural_position, player.alternate_positions ?? []]);
+    // JSON, not a join: a package author's player id may hold any separator a join would use, and
+    // two different squads must never share a key (the second would be shown the first's grades).
+    return JSON.stringify([careerToken, clubId, squad]);
   }, [careerToken, clubId, players]);
 }
 

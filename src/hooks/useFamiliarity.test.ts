@@ -137,6 +137,43 @@ describe("useFamiliarity", () => {
   });
 
   /**
+   * Given two different squads whose players' ids and positions would join to the same text with
+   *       the separators a naive key uses (":", "," and "+"): two players p1 and p2, and one
+   *       player whose id is "p1:Striker:,p2"
+   * When the club changes from the first to the second
+   * Then the backend is asked again and the first squad's grades are not shown for the second.
+   */
+  it("keeps two squads apart whose ids would join to the same key", async () => {
+    const natural = { natural_position: "Striker" };
+    const squadOf = (ids: string[]) =>
+      ids.map((id) => createPlayer({ id, team_id: "club", ...natural }));
+    const install = (ids: string[]) =>
+      act(() =>
+        useGameStore.setState({
+          gameState: {
+            career_token: 1,
+            manager: { team_id: "club" },
+            players: squadOf(ids),
+          } as unknown as GameStateData,
+        }),
+      );
+    mockedFamiliarity.mockResolvedValueOnce(projection("p1")).mockResolvedValueOnce({
+      players: [{ player_id: "p1:Striker:,p2", by_position: { Striker: "natural" } }],
+    });
+    install(["p1", "p2"]);
+    const { result } = renderHook(() => useFamiliarity());
+    await waitFor(() => expect(result.current.loaded).toBe(true));
+
+    install(["p1:Striker:,p2"]);
+
+    expect(result.current.loaded).toBe(false);
+    await waitFor(() =>
+      expect(result.current.familiarityOf("p1:Striker:,p2", "Striker")).toBe("natural"),
+    );
+    expect(mockedFamiliarity).toHaveBeenCalledTimes(2);
+  });
+
+  /**
    * Given no game is installed (no club)
    * When a screen mounts the hook
    * Then it is not loaded and the backend is not asked, which would only fail.
