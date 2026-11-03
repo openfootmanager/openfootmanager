@@ -18,6 +18,7 @@ import { getEventDisplay, getPlayerName, makeTeamFallback, phaseLabel } from "./
 import { TeamLogo } from "../ui";
 import { useSettingsStore } from "../../store/settingsStore";
 import { EventFeed, MatchStats, Lineups } from "./MatchPanels";
+import MatchPitch2D from "./pitch2d/MatchPitch2D";
 import MatchScreenLayout from "./MatchScreenLayout";
 import { SubPanel } from "./SubPanel";
 import { applyRoleChange } from "./applyRoleChange";
@@ -82,6 +83,7 @@ export default function MatchLive({
     initialPace,
     onPreferredSpeedChange,
   );
+  const [showPitch2d, setShowPitch2d] = useState(true);
   const [showSubPanel, setShowSubPanel] = useState(false);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const eventFeedRef = useRef<HTMLDivElement>(null);
@@ -382,9 +384,19 @@ export default function MatchLive({
     >
       {/* Main Content */}
       <div className="flex-1 flex overflow-hidden">
-        {/* Left Panel: Event Feed + Stats */}
-        <div className="flex-1 flex flex-col">
-          <div className="flex bg-white dark:bg-navy-800 border-b border-gray-200 dark:border-navy-700 transition-colors duration-300">
+        {/* Left Panel: 2D Pitch (Split View) + Events/Stats */}
+        <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+          {showPitch2d && (
+            <div className="p-3 pb-0 bg-gray-100 dark:bg-navy-900 border-b border-gray-200 dark:border-navy-700 flex-shrink-0 transition-all">
+              <MatchPitch2D
+                snapshot={snapshot}
+                latestEvents={importantEvents}
+                userSide={userSide}
+              />
+            </div>
+          )}
+          <div className="flex items-center justify-between bg-white dark:bg-navy-800 border-b border-gray-200 dark:border-navy-700 transition-colors duration-300">
+            <div className="flex">
             {[
               {
                 id: "events" as ActivePanel,
@@ -416,6 +428,19 @@ export default function MatchLive({
                 {tab.label}
               </button>
             ))}
+            </div>
+
+            <div className="pr-3">
+              <button
+                type="button"
+                onClick={() => setShowPitch2d(!showPitch2d)}
+                className="flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-heading font-semibold text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200 bg-gray-100 hover:bg-gray-200 dark:bg-navy-700 dark:hover:bg-navy-600 transition-colors"
+                title={showPitch2d ? t("match.pitch2dHide") : t("match.pitch2dShow")}
+              >
+                <span>⚽</span>
+                <span>{showPitch2d ? t("match.pitch2dHide") : t("match.pitch2dShow")}</span>
+              </button>
+            </div>
           </div>
 
           <div className="flex-1 overflow-auto p-4">

@@ -2688,7 +2688,11 @@
     "resume": "Resume",
     "pausedResumesAt": "Paused · resumes at {{speed}}",
     "playingAt": "Playing at {{speed}}",
-    "spaceKey": "Space"
+    "spaceKey": "Space",
+    "pitch2d": "2D Pitch",
+    "pitch2dHide": "Hide Pitch",
+    "pitch2dShow": "Show Pitch",
+    "goalCelebration": "GOAL!"
   },
   "endOfSeason": {
     "seasonComplete": "Season Complete",

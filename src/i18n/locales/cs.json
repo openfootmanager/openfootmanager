@@ -2688,7 +2688,11 @@
     "resume": "Pokračovat",
     "pausedResumesAt": "Pozastaveno · pokračuje: {{speed}}",
     "playingAt": "Běží: {{speed}}",
-    "spaceKey": "Mezerník"
+    "spaceKey": "Mezerník",
+    "pitch2d": "2D Hřiště",
+    "pitch2dHide": "Skrýt hřiště",
+    "pitch2dShow": "Zobrazit hřiště",
+    "goalCelebration": "GÓL!"
   },
   "endOfSeason": {
     "seasonComplete": "Sezóna dokončena",

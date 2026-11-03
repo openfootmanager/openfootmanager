@@ -2688,7 +2688,11 @@
     "resume": "Продолжить",
     "pausedResumesAt": "Пауза · продолжится: {{speed}}",
     "playingAt": "Идёт: {{speed}}",
-    "spaceKey": "Пробел"
+    "spaceKey": "Пробел",
+    "pitch2d": "2D Поле",
+    "pitch2dHide": "Скрыть поле",
+    "pitch2dShow": "Показать поле",
+    "goalCelebration": "ГОЛ!"
   },
   "endOfSeason": {
     "seasonComplete": "Сезон завершён",

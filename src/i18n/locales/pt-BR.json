@@ -2631,7 +2631,11 @@
     "resume": "Retomar",
     "pausedResumesAt": "Pausado · retoma em {{speed}}",
     "playingAt": "Jogando em {{speed}}",
-    "spaceKey": "Espaço"
+    "spaceKey": "Espaço",
+    "pitch2d": "Campo 2D",
+    "pitch2dHide": "Ocultar campo",
+    "pitch2dShow": "Mostrar campo",
+    "goalCelebration": "GOL!"
   },
   "endOfSeason": {
     "seasonComplete": "Temporada Encerrada",

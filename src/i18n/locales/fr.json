@@ -2688,7 +2688,11 @@
     "resume": "Reprendre",
     "pausedResumesAt": "En pause · reprend en {{speed}}",
     "playingAt": "En cours en {{speed}}",
-    "spaceKey": "Espace"
+    "spaceKey": "Espace",
+    "pitch2d": "Terrain 2D",
+    "pitch2dHide": "Masquer le terrain",
+    "pitch2dShow": "Afficher le terrain",
+    "goalCelebration": "BUT !"
   },
   "endOfSeason": {
     "seasonComplete": "Saison Terminée",

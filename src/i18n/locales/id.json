@@ -2688,7 +2688,11 @@
     "resume": "Lanjutkan",
     "pausedResumesAt": "Dijeda · lanjut dengan {{speed}}",
     "playingAt": "Berjalan dengan {{speed}}",
-    "spaceKey": "Spasi"
+    "spaceKey": "Spasi",
+    "pitch2d": "Lapangan 2D",
+    "pitch2dHide": "Sembunyikan Lapangan",
+    "pitch2dShow": "Tampilkan Lapangan",
+    "goalCelebration": "GOL!"
   },
   "endOfSeason": {
     "seasonComplete": "Musim Selesai",

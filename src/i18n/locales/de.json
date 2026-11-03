@@ -2688,7 +2688,11 @@
     "resume": "Fortsetzen",
     "pausedResumesAt": "Pausiert · weiter mit {{speed}}",
     "playingAt": "Läuft mit {{speed}}",
-    "spaceKey": "Leertaste"
+    "spaceKey": "Leertaste",
+    "pitch2d": "2D-Spielfeld",
+    "pitch2dHide": "Spielfeld ausblenden",
+    "pitch2dShow": "Spielfeld anzeigen",
+    "goalCelebration": "TOR!"
   },
   "endOfSeason": {
     "seasonComplete": "Saison beendet",

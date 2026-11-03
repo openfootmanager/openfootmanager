@@ -2707,7 +2707,11 @@
     "resume": "Riprendi",
     "pausedResumesAt": "In pausa · riprende a {{speed}}",
     "playingAt": "In corso a {{speed}}",
-    "spaceKey": "Spazio"
+    "spaceKey": "Spazio",
+    "pitch2d": "Campo 2D",
+    "pitch2dHide": "Nascondi campo",
+    "pitch2dShow": "Mostra campo",
+    "goalCelebration": "GOL!"
   },
   "notifications": {
     "attentionRequired": "Attenzione Richiesta",

@@ -2688,7 +2688,11 @@
     "resume": "继续",
     "pausedResumesAt": "已暂停 · 将以{{speed}}继续",
     "playingAt": "正在以{{speed}}进行",
-    "spaceKey": "空格"
+    "spaceKey": "空格",
+    "pitch2d": "2D 球场",
+    "pitch2dHide": "隐藏球场",
+    "pitch2dShow": "显示球场",
+    "goalCelebration": "进球！"
   },
   "endOfSeason": {
     "seasonComplete": "赛季结束",

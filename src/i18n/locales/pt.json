@@ -2688,7 +2688,11 @@
     "resume": "Retomar",
     "pausedResumesAt": "Em pausa · retoma a {{speed}}",
     "playingAt": "A jogar a {{speed}}",
-    "spaceKey": "Espaço"
+    "spaceKey": "Espaço",
+    "pitch2d": "Campo 2D",
+    "pitch2dHide": "Ocultar campo",
+    "pitch2dShow": "Mostrar campo",
+    "goalCelebration": "GOLO!"
   },
   "endOfSeason": {
     "seasonComplete": "Época Completa",

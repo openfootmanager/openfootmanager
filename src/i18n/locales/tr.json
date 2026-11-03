@@ -2688,7 +2688,11 @@
     "resume": "Devam et",
     "pausedResumesAt": "Duraklatıldı · {{speed}} hızında sürecek",
     "playingAt": "{{speed}} hızında oynanıyor",
-    "spaceKey": "Boşluk"
+    "spaceKey": "Boşluk",
+    "pitch2d": "2D Saha",
+    "pitch2dHide": "Sahayı Gizle",
+    "pitch2dShow": "Sahayı Göster",
+    "goalCelebration": "GOL!"
   },
   "endOfSeason": {
     "seasonComplete": "Sezon Tamamlandı",
