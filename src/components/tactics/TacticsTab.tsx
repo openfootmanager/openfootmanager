@@ -11,7 +11,6 @@ import TacticsPlayerFocusPanel from "./TacticsPlayerFocusPanel";
 import { useTacticsLibrary } from "./useTacticsLibrary";
 import { useTacticsFilters } from "./useTacticsFilters";
 import { useTacticsLineup } from "./useTacticsLineup";
-import { usePositionTable } from "../../hooks/usePositionGroups";
 
 interface TacticsTabProps {
   gameState: GameStateData | null;
@@ -63,8 +62,8 @@ export default function TacticsTab({
     resetDragState,
     handleAssignMatchRole,
     handleTacticsPhaseChange,
+    lineupReady,
   } = useTacticsLineup({ gameState, onGameUpdate });
-  const positionTable = usePositionTable();
 
   const {
     playerSearch,
@@ -140,7 +139,7 @@ export default function TacticsTab({
         tacticLibrary={tacticLibrary}
       />
 
-      {positionTable.loaded ? null : (
+      {lineupReady ? null : (
         <p role="status" className="text-caption text-fg-muted">
           {t("tactics.positionsLoading")}
         </p>
