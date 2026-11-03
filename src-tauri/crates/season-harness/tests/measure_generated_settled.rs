@@ -9,10 +9,62 @@
 //! The shipped world (seeds 1 to 3, one test each) is read at its opening and after seasons 5, 10 and 20; the
 //! gate world (seeds 1 to 3) at its opening and after season 5.
 
-use season_harness::distribution::{DistributionLog, DistributionReport, distribution_report};
+use chrono::NaiveDate;
+use domain::age::age_on_or_unknown;
+use ofm_core::game::Game;
+use season_harness::distribution::{
+    DistributionLog, DistributionReport, SENIOR_MIN_AGE, distribution_report,
+};
 use season_harness::driver::{RunOptions, run_seasons};
 use season_harness::reputation::{ReputationLog, ReputationReport, reputation_report};
 use season_harness::worlds::WorldSpec;
+
+/// S and A shares and the mean rating of the seniors who belong to a club (free agents left out),
+/// so the world's tiers can be read with and without the unsigned players.
+fn clubs_only(game: &Game) -> String {
+    let on: NaiveDate = game.clock.current_date.date_naive();
+    let ratings: Vec<u8> = game
+        .players
+        .iter()
+        .filter(|player| {
+            !player.retired
+                && player.team_id.is_some()
+                && age_on_or_unknown(on, &player.date_of_birth) >= SENIOR_MIN_AGE
+        })
+        .map(|player| player.ovr)
+        .collect();
+    let count = ratings.len().max(1) as f64;
+    let share = |from: u8, to: u8| {
+        100.0
+            * ratings
+                .iter()
+                .filter(|ovr| (from..to).contains(ovr))
+                .count() as f64
+            / count
+    };
+    format!(
+        "clubs only S {:.2}% A {:.2}% mean {:.2}",
+        share(81, 100),
+        share(77, 81),
+        ratings.iter().map(|ovr| f64::from(*ovr)).sum::<f64>() / count
+    )
+}
+
+#[derive(Default)]
+struct ClubsOnlyLog {
+    after_each_season: Vec<String>,
+}
+
+impl season_harness::driver::SeasonObserver for ClubsOnlyLog {
+    fn on_season_end(
+        &mut self,
+        game: &Game,
+        _summary: &ofm_core::end_of_season::EndOfSeasonSummary,
+        _season: u32,
+    ) {
+        self.after_each_season.push(clubs_only(game));
+    }
+}
 
 fn line(label: &str, reputation: &ReputationReport, world: &DistributionReport) -> String {
     let fifths: Vec<String> = reputation
@@ -50,11 +102,16 @@ fn measure(name: &str, spec: WorldSpec, read_after: &[u32]) {
         )
     );
     let seasons = read_after.iter().copied().max().unwrap_or(0);
-    let (mut reputation, mut world) = (ReputationLog::default(), DistributionLog::default());
+    eprintln!("{name} opening {}", clubs_only(&game));
+    let (mut reputation, mut world, mut clubs) = (
+        ReputationLog::default(),
+        DistributionLog::default(),
+        ClubsOnlyLog::default(),
+    );
     run_seasons(
         &mut game,
         RunOptions::seasons(seasons),
-        &mut (&mut reputation, &mut world),
+        &mut (&mut reputation, &mut (&mut world, &mut clubs)),
     )
     .expect("the run completes");
     for &season in read_after {
@@ -67,6 +124,7 @@ fn measure(name: &str, spec: WorldSpec, read_after: &[u32]) {
                 &world.after_each_season[index]
             )
         );
+        eprintln!("{name} season {season} {}", clubs.after_each_season[index]);
     }
 }
 
