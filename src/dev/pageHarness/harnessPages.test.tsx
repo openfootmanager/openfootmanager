@@ -25,7 +25,12 @@ beforeAll(async () => {
   await i18nReady;
 });
 
-afterEach(() => {
+let mounted: Awaited<ReturnType<typeof mountPageHarness>> | null = null;
+
+afterEach(async () => {
+  // Unmounted before the mocks go: the dashboard's event listeners unregister through them.
+  await act(async () => mounted?.unmount());
+  mounted = null;
   clearMocks();
   useGameStore.getState().clearGame();
   document.body.innerHTML = "";
@@ -47,7 +52,7 @@ describe("the page harness's pages", () => {
       const root = document.createElement("div");
       document.body.append(root);
 
-      await mountPageHarness(root, page, readStyleGuideOptions(""), "en");
+      mounted = await mountPageHarness(root, page, readStyleGuideOptions(""), "en");
       await act(async () => {
         await new Promise((resolve) => setTimeout(resolve, SETTLE_MS));
       });
