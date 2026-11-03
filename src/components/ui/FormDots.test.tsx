@@ -78,7 +78,8 @@ describe("FormDots", () => {
     const { container } = render(<FormDots results={[]} />);
     expect(container).toBeEmptyDOMElement();
 
-    render(<FormDots results={["W", "?"]} />);
+    // Including a key every object inherits, which isn't a result either.
+    render(<FormDots results={["W", "?", "constructor"]} />);
     expect(screen.getAllByRole("listitem")).toHaveLength(1);
   });
 });

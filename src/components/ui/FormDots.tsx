@@ -18,8 +18,9 @@ const RESULT: Record<FormResult, { letterKey: string; wordKey: string; tone: str
   },
 };
 
+/** One of the three results: an own key, so "constructor" and the like aren't taken for one. */
 function isFormResult(value: string): value is FormResult {
-  return value in RESULT;
+  return Object.hasOwn(RESULT, value);
 }
 
 /**
