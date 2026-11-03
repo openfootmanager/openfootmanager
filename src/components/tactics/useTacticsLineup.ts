@@ -190,18 +190,21 @@ export function useTacticsLineup({ gameState, onGameUpdate }: UseTacticsLineupAr
     [team?.match_roles, startingXI, autoSetPieces],
   );
 
-  async function persistStartingXI(playerIds: string[]): Promise<void> {
+  /** Whether the lineup was saved: a selection is kept when it was not (nothing changed). */
+  async function persistStartingXI(playerIds: string[]): Promise<boolean> {
     // Nothing is saved from a lineup worked out before the position table and the familiarity have
     // loaded, nor from a squad the backend has not answered for this revision: its eligibility is
     // the last one's.
-    if (!canGradeLineup) return;
+    if (!canGradeLineup) return false;
     setPendingStartingXiIds(playerIds);
     try {
       const updated = await setStartingXi(playerIds);
       onGameUpdate(updated);
+      return true;
     } catch (error) {
       setPendingStartingXiIds(null);
       console.error("Failed to set starting XI:", error);
+      return false;
     }
   }
 
@@ -255,8 +258,7 @@ export function useTacticsLineup({ gameState, onGameUpdate }: UseTacticsLineupAr
       return;
     }
 
-    await persistStartingXI(nextXiIds);
-    clearLineupSelection();
+    if (await persistStartingXI(nextXiIds)) clearLineupSelection();
   }
 
   async function handlePromoteBenchPlayer(playerId: string): Promise<void> {
@@ -277,8 +279,7 @@ export function useTacticsLineup({ gameState, onGameUpdate }: UseTacticsLineupAr
       return;
     }
 
-    await persistStartingXI(nextXiIds);
-    clearLineupSelection();
+    if (await persistStartingXI(nextXiIds)) clearLineupSelection();
   }
 
   async function handleDemoteStarter(playerId: string): Promise<void> {
@@ -295,8 +296,7 @@ export function useTacticsLineup({ gameState, onGameUpdate }: UseTacticsLineupAr
       return;
     }
 
-    await persistStartingXI(nextXiIds);
-    clearLineupSelection();
+    if (await persistStartingXI(nextXiIds)) clearLineupSelection();
   }
 
   function clearLineupSelection(): void {
@@ -391,8 +391,7 @@ export function useTacticsLineup({ gameState, onGameUpdate }: UseTacticsLineupAr
       return;
     }
 
-    await persistStartingXI(nextXiIds);
-    clearLineupSelection();
+    if (await persistStartingXI(nextXiIds)) clearLineupSelection();
     resetDragState();
   }
 
@@ -451,8 +450,7 @@ export function useTacticsLineup({ gameState, onGameUpdate }: UseTacticsLineupAr
       return;
     }
 
-    await persistStartingXI(nextXiIds);
-    clearLineupSelection();
+    if (await persistStartingXI(nextXiIds)) clearLineupSelection();
   }
 
   async function persistMatchRoles(nextRoles: TeamMatchRolesData): Promise<void> {

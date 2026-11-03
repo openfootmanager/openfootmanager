@@ -3,6 +3,7 @@ import type { PlayerData } from "../../store/gameStore";
 import { createPositionTable } from "../../lib/positionTable";
 import type { FamiliarityTable } from "../../hooks/useFamiliarity";
 import type { Familiarity } from "../../store/generated/Familiarity";
+import { pendingFamiliarityTable } from "../../test-utils/familiarity";
 import { cannedPositionTable } from "../../test-utils/positionTable";
 import {
   buildTacticsRoster,
@@ -260,6 +261,30 @@ describe("the tactics roster and its lists, by the backend's position table", ()
       });
 
       expect(ids[0]).toBe("zz-keeper");
+    });
+
+    /**
+     * Given a pending lineup of one player, and the familiarity not arrived
+     * When the lineup is resolved
+     * Then only that player is drawn: the rest is not filled by a grade that is not there.
+     */
+    it("fills nothing of a pending lineup before the familiarity has loaded", () => {
+      const availablePlayers = Array.from({ length: 12 }, (_, index) =>
+        makePlayer(`m${index}`, "Midfielder"),
+      );
+      const playersById = new Map(availablePlayers.map((player) => [player.id, player]));
+
+      const ids = resolveStartingXiIds({
+        availablePlayers,
+        positionTable: cannedPositionTable(),
+        familiarity: pendingFamiliarityTable(),
+        formation: "4-4-2",
+        pendingStartingXiIds: ["m0"],
+        playersById,
+        savedStartingXiIds: [],
+      });
+
+      expect(ids).toEqual(["m0"]);
     });
 
     /**

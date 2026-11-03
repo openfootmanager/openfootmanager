@@ -133,6 +133,8 @@ export function resolveStartingXiIds({
   }
 
   const validPendingIds = pendingStartingXiIds.filter((id) => playersById.has(id));
+  // As in buildStartingXIIds: nothing is filled by a grade that has not arrived.
+  if (familiarity && !familiarity.loaded) return validPendingIds.slice(0, 11);
   const usedPlayerIds = new Set(validPendingIds);
   const fillPlayerIds: string[] = [];
 

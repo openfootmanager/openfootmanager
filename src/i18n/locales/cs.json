@@ -641,7 +641,7 @@
     "lastPage": "Poslední stránka",
     "sortBy": "Seřadit podle",
     "sortAscending": "Vzestupně",
-    "lineupLoading": "Údaje o postech se ještě načítají, změny sestavy proto zatím nejsou dostupné."
+    "lineupLoading": "Kádr se ještě načítá, proto zatím nelze měnit sestavu."
   },
   "teamSelection": {
     "title": "Vyberte si klub",

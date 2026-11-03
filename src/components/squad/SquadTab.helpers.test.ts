@@ -876,6 +876,25 @@ describe("getDeployedPosition", () => {
     });
 
     /**
+     * Given a pool of twelve and a saved XI of three, with the familiarity not arrived and arrived
+     * When the starting XI is built
+     * Then before it arrives only the three saved players are drawn (nothing is filled by rating
+     *      alone, which would put an outfielder in goal and then reorder), and once it has the
+     *      other eight are filled in.
+     */
+    it("fills the XI only once the familiarity has loaded", () => {
+      const pool = Array.from({ length: 12 }, (_, index) => makePlayer(`p${index}`, "Midfielder"));
+      const saved = ["p0", "p1", "p2"];
+
+      expect(
+        buildStartingXIIds(pool, saved, "4-4-2", cannedPositionTable(), pendingFamiliarityTable()),
+      ).toEqual(saved);
+      expect(
+        buildStartingXIIds(pool, saved, "4-4-2", cannedPositionTable(), saying("natural")),
+      ).toHaveLength(11);
+    });
+
+    /**
      * Given a table that has not arrived
      * When a lineup action is asked for
      * Then nothing is picked: the squad is returned as it was, even with the position table loaded.

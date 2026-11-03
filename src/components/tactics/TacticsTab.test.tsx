@@ -930,6 +930,34 @@ describe("TacticsTab", () => {
     expect(screen.queryByText("Forward")).not.toBeInTheDocument();
   });
 
+  /**
+   * Given a bench player selected on the pitch, and the familiarity not arrived
+   * When he is dropped onto a slot (nothing can be saved yet) and then a starter is clicked
+   * Then the drop did not clear his selection: the click opens the comparison with him, as it
+   *      would have had the drop never happened.
+   */
+  it("keeps the selection when a dropped lineup is not saved", async () => {
+    familiarityState.arrived = false;
+    try {
+      render(
+        <TacticsTab gameState={makeGameState()} onSelectPlayer={vi.fn()} onGameUpdate={vi.fn()} />,
+      );
+      await act(async () => {});
+      fireEvent.click(screen.getByTestId("pitch-bench-player-d5"));
+
+      const dataTransfer = createDataTransfer();
+      fireEvent.dragStart(screen.getByTestId("pitch-bench-player-d5"), { dataTransfer });
+      fireEvent.drop(screen.getByTestId("pitch-slot-1"), { dataTransfer });
+      await act(async () => {});
+      fireEvent.click(screen.getByTestId("pitch-player-d2"));
+
+      expect(screen.getByText("tactics.comparePlayer")).toBeInTheDocument();
+      expect(mockedInvoke).not.toHaveBeenCalledWith("set_starting_xi", expect.anything());
+    } finally {
+      familiarityState.arrived = true;
+    }
+  });
+
   it("allows selecting a bench player from the pitch view and swapping them with a starter", async () => {
     render(
       <TacticsTab gameState={makeGameState()} onSelectPlayer={vi.fn()} onGameUpdate={vi.fn()} />,
