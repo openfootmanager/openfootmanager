@@ -25,20 +25,24 @@ pub(crate) fn assistant_quality(staff: &Staff) -> i32 {
 pub fn staff_rating(staff: &Staff) -> u8 {
     let attributes = &staff.attributes;
     match staff.role {
-        StaffRole::Coach => attributes.coaching,
-        StaffRole::Physio => attributes.physiotherapy,
+        StaffRole::Coach => clamp_to_rating(i32::from(attributes.coaching)),
+        StaffRole::Physio => clamp_to_rating(i32::from(attributes.physiotherapy)),
         StaffRole::AssistantManager => clamp_to_rating(assistant_quality(staff)),
         StaffRole::Scout => {
             let sum =
-                u16::from(attributes.judging_ability) + u16::from(attributes.judging_potential);
-            u8::try_from(sum.div_ceil(2)).unwrap_or(u8::MAX)
+                i32::from(attributes.judging_ability) + i32::from(attributes.judging_potential);
+            clamp_to_rating((sum + 1) / 2)
         }
     }
 }
 
-/// A computed quality as a rating; attributes run 0 to 100, so the blend does too.
+/// The top of the rating scale. Generated staff stay within it, but nothing range-checks a
+/// package's authored attributes (a `u8` holds up to 255), so the rating caps itself.
+const MAX_RATING: i32 = 100;
+
+/// A quality as a rating, held to 0 to 100 whatever a package wrote.
 fn clamp_to_rating(quality: i32) -> u8 {
-    u8::try_from(quality.clamp(0, i32::from(u8::MAX))).unwrap_or(u8::MAX)
+    u8::try_from(quality.clamp(0, MAX_RATING)).unwrap_or(u8::MAX)
 }
 
 #[cfg(test)]
@@ -97,5 +101,28 @@ mod tests {
     #[test]
     fn a_scout_is_rated_by_the_mean_of_his_judging_rounded_half_up() {
         assert_eq!(staff_rating(&staff(StaffRole::Scout)), 61);
+    }
+
+    /// Given a package that authored a member of each role with every attribute at 150, which
+    /// nothing range-checks
+    /// When each is rated
+    /// Then each reads 100, the top of the scale, never 150.
+    #[test]
+    fn an_authored_attribute_above_the_scale_rates_at_its_top() {
+        for role in [
+            StaffRole::Coach,
+            StaffRole::Physio,
+            StaffRole::AssistantManager,
+            StaffRole::Scout,
+        ] {
+            let mut member = staff(role);
+            member.attributes = StaffAttributes {
+                coaching: 150,
+                judging_ability: 150,
+                judging_potential: 150,
+                physiotherapy: 150,
+            };
+            assert_eq!(staff_rating(&member), 100, "{:?}", member.role);
+        }
     }
 }
