@@ -27,7 +27,7 @@ export default function SquadTab({
 
   const teamId = sessionState?.manager?.team_id ?? gameState?.manager?.team_id ?? null;
   const clockDate = sessionState?.clock.current_date ?? gameState?.clock.current_date ?? "";
-  const [fetchedSquad, setFetchedSquad] = useFetchedSquad(
+  const [fetchedSquad, setFetchedSquad, squadAnswered] = useFetchedSquad(
     teamId,
     clockDate,
     sessionState ?? gameState,
@@ -51,6 +51,7 @@ export default function SquadTab({
   return (
     <SquadRosterView
       players={players}
+      squadAnswered={squadAnswered}
       team={team}
       clockDate={clockDate}
       onSelectPlayer={onSelectPlayer}

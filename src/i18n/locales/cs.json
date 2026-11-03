@@ -428,6 +428,11 @@
       "other": "{{n}}."
     },
     "pts": "Bod",
+    "playedFull": "Zápasy",
+    "wonFull": "Výhry",
+    "drawnFull": "Remízy",
+    "lostFull": "Prohry",
+    "ptsFull": "Body",
     "played": "Z",
     "won": "V",
     "drawn": "R",
@@ -3020,7 +3025,8 @@
         "invalidFormation": "Tuto formaci hra nezná.",
         "invalidPlayStyle": "Tento herní styl hra nezná.",
         "notFound": "Tato taktika už neexistuje."
-      }
+      },
+      "anotherClubsSquad": "Tento kádr patří jinému klubu."
     },
     "sender": {
       "boardOfDirectors": "Představenstvo",

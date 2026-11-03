@@ -428,6 +428,11 @@
       "other": "{{n}}-е"
     },
     "pts": "О",
+    "playedFull": "Игры",
+    "wonFull": "Победы",
+    "drawnFull": "Ничьи",
+    "lostFull": "Поражения",
+    "ptsFull": "Очки",
     "played": "И",
     "won": "В",
     "drawn": "Н",
@@ -3020,7 +3025,8 @@
         "invalidFormation": "Игра не знает такой схемы.",
         "invalidPlayStyle": "Игра не знает такого стиля игры.",
         "notFound": "Такой тактики больше нет."
-      }
+      },
+      "anotherClubsSquad": "Этот состав принадлежит другому клубу."
     },
     "sender": {
       "boardOfDirectors": "Совет директоров",

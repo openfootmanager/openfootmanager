@@ -428,6 +428,11 @@
       "other": "{{n}}th"
     },
     "pts": "Pts",
+    "playedFull": "Played",
+    "wonFull": "Won",
+    "drawnFull": "Drawn",
+    "lostFull": "Lost",
+    "ptsFull": "Points",
     "played": "P",
     "won": "W",
     "drawn": "D",
@@ -3020,7 +3025,8 @@
         "invalidFormation": "That formation isn't one the game knows.",
         "invalidPlayStyle": "That play style isn't one the game knows.",
         "notFound": "That tactic no longer exists."
-      }
+      },
+      "anotherClubsSquad": "That squad belongs to another club."
     },
     "sender": {
       "boardOfDirectors": "Board of Directors",

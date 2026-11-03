@@ -428,6 +428,11 @@
       "other": "{{n}}."
     },
     "pts": "P",
+    "playedFull": "Oynanan",
+    "wonFull": "Galibiyet",
+    "drawnFull": "Beraberlik",
+    "lostFull": "Mağlubiyet",
+    "ptsFull": "Puan",
     "played": "O",
     "won": "G",
     "drawn": "B",
@@ -3020,7 +3025,8 @@
         "invalidFormation": "Oyun bu diziliş şemasını tanımıyor.",
         "invalidPlayStyle": "Oyun bu oyun tarzını tanımıyor.",
         "notFound": "Bu taktik artık yok."
-      }
+      },
+      "anotherClubsSquad": "Bu kadro başka bir kulübe ait."
     },
     "sender": {
       "boardOfDirectors": "Yönetim Kurulu",

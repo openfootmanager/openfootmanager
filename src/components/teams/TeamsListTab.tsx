@@ -1,22 +1,22 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ChevronDown, ChevronRight, Search, Trophy, Users } from "lucide-react";
+import { ChevronDown, ChevronRight, Search } from "lucide-react";
 
 import { useListView } from "../../hooks/useListView";
-import { formatVal } from "../../lib/helpers";
-import { visibleRatingText } from "../../lib/playerKnowledge";
 import { nextSort, type SortState } from "../../lib/sortRows";
 import { buildRegionLabel } from "../../lib/teamRegions";
 import { competitionDisplayName } from "../../lib/competitionName";
 import type { GameStateData } from "../../store/gameStore";
+import type { ListView } from "../../store/settingsStore";
 import {
   fetchTeamsDirectory,
   UNGROUPED_LEAGUE_ID,
-  type TeamCard,
+  type TeamCard as TeamCardData,
   type TeamsDirectory,
 } from "../../services/teamsService";
 import { getErrorMessage, resolveTranslatedErrorMessage } from "../../utils/errorMessage";
-import { Badge, Card, CardBody, TeamLocation, TeamLogo, ViewSwitch } from "../ui";
+import { Badge, CardGrid, ViewSwitch } from "../ui";
+import TeamCard from "./TeamCard";
 import TeamsLeagueTable, {
   TEAMS_DEFAULT_SORT,
   type TeamsSortKey,
@@ -32,7 +32,7 @@ interface DisplayLeague {
   id: string;
   rawId: string;
   name: string;
-  teams: TeamCard[];
+  teams: TeamCardData[];
 }
 
 interface DisplayRegion {
@@ -43,7 +43,7 @@ interface DisplayRegion {
 }
 
 export default function TeamsListTab({ gameState, onSelectTeam }: TeamsListTabProps) {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const userTeamId = gameState.manager.team_id;
 
   const [search, setSearch] = useState("");
@@ -67,12 +67,12 @@ export default function TeamsListTab({ gameState, onSelectTeam }: TeamsListTabPr
       })
       .catch((error) => {
         if (cancelled) return;
-        setFetchError(resolveTranslatedErrorMessage(getErrorMessage(error), t));
+        setFetchError(getErrorMessage(error));
       });
     return () => {
       cancelled = true;
     };
-  }, [search, t]);
+  }, [search]);
 
   const visibleGroups = useMemo<DisplayRegion[]>(() => {
     if (!directory) return [];
@@ -130,28 +130,33 @@ export default function TeamsListTab({ gameState, onSelectTeam }: TeamsListTabPr
     <div className="flex flex-col gap-4">
       <div className="flex items-center gap-3">
         <div className="relative min-w-0 flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+          <Search
+            aria-hidden="true"
+            className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-fg-subtle"
+          />
           <input
             type="text"
             value={search}
             onChange={(event) => setSearch(event.target.value)}
             placeholder={t("teams.searchPlaceholder")}
-            className="w-full rounded-lg border border-gray-200 dark:border-navy-600 bg-white dark:bg-navy-800 py-2.5 pl-10 pr-4 text-sm text-gray-800 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-primary-500/40"
+            aria-label={t("teams.searchPlaceholder")}
+            className="w-full rounded-lg border border-line bg-sunken py-2 pl-9 pr-3 text-body text-fg outline-none placeholder:text-fg-subtle focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 focus-visible:ring-offset-page"
           />
         </div>
         <ViewSwitch value={view} onChange={setView} />
       </div>
 
       {fetchError ? (
-        <p role="alert" className="text-sm text-red-500">
-          {fetchError}
+        <p
+          role="alert"
+          className="rounded-lg border border-line bg-danger-tint px-4 py-2 text-body font-medium text-danger"
+        >
+          {resolveTranslatedErrorMessage(fetchError, t)}
         </p>
       ) : null}
 
       {visibleGroups.length === 0 ? (
-        <p className="py-10 text-center text-sm text-gray-500 dark:text-gray-400">
-          {t("teams.noResults")}
-        </p>
+        <p className="py-10 text-center text-body text-fg-muted">{t("teams.noResults")}</p>
       ) : (
         visibleGroups.map((region) => {
           const regionOpen = isSearching || expandedRegions.has(region.id);
@@ -160,14 +165,15 @@ export default function TeamsListTab({ gameState, onSelectTeam }: TeamsListTabPr
               <button
                 type="button"
                 onClick={() => setExpandedRegions((set) => toggle(set, region.id))}
-                className="flex items-center gap-2 rounded-lg bg-gray-100 dark:bg-navy-800 px-3 py-2 text-left"
+                aria-expanded={regionOpen}
+                className="flex items-center gap-2 rounded-lg bg-sunken px-3 py-2 text-left hover:bg-hover focus:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 focus-visible:ring-offset-page"
               >
                 {regionOpen ? (
-                  <ChevronDown className="w-4 h-4 text-gray-500" />
+                  <ChevronDown aria-hidden="true" className="h-4 w-4 text-fg-muted" />
                 ) : (
-                  <ChevronRight className="w-4 h-4 text-gray-500" />
+                  <ChevronRight aria-hidden="true" className="h-4 w-4 text-fg-muted" />
                 )}
-                <span className="flex-1 font-heading font-bold uppercase tracking-wide text-sm text-gray-800 dark:text-gray-100">
+                <span className="flex-1 font-heading text-body font-bold uppercase tracking-label text-fg">
                   {region.name}
                 </span>
                 <Badge variant="neutral" size="sm">
@@ -184,14 +190,15 @@ export default function TeamsListTab({ gameState, onSelectTeam }: TeamsListTabPr
                       <button
                         type="button"
                         onClick={() => setExpandedLeagues((set) => toggle(set, leagueKey))}
-                        className="flex items-center gap-2 rounded-lg px-3 py-1.5 text-left hover:bg-gray-50 dark:hover:bg-navy-700/40"
+                        aria-expanded={leagueOpen}
+                        className="flex items-center gap-2 rounded-lg px-3 py-1.5 text-left hover:bg-hover focus:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 focus-visible:ring-offset-page"
                       >
                         {leagueOpen ? (
-                          <ChevronDown className="w-3.5 h-3.5 text-gray-400" />
+                          <ChevronDown aria-hidden="true" className="h-3.5 w-3.5 text-fg-subtle" />
                         ) : (
-                          <ChevronRight className="w-3.5 h-3.5 text-gray-400" />
+                          <ChevronRight aria-hidden="true" className="h-3.5 w-3.5 text-fg-subtle" />
                         )}
-                        <span className="flex-1 font-heading font-bold uppercase tracking-wider text-xs text-gray-500 dark:text-gray-400">
+                        <span className="flex-1 font-heading text-caption font-bold uppercase tracking-label text-fg-muted">
                           {league.name}
                         </span>
                         <Badge variant="neutral" size="sm">
@@ -199,32 +206,16 @@ export default function TeamsListTab({ gameState, onSelectTeam }: TeamsListTabPr
                         </Badge>
                       </button>
 
-                      {leagueOpen && view === "table" ? (
-                        <div className="ml-2 overflow-hidden rounded-lg border border-line bg-panel">
-                          <TeamsLeagueTable
-                            label={league.name}
-                            cards={league.teams}
-                            userTeamId={userTeamId}
-                            sort={sort}
-                            onSort={sortBy}
-                            onSelectTeam={onSelectTeam}
-                          />
-                        </div>
+                      {leagueOpen ? (
+                        <LeagueClubs
+                          league={league}
+                          view={view}
+                          userTeamId={userTeamId}
+                          sort={sort}
+                          onSort={sortBy}
+                          onSelectTeam={onSelectTeam}
+                        />
                       ) : null}
-                      {leagueOpen && view === "cards" && (
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pl-2">
-                          {league.teams.map((card) => (
-                            <TeamCardView
-                              key={card.team.id}
-                              card={card}
-                              isUser={card.team.id === userTeamId}
-                              language={i18n.language}
-                              t={t}
-                              onSelect={onSelectTeam}
-                            />
-                          ))}
-                        </div>
-                      )}
                     </div>
                   );
                 })}
@@ -236,115 +227,49 @@ export default function TeamsListTab({ gameState, onSelectTeam }: TeamsListTabPr
   );
 }
 
-function TeamCardView({
-  card,
-  isUser,
-  language,
-  t,
-  onSelect,
+/** An open league's clubs, as the list view has it: one table, or a grid of cards. */
+function LeagueClubs({
+  league,
+  view,
+  userTeamId,
+  sort,
+  onSort,
+  onSelectTeam,
 }: {
-  card: TeamCard;
-  isUser: boolean;
-  language: string;
-  t: ReturnType<typeof useTranslation>["t"];
-  onSelect: (id: string) => void;
+  league: DisplayLeague;
+  view: ListView;
+  userTeamId: string | null;
+  sort: SortState<TeamsSortKey>;
+  onSort: (key: TeamsSortKey) => void;
+  onSelectTeam: (id: string) => void;
 }) {
-  const {
-    team,
-    roster_size: rosterSize,
-    avg_ovr: avgOvr,
-    total_value: totalValue,
-    league_pos: leaguePos,
-    standing,
-  } = card;
-  const playStyleLabel = t(`common.playStyles.${team.play_style}`, team.play_style);
-
-  return (
-    <Card
-      className={`cursor-pointer hover:shadow-lg transition-all ${isUser ? "ring-2 ring-primary-500/30" : ""}`}
-    >
-      <div onClick={() => onSelect(team.id)} className="overflow-hidden rounded-xl">
-        <div
-          className="p-5 flex items-center gap-4"
-          style={{
-            background: `linear-gradient(135deg, ${team.colors.primary}, ${team.colors.secondary}40)`,
-          }}
-        >
-          <TeamLogo
-            team={team}
-            className="w-14 h-14 rounded-xl flex items-center justify-center font-heading font-bold text-xl text-white border-2 border-white/30 bg-white/15 overflow-hidden"
-            imageClassName="h-12 w-12 object-contain drop-shadow"
-            style={{ backgroundColor: team.colors.primary }}
-          />
-          <div className="flex-1 min-w-0">
-            <h3 className="font-heading font-bold text-lg text-white uppercase tracking-wide truncate drop-shadow">
-              {team.name}
-              {isUser && (
-                <Badge variant="accent" size="sm" className="ml-2 align-middle">
-                  {t("teams.yourTeam")}
-                </Badge>
-              )}
-            </h3>
-            <TeamLocation
-              city={team.city}
-              countryCode={team.country}
-              locale={language}
-              className="mt-0.5 text-white/70 text-xs"
-              iconClassName="w-3 h-3"
-              flagClassName="text-xs leading-none"
-            />
-          </div>
-          {leaguePos > 0 && (
-            <div className="bg-black/20 backdrop-blur rounded-lg px-3 py-1.5 text-center">
-              <p className="text-xs text-white/60 font-heading uppercase tracking-wider">
-                {t("common.position")}
-              </p>
-              <p className="font-heading font-bold text-xl text-white">#{leaguePos}</p>
-            </div>
-          )}
-        </div>
-
-        <div className="grid grid-cols-5 gap-px bg-gray-200 dark:bg-navy-600">
-          <StatCell label={t("teams.squad")} value={String(rosterSize)} />
-          {/* Withheld ("–") for a club outside the manager's division; its reputation sits
-              beside it. */}
-          <StatCell label={t("teams.avgOvr")} value={visibleRatingText(avgOvr)} />
-          <StatCell label={t("teams.rep")} value={String(team.reputation)} />
-          <StatCell label={t("common.value")} value={formatVal(totalValue)} />
-          <StatCell label={t("common.pts")} value={standing ? String(standing.points) : "—"} />
-        </div>
-
-        <CardBody>
-          <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
-            <span className="flex items-center gap-1">
-              <Users className="w-3.5 h-3.5" />
-              {team.formation} — {playStyleLabel}
-            </span>
-            <span className="flex items-center gap-1">
-              <Trophy className="w-3.5 h-3.5" />
-              {t("teams.est")} {team.founded_year}
-            </span>
-            {standing && (
-              <span className="tabular-nums">
-                {standing.won}W {standing.drawn}D {standing.lost}L
-              </span>
-            )}
-          </div>
-        </CardBody>
+  if (view === "table") {
+    return (
+      <div className="ml-2 overflow-hidden rounded-lg border border-line bg-panel">
+        <TeamsLeagueTable
+          label={league.name}
+          cards={league.teams}
+          userTeamId={userTeamId}
+          sort={sort}
+          onSort={onSort}
+          onSelectTeam={onSelectTeam}
+        />
       </div>
-    </Card>
-  );
-}
-
-function StatCell({ label, value }: { label: string; value: string }) {
+    );
+  }
   return (
-    <div className="bg-white dark:bg-navy-800 px-2 py-2.5 text-center">
-      <p className="text-xs text-gray-400 dark:text-gray-500 font-heading uppercase tracking-wider">
-        {label}
-      </p>
-      <p className="font-heading font-bold text-sm text-gray-800 dark:text-gray-100 mt-0.5">
-        {value}
-      </p>
+    <div className="pl-2">
+      <CardGrid>
+        {league.teams.map((card) => (
+          <li key={card.team.id} className="min-w-0">
+            <TeamCard
+              card={card}
+              isUser={card.team.id === userTeamId}
+              onOpen={() => onSelectTeam(card.team.id)}
+            />
+          </li>
+        ))}
+      </CardGrid>
     </div>
   );
 }
