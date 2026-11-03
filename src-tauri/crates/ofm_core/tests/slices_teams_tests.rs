@@ -213,10 +213,6 @@ fn an_unemployed_manager_sees_no_clubs_average() {
     }
 }
 
-/// Given the manager's club, a division rival and a club in another division
-/// When the team profile asks for one club's card
-/// Then it gets the same card the directory shows, average included or withheld alike, and an id
-///      no club has gets none
 /// Given a club managed by one of the AI managers
 /// When its card is projected, in the directory and on its own
 /// Then the card names him
@@ -311,6 +307,10 @@ fn the_users_card_reads_his_live_record_not_the_listed_copy() {
     );
 }
 
+/// Given the manager's club, a division rival and a club in another division
+/// When the team profile asks for one club's card
+/// Then it gets the same card the directory shows, average included or withheld alike, and an id
+///      no club has gets none
 #[test]
 fn a_team_card_is_the_directory_card_for_that_club() {
     let game = managing(two_divisions(), "mine");
