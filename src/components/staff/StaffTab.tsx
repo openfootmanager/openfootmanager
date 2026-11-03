@@ -2,7 +2,10 @@ import { useEffect, useRef, useState } from "react";
 import { type GameStateData, type StaffData, useGameStore } from "../../store/gameStore";
 import { visibleRatingText } from "../../lib/playerKnowledge";
 import { getStaff, type StaffRow, type StaffSlice } from "../../services/staffService";
-import { Card, CardBody, Badge, CountryFlag, ProgressBar } from "../ui";
+import { useListView } from "../../hooks/useListView";
+import { Card, CardBody, Badge, CountryFlag, ProgressBar, ViewSwitch } from "../ui";
+import { staffMenuItems } from "./StaffTab.menu";
+import StaffTable from "./StaffTable";
 import {
   UserCog,
   Search,
@@ -18,7 +21,7 @@ import { getTeamName, calcAge, formatWeeklyWage } from "../../lib/helpers";
 import { countryName } from "../../lib/countries";
 import { useTranslation } from "react-i18next";
 import { hireStaff, releaseStaff } from "../../services/staffService";
-import ContextMenu, { type ContextMenuItem } from "../ContextMenu";
+import ContextMenu from "../ContextMenu";
 import type { DashboardNavigateContext } from "../dashboard/dashboardProfileNavigation";
 
 interface StaffTabProps {
@@ -58,6 +61,8 @@ export default function StaffTab({ gameState, onGameUpdate, onNavigate }: StaffT
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  // The Table/Cards choice every list shares; `view` above is this page's own My staff/Available.
+  const [listView, setListView] = useListView();
   /** The newest staff refresh asked for; an older one that answers late is dropped. */
   const latestRefresh = useRef(0);
 
@@ -142,6 +147,17 @@ export default function StaffTab({ gameState, onGameUpdate, onNavigate }: StaffT
 
   const roles = ["AssistantManager", "Coach", "Scout", "Physio"];
 
+  /** A member's actions, the same on his card and on his table row. */
+  const menuItemsFor = (staff: StaffRow) =>
+    staffMenuItems(staff, {
+      t,
+      list: view,
+      pendingId: actionLoading,
+      onHire: handleHire,
+      onRelease: handleRelease,
+      onNavigate,
+    });
+
   return (
     <div>
       {/* View toggle */}
@@ -210,6 +226,7 @@ export default function StaffTab({ gameState, onGameUpdate, onNavigate }: StaffT
             </button>
           ))}
         </div>
+        <ViewSwitch value={listView} onChange={setListView} />
       </div>
 
       {/* Staff grid */}
@@ -220,6 +237,16 @@ export default function StaffTab({ gameState, onGameUpdate, onNavigate }: StaffT
             {view === "mystaff" ? t("staff.noStaffMatch") : t("staff.noAvailableStaff")}
           </p>
         </div>
+      ) : listView === "table" ? (
+        <StaffTable
+          label={
+            view === "mystaff"
+              ? t("staff.myStaff", { count: myStaff.length })
+              : t("staff.available", { count: availableStaff.length })
+          }
+          rows={filtered}
+          menuItemsFor={menuItemsFor}
+        />
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {filtered.map((staff) => {
@@ -239,35 +266,7 @@ export default function StaffTab({ gameState, onGameUpdate, onNavigate }: StaffT
             const youthLoadLabel = `${youthLoad} ${t(
               youthLoad === 1 ? "staff.youthSearch" : "staff.youthSearches",
             )}`;
-            const contextItems: ContextMenuItem[] =
-              view === "mystaff"
-                ? [
-                    ...(staff.role === "Scout" && onNavigate
-                      ? [
-                          {
-                            label: openScoutingWorkflowLabel,
-                            icon: <Eye className="w-4 h-4" />,
-                            onClick: () => onNavigate("Scouting"),
-                            disabled: false,
-                          } satisfies ContextMenuItem,
-                        ]
-                      : []),
-                    {
-                      label: t("staff.releaseStaff"),
-                      icon: <UserMinus className="w-4 h-4" />,
-                      onClick: () => handleRelease(staff.id),
-                      danger: true,
-                      disabled: isLoading,
-                    },
-                  ]
-                : [
-                    {
-                      label: t("staff.hireStaff"),
-                      icon: <UserPlus className="w-4 h-4" />,
-                      onClick: () => handleHire(staff.id),
-                      disabled: isLoading,
-                    },
-                  ];
+            const contextItems = menuItemsFor(staff);
             const staffCard = (
               <div data-testid={`staff-card-${staff.id}`} className="h-full">
                 <Card className="h-full">
