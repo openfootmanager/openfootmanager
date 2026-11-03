@@ -60,6 +60,11 @@ jobs:
     runs-on: ${{ matrix.platform }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        # Nothing in this job pushes with git: tauri-action and check-release-state.sh take the
+        # token from env. A persisted token would sit in .git/config while npm ci runs install
+        # scripts in a job that can write releases.
+        with:
+          persist-credentials: false
 
       - name: install dependencies (ubuntu only)
         if: matrix.platform == 'ubuntu-22.04' || matrix.platform == 'ubuntu-22.04-arm' # This must match the platform value defined above.
