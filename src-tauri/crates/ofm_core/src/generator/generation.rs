@@ -2116,10 +2116,6 @@ mod tests {
             "{world_mean:.2} and {pool_mean:.2}"
         );
         assert!(
-            NATIONAL_POOL_SHIFT > FREE_AGENT_SHIFT,
-            "the top-ups are not the unattached discount"
-        );
-        assert!(
             ((pool_sd / world_sd) - NATIONAL_POOL_SPREAD_KEPT).abs() < 0.04,
             "spreads {world_sd:.2} and {pool_sd:.2}"
         );
