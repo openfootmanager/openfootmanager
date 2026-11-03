@@ -1330,7 +1330,7 @@ fn convert_retired_players_to_candidates(game: &mut Game, season: u32) {
         date_of_birth: String,
         nationality: String,
         ovr: u8,
-        career_len: usize,
+        seasons_played: u32,
         vision: u8,
         decisions: u8,
         positioning: u8,
@@ -1353,7 +1353,7 @@ fn convert_retired_players_to_candidates(game: &mut Game, season: u32) {
                 date_of_birth: p.date_of_birth.clone(),
                 nationality: p.nationality.clone(),
                 ovr: p.ovr,
-                career_len: p.career.len(),
+                seasons_played: crate::manager_reputation::seasons_played(&p.career),
                 vision: p.attributes.vision,
                 decisions: p.attributes.decisions,
                 positioning: p.attributes.positioning,
@@ -1384,10 +1384,8 @@ fn convert_retired_players_to_candidates(game: &mut Game, season: u32) {
         // Manager candidate
         let mgr_id = format!("mgr_retired_{}", r.player_id);
         if !existing_mgr_ids.contains(&mgr_id) {
-            let reputation = (200u32)
-                .saturating_add((r.ovr as u32) * 6)
-                .saturating_add(r.career_len as u32 * 30)
-                .clamp(200, 900);
+            let reputation =
+                crate::manager_reputation::retired_player_reputation(r.ovr, r.seasons_played);
 
             let mut mgr = Manager::new(
                 mgr_id,
