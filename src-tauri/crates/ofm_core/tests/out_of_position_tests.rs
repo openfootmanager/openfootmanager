@@ -387,21 +387,23 @@ fn a_starter_swapped_out_before_kick_off_goes_back_to_his_bench_familiarity() {
     assert_eq!(familiarity_of(&session, "alpha_rb_at_lb")[DEF], 1.0);
 }
 
-/// Given alpha's natural side and a natural right-back on the bench,
-/// When the manager asks to swap him in for a player who is not in the eleven,
-/// Then the swap is refused with the engine's own error, and his familiarity is unchanged.
+/// Given alpha's side with a natural right-back starting at left-back, at that slot's factor in
+/// defence (1 - 0.10 / 3),
+/// When the manager asks to swap him off for a player who is not on the bench,
+/// Then the swap is refused with the engine's own error, and he keeps his slot's familiarity:
+/// nothing is refitted for a swap that did not happen.
 #[test]
 fn a_refused_swap_before_kick_off_changes_no_familiarity() {
     let mut alpha = natural_side("alpha");
-    alpha.push(player("alpha", "rb2", Position::RightBack));
+    alpha[1] = player("alpha", "rb_at_lb", Position::RightBack);
     let mut session = at_kick_off(alpha);
-    let before = familiarity_of(&session, "alpha_rb2");
+    let before = familiarity_of(&session, "alpha_rb_at_lb");
 
-    let refused = swap(&mut session, "alpha_nobody", "alpha_rb2");
+    let refused = swap(&mut session, "alpha_rb_at_lb", "alpha_nobody");
 
     assert_eq!(
         refused.err().as_deref(),
-        Some("be.error.liveMatch.playerNotInStartingXi")
+        Some("be.error.liveMatch.playerNotOnBench")
     );
-    assert_eq!(familiarity_of(&session, "alpha_rb2"), before);
+    assert_eq!(familiarity_of(&session, "alpha_rb_at_lb"), before);
 }
