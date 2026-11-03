@@ -6,7 +6,7 @@
 //!
 //! `cargo test --release -p season-harness --test measure_generated_settled -- --ignored --nocapture --test-threads=1`
 //!
-//! The shipped world (seeds 1 and 2) is read at its opening and after seasons 5, 10 and 20; the
+//! The shipped world (seeds 1 to 3, one test each) is read at its opening and after seasons 5, 10 and 20; the
 //! gate world (seeds 1 to 3) at its opening and after season 5.
 
 use season_harness::distribution::{DistributionLog, DistributionReport, distribution_report};
@@ -70,16 +70,31 @@ fn measure(name: &str, spec: WorldSpec, read_after: &[u32]) {
     }
 }
 
+/// One test per seed, so that `--test-threads` runs the seeds side by side.
+fn measure_shipped(seed: u64) {
+    measure(
+        &format!("shipped seed {seed}"),
+        WorldSpec::shipped(seed),
+        &[5, 10, 20],
+    );
+}
+
 #[test]
 #[ignore = "measurement: prints, asserts nothing"]
-fn measure_the_shipped_world_over_twenty_seasons() {
-    for seed in [1, 2] {
-        measure(
-            &format!("shipped seed {seed}"),
-            WorldSpec::shipped(seed),
-            &[5, 10, 20],
-        );
-    }
+fn measure_shipped_seed_1_over_twenty_seasons() {
+    measure_shipped(1);
+}
+
+#[test]
+#[ignore = "measurement: prints, asserts nothing"]
+fn measure_shipped_seed_2_over_twenty_seasons() {
+    measure_shipped(2);
+}
+
+#[test]
+#[ignore = "measurement: prints, asserts nothing"]
+fn measure_shipped_seed_3_over_twenty_seasons() {
+    measure_shipped(3);
 }
 
 #[test]
