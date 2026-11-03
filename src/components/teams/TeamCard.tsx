@@ -13,11 +13,9 @@ interface TeamCardProps {
 
 /**
  * A club's card in the Teams directory, on the shared card shell: its crest, country and city in
- * the identity row, its league position as the hero, the standing and the squad's average in the
- * status band, and its squad's size and reputation as the two facts.
- *
- * The approved card (round 4, v4) also has the club's manager in the status band; he comes with
- * the manager profile's projection. The club's last five results are the form dots.
+ * the identity row, its league position as the hero, its last five results (the form dots), its
+ * manager, standing and squad average in the status band, and its squad's size and reputation as
+ * the two facts. This is the approved card (round 4, v4).
  */
 export default function TeamCard({ card, isUser, onOpen }: TeamCardProps) {
   const { t, i18n } = useTranslation();
@@ -48,6 +46,8 @@ export default function TeamCard({ card, isUser, onOpen }: TeamCardProps) {
         <>
           <FormDots results={card.form} />
           <dl className="flex flex-wrap gap-x-4 gap-y-1 tabular-nums">
+            {/* A club between managers shows a dash, as the v4 card does. */}
+            <StatusFigure label={t("teams.manager")} value={card.manager?.name ?? "—"} />
             {standing ? (
               <>
                 <StatusFigure

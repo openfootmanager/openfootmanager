@@ -117,6 +117,7 @@ function buildCard(overrides: {
   avg_ovr?: number | null;
   reputation?: number;
   form?: string[];
+  manager?: TeamCard["manager"];
 }): TeamCard {
   return {
     team: {
@@ -149,7 +150,7 @@ function buildCard(overrides: {
             points: overrides.points,
           }
         : null,
-    manager: null,
+    manager: overrides.manager ?? null,
   };
 }
 
@@ -321,8 +322,9 @@ describe("TeamsListTab", () => {
    * Given the league leader on 10 points from three wins and a draw, a squad of 22 and a
    *       reputation of 64
    * When its card is drawn
-   * Then its hero is its league position, 1; its status gives the standing (3, 1, 0, 10 points)
-   *      and the squad's average; and its two facts are the squad's size and the reputation.
+   * Then its hero is its league position, 1; its status gives its manager (none here, so a dash),
+   *      the standing (3, 1, 0, 10 points) and the squad's average; and its two facts are the
+   *      squad's size and the reputation.
    */
   it("draws a club's card with its position, standing, average, squad and reputation", async () => {
     const leader = buildCard({
@@ -346,6 +348,7 @@ describe("TeamsListTab", () => {
 
     const card = await screen.findByRole("article", { name: "Leader FC" });
     expect(cardTerms(card)).toEqual({
+      "teams.manager": "—",
       Won: "3",
       Drawn: "1",
       Lost: "0",
@@ -369,7 +372,13 @@ describe("TeamsListTab", () => {
 
     const card = await screen.findByRole("article", { name: "New FC" });
     expect(cardHero(card)).toHaveTextContent("Position —");
-    expect(cardTerms(card)).toEqual({ Points: "—", "Avg OVR": "60", Squad: "22", Rep: "50" });
+    expect(cardTerms(card)).toEqual({
+      "teams.manager": "—",
+      Points: "—",
+      "Avg OVR": "60",
+      Squad: "22",
+      Rep: "50",
+    });
   });
 
   /**
@@ -385,7 +394,10 @@ describe("TeamsListTab", () => {
     render(<TeamsListTab gameState={gameStateWithManagerTeam("lead")} onSelectTeam={vi.fn()} />);
 
     const card = await screen.findByRole("article", { name: "Leader FC" });
-    const terms = within(card).getAllByRole("term").slice(0, 4);
+    // The standing's figures, the terms drawn as letters (the manager's is a word already).
+    const terms = within(card)
+      .getAllByRole("term")
+      .filter((term) => term.querySelector('[aria-hidden="true"]'));
     expect(terms.map((term) => spoken(term))).toEqual(["Won", "Drawn", "Lost", "Points"]);
     expect(terms.map((term) => term.querySelector('[aria-hidden="true"]')?.textContent)).toEqual([
       "W",
@@ -416,6 +428,32 @@ describe("TeamsListTab", () => {
     const card = await screen.findByRole("article", { name: "Form FC" });
     const form = within(card).getByRole("list", { name: "common.recentForm" });
     expect(within(form).getAllByRole("listitem")).toHaveLength(5);
+  });
+
+  /**
+   * Given a club managed by Ana Lima, and a club with no manager
+   * When their cards are drawn
+   * Then the first card's status band names Ana Lima as its manager, and the second shows a dash:
+   *      the v4 card's manager line.
+   */
+  it("names a club's manager on its card, and a dash for a club without one", async () => {
+    setupDirectoryMock([
+      buildCard({
+        id: "led",
+        name: "Led FC",
+        league_pos: 1,
+        manager: { id: "ana", name: "Ana Lima" },
+      }),
+      buildCard({ id: "vacant", name: "Vacant FC", league_pos: 2 }),
+    ]);
+    render(<TeamsListTab gameState={gameStateWithManagerTeam("led")} onSelectTeam={vi.fn()} />);
+
+    const managerOf = async (club: string) => {
+      const card = await screen.findByRole("article", { name: club });
+      return within(card).getByText("teams.manager").nextElementSibling?.textContent;
+    };
+    expect(await managerOf("Led FC")).toBe("Ana Lima");
+    expect(await managerOf("Vacant FC")).toBe("—");
   });
 
   /**
