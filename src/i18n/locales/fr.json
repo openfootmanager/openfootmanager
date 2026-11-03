@@ -640,7 +640,8 @@
     "nextPage": "Page suivante",
     "lastPage": "Dernière page",
     "sortBy": "Trier par",
-    "sortAscending": "Croissant"
+    "sortAscending": "Croissant",
+    "lineupLoading": "Les données de postes sont encore en cours de chargement : les changements de composition ne sont pas encore disponibles."
   },
   "teamSelection": {
     "title": "Choisissez Votre Club",
@@ -922,8 +923,7 @@
       "sharp": "Affûté",
       "managing": "À gérer",
       "risk": "Risque"
-    },
-    "positionsLoading": "Les données de postes sont encore en cours de chargement : les changements de composition ne sont pas encore disponibles."
+    }
   },
   "training": {
     "weeklySchedule": "Calendrier Hebdomadaire",
@@ -3027,7 +3027,10 @@
         "invalidPlayStyle": "Le jeu ne connaît pas ce style de jeu.",
         "notFound": "Cette tactique n'existe plus."
       },
-      "anotherClubsSquad": "Cet effectif appartient à un autre club."
+      "anotherClubsSquad": "Cet effectif appartient à un autre club.",
+      "startingXiPlayerNotEligible": "Un joueur de cette composition ne peut pas être titulaire dans votre club.",
+      "startingXiDuplicatePlayer": "Un joueur apparaît deux fois dans cette composition.",
+      "startingXiWrongSize": "Le onze de départ doit compter exactement onze joueurs, ou tous les joueurs éligibles si le club en a moins."
     },
     "sender": {
       "boardOfDirectors": "Conseil d'Administration",
@@ -3634,6 +3637,10 @@
       "matchesMoved": {
         "subject": "Matchs reprogrammés",
         "body": "Certains de vos matchs ont été déplacés afin que vos joueurs gardent leur repos et que les trêves internationales soient respectées :\n{{matches}}"
+      },
+      "savedDataSetAside": {
+        "subject": "Des données de sauvegarde ont été mises de côté",
+        "body": "Une partie de cette sauvegarde n'a pas pu être lue au chargement. Elle a été mise de côté plutôt que perdue, et votre carrière continue. S'il semble manquer quelque chose, un rapport de bug ({{settings}} → {{reportBug}}, sauvegarde jointe) nous permettra de l'examiner."
       }
     },
     "news": {

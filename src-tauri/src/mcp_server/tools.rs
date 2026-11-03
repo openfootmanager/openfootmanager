@@ -687,12 +687,12 @@ pub fn build_tool_router(context: &Arc<McpContext>, disabled: &[String]) -> OfmT
     // squad_set_starting_xi
     custom_tool!(
         "squad_set_starting_xi",
-        "Set starting eleven by player IDs",
+        "Set starting eleven by player IDs (11 different eligible players of your club; refused otherwise, nothing saved)",
         build_schema(
             &[(
                 "player_ids",
                 "array",
-                "Ordered list of 11 player IDs for the starting eleven"
+                "Ordered list of 11 different player IDs of your club who are match-day eligible (all of them if the club has fewer than 11 to field)"
             )],
             &["player_ids"]
         ),

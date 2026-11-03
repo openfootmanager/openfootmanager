@@ -1127,6 +1127,19 @@ describe("resolveBoardObjective", () => {
 });
 
 describe("resolveBackendText", () => {
+  // Given the set-aside-data notice, whose params name the frontend's own labels by key
+  // When its body is resolved
+  // Then it says where the bug report is in the player's words, as the sidebar and Settings do
+  it("names the bug report by the labels the screens show", () => {
+    const body = resolveBackendText("be.msg.savedDataSetAside.body", "fallback", {
+      settings: "dashboard.settings",
+      reportBug: "settings.reportBug",
+    });
+
+    expect(body).toContain(`${i18n.t("dashboard.settings")} → ${i18n.t("settings.reportBug")}`);
+    expect(body).not.toContain("dashboard.settings");
+  });
+
   it("resolves backend effect keys with params", () => {
     i18n.addResourceBundle(
       "en",

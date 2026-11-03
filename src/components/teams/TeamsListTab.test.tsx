@@ -147,6 +147,7 @@ function buildCard(overrides: {
             points: overrides.points,
           }
         : null,
+    manager: null,
   };
 }
 

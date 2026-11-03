@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { visibleRatingText } from "../lib/playerKnowledge";
 import { useTranslation } from "react-i18next";
 
 import type { TeamData } from "../store/gameStore";
@@ -20,7 +21,7 @@ interface TeamSelectionGridProps {
   teamGroups: TeamGroup[];
   selectedTeamId: string | null;
   onSelectTeam: (teamId: string) => void;
-  getTeamAvgOvr: (teamId: string) => number;
+  getTeamAvgOvr: (teamId: string) => number | null;
   getTeamPlayerCount: (teamId: string) => number;
 }
 
@@ -163,7 +164,7 @@ export default function TeamSelectionGrid({
                               label={t("teamSelect.avgOvr")}
                               value={
                                 <span className="font-heading text-lg font-bold text-primary-500">
-                                  {avgOvr}
+                                  {visibleRatingText(avgOvr)}
                                 </span>
                               }
                             />
