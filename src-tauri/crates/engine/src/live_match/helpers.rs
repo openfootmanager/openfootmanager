@@ -2,8 +2,8 @@ use rand::Rng;
 
 use crate::event::{DangerBand, FoulSeverity, GoalContext, SaveQuality};
 use crate::shared::{
-    PlayStylePhase, PlayerSnap, home_mod, play_style_modifier, tactics_pressing_fatigue,
-    tactics_pressing_press,
+    PlayStylePhase, PlayerSnap, condition_factor, home_mod, play_style_modifier,
+    tactics_pressing_fatigue, tactics_pressing_press,
 };
 use crate::types::{PlayerData, Position, Side, TeamData};
 
@@ -52,10 +52,8 @@ impl LiveMatchState {
             .get(&player.id)
             .copied()
             .unwrap_or(50.0);
-        // At 100% condition: full skill. At 50%: ~80% skill. At 0%: ~60% skill.
-        let factor = 0.6 + 0.4 * (condition / 100.0);
         // Out of position, he plays like a weaker player (`PlayerData::line_familiarity`).
-        base_skill * factor * player.familiarity
+        base_skill * condition_factor(condition) * player.familiarity
     }
 
     // -----------------------------------------------------------------------
@@ -88,10 +86,11 @@ impl LiveMatchState {
             return PlayerSnap::from(keeper);
         }
         let team = self.team_ref(side);
-        // No goalkeeper available — pick first available
+        // No goalkeeper available: the first player still on the pitch goes in, keeping his own
+        // attributes but out of position, at his goalkeeping factor.
         for p in &team.players {
             if !self.sent_off.contains(&p.id) {
-                return PlayerSnap::from(p);
+                return PlayerSnap::playing_in(p, Position::Goalkeeper);
             }
         }
         // Everyone is sent off, or there is nobody at all. `create_live_match`
@@ -100,7 +99,7 @@ impl LiveMatchState {
         // an empty squad is a window that stops responding.
         team.players
             .first()
-            .map(PlayerSnap::from)
+            .map(|p| PlayerSnap::playing_in(p, Position::Goalkeeper))
             .unwrap_or_else(PlayerSnap::nobody)
     }
 

@@ -106,6 +106,16 @@ impl PlayerSnap {
         }
     }
 
+    /// `p` picked to play in `line`, at his factor there. Picked from his own line this is
+    /// `from`; picked from another (an outfielder in goal, a midfielder up front because no
+    /// forward is left), he keeps his own attributes but plays out of position.
+    pub(crate) fn playing_in(p: &PlayerData, line: Position) -> Self {
+        Self {
+            familiarity: p.familiarity_in(line),
+            ..Self::from(p)
+        }
+    }
+
     pub fn has_trait(&self, name: &str) -> bool {
         self.traits.iter().any(|t| t == name)
     }
@@ -158,10 +168,20 @@ pub(crate) fn snap_from_squad<R: Rng>(
         &candidates
     };
     if !pool.is_empty() {
-        return Some(PlayerSnap::from(pool[rng.random_range(0..pool.len())]));
+        let picked = pool[rng.random_range(0..pool.len())];
+        return Some(PlayerSnap::playing_in(picked, preferred));
     }
     // Everyone available has been sent off: anyone on the teamsheet will do.
-    players.first().map(PlayerSnap::from)
+    players
+        .first()
+        .map(|player| PlayerSnap::playing_in(player, preferred))
+}
+
+/// The share of his skill a player brings at `condition` (0 to 100): all of it fresh, about 80%
+/// half spent, 60% at nothing left. The live match plays him at it, and the AI weighs a
+/// substitute by it.
+pub(crate) fn condition_factor(condition: f64) -> f64 {
+    0.6 + 0.4 * (condition / 100.0)
 }
 
 pub(crate) fn trait_bonus(snap: &PlayerSnap, context: TraitContext) -> f64 {

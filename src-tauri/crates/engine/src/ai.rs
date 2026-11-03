@@ -32,6 +32,7 @@
 use rand::{Rng, RngExt};
 
 use crate::live_match::{AiObservation, LiveMatchState, MatchCommand, MatchPhase};
+use crate::shared::condition_factor;
 use crate::types::{
     BreakSpeed, CounterPressDuration, DefensiveLine, DefensiveShape, PlayStyle, PlayerData,
     PlayerRole, Position, PressingIntensity, Side, TacticalDial, TacticsConfig, TacticsPitchWidth,
@@ -475,49 +476,45 @@ fn find_best_bench_replacement<'a>(
     obs: &AiObservation<'_>,
     preferred_role: Option<PlayerRole>,
 ) -> Option<&'a PlayerData> {
-    // If a role preference is set, try to find a position+role match first
-    if let Some(role) = preferred_role {
-        let mut role_candidates: Vec<&PlayerData> = bench
-            .iter()
-            .filter(|p| p.position == preferred_position && p.role == role && obs.available(p))
-            .collect();
-        role_candidates.sort_by(|a, b| {
-            b.overall()
-                .partial_cmp(&a.overall())
+    // What he would bring, which is what every search below ranks by: his rating, at the share
+    // his condition leaves him, in the line he enters. A substitute takes the replaced player's
+    // line (`entering_line`), which is not always the one the manager hoped to fill, so a
+    // higher-rated player who is out of position there, or spent, can bring less than a
+    // slightly lower-rated one who can play it fresh.
+    let brings = |p: &PlayerData| {
+        p.overall() * condition_factor(obs.condition_of(p)) * p.familiarity_in(entering_line)
+    };
+    // A stable sort, best first: of two who bring the same, the one listed first on the bench.
+    let best = |mut candidates: Vec<&'a PlayerData>| {
+        candidates.sort_by(|a, b| {
+            brings(b)
+                .partial_cmp(&brings(a))
                 .unwrap_or(std::cmp::Ordering::Equal)
         });
-        if let Some(best) = role_candidates.first() {
-            return Some(*best);
-        }
+        candidates.first().copied()
+    };
+    let available = || bench.iter().filter(|p| obs.available(p));
+
+    // A role preference first: a position-and-role match.
+    if let Some(role) = preferred_role
+        && let Some(on) = best(
+            available()
+                .filter(|p| p.position == preferred_position && p.role == role)
+                .collect(),
+        )
+    {
+        return Some(on);
     }
-
-    // First try exact position match, sorted by overall
-    let mut candidates: Vec<&PlayerData> = bench
-        .iter()
-        .filter(|p| p.position == preferred_position && obs.available(p))
-        .collect();
-    candidates.sort_by(|a, b| {
-        b.overall()
-            .partial_cmp(&a.overall())
-            .unwrap_or(std::cmp::Ordering::Equal)
-    });
-
-    if let Some(best) = candidates.first() {
-        return Some(*best);
+    // Then the position.
+    if let Some(on) = best(
+        available()
+            .filter(|p| p.position == preferred_position)
+            .collect(),
+    ) {
+        return Some(on);
     }
-
-    // Fallback: any bench player, by what he would bring to the line he enters. A substitute
-    // takes the replaced player's line (`entering_line`), which is not always the one the
-    // manager hoped to fill, so a higher-rated player who is out of position there can bring
-    // less than a slightly lower-rated one who can play it.
-    let in_line = |p: &PlayerData| p.overall() * p.familiarity_in(entering_line);
-    let mut all: Vec<&PlayerData> = bench.iter().filter(|p| obs.available(p)).collect();
-    all.sort_by(|a, b| {
-        in_line(b)
-            .partial_cmp(&in_line(a))
-            .unwrap_or(std::cmp::Ordering::Equal)
-    });
-    all.first().copied()
+    // Then anyone.
+    best(available().collect())
 }
 
 // ---------------------------------------------------------------------------
