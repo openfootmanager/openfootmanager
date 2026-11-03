@@ -941,6 +941,7 @@ pub(crate) fn set_piece_takers_among(
 }
 
 mod familiarity;
+pub(crate) use familiarity::line_familiarity;
 
 #[cfg(test)]
 mod tests;
