@@ -293,8 +293,15 @@ const FORM_MINIMUM: usize = 3;
 // p70 and a third of clubs read as leaking; they moved to 3.2 and 1.4. Playing
 // every active fixture on the live engine, with benches and managers, lifted
 // scoring again to about 2.52, and six probe seasons put the pooled p85 at 3.4
-// and p15 at 1.6. Anything that changes how many goals are scored should
-// re-read that table before trusting these.
+// and p15 at 1.6. Calibrating shots on target and their conversion to real
+// football (#1132) brought a club to about 1.6 a game. Of six probe seasons'
+// 1,800 sliding windows, 15.2% conceded at least 2.4 and 18.9% scored at most 0.8
+// (1.0 would cover 27.6%, 0.6 10.7%): windows move in steps of 0.2, so 0.8 is the
+// nearest match to the leaky tail. These shares are a calibration proxy, printed
+// by the probe, not how often a trigger fires in play, where a club's form is read
+// once per weekly review, sometimes over three or four matches. Anything that
+// changes how many goals are scored should re-read that table before trusting
+// these; the probe's guard test fails when it moves.
 //
 // The first pass used 2.2 and 0.8, which read like a matched pair and were
 // nothing of the kind: 2.2 sat just above the median and fired for two clubs in
@@ -303,9 +310,9 @@ const FORM_MINIMUM: usize = 3;
 // and the reaction table came out as one column of compact blocks.
 
 /// Conceding at this rate says the plan is not holding, whatever the badge says.
-const LEAKY: f64 = 3.4;
+const LEAKY: f64 = 2.4;
 /// Scoring at this rate says the same about the other end.
-const BLUNT: f64 = 1.6;
+const BLUNT: f64 = 0.8;
 
 struct FormReading {
     conceded_per_game: f64,
