@@ -1263,6 +1263,15 @@
     "employed": "Работает",
     "unemployed": "Без клуба",
     "reputation": "Репутация",
+    "reputationBand": {
+      "world_class": "Мировой уровень",
+      "established": "Признанный",
+      "great": "Отличный",
+      "good": "Хороший",
+      "average": "Средний",
+      "below_average": "Ниже среднего",
+      "unknown": "Неизвестный"
+    },
     "winRate": "Процент побед",
     "matches": "Матчи",
     "currentClub": "Текущий клуб",

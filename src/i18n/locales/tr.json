@@ -1263,6 +1263,15 @@
     "employed": "Görevde",
     "unemployed": "Kulüpsüz",
     "reputation": "İtibar",
+    "reputationBand": {
+      "world_class": "Dünya klasında",
+      "established": "Saygın",
+      "great": "Çok iyi",
+      "good": "İyi",
+      "average": "Orta",
+      "below_average": "Ortalama altı",
+      "unknown": "Tanınmıyor"
+    },
     "winRate": "Galibiyet oranı",
     "matches": "Maçlar",
     "currentClub": "Mevcut kulüp",
