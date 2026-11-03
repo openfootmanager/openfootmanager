@@ -48,14 +48,19 @@ const ContextMenu = forwardRef<ContextMenuHandle, ContextMenuProps>(function Con
     onOpenChangeRef.current = onOpenChange;
   }, [onOpenChange]);
 
+  // Whether the menu is open, as last set: read and written outside a state updater, because an
+  // updater runs while this component renders (and twice under StrictMode), and the owner's
+  // `onOpenChange` sets the owner's state.
+  const openRef = useRef(false);
+
   const setOpen = useCallback((next: boolean) => {
     // Notify only on real transitions so consumers wiring aria-expanded on
     // their trigger don't get spurious "closed" pings when closeFromOther
     // fires while we're already closed.
-    setVisible((prev) => {
-      if (prev !== next) onOpenChangeRef.current?.(next);
-      return next;
-    });
+    if (openRef.current === next) return;
+    openRef.current = next;
+    setVisible(next);
+    onOpenChangeRef.current?.(next);
   }, []);
 
   const closeAndRestoreFocus = useCallback(() => {
