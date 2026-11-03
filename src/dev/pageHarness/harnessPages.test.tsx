@@ -40,7 +40,8 @@ describe("the page harness's pages", () => {
   /**
    * Given each page the harness can mount, on the fixture career
    * When it has settled
-   * Then the fixture answered every command it asked for. A command a page starts asking for with
+   * Then the page rendered (it did not fall back to the "left the dashboard" alert) and the
+   *      fixture answered every command it asked for. A command a page starts asking for with
    *      no answer in fixtureAnswers.ts fails here, in the required frontend job, rather than only
    *      in the layout check, which is not a required job and so can sit red unnoticed.
    *      A command a page asks for later than the settle time is not seen: this guard can miss a
@@ -52,11 +53,19 @@ describe("the page harness's pages", () => {
       const root = document.createElement("div");
       document.body.append(root);
 
-      mounted = await mountPageHarness(root, page, readStyleGuideOptions(""), "en");
+      // The first render is flushed inside act, so it has committed before the settle timer starts.
+      await act(async () => {
+        mounted = await mountPageHarness(root, page, readStyleGuideOptions(""), "en");
+      });
       await act(async () => {
         await new Promise((resolve) => setTimeout(resolve, SETTLE_MS));
       });
 
+      // An empty unanswered list means nothing only if the page rendered: a harness that never
+      // activated the game draws nothing and asks for nothing.
+      expect(useGameStore.getState().hasActiveGame).toBe(true);
+      expect(root.querySelectorAll("*").length).toBeGreaterThan(50);
+      expect(root.querySelector('[role="alert"]')).toBeNull();
       expect(window.__pageHarness?.unanswered).toEqual([]);
     },
     15_000,
