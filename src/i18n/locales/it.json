@@ -1891,7 +1891,7 @@
     "skipShootoutPickerDesc": "Avvia i calci di rigore nell'ordine automatico, senza chiederti di impostarlo",
     "savesData": "Salvataggi e dati",
     "autoSave": "Salvataggio automatico",
-    "autoSaveDesc": "Salva automaticamente la partita dopo ogni giorno",
+    "autoSaveDesc": "Salva automaticamente la partita ogni settimana",
     "exportWorld": "Esporta database del mondo",
     "exportWorldDesc": "Salva i dati del mondo attuale come file JSON condivisibile",
     "export": "Esporta",
@@ -2755,6 +2755,9 @@
       "critical": "Critico"
     },
     "error": {
+      "autoSave": {
+        "failed": "Il salvataggio automatico non è riuscito a salvare la partita. I progressi dall'ultimo salvataggio non sono ancora salvati: salva tu stesso e controlla che ci sia spazio libero sul disco."
+      },
       "squadFloor": {
         "wouldLeaveShort": "Questo giocatore non può partire: la rosa scenderebbe sotto il minimo che un club deve mantenere. Reparto interessato: {{group}}.",
         "wouldLeaveSeniorsShort": "Questo giocatore non può partire: il club resterebbe con meno di {{floor}} giocatori in prima squadra, il minimo che un club deve mantenere."

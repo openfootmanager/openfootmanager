@@ -1872,7 +1872,7 @@
     "skipShootoutPickerDesc": "Lancer les séances de tirs au but dans l’ordre automatique, sans vous demander de le choisir",
     "savesData": "Sauvegardes et Données",
     "autoSave": "Sauvegarde Auto",
-    "autoSaveDesc": "Sauvegarder automatiquement après chaque jour",
+    "autoSaveDesc": "Sauvegarder automatiquement chaque semaine",
     "exportWorld": "Exporter la Base de Données",
     "exportWorldDesc": "Sauvegarder les données du monde en fichier JSON partageable",
     "export": "Exporter",
@@ -2755,6 +2755,9 @@
       "critical": "Critique"
     },
     "error": {
+      "autoSave": {
+        "failed": "La sauvegarde automatique n'a pas pu enregistrer votre partie. Votre progression depuis la dernière sauvegarde n'est pas encore enregistrée : sauvegardez vous-même et vérifiez qu'il reste de l'espace disque."
+      },
       "squadFloor": {
         "wouldLeaveShort": "Ce joueur ne peut pas partir : l'effectif passerait sous le minimum qu'un club doit conserver. Ligne concernée : {{group}}.",
         "wouldLeaveSeniorsShort": "Ce joueur ne peut pas partir : le club aurait moins de {{floor}} joueurs dans son effectif professionnel, le minimum qu'un club doit conserver."

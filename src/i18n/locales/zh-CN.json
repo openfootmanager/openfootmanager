@@ -1872,7 +1872,7 @@
     "skipShootoutPickerDesc": "点球大战直接使用自动顺序，不再询问你",
     "savesData": "存档与数据",
     "autoSave": "自动存档",
-    "autoSaveDesc": "每天结束后自动保存游戏",
+    "autoSaveDesc": "每周自动保存游戏",
     "exportWorld": "导出世界数据库",
     "exportWorldDesc": "将当前世界数据保存为可分享的 JSON 文件",
     "export": "导出",
@@ -2755,6 +2755,9 @@
       "critical": "体能危急"
     },
     "error": {
+      "autoSave": {
+        "failed": "自动保存未能保存您的游戏。自上次保存以来的进度尚未保存：请手动保存，并检查磁盘是否有可用空间。"
+      },
       "squadFloor": {
         "wouldLeaveShort": "该球员无法离队：阵容将低于俱乐部必须保留的最低人数。涉及位置：{{group}}。",
         "wouldLeaveSeniorsShort": "该球员无法离队：俱乐部一线队将少于 {{floor}} 名球员，低于俱乐部必须保留的最低人数。"
