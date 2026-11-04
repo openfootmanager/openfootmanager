@@ -1,5 +1,5 @@
 import type { AdvanceMatchResultData } from "../../services/advanceTimeService";
-import type { GameStateData } from "../../store/gameStore";
+import type { GameStateData, MessageData } from "../../store/gameStore";
 import { getUserCompetition } from "../../lib/fixtures";
 import { resolveMessage, resolveNewsArticle } from "../../utils/backendI18n";
 
@@ -81,6 +81,11 @@ const ROUTINE_NEWS_CATEGORIES = new Set([
 const NOTABLE_ROUTINE_NEWS_KEYS = new Set(["be.news.loanMove.headline"]);
 
 /** Date portion (YYYY-MM-DD) of an ISO timestamp. */
+/** Urgent outranks High: the digest lists and pauses on both. */
+function isHighPriority(message: MessageData): boolean {
+  return message.priority === "High" || message.priority === "Urgent";
+}
+
 export function toDatePart(iso: string | null | undefined): string {
   return iso ? iso.slice(0, 10) : "";
 }
@@ -190,7 +195,7 @@ export function buildRecapWindow(
     }));
 
   const inbox: RecapHeadline[] = (game.messages ?? [])
-    .filter((message) => inWindow(message.date) && message.priority === "High")
+    .filter((message) => inWindow(message.date) && isHighPriority(message))
     .sort((left, right) => right.date.localeCompare(left.date))
     .slice(0, MAX_PER_SECTION)
     .map((message) => ({
