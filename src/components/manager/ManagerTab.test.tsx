@@ -209,6 +209,26 @@ describe("ManagerTab", () => {
   });
 
   /**
+   * Given a manager the board has warned once
+   * When the Manager tab shows the board
+   * Then it says the board has warned him, and never that it is his final warning
+   */
+  it("says when the board has warned the manager once", async () => {
+    vi.mocked(getManagerStanding).mockResolvedValueOnce({
+      board: "under_threat",
+      fans: "mixed",
+      warning: "warned",
+    });
+    const gameState = createGameState(true);
+    gameState.manager = { ...gameState.manager, satisfaction: 24, fan_approval: 45 };
+
+    render(<ManagerTab gameState={gameState} />);
+
+    expect(await screen.findByText("The board has warned you")).toBeInTheDocument();
+    expect(screen.queryByText("You are on a final warning")).not.toBeInTheDocument();
+  });
+
+  /**
    * Given a manager whose board is satisfied and holds no warning against him
    * When the Manager tab shows the board
    * Then no warning line is shown
