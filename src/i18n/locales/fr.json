@@ -2782,6 +2782,7 @@
         "noSubstitutionsForShootout": "Plus aucun remplacement après la prolongation : la séance de tirs au but est disputée par les joueurs présents sur le terrain au coup de sifflet final.",
         "shootoutOrderNotNow": "L'ordre des tireurs ne peut être fixé qu'après la prolongation, avant le premier tir.",
         "shootoutOrderNotYourSide": "Vous ne pouvez fixer que l'ordre des tireurs de votre équipe.",
+        "notYourSide": "Vous ne pouvez donner des consignes qu'à votre propre équipe.",
         "shootoutOrderNotEligible": "L'ordre des tireurs doit comprendre une seule fois chacun de vos joueurs autorisés à tirer.",
         "playerNotOnPitch": "Le joueur n'est pas sur le terrain",
         "playerAlreadySubstitutedOff": "Ce joueur a déjà été remplacé",

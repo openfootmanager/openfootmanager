@@ -2817,6 +2817,7 @@
         "noSubstitutionsForShootout": "No substitutions once extra time is over: the shootout is taken by the players on the pitch at the final whistle.",
         "shootoutOrderNotNow": "The shootout order can only be set after extra time, before the first kick.",
         "shootoutOrderNotYourSide": "You can only set your own side's shootout order.",
+        "notYourSide": "You can only give orders to your own team.",
         "shootoutOrderNotEligible": "The shootout order must list each of your eligible players exactly once.",
         "playerNotOnPitch": "Player not on pitch",
         "playerAlreadySubstitutedOff": "Player has already been substituted off",

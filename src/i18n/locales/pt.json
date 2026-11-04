@@ -2782,6 +2782,7 @@
         "noSubstitutionsForShootout": "Não há substituições depois do prolongamento: o desempate por penáltis é feito pelos jogadores em campo no apito final.",
         "shootoutOrderNotNow": "A ordem dos marcadores só pode ser definida depois do prolongamento, antes do primeiro penálti.",
         "shootoutOrderNotYourSide": "Só podes definir a ordem dos marcadores da tua equipa.",
+        "notYourSide": "Só podes dar ordens à tua própria equipa.",
         "shootoutOrderNotEligible": "A ordem dos marcadores tem de incluir uma única vez cada um dos teus jogadores disponíveis.",
         "playerNotOnPitch": "O jogador não está em campo",
         "playerAlreadySubstitutedOff": "Esse jogador já foi substituído",
