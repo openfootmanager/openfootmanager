@@ -746,7 +746,7 @@ pub(crate) fn set_tactics_phase_internal(
 ) -> Result<Game, String> {
     use domain::team::*;
     info!("[cmd] set_tactics_phase");
-    mutate_active_game_for(state, career, |game| {
+    let game = mutate_active_game_for(state, career, |game| {
         let team = user_team_mut(game)?;
         let p = &mut team.tactics_phase;
         if let Some(v) = patch.build_up_style {
@@ -814,7 +814,9 @@ pub(crate) fn set_tactics_phase_internal(
         }
 
         Ok(())
-    })
+    })?;
+    crate::application::live_match::follow_saved_dials_before_kick_off(state, &game)?;
+    Ok(game)
 }
 
 #[cfg(test)]
