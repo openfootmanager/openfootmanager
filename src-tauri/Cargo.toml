@@ -104,6 +104,11 @@ gtk = "0.18"
 # could call, and a mutant that emptied it survived (cloud mutants on #930).
 [dev-dependencies]
 tauri = { version = "2", features = ["test"] }
+# `tests/backend_keys.rs` parses the shipped source to find every translation key it emits. A
+# parser, not a regex: it has to tell a `#[cfg(test)]` item and a doc comment from shipped code.
+# Both are already in the lock through the proc-macro crates.
+proc-macro2 = "1"
+syn = { version = "2", features = ["full", "visit"] }
 # Pinned for the reason given in `crates/domain/Cargo.toml`.
 ts-rs = "=12.0.1"
 

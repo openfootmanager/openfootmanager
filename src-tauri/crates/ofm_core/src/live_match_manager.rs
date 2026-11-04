@@ -6,7 +6,9 @@
 use crate::player_rating::formation_slots;
 use crate::turn::matchday_lookups::MatchdayLookups;
 pub use crate::turn::squad::auto_select_set_pieces;
-use crate::turn::squad::{build_team_with_bench_from, line_familiarity, set_piece_takers_among};
+use crate::turn::squad::{
+    build_team_with_bench_from, domain_to_engine_tactics, line_familiarity, set_piece_takers_among,
+};
 
 use rand_chacha::ChaCha12Rng;
 use serde::{Deserialize, Serialize};
@@ -123,6 +125,7 @@ pub enum MatchMode {
 
 /// A shootout order for a side the user does not manage, or from a user who manages neither.
 const SHOOTOUT_ORDER_NOT_YOUR_SIDE: &str = "be.error.liveMatch.shootoutOrderNotYourSide";
+const NOT_YOUR_SIDE: &str = "be.error.liveMatch.notYourSide";
 
 pub struct LiveMatchSession {
     pub match_state: LiveMatchState,
@@ -244,11 +247,19 @@ impl LiveMatchSession {
         snapshot
     }
 
+    /// A manager's order for his own team. Every command names the side it is for; one for the
+    /// other side, or for a match the user is not playing in (`user_side` None), is refused and
+    /// changes nothing. The screens only ever build commands for the user's side, but an agent
+    /// sends its own, and one naming the opponent took off their best players, made their keeper
+    /// the penalty taker and rewrote their tactics (#1192). The AI picks the other side's orders
+    /// (`apply_ai_decisions`), which do not come through here.
     pub fn apply_command(&mut self, cmd: MatchCommand) -> Result<(), String> {
-        if let MatchCommand::SetShootoutOrder { side, .. } = &cmd
-            && self.user_side != Some(*side)
-        {
-            return Err(SHOOTOUT_ORDER_NOT_YOUR_SIDE.into());
+        if self.user_side != Some(cmd.side()) {
+            let refusal = match cmd {
+                MatchCommand::SetShootoutOrder { .. } => SHOOTOUT_ORDER_NOT_YOUR_SIDE,
+                _ => NOT_YOUR_SIDE,
+            };
+            return Err(refusal.into());
         }
         if let MatchCommand::PreMatchSwap {
             side,
@@ -307,6 +318,41 @@ impl LiveMatchSession {
 
     pub fn is_finished(&self) -> bool {
         self.match_state.is_finished()
+    }
+
+    /// The session is built on match day, before the pre-match screen opens, so dials saved
+    /// there are handed to the match too. Once it has kicked off, the live commands change them
+    /// instead. Only the dials: a role changed in the session is left alone.
+    pub fn follow_saved_dials_before_kick_off(&mut self, game: &Game) -> Result<(), String> {
+        let Some((side, team)) = self.user_team_before_kick_off(game) else {
+            return Ok(());
+        };
+        for dial in domain_to_engine_tactics(&team.tactics_phase).dials() {
+            self.match_state
+                .apply_command(MatchCommand::ChangeTacticalDial { side, dial })?;
+        }
+        Ok(())
+    }
+
+    /// The user's side and saved team, while this career's match still waits at kick-off.
+    fn user_team_before_kick_off<'g>(
+        &self,
+        game: &'g Game,
+    ) -> Option<(Side, &'g domain::team::Team)> {
+        if self.match_state.phase() != MatchPhase::PreKickOff
+            || self.career_token != game.career_token
+        {
+            return None;
+        }
+        let side = self.user_side?;
+        let team_id = match side {
+            Side::Home => &self.home_team_id,
+            Side::Away => &self.away_team_id,
+        };
+        game.teams
+            .iter()
+            .find(|team| &team.id == team_id)
+            .map(|team| (side, team))
     }
 
     fn apply_ai_decisions(&mut self) {
@@ -523,16 +569,22 @@ fn create_live_match_with(
         away_auto_selection,
     );
 
-    // Determine user side
-    let user_side = game.manager.team_id.as_ref().and_then(|tid| {
-        if *tid == home_team_id {
-            Some(Side::Home)
-        } else if *tid == away_team_id {
-            Some(Side::Away)
-        } else {
-            None
-        }
-    });
+    // The user manages their side only in a live match. Watched as a spectator, or played
+    // instantly, nobody else would: the screen turns the user's controls off and the AI skips
+    // the user's side, so the AI manages both dugouts, as it does for a delegated match (#1211).
+    let user_side = if mode == MatchMode::Live {
+        game.manager.team_id.as_ref().and_then(|tid| {
+            if *tid == home_team_id {
+                Some(Side::Home)
+            } else if *tid == away_team_id {
+                Some(Side::Away)
+            } else {
+                None
+            }
+        })
+    } else {
+        None
+    };
 
     // Build AI profiles from team reputation
     let home_rep = game
@@ -629,7 +681,6 @@ pub(crate) fn play_unwatched_fixture_with(
         allows_extra_time,
         lookups,
     )?;
-    session.user_side = None;
     let league_round_context = session.league_round_context.clone();
     session.run_to_completion();
 

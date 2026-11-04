@@ -647,7 +647,7 @@
     "lastPage": "Dernière page",
     "sortBy": "Trier par",
     "sortAscending": "Croissant",
-    "lineupLoading": "Les données de postes sont encore en cours de chargement : les changements de composition ne sont pas encore disponibles."
+    "lineupLoading": "L'effectif est encore en cours de chargement : les changements de composition ne sont pas encore disponibles."
   },
   "teamSelection": {
     "title": "Choisissez Votre Club",
@@ -1108,6 +1108,8 @@
     "transferBudget": "Budget Transferts",
     "seasonIncome": "Revenus de Saison",
     "seasonExpenses": "Dépenses de Saison",
+    "moneyIn": "Entrées d'argent",
+    "moneyOut": "Sorties d'argent",
     "perWeekSuffix": "/sem",
     "snapshotLoadFailed": "Impossible de charger les finances du club.",
     "perYearSuffix": "/an",
@@ -2798,6 +2800,7 @@
         "noSubstitutionsForShootout": "Plus aucun remplacement après la prolongation : la séance de tirs au but est disputée par les joueurs présents sur le terrain au coup de sifflet final.",
         "shootoutOrderNotNow": "L'ordre des tireurs ne peut être fixé qu'après la prolongation, avant le premier tir.",
         "shootoutOrderNotYourSide": "Vous ne pouvez fixer que l'ordre des tireurs de votre équipe.",
+        "notYourSide": "Vous ne pouvez donner des consignes qu'à votre propre équipe.",
         "shootoutOrderNotEligible": "L'ordre des tireurs doit comprendre une seule fois chacun de vos joueurs autorisés à tirer.",
         "playerNotOnPitch": "Le joueur n'est pas sur le terrain",
         "playerAlreadySubstitutedOff": "Ce joueur a déjà été remplacé",
@@ -2817,6 +2820,7 @@
         "missingSchema": "Un fichier du package n’a pas de champ « schema ».",
         "worldExportNotPackage": "Ce dossier est une sauvegarde de monde exportée, pas un projet de paquet. Les mondes exportés utilisent un format différent et ne peuvent pas être modifiés ici.",
         "notAProjectDirectory": "Ce dossier n'est pas un projet de paquet. Choisissez le dossier qui contient le package.json du paquet — ou, pour un paquet .ofm installé, utilisez « Ouvrir un fichier .ofm ».",
+        "saveWouldDropItem": "Non enregistré : {{file}} contient une entrée que l'éditeur ne peut ni lire ni conserver en JSON. Corrigez cette entrée dans le fichier, puis enregistrez à nouveau.",
         "unknownSchema": "Schéma inconnu « {{schema}} ».",
         "invalidEntity": "Une entrée « {{schema}} » est invalide : {{detail}}",
         "duplicateWorld": "Le paquet a déjà un manifeste dans « {{first}} » ; un paquet ne peut avoir qu'un seul fichier « world ».",
@@ -2857,6 +2861,8 @@
       },
       "competitionDef": {
         "invalidCalendar": "Calendrier de compétition invalide : vérifiez la famille de divisions, le niveau, la phase et la date de clôture.",
+        "invalidSeasonMonth": "Le mois de début de saison {{month}} n'est pas valide (il doit être compris entre 1 et 12).",
+        "invalidSeasonDay": "Le jour de début de saison {{day}} n'est pas un jour valide du mois de début.",
         "invalidEmbedded": "Les définitions de compétitions de ce monde sont invalides et n'ont pas pu être chargées.",
         "invalidStandalone": "Le fichier de définition de compétitions sélectionné est invalide.",
         "parseFailed": "Le fichier de définition de compétitions n'a pas pu être lu en tant que JSON.",
@@ -2988,6 +2994,7 @@
         "cannotBidOnOwnPlayer": "Vous ne pouvez pas faire une offre pour votre propre joueur",
         "playerHasNoTeam": "Le joueur n'a pas d'équipe",
         "insufficientFunds": "Fonds insuffisants",
+        "buyerCannotAffordFee": "Le club acheteur ne peut plus payer cette indemnité, le transfert ne peut donc pas se faire.",
         "transferBudgetTooLow": "Le budget transferts est trop faible",
         "playerNotOwnedByUser": "Joueur introuvable ou ne vous appartenant pas",
         "offerNotPending": "Offre introuvable ou plus en attente",
@@ -2997,6 +3004,7 @@
         "loanCounterMustImproveTerms": "La contre-offre de prêt doit améliorer l'offre actuelle",
         "playerNotLoanListed": "Le joueur n'est pas listé pour un prêt",
         "playerAlreadyLoaned": "Le joueur est déjà prêté",
+        "playerAlreadySold": "Ce joueur a déjà été vendu. Le transfert sera effectif à l'ouverture du mercato.",
         "invalidLoanEndDate": "La date de fin du prêt doit être comprise entre 30 jours et un an à partir d'aujourd'hui",
         "invalidLoanWageContribution": "La prise en charge salariale du prêt doit être comprise entre 0% et 100%",
         "invalidLoanBuyOption": "L'option d'achat du prêt doit être supérieure à zéro",
@@ -3524,6 +3532,7 @@
         },
         "notes": {
           "managerBlocked": "Tu m'as dit de ne pas rouvrir les discussions contractuelles pour l'instant.",
+          "markedLetExpire": "Tu as indiqué de laisser ce contrat expirer, donc je n'ai pas ouvert de discussions.",
           "completed": "J'ai pu régler ce dossier sans que tu aies besoin d'intervenir.",
           "completedToKeepSquadFloor": "C'est fait, au-delà de la politique salariale du conseil. Le conseil l'a autorisé, car sans ce joueur nous passerions sous l'effectif minimum.",
           "beyondLimits": "Le clan du joueur veut environ {{wage}}/semaine pour {{years}} ans, au-delà des limites de délégation.",
@@ -3565,6 +3574,12 @@
       "scoutReport": {
         "subject": "Rapport de scout : {{player}}",
         "body": "Votre recruteur {{scout}} a terminé son évaluation de {{player}}. Rapport complet disponible dans la section recrutement."
+      },
+      "scoutingCancelled": {
+        "subject": "Mission de supervision annulée",
+        "body": "Le recruteur que vous aviez envoyé observer {{player}} a quitté le club, il n'y aura donc pas de rapport. Envoyez un autre recruteur si vous en voulez toujours un.",
+        "bodyWithoutPlayer": "Le recruteur que vous aviez envoyé observer un joueur a quitté le club, et ce joueur ne figure plus dans nos fichiers, il n'y aura donc pas de rapport.",
+        "youthBody": "Le recruteur que vous aviez envoyé chercher des jeunes a quitté le club, la recherche est donc annulée. Lancez-en une nouvelle avec un autre recruteur si vous la voulez toujours."
       },
       "boardWarning": {
         "subject": "Inquiétude du Conseil — Bilan de Performance",
@@ -3628,6 +3643,10 @@
         "subject": "Prêt convenu : {{player}}",
         "bodyWithOption": "{{player}} sera prêté par {{parent}} à {{borrower}} du {{start}} au {{end}}. {{borrower}} prendra en charge {{contribution}}% du salaire. Option d’achat : {{fee}}.",
         "bodyNoOption": "{{player}} sera prêté par {{parent}} à {{borrower}} du {{start}} au {{end}}. {{borrower}} prendra en charge {{contribution}}% du salaire. Aucune option d’achat."
+      },
+      "loanRegistrationFailed": {
+        "subject": "Prêt annulé : {{player}}",
+        "body": "Le prêt convenu de {{player}} de {{parent}} à {{borrower}}, prévu le {{start}}, ne peut pas avoir lieu : le joueur n'est plus sous contrat avec {{parent}}."
       },
       "loanOffer": {
         "subject": "Offre de prêt pour {{player}}",

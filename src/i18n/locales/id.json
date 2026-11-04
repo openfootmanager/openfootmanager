@@ -647,7 +647,7 @@
     "lastPage": "Halaman terakhir",
     "sortBy": "Urutkan berdasarkan",
     "sortAscending": "Naik",
-    "lineupLoading": "Data posisi masih dimuat, sehingga perubahan susunan pemain belum tersedia."
+    "lineupLoading": "Skuad masih dimuat, jadi perubahan susunan pemain belum tersedia."
   },
   "teamSelection": {
     "title": "Pilih Klub",
@@ -1108,6 +1108,8 @@
     "transferBudget": "Anggaran Transfer",
     "seasonIncome": "Pendapatan Musim",
     "seasonExpenses": "Pengeluaran Musim",
+    "moneyIn": "Uang masuk",
+    "moneyOut": "Uang keluar",
     "perWeekSuffix": "/mg",
     "snapshotLoadFailed": "Tidak dapat memuat keuangan klub.",
     "perYearSuffix": "/th",
@@ -2833,6 +2835,7 @@
         "noSubstitutionsForShootout": "Tidak ada pergantian pemain setelah babak tambahan selesai: adu penalti diambil oleh pemain yang ada di lapangan saat peluit akhir.",
         "shootoutOrderNotNow": "Urutan penendang hanya bisa diatur setelah babak tambahan, sebelum tendangan pertama.",
         "shootoutOrderNotYourSide": "Kamu hanya bisa mengatur urutan penendang timmu sendiri.",
+        "notYourSide": "Kamu hanya bisa memberi instruksi kepada timmu sendiri.",
         "shootoutOrderNotEligible": "Urutan penendang harus memuat setiap pemainmu yang berhak menendang tepat satu kali.",
         "playerNotOnPitch": "Pemain tidak berada di lapangan",
         "playerAlreadySubstitutedOff": "Pemain sudah diganti",
@@ -2852,6 +2855,7 @@
         "missingSchema": "Berkas paket kekurangan bidang \"schema\".",
         "worldExportNotPackage": "Folder ini adalah dunia yang diekspor, bukan proyek paket. Dunia yang diekspor menggunakan format berbeda dan tidak dapat diedit di sini.",
         "notAProjectDirectory": "Ini bukan folder proyek paket. Pilih folder yang berisi package.json paket tersebut — atau, untuk paket .ofm yang terpasang, gunakan \"Buka File .ofm\".",
+        "saveWouldDropItem": "Tidak disimpan: {{file}} berisi entri yang tidak bisa dibaca maupun dipertahankan editor dalam JSON. Perbaiki entri itu di berkas, lalu simpan lagi.",
         "unknownSchema": "Skema \"{{schema}}\" tidak dikenal.",
         "invalidEntity": "Entri \"{{schema}}\" tidak valid: {{detail}}",
         "duplicateWorld": "Paket sudah memiliki manifes di \"{{first}}\"; sebuah paket hanya boleh memiliki satu berkas \"world\".",
@@ -2900,6 +2904,8 @@
       },
       "competitionDef": {
         "invalidCalendar": "Kalender kompetisi tidak valid: periksa kelompok divisi, tingkat, fase, dan tanggal penutupan.",
+        "invalidSeasonMonth": "Bulan mulai musim {{month}} tidak valid (harus 1–12).",
+        "invalidSeasonDay": "Hari mulai musim {{day}} bukan hari yang valid pada bulan mulai.",
         "invalidEmbedded": "Definisi kompetisi dunia ini tidak valid dan tidak dapat dimuat.",
         "invalidStandalone": "Berkas definisi kompetisi yang dipilih tidak valid.",
         "parseFailed": "Berkas definisi kompetisi tidak dapat dibaca sebagai JSON.",
@@ -2996,6 +3002,7 @@
         "cannotBidOnOwnPlayer": "Tidak dapat menawar pemain sendiri",
         "playerHasNoTeam": "Pemain tidak memiliki tim",
         "insufficientFunds": "Dana tidak mencukupi",
+        "buyerCannotAffordFee": "Klub pembeli tidak lagi sanggup membayar biaya ini, jadi transfer tidak bisa terjadi.",
         "transferBudgetTooLow": "Anggaran transfer terlalu rendah",
         "playerNotOwnedByUser": "Pemain tidak ditemukan atau bukan milik kamu",
         "offerNotPending": "Tawaran tidak ditemukan atau tidak tertunda",
@@ -3005,6 +3012,7 @@
         "loanCounterMustImproveTerms": "Tawaran balasan pinjaman harus memperbaiki tawaran saat ini",
         "playerNotLoanListed": "Pemain tidak terdaftar untuk dipinjamkan",
         "playerAlreadyLoaned": "Pemain sudah dipinjamkan",
+        "playerAlreadySold": "Pemain ini sudah dijual. Transfer akan terjadi saat jendela transfer dibuka.",
         "invalidLoanEndDate": "Tanggal akhir pinjaman harus antara 30 hari dan satu tahun dari hari ini",
         "invalidLoanWageContribution": "Kontribusi gaji pinjaman harus antara 0% dan 100%",
         "invalidLoanBuyOption": "Opsi pembelian pinjaman harus lebih besar dari nol",
@@ -3524,6 +3532,7 @@
         },
         "notes": {
           "managerBlocked": "Kamu meminta saya untuk belum membuka kembali pembicaraan kontrak.",
+          "markedLetExpire": "Kamu menandai kontrak ini untuk dibiarkan habis, jadi saya tidak membuka pembicaraan.",
           "completed": "Saya berhasil menyelesaikan yang satu ini tanpa perlu kamu turun tangan.",
           "completedToKeepSquadFloor": "Beres, melampaui kebijakan gaji manajemen. Manajemen mengizinkannya karena tanpa pemain ini kita akan turun di bawah skuad minimum.",
           "beyondLimits": "Mereka menginginkan sekitar {{wage}}/minggu untuk {{years}} tahun, yang melebihi batas pendelegasian.",
@@ -3565,6 +3574,12 @@
       "scoutReport": {
         "subject": "Laporan Scout: {{player}}",
         "body": "Scout kamu {{scout}} telah menyelesaikan penilaiannya terhadap {{player}}. Laporan lengkap tersedia di bagian scouting."
+      },
+      "scoutingCancelled": {
+        "subject": "Tugas scout dibatalkan",
+        "body": "Scout yang kamu kirim untuk memantau {{player}} sudah meninggalkan klub, jadi tidak akan ada laporan. Kirim scout lain jika kamu masih membutuhkannya.",
+        "bodyWithoutPlayer": "Scout yang kamu kirim untuk memantau seorang pemain sudah meninggalkan klub, dan pemain itu tidak lagi tercatat, jadi tidak akan ada laporan.",
+        "youthBody": "Scout yang kamu kirim untuk mencari pemain muda sudah meninggalkan klub, jadi pencarian dibatalkan. Mulai pencarian baru dengan scout lain jika kamu masih membutuhkannya."
       },
       "boardWarning": {
         "subject": "Kekhawatiran Manajemen — Tinjauan Performa",
@@ -3628,6 +3643,10 @@
         "subject": "Pinjaman disepakati: {{player}}",
         "bodyWithOption": "{{player}} akan dipinjamkan dari {{parent}} ke {{borrower}} mulai {{start}} hingga {{end}}. {{borrower}} akan menanggung {{contribution}}% gaji. Opsi pembelian: {{fee}}.",
         "bodyNoOption": "{{player}} akan dipinjamkan dari {{parent}} ke {{borrower}} mulai {{start}} hingga {{end}}. {{borrower}} akan menanggung {{contribution}}% gaji. Tanpa opsi pembelian."
+      },
+      "loanRegistrationFailed": {
+        "subject": "Peminjaman dibatalkan: {{player}}",
+        "body": "Peminjaman {{player}} yang disepakati dari {{parent}} ke {{borrower}}, yang dijadwalkan mulai {{start}}, tidak bisa berjalan: pemain itu tidak lagi terikat kontrak dengan {{parent}}."
       },
       "loanOffer": {
         "subject": "Tawaran Pinjaman untuk {{player}}",

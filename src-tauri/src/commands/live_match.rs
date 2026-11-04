@@ -940,7 +940,6 @@ mod tests {
 
         let mut session =
             live_match_manager::create_live_match(&game, 0, MatchMode::Instant, false).unwrap();
-        session.user_side = None;
         session.run_to_completion();
 
         state.set_game(game);
@@ -1010,7 +1009,6 @@ mod tests {
 
         let mut session =
             live_match_manager::create_live_match(&game, 0, MatchMode::Instant, false).unwrap();
-        session.user_side = None;
         session.run_to_completion();
 
         state.set_game(game);
@@ -1064,7 +1062,6 @@ mod tests {
 
         let mut session =
             live_match_manager::create_live_match(&game, 0, MatchMode::Instant, false).unwrap();
-        session.user_side = None;
         // Step only a few minutes — nowhere near full time.
         session.step_many(5);
         assert!(!session.is_finished());
@@ -1625,7 +1622,6 @@ mod tests {
         game.league = Some(cup);
         let mut session =
             live_match_manager::create_live_match(&game, 0, MatchMode::Instant, true).unwrap();
-        session.user_side = None;
         session.run_to_completion();
         assert_eq!(session.competition_id, "cup1");
 
@@ -1731,7 +1727,6 @@ mod tests {
         game.competitions = Vec::new();
         let mut session =
             live_match_manager::create_live_match(&game, 1, MatchMode::Instant, false).unwrap();
-        session.user_side = None;
         session.run_to_completion();
 
         // The stored index no longer exists.

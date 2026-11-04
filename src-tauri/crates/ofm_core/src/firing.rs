@@ -3,7 +3,9 @@ use domain::message::*;
 use domain::news::{NewsArticle, NewsCategory};
 use std::collections::HashMap;
 
-const WARN_THRESHOLD: u8 = 25;
+/// The satisfaction at or below which the board warns its manager (`manager_standing` reads it
+/// for the words the Manager tab shows).
+pub(crate) const WARN_THRESHOLD: u8 = 25;
 const FINAL_WARN_THRESHOLD: u8 = 18;
 const FIRE_THRESHOLD: u8 = 10;
 

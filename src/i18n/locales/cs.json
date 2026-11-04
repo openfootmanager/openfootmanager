@@ -647,7 +647,7 @@
     "lastPage": "Poslední stránka",
     "sortBy": "Seřadit podle",
     "sortAscending": "Vzestupně",
-    "lineupLoading": "Údaje o postech se ještě načítají, změny sestavy proto zatím nejsou dostupné."
+    "lineupLoading": "Kádr se ještě načítá, proto zatím nelze měnit sestavu."
   },
   "teamSelection": {
     "title": "Vyberte si klub",
@@ -1108,6 +1108,8 @@
     "transferBudget": "Přestupový rozpočet",
     "seasonIncome": "Sezónní příjmy",
     "seasonExpenses": "Sezónní výdaje",
+    "moneyIn": "Peníze dovnitř",
+    "moneyOut": "Peníze ven",
     "perWeekSuffix": "/týd",
     "snapshotLoadFailed": "Finance klubu se nepodařilo načíst.",
     "perYearSuffix": "/rok",
@@ -2833,6 +2835,7 @@
         "noSubstitutionsForShootout": "Po skončení prodloužení už nelze střídat: penaltový rozstřel kopou hráči, kteří byli na hřišti při závěrečném hvizdu.",
         "shootoutOrderNotNow": "Pořadí exekutorů lze určit jen po prodloužení, před prvním kopem.",
         "shootoutOrderNotYourSide": "Lze určit jen pořadí exekutorů vlastního týmu.",
+        "notYourSide": "Pokyny lze dávat jen vlastnímu týmu.",
         "shootoutOrderNotEligible": "Pořadí exekutorů musí obsahovat každého hráče, který smí kopat, právě jednou.",
         "playerNotOnPitch": "Hráč není na hřišti",
         "playerAlreadySubstitutedOff": "Hráč již byl vystřídán",
@@ -2852,6 +2855,7 @@
         "missingSchema": "V souboru balíčku chybí pole „schema“.",
         "worldExportNotPackage": "Tato složka je exportovaný svět, nikoli projekt balíčku. Exportované světy používají jiný formát a nelze je zde upravovat.",
         "notAProjectDirectory": "Toto není složka projektu balíčku. Vyberte složku, která obsahuje package.json balíčku — nebo pro nainstalovaný balíček .ofm použijte „Otevřít soubor .ofm“.",
+        "saveWouldDropItem": "Neuloženo: {{file}} obsahuje položku, kterou editor neumí přečíst ani zachovat v JSON. Opravte tuto položku v souboru a uložte znovu.",
         "unknownSchema": "Neznámé schéma „{{schema}}“.",
         "invalidEntity": "Záznam „{{schema}}“ je neplatný: {{detail}}",
         "duplicateWorld": "Balíček už má manifest v souboru „{{first}}“; balíček může mít jen jeden soubor „world“.",
@@ -2900,6 +2904,8 @@
       },
       "competitionDef": {
         "invalidCalendar": "Neplatný kalendář soutěže: zkontrolujte skupinu divizí, úroveň, fázi a datum ukončení.",
+        "invalidSeasonMonth": "Měsíc začátku sezóny {{month}} není platný (musí být 1–12).",
+        "invalidSeasonDay": "Den začátku sezóny {{day}} není platným dnem měsíce začátku.",
         "invalidEmbedded": "Definice soutěží tohoto světa jsou neplatné a nepodařilo se je načíst.",
         "invalidStandalone": "Vybraný soubor s definicí soutěže je neplatný.",
         "parseFailed": "Soubor s definicí soutěže se nepodařilo načíst jako JSON.",
@@ -2996,6 +3002,7 @@
         "cannotBidOnOwnPlayer": "Nemůžete podávat nabídku na vlastního hráče",
         "playerHasNoTeam": "Hráč nemá žádný tým",
         "insufficientFunds": "Nedostatek finančních prostředků",
+        "buyerCannotAffordFee": "Kupující klub si tuto částku už nemůže dovolit, takže přestup nemůže proběhnout.",
         "transferBudgetTooLow": "Přestupový rozpočet je příliš nízký",
         "playerNotOwnedByUser": "Hráč nebyl nalezen nebo není váš",
         "offerNotPending": "Nabídka nebyla nalezena nebo nečeká na vyřízení",
@@ -3005,6 +3012,7 @@
         "loanCounterMustImproveTerms": "Protinabídka hostování musí vylepšit stávající podmínky",
         "playerNotLoanListed": "Hráč není na listině pro hostování",
         "playerAlreadyLoaned": "Hráč již na hostování odešel",
+        "playerAlreadySold": "Tento hráč už byl prodán. Přestup proběhne po otevření přestupního okna.",
         "invalidLoanEndDate": "Datum ukončení hostování musí být v rozmezí od 30 dnů do jednoho roku od dnešního dne",
         "invalidLoanWageContribution": "Příspěvek na plat během hostování musí být mezi 0 % a 100 %",
         "invalidLoanBuyOption": "Opce na odkup z hostování musí být vyšší než nula",
@@ -3524,6 +3532,7 @@
         },
         "notes": {
           "managerBlocked": "Řekl jste mi, abych jednání o nové smlouvě zatím znovu neotvíral.",
+          "markedLetExpire": "Tato smlouva je označena tak, že má vypršet, proto se o ní nejednalo.",
           "completed": "Tento případ se mi podařil uzavřít, aniž byste musel zasahovat.",
           "completedToKeepSquadFloor": "Hotovo, nad rámec mzdové politiky představenstva. Představenstvo to povolilo, protože bez tohoto hráče bychom klesli pod minimální kádr.",
           "beyondLimits": "Jeho strana požaduje přibližně {{wage}}/týdně na {{years}} let, což přesahuje limity mého pověření.",
@@ -3565,6 +3574,12 @@
       "scoutReport": {
         "subject": "Zpráva skauta: {{player}}",
         "body": "Váš skaut {{scout}} dokončil hodnocení hráče {{player}}. Celá zpráva je k dispozici v sekci skautingu."
+      },
+      "scoutingCancelled": {
+        "subject": "Skautský úkol zrušen",
+        "body": "Skaut vyslaný sledovat hráče {{player}} opustil klub, takže žádná zpráva nepřijde. Pokud ji stále chcete, vyšlete jiného skauta.",
+        "bodyWithoutPlayer": "Skaut vyslaný sledovat hráče opustil klub a ten hráč už v našich záznamech není, takže žádná zpráva nepřijde.",
+        "youthBody": "Skaut vyslaný hledat mladé hráče opustil klub, takže hledání bylo zrušeno. Pokud ho stále chcete, začněte nové s jiným skautem."
       },
       "boardWarning": {
         "subject": "Obavy představenstva — Hodnocení výsledků",
@@ -3628,6 +3643,10 @@
         "subject": "Hostování dohodnuto: {{player}}",
         "bodyWithOption": "Hráč {{player}} bude hostovat z klubu {{parent}} v klubu {{borrower}} od {{start}} do {{end}}. Klub {{borrower}} bude hradit {{contribution}} % platu. Opce na odkup: {{fee}}.",
         "bodyNoOption": "Hráč {{player}} bude hostovat z klubu {{parent}} v klubu {{borrower}} od {{start}} do {{end}}. Klub {{borrower}} bude hradit {{contribution}} % platu. Bez opce na odkup."
+      },
+      "loanRegistrationFailed": {
+        "subject": "Hostování zrušeno: {{player}}",
+        "body": "Dohodnuté hostování hráče {{player}} z {{parent}} do {{borrower}}, které mělo začít {{start}}, se neuskuteční: hráč už nemá smlouvu s {{parent}}."
       },
       "loanOffer": {
         "subject": "Nabídka hostování pro hráče {{player}}",

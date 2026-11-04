@@ -6,9 +6,11 @@ use std::sync::Arc;
 use tauri::State;
 
 use domain::custom_tactic::CustomTactic;
+use ofm_core::game::Game;
 use ofm_core::state::{Career, StateManager};
 
-use crate::commands::util::mutate_active_game_for;
+use crate::commands::squad::reconcile_player_roles;
+use crate::commands::util::{mutate_active_game_for, user_team_id};
 
 const NO_ACTIVE_GAME: &str = "be.error.noActiveGameSession";
 
@@ -39,6 +41,47 @@ pub fn delete_custom_tactic_internal(
 ) -> Result<Vec<CustomTactic>, String> {
     mutate_active_game_for(state, career, |game| {
         ofm_core::custom_tactics::delete_custom_tactic(game, id)
+    })
+    .map(|game| game.custom_tactics)
+}
+
+/// Saves the manager's tactic as it stands on the team (#1189: formation, style, instructions,
+/// the eleven and their roles, the takers) under `draft`'s id and name; returns the whole list.
+pub fn save_current_tactic_internal(
+    state: &StateManager,
+    draft: &CustomTactic,
+    career: Career,
+) -> Result<Vec<CustomTactic>, String> {
+    mutate_active_game_for(state, career, |game| {
+        ofm_core::custom_tactics::save_current_tactic(game, draft)
+    })
+    .map(|game| game.custom_tactics)
+}
+
+/// Puts the saved tactic on the manager's team; returns the game as it now stands.
+pub fn apply_custom_tactic_internal(
+    state: &StateManager,
+    id: &str,
+    career: Career,
+) -> Result<Game, String> {
+    mutate_active_game_for(state, career, |game| {
+        ofm_core::custom_tactics::apply_custom_tactic(game, id)?;
+        // Players the tactic benches may hold a role their natural position doesn't admit.
+        let team_id = user_team_id(game)?;
+        reconcile_player_roles(game, &team_id);
+        Ok(())
+    })
+}
+
+/// Renames the saved tactic, keeping all it holds; returns the whole list.
+pub fn rename_custom_tactic_internal(
+    state: &StateManager,
+    id: &str,
+    name: &str,
+    career: Career,
+) -> Result<Vec<CustomTactic>, String> {
+    mutate_active_game_for(state, career, |game| {
+        ofm_core::custom_tactics::rename_custom_tactic(game, id, name)
     })
     .map(|game| game.custom_tactics)
 }
@@ -93,6 +136,40 @@ pub fn delete_custom_tactic(
     delete_custom_tactic_internal(&state, &id, Career::Token(career_token))
 }
 
+/// Saves the team's current tactic, whole, under the draft's id and name; returns the whole list.
+#[tauri::command]
+pub fn save_current_tactic(
+    state: State<'_, Arc<StateManager>>,
+    tactic: CustomTactic,
+    career_token: u64,
+) -> Result<Vec<CustomTactic>, String> {
+    info!("[cmd] save_current_tactic: {}", tactic.id);
+    save_current_tactic_internal(&state, &tactic, Career::Token(career_token))
+}
+
+/// Puts a saved tactic on the team; returns the game.
+#[tauri::command]
+pub fn apply_custom_tactic(
+    state: State<'_, Arc<StateManager>>,
+    id: String,
+    career_token: u64,
+) -> Result<Game, String> {
+    info!("[cmd] apply_custom_tactic: {id}");
+    apply_custom_tactic_internal(&state, &id, Career::Token(career_token))
+}
+
+/// Renames a saved tactic; returns the whole list.
+#[tauri::command]
+pub fn rename_custom_tactic(
+    state: State<'_, Arc<StateManager>>,
+    id: String,
+    name: String,
+    career_token: u64,
+) -> Result<Vec<CustomTactic>, String> {
+    info!("[cmd] rename_custom_tactic: {id}");
+    rename_custom_tactic_internal(&state, &id, &name, Career::Token(career_token))
+}
+
 /// Whether the old browser library still has to be copied in.
 #[tauri::command]
 pub fn legacy_tactics_import_pending(state: State<'_, Arc<StateManager>>) -> Result<bool, String> {
@@ -139,6 +216,7 @@ mod tests {
             formation: "4-3-3".into(),
             play_style: "Possession".into(),
             source_preset_name: None,
+            contents: None,
         }
     }
 
@@ -210,7 +288,7 @@ mod tests {
     }
 
     /// Given career A is active and a screen holds A's token, and then career B is installed
-    /// When the screen's save, delete and import mark arrive
+    /// When the screen's save, delete, import mark, save-current, apply and rename arrive
     /// Then each is refused with the career-changed key, nothing reaches B, and B's save, written
     ///      to a .db and read back with SQL, holds no tactic and no import mark.
     #[test]
@@ -242,6 +320,10 @@ mod tests {
                 .map(|_| ()),
             delete_custom_tactic_internal(&state, "a", Career::Token(token_a)).map(|_| ()),
             mark_legacy_tactics_imported_internal(&state, Career::Token(token_a)),
+            save_current_tactic_internal(&state, &tactic("late"), Career::Token(token_a))
+                .map(|_| ()),
+            apply_custom_tactic_internal(&state, "a", Career::Token(token_a)).map(|_| ()),
+            rename_custom_tactic_internal(&state, "a", "Late", Career::Token(token_a)).map(|_| ()),
         ];
 
         for refusal in refusals {
@@ -292,5 +374,108 @@ mod tests {
             list_custom_tactics_internal(&empty),
             Err(NO_ACTIVE_GAME.to_string())
         );
+    }
+
+    /// A managed club in 4-4-2 with strikers "p0".."p10" as its eleven and a striker "q0" on the
+    /// bench.
+    fn state_with_a_club() -> StateManager {
+        use domain::player::{Player, PlayerAttributes, Position};
+        use domain::team::Team;
+
+        let level = 60;
+        let attributes = PlayerAttributes {
+            pace: level,
+            stamina: level,
+            strength: level,
+            agility: level,
+            passing: level,
+            shooting: level,
+            tackling: level,
+            dribbling: level,
+            defending: level,
+            positioning: level,
+            vision: level,
+            decisions: level,
+            composure: level,
+            aggression: level,
+            teamwork: level,
+            leadership: level,
+            handling: level,
+            reflexes: level,
+            aerial: level,
+        };
+        let players = (0..11)
+            .map(|n| format!("p{n}"))
+            .chain(["q0".to_string()])
+            .map(|id| {
+                let mut player = Player::new(
+                    id.clone(),
+                    id.clone(),
+                    id,
+                    "1998-01-01".into(),
+                    "England".into(),
+                    Position::Striker,
+                    attributes.clone(),
+                );
+                player.natural_position = Position::Striker;
+                player.team_id = Some("club".into());
+                player
+            })
+            .collect();
+        let mut team = Team::new(
+            "club".into(),
+            "Club".into(),
+            "CLU".into(),
+            "England".into(),
+            "Town".into(),
+            "Ground".into(),
+            20_000,
+        );
+        team.formation = "4-4-2".into();
+        team.starting_xi_ids = (0..11).map(|n| format!("p{n}")).collect();
+        let mut manager = Manager::new(
+            "m".into(),
+            "A".into(),
+            "B".into(),
+            "1980-01-01".into(),
+            "England".into(),
+        );
+        manager.hire("club".into());
+        let clock = GameClock::new(Utc.with_ymd_and_hms(2031, 7, 1, 12, 0, 0).unwrap());
+        let state = StateManager::new();
+        state.set_game(Game::new(
+            clock,
+            manager,
+            vec![team],
+            players,
+            vec![],
+            vec![],
+        ));
+        state
+    }
+
+    /// Given a tactic saved with "p0".."p10", and then the bench striker "q0" moved into the
+    ///       centre-back slot as a stopper (a role that slot admits)
+    /// When the tactic is applied through the command
+    /// Then "q0" is back on the bench without the stopper role, which a striker can't hold there,
+    ///      and the saved eleven is the team's again.
+    #[test]
+    fn applying_a_tactic_clears_a_role_the_benched_player_cannot_hold() {
+        use domain::team::PlayerRole;
+
+        let state = state_with_a_club();
+        save_current_tactic_internal(&state, &tactic("home"), Career::Active).unwrap();
+        let mut moved = state.get_game(|game| game.clone()).unwrap();
+        moved.teams[0].starting_xi_ids[2] = "q0".into();
+        moved.teams[0]
+            .player_roles
+            .insert("q0".into(), PlayerRole::Stopper);
+        state.set_game(moved);
+
+        let game = apply_custom_tactic_internal(&state, "home", Career::Active).unwrap();
+
+        let team = &game.teams[0];
+        assert_eq!(team.starting_xi_ids[2], "p2");
+        assert_eq!(team.player_roles.get("q0"), None);
     }
 }
