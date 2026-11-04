@@ -1,3 +1,5 @@
+import { resolveBackendError } from "./backendI18n";
+
 type TranslateFn = (key: string, params?: Record<string, string | number>) => string;
 
 function extractErrorMessage(error: unknown): string {
@@ -21,39 +23,17 @@ function extractErrorMessage(error: unknown): string {
   return String(error);
 }
 
-function parseEncodedErrorMessage(message: string): {
-  key: string;
-  params?: Record<string, string>;
-} | null {
-  const trimmed = message.trim();
-  const separatorIndex = trimmed.indexOf("?");
-  const key = separatorIndex === -1 ? trimmed : trimmed.slice(0, separatorIndex);
-
-  if (!key.includes(".")) {
-    return null;
-  }
-
-  return {
-    key,
-    params:
-      separatorIndex === -1
-        ? undefined
-        : Object.fromEntries(new URLSearchParams(trimmed.slice(separatorIndex + 1)).entries()),
-  };
-}
-
 export function getErrorMessage(error: unknown): string {
   return extractErrorMessage(error);
 }
 
-export function resolveTranslatedErrorMessage(error: unknown, t: TranslateFn): string {
-  const message = extractErrorMessage(error);
-  const parsed = parseEncodedErrorMessage(message);
-
-  if (!parsed) {
-    return message;
-  }
-
-  const translated = t(parsed.key, parsed.params);
-  return translated === parsed.key ? message : translated;
+/**
+ * A backend error as a banner shows it: the one resolver (`resolveBackendError`) translates the key
+ * and its params (a param that is itself a key, a money amount). A message that is not a known key
+ * is shown as it was. The second argument is the caller's `t`, which this no longer reads: the
+ * resolver uses the app's own i18n, so a second resolver cannot disagree with the first. Callers
+ * can drop it.
+ */
+export function resolveTranslatedErrorMessage(error: unknown, _t?: TranslateFn): string {
+  return resolveBackendError(error) || extractErrorMessage(error);
 }
