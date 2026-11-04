@@ -22,15 +22,15 @@ describe("missing translation keys", () => {
   });
 
   /**
-   * Given a key no locale has, asked with a fallback text
+   * Given a key no locale has, asked with a default value
    * When the app asks i18next for it
-   * Then it is still reported: the fallback hides the bug on screen, it does not fix it.
+   * Then it is not reported: the caller chose what the player reads, so no raw key shows.
    */
-  it("reports a missing key even when a default value hides it", () => {
+  it("stays quiet for a key asked with a default value", () => {
     takeMissingKeys();
 
     expect(i18n.t("be.msg.noSuchMessage.body", { defaultValue: "Fallback" })).toBe("Fallback");
 
-    expect(takeMissingKeys()).toEqual(["be.msg.noSuchMessage.body"]);
+    expect(takeMissingKeys()).toEqual([]);
   });
 });

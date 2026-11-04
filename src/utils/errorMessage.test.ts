@@ -1,3 +1,4 @@
+import { takeMissingKeys } from "../i18n/missingKeys";
 import { beforeAll, describe, expect, it } from "vitest";
 
 import { i18nReady } from "../i18n";
@@ -50,6 +51,8 @@ describe("resolveTranslatedErrorMessage", () => {
       "be.error.noSuchKey",
     );
     expect(resolveTranslatedErrorMessage({ message: "plain" })).toBe("plain");
+    // `be.error.noSuchKey` is unknown on purpose.
+    takeMissingKeys();
   });
 });
 

@@ -1,4 +1,5 @@
 import { createSeasonContext } from "../../test-utils/factories";
+import { takeMissingKeys } from "../../i18n/missingKeys";
 import { beforeAll, describe, expect, it } from "vitest";
 
 import { i18nReady } from "../../i18n";
@@ -151,6 +152,7 @@ describe("advanceRecap", (): void => {
     expect(recap.news.map((article) => article.id)).toEqual(["injury"]);
     // A key the app has no text for falls back to the headline the backend sent.
     expect(recap.news[0].text).toBe("Star out injured");
+    takeMissingKeys();
   });
 
   it("keeps completed loan move news in the advance recap", (): void => {

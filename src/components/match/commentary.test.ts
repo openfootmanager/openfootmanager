@@ -1,4 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { takeMissingKeys } from "../../i18n/missingKeys";
 import i18n, { i18nReady } from "../../i18n";
 import { getCommentary } from "./commentary";
 import type { MatchEvent, MatchSnapshot, EnginePlayerData } from "./types";
@@ -141,5 +142,7 @@ describe("getCommentary", () => {
     expect(result).not.toBeNull();
     expect(result!.line.length).toBeGreaterThan(0);
     expect(result!.line).not.toMatch(/\{\{.*?\}\}/);
+    // The variant key is absent on purpose: the fallback to the base key is what is under test.
+    takeMissingKeys();
   });
 });

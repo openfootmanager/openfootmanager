@@ -39,7 +39,7 @@ function resolve(
 }
 
 function isTranslationKey(value: string): boolean {
-  return value.includes(".") && i18n.t(value) !== value;
+  return value.includes(".") && i18n.exists(value);
 }
 
 function parseBackendMessage(message: string): {
@@ -247,12 +247,11 @@ function resolveParamValues(
     }
   }
   for (const [key, value] of Object.entries(resolved)) {
-    if (value.includes(".")) {
-      const attempted = i18n.t(value);
-      if (attempted !== value) {
-        resolved[key] = attempted;
-        continue;
-      }
+    // A param may be a key (a position group) or a plain value (a name, a money figure): ask
+    // whether it is a key before translating, so a plain value is not reported as a missing one.
+    if (value.includes(".") && i18n.exists(value)) {
+      resolved[key] = i18n.t(value);
+      continue;
     }
 
     resolved[key] = resolveDateParamValue(

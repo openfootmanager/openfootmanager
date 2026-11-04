@@ -99,9 +99,12 @@ export const i18nReady = i18n
     fallbackNS: "pkgTranslations",
     // Only dev builds and tests ask i18next to call the handler; a player's build is unchanged.
     saveMissing: import.meta.env.DEV,
-    missingKeyHandler: (languages, _namespace, key) => {
+    missingKeyHandler: (languages, _namespace, key, _fallbackValue, _updateMissing, options) => {
       // Before the locale has loaded every key is "missing"; that is loading, not a bug.
       if (!i18n.hasLoadedNamespace("translation")) return;
+      // A caller that gives a default value chose what the player reads when the key is absent (a
+      // backend name that is a key or plain prose). Without one, the player reads the raw key.
+      if (key === "" || options?.defaultValue !== undefined) return;
       reportMissingKey(languages[0] ?? "", key);
     },
     interpolation: {
