@@ -141,7 +141,7 @@ fn build_player_award_contexts<'a>(
 
     game.players
         .iter()
-        .filter(|player| season(*player).appearances > 0)
+        .filter(|player| season(player).appearances > 0)
         .filter(|player| match scope {
             Some(team_ids) => player
                 .team_id
