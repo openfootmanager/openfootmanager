@@ -1,5 +1,5 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
-import { invoke } from "@tauri-apps/api/core";
+import { type InvokeArgs, invoke } from "@tauri-apps/api/core";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { type GameStateData, useGameStore } from "../../store/gameStore";
@@ -557,7 +557,7 @@ describe("useTacticsLibrary saving and applying the whole tactic (#1189)", () =>
     backendWith([savedTactic], false);
     const answer = deferred<unknown>();
     const fallback = mockedInvoke.getMockImplementation();
-    mockedInvoke.mockImplementation(async (command: string, args?: unknown) =>
+    mockedInvoke.mockImplementation(async (command: string, args?: InvokeArgs) =>
       command === "apply_custom_tactic" ? answer.promise : fallback?.(command, args),
     );
     const onGameUpdate = vi.fn();
