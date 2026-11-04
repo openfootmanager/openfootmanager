@@ -200,6 +200,43 @@ describe("advanceRecap", (): void => {
     expect(recap.hasEvents).toBe(true);
   });
 
+  /**
+   * Given a press-conference article, whose headline needs a quote that only the news resolver
+   *       builds (the backend sends `quotesData`, a list of quote keys, not a `quote` param)
+   * When the advance recap is built
+   * Then its headline carries the translated quote: a bare t(headline_key, params) would draw it
+   *      with the quote missing.
+   */
+  it("draws a press-conference headline with the quote the resolver builds", (): void => {
+    const game = createGame({
+      news: [
+        {
+          id: "press-conference",
+          headline: "",
+          body: "",
+          date: "2026-07-01",
+          category: "Editorial",
+          team_ids: [],
+          player_ids: [],
+          read: false,
+          headline_key: "be.news.pressConference.headlinePressConf",
+          i18n_params: {
+            team: "User FC",
+            quotesData: JSON.stringify([
+              { key: "match.press.result.responses.win.humble.text", fallback: "", params: {} },
+            ]),
+          },
+        },
+      ],
+    } as unknown as Partial<GameStateData>);
+
+    const recap = buildAdvanceRecap(game, "2026-07-01", []);
+
+    expect(recap.news[0].text).toBe(
+      'Press Conference: "The players worked hard. We prepared well and executed the game plan." — User FC boss',
+    );
+  });
+
   it("collects only high-priority inbox items from the advance", (): void => {
     const game = createGame({
       messages: [

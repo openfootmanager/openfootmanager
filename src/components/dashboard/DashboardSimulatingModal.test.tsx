@@ -182,6 +182,13 @@ describe("DashboardSimulatingModal backend text", () => {
       },
     ]);
 
+    // At the recap layer, which the mocked t above does not touch: on develop these read the
+    // untranslated subjects, and a resolver that left the param raw would read "(common.injuries...)".
+    expect(entry.recap.inbox.map((item) => item.text)).toEqual([
+      "Match injury — John Star (Hamstring tear)",
+      "Dressing Room Report — Mood: Excellent",
+    ]);
+
     render(<DashboardSimulatingModal digestEntries={[entry]} onDismiss={vi.fn()} />);
 
     expect(screen.getByText("Match injury — John Star (Hamstring tear)")).toBeInTheDocument();
