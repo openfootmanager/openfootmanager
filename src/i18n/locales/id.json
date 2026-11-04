@@ -2833,6 +2833,7 @@
         "noSubstitutionsForShootout": "Tidak ada pergantian pemain setelah babak tambahan selesai: adu penalti diambil oleh pemain yang ada di lapangan saat peluit akhir.",
         "shootoutOrderNotNow": "Urutan penendang hanya bisa diatur setelah babak tambahan, sebelum tendangan pertama.",
         "shootoutOrderNotYourSide": "Kamu hanya bisa mengatur urutan penendang timmu sendiri.",
+        "notYourSide": "Kamu hanya bisa memberi instruksi kepada timmu sendiri.",
         "shootoutOrderNotEligible": "Urutan penendang harus memuat setiap pemainmu yang berhak menendang tepat satu kali.",
         "playerNotOnPitch": "Pemain tidak berada di lapangan",
         "playerAlreadySubstitutedOff": "Pemain sudah diganti",

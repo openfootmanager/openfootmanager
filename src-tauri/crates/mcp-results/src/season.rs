@@ -11,7 +11,12 @@ use crate::tool_results;
 #[serde(tag = "status", rename_all = "snake_case")]
 pub enum SeasonStatus {
     Complete {},
-    InProgress { remaining_fixtures: usize },
+    InProgress {
+        remaining_fixtures: usize,
+    },
+    /// The user's league has played every fixture, but the season cannot be advanced yet: another
+    /// division of his country is still playing (the same rule that refuses `season_advance`).
+    OtherDivisionsStillPlaying {},
     NoLeague {},
 }
 
@@ -25,6 +30,10 @@ impl fmt::Display for SeasonStatus {
             Self::InProgress { remaining_fixtures } => write!(
                 f,
                 "## Season Status: In Progress\n\n**Remaining fixtures**: {remaining_fixtures}"
+            ),
+            Self::OtherDivisionsStillPlaying {} => write!(
+                f,
+                "## Season Status: In Progress\n\nYour league has played all its fixtures, but another division in your country is still playing. Keep using `time_advance`; `season_advance` is refused until this reports Complete."
             ),
             Self::NoLeague {} => write!(f, "## Season Status: No league active."),
         }

@@ -2798,6 +2798,7 @@
         "noSubstitutionsForShootout": "加时赛结束后不能再换人：点球大战由终场哨响时在场上的球员主罚。",
         "shootoutOrderNotNow": "只能在加时赛结束后、第一轮点球之前设定罚球顺序。",
         "shootoutOrderNotYourSide": "你只能设定本队的罚球顺序。",
+        "notYourSide": "你只能向本队下达指令。",
         "shootoutOrderNotEligible": "罚球顺序必须包含你每一名可以罚球的球员，且每人仅出现一次。",
         "playerNotOnPitch": "球员不在场上",
         "playerAlreadySubstitutedOff": "该球员已经被换下",

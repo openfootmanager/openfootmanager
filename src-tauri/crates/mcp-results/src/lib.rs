@@ -70,6 +70,8 @@ mod tests {
             remaining_fixtures: 4,
         });
         round_trips(info::GameStatus::ManagerFired {});
+        round_trips(season::SeasonStatus::OtherDivisionsStillPlaying {});
+        round_trips(info::GameStatus::OtherDivisionsStillPlaying {});
 
         assert_eq!(
             serde_json::to_value(season::SeasonStatus::Complete {}).unwrap(),

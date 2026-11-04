@@ -2798,6 +2798,7 @@
         "noSubstitutionsForShootout": "Nessuna sostituzione dopo i tempi supplementari: i rigori li calciano i giocatori in campo al fischio finale.",
         "shootoutOrderNotNow": "L'ordine dei rigoristi si può decidere solo dopo i supplementari, prima del primo tiro.",
         "shootoutOrderNotYourSide": "Puoi decidere solo l'ordine dei rigoristi della tua squadra.",
+        "notYourSide": "Puoi dare ordini solo alla tua squadra.",
         "shootoutOrderNotEligible": "L'ordine dei rigoristi deve includere una sola volta ciascuno dei tuoi giocatori disponibili.",
         "playerNotOnPitch": "Il giocatore non è in campo",
         "playerAlreadySubstitutedOff": "Quel giocatore è già stato sostituito",
