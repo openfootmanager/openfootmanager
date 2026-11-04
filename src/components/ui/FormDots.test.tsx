@@ -7,7 +7,7 @@ vi.mock("react-i18next", () => ({
   useTranslation: () => ({
     t: (key: string) =>
       ({
-        // Spanish, where the standings headers (PG, PE, PP) differ from the form letters (G, E, P)
+        // Spanish, where the standings headers (PG, PE, PP) differ from the form letters (V, E, D)
         // and the table's plural words from one match's.
         "common.recentForm": "Recent form",
         "common.won": "PG",
@@ -16,9 +16,9 @@ vi.mock("react-i18next", () => ({
         "common.wonFull": "Ganados",
         "common.drawnFull": "Empatados",
         "common.lostFull": "Perdidos",
-        "common.formResult.W": "G",
+        "common.formResult.W": "V",
         "common.formResult.D": "E",
-        "common.formResult.L": "P",
+        "common.formResult.L": "D",
         "match.victory": "Victoria",
         "match.draw": "Empate",
         "match.defeat": "Derrota",
@@ -36,7 +36,7 @@ function spoken(element: Element): string {
 describe("FormDots", () => {
   /**
    * Given a club's last five results as the backend keeps them (W, D, W, W, L, oldest first)
-   * When they are drawn in Spanish, whose form letters (G, E, P) differ from both English and its
+   * When they are drawn in Spanish, whose form letters (V, E, D) differ from both English and its
    *      own standings headers (PG, PE, PP)
    * Then they are a list named "Recent form", oldest first, each showing the form letter and read
    *      as one match's word (Victoria, not the table's Ganados), never the backend's English letter.
@@ -47,11 +47,11 @@ describe("FormDots", () => {
     const list = screen.getByRole("list", { name: "Recent form" });
     const items = within(list).getAllByRole("listitem");
     expect(items.map((item) => item.querySelector('[aria-hidden="true"]')?.textContent)).toEqual([
-      "G",
+      "V",
       "E",
-      "G",
-      "G",
-      "P",
+      "V",
+      "V",
+      "D",
     ]);
     expect(items.map((item) => spoken(item))).toEqual([
       "Victoria",

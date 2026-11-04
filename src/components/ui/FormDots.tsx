@@ -1,3 +1,4 @@
+import type { TFunction } from "i18next";
 import { useTranslation } from "react-i18next";
 
 /** A result as the backend keeps it in a club's form. */
@@ -5,23 +6,27 @@ type FormResult = "W" | "D" | "L";
 
 /**
  * Each result's letter (the locale's own one-letter mark, not the standings table's column header,
- * which is two letters in Spanish), its word for one match, and its tone from the role tokens.
+ * which is two letters in Spanish), its word for one match, and its tone from the role tokens. The
+ * keys are written out in `t(...)` calls, so the key-coverage test sees them.
  */
-const RESULT: Record<FormResult, { letterKey: string; wordKey: string; tone: string }> = {
+const RESULT: Record<
+  FormResult,
+  { letter: (t: TFunction) => string; word: (t: TFunction) => string; tone: string }
+> = {
   W: {
-    letterKey: "common.formResult.W",
-    wordKey: "match.victory",
+    letter: (t) => t("common.formResult.W"),
+    word: (t) => t("match.victory"),
     tone: "bg-positive-tint text-positive",
   },
   // The inset line, as Badge's neutral has it: sunken alone is 1.02:1 on a white panel.
   D: {
-    letterKey: "common.formResult.D",
-    wordKey: "match.draw",
+    letter: (t) => t("common.formResult.D"),
+    word: (t) => t("match.draw"),
     tone: "bg-sunken text-fg-muted ring-1 ring-inset ring-line",
   },
   L: {
-    letterKey: "common.formResult.L",
-    wordKey: "match.defeat",
+    letter: (t) => t("common.formResult.L"),
+    word: (t) => t("match.defeat"),
     tone: "bg-danger-tint text-danger",
   },
 };
@@ -46,15 +51,15 @@ export function FormDots({ results }: { results: readonly string[] }) {
     // biome-ignore lint/a11y/noRedundantRoles: WebKit (Tauri's webview on macOS and Linux) drops a list's semantics under list-style: none, so the role is restated.
     <ol role="list" aria-label={t("common.recentForm")} className="flex list-none gap-1 p-0">
       {known.map((result, index) => {
-        const { letterKey, wordKey, tone } = RESULT[result];
+        const { letter, word, tone } = RESULT[result];
         return (
           <li
             // A form is five results in order; the same result can repeat, so its place is its key.
             key={index}
             className={`relative grid size-5 place-items-center rounded font-heading text-caption font-bold ${tone}`}
           >
-            <span aria-hidden="true">{t(letterKey)}</span>
-            <span className="sr-only">{t(wordKey)}</span>
+            <span aria-hidden="true">{letter(t)}</span>
+            <span className="sr-only">{word(t)}</span>
           </li>
         );
       })}
