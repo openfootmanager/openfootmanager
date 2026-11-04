@@ -613,9 +613,39 @@ function normalizeTransferRoundupParams(
 /**
  * Resolve all translatable fields on a message, returning a copy with resolved strings.
  */
+/**
+ * A promotion or relegation names the division the club moved to. A generated division is stored
+ * under an English template name ("Germany Second Division"); the notice also carries its name key,
+ * country and season, so it reads as every other screen names it. Without a key the stored name
+ * stands.
+ */
+function normalizeDivisionName(
+  msg: MessageData,
+  params?: Record<string, string>,
+): Record<string, string> | undefined {
+  const isDivisionChange =
+    msg.subject_key === "be.msg.promotion.subject" ||
+    msg.subject_key === "be.msg.relegation.subject";
+  if (!isDivisionChange || !params?.divisionKey) return params;
+
+  const season = Number(params.divisionSeason);
+  return {
+    ...params,
+    division: competitionDisplayName(
+      {
+        name: params.division,
+        name_key: params.divisionKey,
+        country_id: params.divisionCountry ?? null,
+        season: Number.isFinite(season) ? season : undefined,
+      },
+      (key, options) => i18n.t(key, options),
+    ),
+  };
+}
+
 export function resolveMessage(msg: MessageData): MessageData {
   const inferredParams = msg.i18n_params ?? inferLegacyDelegatedRenewalsParams(msg);
-  const p = resolveParamValues(inferredParams);
+  const p = resolveParamValues(normalizeDivisionName(msg, inferredParams));
   const resolved = {
     ...msg,
     i18n_params: inferredParams,
