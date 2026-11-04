@@ -312,9 +312,7 @@ fn best_fit_for(
 ) -> Option<String> {
     let position = positions.get(slot)?;
     pool.iter()
-        .filter(|player| {
-            !staying.contains(player.id.as_str()) && !placed.iter().any(|id| *id == player.id)
-        })
+        .filter(|player| !staying.contains(player.id.as_str()) && !placed.contains(&player.id))
         .max_by(|left, right| {
             positional_fit_for_assignment(left, position)
                 .total_cmp(&positional_fit_for_assignment(right, position))
@@ -835,6 +833,40 @@ mod whole_tactic_tests {
             Some(&PlayerRole::SweeperKeeper),
             "the keeper's saved role still applies in his slot"
         );
+    }
+
+    /// Given a saved 4-4-2 of "s0".."s10", and then two of its starters ("s2" and "s3") sold, with
+    ///       the squad players weaker than every saved starter
+    /// When the tactic is applied
+    /// Then each gap gets its own squad player: none of the saved eleven is moved into a gap (he
+    ///      has his own slot), and no squad player is put in two.
+    #[test]
+    fn two_gaps_are_filled_by_two_different_squad_players() {
+        let mut game = game();
+        set_up(&mut game);
+        save_current_tactic(&mut game, &draft("away", "Away")).unwrap();
+        for id in ["s2", "s3"] {
+            let sold = game.players.iter_mut().find(|p| p.id == id).unwrap();
+            sold.team_id = Some("elsewhere".into());
+            game.teams[0].remove_player_references(id);
+        }
+        for player in game.players.iter_mut().filter(|p| p.id.starts_with('b')) {
+            player.attributes = crate::test_support::uniform_attributes(40);
+        }
+
+        apply_custom_tactic(&mut game, "away").unwrap();
+
+        let lineup = &game.teams[0].starting_xi_ids;
+        assert_eq!(lineup.len(), 11);
+        assert!(
+            lineup[2].starts_with('b') && lineup[3].starts_with('b'),
+            "{lineup:?}"
+        );
+        assert_ne!(lineup[2], lineup[3], "one squad player per gap: {lineup:?}");
+        let saved = eleven("s");
+        for slot in (0..11).filter(|slot| *slot != 2 && *slot != 3) {
+            assert_eq!(lineup[slot], saved[slot], "slot {slot}");
+        }
     }
 
     /// Given a saved 4-4-2 of "s0".."s10", and then "s5" injured
