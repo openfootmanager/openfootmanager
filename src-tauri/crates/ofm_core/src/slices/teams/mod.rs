@@ -56,6 +56,9 @@ pub struct TeamCard {
     pub total_value: u64,
     pub league_pos: u32,
     pub standing: Option<TeamStanding>,
+    /// The club's last five results as "W", "D" or "L", oldest first, as the club keeps them
+    /// (`Team::form`). Results are public, so every club's card carries its form.
+    pub form: Vec<String>,
     /// The club's manager; none for a club without one.
     pub manager: Option<TeamCardManager>,
 }

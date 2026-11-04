@@ -365,15 +365,8 @@ fn generate_missing_team_staff(
 ) -> bool {
     let (names_def, country_codes) = create_staff_generator_context();
     let mut generated_staff = Vec::new();
-    let roles = [
-        StaffRole::AssistantManager,
-        StaffRole::Coach,
-        StaffRole::Scout,
-        StaffRole::Physio,
-    ];
-
     for team in &world.teams {
-        for role in &roles {
+        for role in &StaffRole::ALL {
             let has_role = world.staff.iter().any(|staff_member| {
                 staff_member.team_id.as_deref() == Some(team.id.as_str())
                     && &staff_member.role == role
@@ -800,12 +793,7 @@ fn build_club(
     }
 
     let mut team_staff = Vec::with_capacity(4);
-    for role in [
-        StaffRole::AssistantManager,
-        StaffRole::Coach,
-        StaffRole::Scout,
-        StaffRole::Physio,
-    ] {
+    for role in StaffRole::ALL {
         let nationality = pick_nationality_from_def(&tdef.country, country_codes, rng);
         team_staff.push(generate_random_staff_from_def(
             &team_id,
