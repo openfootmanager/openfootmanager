@@ -1112,18 +1112,35 @@ mod tests {
         )
     }
 
-    /// Given a four-line formation, and one that does not parse
+    /// Given a four-line formation
     /// When its line lengths are read
-    /// Then they are the lines the slots are laid out in, goalkeeper first, and the unparseable one
-    ///      counts as the 4-4-2 it is laid out as
+    /// Then they are its lines as laid out, goalkeeper first
     #[test]
-    fn line_lengths_follow_the_slot_layout() {
+    fn a_formations_line_lengths_are_its_lines_goalkeeper_first() {
         assert_eq!(formation_row_lengths("4-2-3-1"), vec![1, 4, 2, 3, 1]);
+    }
+
+    /// Given a formation that does not parse (eleven outfielders)
+    /// When its line lengths are read
+    /// Then they are the 4-4-2 it is laid out as, not the numbers in its text
+    #[test]
+    fn an_unparseable_formation_counts_as_the_four_four_two_it_is_laid_out_as() {
         assert_eq!(formation_row_lengths("5-3-3"), vec![1, 4, 4, 2]);
-        assert_eq!(
-            formation_row_lengths("3-5-2").iter().sum::<usize>(),
-            formation_slots("3-5-2").len()
-        );
+    }
+
+    /// Given formations that parse and formations that do not
+    /// When their line lengths are read
+    /// Then each adds up to the slots the same formation lays out, so a slot index and its line
+    ///      always agree
+    #[test]
+    fn line_lengths_add_up_to_the_slots_for_every_formation() {
+        for formation in ["3-5-2", "4-1-4-1", "5-3-3", "4-4", "not-a-formation"] {
+            assert_eq!(
+                formation_row_lengths(formation).iter().sum::<usize>(),
+                formation_slots(formation).len(),
+                "{formation}"
+            );
+        }
     }
 
     #[test]
