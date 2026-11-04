@@ -204,6 +204,16 @@ pub fn parse_formation(formation: &str) -> Option<Vec<usize>> {
     well_formed.then_some(parts)
 }
 
+/// How many players stand in each line of the formation as it is laid out, goalkeeper first:
+/// `"4-2-3-1"` is `[1, 4, 2, 3, 1]`. The same layout [`formation_slots`] numbers, so a slot index
+/// and its line agree; a formation that does not parse is laid out, and counted, as 4-4-2.
+pub fn formation_row_lengths(formation: &str) -> Vec<usize> {
+    formation_slot_rows(formation)
+        .iter()
+        .map(Vec::len)
+        .collect()
+}
+
 fn formation_slot_rows(formation: &str) -> Vec<Vec<Position>> {
     // A formation that does not parse is 4-4-2: old saves may hold one, and the lineup must
     // still be laid out. New ones are refused where they are set (`parse_formation`).
@@ -1100,6 +1110,20 @@ mod tests {
                 aerial: 70,
             },
         )
+    }
+
+    /// Given a four-line formation, and one that does not parse
+    /// When its line lengths are read
+    /// Then they are the lines the slots are laid out in, goalkeeper first, and the unparseable one
+    ///      counts as the 4-4-2 it is laid out as
+    #[test]
+    fn line_lengths_follow_the_slot_layout() {
+        assert_eq!(formation_row_lengths("4-2-3-1"), vec![1, 4, 2, 3, 1]);
+        assert_eq!(formation_row_lengths("5-3-3"), vec![1, 4, 4, 2]);
+        assert_eq!(
+            formation_row_lengths("3-5-2").iter().sum::<usize>(),
+            formation_slots("3-5-2").len()
+        );
     }
 
     #[test]
