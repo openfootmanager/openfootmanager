@@ -2,7 +2,9 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { invoke } from "@tauri-apps/api/core";
 import { describe, expect, it, vi } from "vitest";
 
-import EndOfSeasonScreen from "./EndOfSeasonScreen";
+import { useState } from "react";
+import EndOfSeasonScreen, { type SeasonTransition } from "./EndOfSeasonScreen";
+import type { GameStateData } from "../store/gameStore";
 import { createAwards, createEndOfSeasonGame } from "../test-utils/endOfSeason";
 
 const setShowFiredModal = vi.fn();
@@ -85,7 +87,19 @@ describe("EndOfSeasonScreen", () => {
 
     const onGameUpdate = vi.fn();
 
-    render(<EndOfSeasonScreen gameState={createEndOfSeasonGame()} onGameUpdate={onGameUpdate} />);
+    // The dashboard holds the transition; this stands in for it.
+    function Holder() {
+      const [transition, setTransition] = useState<SeasonTransition | null>(null);
+      return (
+        <EndOfSeasonScreen
+          gameState={createEndOfSeasonGame()}
+          onGameUpdate={onGameUpdate as (game: GameStateData) => void}
+          transition={transition}
+          onTransitionChange={setTransition}
+        />
+      );
+    }
+    render(<Holder />);
 
     fireEvent.click(screen.getByRole("button", { name: "Start next season" }));
 

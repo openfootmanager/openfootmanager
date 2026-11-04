@@ -8,7 +8,7 @@ import { competitionDisplayName } from "../lib/competitionName";
 import AwardsCeremonyScreen from "./season/AwardsCeremonyScreen";
 import { Trophy, Star, ArrowRight, Crown } from "lucide-react";
 
-interface EndOfSeasonSummary {
+export interface EndOfSeasonSummary {
   season: number;
   league_name: string;
   champion_id: string;
@@ -28,17 +28,35 @@ interface EndOfSeasonSummary {
   season_awards: SeasonAwardsData;
 }
 
+/**
+ * Where the player is once the next season has been started: the awards of the one just played,
+ * then the new season's announcement. Held by the dashboard, not here: the same game update that
+ * carries the new season says the old one is no longer complete, which unmounts this screen, and
+ * what it kept in its own state went with it.
+ */
+export interface SeasonTransition {
+  summary: EndOfSeasonSummary;
+  step: "ceremony" | "done";
+}
+
 interface EndOfSeasonScreenProps {
   gameState: GameStateData;
   onGameUpdate: (g: GameStateData) => void;
+  transition: SeasonTransition | null;
+  onTransitionChange: (transition: SeasonTransition | null) => void;
 }
 
-export default function EndOfSeasonScreen({ gameState, onGameUpdate }: EndOfSeasonScreenProps) {
+export default function EndOfSeasonScreen({
+  gameState,
+  onGameUpdate,
+  transition,
+  onTransitionChange,
+}: EndOfSeasonScreenProps) {
   const { t } = useTranslation();
   const setShowFiredModal = useGameStore((s) => s.setShowFiredModal);
   const [loading, setLoading] = useState(false);
-  const [summary, setSummary] = useState<EndOfSeasonSummary | null>(null);
-  const [step, setStep] = useState<"review" | "ceremony" | "done">("review");
+  const summary = transition?.summary ?? null;
+  const step = transition?.step ?? "review";
 
   const league = gameState.league;
   const userTeamId = gameState.manager.team_id;
@@ -75,9 +93,9 @@ export default function EndOfSeasonScreen({ gameState, onGameUpdate }: EndOfSeas
         setShowFiredModal(true);
         return;
       }
-      setSummary(result.summary);
+      // The transition first: the game update below is what ends the season this screen reviews.
+      onTransitionChange({ summary: result.summary, step: "ceremony" });
       onGameUpdate(result.game);
-      setStep("ceremony");
     } catch (err) {
       console.error("Failed to advance season:", err);
     } finally {
@@ -260,7 +278,7 @@ export default function EndOfSeasonScreen({ gameState, onGameUpdate }: EndOfSeas
           leagueName={summary.league_name}
           gameState={gameState}
           awards={summary.season_awards}
-          onContinue={() => setStep("done")}
+          onContinue={() => onTransitionChange({ summary, step: "done" })}
         />
       )}
 
@@ -278,11 +296,7 @@ export default function EndOfSeasonScreen({ gameState, onGameUpdate }: EndOfSeas
 
           <button
             type="button"
-            onClick={() => {
-              // Game state is already updated via onGameUpdate, just force re-render
-              // by calling onGameUpdate again with the current state
-              if (gameState) onGameUpdate(gameState);
-            }}
+            onClick={() => onTransitionChange(null)}
             className="px-8 py-3 bg-primary-500 text-white rounded-xl font-heading font-bold uppercase tracking-wider hover:bg-primary-600 transition-all shadow-lg shadow-primary-500/20"
           >
             {t("endOfSeason.continueDashboard")}
