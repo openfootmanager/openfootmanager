@@ -1168,7 +1168,8 @@ fn a_relegated_users_season_preview_covers_the_division_they_drop_into() {
 }
 
 /// Given a world whose user's club plays in no league table, and no legacy league to fall back
-/// on; when the season rolls over; then no preview is published, rather than one of "0 teams".
+/// on; when the season rolls over; then no preview is published: the rollover has no division to
+/// summarise and stops before it, so there is never one of "0 teams".
 #[test]
 fn a_user_with_no_division_gets_no_season_preview() {
     let mut game = make_two_division_game("team1");

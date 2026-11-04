@@ -1186,12 +1186,10 @@ pub fn process_end_of_season(game: &mut Game) -> EndOfSeasonSummary {
                 .collect()
         })
         .unwrap_or_default();
-    if !division_club_names.is_empty() {
-        game.news.push(crate::news::season_preview_article(
-            &division_club_names,
-            &preview_date,
-        ));
-    }
+    game.news.push(crate::news::season_preview_article(
+        &division_club_names,
+        &preview_date,
+    ));
 
     // 8. Send end-of-season messages
     let pos_suffix = position_suffix(user_position);
