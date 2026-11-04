@@ -1,0 +1,220 @@
+//! A save loses nothing (#396, "the world survives").
+//!
+//! The game is saved to a real `.db` through [`SaveManager`] and read back by a fresh one, then the
+//! game before and the game after are compared field by field. The repositories write positional
+//! SQL (`crates/db/src/repositories/`), so a field a column list or a `row.get(N)` forgets is
+//! dropped on every save and load without any error. A JSON round trip of the game, which is what
+//! the season harness's `reloaded` does, cannot see that.
+//!
+//! The career is the one the app builds: a generated world, a manager at its strongest club,
+//! competitions, calendar and berths from `begin_career`. It is read back at three moments: after
+//! the career starts, after the manager signs a free agent, and after a season has rolled over.
+
+use chrono::{TimeZone, Utc};
+use db::save_manager::SaveManager;
+use domain::manager::Manager;
+use domain::stats::StatsState;
+use ofm_core::career::{CareerScope, begin_career};
+use ofm_core::clock::GameClock;
+use ofm_core::contracts::{RenewalDecision, free_agent_opening_offer, offer_free_agent_contract};
+use ofm_core::game::Game;
+use ofm_core::generator::{
+    DefinitionSources, WorldGenConfig, generate_world_data_seeded_with,
+    repair_opening_youth_academies,
+};
+use ofm_core::turn;
+use serde_json::Value;
+
+const SEED: u64 = 11;
+
+/// A career on a compact generated world, at the start of its first season.
+fn career() -> (Game, StatsState) {
+    let world = generate_world_data_seeded_with(
+        SEED,
+        &WorldGenConfig::compact(),
+        &DefinitionSources::embedded_only(),
+    );
+    let start = Utc.with_ymd_and_hms(2026, 7, 1, 0, 0, 0).unwrap();
+    let club = ofm_core::world::strongest_club(&world.teams, "ENG")
+        .or_else(|| world.teams.first().map(|team| team.id.as_str()))
+        .expect("the world has a club")
+        .to_string();
+    let mut manager = Manager::new(
+        "save-round-trip-manager".to_string(),
+        "Save".to_string(),
+        "Tester".to_string(),
+        "1980-01-01".to_string(),
+        "England".to_string(),
+    );
+    manager.hire(club.clone());
+    let mut game = Game::new(
+        GameClock::new(start),
+        manager,
+        world.teams,
+        world.players,
+        world.staff,
+        vec![],
+    );
+    game.seed = SEED;
+    game.available_staff_market_last_activity_date = Some(start.format("%Y-%m-%d").to_string());
+    repair_opening_youth_academies(&mut game);
+    let stats = begin_career(
+        &mut game,
+        &club,
+        CareerScope::default(),
+        StatsState::default(),
+    )
+    .expect("the career begins");
+    (game, stats)
+}
+
+/// `game` written to a new save and read back by a fresh `SaveManager`, as quitting and loading do.
+fn saved_and_loaded(game: &Game, stats: &StatsState) -> Game {
+    let saves = tempfile::tempdir().unwrap();
+    let mut writer = SaveManager::init(saves.path()).unwrap();
+    let save_id = writer
+        .create_save_with_stats(game, stats, "Round trip")
+        .unwrap();
+    let mut reader = SaveManager::init(saves.path()).unwrap();
+    reader
+        .load_game(&save_id)
+        .unwrap_or_else(|error| panic!("the save did not load back: {error}"))
+}
+
+/// The paths at which `before` and `after` differ, at most `limit` of them, each with both values.
+fn differences(before: &Value, after: &Value, limit: usize) -> Vec<String> {
+    fn walk(path: &str, before: &Value, after: &Value, found: &mut Vec<String>, limit: usize) {
+        if found.len() >= limit || before == after {
+            return;
+        }
+        match (before, after) {
+            (Value::Object(left), Value::Object(right)) => {
+                for key in left
+                    .keys()
+                    .chain(right.keys().filter(|key| !left.contains_key(*key)))
+                {
+                    let (l, r) = (
+                        left.get(key).unwrap_or(&Value::Null),
+                        right.get(key).unwrap_or(&Value::Null),
+                    );
+                    walk(&format!("{path}.{key}"), l, r, found, limit);
+                }
+            }
+            (Value::Array(left), Value::Array(right)) if left.len() == right.len() => {
+                for (index, (l, r)) in left.iter().zip(right).enumerate() {
+                    let label = l
+                        .get("id")
+                        .and_then(Value::as_str)
+                        .map_or_else(|| index.to_string(), str::to_string);
+                    walk(&format!("{path}[{label}]"), l, r, found, limit);
+                }
+            }
+            _ => {
+                let clip = |value: &Value| {
+                    let text = value.to_string();
+                    if text.len() > 120 {
+                        format!("{}...", &text[..120])
+                    } else {
+                        text
+                    }
+                };
+                found.push(format!(
+                    "{path}: saved {} loaded {}",
+                    clip(before),
+                    clip(after)
+                ));
+            }
+        }
+    }
+    let mut found = Vec::new();
+    walk("game", before, after, &mut found, limit);
+    found
+}
+
+fn assert_nothing_lost(game: &Game, stats: &StatsState, moment: &str) {
+    let loaded = saved_and_loaded(game, stats);
+    let lost = differences(
+        &serde_json::to_value(game).unwrap(),
+        &serde_json::to_value(&loaded).unwrap(),
+        12,
+    );
+    assert!(
+        lost.is_empty(),
+        "{moment}: the game read back differs from the game saved:\n{}",
+        lost.join("\n")
+    );
+}
+
+/// Given a career that has just begun on a generated world,
+/// When it is saved and loaded back,
+/// Then the game is the one that was saved, field for field.
+#[test]
+fn a_career_at_its_start_loads_back_unchanged() {
+    let (game, stats) = career();
+
+    assert_nothing_lost(&game, &stats, "after career start");
+}
+
+/// Given a career in which the manager has signed a free agent,
+/// When it is saved and loaded back,
+/// Then the game is the one that was saved, with the signing in it.
+#[test]
+fn a_career_after_a_transfer_loads_back_unchanged() {
+    let (mut game, stats) = career();
+    let user_club = game
+        .manager
+        .team_id
+        .clone()
+        .expect("the manager has a club");
+    let free_agents: Vec<String> = game
+        .players
+        .iter()
+        .filter(|player| player.team_id.is_none() && !player.retired)
+        .map(|player| player.id.clone())
+        .take(40)
+        .collect();
+    let signed = free_agents.iter().find(|id| {
+        free_agent_opening_offer(&game, id)
+            .and_then(|offer| offer_free_agent_contract(&mut game, id, offer))
+            .is_ok_and(|outcome| matches!(outcome.decision, RenewalDecision::Accepted))
+    });
+    let signed = signed
+        .expect("one of the free agents accepts the opening offer")
+        .clone();
+    assert_eq!(
+        game.players
+            .iter()
+            .find(|player| player.id == signed)
+            .and_then(|player| player.team_id.as_deref()),
+        Some(user_club.as_str()),
+        "the signing is in the game that is saved"
+    );
+
+    assert_nothing_lost(&game, &stats, "after a transfer");
+}
+
+/// Given a career played through a whole season and its rollover,
+/// When it is saved and loaded back,
+/// Then the game is the one that was saved: the new season's calendar, tables and ladders included.
+#[test]
+fn a_career_after_the_rollover_loads_back_unchanged() {
+    let (mut game, stats) = career();
+    assert!(
+        game.last_season_rollover_on.is_none(),
+        "a career that has just begun has not rolled a season over"
+    );
+
+    // A season is under 450 days; the rollover has run when the game records the day it ran on.
+    for _ in 0..450 {
+        turn::process_day(&mut game);
+        if game.last_season_rollover_on.is_some() {
+            break;
+        }
+    }
+    assert!(
+        game.last_season_rollover_on.is_some(),
+        "the season rolled over in the game that is saved"
+    );
+
+    assert_nothing_lost(&game, &stats, "after the rollover");
+}
