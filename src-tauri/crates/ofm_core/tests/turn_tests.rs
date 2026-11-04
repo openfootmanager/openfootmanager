@@ -593,6 +593,52 @@ fn a_friendly_is_not_part_of_a_players_season_stats() {
 
 /// Given a cup tie in which a forward scores twice,
 /// When the report is applied,
+/// Then it is not part of his league season: the division's awards rank by league matches.
+#[test]
+fn a_cup_tie_is_not_part_of_a_players_league_season() {
+    let mut game = make_game_with_match();
+    game.league.as_mut().unwrap().fixtures[0].competition = FixtureCompetition::Cup;
+
+    turn::apply_match_report(
+        &mut game,
+        0,
+        "team1",
+        "team2",
+        &report_with_scorer(2, 0, "t1_fwd0", Side::Home),
+    );
+
+    let scorer = game.players.iter().find(|p| p.id == "t1_fwd0").unwrap();
+    assert_eq!(
+        (scorer.league_stats.appearances, scorer.league_stats.goals),
+        (0, 0)
+    );
+}
+
+/// Given a league match in which a forward scores twice,
+/// When the report is applied,
+/// Then it is part of both his season and his league season, rating included.
+#[test]
+fn a_league_match_is_part_of_a_players_season_and_league_season() {
+    let mut game = make_game_with_match();
+
+    turn::apply_match_report(
+        &mut game,
+        0,
+        "team1",
+        "team2",
+        &report_with_scorer(2, 0, "t1_fwd0", Side::Home),
+    );
+
+    let scorer = game.players.iter().find(|p| p.id == "t1_fwd0").unwrap();
+    assert_eq!(
+        (scorer.league_stats.appearances, scorer.league_stats.goals),
+        (1, 2)
+    );
+    assert_eq!(scorer.league_stats, scorer.stats);
+}
+
+/// Given a cup tie in which a forward scores twice,
+/// When the report is applied,
 /// Then his season stats count it: a cup match is played for something.
 #[test]
 fn a_cup_tie_is_part_of_a_players_season_stats() {
