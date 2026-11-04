@@ -6,71 +6,90 @@
 //! season rather than a blank table.
 
 use crate::game::Game;
+use crate::turn::matchday_lookups::MatchdayLookups;
 use chrono::{DateTime, NaiveDate, Utc};
 use domain::league::{CompetitionType, FixtureStatus, League, MatchResult};
 use domain::player::Player;
-use domain::team::Team;
 use rand::Rng;
+use std::collections::HashMap;
 
 const CATCHUP_XI: usize = 11;
 
-/// [`club_strength_among`] for the club `club_id`, found by scanning `teams` and `players`.
-pub(crate) fn club_strength(teams: &[Team], players: &[Player], club_id: &str) -> f64 {
-    club_strength_among(
-        teams.iter().find(|team| team.id == club_id),
-        &crate::match_day_eligibility::club_players(players, club_id),
-    )
+/// The strength of a club that can field nobody.
+const NEUTRAL_STRENGTH: f64 = 50.0;
+
+/// How strong a club is: the one team-strength rule (maintainer, 4 Nov 2026), the side it would
+/// field, rated as it would play. The round summary's upset headlines read it, and so does every
+/// scoreline settled without the match engine (the dormant tier, a stranded fixture, the catch-up
+/// of a season a career joins under way).
+///
+/// The eleven is the one `turn::squad::match_day_selection` picks, the same pick kick-off makes:
+/// the user's saved XI with any gap filled, an AI club's own selection. Each player is rated in the
+/// slot he would play, out-of-position penalty included
+/// (`player_rating::effective_rating_for_assignment`). A club that can field nobody is a neutral 50.
+///
+/// The one exception is the catch-up of a season already under way while a world is still being
+/// built ([`simulate_past_fixtures`]): there is no game yet to pick a side in, so each club is
+/// rated on its best eleven by OVR ([`best_eleven_strength`]).
+pub(crate) fn club_strength(game: &Game, club_id: &str, lookups: Option<&MatchdayLookups>) -> f64 {
+    let club = crate::match_day_eligibility::club_players(&game.players, club_id);
+    let selection = crate::turn::squad::match_day_selection(game, club_id, &club, lookups);
+    eleven_strength(&selection.formation, &selection.eleven)
 }
 
-/// How strong a club is: the one team-strength rule (maintainer, 4 Nov 2026). The round summary's
-/// upset headlines read it, and so does every scoreline settled without the match engine (the
-/// catch-up of a season already under way, the dormant tier, a stranded fixture).
-///
-/// In order of precedence:
-/// 1. A club with a saved XI is rated on it: the mean rating of each of its players still at the
-///    club, in the slot he plays, out-of-position penalty included
-///    (`player_rating::effective_rating_for_assignment`).
-/// 2. A club with no saved XI (an AI club picks its side at kick-off), or none of whose saved XI
-///    is still there, is rated on its best eligible eleven by OVR.
-/// 3. A club with no eligible player at all is a neutral 50.
-///
-/// `team` is the club itself, and `club` its players.
-pub(crate) fn club_strength_among(team: Option<&Team>, club: &[&Player]) -> f64 {
-    team.and_then(|team| saved_eleven_strength(team, club))
-        .unwrap_or_else(|| best_eleven_strength(club))
+/// [`club_strength`] for each of `club_ids`, with the world's matchday lookups found once.
+pub(crate) fn club_strengths<'a>(
+    game: &Game,
+    club_ids: impl IntoIterator<Item = &'a str>,
+) -> HashMap<String, f64> {
+    let lookups = MatchdayLookups::of(game);
+    club_ids
+        .into_iter()
+        .map(|club_id| {
+            (
+                club_id.to_string(),
+                club_strength(game, club_id, Some(&lookups)),
+            )
+        })
+        .collect()
 }
 
-/// The mean rating of the club's saved XI, each player in the slot he plays; none when it has no
-/// saved XI or none of it is still at the club. A player who has left is not counted, so a
-/// partly departed eleven is rated on the players still there.
-fn saved_eleven_strength(team: &Team, club: &[&Player]) -> Option<f64> {
-    let slots = crate::player_rating::formation_slots(&team.formation);
-    let ratings: Vec<f64> = team
-        .starting_xi_ids
+/// `club_id`'s strength in `strengths` (as [`club_strengths`] finds them); neutral for a club
+/// missing from it.
+pub(crate) fn strength_in(strengths: &HashMap<String, f64>, club_id: &str) -> f64 {
+    strengths.get(club_id).copied().unwrap_or(NEUTRAL_STRENGTH)
+}
+
+/// The mean rating of `eleven`, entry `i` in slot `i` of `formation`; neutral for an empty one.
+fn eleven_strength(formation: &str, eleven: &[&Player]) -> f64 {
+    if eleven.is_empty() {
+        return NEUTRAL_STRENGTH;
+    }
+    let slots = crate::player_rating::formation_slots(formation);
+    let total: f64 = eleven
         .iter()
         .enumerate()
-        .filter_map(|(index, player_id)| {
-            let player = club.iter().find(|player| &player.id == player_id)?;
+        .map(|(index, player)| {
             let slot = slots
                 .get(index)
                 .cloned()
                 .unwrap_or_else(|| player.natural_position.clone());
-            Some(crate::player_rating::effective_rating_for_assignment(
-                player, &slot,
-            ))
+            crate::player_rating::effective_rating_for_assignment(player, &slot)
         })
-        .collect();
-    (!ratings.is_empty()).then(|| ratings.iter().sum::<f64>() / ratings.len() as f64)
+        .sum();
+    total / eleven.len() as f64
 }
 
-/// Average OVR of the best eleven among a club's eligible players; a neutral 50 when it has none.
-fn best_eleven_strength(club: &[&Player]) -> f64 {
-    let mut ovrs: Vec<u8> = crate::match_day_eligibility::eligible_among(club)
+/// Average OVR of the best eleven among club `club_id`'s eligible players; neutral when it has
+/// none. Only the catch-up of a world still being built reads it ([`club_strength`] says why).
+fn best_eleven_strength(players: &[Player], club_id: &str) -> f64 {
+    let club = crate::match_day_eligibility::club_players(players, club_id);
+    let mut ovrs: Vec<u8> = crate::match_day_eligibility::eligible_among(&club)
         .into_iter()
         .map(|p| p.ovr)
         .collect();
     if ovrs.is_empty() {
-        return 50.0;
+        return NEUTRAL_STRENGTH;
     }
     ovrs.sort_unstable_by(|a, b| b.cmp(a));
     let count = ovrs.len().min(CATCHUP_XI);
@@ -83,24 +102,8 @@ fn best_eleven_strength(club: &[&Player]) -> f64 {
 /// result applied to the fixture, the table and any bracket. How the dormant
 /// tier plays every fixture, and how an active one is settled when a side
 /// cannot be fielded at all.
-pub(crate) fn resolve_fixture_by_scoreline(
-    teams: &[Team],
-    players: &[Player],
-    competition: &mut League,
-    fixture_index: usize,
-    rng: &mut impl rand::Rng,
-) {
-    resolve_fixture_with_strengths(
-        competition,
-        fixture_index,
-        |team_id| club_strength(teams, players, team_id),
-        rng,
-    );
-}
-
-/// [`resolve_fixture_by_scoreline`], with each club's strength read from
-/// `strength_of` rather than recounted from the players: the one resolver,
-/// for a caller that settles many fixtures and has the strengths to hand.
+/// Each club's strength is read from `strength_of` (by [`club_strength`], found once for
+/// every fixture the caller settles).
 pub(crate) fn resolve_fixture_with_strengths(
     competition: &mut League,
     fixture_index: usize,
@@ -188,23 +191,35 @@ fn apply_simulated_result(
 /// began finishes with a champion. [`MAX_REPAIR_PASSES`] is only a backstop.
 ///
 /// Returns how many fixtures it resolved in all.
+///
+/// This form is for a world still being built, with no game to pick a side in: each club is rated
+/// on its best eleven ([`club_strength`] says why). A career's catch-up uses
+/// [`simulate_past_fixtures_with`] and the clubs' [`club_strengths`].
 pub fn simulate_past_fixtures(
     competition: &mut League,
-    teams: &[Team],
     players: &[Player],
+    cutoff: DateTime<Utc>,
+    rng: &mut impl Rng,
+) -> usize {
+    let strengths: HashMap<String, f64> = competition
+        .participant_ids
+        .iter()
+        .map(|id| (id.clone(), best_eleven_strength(players, id)))
+        .collect();
+    simulate_past_fixtures_with(competition, &strengths, cutoff, rng)
+}
+
+/// [`simulate_past_fixtures`] with each club's strength read from `strengths`, a club missing
+/// from it rated neutral.
+pub(crate) fn simulate_past_fixtures_with(
+    competition: &mut League,
+    strengths: &HashMap<String, f64>,
     cutoff: DateTime<Utc>,
     rng: &mut impl Rng,
 ) -> usize {
     let Some(on_or_before) = yesterday(cutoff.date_naive()) else {
         return 0;
     };
-
-    // Precompute strength once per participant to avoid O(fixtures × players).
-    let strengths: std::collections::HashMap<String, f64> = competition
-        .participant_ids
-        .iter()
-        .map(|id| (id.clone(), club_strength(teams, players, id)))
-        .collect();
 
     let mut resolved = 0;
     for _ in 0..MAX_REPAIR_PASSES {
@@ -223,7 +238,7 @@ pub fn simulate_past_fixtures(
             resolve_fixture_with_strengths(
                 competition,
                 idx,
-                |team_id| strengths.get(team_id).copied().unwrap_or(50.0),
+                |team_id| strength_in(strengths, team_id),
                 rng,
             );
         }
@@ -322,7 +337,15 @@ fn repair_one_pass(game: &mut Game, today: NaiveDate, pass: usize) -> usize {
     // Club football: a scoreline sweep per competition, skipping the ones with nothing stranded so
     // an ordinary load does not pay to rank every squad in the world.
     //
-    // Taken out so the scoreline model can read `game.players` while the competitions are mutated.
+    // The strengths are found first, from the whole game, and the competitions then taken out to
+    // be mutated.
+    let strengths = club_strengths(
+        game,
+        game.competitions
+            .iter()
+            .filter(|competition| stranded_in(competition, today) > 0)
+            .flat_map(|competition| competition.participant_ids.iter().map(String::as_str)),
+    );
     let mut competitions = std::mem::take(&mut game.competitions);
     for competition in competitions.iter_mut().filter(|competition| {
         !is_national_team_competition(competition) && stranded_in(competition, today) > 0
@@ -334,13 +357,8 @@ fn repair_one_pass(game: &mut Game, today: NaiveDate, pass: usize) -> usize {
             &format!("catchup/{}/pass{pass}", competition.id),
             &today.to_string(),
         );
-        resolved += simulate_past_fixtures(
-            competition,
-            &game.teams,
-            &game.players,
-            game.clock.current_date,
-            &mut rng,
-        );
+        resolved +=
+            simulate_past_fixtures_with(competition, &strengths, game.clock.current_date, &mut rng);
     }
     game.competitions = competitions;
 
@@ -380,13 +398,8 @@ fn repair_one_pass(game: &mut Game, today: NaiveDate, pass: usize) -> usize {
             &format!("catchup/{}/pass{pass}", competition.id),
             &today.to_string(),
         );
-        resolved += simulate_past_fixtures(
-            competition,
-            &game.teams,
-            &game.players,
-            game.clock.current_date,
-            &mut rng,
-        );
+        resolved +=
+            simulate_past_fixtures_with(competition, &strengths, game.clock.current_date, &mut rng);
     }
     game.competitions = competitions;
 
@@ -575,7 +588,7 @@ mod tests {
         let mut rng = rand::rngs::StdRng::seed_from_u64(715);
 
         assert_eq!(
-            super::simulate_past_fixtures(&mut league, &[], &[], cutoff, &mut rng),
+            super::simulate_past_fixtures(&mut league, &[], cutoff, &mut rng),
             1
         );
         assert_eq!(league.fixtures[0].status, FixtureStatus::Completed);
@@ -604,7 +617,7 @@ mod tests {
         let mut rng = rand::rngs::StdRng::seed_from_u64(715);
 
         assert_eq!(
-            super::simulate_past_fixtures(&mut league, &[], &[], cutoff, &mut rng),
+            super::simulate_past_fixtures(&mut league, &[], cutoff, &mut rng),
             0
         );
         assert_eq!(league.fixtures[0].status, FixtureStatus::Scheduled);
@@ -887,7 +900,7 @@ mod tests {
         let cutoff = game_on("2030-12-01").clock.current_date;
         let mut rng = rand::rngs::StdRng::seed_from_u64(653);
 
-        let played = super::simulate_past_fixtures(&mut cup, &[], &[], cutoff, &mut rng);
+        let played = super::simulate_past_fixtures(&mut cup, &[], cutoff, &mut rng);
 
         assert_eq!(
             played, 7,
@@ -1287,38 +1300,36 @@ mod tests {
             (0..40).map(friendly_score_after_repair).collect();
         assert!(scores.len() > 1, "forty seeds all settled it alike");
     }
-    /// Given eighteen seniors and elite youth, when catchup estimates strength,
-    /// then the academy cannot raise the strength of a side it cannot join.
+    /// Given eighteen seniors, once alone and once with eleven elite youth, when catchup estimates
+    /// strength, then the academy cannot raise the strength of a side it cannot join.
     #[test]
     fn ineligible_youth_cannot_raise_catchup_strength() {
-        let mut game = crate::turn::squad::match_day_pool_tests::match_day_game(false, 18, 11);
-        for p in &mut game.players {
-            p.ovr = if p.squad_role == domain::player::SquadRole::Senior {
-                60
-            } else {
-                99
-            };
-        }
+        let with_youth = crate::turn::squad::match_day_pool_tests::match_day_game(false, 18, 11);
+        let without_youth = crate::turn::squad::match_day_pool_tests::match_day_game(false, 18, 0);
         assert_eq!(
-            super::club_strength(&game.teams, &game.players, "club"),
-            60.0
+            super::club_strength(&with_youth, "club", None),
+            super::club_strength(&without_youth, "club", None)
         );
     }
 }
 
 #[cfg(test)]
 mod club_strength_tests {
-    use super::club_strength;
-    use crate::player_rating::{effective_rating_for_assignment, formation_slots};
+    use super::{best_eleven_strength, club_strength, eleven_strength};
+    use crate::clock::GameClock;
+    use crate::game::Game;
+    use crate::player_rating::formation_slots;
     use crate::test_support::uniform_attributes;
+    use chrono::{TimeZone, Utc};
+    use domain::manager::Manager;
     use domain::player::{Player, Position};
     use domain::team::Team;
 
-    fn club() -> Team {
+    fn club(id: &str) -> Team {
         let mut team = Team::new(
-            "a".into(),
-            "A".into(),
-            "A".into(),
+            id.into(),
+            id.into(),
+            id.into(),
             "ENG".into(),
             "Town".into(),
             "Ground".into(),
@@ -1328,7 +1339,7 @@ mod club_strength_tests {
         team
     }
 
-    fn player(id: &str, position: Position, rating: u8) -> Player {
+    fn player(id: &str, club_id: &str, position: Position, rating: u8) -> Player {
         let mut player = Player::new(
             id.into(),
             id.into(),
@@ -1338,122 +1349,125 @@ mod club_strength_tests {
             position,
             uniform_attributes(rating),
         );
-        player.team_id = Some("a".into());
+        player.team_id = Some(club_id.into());
         player.ovr = rating;
         player
     }
 
-    /// Eleven players rated `rating`, each a natural in his slot of the club's 4-4-2, named xi0..xi10.
-    fn eleven_in_position(rating: u8) -> Vec<Player> {
+    /// Eleven naturals for the 4-4-2's slots at `club_id`, rated `rating`, named `{prefix}0..10`.
+    fn eleven(prefix: &str, club_id: &str, rating: u8) -> Vec<Player> {
         formation_slots("4-4-2")
             .into_iter()
             .enumerate()
-            .map(|(index, slot)| player(&format!("xi{index}"), slot, rating))
+            .map(|(index, slot)| player(&format!("{prefix}{index}"), club_id, slot, rating))
             .collect()
     }
 
-    fn reserves(count: usize, rating: u8) -> Vec<Player> {
-        (0..count)
-            .map(|index| player(&format!("res{index}"), Position::Midfielder, rating))
-            .collect()
+    /// A game whose user manages club "user"; club "ai" is managed by nobody the user is.
+    fn game(teams: Vec<Team>, players: Vec<Player>) -> Game {
+        let mut manager = Manager::new(
+            "mgr".into(),
+            "A".into(),
+            "B".into(),
+            "1980-01-01".into(),
+            "ENG".into(),
+        );
+        manager.hire("user".into());
+        let clock = GameClock::new(Utc.with_ymd_and_hms(2026, 9, 1, 12, 0, 0).unwrap());
+        Game::new(clock, manager, teams, players, vec![], vec![])
     }
 
-    fn mean_in_slots(team: &Team, players: &[Player]) -> f64 {
-        let slots = formation_slots(&team.formation);
-        let ratings: Vec<f64> = team
-            .starting_xi_ids
-            .iter()
-            .enumerate()
-            .filter_map(|(index, id)| {
-                let player = players.iter().find(|player| &player.id == id)?;
-                Some(effective_rating_for_assignment(player, &slots[index]))
-            })
-            .collect();
-        ratings.iter().sum::<f64>() / ratings.len() as f64
+    /// What kick-off would field for `club_id`, rated in its slots.
+    fn fielded_side_rating(game: &Game, club_id: &str) -> (usize, f64) {
+        let players = crate::match_day_eligibility::club_players(&game.players, club_id);
+        let selection = crate::turn::squad::match_day_selection(game, club_id, &players, None);
+        (
+            selection.eleven.len(),
+            eleven_strength(&selection.formation, &selection.eleven),
+        )
     }
 
-    /// Given a club whose saved XI is eleven naturals rated 60, and fourteen reserves rated 80
+    fn with_saved_eleven(mut team: Team, eleven: &[Player]) -> Team {
+        team.starting_xi_ids = eleven.iter().map(|player| player.id.clone()).collect();
+        team
+    }
+
+    /// Given the user's club, whose saved XI is eleven naturals rated 60, with eleven more rated 80
+    ///      on the bench
     /// When its strength is worked out
-    /// Then it is its saved XI's rating in the slots they play, not the 80 of its best eleven: the
-    ///      saved XI comes first
+    /// Then it is the saved XI's rating, the side the user would field, not the 80s
     #[test]
-    fn a_saved_eleven_rates_a_club_before_its_best_squad() {
-        let mut team = club();
-        let mut players = eleven_in_position(60);
-        team.starting_xi_ids = players.iter().map(|player| player.id.clone()).collect();
-        players.extend(reserves(14, 80));
+    fn the_users_club_is_rated_on_the_saved_eleven_he_would_field() {
+        let starters = eleven("xi", "user", 60);
+        let team = with_saved_eleven(club("user"), &starters);
+        let mut players = starters;
+        players.extend(eleven("bench", "user", 80));
+        let game = game(vec![team], players);
 
-        let strength = club_strength(std::slice::from_ref(&team), &players, "a");
+        let strength = club_strength(&game, "user", None);
 
-        assert_eq!(strength, mean_in_slots(&team, &players));
-        assert!(strength < 70.0, "{strength}: the reserves were counted");
+        assert_eq!(strength, fielded_side_rating(&game, "user").1);
+        assert!(strength < 70.0, "{strength}: the bench was rated");
     }
 
-    /// Given two clubs with the same eleven, one with every player in his own slot and one with its
-    ///      goalkeeper and a forward swapped
-    /// When their strength is worked out
-    /// Then the second is weaker: a player out of position is rated as he would play there
+    /// Given an AI club with a saved XI of eleven naturals rated 60 and eleven more rated 80
+    /// When its strength is worked out
+    /// Then it is the side the AI would pick, the 80s, not its saved XI: an AI club picks its own
+    ///      side at kick-off, and the strength describes the side that would play
     #[test]
-    fn an_eleven_out_of_position_rates_below_the_same_eleven_in_it() {
-        let mut team = club();
-        let players = eleven_in_position(60);
-        team.starting_xi_ids = players.iter().map(|player| player.id.clone()).collect();
-        let in_position = club_strength(std::slice::from_ref(&team), &players, "a");
+    fn an_ai_club_is_rated_on_the_side_it_would_pick() {
+        let saved = eleven("xi", "ai", 60);
+        let team = with_saved_eleven(club("ai"), &saved);
+        let mut players = saved;
+        players.extend(eleven("best", "ai", 80));
+        let game = game(vec![club("user"), team], players);
 
-        team.starting_xi_ids.swap(0, 10);
-        let swapped = club_strength(std::slice::from_ref(&team), &players, "a");
+        let strength = club_strength(&game, "ai", None);
+
+        assert_eq!(strength, fielded_side_rating(&game, "ai").1);
+        assert!(strength > 70.0, "{strength}: the saved XI was rated");
+    }
+
+    /// Given the user's club, whose saved XI has three players left at the club, rated 60, and
+    ///      eleven naturals rated 80 besides
+    /// When its strength is worked out
+    /// Then it is the rating of the eleven kick-off would field, the three with their gaps filled:
+    ///      eleven players, rated above the three alone
+    #[test]
+    fn a_partly_departed_saved_eleven_is_rated_with_its_gaps_filled() {
+        let starters = eleven("xi", "user", 60);
+        let team = with_saved_eleven(club("user"), &starters);
+        let mut players: Vec<Player> = starters.into_iter().take(3).collect();
+        players.extend(eleven("bench", "user", 80));
+        let game = game(vec![team], players);
+
+        let strength = club_strength(&game, "user", None);
+        let (fielded, rating) = fielded_side_rating(&game, "user");
+
+        assert_eq!(fielded, 11);
+        assert_eq!(strength, rating);
+        assert!(strength > 65.0, "{strength}: the gaps were not filled");
+    }
+
+    /// Given the user's saved XI, once with every player in his own slot and once with its
+    ///      goalkeeper and a forward swapped
+    /// When its strength is worked out
+    /// Then the swapped side is weaker: a player out of position is rated as he would play there
+    #[test]
+    fn a_saved_eleven_out_of_position_rates_below_the_same_eleven_in_it() {
+        let starters = eleven("xi", "user", 60);
+        let in_position = game(
+            vec![with_saved_eleven(club("user"), &starters)],
+            starters.clone(),
+        );
+        let mut swapped_team = with_saved_eleven(club("user"), &starters);
+        swapped_team.starting_xi_ids.swap(0, 10);
+        let swapped = game(vec![swapped_team], starters);
+
+        let in_position = club_strength(&in_position, "user", None);
+        let swapped = club_strength(&swapped, "user", None);
 
         assert!(swapped < in_position, "{swapped} against {in_position}");
-    }
-
-    /// Given a club with no saved XI, eleven players rated 70 and fourteen reserves rated 50
-    /// When its strength is worked out
-    /// Then it is its best eleven, 70 (the upset detector used the squad mean, 58.8)
-    #[test]
-    fn a_club_without_a_saved_eleven_is_as_strong_as_its_best_eleven() {
-        let team = club();
-        let mut players = reserves(11, 70);
-        players.extend(
-            reserves(14, 50)
-                .into_iter()
-                .enumerate()
-                .map(|(index, mut p)| {
-                    p.id = format!("low{index}");
-                    p
-                }),
-        );
-
-        assert_eq!(club_strength(&[team], &players, "a"), 70.0);
-    }
-
-    /// Given a club whose saved XI has all left, and eleven players rated 70 still on its books
-    /// When its strength is worked out
-    /// Then it is rated on its best eleven, 70, as a club with no saved XI is
-    #[test]
-    fn a_saved_eleven_that_has_all_left_gives_way_to_the_best_squad() {
-        let mut team = club();
-        team.starting_xi_ids = (0..11).map(|index| format!("gone{index}")).collect();
-        let players = reserves(11, 70);
-
-        assert_eq!(club_strength(&[team], &players, "a"), 70.0);
-    }
-
-    /// Given a club whose saved XI has three players left at the club, rated 60 in their slots, and
-    ///      eleven reserves rated 80
-    /// When its strength is worked out
-    /// Then it is the three's rating: a partly departed eleven is rated on the players still there
-    #[test]
-    fn a_partly_departed_eleven_is_rated_on_the_players_still_there() {
-        let mut team = club();
-        let eleven = eleven_in_position(60);
-        team.starting_xi_ids = eleven.iter().map(|player| player.id.clone()).collect();
-        let mut players: Vec<Player> = eleven.into_iter().take(3).collect();
-        players.extend(reserves(11, 80));
-
-        let strength = club_strength(std::slice::from_ref(&team), &players, "a");
-
-        assert_eq!(strength, mean_in_slots(&team, &players));
-        assert!(strength < 70.0, "{strength}: the reserves were counted");
     }
 
     /// Given a club with nobody on its books
@@ -1461,6 +1475,21 @@ mod club_strength_tests {
     /// Then it is a neutral 50, not 0
     #[test]
     fn a_club_with_no_players_is_rated_neutral() {
-        assert_eq!(club_strength(&[club()], &[], "a"), 50.0);
+        let game = game(vec![club("user"), club("ai")], vec![]);
+
+        assert_eq!(club_strength(&game, "ai", None), 50.0);
+    }
+
+    /// Given a club of eleven players rated 70 and fourteen rated 50, in a world still being built
+    /// When the catch-up rates it
+    /// Then it is its best eleven, 70: with no game yet there is no side picked to rate
+    #[test]
+    fn a_world_still_being_built_rates_a_club_on_its_best_eleven() {
+        let mut players = eleven("best", "a", 70);
+        players.extend(
+            (0..14).map(|index| player(&format!("low{index}"), "a", Position::Midfielder, 50)),
+        );
+
+        assert_eq!(best_eleven_strength(&players, "a"), 70.0);
     }
 }

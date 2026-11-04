@@ -118,16 +118,10 @@ fn a_generated_world_promotes_and_relegates_for_three_seasons_running() {
 
     for rollover in 1..=3 {
         let far_future = Utc.with_ymd_and_hms(2100, 1, 1, 0, 0, 0).unwrap();
-        let (teams, players) = (game.teams.clone(), game.players.clone());
+        let players = game.players.clone();
         for competition in game.competitions.iter_mut() {
             let mut rng = game_seeded_rng(rollover);
-            ofm_core::catchup::simulate_past_fixtures(
-                competition,
-                &teams,
-                &players,
-                far_future,
-                &mut rng,
-            );
+            ofm_core::catchup::simulate_past_fixtures(competition, &players, far_future, &mut rng);
         }
         let last_match_day = game
             .competitions
@@ -233,16 +227,10 @@ fn a_brazilian_career_promotes_and_relegates_every_season() {
                 .expect("midnight is a valid time"),
         ) + chrono::Duration::days(1);
         for _ in 0..40 {
-            let (teams, players) = (game.teams.clone(), game.players.clone());
+            let players = game.players.clone();
             for competition in game.competitions.iter_mut() {
                 let mut rng = game_seeded_rng(0);
-                ofm_core::catchup::simulate_past_fixtures(
-                    competition,
-                    &teams,
-                    &players,
-                    cutoff,
-                    &mut rng,
-                );
+                ofm_core::catchup::simulate_past_fixtures(competition, &players, cutoff, &mut rng);
             }
             game.clock.current_date = cutoff;
             if ofm_core::end_of_season::is_season_complete(&game) {

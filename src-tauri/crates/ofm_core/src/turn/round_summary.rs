@@ -184,10 +184,8 @@ fn build_notable_upset(game: &Game, fixtures: &[&Fixture]) -> Option<NotableUpse
             }
 
             // The one team-strength rule, which the scoreline is drawn from too.
-            let home_strength =
-                crate::catchup::club_strength(&game.teams, &game.players, &fixture.home_team_id);
-            let away_strength =
-                crate::catchup::club_strength(&game.teams, &game.players, &fixture.away_team_id);
+            let home_strength = crate::catchup::club_strength(game, &fixture.home_team_id, None);
+            let away_strength = crate::catchup::club_strength(game, &fixture.away_team_id, None);
 
             let (
                 favorite_team_id,

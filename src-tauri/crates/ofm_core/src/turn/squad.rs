@@ -92,6 +92,8 @@ pub(crate) fn build_team_with_bench_from(
 /// by slot (entry `i` plays formation slot `i`) and the bench, best first. The kick-off and the
 /// Tactics screen's lineup projection both read this, so the screen shows the side that will play.
 pub(crate) struct MatchDaySelection<'a> {
+    /// The formation the eleven lines up in: the club's own, or 4-4-2 for a club with none.
+    pub(crate) formation: String,
     pub(crate) eleven: Vec<&'a domain::player::Player>,
     pub(crate) bench: Vec<&'a domain::player::Player>,
 }
@@ -145,7 +147,11 @@ pub(crate) fn match_day_selection<'a>(
             .partial_cmp(&natural_ovr(left))
             .unwrap_or(std::cmp::Ordering::Equal)
     });
-    MatchDaySelection { eleven, bench }
+    MatchDaySelection {
+        formation: formation.to_string(),
+        eleven,
+        bench,
+    }
 }
 
 /// The role `player` plays where he is playing (`playing_at`: his slot if he starts, his natural
