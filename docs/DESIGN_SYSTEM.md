@@ -196,7 +196,8 @@ bands:
    Vertical scroll is fine.
 6. At most two panels side by side, and one below `@split`. The Tactics workbench is the exception:
    its instructions panel sits beside the lineup where the workbench is 72rem or wider, and below
-   that rests as a rail and opens over the lineup.
+   that rests as a rail and opens as a drawer (a `Dialog`: Escape, a Tab trap, focus back to the
+   rail) (maintainer, 4 Nov 2026).
 
 ## 6. Adding a token
 

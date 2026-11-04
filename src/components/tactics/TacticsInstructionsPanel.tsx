@@ -23,6 +23,8 @@ const SECTION_TITLE_KEYS: Record<InstructionsSection, string> = {
 };
 
 const PANEL_ID = "tactics-instructions";
+/** The panel's heading, which names it, and names the drawer it opens in. */
+export const INSTRUCTIONS_TITLE_ID = `${PANEL_ID}-title`;
 
 interface TacticsInstructionsPanelProps {
   /** The panel is open; folded, it is a rail of the sections. */
@@ -134,12 +136,12 @@ export default function TacticsInstructionsPanel({
   return (
     <section
       id={PANEL_ID}
-      aria-labelledby={`${PANEL_ID}-title`}
+      aria-labelledby={INSTRUCTIONS_TITLE_ID}
       className="flex h-full min-h-0 flex-col overflow-hidden rounded-lg border border-line bg-panel"
     >
       <div className="flex h-panel-header shrink-0 items-center gap-2 border-b border-line pl-4 pr-2">
         <h2
-          id={`${PANEL_ID}-title`}
+          id={INSTRUCTIONS_TITLE_ID}
           className="flex-1 font-heading text-heading font-bold uppercase tracking-label text-fg"
         >
           {t("tactics.instructionsPanel.title")}
