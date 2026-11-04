@@ -1102,6 +1102,45 @@ mod tests {
         assert_eq!(moved.num_days(), i64::from(days_advanced));
     }
 
+    /// A game whose user's club has a cup tie `cup_in_days` from today, in `game.competitions` only
+    /// (the `game.league` mirror never holds a cup), and its next league match twenty days away.
+    #[cfg(feature = "mcp")]
+    fn state_with_a_cup_tie_in(cup_in_days: i64) -> (StateManager, chrono::DateTime<chrono::Utc>) {
+        let mut game = make_game_with_matchday();
+        let start = game.clock.current_date;
+        let date_in = |days: i64| {
+            (start + chrono::Duration::days(days))
+                .format("%Y-%m-%d")
+                .to_string()
+        };
+        let mut league = game.league.clone().expect("the game has a league");
+        league.fixtures[0].date = date_in(20);
+        let mut cup = league.clone();
+        cup.id = "cup-1".to_string();
+        cup.fixtures[0].id = "cup-tie".to_string();
+        cup.fixtures[0].competition_id = "cup-1".to_string();
+        cup.fixtures[0].competition = FixtureCompetition::Cup;
+        cup.fixtures[0].date = date_in(cup_in_days);
+        game.league = Some(league.clone());
+        game.competitions = vec![league, cup];
+        let state = StateManager::new();
+        state.set_game(game);
+        (state, start)
+    }
+
+    /// The game's date and the cup tie's status.
+    #[cfg(feature = "mcp")]
+    fn clock_and_cup_tie(state: &StateManager) -> (chrono::DateTime<chrono::Utc>, FixtureStatus) {
+        state
+            .get_game(|g| {
+                (
+                    g.clock.current_date,
+                    g.competitions[1].fixtures[0].status.clone(),
+                )
+            })
+            .expect("a game")
+    }
+
     /// Given a cup tie for the user's club today, and his next league match twenty days away
     /// When the MCP skip runs
     /// Then it stops at once on the match day, as the screen's skip does, and the cup tie is still
@@ -1112,38 +1151,39 @@ mod tests {
     fn the_mcp_skip_stops_on_a_cup_tie_instead_of_playing_it() {
         use crate::mcp_server::tools_impl::time::skip_to_match_day_in;
         use mcp_results::time::SkipToMatchDay;
-        let mut game = make_game_with_matchday();
-        let start = game.clock.current_date;
-        let today = start.format("%Y-%m-%d").to_string();
-        let later = (start + chrono::Duration::days(20))
-            .format("%Y-%m-%d")
-            .to_string();
-        let mut league = game.league.clone().expect("the game has a league");
-        league.fixtures[0].date = later;
-        let mut cup = league.clone();
-        cup.id = "cup-1".to_string();
-        cup.fixtures[0].id = "cup-tie".to_string();
-        cup.fixtures[0].competition_id = "cup-1".to_string();
-        cup.fixtures[0].competition = FixtureCompetition::Cup;
-        cup.fixtures[0].date = today;
-        game.league = Some(league.clone());
-        game.competitions = vec![league, cup];
-        let state = StateManager::new();
-        state.set_game(game);
+        let (state, start) = state_with_a_cup_tie_in(0);
 
         let outcome = skip_to_match_day_in(&state).expect("the skip answers");
 
         assert_eq!(outcome, SkipToMatchDay::MatchDayToday {});
-        let (clock, cup_status) = state
-            .get_game(|g| {
-                (
-                    g.clock.current_date,
-                    g.competitions[1].fixtures[0].status.clone(),
-                )
-            })
-            .expect("a game");
-        assert_eq!(clock, start);
-        assert_eq!(cup_status, FixtureStatus::Scheduled);
+        assert_eq!(clock_and_cup_tie(&state), (start, FixtureStatus::Scheduled));
+    }
+
+    /// Given a cup tie for the user's club tomorrow, and his next league match twenty days away
+    /// When the MCP skip runs
+    /// Then it skips one day and stops on the cup tie's day with the tie still to be played (#1193:
+    ///      it aimed at the league match in the mirror and played the cup tie on the way)
+    #[cfg(feature = "mcp")]
+    #[test]
+    fn the_mcp_skip_stops_on_the_day_of_a_cup_tie_before_the_league_match() {
+        use crate::mcp_server::tools_impl::time::skip_to_match_day_in;
+        use mcp_results::time::SkipToMatchDay;
+        let (state, start) = state_with_a_cup_tie_in(1);
+        let tomorrow = start + chrono::Duration::days(1);
+
+        let outcome = skip_to_match_day_in(&state).expect("the skip answers");
+
+        assert_eq!(
+            outcome,
+            SkipToMatchDay::Skipped {
+                days_advanced: 1,
+                target_date: tomorrow.format("%Y-%m-%d").to_string(),
+            }
+        );
+        assert_eq!(
+            clock_and_cup_tie(&state),
+            (tomorrow, FixtureStatus::Scheduled)
+        );
     }
 
     /// Given career B is active (token 2) and a screen still holds career A's token (1)
