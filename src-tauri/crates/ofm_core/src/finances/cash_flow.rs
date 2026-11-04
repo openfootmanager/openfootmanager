@@ -81,7 +81,8 @@ mod tests {
         team
     }
 
-    /// A game on Monday 16 February 2026, managing "alpha", with "bravo" as another club.
+    /// A game on Monday 16 February 2026, managing "alpha", with "bravo" as another club, and
+    /// one player at "alpha" on a wage.
     fn game() -> Game {
         let clock = GameClock::new(Utc.with_ymd_and_hms(2026, 2, 16, 12, 0, 0).unwrap());
         let mut manager = Manager::new(
@@ -92,11 +93,22 @@ mod tests {
             "England".to_string(),
         );
         manager.hire("alpha".to_string());
+        let mut player = domain::player::Player::new(
+            "p1".to_string(),
+            "P1".to_string(),
+            "Player One".to_string(),
+            "1998-01-01".to_string(),
+            "England".to_string(),
+            domain::player::Position::CentralMidfielder,
+            crate::test_support::uniform_attributes(60),
+        );
+        player.team_id = Some("alpha".to_string());
+        player.stage_wage(52_000);
         Game::new(
             clock,
             manager,
             vec![team("alpha"), team("bravo")],
-            vec![],
+            vec![player],
             vec![],
             vec![],
         )
@@ -149,22 +161,22 @@ mod tests {
         );
     }
 
-    /// Given the club's opening balance and another club's wages, beside one sponsorship payment
+    /// Given one sponsorship payment to the club (its first post, which seeds the club's opening
+    ///       balance in the journal the same week) and another club's wages
     /// When the club's cash flow is read
     /// Then only the sponsorship is in it: where the money started is not a movement, and another
     ///      club's money is not this club's.
     #[test]
     fn the_opening_balance_and_other_clubs_are_left_out() {
         let mut game = game();
-        post(
-            &mut game,
-            "alpha",
-            5_000_000,
-            CashKind::OpeningBalance,
-            day(2),
-        );
         post(&mut game, "bravo", -90_000, CashKind::PlayerWages, day(16));
         post(&mut game, "alpha", 10_000, CashKind::Sponsorship, day(16));
+        assert!(
+            game.cash_journal
+                .iter()
+                .any(|post| post.club_id == "alpha" && post.kind == CashKind::OpeningBalance),
+            "the first post seeds the club's opening balance"
+        );
 
         let flow = weekly_cash_flow(&game, "alpha");
 
@@ -224,5 +236,21 @@ mod tests {
         assert!(spent > 0, "a Monday should post some expense for the club");
         let flow = weekly_cash_flow(&game, "alpha");
         assert_eq!(flow.last().map(|week| week.expenses), Some(spent));
+    }
+
+    /// Given a club whose wages and a sponsorship payment have been posted
+    /// When the Finances screen's snapshot is taken
+    /// Then it carries the club's weekly cash flow, the same weeks the journal sums to: the chart
+    ///      draws what the snapshot hands it.
+    #[test]
+    fn the_finance_snapshot_carries_the_weekly_cash_flow() {
+        let mut game = game();
+        post(&mut game, "alpha", -40_000, CashKind::PlayerWages, day(9));
+        post(&mut game, "alpha", 10_000, CashKind::Sponsorship, day(16));
+
+        let snapshot = crate::finances::team_finance_snapshot(&game, "alpha").expect("a snapshot");
+
+        assert_eq!(snapshot.cash_flow.len(), 2);
+        assert_eq!(snapshot.cash_flow, weekly_cash_flow(&game, "alpha"));
     }
 }
