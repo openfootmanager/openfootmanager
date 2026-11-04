@@ -650,6 +650,7 @@ pub fn process_pending_transfer_registrations(game: &mut Game) {
                 &game.team_name_or_id(&buyer_team_id),
                 reason,
                 &today,
+                &today,
             );
             crate::inbox::emit(game, message);
         }
@@ -896,6 +897,8 @@ mod tests {
             Some("player-award")
         );
         assert_eq!(failures[0].context.team_id.as_deref(), Some("team1"));
+        // The day the transfer was due to be registered, not the day of the release.
+        assert_eq!(failures[0].i18n_params["start"], "2026-01-20");
     }
 
     /// Given the user's agreed sale of his own player, waiting for the window, whose contract
@@ -915,6 +918,49 @@ mod tests {
                 .ends_with("PlayerUnavailable")
         );
         assert_eq!(failures[0].context.team_id.as_deref(), Some("team1"));
+    }
+
+    /// Given an agreement between two AI clubs, waiting for the window, whose player's contract
+    /// runs out first; when the contract expires; then the user is told nothing: it is not his deal.
+    #[test]
+    fn an_agreement_between_two_other_clubs_lapses_without_a_letter_to_the_user() {
+        let mut game = pending_transfer_game_with(false, Some("2026-01-12"), "2026-01-20");
+        let mut third = game.teams[1].clone();
+        third.id = "team3".to_string();
+        third.name = "Third Club".to_string();
+        game.teams.push(third);
+        game.players[0].transfer_offers[0].from_team_id = "team3".to_string();
+
+        crate::contracts::process_contract_expiries(&mut game);
+
+        assert!(registration_failures(&game).is_empty());
+    }
+
+    /// Given the user's agreed sale of his own player, waiting for the window, and the player
+    /// old enough to retire at the season's end; when the season's ageing retires him; then the
+    /// user is told the sale cannot go through, as a release would tell him.
+    #[test]
+    fn an_agreed_sale_whose_player_retires_before_registration_is_reported_to_the_seller() {
+        let mut game = pending_transfer_game_with(true, None, "2026-01-20");
+        game.players[0].date_of_birth = "1980-01-01".to_string();
+
+        let today = game.clock.current_date.date_naive();
+        crate::aging::apply_seasonal_aging(&mut game, today, 2025);
+
+        let failures = registration_failures(&game);
+        assert_eq!(failures.len(), 1);
+        assert!(
+            failures[0]
+                .body_key
+                .as_deref()
+                .unwrap()
+                .ends_with("PlayerUnavailable")
+        );
+        assert!(
+            game.retired_players
+                .iter()
+                .any(|retiree| retiree.id == "player-award")
+        );
     }
 
     /// Given an agreement already reported as lapsed at the release; when its registration day
