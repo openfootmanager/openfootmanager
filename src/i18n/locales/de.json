@@ -433,6 +433,12 @@
     "drawnFull": "Unentschieden",
     "lostFull": "Niederlagen",
     "ptsFull": "Punkte",
+    "recentForm": "Aktuelle Form",
+    "formResult": {
+      "W": "S",
+      "D": "U",
+      "L": "N"
+    },
     "played": "Sp",
     "won": "S",
     "drawn": "U",
@@ -1263,6 +1269,15 @@
     "employed": "Im Amt",
     "unemployed": "Vereinslos",
     "reputation": "Ruf",
+    "reputationBand": {
+      "world_class": "Weltklasse",
+      "established": "Etabliert",
+      "great": "Hervorragend",
+      "good": "Gut",
+      "average": "Durchschnittlich",
+      "below_average": "Unterdurchschnittlich",
+      "unknown": "Unbekannt"
+    },
     "winRate": "Siegquote",
     "matches": "Spiele",
     "currentClub": "Aktueller Klub",
@@ -1530,6 +1545,7 @@
     "yourTeam": "Dein Team",
     "squad": "Kader",
     "avgOvr": "Durchschn. OVR",
+    "manager": "Trainer",
     "rep": "Ruf",
     "est": "Gegr."
   },
