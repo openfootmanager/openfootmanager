@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { invoke, type InvokeArgs } from "@tauri-apps/api/core";
 import type { GameStateData, PlayerData, TeamData } from "../../store/gameStore";
@@ -1001,10 +1001,14 @@ describe("TacticsTab", () => {
      *       not arrived
      * When a lineup action is taken from the screen
      * Then nothing is saved and both stay selected: the comparison is still open.
+     *
+     * The same action is first taken with the familiarity arrived and must save: that is what
+     * proves the fixture reaches the save, so "nothing saved" below is the guard and not a lineup
+     * the action never builds.
      */
     async function takeActionWithPairSelected(act_: () => void): Promise<void> {
-      familiarityState.arrived = false;
-      try {
+      const mountWithPairSelected = async () => {
+        mockedInvoke.mockClear();
         render(
           <TacticsTab
             gameState={makeGameState()}
@@ -1016,15 +1020,34 @@ describe("TacticsTab", () => {
         fireEvent.click(screen.getByTestId("pitch-bench-player-d5"));
         fireEvent.click(screen.getByTestId("pitch-player-d2"));
         expect(screen.getByText("tactics.comparePlayer")).toBeInTheDocument();
+      };
 
-        act_();
-        await act(async () => {});
+      const control = await renderToUnmount(mountWithPairSelected, act_);
+      expect(control.saved).toBe(true);
 
-        expect(mockedInvoke).not.toHaveBeenCalledWith("set_starting_xi", expect.anything());
-        expect(screen.getByText("tactics.comparePlayer")).toBeInTheDocument();
+      familiarityState.arrived = false;
+      try {
+        const withheld = await renderToUnmount(mountWithPairSelected, act_);
+        expect(withheld.saved).toBe(false);
+        expect(withheld.comparisonOpen).toBe(true);
       } finally {
         familiarityState.arrived = true;
       }
+    }
+
+    async function renderToUnmount(
+      mount: () => Promise<void>,
+      act_: () => void,
+    ): Promise<{ saved: boolean; comparisonOpen: boolean }> {
+      await mount();
+      act_();
+      await act(async () => {});
+      const result = {
+        saved: mockedInvoke.mock.calls.some(([command]) => command === "set_starting_xi"),
+        comparisonOpen: screen.queryByText("tactics.comparePlayer") !== null,
+      };
+      cleanup();
+      return result;
     }
 
     it("keeps the selection when Confirm swap is pressed", async () => {
