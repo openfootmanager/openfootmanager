@@ -31,8 +31,8 @@ export function resetTacticsLineupCache(): void {
 
 /**
  * What the side depends on: the career, the club, the day, its formation, its saved eleven and
- * roles, and each of its players' availability. Any of these changing is a new revision and so a
- * new request. Empty when there is no club.
+ * roles, and each of its players' positions and availability. Any of these changing is a new
+ * revision and so a new request. Empty when there is no club.
  */
 export function tacticsLineupRevision(
   careerToken: number,
@@ -49,6 +49,9 @@ export function tacticsLineupRevision(
       player.squad_role ?? null,
       player.match_day_eligible ?? null,
       player.condition,
+      // His positions decide where he fits, and so who the match picks and how he stands there.
+      player.natural_position,
+      player.alternate_positions ?? [],
     ]);
   // JSON, not a join: an id may hold any separator a join would use.
   return JSON.stringify([

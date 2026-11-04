@@ -228,24 +228,56 @@ mod tests {
         assert_eq!(picked.len(), 11);
     }
 
-    /// Given a club with its eleven saved, and the same club with none saved
+    fn injure(game: &mut Game, id: &str) {
+        let player = game.players.iter_mut().find(|p| p.id == id).unwrap();
+        player.injury = Some(Injury {
+            name: "Knock".into(),
+            days_remaining: 7,
+        });
+    }
+
+    /// The club's side in each of the cases the match's own selection handles differently.
+    fn side_cases() -> Vec<(&'static str, Game)> {
+        let mut no_saved = game();
+        no_saved.teams[0].starting_xi_ids.clear();
+        let mut injured = game();
+        injure(&mut injured, "s4");
+        // Fewer than eleven fit players: the match tops the side up from the treatment room.
+        let mut short = game();
+        for id in ["s1", "s2", "s3", "s5", "s6", "s7", "b0", "b1", "b2", "b4"] {
+            injure(&mut short, id);
+        }
+        // Both keepers out: someone else has to go in goal.
+        let mut no_keeper = game();
+        injure(&mut no_keeper, "s0");
+        injure(&mut no_keeper, "b3");
+        // Too few of the saved eleven left: the match rebuilds a fresh, slot-aligned side.
+        let mut few_saved = game();
+        few_saved.teams[0].starting_xi_ids.truncate(7);
+        vec![
+            ("saved eleven", game()),
+            ("no saved eleven", no_saved),
+            ("an injured starter", injured),
+            ("a squad too short to field eleven fit players", short),
+            ("no fit keeper", no_keeper),
+            ("fewer than eight saved", few_saved),
+        ]
+    }
+
+    /// Given a club's side in each case the match's selection handles differently (its eleven
+    ///       saved or not, an injured starter, too few fit players, no fit keeper, too few saved)
     /// When its lineup is read, and its next match's side is built
     /// Then the eleven and the bench are the same players in the same order: the screen shows
     ///      the side that will play.
     #[test]
     fn the_lineup_is_the_side_the_match_fields() {
-        for saved in [true, false] {
-            let mut game = game();
-            if !saved {
-                game.teams[0].starting_xi_ids.clear();
-            }
-
+        for (case, game) in side_cases() {
             let lineup = tactics_lineup(&game).unwrap();
             let (side, bench) = crate::turn::squad::build_team_with_bench(&game, CLUB);
 
             let fielded: Vec<&str> = side.players.iter().map(|p| p.id.as_str()).collect();
             let benched: Vec<&str> = bench.iter().map(|p| p.id.as_str()).collect();
-            assert_eq!(ids(&lineup), fielded, "saved eleven: {saved}");
+            assert_eq!(ids(&lineup), fielded, "{case}");
             assert_eq!(
                 lineup
                     .substitutes
@@ -253,7 +285,7 @@ mod tests {
                     .map(String::as_str)
                     .collect::<Vec<_>>(),
                 benched,
-                "saved eleven: {saved}"
+                "{case}"
             );
         }
     }

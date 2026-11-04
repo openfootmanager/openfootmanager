@@ -93,7 +93,7 @@ describe("useTacticsLineupProjection", () => {
 describe("tacticsLineupRevision", () => {
   /**
    * Given a club and its squad
-   * When the saved eleven, a player's injury, the day or the formation changes
+   * When the saved eleven, a player's injury, the day, the formation or a player's positions change
    * Then the revision changes, so the side is asked for again; with no club it is empty.
    */
   it("changes with everything the side depends on", () => {
@@ -111,6 +111,18 @@ describe("tacticsLineupRevision", () => {
       tacticsLineupRevision(1, team, squad, "2031-08-02"),
       tacticsLineupRevision(1, { ...team, formation: "4-3-3" }, squad, "2031-08-01"),
       tacticsLineupRevision(2, team, squad, "2031-08-01"),
+      tacticsLineupRevision(
+        1,
+        team,
+        [player("gk", { natural_position: "CenterBack" }), player("sub")],
+        "2031-08-01",
+      ),
+      tacticsLineupRevision(
+        1,
+        team,
+        [player("gk", { alternate_positions: ["LeftBack"] }), player("sub")],
+        "2031-08-01",
+      ),
     ];
 
     for (const revision of changed) expect(revision).not.toBe(base);
