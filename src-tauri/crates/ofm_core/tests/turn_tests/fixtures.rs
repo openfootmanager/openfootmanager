@@ -607,6 +607,9 @@ pub(crate) fn set_player_overall(player: &mut Player, overall: u8) {
     player.attributes.positioning = overall;
     player.attributes.vision = overall;
     player.attributes.decisions = overall;
+    // The stored rating follows the attributes, as development keeps it in a real game: the
+    // scoreline and the upset detector read it for a club with no saved XI.
+    player.ovr = ofm_core::player_rating::natural_ovr(player).round() as u8;
 }
 
 /// The round context of the summary game: every fixture of it is dated on the game's first day.
