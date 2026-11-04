@@ -976,6 +976,31 @@ mod tests {
         );
     }
 
+    /// Given a saved career on Sunday 15 June 2025 with Auto-Save on
+    /// When the screen's skip to the next match day (skip_to_match_day) moves the game on
+    /// Then the save on disk reads the day the skip stopped on: any later day is a new week, and
+    ///      this command saves it through its own call, not the other two commands' (#1181 review).
+    #[test]
+    fn the_skip_to_match_day_saves_the_week_it_crosses() {
+        use crate::commands::wrapper_testkit::WrapperApp;
+        let app = WrapperApp::new(make_game(11), true);
+
+        tauri::async_runtime::block_on(super::skip_to_match_day(
+            app.state(),
+            app.saves(),
+            app.handle(),
+            app.token,
+        ))
+        .expect("the skip runs");
+
+        let stopped_on = app
+            .state()
+            .get_game(|game| game.clock.current_date.date_naive())
+            .unwrap();
+        assert!(stopped_on > chrono::NaiveDate::from_ymd_opt(2025, 6, 15).unwrap());
+        assert_eq!(app.saved_game().clock.current_date.date_naive(), stopped_on);
+    }
+
     /// Given a game with nobody injured, and one where two starters are injured
     /// When the user skips to their next match day, and when they continue to the next event
     /// Then the injured game stops after a day with the injured-XI blocker listed (days_skipped 1),
