@@ -1,6 +1,6 @@
 use crate::game::Game;
 use crate::matchday::LeagueRoundContext;
-use crate::player_rating::{effective_rating_for_assignment, formation_slots, natural_ovr};
+use crate::player_rating::{effective_rating_for_assignment, formation_slots};
 use domain::league::{Fixture, FixtureStatus, StandingEntry, sort_standings};
 use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
@@ -332,6 +332,11 @@ fn round_goal_counts(fixtures: &[&Fixture]) -> HashMap<String, u32> {
     counts
 }
 
+/// How strong a club was going into the round, for judging an upset: its saved XI rated in the
+/// slots it plays, or, for a club with no saved XI (an AI club picks its side at kick-off), the
+/// same best eligible eleven the scoreline is drawn from (`catchup::club_strength`). The fallback
+/// used to be the mean of the whole squad, reserves included, so a club whose eleven was rated 70
+/// counted as 58.8 and its routine win could read as a giant-killing.
 fn team_strength(game: &Game, team_id: &str) -> f64 {
     let team = game.teams.iter().find(|team| team.id == team_id);
     match team {
@@ -352,28 +357,12 @@ fn team_strength(game: &Game, team_id: &str) -> f64 {
                 .collect();
 
             if rated_players.is_empty() {
-                0.0
+                crate::catchup::club_strength(&game.players, team_id)
             } else {
                 rated_players.iter().sum::<f64>() / rated_players.len() as f64
             }
         }
-        _ => {
-            let selected_players = game
-                .players
-                .iter()
-                .filter(|player| player.team_id.as_deref() == Some(team_id))
-                .collect::<Vec<_>>();
-
-            if selected_players.is_empty() {
-                0.0
-            } else {
-                selected_players
-                    .iter()
-                    .map(|player| natural_ovr(player))
-                    .sum::<f64>()
-                    / selected_players.len() as f64
-            }
-        }
+        _ => crate::catchup::club_strength(&game.players, team_id),
     }
 }
 
@@ -384,6 +373,53 @@ mod tests {
     use chrono::{TimeZone, Utc};
     use domain::league::{FixtureCompetition, League, MatchResult};
     use domain::manager::Manager;
+
+    /// Given a club with no saved XI, eleven players rated 70 and fourteen reserves rated 50
+    /// When its strength going into the round is worked out
+    /// Then it is its best eleven, 70, the strength its scoreline is drawn from (it was the squad
+    ///      mean, 58.8)
+    #[test]
+    fn a_club_without_a_saved_eleven_is_as_strong_as_its_best_eleven() {
+        let mut game = game_with(vec![]);
+        game.teams.push(domain::team::Team::new(
+            "a".into(),
+            "A".into(),
+            "A".into(),
+            "ENG".into(),
+            "Town".into(),
+            "Ground".into(),
+            10_000,
+        ));
+        for index in 0..25 {
+            let mut player = domain::player::Player::new(
+                format!("a{index}"),
+                format!("a{index}"),
+                format!("a{index}"),
+                "1995-01-01".into(),
+                "ENG".into(),
+                domain::player::Position::Midfielder,
+                crate::test_support::uniform_attributes(60),
+            );
+            player.team_id = Some("a".into());
+            player.ovr = if index < 11 { 70 } else { 50 };
+            game.players.push(player);
+        }
+
+        assert_eq!(team_strength(&game, "a"), 70.0);
+    }
+
+    /// Given a club with nobody on its books
+    /// When its strength is worked out
+    /// Then it is the neutral rating the scoreline uses for such a club, not 0
+    #[test]
+    fn a_club_with_no_players_is_rated_neutral() {
+        let game = game_with(vec![]);
+
+        assert_eq!(
+            team_strength(&game, "nobody"),
+            crate::catchup::club_strength(&game.players, "nobody")
+        );
+    }
 
     fn game_with(fixtures: Vec<Fixture>) -> Game {
         let manager = Manager::new(
