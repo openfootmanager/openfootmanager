@@ -2069,24 +2069,57 @@ fn a_single_round_robin_league_is_rescheduled_as_a_single_round_robin() {
     assert_eq!(league_fixture_count(&game), 6);
 }
 
-/// Given a save from before the authored legs were stored (no calendar), whose league holds one
-/// leg's fixtures, all played; when the season's end is checked and it rolls over; then it is
-/// complete and comes back as a single round robin: its fixtures prove how it was authored.
+/// Given a league with no stored legs (no calendar) holding one leg's fixtures, all played, as a
+/// save from before the legs were stored has it; when its season's end is checked as it stands, it
+/// is not complete: the default is the double round robin. When the load path gives it its
+/// calendar, as loading that save does; then the fixtures prove it single, the season is complete,
+/// and it comes back as a single round robin (#1177).
 #[test]
-fn a_league_with_no_stored_legs_and_one_legs_fixtures_is_a_single_round_robin() {
-    let mut game = single_round_robin_season_game(None);
+fn a_save_from_before_stored_legs_proves_a_single_round_robin_on_load() {
+    let mut game = round_robin_season_game(4, 1, None, true);
+    assert!(!is_season_complete(&game));
+
+    for league in game.competitions.iter_mut().chain(game.league.as_mut()) {
+        ofm_core::calendar_identity::ensure_competition_calendar(league);
+    }
+    assert_eq!(
+        game.competitions[0].calendar.as_ref().unwrap().league_legs,
+        Some(1)
+    );
 
     assert!(is_season_complete(&game));
     advance_to_next_season(&mut game).expect("the season should roll over");
-    assert_eq!(league_fixture_count(&game), 6);
+    let league = &game.competitions[0];
+    assert_eq!(
+        league
+            .fixtures
+            .iter()
+            .filter(|fixture| fixture.counts_for_league_standings())
+            .count(),
+        6
+    );
 }
 
 /// Given a save from before the authored legs were stored, whose league holds a double round
-/// robin's twelve fixtures with one still to play; when the season's end is checked; then it is
-/// not complete; and once all twelve are played, it rolls over into twelve again.
+/// robin's twelve fixtures with one still to play; when the load path gives it its calendar and
+/// the season's end is checked; then its legs stay unknown, it is not complete, and once all
+/// twelve are played it rolls over into twelve again.
 #[test]
 fn a_league_with_no_stored_legs_and_a_double_round_robin_needs_all_of_it() {
     let mut game = round_robin_season_game(4, 2, None, false);
+    if let Some(league) = game.league.as_mut() {
+        ofm_core::calendar_identity::ensure_competition_calendar(league);
+    }
+    assert_eq!(
+        game.league
+            .as_ref()
+            .unwrap()
+            .calendar
+            .as_ref()
+            .unwrap()
+            .league_legs,
+        None
+    );
     let last = game.league.as_ref().unwrap().fixtures.len() - 1;
     game.league.as_mut().unwrap().fixtures[last].status = FixtureStatus::Scheduled;
     assert!(!is_season_complete(&game));
