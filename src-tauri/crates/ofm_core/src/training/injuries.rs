@@ -138,21 +138,23 @@ fn is_notable(game: &Game, player: &Player, club: &Team) -> bool {
     more_valuable < NOTABLE_MOST_VALUABLE
 }
 
-/// Whether the user follows `club_id`: the user's club, or a club of the division
-/// [`crate::end_of_season::user_division`] gives, which for a manager out of work is the league the
-/// game mirrors, as for the season preview (#1220).
+/// Whether the user follows `club_id`: his club, or a club of its division
+/// ([`crate::end_of_season::user_division`]). A manager out of work follows none, so he gets no
+/// training-injury news: for him the division falls back to the `game.league` mirror, which with no
+/// club is the world's first competition, a league he has nothing to do with. Which league an
+/// unemployed manager should follow is #1270.
 fn user_follows(game: &Game, club_id: &str) -> bool {
-    let user_club = game.manager.team_id.as_deref();
-    user_club == Some(club_id)
-        || crate::end_of_season::user_division(game, user_club.unwrap_or_default()).is_some_and(
-            |division| {
-                division.participant_ids.iter().any(|id| id == club_id)
-                    || division
-                        .standings
-                        .iter()
-                        .any(|standing| standing.team_id == club_id)
-            },
-        )
+    let Some(user_club) = game.manager.team_id.as_deref() else {
+        return false;
+    };
+    user_club == club_id
+        || crate::end_of_season::user_division(game, user_club).is_some_and(|division| {
+            division.participant_ids.iter().any(|id| id == club_id)
+                || division
+                    .standings
+                    .iter()
+                    .any(|standing| standing.team_id == club_id)
+        })
 }
 
 #[cfg(test)]

@@ -294,24 +294,30 @@ fn a_starter_hurt_in_training_in_another_league_stays_out_of_the_news() {
     }
 }
 
-/// Given a manager out of work, Other Town in the league the game follows for him (the mirrored
-///      league, as the season preview uses), its q1 in its starting XI, over a thousand seeds
+/// Given a manager out of work, Other Town's division listed first among the world's
+///      competitions, and the `game.league` mirror synced as the game syncs it (with no club, it
+///      falls back to that first competition), q1 a starter there, over a thousand seeds
 /// When q1 is hurt in training
-/// Then the news reports it
+/// Then the news leaves it out: a manager out of work follows no league, not whichever happens to
+///      be listed first (#1270 asks which he should)
 #[test]
-fn an_unemployed_managers_news_covers_the_league_the_game_follows() {
+fn a_manager_out_of_work_gets_no_training_injury_news() {
     let days = days_q1_was_hurt(|seed| {
         let mut game = two_clubs_of_unfit_players(seed);
         game.manager.team_id = None;
-        game.league = Some(division("first", &["team1", "team0"]));
+        game.competitions = vec![
+            division("first", &["team0"]),
+            division("second", &["team1"]),
+        ];
+        game.sync_legacy_league();
         game
     });
 
     assert!(!days.is_empty(), "q1 never hurt in {SEEDS} seeds");
     for game in &days {
         assert!(
-            injury_story(game, "q1").is_some(),
-            "seed {}: the followed league's injury was left out",
+            injury_story(game, "q1").is_none(),
+            "seed {}: the first-listed league's injury made the news",
             game.seed
         );
     }
