@@ -1071,7 +1071,7 @@ fn relegated_user_receives_a_relegation_message() {
     process_end_of_season(&mut game);
 
     // Named by the edition the user's new division was renewed to, not by last season plus one.
-    let renewed_season = ofm_core::end_of_season::user_division(&game, "team2")
+    let renewed_season = ofm_core::end_of_season::club_league_table(&game, "team2")
         .expect("the user still has a division")
         .season;
     let msg = game
@@ -1100,7 +1100,7 @@ fn promoted_user_receives_a_promotion_message() {
 
     process_end_of_season(&mut game);
 
-    let renewed_season = ofm_core::end_of_season::user_division(&game, "team3")
+    let renewed_season = ofm_core::end_of_season::club_league_table(&game, "team3")
         .expect("the user still has a division")
         .season;
     let msg = game
@@ -1187,12 +1187,107 @@ fn a_user_with_no_division_gets_no_season_preview() {
     );
 }
 
-/// Given an unemployed manager; when the season rolls over; then the preview covers the league
-/// the legacy `game.league` mirror holds, the division the game falls back to.
+/// The two-division world with the user's manager sacked from `last_club`: his stint there opened
+/// and closed as the game records it, and the `game.league` mirror synced as the game syncs it (with
+/// no club, from the first competition, the first division).
+fn sacked_from(last_club: &str) -> Game {
+    let mut game = make_two_division_game(last_club);
+    game.manager
+        .career_history
+        .push(domain::manager::ManagerCareerEntry::open(
+            last_club.to_string(),
+            last_club.to_string(),
+            "2024-07-01".to_string(),
+        ));
+    game.manager.fire("2025-03-01");
+    game.sync_legacy_league();
+    game
+}
+
+/// Given a manager sacked from Fourth FC, a second-division club, and the mirror on the first
+///      division (the world's first competition)
+/// When the season rolls over
+/// Then the preview covers the second division as it will be, Fourth FC's league, not the first
+///      division the mirror fell back to (#1270)
 #[test]
-fn an_unemployed_managers_season_preview_covers_the_mirrored_league() {
+fn a_sacked_managers_season_preview_covers_his_last_clubs_league() {
+    let mut game = sacked_from("team4");
+
+    process_end_of_season(&mut game);
+
+    let (count, listed, _, _) = season_preview(&game);
+    assert_eq!(count, "2");
+    assert_eq!(listed, ["Fourth FC", "Rival FC"]);
+}
+
+/// Given a manager sacked from Fourth FC, with the mirror on the first division
+/// When the season rolls over
+/// Then the season summary is of the second division, his last club's
+#[test]
+fn a_sacked_managers_season_summary_is_of_his_last_clubs_league() {
+    let mut game = sacked_from("team4");
+
+    let summary = process_end_of_season(&mut game);
+
+    assert_eq!(summary.league_name, "ENG Second Division");
+}
+
+/// Given a manager sacked from Fourth FC, with the mirror on the first division, and a
+///      first-division striker who outscores the second division
+/// When the season's awards are read for the awards screen
+/// Then the golden boot is the second division's, his last club's league
+#[test]
+fn a_sacked_managers_awards_are_his_last_clubs_league() {
+    let mut game = sacked_from("team4");
+    let mut lower = make_player("p4", "Lower Star", "team3", Position::Forward);
+    lower.stats = PlayerSeasonStats {
+        appearances: 10,
+        goals: 9,
+        avg_rating: 7.5,
+        rated_appearances: 10,
+        minutes_played: 900,
+        ..PlayerSeasonStats::default()
+    };
+    game.players.push(lower);
+
+    let awards = ofm_core::season_awards::user_division_season_awards(&game);
+
+    let top_scorer = awards
+        .golden_boot
+        .first()
+        .map(|winner| winner.player_name.clone());
+    assert_eq!(top_scorer.as_deref(), Some("Lower Star"));
+}
+
+/// Given a manager sacked from Third FC, the second division's winner, who goes up
+/// When the season rolls over
+/// Then the board sends him no promotion letter: the club is no longer his
+#[test]
+fn a_sacked_manager_hears_nothing_of_his_former_clubs_promotion() {
+    let mut game = sacked_from("team3");
+
+    process_end_of_season(&mut game);
+
+    assert!(
+        game.messages
+            .iter()
+            .all(|message| !message.id.contains("promot") && !message.id.contains("relegat")),
+        "{:?}",
+        game.messages.iter().map(|m| &m.id).collect::<Vec<_>>()
+    );
+}
+
+/// Given a manager who has never had a club (no club, no stint on record), with the mirror synced
+///      as the game syncs it, on the first division
+/// When the season rolls over
+/// Then the preview covers the mirrored first division: with no league of his own he follows the
+///      world's first competition, and the season still rolls over
+#[test]
+fn a_manager_who_never_had_a_club_follows_the_mirrored_league() {
     let mut game = make_two_division_game("team1");
     game.manager.team_id = None;
+    game.manager.career_history.clear();
+    game.sync_legacy_league();
 
     process_end_of_season(&mut game);
 

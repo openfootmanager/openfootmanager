@@ -769,11 +769,27 @@ fn manage_international_calendar(
     );
 }
 
-/// The league-table competition the user's club contests. Falls back to the
-/// primary competition when the user has no club in any division (e.g. an
-/// unemployed manager) or for legacy single-league saves.
-pub fn user_division<'a>(game: &'a Game, user_team_id: &str) -> Option<&'a League> {
-    club_league_table(game, user_team_id).or(game.league.as_ref())
+/// The club whose league the user follows: his own, or, for a manager out of work, the last club
+/// he managed (maintainer, 5 Nov 2026), so a sacked manager reads the awards, summary, preview and
+/// news of the league he left. None for a manager who has never had a club.
+pub fn followed_club(game: &Game) -> Option<&str> {
+    game.manager
+        .team_id
+        .as_deref()
+        .or_else(|| game.manager.last_club())
+}
+
+/// The league-table competition the user follows: [`followed_club`]'s. It used to take the user's
+/// club, so for a manager out of work it fell to the `game.league` mirror, which with no club is the
+/// world's first competition: a sacked manager from England read Argentina's awards (#1270).
+///
+/// It still falls back to the mirror for a manager who has never had a club, and for a legacy save
+/// whose only league is the mirror. That keeps the season rolling over, since the rollover stops
+/// when there is no division at all.
+pub fn user_division(game: &Game) -> Option<&League> {
+    followed_club(game)
+        .and_then(|club| club_league_table(game, club))
+        .or(game.league.as_ref())
 }
 
 /// The league table a club contests, for any club. `None` when no league table lists it (a cup
@@ -808,13 +824,17 @@ pub fn club_league_table<'a>(game: &'a Game, club_id: &str) -> Option<&'a League
 fn notify_user_division_change(
     game: &mut Game,
     division_before: Option<(String, u32)>,
-    user_team_id: &str,
     date: &str,
 ) {
+    // A manager out of work follows his last club's league, but its promotion is not his to hear
+    // about from the board.
+    if game.manager.team_id.is_none() {
+        return;
+    }
     let Some((old_division_id, old_priority)) = division_before else {
         return;
     };
-    let Some(new_division) = user_division(game, user_team_id) else {
+    let Some(new_division) = user_division(game) else {
         return;
     };
     if new_division.id == old_division_id {
@@ -923,7 +943,7 @@ pub fn process_end_of_season(game: &mut Game) -> EndOfSeasonSummary {
     // the user's club actually contests — not whichever competition happens to
     // be first in the list.
     let user_team_id = game.manager.team_id.clone().unwrap_or_default();
-    let league = match user_division(game, &user_team_id) {
+    let league = match user_division(game) {
         Some(l) => l,
         None => return EndOfSeasonSummary::default(),
     };
@@ -1185,19 +1205,14 @@ pub fn process_end_of_season(game: &mut Game) -> EndOfSeasonSummary {
     let next_season = season + 1;
     let rollover_anchor = game.clock.current_date + Duration::days(28);
     let user_division_before =
-        user_division(game, &user_team_id).map(|division| (division.id.clone(), division.priority));
+        user_division(game).map(|division| (division.id.clone(), division.priority));
     regenerate_competitions_for_new_season(game, next_season, rollover_anchor);
-    notify_user_division_change(
-        game,
-        user_division_before,
-        &user_team_id,
-        &last_fixture_date,
-    );
+    notify_user_division_change(game, user_division_before, &last_fixture_date);
 
     // The preview is of the user's division as the new season has it, after promotion and
     // relegation; the world's other clubs are not in the race it previews (#1179).
     let preview_date = game.clock.current_date.to_rfc3339();
-    let division_club_names: Vec<String> = user_division(game, &user_team_id)
+    let division_club_names: Vec<String> = user_division(game)
         .map(|division| {
             division
                 .participant_ids
@@ -1821,12 +1836,7 @@ mod tests {
         game.competitions[0].season = 2036;
         game.manager.hire("eng-d2-0".to_string());
 
-        notify_user_division_change(
-            &mut game,
-            Some(("eng-d3".to_string(), 2)),
-            "eng-d2-0",
-            "2035-07-01",
-        );
+        notify_user_division_change(&mut game, Some(("eng-d3".to_string(), 2)), "2035-07-01");
 
         let message = game
             .messages

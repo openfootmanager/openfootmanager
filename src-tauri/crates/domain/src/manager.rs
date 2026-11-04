@@ -178,6 +178,15 @@ impl Manager {
             .find(|entry| entry.team_id == team_id && entry.end_date.is_none())
     }
 
+    /// The club of his most recent stint, open or closed: the last club he managed. None for a
+    /// manager with no stint on record (one who never had a club, or an old save's record).
+    pub fn last_club(&self) -> Option<&str> {
+        self.career_history
+            .iter()
+            .max_by(|left, right| left.start_date.cmp(&right.start_date))
+            .map(|entry| entry.team_id.as_str())
+    }
+
     /// [`Self::current_stint`], to update.
     pub fn current_stint_mut(&mut self, team_id: &str) -> Option<&mut ManagerCareerEntry> {
         self.career_history
@@ -243,6 +252,24 @@ mod tests {
             "1980-01-01".to_string(),
             "GB".to_string(),
         )
+    }
+
+    /// Given a manager whose career lists a later stint at "b" before an earlier one at "a", both
+    ///      closed, and a manager with no stint at all
+    /// When their last club is read
+    /// Then the first's is "b", the most recent by start date whatever the list order, and the
+    ///      second has none
+    #[test]
+    fn the_last_club_is_the_most_recent_stints() {
+        let mut m = manager();
+        let mut later = ManagerCareerEntry::open("b".into(), "B".into(), "2023-07-01".into());
+        later.end_date = Some("2025-03-01".into());
+        let mut earlier = ManagerCareerEntry::open("a".into(), "A".into(), "2019-07-01".into());
+        earlier.end_date = Some("2023-06-30".into());
+        m.career_history = vec![later, earlier];
+
+        assert_eq!(m.last_club(), Some("b"));
+        assert_eq!(manager().last_club(), None);
     }
 
     /// Given a manager with and without a known-as name (#557)
