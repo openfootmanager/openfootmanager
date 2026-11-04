@@ -5,11 +5,12 @@
 //! seasons 10, 15 and 20.
 //!
 //! The band is #965's: S 1.0 to 1.8% and A 5.9 to 8.2% of seniors, with one change ruled by the
-//! maintainer on 3 Nov: at season 10 the floors are S 0.8% and A 5.5%. #965 measured a world in which
+//! maintainer on 3 and 4 Nov: the S floor is 0.7% at season 10 and 0.9% at season 15, and the A floor
+//! is 5.5% at season 10. #965 measured a world in which
 //! about a tenth of the S and A players stayed unsigned among the free agents (3,795 at opening, about
 //! a hundred signing a season); a generated world now puts its stars in its clubs (#1078), so the
 //! same clubs read the same and the world's share is lower by what the free agents used to hold.
-//! Seasons 15 and 20 keep #965's floors, and the caps are unchanged. Wonderkids are no more common
+//! Every other floor is #965's, and the caps are unchanged. Wonderkids are no more common
 //! than 0.20% of everyone (develop settled at 0.06 to 0.13%; a handful of players, so the seed noise
 //! is 0.09 to 0.19%).
 //!
@@ -23,8 +24,15 @@ use season_harness::distribution::{DistributionLog, distribution_report};
 use season_harness::driver::{RunOptions, run_seasons};
 use season_harness::worlds::WorldSpec;
 
-/// The S and A floors at season 10: lower than #965's 1.0% and 5.9%, see the module comment.
-const SEASON_TEN_FLOORS: (f64, f64) = (0.008, 0.055);
+/// The S and A floors at a checkpoint season: lower than #965's 1.0% and 5.9% at seasons 10 and 15,
+/// see the module comment.
+fn floors(season: usize) -> (f64, f64) {
+    match season {
+        10 => (0.007, 0.055),
+        15 => (0.009, 0.059),
+        _ => (0.010, 0.059),
+    }
+}
 
 /// Given the shipped world on each of two seeds,
 /// When twenty seasons are played,
@@ -51,11 +59,7 @@ fn the_settled_world_stays_inside_its_band() {
             );
             eprintln!("{line}");
 
-            let (s_floor, a_floor) = if season == 10 {
-                SEASON_TEN_FLOORS
-            } else {
-                (0.010, 0.059)
-            };
+            let (s_floor, a_floor) = floors(season);
             let in_band = (s_floor..=0.018).contains(&report.senior_ovr_s_share)
                 && (a_floor..=0.082).contains(&report.senior_ovr_a_share)
                 && report.wonderkid_share <= 0.0020;
@@ -67,7 +71,7 @@ fn the_settled_world_stays_inside_its_band() {
 
     assert!(
         outside.is_empty(),
-        "outside the band (S 1.0-1.8%, A 5.9-8.2%, at season 10 S from 0.8% and A from 5.5%, wonderkids <= 0.20%):\n{}",
+        "outside the band (S 1.0-1.8%, A 5.9-8.2%, S from 0.7% at season 10 and 0.9% at 15, A from 5.5% at season 10, wonderkids <= 0.20%):\n{}",
         outside.join("\n")
     );
 }
