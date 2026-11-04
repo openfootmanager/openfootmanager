@@ -18,7 +18,9 @@ pub enum BoardMood {
     VeryPleased,
     Satisfied,
     Concerned,
-    /// At or below the board's warning threshold: the next check warns or sacks him.
+    /// At or below the board's warning threshold, where the board warns him if it has not yet,
+    /// gives a final warning lower down, and sacks a warned manager at the bottom
+    /// (`firing::firing_decision`).
     UnderThreat,
 }
 
