@@ -204,6 +204,16 @@ pub fn parse_formation(formation: &str) -> Option<Vec<usize>> {
     well_formed.then_some(parts)
 }
 
+/// How many players stand in each line of the formation as it is laid out, goalkeeper first:
+/// `"4-2-3-1"` is `[1, 4, 2, 3, 1]`. The same layout [`formation_slots`] numbers, so a slot index
+/// and its line agree; a formation that does not parse is laid out, and counted, as 4-4-2.
+pub fn formation_row_lengths(formation: &str) -> Vec<usize> {
+    formation_slot_rows(formation)
+        .iter()
+        .map(Vec::len)
+        .collect()
+}
+
 fn formation_slot_rows(formation: &str) -> Vec<Vec<Position>> {
     // A formation that does not parse is 4-4-2: old saves may hold one, and the lineup must
     // still be laid out. New ones are refused where they are set (`parse_formation`).
@@ -1100,6 +1110,37 @@ mod tests {
                 aerial: 70,
             },
         )
+    }
+
+    /// Given a four-line formation
+    /// When its line lengths are read
+    /// Then they are its lines as laid out, goalkeeper first
+    #[test]
+    fn a_formations_line_lengths_are_its_lines_goalkeeper_first() {
+        assert_eq!(formation_row_lengths("4-2-3-1"), vec![1, 4, 2, 3, 1]);
+    }
+
+    /// Given a formation that does not parse (eleven outfielders)
+    /// When its line lengths are read
+    /// Then they are the 4-4-2 it is laid out as, not the numbers in its text
+    #[test]
+    fn an_unparseable_formation_counts_as_the_four_four_two_it_is_laid_out_as() {
+        assert_eq!(formation_row_lengths("5-3-3"), vec![1, 4, 4, 2]);
+    }
+
+    /// Given formations that parse and formations that do not
+    /// When their line lengths are read
+    /// Then each adds up to the slots the same formation lays out, so a slot index and its line
+    ///      always agree
+    #[test]
+    fn line_lengths_add_up_to_the_slots_for_every_formation() {
+        for formation in ["3-5-2", "4-1-4-1", "5-3-3", "4-4", "not-a-formation"] {
+            assert_eq!(
+                formation_row_lengths(formation).iter().sum::<usize>(),
+                formation_slots(formation).len(),
+                "{formation}"
+            );
+        }
     }
 
     #[test]
