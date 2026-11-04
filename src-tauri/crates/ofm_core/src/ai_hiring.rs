@@ -192,7 +192,7 @@ fn recent_loss_to_user_penalty(game: &Game, team_id: &str, since: Option<&str>) 
     let recent_loss = league.fixtures.iter().any(|fixture| {
         if !fixture.counts_for_league_standings()
             || fixture.status != domain::league::FixtureStatus::Completed
-            || played_before_he_took_charge(&fixture.date, since)
+            || since.is_some_and(|since| played_before_he_took_charge(&fixture.date, since))
         {
             return false;
         }
@@ -233,21 +233,20 @@ fn recent_loss_to_user_penalty(game: &Game, team_id: &str, since: Option<&str>) 
     }
 }
 
-/// The day a manager took charge of his current club: the start of his open stint. None for a
-/// record without one.
+/// The day a manager took charge of his current club: the start of his open stint there. None for
+/// a manager out of work, or a record without one (an old save).
 pub(crate) fn took_charge_on(manager: &Manager) -> Option<&str> {
+    let club = manager.team_id.as_deref()?;
     manager
-        .career_history
-        .iter()
-        .find(|entry| entry.end_date.is_none())
+        .current_stint(club)
         .map(|entry| entry.start_date.as_str())
 }
 
 /// Whether a match on `date` was played before the manager took charge on `since`. Both are ISO
 /// dates, which order as strings. A match on the day he took charge was played before it: a club
 /// appoints at the end of the day, after its matches.
-fn played_before_he_took_charge(date: &str, since: Option<&str>) -> bool {
-    since.is_some_and(|since| date <= since)
+fn played_before_he_took_charge(date: &str, since: &str) -> bool {
+    date <= since
 }
 
 /// The dates of every league match each club has finished: the matches its `form` records
@@ -256,17 +255,17 @@ fn played_before_he_took_charge(date: &str, since: Option<&str>) -> bool {
 /// new manager's window.
 fn finished_match_dates(game: &Game) -> HashMap<&str, Vec<&str>> {
     let mut dates: HashMap<&str, Vec<&str>> = HashMap::new();
-    let finished = game
+    for fixture in game
         .competitions
         .iter()
         .flat_map(|competition| &competition.fixtures)
         .filter(|fixture| {
             fixture.status == FixtureStatus::Completed && fixture.counts_for_league_standings()
-        });
-    for fixture in finished {
-        for team_id in [&fixture.home_team_id, &fixture.away_team_id] {
+        })
+    {
+        for team_id in [fixture.home_team_id.as_str(), fixture.away_team_id.as_str()] {
             dates
-                .entry(team_id.as_str())
+                .entry(team_id)
                 .or_default()
                 .push(fixture.date.as_str());
         }
@@ -293,7 +292,7 @@ fn results_in_charge<'a>(
     let matches_in_charge = club_match_dates.map_or(0, |dates| {
         dates
             .iter()
-            .filter(|date| !played_before_he_took_charge(date, Some(since)))
+            .filter(|date| !played_before_he_took_charge(date, since))
             .count()
     });
     &form[form.len().saturating_sub(matches_in_charge)..]
@@ -585,13 +584,13 @@ mod tests {
         stint.start_date = date.to_string();
     }
 
-    /// The club finished a cup match on `date` against a club the user does not manage, and its
-    /// form records the result ("W" or "L").
+    /// The club finished a league match on `date` against a club the user does not manage, and its
+    /// form records the result ("W" or "L"), as `turn::post_match` writes form for league matches.
     fn finished_a_match(game: &mut Game, team_id: &str, date: &str, result: &str) {
         if game.competitions.is_empty() {
             game.competitions.push(League {
-                id: "cup".to_string(),
-                name: "Cup".to_string(),
+                id: "league".to_string(),
+                name: "League".to_string(),
                 season: 1,
                 ..Default::default()
             });
@@ -1113,6 +1112,30 @@ mod tests {
         );
     }
 
+    /// Given a manager from an old save, with no open stint on record, whose club lost its last
+    ///      four league matches
+    /// When the board judges him
+    /// Then he is judged on the club's whole form, as before stints were kept: four defeats and the
+    ///      losing-run penalty take him to 0
+    #[test]
+    fn a_manager_without_an_open_stint_is_judged_on_the_whole_form() {
+        let mut game = make_game();
+        seed_ai_managers(&mut game);
+        for date in ["2026-06-05", "2026-06-12", "2026-06-19", "2026-06-26"] {
+            finished_a_match(&mut game, "team2", date, "L");
+        }
+        game.managers
+            .iter_mut()
+            .find(|manager| manager.team_id.as_deref() == Some("team2"))
+            .expect("the club has a manager")
+            .career_history
+            .clear();
+
+        update_ai_manager_satisfaction(&mut game);
+
+        assert_eq!(satisfaction_at(&game, "team2"), 0);
+    }
+
     /// Given a club that lost three matches under its last manager and two under the new one
     /// When the board judges him
     /// Then only his two count: 50 - 2×12 = 26
@@ -1133,37 +1156,42 @@ mod tests {
         assert_eq!(satisfaction_at(&game, "team2"), 26);
     }
 
-    /// Given a club that lost to the user's club a week ago, before its manager took charge
+    /// Given a club that lost a league match to the user's club a week ago, in the league's own
+    ///      record and in its mirror, before its manager took charge
     /// When the board judges him
-    /// Then the defeat does not count against him: he has played nobody yet and stays at 50
+    /// Then neither the defeat nor the rivalry penalty counts against him: he has played nobody
+    ///      yet and stays at 50 (counting it in his results would be 38; the penalty, 40)
     #[test]
     fn a_defeat_to_the_user_before_he_took_charge_is_not_his() {
         let mut game = make_game();
         seed_ai_managers(&mut game);
-        game.league = Some(League {
+        let defeat = Fixture {
+            id: "fixture-user-rival".to_string(),
+            matchday: 1,
+            date: "2026-06-24".to_string(),
+            home_team_id: "team2".to_string(),
+            away_team_id: "team1".to_string(),
+            status: FixtureStatus::Completed,
+            result: Some(MatchResult {
+                home_goals: 0,
+                away_goals: 1,
+                home_scorers: vec![],
+                away_scorers: vec![],
+                report: None,
+                home_penalties: None,
+                away_penalties: None,
+            }),
+            ..Fixture::default()
+        };
+        let league = League {
             id: "league-1".to_string(),
             name: "Test League".to_string(),
             season: 1,
-            fixtures: vec![Fixture {
-                id: "fixture-user-rival".to_string(),
-                matchday: 1,
-                date: "2026-06-24".to_string(),
-                home_team_id: "team2".to_string(),
-                away_team_id: "team1".to_string(),
-                status: FixtureStatus::Completed,
-                result: Some(MatchResult {
-                    home_goals: 0,
-                    away_goals: 1,
-                    home_scorers: vec![],
-                    away_scorers: vec![],
-                    report: None,
-                    home_penalties: None,
-                    away_penalties: None,
-                }),
-                ..Fixture::default()
-            }],
+            fixtures: vec![defeat],
             ..Default::default()
-        });
+        };
+        game.competitions = vec![league.clone()];
+        game.league = Some(league);
         game.teams
             .iter_mut()
             .find(|team| team.id == "team2")
