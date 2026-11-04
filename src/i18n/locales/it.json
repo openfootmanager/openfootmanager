@@ -827,6 +827,8 @@
     "unsavedChanges": "Modifiche non salvate",
     "currentPlanCard": "Piano attuale",
     "phaseBlueprint": "Schema per fasi",
+    "reserves": "Non convocati",
+    "playerTable": "Giocatori",
     "instructionsPanel": {
       "title": "Istruzioni di squadra",
       "show": "Mostra le istruzioni di squadra",

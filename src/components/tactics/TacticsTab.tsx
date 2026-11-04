@@ -4,13 +4,12 @@ import { useTranslation } from "react-i18next";
 import { setPlayerRole } from "../../services/squadService";
 
 import TacticsPitch from "./TacticsPitch";
-import TacticsPlayerList from "./TacticsPlayerList";
+import TacticsPlayerTable from "./TacticsPlayerTable";
 import TacticsSetPieces from "./TacticsSetPieces";
 import TacticsWorkbench from "./TacticsWorkbench";
 import TacticsCommandBar from "./TacticsCommandBar";
 import TacticsCompareDialog from "./TacticsCompareDialog";
 import { useTacticsLibrary } from "./useTacticsLibrary";
-import { useTacticsFilters } from "./useTacticsFilters";
 import { useTacticsLineup } from "./useTacticsLineup";
 
 interface TacticsTabProps {
@@ -34,7 +33,6 @@ export default function TacticsTab({
     roster,
     startingXI,
     bench,
-    xiActivePosition,
     pitchSlots,
     outOfPositionCount,
     effectiveMatchRoles,
@@ -64,17 +62,8 @@ export default function TacticsTab({
     handleAssignMatchRole,
     handleTacticsPhaseChange,
     lineupReady,
+    lineup,
   } = useTacticsLineup({ gameState, onGameUpdate });
-
-  const {
-    playerSearch,
-    setPlayerSearch,
-    positionFilter,
-    setPositionFilter,
-    filteredStartingXI,
-    filteredBench,
-    handleClearFilters,
-  } = useTacticsFilters({ startingXI, bench, xiActivePosition });
 
   const {
     activeTactic,
@@ -162,37 +151,43 @@ export default function TacticsTab({
           />
         }
       >
-        <div className="grid grid-cols-1 gap-5 xl:grid-cols-[260px_1fr] xl:items-start">
-          {/* Left: player list */}
-          <TacticsPlayerList
-            bench={filteredBench}
-            comparePlayerId={comparePlayerId}
-            dragState={dragState}
-            matchRoles={effectiveMatchRoles}
-            onAssignMatchRole={(role, playerId) => {
-              void handleAssignMatchRole(role, playerId);
-            }}
-            onClearFilters={handleClearFilters}
-            onDemoteStarter={(playerId) => {
-              void handleDemoteStarter(playerId);
-            }}
-            onDragEnd={resetDragState}
-            onDragStart={handleDragStart}
-            onOpenPlayerProfile={onSelectPlayer}
-            onPlayerSearchChange={setPlayerSearch}
-            onPositionFilterChange={setPositionFilter}
-            onPromoteBench={(playerId) => {
-              void handlePromoteBenchPlayer(playerId);
-            }}
-            onTacticalSelect={(playerId, section) => {
-              void handleLineupPlayerClick(playerId, section);
-            }}
-            playerSearch={playerSearch}
-            positionFilter={positionFilter}
-            selectedPlayerId={selectedPlayerId}
-            starters={filteredStartingXI}
-            xiActivePosition={xiActivePosition}
-          />
+        <div className="grid min-h-0 grid-cols-1 gap-4 xl:h-full xl:grid-cols-[minmax(0,1fr)_22rem] xl:items-start">
+          {/* The player table: the eleven by slot, then the substitutes and the reserves. */}
+          <div className="min-h-0 overflow-hidden rounded-lg border border-line bg-panel xl:h-full">
+            <TacticsPlayerTable
+              starters={startingXI}
+              others={bench}
+              slotPositions={pitchSlots.map((slot) => slot.position)}
+              lineup={lineup}
+              playerRoles={team?.player_roles}
+              matchRoles={effectiveMatchRoles}
+              selectedPlayerId={selectedPlayerId}
+              comparePlayerId={comparePlayerId}
+              onTacticalSelect={(playerId, section) => {
+                void handleLineupPlayerClick(playerId, section);
+              }}
+              onRoleChange={(playerId, role) => {
+                void setPlayerRole(playerId, role)
+                  .then(onGameUpdate)
+                  .catch((error: unknown) => {
+                    console.error("Failed to set player role:", error);
+                  });
+              }}
+              onOpenPlayerProfile={onSelectPlayer}
+              onAssignMatchRole={(role, playerId) => {
+                void handleAssignMatchRole(role, playerId);
+              }}
+              onPromoteBench={(playerId) => {
+                void handlePromoteBenchPlayer(playerId);
+              }}
+              onDemoteStarter={(playerId) => {
+                void handleDemoteStarter(playerId);
+              }}
+              onClearSelection={clearLineupSelection}
+              onDragStart={handleDragStart}
+              onDragEnd={resetDragState}
+            />
+          </div>
 
           {/* Center: pitch */}
           <TacticsPitch

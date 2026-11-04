@@ -760,6 +760,8 @@
     "unsavedChanges": "Kaydedilmemiş değişiklikler",
     "currentPlanCard": "Mevcut plan",
     "phaseBlueprint": "Faz şeması",
+    "reserves": "Rezervler",
+    "playerTable": "Oyuncular",
     "instructionsPanel": {
       "title": "Takım talimatları",
       "show": "Takım talimatlarını göster",

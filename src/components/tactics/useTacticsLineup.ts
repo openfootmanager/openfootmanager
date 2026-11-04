@@ -482,6 +482,8 @@ export function useTacticsLineup({ gameState, onGameUpdate }: UseTacticsLineupAr
   return {
     /** Lineup changes are possible: the writers and the notice both read this one flag. */
     lineupReady,
+    // The backend's side, for the table's per-slot words (role, familiarity) and its groups.
+    lineup: backendLineup.lineup,
     team,
     formation,
     activePlayStyle,

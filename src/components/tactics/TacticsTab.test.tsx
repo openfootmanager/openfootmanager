@@ -869,10 +869,11 @@ describe("TacticsTab", () => {
 
     render(<TacticsTab gameState={gameState} onSelectPlayer={vi.fn()} onGameUpdate={vi.fn()} />);
 
-    expect(within(screen.getByTestId("xi-player-f1")).getByText("77")).toHaveClass(
+    // The rating is the row's RatingChip, whose box carries the tier's tone.
+    expect(within(screen.getByTestId("xi-row-f1")).getByText("77").parentElement).toHaveClass(
       ...ratingTierClass("A", "badge").split(" "),
     );
-    expect(within(screen.getByTestId("xi-player-d1")).getByText("76")).toHaveClass(
+    expect(within(screen.getByTestId("xi-row-d1")).getByText("76").parentElement).toHaveClass(
       ...ratingTierClass("B", "badge").split(" "),
     );
   });

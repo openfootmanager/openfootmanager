@@ -2,11 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { PlayerData } from "../../store/gameStore";
 import { createPositionTable } from "../../lib/positionTable";
 import { cannedPositionTable } from "../../test-utils/positionTable";
-import {
-  buildTacticsRoster,
-  countOutOfPositionPlayers,
-  filterAndSortTacticsPlayers,
-} from "./TacticsTab.helpers";
+import { buildTacticsRoster, countOutOfPositionPlayers } from "./TacticsTab.helpers";
 
 const makePlayer = (
   id: string,
@@ -85,34 +81,6 @@ describe("the tactics roster and its lists, by the backend's position table", ()
     const ids = buildTacticsRoster(roster(), "t1", cannedPositionTable()).map((p) => p.id);
 
     expect(ids).toEqual(["gk", "def", "fwd"]);
-  });
-
-  /**
-   * Given the same lists and a loaded table
-   * When the XI list is sorted by position
-   * Then it runs keeper, defence, attack too.
-   */
-  it("sorts a list by position along the table's lines", () => {
-    const positionTable = cannedPositionTable();
-    const sorted = filterAndSortTacticsPlayers(
-      roster(),
-      {
-        playerSearch: "",
-        positionFilter: "All",
-        positionTable,
-        section: "bench",
-        xiActivePosition: new Map(),
-      },
-      {
-        positionTable,
-        section: "bench",
-        sortDir: "asc",
-        sortKey: "pos",
-        xiActivePosition: new Map(),
-      },
-    );
-
-    expect(sorted.map((p) => p.id)).toEqual(["gk", "def", "fwd"]);
   });
 
   /**

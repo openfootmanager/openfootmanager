@@ -60,6 +60,18 @@ interface DataTableProps<Row> {
   loading?: boolean;
   /** Shown in place of the rows when there are none; the default says there are no results. */
   empty?: ReactNode;
+  /**
+   * The group a row belongs to (the starting eleven, the bench). The rows come in group order, and
+   * a header row naming the group opens each one.
+   */
+  groupOf?: (row: Row) => { key: string; title: string };
+  /**
+   * The table scrolls inside itself, filling the height it is given, with its header kept in view.
+   * For a screen that never scrolls the page (the Tactics workbench).
+   */
+  scrollsItself?: boolean;
+  /** A test hook on each row. */
+  rowTestId?: (row: Row) => string;
 }
 
 /** The cell's and the header's own controls are inset-ringed: the table scrolls inside a box. */
@@ -165,6 +177,9 @@ export function DataTable<Row>({
   primaryAside,
   loading = false,
   empty,
+  groupOf,
+  scrollsItself = false,
+  rowTestId,
 }: DataTableProps<Row>) {
   const { t } = useTranslation();
   const idBase = useId();
@@ -195,7 +210,9 @@ export function DataTable<Row>({
   const cellClass = "h-row whitespace-nowrap border-b border-line px-2 align-middle first:pl-3.5";
 
   return (
-    <div className="@container relative w-full overflow-x-auto">
+    <div
+      className={`@container relative w-full ${scrollsItself ? "h-full overflow-auto" : "overflow-x-auto"}`}
+    >
       <table
         aria-label={label}
         aria-busy={loading || undefined}
@@ -215,8 +232,8 @@ export function DataTable<Row>({
                     direction ? (direction === "asc" ? "ascending" : "descending") : undefined
                   }
                   className={`h-8 whitespace-nowrap border-b border-line-strong bg-panel text-caption first:border-l-3 first:border-l-transparent ${
-                    sortableHere ? "" : "px-2 first:pl-3.5"
-                  } ${
+                    scrollsItself ? "sticky top-0 z-10" : ""
+                  } ${sortableHere ? "" : "px-2 first:pl-3.5"} ${
                     column.numeric ? "text-right" : "text-left"
                   } ${direction ? "font-semibold text-fg" : "font-medium text-fg-subtle"} ${
                     column.drawer ? FOLDED : ""
@@ -236,7 +253,10 @@ export function DataTable<Row>({
               );
             })}
             {rowAction ? (
-              <th scope="col" className="h-8 border-b border-line-strong bg-panel px-2">
+              <th
+                scope="col"
+                className={`h-8 border-b border-line-strong bg-panel px-2 ${scrollsItself ? "sticky top-0 z-10" : ""}`}
+              >
                 <span className="sr-only">{rowAction.header}</span>
               </th>
             ) : null}
@@ -250,16 +270,32 @@ export function DataTable<Row>({
               </td>
             </tr>
           ) : null}
-          {rows.map((row) => {
+          {rows.map((row, rowIndex) => {
             const key = rowKey(row);
+            const group = groupOf?.(row);
+            const startsGroup =
+              group !== undefined &&
+              (rowIndex === 0 || groupOf?.(rows[rowIndex - 1])?.key !== group.key);
             const name = rowName(row);
             const accent = rowAccent?.(row) ?? null;
             const detailsId = `${idBase}-${key}-details`;
             const detailsOpen = openDetails.has(key);
             return (
               <Fragment key={key}>
+                {startsGroup && group ? (
+                  <tr>
+                    <th
+                      colSpan={span}
+                      scope="colgroup"
+                      className="h-8 border-b border-line bg-sunken px-3.5 text-left font-heading text-caption font-bold uppercase tracking-label text-fg-muted"
+                    >
+                      {group.title}
+                    </th>
+                  </tr>
+                ) : null}
                 {/* A pointer convenience only: the keyboard opens the row from the name's button. */}
                 <tr
+                  data-testid={rowTestId?.(row)}
                   data-accent={accent ?? undefined}
                   onClick={
                     onOpen

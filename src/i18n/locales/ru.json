@@ -808,6 +808,8 @@
     "unsavedChanges": "Несохранённые изменения",
     "currentPlanCard": "Текущий план",
     "phaseBlueprint": "План по фазам",
+    "reserves": "Резерв",
+    "playerTable": "Игроки",
     "instructionsPanel": {
       "title": "Командные установки",
       "show": "Показать командные установки",

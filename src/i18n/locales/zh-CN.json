@@ -808,6 +808,8 @@
     "unsavedChanges": "未保存的更改",
     "currentPlanCard": "当前计划",
     "phaseBlueprint": "阶段蓝图",
+    "reserves": "预备队",
+    "playerTable": "球员",
     "instructionsPanel": {
       "title": "球队指令",
       "show": "显示球队指令",

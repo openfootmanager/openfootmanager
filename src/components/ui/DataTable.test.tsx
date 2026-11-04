@@ -321,6 +321,57 @@ describe("DataTable", () => {
    * Given starters, then their rows carry the starter accent, and the others don't. The edge is
    * the selected role (a chosen row is never "positive", maintainer 28 Oct), in its text strength.
    */
+  /**
+   * Given rows in two groups, the starters first
+   * When the table draws them
+   * Then a header row names each group where it begins, spanning the table, and the rows follow it.
+   */
+  it("opens each group of rows with a header naming it", () => {
+    renderTable({
+      groupOf: (p) =>
+        p.starter
+          ? { key: "xi", title: "Starting eleven" }
+          : { key: "bench", title: "Substitutes" },
+    });
+
+    const headers = screen.getAllByRole("columnheader").filter((th) => th.getAttribute("colspan"));
+    expect(headers.map((th) => th.textContent)).toEqual(["Starting eleven", "Substitutes"]);
+    expect(headers[0]).toHaveAttribute("colspan", "3");
+    const rows = screen.getAllByRole("row").map((row) => row.textContent ?? "");
+    expect(rows.findIndex((row) => row.includes("Starting eleven"))).toBeLessThan(
+      rows.findIndex((row) => row.includes("Anderson")),
+    );
+    expect(rows.findIndex((row) => row.includes("Substitutes"))).toBeLessThan(
+      rows.findIndex((row) => row.includes("Navarro")),
+    );
+  });
+
+  /**
+   * Given a table for a screen that never scrolls the page
+   * When it is drawn to scroll inside itself
+   * Then its box scrolls and fills its height, and the header cells stay in view.
+   */
+  it("scrolls inside itself with its header kept in view when asked", () => {
+    const { container } = renderTable({ scrollsItself: true });
+
+    expect(container.firstElementChild).toHaveClass("h-full", "overflow-auto");
+    for (const header of screen.getAllByRole("columnheader")) {
+      expect(header).toHaveClass("sticky", "top-0");
+    }
+  });
+
+  /**
+   * Given a table that doesn't ask to scroll itself
+   * When it is drawn
+   * Then it scrolls sideways only, inside the page, with no sticky header.
+   */
+  it("scrolls sideways only by default", () => {
+    const { container } = renderTable();
+
+    expect(container.firstElementChild).toHaveClass("overflow-x-auto");
+    expect(screen.getAllByRole("columnheader")[0]).not.toHaveClass("sticky");
+  });
+
   it("marks a row with its accent", () => {
     renderTable({ rowAccent: (p) => (p.starter ? "selected" : null) });
     expect(screen.getByRole("row", { name: /Anderson/ })).toHaveAttribute(

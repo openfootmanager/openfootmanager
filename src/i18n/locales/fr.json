@@ -808,6 +808,8 @@
     "unsavedChanges": "Modifications non enregistrées",
     "currentPlanCard": "Plan actuel",
     "phaseBlueprint": "Plan par phase",
+    "reserves": "Réservistes",
+    "playerTable": "Joueurs",
     "instructionsPanel": {
       "title": "Consignes d'équipe",
       "show": "Afficher les consignes d'équipe",
