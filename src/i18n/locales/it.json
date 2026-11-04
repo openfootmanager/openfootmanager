@@ -1084,6 +1084,7 @@
     "youthSearches": "ricerche giovanili",
     "hireStaff": "Assumi membro dello staff",
     "best": "Migliore",
+    "staffActions": "Azioni per {{name}}",
     "roles": {
       "AssistantManager": "Vice allenatore",
       "Coach": "Allenatore",

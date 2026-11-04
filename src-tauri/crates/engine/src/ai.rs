@@ -32,6 +32,7 @@
 use rand::{Rng, RngExt};
 
 use crate::live_match::{AiObservation, LiveMatchState, MatchCommand, MatchPhase};
+use crate::shared::condition_factor;
 use crate::types::{
     BreakSpeed, CounterPressDuration, DefensiveLine, DefensiveShape, PlayStyle, PlayerData,
     PlayerRole, Position, PressingIntensity, Side, TacticalDial, TacticsConfig, TacticsPitchWidth,
@@ -475,49 +476,45 @@ fn find_best_bench_replacement<'a>(
     obs: &AiObservation<'_>,
     preferred_role: Option<PlayerRole>,
 ) -> Option<&'a PlayerData> {
-    // If a role preference is set, try to find a position+role match first
-    if let Some(role) = preferred_role {
-        let mut role_candidates: Vec<&PlayerData> = bench
-            .iter()
-            .filter(|p| p.position == preferred_position && p.role == role && obs.available(p))
-            .collect();
-        role_candidates.sort_by(|a, b| {
-            b.overall()
-                .partial_cmp(&a.overall())
+    // What he would bring, which is what every search below ranks by: his rating, at the share
+    // his condition leaves him, in the line he enters. A substitute takes the replaced player's
+    // line (`entering_line`), which is not always the one the manager hoped to fill, so a
+    // higher-rated player who is out of position there, or spent, can bring less than a
+    // slightly lower-rated one who can play it fresh.
+    let brings = |p: &PlayerData| {
+        p.overall() * condition_factor(obs.condition_of(p)) * p.familiarity_in(entering_line)
+    };
+    // A stable sort, best first: of two who bring the same, the one listed first on the bench.
+    let best = |mut candidates: Vec<&'a PlayerData>| {
+        candidates.sort_by(|a, b| {
+            brings(b)
+                .partial_cmp(&brings(a))
                 .unwrap_or(std::cmp::Ordering::Equal)
         });
-        if let Some(best) = role_candidates.first() {
-            return Some(*best);
-        }
+        candidates.first().copied()
+    };
+    let available = || bench.iter().filter(|p| obs.available(p));
+
+    // A role preference first: a position-and-role match.
+    if let Some(role) = preferred_role
+        && let Some(on) = best(
+            available()
+                .filter(|p| p.position == preferred_position && p.role == role)
+                .collect(),
+        )
+    {
+        return Some(on);
     }
-
-    // First try exact position match, sorted by overall
-    let mut candidates: Vec<&PlayerData> = bench
-        .iter()
-        .filter(|p| p.position == preferred_position && obs.available(p))
-        .collect();
-    candidates.sort_by(|a, b| {
-        b.overall()
-            .partial_cmp(&a.overall())
-            .unwrap_or(std::cmp::Ordering::Equal)
-    });
-
-    if let Some(best) = candidates.first() {
-        return Some(*best);
+    // Then the position.
+    if let Some(on) = best(
+        available()
+            .filter(|p| p.position == preferred_position)
+            .collect(),
+    ) {
+        return Some(on);
     }
-
-    // Fallback: any bench player, by what he would bring to the line he enters. A substitute
-    // takes the replaced player's line (`entering_line`), which is not always the one the
-    // manager hoped to fill, so a higher-rated player who is out of position there can bring
-    // less than a slightly lower-rated one who can play it.
-    let in_line = |p: &PlayerData| p.overall() * p.familiarity_in(entering_line);
-    let mut all: Vec<&PlayerData> = bench.iter().filter(|p| obs.available(p)).collect();
-    all.sort_by(|a, b| {
-        in_line(b)
-            .partial_cmp(&in_line(a))
-            .unwrap_or(std::cmp::Ordering::Equal)
-    });
-    all.first().copied()
+    // Then anyone.
+    best(available().collect())
 }
 
 // ---------------------------------------------------------------------------
@@ -771,5 +768,86 @@ mod bench_fallback_tests {
         .expect("someone comes on");
 
         assert_eq!(on.id, "sub_68");
+    }
+
+    /// A substitute of `skill` at `condition`.
+    fn substitute(id: &str, position: Position, skill: u8, condition: u8) -> PlayerData {
+        PlayerData {
+            condition,
+            ..player(id, position, skill)
+        }
+    }
+
+    /// The first name the search returns for `preferred` (and `role`), entering `entering_line`.
+    fn first_choice(
+        bench: Vec<PlayerData>,
+        preferred: Position,
+        entering_line: Position,
+        role: Option<PlayerRole>,
+    ) -> String {
+        let state = LiveMatchState::new(
+            eleven("h"),
+            eleven("a"),
+            MatchConfig::default(),
+            bench,
+            vec![],
+            false,
+        );
+        let obs = state.observe(Side::Home);
+        find_best_bench_replacement(obs.bench, preferred, entering_line, &obs, role)
+            .expect("someone comes on")
+            .id
+            .clone()
+    }
+
+    /// Given two defenders on the bench: one rated 70 but spent (condition 30) and one rated 65
+    /// and fresh,
+    /// When the manager looks for a defender,
+    /// Then the 65 comes on: the 70 plays at 0.6 + 0.4 x 0.3 = 0.72 of himself, 50.4 against 65.
+    #[test]
+    fn a_spent_substitute_is_passed_over_for_a_fresh_one() {
+        let bench = vec![
+            substitute("spent_70", Position::Defender, 70, 30),
+            substitute("fresh_65", Position::Defender, 65, 100),
+        ];
+        assert_eq!(
+            first_choice(bench, Position::Defender, Position::Defender, None),
+            "fresh_65"
+        );
+    }
+
+    /// Given the same pair as midfielders, and no defender on the bench,
+    /// When the manager looks for a defender and so falls back to anyone,
+    /// Then the fresh 65 comes on.
+    #[test]
+    fn the_fallback_passes_over_a_spent_substitute_for_a_fresh_one() {
+        let bench = vec![
+            substitute("spent_70", Position::Midfielder, 70, 30),
+            substitute("fresh_65", Position::Midfielder, 65, 100),
+        ];
+        assert_eq!(
+            first_choice(bench, Position::Defender, Position::Defender, None),
+            "fresh_65"
+        );
+    }
+
+    /// Given the same pair as pressing forwards,
+    /// When a pressing side looks for a pressing forward,
+    /// Then the fresh 65 comes on.
+    #[test]
+    fn a_pressing_side_passes_over_a_spent_pressing_forward_for_a_fresh_one() {
+        let mut spent = substitute("spent_70", Position::Forward, 70, 30);
+        spent.role = PlayerRole::PressingForward;
+        let mut fresh = substitute("fresh_65", Position::Forward, 65, 100);
+        fresh.role = PlayerRole::PressingForward;
+        assert_eq!(
+            first_choice(
+                vec![spent, fresh],
+                Position::Forward,
+                Position::Forward,
+                Some(PlayerRole::PressingForward)
+            ),
+            "fresh_65"
+        );
     }
 }
