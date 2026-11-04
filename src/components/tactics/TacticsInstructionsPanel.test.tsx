@@ -58,7 +58,10 @@ describe("TacticsInstructionsPanel", () => {
       "tactics.phaseLabels.withoutBall",
       "tactics.setPiecesSection",
     ]);
-    expect(screen.getByLabelText("tactics.phaseSettings.buildUpStyle")).toHaveValue("Mixed");
+    // ui/Select is a listbox button named by its label, showing the chosen value.
+    expect(
+      screen.getByRole("combobox", { name: "tactics.phaseSettings.buildUpStyle" }),
+    ).toHaveTextContent("tactics.phaseSettings.buildUpStyle_Mixed");
     expect(screen.getByLabelText("tactics.phaseSettings.markingStyle")).toBeInTheDocument();
     expect(screen.getByText("set-piece takers")).toBeInTheDocument();
   });
@@ -71,9 +74,10 @@ describe("TacticsInstructionsPanel", () => {
   it("reports a dial change, a section toggle and the panel closing", () => {
     const handlers = renderPanel();
 
-    fireEvent.change(screen.getByLabelText("tactics.phaseSettings.buildUpStyle"), {
-      target: { value: "Short" },
-    });
+    fireEvent.click(screen.getByRole("combobox", { name: "tactics.phaseSettings.buildUpStyle" }));
+    fireEvent.click(
+      screen.getByRole("option", { name: "tactics.phaseSettings.buildUpStyle_Short" }),
+    );
     fireEvent.click(screen.getByRole("button", { name: /tactics.phaseLabels.transitions/ }));
     fireEvent.click(screen.getByRole("button", { name: "tactics.instructionsPanel.hide" }));
 
