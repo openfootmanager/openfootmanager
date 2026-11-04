@@ -2836,6 +2836,7 @@
         "missingSchema": "V souboru balíčku chybí pole „schema“.",
         "worldExportNotPackage": "Tato složka je exportovaný svět, nikoli projekt balíčku. Exportované světy používají jiný formát a nelze je zde upravovat.",
         "notAProjectDirectory": "Toto není složka projektu balíčku. Vyberte složku, která obsahuje package.json balíčku — nebo pro nainstalovaný balíček .ofm použijte „Otevřít soubor .ofm“.",
+        "saveWouldDropItem": "Neuloženo: {{file}} obsahuje položku, kterou editor neumí přečíst ani zachovat v JSON. Opravte tuto položku v souboru a uložte znovu.",
         "unknownSchema": "Neznámé schéma „{{schema}}“.",
         "invalidEntity": "Záznam „{{schema}}“ je neplatný: {{detail}}",
         "duplicateWorld": "Balíček už má manifest v souboru „{{first}}“; balíček může mít jen jeden soubor „world“.",

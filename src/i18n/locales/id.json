@@ -2836,6 +2836,7 @@
         "missingSchema": "Berkas paket kekurangan bidang \"schema\".",
         "worldExportNotPackage": "Folder ini adalah dunia yang diekspor, bukan proyek paket. Dunia yang diekspor menggunakan format berbeda dan tidak dapat diedit di sini.",
         "notAProjectDirectory": "Ini bukan folder proyek paket. Pilih folder yang berisi package.json paket tersebut — atau, untuk paket .ofm yang terpasang, gunakan \"Buka File .ofm\".",
+        "saveWouldDropItem": "Tidak disimpan: {{file}} berisi entri yang tidak bisa dibaca maupun dipertahankan editor dalam JSON. Perbaiki entri itu di berkas, lalu simpan lagi.",
         "unknownSchema": "Skema \"{{schema}}\" tidak dikenal.",
         "invalidEntity": "Entri \"{{schema}}\" tidak valid: {{detail}}",
         "duplicateWorld": "Paket sudah memiliki manifes di \"{{first}}\"; sebuah paket hanya boleh memiliki satu berkas \"world\".",
