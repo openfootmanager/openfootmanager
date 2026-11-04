@@ -233,12 +233,9 @@ fn a_substitute_who_came_on_and_the_player_he_replaced_are_both_rated() {
     );
 }
 
-/// Given a live match in which the home keeper is replaced at 85 minutes by a reserve keeper,
-/// and neither side scores,
-/// When the report is drawn up,
-/// Then the keeper who played 85 minutes kept the clean sheet and the reserve did not.
-#[test]
-fn the_keeper_in_goal_for_most_of_a_clean_sheet_keeps_it() {
+/// A live match from `seed` in which the home keeper is replaced at 85 minutes by a reserve
+/// keeper, played to the end.
+fn keeper_replaced_at_85(seed: u64) -> MatchReport {
     let mut live = LiveMatchState::new(
         team("home", 70),
         team("away", 70),
@@ -247,7 +244,7 @@ fn the_keeper_in_goal_for_most_of_a_clean_sheet_keeps_it() {
         vec![],
         false,
     );
-    let mut rng = StdRng::seed_from_u64(5);
+    let mut rng = StdRng::seed_from_u64(seed);
     while live.minute() < 85 {
         live.step_minute(&mut rng);
     }
@@ -260,9 +257,20 @@ fn the_keeper_in_goal_for_most_of_a_clean_sheet_keeps_it() {
     while !live.is_finished() {
         live.step_minute(&mut rng);
     }
-    live.test_set_score(0, 0);
+    live.into_report()
+}
 
-    let report = live.into_report();
+/// Given a live match in which the home keeper is replaced at 85 minutes by a reserve keeper,
+/// and the away side does not score (the first such seed: the report counts its goals from the
+/// match's events, so a score set by hand would not reach it),
+/// When the report is drawn up,
+/// Then the keeper who played 85 minutes kept the clean sheet and the reserve did not.
+#[test]
+fn the_keeper_in_goal_for_most_of_a_clean_sheet_keeps_it() {
+    let report = (1..=200)
+        .map(keeper_replaced_at_85)
+        .find(|report| report.away_goals == 0)
+        .expect("in 200 seeds the away side fails to score at least once");
 
     assert!(report.player_stats["home_Goalkeeper_0"].clean_sheet);
     assert!(!report.player_stats["home_reserve_gk"].clean_sheet);
