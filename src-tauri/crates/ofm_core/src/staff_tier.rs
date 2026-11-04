@@ -15,15 +15,7 @@
 
 use domain::staff::StaffRole;
 
-use crate::player_tier::PlayerTier;
-
-/// The lowest rating of each of a role's S, A and B tiers.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct StaffTierCutOffs {
-    pub s: u8,
-    pub a: u8,
-    pub b: u8,
-}
+use crate::player_tier::{PlayerTier, TierCutOffs};
 
 /// Each role's cut-offs. On the bell, the share at or above each is:
 /// - coach (coaching, centred on 74.5): S 88 (2.3%), A 83 (10.9%), B 75 (50.0%);
@@ -31,24 +23,24 @@ pub struct StaffTierCutOffs {
 /// - scout (the judging mean, 75.8): S 89 (2.7%), A 84 (12.4%), B 76 (53.1%);
 /// - assistant (delegation's blend, 65.3 after its rounding down): S 79 (2.1%), A 74 (10.4%),
 ///   B 66 (48.8%).
-pub fn staff_tier_cut_offs(role: &StaffRole) -> StaffTierCutOffs {
+fn cut_offs(role: &StaffRole) -> TierCutOffs {
     match role {
-        StaffRole::Coach => StaffTierCutOffs {
+        StaffRole::Coach => TierCutOffs {
             s: 88,
             a: 83,
             b: 75,
         },
-        StaffRole::Physio => StaffTierCutOffs {
+        StaffRole::Physio => TierCutOffs {
             s: 90,
             a: 85,
             b: 77,
         },
-        StaffRole::Scout => StaffTierCutOffs {
+        StaffRole::Scout => TierCutOffs {
             s: 89,
             a: 84,
             b: 76,
         },
-        StaffRole::AssistantManager => StaffTierCutOffs {
+        StaffRole::AssistantManager => TierCutOffs {
             s: 79,
             a: 74,
             b: 66,
@@ -58,48 +50,32 @@ pub fn staff_tier_cut_offs(role: &StaffRole) -> StaffTierCutOffs {
 
 /// The tier `rating` puts a member of `role` in, among that role.
 pub fn staff_tier(role: &StaffRole, rating: u8) -> PlayerTier {
-    let cut_offs = staff_tier_cut_offs(role);
-    if rating >= cut_offs.s {
-        PlayerTier::S
-    } else if rating >= cut_offs.a {
-        PlayerTier::A
-    } else if rating >= cut_offs.b {
-        PlayerTier::B
-    } else {
-        PlayerTier::Rest
-    }
+    cut_offs(role).tier(rating)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    const ROLES: [StaffRole; 4] = [
-        StaffRole::Coach,
-        StaffRole::Physio,
-        StaffRole::Scout,
-        StaffRole::AssistantManager,
-    ];
-
     /// Given each role
     /// When its cut-offs are read
     /// Then they are the ones measured on the staff bell: the table every other test leans on.
     #[test]
     fn each_roles_cut_offs_are_the_measured_ones() {
-        let table: Vec<(StaffRole, (u8, u8, u8))> = ROLES
+        let table: Vec<(StaffRole, (u8, u8, u8))> = StaffRole::ALL
             .into_iter()
             .map(|role| {
-                let cut = staff_tier_cut_offs(&role);
+                let cut = cut_offs(&role);
                 (role, (cut.s, cut.a, cut.b))
             })
             .collect();
         assert_eq!(
             table,
             vec![
-                (StaffRole::Coach, (88, 83, 75)),
-                (StaffRole::Physio, (90, 85, 77)),
-                (StaffRole::Scout, (89, 84, 76)),
                 (StaffRole::AssistantManager, (79, 74, 66)),
+                (StaffRole::Coach, (88, 83, 75)),
+                (StaffRole::Scout, (89, 84, 76)),
+                (StaffRole::Physio, (90, 85, 77)),
             ]
         );
     }
@@ -110,8 +86,8 @@ mod tests {
     ///      and B one above the rest.
     #[test]
     fn each_roles_tier_changes_exactly_at_its_cut_offs() {
-        for role in ROLES {
-            let cut = staff_tier_cut_offs(&role);
+        for role in StaffRole::ALL {
+            let cut = cut_offs(&role);
             assert_eq!(staff_tier(&role, cut.s), PlayerTier::S, "{role:?}");
             assert_eq!(staff_tier(&role, cut.s - 1), PlayerTier::A, "{role:?}");
             assert_eq!(staff_tier(&role, cut.a), PlayerTier::A, "{role:?}");
