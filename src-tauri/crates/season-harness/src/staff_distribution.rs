@@ -142,7 +142,9 @@ fn staff_distribution_of(staff: &[Staff]) -> StaffDistributionReport {
                 for member in staff.iter().filter(|member| member.role == role) {
                     if member.team_id.is_some() {
                         ratings.at_clubs.add(staff_rating(member));
-                        if member.id.starts_with(RETIRED_PLAYER_SCOUT_ID_PREFIX) {
+                        if member.role == StaffRole::Scout
+                            && member.id.starts_with(RETIRED_PLAYER_SCOUT_ID_PREFIX)
+                        {
                             ratings.retired_player_scouts_at_clubs += 1;
                         }
                     } else {
@@ -271,6 +273,26 @@ mod tests {
         assert_eq!(scouts.retired_player_scouts_at_clubs, 1);
         assert_eq!(scouts.at_clubs.count(), 2);
         assert_eq!(scouts.free_agents.count(), 1);
+    }
+
+    /// Given a coach at a club whose id carries the retired-player scout prefix
+    /// When the staff are reported
+    /// Then he is not counted as a retired-player scout, among the coaches or anywhere: only a
+    ///      scout is one, whatever an id says.
+    #[test]
+    fn only_a_scout_counts_as_a_retired_player_scout() {
+        let staff = [member(
+            "staff_retired_scout_p9",
+            StaffRole::Coach,
+            70,
+            Some("club"),
+        )];
+
+        let report = staff_distribution_of(&staff);
+
+        for role in &report.roles {
+            assert_eq!(role.retired_player_scouts_at_clubs, 0, "{:?}", role.role);
+        }
     }
 
     /// Given no staff at all
