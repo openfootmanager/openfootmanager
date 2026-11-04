@@ -779,3 +779,37 @@ fn extra_time_flag_passed_through() {
     let session = live_match_manager::create_live_match(&game, 0, MatchMode::Instant, true);
     assert!(session.is_ok());
 }
+
+/// Given the user's live match at minute 30, every one of the user's players worn down to a
+/// condition the AI replaces at once, and a full bench,
+/// When the rest of the match is played out unmanaged (`play_out_unmanaged`),
+/// Then it is played to the end with the AI managing the user's side: substitutes come on.
+#[test]
+fn a_match_played_out_unmanaged_has_the_ai_manage_the_users_side() {
+    let mut game = make_game_with_fixture();
+    for player in game
+        .players
+        .iter_mut()
+        .filter(|player| player.team_id.as_deref() == Some("team1"))
+    {
+        player.condition = 30;
+    }
+    let mut session =
+        live_match_manager::create_live_match(&game, 0, MatchMode::Live, false).unwrap();
+    while session.match_state.minute() < 30 {
+        session.step();
+    }
+    assert_eq!(
+        session.snapshot().home_subs_made,
+        0,
+        "the user made no changes"
+    );
+
+    session.play_out_unmanaged();
+
+    assert!(session.is_finished());
+    assert!(
+        session.snapshot().home_subs_made > 0,
+        "nobody managed the user's side for the rest of the match"
+    );
+}
