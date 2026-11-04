@@ -626,7 +626,6 @@ pub(crate) fn play_unwatched_fixture_with(
         allows_extra_time,
         lookups,
     )?;
-    session.user_side = None;
     let league_round_context = session.league_round_context.clone();
     session.run_to_completion();
 
