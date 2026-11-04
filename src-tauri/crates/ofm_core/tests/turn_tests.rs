@@ -572,13 +572,14 @@ fn apply_match_report_updates_player_stats() {
 #[test]
 fn apply_match_report_gk_clean_sheet() {
     let mut game = make_game_with_match();
-    // Home team wins 1-0, so home GK gets a clean sheet
+    // Home team wins 1-0, and the report credits the home GK with the clean sheet
     let mut player_stats = HashMap::new();
     player_stats.insert(
         "t1_gk".to_string(),
         PlayerMatchStats {
             minutes_played: 90,
             rating: 7.0,
+            clean_sheet: true,
             ..Default::default()
         },
     );

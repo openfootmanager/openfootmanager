@@ -59,9 +59,11 @@ impl MatchReport {
             .collect();
 
         for (id, stats) in self.player_stats.iter_mut() {
-            stats.rating = appearances
-                .get(id.as_str())
-                .map_or(0.0, |appearance| rate(stats, appearance));
+            let appearance = appearances.get(id.as_str());
+            stats.rating = appearance.map_or(0.0, |appearance| rate(stats, appearance));
+            stats.clean_sheet = appearance.is_some_and(|appearance| {
+                appearance.position == Position::Goalkeeper && shared_clean_sheet(stats, appearance)
+            });
         }
     }
 }
@@ -127,8 +129,14 @@ fn card_penalty(stats: &PlayerMatchStats) -> f32 {
     }
 }
 
+/// Whether this player shared in a clean sheet: his side conceded none, and he was on for most
+/// of the match. A keeper's clean sheet, and the bonus a defender's mark gets for one.
+fn shared_clean_sheet(stats: &PlayerMatchStats, appearance: &Appearance) -> bool {
+    appearance.kept_clean_sheet && stats.minutes_played >= MIN_CLEAN_SHEET_MINUTES
+}
+
 fn clean_sheet_bonus(stats: &PlayerMatchStats, appearance: &Appearance) -> f32 {
-    if !appearance.kept_clean_sheet || stats.minutes_played < MIN_CLEAN_SHEET_MINUTES {
+    if !shared_clean_sheet(stats, appearance) {
         return 0.0;
     }
     match appearance.position {
@@ -159,6 +167,31 @@ mod tests {
 
     fn mid(stats: &PlayerMatchStats) -> f32 {
         rate(stats, &appearance(Position::Midfielder))
+    }
+
+    fn kept(position: Position) -> Appearance {
+        Appearance {
+            kept_clean_sheet: true,
+            ..appearance(position)
+        }
+    }
+
+    /// Given a side that conceded none,
+    /// When a player on for exactly the minimum, one minute less, or a player whose side
+    /// conceded is judged,
+    /// Then only the first shared in the clean sheet.
+    #[test]
+    fn a_clean_sheet_is_shared_only_by_a_player_on_for_most_of_it() {
+        let keeper = kept(Position::Goalkeeper);
+        assert!(shared_clean_sheet(&stats(MIN_CLEAN_SHEET_MINUTES), &keeper));
+        assert!(!shared_clean_sheet(
+            &stats(MIN_CLEAN_SHEET_MINUTES - 1),
+            &keeper
+        ));
+        assert!(!shared_clean_sheet(
+            &stats(90),
+            &appearance(Position::Goalkeeper)
+        ));
     }
 
     /// Given a full match with nothing notable, When rated, Then it sits at the base.

@@ -58,6 +58,11 @@ pub struct PlayerMatchStats {
     pub red_cards: u8,
     /// Match rating 0.0–10.0, computed after the match.
     pub rating: f32,
+    /// He kept a clean sheet: in goal for most of the match and his side conceded none. Set
+    /// with the ratings (`MatchReport::assign_ratings`), so the mark and the season's clean
+    /// sheets count by one rule.
+    #[serde(default)]
+    pub clean_sheet: bool,
 }
 
 // ---------------------------------------------------------------------------

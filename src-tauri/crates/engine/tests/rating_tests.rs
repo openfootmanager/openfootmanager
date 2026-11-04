@@ -232,3 +232,42 @@ fn a_substitute_who_came_on_and_the_player_he_replaced_are_both_rated() {
         "went off"
     );
 }
+
+/// Given a live match in which the home keeper is replaced at 85 minutes by a reserve keeper,
+/// and neither side scores,
+/// When the report is drawn up,
+/// Then the keeper who played 85 minutes kept the clean sheet and the reserve did not.
+#[test]
+fn the_keeper_in_goal_for_most_of_a_clean_sheet_keeps_it() {
+    let mut live = LiveMatchState::new(
+        team("home", 70),
+        team("away", 70),
+        MatchConfig::default(),
+        vec![player("home_reserve_gk", Position::Goalkeeper, 70)],
+        vec![],
+        false,
+    );
+    let mut rng = StdRng::seed_from_u64(5);
+    while live.minute() < 85 {
+        live.step_minute(&mut rng);
+    }
+    live.apply_command(MatchCommand::Substitute {
+        side: Side::Home,
+        player_off_id: "home_Goalkeeper_0".to_string(),
+        player_on_id: "home_reserve_gk".to_string(),
+    })
+    .expect("the substitution is legal");
+    while !live.is_finished() {
+        live.step_minute(&mut rng);
+    }
+    live.test_set_score(0, 0);
+
+    let report = live.into_report();
+
+    assert!(report.player_stats["home_Goalkeeper_0"].clean_sheet);
+    assert!(!report.player_stats["home_reserve_gk"].clean_sheet);
+    assert!(
+        !report.player_stats["home_Defender_0"].clean_sheet,
+        "a keeper's flag only"
+    );
+}

@@ -352,6 +352,7 @@ pub(crate) fn report_with_scorer(
             yellow_cards: 0,
             red_cards: 0,
             rating: 7.5,
+            clean_sheet: false,
         },
     );
     let goals = (0..home_goals)
