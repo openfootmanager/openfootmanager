@@ -1799,7 +1799,9 @@ mod tests {
 
 #[cfg(test)]
 mod acceptance_tests {
-    use super::super::tests::{acceptance_game, assert_acceptance_notice, incoming_loan};
+    use super::super::tests::{
+        acceptance_game, assert_acceptance_notice, incoming_loan, incoming_transfer,
+    };
     use super::*;
 
     fn assert_loan(game: &Game, deferred: bool, option: Option<u64>, contribution: u8) {
@@ -1850,6 +1852,34 @@ mod acceptance_tests {
     fn a_deferred_loan_bid_notifies_the_borrower() {
         bid(true);
     }
+    /// Given the user's player with a transfer bid and a loan bid both open, the window closed;
+    /// when the user agrees the sale and then accepts the loan; then the loan is refused and
+    /// the sale stays agreed (#1205: the loan was agreed too, and on opening day it wiped out
+    /// the sale).
+    #[test]
+    fn a_loan_cannot_be_accepted_on_a_player_already_sold_for_the_window() {
+        let mut game = acceptance_game("team1", true);
+        let sale = incoming_transfer(&mut game);
+        let loan = incoming_loan(&mut game);
+        crate::transfers::respond_to_offer(&mut game, "player-award", &sale, true).unwrap();
+
+        let result = respond_to_loan_offer(&mut game, "player-award", &loan, true);
+
+        assert_eq!(
+            result,
+            Err("be.error.transfers.playerAlreadyLoaned".to_string())
+        );
+        let player = &game.players[0];
+        assert_eq!(
+            player.transfer_offers[0].status,
+            domain::player::TransferOfferStatus::PendingRegistration
+        );
+        assert_ne!(
+            player.loan_offers[0].status,
+            domain::player::LoanOfferStatus::PendingRegistration
+        );
+    }
+
     fn incoming(deferred: bool, counter: bool) {
         let mut game = acceptance_game("team1", deferred);
         let id = incoming_loan(&mut game);

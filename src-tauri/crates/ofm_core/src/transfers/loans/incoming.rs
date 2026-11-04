@@ -118,7 +118,10 @@ pub fn respond_to_loan_offer(
         .ok_or("be.error.noTeamAssigned")?;
     // Preserve ownership/active-loan validation before checking whether the offer is live.
     let player = owned_player(&game.players, &user_team_id, player_id)?;
-    if accept && player_has_active_or_pending_loan(player) {
+    // A sale agreed for the window is a move in hand as much as a loan is: accepting a loan on
+    // top of it scheduled both, and on opening day the loan wiped out the sale (#1205). The
+    // check counter_loan_offer and make_loan_offer already make.
+    if accept && player_has_pending_registration(player) {
         return Err(ERR_PLAYER_ALREADY_LOANED.into());
     }
     let offer = pending_offer(player, offer_id)?;
