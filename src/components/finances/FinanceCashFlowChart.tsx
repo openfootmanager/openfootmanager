@@ -11,60 +11,31 @@ import {
 } from "recharts";
 import { useChartTheme } from "../ui/charts/chartTheme";
 import { ChartContainer } from "../ui/charts/ChartContainer";
-import { formatPreciseCompact, formatVal } from "../../lib/helpers";
-import type { FinancialTransactionData } from "../../store/types";
+import { useTranslation } from "react-i18next";
+import { formatDateShort, formatPreciseCompact, formatVal } from "../../lib/helpers";
+import type { WeeklyCashFlowData } from "../../services/financeService";
 
 interface FinanceCashFlowChartProps {
-  ledger: FinancialTransactionData[];
+  /** The backend's weeks of cash flow (from its cash journal), drawn as they are: nothing is summed here. */
+  weeks: WeeklyCashFlowData[];
   incomeLabel: string;
   expensesLabel: string;
 }
 
-interface WeeklyBucket {
-  week: string;
-  income: number;
-  expenses: number;
-}
-
-function aggregateByWeek(ledger: FinancialTransactionData[]): WeeklyBucket[] {
-  if (ledger.length === 0) return [];
-
-  const buckets: Record<string, WeeklyBucket> = {};
-
-  for (const tx of ledger) {
-    const d = new Date(tx.date);
-    const year = d.getUTCFullYear();
-    const jan1 = Date.UTC(year, 0, 1);
-    const dayOfYear = Math.floor((d.getTime() - jan1) / 86400000);
-    const weekNum = Math.floor(dayOfYear / 7) + 1;
-    const key = `${year}-W${String(weekNum).padStart(2, "0")}`;
-    const label = `W${weekNum}`;
-
-    if (!buckets[key]) {
-      buckets[key] = { week: label, income: 0, expenses: 0 };
-    }
-
-    if (tx.amount >= 0) {
-      buckets[key].income += tx.amount;
-    } else {
-      buckets[key].expenses += Math.abs(tx.amount);
-    }
-  }
-
-  return Object.keys(buckets)
-    .sort()
-    .slice(-12)
-    .map((k) => buckets[k]);
-}
-
 export function FinanceCashFlowChart({
-  ledger,
+  weeks,
   incomeLabel,
   expensesLabel,
 }: FinanceCashFlowChartProps) {
   const id = useId();
   const theme = useChartTheme();
-  const data = aggregateByWeek(ledger);
+  const { i18n } = useTranslation();
+  // Each week is labelled by the Monday it starts on, in the player's language.
+  const data = weeks.map((week) => ({
+    week: formatDateShort(week.weekStart, i18n.language),
+    income: week.income,
+    expenses: week.expenses,
+  }));
   const incomeGradId = `incomeGrad-${id}`;
   const expensesGradId = `expensesGrad-${id}`;
 

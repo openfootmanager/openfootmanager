@@ -1,5 +1,5 @@
-import { lazy, Suspense } from "react";
-import EndOfSeasonScreen from "../EndOfSeasonScreen";
+import { lazy, Suspense, useState } from "react";
+import EndOfSeasonScreen, { type SeasonTransition } from "../EndOfSeasonScreen";
 import HomeTab from "../home/HomeTab";
 import type { DashboardTabContentModel } from "./dashboardTabContentModel";
 
@@ -46,9 +46,20 @@ export default function DashboardTabContent({ viewModel }: DashboardTabContentPr
     handlers: { onGameUpdate, onNavigate, onSelectPlayer, onSelectTeam, onSquadListSortChange },
   } = viewModel;
 
+  // Held here, which stays mounted across tabs: the season's end screen must outlast the game
+  // update that starts the next season (it says the season is no longer complete).
+  const [seasonTransition, setSeasonTransition] = useState<SeasonTransition | null>(null);
+
   const renderHomeContent = () => {
-    if (seasonComplete) {
-      return <EndOfSeasonScreen gameState={gameState} onGameUpdate={onGameUpdate} />;
+    if (seasonComplete || seasonTransition) {
+      return (
+        <EndOfSeasonScreen
+          gameState={gameState}
+          onGameUpdate={onGameUpdate}
+          transition={seasonTransition}
+          onTransitionChange={setSeasonTransition}
+        />
+      );
     }
 
     return (

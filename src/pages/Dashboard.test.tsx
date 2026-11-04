@@ -200,6 +200,7 @@ function createBackendFinanceSnapshot() {
     runway_status: "stable",
     overall_status: "stable",
     marketing_campaign_cooldown_days_remaining: 0,
+    cash_flow: [],
   };
 }
 let backendFinanceSnapshot = createBackendFinanceSnapshot();
