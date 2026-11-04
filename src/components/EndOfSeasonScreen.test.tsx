@@ -108,4 +108,33 @@ describe("EndOfSeasonScreen", () => {
     expect(screen.getByText("Jane Doe")).toBeInTheDocument();
     expect(onGameUpdate).toHaveBeenCalled();
   });
+
+  /**
+   * Given a manager with no club (unemployed) when the season ends
+   * When the review is drawn
+   * Then there is no club summary at all: no "0th" place and no blank club name, and the league's
+   *      final standings and champions still show.
+   */
+  it("shows the review without a club summary for an unemployed manager", () => {
+    const game = createEndOfSeasonGame();
+    game.manager.team_id = null;
+    function Holder() {
+      const [transition, setTransition] = useState<SeasonTransition | null>(null);
+      return (
+        <EndOfSeasonScreen
+          gameState={game}
+          onGameUpdate={vi.fn()}
+          transition={transition}
+          onTransitionChange={setTransition}
+        />
+      );
+    }
+
+    render(<Holder />);
+
+    expect(screen.getByText("Season complete")).toBeInTheDocument();
+    expect(screen.getByText("Final standings")).toBeInTheDocument();
+    expect(screen.queryByText("0th")).not.toBeInTheDocument();
+    expect(screen.queryByText("Position")).not.toBeInTheDocument();
+  });
 });
