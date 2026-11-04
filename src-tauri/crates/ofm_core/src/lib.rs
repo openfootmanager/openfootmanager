@@ -81,6 +81,7 @@ pub mod squad_safety;
 pub(crate) mod stable_hash;
 pub mod staff_rating;
 pub mod state;
+pub mod tactics_effects;
 #[cfg(test)]
 mod test_support;
 pub mod training;
