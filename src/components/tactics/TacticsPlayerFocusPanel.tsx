@@ -2,7 +2,7 @@ import { useRatingTiers } from "../../hooks/useRatingTiers";
 import { ratingTierClass } from "../../lib/ratingTier";
 import { useTranslation } from "react-i18next";
 import type { PlayerData } from "../../store/gameStore";
-import { Button, Card, CountryFlag } from "../ui";
+import { Button, CountryFlag } from "../ui";
 import { Eye, GitCompareArrows, X } from "lucide-react";
 import { calcAge, getPlayerOvr } from "../../lib/helpers";
 import { naturalPositionOf } from "../../lib/positions";
@@ -39,6 +39,9 @@ const ATTRIBUTE_GROUPS: {
     attrs: ["handling", "reflexes", "aerial"],
   },
 ];
+
+/** The id of the inspector's heading, which names the dialog the panel is drawn in. */
+export const TACTICS_INSPECTOR_TITLE_ID = "tactics-inspector-title";
 
 interface TacticsPlayerFocusPanelProps {
   canConfirmSwap: boolean;
@@ -240,11 +243,16 @@ export default function TacticsPlayerFocusPanel({
 }: TacticsPlayerFocusPanelProps) {
   const { t } = useTranslation();
 
+  // No Card of its own: the comparison is drawn inside ui/Dialog, whose panel is the surface,
+  // border and shadow, so a Card here drew a second border inside the first.
   return (
-    <Card>
+    <div>
       <div className="p-4 border-b border-gray-100 dark:border-navy-600 bg-linear-to-r from-navy-700 to-navy-800 rounded-t-xl">
         <div className="flex items-center justify-between">
-          <h3 className="text-sm font-heading font-bold text-white uppercase tracking-wide flex items-center gap-2">
+          <h3
+            id={TACTICS_INSPECTOR_TITLE_ID}
+            className="text-sm font-heading font-bold text-white uppercase tracking-wide flex items-center gap-2"
+          >
             <Eye className="w-4 h-4 text-accent-400" />
             {t("tactics.inspector")}
           </h3>
@@ -293,6 +301,6 @@ export default function TacticsPlayerFocusPanel({
           </div>
         )}
       </div>
-    </Card>
+    </div>
   );
 }

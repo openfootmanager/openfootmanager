@@ -1,8 +1,6 @@
-import { useTranslation } from "react-i18next";
-
 import type { PlayerData } from "../../store/gameStore";
 import { Dialog } from "../ui";
-import TacticsPlayerFocusPanel from "./TacticsPlayerFocusPanel";
+import TacticsPlayerFocusPanel, { TACTICS_INSPECTOR_TITLE_ID } from "./TacticsPlayerFocusPanel";
 
 interface TacticsCompareDialogProps {
   selectedPlayer: PlayerData;
@@ -23,15 +21,12 @@ export default function TacticsCompareDialog({
   onConfirmSwap,
   onClose,
 }: TacticsCompareDialogProps) {
-  const { t } = useTranslation();
-
   return (
     <Dialog
-      label={t("tactics.inspector")}
+      labelledBy={TACTICS_INSPECTOR_TITLE_ID}
       onClose={onClose}
       dismissOnBackdrop
       className="w-full max-w-lg max-h-[85vh] overflow-y-auto rounded-xl"
-      surfaceClassName="bg-transparent"
     >
       <TacticsPlayerFocusPanel
         canConfirmSwap={canConfirmSwap}
