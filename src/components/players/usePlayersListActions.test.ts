@@ -8,6 +8,7 @@ import type { GameStateData } from "../../store/gameStore";
 import { usePlayersListActions } from "./usePlayersListActions";
 
 vi.mock("react-i18next", () => ({
+  initReactI18next: { type: "3rdParty", init: () => undefined },
   useTranslation: () => ({ t: (key: string) => key }),
 }));
 vi.mock("../transfers/useTransferBidFlow", () => ({

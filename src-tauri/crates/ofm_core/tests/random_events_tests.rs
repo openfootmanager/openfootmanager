@@ -296,6 +296,46 @@ fn check_random_events_training_injury_applies_injury() {
     }
 }
 
+/// Given a squad training for four thousand days, each injured player healed once his injury is
+///      read
+/// When the daily random events roll their training injuries
+/// Then a knee bruise or a minor strain lasts 1-2 days, as after a match, and a moderate injury (an
+///      ankle sprain, a hamstring tear) turns up: the injuries come from the shared match bands,
+///      not training's old flat 3-14 days over five names
+#[test]
+fn training_injuries_come_from_the_shared_injury_bands() {
+    let mut game = make_game();
+    game.league = None;
+    let mut moderate = 0;
+    let mut slight = 0;
+    for _ in 0..4000 {
+        check_random_events(&mut game);
+        for player in &mut game.players {
+            let Some(injury) = player.injury.take() else {
+                continue;
+            };
+            match injury.name.as_str() {
+                "common.injuries.kneeBruise" | "common.injuries.minorMuscleStrain" => {
+                    slight += 1;
+                    assert!(
+                        (1..=2).contains(&injury.days_remaining),
+                        "{} for {} days",
+                        injury.name,
+                        injury.days_remaining
+                    );
+                }
+                "common.injuries.ankleLigamentSprain" | "common.injuries.hamstringTear" => {
+                    moderate += 1;
+                }
+                _ => {}
+            }
+        }
+        game.clock.advance_days(1);
+    }
+    assert!(slight > 0, "no slight training injury in 4000 days");
+    assert!(moderate > 0, "no moderate training injury in 4000 days");
+}
+
 #[test]
 fn check_random_events_media_story_affects_morale() {
     let mut game = make_game();

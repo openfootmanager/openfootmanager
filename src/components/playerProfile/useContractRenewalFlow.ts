@@ -258,7 +258,7 @@ export function useContractRenewalFlow({
       }
     } catch (error) {
       setRenewalStatus("error");
-      setRenewalError(resolveTranslatedErrorMessage(error, t));
+      setRenewalError(resolveTranslatedErrorMessage(error));
       setRenewalCooledOff(false);
     } finally {
       setRenewalSubmitting(false);
@@ -298,7 +298,7 @@ export function useContractRenewalFlow({
     if (!hasAssistantManager) {
       setRenewalStatus("error");
       setRenewalError(
-        resolveTranslatedErrorMessage("be.error.contracts.noAssistantManagerAssigned", t),
+        resolveTranslatedErrorMessage("be.error.contracts.noAssistantManagerAssigned"),
       );
       setRenewalCooledOff(false);
       return;
@@ -329,7 +329,7 @@ export function useContractRenewalFlow({
       applyDelegatedOutcome(delegatedCase);
     } catch (error) {
       setRenewalStatus("error");
-      setRenewalError(resolveTranslatedErrorMessage(error, t));
+      setRenewalError(resolveTranslatedErrorMessage(error));
       setRenewalCooledOff(false);
     } finally {
       setRenewalSubmitting(false);

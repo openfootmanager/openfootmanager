@@ -105,6 +105,9 @@ pub fn translate_error(key: &str) -> String {
         "be.error.scouting.playerAlreadyScouted" => "Player is already being scouted.".to_string(),
         "be.error.transfers.cannotBidOnOwnPlayer" => "Cannot bid on your own player.".to_string(),
         "be.error.transfers.insufficientFunds" => "Insufficient transfer funds.".to_string(),
+        "be.error.transfers.buyerCannotAffordFee" => {
+            "The buying club can no longer afford this fee.".to_string()
+        }
         "be.error.transfers.offerNotPending" => "Offer is no longer pending.".to_string(),
         "be.error.transfers.transferWindowClosed" => "Transfer window is closed.".to_string(),
         "be.error.mcp.noLeagueYet" => {
