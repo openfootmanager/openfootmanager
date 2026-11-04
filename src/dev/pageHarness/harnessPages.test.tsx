@@ -39,9 +39,10 @@ const PAGE_CONTENT: Record<HarnessPage, (view: ReturnType<typeof within>) => voi
   players: (view) => expect(view.getAllByRole("row").length).toBeGreaterThan(1),
   teams: (view) => expect(view.getByRole("table", { name: /League$/ })).toBeInTheDocument(),
   managers: (view) => expect(view.getByRole("table", { name: "Managers" })).toBeInTheDocument(),
-  // The Staff page's own search box, which has an accessible name (Home draws many headings, so
-  // counting them would pass on the wrong page).
-  staff: (view) => expect(view.getByRole("textbox", { name: /search staff/i })).toBeInTheDocument(),
+  // The Staff page's own table, labelled by its "My Staff (n)" heading: Home draws many headings,
+  // so counting them would pass on the wrong page.
+  staff: (view) =>
+    expect(view.getByRole("table", { name: /^My Staff \(\d+\)$/ })).toBeInTheDocument(),
 };
 
 afterEach(async () => {
