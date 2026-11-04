@@ -47,6 +47,7 @@ pub struct TacticContents {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct SavedSlot {
+    #[serde(default)]
     pub player_id: String,
     /// `None` is the position's standard role.
     #[serde(default)]

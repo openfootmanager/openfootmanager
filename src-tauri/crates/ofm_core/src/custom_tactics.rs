@@ -321,15 +321,16 @@ fn best_fit_for(
         .map(|player| player.id.clone())
 }
 
-/// The saved takers, each one who has left the club replaced by the team's current taker.
+/// The saved takers as saved: a taker the tactic named and who is still at the club, none where
+/// it named none, and the team's current taker only where the named one has left.
 fn restored_takers(
     saved: &MatchRoles,
     current: &MatchRoles,
     at_the_club: &HashSet<String>,
 ) -> MatchRoles {
     let keep = |saved: &Option<String>, current: &Option<String>| match saved {
-        Some(id) if at_the_club.contains(id) => saved.clone(),
-        _ => current.clone(),
+        Some(id) if !at_the_club.contains(id) => current.clone(),
+        _ => saved.clone(),
     };
     MatchRoles {
         captain: keep(&saved.captain, &current.captain),
@@ -833,6 +834,28 @@ mod whole_tactic_tests {
             Some(&PlayerRole::SweeperKeeper),
             "the keeper's saved role still applies in his slot"
         );
+    }
+
+    /// Given a tactic saved with no vice-captain and no corner taker named, and a club that has
+    ///       named both since
+    /// When the tactic is applied
+    /// Then both are unnamed again, as saved: a tactic's "no taker" is a choice it keeps, and only a
+    ///      taker who has left falls back to the club's current one (review, #1234).
+    #[test]
+    fn a_taker_the_tactic_left_unnamed_is_unnamed_again() {
+        let mut game = game();
+        set_up(&mut game);
+        game.teams[0].match_roles.vice_captain = None;
+        game.teams[0].match_roles.corner_taker = None;
+        save_current_tactic(&mut game, &draft("away", "Away")).unwrap();
+        change_everything(&mut game);
+
+        apply_custom_tactic(&mut game, "away").unwrap();
+
+        let takers = &game.teams[0].match_roles;
+        assert_eq!(takers.vice_captain, None);
+        assert_eq!(takers.corner_taker, None);
+        assert_eq!(takers.captain.as_deref(), Some("s5"));
     }
 
     /// Given a saved 4-4-2 of "s0".."s10", and then two of its starters ("s2" and "s3") sold, with
