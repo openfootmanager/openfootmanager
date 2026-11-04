@@ -1,4 +1,3 @@
-import type { TFunction } from "i18next";
 import type { JSX } from "react";
 import { useEffect, useId, useRef } from "react";
 import {
@@ -21,7 +20,7 @@ import { getCategoryIcon } from "../inbox/inboxHelpers";
 import { formatVal } from "../../lib/valueFormatting";
 import { resolveBackendText } from "../../utils/backendI18n";
 import { getBlockerTabLabel } from "../../utils/blockerUtils";
-import { Dialog } from "../ui";
+import { Dialog, FormResultMark, formResultOf } from "../ui";
 
 interface DashboardSimulatingModalProps {
   // Digest-mode props (optional — omit for a plain single-advance spinner)
@@ -50,35 +49,10 @@ const EVENT_LABEL_KEYS: Record<AttentionEventKind, string> = {
   transferWindow: "dashboard.digestEventTransferWindow",
 };
 
-// The keys are written out in `t(...)` calls so the key-coverage test sees them. The letter is the locale's own form mark and the tone repeats it, as in the club's form dots; the
-// word is read out so colour and a letter never carry the result alone.
-const RESULT_BADGE = {
-  win: {
-    letter: (t: TFunction) => t("common.formResult.W"),
-    word: (t: TFunction) => t("match.victory"),
-    tone: "bg-positive-tint text-positive",
-  },
-  draw: {
-    letter: (t: TFunction) => t("common.formResult.D"),
-    word: (t: TFunction) => t("match.draw"),
-    tone: "bg-sunken text-fg-muted ring-1 ring-inset ring-line",
-  },
-  loss: {
-    letter: (t: TFunction) => t("common.formResult.L"),
-    word: (t: TFunction) => t("match.defeat"),
-    tone: "bg-danger-tint text-danger",
-  },
-} as const;
-
 function ResultBadge({ result }: { result: RecapMatch["userResult"] }): JSX.Element | null {
-  const { t } = useTranslation();
   if (!result) return null;
-  const { letter, word, tone } = RESULT_BADGE[result];
   return (
-    <span className={`shrink-0 text-caption font-bold px-1.5 py-0.5 rounded uppercase ${tone}`}>
-      <span aria-hidden="true">{letter(t)}</span>
-      <span className="sr-only">{word(t)}</span>
-    </span>
+    <FormResultMark result={formResultOf(result)} className="shrink-0 px-1.5 py-0.5 uppercase" />
   );
 }
 
