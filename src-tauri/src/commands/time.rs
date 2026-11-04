@@ -1858,4 +1858,157 @@ mod tests {
             "2025-06-16"
         );
     }
+
+    // -----------------------------------------------------------------------
+    // A dial saved before kick-off reaches the match waiting to be played
+    // -----------------------------------------------------------------------
+
+    /// The user's side as the live session holds it (the engine's own copy of the team, which
+    /// is what the match is played with), and the match's phase.
+    fn user_side_and_phase(state: &StateManager) -> (engine::MatchPhase, engine::TeamData) {
+        let snapshot = state
+            .with_live_match(|session| session.snapshot())
+            .expect("a live match session exists after a live advance");
+        let side = [snapshot.home_team, snapshot.away_team]
+            .into_iter()
+            .find(|team| team.id == "team1")
+            .expect("the user's club is one of the two sides");
+        (snapshot.phase, side)
+    }
+
+    /// The user's side while the match still waits at kick-off.
+    fn user_side_before_kick_off(state: &StateManager) -> engine::TeamData {
+        let (phase, side) = user_side_and_phase(state);
+        assert_eq!(phase, engine::MatchPhase::PreKickOff);
+        side
+    }
+
+    /// The round-summary game with the user's fixture turned round, so team1 plays away.
+    fn make_round_summary_game_away() -> Game {
+        let mut game = make_round_summary_game();
+        for league in game.league.iter_mut().chain(game.competitions.iter_mut()) {
+            for fixture in league.fixtures.iter_mut().filter(|f| f.id == "fix1") {
+                std::mem::swap(&mut fixture.home_team_id, &mut fixture.away_team_id);
+            }
+        }
+        game
+    }
+
+    /// What the pre-match screen does when the user raises the defensive line.
+    fn set_defensive_line_high(state: &StateManager) {
+        crate::commands::squad::set_tactics_phase_internal(
+            state,
+            ofm_core::state::Career::Active,
+            crate::commands::squad::TacticsPhasePatch {
+                defensive_line: Some("High".to_string()),
+                ..Default::default()
+            },
+        )
+        .expect("the dial is stored on the user's team");
+    }
+
+    /// Given an active career whose user team has a live match waiting at kick-off (built by
+    /// the live advance, as on match day),
+    /// When the user raises the defensive line to High on the pre-match screen,
+    /// Then the match about to be played uses a high defensive line.
+    #[test]
+    fn a_dial_changed_before_kick_off_reaches_the_match() {
+        let state = StateManager::new();
+        state.set_game(make_round_summary_game());
+        advance_time_with_mode_internal(&state, ofm_core::state::Career::Active, "live")
+            .expect("live advance response");
+        assert_ne!(
+            user_side_before_kick_off(&state).tactics.defensive_line,
+            engine::DefensiveLine::High,
+            "the fixture must start from a different line, or the test proves nothing"
+        );
+
+        set_defensive_line_high(&state);
+
+        let stored_line = state
+            .get_game(|game| game.teams[0].tactics_phase.defensive_line.clone())
+            .expect("active game");
+        assert_eq!(stored_line, domain::team::DefensiveLine::High);
+        assert_eq!(
+            user_side_before_kick_off(&state).tactics.defensive_line,
+            engine::DefensiveLine::High,
+            "the live session must play with the defensive line set before kick-off"
+        );
+    }
+
+    /// Given an active career whose user team plays away, with the match waiting at kick-off,
+    /// When the user raises the defensive line on the pre-match screen,
+    /// Then the away side of the match plays with the high line.
+    #[test]
+    fn a_dial_changed_before_kick_off_reaches_an_away_match() {
+        let state = StateManager::new();
+        state.set_game(make_round_summary_game_away());
+        advance_time_with_mode_internal(&state, ofm_core::state::Career::Active, "live")
+            .expect("live advance response");
+        let away_id = state
+            .with_live_match(|session| session.snapshot().away_team.id)
+            .expect("a live match session exists");
+        assert_eq!(
+            away_id, "team1",
+            "the fixture must put the user's club away"
+        );
+        assert_ne!(
+            user_side_before_kick_off(&state).tactics.defensive_line,
+            engine::DefensiveLine::High
+        );
+
+        set_defensive_line_high(&state);
+
+        assert_eq!(
+            user_side_before_kick_off(&state).tactics.defensive_line,
+            engine::DefensiveLine::High
+        );
+    }
+
+    /// Given an active career whose user team already has a high defensive line on the eve of
+    /// match day,
+    /// When the live advance builds the match session,
+    /// Then the session carries it: so a failure in the tests above is the missing hand-over to
+    /// a session already built, not the domain-to-engine mapping of the dial.
+    #[test]
+    fn a_dial_set_before_the_session_is_built_reaches_the_match() {
+        let state = StateManager::new();
+        state.set_game(make_round_summary_game());
+        set_defensive_line_high(&state);
+
+        advance_time_with_mode_internal(&state, ofm_core::state::Career::Active, "live")
+            .expect("live advance response");
+
+        assert_eq!(
+            user_side_before_kick_off(&state).tactics.defensive_line,
+            engine::DefensiveLine::High
+        );
+    }
+
+    /// Given a user team whose live match has already kicked off,
+    /// When the user saves a high defensive line on the team,
+    /// Then the match in play keeps its line: once it has started, only the live commands
+    /// change it.
+    #[test]
+    fn a_dial_saved_after_kick_off_leaves_the_match_alone() {
+        let state = StateManager::new();
+        state.set_game(make_round_summary_game());
+        advance_time_with_mode_internal(&state, ofm_core::state::Career::Active, "live")
+            .expect("live advance response");
+        crate::application::live_match::step_live_match(&state, ofm_core::state::Career::Active, 1)
+            .expect("the match kicks off");
+        let (phase, side) = user_side_and_phase(&state);
+        assert_ne!(
+            phase,
+            engine::MatchPhase::PreKickOff,
+            "the match must have started"
+        );
+        let line_at_kick_off = side.tactics.defensive_line;
+        assert_ne!(line_at_kick_off, engine::DefensiveLine::High);
+
+        set_defensive_line_high(&state);
+
+        let (_, side) = user_side_and_phase(&state);
+        assert_eq!(side.tactics.defensive_line, line_at_kick_off);
+    }
 }

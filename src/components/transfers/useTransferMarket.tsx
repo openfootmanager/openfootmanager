@@ -66,7 +66,7 @@ export function useTransferMarket({ gameState, userTeamId, t, myTeam }: Input) {
     answeredRevision,
     error: marketError,
     refetch: refetchMarket,
-  } = usePlayersPage(MARKET_QUERY, t, revision);
+  } = usePlayersPage(MARKET_QUERY, revision);
   const marketSlice = answeredQuery?.scope === marketQuery.scope ? answeredSlice : null;
 
   // Coming back to a view finds its filters as they were left.

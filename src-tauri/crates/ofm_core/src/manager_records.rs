@@ -36,10 +36,7 @@ pub(crate) fn credit_league_season(manager: &mut Manager, season: &LeagueSeason)
         stats.best_finish = Some(season.position);
     }
 
-    let open_stint = manager
-        .career_history
-        .iter_mut()
-        .find(|entry| entry.team_id == season.team_id && entry.end_date.is_none());
+    let open_stint = manager.current_stint_mut(season.team_id);
     match open_stint {
         Some(entry) => {
             entry.matches += matches;

@@ -6,6 +6,26 @@ import { useTranslation } from "react-i18next";
 import { countryName } from "../../lib/countries";
 import ContextMenu from "../ContextMenu";
 import { buildViewTeamMenuItem } from "../playerActions/playerContextMenuItems";
+import type { BoardMood } from "../../store/generated/BoardMood";
+import type { FansMood } from "../../store/generated/FansMood";
+import { useManagerStanding } from "./useManagerStanding";
+
+/** The words for each board mood the backend sends; every mood has one. */
+const BOARD_MOOD_KEYS: Record<BoardMood, string> = {
+  very_pleased: "manager.boardVeryPleased",
+  satisfied: "manager.boardSatisfied",
+  concerned: "manager.boardConcerns",
+  under_threat: "manager.boardThreat",
+};
+
+/** The words for each fans' mood the backend sends; every mood has one. */
+const FANS_MOOD_KEYS: Record<FansMood, string> = {
+  adore: "manager.fanAdore",
+  behind: "manager.fanBehind",
+  mixed: "manager.fanMixed",
+  restless: "manager.fanRestless",
+  unrest: "manager.fanUnrest",
+};
 
 interface ManagerTabProps {
   gameState: GameStateData;
@@ -15,6 +35,7 @@ interface ManagerTabProps {
 export default function ManagerTab({ gameState, onSelectTeam }: ManagerTabProps) {
   const { t, i18n } = useTranslation();
   const mgr = gameState.manager;
+  const standing = useManagerStanding(gameState);
   const myTeam = gameState.teams.find((tm) => tm.id === mgr.team_id);
   const stats = mgr.career_stats;
 
@@ -105,13 +126,7 @@ export default function ManagerTab({ gameState, onSelectTeam }: ManagerTabProps)
               </div>
               <ProgressBar value={mgr.satisfaction} variant="auto" size="md" />
               <p className="text-[10px] text-gray-400 dark:text-gray-500 text-center mt-2">
-                {mgr.satisfaction >= 80
-                  ? t("manager.boardVeryPleased")
-                  : mgr.satisfaction >= 50
-                    ? t("manager.boardSatisfied")
-                    : mgr.satisfaction >= 30
-                      ? t("manager.boardConcerns")
-                      : t("manager.boardThreat")}
+                {standing ? t(BOARD_MOOD_KEYS[standing.board]) : null}
               </p>
             </div>
             {/* Fans */}
@@ -126,15 +141,7 @@ export default function ManagerTab({ gameState, onSelectTeam }: ManagerTabProps)
               </div>
               <ProgressBar value={mgr.fan_approval ?? 50} variant="auto" size="md" />
               <p className="text-[10px] text-gray-400 dark:text-gray-500 text-center mt-2">
-                {(mgr.fan_approval ?? 50) >= 80
-                  ? t("manager.fanAdore")
-                  : (mgr.fan_approval ?? 50) >= 60
-                    ? t("manager.fanBehind")
-                    : (mgr.fan_approval ?? 50) >= 40
-                      ? t("manager.fanMixed")
-                      : (mgr.fan_approval ?? 50) >= 20
-                        ? t("manager.fanRestless")
-                        : t("manager.fanUnrest")}
+                {standing ? t(FANS_MOOD_KEYS[standing.fans]) : null}
               </p>
             </div>
           </div>

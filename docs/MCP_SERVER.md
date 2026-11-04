@@ -231,7 +231,7 @@ The `initialize` result's `serverInfo.version` is the package version plus the s
 
 | Tool | Description |
 |------|-------------|
-| `season_check_complete` | Check if the current season is finished |
+| `season_check_complete` | Check if the current season is finished, by the rule `season_advance` follows (`end_of_season::is_season_complete`): `complete`, `in_progress` with the league fixtures left in the user's tables, `other_divisions_still_playing` (his tables are played out but another division of his country is not), or `no_league` |
 | `season_advance` | Roll over a completed season through the same command as the UI, returning its summary and any dismissal. Refuses an incomplete season; use `time_advance` for a day. |
 | `season_get_awards` | View end-of-season awards (Golden Boot, Player of the Year, etc.) |
 
@@ -250,7 +250,7 @@ Most of these are **disabled in competition mode** — agents use `--mcp-auto-st
 | `game_list_saves` | List all saved games with manager name and date |
 | `game_delete_save` | Permanently delete a saved game |
 | `game_list_world_databases` | List available world databases (built-in random + user JSON files) |
-| `game_is_finished` | Check if the current game/season is finished |
+| `game_is_finished` | Check if the current game/season is finished: `manager_fired`, `all_fixtures_completed`, `in_progress`, `other_divisions_still_playing` or `no_league_yet`, read the same way as `season_check_complete` |
 
 ### Live Match (8 tools)
 
@@ -260,7 +260,7 @@ These tools allow agents to play matches interactively instead of delegating the
 |------|-------------|
 | `match_start` | Start a live match (live, spectator, instant). Paired `competition_id` + `fixture_id` select an exact fixture, including a cup, without requiring an index; otherwise `fixture_index` is required and selects the current league mirror. Extra time follows fixture rules; `allows_extra_time` is ignored. |
 | `match_step` | Advance the live match by N minutes |
-| `match_command` | Apply a tactical command (substitution, formation change, etc.) |
+| `match_command` | Apply a tactical command (substitution, formation change, etc.) for your own side only: a command naming the other side, or given in a match you are not playing in, is refused with `be.error.liveMatch.notYourSide` |
 | `match_snapshot` | Get current match state without advancing time; during a shootout, your own side's kicking order (never the opponent's) |
 | `match_set_shootout_order` | Set your side's penalty shootout order: all your eligible players, reordered, once the shootout has started and before its first kick. A multi-minute `match_step` stops when the shootout starts, so there is always a chance to set it |
 | `match_finish` | Finish the match, apply results, and clean up |
