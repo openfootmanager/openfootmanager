@@ -46,6 +46,18 @@ pub enum StaffRole {
     Physio,
 }
 
+impl StaffRole {
+    /// Every role, in the order the enum declares them, so a table over roles cannot miss one. A new
+    /// variant breaks the exhaustive match in `staff_role_all_lists_every_variant_once`; add it to
+    /// that match and to this list.
+    pub const ALL: [StaffRole; 4] = [
+        StaffRole::AssistantManager,
+        StaffRole::Coach,
+        StaffRole::Scout,
+        StaffRole::Physio,
+    ];
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, TS)]
 pub enum CoachingSpecialization {
     Fitness,     // Boosts Physical training
@@ -133,6 +145,26 @@ impl Staff {
 #[cfg(test)]
 mod tests {
     use super::{Staff, StaffAttributes, StaffRole};
+
+    /// Given the list of every staff role and an exhaustive numbering of the enum's variants
+    /// When the list is checked against it
+    /// Then it has one entry per number, in order: a role added to the enum breaks the numbering
+    ///      until it gets one, and the list is short until it is added to it too.
+    #[test]
+    fn staff_role_all_lists_every_variant_once() {
+        fn number(role: &StaffRole) -> usize {
+            match role {
+                StaffRole::AssistantManager => 0,
+                StaffRole::Coach => 1,
+                StaffRole::Scout => 2,
+                StaffRole::Physio => 3,
+            }
+        }
+
+        let numbers: Vec<usize> = StaffRole::ALL.iter().map(number).collect();
+
+        assert_eq!(numbers, vec![0, 1, 2, 3]);
+    }
 
     fn staff() -> Staff {
         Staff::new(

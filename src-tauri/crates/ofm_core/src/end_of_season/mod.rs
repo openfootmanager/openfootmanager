@@ -1316,9 +1316,14 @@ pub fn advance_to_next_season(game: &mut Game) -> Result<EndOfSeasonSummary, Str
 // Retiree conversion
 // ---------------------------------------------------------------------------
 
+/// The start of the id of a scout made from a retired player (the player's id follows), so a
+/// measurement that counts them reads the same convention the end of season writes.
+pub const RETIRED_PLAYER_SCOUT_ID_PREFIX: &str = "staff_retired_scout_";
+
 /// For every player archived this season with at least one career entry:
 /// * Creates an unemployed manager candidate with deterministic ID `mgr_retired_{player_id}`.
-/// * Creates an unattached scout with deterministic ID `staff_retired_scout_{player_id}`.
+/// * Creates an unattached scout with deterministic ID `staff_retired_scout_{player_id}`
+///   ([`RETIRED_PLAYER_SCOUT_ID_PREFIX`]).
 ///
 /// Both checks are idempotent — if the ID already exists the entry is not duplicated.
 fn convert_retired_players_to_candidates(game: &mut Game, season: u32) {
@@ -1402,7 +1407,7 @@ fn convert_retired_players_to_candidates(game: &mut Game, season: u32) {
         }
 
         // Scout candidate
-        let scout_id = format!("staff_retired_scout_{}", r.player_id);
+        let scout_id = format!("{RETIRED_PLAYER_SCOUT_ID_PREFIX}{}", r.player_id);
         if !existing_staff_ids.contains(&scout_id) {
             let judging_ability = ((r.vision as u16 + r.decisions as u16) / 2).min(100) as u8;
             let judging_potential = ((r.positioning as u16 + r.teamwork as u16) / 2).min(100) as u8;
