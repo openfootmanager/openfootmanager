@@ -38,14 +38,21 @@ pub(crate) fn club_strength(game: &Game, club_id: &str, lookups: Option<&Matchda
 
 /// [`club_strength`] for each of `club_ids`, with the world's matchday lookups found once and its
 /// players grouped by club once, not scanned again for every club (the dormant tier asks for every
-/// club playing that day).
+/// club playing that day). A club named twice is rated once, and no club at all costs nothing: a
+/// save load asks with an empty list when nothing is stranded.
 pub(crate) fn club_strengths<'a>(
     game: &Game,
     club_ids: impl IntoIterator<Item = &'a str>,
 ) -> HashMap<String, f64> {
+    let mut clubs: Vec<&str> = club_ids.into_iter().collect();
+    clubs.sort_unstable();
+    clubs.dedup();
+    if clubs.is_empty() {
+        return HashMap::new();
+    }
     let lookups = MatchdayLookups::of(game);
     let squads = crate::match_day_eligibility::players_by_club(&game.players);
-    club_ids
+    clubs
         .into_iter()
         .map(|club_id| {
             let squad = squads.get(club_id).map_or(&[][..], Vec::as_slice);
@@ -1483,6 +1490,25 @@ mod club_strength_tests {
         let swapped = club_strength(&swapped, "user", None);
 
         assert!(swapped < in_position, "{swapped} against {in_position}");
+    }
+
+    /// Given a world of two clubs, the user's with eleven 60s and an AI club with eleven 80s
+    /// When the strengths of the user's club (named twice) and the AI club are found together, and
+    ///      again for no club at all
+    /// Then each club is rated once, as club_strength rates it alone, and no club gives an empty
+    ///      map
+    #[test]
+    fn club_strengths_rate_each_club_named_once_as_club_strength_does() {
+        let mut players = eleven("xi", "user", 60);
+        players.extend(eleven("ai", "ai", 80));
+        let game = game(vec![club("user"), club("ai")], players);
+
+        let strengths = super::club_strengths(&game, ["user", "ai", "user"]);
+
+        assert_eq!(strengths.len(), 2);
+        assert_eq!(strengths["user"], club_strength(&game, "user", None));
+        assert_eq!(strengths["ai"], club_strength(&game, "ai", None));
+        assert!(super::club_strengths(&game, std::iter::empty()).is_empty());
     }
 
     /// Given a club with nobody on its books
