@@ -574,7 +574,7 @@ pub fn set_team_kit_pattern(
 /// same mapping the UI uses). This keeps player functions dependent on the
 /// player's *current* field position: e.g. a striker's `Poacher` is cleared
 /// when they are moved into a defensive slot.
-fn reconcile_player_roles(game: &mut Game, team_id: &str) {
+pub(crate) fn reconcile_player_roles(game: &mut Game, team_id: &str) {
     // Natural position of every player on the team, for validating roles of
     // players who are not in the starting XI (bench players have no slot).
     let natural_positions: std::collections::HashMap<String, domain::player::Position> = game
