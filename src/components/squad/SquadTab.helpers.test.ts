@@ -245,6 +245,23 @@ describe("SquadTab helpers", () => {
     expect(new Set(ids).size).toBe(11);
   });
 
+  /**
+   * Given a squad of twenty whose only goalkeeper is one of three saved players still in it
+   * When the starting XI is rebuilt from the pool (fewer than eight saved)
+   * Then that goalkeeper is in goal: a saved player is not barred from the rebuild, in a squad
+   *      big enough that barring him would not change the count.
+   */
+  it("rebuilds from the whole pool, saved players included", () => {
+    const available = [
+      makePlayer("gk", "Goalkeeper"),
+      ...Array.from({ length: 19 }, (_, index) => makePlayer(`m${index}`, "Midfielder")),
+    ];
+
+    const ids = buildStartingXIIds(available, ["gk", "m0", "m1"], "4-4-2", cannedPositionTable());
+
+    expect(ids[0]).toBe("gk");
+  });
+
   it("prefers an exact slot match over a higher-ovr same-group player", () => {
     const available = [
       makePlayer("gk", "Goalkeeper"),

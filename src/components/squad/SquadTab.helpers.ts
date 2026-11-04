@@ -328,7 +328,8 @@ export function buildStartingXIIds(
   }
 
   // Too few saved players to keep: the XI is rebuilt from the whole pool, so the ids reserved above
-  // for the kept ones are released (left reserved, they were skipped and a small squad came up short).
+  // for the kept ones are released. Left reserved, they were barred from the rebuild in any squad,
+  // and a small one came up short (nine of eleven from twelve with three saved).
   used.clear();
   const xi: string[] = [];
   slotPositions.slice(0, 11).forEach((slotPosition) => {
