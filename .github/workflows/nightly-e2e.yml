@@ -120,7 +120,9 @@ jobs:
     needs: revision
     if: github.repository == 'openfootmanager/openfootmanager' && !(github.event_name == 'workflow_dispatch' && inputs.rehearse_failure)
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    # The nightly tier takes a few minutes; the settled-world band (two seeds, twenty seasons of 440
+    # clubs, release build) takes about forty on top, so a miss in the world's tiers is seen here.
+    timeout-minutes: 90
     steps:
       - name: Checkout the resolved develop revision
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
@@ -147,12 +149,23 @@ jobs:
           set -o pipefail
           cargo test --locked --manifest-path src-tauri/Cargo.toml -p season-harness --test nightly -- --ignored --nocapture 2>&1 | tee harness-nightly.log
 
+      - name: Check the settled world's tiers (twenty seasons, two seeds)
+        shell: bash
+        run: |
+          set -o pipefail
+          cargo test --release --locked --manifest-path src-tauri/Cargo.toml -p season-harness --test settled_distribution -- --ignored --nocapture 2>&1 | tee harness-settled.log
+
       - name: List what failed
         if: failure()
         run: |
-          grep -E '^test .* FAILED|panicked at|^seed [0-9]+' harness-nightly.log > failed-harness-nightly.txt || true
+          touch harness-settled.log
+          cat harness-nightly.log harness-settled.log > harness-all.log
+          grep -E '^test .* FAILED|panicked at|^seed [0-9]+' harness-all.log > failed-harness-nightly.txt || true
           sed -nE 's/^test (.*) \.\.\. FAILED$/\1/p' harness-nightly.log | while read -r name; do
             echo "repro: cargo test -p season-harness --test nightly -- --ignored --nocapture $name" >> failed-harness-nightly.txt
+          done
+          sed -nE 's/^test (.*) \.\.\. FAILED$/\1/p' harness-settled.log | while read -r name; do
+            echo "repro: cargo test --release -p season-harness --test settled_distribution -- --ignored --nocapture $name" >> failed-harness-nightly.txt
           done
           { echo "### harness-nightly"; echo '```'; cat failed-harness-nightly.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
 
@@ -163,6 +176,7 @@ jobs:
           name: failed-harness-nightly
           path: |
             harness-nightly.log
+            harness-settled.log
             failed-harness-nightly.txt
           retention-days: 14
           if-no-files-found: ignore
