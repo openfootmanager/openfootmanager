@@ -30,4 +30,5 @@ pub mod fingerprint;
 pub mod invariants;
 pub mod pyramid;
 pub mod reputation;
+pub mod staff_distribution;
 pub mod worlds;

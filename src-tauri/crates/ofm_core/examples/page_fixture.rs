@@ -141,6 +141,12 @@ fn render_module(game: &Game) -> Result<String, String> {
     )?;
     export(
         &mut module,
+        "familiarity",
+        "FamiliarityProjection",
+        &ofm_core::familiarity_projection::familiarity_projection(game)?,
+    )?;
+    export(
+        &mut module,
         "careerStage",
         "CareerStage",
         &ofm_core::career_stage::career_stage(game),
@@ -199,6 +205,7 @@ import type { PositionGroupEntry } from \"../../services/positionService\";
 import type { RatingTier, SquadFitness } from \"../../services/squadService\";
 import type { StaffSlice } from \"../../services/staffService\";
 import type { TeamsDirectory } from \"../../services/teamsService\";
+import type { FamiliarityProjection } from \"../../store/generated/FamiliarityProjection\";
 import type { GameStateData, PlayerData } from \"../../store/types\";
 ";
 

@@ -114,12 +114,7 @@ mod tests {
     /// Then each reads 100, the top of the scale, never 150.
     #[test]
     fn an_authored_attribute_above_the_scale_rates_at_its_top() {
-        for role in [
-            StaffRole::Coach,
-            StaffRole::Physio,
-            StaffRole::AssistantManager,
-            StaffRole::Scout,
-        ] {
+        for role in StaffRole::ALL {
             let mut member = staff(role);
             member.attributes = StaffAttributes {
                 coaching: 150,

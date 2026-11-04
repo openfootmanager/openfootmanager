@@ -22,14 +22,20 @@ vi.mock("@tauri-apps/api/core", () => ({
   isTauri: vi.fn(() => false),
 }));
 
-vi.mock("../../utils/backendI18n", () => ({
-  resolveBackendError: (error: unknown) => {
-    const message = error instanceof Error ? error.message : String(error);
-    return message.startsWith("be.error.transfers.loanBorrowerCannotAffordWages")
-      ? "The borrowing club cannot afford this wage share. Its weekly wage budget is €40,000."
-      : message;
-  },
-}));
+vi.mock("../../utils/backendI18n", async () => {
+  const { transferTestTranslation } = await import("./TransfersTab.testFixtures");
+  return {
+    resolveBackendError: (error: unknown) => {
+      const message = error instanceof Error ? error.message : String(error);
+      if (message.startsWith("be.error.transfers.loanBorrowerCannotAffordWages")) {
+        return "The borrowing club cannot afford this wage share. Its weekly wage budget is €40,000.";
+      }
+      // The file's own texts for the keys it provokes (the banners use this one resolver).
+      const translated = transferTestTranslation(message);
+      return translated === message ? message : translated;
+    },
+  };
+});
 
 vi.mock("react-i18next", () => ({
   useTranslation: () => ({ t: transferTestTranslation, i18n: { language: "en" } }),

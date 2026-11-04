@@ -452,6 +452,12 @@
     "drawnFull": "Pareggiate",
     "lostFull": "Perse",
     "ptsFull": "Punti",
+    "recentForm": "Forma recente",
+    "formResult": {
+      "W": "V",
+      "D": "N",
+      "L": "P"
+    },
     "played": "G",
     "won": "V",
     "drawn": "N",
@@ -1121,6 +1127,8 @@
     "transferBudget": "Budget trasferimenti",
     "seasonIncome": "Entrate stagionali",
     "seasonExpenses": "Spese stagionali",
+    "moneyIn": "Entrate di cassa",
+    "moneyOut": "Uscite di cassa",
     "perWeekSuffix": "/sett",
     "snapshotLoadFailed": "Impossibile caricare le finanze del club.",
     "perYearSuffix": "/anno",
@@ -1282,6 +1290,15 @@
     "employed": "In carica",
     "unemployed": "Senza squadra",
     "reputation": "Reputazione",
+    "reputationBand": {
+      "world_class": "Di livello mondiale",
+      "established": "Affermato",
+      "great": "Ottimo",
+      "good": "Buono",
+      "average": "Nella media",
+      "below_average": "Sotto la media",
+      "unknown": "Sconosciuto"
+    },
     "winRate": "Percentuale vittorie",
     "matches": "Partite",
     "currentClub": "Club attuale",
@@ -1549,6 +1566,7 @@
     "yourTeam": "La tua squadra",
     "squad": "Rosa",
     "avgOvr": "OVR medio",
+    "manager": "Allenatore",
     "rep": "Rep.",
     "est": "Fond."
   },
@@ -2782,6 +2800,7 @@
         "noSubstitutionsForShootout": "Nessuna sostituzione dopo i tempi supplementari: i rigori li calciano i giocatori in campo al fischio finale.",
         "shootoutOrderNotNow": "L'ordine dei rigoristi si può decidere solo dopo i supplementari, prima del primo tiro.",
         "shootoutOrderNotYourSide": "Puoi decidere solo l'ordine dei rigoristi della tua squadra.",
+        "notYourSide": "Puoi dare ordini solo alla tua squadra.",
         "shootoutOrderNotEligible": "L'ordine dei rigoristi deve includere una sola volta ciascuno dei tuoi giocatori disponibili.",
         "playerNotOnPitch": "Il giocatore non è in campo",
         "playerAlreadySubstitutedOff": "Quel giocatore è già stato sostituito",
@@ -2801,6 +2820,7 @@
         "missingSchema": "A un file del pacchetto manca il campo \"schema\".",
         "worldExportNotPackage": "Questa cartella è un mondo esportato, non un progetto di pacchetto. I mondi esportati usano un formato diverso e non possono essere modificati qui.",
         "notAProjectDirectory": "Questa non è una cartella di progetto di un pacchetto. Scegli la cartella che contiene il package.json del pacchetto — oppure, per un pacchetto .ofm installato, usa «Apri file .ofm».",
+        "saveWouldDropItem": "Non salvato: {{file}} contiene una voce che l'editor non riesce a leggere né a conservare in JSON. Correggi quella voce nel file e salva di nuovo.",
         "unknownSchema": "Schema sconosciuto \"{{schema}}\".",
         "invalidEntity": "Una voce \"{{schema}}\" non è valida: {{detail}}",
         "duplicateWorld": "Il pacchetto ha già un manifesto in \"{{first}}\"; un pacchetto può avere un solo file \"world\".",
@@ -2841,6 +2861,8 @@
       },
       "competitionDef": {
         "invalidCalendar": "Calendario della competizione non valido: controlla la famiglia di divisioni, il livello, la fase e la data di chiusura.",
+        "invalidSeasonMonth": "Il mese di inizio stagione {{month}} non è valido (deve essere tra 1 e 12).",
+        "invalidSeasonDay": "Il giorno di inizio stagione {{day}} non è un giorno valido del mese di inizio.",
         "invalidEmbedded": "Le definizioni delle competizioni di questo mondo non sono valide e non è stato possibile caricarle.",
         "invalidStandalone": "Il file di definizione delle competizioni selezionato non è valido.",
         "parseFailed": "Impossibile leggere il file di definizione delle competizioni come JSON.",
@@ -2972,6 +2994,7 @@
         "cannotBidOnOwnPlayer": "Non puoi fare un'offerta per un tuo giocatore",
         "playerHasNoTeam": "Il giocatore non ha una squadra",
         "insufficientFunds": "Fondi insufficienti",
+        "buyerCannotAffordFee": "Il club acquirente non può più permettersi questo prezzo, quindi l'affare non può concludersi.",
         "transferBudgetTooLow": "Il budget trasferimenti è troppo basso",
         "playerNotOwnedByUser": "Giocatore non trovato o non appartiene al tuo club",
         "offerNotPending": "Offerta non trovata o non più in sospeso",
@@ -2981,6 +3004,7 @@
         "loanCounterMustImproveTerms": "La controfferta di prestito deve migliorare l'offerta attuale",
         "playerNotLoanListed": "Il giocatore non è inserito nella lista prestiti",
         "playerAlreadyLoaned": "Il giocatore è già in prestito",
+        "playerAlreadySold": "Questo giocatore è già stato ceduto. Il trasferimento diventa effettivo all'apertura del mercato.",
         "invalidLoanEndDate": "La data di fine prestito deve essere tra 30 giorni e un anno da oggi",
         "invalidLoanWageContribution": "La quota stipendio del prestito deve essere tra 0% e 100%",
         "invalidLoanBuyOption": "L'opzione di riscatto del prestito deve essere superiore a zero",
@@ -3508,6 +3532,7 @@
         },
         "notes": {
           "managerBlocked": "Mi hai detto di non riaprire ancora i colloqui contrattuali.",
+          "markedLetExpire": "Hai segnato questo contratto per lasciarlo scadere, quindi non ho avviato trattative.",
           "completed": "Sono riuscito a chiudere questa trattativa senza il tuo intervento.",
           "completedToKeepSquadFloor": "Fatto, oltre la politica salariale della dirigenza. La dirigenza l'ha autorizzato perché senza questo giocatore scenderemmo sotto la rosa minima.",
           "beyondLimits": "Il loro entourage chiede circa {{wage}}/settimana per {{years}} anni, oltre i limiti della delega.",
@@ -3549,6 +3574,12 @@
       "scoutReport": {
         "subject": "Rapporto osservatore: {{player}}",
         "body": "Il tuo osservatore {{scout}} ha completato la valutazione di {{player}}. Rapporto completo disponibile nella sezione osservazione."
+      },
+      "scoutingCancelled": {
+        "subject": "Incarico di osservazione annullato",
+        "body": "L'osservatore che hai mandato a seguire {{player}} ha lasciato il club, quindi non arriverà nessun rapporto. Manda un altro osservatore se ne vuoi ancora uno.",
+        "bodyWithoutPlayer": "L'osservatore che hai mandato a seguire un giocatore ha lasciato il club, e quel giocatore non è più nei nostri archivi, quindi non arriverà nessun rapporto.",
+        "youthBody": "L'osservatore che hai mandato a cercare giovani ha lasciato il club, quindi la ricerca è stata annullata. Avviane una nuova con un altro osservatore se la vuoi ancora."
       },
       "boardWarning": {
         "subject": "Preoccupazione del Consiglio — Revisione delle Prestazioni",

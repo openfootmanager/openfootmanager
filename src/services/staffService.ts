@@ -1,15 +1,17 @@
 import { invoke } from "@tauri-apps/api/core";
 
+import type { RatingTier } from "./squadService";
+
 import type { GameStateData } from "../store/gameStore";
 import type { ScoutingAssignment, StaffData, YouthScoutingAssignment } from "../store/types";
 import { invokeForCareer } from "./careerInvoke";
 
 /**
  * A staff member as the Staff page lists him: his record, with the rating the game computes for his
- * role (ofm_core's staff_rating). Absent on the game state's own staff, which the page draws
- * before the slice arrives.
+ * role (ofm_core's staff_rating) and that rating's tier among his role (staff_tier). Both are
+ * absent on the game state's own staff, which the page draws before the slice arrives.
  */
-export type StaffRow = StaffData & { rating?: number };
+export type StaffRow = StaffData & { rating?: number; tier?: RatingTier };
 
 export interface StaffSlice {
   team_staff: StaffRow[];
