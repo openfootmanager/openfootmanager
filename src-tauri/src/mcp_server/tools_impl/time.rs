@@ -7,7 +7,7 @@ use mcp_results::time::{
 
 use crate::application::time_blockers::stopping_blockers;
 use crate::mcp_server::context::McpContext;
-use crate::mcp_server::tools_impl::helpers::{require_game, require_league};
+use crate::mcp_server::tools_impl::helpers::require_game;
 use crate::SaveManagerState;
 use ofm_core::game::Game;
 use ofm_core::state::StateManager;
@@ -190,8 +190,13 @@ pub fn time_skip_to_match_day(ctx: Arc<McpContext>) -> Result<SkipToMatchDay, St
     Ok(outcome)
 }
 
-/// Skips to the next match day, stopping where the screen's skip stops: before it starts if a
-/// blocker stands, and after any day that brings one.
+/// Skips to the next match day through the screen's own skip (`commands::time::skip_to_match_day_internal`),
+/// so an agent stops where a player stops: on any day the user's club has a match scheduled, in
+/// any competition, before it is played; after any day that brings a blocker; or when he is
+/// sacked. The tool had its own loop that aimed at the next league fixture in the `game.league`
+/// mirror and advanced in delegate mode, so a cup tie on the way, or the user's own match when
+/// called on a match day, was simulated without him (#1193). Only the check that a blocker
+/// already stands is its own: the screen makes it before offering the skip.
 pub(crate) fn skip_to_match_day_in(state: &StateManager) -> Result<SkipToMatchDay, String> {
     crate::application::live_session::ensure_idle(state)?;
     let game = require_game(state)?;
@@ -202,77 +207,36 @@ pub(crate) fn skip_to_match_day_in(state: &StateManager) -> Result<SkipToMatchDa
             blockers,
         });
     }
-    let league = require_league(&game)?;
-    let team_id = game
-        .manager
-        .team_id
-        .as_deref()
-        .ok_or("be.error.noTeamAssigned")?;
 
-    // Find next fixture for user's team
+    let response =
+        crate::commands::time::skip_to_match_day_internal(state, ofm_core::state::Career::Active)?;
+    Ok(skip_outcome(&response, &require_game(state)?))
+}
+
+/// The screen's skip `response`, as the agent's result, read against `game` as the skip left it:
+/// a sacking and blockers as the skip reported them; otherwise it arrived, on a match day (none
+/// passed: match day today; some: skipped) or out of days, the skip's 60-day limit, with none found
+/// (aborted).
+fn skip_outcome(response: &serde_json::Value, game: &Game) -> SkipToMatchDay {
+    let days_advanced = response["days_skipped"]
+        .as_u64()
+        .and_then(|days| u32::try_from(days).ok())
+        .unwrap_or_default();
     let today = game.clock.current_date.format("%Y-%m-%d").to_string();
-    let next_fixture = league
-        .fixtures
-        .iter()
-        .filter(|f| f.status != domain::league::FixtureStatus::Completed)
-        .filter(|f| f.home_team_id == team_id || f.away_team_id == team_id)
-        .filter(|f| f.date > today)
-        .min_by_key(|f| &f.date);
-
-    let Some(fixture) = next_fixture else {
-        return Ok(SkipToMatchDay::NoUpcomingMatch {});
-    };
-
-    let target_date = fixture.date.clone();
-    let days_to_skip = {
-        let current = game.clock.current_date.date_naive();
-        let target = chrono::NaiveDate::parse_from_str(&target_date, "%Y-%m-%d")
-            .map_err(|e| format!("Date parse error: {}", e))?;
-        (target - current).num_days()
-    };
-
-    if days_to_skip <= 0 {
-        return Ok(SkipToMatchDay::MatchDayToday {});
+    match response["action"].as_str() {
+        Some("fired") => SkipToMatchDay::Fired { days_advanced },
+        Some("blocked") => SkipToMatchDay::Blocked {
+            days_advanced,
+            blockers: blockers_of(game, false).blockers,
+        },
+        // "arrived": on a match day, or out of days (the skip's 60-day limit) with none found.
+        _ if !game.user_has_scheduled_match_on(&today) => SkipToMatchDay::Aborted { days_advanced },
+        _ if days_advanced == 0 => SkipToMatchDay::MatchDayToday {},
+        _ => SkipToMatchDay::Skipped {
+            days_advanced,
+            target_date: today,
+        },
     }
-
-    // Advance time day by day until we reach the match day
-    let mut advanced = 0u32;
-    loop {
-        let game = require_game(state)?;
-        let current = game.clock.current_date.format("%Y-%m-%d").to_string();
-        if current >= target_date {
-            break;
-        }
-
-        crate::application::time_advancement::advance_time_with_mode(
-            state,
-            ofm_core::state::Career::Active,
-            "delegate",
-        )?;
-
-        advanced += 1;
-
-        let game = require_game(state)?;
-        let blockers = blockers_of(&game, false).blockers;
-        if !blockers.is_empty() {
-            return Ok(SkipToMatchDay::Blocked {
-                days_advanced: advanced,
-                blockers,
-            });
-        }
-
-        // Safety limit
-        if advanced > 365 {
-            return Ok(SkipToMatchDay::Aborted {
-                days_advanced: advanced,
-            });
-        }
-    }
-
-    Ok(SkipToMatchDay::Skipped {
-        days_advanced: advanced,
-        target_date,
-    })
 }
 
 // ─── time_check_blockers ────────────────────────────────────────────────────
@@ -312,7 +276,7 @@ pub(crate) fn blockers_of(game: &Game, live_match_in_progress: bool) -> Blockers
 
 #[cfg(test)]
 mod tests {
-    use super::{auto_save_if_due, standings_update};
+    use super::{auto_save_if_due, skip_outcome, standings_update};
     use crate::commands::wrapper_testkit::WrapperApp;
     use chrono::TimeZone;
     use domain::league::{League, StandingEntry};
@@ -436,5 +400,50 @@ mod tests {
         assert_eq!(on_disk_after_first, "Original");
         assert!(second);
         assert_eq!(app.saved_game().manager.first_name, "Renamed");
+    }
+
+    /// A game whose manager runs club "team1", with no match of his on the game's date.
+    fn game_off_a_match_day() -> Game {
+        let mut manager = Manager::new(
+            "mgr".to_string(),
+            "Test".to_string(),
+            "Manager".to_string(),
+            "1980-01-01".to_string(),
+            "England".to_string(),
+        );
+        manager.hire("team1".to_string());
+        let clock = GameClock::new(chrono::Utc.with_ymd_and_hms(2030, 9, 1, 12, 0, 0).unwrap());
+        Game::new(clock, manager, vec![], vec![], vec![], vec![])
+    }
+
+    /// Given the screen's skip answering that it arrived after 60 days, on a day with no match of
+    ///      the user's
+    /// When the agent's result is read from it
+    /// Then it is aborted after 60 days: the skip ran out of days without reaching a match
+    #[test]
+    fn a_skip_that_ran_out_of_days_is_reported_as_aborted() {
+        let response = serde_json::json!({ "action": "arrived", "days_skipped": 60 });
+
+        let outcome = skip_outcome(&response, &game_off_a_match_day());
+
+        assert_eq!(
+            outcome,
+            mcp_results::time::SkipToMatchDay::Aborted { days_advanced: 60 }
+        );
+    }
+
+    /// Given the screen's skip answering that the board sacked the manager on its fourth day
+    /// When the agent's result is read from it
+    /// Then it is fired after 4 days, not aborted or skipped
+    #[test]
+    fn a_skip_that_ended_in_a_sacking_is_reported_as_fired() {
+        let response = serde_json::json!({ "action": "fired", "days_skipped": 4 });
+
+        let outcome = skip_outcome(&response, &game_off_a_match_day());
+
+        assert_eq!(
+            outcome,
+            mcp_results::time::SkipToMatchDay::Fired { days_advanced: 4 }
+        );
     }
 }
