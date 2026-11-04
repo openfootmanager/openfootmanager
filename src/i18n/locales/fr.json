@@ -647,7 +647,7 @@
     "lastPage": "Dernière page",
     "sortBy": "Trier par",
     "sortAscending": "Croissant",
-    "lineupLoading": "Les données de postes sont encore en cours de chargement : les changements de composition ne sont pas encore disponibles."
+    "lineupLoading": "L'effectif est encore en cours de chargement : les changements de composition ne sont pas encore disponibles."
   },
   "teamSelection": {
     "title": "Choisissez Votre Club",
@@ -1108,6 +1108,8 @@
     "transferBudget": "Budget Transferts",
     "seasonIncome": "Revenus de Saison",
     "seasonExpenses": "Dépenses de Saison",
+    "moneyIn": "Entrées d'argent",
+    "moneyOut": "Sorties d'argent",
     "perWeekSuffix": "/sem",
     "snapshotLoadFailed": "Impossible de charger les finances du club.",
     "perYearSuffix": "/an",
@@ -3002,6 +3004,7 @@
         "loanCounterMustImproveTerms": "La contre-offre de prêt doit améliorer l'offre actuelle",
         "playerNotLoanListed": "Le joueur n'est pas listé pour un prêt",
         "playerAlreadyLoaned": "Le joueur est déjà prêté",
+        "playerAlreadySold": "Ce joueur a déjà été vendu. Le transfert sera effectif à l'ouverture du mercato.",
         "invalidLoanEndDate": "La date de fin du prêt doit être comprise entre 30 jours et un an à partir d'aujourd'hui",
         "invalidLoanWageContribution": "La prise en charge salariale du prêt doit être comprise entre 0% et 100%",
         "invalidLoanBuyOption": "L'option d'achat du prêt doit être supérieure à zéro",
@@ -3571,6 +3574,12 @@
       "scoutReport": {
         "subject": "Rapport de scout : {{player}}",
         "body": "Votre recruteur {{scout}} a terminé son évaluation de {{player}}. Rapport complet disponible dans la section recrutement."
+      },
+      "scoutingCancelled": {
+        "subject": "Mission de supervision annulée",
+        "body": "Le recruteur que vous aviez envoyé observer {{player}} a quitté le club, il n'y aura donc pas de rapport. Envoyez un autre recruteur si vous en voulez toujours un.",
+        "bodyWithoutPlayer": "Le recruteur que vous aviez envoyé observer un joueur a quitté le club, et ce joueur ne figure plus dans nos fichiers, il n'y aura donc pas de rapport.",
+        "youthBody": "Le recruteur que vous aviez envoyé chercher des jeunes a quitté le club, la recherche est donc annulée. Lancez-en une nouvelle avec un autre recruteur si vous la voulez toujours."
       },
       "boardWarning": {
         "subject": "Inquiétude du Conseil — Bilan de Performance",

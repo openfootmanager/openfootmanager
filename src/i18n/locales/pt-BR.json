@@ -647,7 +647,7 @@
     "lastPage": "Última página",
     "sortBy": "Ordenar por",
     "sortAscending": "Crescente",
-    "lineupLoading": "Os dados de posições ainda estão carregando, então as alterações na escalação ainda não estão disponíveis."
+    "lineupLoading": "O elenco ainda está carregando, então as alterações na escalação ainda não estão disponíveis."
   },
   "teamSelection": {
     "title": "Escolha Seu Clube",
@@ -1108,6 +1108,8 @@
     "transferBudget": "Verba de Transferências",
     "seasonIncome": "Receita da Temporada",
     "seasonExpenses": "Despesas da Temporada",
+    "moneyIn": "Entrada de dinheiro",
+    "moneyOut": "Saída de dinheiro",
     "perWeekSuffix": "/sem",
     "snapshotLoadFailed": "Não foi possível carregar as finanças do clube.",
     "perYearSuffix": "/ano",
@@ -3002,6 +3004,7 @@
         "loanCounterMustImproveTerms": "A contraproposta de empréstimo precisa melhorar a oferta atual",
         "playerNotLoanListed": "O jogador não está listado para empréstimo",
         "playerAlreadyLoaned": "O jogador já está emprestado",
+        "playerAlreadySold": "Este jogador já foi vendido. A transferência é concluída quando a janela abrir.",
         "invalidLoanEndDate": "A data de fim do empréstimo deve ficar entre 30 dias e um ano a partir de hoje",
         "invalidLoanWageContribution": "A participação salarial do empréstimo deve ficar entre 0% e 100%",
         "invalidLoanBuyOption": "A opção de compra do empréstimo deve ser maior que zero",
@@ -3571,6 +3574,12 @@
       "scoutReport": {
         "subject": "Relatório de Observação: {{player}}",
         "body": "Seu olheiro {{scout}} concluiu a avaliação de {{player}}. Relatório completo disponível na seção de observação."
+      },
+      "scoutingCancelled": {
+        "subject": "Missão de observação cancelada",
+        "body": "O olheiro que você enviou para observar {{player}} saiu do clube, então não haverá relatório. Envie outro olheiro se ainda quiser.",
+        "bodyWithoutPlayer": "O olheiro que você enviou para observar um jogador saiu do clube, e esse jogador não está mais nos nossos registros, então não haverá relatório.",
+        "youthBody": "O olheiro que você enviou em uma busca de jovens saiu do clube, então a busca foi cancelada. Comece uma nova com outro olheiro se ainda quiser."
       },
       "boardWarning": {
         "subject": "Preocupação da Diretoria — Avaliação de Desempenho",

@@ -6,7 +6,9 @@
 use crate::player_rating::formation_slots;
 use crate::turn::matchday_lookups::MatchdayLookups;
 pub use crate::turn::squad::auto_select_set_pieces;
-use crate::turn::squad::{build_team_with_bench_from, line_familiarity, set_piece_takers_among};
+use crate::turn::squad::{
+    build_team_with_bench_from, domain_to_engine_tactics, line_familiarity, set_piece_takers_among,
+};
 
 use rand_chacha::ChaCha12Rng;
 use serde::{Deserialize, Serialize};
@@ -307,6 +309,41 @@ impl LiveMatchSession {
 
     pub fn is_finished(&self) -> bool {
         self.match_state.is_finished()
+    }
+
+    /// The session is built on match day, before the pre-match screen opens, so dials saved
+    /// there are handed to the match too. Once it has kicked off, the live commands change them
+    /// instead. Only the dials: a role changed in the session is left alone.
+    pub fn follow_saved_dials_before_kick_off(&mut self, game: &Game) -> Result<(), String> {
+        let Some((side, team)) = self.user_team_before_kick_off(game) else {
+            return Ok(());
+        };
+        for dial in domain_to_engine_tactics(&team.tactics_phase).dials() {
+            self.match_state
+                .apply_command(MatchCommand::ChangeTacticalDial { side, dial })?;
+        }
+        Ok(())
+    }
+
+    /// The user's side and saved team, while this career's match still waits at kick-off.
+    fn user_team_before_kick_off<'g>(
+        &self,
+        game: &'g Game,
+    ) -> Option<(Side, &'g domain::team::Team)> {
+        if self.match_state.phase() != MatchPhase::PreKickOff
+            || self.career_token != game.career_token
+        {
+            return None;
+        }
+        let side = self.user_side?;
+        let team_id = match side {
+            Side::Home => &self.home_team_id,
+            Side::Away => &self.away_team_id,
+        };
+        game.teams
+            .iter()
+            .find(|team| &team.id == team_id)
+            .map(|team| (side, team))
     }
 
     fn apply_ai_decisions(&mut self) {

@@ -647,7 +647,7 @@
     "lastPage": "Son sayfa",
     "sortBy": "Sırala",
     "sortAscending": "Artan",
-    "lineupLoading": "Pozisyon verileri hâlâ yükleniyor, bu yüzden kadro değişiklikleri henüz kullanılamıyor."
+    "lineupLoading": "Kadro hâlâ yükleniyor, bu yüzden diziliş değişiklikleri henüz kullanılamıyor."
   },
   "teamSelection": {
     "title": "Kulübünü Seç",
@@ -1108,6 +1108,8 @@
     "transferBudget": "Transfer Bütçesi",
     "seasonIncome": "Sezon Geliri",
     "seasonExpenses": "Sezon Gideri",
+    "moneyIn": "Gelen para",
+    "moneyOut": "Giden para",
     "perWeekSuffix": "/hf",
     "snapshotLoadFailed": "Kulübün mali durumu yüklenemedi.",
     "perYearSuffix": "/yıl",
@@ -3010,6 +3012,7 @@
         "loanCounterMustImproveTerms": "Karşı kiralama teklifi mevcut teklifi iyileştirmelidir",
         "playerNotLoanListed": "Oyuncu kiralık listesinde değil",
         "playerAlreadyLoaned": "Oyuncu zaten kiralık olarak başka takımda",
+        "playerAlreadySold": "Bu oyuncu zaten satıldı. Transfer, transfer dönemi açıldığında gerçekleşecek.",
         "invalidLoanEndDate": "Kiralama bitiş tarihi bugünden itibaren 30 gün ile bir yıl arasında olmalıdır",
         "invalidLoanWageContribution": "Kiralama maaş katkısı %0 ile %100 arasında olmalıdır",
         "invalidLoanBuyOption": "Kiralamadaki satın alma opsiyonu sıfırdan büyük olmalıdır",
@@ -3571,6 +3574,12 @@
       "scoutReport": {
         "subject": "Gözlemci Raporu: {{player}}",
         "body": "Gözlemciniz {{scout}}, {{player}} değerlendirmesini tamamladı. Raporun tamamı gözlemcilik bölümünde."
+      },
+      "scoutingCancelled": {
+        "subject": "Gözlem görevi iptal edildi",
+        "body": "{{player}} oyuncusunu izlemeye gönderdiğiniz gözlemci kulüpten ayrıldı, bu yüzden rapor gelmeyecek. Hâlâ istiyorsanız başka bir gözlemci gönderin.",
+        "bodyWithoutPlayer": "Bir oyuncuyu izlemeye gönderdiğiniz gözlemci kulüpten ayrıldı ve o oyuncu artık kayıtlarımızda yok, bu yüzden rapor gelmeyecek.",
+        "youthBody": "Genç oyuncu aramasına gönderdiğiniz gözlemci kulüpten ayrıldı, bu yüzden arama iptal edildi. Hâlâ istiyorsanız başka bir gözlemciyle yeni bir arama başlatın."
       },
       "boardWarning": {
         "subject": "Yönetim Endişesi — Performans Değerlendirmesi",

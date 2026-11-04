@@ -647,7 +647,7 @@
     "lastPage": "Last page",
     "sortBy": "Sort by",
     "sortAscending": "Ascending",
-    "lineupLoading": "Position data is still loading, so lineup changes are not available yet."
+    "lineupLoading": "The squad is still loading, so lineup changes are not available yet."
   },
   "teamSelection": {
     "title": "Choose Your Club",
@@ -1108,6 +1108,8 @@
     "transferBudget": "Transfer Budget",
     "seasonIncome": "Season Income",
     "seasonExpenses": "Season Expenses",
+    "moneyIn": "Money in",
+    "moneyOut": "Money out",
     "perWeekSuffix": "/wk",
     "snapshotLoadFailed": "Could not load the club finances.",
     "perYearSuffix": "/yr",
@@ -3010,6 +3012,7 @@
         "loanCounterMustImproveTerms": "Loan counter must improve the current offer",
         "playerNotLoanListed": "Player is not listed for loan",
         "playerAlreadyLoaned": "Player is already out on loan",
+        "playerAlreadySold": "This player has already been sold. The transfer goes through when the window opens.",
         "invalidLoanEndDate": "Loan end date must be between 30 days and one year from today",
         "invalidLoanWageContribution": "Loan wage contribution must be between 0% and 100%",
         "invalidLoanBuyOption": "Loan buy option must be greater than zero",
@@ -3571,6 +3574,12 @@
       "scoutReport": {
         "subject": "Scout Report: {{player}}",
         "body": "Your scout {{scout}} has completed their assessment of {{player}}. Full report available in the scouting section."
+      },
+      "scoutingCancelled": {
+        "subject": "Scouting assignment cancelled",
+        "body": "The scout you sent to watch {{player}} has left the club, so no report will come. Send another scout if you still want one.",
+        "bodyWithoutPlayer": "The scout you sent to watch a player has left the club, and that player is no longer on our books, so no report will come.",
+        "youthBody": "The scout you sent on a youth search has left the club, so the search has been called off. Start a new one with another scout if you still want it."
       },
       "boardWarning": {
         "subject": "Board Concern — Performance Review",

@@ -647,7 +647,7 @@
     "lastPage": "Letzte Seite",
     "sortBy": "Sortieren nach",
     "sortAscending": "Aufsteigend",
-    "lineupLoading": "Die Positionsdaten werden noch geladen, daher sind Aufstellungsänderungen noch nicht möglich."
+    "lineupLoading": "Der Kader wird noch geladen, daher sind Aufstellungsänderungen noch nicht möglich."
   },
   "teamSelection": {
     "title": "Wähle Deinen Verein",
@@ -1108,6 +1108,8 @@
     "transferBudget": "Transferbudget",
     "seasonIncome": "Saisoneinnahmen",
     "seasonExpenses": "Saisonausgaben",
+    "moneyIn": "Geld rein",
+    "moneyOut": "Geld raus",
     "perWeekSuffix": "/Wo",
     "snapshotLoadFailed": "Die Vereinsfinanzen konnten nicht geladen werden.",
     "perYearSuffix": "/Jahr",
@@ -3002,6 +3004,7 @@
         "loanCounterMustImproveTerms": "Das Leih-Gegenangebot muss das aktuelle Angebot verbessern",
         "playerNotLoanListed": "Der Spieler steht nicht auf der Leihliste",
         "playerAlreadyLoaned": "Der Spieler ist bereits verliehen",
+        "playerAlreadySold": "Dieser Spieler wurde bereits verkauft. Der Wechsel wird wirksam, wenn das Transferfenster öffnet.",
         "invalidLoanEndDate": "Das Leihende muss zwischen 30 Tagen und einem Jahr ab heute liegen",
         "invalidLoanWageContribution": "Die Gehaltsbeteiligung der Leihe muss zwischen 0% und 100% liegen",
         "invalidLoanBuyOption": "Die Kaufoption der Leihe muss größer als null sein",
@@ -3571,6 +3574,12 @@
       "scoutReport": {
         "subject": "Scout-Bericht: {{player}}",
         "body": "Dein Scout {{scout}} hat seine Einschätzung zu {{player}} abgeschlossen. Der vollständige Bericht ist im Scouting-Bereich verfügbar."
+      },
+      "scoutingCancelled": {
+        "subject": "Scouting-Auftrag abgebrochen",
+        "body": "Der Scout, den du zu {{player}} geschickt hast, hat den Verein verlassen, daher kommt kein Bericht. Schick einen anderen Scout, wenn du noch einen willst.",
+        "bodyWithoutPlayer": "Der Scout, den du zu einem Spieler geschickt hast, hat den Verein verlassen, und dieser Spieler ist nicht mehr erfasst, daher kommt kein Bericht.",
+        "youthBody": "Der Scout, den du auf Talentsuche geschickt hast, hat den Verein verlassen, daher wurde die Suche abgebrochen. Starte eine neue mit einem anderen Scout, wenn du sie noch willst."
       },
       "boardWarning": {
         "subject": "Bedenken des Vorstands — Leistungsüberprüfung",

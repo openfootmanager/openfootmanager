@@ -647,7 +647,7 @@
     "lastPage": "Poslední stránka",
     "sortBy": "Seřadit podle",
     "sortAscending": "Vzestupně",
-    "lineupLoading": "Údaje o postech se ještě načítají, změny sestavy proto zatím nejsou dostupné."
+    "lineupLoading": "Kádr se ještě načítá, proto zatím nelze měnit sestavu."
   },
   "teamSelection": {
     "title": "Vyberte si klub",
@@ -1108,6 +1108,8 @@
     "transferBudget": "Přestupový rozpočet",
     "seasonIncome": "Sezónní příjmy",
     "seasonExpenses": "Sezónní výdaje",
+    "moneyIn": "Peníze dovnitř",
+    "moneyOut": "Peníze ven",
     "perWeekSuffix": "/týd",
     "snapshotLoadFailed": "Finance klubu se nepodařilo načíst.",
     "perYearSuffix": "/rok",
@@ -3010,6 +3012,7 @@
         "loanCounterMustImproveTerms": "Protinabídka hostování musí vylepšit stávající podmínky",
         "playerNotLoanListed": "Hráč není na listině pro hostování",
         "playerAlreadyLoaned": "Hráč již na hostování odešel",
+        "playerAlreadySold": "Tento hráč už byl prodán. Přestup proběhne po otevření přestupního okna.",
         "invalidLoanEndDate": "Datum ukončení hostování musí být v rozmezí od 30 dnů do jednoho roku od dnešního dne",
         "invalidLoanWageContribution": "Příspěvek na plat během hostování musí být mezi 0 % a 100 %",
         "invalidLoanBuyOption": "Opce na odkup z hostování musí být vyšší než nula",
@@ -3571,6 +3574,12 @@
       "scoutReport": {
         "subject": "Zpráva skauta: {{player}}",
         "body": "Váš skaut {{scout}} dokončil hodnocení hráče {{player}}. Celá zpráva je k dispozici v sekci skautingu."
+      },
+      "scoutingCancelled": {
+        "subject": "Skautský úkol zrušen",
+        "body": "Skaut vyslaný sledovat hráče {{player}} opustil klub, takže žádná zpráva nepřijde. Pokud ji stále chcete, vyšlete jiného skauta.",
+        "bodyWithoutPlayer": "Skaut vyslaný sledovat hráče opustil klub a ten hráč už v našich záznamech není, takže žádná zpráva nepřijde.",
+        "youthBody": "Skaut vyslaný hledat mladé hráče opustil klub, takže hledání bylo zrušeno. Pokud ho stále chcete, začněte nové s jiným skautem."
       },
       "boardWarning": {
         "subject": "Obavy představenstva — Hodnocení výsledků",

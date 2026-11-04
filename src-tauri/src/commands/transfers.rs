@@ -1,5 +1,5 @@
 use domain::negotiation::NegotiationFeedback;
-use domain::player::{LoanOfferStatus, Position};
+use domain::player::Position;
 use log::info;
 use std::sync::Arc;
 use tauri::State;
@@ -19,16 +19,6 @@ const INVALID_YOUTH_SCOUTING_OBJECTIVE_ERROR: &str =
     "be.error.transfers.invalidYouthScoutingObjective";
 const INVALID_YOUTH_SCOUTING_TARGET_POSITION_ERROR: &str =
     "be.error.transfers.invalidYouthScoutingTargetPosition";
-const ERR_PLAYER_NOT_OWNED_BY_USER: &str = "be.error.transfers.playerNotOwnedByUser";
-const ERR_PLAYER_ALREADY_LOANED: &str = "be.error.transfers.playerAlreadyLoaned";
-
-fn player_has_active_or_pending_loan(player: &domain::player::Player) -> bool {
-    player.active_loan.is_some()
-        || player
-            .loan_offers
-            .iter()
-            .any(|offer| offer.status == LoanOfferStatus::PendingRegistration)
-}
 
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct TransferNegotiationCommandResponse {
@@ -72,12 +62,7 @@ pub fn toggle_transfer_list_internal(
 ) -> Result<Game, String> {
     info!("[cmd] toggle_transfer_list: player_id={}", player_id);
     mutate_active_game_for(state, career, |game| {
-        if let Some(p) = game.players.iter_mut().find(|p| p.id == player_id) {
-            p.transfer_listed = !p.transfer_listed;
-            Ok(())
-        } else {
-            Err("be.error.playerNotFound".into())
-        }
+        ofm_core::transfers::toggle_listing(game, player_id, ofm_core::transfers::Listing::Transfer)
     })
 }
 
@@ -97,27 +82,7 @@ pub fn toggle_loan_list_internal(
 ) -> Result<Game, String> {
     info!("[cmd] toggle_loan_list: player_id={}", player_id);
     mutate_active_game_for(state, career, |game| {
-        let user_team_id = game
-            .manager
-            .team_id
-            .clone()
-            .ok_or_else(|| "be.error.noTeamAssigned".to_string())?;
-        let player = game
-            .players
-            .iter_mut()
-            .find(|player| player.id == player_id)
-            .ok_or_else(|| "be.error.playerNotFound".to_string())?;
-
-        if player.team_id.as_deref() != Some(user_team_id.as_str()) {
-            return Err(ERR_PLAYER_NOT_OWNED_BY_USER.to_string());
-        }
-
-        if player_has_active_or_pending_loan(player) {
-            return Err(ERR_PLAYER_ALREADY_LOANED.to_string());
-        }
-
-        player.loan_listed = !player.loan_listed;
-        Ok(())
+        ofm_core::transfers::toggle_listing(game, player_id, ofm_core::transfers::Listing::Loan)
     })
 }
 
@@ -1186,6 +1151,101 @@ mod tests {
             .find(|player| player.id == "player-1")
             .expect("stored player should exist");
         assert!(stored_player.loan_listed);
+    }
+
+    /// Given a player at another club
+    /// When the user (or an agent) tries to put him on the transfer list
+    /// Then it is refused as not his player, and the player stays off the list: listing lowers
+    ///      the fee his club accepts (#1206)
+    #[test]
+    fn toggle_transfer_list_internal_rejects_other_club_player() {
+        let state = StateManager::new();
+        state.set_game(make_bid_game());
+
+        let error = toggle_transfer_list_internal(&state, Career::Active, "player-2")
+            .expect_err("transfer listing another club's player should fail");
+
+        assert_eq!(error, "be.error.transfers.playerNotOwnedByUser");
+        let stored_game = state.get_game(|game| game.clone()).expect("stored game");
+        let stored_player = stored_game
+            .players
+            .iter()
+            .find(|player| player.id == "player-2")
+            .expect("stored player should exist");
+        assert!(!stored_player.transfer_listed);
+    }
+
+    /// Given one of the user's players out on loan
+    /// When the user tries to put him on the transfer list
+    /// Then it is refused, as listing him for a loan already is
+    #[test]
+    fn toggle_transfer_list_internal_rejects_active_loan_player() {
+        let state = StateManager::new();
+        let mut game = make_game();
+        game.players[0].active_loan = Some(ActiveLoan {
+            parent_team_id: "team-1".to_string(),
+            loan_team_id: "team-2".to_string(),
+            start_date: "2026-08-01".to_string(),
+            end_date: "2027-01-01".to_string(),
+            wage_contribution_pct: 75,
+            buy_option_fee: None,
+            loan_start_minutes: 0,
+            loan_start_appearances: 0,
+            development_reported_minutes: 0,
+            development_reported_appearances: 0,
+        });
+        state.set_game(game);
+
+        let error = toggle_transfer_list_internal(&state, Career::Active, "player-1")
+            .expect_err("a player out on loan should not be transfer-listed");
+
+        assert_eq!(error, "be.error.transfers.playerAlreadyLoaned");
+        let stored = state
+            .get_game(|game| game.players[0].transfer_listed)
+            .expect("stored game");
+        assert!(!stored);
+    }
+
+    /// Given one of the user's players on the transfer and loan lists, whose loan to another club is
+    ///      agreed and waiting for the window to register (he is still at the user's club)
+    /// When the user takes him off each list
+    /// Then both succeed: a loan stops a listing being made, never one being undone
+    #[test]
+    fn a_player_out_on_loan_can_still_be_taken_off_a_list() {
+        let state = StateManager::new();
+        let mut game = make_game();
+        game.players[0].transfer_listed = true;
+        game.players[0].loan_listed = true;
+        game.players[0].loan_offers.push(LoanOffer {
+            id: "pending-loan-registration".to_string(),
+            from_team_id: "team-2".to_string(),
+            parent_team_id: "team-1".to_string(),
+            start_date: "2026-09-01".to_string(),
+            end_date: "2027-01-01".to_string(),
+            wage_contribution_pct: 75,
+            buy_option_fee: None,
+            last_manager_wage_contribution_pct: None,
+            last_manager_end_date: None,
+            last_manager_buy_option_fee: None,
+            negotiation_round: 1,
+            suggested_wage_contribution_pct: None,
+            suggested_end_date: None,
+            suggested_buy_option_fee: None,
+            status: LoanOfferStatus::PendingRegistration,
+            date: "2026-08-01".to_string(),
+            closed_on: None,
+        });
+        state.set_game(game);
+
+        toggle_transfer_list_internal(&state, Career::Active, "player-1")
+            .expect("taking him off the transfer list");
+        toggle_loan_list_internal(&state, Career::Active, "player-1")
+            .expect("taking him off the loan list");
+
+        let listed = state
+            .get_game(|game| (game.players[0].transfer_listed, game.players[0].loan_listed))
+            .expect("stored game");
+        assert_eq!(listed, (false, false));
     }
 
     #[test]

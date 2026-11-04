@@ -647,7 +647,7 @@
     "lastPage": "Halaman terakhir",
     "sortBy": "Urutkan berdasarkan",
     "sortAscending": "Naik",
-    "lineupLoading": "Data posisi masih dimuat, sehingga perubahan susunan pemain belum tersedia."
+    "lineupLoading": "Skuad masih dimuat, jadi perubahan susunan pemain belum tersedia."
   },
   "teamSelection": {
     "title": "Pilih Klub",
@@ -1108,6 +1108,8 @@
     "transferBudget": "Anggaran Transfer",
     "seasonIncome": "Pendapatan Musim",
     "seasonExpenses": "Pengeluaran Musim",
+    "moneyIn": "Uang masuk",
+    "moneyOut": "Uang keluar",
     "perWeekSuffix": "/mg",
     "snapshotLoadFailed": "Tidak dapat memuat keuangan klub.",
     "perYearSuffix": "/th",
@@ -3010,6 +3012,7 @@
         "loanCounterMustImproveTerms": "Tawaran balasan pinjaman harus memperbaiki tawaran saat ini",
         "playerNotLoanListed": "Pemain tidak terdaftar untuk dipinjamkan",
         "playerAlreadyLoaned": "Pemain sudah dipinjamkan",
+        "playerAlreadySold": "Pemain ini sudah dijual. Transfer akan terjadi saat jendela transfer dibuka.",
         "invalidLoanEndDate": "Tanggal akhir pinjaman harus antara 30 hari dan satu tahun dari hari ini",
         "invalidLoanWageContribution": "Kontribusi gaji pinjaman harus antara 0% dan 100%",
         "invalidLoanBuyOption": "Opsi pembelian pinjaman harus lebih besar dari nol",
@@ -3571,6 +3574,12 @@
       "scoutReport": {
         "subject": "Laporan Scout: {{player}}",
         "body": "Scout kamu {{scout}} telah menyelesaikan penilaiannya terhadap {{player}}. Laporan lengkap tersedia di bagian scouting."
+      },
+      "scoutingCancelled": {
+        "subject": "Tugas scout dibatalkan",
+        "body": "Scout yang kamu kirim untuk memantau {{player}} sudah meninggalkan klub, jadi tidak akan ada laporan. Kirim scout lain jika kamu masih membutuhkannya.",
+        "bodyWithoutPlayer": "Scout yang kamu kirim untuk memantau seorang pemain sudah meninggalkan klub, dan pemain itu tidak lagi tercatat, jadi tidak akan ada laporan.",
+        "youthBody": "Scout yang kamu kirim untuk mencari pemain muda sudah meninggalkan klub, jadi pencarian dibatalkan. Mulai pencarian baru dengan scout lain jika kamu masih membutuhkannya."
       },
       "boardWarning": {
         "subject": "Kekhawatiran Manajemen — Tinjauan Performa",
