@@ -106,6 +106,38 @@ pub(crate) fn is_cup_edition_finished(cup: &League) -> bool {
         .all(|fixture| fixture.status == FixtureStatus::Completed)
 }
 
+/// The user's own league tables: every league-table competition his club plays in (two for a
+/// split season, the Apertura and the Clausura).
+fn user_league_tables(game: &Game) -> Vec<&League> {
+    let user_id = game.manager.team_id.as_deref().unwrap_or_default();
+    game.competitions
+        .iter()
+        .filter(|c| {
+            c.rules.format == CompetitionFormat::LeagueTable
+                && c.participant_ids.iter().any(|id| id == user_id)
+        })
+        .collect()
+}
+
+/// The league tables whose fixtures decide whether the user's season is over, as
+/// [`is_season_complete`] reads them: his own league tables; every league table for a manager with
+/// none (out of work, or international-only); the legacy single league when the game holds no
+/// competitions. A status that counts what is left of the season counts these, so it never
+/// disagrees with the rule that lets the season roll over.
+pub fn season_tables(game: &Game) -> Vec<&League> {
+    if game.competitions.is_empty() {
+        return game.league.iter().collect();
+    }
+    let user_leagues = user_league_tables(game);
+    if !user_leagues.is_empty() {
+        return user_leagues;
+    }
+    game.competitions
+        .iter()
+        .filter(|c| c.rules.format == CompetitionFormat::LeagueTable)
+        .collect()
+}
+
 /// Check if the season is complete for the purposes of allowing rollover.
 /// Only the user's own league(s) gate the button; foreign leagues on different
 /// hemispheres may still be in progress and are skipped during regeneration.
@@ -113,16 +145,8 @@ pub fn is_season_complete(game: &Game) -> bool {
     // Only the user's own league(s) gate the season-complete button. Other
     // leagues (different hemisphere, foreign divisions) may still be in
     // progress without blocking the rollover.
-    let user_id = game.manager.team_id.as_deref().unwrap_or_default();
     if !game.competitions.is_empty() {
-        let user_leagues: Vec<&League> = game
-            .competitions
-            .iter()
-            .filter(|c| {
-                c.rules.format == CompetitionFormat::LeagueTable
-                    && c.participant_ids.iter().any(|id| id == user_id)
-            })
-            .collect();
+        let user_leagues = user_league_tables(game);
         if !user_leagues.is_empty() {
             if !user_leagues.iter().copied().all(is_league_complete) {
                 return false;
@@ -1173,10 +1197,21 @@ pub fn process_end_of_season(game: &mut Game) -> EndOfSeasonSummary {
         &last_fixture_date,
     );
 
+    // The preview is of the user's division as the new season has it, after promotion and
+    // relegation; the world's other clubs are not in the race it previews (#1179).
     let preview_date = game.clock.current_date.to_rfc3339();
-    let team_names: Vec<String> = game.teams.iter().map(|team| team.name.clone()).collect();
+    let division_club_names: Vec<String> = user_division(game, &user_team_id)
+        .map(|division| {
+            division
+                .participant_ids
+                .iter()
+                .filter_map(|club_id| game.teams.iter().find(|team| &team.id == club_id))
+                .map(|team| team.name.clone())
+                .collect()
+        })
+        .unwrap_or_default();
     game.news.push(crate::news::season_preview_article(
-        &team_names,
+        &division_club_names,
         &preview_date,
     ));
 

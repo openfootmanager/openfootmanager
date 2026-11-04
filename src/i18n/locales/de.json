@@ -2798,6 +2798,7 @@
         "noSubstitutionsForShootout": "Nach dem Ende der Verlängerung sind keine Wechsel mehr möglich: Das Elfmeterschießen bestreiten die Spieler, die beim Schlusspfiff auf dem Platz standen.",
         "shootoutOrderNotNow": "Die Schützenreihenfolge kann nur nach der Verlängerung und vor dem ersten Schuss festgelegt werden.",
         "shootoutOrderNotYourSide": "Du kannst nur die Schützenreihenfolge deiner eigenen Mannschaft festlegen.",
+        "notYourSide": "Du kannst nur deiner eigenen Mannschaft Anweisungen geben.",
         "shootoutOrderNotEligible": "Die Schützenreihenfolge muss jeden deiner spielberechtigten Spieler genau einmal enthalten.",
         "playerNotOnPitch": "Spieler ist nicht auf dem Platz",
         "playerAlreadySubstitutedOff": "Dieser Spieler wurde bereits ausgewechselt",
