@@ -594,6 +594,73 @@ fn apply_match_report_gk_clean_sheet() {
     assert_eq!(gk.stats.clean_sheets, 1);
 }
 
+/// team1 at home, with a second registered keeper, `t1_gk2`, on its books.
+fn game_with_two_keepers() -> Game {
+    let mut game = make_game_with_match();
+    let mut reserve = game
+        .players
+        .iter()
+        .find(|p| p.id == "t1_gk")
+        .expect("team1 has a keeper")
+        .clone();
+    reserve.id = "t1_gk2".to_string();
+    game.players.push(reserve);
+    game
+}
+
+/// A 0-0 in which team1's two keepers played `first` and `second` minutes.
+fn goalless_report(first: u8, second: u8) -> MatchReport {
+    let mut player_stats = HashMap::new();
+    player_stats.insert(
+        "t1_gk".to_string(),
+        PlayerMatchStats {
+            minutes_played: first,
+            ..Default::default()
+        },
+    );
+    player_stats.insert(
+        "t1_gk2".to_string(),
+        PlayerMatchStats {
+            minutes_played: second,
+            ..Default::default()
+        },
+    );
+    MatchReport {
+        home_goals: 0,
+        away_goals: 0,
+        player_stats,
+        ..empty_report(0, 0)
+    }
+}
+
+/// Given a 0-0 for team1 in which its keeper played 85 minutes and the reserve keeper came on
+/// for the last 8,
+/// When the report is applied,
+/// Then the reserve is not credited with a clean sheet: he was not in goal for most of it.
+#[test]
+fn a_keeper_on_for_the_last_minutes_of_a_clean_sheet_is_not_credited_with_it() {
+    let mut game = game_with_two_keepers();
+
+    turn::apply_match_report(&mut game, 0, "team1", "team2", &goalless_report(85, 8));
+
+    let reserve = game.players.iter().find(|p| p.id == "t1_gk2").unwrap();
+    assert_eq!(reserve.stats.clean_sheets, 0);
+}
+
+/// Given a 0-0 for team1 whose keeper was sent off after 20 minutes and replaced by the
+/// reserve keeper for the other 70,
+/// When the report is applied,
+/// Then the keeper sent off is not credited with a clean sheet.
+#[test]
+fn a_keeper_sent_off_early_in_a_clean_sheet_is_not_credited_with_it() {
+    let mut game = game_with_two_keepers();
+
+    turn::apply_match_report(&mut game, 0, "team1", "team2", &goalless_report(20, 70));
+
+    let sent_off = game.players.iter().find(|p| p.id == "t1_gk").unwrap();
+    assert_eq!(sent_off.stats.clean_sheets, 0);
+}
+
 #[test]
 fn apply_match_report_gk_no_clean_sheet_on_conceding() {
     let mut game = make_game_with_match();
