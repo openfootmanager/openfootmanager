@@ -182,13 +182,13 @@ fn every_difference(game: &Game, stats: &StatsState) -> Vec<String> {
 /// and left out of the comparison that says nothing else is lost.
 fn known_bug(difference: &str) -> Option<&'static str> {
     if difference.starts_with("game.days_since_last_job_offer") {
-        Some("the job-offer cooldown is not saved")
+        Some("the job-offer cooldown is not saved (#1260)")
     } else if difference.starts_with("game.staff[")
         && (difference.contains("].birth_country") || difference.contains("].football_nation"))
     {
-        Some("staff made during a season have no nationality until a reload")
+        Some("staff made during a season have no nationality until a reload (#1261)")
     } else if difference.starts_with("game.players[") && difference.contains("].weak_foot") {
-        Some("players made during a season change weak foot on a reload")
+        Some("players made during a season change weak foot on a reload (#1262)")
     } else {
         None
     }
@@ -297,7 +297,7 @@ fn known_bug_still_happens(bug: &str) -> bool {
         .any(|difference| known_bug(difference) == Some(bug))
 }
 
-/// KNOWN BUG (job-offer cooldown): `days_since_last_job_offer` has no column; the load sets it to
+/// KNOWN BUG #1260 (job-offer cooldown): `days_since_last_job_offer` has no column; the load sets it to
 /// `None` (`game_persistence.rs`), so a save and load restarts the cooldown. Delete this test with
 /// the fix.
 #[test]
@@ -307,22 +307,22 @@ fn known_bug_the_job_offer_cooldown_is_not_saved() {
     ));
 }
 
-/// KNOWN BUG (staff nationality): a staff member made during a season has no `birth_country` and an
+/// KNOWN BUG #1261 (staff nationality): a staff member made during a season has no `birth_country` and an
 /// empty `football_nation` until the save is loaded, which fills both in. Delete this test with the
 /// fix.
 #[test]
 fn known_bug_staff_made_during_a_season_have_no_nationality_until_a_reload() {
     assert!(known_bug_still_happens(
-        "staff made during a season have no nationality until a reload"
+        "staff made during a season have no nationality until a reload (#1261)"
     ));
 }
 
-/// KNOWN BUG (weak foot): a player made during a season has the weak foot the generator gave him
+/// KNOWN BUG #1262 (weak foot): a player made during a season has the weak foot the generator gave him
 /// until the load re-infers it (`player_identity.rs`), so the value a user sees changes on a
 /// reload. Delete this test with the fix.
 #[test]
 fn known_bug_players_made_during_a_season_change_weak_foot_on_a_reload() {
     assert!(known_bug_still_happens(
-        "players made during a season change weak foot on a reload"
+        "players made during a season change weak foot on a reload (#1262)"
     ));
 }
