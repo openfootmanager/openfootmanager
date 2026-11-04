@@ -577,8 +577,10 @@ function FinancesTabLoaded({
             <div className="mt-4">
               <FinanceCashFlowChart
                 weeks={financeSnapshot.cashFlow}
-                incomeLabel={t("finances.seasonIncome")}
-                expensesLabel={t("finances.seasonExpenses")}
+                // The weeks hold every movement, transfer and loan fees included, which the season
+                // figures beside them leave out: so the series are money in and out, not the season's.
+                incomeLabel={t("finances.moneyIn")}
+                expensesLabel={t("finances.moneyOut")}
               />
             </div>
           )}

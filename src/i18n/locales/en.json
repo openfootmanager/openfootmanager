@@ -1102,6 +1102,8 @@
     "transferBudget": "Transfer Budget",
     "seasonIncome": "Season Income",
     "seasonExpenses": "Season Expenses",
+    "moneyIn": "Money in",
+    "moneyOut": "Money out",
     "perWeekSuffix": "/wk",
     "snapshotLoadFailed": "Could not load the club finances.",
     "perYearSuffix": "/yr",

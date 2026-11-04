@@ -1121,6 +1121,8 @@
     "transferBudget": "Budget trasferimenti",
     "seasonIncome": "Entrate stagionali",
     "seasonExpenses": "Spese stagionali",
+    "moneyIn": "Entrate di cassa",
+    "moneyOut": "Uscite di cassa",
     "perWeekSuffix": "/sett",
     "snapshotLoadFailed": "Impossibile caricare le finanze del club.",
     "perYearSuffix": "/anno",

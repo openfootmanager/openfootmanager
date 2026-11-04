@@ -1102,6 +1102,8 @@
     "transferBudget": "Přestupový rozpočet",
     "seasonIncome": "Sezónní příjmy",
     "seasonExpenses": "Sezónní výdaje",
+    "moneyIn": "Peníze dovnitř",
+    "moneyOut": "Peníze ven",
     "perWeekSuffix": "/týd",
     "snapshotLoadFailed": "Finance klubu se nepodařilo načíst.",
     "perYearSuffix": "/rok",

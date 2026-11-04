@@ -1102,6 +1102,8 @@
     "transferBudget": "Transfer Bütçesi",
     "seasonIncome": "Sezon Geliri",
     "seasonExpenses": "Sezon Gideri",
+    "moneyIn": "Gelen para",
+    "moneyOut": "Giden para",
     "perWeekSuffix": "/hf",
     "snapshotLoadFailed": "Kulübün mali durumu yüklenemedi.",
     "perYearSuffix": "/yıl",

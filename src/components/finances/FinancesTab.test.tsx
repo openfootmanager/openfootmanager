@@ -23,11 +23,12 @@ vi.mock("@tauri-apps/api/core", () => ({
 
 // The weeks the tab hands the cash-flow chart, captured: the chart has its own test, and jsdom
 // draws no recharts to read them from.
-const chartWeeks = vi.hoisted(() => ({ current: undefined as unknown }));
+const chartWeeks = vi.hoisted(() => ({ current: undefined as unknown, labels: [] as string[] }));
 
 vi.mock("./FinanceCashFlowChart", () => ({
-  FinanceCashFlowChart: (props: { weeks: unknown }) => {
+  FinanceCashFlowChart: (props: { weeks: unknown; incomeLabel: string; expensesLabel: string }) => {
     chartWeeks.current = props.weeks;
+    chartWeeks.labels = [props.incomeLabel, props.expensesLabel];
     return <div data-testid="cash-flow-chart" />;
   },
 }));
@@ -1191,6 +1192,9 @@ describe("FinancesTab backend snapshot", () => {
       { weekStart: "2025-01-06", income: 25000, expenses: 40000 },
       { weekStart: "2025-01-13", income: 310000, expenses: 40000 },
     ]);
+    // Its weeks hold transfer and loan fees too, which the season figures leave out, so its series
+    // are money in and out, not the season's income and expenses (review, #1232).
+    expect(chartWeeks.labels).toEqual(["finances.moneyIn", "finances.moneyOut"]);
   });
 
   /**

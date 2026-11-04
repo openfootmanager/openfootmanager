@@ -1102,6 +1102,8 @@
     "transferBudget": "Anggaran Transfer",
     "seasonIncome": "Pendapatan Musim",
     "seasonExpenses": "Pengeluaran Musim",
+    "moneyIn": "Uang masuk",
+    "moneyOut": "Uang keluar",
     "perWeekSuffix": "/mg",
     "snapshotLoadFailed": "Tidak dapat memuat keuangan klub.",
     "perYearSuffix": "/th",
