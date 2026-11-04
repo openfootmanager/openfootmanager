@@ -21,6 +21,47 @@ pub(crate) fn has_pending_transfer_registration(player: &domain::player::Player)
 pub(crate) fn player_has_active_or_pending_loan(player: &domain::player::Player) -> bool {
     player.active_loan.is_some() || has_pending_loan_registration(player)
 }
+/// Which of a player's two lists.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Listing {
+    Transfer,
+    Loan,
+}
+
+/// Puts one of the user's players on a list, or takes him off it.
+///
+/// Only a player at the user's club: a listing lowers the fee his club accepts, and an agent once
+/// listed a rival club's star, then bought him a third cheaper (#1206). A player out on, or due to
+/// go on, a loan cannot be put on either list, but taking him off one is always allowed, so a
+/// listing made before a loan never sticks.
+pub fn toggle_listing(game: &mut Game, player_id: &str, listing: Listing) -> Result<(), String> {
+    let user_team_id = game
+        .manager
+        .team_id
+        .clone()
+        .ok_or_else(|| "be.error.noTeamAssigned".to_string())?;
+    let player = game
+        .players
+        .iter_mut()
+        .find(|player| player.id == player_id)
+        .ok_or_else(|| "be.error.playerNotFound".to_string())?;
+    if player.team_id.as_deref() != Some(user_team_id.as_str()) {
+        return Err(ERR_PLAYER_NOT_OWNED_BY_USER.to_string());
+    }
+    let putting_on = !match listing {
+        Listing::Transfer => player.transfer_listed,
+        Listing::Loan => player.loan_listed,
+    };
+    if putting_on && player_has_active_or_pending_loan(player) {
+        return Err(ERR_PLAYER_ALREADY_LOANED.to_string());
+    }
+    match listing {
+        Listing::Transfer => player.transfer_listed = putting_on,
+        Listing::Loan => player.loan_listed = putting_on,
+    }
+    Ok(())
+}
+
 pub(crate) fn player_has_pending_registration(player: &domain::player::Player) -> bool {
     player_has_active_or_pending_loan(player) || has_pending_transfer_registration(player)
 }
