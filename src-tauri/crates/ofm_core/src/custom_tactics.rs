@@ -10,7 +10,8 @@ use domain::custom_tactic::{CustomTactic, SavedSlot, TacticContents};
 use domain::team::{MatchRoles, PlayStyle, Team};
 
 use crate::game::Game;
-use crate::player_rating::{formation_slots, parse_formation};
+use crate::match_day_eligibility::match_day_eligible_players;
+use crate::player_rating::{formation_slots, parse_formation, positional_fit_for_assignment};
 
 pub const NAME_REQUIRED_ERROR: &str = "be.error.customTactic.nameRequired";
 pub const INVALID_FORMATION_ERROR: &str = "be.error.customTactic.invalidFormation";
@@ -136,7 +137,8 @@ pub fn save_current_tactic(game: &mut Game, draft: &CustomTactic) -> Result<(), 
 /// for a tactic that holds them, its instructions, eleven, roles and takers.
 ///
 /// A saved player who has left the club gives his slot back to the player the team has there
-/// now (or to another of the team's current eleven), and a taker who has left leaves the team's
+/// now (or to another of the team's current eleven, or else to the available player who fits that
+/// slot best; the eleven never closes up), and a taker who has left leaves the team's
 /// current taker in place: a tactic made last season still applies after a sale. Nothing is
 /// written if the tactic is missing or its formation or style are not ones the game has.
 pub fn apply_custom_tactic(game: &mut Game, id: &str) -> Result<(), String> {
@@ -153,13 +155,25 @@ pub fn apply_custom_tactic(game: &mut Game, id: &str) -> Result<(), String> {
     let play_style: PlayStyle =
         serde_json::from_value(serde_json::Value::String(tactic.play_style.clone()))
             .map_err(|_| INVALID_PLAY_STYLE_ERROR.to_string())?;
-    let team_id = managed_team(game)?.id.clone();
+    let team = managed_team(game)?;
+    let team_id = team.id.clone();
     let at_the_club: HashSet<String> = game
         .players
         .iter()
         .filter(|player| player.team_id.as_deref() == Some(team_id.as_str()))
         .map(|player| player.id.clone())
         .collect();
+    let positions = formation_slots(&tactic.formation);
+    let lineup = tactic.contents.as_ref().map(|contents| {
+        let pool = match_day_eligible_players(&game.players, &team_id);
+        restored_eleven(
+            &contents.slots,
+            &team.starting_xi_ids,
+            &at_the_club,
+            &pool,
+            &positions,
+        )
+    });
     let team = game
         .teams
         .iter_mut()
@@ -168,12 +182,10 @@ pub fn apply_custom_tactic(game: &mut Game, id: &str) -> Result<(), String> {
 
     team.formation = tactic.formation.clone();
     team.play_style = play_style;
-    let Some(contents) = tactic.contents else {
+    let (Some(contents), Some(lineup)) = (tactic.contents, lineup) else {
         return Ok(());
     };
     team.tactics_phase = contents.instructions;
-    let lineup = restored_eleven(&contents.slots, &team.starting_xi_ids, &at_the_club);
-    let positions = formation_slots(&team.formation);
     for (slot, saved) in contents.slots.iter().enumerate() {
         if lineup.get(slot) != Some(&saved.player_id) {
             continue;
@@ -226,11 +238,19 @@ fn managed_team(game: &Game) -> Result<&Team, String> {
 }
 
 /// The saved eleven, slot by slot, with each player who has left the club replaced by the one the
-/// team has in that slot now, or else by another of its current eleven not already placed.
+/// team has in that slot now, or else by another of its current eleven not already placed, or else
+/// by the available player (`pool`, the match-day pool) who fits that slot best.
+///
+/// Entry `i` stays formation slot `i`: a gap is filled where it is, never closed up, so no saved
+/// player slides into another's position. After a sale the current eleven is the other ten saved
+/// players, so the pool is what fills the gap. Only a club with no one left to field leaves the
+/// list short.
 fn restored_eleven(
     saved: &[SavedSlot],
     current: &[String],
     at_the_club: &HashSet<String>,
+    pool: &[&domain::player::Player],
+    positions: &[domain::player::Position],
 ) -> Vec<String> {
     let staying: HashSet<&str> = saved
         .iter()
@@ -251,12 +271,36 @@ fn restored_eleven(
                 .filter(|id| free(id, &placed))
                 .or_else(|| current.iter().find(|id| free(id, &placed)))
                 .cloned()
+                .or_else(|| best_fit_for(slot, positions, pool, &staying, &placed))
         };
         if let Some(player) = player {
             placed.push(player);
         }
     }
     placed
+}
+
+/// The player in `pool` who fits slot `slot` best (the selection's own measure,
+/// `positional_fit_for_assignment`), among those the saved eleven doesn't place and nobody has
+/// taken yet; ties go to the lower id, so the same club gets the same answer.
+fn best_fit_for(
+    slot: usize,
+    positions: &[domain::player::Position],
+    pool: &[&domain::player::Player],
+    staying: &HashSet<&str>,
+    placed: &[String],
+) -> Option<String> {
+    let position = positions.get(slot)?;
+    pool.iter()
+        .filter(|player| {
+            !staying.contains(player.id.as_str()) && !placed.iter().any(|id| *id == player.id)
+        })
+        .max_by(|left, right| {
+            positional_fit_for_assignment(left, position)
+                .total_cmp(&positional_fit_for_assignment(right, position))
+                .then_with(|| right.id.cmp(&left.id))
+        })
+        .map(|player| player.id.clone())
 }
 
 /// The saved takers, each one who has left the club replaced by the team's current taker.
@@ -736,6 +780,41 @@ mod whole_tactic_tests {
         assert_eq!(team.player_roles.get("b2"), None);
         assert_eq!(team.match_roles.vice_captain.as_deref(), Some("b1"));
         assert_eq!(team.match_roles.captain.as_deref(), Some("s5"));
+    }
+
+    /// Given a saved 4-4-2 of "s0".."s10", and then the centre-back "s2" sold (the sale takes him
+    ///       out of the club's eleven, which is now the other ten saved players)
+    /// When the tactic is applied
+    /// Then his slot is filled from the club's other available players, and every other saved
+    ///      player keeps his own slot: the eleven never closes up, so nobody slides into another
+    ///      position (review, #1234).
+    #[test]
+    fn a_sold_players_slot_is_filled_from_the_squad_and_nobody_moves_up() {
+        let mut game = game();
+        set_up(&mut game);
+        save_current_tactic(&mut game, &draft("away", "Away")).unwrap();
+        let s2 = game.players.iter_mut().find(|p| p.id == "s2").unwrap();
+        s2.team_id = Some("elsewhere".into());
+        game.teams[0].remove_player_references("s2");
+        assert_eq!(game.teams[0].starting_xi_ids.len(), 10);
+
+        apply_custom_tactic(&mut game, "away").unwrap();
+
+        let lineup = &game.teams[0].starting_xi_ids;
+        assert_eq!(lineup.len(), 11);
+        assert!(
+            lineup[2].starts_with('b'),
+            "slot 2 goes to a squad player: {lineup:?}"
+        );
+        let saved = eleven("s");
+        for slot in (0..11).filter(|slot| *slot != 2) {
+            assert_eq!(lineup[slot], saved[slot], "slot {slot}");
+        }
+        assert_eq!(
+            game.teams[0].player_roles.get("s0"),
+            Some(&PlayerRole::SweeperKeeper),
+            "the keeper's saved role still applies in his slot"
+        );
     }
 
     /// Given a saved tactic giving its centre-back slot a keeper's role (an edited save)
