@@ -1,0 +1,67 @@
+import { beforeAll, describe, expect, it } from "vitest";
+
+import { i18nReady } from "../i18n";
+import { getErrorMessage, resolveTranslatedErrorMessage } from "./errorMessage";
+
+// A caller's `t`, as a component test mocks it: it knows nothing, so it returns the key. The
+// banner must not depend on it: backend errors are resolved by the one resolver, on the app's i18n.
+const echoKey = (key: string) => key;
+
+beforeAll(async () => {
+  await i18nReady;
+});
+
+describe("resolveTranslatedErrorMessage", () => {
+  /**
+   * Given a backend error whose param is itself a key (a position group)
+   * When the banner's message is resolved
+   * Then the param is translated as well: no raw `common.positionGroups.*` reaches the player.
+   */
+  it("translates a param that is itself a key", () => {
+    const message = resolveTranslatedErrorMessage(
+      "be.error.squadFloor.wouldLeaveShort?group=common.positionGroups.Goalkeeper",
+      echoKey,
+    );
+
+    expect(message).toContain("Position group affected: Goalkeeper.");
+    expect(message).not.toContain("common.");
+  });
+
+  /**
+   * Given a backend error carrying a whole-number amount
+   * When the banner's message is resolved
+   * Then the amount is shown as money with its currency, not as a bare number.
+   */
+  it("formats a money param with the currency", () => {
+    const message = resolveTranslatedErrorMessage(
+      new Error("be.error.contracts.boardWagePolicy?budget=75000"),
+      echoKey,
+    );
+
+    expect(message).toMatch(/[^\d\s,.]\s?75,000|75,000\s?[^\d\s,.]/);
+  });
+
+  /**
+   * Given a message that is not a translation key (a plain sentence, an Error, an unknown key)
+   * When the banner's message is resolved
+   * Then it is shown as it was, so nothing a player could read is lost.
+   */
+  it("leaves a message that is not a known key as it was", () => {
+    expect(resolveTranslatedErrorMessage("Something went wrong", echoKey)).toBe(
+      "Something went wrong",
+    );
+    expect(resolveTranslatedErrorMessage(new Error("be.error.noSuchKey"), echoKey)).toBe(
+      "be.error.noSuchKey",
+    );
+    expect(resolveTranslatedErrorMessage({ message: "plain" }, echoKey)).toBe("plain");
+  });
+});
+
+describe("getErrorMessage", () => {
+  /** Given a string, an Error and an object with a message, then each gives its text. */
+  it("reads the text of an error however it arrives", () => {
+    expect(getErrorMessage("a")).toBe("a");
+    expect(getErrorMessage(new Error("b"))).toBe("b");
+    expect(getErrorMessage({ message: "c" })).toBe("c");
+  });
+});
