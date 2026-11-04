@@ -77,9 +77,9 @@ When the ball reaches the attacking box, a shot is taken:
 
 1. **Accuracy check** — base accuracy (configurable, default 24.5%) plus `(shooter_rating - 50) / 200`, from the shooter's `shooting + composure + decisions`. Clamped to 15%–85%.
    - **Miss**: 40% chance the shot is blocked, 60% chance off target.
-2. **Conversion check** — base conversion (default 28%, times the defending side's defensive-line modifier and divided by its short-handed cover) plus `(shooter_rating - goalkeeper_rating) / 150`. Clamped to 10%–70%.
+2. **Conversion check** — base conversion (default 25%, times the defending side's defensive-line modifier and divided by its short-handed cover) plus `(shooter_rating - goalkeeper_rating) / 150`. Clamped to 10%–70%.
 
-Both bases are calibrated (#1132). Between two equal 70-rated sides, 46% of unblocked shots go on target, inside the Premier League's 45.10% over two decades to 49.96% in 2023/24 (premierleague.com, "Season trends: Clinical finishing key to record goals total", 27 May 2024; accuracy excluding blocks). This figure is cited, not derived. No open source gives a league-wide share of shots on target scored, so the conversion base is calibrated instead to the derived goal total: the shipped world's season lands in all five of #1001's scoreline bands (openfootball, CC0), at about 3.0 goals a game. `engine/tests/shot_rate_tests.rs` pins both shares.
+Both bases are calibrated (#1132). Between two equal 70-rated sides, 46% of unblocked shots go on target, inside the Premier League's 45.10% over two decades to 49.96% in 2023/24 (premierleague.com, "Season trends: Clinical finishing key to record goals total", 27 May 2024; accuracy excluding blocks). This figure is cited, not derived. No open source gives a league-wide share of shots on target scored, so the conversion base is calibrated instead to the derived goal total: the shipped world's season lands in all five of #1001's scoreline bands (openfootball, CC0), at about 2.9 goals a game. It was set again after #1139's ceiling quantile map put more good players into the world: at 28% a season played 3.1 goals a game, with home clean sheets under their band. `engine/tests/shot_rate_tests.rs` pins both shares.
    - **Score**: Goal event emitted with scorer + assister.
    - **Save**: Shot saved event.
 
@@ -248,11 +248,11 @@ All probabilities and multipliers are tuneable via `MatchConfig`:
 | `home_advantage` | 1.08 | Multiplier for home team ratings |
 | `shot_accuracy_base` | 0.245 | Base chance a shot is on target |
 | `goal_conversion_base` | 0.25 | Base chance an on-target shot scores |
-| `fatigue_per_minute` | 0.15 | Condition loss per minute (live mode) |
-| `foul_probability` | 0.12 | Base chance a tackle results in a foul |
-| `yellow_card_probability` | 0.30 | Chance a foul produces a yellow |
-| `red_card_probability` | 0.04 | Chance a card is direct red |
-| `penalty_probability` | 0.08 | Chance a box foul is a penalty |
+| `fatigue_per_minute` | 0.20 | Condition loss per minute (live mode) |
+| `foul_probability` | 0.40 | Base chance a tackle results in a foul |
+| `yellow_card_probability` | 0.20 | Chance a foul produces a yellow |
+| `red_card_probability` | 0.02 | Chance a card is direct red |
+| `penalty_probability` | 0.50 | Chance a box foul is a penalty |
 | `stoppage_time_max` | 4 | Max stoppage time minutes per half |
 | `injury_probability` | 0.03 | Chance of injury per foul |
 
