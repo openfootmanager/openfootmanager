@@ -3004,6 +3004,7 @@
         "loanCounterMustImproveTerms": "La contraoferta de cesión debe mejorar la oferta actual",
         "playerNotLoanListed": "El jugador no está listado para cesión",
         "playerAlreadyLoaned": "El jugador ya está cedido",
+        "playerAlreadySold": "Este jugador ya ha sido vendido. El traspaso se completa cuando abra el mercado.",
         "invalidLoanEndDate": "La fecha de fin de la cesión debe estar entre 30 días y un año desde hoy",
         "invalidLoanWageContribution": "La aportación salarial de la cesión debe estar entre el 0% y el 100%",
         "invalidLoanBuyOption": "La opción de compra de la cesión debe ser superior a cero",

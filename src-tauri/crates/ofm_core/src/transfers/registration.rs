@@ -65,6 +65,17 @@ pub fn toggle_listing(game: &mut Game, player_id: &str, listing: Listing) -> Res
 pub(crate) fn player_has_pending_registration(player: &domain::player::Player) -> bool {
     player_has_active_or_pending_loan(player) || has_pending_transfer_registration(player)
 }
+/// Refuses a loan for a player who already has a move in hand, saying which: a sale agreed and
+/// waiting for the window, or a loan. The one rule the three loan paths share (#1205).
+pub(super) fn ensure_no_move_in_hand(player: &domain::player::Player) -> Result<(), String> {
+    if has_pending_transfer_registration(player) {
+        return Err(ERR_PLAYER_ALREADY_SOLD.into());
+    }
+    if player_has_active_or_pending_loan(player) {
+        return Err(ERR_PLAYER_ALREADY_LOANED.into());
+    }
+    Ok(())
+}
 pub(crate) fn transfer_window_is_open(game: &Game) -> bool {
     matches!(
         game.season_context.transfer_window.status,

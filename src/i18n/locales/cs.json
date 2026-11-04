@@ -3012,6 +3012,7 @@
         "loanCounterMustImproveTerms": "Protinabídka hostování musí vylepšit stávající podmínky",
         "playerNotLoanListed": "Hráč není na listině pro hostování",
         "playerAlreadyLoaned": "Hráč již na hostování odešel",
+        "playerAlreadySold": "Tento hráč už byl prodán. Přestup proběhne po otevření přestupního okna.",
         "invalidLoanEndDate": "Datum ukončení hostování musí být v rozmezí od 30 dnů do jednoho roku od dnešního dne",
         "invalidLoanWageContribution": "Příspěvek na plat během hostování musí být mezi 0 % a 100 %",
         "invalidLoanBuyOption": "Opce na odkup z hostování musí být vyšší než nula",

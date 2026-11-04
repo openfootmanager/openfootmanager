@@ -3004,6 +3004,7 @@
         "loanCounterMustImproveTerms": "租借还价必须优于当前报价",
         "playerNotLoanListed": "该球员未被列入租借名单",
         "playerAlreadyLoaned": "该球员已经被租借",
+        "playerAlreadySold": "该球员已被出售，转会将在转会窗口开放时完成。",
         "invalidLoanEndDate": "租借结束日期必须在今天之后30天到一年之间",
         "invalidLoanWageContribution": "租借工资承担比例必须在0%到100%之间",
         "invalidLoanBuyOption": "租借买断选项金额必须大于零",

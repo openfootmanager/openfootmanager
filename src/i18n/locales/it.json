@@ -3004,6 +3004,7 @@
         "loanCounterMustImproveTerms": "La controfferta di prestito deve migliorare l'offerta attuale",
         "playerNotLoanListed": "Il giocatore non è inserito nella lista prestiti",
         "playerAlreadyLoaned": "Il giocatore è già in prestito",
+        "playerAlreadySold": "Questo giocatore è già stato ceduto. Il trasferimento diventa effettivo all'apertura del mercato.",
         "invalidLoanEndDate": "La data di fine prestito deve essere tra 30 giorni e un anno da oggi",
         "invalidLoanWageContribution": "La quota stipendio del prestito deve essere tra 0% e 100%",
         "invalidLoanBuyOption": "L'opzione di riscatto del prestito deve essere superiore a zero",

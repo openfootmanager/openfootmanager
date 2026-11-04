@@ -3004,6 +3004,7 @@
         "loanCounterMustImproveTerms": "Das Leih-Gegenangebot muss das aktuelle Angebot verbessern",
         "playerNotLoanListed": "Der Spieler steht nicht auf der Leihliste",
         "playerAlreadyLoaned": "Der Spieler ist bereits verliehen",
+        "playerAlreadySold": "Dieser Spieler wurde bereits verkauft. Der Wechsel wird wirksam, wenn das Transferfenster öffnet.",
         "invalidLoanEndDate": "Das Leihende muss zwischen 30 Tagen und einem Jahr ab heute liegen",
         "invalidLoanWageContribution": "Die Gehaltsbeteiligung der Leihe muss zwischen 0% und 100% liegen",
         "invalidLoanBuyOption": "Die Kaufoption der Leihe muss größer als null sein",
