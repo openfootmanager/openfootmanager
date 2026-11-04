@@ -3644,6 +3644,10 @@
         "bodyWithOption": "{{player}} passerà in prestito da {{parent}} a {{borrower}} dal {{start}} al {{end}}. {{borrower}} coprirà il {{contribution}}% dello stipendio. Opzione di riscatto: {{fee}}.",
         "bodyNoOption": "{{player}} passerà in prestito da {{parent}} a {{borrower}} dal {{start}} al {{end}}. {{borrower}} coprirà il {{contribution}}% dello stipendio. Nessuna opzione di riscatto."
       },
+      "loanRegistrationFailed": {
+        "subject": "Prestito annullato: {{player}}",
+        "body": "Il prestito concordato di {{player}} dal {{parent}} al {{borrower}}, previsto dal {{start}}, non può avere luogo: il giocatore non è più sotto contratto con il {{parent}}."
+      },
       "loanOffer": {
         "subject": "Offerta di prestito per {{player}}",
         "body": "{{team}} vuole prendere {{player}} in prestito fino al {{endDate}} e coprire il {{wageContribution}}% dello stipendio. Opzione di riscatto: {{buyOption}}. Controlla l'offerta nella scheda Trasferimenti.",

@@ -81,8 +81,8 @@ fn retire_player(player: &mut Player, current_date: NaiveDate) {
     player.loan_listed = false;
 }
 
-/// A retiree's agreed transfers end with his career: his offers are cleared, and the user, as
-/// buyer or seller, gets the letter a release would send (#1202).
+/// A retiree's agreed transfers and loans end with his career: his offers are cleared, and the
+/// user, on either side of a deal, gets the letter a release would send (#1202, #1242).
 fn cancel_retirees_agreements(game: &mut Game, retirees: &[(usize, Option<String>)], today: &str) {
     for (index, contract_club) in retirees {
         let letters = crate::contracts::lapsed_registration_messages(
@@ -92,6 +92,7 @@ fn cancel_retirees_agreements(game: &mut Game, retirees: &[(usize, Option<String
             today,
         );
         game.players[*index].transfer_offers.clear();
+        game.players[*index].loan_offers.clear();
         for letter in letters {
             crate::inbox::emit(game, letter);
         }
