@@ -483,6 +483,8 @@ export function useTacticsLineup({ gameState, onGameUpdate }: UseTacticsLineupAr
   return {
     /** Lineup changes are possible: the writers, the notice and the count read this one flag. */
     lineupReady: canGradeLineup,
+    /** The one familiarity table the screen grades with (its count, its writers, its pitch). */
+    familiarity,
     team,
     formation,
     activePlayStyle,
