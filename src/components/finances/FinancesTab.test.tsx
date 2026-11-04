@@ -21,6 +21,17 @@ vi.mock("@tauri-apps/api/core", () => ({
   invoke: vi.fn(),
 }));
 
+// The weeks the tab hands the cash-flow chart, captured: the chart has its own test, and jsdom
+// draws no recharts to read them from.
+const chartWeeks = vi.hoisted(() => ({ current: undefined as unknown }));
+
+vi.mock("./FinanceCashFlowChart", () => ({
+  FinanceCashFlowChart: (props: { weeks: unknown }) => {
+    chartWeeks.current = props.weeks;
+    return <div data-testid="cash-flow-chart" />;
+  },
+}));
+
 vi.mock("react-i18next", async () => {
   const { useRef } = await import("react");
 
@@ -169,6 +180,7 @@ function wireSnapshot(
       runway_status: "stable",
       overall_status: "stable",
       marketing_campaign_cooldown_days_remaining: 0,
+      cash_flow: [],
       ...overrides,
     },
   };
@@ -556,6 +568,7 @@ describe("FinancesTab facilities", () => {
             runway_status: "watch",
             overall_status: "critical",
             marketing_campaign_cooldown_days_remaining: 0,
+            cash_flow: [],
           },
           previews: {
             sponsor_pitch: {
@@ -626,6 +639,7 @@ describe("FinancesTab facilities", () => {
             runway_status: "critical",
             overall_status: "critical",
             marketing_campaign_cooldown_days_remaining: 0,
+            cash_flow: [],
           },
           previews: {
             marketing_campaign: {
@@ -697,6 +711,7 @@ describe("FinancesTab facilities", () => {
             runway_status: "critical",
             overall_status: "critical",
             marketing_campaign_cooldown_days_remaining: 0,
+            cash_flow: [],
           },
           previews: {
             board_support: {
@@ -767,6 +782,7 @@ describe("FinancesTab facilities", () => {
             runway_status: "critical",
             overall_status: "critical",
             marketing_campaign_cooldown_days_remaining: 9,
+            cash_flow: [],
           },
         });
       }
@@ -1149,6 +1165,45 @@ describe("FinancesTab team guard", () => {
 describe("FinancesTab backend snapshot", () => {
   beforeEach(() => {
     mockedInvoke.mockReset();
+  });
+
+  /**
+   * Given a club whose old financial ledger is empty (wages, gates and sponsorship never reach it)
+   *       and a backend snapshot carrying two weeks of cash flow from the cash journal
+   * When the tab renders
+   * Then the chart is drawn from the snapshot's weeks, as the backend sent them (#1204).
+   */
+  it("draws the cash-flow chart from the snapshot's weeks, not the old ledger", async () => {
+    chartWeeks.current = undefined;
+    mockedInvoke.mockResolvedValue(
+      wireSnapshot({
+        cash_flow: [
+          { week_start: "2025-01-06", income: 25000, expenses: 40000 },
+          { week_start: "2025-01-13", income: 310000, expenses: 40000 },
+        ],
+      }),
+    );
+
+    await renderFinances(<FinancesTab gameState={createGameState({ financial_ledger: [] })} />);
+
+    expect(screen.getByTestId("cash-flow-chart")).toBeInTheDocument();
+    expect(chartWeeks.current).toEqual([
+      { weekStart: "2025-01-06", income: 25000, expenses: 40000 },
+      { weekStart: "2025-01-13", income: 310000, expenses: 40000 },
+    ]);
+  });
+
+  /**
+   * Given a backend snapshot with no weeks of cash flow (a club whose money has not moved yet)
+   * When the tab renders
+   * Then no chart is drawn, rather than an empty one.
+   */
+  it("draws no cash-flow chart before any money has moved", async () => {
+    mockedInvoke.mockResolvedValue(wireSnapshot());
+
+    await renderFinances(<FinancesTab gameState={createGameState()} />);
+
+    expect(screen.queryByTestId("cash-flow-chart")).not.toBeInTheDocument();
   });
 
   /**

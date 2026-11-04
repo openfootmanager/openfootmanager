@@ -573,10 +573,10 @@ function FinancesTabLoaded({
               </p>
             </div>
           </div>
-          {(myTeam.financial_ledger?.length ?? 0) > 0 && (
+          {financeSnapshot.cashFlow.length > 0 && (
             <div className="mt-4">
               <FinanceCashFlowChart
-                ledger={myTeam.financial_ledger ?? []}
+                weeks={financeSnapshot.cashFlow}
                 incomeLabel={t("finances.seasonIncome")}
                 expensesLabel={t("finances.seasonExpenses")}
               />
