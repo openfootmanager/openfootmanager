@@ -527,9 +527,17 @@ const NATIONAL_POOL_SHIFT: f64 = -2.0;
 /// for a younger feature that does (the academy intake).
 const YOUNG_SPREAD_KEPT: f64 = 1.0;
 const YOUNG_SHIFT_KEPT: f64 = 1.0;
-/// The fraction of a club's standard shift its academy's recruits take. The recruits are the
-/// age wonderkids come from, so the full shift would give the big clubs nearly all of them.
-const ACADEMY_SHIFT_KEPT: f64 = 0.5;
+/// The fraction of a club's standard shift its academy's recruits take: all of it. Measured over 20
+/// seasons on seeds 1 to 4 of the shipped world (run ofm-perf-acad9-measure, on #1078's constants):
+/// - the top fifth of clubs holds 61 / 66 / 60% of the S-tier seniors at seasons 5 / 10 / 20 (each
+///   seed at least 53%), against 61 / 41 / 25% with no academy standard;
+/// - there are 527 S-tier seniors at season 20 over the four seeds, against 541 (−2.6%);
+/// - wonderkids are 0.131% pooled, against 0.149%.
+///
+/// Three-quarters of the shift (0.75) let the top fifth's share fall to 47% by season 20. The full
+/// shift does not crowd the young tail into the big clubs, because the recruit's spread gives back
+/// the shift's variance (`absorbed_shift_variance`), so the world's intake keeps its bell.
+const ACADEMY_SHIFT_KEPT: f64 = 1.0;
 
 /// How club reputations are spread in the world being generated: the centre and spread that turn
 /// a club's reputation into a standard score. Computed from the world's own clubs, not fixed: a
