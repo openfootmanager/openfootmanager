@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import { renderHook, act } from "@testing-library/react";
+import { useState } from "react";
 import { useEntityEditor } from "./useEntityEditor";
 
 type Item = { id: string; name: string; logo?: string | null };
@@ -237,13 +238,15 @@ describe("useEntityEditor", () => {
         { id: "b", name: "B" },
         { id: "c", name: "C" },
       ];
-      const { hook } = makeHook({ items });
+      const { hook, setItems, defaults } = makeHook({ items });
       act(() => {
         hook.result.current.handleSelect(2);
       }); // editing index 2 (C)
       act(() => {
         hook.result.current.handleDelete(1);
       }); // delete index 1 (B)
+      // The page owns the array: feed the list the hook set back in, as the page re-renders it.
+      hook.rerender({ ...defaults, items: setItems.mock.lastCall?.[0] as Item[] });
       expect(hook.result.current.editingIndex).toBe(1); // C is now at index 1
     });
 
@@ -540,13 +543,18 @@ describe("useEntityEditor", () => {
 
     it("sets editingIndex to the newly appended index after adding", async () => {
       const items: Item[] = [{ id: "a", name: "A" }];
-      const { hook } = makeHook({ items });
+      const { hook, setItems, defaults } = makeHook({ items });
       act(() => {
         hook.result.current.handleAdd();
+      });
+      act(() => {
+        hook.result.current.updateField("id", "b");
       });
       await act(async () => {
         await hook.result.current.handleSave();
       });
+      // The page owns the array: feed the list the hook set back in, as the page re-renders it.
+      hook.rerender({ ...defaults, items: setItems.mock.lastCall?.[0] as Item[] });
       expect(hook.result.current.editingIndex).toBe(1);
     });
 
@@ -555,13 +563,15 @@ describe("useEntityEditor", () => {
         { id: "a", name: "A" },
         { id: "b", name: "B" },
       ];
-      const { hook } = makeHook({ items });
+      const { hook, setItems, defaults } = makeHook({ items });
       act(() => {
         hook.result.current.handleSelect(1);
       });
       await act(async () => {
         await hook.result.current.handleSave();
       });
+      // The page owns the array: feed the list the hook set back in, as the page re-renders it.
+      hook.rerender({ ...defaults, items: setItems.mock.lastCall?.[0] as Item[] });
       expect(hook.result.current.editingIndex).toBe(1);
     });
 
@@ -636,7 +646,7 @@ describe("useEntityEditor", () => {
         { id: "b", name: "B" },
         { id: "c", name: "C" },
       ];
-      const { hook } = makeHook({ items });
+      const { hook, defaults } = makeHook({ items });
       act(() => {
         hook.result.current.handleSelect(2);
       }); // editing "c" at index 2
@@ -651,6 +661,8 @@ describe("useEntityEditor", () => {
       act(() => {
         hook.result.current.syncEditing(reordered);
       });
+      // The page applies the restored snapshot as the list, then the hook reports against it.
+      hook.rerender({ ...defaults, items: reordered });
 
       expect(hook.result.current.editing).toEqual({ id: "c", name: "C-reverted" });
       expect(hook.result.current.editingIndex).toBe(0);
@@ -693,10 +705,12 @@ describe("useEntityEditor", () => {
     });
 
     it("opens the copy so it can be renamed straight away", () => {
-      const { hook, onOpen } = makeHook({ items });
+      const { hook, onOpen, setItems, defaults } = makeHook({ items });
       act(() => {
         hook.result.current.handleDuplicate(0);
       });
+      // The page owns the array: feed the list the hook set back in, as the page re-renders it.
+      hook.rerender({ ...defaults, items: setItems.mock.lastCall?.[0] as Item[] });
       expect(hook.result.current.editing).toEqual({ id: "alpha-2", name: "Alpha" });
       expect(hook.result.current.editingIndex).toBe(1);
       expect(onOpen).toHaveBeenCalledTimes(1);
@@ -735,13 +749,15 @@ describe("useEntityEditor", () => {
       // needs an id of its own: two blank-id siblings are indistinguishable to
       // syncEditing's findIndex, so an undo would re-bind the form to the
       // original. The copy gets a real id and the source stays blank.
-      const { hook, setItems } = makeHook({ items: [{ id: "", name: "Alpha" }] });
+      const { hook, setItems, defaults } = makeHook({ items: [{ id: "", name: "Alpha" }] });
       act(() => {
         hook.result.current.handleDuplicate(0);
       });
       const [source, copy] = setItems.mock.calls[0][0];
       expect(source.id).toBe("");
       expect(copy.id).toBe("copy-2");
+      // The page owns the array: feed the list the hook set back in, as the page re-renders it.
+      hook.rerender({ ...defaults, items: setItems.mock.calls[0][0] as Item[] });
       expect(hook.result.current.editingIndex).toBe(1);
     });
 
@@ -786,5 +802,249 @@ describe("useEntityEditor", () => {
       expect(setItems).not.toHaveBeenCalled();
       expect(captureHistory).not.toHaveBeenCalled();
     });
+  });
+});
+
+// The World Editor runs two editors over one list: the first-team and youth player editors both
+// edit `players`, each by its index into the whole array. A row one inserts or removes moves the
+// other's record, so an editor must find its record by id, not by the position it last saw.
+describe("two editors over one list", () => {
+  type Editor = ReturnType<typeof useEntityEditor<Item>>;
+  type Shared = { items: Item[]; first: Editor; youth: Editor };
+
+  function renderTwoEditors(initial: Item[]) {
+    return renderHook((): Shared => {
+      const [items, setItems] = useState(initial);
+      const options = {
+        items,
+        setItems,
+        empty: emptyItem,
+        captureHistory: vi.fn(),
+        saveItems: vi.fn().mockResolvedValue(undefined),
+        autoSave: false,
+        onOpen: vi.fn(),
+        onClose: vi.fn(),
+        setIsBusy: vi.fn(),
+      };
+      return { items, first: useEntityEditor(options), youth: useEntityEditor(options) };
+    });
+  }
+
+  const youthAndOne = (): Item[] => [
+    { id: "y0", name: "Youth Zero" },
+    { id: "y1", name: "Youth One" },
+    { id: "p", name: "First Teamer" },
+  ];
+
+  // Given a first-team player open in one editor, and a youth before him removed in the other
+  // When the first editor saves its edit
+  // Then the edit lands on that player, and the player who moved into his old place is kept
+  it("saves an edit onto its own record after the other editor removed a row before it", () => {
+    const { result } = renderTwoEditors(youthAndOne());
+    act(() => result.current.first.handleSelect(2));
+    act(() => result.current.first.updateField("name", "First Teamer Edited"));
+    act(() => result.current.youth.handleDelete(0));
+    act(() => {
+      void result.current.first.handleSave();
+    });
+
+    expect(result.current.items).toEqual([
+      { id: "y1", name: "Youth One" },
+      { id: "p", name: "First Teamer Edited" },
+    ]);
+  });
+
+  // Given a first-team player open in one editor, and a youth before him duplicated in the other
+  // When the first editor saves its edit
+  // Then the edit lands on that player, and neither the youth player nor his copy is overwritten
+  it("saves an edit onto its own record after the other editor inserted a row before it", () => {
+    const { result } = renderTwoEditors(youthAndOne());
+    act(() => result.current.first.handleSelect(2));
+    act(() => result.current.first.updateField("name", "First Teamer Edited"));
+    act(() => result.current.youth.handleDuplicate(0));
+    act(() => {
+      void result.current.first.handleSave();
+    });
+
+    const ids = result.current.items.map((item) => item.id);
+    expect(ids.filter((id) => id === "p")).toHaveLength(1);
+    expect(result.current.items.find((item) => item.id === "p")?.name).toBe("First Teamer Edited");
+    expect(result.current.items.slice(0, 3).map((item) => item.name)).toEqual([
+      "Youth Zero",
+      "Youth Zero",
+      "Youth One",
+    ]);
+  });
+
+  // Given two players sharing one id, the second of them open in an editor
+  // When that editor saves its edit
+  // Then the edit lands on the second, and the first keeps his own data: a duplicate id must not
+  //      send the save to its twin
+  it("saves onto the open one of two records sharing an id", () => {
+    const { result } = renderTwoEditors([
+      { id: "x", name: "First X" },
+      { id: "y", name: "Why" },
+      { id: "x", name: "Second X" },
+    ]);
+    act(() => result.current.first.handleSelect(2));
+    act(() => result.current.first.updateField("name", "Second X Edited"));
+    act(() => {
+      void result.current.first.handleSave();
+    });
+
+    expect(result.current.items.map((item) => item.name)).toEqual([
+      "First X",
+      "Why",
+      "Second X Edited",
+    ]);
+  });
+
+  // Given an unnamed first-team player (blank id) open in one editor, and a youth before him
+  //      removed in the other
+  // When the first editor saves its edit
+  // Then the edit lands on the unnamed player, not on whoever took his old row
+  it("saves an unnamed record onto itself after the other editor removed a row before it", () => {
+    const { result } = renderTwoEditors([
+      { id: "y0", name: "Youth Zero" },
+      { id: "y1", name: "Youth One" },
+      { id: "", name: "Unnamed" },
+    ]);
+    act(() => result.current.first.handleSelect(2));
+    act(() => result.current.first.updateField("name", "Unnamed Edited"));
+    act(() => result.current.youth.handleDelete(0));
+    act(() => {
+      void result.current.first.handleSave();
+    });
+
+    expect(result.current.items).toEqual([
+      { id: "y1", name: "Youth One" },
+      { id: "", name: "Unnamed Edited" },
+    ]);
+  });
+
+  // Given a first-team player open in one editor, whose row the other editor deletes
+  // When the list asks which row is open, and then the first editor saves
+  // Then no row is open in between (the form stays, the highlight goes), and the save adds the
+  //      record back as a new one rather than writing it over another
+  it("saves a record the other editor removed as a new one", () => {
+    const { result } = renderTwoEditors(youthAndOne());
+    act(() => result.current.first.handleSelect(2));
+    act(() => result.current.first.updateField("name", "First Teamer Edited"));
+    act(() => result.current.youth.handleDelete(2));
+
+    expect(result.current.first.editingIndex).toBeNull();
+
+    act(() => {
+      void result.current.first.handleSave();
+    });
+
+    expect(result.current.items).toEqual([
+      { id: "y0", name: "Youth Zero" },
+      { id: "y1", name: "Youth One" },
+      { id: "p", name: "First Teamer Edited" },
+    ]);
+  });
+
+  // Given two rows sharing an id, the second open, and its twin left after the other editor deletes
+  //      the open one
+  // When the first editor saves its edit
+  // Then the edit is added as a new record: the twin that shares its id keeps its own data
+  it("appends the edit when the other editor deletes the open row and a same-id row remains", () => {
+    const { result } = renderTwoEditors([
+      { id: "x", name: "First X" },
+      { id: "x", name: "Second X" },
+    ]);
+    act(() => result.current.first.handleSelect(1));
+    act(() => result.current.first.updateField("name", "Second X Edited"));
+    act(() => result.current.youth.handleDelete(1));
+    act(() => {
+      void result.current.first.handleSave();
+    });
+
+    expect(result.current.items).toEqual([
+      { id: "x", name: "First X" },
+      { id: "x", name: "Second X Edited" },
+    ]);
+  });
+
+  // Given the second of two rows sharing an id open, an asset pick started, and a youth before
+  //      both removed by the other editor while the pick's dialog was open
+  // When the pick commits
+  // Then the asset lands on the record the pick began from, not on its twin
+  it("commits a picked asset onto the record the pick began from after rows shifted", () => {
+    const { result } = renderTwoEditors([
+      { id: "y0", name: "Youth Zero" },
+      { id: "x", name: "First X" },
+      { id: "x", name: "Second X" },
+    ]);
+    act(() => result.current.first.handleSelect(2));
+    const commit = result.current.first.commitField;
+    act(() => result.current.youth.handleDelete(0));
+    act(() => commit("logo", "assets/images/team/x.png"));
+
+    expect(result.current.items).toEqual([
+      { id: "x", name: "First X" },
+      { id: "x", name: "Second X", logo: "assets/images/team/x.png" },
+    ]);
+  });
+
+  // Given a record open, an asset pick started, and the record saved while the pick's dialog was
+  //      open
+  // When the pick commits
+  // Then the asset lands on the saved record: the save replaced the row the pick began from
+  it("keeps a picked asset when the record was saved before the pick finished", () => {
+    const { result } = renderTwoEditors(youthAndOne());
+    act(() => result.current.first.handleSelect(2));
+    const commit = result.current.first.commitField;
+    act(() => result.current.first.updateField("name", "First Teamer Edited"));
+    act(() => {
+      void result.current.first.handleSave();
+    });
+    act(() => commit("logo", "assets/images/player/p.png"));
+
+    expect(result.current.items[2]).toEqual({
+      id: "p",
+      name: "First Teamer Edited",
+      logo: "assets/images/player/p.png",
+    });
+  });
+
+  // Given a first-team player open in one editor, and a youth before him removed in the other
+  // When the list asks which row is open
+  // Then it is the open player's new row, so the list highlights the record the form shows
+  it("reports its record's current row after the other editor removed a row before it", () => {
+    const { result } = renderTwoEditors(youthAndOne());
+    act(() => result.current.first.handleSelect(2));
+    act(() => result.current.youth.handleDelete(0));
+
+    expect(result.current.first.editingIndex).toBe(1);
+  });
+
+  // Given a first-team player open in one editor, and a youth before him removed in the other
+  // When the first editor deletes the row now holding a different player
+  // Then the open player's form stays open: it is not the row that was deleted
+  it("keeps its form open when the other row at its old position is deleted", () => {
+    const onClose = vi.fn();
+    const { result } = renderHook(() => {
+      const [items, setItems] = useState(youthAndOne());
+      const options = {
+        items,
+        setItems,
+        empty: emptyItem,
+        captureHistory: vi.fn(),
+        saveItems: vi.fn().mockResolvedValue(undefined),
+        autoSave: false,
+        onOpen: vi.fn(),
+        onClose,
+        setIsBusy: vi.fn(),
+      };
+      return { items, first: useEntityEditor(options), youth: useEntityEditor(options) };
+    });
+    act(() => result.current.first.handleSelect(1));
+    act(() => result.current.youth.handleDelete(0));
+    act(() => result.current.first.handleDelete(1));
+
+    expect(onClose).not.toHaveBeenCalled();
+    expect(result.current.items.map((item) => item.id)).toEqual(["y1"]);
   });
 });
