@@ -58,9 +58,11 @@ const SEVERITY_BANDS: [SeverityBand; 4] = [
     },
 ];
 
-/// How many of the lightest bands a training knock can fall in: the slight and minor ones. A
-/// session's contact bruises and strains; it does not tear a ligament.
-const TRAINING_BANDS: usize = 2;
+/// How many of the lightest bands a training injury can fall in: the slight, minor and moderate
+/// ones (maintainer, 4 Nov 2026). A session can sprain an ankle or tear a hamstring; it does not
+/// tear a knee ligament or break a bone. Rolled by the match weights, a training injury lasts 7.4
+/// days on average, against 8.5 for the flat 3-14 it replaced.
+const TRAINING_BANDS: usize = 3;
 
 /// Rolls one injury: a severity band by its weight, then a name and a duration within it.
 ///
@@ -70,8 +72,8 @@ pub fn roll_injury(rng: &mut impl Rng) -> Injury {
     roll_from(&SEVERITY_BANDS, rng)
 }
 
-/// Rolls one training injury, from the slight and minor bands only, so a knee bruise lasts what it
-/// lasts after a match (1-2 days). Training used to draw its own flat 3-14 days for the same five
+/// Rolls one training injury, from the slight, minor and moderate bands, so a knee bruise lasts
+/// what it lasts after a match (1-2 days). Training used to draw its own flat 3-14 days for five
 /// names, so the inbox could report a knee bruise keeping a player out for a fortnight.
 pub fn roll_training_injury(rng: &mut impl Rng) -> Injury {
     roll_from(&SEVERITY_BANDS[..TRAINING_BANDS], rng)
@@ -171,10 +173,10 @@ mod tests {
             .expect("every injury name is in a band")
     }
 
-    /// Given a thousand training knocks
+    /// Given a thousand training injuries
     /// When each is rolled
     /// Then each lasts what an injury of its name lasts after a match, and none is worse than a
-    ///      minor one: a knee bruise is 1-2 days wherever it happens (training drew a flat 3-14)
+    ///      moderate one: a knee bruise is 1-2 days wherever it happens (training drew a flat 3-14)
     #[test]
     fn a_training_injury_lasts_what_its_name_lasts_after_a_match() {
         let mut rng = StdRng::seed_from_u64(11);
@@ -188,24 +190,25 @@ mod tests {
                 injury.days_remaining
             );
             assert!(
-                injury.days_remaining <= 7,
-                "{} is worse than a minor injury",
+                injury.days_remaining <= 28,
+                "{} is worse than a moderate injury",
                 injury.name
             );
         }
     }
 
-    /// Given a thousand training knocks
+    /// Given a thousand training injuries
     /// When each is rolled
-    /// Then both training bands come up: a slight knock and a minor one
+    /// Then all three training bands come up: slight, minor and moderate
     #[test]
-    fn training_injuries_come_from_both_light_bands() {
+    fn training_injuries_come_from_the_three_lighter_bands() {
         let mut rng = StdRng::seed_from_u64(12);
         let days: Vec<u32> = (0..1000)
             .map(|_| roll_training_injury(&mut rng).days_remaining)
             .collect();
         assert!(days.iter().any(|&day| day <= 2));
         assert!(days.iter().any(|&day| (3..=7).contains(&day)));
+        assert!(days.iter().any(|&day| (8..=28).contains(&day)));
     }
 
     fn attrs(stamina: u8) -> PlayerAttributes {
