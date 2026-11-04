@@ -3,11 +3,13 @@ import { useTranslation } from "react-i18next";
 
 import { type GameStateData, useGameStore } from "../../store/gameStore";
 import {
+  applyCustomTactic,
   type CustomTactic,
   deleteCustomTactic,
   legacyTacticsImportPending,
   listCustomTactics,
   markLegacyTacticsImported,
+  saveCurrentTactic,
   saveCustomTactic,
 } from "../../services/customTacticsService";
 import { getTacticsBlueprintStatus } from "../../services/squadService";
@@ -28,9 +30,8 @@ interface UseTacticsLibraryArgs {
   formation: string;
   activePlayStyle: string;
   initialPreset: TacticsPresetDefinition | null;
-  onFormationChange: (nextFormation: string) => Promise<boolean>;
-  onPlayStyleChange: (playStyle: string) => Promise<boolean>;
   onApplyPreset: (formation: string, playStyle: string) => Promise<boolean>;
+  onGameUpdate: (game: GameStateData) => void;
 }
 
 export function useTacticsLibrary({
@@ -38,9 +39,8 @@ export function useTacticsLibrary({
   formation,
   activePlayStyle,
   initialPreset,
-  onFormationChange,
-  onPlayStyleChange,
   onApplyPreset,
+  onGameUpdate,
 }: UseTacticsLibraryArgs) {
   const { t } = useTranslation();
   // The library is the career's, kept in the save: it follows a change of club and a reload. It
@@ -144,8 +144,10 @@ export function useTacticsLibrary({
       .catch(() => {});
   }
 
+  // A save is the team's tactic as it stands, whole (#1189): the backend reads it from the team,
+  // and the entry only gives it its id, name and description.
   function persistTactic(tactic: TacticsLibraryEntry): void {
-    changeSave(() => saveCustomTactic(toCustomTactic(tactic), careerToken));
+    changeSave(() => saveCurrentTactic(toCustomTactic(tactic), careerToken));
   }
 
   const matchedPreset = findTacticsPresetBySetup(formation, activePlayStyle);
@@ -198,8 +200,9 @@ export function useTacticsLibrary({
           draftTacticName.trim().length > 0 &&
           draftTacticName.trim() !== activeTactic.name)),
   );
-  // A custom tactic saves formation, style and name only, so its dials are not part of what could
-  // be "unsaved"; a preset is also its blueprint, so tuned dials make it differ from the preset.
+  // A saved tactic now holds its dials, eleven, roles and takers too (#1189), but this badge still
+  // compares a custom tactic by formation, style and name only; the tactic bar slice makes it read
+  // the whole tactic. A preset is also its blueprint, so tuned dials make it differ from the preset.
   const isCommandBarDirty = isActiveCustomTactic
     ? isActiveTacticDirty
     : isActiveTacticDirty || isPresetDirty || blueprintModified;
@@ -254,23 +257,26 @@ export function useTacticsLibrary({
     };
   }
 
-  async function applyFormationAndStyle(nextTactic: TacticsLibraryEntry): Promise<boolean> {
-    if (formation !== nextTactic.formation && !(await onFormationChange(nextTactic.formation))) {
+  // A saved tactic is put back whole by the backend: its formation and style, and for one that
+  // holds them its instructions, eleven, roles and takers (#1189).
+  async function applySavedTactic(nextTactic: TacticsLibraryEntry): Promise<boolean> {
+    try {
+      onGameUpdate(await applyCustomTactic(nextTactic.id.trim(), careerToken));
+      return true;
+    } catch (error) {
+      console.error("Failed to apply the saved tactic:", error);
       return false;
     }
-
-    return activePlayStyle === nextTactic.playStyle || onPlayStyleChange(nextTactic.playStyle);
   }
 
   async function applyTacticSelection(nextTactic: TacticsLibraryEntry): Promise<void> {
     const isPreset = nextTactic.type === "preset";
 
     // A preset is a whole setup: the backend sets its formation, play style and
-    // phase blueprint together (#365). Custom tactics only carry a formation and
-    // style, so they keep the separate calls and leave the manager's dials alone.
+    // phase blueprint together (#365). A saved tactic is applied whole too.
     const didApply = isPreset
       ? await onApplyPreset(nextTactic.formation, nextTactic.playStyle)
-      : await applyFormationAndStyle(nextTactic);
+      : await applySavedTactic(nextTactic);
     if (!didApply) {
       return;
     }

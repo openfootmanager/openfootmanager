@@ -4548,6 +4548,7 @@ mod tests {
             formation: "4-4-2".to_string(),
             play_style: "Counter".to_string(),
             source_preset_name: Some("Counter".to_string()),
+            contents: None,
         };
         game.custom_tactics = vec![
             tactic("a", "First"),
@@ -4584,6 +4585,7 @@ mod tests {
             formation: "3-5-2".to_string(),
             play_style: "Counter".to_string(),
             source_preset_name: None,
+            contents: None,
         }];
         let id = manager.create_save(&game, "Source").unwrap();
 

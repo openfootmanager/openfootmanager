@@ -92,9 +92,8 @@ export default function TacticsTab({
     formation,
     activePlayStyle,
     initialPreset,
-    onFormationChange: handleFormationChange,
-    onPlayStyleChange: handlePlayStyleChange,
     onApplyPreset: handleApplyTacticPreset,
+    onGameUpdate,
   });
 
   if (!team) {
