@@ -3,10 +3,6 @@ import { beforeAll, describe, expect, it } from "vitest";
 import { i18nReady } from "../i18n";
 import { getErrorMessage, resolveTranslatedErrorMessage } from "./errorMessage";
 
-// A caller's `t`, as a component test mocks it: it knows nothing, so it returns the key. The
-// banner must not depend on it: backend errors are resolved by the one resolver, on the app's i18n.
-const echoKey = (key: string) => key;
-
 beforeAll(async () => {
   await i18nReady;
 });
@@ -20,7 +16,6 @@ describe("resolveTranslatedErrorMessage", () => {
   it("translates a param that is itself a key", () => {
     const message = resolveTranslatedErrorMessage(
       "be.error.squadFloor.wouldLeaveShort?group=common.positionGroups.Goalkeeper",
-      echoKey,
     );
 
     expect(message).toContain("Position group affected: Goalkeepers.");
@@ -35,7 +30,6 @@ describe("resolveTranslatedErrorMessage", () => {
   it("formats a money param with the currency", () => {
     const message = resolveTranslatedErrorMessage(
       new Error("be.error.contracts.boardWagePolicy?budget=75000"),
-      echoKey,
     );
 
     expect(message).toMatch(/[^\d\s,.]\s?75,000|75,000\s?[^\d\s,.]/);
@@ -48,16 +42,14 @@ describe("resolveTranslatedErrorMessage", () => {
    */
   it("leaves a message that is not a known key as it was", () => {
     // An error of a shape nobody sends is shown as its text, never blank.
-    expect(resolveTranslatedErrorMessage(null, echoKey)).toBe("null");
-    expect(resolveTranslatedErrorMessage(42, echoKey)).toBe("42");
+    expect(resolveTranslatedErrorMessage(null)).toBe("null");
+    expect(resolveTranslatedErrorMessage(42)).toBe("42");
 
-    expect(resolveTranslatedErrorMessage("Something went wrong", echoKey)).toBe(
-      "Something went wrong",
-    );
-    expect(resolveTranslatedErrorMessage(new Error("be.error.noSuchKey"), echoKey)).toBe(
+    expect(resolveTranslatedErrorMessage("Something went wrong")).toBe("Something went wrong");
+    expect(resolveTranslatedErrorMessage(new Error("be.error.noSuchKey"))).toBe(
       "be.error.noSuchKey",
     );
-    expect(resolveTranslatedErrorMessage({ message: "plain" }, echoKey)).toBe("plain");
+    expect(resolveTranslatedErrorMessage({ message: "plain" })).toBe("plain");
   });
 });
 

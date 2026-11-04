@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { useTranslation } from "react-i18next";
 
 import type { GameStateData, PlayerData } from "../../store/gameStore";
 import { resolveTranslatedErrorMessage } from "../../utils/errorMessage";
@@ -41,8 +40,6 @@ export function useContractActionsFlow({
   player,
   onGameUpdate,
 }: UseContractActionsFlowArgs): UseContractActionsFlowResult {
-  const { t } = useTranslation();
-
   const [contractActionSubmitting, setContractActionSubmitting] = useState(false);
   const [contractActionError, setContractActionError] = useState<string | null>(null);
   const [terminationPreview, setTerminationPreview] =
@@ -64,7 +61,7 @@ export function useContractActionsFlow({
     try {
       await action();
     } catch (error) {
-      setContractActionError(resolveTranslatedErrorMessage(error, t));
+      setContractActionError(resolveTranslatedErrorMessage(error));
     } finally {
       setContractActionSubmitting(false);
     }
