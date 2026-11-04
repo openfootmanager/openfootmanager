@@ -3575,6 +3575,12 @@
         "subject": "Rapport de scout : {{player}}",
         "body": "Votre recruteur {{scout}} a terminé son évaluation de {{player}}. Rapport complet disponible dans la section recrutement."
       },
+      "scoutingCancelled": {
+        "subject": "Mission de supervision annulée",
+        "body": "Le recruteur que vous aviez envoyé observer {{player}} a quitté le club, il n'y aura donc pas de rapport. Envoyez un autre recruteur si vous en voulez toujours un.",
+        "bodyWithoutPlayer": "Le recruteur que vous aviez envoyé observer un joueur a quitté le club, et ce joueur ne figure plus dans nos fichiers, il n'y aura donc pas de rapport.",
+        "youthBody": "Le recruteur que vous aviez envoyé chercher des jeunes a quitté le club, la recherche est donc annulée. Lancez-en une nouvelle avec un autre recruteur si vous la voulez toujours."
+      },
       "boardWarning": {
         "subject": "Inquiétude du Conseil — Bilan de Performance",
         "body": "Le conseil d'administration est de plus en plus préoccupé par les résultats récents au {{team}}. Votre poste fera l'objet d'un examen sérieux si aucune amélioration n'est constatée dans un avenir proche."

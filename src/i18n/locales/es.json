@@ -3575,6 +3575,12 @@
         "subject": "Informe del ojeador: {{player}}",
         "body": "Tu ojeador {{scout}} ha completado su evaluación de {{player}}. Informe completo disponible en la sección de ojeo."
       },
+      "scoutingCancelled": {
+        "subject": "Misión de ojeo cancelada",
+        "body": "El ojeador que enviaste a seguir a {{player}} ha dejado el club, así que no habrá informe. Envía a otro ojeador si todavía lo quieres.",
+        "bodyWithoutPlayer": "El ojeador que enviaste a seguir a un jugador ha dejado el club, y ese jugador ya no figura en nuestros registros, así que no habrá informe.",
+        "youthBody": "El ojeador que enviaste a buscar jóvenes ha dejado el club, así que la búsqueda se ha cancelado. Empieza una nueva con otro ojeador si todavía la quieres."
+      },
       "boardWarning": {
         "subject": "Preocupación de la Directiva — Revisión de Resultados",
         "body": "La directiva está cada vez más preocupada con los resultados recientes en {{team}}. Tu puesto será objeto de una seria revisión si no hay mejora en un futuro próximo."

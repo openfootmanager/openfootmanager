@@ -3575,6 +3575,12 @@
         "subject": "Relatório do observador: {{player}}",
         "body": "O seu observador {{scout}} concluiu a avaliação de {{player}}. O relatório completo está disponível na secção de observação."
       },
+      "scoutingCancelled": {
+        "subject": "Missão de observação cancelada",
+        "body": "O observador que enviou para observar {{player}} saiu do clube, por isso não haverá relatório. Envie outro observador se ainda o quiser.",
+        "bodyWithoutPlayer": "O observador que enviou para observar um jogador saiu do clube, e esse jogador já não consta dos nossos registos, por isso não haverá relatório.",
+        "youthBody": "O observador que enviou numa pesquisa de jovens saiu do clube, por isso a pesquisa foi cancelada. Comece uma nova com outro observador se ainda a quiser."
+      },
       "boardWarning": {
         "subject": "Preocupação da Direção — Revisão de Desempenho",
         "body": "A direção está cada vez mais preocupada com os resultados recentes no {{team}}. A sua posição será seriamente revista se não houver melhoria num futuro próximo."
