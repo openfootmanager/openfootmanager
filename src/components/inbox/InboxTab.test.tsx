@@ -1540,17 +1540,18 @@ describe("InboxTab", (): void => {
       resolved: false,
     };
     const open = createGameState([
-      createMessage({ id: "contract_concern_p1", read: true, actions: [action] }),
+      createMessage({ id: "happy_player_p1", read: true, actions: [action] }),
     ]);
     let answer: (value: unknown) => void = () => {};
-    mockedInvoke.mockImplementation((command: string) =>
-      command === "resolve_message_action"
-        ? new Promise((resolve) => {
-            answer = resolve;
-          })
-        : Promise.resolve(open.messages),
-    );
-    await renderInboxTab({ gameState: open, initialMessageId: "contract_concern_p1" });
+    mockedInvoke.mockImplementation((command: string) => {
+      if (command === "resolve_message_action") {
+        return new Promise((resolve) => {
+          answer = resolve;
+        });
+      }
+      return Promise.resolve(command === "get_messages_page" ? open.messages : open);
+    });
+    await renderInboxTab({ gameState: open, initialMessageId: "happy_player_p1" });
     const resolveCalls = () =>
       mockedInvoke.mock.calls.filter(([command]) => command === "resolve_message_action");
 
