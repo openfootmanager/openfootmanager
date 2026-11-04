@@ -48,19 +48,17 @@ pub fn toggle_listing(game: &mut Game, player_id: &str, listing: Listing) -> Res
     if player.team_id.as_deref() != Some(user_team_id.as_str()) {
         return Err(ERR_PLAYER_NOT_OWNED_BY_USER.to_string());
     }
-    let listed = match listing {
-        Listing::Transfer => &mut player.transfer_listed,
-        Listing::Loan => &mut player.loan_listed,
+    let putting_on = !match listing {
+        Listing::Transfer => player.transfer_listed,
+        Listing::Loan => player.loan_listed,
     };
-    let putting_on = !*listed;
     if putting_on && player_has_active_or_pending_loan(player) {
         return Err(ERR_PLAYER_ALREADY_LOANED.to_string());
     }
-    let listed = match listing {
-        Listing::Transfer => &mut player.transfer_listed,
-        Listing::Loan => &mut player.loan_listed,
-    };
-    *listed = putting_on;
+    match listing {
+        Listing::Transfer => player.transfer_listed = putting_on,
+        Listing::Loan => player.loan_listed = putting_on,
+    }
     Ok(())
 }
 

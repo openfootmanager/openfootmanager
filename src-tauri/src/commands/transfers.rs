@@ -1206,7 +1206,8 @@ mod tests {
         assert!(!stored);
     }
 
-    /// Given one of the user's players on the transfer and loan lists, then sent out on loan
+    /// Given one of the user's players on the transfer and loan lists, whose loan to another club is
+    ///      agreed and waiting for the window to register (he is still at the user's club)
     /// When the user takes him off each list
     /// Then both succeed: a loan stops a listing being made, never one being undone
     #[test]
@@ -1215,17 +1216,24 @@ mod tests {
         let mut game = make_game();
         game.players[0].transfer_listed = true;
         game.players[0].loan_listed = true;
-        game.players[0].active_loan = Some(ActiveLoan {
+        game.players[0].loan_offers.push(LoanOffer {
+            id: "pending-loan-registration".to_string(),
+            from_team_id: "team-2".to_string(),
             parent_team_id: "team-1".to_string(),
-            loan_team_id: "team-2".to_string(),
-            start_date: "2026-08-01".to_string(),
+            start_date: "2026-09-01".to_string(),
             end_date: "2027-01-01".to_string(),
             wage_contribution_pct: 75,
             buy_option_fee: None,
-            loan_start_minutes: 0,
-            loan_start_appearances: 0,
-            development_reported_minutes: 0,
-            development_reported_appearances: 0,
+            last_manager_wage_contribution_pct: None,
+            last_manager_end_date: None,
+            last_manager_buy_option_fee: None,
+            negotiation_round: 1,
+            suggested_wage_contribution_pct: None,
+            suggested_end_date: None,
+            suggested_buy_option_fee: None,
+            status: LoanOfferStatus::PendingRegistration,
+            date: "2026-08-01".to_string(),
+            closed_on: None,
         });
         state.set_game(game);
 
