@@ -39,8 +39,14 @@ export function isFormResult(value: string): value is FormResult {
 }
 
 /** A match the club played, as the recap names it, in the form's letters. */
+const FORM_RESULT_OF: Record<"win" | "draw" | "loss", FormResult> = {
+  win: "W",
+  draw: "D",
+  loss: "L",
+};
+
 export function formResultOf(outcome: "win" | "draw" | "loss"): FormResult {
-  return { win: "W", draw: "D", loss: "L" }[outcome] satisfies FormResult;
+  return FORM_RESULT_OF[outcome];
 }
 
 /**
