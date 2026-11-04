@@ -434,6 +434,11 @@
     "lostFull": "Mağlubiyet",
     "ptsFull": "Puan",
     "recentForm": "Son form durumu",
+    "formResult": {
+      "W": "G",
+      "D": "B",
+      "L": "M"
+    },
     "played": "O",
     "won": "G",
     "drawn": "B",

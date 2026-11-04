@@ -434,6 +434,11 @@
     "lostFull": "Kalah",
     "ptsFull": "Poin",
     "recentForm": "Performa terkini",
+    "formResult": {
+      "W": "M",
+      "D": "S",
+      "L": "K"
+    },
     "played": "M",
     "won": "M",
     "drawn": "S",

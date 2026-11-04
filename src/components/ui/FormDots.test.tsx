@@ -7,13 +7,21 @@ vi.mock("react-i18next", () => ({
   useTranslation: () => ({
     t: (key: string) =>
       ({
+        // Spanish, where the standings headers (PG, PE, PP) differ from the form letters (G, E, P)
+        // and the table's plural words from one match's.
         "common.recentForm": "Recent form",
-        "common.won": "V",
-        "common.drawn": "E",
-        "common.lost": "D",
-        "common.wonFull": "Vitórias",
-        "common.drawnFull": "Empates",
-        "common.lostFull": "Derrotas",
+        "common.won": "PG",
+        "common.drawn": "PE",
+        "common.lost": "PP",
+        "common.wonFull": "Ganados",
+        "common.drawnFull": "Empatados",
+        "common.lostFull": "Perdidos",
+        "common.formResult.W": "G",
+        "common.formResult.D": "E",
+        "common.formResult.L": "P",
+        "match.victory": "Victoria",
+        "match.draw": "Empate",
+        "match.defeat": "Derrota",
       })[key] ?? key,
   }),
 }));
@@ -28,9 +36,10 @@ function spoken(element: Element): string {
 describe("FormDots", () => {
   /**
    * Given a club's last five results as the backend keeps them (W, D, W, W, L, oldest first)
-   * When they are drawn in a locale whose letters differ from English (Portuguese: V, E, D)
-   * Then they are a list named "Recent form", oldest first, each showing the locale's letter and
-   *      read as its word, never the backend's English letter.
+   * When they are drawn in Spanish, whose form letters (G, E, P) differ from both English and its
+   *      own standings headers (PG, PE, PP)
+   * Then they are a list named "Recent form", oldest first, each showing the form letter and read
+   *      as one match's word (Victoria, not the table's Ganados), never the backend's English letter.
    */
   it("draws each result as the locale's letter, read as its word, oldest first", () => {
     render(<FormDots results={["W", "D", "W", "W", "L"]} />);
@@ -38,18 +47,18 @@ describe("FormDots", () => {
     const list = screen.getByRole("list", { name: "Recent form" });
     const items = within(list).getAllByRole("listitem");
     expect(items.map((item) => item.querySelector('[aria-hidden="true"]')?.textContent)).toEqual([
-      "V",
+      "G",
       "E",
-      "V",
-      "V",
-      "D",
+      "G",
+      "G",
+      "P",
     ]);
     expect(items.map((item) => spoken(item))).toEqual([
-      "Vitórias",
-      "Empates",
-      "Vitórias",
-      "Vitórias",
-      "Derrotas",
+      "Victoria",
+      "Empate",
+      "Victoria",
+      "Victoria",
+      "Derrota",
     ]);
   });
 
@@ -77,7 +86,8 @@ describe("FormDots", () => {
 
     const [win, draw, loss] = screen.getAllByRole("listitem");
     expect(win).toHaveClass("bg-positive-tint", "text-positive");
-    expect(draw).toHaveClass("bg-sunken");
+    // With Badge's inset line: sunken alone vanishes on a white panel.
+    expect(draw).toHaveClass("bg-sunken", "ring-1", "ring-line");
     expect(loss).toHaveClass("bg-danger-tint", "text-danger");
   });
 

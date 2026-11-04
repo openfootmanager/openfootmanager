@@ -434,6 +434,11 @@
     "lostFull": "Поражения",
     "ptsFull": "Очки",
     "recentForm": "Текущая форма",
+    "formResult": {
+      "W": "В",
+      "D": "Н",
+      "L": "П"
+    },
     "played": "И",
     "won": "В",
     "drawn": "Н",

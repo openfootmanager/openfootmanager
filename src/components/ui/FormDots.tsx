@@ -3,17 +3,25 @@ import { useTranslation } from "react-i18next";
 /** A result as the backend keeps it in a club's form. */
 type FormResult = "W" | "D" | "L";
 
-/** Each result's letter, its word, and its tone from the role tokens. */
+/**
+ * Each result's letter (the locale's own one-letter mark, not the standings table's column header,
+ * which is two letters in Spanish), its word for one match, and its tone from the role tokens.
+ */
 const RESULT: Record<FormResult, { letterKey: string; wordKey: string; tone: string }> = {
   W: {
-    letterKey: "common.won",
-    wordKey: "common.wonFull",
+    letterKey: "common.formResult.W",
+    wordKey: "match.victory",
     tone: "bg-positive-tint text-positive",
   },
-  D: { letterKey: "common.drawn", wordKey: "common.drawnFull", tone: "bg-sunken text-fg-muted" },
+  // The inset line, as Badge's neutral has it: sunken alone is 1.02:1 on a white panel.
+  D: {
+    letterKey: "common.formResult.D",
+    wordKey: "match.draw",
+    tone: "bg-sunken text-fg-muted ring-1 ring-inset ring-line",
+  },
   L: {
-    letterKey: "common.lost",
-    wordKey: "common.lostFull",
+    letterKey: "common.formResult.L",
+    wordKey: "match.defeat",
     tone: "bg-danger-tint text-danger",
   },
 };

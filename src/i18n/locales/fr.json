@@ -434,6 +434,11 @@
     "lostFull": "Défaites",
     "ptsFull": "Points",
     "recentForm": "Forme récente",
+    "formResult": {
+      "W": "V",
+      "D": "N",
+      "L": "D"
+    },
     "played": "J",
     "won": "V",
     "drawn": "N",

@@ -453,6 +453,11 @@
     "lostFull": "Perse",
     "ptsFull": "Punti",
     "recentForm": "Forma recente",
+    "formResult": {
+      "W": "V",
+      "D": "N",
+      "L": "P"
+    },
     "played": "G",
     "won": "V",
     "drawn": "N",
