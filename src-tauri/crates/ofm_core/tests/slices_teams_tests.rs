@@ -758,3 +758,23 @@ fn a_club_in_a_cup_and_a_league_gets_the_league() {
         assert_eq!(standing.competition_id, "div1");
     }
 }
+
+/// Given a club whose last five results were a win, a draw, two wins and a loss (the loss last)
+/// When its directory card is built
+/// Then the card carries that form, oldest first as the club keeps it, for the card's form dots.
+///      A result is public: no knowledge rule hides another club's form.
+#[test]
+fn a_card_carries_the_clubs_last_five_results() {
+    let mut team = make_team("t1", "Alpha FC", "ENG", "London");
+    team.form = ["W", "D", "W", "W", "L"].map(String::from).to_vec();
+    let rival = make_team("t2", "Beta FC", "ENG", "Leeds");
+    let league = make_domestic_league("epl", "Premier", "ENG", Some("UEFA"), &["t1", "t2"]);
+    // The manager runs the other club: the form shows for a rival as for his own.
+    let game = managing(make_game(vec![team, rival], vec![], vec![league]), "t2");
+
+    assert_eq!(
+        directory_card(&game, "t1").form,
+        vec!["W", "D", "W", "W", "L"]
+    );
+    assert!(directory_card(&game, "t2").form.is_empty());
+}

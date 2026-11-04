@@ -239,17 +239,13 @@ function DigestDayRow({ entry }: { entry: DigestEntry }): JSX.Element {
         ))}
 
         {recap.news.map((article, i) => (
-          <NewsCard
-            key={article.id}
-            text={article.textKey ? t(article.textKey, article.params ?? {}) : article.text}
-            idx={newsOffset + i}
-          />
+          <NewsCard key={article.id} text={article.text} idx={newsOffset + i} />
         ))}
 
         {recap.inbox.map((item, i) => (
           <InboxCard
             key={item.id}
-            text={item.textKey ? t(item.textKey, item.params ?? {}) : item.text}
+            text={item.text}
             category={item.category}
             idx={inboxOffset + i}
           />
