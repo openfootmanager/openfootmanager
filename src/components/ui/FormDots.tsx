@@ -35,7 +35,8 @@ export function FormDots({ results }: { results: readonly string[] }) {
   const known = results.filter(isFormResult);
   if (known.length === 0) return null;
   return (
-    <ol aria-label={t("common.recentForm")} className="flex list-none gap-1 p-0">
+    // biome-ignore lint/a11y/noRedundantRoles: WebKit (Tauri's webview on macOS and Linux) drops a list's semantics under list-style: none, so the role is restated.
+    <ol role="list" aria-label={t("common.recentForm")} className="flex list-none gap-1 p-0">
       {known.map((result, index) => {
         const { letterKey, wordKey, tone } = RESULT[result];
         return (

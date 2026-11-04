@@ -54,6 +54,18 @@ describe("FormDots", () => {
   });
 
   /**
+   * Given a club's form, drawn without bullets (list-style: none)
+   * When a screen reader on WebKit, Tauri's webview, reaches it
+   * Then it is still announced as a list, because the list says its role outright: WebKit drops
+   *      the semantics of an unstyled list otherwise, whatever its aria-label says.
+   */
+  it("says outright that the form is a list, which WebKit drops from an unstyled one", () => {
+    render(<FormDots results={["W", "D", "L"]} />);
+
+    expect(screen.getByRole("list", { name: "Recent form" })).toHaveAttribute("role", "list");
+  });
+
+  /**
    * Given a win, a draw and a loss
    * When they are drawn
    * Then each takes its result's tint and text tone from the role tokens (positive, neutral,
