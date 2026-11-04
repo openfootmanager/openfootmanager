@@ -20,7 +20,7 @@ const NO_TEAM_ERROR: &str = "be.error.noTeamAssigned";
 const MANAGED_TEAM_NOT_FOUND_ERROR: &str = "be.error.managedTeamNotFound";
 
 /// One slot of the eleven.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, TS)]
+#[derive(Debug, Clone, PartialEq, Serialize, TS)]
 pub struct LineupSlot {
     /// The position the slot is, from the formation.
     pub position: Position,
@@ -32,7 +32,7 @@ pub struct LineupSlot {
 }
 
 /// The manager's club's side for its next match.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, TS)]
+#[derive(Debug, Clone, PartialEq, Serialize, TS)]
 pub struct TacticsLineup {
     pub formation: String,
     /// The eleven the match would field, slot by slot in the formation's order.

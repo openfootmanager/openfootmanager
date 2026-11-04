@@ -68,7 +68,7 @@ export function useTacticsLineup({ gameState, onGameUpdate }: UseTacticsLineupAr
   const initialTeam = sessionState?.team ?? gameState?.teams?.find((t) => t.id === teamId) ?? null;
   const backendLineup = useTacticsLineupProjection(
     tacticsLineupRevision(
-      (sessionState ?? gameState)?.career_token ?? 0,
+      gameState?.career_token ?? 0,
       initialTeam,
       fetchedSquad ?? gameState?.players ?? [],
       clockDate,
