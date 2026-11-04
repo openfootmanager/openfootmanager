@@ -29,4 +29,5 @@ export { RatingChip } from "./RatingChip";
 export { CardGrid } from "./CardGrid";
 export { EntityCard } from "./EntityCard";
 export { ConditionMeter } from "./ConditionMeter";
+export { FormDots } from "./FormDots";
 export { ViewSwitch } from "./ViewSwitch";

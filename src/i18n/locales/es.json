@@ -433,6 +433,12 @@
     "drawnFull": "Empatados",
     "lostFull": "Perdidos",
     "ptsFull": "Puntos",
+    "recentForm": "Forma reciente",
+    "formResult": {
+      "W": "V",
+      "D": "E",
+      "L": "D"
+    },
     "played": "PJ",
     "won": "PG",
     "drawn": "PE",
@@ -1263,6 +1269,15 @@
     "employed": "En activo",
     "unemployed": "Sin club",
     "reputation": "Reputación",
+    "reputationBand": {
+      "world_class": "Clase mundial",
+      "established": "Consolidado",
+      "great": "Excelente",
+      "good": "Bueno",
+      "average": "Medio",
+      "below_average": "Por debajo del promedio",
+      "unknown": "Desconocido"
+    },
     "winRate": "Porcentaje de victorias",
     "matches": "Partidos",
     "currentClub": "Club actual",
@@ -1530,6 +1545,7 @@
     "yourTeam": "Tu Equipo",
     "squad": "Plantilla",
     "avgOvr": "Media OVR",
+    "manager": "Entrenador",
     "rep": "Rep.",
     "est": "Fund."
   },

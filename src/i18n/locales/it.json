@@ -452,6 +452,12 @@
     "drawnFull": "Pareggiate",
     "lostFull": "Perse",
     "ptsFull": "Punti",
+    "recentForm": "Forma recente",
+    "formResult": {
+      "W": "V",
+      "D": "N",
+      "L": "P"
+    },
     "played": "G",
     "won": "V",
     "drawn": "N",
@@ -1282,6 +1288,15 @@
     "employed": "In carica",
     "unemployed": "Senza squadra",
     "reputation": "Reputazione",
+    "reputationBand": {
+      "world_class": "Di livello mondiale",
+      "established": "Affermato",
+      "great": "Ottimo",
+      "good": "Buono",
+      "average": "Nella media",
+      "below_average": "Sotto la media",
+      "unknown": "Sconosciuto"
+    },
     "winRate": "Percentuale vittorie",
     "matches": "Partite",
     "currentClub": "Club attuale",
@@ -1549,6 +1564,7 @@
     "yourTeam": "La tua squadra",
     "squad": "Rosa",
     "avgOvr": "OVR medio",
+    "manager": "Allenatore",
     "rep": "Rep.",
     "est": "Fond."
   },

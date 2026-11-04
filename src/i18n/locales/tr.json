@@ -433,6 +433,12 @@
     "drawnFull": "Beraberlik",
     "lostFull": "Mağlubiyet",
     "ptsFull": "Puan",
+    "recentForm": "Son form durumu",
+    "formResult": {
+      "W": "G",
+      "D": "B",
+      "L": "M"
+    },
     "played": "O",
     "won": "G",
     "drawn": "B",
@@ -1263,6 +1269,15 @@
     "employed": "Görevde",
     "unemployed": "Kulüpsüz",
     "reputation": "İtibar",
+    "reputationBand": {
+      "world_class": "Dünya klasında",
+      "established": "Saygın",
+      "great": "Çok iyi",
+      "good": "İyi",
+      "average": "Orta",
+      "below_average": "Ortalama altı",
+      "unknown": "Tanınmıyor"
+    },
     "winRate": "Galibiyet oranı",
     "matches": "Maçlar",
     "currentClub": "Mevcut kulüp",
@@ -1530,6 +1545,7 @@
     "yourTeam": "Takımın",
     "squad": "Kadro",
     "avgOvr": "Ort. OVR",
+    "manager": "Menajer",
     "rep": "İtb",
     "est": "Kur."
   },
