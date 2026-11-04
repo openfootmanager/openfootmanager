@@ -140,6 +140,8 @@ pub(super) fn apply_match_report_in<F>(
     };
     let mut counts_for_standings = false;
     let mut generates_match_news = false;
+    // A report with no fixture to say otherwise counts, as it always has.
+    let mut is_competitive = true;
 
     // Update fixture status, standings
     if let Some(league) = game.league.as_mut() {
@@ -147,6 +149,7 @@ pub(super) fn apply_match_report_in<F>(
         fixture.status = FixtureStatus::Completed;
         counts_for_standings = fixture.counts_for_league_standings();
         generates_match_news = fixture.generates_match_report_news();
+        is_competitive = fixture.is_competitive();
 
         if counts_for_standings {
             if let Some(entry) = league
@@ -188,8 +191,11 @@ pub(super) fn apply_match_report_in<F>(
         &both_clubs,
     ));
 
-    // Update player season stats from the engine report
-    apply_player_stats(game, report, &both_clubs);
+    // A player's season stats count the matches played for something: a friendly feeds
+    // neither the awards nor his development nor his valuation (#1212).
+    if is_competitive {
+        apply_player_stats(game, report, &both_clubs);
+    }
     resolve_post_match_promises(game, report, &both_clubs);
 
     // Deplete stamina for players who played, scaled by minutes on pitch
