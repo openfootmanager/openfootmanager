@@ -252,7 +252,8 @@ export default function TacticsPlayerFocusPanel({
             <button
               type="button"
               onClick={onClose}
-              className="rounded-lg p-1 text-white/60 transition-colors hover:bg-white/10 hover:text-white"
+              aria-label={t("common.close")}
+              className="rounded-lg p-1 text-white/60 transition-colors hover:bg-white/10 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-focus"
             >
               <X className="h-4 w-4" />
             </button>
