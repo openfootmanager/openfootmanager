@@ -82,6 +82,7 @@ pub fn build_game_from_world_data(
                     );
                     crate::catchup::simulate_past_fixtures(
                         comp,
+                        &world.teams,
                         &world.players,
                         game_start,
                         &mut rng,

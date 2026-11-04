@@ -241,11 +241,17 @@ where
     let dormant_competitions = dormant_competition_indices_due_today(game, today);
     if !dormant_competitions.is_empty() {
         // Found once for the whole dormant tier: a scoreline moves no player.
+        let teams_by_id: std::collections::HashMap<&str, &domain::team::Team> = game
+            .teams
+            .iter()
+            .map(|team| (team.id.as_str(), team))
+            .collect();
         let players_by_club = crate::match_day_eligibility::players_by_club(&game.players);
         for competition_index in dormant_competitions {
             dormant::simulate_dormant_competition_day(
                 &mut game.competitions[competition_index],
                 game.seed,
+                &teams_by_id,
                 &players_by_club,
                 today,
             );
@@ -562,6 +568,7 @@ fn simulate_single_match_with_capture<F>(
                 return;
             };
             crate::catchup::resolve_fixture_by_scoreline(
+                &game.teams,
                 &game.players,
                 league,
                 idx,

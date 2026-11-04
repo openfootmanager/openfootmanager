@@ -7,15 +7,17 @@ use std::collections::HashMap;
 
 use domain::league::{FixtureStatus, League};
 use domain::player::Player;
+use domain::team::Team;
 
 /// Resolve every fixture due `today` in the dormant `competition` with a scoreline-only model:
 /// update the fixture result and league standings, and advance any group/knockout progression —
 /// but skip the expensive per-player post-match work that the full engine path does.
-/// `players_by_club` is every club's players, as `match_day_eligibility::players_by_club` finds
-/// them.
+/// `teams_by_id` is every club by its id, and `players_by_club` every club's players, as
+/// `match_day_eligibility::players_by_club` finds them.
 pub(super) fn simulate_dormant_competition_day(
     competition: &mut League,
     seed: u64,
+    teams_by_id: &HashMap<&str, &Team>,
     players_by_club: &HashMap<&str, Vec<&Player>>,
     today: &str,
 ) {
@@ -41,6 +43,7 @@ pub(super) fn simulate_dormant_competition_day(
             fixture_index,
             |team_id| {
                 crate::catchup::club_strength_among(
+                    teams_by_id.get(team_id).copied(),
                     players_by_club.get(team_id).map_or(&[][..], Vec::as_slice),
                 )
             },
@@ -117,8 +120,19 @@ mod tests {
     }
 
     fn play_day(game: &mut Game, today: &str) {
+        let teams = game
+            .teams
+            .iter()
+            .map(|team| (team.id.as_str(), team))
+            .collect();
         let clubs = crate::match_day_eligibility::players_by_club(&game.players);
-        simulate_dormant_competition_day(&mut game.competitions[0], game.seed, &clubs, today);
+        simulate_dormant_competition_day(
+            &mut game.competitions[0],
+            game.seed,
+            &teams,
+            &clubs,
+            today,
+        );
     }
 
     fn player(id: &str, team_id: &str, ovr: u8) -> Player {
@@ -220,6 +234,7 @@ mod tests {
                 );
                 let mut rng = scanned.rng_for(&tag, today);
                 crate::catchup::resolve_fixture_by_scoreline(
+                    &scanned.teams,
                     &scanned.players,
                     &mut scanned.competitions[0],
                     fixture_index,

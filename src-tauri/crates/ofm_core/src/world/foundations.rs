@@ -49,6 +49,7 @@ pub(crate) fn build_foundation_competitions(game: &Game, division_size: usize) -
                 );
                 crate::catchup::simulate_past_fixtures(
                     &mut competition,
+                    &game.teams,
                     &game.players,
                     game_start,
                     &mut rng,
@@ -63,6 +64,7 @@ pub(crate) fn build_foundation_competitions(game: &Game, division_size: usize) -
 }
 
 pub fn rebuild_competitions_for_management_date(game: &mut Game, management_date: DateTime<Utc>) {
+    let teams = &game.teams;
     let players = &game.players;
     let seed = game.seed;
     for competition in &mut game.competitions {
@@ -98,7 +100,13 @@ pub fn rebuild_competitions_for_management_date(game: &mut Game, management_date
                 &format!("catchup/foundations/{}", competition.id),
                 &management_date.format("%Y-%m-%d").to_string(),
             );
-            crate::catchup::simulate_past_fixtures(competition, players, management_date, &mut rng);
+            crate::catchup::simulate_past_fixtures(
+                competition,
+                teams,
+                players,
+                management_date,
+                &mut rng,
+            );
         }
     }
 
@@ -129,6 +137,7 @@ pub fn rebuild_competitions_for_management_date(game: &mut Game, management_date
             );
             crate::catchup::simulate_past_fixtures(
                 competition,
+                &game.teams,
                 &game.players,
                 management_date,
                 &mut rng,
