@@ -647,7 +647,7 @@
     "lastPage": "Son sayfa",
     "sortBy": "Sırala",
     "sortAscending": "Artan",
-    "lineupLoading": "Pozisyon verileri hâlâ yükleniyor, bu yüzden kadro değişiklikleri henüz kullanılamıyor."
+    "lineupLoading": "Kadro hâlâ yükleniyor, bu yüzden diziliş değişiklikleri henüz kullanılamıyor."
   },
   "teamSelection": {
     "title": "Kulübünü Seç",
@@ -1108,6 +1108,8 @@
     "transferBudget": "Transfer Bütçesi",
     "seasonIncome": "Sezon Geliri",
     "seasonExpenses": "Sezon Gideri",
+    "moneyIn": "Gelen para",
+    "moneyOut": "Giden para",
     "perWeekSuffix": "/hf",
     "snapshotLoadFailed": "Kulübün mali durumu yüklenemedi.",
     "perYearSuffix": "/yıl",
@@ -2835,6 +2837,7 @@
         "noSubstitutionsForShootout": "Uzatmalar bittikten sonra oyuncu değişikliği yapılamaz: penaltı atışlarını son düdükte sahada olan oyuncular kullanır.",
         "shootoutOrderNotNow": "Penaltı sırası yalnızca uzatmalardan sonra, ilk atıştan önce belirlenebilir.",
         "shootoutOrderNotYourSide": "Yalnızca kendi takımınızın penaltı sırasını belirleyebilirsiniz.",
+        "notYourSide": "Yalnızca kendi takımınıza talimat verebilirsiniz.",
         "shootoutOrderNotEligible": "Penaltı sırası, atış yapabilecek her oyuncunuzu tam bir kez içermelidir.",
         "playerNotOnPitch": "Oyuncu sahada değil",
         "playerAlreadySubstitutedOff": "Oyuncu zaten oyundan alınmış",
@@ -2854,6 +2857,7 @@
         "missingSchema": "Bir paket dosyasında \"schema\" alanı eksik.",
         "worldExportNotPackage": "Bu klasör dışa aktarılmış bir dünya kaydı, paket projesi değil. Dışa aktarılan dünyalar farklı bir biçim kullanır ve burada düzenlenemez.",
         "notAProjectDirectory": "Bu bir paket proje klasörü değil. Paketin package.json dosyasını içeren klasörü seçin; kurulu bir .ofm paketi için \".ofm dosyası aç\" seçeneğini kullanın.",
+        "saveWouldDropItem": "Kaydedilmedi: {{file}} dosyasında düzenleyicinin okuyamadığı ve JSON olarak koruyamadığı bir giriş var. Bu girişi dosyada düzeltip yeniden kaydedin.",
         "unknownSchema": "Bilinmeyen şema \"{{schema}}\".",
         "invalidEntity": "Bir \"{{schema}}\" kaydı geçersiz: {{detail}}",
         "duplicateWorld": "Paketin zaten \"{{first}}\" içinde bir manifestosu var; bir paketin yalnızca bir \"world\" dosyası olabilir.",
@@ -2902,6 +2906,8 @@
       },
       "competitionDef": {
         "invalidCalendar": "Geçersiz müsabaka takvimi: lig ailesini, seviyeyi, aşamayı ve kapanış tarihini kontrol edin.",
+        "invalidSeasonMonth": "Sezon başlangıç ayı {{month}} geçersiz (1–12 arasında olmalı).",
+        "invalidSeasonDay": "Sezon başlangıç günü {{day}}, başlangıç ayında geçerli bir gün değil.",
         "invalidEmbedded": "Bu dünyanın turnuva tanımları geçersiz ve yüklenemedi.",
         "invalidStandalone": "Seçilen turnuva tanım dosyası geçersiz.",
         "parseFailed": "Turnuva tanım dosyası JSON olarak okunamadı.",
@@ -2998,6 +3004,7 @@
         "cannotBidOnOwnPlayer": "Kendi oyuncunuza teklif veremezsiniz",
         "playerHasNoTeam": "Oyuncunun takımı yok",
         "insufficientFunds": "Yetersiz bakiye",
+        "buyerCannotAffordFee": "Alıcı kulüp artık bu bonservis bedelini karşılayamıyor, bu yüzden transfer gerçekleşemez.",
         "transferBudgetTooLow": "Transfer bütçesi çok düşük",
         "playerNotOwnedByUser": "Oyuncu bulunamadı veya size ait değil",
         "offerNotPending": "Teklif bulunamadı veya beklemede değil",
@@ -3007,6 +3014,7 @@
         "loanCounterMustImproveTerms": "Karşı kiralama teklifi mevcut teklifi iyileştirmelidir",
         "playerNotLoanListed": "Oyuncu kiralık listesinde değil",
         "playerAlreadyLoaned": "Oyuncu zaten kiralık olarak başka takımda",
+        "playerAlreadySold": "Bu oyuncu zaten satıldı. Transfer, transfer dönemi açıldığında gerçekleşecek.",
         "invalidLoanEndDate": "Kiralama bitiş tarihi bugünden itibaren 30 gün ile bir yıl arasında olmalıdır",
         "invalidLoanWageContribution": "Kiralama maaş katkısı %0 ile %100 arasında olmalıdır",
         "invalidLoanBuyOption": "Kiralamadaki satın alma opsiyonu sıfırdan büyük olmalıdır",
@@ -3526,6 +3534,7 @@
         },
         "notes": {
           "managerBlocked": "Sözleşme görüşmelerini henüz yeniden açmamamı söylemiştiniz.",
+          "markedLetExpire": "Bu sözleşmeyi sona ermeye bırakılacak olarak işaretlemiştiniz, bu yüzden görüşme açmadım.",
           "completed": "Bu görüşmeyi siz devreye girmeden tamamlayabildim.",
           "completedToKeepSquadFloor": "Tamamlandı, yönetimin maaş politikasının üzerinde. Yönetim onay verdi; çünkü bu oyuncu olmadan asgari kadronun altına düşerdik.",
           "beyondLimits": "Oyuncunun kampı {{years}} yıl için haftalık {{wage}} civarı istiyor; bu, devretme sınırlarının ötesinde.",
@@ -3567,6 +3576,12 @@
       "scoutReport": {
         "subject": "Gözlemci Raporu: {{player}}",
         "body": "Gözlemciniz {{scout}}, {{player}} değerlendirmesini tamamladı. Raporun tamamı gözlemcilik bölümünde."
+      },
+      "scoutingCancelled": {
+        "subject": "Gözlem görevi iptal edildi",
+        "body": "{{player}} oyuncusunu izlemeye gönderdiğiniz gözlemci kulüpten ayrıldı, bu yüzden rapor gelmeyecek. Hâlâ istiyorsanız başka bir gözlemci gönderin.",
+        "bodyWithoutPlayer": "Bir oyuncuyu izlemeye gönderdiğiniz gözlemci kulüpten ayrıldı ve o oyuncu artık kayıtlarımızda yok, bu yüzden rapor gelmeyecek.",
+        "youthBody": "Genç oyuncu aramasına gönderdiğiniz gözlemci kulüpten ayrıldı, bu yüzden arama iptal edildi. Hâlâ istiyorsanız başka bir gözlemciyle yeni bir arama başlatın."
       },
       "boardWarning": {
         "subject": "Yönetim Endişesi — Performans Değerlendirmesi",
@@ -3630,6 +3645,10 @@
         "subject": "Kiralama anlaşması: {{player}}",
         "bodyWithOption": "{{player}}, {{start}} ile {{end}} tarihleri arasında {{parent}} kulübünden {{borrower}} kulübüne kiralanacak. {{borrower}} maaşın %{{contribution}} kısmını karşılayacak. Satın alma opsiyonu: {{fee}}.",
         "bodyNoOption": "{{player}}, {{start}} ile {{end}} tarihleri arasında {{parent}} kulübünden {{borrower}} kulübüne kiralanacak. {{borrower}} maaşın %{{contribution}} kısmını karşılayacak. Satın alma opsiyonu yok."
+      },
+      "loanRegistrationFailed": {
+        "subject": "Kiralama iptal edildi: {{player}}",
+        "body": "{{player}} oyuncusunun {{parent}} kulübünden {{borrower}} kulübüne {{start}} tarihinde başlaması kararlaştırılan kiralaması gerçekleşemiyor: oyuncunun artık {{parent}} ile sözleşmesi yok."
       },
       "loanOffer": {
         "subject": "{{player}} için Kiralama Teklifi",

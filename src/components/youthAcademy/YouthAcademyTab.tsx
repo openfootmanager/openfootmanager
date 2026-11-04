@@ -1,6 +1,7 @@
 import { useRatingTiers } from "../../hooks/useRatingTiers";
 import { isEliteTier, ratingTierClass, ratingTierLetterKey } from "../../lib/ratingTier";
 import { useEffect, useRef, useState } from "react";
+import { resolveTranslatedErrorMessage } from "../../utils/errorMessage";
 import type { GameStateData } from "../../store/gameStore";
 import { useGameStore } from "../../store/gameStore";
 import { useFetchedSquad } from "../../hooks/useFetchedSquad";
@@ -190,7 +191,7 @@ export default function YouthAcademyTab({
       applyScoutingUpdate(updated);
       setSelectedYouthScoutId("");
     } catch (err) {
-      setYouthSearchError(String(err));
+      setYouthSearchError(resolveTranslatedErrorMessage(err));
     } finally {
       setStartingYouthSearch(false);
     }
@@ -201,7 +202,7 @@ export default function YouthAcademyTab({
     try {
       applyScoutingUpdate(await cancelYouthScouting(assignmentId));
     } catch (err) {
-      setYouthSearchError(String(err));
+      setYouthSearchError(resolveTranslatedErrorMessage(err));
     }
   };
 
@@ -210,7 +211,7 @@ export default function YouthAcademyTab({
     try {
       applyScoutingUpdate(await reassignYouthScouting(assignmentId, scoutId));
     } catch (err) {
-      setYouthSearchError(String(err));
+      setYouthSearchError(resolveTranslatedErrorMessage(err));
     }
   };
 

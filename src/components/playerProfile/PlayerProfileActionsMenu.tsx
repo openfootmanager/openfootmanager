@@ -101,7 +101,7 @@ export default function PlayerProfileActionsMenu({
     try {
       onGameUpdate(await mutation());
     } catch (error) {
-      onError(resolveTranslatedErrorMessage(error, t));
+      onError(resolveTranslatedErrorMessage(error));
     } finally {
       setMutationPending(false);
     }
