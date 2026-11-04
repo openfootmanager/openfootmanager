@@ -5,6 +5,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { i18nReady } from "../../i18n";
 import type { GameStateData, PlayerData, TeamData } from "../../store/gameStore";
 import TacticsTab from "./TacticsTab";
+import { resetTacticsLineupCache } from "../../hooks/useTacticsLineupProjection";
 import type { CustomTactic } from "../../services/customTacticsService";
 import { createSeasonContext } from "../../test-utils/factories";
 
@@ -228,6 +229,7 @@ describe("TacticsTab preset selection", { timeout: TACTICS_TAB_CASE_TIMEOUT_MS }
 
   beforeEach(() => {
     localStorage.clear();
+    resetTacticsLineupCache();
     mockedInvoke.mockReset();
     blueprintModified = false;
     savedTactics = [];

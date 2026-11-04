@@ -4,6 +4,7 @@ import { invoke, type InvokeArgs } from "@tauri-apps/api/core";
 import type { GameStateData, PlayerData, TeamData } from "../../store/gameStore";
 import type { CustomTactic } from "../../services/customTacticsService";
 import TacticsTab from "./TacticsTab";
+import { resetTacticsLineupCache } from "../../hooks/useTacticsLineupProjection";
 import { ratingTierClass } from "../../lib/ratingTier";
 import { createSeasonContext } from "../../test-utils/factories";
 
@@ -262,6 +263,7 @@ const createDataTransfer = () => {
 describe("TacticsTab", () => {
   beforeEach(() => {
     localStorage.clear();
+    resetTacticsLineupCache();
     mockedInvoke.mockReset();
     const defaultGameState = makeGameState();
     const defaultRoster = defaultGameState.players.filter((p) => p.team_id === "team1");
@@ -873,6 +875,40 @@ describe("TacticsTab", () => {
     expect(within(screen.getByTestId("xi-player-d1")).getByText("76")).toHaveClass(
       ...ratingTierClass("B", "badge").split(" "),
     );
+  });
+
+  /**
+   * Given a club whose saved eleven names the forward "f2", and a backend whose lineup fields
+   *       the bench defender "d5" in that slot instead (as the match would, for its own reasons)
+   * When the Tactics screen shows the eleven
+   * Then it shows the backend's eleven, "d5" and not "f2": the screen picks no side of its own.
+   */
+  it("shows the eleven the backend says the match will field", async () => {
+    const gameState = makeGameState();
+    const roster = gameState.players.filter((p) => p.team_id === "team1");
+    const eleven = ["gk1", "d1", "d2", "d3", "d4", "m1", "m2", "m3", "m4", "f1", "d5"];
+    mockedInvoke.mockImplementation(async (command: string) => {
+      if (command === "get_squad") return roster;
+      if (command === "get_tactics_lineup") {
+        return {
+          formation: "4-4-2",
+          eleven: eleven.map((player_id) => ({
+            position: "Striker",
+            player_id,
+            role: "Standard",
+            familiarity: "natural",
+          })),
+          substitutes: ["f2"],
+          reserves: [],
+        };
+      }
+      return gameState;
+    });
+
+    render(<TacticsTab gameState={gameState} onSelectPlayer={vi.fn()} onGameUpdate={vi.fn()} />);
+
+    expect(await screen.findByTestId("xi-player-d5")).toBeInTheDocument();
+    expect(screen.queryByTestId("xi-player-f2")).not.toBeInTheDocument();
   });
 
   it("shows all starting XI players in the left panel list", () => {
