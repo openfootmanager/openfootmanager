@@ -54,7 +54,7 @@ pub fn tactics_lineup(game: &Game) -> Result<TacticsLineup, String> {
         .ok_or(MANAGED_TEAM_NOT_FOUND_ERROR)?;
     let club = club_players(&game.players, team_id);
     let selection = match_day_selection(game, team_id, &club, None);
-    let positions = formation_slots(&team.formation);
+    let positions = formation_slots(&selection.formation);
     let eleven: Vec<LineupSlot> = selection
         .eleven
         .iter()
@@ -78,7 +78,7 @@ pub fn tactics_lineup(game: &Game) -> Result<TacticsLineup, String> {
         .map(|player| player.id.clone())
         .collect();
     Ok(TacticsLineup {
-        formation: team.formation.clone(),
+        formation: selection.formation.clone(),
         eleven,
         substitutes,
         reserves,
