@@ -13,6 +13,7 @@ use ofm_core::position_ratings::{position_ratings, PositionRatings};
 use ofm_core::potential_opinion::PotentialOpinion;
 use ofm_core::slices::competitions::{query_competitions, CompetitionsQuery, CompetitionsView};
 use ofm_core::slices::inbox::{query_messages, MessagesQuery};
+use ofm_core::slices::managers::{query_managers_page, ManagersPage, ManagersStatus};
 use ofm_core::slices::news::{query_news_feed, NewsFeed, NewsFeedQuery};
 use ofm_core::slices::players::{query_page, PlayersPage, PlayersPageQuery};
 use ofm_core::slices::schedule::{query_schedule, ScheduleQuery, ScheduleSlice};
@@ -197,6 +198,25 @@ pub async fn get_familiarity(
     state: State<'_, Arc<StateManager>>,
 ) -> Result<FamiliarityProjection, String> {
     get_familiarity_internal(&state)
+}
+
+/// The managers directory: every active manager with his club, reputation band and record, and
+/// every club with no manager, filtered by `status`.
+#[tauri::command]
+pub async fn get_managers_page(
+    state: State<'_, Arc<StateManager>>,
+    status: ManagersStatus,
+) -> Result<ManagersPage, String> {
+    get_managers_page_internal(&state, status)
+}
+
+fn get_managers_page_internal(
+    state: &StateManager,
+    status: ManagersStatus,
+) -> Result<ManagersPage, String> {
+    state
+        .get_game(|game| query_managers_page(game, status))
+        .ok_or_else(|| NO_ACTIVE_GAME.to_string())
 }
 
 fn get_familiarity_internal(state: &StateManager) -> Result<FamiliarityProjection, String> {
@@ -857,6 +877,46 @@ mod tests {
         state.set_game(game);
 
         assert_eq!(get_position_ratings_internal(&state, "nobody"), Ok(None));
+    }
+
+    /// Given no game is loaded, and then a game with only the user's manager
+    /// When the managers directory adapter reads it
+    /// Then the first is the no-session key and the second lists the user
+    #[test]
+    fn the_managers_page_adapter_answers_a_key_for_no_session_and_lists_the_user() {
+        use chrono::TimeZone;
+        use domain::manager::Manager;
+        let state = StateManager::new();
+        assert_eq!(
+            get_managers_page_internal(&state, ManagersStatus::All),
+            Err(NO_ACTIVE_GAME.to_string())
+        );
+        let game = ofm_core::game::Game::new(
+            ofm_core::clock::GameClock::new(
+                chrono::Utc.with_ymd_and_hms(2026, 9, 15, 12, 0, 0).unwrap(),
+            ),
+            Manager::new(
+                "m".into(),
+                "M".into(),
+                "Gr".into(),
+                "1980-01-01".into(),
+                "GB".into(),
+            ),
+            vec![],
+            vec![],
+            vec![],
+            vec![],
+        );
+        state.set_game(game);
+
+        let page =
+            get_managers_page_internal(&state, ManagersStatus::All).expect("a game is loaded");
+        let ids: Vec<&str> = page
+            .managers
+            .iter()
+            .map(|manager| manager.id.as_str())
+            .collect();
+        assert_eq!(ids, vec!["m"]);
     }
 
     /// Given no game is loaded and then a game whose manager has no club

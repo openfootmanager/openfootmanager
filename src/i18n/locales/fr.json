@@ -1263,6 +1263,15 @@
     "employed": "En poste",
     "unemployed": "Sans club",
     "reputation": "Réputation",
+    "reputationBand": {
+      "world_class": "Classe mondiale",
+      "established": "Confirmé",
+      "great": "Excellent",
+      "good": "Bon",
+      "average": "Moyen",
+      "below_average": "Inférieur à la moyenne",
+      "unknown": "Inconnu"
+    },
     "winRate": "Taux de victoire",
     "matches": "Matchs",
     "currentClub": "Club actuel",

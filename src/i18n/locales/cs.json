@@ -1263,6 +1263,15 @@
     "employed": "Zaměstnaný",
     "unemployed": "Bez angažmá",
     "reputation": "Reputace",
+    "reputationBand": {
+      "world_class": "Světová třída",
+      "established": "Uznávaný",
+      "great": "Výborný",
+      "good": "Dobrý",
+      "average": "Průměrný",
+      "below_average": "Podprůměrný",
+      "unknown": "Neznámý"
+    },
     "winRate": "Úspěšnost výher",
     "matches": "Zápasy",
     "currentClub": "Aktuální klub",

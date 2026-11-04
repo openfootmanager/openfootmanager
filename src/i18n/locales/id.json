@@ -1263,6 +1263,15 @@
     "employed": "Bekerja",
     "unemployed": "Menganggur",
     "reputation": "Reputasi",
+    "reputationBand": {
+      "world_class": "Kelas dunia",
+      "established": "Mapan",
+      "great": "Hebat",
+      "good": "Baik",
+      "average": "Cukup",
+      "below_average": "Di bawah rata-rata",
+      "unknown": "Tidak dikenal"
+    },
     "winRate": "Persentase Kemenangan",
     "matches": "Pertandingan",
     "currentClub": "Klub Saat Ini",

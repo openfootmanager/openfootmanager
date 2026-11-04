@@ -1263,6 +1263,15 @@
     "employed": "在任",
     "unemployed": "待业",
     "reputation": "声望",
+    "reputationBand": {
+      "world_class": "世界级",
+      "established": "成名",
+      "great": "出色",
+      "good": "良好",
+      "average": "中游",
+      "below_average": "低于平均",
+      "unknown": "无名"
+    },
     "winRate": "胜率",
     "matches": "比赛",
     "currentClub": "当前俱乐部",

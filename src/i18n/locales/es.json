@@ -1263,6 +1263,15 @@
     "employed": "En activo",
     "unemployed": "Sin club",
     "reputation": "Reputación",
+    "reputationBand": {
+      "world_class": "Clase mundial",
+      "established": "Consolidado",
+      "great": "Excelente",
+      "good": "Bueno",
+      "average": "Medio",
+      "below_average": "Por debajo del promedio",
+      "unknown": "Desconocido"
+    },
     "winRate": "Porcentaje de victorias",
     "matches": "Partidos",
     "currentClub": "Club actual",

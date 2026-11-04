@@ -1263,6 +1263,15 @@
     "employed": "Im Amt",
     "unemployed": "Vereinslos",
     "reputation": "Ruf",
+    "reputationBand": {
+      "world_class": "Weltklasse",
+      "established": "Etabliert",
+      "great": "Hervorragend",
+      "good": "Gut",
+      "average": "Durchschnittlich",
+      "below_average": "Unterdurchschnittlich",
+      "unknown": "Unbekannt"
+    },
     "winRate": "Siegquote",
     "matches": "Spiele",
     "currentClub": "Aktueller Klub",
