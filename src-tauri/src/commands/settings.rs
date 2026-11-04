@@ -147,6 +147,10 @@ fn validate_settings(mut settings: AppSettings) -> Result<AppSettings, String> {
     Ok(settings)
 }
 
+/// The settings file in the app's data directory: written by the Settings screen and read by the
+/// advance commands' auto-save check, which must look in the same place.
+const SETTINGS_FILE: &str = "settings.json";
+
 fn settings_path<R: tauri::Runtime>(
     app_handle: &tauri::AppHandle<R>,
     error_key: &str,
@@ -156,7 +160,7 @@ fn settings_path<R: tauri::Runtime>(
         .app_data_dir()
         .map_err(|_| error_key.to_string())?;
     std::fs::create_dir_all(&dir).map_err(|_| error_key.to_string())?;
-    Ok(dir.join("settings.json"))
+    Ok(dir.join(SETTINGS_FILE))
 }
 
 /// Whether the player's Auto-Save setting is on, for the advance commands (#1181): the saved
@@ -167,7 +171,7 @@ pub(crate) fn auto_save_enabled<R: tauri::Runtime>(app_handle: &tauri::AppHandle
         .path()
         .app_data_dir()
         .ok()
-        .and_then(|dir| std::fs::read_to_string(dir.join("settings.json")).ok());
+        .and_then(|dir| std::fs::read_to_string(dir.join(SETTINGS_FILE)).ok());
     auto_save_from(stored.as_deref())
 }
 
