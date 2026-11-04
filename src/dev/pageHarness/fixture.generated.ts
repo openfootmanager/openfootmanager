@@ -1520,6 +1520,7 @@ export const contractWarningStages = {
 
 export const financeSnapshot = {
   "annual_wage_bill": 247396,
+  "cash_flow": [],
   "cash_runway_weeks": null,
   "currently_in_debt": false,
   "currently_over_budget": false,
