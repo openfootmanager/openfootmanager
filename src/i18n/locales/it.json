@@ -3649,7 +3649,8 @@
       },
       "loanRegistrationFailed": {
         "subject": "Prestito annullato: {{player}}",
-        "body": "Il prestito concordato di {{player}} dal {{parent}} al {{borrower}}, previsto dal {{start}}, non può avere luogo: il giocatore non è più sotto contratto con il {{parent}}."
+        "body": "Il prestito concordato di {{player}} dal {{parent}} al {{borrower}}, previsto dal {{start}}, non può avere luogo: il giocatore non è più sotto contratto con il {{parent}}.",
+        "bodyRequirementNotMet": "Il prestito concordato di {{player}} dal {{parent}} al {{borrower}} non è potuto partire il {{start}}: una delle condizioni alle quali era stato concordato, come lo spazio nel monte ingaggi del {{borrower}} o la durata del contratto del giocatore, non è più rispettata."
       },
       "loanOffer": {
         "subject": "Offerta di prestito per {{player}}",

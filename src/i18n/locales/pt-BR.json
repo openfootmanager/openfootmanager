@@ -3649,7 +3649,8 @@
       },
       "loanRegistrationFailed": {
         "subject": "Empréstimo cancelado: {{player}}",
-        "body": "O empréstimo acertado de {{player}} do {{parent}} para o {{borrower}}, previsto para {{start}}, não pode acontecer: o jogador não tem mais contrato com o {{parent}}."
+        "body": "O empréstimo acertado de {{player}} do {{parent}} para o {{borrower}}, previsto para {{start}}, não pode acontecer: o jogador não tem mais contrato com o {{parent}}.",
+        "bodyRequirementNotMet": "O empréstimo acertado de {{player}} do {{parent}} para o {{borrower}} não pôde começar em {{start}}: uma das condições em que foi acertado, como espaço na folha salarial do {{borrower}} ou a duração do contrato do jogador, não vale mais."
       },
       "loanOffer": {
         "subject": "Proposta de Empréstimo por {{player}}",

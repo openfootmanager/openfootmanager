@@ -3649,7 +3649,8 @@
       },
       "loanRegistrationFailed": {
         "subject": "Kiralama iptal edildi: {{player}}",
-        "body": "{{player}} oyuncusunun {{parent}} kulübünden {{borrower}} kulübüne {{start}} tarihinde başlaması kararlaştırılan kiralaması gerçekleşemiyor: oyuncunun artık {{parent}} ile sözleşmesi yok."
+        "body": "{{player}} oyuncusunun {{parent}} kulübünden {{borrower}} kulübüne {{start}} tarihinde başlaması kararlaştırılan kiralaması gerçekleşemiyor: oyuncunun artık {{parent}} ile sözleşmesi yok.",
+        "bodyRequirementNotMet": "{{player}} oyuncusunun {{parent}} kulübünden {{borrower}} kulübüne kararlaştırılan kiralaması {{start}} tarihinde başlayamadı: anlaşmanın dayandığı koşullardan biri, örneğin {{borrower}} kulübünün maaş bütçesindeki yer ya da oyuncunun sözleşme süresi, artık sağlanmıyor."
       },
       "loanOffer": {
         "subject": "{{player}} için Kiralama Teklifi",

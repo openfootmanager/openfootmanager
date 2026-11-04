@@ -3649,7 +3649,8 @@
       },
       "loanRegistrationFailed": {
         "subject": "Peminjaman dibatalkan: {{player}}",
-        "body": "Peminjaman {{player}} yang disepakati dari {{parent}} ke {{borrower}}, yang dijadwalkan mulai {{start}}, tidak bisa berjalan: pemain itu tidak lagi terikat kontrak dengan {{parent}}."
+        "body": "Peminjaman {{player}} yang disepakati dari {{parent}} ke {{borrower}}, yang dijadwalkan mulai {{start}}, tidak bisa berjalan: pemain itu tidak lagi terikat kontrak dengan {{parent}}.",
+        "bodyRequirementNotMet": "Peminjaman {{player}} yang disepakati dari {{parent}} ke {{borrower}} tidak bisa dimulai pada {{start}}: salah satu syarat kesepakatannya, seperti ruang dalam anggaran gaji {{borrower}} atau masa kontrak pemain, tidak lagi terpenuhi."
       },
       "loanOffer": {
         "subject": "Tawaran Pinjaman untuk {{player}}",
