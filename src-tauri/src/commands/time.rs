@@ -147,6 +147,8 @@ pub fn skip_to_match_day_internal(
     }
 
     let mut days_skipped = 0u32;
+    // Why the skip arrived: on the user's match day, or out of days (the 60-day limit) with none.
+    let mut reached_match_day = false;
     loop {
         if days_skipped >= 60 {
             break;
@@ -216,7 +218,10 @@ pub fn skip_to_match_day_internal(
         }
 
         match step {
-            Step::MatchDay => break,
+            Step::MatchDay => {
+                reached_match_day = true;
+                break;
+            }
             Step::Terminal(response) => return Ok(response),
             Step::Advanced => days_skipped += 1,
         }
@@ -233,6 +238,8 @@ pub fn skip_to_match_day_internal(
     let results = collect_advance_results(&game, &start_date);
     Ok(serde_json::json!({
         "action": "arrived",
+        "reached_match_day": reached_match_day,
+        "date": game.clock.current_date.format("%Y-%m-%d").to_string(),
         "game": game,
         "days_skipped": days_skipped,
         "results": results
