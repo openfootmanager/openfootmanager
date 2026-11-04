@@ -3613,6 +3613,10 @@
         "bodyWithOption": "{{player}} wechselt vom {{start}} bis zum {{end}} auf Leihbasis von {{parent}} zu {{borrower}}. {{borrower}} übernimmt {{contribution}}% des Gehalts. Kaufoption: {{fee}}.",
         "bodyNoOption": "{{player}} wechselt vom {{start}} bis zum {{end}} auf Leihbasis von {{parent}} zu {{borrower}}. {{borrower}} übernimmt {{contribution}}% des Gehalts. Keine Kaufoption."
       },
+      "loanRegistrationFailed": {
+        "subject": "Leihe abgesagt: {{player}}",
+        "body": "Die vereinbarte Leihe von {{player}} von {{parent}} zu {{borrower}}, geplant ab {{start}}, kann nicht stattfinden: Der Spieler steht nicht mehr bei {{parent}} unter Vertrag."
+      },
       "loanOffer": {
         "subject": "Leihangebot für {{player}}",
         "body": "{{team}} möchte {{player}} bis {{endDate}} ausleihen und {{wageContribution}}% des Gehalts übernehmen. Kaufoption: {{buyOption}}. Prüfen Sie das Angebot im Transfers-Tab.",

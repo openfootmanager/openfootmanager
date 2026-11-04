@@ -3613,6 +3613,10 @@
         "bodyWithOption": "{{player}} será emprestado por {{parent}} a {{borrower}} de {{start}} até {{end}}. {{borrower}} suportará {{contribution}}% do salário. Opção de compra: {{fee}}.",
         "bodyNoOption": "{{player}} será emprestado por {{parent}} a {{borrower}} de {{start}} até {{end}}. {{borrower}} suportará {{contribution}}% do salário. Sem opção de compra."
       },
+      "loanRegistrationFailed": {
+        "subject": "Empréstimo cancelado: {{player}}",
+        "body": "O empréstimo acordado de {{player}} do {{parent}} para o {{borrower}}, previsto para {{start}}, não pode avançar: o jogador já não tem contrato com o {{parent}}."
+      },
       "loanOffer": {
         "subject": "Proposta de Empréstimo por {{player}}",
         "body": "{{team}} quer receber {{player}} por empréstimo até {{endDate}} e cobrir {{wageContribution}}% do salário. Opção de compra: {{buyOption}}. Reveja a proposta no separador Transferências.",

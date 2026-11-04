@@ -3613,6 +3613,10 @@
         "bodyWithOption": "{{player}}, {{start}} ile {{end}} tarihleri arasında {{parent}} kulübünden {{borrower}} kulübüne kiralanacak. {{borrower}} maaşın %{{contribution}} kısmını karşılayacak. Satın alma opsiyonu: {{fee}}.",
         "bodyNoOption": "{{player}}, {{start}} ile {{end}} tarihleri arasında {{parent}} kulübünden {{borrower}} kulübüne kiralanacak. {{borrower}} maaşın %{{contribution}} kısmını karşılayacak. Satın alma opsiyonu yok."
       },
+      "loanRegistrationFailed": {
+        "subject": "Kiralama iptal edildi: {{player}}",
+        "body": "{{player}} oyuncusunun {{parent}} kulübünden {{borrower}} kulübüne {{start}} tarihinde başlaması kararlaştırılan kiralaması gerçekleşemiyor: oyuncunun artık {{parent}} ile sözleşmesi yok."
+      },
       "loanOffer": {
         "subject": "{{player}} için Kiralama Teklifi",
         "body": "{{team}}, {{player}} oyuncusunu {{endDate}} tarihine kadar kiralamak ve maaşların %{{wageContribution}}'ini karşılamak istiyor. Satın alma opsiyonu: {{buyOption}}. Teklifi Transferler sekmesinde inceleyin.",

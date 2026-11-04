@@ -3613,6 +3613,10 @@
         "bodyWithOption": "{{player}}将从{{parent}}租借至{{borrower}}，租期从{{start}}至{{end}}。{{borrower}}将承担{{contribution}}%的工资。买断选项：{{fee}}。",
         "bodyNoOption": "{{player}}将从{{parent}}租借至{{borrower}}，租期从{{start}}至{{end}}。{{borrower}}将承担{{contribution}}%的工资。无买断选项。"
       },
+      "loanRegistrationFailed": {
+        "subject": "租借已取消：{{player}}",
+        "body": "{{player}}从{{parent}}租借至{{borrower}}的协议原定于{{start}}开始，但无法进行：该球员已不再与{{parent}}签约。"
+      },
       "loanOffer": {
         "subject": "收到对{{player}}的租借报价",
         "body": "{{team}}希望租借{{player}}至{{endDate}},并承担{{wageContribution}}%的工资。买断选项:{{buyOption}}。请在转会标签页中查看该报价。",

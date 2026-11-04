@@ -3613,6 +3613,10 @@
         "bodyWithOption": "{{player}} will move on loan from {{parent}} to {{borrower}} from {{start}} until {{end}}. {{borrower}} will cover {{contribution}}% of the wages. Purchase option: {{fee}}.",
         "bodyNoOption": "{{player}} will move on loan from {{parent}} to {{borrower}} from {{start}} until {{end}}. {{borrower}} will cover {{contribution}}% of the wages. No purchase option."
       },
+      "loanRegistrationFailed": {
+        "subject": "Loan cancelled: {{player}}",
+        "body": "The agreed loan of {{player}} from {{parent}} to {{borrower}}, due to start on {{start}}, cannot go ahead: the player is no longer under contract to {{parent}}."
+      },
       "loanOffer": {
         "subject": "Loan Offer for {{player}}",
         "body": "{{team}} want to take {{player}} on loan until {{endDate}} and cover {{wageContribution}}% of the wages. Purchase option: {{buyOption}}. Review the offer in the Transfers tab.",

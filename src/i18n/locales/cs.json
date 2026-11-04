@@ -3613,6 +3613,10 @@
         "bodyWithOption": "Hráč {{player}} bude hostovat z klubu {{parent}} v klubu {{borrower}} od {{start}} do {{end}}. Klub {{borrower}} bude hradit {{contribution}} % platu. Opce na odkup: {{fee}}.",
         "bodyNoOption": "Hráč {{player}} bude hostovat z klubu {{parent}} v klubu {{borrower}} od {{start}} do {{end}}. Klub {{borrower}} bude hradit {{contribution}} % platu. Bez opce na odkup."
       },
+      "loanRegistrationFailed": {
+        "subject": "Hostování zrušeno: {{player}}",
+        "body": "Dohodnuté hostování hráče {{player}} z {{parent}} do {{borrower}}, které mělo začít {{start}}, se neuskuteční: hráč už nemá smlouvu s {{parent}}."
+      },
       "loanOffer": {
         "subject": "Nabídka hostování pro hráče {{player}}",
         "body": "Klub {{team}} chce získat hráče {{player}} na hostování do {{endDate}} a pokrýt {{wageContribution}} % jeho platu. Opce na odkup: {{buyOption}}. Zkontrolujte nabídku v záložce Přestupy.",

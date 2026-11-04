@@ -963,6 +963,104 @@ mod tests {
         );
     }
 
+    fn loan_cancellations(game: &Game) -> Vec<&InboxMessage> {
+        game.messages
+            .iter()
+            .filter(|message| {
+                message.subject_key.as_deref() == Some("be.msg.loanRegistrationFailed.subject")
+            })
+            .collect()
+    }
+
+    /// `game.players[0]`, under contract to `lender` until 12 January 2026, with a loan to
+    /// `borrower` agreed and waiting to start on 20 January.
+    fn pending_loan_game(lender: &str, borrower: &str) -> Game {
+        // The fixture contracts the player to team1 (the user) or team2; only those lend here.
+        assert!(lender == "team1" || lender == "team2");
+        let mut game =
+            pending_transfer_game_with(lender == "team1", Some("2026-01-12"), "2026-01-20");
+        game.players[0].transfer_offers.clear();
+        game.players[0].loan_offers.push(
+            serde_json::from_value(serde_json::json!({
+                "id": "agreed-loan", "from_team_id": borrower, "parent_team_id": lender,
+                "start_date": "2026-01-20", "end_date": "2026-06-30",
+                "wage_contribution_pct": 60, "status": "PendingRegistration", "date": "2026-01-05"
+            }))
+            .unwrap(),
+        );
+        game
+    }
+
+    fn with_third_club(mut game: Game) -> Game {
+        let mut third = game.teams[1].clone();
+        third.id = "team3".to_string();
+        third.name = "Third Club".to_string();
+        game.teams.push(third);
+        game
+    }
+
+    /// Given the user's player loaned out to an AI club, agreed and waiting for the window, whose
+    /// contract runs out first; when it expires; then the user, as lender, is told the loan cannot
+    /// start, naming both clubs and the day it was due (#1242: it vanished without a word).
+    #[test]
+    fn an_agreed_loan_out_whose_player_is_released_is_reported_to_the_lender() {
+        let mut game = pending_loan_game("team1", "team2");
+
+        crate::contracts::process_contract_expiries(&mut game);
+
+        let letters = loan_cancellations(&game);
+        assert_eq!(letters.len(), 1);
+        assert_eq!(letters[0].i18n_params["start"], "2026-01-20");
+        assert_eq!(
+            letters[0].i18n_params["parent"],
+            game.team_name_or_id("team1")
+        );
+        assert_eq!(
+            letters[0].i18n_params["borrower"],
+            game.team_name_or_id("team2")
+        );
+        assert_eq!(
+            letters[0].context.player_id.as_deref(),
+            Some("player-award")
+        );
+        assert!(game.players[0].loan_offers.is_empty());
+    }
+
+    /// Given an AI club's player loaned to the user, agreed and waiting; when his contract expires;
+    /// then the user, as borrower, is told the loan cannot start.
+    #[test]
+    fn an_agreed_loan_in_whose_player_is_released_is_reported_to_the_borrower() {
+        let mut game = pending_loan_game("team2", "team1");
+
+        crate::contracts::process_contract_expiries(&mut game);
+
+        assert_eq!(loan_cancellations(&game).len(), 1);
+    }
+
+    /// Given a loan agreed between two AI clubs; when the player's contract expires; then the user
+    /// is told nothing: it is not his deal.
+    #[test]
+    fn a_loan_between_two_other_clubs_lapses_without_a_letter_to_the_user() {
+        let mut game = with_third_club(pending_loan_game("team2", "team3"));
+
+        crate::contracts::process_contract_expiries(&mut game);
+
+        assert!(loan_cancellations(&game).is_empty());
+    }
+
+    /// Given the user's player loaned out and agreed, and old enough to retire at the season's end;
+    /// when the season's ageing retires him; then the user is told the loan cannot start.
+    #[test]
+    fn an_agreed_loan_whose_player_retires_is_reported_to_the_lender() {
+        let mut game = pending_loan_game("team1", "team2");
+        game.players[0].date_of_birth = "1980-01-01".to_string();
+
+        let today = game.clock.current_date.date_naive();
+        crate::aging::apply_seasonal_aging(&mut game, today, 2025);
+
+        assert_eq!(loan_cancellations(&game).len(), 1);
+    }
+
     /// Given an agreement already reported as lapsed at the release; when its registration day
     /// comes; then nothing more is sent and nothing is registered.
     #[test]
