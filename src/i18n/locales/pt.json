@@ -2818,6 +2818,7 @@
         "missingSchema": "Falta o campo \"schema\" num ficheiro do pacote.",
         "worldExportNotPackage": "Esta pasta é um mundo exportado, não um projeto de pacote. Os mundos exportados usam um formato diferente e não podem ser editados aqui.",
         "notAProjectDirectory": "Esta não é uma pasta de projeto de pacote. Escolhe a pasta que contém o package.json do pacote — ou, para um pacote .ofm instalado, usa «Abrir ficheiro .ofm».",
+        "saveWouldDropItem": "Não foi guardado: {{file}} tem uma entrada que o editor não consegue ler nem manter em JSON. Corrija essa entrada no ficheiro e guarde de novo.",
         "unknownSchema": "Esquema desconhecido \"{{schema}}\".",
         "invalidEntity": "Uma entrada \"{{schema}}\" é inválida: {{detail}}",
         "duplicateWorld": "O pacote já tem um manifesto em \"{{first}}\"; um pacote só pode ter um ficheiro \"world\".",

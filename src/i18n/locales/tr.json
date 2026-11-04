@@ -2853,6 +2853,7 @@
         "missingSchema": "Bir paket dosyasında \"schema\" alanı eksik.",
         "worldExportNotPackage": "Bu klasör dışa aktarılmış bir dünya kaydı, paket projesi değil. Dışa aktarılan dünyalar farklı bir biçim kullanır ve burada düzenlenemez.",
         "notAProjectDirectory": "Bu bir paket proje klasörü değil. Paketin package.json dosyasını içeren klasörü seçin; kurulu bir .ofm paketi için \".ofm dosyası aç\" seçeneğini kullanın.",
+        "saveWouldDropItem": "Kaydedilmedi: {{file}} dosyasında düzenleyicinin okuyamadığı ve JSON olarak koruyamadığı bir giriş var. Bu girişi dosyada düzeltip yeniden kaydedin.",
         "unknownSchema": "Bilinmeyen şema \"{{schema}}\".",
         "invalidEntity": "Bir \"{{schema}}\" kaydı geçersiz: {{detail}}",
         "duplicateWorld": "Paketin zaten \"{{first}}\" içinde bir manifestosu var; bir paketin yalnızca bir \"world\" dosyası olabilir.",

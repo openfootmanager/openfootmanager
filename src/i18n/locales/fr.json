@@ -2818,6 +2818,7 @@
         "missingSchema": "Un fichier du package n’a pas de champ « schema ».",
         "worldExportNotPackage": "Ce dossier est une sauvegarde de monde exportée, pas un projet de paquet. Les mondes exportés utilisent un format différent et ne peuvent pas être modifiés ici.",
         "notAProjectDirectory": "Ce dossier n'est pas un projet de paquet. Choisissez le dossier qui contient le package.json du paquet — ou, pour un paquet .ofm installé, utilisez « Ouvrir un fichier .ofm ».",
+        "saveWouldDropItem": "Non enregistré : {{file}} contient une entrée que l'éditeur ne peut ni lire ni conserver en JSON. Corrigez cette entrée dans le fichier, puis enregistrez à nouveau.",
         "unknownSchema": "Schéma inconnu « {{schema}} ».",
         "invalidEntity": "Une entrée « {{schema}} » est invalide : {{detail}}",
         "duplicateWorld": "Le paquet a déjà un manifeste dans « {{first}} » ; un paquet ne peut avoir qu'un seul fichier « world ».",
