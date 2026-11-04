@@ -1493,12 +1493,12 @@ mod club_strength_tests {
     }
 
     /// Given a world of two clubs, the user's with eleven 60s and an AI club with eleven 80s
-    /// When the strengths of the user's club (named twice) and the AI club are found together, and
-    ///      again for no club at all
-    /// Then each club is rated once, as club_strength rates it alone, and no club gives an empty
-    ///      map
+    /// When their strengths are found together (the user's club named twice), and for no club
+    /// Then the map holds each club once, at the strength club_strength gives it alone, and is
+    ///      empty for no club. (That a club named twice is rated only once, and that no club builds
+    ///      nothing, saves work without changing the map; the measured season time pins those.)
     #[test]
-    fn club_strengths_rate_each_club_named_once_as_club_strength_does() {
+    fn club_strengths_equal_club_strength_for_each_club() {
         let mut players = eleven("xi", "user", 60);
         players.extend(eleven("ai", "ai", 80));
         let game = game(vec![club("user"), club("ai")], players);
