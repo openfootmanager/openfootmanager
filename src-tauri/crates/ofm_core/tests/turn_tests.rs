@@ -600,6 +600,54 @@ fn a_cup_tie_is_part_of_a_players_season_stats() {
     assert_eq!((stats.appearances, stats.goals), (1, 2));
 }
 
+/// Given a division whose fixture list holds two league matches and a cup tie for team1, in
+/// which t1_fwd0 scores 1 league goal and 3 cup goals and t1_fwd1 scores 2 league goals,
+/// When the three reports are applied and the division's awards are read,
+/// Then its Golden Boot goes to t1_fwd1 with 2: a division award counts the division's own
+/// matches, as its Top Scorers list does, not a cup run.
+#[test]
+fn a_divisions_golden_boot_counts_its_league_goals_alone() {
+    let mut game = make_game_with_match();
+    let league = game.league.as_mut().unwrap();
+    let first = league.fixtures[0].clone();
+    league.fixtures.push(Fixture {
+        id: "cup1".to_string(),
+        competition: FixtureCompetition::Cup,
+        ..first.clone()
+    });
+    league.fixtures.push(Fixture {
+        id: "fix2".to_string(),
+        ..first
+    });
+    turn::apply_match_report(
+        &mut game,
+        0,
+        "team1",
+        "team2",
+        &report_with_scorer(1, 0, "t1_fwd0", Side::Home),
+    );
+    turn::apply_match_report(
+        &mut game,
+        1,
+        "team1",
+        "team2",
+        &report_with_scorer(3, 0, "t1_fwd0", Side::Home),
+    );
+    turn::apply_match_report(
+        &mut game,
+        2,
+        "team1",
+        "team2",
+        &report_with_scorer(2, 0, "t1_fwd1", Side::Home),
+    );
+
+    let division = game.league.clone().unwrap();
+    let awards = ofm_core::season_awards::compute_division_season_awards(&game, &division);
+
+    let leader = awards.golden_boot.first().expect("someone scored");
+    assert_eq!((leader.player_id.as_str(), leader.value), ("t1_fwd1", 2.0));
+}
+
 #[test]
 fn apply_match_report_gk_clean_sheet() {
     let mut game = make_game_with_match();
