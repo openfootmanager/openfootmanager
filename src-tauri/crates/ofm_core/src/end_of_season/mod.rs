@@ -1197,10 +1197,21 @@ pub fn process_end_of_season(game: &mut Game) -> EndOfSeasonSummary {
         &last_fixture_date,
     );
 
+    // The preview is of the user's division as the new season has it, after promotion and
+    // relegation; the world's other clubs are not in the race it previews (#1179).
     let preview_date = game.clock.current_date.to_rfc3339();
-    let team_names: Vec<String> = game.teams.iter().map(|team| team.name.clone()).collect();
+    let division_club_names: Vec<String> = user_division(game, &user_team_id)
+        .map(|division| {
+            division
+                .participant_ids
+                .iter()
+                .filter_map(|club_id| game.teams.iter().find(|team| &team.id == club_id))
+                .map(|team| team.name.clone())
+                .collect()
+        })
+        .unwrap_or_default();
     game.news.push(crate::news::season_preview_article(
-        &team_names,
+        &division_club_names,
         &preview_date,
     ));
 
