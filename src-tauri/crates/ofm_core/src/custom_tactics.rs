@@ -10,7 +10,7 @@ use domain::custom_tactic::{CustomTactic, SavedSlot, TacticContents};
 use domain::team::{MatchRoles, PlayStyle, Team};
 
 use crate::game::Game;
-use crate::match_day_eligibility::match_day_eligible_players;
+use crate::match_day_eligibility::{match_day_eligible_players, validate_starting_xi};
 use crate::player_rating::{formation_slots, parse_formation, positional_fit_for_assignment};
 
 pub const NAME_REQUIRED_ERROR: &str = "be.error.customTactic.nameRequired";
@@ -164,16 +164,24 @@ pub fn apply_custom_tactic(game: &mut Game, id: &str) -> Result<(), String> {
         .map(|player| player.id.clone())
         .collect();
     let positions = formation_slots(&tactic.formation);
-    let lineup = tactic.contents.as_ref().map(|contents| {
-        let pool = match_day_eligible_players(&game.players, &team_id);
-        restored_eleven(
-            &contents.slots,
-            &team.starting_xi_ids,
-            &at_the_club,
-            &pool,
-            &positions,
-        )
-    });
+    // Who can play is the match-day pool, not the whole club: an injured or suspended saved starter
+    // gives his slot up as a sold one does. The eleven is only written if the club may field it
+    // (the same check every saved lineup passes); otherwise the current one stays (review, #1234).
+    let pool = match_day_eligible_players(&game.players, &team_id);
+    let available: HashSet<String> = pool.iter().map(|player| player.id.clone()).collect();
+    let lineup = tactic
+        .contents
+        .as_ref()
+        .map(|contents| {
+            restored_eleven(
+                &contents.slots,
+                &team.starting_xi_ids,
+                &available,
+                &pool,
+                &positions,
+            )
+        })
+        .filter(|lineup| validate_starting_xi(&game.players, &team_id, lineup).is_ok());
     let team = game
         .teams
         .iter_mut()
@@ -182,16 +190,30 @@ pub fn apply_custom_tactic(game: &mut Game, id: &str) -> Result<(), String> {
 
     team.formation = tactic.formation.clone();
     team.play_style = play_style;
-    let (Some(contents), Some(lineup)) = (tactic.contents, lineup) else {
+    let Some(contents) = tactic.contents else {
         return Ok(());
     };
     team.tactics_phase = contents.instructions;
-    for (slot, saved) in contents.slots.iter().enumerate() {
+    if let Some(lineup) = lineup {
+        restore_eleven_and_roles(team, &contents.slots, lineup, &positions);
+    }
+    team.match_roles = restored_takers(&contents.match_roles, &team.match_roles, &at_the_club);
+    Ok(())
+}
+
+/// Writes the restored eleven, and each saved role onto the player who kept his saved slot. A role
+/// the slot no longer admits (an edited save, a changed role table) is left at the position's
+/// standard one rather than carried into the match.
+fn restore_eleven_and_roles(
+    team: &mut Team,
+    saved_slots: &[SavedSlot],
+    lineup: Vec<String>,
+    positions: &[domain::player::Position],
+) {
+    for (slot, saved) in saved_slots.iter().enumerate() {
         if lineup.get(slot) != Some(&saved.player_id) {
             continue;
         }
-        // A role the slot no longer admits (an edited save, a changed role table) is left at the
-        // position's standard one rather than carried into the match.
         let admitted = saved.role.as_ref().filter(|role| {
             positions
                 .get(slot)
@@ -205,8 +227,6 @@ pub fn apply_custom_tactic(game: &mut Game, id: &str) -> Result<(), String> {
         };
     }
     team.starting_xi_ids = lineup;
-    team.match_roles = restored_takers(&contents.match_roles, &team.match_roles, &at_the_club);
-    Ok(())
 }
 
 /// Renames the saved tactic `id`, keeping everything else it holds.
@@ -815,6 +835,57 @@ mod whole_tactic_tests {
             Some(&PlayerRole::SweeperKeeper),
             "the keeper's saved role still applies in his slot"
         );
+    }
+
+    /// Given a saved 4-4-2 of "s0".."s10", and then "s5" injured
+    /// When the tactic is applied
+    /// Then he isn't restored to the eleven: his slot goes to a fit squad player and every other
+    ///      saved player keeps his own slot (review, #1234: the match-day pool is who can play).
+    #[test]
+    fn an_injured_saved_starter_is_not_restored_to_the_eleven() {
+        let mut game = game();
+        set_up(&mut game);
+        save_current_tactic(&mut game, &draft("away", "Away")).unwrap();
+        let s5 = game.players.iter_mut().find(|p| p.id == "s5").unwrap();
+        s5.injury = Some(domain::player::Injury {
+            name: "Hamstring".into(),
+            days_remaining: 14,
+        });
+
+        apply_custom_tactic(&mut game, "away").unwrap();
+
+        let lineup = &game.teams[0].starting_xi_ids;
+        assert_eq!(lineup.len(), 11);
+        assert!(
+            lineup[5].starts_with('b'),
+            "slot 5 goes to a fit squad player: {lineup:?}"
+        );
+        let saved = eleven("s");
+        for slot in (0..11).filter(|slot| *slot != 5) {
+            assert_eq!(lineup[slot], saved[slot], "slot {slot}");
+        }
+    }
+
+    /// Given a saved tactic whose eleven names one player twice (an edited save), and a club with
+    ///       its own eleven and tuned dials of its own
+    /// When the tactic is applied
+    /// Then the eleven it can't field isn't written: the club keeps its current eleven, while the
+    ///      tactic's instructions still apply.
+    #[test]
+    fn an_eleven_the_club_cannot_field_leaves_the_current_one_in_place() {
+        let mut game = game();
+        set_up(&mut game);
+        save_current_tactic(&mut game, &draft("away", "Away")).unwrap();
+        if let Some(contents) = game.custom_tactics[0].contents.as_mut() {
+            contents.slots[3].player_id = contents.slots[2].player_id.clone();
+        }
+        change_everything(&mut game);
+        let current = game.teams[0].starting_xi_ids.clone();
+
+        apply_custom_tactic(&mut game, "away").unwrap();
+
+        assert_eq!(game.teams[0].starting_xi_ids, current);
+        assert_eq!(game.teams[0].tactics_phase, tuned());
     }
 
     /// Given a saved tactic giving its centre-back slot a keeper's role (an edited save)
