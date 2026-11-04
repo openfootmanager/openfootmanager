@@ -132,6 +132,21 @@ export function useEntityEditor<T extends { id: string }>(options: {
       });
   }
 
+  /**
+   * Where the record being edited sits in `list` now, or `null` for a new record or one that is
+   * no longer there. Found by id rather than trusted to the position it was opened at: a second
+   * editor over the same list (the first-team and youth player editors share one) inserts and
+   * removes rows before it, and writing back by a stale position overwrote a different record
+   * (#1197). A blank id cannot be told apart from another blank one, so an unnamed record keeps
+   * its last position.
+   */
+  function locate(list: T[]): number | null {
+    if (editingIndex === null) return null;
+    if (!editingId) return editingIndex < list.length ? editingIndex : null;
+    const index = list.findIndex((item) => item.id === editingId);
+    return index === -1 ? null : index;
+  }
+
   function handleSelect(index: number) {
     setEditing({ ...items[index] });
     setEditingIndex(index);
@@ -149,6 +164,7 @@ export function useEntityEditor<T extends { id: string }>(options: {
   }
 
   function handleDelete(index: number) {
+    const open = locate(items);
     captureHistory();
     const updated = items.filter((_, i) => i !== index);
     setItems(updated);
@@ -156,10 +172,10 @@ export function useEntityEditor<T extends { id: string }>(options: {
       void saveItems(updated).catch(() => {
         /* persist already showed the error */
       });
-    if (editingIndex === index) {
+    if (open === index) {
       onClose();
-    } else if (editingIndex !== null && index < editingIndex) {
-      setEditingIndex(editingIndex - 1);
+    } else if (open !== null && index < open) {
+      setEditingIndex(open - 1);
     }
   }
 
@@ -214,11 +230,12 @@ export function useEntityEditor<T extends { id: string }>(options: {
 
   async function handleSave() {
     captureHistory();
+    // A record another editor removed while it was open is saved as a new one: what the form
+    // shows is what the user asked to keep, and writing it over a different record loses that one.
+    const open = locate(items);
     const updated =
-      editingIndex === null
-        ? [...items, editing]
-        : items.map((item, i) => (i === editingIndex ? editing : item));
-    const newIndex = editingIndex ?? updated.length - 1;
+      open === null ? [...items, editing] : items.map((item, i) => (i === open ? editing : item));
+    const newIndex = open ?? updated.length - 1;
     setItems(updated);
     setEditingIndex(newIndex);
     // Track the saved record's id so a later undo/redo can re-locate it — covers
@@ -238,7 +255,8 @@ export function useEntityEditor<T extends { id: string }>(options: {
 
   return {
     editing,
-    editingIndex,
+    // The open record's current row, so a list highlights the record the form shows.
+    editingIndex: locate(items),
     revision,
     setEditing,
     updateField,
