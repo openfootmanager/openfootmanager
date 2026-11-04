@@ -186,6 +186,7 @@ describe("DashboardSimulatingModal backend text", () => {
 
     expect(screen.getByText("Match injury — John Star (Hamstring tear)")).toBeInTheDocument();
     expect(screen.getByText("Dressing Room Report — Mood: Excellent")).toBeInTheDocument();
-    expect(screen.queryByText(/common\./)).not.toBeInTheDocument();
+    // The params' own keys, not the modal's own chrome (its Close button is mocked to its key).
+    expect(screen.queryByText(/common\.(injuries|moods)/)).not.toBeInTheDocument();
   });
 });

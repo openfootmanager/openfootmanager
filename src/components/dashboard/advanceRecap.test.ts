@@ -359,6 +359,7 @@ describe("advanceRecap", (): void => {
           read: false,
           priority: "High",
           category: "LeagueInfo",
+          actions: [],
         },
         {
           id: "same-day-msg",
@@ -368,6 +369,7 @@ describe("advanceRecap", (): void => {
           read: false,
           priority: "High",
           category: "LeagueInfo",
+          actions: [],
         },
       ],
       league: {
