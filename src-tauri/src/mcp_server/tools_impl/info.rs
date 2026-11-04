@@ -256,20 +256,16 @@ pub fn game_is_finished(ctx: Arc<McpContext>) -> Result<GameStatus, String> {
         return Ok(GameStatus::ManagerFired {});
     }
 
-    // Or if the season is complete and all fixtures are played
-    let Some(league) = &game.league else {
-        return Ok(GameStatus::NoLeagueYet {});
-    };
-    let remaining_fixtures = league
-        .fixtures
-        .iter()
-        .filter(|f| f.status != FixtureStatus::Completed)
-        .count();
-    if remaining_fixtures == 0 && !league.fixtures.is_empty() {
-        Ok(GameStatus::AllFixturesCompleted {})
-    } else {
-        Ok(GameStatus::InProgress { remaining_fixtures })
-    }
+    // Or if the season is over, by the rule `season_advance` follows.
+    use crate::mcp_server::tools_impl::season::{season_progress, SeasonProgress};
+    Ok(match season_progress(&game) {
+        SeasonProgress::Complete => GameStatus::AllFixturesCompleted {},
+        SeasonProgress::OwnLeagueLeft(remaining_fixtures) => {
+            GameStatus::InProgress { remaining_fixtures }
+        }
+        SeasonProgress::OtherDivisionsStillPlaying => GameStatus::OtherDivisionsStillPlaying {},
+        SeasonProgress::NoLeague => GameStatus::NoLeagueYet {},
+    })
 }
 
 // ─── info_fixtures ─────────────────────────────────────────────────────────

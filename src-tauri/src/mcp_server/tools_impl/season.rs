@@ -7,26 +7,60 @@ use mcp_results::season::{
 
 use crate::mcp_server::context::McpContext;
 use crate::mcp_server::tools_impl::helpers::require_game;
+use ofm_core::game::Game;
 use ofm_core::state::Career;
 use std::sync::Arc;
+
+/// Where the user's season stands, for the agent's status tools.
+pub(crate) enum SeasonProgress {
+    /// `season_advance` will roll the season over.
+    Complete,
+    /// Fixtures left in the user's own league.
+    OwnLeagueLeft(usize),
+    /// The user's league is done, but the season is not: another division of his country is still
+    /// playing.
+    OtherDivisionsStillPlaying,
+    NoLeague,
+}
+
+/// The verdict is the game's own rule, `end_of_season::is_season_complete`, the one
+/// `season_advance` is refused by. Counting the user's league alone told an agent "complete" while
+/// a lower division of the pyramid still had rounds to play (Brazil's second division starts two
+/// months after its first), and the advance was then refused.
+pub(crate) fn season_progress(game: &Game) -> SeasonProgress {
+    if ofm_core::end_of_season::is_season_complete(game) {
+        return SeasonProgress::Complete;
+    }
+    let Some(league) = &game.league else {
+        return SeasonProgress::NoLeague;
+    };
+    let remaining_fixtures = league
+        .fixtures
+        .iter()
+        .filter(|fixture| fixture.status != domain::league::FixtureStatus::Completed)
+        .count();
+    if remaining_fixtures == 0 && !league.fixtures.is_empty() {
+        SeasonProgress::OtherDivisionsStillPlaying
+    } else {
+        SeasonProgress::OwnLeagueLeft(remaining_fixtures)
+    }
+}
 
 // ─── season_check_complete ──────────────────────────────────────────────────
 
 pub fn season_check_complete(ctx: Arc<McpContext>) -> Result<SeasonStatus, String> {
     let game = require_game(&ctx.state_manager)?;
+    Ok(season_status(&game))
+}
 
-    let Some(league) = &game.league else {
-        return Ok(SeasonStatus::NoLeague {});
-    };
-    let remaining_fixtures = league
-        .fixtures
-        .iter()
-        .filter(|f| f.status != domain::league::FixtureStatus::Completed)
-        .count();
-    if remaining_fixtures == 0 && !league.fixtures.is_empty() {
-        Ok(SeasonStatus::Complete {})
-    } else {
-        Ok(SeasonStatus::InProgress { remaining_fixtures })
+fn season_status(game: &Game) -> SeasonStatus {
+    match season_progress(game) {
+        SeasonProgress::Complete => SeasonStatus::Complete {},
+        SeasonProgress::OwnLeagueLeft(remaining_fixtures) => {
+            SeasonStatus::InProgress { remaining_fixtures }
+        }
+        SeasonProgress::OtherDivisionsStillPlaying => SeasonStatus::OtherDivisionsStillPlaying {},
+        SeasonProgress::NoLeague => SeasonStatus::NoLeague {},
     }
 }
 
@@ -147,11 +181,89 @@ pub fn jobs_apply(ctx: Arc<McpContext>, team_id: String) -> Result<JobApplicatio
 
 #[cfg(test)]
 mod tests {
-    use super::season_advance_for_state;
+    use super::{season_advance_for_state, season_status};
     use crate::commands::season::{advance_to_next_season_internal, tests::completed_checkpoint};
     use domain::league::FixtureStatus;
+    use mcp_results::season::SeasonStatus;
     use ofm_core::game::{BoardObjective, ObjectiveType};
     use ofm_core::state::StateManager;
+
+    /// The completed checkpoint with a second English division that has kicked off and still has a
+    /// round to play after today (the shape of Brazil's staggered second division).
+    fn with_a_second_division_still_playing() -> ofm_core::game::Game {
+        use domain::league::{Fixture, League, MatchResult, StandingEntry};
+        let mut game = completed_checkpoint();
+        let played = Fixture {
+            id: "second-first".into(),
+            competition_id: "second".into(),
+            date: "2025-06-01".into(),
+            home_team_id: "b1".into(),
+            away_team_id: "b2".into(),
+            status: FixtureStatus::Completed,
+            result: Some(MatchResult {
+                home_goals: 1,
+                away_goals: 0,
+                ..Default::default()
+            }),
+            ..Default::default()
+        };
+        let to_come = Fixture {
+            id: "second-return".into(),
+            competition_id: "second".into(),
+            date: "2025-06-20".into(),
+            home_team_id: "b2".into(),
+            away_team_id: "b1".into(),
+            status: FixtureStatus::Scheduled,
+            ..Default::default()
+        };
+        let mut b1 = StandingEntry::new("b1".into());
+        b1.played = 1;
+        let mut b2 = StandingEntry::new("b2".into());
+        b2.played = 1;
+        game.competitions.push(League {
+            id: "second".into(),
+            name: "Second Division".into(),
+            season: 2025,
+            participant_ids: vec!["b1".into(), "b2".into()],
+            country_id: Some("ENG".into()),
+            fixtures: vec![played, to_come],
+            standings: vec![b1, b2],
+            ..Default::default()
+        });
+        game
+    }
+
+    /// Given the user's league has played every fixture and nothing else in his country is playing
+    /// When the agent asks whether the season is complete
+    /// Then it is
+    #[test]
+    fn a_finished_season_reads_complete() {
+        assert_eq!(
+            season_status(&completed_checkpoint()),
+            SeasonStatus::Complete {}
+        );
+    }
+
+    /// Given the user's league has played every fixture but a second division of his country still
+    ///      has a round to play
+    /// When the agent asks whether the season is complete
+    /// Then it is not: the other division is still playing, and `season_advance` is refused alike
+    ///      (it read Complete, and the advance was then refused)
+    #[test]
+    fn a_division_still_playing_keeps_the_season_open() {
+        let game = with_a_second_division_still_playing();
+
+        assert_eq!(
+            season_status(&game),
+            SeasonStatus::OtherDivisionsStillPlaying {}
+        );
+        let state = StateManager::new();
+        state.set_game(game);
+        assert_eq!(
+            season_advance_for_state(&state).map(|_| ()),
+            Err("be.error.seasonNotComplete".to_string())
+        );
+    }
 
     fn game_value(state: &StateManager) -> serde_json::Value {
         state
