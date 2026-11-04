@@ -105,6 +105,11 @@ fn summary(clubs: &HashMap<&str, &Team>, manager: &Manager) -> ManagerSummary {
     }
 }
 
+/// The name of the club he manages, borrowed for sorting.
+fn club_name(summary: &ManagerSummary) -> Option<&str> {
+    summary.club.as_ref().map(|club| club.name.as_str())
+}
+
 fn listed(status: ManagersStatus, summary: &ManagerSummary) -> bool {
     match status {
         ManagersStatus::All => true,
@@ -148,8 +153,6 @@ pub fn query_managers_page(game: &Game, status: ManagersStatus) -> ManagersPage 
         .filter(|summary| listed(status, summary))
         .collect();
     managers.sort_by(|left, right| {
-        let club_name =
-            |summary: &ManagerSummary| summary.club.as_ref().map(|club| club.name.as_str());
         left.club
             .is_none()
             .cmp(&right.club.is_none())
