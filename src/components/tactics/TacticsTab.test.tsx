@@ -995,7 +995,7 @@ describe("TacticsTab", () => {
     }
   });
 
-  describe("when a lineup change is not saved because the familiarity has not arrived", () => {
+  describe("when a lineup change is not saved because the squad has not answered", () => {
     /**
      * Given a bench player and a starter selected (the comparison is open), and the game has
      *       moved on so the squad's new answer is still in flight (the familiarity is there)
