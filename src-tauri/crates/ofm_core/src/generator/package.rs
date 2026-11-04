@@ -21,6 +21,7 @@ use domain::staff::{CoachingSpecialization, StaffAttributes, StaffRole};
 use super::authored_player::{
     authored_player_errors, invalid_date_of_birth_error, is_valid_date_of_birth,
 };
+use super::competition_def::UNKNOWN_TEAM as COMPETITION_UNKNOWN_TEAM;
 use super::{CompetitionDefinition, NamesDefinition, TeamDef};
 
 // ---------------------------------------------------------------------------
@@ -1378,7 +1379,13 @@ pub fn validate_references(package: &WorldPackage) -> Vec<PackageError> {
     // Resolve selectors only after the cheap reference and range checks pass.
     // Invalid entities cannot form a useful validation world.
     if errors.is_empty() {
-        errors.extend(validate_competition_references(package));
+        errors.extend(
+            validate_competition_references(package)
+                .into_iter()
+                // A patch's competitions name its base's clubs as its players do (`known_team`);
+                // the merged stack checks them. Every other competition rule still applies here.
+                .filter(|error| !(is_patch && error.code == COMPETITION_UNKNOWN_TEAM)),
+        );
     }
     errors
 }
@@ -3953,13 +3960,103 @@ colors:
             "world.json",
             r#"{ "schema": "world", "id": "base", "name": "Base", "packageType": "database" }"#,
         );
-        write(
-            &base,
-            "teams/base.json",
-            r##"{ "schema": "team", "id": "base-club", "name": "Base Club", "city": "C",
-                "country": "ENG", "colors": { "primary": "#000000", "secondary": "#ffffff" } }"##,
-        );
+        for id in ["base-club", "base-club-2"] {
+            write(
+                &base,
+                &format!("teams/{id}.json"),
+                &format!(
+                    r##"{{ "schema": "team", "id": "{id}", "name": "{id}", "city": "C",
+                        "country": "ENG", "colors": {{ "primary": "#000000", "secondary": "#ffffff" }} }}"##
+                ),
+            );
+        }
         base
+    }
+
+    /// A patch that adds a league over `clubs`, none of which it defines.
+    fn league_patch(clubs: &[&str]) -> std::path::PathBuf {
+        let patch = temp_package();
+        write(
+            &patch,
+            "world.json",
+            r#"{ "schema": "world", "id": "cup", "name": "Cup", "packageType": "patch" }"#,
+        );
+        let participants: Vec<String> = clubs.iter().map(|club| format!("\"{club}\"")).collect();
+        write(
+            &patch,
+            "competitions/league.json",
+            &format!(
+                r#"{{ "schema": "competition", "id": "patch-league", "name": "Patch League",
+                    "type": "League", "scope": "Domestic", "countryId": "ENG",
+                    "format": {{ "kind": "LeagueTable" }},
+                    "participants": {{ "explicit": [{}] }} }}"#,
+                participants.join(",")
+            ),
+        );
+        patch
+    }
+
+    /// Given a patch that adds a league over two clubs only its base defines
+    /// When the patch is loaded and validated on its own
+    /// Then no unknown-team error is reported: a patch's competitions name its base's clubs as its
+    ///      players do (#1198)
+    #[test]
+    fn a_patch_may_list_its_base_clubs_in_a_competition() {
+        let patch = league_patch(&["base-club", "base-club-2"]);
+
+        let (_, errors) = load_world_package(&patch);
+        std::fs::remove_dir_all(&patch).ok();
+
+        let unknown: Vec<_> = errors
+            .iter()
+            .filter(|e| e.code == "be.error.competitionDef.unknownTeam")
+            .collect();
+        assert!(unknown.is_empty(), "{unknown:?}");
+    }
+
+    /// Given a database package with a league over two clubs it does not define
+    /// When it is loaded and validated
+    /// Then each is reported: only a patch leaves its competitions' clubs to the stack
+    #[test]
+    fn a_database_package_competition_naming_clubs_it_does_not_define_is_reported() {
+        let package = league_patch(&["base-club", "base-club-2"]);
+        write(
+            &package,
+            "world.json",
+            r#"{ "schema": "world", "id": "cup", "name": "Cup", "packageType": "database" }"#,
+        );
+
+        let (_, errors) = load_world_package(&package);
+        std::fs::remove_dir_all(&package).ok();
+
+        let unknown = errors
+            .iter()
+            .filter(|e| e.code == COMPETITION_UNKNOWN_TEAM)
+            .count();
+        assert_eq!(unknown, 2, "{errors:?}");
+    }
+
+    /// Given a patch league listing a base club and a club no package defines
+    /// When the patch is stacked on its base and the stack is merged
+    /// Then the club no package defines is reported
+    #[test]
+    fn a_stacked_patch_competition_naming_a_club_no_package_defines_is_reported() {
+        let (base, patch) = (base_database(), league_patch(&["base-club", "ghost-club"]));
+        let (base_pkg, _) = load_world_package_files(&base);
+        let (patch_pkg, _) = load_world_package_files(&patch);
+
+        let (_, errors) = merge_world_packages(vec![base_pkg, patch_pkg]);
+        std::fs::remove_dir_all(&base).ok();
+        std::fs::remove_dir_all(&patch).ok();
+
+        assert!(
+            errors
+                .iter()
+                .any(|e| e.code == "be.error.competitionDef.unknownTeam"
+                    && e.params
+                        .contains(&("team".to_string(), "ghost-club".to_string()))),
+            "{errors:?}"
+        );
     }
 
     /// Given a patch whose player, coach and a career entry name a club only its base defines
