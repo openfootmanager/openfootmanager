@@ -256,12 +256,16 @@ mod tests {
         assert!(notable(&game, "reserve", "user"));
     }
 
-    /// Given a reserve the club would not field, worth 50,000 against its starters' 100,000
+    /// Given a reserve the club would not field, worth 50,000, and exactly three teammates worth
+    ///      more (100,000; the rest are worth nothing)
     /// When he is weighed
-    /// Then he is not notable: at least three teammates are worth more, and he does not play
+    /// Then he is not notable: he is fourth in value, one past the three, and he does not play
     #[test]
     fn a_reserve_outside_his_clubs_three_most_valuable_is_not_notable() {
-        let mut players = first_eleven("user", 100_000);
+        let mut players = first_eleven("user", 0);
+        for starter in players.iter_mut().take(3) {
+            starter.market_value = 100_000;
+        }
         players.push(reserve("user", 50_000));
         let game = game(vec![club("user")], players);
 
