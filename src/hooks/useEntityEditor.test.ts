@@ -874,6 +874,75 @@ describe("two editors over one list", () => {
     ]);
   });
 
+  // Given two players sharing one id, the second of them open in an editor
+  // When that editor saves its edit
+  // Then the edit lands on the second, and the first keeps his own data: a duplicate id must not
+  //      send the save to its twin
+  it("saves onto the open one of two records sharing an id", () => {
+    const { result } = renderTwoEditors([
+      { id: "x", name: "First X" },
+      { id: "y", name: "Why" },
+      { id: "x", name: "Second X" },
+    ]);
+    act(() => result.current.first.handleSelect(2));
+    act(() => result.current.first.updateField("name", "Second X Edited"));
+    act(() => {
+      void result.current.first.handleSave();
+    });
+
+    expect(result.current.items.map((item) => item.name)).toEqual([
+      "First X",
+      "Why",
+      "Second X Edited",
+    ]);
+  });
+
+  // Given an unnamed first-team player (blank id) open in one editor, and a youth before him
+  //      removed in the other
+  // When the first editor saves its edit
+  // Then the edit lands on the unnamed player, not on whoever took his old row
+  it("saves an unnamed record onto itself after the other editor removed a row before it", () => {
+    const { result } = renderTwoEditors([
+      { id: "y0", name: "Youth Zero" },
+      { id: "y1", name: "Youth One" },
+      { id: "", name: "Unnamed" },
+    ]);
+    act(() => result.current.first.handleSelect(2));
+    act(() => result.current.first.updateField("name", "Unnamed Edited"));
+    act(() => result.current.youth.handleDelete(0));
+    act(() => {
+      void result.current.first.handleSave();
+    });
+
+    expect(result.current.items).toEqual([
+      { id: "y1", name: "Youth One" },
+      { id: "", name: "Unnamed Edited" },
+    ]);
+  });
+
+  // Given a first-team player open in one editor, whose row the other editor deletes
+  // When the list asks which row is open, and then the first editor saves
+  // Then no row is open in between (the form stays, the highlight goes), and the save adds the
+  //      record back as a new one rather than writing it over another
+  it("saves a record the other editor removed as a new one", () => {
+    const { result } = renderTwoEditors(youthAndOne());
+    act(() => result.current.first.handleSelect(2));
+    act(() => result.current.first.updateField("name", "First Teamer Edited"));
+    act(() => result.current.youth.handleDelete(2));
+
+    expect(result.current.first.editingIndex).toBeNull();
+
+    act(() => {
+      void result.current.first.handleSave();
+    });
+
+    expect(result.current.items).toEqual([
+      { id: "y0", name: "Youth Zero" },
+      { id: "y1", name: "Youth One" },
+      { id: "p", name: "First Teamer Edited" },
+    ]);
+  });
+
   // Given a first-team player open in one editor, and a youth before him removed in the other
   // When the list asks which row is open
   // Then it is the open player's new row, so the list highlights the record the form shows
