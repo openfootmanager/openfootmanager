@@ -913,3 +913,136 @@ fn a_dial_saved_in_another_career_leaves_the_waiting_match_alone() {
         engine::DefensiveLine::Medium
     );
 }
+
+// ---------------------------------------------------------------------------
+// follow_saved_role_before_kick_off
+// ---------------------------------------------------------------------------
+
+fn first_home_starter_at(
+    session: &live_match_manager::LiveMatchSession,
+    position: engine::Position,
+) -> String {
+    session
+        .match_state
+        .team(engine::Side::Home)
+        .players
+        .iter()
+        .find(|player| player.position == position)
+        .map(|player| player.id.clone())
+        .expect("a starter in that position")
+}
+
+fn home_role_of(
+    session: &live_match_manager::LiveMatchSession,
+    player_id: &str,
+) -> engine::PlayerRole {
+    session
+        .match_state
+        .team(engine::Side::Home)
+        .players
+        .iter()
+        .find(|player| player.id == player_id)
+        .expect("the player starts")
+        .role
+}
+
+/// Given a match waiting at kick-off,
+/// When one of the user's starting forwards is saved as a Poacher,
+/// Then he goes into the match as a Poacher.
+#[test]
+fn a_saved_role_reaches_a_starter_of_a_waiting_match() {
+    let mut game = make_game_with_fixture();
+    let mut session = waiting_session(&game);
+    let forward = first_home_starter_at(&session, engine::Position::Forward);
+    game.teams[0]
+        .player_roles
+        .insert(forward.clone(), domain::team::PlayerRole::Poacher);
+
+    session
+        .follow_saved_role_before_kick_off(&game, &forward)
+        .unwrap();
+
+    assert_eq!(
+        home_role_of(&session, &forward),
+        engine::PlayerRole::Poacher
+    );
+}
+
+/// Given a match waiting at kick-off,
+/// When a starting defender carries a saved Poacher role, which his slot does not admit,
+/// Then the plan is followed without an error and he stays on the Standard role.
+#[test]
+fn a_saved_role_the_starters_slot_refuses_is_left_out() {
+    let mut game = make_game_with_fixture();
+    let mut session = waiting_session(&game);
+    let defender = first_home_starter_at(&session, engine::Position::Defender);
+    game.teams[0]
+        .player_roles
+        .insert(defender.clone(), domain::team::PlayerRole::Poacher);
+
+    session
+        .follow_saved_role_before_kick_off(&game, &defender)
+        .unwrap();
+
+    assert_eq!(
+        home_role_of(&session, &defender),
+        engine::PlayerRole::Standard
+    );
+}
+
+/// Given a match waiting at kick-off whose high line was set through the live dial command,
+/// When a starter's role is saved on the user's team,
+/// Then the role reaches the match and the line is still high.
+#[test]
+fn saving_a_role_leaves_a_dial_changed_in_the_match_alone() {
+    let mut game = make_game_with_fixture();
+    let mut session = waiting_session(&game);
+    session
+        .apply_command(engine::MatchCommand::ChangeTacticalDial {
+            side: engine::Side::Home,
+            dial: engine::TacticalDial::DefensiveLine(engine::DefensiveLine::High),
+        })
+        .unwrap();
+    let forward = first_home_starter_at(&session, engine::Position::Forward);
+    game.teams[0]
+        .player_roles
+        .insert(forward.clone(), domain::team::PlayerRole::Poacher);
+
+    session
+        .follow_saved_role_before_kick_off(&game, &forward)
+        .unwrap();
+
+    assert_eq!(
+        home_role_of(&session, &forward),
+        engine::PlayerRole::Poacher
+    );
+    assert_eq!(
+        session.snapshot().home_team.tactics.defensive_line,
+        engine::DefensiveLine::High
+    );
+}
+
+/// Given a match that has kicked off,
+/// When a starting forward is saved as a Poacher,
+/// Then the match keeps the role he was playing with: once it has started, only the live
+/// commands change it.
+#[test]
+fn a_match_that_has_kicked_off_does_not_follow_a_saved_role() {
+    let mut game = make_game_with_fixture();
+    let mut session = waiting_session(&game);
+    session.step();
+    assert_ne!(session.match_state.phase(), MatchPhase::PreKickOff);
+    let forward = first_home_starter_at(&session, engine::Position::Forward);
+    game.teams[0]
+        .player_roles
+        .insert(forward.clone(), domain::team::PlayerRole::Poacher);
+
+    session
+        .follow_saved_role_before_kick_off(&game, &forward)
+        .unwrap();
+
+    assert_eq!(
+        home_role_of(&session, &forward),
+        engine::PlayerRole::Standard
+    );
+}

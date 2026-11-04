@@ -651,7 +651,7 @@ pub fn set_player_role_internal(
         "[cmd] set_player_role: player={} role={:?}",
         player_id, role
     );
-    mutate_active_game_for(state, career, |game| {
+    let game = mutate_active_game_for(state, career, |game| {
         let team_id = user_team_id(game)?;
 
         // Validate the role against where the player is actually deployed (the
@@ -685,7 +685,9 @@ pub fn set_player_role_internal(
         }
 
         Ok(())
-    })
+    })?;
+    crate::application::live_match::follow_saved_role_before_kick_off(state, &game, &player_id)?;
+    Ok(game)
 }
 
 /// One optional value per tactical dial, as the screen sends them; `None` leaves a dial alone.

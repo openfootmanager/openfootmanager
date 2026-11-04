@@ -429,3 +429,14 @@ pub fn follow_saved_dials_before_kick_off(state: &StateManager, game: &Game) -> 
         .with_live_match(|session| session.follow_saved_dials_before_kick_off(game))
         .unwrap_or(Ok(()))
 }
+
+/// A starter's role saved before kick-off also reaches the match waiting to be played.
+pub fn follow_saved_role_before_kick_off(
+    state: &StateManager,
+    game: &Game,
+    player_id: &str,
+) -> Result<(), String> {
+    state
+        .with_live_match(|session| session.follow_saved_role_before_kick_off(game, player_id))
+        .unwrap_or(Ok(()))
+}

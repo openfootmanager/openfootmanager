@@ -103,6 +103,12 @@ impl PlayerRole {
         Self::CompleteForward,
     ];
 
+    /// Whether a player in `position`'s group may be given this role: the one rule, which the
+    /// live role command asks.
+    pub fn suits(self, position: Position) -> bool {
+        self == Self::Standard || self.position_groups().contains(&position)
+    }
+
     /// The position groups whose players may be given this role. The wide roles
     /// are open to wide midfielders and to wingers; `Standard` suits everyone
     /// and is left out.

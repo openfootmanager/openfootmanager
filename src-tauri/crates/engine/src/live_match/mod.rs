@@ -435,7 +435,7 @@ impl LiveMatchState {
                     .iter_mut()
                     .find(|p| p.id == player_id)
                     .ok_or("be.error.liveMatch.playerNotOnPitch")?;
-                if !is_role_valid_for_position(role, player.position) {
+                if !role.suits(player.position) {
                     return Err("be.error.roleNotValidForPosition".into());
                 }
                 player.role = role;
@@ -526,51 +526,5 @@ impl LiveMatchState {
     pub fn test_set_score(&mut self, home: u8, away: u8) {
         self.home_score = home;
         self.away_score = away;
-    }
-}
-
-fn is_role_valid_for_position(role: PlayerRole, position: crate::types::Position) -> bool {
-    use crate::types::Position;
-    match position {
-        Position::Goalkeeper => matches!(
-            role,
-            PlayerRole::Standard | PlayerRole::BallPlayingKeeper | PlayerRole::SweeperKeeper
-        ),
-        Position::Defender => matches!(
-            role,
-            PlayerRole::Standard
-                | PlayerRole::Stopper
-                | PlayerRole::CoverCB
-                | PlayerRole::BallPlayingCB
-                | PlayerRole::AttackingFB
-                | PlayerRole::DefensiveFB
-                | PlayerRole::InvertedFB
-                | PlayerRole::WingBack
-        ),
-        Position::Midfielder => matches!(
-            role,
-            PlayerRole::Standard
-                | PlayerRole::AnchorMan
-                | PlayerRole::BallWinner
-                | PlayerRole::DeepLyingPlaymaker
-                | PlayerRole::BoxToBox
-                | PlayerRole::Carrilero
-                | PlayerRole::Mezzala
-                | PlayerRole::AdvancedPlaymaker
-                | PlayerRole::ShadowStriker
-                | PlayerRole::WideForward
-                | PlayerRole::InsideForward
-                | PlayerRole::InvertedWinger
-        ),
-        Position::Forward => matches!(
-            role,
-            PlayerRole::Standard
-                | PlayerRole::Poacher
-                | PlayerRole::TargetMan
-                | PlayerRole::DeepLyingForward
-                | PlayerRole::False9
-                | PlayerRole::PressingForward
-                | PlayerRole::CompleteForward
-        ),
     }
 }
