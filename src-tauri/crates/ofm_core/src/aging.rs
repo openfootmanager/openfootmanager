@@ -79,12 +79,30 @@ fn retire_player(player: &mut Player, current_date: NaiveDate) {
     player.team_id = None;
     player.transfer_listed = false;
     player.loan_listed = false;
-    player.transfer_offers.clear();
+}
+
+/// A retiree's agreed transfers end with his career: his offers are cleared, and the user, as
+/// buyer or seller, gets the letter a release would send (#1202).
+fn cancel_retirees_agreements(game: &mut Game, retirees: &[(usize, Option<String>)], today: &str) {
+    for (index, contract_club) in retirees {
+        let letters = crate::contracts::lapsed_registration_messages(
+            game,
+            *index,
+            contract_club.as_deref(),
+            today,
+        );
+        game.players[*index].transfer_offers.clear();
+        for letter in letters {
+            crate::inbox::emit(game, letter);
+        }
+    }
 }
 
 pub fn apply_seasonal_aging(game: &mut Game, current_date: NaiveDate, season: u32) {
     let world_seed = game.seed;
-    for player in game.players.iter_mut() {
+    // Each retiree and the club he was under contract to, for the agreements his career ends.
+    let mut retirees: Vec<(usize, Option<String>)> = Vec::new();
+    for (index, player) in game.players.iter_mut().enumerate() {
         let age = domain::age::age_on_or_unknown(current_date, &player.date_of_birth);
         let mut stream = crate::seed::rng_for_seed(
             world_seed,
@@ -100,9 +118,11 @@ pub fn apply_seasonal_aging(game: &mut Game, current_date: NaiveDate, season: u3
             {
                 team.remove_player_references(&player.id);
             }
+            retirees.push((index, player.contract_club_id().map(str::to_string)));
             retire_player(player, current_date);
         }
     }
+    cancel_retirees_agreements(game, &retirees, &iso(current_date));
     crate::retirees::archive_retired_players(game, &iso(current_date), season);
 }
 
