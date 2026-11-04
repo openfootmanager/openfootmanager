@@ -1,5 +1,6 @@
 #!/usr/bin/env node
-// Generates the page harness's career before `npm test` and `npm run build` when it is missing.
+// Generates the page harness's career before `npm test`, `npm run test:watch`, `npm run build` and
+// `npm run dev` (so `tauri dev` too) when it is missing.
 //
 // src/dev/pageHarness/fixture.generated.ts is written by `npm run fixture:pages` from the Rust
 // side (src-tauri/crates/ofm_core/examples/page_fixture.rs) and is not committed: committed, most
