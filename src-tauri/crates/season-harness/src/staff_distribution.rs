@@ -7,14 +7,11 @@
 //! every summer, with judging taken from their own attributes rather than the staff bell.
 
 use domain::staff::{Staff, StaffRole};
-use ofm_core::end_of_season::EndOfSeasonSummary;
+use ofm_core::end_of_season::{EndOfSeasonSummary, RETIRED_PLAYER_SCOUT_ID_PREFIX};
 use ofm_core::game::Game;
 use ofm_core::staff_rating::staff_rating;
 
 use crate::driver::SeasonObserver;
-
-/// The id the end of season gives a retired player who becomes a scout (`end_of_season`).
-const RETIRED_PLAYER_SCOUT_ID_PREFIX: &str = "staff_retired_scout_";
 
 /// How many staff hold each rating from 0 to 100.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -105,7 +102,7 @@ pub struct RoleRatings {
     pub retired_player_scouts_at_clubs: usize,
 }
 
-/// The world's staff on one day, one entry per role in the order coach, physio, scout, assistant.
+/// The world's staff on one day, one entry per role in `StaffRole::ALL`'s order.
 #[derive(Debug, Clone, PartialEq)]
 pub struct StaffDistributionReport {
     pub roles: Vec<RoleRatings>,
@@ -123,14 +120,8 @@ pub fn staff_distribution_report(game: &Game) -> StaffDistributionReport {
 }
 
 fn staff_distribution_of(staff: &[Staff]) -> StaffDistributionReport {
-    let roles = [
-        StaffRole::Coach,
-        StaffRole::Physio,
-        StaffRole::Scout,
-        StaffRole::AssistantManager,
-    ];
     StaffDistributionReport {
-        roles: roles
+        roles: StaffRole::ALL
             .into_iter()
             .map(|role| {
                 let mut ratings = RoleRatings {

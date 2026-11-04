@@ -162,12 +162,6 @@ mod tests {
     use rand::SeedableRng;
 
     const PER_ROLE: usize = 40_000;
-    const ROLES: [StaffRole; 4] = [
-        StaffRole::Coach,
-        StaffRole::Physio,
-        StaffRole::Scout,
-        StaffRole::AssistantManager,
-    ];
 
     /// Which of the game's two generators a sample comes from.
     #[derive(Debug, Clone, Copy)]
@@ -233,7 +227,7 @@ mod tests {
     #[test]
     fn every_roles_rating_has_a_normal_tail() {
         for pool in [Pool::Club, Pool::FreeAgent] {
-            for (index, role) in ROLES.iter().enumerate() {
+            for (index, role) in StaffRole::ALL.iter().enumerate() {
                 let rated = ratings(&generated(pool, role, 0x57AF_0000 + index as u64));
                 let (centre, spread) = (mean(&rated), sd(&rated));
                 for z in [1.0, 2.0] {
@@ -263,7 +257,7 @@ mod tests {
     ///      so every player, club and id drawn after the staff is the one it was.
     #[test]
     fn the_bell_takes_as_many_numbers_as_an_even_draw() {
-        for (index, role) in ROLES.iter().enumerate() {
+        for (index, role) in StaffRole::ALL.iter().enumerate() {
             for pool in [Pool::Club, Pool::FreeAgent] {
                 let seed = 0xD7A0_0000 + index as u64;
                 let mut bell = rand::rngs::StdRng::seed_from_u64(seed);
@@ -291,7 +285,7 @@ mod tests {
     #[test]
     fn every_roles_rating_spreads_as_a_players_does() {
         for pool in [Pool::Club, Pool::FreeAgent] {
-            for (index, role) in ROLES.iter().enumerate() {
+            for (index, role) in StaffRole::ALL.iter().enumerate() {
                 let spread = sd(&ratings(&generated(pool, role, 0x5D00_0000 + index as u64)));
                 assert!(
                     (RATING_SD - 0.25..=RATING_SD + 0.25).contains(&spread),
@@ -418,7 +412,7 @@ mod tests {
     ///      maintainer's tiers, which this bell and the cut-offs must keep together.
     #[test]
     fn each_roles_tiers_hold_the_shares_the_maintainer_set() {
-        for (index, role) in ROLES.iter().enumerate() {
+        for (index, role) in StaffRole::ALL.iter().enumerate() {
             let staff = generated(Pool::Club, role, 0x71E2_0000 + index as u64);
             let share = |tier: PlayerTier| {
                 staff
@@ -456,7 +450,7 @@ mod tests {
     ///      12.8 apart): a club that loses a member hires from a weaker pool, as before the bell.
     #[test]
     fn a_free_agent_rates_well_below_a_club_member_of_his_role() {
-        for (index, role) in ROLES.iter().enumerate() {
+        for (index, role) in StaffRole::ALL.iter().enumerate() {
             let seed = 0xF4EE_0000 + index as u64;
             let at_clubs = mean(&ratings(&generated(Pool::Club, role, seed)));
             let free = mean(&ratings(&generated(Pool::FreeAgent, role, seed + 0x100)));
