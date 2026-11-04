@@ -231,7 +231,7 @@ The `initialize` result's `serverInfo.version` is the package version plus the s
 
 | Tool | Description |
 |------|-------------|
-| `season_check_complete` | Check if the current season is finished |
+| `season_check_complete` | Check if the current season is finished, by the rule `season_advance` follows (`end_of_season::is_season_complete`): `complete`, `in_progress` with the league fixtures left in the user's tables, `other_divisions_still_playing` (his tables are played out but another division of his country is not), or `no_league` |
 | `season_advance` | Roll over a completed season through the same command as the UI, returning its summary and any dismissal. Refuses an incomplete season; use `time_advance` for a day. |
 | `season_get_awards` | View end-of-season awards (Golden Boot, Player of the Year, etc.) |
 
@@ -250,7 +250,7 @@ Most of these are **disabled in competition mode** — agents use `--mcp-auto-st
 | `game_list_saves` | List all saved games with manager name and date |
 | `game_delete_save` | Permanently delete a saved game |
 | `game_list_world_databases` | List available world databases (built-in random + user JSON files) |
-| `game_is_finished` | Check if the current game/season is finished |
+| `game_is_finished` | Check if the current game/season is finished: `manager_fired`, `all_fixtures_completed`, `in_progress`, `other_divisions_still_playing` or `no_league_yet`, read the same way as `season_check_complete` |
 
 ### Live Match (8 tools)
 

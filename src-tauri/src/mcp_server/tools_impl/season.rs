@@ -12,34 +12,41 @@ use ofm_core::state::Career;
 use std::sync::Arc;
 
 /// Where the user's season stands, for the agent's status tools.
+#[derive(Debug, PartialEq, Eq)]
 pub(crate) enum SeasonProgress {
     /// `season_advance` will roll the season over.
     Complete,
-    /// Fixtures left in the user's own league.
+    /// League fixtures left in the tables that decide the season (`end_of_season::season_tables`).
     OwnLeagueLeft(usize),
-    /// The user's league is done, but the season is not: another division of his country is still
-    /// playing.
+    /// Those tables are played out, but the season is not over: another division of his country is
+    /// still playing.
     OtherDivisionsStillPlaying,
     NoLeague,
 }
 
 /// The verdict is the game's own rule, `end_of_season::is_season_complete`, the one
-/// `season_advance` is refused by. Counting the user's league alone told an agent "complete" while
-/// a lower division of the pyramid still had rounds to play (Brazil's second division starts two
-/// months after its first), and the advance was then refused.
+/// `season_advance` is refused by, and the count is over the same tables it judges
+/// (`season_tables`). Counting the `game.league` mirror told an agent "complete" while a lower
+/// division still had rounds to play (Brazil's second division starts two months after its first),
+/// and "your league has played all its fixtures" through an Argentine Clausura, the mirror being
+/// the finished Apertura.
 pub(crate) fn season_progress(game: &Game) -> SeasonProgress {
     if ofm_core::end_of_season::is_season_complete(game) {
         return SeasonProgress::Complete;
     }
-    let Some(league) = &game.league else {
+    let tables = ofm_core::end_of_season::season_tables(game);
+    if tables.is_empty() {
         return SeasonProgress::NoLeague;
-    };
-    let remaining_fixtures = league
-        .fixtures
+    }
+    let remaining_fixtures = tables
         .iter()
-        .filter(|fixture| fixture.status != domain::league::FixtureStatus::Completed)
+        .flat_map(|table| &table.fixtures)
+        .filter(|fixture| {
+            fixture.counts_for_league_standings()
+                && fixture.status != domain::league::FixtureStatus::Completed
+        })
         .count();
-    if remaining_fixtures == 0 && !league.fixtures.is_empty() {
+    if remaining_fixtures == 0 {
         SeasonProgress::OtherDivisionsStillPlaying
     } else {
         SeasonProgress::OwnLeagueLeft(remaining_fixtures)
@@ -231,6 +238,41 @@ mod tests {
             ..Default::default()
         });
         game
+    }
+
+    /// Given a split season whose Apertura is finished, the `game.league` mirror, while the
+    ///      Clausura, which the user's club also plays in, has a fixture to come
+    /// When the agent asks whether the season is complete
+    /// Then it is in progress with that fixture left (it said the user's league had played all its
+    ///      fixtures, reading the mirror)
+    #[test]
+    fn a_split_season_counts_the_table_still_playing() {
+        use domain::league::{Fixture, League};
+        let mut game = completed_checkpoint();
+        game.competitions.push(League {
+            id: "clausura".into(),
+            name: "Clausura".into(),
+            season: 2025,
+            participant_ids: vec!["home".into(), "away".into()],
+            country_id: Some("ENG".into()),
+            fixtures: vec![Fixture {
+                id: "clausura-first".into(),
+                competition_id: "clausura".into(),
+                date: "2025-06-20".into(),
+                home_team_id: "home".into(),
+                away_team_id: "away".into(),
+                status: FixtureStatus::Scheduled,
+                ..Default::default()
+            }],
+            ..Default::default()
+        });
+
+        assert_eq!(
+            season_status(&game),
+            SeasonStatus::InProgress {
+                remaining_fixtures: 1
+            }
+        );
     }
 
     /// Given the user's league has played every fixture and nothing else in his country is playing

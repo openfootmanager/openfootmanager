@@ -257,15 +257,54 @@ pub fn game_is_finished(ctx: Arc<McpContext>) -> Result<GameStatus, String> {
     }
 
     // Or if the season is over, by the rule `season_advance` follows.
-    use crate::mcp_server::tools_impl::season::{season_progress, SeasonProgress};
-    Ok(match season_progress(&game) {
+    Ok(game_status_for(
+        crate::mcp_server::tools_impl::season::season_progress(&game),
+    ))
+}
+
+fn game_status_for(progress: crate::mcp_server::tools_impl::season::SeasonProgress) -> GameStatus {
+    use crate::mcp_server::tools_impl::season::SeasonProgress;
+    match progress {
         SeasonProgress::Complete => GameStatus::AllFixturesCompleted {},
         SeasonProgress::OwnLeagueLeft(remaining_fixtures) => {
             GameStatus::InProgress { remaining_fixtures }
         }
         SeasonProgress::OtherDivisionsStillPlaying => GameStatus::OtherDivisionsStillPlaying {},
         SeasonProgress::NoLeague => GameStatus::NoLeagueYet {},
-    })
+    }
+}
+
+#[cfg(test)]
+mod game_status_tests {
+    use super::game_status_for;
+    use crate::mcp_server::tools_impl::season::SeasonProgress;
+    use mcp_results::info::GameStatus;
+
+    /// Given each reading of where the season stands
+    /// When `game_is_finished` reports it
+    /// Then a finished season is "all fixtures completed", a season waiting on another division is
+    ///      in progress for that reason, a count is passed through, and no league is "no league yet"
+    #[test]
+    fn game_is_finished_reports_each_reading_of_the_season() {
+        assert_eq!(
+            game_status_for(SeasonProgress::Complete),
+            GameStatus::AllFixturesCompleted {}
+        );
+        assert_eq!(
+            game_status_for(SeasonProgress::OtherDivisionsStillPlaying),
+            GameStatus::OtherDivisionsStillPlaying {}
+        );
+        assert_eq!(
+            game_status_for(SeasonProgress::OwnLeagueLeft(3)),
+            GameStatus::InProgress {
+                remaining_fixtures: 3
+            }
+        );
+        assert_eq!(
+            game_status_for(SeasonProgress::NoLeague),
+            GameStatus::NoLeagueYet {}
+        );
+    }
 }
 
 // ─── info_fixtures ─────────────────────────────────────────────────────────
