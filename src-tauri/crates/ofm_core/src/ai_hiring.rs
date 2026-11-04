@@ -250,14 +250,19 @@ fn played_before_he_took_charge(date: &str, since: Option<&str>) -> bool {
     since.is_some_and(|since| date <= since)
 }
 
-/// The dates of every match each club has finished, in every competition the game holds.
+/// The dates of every league match each club has finished: the matches its `form` records
+/// (`turn::post_match` writes form for league fixtures only), so the count and the form cover the
+/// same matches. A cup tie counted here would pull one of the predecessor's league results into the
+/// new manager's window.
 fn finished_match_dates(game: &Game) -> HashMap<&str, Vec<&str>> {
     let mut dates: HashMap<&str, Vec<&str>> = HashMap::new();
     let finished = game
         .competitions
         .iter()
         .flat_map(|competition| &competition.fixtures)
-        .filter(|fixture| fixture.status == FixtureStatus::Completed);
+        .filter(|fixture| {
+            fixture.status == FixtureStatus::Completed && fixture.counts_for_league_standings()
+        });
     for fixture in finished {
         for team_id in [&fixture.home_team_id, &fixture.away_team_id] {
             dates
@@ -270,7 +275,8 @@ fn finished_match_dates(game: &Game) -> HashMap<&str, Vec<&str>> {
 }
 
 /// The club's results under its current manager: its latest `form`, cut to the matches it has
-/// finished since he took charge. A manager with no open stint is judged on the whole form.
+/// finished since he took charge (league matches, as form is). A manager with no open stint is judged
+/// on the whole form.
 ///
 /// The board judges the manager on his own results. It used to read the club's last five whoever
 /// had played them, so the assistant who covered after a sacking inherited the run that got his
@@ -459,7 +465,7 @@ mod tests {
     use crate::clock::GameClock;
     use crate::game::Game;
     use chrono::{TimeZone, Utc};
-    use domain::league::{Fixture, FixtureStatus, League, MatchResult};
+    use domain::league::{Fixture, FixtureCompetition, FixtureStatus, League, MatchResult};
     use domain::manager::Manager;
     use domain::message::{ActionType, InboxMessage, MessageAction, MessageContext};
     use domain::staff::{Staff, StaffAttributes, StaffRole};
@@ -1058,6 +1064,52 @@ mod tests {
         assert_eq!(
             (manager.satisfaction, manager.warning_stage),
             (BASE_AI_MANAGER_SATISFACTION as u8, 0)
+        );
+    }
+
+    /// Given a club that lost its last five league matches, and a manager who took charge after
+    ///      them and has played one cup tie since
+    /// When the board judges him
+    /// Then he keeps 50: the cup tie is not in the club's form, so it does not pull one of his
+    ///      predecessor's league defeats into his window
+    #[test]
+    fn a_cup_tie_does_not_pull_a_predecessors_result_into_his_window() {
+        let mut game = make_game();
+        seed_ai_managers(&mut game);
+        for date in [
+            "2026-06-02",
+            "2026-06-06",
+            "2026-06-10",
+            "2026-06-14",
+            "2026-06-18",
+        ] {
+            finished_a_match(&mut game, "team2", date, "L");
+        }
+        in_charge_since(&mut game, "team2", "2026-06-19");
+        game.competitions[0].fixtures.push(Fixture {
+            id: "team2-cup-tie".to_string(),
+            date: "2026-06-24".to_string(),
+            home_team_id: "team2".to_string(),
+            away_team_id: "elsewhere".to_string(),
+            competition: FixtureCompetition::Cup,
+            status: FixtureStatus::Completed,
+            result: Some(MatchResult {
+                home_goals: 1,
+                away_goals: 0,
+                home_scorers: vec![],
+                away_scorers: vec![],
+                report: None,
+                home_penalties: None,
+                away_penalties: None,
+            }),
+            ..Fixture::default()
+        });
+
+        update_ai_manager_satisfaction(&mut game);
+
+        assert_eq!(
+            satisfaction_at(&game, "team2"),
+            BASE_AI_MANAGER_SATISFACTION as u8
         );
     }
 
