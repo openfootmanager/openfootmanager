@@ -1870,7 +1870,7 @@
     "skipShootoutPickerDesc": "Empieza las tandas de penaltis con el orden automático, sin pedirte que lo fijes",
     "savesData": "Guardados y Datos",
     "autoSave": "Autoguardado",
-    "autoSaveDesc": "Guardar automáticamente después de cada día",
+    "autoSaveDesc": "Guardar automáticamente cada semana",
     "exportWorld": "Exportar Base de Datos del Mundo",
     "exportWorldDesc": "Guardar los datos del mundo como archivo JSON compartible",
     "export": "Exportar",

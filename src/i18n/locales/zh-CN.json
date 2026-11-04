@@ -1870,7 +1870,7 @@
     "skipShootoutPickerDesc": "点球大战直接使用自动顺序，不再询问你",
     "savesData": "存档与数据",
     "autoSave": "自动存档",
-    "autoSaveDesc": "每天结束后自动保存游戏",
+    "autoSaveDesc": "每周自动保存游戏",
     "exportWorld": "导出世界数据库",
     "exportWorldDesc": "将当前世界数据保存为可分享的 JSON 文件",
     "export": "导出",

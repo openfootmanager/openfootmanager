@@ -1870,7 +1870,7 @@
     "skipShootoutPickerDesc": "Penaltový rozstřel začne v automatickém pořadí, aniž byste ho museli nastavovat",
     "savesData": "Uložené pozice a data",
     "autoSave": "Automatické ukládání",
-    "autoSaveDesc": "Automaticky uložit hru po skončení každého dne",
+    "autoSaveDesc": "Automaticky ukládat hru každý týden",
     "exportWorld": "Exportovat databázi světa",
     "exportWorldDesc": "Uložit aktuální data světa jako sdílený soubor JSON",
     "export": "Exportovat",

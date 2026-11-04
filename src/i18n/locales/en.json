@@ -1870,7 +1870,7 @@
     "skipShootoutPickerDesc": "Start penalty shootouts in the automatic order, without asking you to set it",
     "savesData": "Saves & Data",
     "autoSave": "Auto-Save",
-    "autoSaveDesc": "Automatically save your game after each day",
+    "autoSaveDesc": "Automatically save your game every week",
     "exportWorld": "Export World Database",
     "exportWorldDesc": "Save the current world data as a shareable JSON file",
     "export": "Export",

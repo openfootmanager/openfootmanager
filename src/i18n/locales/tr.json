@@ -1870,7 +1870,7 @@
     "skipShootoutPickerDesc": "Penaltı atışlarını size sormadan otomatik sırayla başlatır",
     "savesData": "Kayıtlar ve Veriler",
     "autoSave": "Otomatik Kayıt",
-    "autoSaveDesc": "Her günün ardından oyunu otomatik kaydet",
+    "autoSaveDesc": "Oyunu her hafta otomatik kaydet",
     "exportWorld": "Dünya Veritabanını Dışa Aktar",
     "exportWorldDesc": "Mevcut dünya verisini paylaşılabilir JSON dosyası olarak kaydet",
     "export": "Dışa Aktar",

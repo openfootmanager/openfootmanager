@@ -1870,7 +1870,7 @@
     "skipShootoutPickerDesc": "Começa as disputas de pênaltis na ordem automática, sem pedir que você a defina",
     "savesData": "Saves e Dados",
     "autoSave": "Salvar Automaticamente",
-    "autoSaveDesc": "Salvar automaticamente após cada dia",
+    "autoSaveDesc": "Salvar automaticamente toda semana",
     "exportWorld": "Exportar Banco de Dados do Mundo",
     "exportWorldDesc": "Salvar os dados do mundo atual como um arquivo JSON compartilhável",
     "export": "Exportar",

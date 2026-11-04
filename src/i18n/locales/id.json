@@ -1870,7 +1870,7 @@
     "skipShootoutPickerDesc": "Mulai adu penalti dengan urutan otomatis tanpa memintamu mengaturnya",
     "savesData": "Simpanan & Data",
     "autoSave": "Simpan Otomatis",
-    "autoSaveDesc": "Simpan permainan secara otomatis setelah setiap hari",
+    "autoSaveDesc": "Simpan permainan secara otomatis setiap minggu",
     "exportWorld": "Ekspor Database Dunia",
     "exportWorldDesc": "Simpan data dunia saat ini sebagai file JSON yang dapat dibagikan",
     "export": "Ekspor",

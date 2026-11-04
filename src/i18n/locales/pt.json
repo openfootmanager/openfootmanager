@@ -1870,7 +1870,7 @@
     "skipShootoutPickerDesc": "Começa as grandes penalidades na ordem automática, sem te pedir para a definir",
     "savesData": "Saves e Dados",
     "autoSave": "Guardar Automaticamente",
-    "autoSaveDesc": "Guardar automaticamente após cada dia",
+    "autoSaveDesc": "Guardar automaticamente todas as semanas",
     "exportWorld": "Exportar Base de Dados do Mundo",
     "exportWorldDesc": "Guardar os dados do mundo como ficheiro JSON partilhável",
     "export": "Exportar",

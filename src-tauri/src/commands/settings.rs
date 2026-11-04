@@ -147,8 +147,8 @@ fn validate_settings(mut settings: AppSettings) -> Result<AppSettings, String> {
     Ok(settings)
 }
 
-fn settings_path(
-    app_handle: &tauri::AppHandle,
+fn settings_path<R: tauri::Runtime>(
+    app_handle: &tauri::AppHandle<R>,
     error_key: &str,
 ) -> Result<std::path::PathBuf, String> {
     let dir = app_handle
@@ -157,6 +157,23 @@ fn settings_path(
         .map_err(|_| error_key.to_string())?;
     std::fs::create_dir_all(&dir).map_err(|_| error_key.to_string())?;
     Ok(dir.join("settings.json"))
+}
+
+/// Whether the player's Auto-Save setting is on, for the advance commands (#1181): the saved
+/// setting, or the default (on) when there is no settings file yet or it cannot be read.
+pub(crate) fn auto_save_enabled<R: tauri::Runtime>(app_handle: &tauri::AppHandle<R>) -> bool {
+    let stored = settings_path(app_handle, SETTINGS_LOAD_FAILED_ERROR)
+        .ok()
+        .and_then(|path| std::fs::read_to_string(path).ok());
+    auto_save_from(stored.as_deref())
+}
+
+fn auto_save_from(stored: Option<&str>) -> bool {
+    stored
+        .and_then(|json| serde_json::from_str::<AppSettings>(json).ok())
+        .map_or(AppSettings::default().auto_save, |settings| {
+            settings.auto_save
+        })
 }
 
 #[tauri::command]
@@ -204,7 +221,26 @@ pub fn clear_all_saves(
 
 #[cfg(test)]
 mod tests {
-    use super::{normalize_loaded_settings, response_for_settings, validate_settings, AppSettings};
+
+    /// Given no settings file, a file with Auto-Save off, and one that does not read; when the
+    /// advance asks whether to auto-save; then on (the default), off, and on again (#1181).
+    #[test]
+    fn auto_save_follows_the_saved_setting_and_defaults_to_on() {
+        let off = serde_json::to_string(&AppSettings {
+            auto_save: false,
+            ..AppSettings::default()
+        })
+        .unwrap();
+
+        assert!(auto_save_from(None));
+        assert!(!auto_save_from(Some(&off)));
+        assert!(auto_save_from(Some("not json")));
+    }
+
+    use super::{
+        auto_save_from, normalize_loaded_settings, response_for_settings, validate_settings,
+        AppSettings,
+    };
 
     fn make_settings(currency: &str) -> AppSettings {
         AppSettings {

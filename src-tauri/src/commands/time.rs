@@ -2,6 +2,7 @@ use log::info;
 use std::sync::Arc;
 use tauri::State;
 
+use crate::application::auto_save;
 use crate::application::time_advancement::advance_time_with_mode as advance_time_with_mode_service;
 pub use crate::application::time_advancement::AdvanceTimeWithModeResponse;
 use crate::application::time_blockers::stopping_blockers;
@@ -48,14 +49,22 @@ pub fn advance_time_with_mode_internal(
 ///
 /// Runs on a blocking worker so the day's simulation never freezes the webview.
 #[tauri::command]
-pub async fn advance_time_with_mode(
+pub async fn advance_time_with_mode<R: tauri::Runtime>(
     state: State<'_, Arc<StateManager>>,
+    saves: State<'_, Arc<crate::SaveManagerState>>,
+    app_handle: tauri::AppHandle<R>,
     mode: String,
     career_token: u64,
 ) -> Result<AdvanceTimeWithModeResponse, String> {
     let state = state.inner().clone();
+    let saves = saves.inner().clone();
     run_off_thread(move || {
-        advance_time_with_mode_internal(&state, Career::Token(career_token), &mode)
+        let career = Career::Token(career_token);
+        let before = auto_save::game_date(&state);
+        let response = advance_time_with_mode_internal(&state, career, &mode)?;
+        let enabled = || crate::commands::settings::auto_save_enabled(&app_handle);
+        auto_save::save_if_a_new_week(&state, &saves.0, enabled, before, career);
+        Ok(response)
     })
     .await
 }
@@ -100,12 +109,23 @@ pub fn check_blocking_actions(
 }
 
 #[tauri::command]
-pub async fn skip_to_match_day(
+pub async fn skip_to_match_day<R: tauri::Runtime>(
     state: State<'_, Arc<StateManager>>,
+    saves: State<'_, Arc<crate::SaveManagerState>>,
+    app_handle: tauri::AppHandle<R>,
     career_token: u64,
 ) -> Result<serde_json::Value, String> {
     let state = state.inner().clone();
-    run_off_thread(move || skip_to_match_day_internal(&state, Career::Token(career_token))).await
+    let saves = saves.inner().clone();
+    run_off_thread(move || {
+        let career = Career::Token(career_token);
+        let before = auto_save::game_date(&state);
+        let response = skip_to_match_day_internal(&state, career)?;
+        let enabled = || crate::commands::settings::auto_save_enabled(&app_handle);
+        auto_save::save_if_a_new_week(&state, &saves.0, enabled, before, career);
+        Ok(response)
+    })
+    .await
 }
 
 pub fn skip_to_match_day_internal(
@@ -327,12 +347,23 @@ pub fn advance_one_day_internal(
 }
 
 #[tauri::command]
-pub async fn advance_one_day(
+pub async fn advance_one_day<R: tauri::Runtime>(
     state: State<'_, Arc<StateManager>>,
+    saves: State<'_, Arc<crate::SaveManagerState>>,
+    app_handle: tauri::AppHandle<R>,
     career_token: u64,
 ) -> Result<serde_json::Value, String> {
     let state = state.inner().clone();
-    run_off_thread(move || advance_one_day_internal(&state, Career::Token(career_token))).await
+    let saves = saves.inner().clone();
+    run_off_thread(move || {
+        let career = Career::Token(career_token);
+        let before = auto_save::game_date(&state);
+        let response = advance_one_day_internal(&state, career)?;
+        let enabled = || crate::commands::settings::auto_save_enabled(&app_handle);
+        auto_save::save_if_a_new_week(&state, &saves.0, enabled, before, career);
+        Ok(response)
+    })
+    .await
 }
 
 fn count_high_priority_messages(game: &Game) -> usize {
@@ -851,8 +882,12 @@ mod tests {
         let date = |app: &WrapperApp| app.state().get_game(|g| g.clock.current_date).unwrap();
         let before = date(&app);
 
-        let refused =
-            tauri::async_runtime::block_on(super::advance_one_day(app.state(), app.token + 1));
+        let refused = tauri::async_runtime::block_on(super::advance_one_day(
+            app.state(),
+            app.saves(),
+            app.handle(),
+            app.token + 1,
+        ));
 
         assert_eq!(refused, Err("be.error.careerChanged".to_string()));
         assert_eq!(date(&app), before);

@@ -1870,7 +1870,7 @@
     "skipShootoutPickerDesc": "Lancer les séances de tirs au but dans l’ordre automatique, sans vous demander de le choisir",
     "savesData": "Sauvegardes et Données",
     "autoSave": "Sauvegarde Auto",
-    "autoSaveDesc": "Sauvegarder automatiquement après chaque jour",
+    "autoSaveDesc": "Sauvegarder automatiquement chaque semaine",
     "exportWorld": "Exporter la Base de Données",
     "exportWorldDesc": "Sauvegarder les données du monde en fichier JSON partageable",
     "export": "Exporter",

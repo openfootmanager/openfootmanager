@@ -1870,7 +1870,7 @@
     "skipShootoutPickerDesc": "Elfmeterschießen in der automatischen Reihenfolge starten, ohne dich danach zu fragen",
     "savesData": "Speicherstände & Daten",
     "autoSave": "Automatisch speichern",
-    "autoSaveDesc": "Automatisch nach jedem Tag speichern",
+    "autoSaveDesc": "Automatisch jede Woche speichern",
     "exportWorld": "Weltdatenbank exportieren",
     "exportWorldDesc": "Aktuelle Weltdaten als teilbare JSON-Datei speichern",
     "export": "Exportieren",
