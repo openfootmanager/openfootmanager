@@ -433,6 +433,12 @@
     "drawnFull": "Empatados",
     "lostFull": "Perdidos",
     "ptsFull": "Puntos",
+    "recentForm": "Forma reciente",
+    "formResult": {
+      "W": "V",
+      "D": "E",
+      "L": "D"
+    },
     "played": "PJ",
     "won": "PG",
     "drawn": "PE",
@@ -1539,6 +1545,7 @@
     "yourTeam": "Tu Equipo",
     "squad": "Plantilla",
     "avgOvr": "Media OVR",
+    "manager": "Entrenador",
     "rep": "Rep.",
     "est": "Fund."
   },

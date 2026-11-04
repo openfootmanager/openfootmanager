@@ -433,6 +433,12 @@
     "drawnFull": "Seri",
     "lostFull": "Kalah",
     "ptsFull": "Poin",
+    "recentForm": "Performa terkini",
+    "formResult": {
+      "W": "M",
+      "D": "S",
+      "L": "K"
+    },
     "played": "M",
     "won": "M",
     "drawn": "S",
@@ -1539,6 +1545,7 @@
     "yourTeam": "Tim Kamu",
     "squad": "Skuad",
     "avgOvr": "Rata-rata OVR",
+    "manager": "Manajer",
     "rep": "Reputasi",
     "est": "Berdiri"
   },

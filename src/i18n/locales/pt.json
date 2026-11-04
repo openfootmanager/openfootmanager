@@ -433,6 +433,12 @@
     "drawnFull": "Empates",
     "lostFull": "Derrotas",
     "ptsFull": "Pontos",
+    "recentForm": "Forma recente",
+    "formResult": {
+      "W": "V",
+      "D": "E",
+      "L": "D"
+    },
     "played": "J",
     "won": "V",
     "drawn": "E",
@@ -1539,6 +1545,7 @@
     "yourTeam": "A Tua Equipa",
     "squad": "Plantel",
     "avgOvr": "Média OVR",
+    "manager": "Treinador",
     "rep": "Rep.",
     "est": "Fund."
   },

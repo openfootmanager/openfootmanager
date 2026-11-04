@@ -433,6 +433,12 @@
     "drawnFull": "Remízy",
     "lostFull": "Prohry",
     "ptsFull": "Body",
+    "recentForm": "Aktuální forma",
+    "formResult": {
+      "W": "V",
+      "D": "R",
+      "L": "P"
+    },
     "played": "Z",
     "won": "V",
     "drawn": "R",
@@ -1539,6 +1545,7 @@
     "yourTeam": "Váš tým",
     "squad": "Soupiska",
     "avgOvr": "Prům. hodnocení",
+    "manager": "Manažer",
     "rep": "Rep.",
     "est": "Založeno"
   },

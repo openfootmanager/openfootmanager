@@ -433,6 +433,12 @@
     "drawnFull": "Unentschieden",
     "lostFull": "Niederlagen",
     "ptsFull": "Punkte",
+    "recentForm": "Aktuelle Form",
+    "formResult": {
+      "W": "S",
+      "D": "U",
+      "L": "N"
+    },
     "played": "Sp",
     "won": "S",
     "drawn": "U",
@@ -1539,6 +1545,7 @@
     "yourTeam": "Dein Team",
     "squad": "Kader",
     "avgOvr": "Durchschn. OVR",
+    "manager": "Trainer",
     "rep": "Ruf",
     "est": "Gegr."
   },

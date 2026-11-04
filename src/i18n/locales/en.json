@@ -433,6 +433,12 @@
     "drawnFull": "Drawn",
     "lostFull": "Lost",
     "ptsFull": "Points",
+    "recentForm": "Recent form",
+    "formResult": {
+      "W": "W",
+      "D": "D",
+      "L": "L"
+    },
     "played": "P",
     "won": "W",
     "drawn": "D",
@@ -1539,6 +1545,7 @@
     "yourTeam": "Your Team",
     "squad": "Squad",
     "avgOvr": "Avg OVR",
+    "manager": "Manager",
     "rep": "Rep",
     "est": "Est."
   },

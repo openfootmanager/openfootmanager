@@ -433,6 +433,12 @@
     "drawnFull": "Nuls",
     "lostFull": "Défaites",
     "ptsFull": "Points",
+    "recentForm": "Forme récente",
+    "formResult": {
+      "W": "V",
+      "D": "N",
+      "L": "D"
+    },
     "played": "J",
     "won": "V",
     "drawn": "N",
@@ -1539,6 +1545,7 @@
     "yourTeam": "Votre Équipe",
     "squad": "Effectif",
     "avgOvr": "OVR Moyen",
+    "manager": "Entraîneur",
     "rep": "Rép",
     "est": "Fond."
   },
