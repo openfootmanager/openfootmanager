@@ -403,7 +403,7 @@ The news system generates public-facing articles about league events, displayed 
 | **StandingsUpdate** | After each matchday | Current league positions |
 | **TransferRumour** | Weekly digest (Monday) | Gossip/speculation about notable AI players |
 | **TransferRoundup** | Weekly digest (Monday) + major completed transfers | Confirmed major move announcements and roundup coverage |
-| **InjuryNews** | When a notable player (in his club's starting XI, or among its three most valuable) at the user's club or in the user's division suffers a training injury | Injury duration and impact report |
+| **InjuryNews** | When a notable player (in the side his club would field, or among its three most valuable) at the user's club or in the user's division suffers a training injury | Injury duration and impact report |
 | **ManagerialChange** | Manager firing or vacancy fill | Public dismissal and appointment coverage |
 | **SeasonPreview** | End of season / preseason rollover | Preseason analysis and contenders |
 | **Editorial** | Weekly storylines, season awards, weekly digest | Opinion pieces, standings narratives |
@@ -436,7 +436,7 @@ The match engine records an injury event when a player is hurt on the pitch. `tu
 
 `training/injuries.rs` rolls them for every club, once a day, after the day's matches and the day's recovery. A club with a fixture that day, in any competition, did not train. At each other club one player not already injured is picked, and his fitness scales a 2% chance that the session hurts him (`player_wear::injury_multiplier_from_fitness`). The injury comes from `player_wear::roll_training_injury`: the slight, minor and moderate bands of the match roll, so a knee bruise lasts what it lasts after a match. Each club rolls on its own seeded stream (seed, date and club), so another club's squad never changes what happens at this one. Only an injury at the user's club sends an inbox message, through the sent-ledger.
 
-**Injury news** articles are generated when a notable player suffers a training-ground injury at a club the user follows: the user's own, or one in the user's division (`end_of_season::user_division`, which for an unemployed manager falls back to the mirrored league, as the season preview does). A player is notable when he is in his club's usual starting XI or among its three most valuable players (`training/injuries.rs::is_notable`). A notable player hurt anywhere else is injured silently (`training/injuries.rs::injury_makes_the_news`). The article reports the injury duration and is attributed to a factual source (League Wire, The Football Herald, or Match Day Press).
+**Injury news** articles are generated when a notable player suffers a training-ground injury at a club the user follows: the user's own, or one in the user's division (`end_of_season::user_division`, which for an unemployed manager falls back to the mirrored league, as the season preview does). A player is notable when he is in the side his club would field (`turn::squad::match_day_selection`, the pick kick-off makes) or among its three most valuable players (`training/injuries.rs::is_notable`). A notable player hurt anywhere else is injured silently (`training/injuries.rs::injury_makes_the_news`). The article reports the injury duration and is attributed to a factual source (League Wire, The Football Herald, or Match Day Press).
 
 ---
 

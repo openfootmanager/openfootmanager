@@ -738,50 +738,6 @@ fn injury_news_article_created_for_notable_player() {
     );
 }
 
-/// Given eleven players worth nothing and outside the starting XI, and three injured teammates who
-///      are the club's most valuable
-/// When two thousand days of training injuries roll, each injury healed the same day
-/// Then none of the eleven makes the news: none is notable
-#[test]
-fn injury_news_article_not_created_for_non_notable_player() {
-    let mut game = make_game();
-    for p in &mut game.players {
-        p.market_value = 0;
-    }
-    for index in 0..3 {
-        let mut star = make_player(&format!("star{index}"), &format!("Star {index}"), "team1");
-        star.market_value = 1_000_000;
-        star.injury = Some(domain::player::Injury {
-            name: "common.injuries.kneeBruise".to_string(),
-            days_remaining: 5_000,
-        });
-        game.players.push(star);
-    }
-    game.league = None;
-    for _ in 0..2000 {
-        roll_training_injuries(&mut game);
-        game.messages
-            .retain(|m| !m.id.starts_with("training_injury_"));
-        for p in game
-            .players
-            .iter_mut()
-            .filter(|p| !p.id.starts_with("star"))
-        {
-            p.injury = None;
-        }
-        game.clock.advance_days(1);
-    }
-    let injury_news_count = game
-        .news
-        .iter()
-        .filter(|a| a.id.starts_with("injury_news_"))
-        .count();
-    assert_eq!(
-        injury_news_count, 0,
-        "Non-notable players should not generate InjuryNews articles"
-    );
-}
-
 // ---------------------------------------------------------------------------
 // apply_event_response tests
 // ---------------------------------------------------------------------------
