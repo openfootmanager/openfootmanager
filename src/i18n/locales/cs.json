@@ -3553,6 +3553,7 @@
       "scoutingCancelled": {
         "subject": "Skautský úkol zrušen",
         "body": "Skaut vyslaný sledovat hráče {{player}} opustil klub, takže žádná zpráva nepřijde. Pokud ji stále chcete, vyšlete jiného skauta.",
+        "bodyWithoutPlayer": "Skaut vyslaný sledovat hráče opustil klub a ten hráč už v našich záznamech není, takže žádná zpráva nepřijde.",
         "youthBody": "Skaut vyslaný hledat mladé hráče opustil klub, takže hledání bylo zrušeno. Pokud ho stále chcete, začněte nové s jiným skautem."
       },
       "boardWarning": {

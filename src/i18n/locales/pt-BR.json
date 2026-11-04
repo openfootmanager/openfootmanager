@@ -3553,6 +3553,7 @@
       "scoutingCancelled": {
         "subject": "Missão de observação cancelada",
         "body": "O olheiro que você enviou para observar {{player}} saiu do clube, então não haverá relatório. Envie outro olheiro se ainda quiser.",
+        "bodyWithoutPlayer": "O olheiro que você enviou para observar um jogador saiu do clube, e esse jogador não está mais nos nossos registros, então não haverá relatório.",
         "youthBody": "O olheiro que você enviou em uma busca de jovens saiu do clube, então a busca foi cancelada. Comece uma nova com outro olheiro se ainda quiser."
       },
       "boardWarning": {

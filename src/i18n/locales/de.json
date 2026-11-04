@@ -3553,6 +3553,7 @@
       "scoutingCancelled": {
         "subject": "Scouting-Auftrag abgebrochen",
         "body": "Der Scout, den du zu {{player}} geschickt hast, hat den Verein verlassen, daher kommt kein Bericht. Schick einen anderen Scout, wenn du noch einen willst.",
+        "bodyWithoutPlayer": "Der Scout, den du zu einem Spieler geschickt hast, hat den Verein verlassen, und dieser Spieler ist nicht mehr erfasst, daher kommt kein Bericht.",
         "youthBody": "Der Scout, den du auf Talentsuche geschickt hast, hat den Verein verlassen, daher wurde die Suche abgebrochen. Starte eine neue mit einem anderen Scout, wenn du sie noch willst."
       },
       "boardWarning": {

@@ -3553,6 +3553,7 @@
       "scoutingCancelled": {
         "subject": "Misión de ojeo cancelada",
         "body": "El ojeador que enviaste a seguir a {{player}} ha dejado el club, así que no habrá informe. Envía a otro ojeador si todavía lo quieres.",
+        "bodyWithoutPlayer": "El ojeador que enviaste a seguir a un jugador ha dejado el club, y ese jugador ya no figura en nuestros registros, así que no habrá informe.",
         "youthBody": "El ojeador que enviaste a buscar jóvenes ha dejado el club, así que la búsqueda se ha cancelado. Empieza una nueva con otro ojeador si todavía la quieres."
       },
       "boardWarning": {

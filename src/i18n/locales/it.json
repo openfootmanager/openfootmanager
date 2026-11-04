@@ -3553,6 +3553,7 @@
       "scoutingCancelled": {
         "subject": "Incarico di osservazione annullato",
         "body": "L'osservatore che hai mandato a seguire {{player}} ha lasciato il club, quindi non arriverà nessun rapporto. Manda un altro osservatore se ne vuoi ancora uno.",
+        "bodyWithoutPlayer": "L'osservatore che hai mandato a seguire un giocatore ha lasciato il club, e quel giocatore non è più nei nostri archivi, quindi non arriverà nessun rapporto.",
         "youthBody": "L'osservatore che hai mandato a cercare giovani ha lasciato il club, quindi la ricerca è stata annullata. Avviane una nuova con un altro osservatore se la vuoi ancora."
       },
       "boardWarning": {

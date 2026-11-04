@@ -3553,6 +3553,7 @@
       "scoutingCancelled": {
         "subject": "Scouting assignment cancelled",
         "body": "The scout you sent to watch {{player}} has left the club, so no report will come. Send another scout if you still want one.",
+        "bodyWithoutPlayer": "The scout you sent to watch a player has left the club, and that player is no longer on our books, so no report will come.",
         "youthBody": "The scout you sent on a youth search has left the club, so the search has been called off. Start a new one with another scout if you still want it."
       },
       "boardWarning": {

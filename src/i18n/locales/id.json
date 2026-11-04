@@ -3553,6 +3553,7 @@
       "scoutingCancelled": {
         "subject": "Tugas scout dibatalkan",
         "body": "Scout yang kamu kirim untuk memantau {{player}} sudah meninggalkan klub, jadi tidak akan ada laporan. Kirim scout lain jika kamu masih membutuhkannya.",
+        "bodyWithoutPlayer": "Scout yang kamu kirim untuk memantau seorang pemain sudah meninggalkan klub, dan pemain itu tidak lagi tercatat, jadi tidak akan ada laporan.",
         "youthBody": "Scout yang kamu kirim untuk mencari pemain muda sudah meninggalkan klub, jadi pencarian dibatalkan. Mulai pencarian baru dengan scout lain jika kamu masih membutuhkannya."
       },
       "boardWarning": {

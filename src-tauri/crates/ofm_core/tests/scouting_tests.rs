@@ -333,6 +333,29 @@ fn a_scout_who_left_the_club_cancels_his_report_with_a_letter() {
         Some("be.msg.scoutingCancelled.body")
     );
     assert_eq!(letters[0].i18n_params["player"], "Target Player");
+    // The letter carries the player, so the inbox shows his card.
+    assert_eq!(letters[0].context.player_id.as_deref(), Some("p2"));
+    assert!(game.scouting_assignments.is_empty());
+}
+
+/// Given a scout sent to watch a player; when the scout leaves and the player is gone from the
+/// game too before the report is due; then the user still gets the letter, worded without the
+/// player's name.
+#[test]
+fn a_scout_who_left_after_a_player_who_is_gone_still_cancels_with_a_letter() {
+    let mut game = make_game();
+    send_scout(&mut game, "scout1", "p2").unwrap();
+    game.staff[0].team_id = None;
+    game.players.retain(|player| player.id != "p2");
+
+    complete_scouting(&mut game);
+
+    let letters = cancellation_letters(&game);
+    assert_eq!(letters.len(), 1);
+    assert_eq!(
+        letters[0].body_key.as_deref(),
+        Some("be.msg.scoutingCancelled.bodyWithoutPlayer")
+    );
     assert!(game.scouting_assignments.is_empty());
 }
 

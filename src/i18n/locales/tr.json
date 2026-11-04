@@ -3553,6 +3553,7 @@
       "scoutingCancelled": {
         "subject": "Gözlem görevi iptal edildi",
         "body": "{{player}} oyuncusunu izlemeye gönderdiğiniz gözlemci kulüpten ayrıldı, bu yüzden rapor gelmeyecek. Hâlâ istiyorsanız başka bir gözlemci gönderin.",
+        "bodyWithoutPlayer": "Bir oyuncuyu izlemeye gönderdiğiniz gözlemci kulüpten ayrıldı ve o oyuncu artık kayıtlarımızda yok, bu yüzden rapor gelmeyecek.",
         "youthBody": "Genç oyuncu aramasına gönderdiğiniz gözlemci kulüpten ayrıldı, bu yüzden arama iptal edildi. Hâlâ istiyorsanız başka bir gözlemciyle yeni bir arama başlatın."
       },
       "boardWarning": {

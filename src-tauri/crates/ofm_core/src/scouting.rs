@@ -303,11 +303,17 @@ pub fn process_scouting(game: &mut Game) {
     // Generate reports for completed assignments
     for assignment in &completed {
         if !scout_still_at_club(game, &assignment.scout_id) {
-            if let Some(player) = game.players.iter().find(|p| p.id == assignment.player_id) {
-                let letter =
-                    scouting_cancelled_message(&assignment.id, Some(&player.match_name), &today);
-                game.messages.push(letter);
-            }
+            let name = game
+                .players
+                .iter()
+                .find(|p| p.id == assignment.player_id)
+                .map(|player| player.match_name.as_str());
+            let target = ScoutingTarget::Player {
+                id: &assignment.player_id,
+                name,
+            };
+            let letter = scouting_cancelled_message(&assignment.id, target, &today);
+            game.messages.push(letter);
             continue;
         }
         let scout = game.staff.iter().find(|s| s.id == assignment.scout_id);
@@ -402,16 +408,35 @@ fn scout_still_at_club(game: &Game, scout_id: &str) -> bool {
     })
 }
 
-/// The letter for an assignment whose scout left before it ended. `player_name` names the player
-/// he was sent to watch; a youth search has none.
+/// What a cancelled assignment was for: a player the scout was sent to watch (`name` is `None`
+/// when that player is no longer in the game either), or a youth search.
+enum ScoutingTarget<'a> {
+    Player { id: &'a str, name: Option<&'a str> },
+    YouthSearch,
+}
+
+/// The letter for an assignment whose scout left before it ended. A letter about a known player
+/// carries him in its context, so the inbox shows his card.
 fn scouting_cancelled_message(
     assignment_id: &str,
-    player_name: Option<&str>,
+    target: ScoutingTarget,
     date: &str,
 ) -> InboxMessage {
-    let (body_key, i18n_params) = match player_name {
-        Some(name) => ("be.msg.scoutingCancelled.body", params(&[("player", name)])),
-        None => ("be.msg.scoutingCancelled.youthBody", HashMap::new()),
+    let (body_key, i18n_params, player_id) = match target {
+        ScoutingTarget::Player {
+            id,
+            name: Some(name),
+        } => (
+            "be.msg.scoutingCancelled.body",
+            params(&[("player", name)]),
+            Some(id.to_string()),
+        ),
+        ScoutingTarget::Player { name: None, .. } => (
+            "be.msg.scoutingCancelled.bodyWithoutPlayer",
+            HashMap::new(),
+            None,
+        ),
+        ScoutingTarget::YouthSearch => ("be.msg.scoutingCancelled.youthBody", HashMap::new(), None),
     };
     InboxMessage::new(
         format!("scouting_cancelled_{assignment_id}"),
@@ -423,6 +448,10 @@ fn scouting_cancelled_message(
     .with_category(MessageCategory::ScoutReport)
     .with_priority(MessagePriority::Normal)
     .with_sender_role("")
+    .with_context(MessageContext {
+        player_id,
+        ..Default::default()
+    })
     .with_i18n("be.msg.scoutingCancelled.subject", body_key, i18n_params)
     .with_sender_i18n("be.sender.assistantManager", "be.role.assistantManager")
 }
@@ -433,8 +462,11 @@ fn complete_youth_scouting_assignment(
     date: &str,
 ) {
     if !scout_still_at_club(game, &assignment.scout_id) {
-        game.messages
-            .push(scouting_cancelled_message(&assignment.id, None, date));
+        game.messages.push(scouting_cancelled_message(
+            &assignment.id,
+            ScoutingTarget::YouthSearch,
+            date,
+        ));
         return;
     }
     let Some(scout) = game
