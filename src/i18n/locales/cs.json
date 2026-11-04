@@ -760,6 +760,12 @@
     "unsavedChanges": "Neuložené změny",
     "currentPlanCard": "Aktuální plán",
     "phaseBlueprint": "Plán herní fáze",
+    "instructionsPanel": {
+      "title": "Týmové pokyny",
+      "show": "Zobrazit týmové pokyny",
+      "hide": "Skrýt týmové pokyny",
+      "openAt": "Zobrazit týmové pokyny: {{section}}"
+    },
     "phaseLabels": {
       "withBall": "S míčem",
       "withoutBall": "Bez míče",

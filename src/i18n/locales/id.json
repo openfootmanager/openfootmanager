@@ -760,6 +760,12 @@
     "unsavedChanges": "Perubahan belum disimpan",
     "currentPlanCard": "Rencana saat ini",
     "phaseBlueprint": "Cetak biru fase",
+    "instructionsPanel": {
+      "title": "Instruksi tim",
+      "show": "Tampilkan instruksi tim",
+      "hide": "Sembunyikan instruksi tim",
+      "openAt": "Tampilkan instruksi tim: {{section}}"
+    },
     "phaseLabels": {
       "withBall": "Dengan Bola",
       "withoutBall": "Tanpa Bola",

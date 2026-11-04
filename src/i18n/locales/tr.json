@@ -760,6 +760,12 @@
     "unsavedChanges": "Kaydedilmemiş değişiklikler",
     "currentPlanCard": "Mevcut plan",
     "phaseBlueprint": "Faz şeması",
+    "instructionsPanel": {
+      "title": "Takım talimatları",
+      "show": "Takım talimatlarını göster",
+      "hide": "Takım talimatlarını gizle",
+      "openAt": "Takım talimatlarını göster: {{section}}"
+    },
     "phaseLabels": {
       "withBall": "Topla Oyun",
       "withoutBall": "Topsuz Oyun",

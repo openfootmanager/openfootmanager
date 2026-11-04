@@ -760,6 +760,12 @@
     "unsavedChanges": "Unsaved changes",
     "currentPlanCard": "Current plan",
     "phaseBlueprint": "Phase blueprint",
+    "instructionsPanel": {
+      "title": "Team instructions",
+      "show": "Show team instructions",
+      "hide": "Hide team instructions",
+      "openAt": "Show team instructions: {{section}}"
+    },
     "phaseLabels": {
       "withBall": "With Ball",
       "withoutBall": "Without Ball",
