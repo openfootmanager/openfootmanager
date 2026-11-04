@@ -1,5 +1,6 @@
 mod fitness_warnings;
 mod focus_attributes;
+mod injuries;
 pub use fitness_warnings::{
     ConditionStatus, FitnessStatus, SquadFitness, check_squad_fitness_warnings, condition_status,
     fitness_status, squad_fitness,
@@ -14,6 +15,7 @@ use rand::Rng;
 
 use focus_attributes::focus_gains;
 pub use focus_attributes::{TrainingFocusAttributes, training_focus_attributes};
+pub use injuries::roll_training_injuries;
 
 /// Computed coaching quality for a team's staff.
 pub struct TeamCoachingBonus {
