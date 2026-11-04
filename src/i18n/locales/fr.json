@@ -3644,6 +3644,10 @@
         "bodyWithOption": "{{player}} sera prêté par {{parent}} à {{borrower}} du {{start}} au {{end}}. {{borrower}} prendra en charge {{contribution}}% du salaire. Option d’achat : {{fee}}.",
         "bodyNoOption": "{{player}} sera prêté par {{parent}} à {{borrower}} du {{start}} au {{end}}. {{borrower}} prendra en charge {{contribution}}% du salaire. Aucune option d’achat."
       },
+      "loanRegistrationFailed": {
+        "subject": "Prêt annulé : {{player}}",
+        "body": "Le prêt convenu de {{player}} de {{parent}} à {{borrower}}, prévu le {{start}}, ne peut pas avoir lieu : le joueur n'est plus sous contrat avec {{parent}}."
+      },
       "loanOffer": {
         "subject": "Offre de prêt pour {{player}}",
         "body": "{{team}} souhaite emprunter {{player}} jusqu'au {{endDate}} et prendre en charge {{wageContribution}}% de son salaire. Option d'achat : {{buyOption}}. Consultez l'offre dans l'onglet Transferts.",

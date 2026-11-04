@@ -252,7 +252,10 @@ All frontend↔backend communication goes through Tauri's `invoke()` mechanism. 
 | `apply_tactic_preset` | formation, play_style | `Game` | Pick a tactic preset: formation + play style, and reset the phase blueprint to that style's default |
 | `list_custom_tactics` | - | `CustomTactic[]` | The tactics the player saved (career-scoped, in the save) |
 | `save_custom_tactic` | tactic, careerToken | `CustomTactic[]` | Add a saved tactic, or replace the one with the same id; returns the library |
-| `delete_custom_tactic` | id, careerToken | `CustomTactic[]` | Remove a saved tactic; returns what is left. All three writes are refused with `be.error.careerChanged` when `careerToken` (`Game.career_token`, stamped by `install_career`) is not the active career's |
+| `save_current_tactic` | tactic, careerToken | `CustomTactic[]` | Save the team's tactic as it stands, whole (#1189: formation, style, every instruction, the eleven slot by slot with their roles, the set-piece takers), under the draft's id and name; returns the library |
+| `apply_custom_tactic` | id, careerToken | `Game` | Put a saved tactic on the team: its formation and style, and for a tactic that holds them its instructions, eleven, roles and takers. A player who has left gives his slot and his armband back to the team's current choice |
+| `rename_custom_tactic` | id, name, careerToken | `CustomTactic[]` | Rename a saved tactic, keeping all it holds; returns the library |
+| `delete_custom_tactic` | id, careerToken | `CustomTactic[]` | Remove a saved tactic; returns what is left. Every write here is refused with `be.error.careerChanged` when `careerToken` (`Game.career_token`, stamped by `install_career`) is not the active career's |
 | `legacy_tactics_import_pending` | - | `bool` | Whether the old browser library still has to be copied into this career |
 | `mark_legacy_tactics_imported` | careerToken | - | Record that it has been copied in; it never is again |
 | `get_tactics_blueprint_status` | — | `{ modified }` | Whether the user's phase dials differ from the blueprint their play style implies (`blueprint_for`); feeds the Tactics unsaved-changes badge |

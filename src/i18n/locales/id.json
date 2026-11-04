@@ -3644,6 +3644,10 @@
         "bodyWithOption": "{{player}} akan dipinjamkan dari {{parent}} ke {{borrower}} mulai {{start}} hingga {{end}}. {{borrower}} akan menanggung {{contribution}}% gaji. Opsi pembelian: {{fee}}.",
         "bodyNoOption": "{{player}} akan dipinjamkan dari {{parent}} ke {{borrower}} mulai {{start}} hingga {{end}}. {{borrower}} akan menanggung {{contribution}}% gaji. Tanpa opsi pembelian."
       },
+      "loanRegistrationFailed": {
+        "subject": "Peminjaman dibatalkan: {{player}}",
+        "body": "Peminjaman {{player}} yang disepakati dari {{parent}} ke {{borrower}}, yang dijadwalkan mulai {{start}}, tidak bisa berjalan: pemain itu tidak lagi terikat kontrak dengan {{parent}}."
+      },
       "loanOffer": {
         "subject": "Tawaran Pinjaman untuk {{player}}",
         "body": "{{team}} ingin meminjam {{player}} hingga {{endDate}} dan menanggung {{wageContribution}}% dari gaji. Opsi pembelian: {{buyOption}}. Tinjau tawaran di tab Transfer.",

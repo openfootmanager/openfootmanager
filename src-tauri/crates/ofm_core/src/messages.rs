@@ -151,6 +151,43 @@ pub fn transfer_complete_message(player_name: &str, fee: u64, date: &str) -> Inb
     .with_sender_i18n("be.sender.transferCommittee", "be.role.directorOfFootball")
 }
 
+/// The letter for an agreed loan that can no longer start: its player is no longer under contract
+/// to the lending club (released, or retired) before the window opened (#1242).
+pub(crate) fn loan_registration_failed_message(
+    offer: &domain::player::LoanOffer,
+    player: &domain::player::Player,
+    user_team_id: &str,
+    parent_name: &str,
+    borrower_name: &str,
+    date: &str,
+) -> InboxMessage {
+    InboxMessage::new(
+        format!("loan_registration_failed_{}", offer.id),
+        String::new(),
+        String::new(),
+        String::new(),
+        date.to_string(),
+    )
+    .with_category(MessageCategory::Transfer)
+    .with_priority(MessagePriority::High)
+    .with_context(MessageContext {
+        team_id: Some(user_team_id.to_string()),
+        player_id: Some(player.id.clone()),
+        ..Default::default()
+    })
+    .with_i18n(
+        "be.msg.loanRegistrationFailed.subject",
+        "be.msg.loanRegistrationFailed.body",
+        HashMap::from([
+            ("player".to_string(), player.full_name.clone()),
+            ("parent".to_string(), parent_name.to_string()),
+            ("borrower".to_string(), borrower_name.to_string()),
+            ("start".to_string(), offer.start_date.clone()),
+        ]),
+    )
+    .with_sender_i18n("be.sender.transferCommittee", "be.role.directorOfFootball")
+}
+
 pub(crate) fn transfer_registration_failed_message(
     offer: &domain::player::TransferOffer,
     player: &domain::player::Player,
