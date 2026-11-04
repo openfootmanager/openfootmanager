@@ -80,10 +80,8 @@ export default function InboxTab({
   const [effectFeedback, setEffectFeedback] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   // A response is applied by the backend as many times as it is asked (a morale hit, a trust change),
-  // so while one answer is on its way no other response is sent. The ref stops a second click that
-  // lands before React has re-rendered; the state disables the buttons.
+  // so while one answer is on its way the response buttons are disabled.
   const [isResolvingAction, setIsResolvingAction] = useState(false);
-  const resolvingActionRef = useRef(false);
   const inboxSeqRef = useRef(0);
 
   const categoryCounts = useMemo(() => {
@@ -167,8 +165,6 @@ export default function InboxTab({
       }
     }
 
-    if (resolvingActionRef.current) return;
-    resolvingActionRef.current = true;
     setIsResolvingAction(true);
     try {
       const result = await resolveMessageAction(messageId, actionId, optionId);
@@ -191,7 +187,6 @@ export default function InboxTab({
       }
     } catch {
     } finally {
-      resolvingActionRef.current = false;
       setIsResolvingAction(false);
     }
   }
