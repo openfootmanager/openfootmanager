@@ -3550,6 +3550,11 @@
         "subject": "Relatório de Observação: {{player}}",
         "body": "Seu olheiro {{scout}} concluiu a avaliação de {{player}}. Relatório completo disponível na seção de observação."
       },
+      "scoutingCancelled": {
+        "subject": "Missão de observação cancelada",
+        "body": "O olheiro que você enviou para observar {{player}} saiu do clube, então não haverá relatório. Envie outro olheiro se ainda quiser.",
+        "youthBody": "O olheiro que você enviou em uma busca de jovens saiu do clube, então a busca foi cancelada. Comece uma nova com outro olheiro se ainda quiser."
+      },
       "boardWarning": {
         "subject": "Preocupação da Diretoria — Avaliação de Desempenho",
         "body": "A diretoria está cada vez mais preocupada com os resultados recentes no {{team}}. Sua posição será seriamente avaliada se não houver melhora em um futuro próximo."

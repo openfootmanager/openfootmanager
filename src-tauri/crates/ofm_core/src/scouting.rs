@@ -302,6 +302,14 @@ pub fn process_scouting(game: &mut Game) {
 
     // Generate reports for completed assignments
     for assignment in &completed {
+        if !scout_still_at_club(game, &assignment.scout_id) {
+            if let Some(player) = game.players.iter().find(|p| p.id == assignment.player_id) {
+                let letter =
+                    scouting_cancelled_message(&assignment.id, Some(&player.match_name), &today);
+                game.messages.push(letter);
+            }
+            continue;
+        }
         let scout = game.staff.iter().find(|s| s.id == assignment.scout_id);
         let player = game.players.iter().find(|p| p.id == assignment.player_id);
 
@@ -382,11 +390,53 @@ fn record_scouted_player(game: &mut Game, player_id: &str, scouted_on: &str, sco
     game.scouted_players.push(scouted);
 }
 
+/// Whether the scout on an assignment still works for the user's club. One who has left, by
+/// release, sale or any other route, writes nothing for it: the assignment is called off with a
+/// letter instead of ending in silence or reporting to a club he no longer serves (#476).
+fn scout_still_at_club(game: &Game, scout_id: &str) -> bool {
+    let Some(club_id) = game.manager.team_id.as_deref() else {
+        return false;
+    };
+    game.staff.iter().any(|staff_member| {
+        staff_member.id == scout_id && staff_member.team_id.as_deref() == Some(club_id)
+    })
+}
+
+/// The letter for an assignment whose scout left before it ended. `player_name` names the player
+/// he was sent to watch; a youth search has none.
+fn scouting_cancelled_message(
+    assignment_id: &str,
+    player_name: Option<&str>,
+    date: &str,
+) -> InboxMessage {
+    let (body_key, i18n_params) = match player_name {
+        Some(name) => ("be.msg.scoutingCancelled.body", params(&[("player", name)])),
+        None => ("be.msg.scoutingCancelled.youthBody", HashMap::new()),
+    };
+    InboxMessage::new(
+        format!("scouting_cancelled_{assignment_id}"),
+        String::new(),
+        String::new(),
+        String::new(),
+        date.to_string(),
+    )
+    .with_category(MessageCategory::ScoutReport)
+    .with_priority(MessagePriority::Normal)
+    .with_sender_role("")
+    .with_i18n("be.msg.scoutingCancelled.subject", body_key, i18n_params)
+    .with_sender_i18n("be.sender.assistantManager", "be.role.assistantManager")
+}
+
 fn complete_youth_scouting_assignment(
     game: &mut Game,
     assignment: &YouthScoutingAssignment,
     date: &str,
 ) {
+    if !scout_still_at_club(game, &assignment.scout_id) {
+        game.messages
+            .push(scouting_cancelled_message(&assignment.id, None, date));
+        return;
+    }
     let Some(scout) = game
         .staff
         .iter()

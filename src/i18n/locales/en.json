@@ -3550,6 +3550,11 @@
         "subject": "Scout Report: {{player}}",
         "body": "Your scout {{scout}} has completed their assessment of {{player}}. Full report available in the scouting section."
       },
+      "scoutingCancelled": {
+        "subject": "Scouting assignment cancelled",
+        "body": "The scout you sent to watch {{player}} has left the club, so no report will come. Send another scout if you still want one.",
+        "youthBody": "The scout you sent on a youth search has left the club, so the search has been called off. Start a new one with another scout if you still want it."
+      },
       "boardWarning": {
         "subject": "Board Concern — Performance Review",
         "body": "The board is growing increasingly concerned with recent results at {{team}}. Your position will come under serious review if there is no improvement in the near future."

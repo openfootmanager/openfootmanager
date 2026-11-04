@@ -3550,6 +3550,11 @@
         "subject": "Laporan Scout: {{player}}",
         "body": "Scout kamu {{scout}} telah menyelesaikan penilaiannya terhadap {{player}}. Laporan lengkap tersedia di bagian scouting."
       },
+      "scoutingCancelled": {
+        "subject": "Tugas scout dibatalkan",
+        "body": "Scout yang kamu kirim untuk memantau {{player}} sudah meninggalkan klub, jadi tidak akan ada laporan. Kirim scout lain jika kamu masih membutuhkannya.",
+        "youthBody": "Scout yang kamu kirim untuk mencari pemain muda sudah meninggalkan klub, jadi pencarian dibatalkan. Mulai pencarian baru dengan scout lain jika kamu masih membutuhkannya."
+      },
       "boardWarning": {
         "subject": "Kekhawatiran Manajemen — Tinjauan Performa",
         "body": "Manajemen semakin khawatir dengan hasil terkini di {{team}}. Posisi kamu akan ditinjau secara serius jika tidak ada perbaikan dalam waktu dekat."
