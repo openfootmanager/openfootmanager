@@ -139,28 +139,23 @@ fn a_day_that_hands_a_shirt_to_a_newcomer_saves_and_loads_back() {
     );
 }
 
-/// A career where club X's keeper wears #1, and a free agent with no club and no shirt.
-fn career_before_a_retirement() -> Game {
+/// A career where `club`'s keeper wears #1, and a free agent with no club and no shirt. The
+/// manager runs club-x, so `club-y` is an AI club.
+fn career_before_a_retirement(club: &str) -> Game {
     let mut game = career_before_the_transfer_day();
-    let mut free_agent = player_in_shirt("free-agent", "club-x", 1);
+    let mut free_agent = player_in_shirt("free-agent", club, 1);
     free_agent.team_id = None;
     free_agent.jersey_number = None;
-    game.players = vec![player_in_shirt("keeper", "club-x", 1), free_agent];
+    game.players = vec![player_in_shirt("keeper", club, 1), free_agent];
     game
 }
 
-/// Given a saved career where X's keeper wears #1; when, at the season's end, he
-/// retires and leaves the roster for the archive, and X signs a free agent who
-/// takes the #1 he left; then saving succeeds, and the save on disk has the
-/// newcomer in #1 at X and the keeper among the retired.
-///
-/// #1004: the save wrote the roster before it removed the retiree's row, so the
-/// newcomer's #1 met the stored #1 and every save and exit failed from then on.
-#[test]
-fn a_shirt_a_retiree_left_can_be_handed_on_and_saved() {
+/// Saves a career where `club`'s #1 retires at the season's end and the club signs a free agent
+/// who takes the shirt he left, then reloads it. Returns the save's result and the reloaded game.
+fn hand_on_a_retirees_shirt(club: &str) -> (Result<(), String>, Game) {
     let saves = tempfile::tempdir().unwrap();
     let mut save_manager = SaveManager::init(saves.path()).unwrap();
-    let mut game = career_before_a_retirement();
+    let mut game = career_before_a_retirement(club);
     let save_id = save_manager.create_save(&game, "Retirement").unwrap();
 
     // What `retire_player` does at the season's end, then the archive that follows it.
@@ -168,37 +163,56 @@ fn a_shirt_a_retiree_left_can_be_handed_on_and_saved() {
     keeper.retired = true;
     keeper.team_id = None;
     archive_retired_players(&mut game, "2027-06-30", 2026);
-    let club_x = game
-        .teams
-        .iter()
-        .find(|t| t.id == "club-x")
-        .unwrap()
-        .clone();
+    let signing_club = game.teams.iter().find(|t| t.id == club).unwrap().clone();
     let signing = game
         .players
         .iter()
         .position(|p| p.id == "free-agent")
         .unwrap();
-    let shirt_for_newcomer = resolve_jersey_for(&game, &game.players[signing], &club_x);
+    let shirt_for_newcomer = resolve_jersey_for(&game, &game.players[signing], &signing_club);
     assert_eq!(
         shirt_for_newcomer,
         Some(1),
         "the retiree's #1 should be free in the game"
     );
-    game.players[signing].team_id = Some("club-x".to_string());
+    game.players[signing].team_id = Some(club.to_string());
     game.players[signing].jersey_number = shirt_for_newcomer;
 
     let saved = save_manager.save_game_with_stats(&game, &StatsState::default(), &save_id);
-
-    assert_eq!(saved, Ok(()));
     let reloaded = SaveManager::init(saves.path())
         .unwrap()
         .load_game(&save_id)
-        .unwrap();
+        .unwrap_or_else(|error| panic!("the save did not load back: {error}"));
+    (saved, reloaded)
+}
+
+fn assert_shirt_handed_on(saved: Result<(), String>, reloaded: &Game, club: &str) {
+    assert_eq!(saved, Ok(()));
     assert_eq!(
-        shirt(&reloaded, "free-agent"),
-        (Some("club-x".to_string()), Some(1))
+        shirt(reloaded, "free-agent"),
+        (Some(club.to_string()), Some(1))
     );
     assert!(reloaded.players.iter().all(|p| p.id != "keeper"));
     assert!(reloaded.retired_players.iter().any(|r| r.id == "keeper"));
+}
+
+/// Given a saved career where the user's club's keeper wears #1; when, at the season's end, he
+/// retires and leaves the roster for the archive, and the club signs a free agent who takes the
+/// #1 he left; then saving succeeds, and the save on disk has the newcomer in #1 and the keeper
+/// among the retired.
+///
+/// #1004: the save wrote the roster before it removed the retiree's row, so the newcomer's #1 met
+/// the stored #1 and every save and exit failed from then on.
+#[test]
+fn a_shirt_a_retiree_left_can_be_handed_on_and_saved() {
+    let (saved, reloaded) = hand_on_a_retirees_shirt("club-x");
+    assert_shirt_handed_on(saved, &reloaded, "club-x");
+}
+
+/// Given the same at an AI club, the case #1004 was reported from (Bruges City); then the same:
+/// the write path must not depend on whose squad it is.
+#[test]
+fn a_shirt_an_ai_clubs_retiree_left_can_be_handed_on_and_saved() {
+    let (saved, reloaded) = hand_on_a_retirees_shirt("club-y");
+    assert_shirt_handed_on(saved, &reloaded, "club-y");
 }

@@ -156,7 +156,9 @@ fn write_game_to_connection(
     // still holds his club's shirt. A newcomer given the number he left would collide with it
     // on the club's unique shirt index, and the whole save would fail (#1004).
     retired_player_repo::archive_retired_players(conn, &game.retired_players)?;
-    // The archive wins over a roster that still lists one of them: he is not written back.
+    // The reorder above is the #1004 fix. This keeps the earlier rule that the archive wins over
+    // a roster that still lists one of them (the in-memory archive moves retirees off the roster,
+    // so only an overlapping roster reaches this): he is not written back.
     let archived: HashSet<&str> = game
         .retired_players
         .iter()
