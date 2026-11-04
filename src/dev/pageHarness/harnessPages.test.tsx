@@ -52,6 +52,8 @@ const PAGE_CONTENT: Record<HarnessPage, (view: ReturnType<typeof within>) => voi
     expect(view.getByRole("table", { name: /^My Staff \(\d+\)$/ })).toBeInTheDocument(),
   // The profile of the club's own player: his name is the page's heading.
   profile: (view) => expect(view.getAllByRole("heading", { level: 1 }).length).toBeGreaterThan(0),
+  // The formation picker: only the Tactics tab draws it.
+  tactics: (view) => expect(view.getByRole("combobox", { name: "Formation" })).toBeInTheDocument(),
 };
 
 afterEach(async () => {

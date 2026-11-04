@@ -16,6 +16,7 @@ export const HARNESS_PAGES = {
   staff: "Staff",
   // A player's profile opens over the Players tab, as it does from a list.
   profile: "Players",
+  tactics: "Tactics",
 } as const;
 export type HarnessPage = keyof typeof HARNESS_PAGES;
 
