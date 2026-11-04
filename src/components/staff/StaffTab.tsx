@@ -283,13 +283,14 @@ export default function StaffTab({ gameState, onGameUpdate, onNavigate }: StaffT
                           <h3 className="font-heading font-bold text-sm text-gray-800 dark:text-gray-100 uppercase tracking-wide truncate">
                             {staff.display_name}
                           </h3>
-                          {ovr === undefined ? (
-                            <Badge variant="neutral" size="sm">
-                              {visibleRatingText(null)} OVR
+                          {ovr === undefined || staff.tier === undefined ? (
+                            // A rating without its tier is not painted: the chip never picks one.
+                            <Badge variant="neutral" size="md">
+                              {visibleRatingText(null)} {t("common.ovr")}
                             </Badge>
                           ) : (
                             // The tone is the backend's tier among his own role (staff_tier).
-                            <RatingChip value={ovr} tier={staff.tier ?? "Rest"} />
+                            <RatingChip value={ovr} tier={staff.tier} size="md" />
                           )}
                         </div>
                         <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">

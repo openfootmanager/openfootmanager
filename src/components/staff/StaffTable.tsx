@@ -146,11 +146,12 @@ export default function StaffTable({ label, rows, menuItemsFor }: StaffTableProp
       numeric: true,
       sortable: true,
       // In the tone of his tier among his own role, the backend's (staff_tier), as the card shows it.
+      // A rating without its tier is not painted: the chip never picks one.
       cell: (row) =>
-        row.rating === undefined ? (
+        row.rating === undefined || row.tier === undefined ? (
           visibleRatingText(null)
         ) : (
-          <RatingChip value={row.rating} tier={row.tier ?? "Rest"} />
+          <RatingChip value={row.rating} tier={row.tier} />
         ),
     },
     ...ATTRIBUTES.map((attribute) => ({
