@@ -87,8 +87,8 @@ Both bases are calibrated (#1132). Between two equal 70-rated sides, 46% of unbl
 
 Fouls can occur after tackles in midfield and the attacking third:
 
-1. **Foul probability** — base 12%, modified by the fouler's `aggression` attribute and the `HotHead` / `CoolHead` traits.
-2. **If foul occurs in the box** → 8% chance of a **penalty** being awarded.
+1. **Foul probability** — base 40% (`foul_probability`), scaled by the fouler's `aggression` (`0.6 + aggression / 100 × 0.8`), the `HotHead` / `CoolHead` traits and the defending side's pressing and marking. Every shot also carries a fixed 3.6% chance of a foul in the box.
+2. **If foul occurs in the box** → 50% chance of a **penalty** being awarded (`penalty_probability`), about real football's rate.
 3. **Card probability** — 20% chance of a card per foul, scaled by aggression (`0.5 + aggression / 100`), and a fifth of that for a player already booked. 2% of cards are a straight red.
 4. **Second yellow** → automatic red card and sending off.
 
