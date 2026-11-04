@@ -58,14 +58,29 @@ const SEVERITY_BANDS: [SeverityBand; 4] = [
     },
 ];
 
+/// How many of the lightest bands a training knock can fall in: the slight and minor ones. A
+/// session's contact bruises and strains; it does not tear a ligament.
+const TRAINING_BANDS: usize = 2;
+
 /// Rolls one injury: a severity band by its weight, then a name and a duration within it.
 ///
 /// Shared by club matches and national-team friendlies so an injury means the same thing
 /// wherever it was picked up.
 pub fn roll_injury(rng: &mut impl Rng) -> Injury {
-    let total_weight: u32 = SEVERITY_BANDS.iter().map(|band| band.weight).sum();
+    roll_from(&SEVERITY_BANDS, rng)
+}
+
+/// Rolls one training injury, from the slight and minor bands only, so a knee bruise lasts what it
+/// lasts after a match (1-2 days). Training used to draw its own flat 3-14 days for the same five
+/// names, so the inbox could report a knee bruise keeping a player out for a fortnight.
+pub fn roll_training_injury(rng: &mut impl Rng) -> Injury {
+    roll_from(&SEVERITY_BANDS[..TRAINING_BANDS], rng)
+}
+
+fn roll_from(bands: &[SeverityBand], rng: &mut impl Rng) -> Injury {
+    let total_weight: u32 = bands.iter().map(|band| band.weight).sum();
     let mut pick = rng.random_range(0..total_weight);
-    let band = SEVERITY_BANDS
+    let band = bands
         .iter()
         .find(|band| {
             if pick < band.weight {
@@ -75,7 +90,7 @@ pub fn roll_injury(rng: &mut impl Rng) -> Injury {
                 false
             }
         })
-        .unwrap_or(&SEVERITY_BANDS[0]);
+        .unwrap_or(&bands[0]);
 
     Injury {
         name: band.injuries[rng.random_range(0..band.injuries.len())].to_string(),
@@ -146,6 +161,52 @@ mod tests {
     use domain::player::{Player, PlayerAttributes, Position};
     use rand::SeedableRng;
     use rand::rngs::StdRng;
+
+    /// The days a match injury of this name keeps a player out, from its band.
+    fn match_days_for(name: &str) -> std::ops::RangeInclusive<u32> {
+        SEVERITY_BANDS
+            .iter()
+            .find(|band| band.injuries.contains(&name))
+            .map(|band| band.days_out.clone())
+            .expect("every injury name is in a band")
+    }
+
+    /// Given a thousand training knocks
+    /// When each is rolled
+    /// Then each lasts what an injury of its name lasts after a match, and none is worse than a
+    ///      minor one: a knee bruise is 1-2 days wherever it happens (training drew a flat 3-14)
+    #[test]
+    fn a_training_injury_lasts_what_its_name_lasts_after_a_match() {
+        let mut rng = StdRng::seed_from_u64(11);
+        for _ in 0..1000 {
+            let injury = roll_training_injury(&mut rng);
+            let days = match_days_for(&injury.name);
+            assert!(
+                days.contains(&injury.days_remaining),
+                "{} for {} days",
+                injury.name,
+                injury.days_remaining
+            );
+            assert!(
+                injury.days_remaining <= 7,
+                "{} is worse than a minor injury",
+                injury.name
+            );
+        }
+    }
+
+    /// Given a thousand training knocks
+    /// When each is rolled
+    /// Then both training bands come up: a slight knock and a minor one
+    #[test]
+    fn training_injuries_come_from_both_light_bands() {
+        let mut rng = StdRng::seed_from_u64(12);
+        let days: Vec<u32> = (0..1000)
+            .map(|_| roll_training_injury(&mut rng).days_remaining)
+            .collect();
+        assert!(days.iter().any(|&day| day <= 2));
+        assert!(days.iter().any(|&day| (3..=7).contains(&day)));
+    }
 
     fn attrs(stamina: u8) -> PlayerAttributes {
         PlayerAttributes {
