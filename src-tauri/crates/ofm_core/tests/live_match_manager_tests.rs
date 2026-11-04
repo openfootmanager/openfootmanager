@@ -779,3 +779,71 @@ fn extra_time_flag_passed_through() {
     let session = live_match_manager::create_live_match(&game, 0, MatchMode::Instant, true);
     assert!(session.is_ok());
 }
+
+// ---------------------------------------------------------------------------
+// Who manages the user's side when the user is not managing it
+// ---------------------------------------------------------------------------
+
+/// Given the user's club at home,
+/// When the match is started for them to watch as a spectator,
+/// Then neither side is left to the user: the AI manages both dugouts, as it does for a
+/// delegated match.
+#[test]
+fn a_spectated_match_leaves_no_side_to_the_user() {
+    let game = make_game_with_fixture();
+
+    let session =
+        live_match_manager::create_live_match(&game, 0, MatchMode::Spectator, false).unwrap();
+
+    assert_eq!(session.user_side, None);
+}
+
+/// Given the user's club at home,
+/// When the match is played instantly (the MCP `match_start` mode "instant"),
+/// Then neither side is left to the user either.
+#[test]
+fn an_instant_match_leaves_no_side_to_the_user() {
+    let game = make_game_with_fixture();
+
+    let session =
+        live_match_manager::create_live_match(&game, 0, MatchMode::Instant, false).unwrap();
+
+    assert_eq!(session.user_side, None);
+}
+
+/// Given the user's club at home,
+/// When the match is started live,
+/// Then the home side is the user's to manage.
+#[test]
+fn a_live_match_leaves_the_users_side_to_the_user() {
+    let game = make_game_with_fixture();
+
+    let session = live_match_manager::create_live_match(&game, 0, MatchMode::Live, false).unwrap();
+
+    assert_eq!(session.user_side, Some(engine::Side::Home));
+}
+
+/// Given the user's club at home, every player of theirs worn down to a condition the AI
+/// replaces, and a full bench,
+/// When the match is watched as a spectator to the end,
+/// Then the user's side makes substitutions, as a side the AI manages does.
+#[test]
+fn a_spectated_match_replaces_the_users_tired_players() {
+    let mut game = make_game_with_fixture();
+    for player in game
+        .players
+        .iter_mut()
+        .filter(|player| player.team_id.as_deref() == Some("team1"))
+    {
+        player.condition = 30;
+    }
+    let mut session =
+        live_match_manager::create_live_match(&game, 0, MatchMode::Spectator, false).unwrap();
+
+    session.run_to_completion();
+
+    assert!(
+        session.snapshot().home_subs_made > 0,
+        "nobody managed the user's side: it played the whole match with its starting eleven"
+    );
+}
