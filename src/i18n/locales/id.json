@@ -2884,6 +2884,8 @@
       },
       "competitionDef": {
         "invalidCalendar": "Kalender kompetisi tidak valid: periksa kelompok divisi, tingkat, fase, dan tanggal penutupan.",
+        "invalidSeasonMonth": "Bulan mulai musim {{month}} tidak valid (harus 1–12).",
+        "invalidSeasonDay": "Hari mulai musim {{day}} bukan hari yang valid pada bulan mulai.",
         "invalidEmbedded": "Definisi kompetisi dunia ini tidak valid dan tidak dapat dimuat.",
         "invalidStandalone": "Berkas definisi kompetisi yang dipilih tidak valid.",
         "parseFailed": "Berkas definisi kompetisi tidak dapat dibaca sebagai JSON.",
@@ -3508,6 +3510,7 @@
         },
         "notes": {
           "managerBlocked": "Kamu meminta saya untuk belum membuka kembali pembicaraan kontrak.",
+          "markedLetExpire": "Kamu menandai kontrak ini untuk dibiarkan habis, jadi saya tidak membuka pembicaraan.",
           "completed": "Saya berhasil menyelesaikan yang satu ini tanpa perlu kamu turun tangan.",
           "completedToKeepSquadFloor": "Beres, melampaui kebijakan gaji manajemen. Manajemen mengizinkannya karena tanpa pemain ini kita akan turun di bawah skuad minimum.",
           "beyondLimits": "Mereka menginginkan sekitar {{wage}}/minggu untuk {{years}} tahun, yang melebihi batas pendelegasian.",

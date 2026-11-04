@@ -2841,6 +2841,8 @@
       },
       "competitionDef": {
         "invalidCalendar": "Calendario della competizione non valido: controlla la famiglia di divisioni, il livello, la fase e la data di chiusura.",
+        "invalidSeasonMonth": "Il mese di inizio stagione {{month}} non è valido (deve essere tra 1 e 12).",
+        "invalidSeasonDay": "Il giorno di inizio stagione {{day}} non è un giorno valido del mese di inizio.",
         "invalidEmbedded": "Le definizioni delle competizioni di questo mondo non sono valide e non è stato possibile caricarle.",
         "invalidStandalone": "Il file di definizione delle competizioni selezionato non è valido.",
         "parseFailed": "Impossibile leggere il file di definizione delle competizioni come JSON.",
@@ -3508,6 +3510,7 @@
         },
         "notes": {
           "managerBlocked": "Mi hai detto di non riaprire ancora i colloqui contrattuali.",
+          "markedLetExpire": "Hai segnato questo contratto per lasciarlo scadere, quindi non ho avviato trattative.",
           "completed": "Sono riuscito a chiudere questa trattativa senza il tuo intervento.",
           "completedToKeepSquadFloor": "Fatto, oltre la politica salariale della dirigenza. La dirigenza l'ha autorizzato perché senza questo giocatore scenderemmo sotto la rosa minima.",
           "beyondLimits": "Il loro entourage chiede circa {{wage}}/settimana per {{years}} anni, oltre i limiti della delega.",

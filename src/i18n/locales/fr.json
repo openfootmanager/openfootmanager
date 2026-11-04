@@ -2841,6 +2841,8 @@
       },
       "competitionDef": {
         "invalidCalendar": "Calendrier de compétition invalide : vérifiez la famille de divisions, le niveau, la phase et la date de clôture.",
+        "invalidSeasonMonth": "Le mois de début de saison {{month}} n'est pas valide (il doit être compris entre 1 et 12).",
+        "invalidSeasonDay": "Le jour de début de saison {{day}} n'est pas un jour valide du mois de début.",
         "invalidEmbedded": "Les définitions de compétitions de ce monde sont invalides et n'ont pas pu être chargées.",
         "invalidStandalone": "Le fichier de définition de compétitions sélectionné est invalide.",
         "parseFailed": "Le fichier de définition de compétitions n'a pas pu être lu en tant que JSON.",
@@ -3508,6 +3510,7 @@
         },
         "notes": {
           "managerBlocked": "Tu m'as dit de ne pas rouvrir les discussions contractuelles pour l'instant.",
+          "markedLetExpire": "Tu as indiqué de laisser ce contrat expirer, donc je n'ai pas ouvert de discussions.",
           "completed": "J'ai pu régler ce dossier sans que tu aies besoin d'intervenir.",
           "completedToKeepSquadFloor": "C'est fait, au-delà de la politique salariale du conseil. Le conseil l'a autorisé, car sans ce joueur nous passerions sous l'effectif minimum.",
           "beyondLimits": "Le clan du joueur veut environ {{wage}}/semaine pour {{years}} ans, au-delà des limites de délégation.",

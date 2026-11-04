@@ -2884,6 +2884,8 @@
       },
       "competitionDef": {
         "invalidCalendar": "Neplatný kalendář soutěže: zkontrolujte skupinu divizí, úroveň, fázi a datum ukončení.",
+        "invalidSeasonMonth": "Měsíc začátku sezóny {{month}} není platný (musí být 1–12).",
+        "invalidSeasonDay": "Den začátku sezóny {{day}} není platným dnem měsíce začátku.",
         "invalidEmbedded": "Definice soutěží tohoto světa jsou neplatné a nepodařilo se je načíst.",
         "invalidStandalone": "Vybraný soubor s definicí soutěže je neplatný.",
         "parseFailed": "Soubor s definicí soutěže se nepodařilo načíst jako JSON.",
@@ -3508,6 +3510,7 @@
         },
         "notes": {
           "managerBlocked": "Řekl jste mi, abych jednání o nové smlouvě zatím znovu neotvíral.",
+          "markedLetExpire": "Tato smlouva je označena tak, že má vypršet, proto se o ní nejednalo.",
           "completed": "Tento případ se mi podařil uzavřít, aniž byste musel zasahovat.",
           "completedToKeepSquadFloor": "Hotovo, nad rámec mzdové politiky představenstva. Představenstvo to povolilo, protože bez tohoto hráče bychom klesli pod minimální kádr.",
           "beyondLimits": "Jeho strana požaduje přibližně {{wage}}/týdně na {{years}} let, což přesahuje limity mého pověření.",
