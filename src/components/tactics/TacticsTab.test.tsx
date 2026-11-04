@@ -294,10 +294,11 @@ describe("TacticsTab", () => {
 
   /** Given a tactics pitch token, when its player name is hovered,
    * then the full summary appears outside the clipped pitch. */
-  it("shows a tactics token summary when its name is hovered", () => {
+  it("shows a tactics token summary when its name is hovered", async () => {
     render(
       <TacticsTab gameState={makeGameState()} onSelectPlayer={vi.fn()} onGameUpdate={vi.fn()} />,
     );
+    await act(async () => {}); // the squad has answered, so the summary states the fit
     const control = screen.getByTestId("pitch-player-gk1");
     fireEvent.mouseEnter(within(control).getByText("GK1"));
     const tooltip = screen.getByRole("tooltip");
@@ -307,10 +308,11 @@ describe("TacticsTab", () => {
 
   /** Given a tactics pitch token, when its player control receives keyboard focus,
    * then its summary is visible and supplies an accessible description. */
-  it("describes a tactics token and shows its summary on focus", () => {
+  it("describes a tactics token and shows its summary on focus", async () => {
     render(
       <TacticsTab gameState={makeGameState()} onSelectPlayer={vi.fn()} onGameUpdate={vi.fn()} />,
     );
+    await act(async () => {}); // the squad has answered, so the summary states the fit
     const control = screen.getByTestId("pitch-player-gk1");
     act(() => control.focus());
     expect(control).toHaveFocus();
