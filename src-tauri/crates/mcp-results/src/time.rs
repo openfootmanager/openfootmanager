@@ -110,7 +110,6 @@ impl fmt::Display for DayAdvanced {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "outcome", rename_all = "snake_case")]
 pub enum SkipToMatchDay {
-    NoUpcomingMatch {},
     MatchDayToday {},
     Aborted {
         days_advanced: u32,
@@ -134,10 +133,6 @@ pub enum SkipToMatchDay {
 impl fmt::Display for SkipToMatchDay {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::NoUpcomingMatch {} => write!(
-                f,
-                "## No Upcoming Match\n\nNo more fixtures scheduled for your team."
-            ),
             Self::MatchDayToday {} => write!(
                 f,
                 "## Match Day Today\n\nYour next match is today. Use `time_advance` to play it."

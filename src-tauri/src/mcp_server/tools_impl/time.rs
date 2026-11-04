@@ -210,17 +210,24 @@ pub(crate) fn skip_to_match_day_in(state: &StateManager) -> Result<SkipToMatchDa
 
     let response =
         crate::commands::time::skip_to_match_day_internal(state, ofm_core::state::Career::Active)?;
+    Ok(skip_outcome(&response, &require_game(state)?))
+}
+
+/// The screen's skip `response`, as the agent's result, read against `game` as the skip left it:
+/// a sacking and blockers as the skip reported them; otherwise it arrived, on a match day (none
+/// passed: match day today; some: skipped) or out of days, the skip's 60-day limit, with none found
+/// (aborted).
+fn skip_outcome(response: &serde_json::Value, game: &Game) -> SkipToMatchDay {
     let days_advanced = response["days_skipped"]
         .as_u64()
         .and_then(|days| u32::try_from(days).ok())
         .unwrap_or_default();
-    let game = require_game(state)?;
     let today = game.clock.current_date.format("%Y-%m-%d").to_string();
-    Ok(match response["action"].as_str() {
+    match response["action"].as_str() {
         Some("fired") => SkipToMatchDay::Fired { days_advanced },
         Some("blocked") => SkipToMatchDay::Blocked {
             days_advanced,
-            blockers: blockers_of(&game, false).blockers,
+            blockers: blockers_of(game, false).blockers,
         },
         // "arrived": on a match day, or out of days (the skip's 60-day limit) with none found.
         _ if !game.user_has_scheduled_match_on(&today) => SkipToMatchDay::Aborted { days_advanced },
@@ -229,7 +236,7 @@ pub(crate) fn skip_to_match_day_in(state: &StateManager) -> Result<SkipToMatchDa
             days_advanced,
             target_date: today,
         },
-    })
+    }
 }
 
 // ─── time_check_blockers ────────────────────────────────────────────────────
@@ -269,7 +276,7 @@ pub(crate) fn blockers_of(game: &Game, live_match_in_progress: bool) -> Blockers
 
 #[cfg(test)]
 mod tests {
-    use super::{auto_save_if_due, standings_update};
+    use super::{auto_save_if_due, skip_outcome, standings_update};
     use crate::commands::wrapper_testkit::WrapperApp;
     use chrono::TimeZone;
     use domain::league::{League, StandingEntry};
@@ -393,5 +400,50 @@ mod tests {
         assert_eq!(on_disk_after_first, "Original");
         assert!(second);
         assert_eq!(app.saved_game().manager.first_name, "Renamed");
+    }
+
+    /// A game whose manager runs club "team1", with no match of his on the game's date.
+    fn game_off_a_match_day() -> Game {
+        let mut manager = Manager::new(
+            "mgr".to_string(),
+            "Test".to_string(),
+            "Manager".to_string(),
+            "1980-01-01".to_string(),
+            "England".to_string(),
+        );
+        manager.hire("team1".to_string());
+        let clock = GameClock::new(chrono::Utc.with_ymd_and_hms(2030, 9, 1, 12, 0, 0).unwrap());
+        Game::new(clock, manager, vec![], vec![], vec![], vec![])
+    }
+
+    /// Given the screen's skip answering that it arrived after 60 days, on a day with no match of
+    ///      the user's
+    /// When the agent's result is read from it
+    /// Then it is aborted after 60 days: the skip ran out of days without reaching a match
+    #[test]
+    fn a_skip_that_ran_out_of_days_is_reported_as_aborted() {
+        let response = serde_json::json!({ "action": "arrived", "days_skipped": 60 });
+
+        let outcome = skip_outcome(&response, &game_off_a_match_day());
+
+        assert_eq!(
+            outcome,
+            mcp_results::time::SkipToMatchDay::Aborted { days_advanced: 60 }
+        );
+    }
+
+    /// Given the screen's skip answering that the board sacked the manager on its fourth day
+    /// When the agent's result is read from it
+    /// Then it is fired after 4 days, not aborted or skipped
+    #[test]
+    fn a_skip_that_ended_in_a_sacking_is_reported_as_fired() {
+        let response = serde_json::json!({ "action": "fired", "days_skipped": 4 });
+
+        let outcome = skip_outcome(&response, &game_off_a_match_day());
+
+        assert_eq!(
+            outcome,
+            mcp_results::time::SkipToMatchDay::Fired { days_advanced: 4 }
+        );
     }
 }

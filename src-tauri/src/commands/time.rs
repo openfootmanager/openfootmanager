@@ -1102,6 +1102,32 @@ mod tests {
         assert_eq!(moved.num_days(), i64::from(days_advanced));
     }
 
+    /// Given a manager on a warning whose board stands at 5, and his next match thirty days away
+    /// When the MCP skip runs
+    /// Then the board sacks him on the first day and the skip ends there, fired after one day,
+    ///      the manager out of work
+    #[cfg(feature = "mcp")]
+    #[test]
+    fn the_mcp_skip_reports_a_sacking_on_the_way() {
+        use crate::mcp_server::tools_impl::time::skip_to_match_day_in;
+        use mcp_results::time::SkipToMatchDay;
+        let mut game = make_game_with_matchday();
+        let far = (game.clock.current_date + chrono::Duration::days(30))
+            .format("%Y-%m-%d")
+            .to_string();
+        game.league.as_mut().unwrap().fixtures[0].date = far;
+        game.manager.satisfaction = 5;
+        game.manager.warning_stage = 1;
+        let state = StateManager::new();
+        state.set_game(game);
+
+        let outcome = skip_to_match_day_in(&state).expect("the skip answers");
+
+        assert_eq!(outcome, SkipToMatchDay::Fired { days_advanced: 1 });
+        let employed = state.get_game(|g| g.manager.team_id.clone()).unwrap();
+        assert_eq!(employed, None);
+    }
+
     /// A game whose user's club has a cup tie `cup_in_days` from today, in `game.competitions` only
     /// (the `game.league` mirror never holds a cup), and its next league match twenty days away.
     #[cfg(feature = "mcp")]

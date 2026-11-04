@@ -65,7 +65,7 @@ mod tests {
             days_advanced: 3,
             target_date: "2026-08-15".to_string(),
         });
-        round_trips(time::SkipToMatchDay::NoUpcomingMatch {});
+        round_trips(time::SkipToMatchDay::MatchDayToday {});
         round_trips(season::SeasonStatus::InProgress {
             remaining_fixtures: 4,
         });
