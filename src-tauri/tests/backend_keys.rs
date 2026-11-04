@@ -12,19 +12,21 @@
 //! `#[cfg(test)]`, `#[cfg(all(test, ..))]` — is skipped, and so is every file only such a
 //! module declares. Attributes are skipped too, so a key named in a doc comment does not count.
 //!
-//! Not scanned, on purpose. CLAUDE.md's i18n rule lists these surfaces as read by an agent or a
-//! modder, not a player, so English is correct there:
-//! - `src/mcp_server/`: MCP tool output (`be.error.mcp.*` keys are rendered to English for the
-//!   agent by `formatting.rs`);
-//! - the `ofm-cli`, `mcp-results`, `mcp-e2e`, `season-harness` and `sim-bench` crates.
+//! Not scanned, on purpose: the `ofm-cli`, `mcp-results`, `mcp-e2e`, `season-harness` and
+//! `sim-bench` crates. CLAUDE.md's i18n rule lists them as read by a modder or an agent, not a
+//! player, so English is correct there.
 //!
-//! An MCP tool that propagates a shared `application::` error still gets that key checked: the
-//! key is written in `application/`, which is scanned.
+//! `src/mcp_server/` is scanned, but its errors are not counted. An MCP tool's error goes back to
+//! the agent (`be.error.mcp.*` keys are rendered to English by `formatting.rs`), while the
+//! messages and news a tool writes into the game are read by the player like any other. An MCP
+//! tool that propagates a shared `application::` error still has that key checked, because the
+//! key is written in `application/`.
 //!
 //! # What counts as a key, and when it passes
 //!
-//! Any string literal, inside a macro or not, that starts with `be.` or `common.` and contains
-//! only key characters.
+//! Any string literal, inside a macro or not, made of key characters, whose first dotted segment
+//! is a top-level key of `en.json` (`be`, `common`, `playerProfile`, `notifications`, ...) and
+//! which does not end in a file extension (`teams.json`, `app.log`).
 //! - A plain key passes when `en.json` has it, as a leaf or as the base of a plural (`_one`,
 //!   `_other`, ...), or as an object the code appends to (`shortage_message_parts` adds
 //!   `.subject` and `.body` to `be.msg.squadBelowFloor`).
@@ -52,8 +54,15 @@ const SHIPPED_CRATE_ROOTS: &[&str] = &[
     "crates/ofm_core/src/lib.rs",
 ];
 
-/// Module files inside a shipped crate whose output is not a player's, relative to `src-tauri/`.
-const NOT_PLAYER_FACING: &[&str] = &["src/mcp_server.rs", "src/mcp_server/mod.rs"];
+/// Directories inside a shipped crate whose errors are an agent's, not a player's, relative to
+/// `src-tauri/`. Every other key written there counts.
+const AGENT_SURFACES: &[&str] = &["src/mcp_server"];
+
+/// A literal ending in one of these is a file name, however much it looks like `teams.json`.
+const FILE_EXTENSIONS: &[&str] = &[
+    "csv", "db", "json", "log", "md", "ofm", "png", "rs", "sql", "toml", "txt", "webp", "yaml",
+    "yml", "zip",
+];
 
 const PLURAL_SUFFIXES: &[&str] = &["_zero", "_one", "_two", "_few", "_many", "_other"];
 
@@ -69,8 +78,12 @@ struct FileScan {
     /// The directory a `mod x;` here resolves against: rustc's rule for this file and the
     /// inline modules entered so far.
     module_dir: PathBuf,
-    /// The directory of the file itself, which `#[path]` resolves against.
+    /// The directory of the file itself, which `#[path]` resolves against outside an inline
+    /// module.
     file_dir: PathBuf,
+    /// How many inline `mod x { .. }` blocks enclose the item being visited. Inside one,
+    /// rustc resolves `#[path]` against `module_dir` instead.
+    inline_depth: usize,
     keys: Vec<String>,
     children: Vec<PathBuf>,
 }
@@ -90,13 +103,14 @@ impl FileScan {
         Self {
             module_dir,
             file_dir,
+            inline_depth: 0,
             keys: Vec::new(),
             children: Vec::new(),
         }
     }
 
     fn record(&mut self, text: String) {
-        if looks_like_a_key(&text) {
+        if key_shaped(&text) {
             self.keys.push(text);
         }
     }
@@ -118,7 +132,12 @@ impl FileScan {
     fn declare_module(&mut self, module: &syn::ItemMod) {
         let name = module.ident.to_string();
         if let Some(path) = path_attribute(&module.attrs) {
-            self.children.push(self.file_dir.join(path));
+            let base = if self.inline_depth > 0 {
+                &self.module_dir
+            } else {
+                &self.file_dir
+            };
+            self.children.push(base.join(path));
             return;
         }
         let flat = self.module_dir.join(format!("{name}.rs"));
@@ -145,7 +164,9 @@ impl<'ast> Visit<'ast> for FileScan {
                 Some(_) => {
                     let outer = self.module_dir.clone();
                     self.module_dir = outer.join(module.ident.to_string());
+                    self.inline_depth += 1;
                     visit::visit_item_mod(self, module);
+                    self.inline_depth -= 1;
                     self.module_dir = outer;
                 }
             }
@@ -239,11 +260,25 @@ fn path_attribute(attributes: &[syn::Attribute]) -> Option<String> {
     })
 }
 
-fn looks_like_a_key(text: &str) -> bool {
-    (text.starts_with("be.") || text.starts_with("common."))
+/// A literal that could be a key: dotted, made of key characters, starting with a letter, and
+/// not a file name. Whether it is one depends on the locale's roots ([`counts`]).
+fn key_shaped(text: &str) -> bool {
+    text.contains('.')
+        && text.starts_with(|c: char| c.is_ascii_alphabetic())
         && text
             .chars()
             .all(|c| c.is_ascii_alphanumeric() || matches!(c, '.' | '_' | '{' | '}' | ':'))
+        && !text
+            .rsplit('.')
+            .next()
+            .is_some_and(|last| FILE_EXTENSIONS.contains(&last))
+}
+
+/// Whether a key-shaped literal is a key the player can be shown: its first segment is a
+/// top-level key of the locale, and it is not an error an agent surface sends back to its agent.
+fn counts(key: &str, locale_roots: &BTreeSet<String>, agent_surface: bool) -> bool {
+    let first = key.split('.').next().unwrap_or_default();
+    locale_roots.contains(first) && !(agent_surface && key.starts_with("be.error."))
 }
 
 /// The key literals of one source file, and the module files it declares.
@@ -255,25 +290,43 @@ fn scan_source(file: &Path, source: &str) -> (Vec<String>, Vec<PathBuf>) {
     (scan.keys, scan.children)
 }
 
-/// Every key literal in the module trees under `roots`, skipping the `excluded` module files.
-fn emitted_keys(roots: &[PathBuf], excluded: &[PathBuf]) -> Vec<Emitted> {
+/// Every key in the module trees under `roots` that [`counts`], files under `agent_surfaces`
+/// counting everything but their errors.
+fn emitted_keys(
+    roots: &[PathBuf],
+    agent_surfaces: &[PathBuf],
+    locale_roots: &BTreeSet<String>,
+) -> Vec<Emitted> {
     let mut pending: Vec<PathBuf> = roots.to_vec();
     let mut visited = BTreeSet::new();
     let mut emitted = Vec::new();
     while let Some(file) = pending.pop() {
-        if excluded.contains(&file) || !visited.insert(file.clone()) {
+        if !visited.insert(file.clone()) {
             continue;
         }
         let source = fs::read_to_string(&file)
             .unwrap_or_else(|error| panic!("cannot read {}: {error}", file.display()));
         let (keys, children) = scan_source(&file, &source);
-        emitted.extend(keys.into_iter().map(|key| Emitted {
-            file: file.clone(),
-            key,
-        }));
+        let agent_surface = agent_surfaces.iter().any(|dir| file.starts_with(dir));
+        emitted.extend(
+            keys.into_iter()
+                .filter(|key| counts(key, locale_roots, agent_surface))
+                .map(|key| Emitted {
+                    file: file.clone(),
+                    key,
+                }),
+        );
         pending.extend(children);
     }
     emitted
+}
+
+/// The top-level keys of a locale file: the roots a key can start from.
+fn locale_roots(json: &str) -> BTreeSet<String> {
+    let root: serde_json::Value = serde_json::from_str(json).expect("en.json is not valid JSON");
+    root.as_object()
+        .map(|entries| entries.keys().cloned().collect())
+        .unwrap_or_default()
 }
 
 /// The keys of a locale file, as dotted paths to its leaves.
@@ -380,12 +433,9 @@ fn every_backend_key_a_player_can_see_exists_in_en_json() {
         .iter()
         .map(|path| root.join(path))
         .collect();
-    let excluded: Vec<PathBuf> = NOT_PLAYER_FACING
-        .iter()
-        .map(|path| root.join(path))
-        .collect();
+    let agent_surfaces: Vec<PathBuf> = AGENT_SURFACES.iter().map(|path| root.join(path)).collect();
 
-    let emitted = emitted_keys(&roots, &excluded);
+    let emitted = emitted_keys(&roots, &agent_surfaces, &locale_roots(EN_JSON));
     let missing = missing_keys(&emitted, &locale_keys(EN_JSON));
 
     // A walk that found nothing would pass vacuously.
@@ -409,16 +459,19 @@ fn keys_of(source: &str) -> Vec<String> {
     scan_source(Path::new("src/lib.rs"), source).0
 }
 
+const FIXTURE_LOCALE: &str = r#"{"be": {"msg": {"known": "x", "item_one": "a", "item_other": "b",
+    "headline0": "h", "headline1": "h", "parent": {"subject": "s"}}},
+    "playerProfile": {"renewal": {"headline": "h"}}, "settings": {"title": "t"}}"#;
+
 fn fixture_locale() -> BTreeSet<String> {
-    locale_keys(
-        r#"{"be": {"msg": {"known": "x", "item_one": "a", "item_other": "b",
-            "headline0": "h", "headline1": "h", "parent": {"subject": "s"}}}}"#,
-    )
+    locale_keys(FIXTURE_LOCALE)
 }
 
 fn unknown(source: &str) -> Vec<String> {
+    let roots = locale_roots(FIXTURE_LOCALE);
     let emitted: Vec<Emitted> = keys_of(source)
         .into_iter()
+        .filter(|key| counts(key, &roots, false))
         .map(|key| Emitted {
             file: PathBuf::from("src/lib.rs"),
             key,
@@ -436,6 +489,33 @@ fn a_production_key_missing_from_the_locale_is_reported() {
         unknown(r#"fn note() -> String { "be.msg.missing".to_string() }"#),
         ["src/lib.rs: be.msg.missing"]
     );
+}
+
+/// Given keys under a root other than `be`, one known and one missing, beside file names that
+/// share a root's name; when the file is scanned; then the missing key is reported and the file
+/// names are not keys.
+#[test]
+fn a_key_under_any_locale_root_counts_and_a_file_name_does_not() {
+    let source = r#"fn f() {
+        let _ = ("playerProfile.renewal.headline", "playerProfile.renewal.missing");
+        let _ = ("settings.json", "playerProfile.log");
+    }"#;
+    assert_eq!(
+        unknown(source),
+        ["src/lib.rs: playerProfile.renewal.missing"]
+    );
+}
+
+/// Given a key in a `const`, and one in a `#[cfg(not(test))]` item; when the file is scanned;
+/// then both are found: both ship.
+#[test]
+fn a_const_key_and_a_cfg_not_test_key_count() {
+    let source = r#"
+        const KEY: &str = "be.msg.inConst";
+        #[cfg(not(test))]
+        fn shipped() { let _ = "be.msg.notTest"; }
+    "#;
+    assert_eq!(keys_of(source), ["be.msg.inConst", "be.msg.notTest"]);
 }
 
 /// Given a missing key written inside `format!`, `vec!` and `Some(..)`,
@@ -522,19 +602,25 @@ fn a_format_family_passes_only_when_some_key_matches_it() {
     assert!(!is_known(&keys, "be.msg.known{}"));
 }
 
-/// Given a crate whose root declares `mod shipped;`, `#[cfg(test)] mod tests;` and a
-/// `#[path]` module,
+/// Given a crate whose root declares `mod shipped;`, `#[cfg(test)] mod tests;`, a `#[path]`
+/// module, and a `#[path]` module inside an inline one,
 /// when the module tree is walked,
-/// then the shipped and `#[path]` files are read and the test module's file is not.
+/// then the shipped and both `#[path]` files are read and the test module's file is not.
 #[test]
 fn the_module_walk_follows_shipped_modules_only() {
     let crate_dir = tempfile::tempdir().expect("temp dir");
     let src = crate_dir.path().join("src");
     fs::create_dir_all(src.join("shipped")).expect("module dir");
+    fs::create_dir_all(src.join("outer")).expect("inline module dir");
     let files = [
         (
             "lib.rs",
-            "mod shipped;\n#[cfg(test)]\nmod tests;\n#[path = \"elsewhere.rs\"]\nmod moved;\n",
+            "mod shipped;\n#[cfg(test)]\nmod tests;\n#[path = \"elsewhere.rs\"]\nmod moved;\n\
+             mod outer { #[path = \"inner_moved.rs\"] mod moved_inner; }\n",
+        ),
+        (
+            "outer/inner_moved.rs",
+            "fn e() { let _ = \"be.msg.movedInner\"; }\n",
         ),
         (
             "shipped/mod.rs",
@@ -548,11 +634,59 @@ fn the_module_walk_follows_shipped_modules_only() {
         fs::write(src.join(path), source).expect("fixture file");
     }
 
-    let mut found: Vec<String> = emitted_keys(&[src.join("lib.rs")], &[])
+    let roots = locale_roots(r#"{"be": {}}"#);
+    let mut found: Vec<String> = emitted_keys(&[src.join("lib.rs")], &[], &roots)
         .into_iter()
         .map(|emitted| emitted.key)
         .collect();
     found.sort();
 
-    assert_eq!(found, ["be.msg.inner", "be.msg.moved", "be.msg.shipped"]);
+    assert_eq!(
+        found,
+        [
+            "be.msg.inner",
+            "be.msg.moved",
+            "be.msg.movedInner",
+            "be.msg.shipped"
+        ]
+    );
+}
+
+/// Given an agent surface (the MCP server) whose files return errors to the agent and also write
+/// news into the game, one of them a child module; when the tree is walked; then the news keys
+/// count, in the child too, and the errors do not.
+#[test]
+fn an_agent_surface_counts_what_it_writes_into_the_game_but_not_its_errors() {
+    let crate_dir = tempfile::tempdir().expect("temp dir");
+    let src = crate_dir.path().join("src");
+    fs::create_dir_all(src.join("agent")).expect("agent dir");
+    let files = [
+        (
+            "lib.rs",
+            "mod agent;\nfn a() { let _ = \"be.error.shipped\"; }\n",
+        ),
+        (
+            "agent/mod.rs",
+            "mod tool;\nfn b() { let _ = (\"be.error.mcp.only\", \"be.news.fromAgent\"); }\n",
+        ),
+        (
+            "agent/tool.rs",
+            "fn c() { let _ = (\"be.error.tool\", \"be.source.paper\"); }\n",
+        ),
+    ];
+    for (path, source) in files {
+        fs::write(src.join(path), source).expect("fixture file");
+    }
+
+    let roots = locale_roots(r#"{"be": {}}"#);
+    let mut found: Vec<String> = emitted_keys(&[src.join("lib.rs")], &[src.join("agent")], &roots)
+        .into_iter()
+        .map(|emitted| emitted.key)
+        .collect();
+    found.sort();
+
+    assert_eq!(
+        found,
+        ["be.error.shipped", "be.news.fromAgent", "be.source.paper"]
+    );
 }
