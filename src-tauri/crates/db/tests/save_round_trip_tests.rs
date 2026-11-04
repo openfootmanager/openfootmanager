@@ -303,7 +303,7 @@ fn known_bug_still_happens(bug: &str) -> bool {
 #[test]
 fn known_bug_the_job_offer_cooldown_is_not_saved() {
     assert!(known_bug_still_happens(
-        "the job-offer cooldown is not saved"
+        "the job-offer cooldown is not saved (#1260)"
     ));
 }
 
