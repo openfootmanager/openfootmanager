@@ -649,6 +649,124 @@ mod tests {
         std::fs::remove_dir_all(&dir).ok();
     }
 
+    /// Given a package and a competition that share the id `premier-league`
+    /// When a logo is picked for each, from two different images
+    /// Then each is copied to a file of its own, and both keep their own bytes: an id is unique
+    ///      only within its kind, so the file is named for the kind too (#1201)
+    #[test]
+    fn same_id_assets_of_two_kinds_do_not_overwrite_each_other() {
+        let dir = temp_project(
+            "asset-kinds",
+            &[
+                ("src/package.png", "package bytes"),
+                ("src/cup.png", "cup bytes"),
+            ],
+        );
+        let path = dir.to_string_lossy().to_string();
+        let source = |name: &str| dir.join("src").join(name).to_string_lossy().to_string();
+
+        let package = copy_package_asset(
+            path.clone(),
+            "package".to_string(),
+            "premier-league".to_string(),
+            source("package.png"),
+        )
+        .expect("the package logo is copied");
+        let cup = copy_package_asset(
+            path.clone(),
+            "competition".to_string(),
+            "premier-league".to_string(),
+            source("cup.png"),
+        )
+        .expect("the competition logo is copied");
+        let read = |rel: &str| std::fs::read_to_string(dir.join(rel)).expect("readable");
+        let (package_bytes, cup_bytes) = (read(&package), read(&cup));
+        std::fs::remove_dir_all(&dir).ok();
+
+        assert_ne!(package, cup);
+        assert_eq!(package_bytes, "package bytes");
+        assert_eq!(cup_bytes, "cup bytes");
+    }
+
+    /// Given a package whose team `team-fc-a` has its logo, named the old way by id alone, at
+    ///      `assets/images/team-fc-a.png`
+    /// When a logo is picked for another team, `fc-a`
+    /// Then the old logo keeps its bytes: the new file goes in the kind's own folder, where no file
+    ///      named the old way can be
+    #[test]
+    fn a_new_asset_does_not_overwrite_one_named_the_old_way() {
+        let dir = temp_project(
+            "asset-legacy",
+            &[
+                ("assets/images/team-fc-a.png", "old logo"),
+                ("src/new.png", "new logo"),
+            ],
+        );
+        let copied = copy_package_asset(
+            dir.to_string_lossy().to_string(),
+            "team".to_string(),
+            "fc-a".to_string(),
+            dir.join("src")
+                .join("new.png")
+                .to_string_lossy()
+                .to_string(),
+        )
+        .expect("the logo is copied");
+        let old = std::fs::read_to_string(dir.join("assets/images/team-fc-a.png")).expect("there");
+        let new = std::fs::read_to_string(dir.join(&copied)).expect("there");
+        std::fs::remove_dir_all(&dir).ok();
+
+        assert_eq!(copied, "assets/images/team/fc-a.png");
+        assert_eq!(old, "old logo");
+        assert_eq!(new, "new logo");
+    }
+
+    /// Given a team whose logo is already in the package's assets folder
+    /// When the author picks that same file again
+    /// Then the file keeps its bytes: copying a file onto itself would truncate it
+    #[test]
+    fn re_picking_the_asset_already_in_place_keeps_its_bytes() {
+        let dir = temp_project("asset-self", &[("logo.png", "logo bytes")]);
+        let path = dir.to_string_lossy().to_string();
+        let first = copy_package_asset(
+            path.clone(),
+            "team".to_string(),
+            "fc-a".to_string(),
+            dir.join("logo.png").to_string_lossy().to_string(),
+        )
+        .expect("the logo is copied");
+
+        let again = copy_package_asset(
+            path.clone(),
+            "team".to_string(),
+            "fc-a".to_string(),
+            dir.join(&first).to_string_lossy().to_string(),
+        )
+        .expect("re-picking succeeds");
+        let bytes = std::fs::read_to_string(dir.join(&again)).expect("readable");
+        std::fs::remove_dir_all(&dir).ok();
+
+        assert_eq!(again, first);
+        assert_eq!(bytes, "logo bytes");
+    }
+
+    /// Given a picker that names no known kind of entity
+    /// When it asks to copy an asset
+    /// Then the copy is refused, as an unusable id is, rather than writing an unnamespaced file
+    #[test]
+    fn an_asset_for_an_unknown_kind_is_refused() {
+        let dir = temp_project("asset-kind-unknown", &[("logo.png", "logo bytes")]);
+        let result = copy_package_asset(
+            dir.to_string_lossy().to_string(),
+            "stadium".to_string(),
+            "fc-a".to_string(),
+            dir.join("logo.png").to_string_lossy().to_string(),
+        );
+        std::fs::remove_dir_all(&dir).ok();
+
+        assert_eq!(result, Err("be.error.invalidPath".to_string()));
+    }
+
     /// Given a project whose league lists one of its clubs twice
     /// When the package editor opens it
     /// Then it opens, and its issue list names the competition and the repeated
@@ -1461,16 +1579,32 @@ fn sanitize_entity_id(id: &str) -> Result<(), String> {
     Ok(())
 }
 
-/// Copy a local image file into `<dir>/assets/images/<entity_id>.<ext>` and
-/// return the relative path from the package root (e.g. `assets/images/man-utd.png`).
-/// The destination is namespaced by `entity_id` so two entities picking files
-/// with the same source name cannot overwrite each other.
+/// The entity kinds an asset is picked for, as named in an asset's file name.
+const ASSET_KINDS: [&str; 4] = ["package", "team", "player", "competition"];
+
+/// Copy a local image file into `<dir>/assets/images/<entity_kind>/<entity_id>.<ext>`
+/// and return the relative path from the package root (e.g.
+/// `assets/images/team/man-utd.png`).
+///
+/// The destination is named for the entity, so two entities picking files with
+/// the same source name cannot overwrite each other. It sits in a folder for the
+/// kind because an id is unique only within its kind: a package and its
+/// competition, or a club and a player, may share one, and named by id alone their
+/// images overwrote each other (#1201). A folder rather than a `<kind>-` prefix:
+/// files named the old way, by id alone, sit directly in `assets/images/`, and a
+/// prefixed name could be one of them (a team `team-fc-a`'s old logo is the new
+/// name for a team `fc-a`). No old file is in a kind's folder, since an id cannot
+/// contain `/`, so they all stay where the entities that point at them expect them.
 #[tauri::command]
 pub fn copy_package_asset(
     dir: String,
+    entity_kind: String,
     entity_id: String,
     src_path: String,
 ) -> Result<String, String> {
+    if !ASSET_KINDS.contains(&entity_kind.as_str()) {
+        return Err("be.error.invalidPath".to_string());
+    }
     sanitize_entity_id(&entity_id)?;
 
     let pkg_dir = Path::new(&dir);
@@ -1482,14 +1616,21 @@ pub fn copy_package_asset(
         .unwrap_or("png")
         .to_lowercase();
 
-    let assets_dir = pkg_dir.join("assets").join("images");
+    let assets_dir = pkg_dir.join("assets").join("images").join(&entity_kind);
     std::fs::create_dir_all(&assets_dir).map_err(|e| e.to_string())?;
 
-    let dest_name = format!("{}.{}", entity_id, ext);
+    let dest_name = format!("{entity_id}.{ext}");
     let dest = assets_dir.join(&dest_name);
-    std::fs::copy(src, &dest).map_err(|e| e.to_string())?;
+    // Re-picking the file already in place: copying a file onto itself truncates it.
+    let same_file = matches!(
+        (src.canonicalize(), dest.canonicalize()),
+        (Ok(from), Ok(to)) if from == to
+    );
+    if !same_file {
+        std::fs::copy(src, &dest).map_err(|e| e.to_string())?;
+    }
 
-    Ok(format!("assets/images/{}", dest_name))
+    Ok(format!("assets/images/{entity_kind}/{dest_name}"))
 }
 
 /// Read a local file and return it as a data URL (`data:<mime>;base64,<data>`).
