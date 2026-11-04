@@ -4045,6 +4045,11 @@
     "winRate": "Win rate"
   },
   "worldEditor": {
+    "previewPlaceholder": {
+      "team": "New Team",
+      "player": "New Player",
+      "competition": "New Competition"
+    },
     "positionGroupFilter": {
       "Goalkeeper": "All goalkeepers",
       "Defender": "All defenders",

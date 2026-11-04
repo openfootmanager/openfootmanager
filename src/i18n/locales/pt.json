@@ -4045,6 +4045,11 @@
     "winRate": "Taxa de vitórias"
   },
   "worldEditor": {
+    "previewPlaceholder": {
+      "team": "Nova equipa",
+      "player": "Novo jogador",
+      "competition": "Nova competição"
+    },
     "positionGroupFilter": {
       "Goalkeeper": "Todos os guarda-redes",
       "Defender": "Todos os defesas",

@@ -4045,6 +4045,11 @@
     "winRate": "Aproveitamento"
   },
   "worldEditor": {
+    "previewPlaceholder": {
+      "team": "Novo time",
+      "player": "Novo jogador",
+      "competition": "Nova competição"
+    },
     "positionGroupFilter": {
       "Goalkeeper": "Todos os goleiros",
       "Defender": "Todos os defensores",

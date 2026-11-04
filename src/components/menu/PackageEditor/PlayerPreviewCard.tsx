@@ -110,7 +110,11 @@ export function PlayerPreviewCard({
 
         <div className="text-center">
           <p className="font-heading font-bold text-white text-sm leading-tight">
-            {displayName ?? <span className="italic text-gray-400">New Player</span>}
+            {displayName ?? (
+              <span className="italic text-gray-400">
+                {t("worldEditor.previewPlaceholder.player")}
+              </span>
+            )}
           </p>
           <span
             className={`inline-block mt-1 px-2 py-0.5 rounded text-[10px] font-bold uppercase text-white ${posColor}`}

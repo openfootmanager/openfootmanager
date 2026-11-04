@@ -4045,6 +4045,11 @@
     "winRate": "Galibiyet oranı"
   },
   "worldEditor": {
+    "previewPlaceholder": {
+      "team": "Yeni takım",
+      "player": "Yeni oyuncu",
+      "competition": "Yeni turnuva"
+    },
     "positionGroupFilter": {
       "Goalkeeper": "Tüm kaleciler",
       "Defender": "Tüm defans oyuncuları",

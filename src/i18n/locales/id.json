@@ -4045,6 +4045,11 @@
     "winRate": "Persentase kemenangan"
   },
   "worldEditor": {
+    "previewPlaceholder": {
+      "team": "Tim baru",
+      "player": "Pemain baru",
+      "competition": "Kompetisi baru"
+    },
     "positionGroupFilter": {
       "Goalkeeper": "Semua penjaga gawang",
       "Defender": "Semua bek",

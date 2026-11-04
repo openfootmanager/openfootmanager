@@ -4045,6 +4045,11 @@
     "winRate": "Процент побед"
   },
   "worldEditor": {
+    "previewPlaceholder": {
+      "team": "Новая команда",
+      "player": "Новый игрок",
+      "competition": "Новый турнир"
+    },
     "positionGroupFilter": {
       "Goalkeeper": "Все вратари",
       "Defender": "Все защитники",

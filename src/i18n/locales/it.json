@@ -4045,6 +4045,11 @@
     "winRate": "Percentuale vittorie"
   },
   "worldEditor": {
+    "previewPlaceholder": {
+      "team": "Nuova squadra",
+      "player": "Nuovo giocatore",
+      "competition": "Nuova competizione"
+    },
     "positionGroupFilter": {
       "Goalkeeper": "Tutti i portieri",
       "Defender": "Tutti i difensori",
