@@ -106,6 +106,16 @@ impl PlayerSnap {
         }
     }
 
+    /// `p` picked to play in `line`, at his factor there. Picked from his own line this is
+    /// `from`; picked from another (an outfielder in goal, a midfielder up front because no
+    /// forward is left), he keeps his own attributes but plays out of position.
+    pub(crate) fn playing_in(p: &PlayerData, line: Position) -> Self {
+        Self {
+            familiarity: p.familiarity_in(line),
+            ..Self::from(p)
+        }
+    }
+
     pub fn has_trait(&self, name: &str) -> bool {
         self.traits.iter().any(|t| t == name)
     }
@@ -158,10 +168,20 @@ pub(crate) fn snap_from_squad<R: Rng>(
         &candidates
     };
     if !pool.is_empty() {
-        return Some(PlayerSnap::from(pool[rng.random_range(0..pool.len())]));
+        let picked = pool[rng.random_range(0..pool.len())];
+        return Some(PlayerSnap::playing_in(picked, preferred));
     }
     // Everyone available has been sent off: anyone on the teamsheet will do.
-    players.first().map(PlayerSnap::from)
+    players
+        .first()
+        .map(|player| PlayerSnap::playing_in(player, preferred))
+}
+
+/// The share of his skill a player brings at `condition` (0 to 100): all of it fresh, about 80%
+/// half spent, 60% at nothing left. The live match plays him at it, and the AI weighs a
+/// substitute by it.
+pub(crate) fn condition_factor(condition: f64) -> f64 {
+    0.6 + 0.4 * (condition / 100.0)
 }
 
 pub(crate) fn trait_bonus(snap: &PlayerSnap, context: TraitContext) -> f64 {
@@ -806,5 +826,83 @@ mod phase_modifier_tests {
         );
         let fast = tactics_break_speed_counter(&cfg(|c| c.break_speed = BreakSpeed::Fast));
         assert!(0.0 < fast && fast < 1.0);
+    }
+}
+
+#[cfg(test)]
+mod emergency_keeper_tests {
+    use super::snap_from_squad;
+    use crate::types::{PlayerData, PlayerRole, Position};
+    use rand::SeedableRng;
+    use rand::rngs::StdRng;
+    use std::collections::HashSet;
+
+    fn player(id: &str, position: Position) -> PlayerData {
+        PlayerData {
+            id: id.to_string(),
+            name: id.to_string(),
+            position,
+            ovr: 70,
+            condition: 100,
+            fitness: 100,
+            injury_risk: 1.0,
+            // Natural in his own line; in goal, half the player he is (a factor no real cost
+            // reaches, so only the goalkeeping entry can produce it).
+            line_familiarity: [0.5, 1.0, 1.0, 1.0],
+            pace: 70,
+            stamina: 70,
+            strength: 70,
+            agility: 70,
+            passing: 70,
+            shooting: 70,
+            tackling: 70,
+            dribbling: 70,
+            defending: 70,
+            positioning: 70,
+            vision: 70,
+            decisions: 70,
+            composure: 70,
+            aggression: 70,
+            teamwork: 70,
+            leadership: 70,
+            handling: 70,
+            reflexes: 70,
+            aerial: 70,
+            traits: vec![],
+            role: PlayerRole::Standard,
+        }
+    }
+
+    /// Given a side with no goalkeeper, only defenders who are half the player in goal,
+    /// When a resolver asks for its goalkeeper,
+    /// Then the defender who goes in keeps his own attributes but plays at his goalkeeping
+    /// factor: out of position, not in his own line.
+    #[test]
+    fn a_keeper_picked_from_the_outfield_plays_at_his_goalkeeping_factor() {
+        let players = vec![
+            player("d1", Position::Defender),
+            player("d2", Position::Defender),
+        ];
+        let mut rng = StdRng::seed_from_u64(1);
+
+        let keeper = snap_from_squad(&players, &HashSet::new(), Position::Goalkeeper, &mut rng)
+            .expect("someone goes in goal");
+
+        assert_eq!(keeper.familiarity, 0.5);
+    }
+
+    /// Given the same side with every player sent off,
+    /// When a resolver still asks for its goalkeeper (the last resort, anyone on the teamsheet),
+    /// Then that player too plays at his goalkeeping factor.
+    #[test]
+    fn a_keeper_picked_as_the_last_resort_plays_at_his_goalkeeping_factor() {
+        let players = vec![player("d1", Position::Defender)];
+        let sent_off: HashSet<String> = ["d1".to_string()].into();
+        let mut rng = StdRng::seed_from_u64(1);
+
+        let keeper = snap_from_squad(&players, &sent_off, Position::Goalkeeper, &mut rng)
+            .expect("the teamsheet still names someone");
+
+        assert_eq!(keeper.familiarity, 0.5);
     }
 }
