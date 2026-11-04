@@ -249,10 +249,12 @@ fn played_before_he_took_charge(date: &str, since: &str) -> bool {
     date <= since
 }
 
-/// The dates of every league match each club has finished: the matches its `form` records
-/// (`turn::post_match` writes form for league fixtures only), so the count and the form cover the
-/// same matches. A cup tie counted here would pull one of the predecessor's league results into the
-/// new manager's window.
+/// The dates of every league match each club has played through the match engine: the matches its
+/// `form` records, so the count and the form cover the same matches. `turn::post_match` writes
+/// form for league fixtures only, and only for a match the engine played, which keeps a report. A
+/// fixture settled by scoreline alone (a dormant league, a stranded fixture repaired) has no report
+/// and writes no form; nor does a cup tie. Counting either would pull one of the predecessor's
+/// results into the new manager's window.
 fn finished_match_dates(game: &Game) -> HashMap<&str, Vec<&str>> {
     let mut dates: HashMap<&str, Vec<&str>> = HashMap::new();
     for fixture in game
@@ -260,7 +262,12 @@ fn finished_match_dates(game: &Game) -> HashMap<&str, Vec<&str>> {
         .iter()
         .flat_map(|competition| &competition.fixtures)
         .filter(|fixture| {
-            fixture.status == FixtureStatus::Completed && fixture.counts_for_league_standings()
+            fixture.status == FixtureStatus::Completed
+                && fixture.counts_for_league_standings()
+                && fixture
+                    .result
+                    .as_ref()
+                    .is_some_and(|result| result.report.is_some())
         })
     {
         for team_id in [fixture.home_team_id.as_str(), fixture.away_team_id.as_str()] {
@@ -584,8 +591,28 @@ mod tests {
         stint.start_date = date.to_string();
     }
 
-    /// The club finished a league match on `date` against a club the user does not manage, and its
-    /// form records the result ("W" or "L"), as `turn::post_match` writes form for league matches.
+    /// A report as the match engine keeps one for a match it played.
+    fn engine_report() -> domain::league::CompactMatchReport {
+        let stats = domain::league::CompactTeamMatchStats {
+            possession_pct: 50,
+            shots: 10,
+            shots_on_target: 4,
+            fouls: 10,
+            corners: 5,
+            yellow_cards: 1,
+            red_cards: 0,
+        };
+        domain::league::CompactMatchReport {
+            total_minutes: 90,
+            home_stats: stats.clone(),
+            away_stats: stats,
+            events: vec![],
+        }
+    }
+
+    /// The club played a league match through the engine on `date` against a club the user does not
+    /// manage, and its form records the result ("W" or "L"), as `turn::post_match` writes form for
+    /// a league match the engine played.
     fn finished_a_match(game: &mut Game, team_id: &str, date: &str, result: &str) {
         if game.competitions.is_empty() {
             game.competitions.push(League {
@@ -607,7 +634,7 @@ mod tests {
                 away_goals: u8::from(!won),
                 home_scorers: vec![],
                 away_scorers: vec![],
-                report: None,
+                report: Some(engine_report()),
                 home_penalties: None,
                 away_penalties: None,
             }),
@@ -1136,6 +1163,52 @@ mod tests {
         assert_eq!(satisfaction_at(&game, "team2"), 0);
     }
 
+    /// Given a club that lost its last five league matches through the engine, and a manager who took
+    ///      charge after them and whose first league match was settled by scoreline (a dormant
+    ///      league: no report, no form entry)
+    /// When the board judges him
+    /// Then he keeps 50: the settled match is not in the form, so it does not pull one of his
+    ///      predecessor's defeats into his window
+    #[test]
+    fn a_match_settled_by_scoreline_does_not_pull_a_predecessors_result_into_his_window() {
+        let mut game = make_game();
+        seed_ai_managers(&mut game);
+        for date in [
+            "2026-06-02",
+            "2026-06-06",
+            "2026-06-10",
+            "2026-06-14",
+            "2026-06-18",
+        ] {
+            finished_a_match(&mut game, "team2", date, "L");
+        }
+        in_charge_since(&mut game, "team2", "2026-06-19");
+        game.competitions[0].fixtures.push(Fixture {
+            id: "team2-settled".to_string(),
+            date: "2026-06-24".to_string(),
+            home_team_id: "team2".to_string(),
+            away_team_id: "elsewhere".to_string(),
+            status: FixtureStatus::Completed,
+            result: Some(MatchResult {
+                home_goals: 0,
+                away_goals: 1,
+                home_scorers: vec![],
+                away_scorers: vec![],
+                report: None,
+                home_penalties: None,
+                away_penalties: None,
+            }),
+            ..Fixture::default()
+        });
+
+        update_ai_manager_satisfaction(&mut game);
+
+        assert_eq!(
+            satisfaction_at(&game, "team2"),
+            BASE_AI_MANAGER_SATISFACTION as u8
+        );
+    }
+
     /// Given a club that lost three matches under its last manager and two under the new one
     /// When the board judges him
     /// Then only his two count: 50 - 2×12 = 26
@@ -1177,7 +1250,7 @@ mod tests {
                 away_goals: 1,
                 home_scorers: vec![],
                 away_scorers: vec![],
-                report: None,
+                report: Some(engine_report()),
                 home_penalties: None,
                 away_penalties: None,
             }),
