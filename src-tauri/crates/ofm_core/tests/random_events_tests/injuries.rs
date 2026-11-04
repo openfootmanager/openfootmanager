@@ -1,8 +1,9 @@
-//! Training injuries: the days they can happen on, and which ones make the news. Each test rolls
-//! one day over many seeds, because the day's dice are keyed on the seed and the date: rolling
-//! the same day twice draws the same numbers.
+//! Training injuries: the days they can happen on, the clubs they happen at, and which ones make
+//! the news. Each test rolls one day over many seeds, because the day's dice are keyed on the seed
+//! and the date: rolling the same day twice draws the same numbers.
 
 use super::*;
+use domain::league::CompetitionType;
 use domain::news::{NewsArticle, NewsCategory};
 
 const SEEDS: u64 = 1000;
@@ -38,7 +39,7 @@ fn training_injuries(make: impl Fn(u64) -> Game) -> Vec<(String, Game)> {
     (0..SEEDS)
         .filter_map(|seed| {
             let mut game = make(seed);
-            check_random_events(&mut game);
+            roll_training_injuries(&mut game);
             injured_in_training(&game).map(|player| (player, game))
         })
         .collect()
@@ -49,6 +50,40 @@ fn injury_story<'a>(game: &'a Game, player_id: &str) -> Option<&'a NewsArticle> 
         article.id.starts_with("injury_news_")
             && article.player_ids.iter().any(|id| id == player_id)
     })
+}
+
+/// [`three_unfit_players`], with three unfit players worth nothing at Other Town too, the club the
+/// user does not manage: q0 on its bench, q1 in its starting XI, q2 its third man.
+fn two_clubs_of_unfit_players(seed: u64) -> Game {
+    let mut game = three_unfit_players(seed);
+    for index in 0..3 {
+        let mut player = make_player(&format!("q{index}"), &format!("Q {index}"), "team0");
+        player.fitness = 1;
+        player.market_value = 0;
+        game.players.push(player);
+    }
+    game
+}
+
+/// The players at `club` carrying an injury.
+fn injured_at<'a>(game: &'a Game, club: &str) -> Vec<&'a str> {
+    game.players
+        .iter()
+        .filter(|player| player.team_id.as_deref() == Some(club) && player.injury.is_some())
+        .map(|player| player.id.as_str())
+        .collect()
+}
+
+/// Each seed's day from `make`, rolled once, kept when someone at `club` was hurt.
+fn days_with_an_injury_at(club: &str, make: impl Fn(u64) -> Game) -> Vec<Game> {
+    (0..SEEDS)
+        .map(|seed| {
+            let mut game = make(seed);
+            roll_training_injuries(&mut game);
+            game
+        })
+        .filter(|game| !injured_at(game, club).is_empty())
+        .collect()
 }
 
 fn with_a_match(game: &mut Game, days_away: i64) {
@@ -75,6 +110,143 @@ fn a_match_today_means_no_training_injuries() {
 
     let seeds: Vec<u64> = injuries.iter().map(|(_, game)| game.seed).collect();
     assert_eq!(seeds, Vec::<u64>::new());
+}
+
+/// Given a squad of three at fitness 1 whose match today is already played (training runs after the
+///      day's matches, so the fixture reads Completed), over a thousand seeds
+/// When the day's training injuries roll
+/// Then nobody is hurt in training: a club that played today did not train
+#[test]
+fn a_match_played_today_means_no_training_injuries() {
+    let injuries = training_injuries(|seed| {
+        let mut game = three_unfit_players(seed);
+        let today = date_in(&game, 0);
+        game.league = Some(league_of(vec![fixture(
+            "match",
+            today,
+            "team1",
+            "team2",
+            FixtureStatus::Completed,
+        )]));
+        game
+    });
+
+    let seeds: Vec<u64> = injuries.iter().map(|(_, game)| game.seed).collect();
+    assert_eq!(seeds, Vec::<u64>::new());
+}
+
+/// Given a squad of three at fitness 1 with a cup tie today and nothing in the league, over a
+///      thousand seeds
+/// When the day's training injuries roll
+/// Then nobody is hurt in training: a cup tie is a match day like a league game
+#[test]
+fn a_cup_tie_today_means_no_training_injuries() {
+    let injuries = training_injuries(|seed| {
+        let mut game = three_unfit_players(seed);
+        let today = date_in(&game, 0);
+        let mut cup = league_of(vec![fixture(
+            "tie",
+            today,
+            "team2",
+            "team1",
+            FixtureStatus::Scheduled,
+        )]);
+        cup.id = "cup".to_string();
+        cup.kind = CompetitionType::Cup;
+        game.competitions = vec![league_of(Vec::new()), cup];
+        game
+    });
+
+    let seeds: Vec<u64> = injuries.iter().map(|(_, game)| game.seed).collect();
+    assert_eq!(seeds, Vec::<u64>::new());
+}
+
+/// Given the user's three unfit players and three more at Other Town, a club the user does not
+///      manage, over a thousand seeds
+/// When the day's training injuries roll
+/// Then Other Town loses a player on 20 to 110 of them, as the user's club does (6% a day), and
+///      the user's inbox never reports one of its players
+#[test]
+fn a_club_the_user_does_not_manage_has_training_injuries_too() {
+    let days = days_with_an_injury_at("team0", two_clubs_of_unfit_players);
+
+    assert!(
+        (20..=110).contains(&days.len()),
+        "{} in {SEEDS} seeds",
+        days.len()
+    );
+    for game in &days {
+        assert_eq!(
+            injured_in_training(game).filter(|player| player.starts_with('q')),
+            None,
+            "seed {}: the inbox reported another club's injury",
+            game.seed
+        );
+    }
+}
+
+/// Given Other Town's three unfit players and a manager out of work, over a thousand seeds
+/// When the day's training injuries roll
+/// Then Other Town still loses a player on 20 to 110 of them, and no inbox message is sent
+#[test]
+fn training_injuries_go_on_while_the_manager_is_out_of_work() {
+    let days = days_with_an_injury_at("team0", |seed| {
+        let mut game = two_clubs_of_unfit_players(seed);
+        game.manager.team_id = None;
+        game
+    });
+
+    assert!(
+        (20..=110).contains(&days.len()),
+        "{} in {SEEDS} seeds",
+        days.len()
+    );
+    for game in &days {
+        assert!(game.messages.is_empty(), "seed {}", game.seed);
+    }
+}
+
+/// Given the user's three unfit players, alone in one world and beside Other Town's three in
+///      another, over a thousand seeds
+/// When the day's training injuries roll in both
+/// Then the user's club loses the same player on the same seeds in both: each club rolls its own
+///      dice, so another club's squad does not change what happens at the user's
+#[test]
+fn another_clubs_squad_does_not_change_the_users_training_injuries() {
+    for seed in 0..SEEDS {
+        let mut alone = three_unfit_players(seed);
+        let mut beside = two_clubs_of_unfit_players(seed);
+        roll_training_injuries(&mut alone);
+        roll_training_injuries(&mut beside);
+
+        assert_eq!(
+            injured_at(&alone, "team1"),
+            injured_at(&beside, "team1"),
+            "seed {seed}"
+        );
+    }
+}
+
+/// Given Other Town's q1 in its starting XI and worth nothing, over a thousand seeds
+/// When q1 is hurt in training
+/// Then the news reports it under Other Town: one notability rule for every club
+#[test]
+fn a_starter_hurt_in_training_at_another_club_makes_the_news() {
+    let days: Vec<Game> = days_with_an_injury_at("team0", two_clubs_of_unfit_players)
+        .into_iter()
+        .filter(|game| injured_at(game, "team0") == ["q1"])
+        .collect();
+
+    assert!(!days.is_empty(), "q1 never hurt in {SEEDS} seeds");
+    for game in &days {
+        let story = injury_story(game, "q1").expect("an injured starter makes the news");
+        assert_eq!(
+            story.i18n_params.get("team").map(String::as_str),
+            Some("Other Town"),
+            "seed {}",
+            game.seed
+        );
+    }
 }
 
 /// Given the same squad and a scheduled match tomorrow, over a thousand seeds

@@ -189,6 +189,8 @@ fn process_day_common(game: &mut Game, today: &str) {
     player_events::check_player_events(game);
     progress_injury_recovery(game);
     random_events::check_random_events(game);
+    // After the day's recovery, so an injury picked up today keeps all of its days.
+    training::roll_training_injuries(game);
     scouting::process_scouting(game);
     transfers::process_pending_transfer_registrations(game);
     transfers::process_pending_loan_registrations(game);
