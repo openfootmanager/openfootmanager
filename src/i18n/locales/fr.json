@@ -3615,7 +3615,8 @@
       },
       "loanRegistrationFailed": {
         "subject": "Prêt annulé : {{player}}",
-        "body": "Le prêt convenu de {{player}} de {{parent}} à {{borrower}}, prévu le {{start}}, ne peut pas avoir lieu : le joueur n'est plus sous contrat avec {{parent}}."
+        "body": "Le prêt convenu de {{player}} de {{parent}} à {{borrower}}, prévu le {{start}}, ne peut pas avoir lieu : le joueur n'est plus sous contrat avec {{parent}}.",
+        "bodyRequirementNotMet": "Le prêt convenu de {{player}} de {{parent}} à {{borrower}} n'a pas pu commencer le {{start}} : l'une des conditions auxquelles il avait été conclu, comme la marge dans la masse salariale de {{borrower}} ou la durée du contrat du joueur, n'est plus remplie."
       },
       "loanOffer": {
         "subject": "Offre de prêt pour {{player}}",

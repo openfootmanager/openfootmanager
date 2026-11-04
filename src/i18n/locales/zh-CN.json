@@ -3615,7 +3615,8 @@
       },
       "loanRegistrationFailed": {
         "subject": "租借已取消：{{player}}",
-        "body": "{{player}}从{{parent}}租借至{{borrower}}的协议原定于{{start}}开始，但无法进行：该球员已不再与{{parent}}签约。"
+        "body": "{{player}}从{{parent}}租借至{{borrower}}的协议原定于{{start}}开始，但无法进行：该球员已不再与{{parent}}签约。",
+        "bodyRequirementNotMet": "{{player}}从{{parent}}租借至{{borrower}}的协议未能于{{start}}开始：达成协议时的某项条件已不再满足，例如{{borrower}}的工资预算空间或该球员的合同期限。"
       },
       "loanOffer": {
         "subject": "收到对{{player}}的租借报价",

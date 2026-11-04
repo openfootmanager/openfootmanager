@@ -3615,7 +3615,8 @@
       },
       "loanRegistrationFailed": {
         "subject": "Hostování zrušeno: {{player}}",
-        "body": "Dohodnuté hostování hráče {{player}} z {{parent}} do {{borrower}}, které mělo začít {{start}}, se neuskuteční: hráč už nemá smlouvu s {{parent}}."
+        "body": "Dohodnuté hostování hráče {{player}} z {{parent}} do {{borrower}}, které mělo začít {{start}}, se neuskuteční: hráč už nemá smlouvu s {{parent}}.",
+        "bodyRequirementNotMet": "Dohodnuté hostování hráče {{player}} z {{parent}} do {{borrower}} nemohlo začít {{start}}: jedna z podmínek, za nichž bylo dohodnuto, například místo v mzdovém rozpočtu {{borrower}} nebo délka hráčovy smlouvy, už neplatí."
       },
       "loanOffer": {
         "subject": "Nabídka hostování pro hráče {{player}}",

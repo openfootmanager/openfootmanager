@@ -3615,7 +3615,8 @@
       },
       "loanRegistrationFailed": {
         "subject": "Cesión cancelada: {{player}}",
-        "body": "La cesión acordada de {{player}} de {{parent}} a {{borrower}}, prevista para el {{start}}, no puede llevarse a cabo: el jugador ya no tiene contrato con {{parent}}."
+        "body": "La cesión acordada de {{player}} de {{parent}} a {{borrower}}, prevista para el {{start}}, no puede llevarse a cabo: el jugador ya no tiene contrato con {{parent}}.",
+        "bodyRequirementNotMet": "La cesión acordada de {{player}} de {{parent}} a {{borrower}} no pudo comenzar el {{start}}: una de las condiciones con las que se acordó, como el margen en el presupuesto salarial de {{borrower}} o la duración del contrato del jugador, ya no se cumple."
       },
       "loanOffer": {
         "subject": "Oferta de cesión por {{player}}",

@@ -217,6 +217,7 @@ pub(crate) fn lapsed_registration_messages(
                 user_club_id,
                 &game.team_name_or_id(&offer.parent_team_id),
                 &game.team_name_or_id(&offer.from_team_id),
+                crate::messages::LoanCancellation::LenderNoLongerHoldsHim,
                 today,
             )
         });
