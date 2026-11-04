@@ -111,6 +111,8 @@ pub(crate) fn release_player_contract(
             || game.players[player_index].team_id.as_deref() == Some(user_team_id)
     });
 
+    let lapsed_registrations = lapsed_registration_messages(game, player_index, team_id, &today);
+
     for team in &mut game.teams {
         remove_player_from_team_references(team, &player_id);
     }
@@ -137,6 +139,10 @@ pub(crate) fn release_player_contract(
         },
     );
 
+    for message in lapsed_registrations {
+        crate::inbox::emit(game, message);
+    }
+
     if !leaves_user_squad {
         return;
     }
@@ -162,6 +168,37 @@ pub(crate) fn release_player_contract(
     };
 
     crate::inbox::emit(game, message);
+}
+
+/// The letters for the agreed transfers a release cancels. An agreement waiting for its window
+/// dies with the contract (the release clears the player's offers), so the user, as buyer or as
+/// seller, is told what the registration day would have told him (#1202).
+fn lapsed_registration_messages(
+    game: &Game,
+    player_index: usize,
+    contract_club_id: &str,
+    today: &str,
+) -> Vec<InboxMessage> {
+    let Some(user_club_id) = game.manager.team_id.as_deref() else {
+        return Vec::new();
+    };
+    let player = &game.players[player_index];
+    player
+        .transfer_offers
+        .iter()
+        .filter(|offer| offer.status == domain::player::TransferOfferStatus::PendingRegistration)
+        .filter(|offer| offer.from_team_id == user_club_id || contract_club_id == user_club_id)
+        .map(|offer| {
+            crate::messages::transfer_registration_failed_message(
+                offer,
+                player,
+                user_club_id,
+                &game.team_name_or_id(&offer.from_team_id),
+                domain::player::TransferRegistrationFailureReason::PlayerUnavailable,
+                today,
+            )
+        })
+        .collect()
 }
 
 pub(crate) fn contract_expired_message(
