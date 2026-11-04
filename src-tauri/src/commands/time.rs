@@ -61,9 +61,10 @@ pub async fn advance_time_with_mode<R: tauri::Runtime>(
     run_off_thread(move || {
         let career = Career::Token(career_token);
         let before = auto_save::game_date(&state);
-        let response = advance_time_with_mode_internal(&state, career, &mode)?;
+        let mut response = advance_time_with_mode_internal(&state, career, &mode)?;
         let enabled = || crate::commands::settings::auto_save_enabled(&app_handle);
-        auto_save::save_if_a_new_week(&state, &saves.0, enabled, before, career);
+        response.auto_save_error =
+            auto_save::save_if_a_new_week(&state, &saves.0, enabled, before, career).error();
         Ok(response)
     })
     .await
@@ -120,9 +121,10 @@ pub async fn skip_to_match_day<R: tauri::Runtime>(
     run_off_thread(move || {
         let career = Career::Token(career_token);
         let before = auto_save::game_date(&state);
-        let response = skip_to_match_day_internal(&state, career)?;
+        let mut response = skip_to_match_day_internal(&state, career)?;
         let enabled = || crate::commands::settings::auto_save_enabled(&app_handle);
-        auto_save::save_if_a_new_week(&state, &saves.0, enabled, before, career);
+        auto_save::save_if_a_new_week(&state, &saves.0, enabled, before, career)
+            .note_on(&mut response);
         Ok(response)
     })
     .await
@@ -358,9 +360,10 @@ pub async fn advance_one_day<R: tauri::Runtime>(
     run_off_thread(move || {
         let career = Career::Token(career_token);
         let before = auto_save::game_date(&state);
-        let response = advance_one_day_internal(&state, career)?;
+        let mut response = advance_one_day_internal(&state, career)?;
         let enabled = || crate::commands::settings::auto_save_enabled(&app_handle);
-        auto_save::save_if_a_new_week(&state, &saves.0, enabled, before, career);
+        auto_save::save_if_a_new_week(&state, &saves.0, enabled, before, career)
+            .note_on(&mut response);
         Ok(response)
     })
     .await
@@ -891,6 +894,54 @@ mod tests {
 
         assert_eq!(refused, Err("be.error.careerChanged".to_string()));
         assert_eq!(date(&app), before);
+    }
+
+    /// The saved career's date after the screen's Continue goes through `command` on a saved
+    /// career that opens on Sunday 15 June 2025, with Auto-Save at its default (on).
+    fn saved_date_after_a_continue(command: &str) -> chrono::NaiveDate {
+        use crate::commands::wrapper_testkit::WrapperApp;
+        let app = WrapperApp::new(make_game(11), true);
+        let outcome = match command {
+            "advance_one_day" => tauri::async_runtime::block_on(super::advance_one_day(
+                app.state(),
+                app.saves(),
+                app.handle(),
+                app.token,
+            ))
+            .map(|_| ()),
+            _ => tauri::async_runtime::block_on(super::advance_time_with_mode(
+                app.state(),
+                app.saves(),
+                app.handle(),
+                "delegate".to_string(),
+                app.token,
+            ))
+            .map(|_| ()),
+        };
+        assert_eq!(outcome, Ok(()), "{command}");
+        app.saved_game().clock.current_date.date_naive()
+    }
+
+    /// Given a saved career on a Sunday with Auto-Save on
+    /// When the screen's day-by-day Continue (advance_one_day) brings Monday
+    /// Then the save on disk reads Monday: the command saved the week it crossed (#1181).
+    #[test]
+    fn the_day_by_day_continue_saves_the_week_it_crosses() {
+        assert_eq!(
+            saved_date_after_a_continue("advance_one_day"),
+            chrono::NaiveDate::from_ymd_opt(2025, 6, 16).unwrap()
+        );
+    }
+
+    /// Given the same
+    /// When the screen's Continue goes through advance_time_with_mode
+    /// Then the save on disk reads Monday too.
+    #[test]
+    fn the_mode_continue_saves_the_week_it_crosses() {
+        assert_eq!(
+            saved_date_after_a_continue("advance_time_with_mode"),
+            chrono::NaiveDate::from_ymd_opt(2025, 6, 16).unwrap()
+        );
     }
 
     /// Given a game with nobody injured, and one where two starters are injured

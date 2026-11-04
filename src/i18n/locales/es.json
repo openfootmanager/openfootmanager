@@ -2753,6 +2753,9 @@
       "critical": "Crítico"
     },
     "error": {
+      "autoSave": {
+        "failed": "El guardado automático no pudo guardar la partida. Tu progreso desde el último guardado aún no está guardado: guárdala tú mismo y comprueba que haya espacio libre en el disco."
+      },
       "squadFloor": {
         "wouldLeaveShort": "Este jugador no puede salir: la plantilla quedaría por debajo del mínimo que un club debe mantener. Línea afectada: {{group}}.",
         "wouldLeaveSeniorsShort": "Este jugador no puede salir: el club se quedaría con menos de {{floor}} jugadores en la primera plantilla, el mínimo que un club debe mantener."

@@ -162,9 +162,12 @@ fn settings_path<R: tauri::Runtime>(
 /// Whether the player's Auto-Save setting is on, for the advance commands (#1181): the saved
 /// setting, or the default (on) when there is no settings file yet or it cannot be read.
 pub(crate) fn auto_save_enabled<R: tauri::Runtime>(app_handle: &tauri::AppHandle<R>) -> bool {
-    let stored = settings_path(app_handle, SETTINGS_LOAD_FAILED_ERROR)
+    // Read only: unlike settings_path, this never creates the app's data directory.
+    let stored = app_handle
+        .path()
+        .app_data_dir()
         .ok()
-        .and_then(|path| std::fs::read_to_string(path).ok());
+        .and_then(|dir| std::fs::read_to_string(dir.join("settings.json")).ok());
     auto_save_from(stored.as_deref())
 }
 

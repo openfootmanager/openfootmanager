@@ -2753,6 +2753,9 @@
       "critical": "Kritický"
     },
     "error": {
+      "autoSave": {
+        "failed": "Automatické ukládání hru neuložilo. Postup od posledního uložení zatím uložen není: uložte hru ručně a zkontrolujte, zda je na disku volné místo."
+      },
       "squadFloor": {
         "wouldLeaveShort": "Tento hráč nemůže odejít: kádr by klesl pod minimum, které musí klub udržet. Dotčená řada: {{group}}.",
         "wouldLeaveSeniorsShort": "Tento hráč nemůže odejít: klubu by v A-týmu zůstalo méně než {{floor}} hráčů, což je minimum, které musí klub udržet."

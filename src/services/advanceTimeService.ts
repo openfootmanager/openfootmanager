@@ -38,6 +38,8 @@ export interface AdvanceTimeWithModeResponse {
   round_summary?: unknown;
   cup_round_summaries?: unknown;
   results?: AdvanceMatchResultData[];
+  /** Set when a weekly auto-save was due and could not be written: a key the screen shows. */
+  auto_save_error?: string;
 }
 
 export interface SkipToMatchDayResponse {
@@ -46,6 +48,8 @@ export interface SkipToMatchDayResponse {
   blockers?: BlockerData[];
   days_skipped?: number;
   results?: AdvanceMatchResultData[];
+  /** Set when a weekly auto-save was due and could not be written: a key the screen shows. */
+  auto_save_error?: string;
 }
 
 export async function advanceTimeWithMode(mode: string): Promise<AdvanceTimeWithModeResponse> {
@@ -79,6 +83,8 @@ export interface OneDayResponse {
   date: string;
   results?: AdvanceMatchResultData[];
   blockers?: BlockerData[];
+  /** Set when a weekly auto-save was due and could not be written: a key the screen shows. */
+  auto_save_error?: string;
 }
 
 /**

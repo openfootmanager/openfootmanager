@@ -2753,6 +2753,9 @@
       "critical": "Crítico"
     },
     "error": {
+      "autoSave": {
+        "failed": "O salvamento automático não conseguiu salvar o jogo. Seu progresso desde o último salvamento ainda não está salvo: salve manualmente e verifique se há espaço livre no disco."
+      },
       "squadFloor": {
         "wouldLeaveShort": "Este jogador não pode sair: o elenco ficaria abaixo do mínimo que um clube precisa manter. Setor afetado: {{group}}.",
         "wouldLeaveSeniorsShort": "Este jogador não pode sair: o clube ficaria com menos de {{floor}} jogadores no elenco profissional, o mínimo que um clube precisa manter."
