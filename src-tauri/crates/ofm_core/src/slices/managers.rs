@@ -5,12 +5,15 @@
 //! opinion of him are his club's own business, his record is not), so the directory needs no
 //! knowledge gate. Managers who retired into the archive are not listed.
 
+use std::collections::HashMap;
+
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
 use crate::game::Game;
 use crate::manager_reputation::ManagerReputation;
 use domain::manager::Manager;
+use domain::team::Team;
 
 /// Which managers the directory lists.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, TS)]
@@ -79,16 +82,15 @@ fn active_managers(game: &Game) -> Vec<&Manager> {
     managers
 }
 
-fn summary(game: &Game, manager: &Manager) -> ManagerSummary {
-    let club = manager.team_id.as_deref().and_then(|club_id| {
-        game.teams
-            .iter()
-            .find(|team| team.id == club_id)
-            .map(|team| ManagerClub {
-                id: team.id.clone(),
-                name: team.name.clone(),
-            })
-    });
+fn summary(clubs: &HashMap<&str, &Team>, manager: &Manager) -> ManagerSummary {
+    let club = manager
+        .team_id
+        .as_deref()
+        .and_then(|club_id| clubs.get(club_id))
+        .map(|team| ManagerClub {
+            id: team.id.clone(),
+            name: team.name.clone(),
+        });
     ManagerSummary {
         id: manager.id.clone(),
         display_name: manager.display_name.clone(),
@@ -134,14 +136,20 @@ fn vacancies(game: &Game) -> Vec<Vacancy> {
 /// The managers directory, filtered by `status`. Unpaged: a world holds a few thousand managers at
 /// most, and the screen sorts and searches them itself.
 pub fn query_managers_page(game: &Game, status: ManagersStatus) -> ManagersPage {
+    // One index for the whole page: a scan of the clubs per manager is managers × clubs.
+    let clubs: HashMap<&str, &Team> = game
+        .teams
+        .iter()
+        .map(|team| (team.id.as_str(), team))
+        .collect();
     let mut managers: Vec<ManagerSummary> = active_managers(game)
         .into_iter()
-        .map(|manager| summary(game, manager))
+        .map(|manager| summary(&clubs, manager))
         .filter(|summary| listed(status, summary))
         .collect();
     managers.sort_by(|left, right| {
         let club_name =
-            |summary: &ManagerSummary| summary.club.as_ref().map(|club| club.name.clone());
+            |summary: &ManagerSummary| summary.club.as_ref().map(|club| club.name.as_str());
         left.club
             .is_none()
             .cmp(&right.club.is_none())
