@@ -1108,6 +1108,8 @@
     "transferBudget": "转会预算",
     "seasonIncome": "赛季收入",
     "seasonExpenses": "赛季支出",
+    "moneyIn": "资金流入",
+    "moneyOut": "资金流出",
     "perWeekSuffix": "/周",
     "snapshotLoadFailed": "无法加载俱乐部财务数据。",
     "perYearSuffix": "/年",

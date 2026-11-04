@@ -1108,6 +1108,8 @@
     "transferBudget": "Transferbudget",
     "seasonIncome": "Saisoneinnahmen",
     "seasonExpenses": "Saisonausgaben",
+    "moneyIn": "Geld rein",
+    "moneyOut": "Geld raus",
     "perWeekSuffix": "/Wo",
     "snapshotLoadFailed": "Die Vereinsfinanzen konnten nicht geladen werden.",
     "perYearSuffix": "/Jahr",

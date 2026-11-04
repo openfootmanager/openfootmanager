@@ -1108,6 +1108,8 @@
     "transferBudget": "Presupuesto de Fichajes",
     "seasonIncome": "Ingresos de Temporada",
     "seasonExpenses": "Gastos de Temporada",
+    "moneyIn": "Entradas de dinero",
+    "moneyOut": "Salidas de dinero",
     "perWeekSuffix": "/sem",
     "snapshotLoadFailed": "No se pudieron cargar las finanzas del club.",
     "perYearSuffix": "/año",
