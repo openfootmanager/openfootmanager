@@ -235,7 +235,8 @@ fn division(id: &str, clubs: &[&str]) -> League {
     division
 }
 
-/// The seeds of `make` on which q1, Other Town's starter, was the one hurt there.
+/// The seeds of `make` on which q1, one of Other Town's three (so among its three most valuable),
+/// was the one hurt there.
 fn days_q1_was_hurt(make: impl Fn(u64) -> Game) -> Vec<Game> {
     days_with_an_injury_at("team0", make)
         .into_iter()
@@ -243,13 +244,13 @@ fn days_q1_was_hurt(make: impl Fn(u64) -> Game) -> Vec<Game> {
         .collect()
 }
 
-/// Given Other Town in the user's division, its q1 in its starting XI and worth nothing, over a
-///      thousand seeds
+/// Given Other Town in the user's division, its q1 among its three most valuable (it has three
+///      players), over a thousand seeds
 /// When q1 is hurt in training
-/// Then the news reports it under Other Town: a starter in the user's league is notable whoever
-///      manages his club
+/// Then the news reports it under Other Town: a notable player in the user's league makes it
+///      whoever manages his club
 #[test]
-fn a_starter_hurt_in_training_in_the_users_league_makes_the_news() {
+fn a_notable_player_hurt_in_training_in_the_users_league_makes_the_news() {
     let days = days_q1_was_hurt(|seed| {
         let mut game = two_clubs_of_unfit_players(seed);
         game.competitions = vec![division("first", &["team1", "team0"])];
@@ -258,7 +259,7 @@ fn a_starter_hurt_in_training_in_the_users_league_makes_the_news() {
 
     assert!(!days.is_empty(), "q1 never hurt in {SEEDS} seeds");
     for game in &days {
-        let story = injury_story(game, "q1").expect("an injured starter makes the news");
+        let story = injury_story(game, "q1").expect("a notable player's injury makes the news");
         assert_eq!(
             story.i18n_params.get("team").map(String::as_str),
             Some("Other Town"),
@@ -268,13 +269,13 @@ fn a_starter_hurt_in_training_in_the_users_league_makes_the_news() {
     }
 }
 
-/// Given Other Town in another division from the user's, its q1 in its starting XI, over a
-///      thousand seeds
+/// Given Other Town in another division from the user's, its q1 among its three most valuable,
+///      over a thousand seeds
 /// When q1 is hurt in training
 /// Then he misses his matches but the news leaves it out: it covers the user's league (maintainer,
 ///      4 Nov 2026)
 #[test]
-fn a_starter_hurt_in_training_in_another_league_stays_out_of_the_news() {
+fn a_notable_player_hurt_in_training_in_another_league_stays_out_of_the_news() {
     let days = days_q1_was_hurt(|seed| {
         let mut game = two_clubs_of_unfit_players(seed);
         game.competitions = vec![
@@ -296,7 +297,7 @@ fn a_starter_hurt_in_training_in_another_league_stays_out_of_the_news() {
 
 /// Given a manager out of work, Other Town's division listed first among the world's
 ///      competitions, and the `game.league` mirror synced as the game syncs it (with no club, it
-///      falls back to that first competition), q1 a starter there, over a thousand seeds
+///      falls back to that first competition), q1 notable there, over a thousand seeds
 /// When q1 is hurt in training
 /// Then the news leaves it out: a manager out of work follows no league, not whichever happens to
 ///      be listed first (#1270 asks which he should)
@@ -342,17 +343,15 @@ fn a_match_tomorrow_leaves_todays_training_as_risky_as_any_day() {
 }
 
 /// Given a squad of three worth nothing, and another club listed first, over a thousand seeds
-/// When a starter is hurt in training
-/// Then the news reports it: a starter is notable whatever his value
+/// When any of them is hurt in training
+/// Then the news reports it: in a squad of three, each is among the three most valuable, whatever
+///      his value
 #[test]
-fn an_injured_starter_makes_the_news_whatever_his_value() {
-    let starters: Vec<(String, Game)> = training_injuries(three_unfit_players)
-        .into_iter()
-        .filter(|(player, _)| player != "p0")
-        .collect();
+fn a_squad_of_threes_injuries_all_make_the_news() {
+    let hurt: Vec<(String, Game)> = training_injuries(three_unfit_players);
 
-    assert!(!starters.is_empty(), "no starter hurt in {SEEDS} seeds");
-    for (player, game) in &starters {
+    assert!(!hurt.is_empty(), "nobody hurt in {SEEDS} seeds");
+    for (player, game) in &hurt {
         assert!(
             injury_story(game, player).is_some(),
             "seed {}: {player} was hurt and the news missed it",

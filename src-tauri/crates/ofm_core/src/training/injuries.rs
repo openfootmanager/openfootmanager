@@ -10,8 +10,7 @@ use std::collections::HashMap;
 /// The day's chance that a session injures the player it falls on, before his fitness scales it.
 const BASE_CHANCE: f64 = 1.0 / 50.0;
 
-/// How many of a club's most valuable players are notable, wherever they play in its side
-/// ([`is_notable`]).
+/// How many of a club's most valuable players are notable ([`is_notable`]).
 const NOTABLE_MOST_VALUABLE: usize = 3;
 
 /// Rolls the day's training injuries. At each club that trains today, one player not already injured
@@ -115,17 +114,13 @@ fn injury_makes_the_news(game: &Game, player: &Player, club: &Team) -> bool {
     user_follows(game, &club.id) && is_notable(game, player, club)
 }
 
-/// Whether `player` is notable at `club` (maintainer, 4 Nov 2026): he is in the side the club would
-/// field (`turn::squad::match_day_selection`, the same pick kick-off makes), or among its
-/// [`NOTABLE_MOST_VALUABLE`] most valuable players. Equal values go to the
-/// lower id, so exactly that many are. It used to be any player worth 500,000, which in a top
-/// division is nearly everyone: a training-injury story every two or three days.
+/// Whether `player` is notable at `club` (maintainer, 5 Nov 2026): he is among its
+/// [`NOTABLE_MOST_VALUABLE`] most valuable players. Equal values go to the lower id, so exactly
+/// that many are. It used to be any player worth 500,000, which in a top division is nearly
+/// everyone (a training-injury story every two or three days), then anyone in the side the club
+/// would field as well (51-76 stories a season in the user's league).
 fn is_notable(game: &Game, player: &Player, club: &Team) -> bool {
     let squad = crate::match_day_eligibility::club_players(&game.players, &club.id);
-    let fielded = crate::turn::squad::match_day_selection(game, &club.id, &squad, None);
-    if fielded.eleven.iter().any(|starter| starter.id == player.id) {
-        return true;
-    }
     let ranked_ahead = |other: &Player| {
         other.market_value > player.market_value
             || (other.market_value == player.market_value && other.id < player.id)
@@ -233,17 +228,19 @@ mod tests {
         is_notable(game, player, club)
     }
 
-    /// Given the user's club fielding eleven 70s worth nothing, and a reserve worth nothing ahead
-    ///      of them by id
-    /// When a starter low in the order of value, xi5, is weighed
-    /// Then he is notable: a player in the side his club would field is, whatever his value
+    /// Given the user's club fielding eleven 70s, three of them worth 100,000 and the rest nothing
+    /// When a starter worth nothing, xi5, is weighed
+    /// Then he is not notable: only a club's three most valuable are, wherever they play (the side a
+    ///      club would field no longer counts, maintainer 5 Nov 2026)
     #[test]
-    fn a_player_in_the_side_his_club_would_field_is_notable_whatever_his_value() {
+    fn a_starter_outside_his_clubs_three_most_valuable_is_not_notable() {
         let mut players = first_eleven("user", 0);
-        players.push(reserve("user", 0));
+        for starter in players.iter_mut().take(3) {
+            starter.market_value = 100_000;
+        }
         let game = game(vec![club("user")], players);
 
-        assert!(notable(&game, "xi5", "user"));
+        assert!(!notable(&game, "xi5", "user"));
     }
 
     /// Given a reserve the club would not field, worth 1,000,000 against its starters' 100,000
@@ -274,23 +271,7 @@ mod tests {
         assert!(!notable(&game, "reserve", "user"));
     }
 
-    /// Given an AI club whose saved XI names its reserve, rated 40, while it would field its 70s,
-    ///      the reserve worth less than any of them
-    /// When the reserve is weighed
-    /// Then he is not notable: what counts is the side the club would field, and an AI club picks
-    ///      its own, not its saved XI
-    #[test]
-    fn an_ai_clubs_saved_eleven_does_not_make_a_reserve_notable() {
-        let mut ai = club("ai");
-        ai.starting_xi_ids = vec!["reserve".into()];
-        let mut players = first_eleven("ai", 100_000);
-        players.push(reserve("ai", 50_000));
-        let game = game(vec![club("user"), ai], players);
-
-        assert!(!notable(&game, "reserve", "ai"));
-    }
-
-    /// Given four reserves worth the same, none of whom the club would field
+    /// Given four reserves worth the same, and a starting eleven worth nothing
     /// When each is weighed
     /// Then the three with the lowest ids are notable and the fourth is not: equal values go to the
     ///      lower id, so exactly three are
