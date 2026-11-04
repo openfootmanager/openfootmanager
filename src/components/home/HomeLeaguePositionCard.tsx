@@ -91,31 +91,43 @@ export default function HomeLeaguePositionCard({
                         : t("common.place.other", { n: myStanding })}
                 </p>
                 <p className="text-lg font-heading font-bold text-gray-800 dark:text-gray-100">
-                  {myStandingData.points} pts
+                  {myStandingData.points} {t("common.pts")}
                 </p>
               </div>
             </div>
             <div className="w-full grid grid-cols-4 text-center gap-1">
               <div>
-                <p className="text-xs text-gray-400 dark:text-gray-500 font-heading uppercase">P</p>
+                <p className="text-xs text-gray-400 dark:text-gray-500 font-heading uppercase">
+                  <span aria-hidden="true">{t("common.played")}</span>
+                  <span className="sr-only">{t("common.playedFull")}</span>
+                </p>
                 <p className="text-sm font-heading font-bold text-gray-700 dark:text-gray-300">
                   {myStandingData.played}
                 </p>
               </div>
               <div>
-                <p className="text-xs text-gray-400 dark:text-gray-500 font-heading uppercase">W</p>
+                <p className="text-xs text-gray-400 dark:text-gray-500 font-heading uppercase">
+                  <span aria-hidden="true">{t("common.won")}</span>
+                  <span className="sr-only">{t("common.wonFull")}</span>
+                </p>
                 <p className="text-sm font-heading font-bold text-green-500">
                   {myStandingData.won}
                 </p>
               </div>
               <div>
-                <p className="text-xs text-gray-400 dark:text-gray-500 font-heading uppercase">D</p>
+                <p className="text-xs text-gray-400 dark:text-gray-500 font-heading uppercase">
+                  <span aria-hidden="true">{t("common.drawn")}</span>
+                  <span className="sr-only">{t("common.drawnFull")}</span>
+                </p>
                 <p className="text-sm font-heading font-bold text-gray-500">
                   {myStandingData.drawn}
                 </p>
               </div>
               <div>
-                <p className="text-xs text-gray-400 dark:text-gray-500 font-heading uppercase">L</p>
+                <p className="text-xs text-gray-400 dark:text-gray-500 font-heading uppercase">
+                  <span aria-hidden="true">{t("common.lost")}</span>
+                  <span className="sr-only">{t("common.lostFull")}</span>
+                </p>
                 <p className="text-sm font-heading font-bold text-red-500">{myStandingData.lost}</p>
               </div>
             </div>
