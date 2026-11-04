@@ -17,6 +17,7 @@ use domain::stats::StatsState;
 use ofm_core::career::{CareerScope, begin_career};
 use ofm_core::clock::GameClock;
 use ofm_core::contracts::{RenewalDecision, free_agent_opening_offer, offer_free_agent_contract};
+use ofm_core::end_of_season::{advance_to_next_season, is_season_complete};
 use ofm_core::game::Game;
 use ofm_core::generator::{
     DefinitionSources, WorldGenConfig, generate_world_data_seeded_with,
@@ -132,6 +133,13 @@ fn differences(before: &Value, after: &Value, limit: usize) -> Vec<String> {
 }
 
 fn assert_nothing_lost(game: &Game, stats: &StatsState, moment: &str) {
+    // A load settles the calendar (`repair_loaded_calendar`: clashing unplayed matches move to the
+    // earliest legal day and are recorded as postponed). That is a repair the load is meant to
+    // make, not a loss, so the game saved is the game with its calendar already settled; what is
+    // compared is everything else the save has to keep.
+    let mut game = game.clone();
+    ofm_core::calendar_repair::repair_loaded_calendar(&mut game);
+    let game = &game;
     let loaded = saved_and_loaded(game, stats);
     let lost = differences(
         &serde_json::to_value(game).unwrap(),
@@ -204,16 +212,18 @@ fn a_career_after_the_rollover_loads_back_unchanged() {
         "a career that has just begun has not rolled a season over"
     );
 
-    // A season is under 450 days; the rollover has run when the game records the day it ran on.
-    for _ in 0..450 {
-        turn::process_day(&mut game);
-        if game.last_season_rollover_on.is_some() {
+    // The harness's loop: a day at a time until the season is complete, then the rollover.
+    for _ in 0..600 {
+        if is_season_complete(&game) {
             break;
         }
+        turn::process_day(&mut game);
     }
+    assert!(is_season_complete(&game), "the season finished in 600 days");
+    advance_to_next_season(&mut game).expect("the season rolls over");
     assert!(
         game.last_season_rollover_on.is_some(),
-        "the season rolled over in the game that is saved"
+        "the game records the rollover that is saved"
     );
 
     assert_nothing_lost(&game, &stats, "after the rollover");
