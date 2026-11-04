@@ -1114,6 +1114,59 @@ fn promoted_user_receives_a_promotion_message() {
     );
 }
 
+/// The season preview article the rollover published, and the clubs it names.
+fn season_preview(game: &Game) -> (String, Vec<String>, String, String) {
+    let preview = game
+        .news
+        .iter()
+        .find(|article| article.category == domain::news::NewsCategory::SeasonPreview)
+        .expect("the rollover publishes a season preview");
+    let param = |name: &str| preview.i18n_params.get(name).cloned().unwrap_or_default();
+    let mut listed: Vec<String> = param("teamList").split(", ").map(str::to_string).collect();
+    listed.sort();
+    (
+        param("teamCount"),
+        listed,
+        param("favourite"),
+        param("darkHorse"),
+    )
+}
+
+/// Given a two-division world where the user's club stays in the first division and the second
+/// division's winner comes up; when the season rolls over; then the preview covers the user's
+/// division as it will be next season, not every club in the world (#1179).
+#[test]
+fn the_season_preview_covers_the_users_division_only() {
+    let mut game = make_two_division_game("team1");
+
+    process_end_of_season(&mut game);
+
+    let (count, listed, favourite, dark_horse) = season_preview(&game);
+    assert_eq!(count, "2");
+    assert_eq!(listed, ["Test FC", "Third FC"]);
+    assert!(
+        listed.contains(&favourite),
+        "favourite {favourite} is not in the division"
+    );
+    assert!(
+        listed.contains(&dark_horse),
+        "dark horse {dark_horse} is not in the division"
+    );
+}
+
+/// Given the user's club relegated to the second division; when the season rolls over; then the
+/// preview covers the division the club now plays in.
+#[test]
+fn a_relegated_users_season_preview_covers_the_division_they_drop_into() {
+    let mut game = make_two_division_game("team2");
+
+    process_end_of_season(&mut game);
+
+    let (count, listed, _, _) = season_preview(&game);
+    assert_eq!(count, "2");
+    assert_eq!(listed, ["Fourth FC", "Rival FC"]);
+}
+
 #[test]
 fn season_awards_are_scoped_to_the_users_division() {
     let mut game = make_two_division_game("team1");
