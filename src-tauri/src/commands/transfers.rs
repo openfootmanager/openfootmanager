@@ -1,5 +1,5 @@
 use domain::negotiation::NegotiationFeedback;
-use domain::player::{LoanOfferStatus, Position};
+use domain::player::Position;
 use log::info;
 use std::sync::Arc;
 use tauri::State;
@@ -19,16 +19,6 @@ const INVALID_YOUTH_SCOUTING_OBJECTIVE_ERROR: &str =
     "be.error.transfers.invalidYouthScoutingObjective";
 const INVALID_YOUTH_SCOUTING_TARGET_POSITION_ERROR: &str =
     "be.error.transfers.invalidYouthScoutingTargetPosition";
-const ERR_PLAYER_NOT_OWNED_BY_USER: &str = "be.error.transfers.playerNotOwnedByUser";
-const ERR_PLAYER_ALREADY_LOANED: &str = "be.error.transfers.playerAlreadyLoaned";
-
-fn player_has_active_or_pending_loan(player: &domain::player::Player) -> bool {
-    player.active_loan.is_some()
-        || player
-            .loan_offers
-            .iter()
-            .any(|offer| offer.status == LoanOfferStatus::PendingRegistration)
-}
 
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct TransferNegotiationCommandResponse {
@@ -65,32 +55,6 @@ pub fn toggle_transfer_list(
     toggle_transfer_list_internal(&state, Career::Token(career_token), &player_id)
 }
 
-/// The user's own player, to put on or take off the transfer or loan list: one at his club, and
-/// not out on (or due to go on) a loan. A listing moves a player's price, so neither list may name
-/// anyone else's: an agent once listed a rival club's star, then bought him a third cheaper (#1206).
-fn listable_player<'a>(
-    game: &'a mut Game,
-    player_id: &str,
-) -> Result<&'a mut domain::player::Player, String> {
-    let user_team_id = game
-        .manager
-        .team_id
-        .clone()
-        .ok_or_else(|| "be.error.noTeamAssigned".to_string())?;
-    let player = game
-        .players
-        .iter_mut()
-        .find(|player| player.id == player_id)
-        .ok_or_else(|| "be.error.playerNotFound".to_string())?;
-    if player.team_id.as_deref() != Some(user_team_id.as_str()) {
-        return Err(ERR_PLAYER_NOT_OWNED_BY_USER.to_string());
-    }
-    if player_has_active_or_pending_loan(player) {
-        return Err(ERR_PLAYER_ALREADY_LOANED.to_string());
-    }
-    Ok(player)
-}
-
 pub fn toggle_transfer_list_internal(
     state: &StateManager,
     career: Career,
@@ -98,9 +62,7 @@ pub fn toggle_transfer_list_internal(
 ) -> Result<Game, String> {
     info!("[cmd] toggle_transfer_list: player_id={}", player_id);
     mutate_active_game_for(state, career, |game| {
-        let player = listable_player(game, player_id)?;
-        player.transfer_listed = !player.transfer_listed;
-        Ok(())
+        ofm_core::transfers::toggle_listing(game, player_id, ofm_core::transfers::Listing::Transfer)
     })
 }
 
@@ -120,9 +82,7 @@ pub fn toggle_loan_list_internal(
 ) -> Result<Game, String> {
     info!("[cmd] toggle_loan_list: player_id={}", player_id);
     mutate_active_game_for(state, career, |game| {
-        let player = listable_player(game, player_id)?;
-        player.loan_listed = !player.loan_listed;
-        Ok(())
+        ofm_core::transfers::toggle_listing(game, player_id, ofm_core::transfers::Listing::Loan)
     })
 }
 
@@ -1244,6 +1204,40 @@ mod tests {
             .get_game(|game| game.players[0].transfer_listed)
             .expect("stored game");
         assert!(!stored);
+    }
+
+    /// Given one of the user's players on the transfer and loan lists, then sent out on loan
+    /// When the user takes him off each list
+    /// Then both succeed: a loan stops a listing being made, never one being undone
+    #[test]
+    fn a_player_out_on_loan_can_still_be_taken_off_a_list() {
+        let state = StateManager::new();
+        let mut game = make_game();
+        game.players[0].transfer_listed = true;
+        game.players[0].loan_listed = true;
+        game.players[0].active_loan = Some(ActiveLoan {
+            parent_team_id: "team-1".to_string(),
+            loan_team_id: "team-2".to_string(),
+            start_date: "2026-08-01".to_string(),
+            end_date: "2027-01-01".to_string(),
+            wage_contribution_pct: 75,
+            buy_option_fee: None,
+            loan_start_minutes: 0,
+            loan_start_appearances: 0,
+            development_reported_minutes: 0,
+            development_reported_appearances: 0,
+        });
+        state.set_game(game);
+
+        toggle_transfer_list_internal(&state, Career::Active, "player-1")
+            .expect("taking him off the transfer list");
+        toggle_loan_list_internal(&state, Career::Active, "player-1")
+            .expect("taking him off the loan list");
+
+        let listed = state
+            .get_game(|game| (game.players[0].transfer_listed, game.players[0].loan_listed))
+            .expect("stored game");
+        assert_eq!(listed, (false, false));
     }
 
     #[test]
