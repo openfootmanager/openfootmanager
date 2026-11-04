@@ -2981,6 +2981,7 @@
         "loanCounterMustImproveTerms": "La contre-offre de prêt doit améliorer l'offre actuelle",
         "playerNotLoanListed": "Le joueur n'est pas listé pour un prêt",
         "playerAlreadyLoaned": "Le joueur est déjà prêté",
+        "playerAlreadySold": "Ce joueur a déjà été vendu. Le transfert sera effectif à l'ouverture du mercato.",
         "invalidLoanEndDate": "La date de fin du prêt doit être comprise entre 30 jours et un an à partir d'aujourd'hui",
         "invalidLoanWageContribution": "La prise en charge salariale du prêt doit être comprise entre 0% et 100%",
         "invalidLoanBuyOption": "L'option d'achat du prêt doit être supérieure à zéro",

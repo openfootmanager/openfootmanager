@@ -2989,6 +2989,7 @@
         "loanCounterMustImproveTerms": "Loan counter must improve the current offer",
         "playerNotLoanListed": "Player is not listed for loan",
         "playerAlreadyLoaned": "Player is already out on loan",
+        "playerAlreadySold": "This player has already been sold. The transfer goes through when the window opens.",
         "invalidLoanEndDate": "Loan end date must be between 30 days and one year from today",
         "invalidLoanWageContribution": "Loan wage contribution must be between 0% and 100%",
         "invalidLoanBuyOption": "Loan buy option must be greater than zero",

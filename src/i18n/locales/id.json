@@ -2989,6 +2989,7 @@
         "loanCounterMustImproveTerms": "Tawaran balasan pinjaman harus memperbaiki tawaran saat ini",
         "playerNotLoanListed": "Pemain tidak terdaftar untuk dipinjamkan",
         "playerAlreadyLoaned": "Pemain sudah dipinjamkan",
+        "playerAlreadySold": "Pemain ini sudah dijual. Transfer akan terjadi saat jendela transfer dibuka.",
         "invalidLoanEndDate": "Tanggal akhir pinjaman harus antara 30 hari dan satu tahun dari hari ini",
         "invalidLoanWageContribution": "Kontribusi gaji pinjaman harus antara 0% dan 100%",
         "invalidLoanBuyOption": "Opsi pembelian pinjaman harus lebih besar dari nol",

@@ -2981,6 +2981,7 @@
         "loanCounterMustImproveTerms": "A contraproposta de empréstimo tem de melhorar a oferta atual",
         "playerNotLoanListed": "O jogador não está listado para empréstimo",
         "playerAlreadyLoaned": "O jogador já está emprestado",
+        "playerAlreadySold": "Este jogador já foi vendido. A transferência concretiza-se quando abrir o mercado.",
         "invalidLoanEndDate": "A data de fim do empréstimo tem de ficar entre 30 dias e um ano a partir de hoje",
         "invalidLoanWageContribution": "A comparticipação salarial do empréstimo tem de ficar entre 0% e 100%",
         "invalidLoanBuyOption": "A opção de compra do empréstimo tem de ser superior a zero",
