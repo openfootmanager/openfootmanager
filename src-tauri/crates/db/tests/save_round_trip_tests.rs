@@ -134,6 +134,11 @@ fn differences(before: &Value, after: &Value, limit: usize) -> Vec<String> {
                     walk(&format!("{path}[{index}]"), l, r, found, limit);
                 }
             }
+            (Value::Number(left), Value::Number(right))
+                if left.as_f64().zip(right.as_f64()).is_some_and(|(l, r)| {
+                    // A float written as JSON text and read back can land one ulp away.
+                    (l - r).abs() <= 1e-9 * l.abs().max(r.abs()).max(1.0)
+                }) => {}
             _ => {
                 let clip = |value: &Value| {
                     let text = value.to_string();
@@ -168,7 +173,7 @@ fn assert_nothing_lost(game: &Game, stats: &StatsState, moment: &str) {
     let lost = differences(
         &serde_json::to_value(game).unwrap(),
         &serde_json::to_value(&loaded).unwrap(),
-        12,
+        80,
     );
     assert!(
         lost.is_empty(),
