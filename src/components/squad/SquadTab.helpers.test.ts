@@ -227,6 +227,41 @@ describe("SquadTab helpers", () => {
     expect(ids.slice(1, 5)).toEqual(["d1", "d2", "d3", "d4"]);
   });
 
+  /**
+   * Given a squad of twelve and a saved XI of which only three are still in it (fewer than eight,
+   *       so the XI is rebuilt from the pool)
+   * When the starting XI is built
+   * Then it has eleven different players. The three kept ids used to be reserved and then left
+   *      out of the rebuilt XI, so only the nine others were left to pick from: a nine-man XI.
+   */
+  it("rebuilds a full XI when fewer than eight saved players remain", () => {
+    const available = Array.from({ length: 12 }, (_, index) =>
+      makePlayer(`p${index}`, "Midfielder"),
+    );
+
+    const ids = buildStartingXIIds(available, ["p0", "p1", "p2"], "4-4-2", cannedPositionTable());
+
+    expect(ids).toHaveLength(11);
+    expect(new Set(ids).size).toBe(11);
+  });
+
+  /**
+   * Given a squad of twenty whose only goalkeeper is one of three saved players still in it
+   * When the starting XI is rebuilt from the pool (fewer than eight saved)
+   * Then that goalkeeper is in goal: a saved player is not barred from the rebuild, in a squad
+   *      big enough that barring him would not change the count.
+   */
+  it("rebuilds from the whole pool, saved players included", () => {
+    const available = [
+      makePlayer("gk", "Goalkeeper"),
+      ...Array.from({ length: 19 }, (_, index) => makePlayer(`m${index}`, "Midfielder")),
+    ];
+
+    const ids = buildStartingXIIds(available, ["gk", "m0", "m1"], "4-4-2", cannedPositionTable());
+
+    expect(ids[0]).toBe("gk");
+  });
+
   it("prefers an exact slot match over a higher-ovr same-group player", () => {
     const available = [
       makePlayer("gk", "Goalkeeper"),

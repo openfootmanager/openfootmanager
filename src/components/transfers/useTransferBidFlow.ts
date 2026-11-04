@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from "react";
-import { useTranslation } from "react-i18next";
 
 import type { GameStateData, PlayerData, TeamData, TransferOfferData } from "../../store/gameStore";
 import {
@@ -48,7 +47,6 @@ export function useTransferBidFlow({
   gameState,
   onGameUpdate,
 }: UseTransferBidFlowArgs): UseTransferBidFlowResult {
-  const { t } = useTranslation();
   const myTeam = gameState.teams.find((team) => team.id === gameState.manager.team_id) ?? null;
   // The id, not the player: the player is read from the game state on every render, so the panel
   // sees the round and the offers a bid has just advanced instead of the ones it opened with.
@@ -198,7 +196,7 @@ export function useTransferBidFlow({
       }
     } catch (error: unknown) {
       setBidResult("error");
-      setBidError(resolveTranslatedErrorMessage(getErrorMessage(error), t));
+      setBidError(resolveTranslatedErrorMessage(getErrorMessage(error)));
       setBidFeedback(null);
     } finally {
       setBidLoading(false);

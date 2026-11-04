@@ -158,6 +158,7 @@ pub(crate) fn transfer_registration_failed_message(
     buyer_name: &str,
     reason: domain::player::TransferRegistrationFailureReason,
     date: &str,
+    start: &str,
 ) -> InboxMessage {
     use domain::player::TransferRegistrationFailureReason as Failure;
     let body_key = match reason {
@@ -187,7 +188,7 @@ pub(crate) fn transfer_registration_failed_message(
             ("player".to_string(), player.full_name.clone()),
             ("buyer".to_string(), buyer_name.to_string()),
             ("fee".to_string(), offer.fee.to_string()),
-            ("start".to_string(), date.to_string()),
+            ("start".to_string(), start.to_string()),
         ]),
     )
     .with_sender_i18n("be.sender.transferCommittee", "be.role.directorOfFootball")

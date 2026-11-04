@@ -1108,6 +1108,8 @@
     "transferBudget": "Verba de Transferências",
     "seasonIncome": "Receita da Temporada",
     "seasonExpenses": "Despesas da Temporada",
+    "moneyIn": "Entrada de dinheiro",
+    "moneyOut": "Saída de dinheiro",
     "perWeekSuffix": "/sem",
     "snapshotLoadFailed": "Não foi possível carregar as finanças do clube.",
     "perYearSuffix": "/ano",
@@ -2798,6 +2800,7 @@
         "noSubstitutionsForShootout": "Não há substituições depois da prorrogação: a disputa de pênaltis é feita pelos jogadores em campo no apito final.",
         "shootoutOrderNotNow": "A ordem dos cobradores só pode ser definida depois da prorrogação, antes da primeira cobrança.",
         "shootoutOrderNotYourSide": "Você só pode definir a ordem dos cobradores do seu time.",
+        "notYourSide": "Você só pode dar ordens ao seu próprio time.",
         "shootoutOrderNotEligible": "A ordem dos cobradores deve incluir uma única vez cada um dos seus jogadores disponíveis.",
         "playerNotOnPitch": "O jogador não está em campo",
         "playerAlreadySubstitutedOff": "Esse jogador já foi substituído",
@@ -2817,6 +2820,7 @@
         "missingSchema": "Falta o campo \"schema\" em um arquivo do pacote.",
         "worldExportNotPackage": "Esta pasta é um mundo exportado, não um projeto de pacote. Mundos exportados usam um formato diferente e não podem ser editados aqui.",
         "notAProjectDirectory": "Esta não é uma pasta de projeto de pacote. Escolha a pasta que contém o package.json do pacote — ou, para um pacote .ofm instalado, use \"Abrir arquivo .ofm\".",
+        "saveWouldDropItem": "Não foi salvo: {{file}} tem uma entrada que o editor não consegue ler nem manter em JSON. Corrija essa entrada no arquivo e salve de novo.",
         "unknownSchema": "Esquema desconhecido \"{{schema}}\".",
         "invalidEntity": "Uma entrada \"{{schema}}\" é inválida: {{detail}}",
         "duplicateWorld": "O pacote já tem um manifesto em \"{{first}}\"; um pacote só pode ter um arquivo \"world\".",
@@ -2857,6 +2861,8 @@
       },
       "competitionDef": {
         "invalidCalendar": "Calendário da competição inválido: verifique a família da divisão, o nível, a fase e a data de encerramento.",
+        "invalidSeasonMonth": "O mês de início da temporada {{month}} não é válido (deve estar entre 1 e 12).",
+        "invalidSeasonDay": "O dia de início da temporada {{day}} não é um dia válido do mês de início.",
         "invalidEmbedded": "As definições de competições deste mundo são inválidas e não foi possível carregá-las.",
         "invalidStandalone": "O arquivo de definição de competições selecionado é inválido.",
         "parseFailed": "Não foi possível ler o arquivo de definição de competições como JSON.",
@@ -2988,6 +2994,7 @@
         "cannotBidOnOwnPlayer": "Você não pode fazer proposta por seu próprio jogador",
         "playerHasNoTeam": "O jogador não tem time",
         "insufficientFunds": "Fundos insuficientes",
+        "buyerCannotAffordFee": "O clube comprador não consegue mais pagar este valor, então o negócio não pode ser concluído.",
         "transferBudgetTooLow": "O orçamento de transferências é baixo demais",
         "playerNotOwnedByUser": "Jogador não encontrado ou não pertence a você",
         "offerNotPending": "Oferta não encontrada ou não está mais pendente",
@@ -2997,6 +3004,7 @@
         "loanCounterMustImproveTerms": "A contraproposta de empréstimo precisa melhorar a oferta atual",
         "playerNotLoanListed": "O jogador não está listado para empréstimo",
         "playerAlreadyLoaned": "O jogador já está emprestado",
+        "playerAlreadySold": "Este jogador já foi vendido. A transferência é concluída quando a janela abrir.",
         "invalidLoanEndDate": "A data de fim do empréstimo deve ficar entre 30 dias e um ano a partir de hoje",
         "invalidLoanWageContribution": "A participação salarial do empréstimo deve ficar entre 0% e 100%",
         "invalidLoanBuyOption": "A opção de compra do empréstimo deve ser maior que zero",
@@ -3524,6 +3532,7 @@
         },
         "notes": {
           "managerBlocked": "Você me disse para ainda não reabrir as conversas contratuais.",
+          "markedLetExpire": "Você marcou este contrato para expirar, então não abri negociações.",
           "completed": "Consegui fechar essa sem que você precisasse intervir.",
           "completedToKeepSquadFloor": "Feito, acima da política salarial da diretoria. A diretoria autorizou porque, sem este jogador, ficaríamos abaixo do elenco mínimo.",
           "beyondLimits": "O estafe deles quer cerca de {{wage}}/semana por {{years}} anos, acima dos limites da delegação.",
@@ -3565,6 +3574,12 @@
       "scoutReport": {
         "subject": "Relatório de Observação: {{player}}",
         "body": "Seu olheiro {{scout}} concluiu a avaliação de {{player}}. Relatório completo disponível na seção de observação."
+      },
+      "scoutingCancelled": {
+        "subject": "Missão de observação cancelada",
+        "body": "O olheiro que você enviou para observar {{player}} saiu do clube, então não haverá relatório. Envie outro olheiro se ainda quiser.",
+        "bodyWithoutPlayer": "O olheiro que você enviou para observar um jogador saiu do clube, e esse jogador não está mais nos nossos registros, então não haverá relatório.",
+        "youthBody": "O olheiro que você enviou em uma busca de jovens saiu do clube, então a busca foi cancelada. Comece uma nova com outro olheiro se ainda quiser."
       },
       "boardWarning": {
         "subject": "Preocupação da Diretoria — Avaliação de Desempenho",
