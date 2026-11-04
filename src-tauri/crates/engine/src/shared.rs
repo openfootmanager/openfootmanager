@@ -311,7 +311,7 @@ pub(crate) fn consulted_phases(position: Position) -> &'static [PlayStylePhase] 
         Position::Goalkeeper => &[],
         Position::Defender => &[PlayStylePhase::Defense],
         Position::Midfielder => &[PlayStylePhase::Midfield, PlayStylePhase::Defense],
-        Position::Forward => &[PlayStylePhase::Attack],
+        Position::Forward => &[PlayStylePhase::Attack, PlayStylePhase::Press],
     }
 }
 
@@ -324,6 +324,31 @@ pub(crate) fn role_modifier(position: Position, role: PlayerRole, phase: PlaySty
         role_attribute_modifier(role, phase)
     } else {
         1.0
+    }
+}
+
+/// The share of a forward's Press entry above Standard that reaches his side's press. The press
+/// is the midfield's work (`effective_press` reads its line), and the front line starts it, so a
+/// Pressing Forward (1.15) adds 3.75% and two add 7.5%.
+const FORWARD_PRESS_SHARE: f64 = 0.25;
+
+/// What a side's forwards add to its press, from their roles: 1.0 for a front line on Standard.
+pub(crate) fn forward_press_factor<'a>(forwards: impl Iterator<Item = &'a PlayerData>) -> f64 {
+    1.0 + forwards
+        .map(|forward| {
+            (role_modifier(Position::Forward, forward.role, PlayStylePhase::Press) - 1.0)
+                * FORWARD_PRESS_SHARE
+        })
+        .sum::<f64>()
+}
+
+/// What a role costs a player in condition each minute: a Pressing Forward runs more, at the
+/// aggressive press's rate (`tactics_pressing_fatigue`). The live engine's alone, which is the
+/// one that tracks each player's condition.
+pub(crate) fn role_fatigue(role: PlayerRole) -> f64 {
+    match role {
+        PlayerRole::PressingForward => 1.08,
+        _ => 1.0,
     }
 }
 

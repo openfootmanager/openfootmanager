@@ -399,5 +399,12 @@ fn effective_press(ctx: &MatchContext, pressing_side: Side) -> f64 {
         ((p.stamina as u16 + p.tackling as u16 + p.pace as u16) / 3) as u8
     });
     let modifier = play_style_modifier(team.play_style, PlayStylePhase::Press, true);
-    base * modifier * tactics_pressing_press(&team.tactics) * home_mod(pressing_side, ctx.config)
+    let forwards = team
+        .players
+        .iter()
+        .filter(|p| p.position == Position::Forward && !ctx.sent_off.contains(&p.id));
+    base * modifier
+        * crate::shared::forward_press_factor(forwards)
+        * tactics_pressing_press(&team.tactics)
+        * home_mod(pressing_side, ctx.config)
 }

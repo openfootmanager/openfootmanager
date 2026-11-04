@@ -94,6 +94,7 @@ mod tests {
             DomainPosition::RightMidfielder
         ));
         assert!(role(PlayerRole::InsideForward, DomainPosition::LeftWinger));
+        assert!(role(PlayerRole::PressingForward, DomainPosition::Striker));
     }
 
     /// Given the roles no resolver reads in these slots today,
@@ -118,7 +119,6 @@ mod tests {
                 DomainPosition::AttackingMidfielder,
             ),
             (PlayerRole::DeepLyingForward, DomainPosition::Striker),
-            (PlayerRole::PressingForward, DomainPosition::Striker),
             (PlayerRole::InvertedWinger, DomainPosition::RightWinger),
             (PlayerRole::WideForward, DomainPosition::LeftMidfielder),
         ] {
