@@ -729,6 +729,35 @@ describe("TacticsTab", () => {
     expect(mockedInvoke).not.toHaveBeenCalledWith("set_starting_xi", expect.anything());
   });
 
+  /**
+   * Given the position table, the familiarity and the squad have all arrived, but
+   *       get_tactics_lineup has not answered for this revision
+   * When a bench defender is dropped onto a defensive slot
+   * Then it says lineup changes wait, and nothing is saved: the eleven on screen is the saved one
+   *      standing in, not the side the match would field, so a change worked out from it is stale.
+   */
+  it("saves no lineup change while the backend's lineup has not answered", async () => {
+    const state = makeGameState();
+    const roster = state.players.filter((player) => player.team_id === "team1");
+    mockedInvoke.mockReset();
+    mockedInvoke.mockImplementation(async (command: string) => {
+      if (command === "get_squad") return roster;
+      if (command === "get_tactics_lineup") return new Promise(() => {});
+      return state;
+    });
+
+    render(<TacticsTab gameState={state} onSelectPlayer={vi.fn()} onGameUpdate={vi.fn()} />);
+    await act(async () => {}); // the squad has answered
+
+    const dataTransfer = createDataTransfer();
+    fireEvent.dragStart(screen.getByTestId("pitch-bench-player-d5"), { dataTransfer });
+    fireEvent.drop(screen.getByTestId("pitch-slot-1"), { dataTransfer });
+    await act(async () => {});
+
+    expect(mockedInvoke).not.toHaveBeenCalledWith("set_starting_xi", expect.anything());
+    expect(screen.getByRole("status")).toHaveTextContent("common.lineupLoading");
+  });
+
   it("sends the correct starting xi order when a pitch-view bench defender is dropped onto a defensive slot", async () => {
     render(
       <TacticsTab gameState={makeGameState()} onSelectPlayer={vi.fn()} onGameUpdate={vi.fn()} />,
