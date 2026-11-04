@@ -51,7 +51,9 @@ function PhaseFields({
   onTacticsPhaseChange: (patch: Partial<TacticsPhaseSettings>) => void;
 }): JSX.Element {
   const { t } = useTranslation();
-  const fields = PHASE_SECTIONS.find(([key]) => key === section)?.[1] ?? [];
+  // One shape for every phase's dials, so the list maps whichever phase it is.
+  const fields: readonly (readonly [keyof TacticsPhaseSettings, string, readonly string[]])[] =
+    PHASE_SECTIONS.find(([key]) => key === section)?.[1] ?? [];
   return (
     <div className="flex flex-col gap-3">
       {fields.map(([field, labelKey, options]) => {
