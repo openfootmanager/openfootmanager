@@ -14,6 +14,7 @@
     "lint:fix": "biome lint --write",
     "format:check": "biome format",
     "fixture:pages": "cargo run --release --manifest-path src-tauri/Cargo.toml -p ofm_core --example page_fixture -- src/dev/pageHarness/fixture.generated.ts",
+    "preknip": "node scripts/ensure-page-fixture.mjs",
     "knip": "knip --no-progress",
     "pretest": "node scripts/ensure-page-fixture.mjs",
     "test": "vitest run",

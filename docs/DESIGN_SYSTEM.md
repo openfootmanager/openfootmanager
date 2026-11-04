@@ -245,10 +245,10 @@ window the game opens at) and 960×640 (its minimum).
     fixture was generated for, so a search or another page shows as unanswered rather than
     getting the opening page. It is generated, never committed: `npm run fixture:pages` writes it
     (the generator is `src-tauri/crates/ofm_core/examples/page_fixture.rs`), CI's frontend job runs
-    that before its checks, and `npm test`, `npm run test:watch`, `npm run build` and `npm run dev`
-    (so `npm run tauri dev`) run it first when the file is missing
-    (`scripts/ensure-page-fixture.mjs`). Run it again yourself after changing what it is
-    generated from; `npm exec -- vitest run <file>` skips the guard, so generate it once first.
+    that before its checks, and `npm test`, `npm run test:watch`, `npm run build`, `npm run knip`
+    (so `npm run preflight`) and `npm run dev` (so `npm run tauri dev`) run it first when the file
+    is missing (`scripts/ensure-page-fixture.mjs`). Run it again yourself after changing what it
+    is generated from; `npm exec -- vitest run <file>` skips the guard, so generate it once first.
     `scripts/check-untracked-generated.sh` fails CI if it is ever tracked again.
   - Every value in it `satisfies` the frontend type its command returns, so `npm run build` fails
     when the backend's shape and the frontend's type stop agreeing.
