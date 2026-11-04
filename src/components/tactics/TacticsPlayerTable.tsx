@@ -8,6 +8,7 @@ import { getPlayerOvr } from "../../lib/helpers";
 import { isMatchDayEligible } from "../../lib/playerSquad";
 import { getRoleOptions } from "../../lib/playerRoles";
 import type { PlayerData, TeamMatchRolesData } from "../../store/gameStore";
+import type { PlayerRole } from "../../store/types";
 import type { Familiarity } from "../../store/generated/Familiarity";
 import type { TacticsLineup } from "../../store/generated/TacticsLineup";
 import ContextMenu, { type ContextMenuHandle } from "../ContextMenu";
@@ -63,7 +64,7 @@ interface TacticsPlayerTableProps {
   selectedPlayerId: string | null;
   comparePlayerId: string | null;
   onTacticalSelect: (playerId: string, section: SquadSection) => void;
-  onRoleChange: (playerId: string, role: string) => void;
+  onRoleChange: (playerId: string, role: PlayerRole) => void;
   onOpenPlayerProfile: (playerId: string) => void;
   onAssignMatchRole?: (role: keyof TeamMatchRolesData, playerId: string) => void;
   onPromoteBench: (playerId: string) => void;
@@ -280,23 +281,27 @@ function tableColumns(
     {
       key: "role",
       header: t("tactics.playerRoleLabel"),
-      cell: (row) =>
-        row.group === "xi" && row.position ? (
+      cell: (row) => {
+        if (row.group !== "xi" || !row.position) return <span className="text-fg-subtle">—</span>;
+        const options = getRoleOptions(row.position, row.role);
+        return (
           <Select
             selectSize="sm"
             value={row.role ?? "Standard"}
             aria-label={`${t("tactics.playerRoleLabel")}: ${row.player.match_name}`}
-            onChange={(event) => props.onRoleChange(row.player.id, event.target.value)}
+            onChange={(event) => {
+              const role = options.find((option) => option === event.target.value);
+              if (role) props.onRoleChange(row.player.id, role);
+            }}
           >
-            {getRoleOptions(row.position, row.role).map((role) => (
+            {options.map((role) => (
               <option key={role} value={role}>
                 {t(`tactics.playerRoles.${role}`)}
               </option>
             ))}
           </Select>
-        ) : (
-          <span className="text-fg-subtle">—</span>
-        ),
+        );
+      },
     },
     {
       key: "morale",

@@ -571,9 +571,11 @@ describe("TacticsTab", () => {
 
     render(<TacticsTab gameState={gameState} onSelectPlayer={vi.fn()} onGameUpdate={vi.fn()} />);
 
-    const benchCard = await screen.findByTestId("pitch-bench-player-d5");
+    // His positions are the row's "can play" badges, natural first.
+    await screen.findByTestId("pitch-bench-player-d5");
+    const benchRow = screen.getByTestId("bench-player-d5");
 
-    expect(within(benchCard).getByText("common.posAbbr.Defender")).toBeInTheDocument();
+    expect(within(benchRow).getByText("common.posAbbr.Defender")).toBeInTheDocument();
     expect(within(benchCard).queryByText("common.posAbbr.Midfielder")).not.toBeInTheDocument();
   });
 
@@ -756,7 +758,9 @@ describe("TacticsTab", () => {
     fireEvent.click(screen.getByTestId("pitch-player-f1"));
     fireEvent.click(screen.getByTestId("pitch-player-m1"));
 
-    expect(screen.getByText("common.positions.Forward")).toBeInTheDocument();
+    // The table names positions too (its badges' full names), so look in the comparison itself.
+    const comparison = within(screen.getByRole("dialog"));
+    expect(comparison.getAllByText("common.positions.Forward").length).toBeGreaterThan(0);
     expect(screen.queryByText("Forward")).not.toBeInTheDocument();
   });
 
@@ -942,9 +946,11 @@ describe("TacticsTab", () => {
 
     render(<TacticsTab gameState={gameState} onSelectPlayer={vi.fn()} onGameUpdate={vi.fn()} />);
 
-    const row = screen.getByTestId("xi-player-m4");
-    expect(within(row).getByText("common.posAbbr.RightMidfielder")).toBeInTheDocument();
-    expect(within(row).queryByText("common.posAbbr.Striker")).not.toBeInTheDocument();
+    // The row's position cell is the slot he plays in, not his natural position (his natural one is
+    // among the "can play" badges).
+    const positionCell = within(screen.getByTestId("xi-row-m4")).getAllByRole("cell")[1];
+    expect(positionCell).toHaveTextContent("common.posAbbr.RightMidfielder");
+    expect(positionCell).not.toHaveTextContent("common.posAbbr.Striker");
   });
 
   it("offers pitch roles for the deployed slot, not the natural position", () => {

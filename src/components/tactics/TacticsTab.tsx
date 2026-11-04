@@ -12,6 +12,13 @@ import TacticsCompareDialog from "./TacticsCompareDialog";
 import { useTacticsLibrary } from "./useTacticsLibrary";
 import { useTacticsLineup } from "./useTacticsLineup";
 
+/** Each slot's position by its index, whatever order the pitch draws them in. */
+function slotPositionsByIndex(slots: readonly { index: number; position: string }[]): string[] {
+  const positions: string[] = [];
+  for (const slot of slots) positions[slot.index] = slot.position;
+  return positions;
+}
+
 interface TacticsTabProps {
   gameState: GameStateData | null;
   onSelectPlayer: (id: string, options?: PlayerSelectionOptions) => void;
@@ -157,7 +164,7 @@ export default function TacticsTab({
             <TacticsPlayerTable
               starters={startingXI}
               others={bench}
-              slotPositions={pitchSlots.map((slot) => slot.position)}
+              slotPositions={slotPositionsByIndex(pitchSlots)}
               lineup={lineup}
               playerRoles={team?.player_roles}
               matchRoles={effectiveMatchRoles}
