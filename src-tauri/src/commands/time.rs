@@ -944,6 +944,38 @@ mod tests {
         );
     }
 
+    /// Given a saved career on a Sunday whose save has since been deleted
+    /// When the screen's day-by-day Continue brings Monday
+    /// Then the day still advances, and the response carries the auto-save error the screen shows.
+    #[test]
+    fn the_day_by_day_continue_reports_a_week_it_could_not_save() {
+        use crate::commands::wrapper_testkit::WrapperApp;
+        let app = WrapperApp::new(make_game(11), true);
+        let save_id = app.save_id.clone().expect("built with a save");
+        app.saves()
+            .0
+            .lock()
+            .expect("save manager")
+            .delete_save(&save_id)
+            .expect("delete the save");
+
+        let response = tauri::async_runtime::block_on(super::advance_one_day(
+            app.state(),
+            app.saves(),
+            app.handle(),
+            app.token,
+        ))
+        .expect("the day advances");
+
+        assert_eq!(response["auto_save_error"], "be.error.autoSave.failed");
+        assert_eq!(
+            app.state()
+                .get_game(|game| game.clock.current_date.date_naive())
+                .unwrap(),
+            chrono::NaiveDate::from_ymd_opt(2025, 6, 16).unwrap()
+        );
+    }
+
     /// Given a game with nobody injured, and one where two starters are injured
     /// When the user skips to their next match day, and when they continue to the next event
     /// Then the injured game stops after a day with the injured-XI blocker listed (days_skipped 1),

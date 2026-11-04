@@ -80,9 +80,7 @@ describe("useDigestAdvance", () => {
       .mockResolvedValueOnce({ action: "match_day", date: "2026-09-02", results: [] });
     const onAutoSaveFailed = vi.fn();
 
-    const { result } = renderHook(() =>
-      useDigestAdvance(setGameState, onFired, onAutoSaveFailed),
-    );
+    const { result } = renderHook(() => useDigestAdvance(setGameState, onFired, onAutoSaveFailed));
     await act(async () => {
       await result.current.startDigest();
     });

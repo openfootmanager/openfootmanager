@@ -80,11 +80,7 @@ export function useAdvanceTime(
     showStaticDigest,
     abortDigest,
     dismissDigest,
-  } = useDigestAdvance(
-    setGameState,
-    () => setShowFiredModal(true),
-    onAutoSaveFailed,
-  );
+  } = useDigestAdvance(setGameState, () => setShowFiredModal(true), onAutoSaveFailed);
 
   // Sync matchMode with settings when loaded
   useEffect(() => {
