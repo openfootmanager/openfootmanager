@@ -23,7 +23,7 @@ describe("resolveTranslatedErrorMessage", () => {
       echoKey,
     );
 
-    expect(message).toContain("Position group affected: Goalkeeper.");
+    expect(message).toContain("Position group affected: Goalkeepers.");
     expect(message).not.toContain("common.");
   });
 
@@ -47,6 +47,10 @@ describe("resolveTranslatedErrorMessage", () => {
    * Then it is shown as it was, so nothing a player could read is lost.
    */
   it("leaves a message that is not a known key as it was", () => {
+    // An error of a shape nobody sends is shown as its text, never blank.
+    expect(resolveTranslatedErrorMessage(null, echoKey)).toBe("null");
+    expect(resolveTranslatedErrorMessage(42, echoKey)).toBe("42");
+
     expect(resolveTranslatedErrorMessage("Something went wrong", echoKey)).toBe(
       "Something went wrong",
     );
