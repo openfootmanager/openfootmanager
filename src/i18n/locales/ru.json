@@ -433,6 +433,12 @@
     "drawnFull": "Ничьи",
     "lostFull": "Поражения",
     "ptsFull": "Очки",
+    "recentForm": "Текущая форма",
+    "formResult": {
+      "W": "В",
+      "D": "Н",
+      "L": "П"
+    },
     "played": "И",
     "won": "В",
     "drawn": "Н",
@@ -1263,6 +1269,15 @@
     "employed": "Работает",
     "unemployed": "Без клуба",
     "reputation": "Репутация",
+    "reputationBand": {
+      "world_class": "Мировой уровень",
+      "established": "Признанный",
+      "great": "Отличный",
+      "good": "Хороший",
+      "average": "Средний",
+      "below_average": "Ниже среднего",
+      "unknown": "Неизвестный"
+    },
     "winRate": "Процент побед",
     "matches": "Матчи",
     "currentClub": "Текущий клуб",
@@ -1530,6 +1545,7 @@
     "yourTeam": "Ваша команда",
     "squad": "Состав",
     "avgOvr": "Сред. OVR",
+    "manager": "Менеджер",
     "rep": "Реп.",
     "est": "Осн."
   },

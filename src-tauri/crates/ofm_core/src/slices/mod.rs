@@ -1,5 +1,6 @@
 pub mod competitions;
 pub mod inbox;
+pub mod managers;
 pub mod news;
 pub mod players;
 pub mod schedule;
