@@ -10,9 +10,11 @@
 //! competitions, calendar and berths from `begin_career`. It is read back at three moments: after
 //! the career starts, after the manager signs a free agent, and after a season has rolled over.
 //!
-//! What is compared: the game itself; the three `#[serde(skip)]` archives the game keeps in their
-//! own tables (`edition_archive`, `retired_players`, `retired_managers`), which a JSON of the game
-//! cannot show; and the stats state, read back with `load_stats_state`. Rules of the comparison:
+//! What is compared: the game itself; the five `#[serde(skip)]` fields the game keeps in tables of
+//! their own (`edition_archive`, `retired_players`, `retired_managers`, `archived_messages` and
+//! `cash_journal`), which a JSON of the game cannot show (the other `#[serde(skip)]` fields,
+//! `calendar_fingerprint`, `day_start`, `cash_journal_dirty_ids` and `squad_floor_top_ups`, are
+//! session state that a load starts empty by design); and the stats state, read back with `load_stats_state`. Rules of the comparison:
 //! lists of records with an `id` are matched by id and counted (a load re-sorts the inbox, which
 //! loses nothing); integers are compared exactly and only floats within a relative 1e-9 (one ulp of
 //! f64 text); the game saved has its calendar settled first, see [`career_with_settled_calendar`].
@@ -231,9 +233,9 @@ fn career_with_settled_calendar(game: &Game) -> (Game, usize) {
     (settled, moved)
 }
 
-/// Everything the save keeps, as one value for each part: the game (its `#[serde(skip)]` archives
-/// are not in its JSON), the three archives, and the stats.
-fn parts(game: &Game, stats: &StatsState) -> [(&'static str, Value); 5] {
+/// Everything the save keeps, as one value for each part: the game (its `#[serde(skip)]` fields
+/// are not in its JSON), the five fields kept in tables of their own, and the stats.
+fn parts(game: &Game, stats: &StatsState) -> [(&'static str, Value); 7] {
     [
         ("game", serde_json::to_value(game).unwrap()),
         (
@@ -247,6 +249,14 @@ fn parts(game: &Game, stats: &StatsState) -> [(&'static str, Value); 5] {
         (
             "retired_managers",
             serde_json::to_value(&game.retired_managers).unwrap(),
+        ),
+        (
+            "archived_messages",
+            serde_json::to_value(&game.archived_messages).unwrap(),
+        ),
+        (
+            "cash_journal",
+            serde_json::to_value(&*game.cash_journal).unwrap(),
         ),
         ("stats", serde_json::to_value(stats).unwrap()),
     ]
@@ -264,7 +274,10 @@ fn every_difference(game: &Game, stats: &StatsState) -> Vec<Difference> {
         let (saved, read_back) = if name == "game" {
             (saved, read_back)
         } else {
-            (canonical(&saved), canonical(&read_back))
+            (
+                records_in_a_fixed_order(&saved),
+                records_in_a_fixed_order(&read_back),
+            )
         };
         for mut difference in differences(&saved, &read_back) {
             difference.path = difference.path.replacen("game", name, 1);
@@ -274,21 +287,18 @@ fn every_difference(game: &Game, stats: &StatsState) -> Vec<Difference> {
     found
 }
 
-/// `value` with every list put in a fixed order (by the text of its records). The three archives
-/// are read back in the order their tables give, not the order they were saved in, which loses
-/// nothing; what must match is the set of records and what is in each.
-fn canonical(value: &Value) -> Value {
+/// An archive with its records put in a fixed order (by the text of each record), and nothing
+/// below them touched. The archives are read back in the order their tables give, not the order
+/// they were saved in, which loses nothing; what must match is the set of records. The order
+/// INSIDE a record can be the data (an archived edition's `standings` has no position field: its
+/// order is the final table), so it is left alone and a scrambled table is a difference.
+fn records_in_a_fixed_order(value: &Value) -> Value {
     match value {
         Value::Array(items) => {
-            let mut items: Vec<Value> = items.iter().map(canonical).collect();
+            let mut items = items.clone();
             items.sort_by_key(Value::to_string);
             Value::Array(items)
         }
-        Value::Object(map) => Value::Object(
-            map.iter()
-                .map(|(key, item)| (key.clone(), canonical(item)))
-                .collect(),
-        ),
         other => other.clone(),
     }
 }
@@ -395,6 +405,7 @@ fn a_career_after_a_free_agent_signing_loads_back_unchanged() {
 /// it recorded, the differences a save and load makes, and the players the world began with. Built
 /// once for every test that reads it (a season of the generated world is the cost of this file).
 struct RolledOver {
+    edition_archive: Vec<domain::edition_archive::CompletedEdition>,
     differences: Vec<Difference>,
     calendar_moved_on_load: usize,
 }
@@ -412,6 +423,10 @@ fn rolled_over() -> &'static RolledOver {
         for _ in 0..600 {
             if is_season_complete(&game) {
                 break;
+            }
+            // A user reads their mail; the inbox archive takes the read mail that is old enough.
+            for message in &mut game.messages {
+                message.read = true;
             }
             turn::process_day_with_capture(&mut game, &mut |day_stats| stats.append(day_stats));
         }
@@ -431,12 +446,25 @@ fn rolled_over() -> &'static RolledOver {
             "the rollover retired players"
         );
         assert!(
+            !game.retired_managers.is_empty(),
+            "the rollover retired managers"
+        );
+        assert!(
+            !game.archived_messages.is_empty(),
+            "the season archived read mail"
+        );
+        assert!(
+            !game.cash_journal.is_empty(),
+            "the season posted to the cash journal"
+        );
+        assert!(
             !stats.player_matches.is_empty(),
             "the season recorded player stats"
         );
         let calendar_moved_on_load = career_with_settled_calendar(&game).1;
         let differences = every_difference(&game, &stats);
         RolledOver {
+            edition_archive: game.edition_archive.clone(),
             differences,
             calendar_moved_on_load,
         }
@@ -499,13 +527,13 @@ fn known_bug_staff_made_during_a_season_have_no_nationality_until_a_reload() {
 /// inference is wrong, the fix is in `player_identity`, not in the save (a save that stored the
 /// generator's value would only have it overwritten by the load). Delete this test with the fix.
 #[test]
-fn known_bug_players_made_during_a_season_change_weak_foot_on_a_reload() {
+fn known_bug_a_players_weak_foot_changes_by_one_step_on_a_reload() {
     assert!(known_bug_still_happens(
         "a player's weak foot changes on a reload (#1262)"
     ));
 }
 
-/// The settled calendar is only a harmless step if the game never leaves anything to settle. On a
+/// KNOWN BUG #1265 (a reload reschedules matches). The settled calendar is only a harmless step if the game never leaves anything to settle. On a
 /// game the game itself just produced the repair moves fixtures, so a reload reschedules matches
 /// the live game scheduled and tells the user they were postponed (`save_manager.rs`). The count is
 /// measured below. Delete this test, and settle the calendar nowhere in this file, when the live
@@ -518,6 +546,28 @@ fn known_bug_a_reload_reschedules_matches_the_live_game_scheduled() {
 
     assert!(
         moved_at_start > 0 && moved_after_a_season > 0,
-        "a reload moved {moved_at_start} fixtures at career start and {moved_after_a_season} after a season"
+        "#1265: a reload moved {moved_at_start} fixtures at career start and {moved_after_a_season} after a season"
     );
+}
+
+/// Given the archived editions of a season,
+/// When one edition's final table is reversed,
+/// Then the comparison sees it: the order of `standings` is the table, and the archives are only
+///      sorted at the level of their records. (A mutant of the comparison, not of the game.)
+#[test]
+fn a_reversed_archived_table_is_a_difference() {
+    let archive = &rolled_over().edition_archive;
+    let mut changed = archive.clone();
+    let edition = changed
+        .iter_mut()
+        .find(|edition| edition.standings.len() > 1)
+        .expect("an archived edition has a table");
+    edition.standings.reverse();
+
+    let found = differences(
+        &records_in_a_fixed_order(&serde_json::to_value(archive).unwrap()),
+        &records_in_a_fixed_order(&serde_json::to_value(&changed).unwrap()),
+    );
+
+    assert!(!found.is_empty(), "a reversed final table compared equal");
 }
