@@ -433,6 +433,12 @@
     "drawnFull": "Drawn",
     "lostFull": "Lost",
     "ptsFull": "Points",
+    "recentForm": "Recent form",
+    "formResult": {
+      "W": "W",
+      "D": "D",
+      "L": "L"
+    },
     "played": "P",
     "won": "W",
     "drawn": "D",
@@ -1263,6 +1269,15 @@
     "employed": "Employed",
     "unemployed": "Unemployed",
     "reputation": "Reputation",
+    "reputationBand": {
+      "world_class": "World class",
+      "established": "Established",
+      "great": "Great",
+      "good": "Good",
+      "average": "Average",
+      "below_average": "Below average",
+      "unknown": "Unknown"
+    },
     "winRate": "Win rate",
     "matches": "Matches",
     "currentClub": "Current club",
@@ -1530,6 +1545,7 @@
     "yourTeam": "Your Team",
     "squad": "Squad",
     "avgOvr": "Avg OVR",
+    "manager": "Manager",
     "rep": "Rep",
     "est": "Est."
   },

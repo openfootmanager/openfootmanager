@@ -1,4 +1,5 @@
-//! The reputation a retired player starts his managing career with.
+//! A manager's reputation: the band a screen reads it in, and the reputation a retired player
+//! starts his managing career with.
 //!
 //! Every manager is created on one scale, [`CREATED_REPUTATION`]: the generator's opening draw, a
 //! stand-in's coaching-based standing (`ai_hiring`), and a retiree's here. The retiree rule used
@@ -10,6 +11,77 @@ use std::collections::BTreeSet;
 
 use domain::manager::CREATED_REPUTATION;
 use domain::player::CareerEntry;
+use serde::Serialize;
+use ts_rs::TS;
+
+use crate::rated_tone::RatedTone;
+
+/// The word a manager's reputation reads as, highest first (maintainer, 2 Nov 2026: seven manager
+/// words, not the club bands). Serialized snake_case, as each word's translation key is named
+/// (`managersWorld.reputationBand.<band>`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, TS)]
+#[serde(rename_all = "snake_case")]
+pub enum ReputationBand {
+    WorldClass,
+    Established,
+    Great,
+    Good,
+    Average,
+    BelowAverage,
+    Unknown,
+}
+
+/// The lowest reputation of each band, highest band first. Placed on the real spread of the
+/// managers a world opens with, roughly uniform over 200..=700 (approved 3 Nov 2026): World class
+/// is the top 6% or so, Unknown the bottom 10%.
+const BAND_FLOORS: [(u32, ReputationBand); 6] = [
+    (670, ReputationBand::WorldClass),
+    (620, ReputationBand::Established),
+    (550, ReputationBand::Great),
+    (450, ReputationBand::Good),
+    (350, ReputationBand::Average),
+    (250, ReputationBand::BelowAverage),
+];
+
+impl ReputationBand {
+    /// The band `reputation` falls in.
+    pub fn of(reputation: u32) -> Self {
+        BAND_FLOORS
+            .iter()
+            .find(|(floor, _)| reputation >= *floor)
+            .map_or(Self::Unknown, |(_, band)| *band)
+    }
+
+    /// Where the band sits on the good-to-bad scale the screens paint with.
+    pub fn tone(self) -> RatedTone {
+        match self {
+            Self::WorldClass => RatedTone::Top,
+            Self::Established | Self::Great => RatedTone::Good,
+            Self::Good => RatedTone::Fair,
+            Self::Average | Self::BelowAverage => RatedTone::Low,
+            Self::Unknown => RatedTone::Bad,
+        }
+    }
+}
+
+/// A manager's reputation as a screen shows it: the number, its band and the band's tone.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, TS)]
+pub struct ManagerReputation {
+    pub value: u32,
+    pub band: ReputationBand,
+    pub tone: RatedTone,
+}
+
+impl ManagerReputation {
+    pub fn of(value: u32) -> Self {
+        let band = ReputationBand::of(value);
+        Self {
+            value,
+            band,
+            tone: band.tone(),
+        }
+    }
+}
 
 /// The rating at which a retiree's ability starts to count. Measured on retiring players (#1160
 /// probe, seeds 1 and 2): p1 54–56, p50 69–70, p99 81, max 85.
@@ -51,6 +123,85 @@ pub(crate) fn seasons_played(career: &[CareerEntry]) -> u32 {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Given each band's floor and the reputation one below it
+    /// When the band is read
+    /// Then the floor is in the band and one below is in the band beneath (the approved
+    ///      thresholds: 670, 620, 550, 450, 350, 250)
+    #[test]
+    fn each_band_starts_at_its_floor() {
+        use ReputationBand::*;
+        let edges = [
+            (670, WorldClass, Established),
+            (620, Established, Great),
+            (550, Great, Good),
+            (450, Good, Average),
+            (350, Average, BelowAverage),
+            (250, BelowAverage, Unknown),
+        ];
+        for (floor, at_floor, below) in edges {
+            assert_eq!(
+                (ReputationBand::of(floor), ReputationBand::of(floor - 1)),
+                (at_floor, below),
+                "the band edge at {floor}"
+            );
+        }
+    }
+
+    /// Given the ends of every scale a reputation is on: 0, and past any cap
+    /// When the band is read
+    /// Then 0 is Unknown and a huge reputation World class
+    #[test]
+    fn the_bands_cover_every_reputation() {
+        assert_eq!(ReputationBand::of(0), ReputationBand::Unknown);
+        assert_eq!(ReputationBand::of(u32::MAX), ReputationBand::WorldClass);
+    }
+
+    /// Given each band
+    /// When its tone is read
+    /// Then World class is top, Established and Great good, Good fair, Average and Below average
+    ///      low, Unknown bad (approved 3 Nov 2026)
+    #[test]
+    fn each_band_has_its_tone() {
+        use ReputationBand::*;
+        let tones: Vec<RatedTone> = [
+            WorldClass,
+            Established,
+            Great,
+            Good,
+            Average,
+            BelowAverage,
+            Unknown,
+        ]
+        .into_iter()
+        .map(ReputationBand::tone)
+        .collect();
+        assert_eq!(
+            tones,
+            vec![
+                RatedTone::Top,
+                RatedTone::Good,
+                RatedTone::Good,
+                RatedTone::Fair,
+                RatedTone::Low,
+                RatedTone::Low,
+                RatedTone::Bad,
+            ]
+        );
+    }
+
+    /// Given a manager at 600
+    /// When his reputation is projected for a screen
+    /// Then it carries the number, Great and its tone, and serializes as the screens read it
+    #[test]
+    fn a_reputation_carries_its_band_and_tone_on_the_wire() {
+        let reputation = ManagerReputation::of(600);
+
+        assert_eq!(
+            serde_json::to_value(reputation).unwrap(),
+            serde_json::json!({ "value": 600, "band": "great", "tone": "good" })
+        );
+    }
 
     fn season(season: u32, team_id: &str, appearances: u32) -> CareerEntry {
         CareerEntry {
