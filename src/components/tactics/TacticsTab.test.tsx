@@ -576,7 +576,7 @@ describe("TacticsTab", () => {
     const benchRow = screen.getByTestId("bench-player-d5");
 
     expect(within(benchRow).getByText("common.posAbbr.Defender")).toBeInTheDocument();
-    expect(within(benchCard).queryByText("common.posAbbr.Midfielder")).not.toBeInTheDocument();
+    expect(within(benchRow).queryByText("common.posAbbr.Midfielder")).not.toBeInTheDocument();
   });
 
   it("can duplicate the current setup into a custom tactic shell", () => {
