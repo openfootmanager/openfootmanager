@@ -825,6 +825,22 @@ pub fn load_world_package(dir: &Path) -> (WorldPackage, Vec<PackageError>) {
     (package, errors)
 }
 
+/// Load a package directory as the world a career would run on: the package's own load and
+/// checks, then the complete-world check a stack of packages gets (`merge_world_packages`).
+///
+/// Validated alone, a patch leaves its club references to the stack it is loaded on. A package
+/// started or inspected as a world by itself is that whole stack, so its references must resolve
+/// in it; without this a patch naming a club nobody defines passed, and its players and staff at
+/// that club were silently not built (#1198). The world check runs only on a package that passed
+/// its own, so no problem is reported twice.
+pub fn load_world_package_as_world(dir: &Path) -> (WorldPackage, Vec<PackageError>) {
+    let (package, errors) = load_world_package(dir);
+    if !errors.is_empty() {
+        return (package, errors);
+    }
+    merge_world_packages(vec![package])
+}
+
 /// The filename of the world-save manifest in `dir`, if `dir` holds an exported
 /// world rather than an authoring package.
 ///

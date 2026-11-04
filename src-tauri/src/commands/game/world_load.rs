@@ -33,12 +33,15 @@ pub(super) fn load_world_data_from_path(
 pub(super) type LoadedWorld = (ofm_core::generator::WorldData, AuthoredReputations);
 
 /// Load a world from a modular package directory (recursively scanned, schema
-/// typed). Rejects an invalid package so a broken mod never loads half-applied.
+/// typed). Rejects an invalid package so a broken mod never loads half-applied,
+/// with the same complete-world check a stack of installed packages gets, and
+/// refuses a world with no clubs as that path does.
 pub(super) fn load_world_data_from_package(
     dir: &str,
     sources: &ofm_core::generator::DefinitionSources,
 ) -> Result<LoadedWorld, String> {
-    let (package, errors) = ofm_core::generator::load_world_package(std::path::Path::new(dir));
+    let (package, errors) =
+        ofm_core::generator::load_world_package_as_world(std::path::Path::new(dir));
     if !errors.is_empty() {
         return Err(first_package_error_message(&errors));
     }
@@ -48,6 +51,9 @@ pub(super) fn load_world_data_from_package(
         None,
         sources,
     )?;
+    if world.teams.is_empty() {
+        return Err("be.error.package.noDatabasePackage".to_string());
+    }
     Ok((world, ofm_core::generator::authored_reputations(&package)))
 }
 
@@ -216,6 +222,68 @@ mod tests {
     use crate::commands::game::testkit::{make_historical_snapshot_world, temp_pkg_dir};
     use crate::commands::game::DEFAULT_GENERATED_HISTORY_DEPTH_YEARS;
     use ofm_core::career::StartPhase;
+
+    /// A patch package directory that signs a player for a club no package defines.
+    fn ghost_club_patch(tag: &str) -> std::path::PathBuf {
+        let dir = temp_pkg_dir(tag);
+        std::fs::write(
+            dir.join("world.yaml"),
+            "schema: world\nid: roster\nname: Roster\nversion: 1.0.0\nlicense: CC0-1.0\npackageType: patch\n",
+        )
+        .unwrap();
+        std::fs::write(
+            dir.join("player.yaml"),
+            "schema: player\nid: new-signing\nclub: ghost-club\n",
+        )
+        .unwrap();
+        dir
+    }
+
+    /// Given a patch package directory whose player joins a club no package defines
+    /// When a career is started on that directory
+    /// Then the start is refused with the unknown team: the player is not silently left out
+    #[test]
+    fn a_patch_directory_naming_a_club_no_package_defines_does_not_start() {
+        let dir = ghost_club_patch("start-ghost");
+
+        let result = super::load_world_data(
+            Some(dir.to_string_lossy().as_ref()),
+            &ofm_core::generator::DefinitionSources::embedded_only(),
+        );
+        std::fs::remove_dir_all(&dir).ok();
+
+        match result {
+            Err(key) => assert!(key.starts_with("be.error.package.unknownTeam"), "{key}"),
+            Ok(_) => panic!("a patch naming a ghost club must not start a career"),
+        }
+    }
+
+    /// Given an installed patch package (`.ofm`) whose player joins a club no package defines,
+    ///      stacked alone
+    /// When a career is started on the stack
+    /// Then the merge's unknown team refuses the start
+    #[test]
+    fn a_stack_of_one_patch_naming_a_club_no_package_defines_does_not_start() {
+        let source = ghost_club_patch("stack-ghost-src");
+        let packages = temp_pkg_dir("stack-ghost");
+        ofm_core::generator::export_directory_to_ofm(&source, &packages.join("roster.ofm"))
+            .expect("the patch is packed");
+
+        let result = super::load_world_data_from_package_ids(
+            &packages,
+            &["roster".to_string()],
+            None,
+            None,
+            &ofm_core::generator::DefinitionSources::embedded_only(),
+        );
+        std::fs::remove_dir_all(&source).ok();
+        std::fs::remove_dir_all(&packages).ok();
+
+        match result {
+            Err(key) => assert!(key.starts_with("be.error.package.unknownTeam"), "{key}"),
+            Ok(_) => panic!("a stack of one patch naming a ghost club must not start a career"),
+        }
+    }
 
     #[test]
     fn loads_a_world_from_a_package_directory() {

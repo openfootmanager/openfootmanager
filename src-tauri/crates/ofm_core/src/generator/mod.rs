@@ -20,9 +20,10 @@ pub use package::{
     PackageLock, PlayerCareerEntryDef, PlayerDef, RESERVED_PACKAGE_ID, StackConflict, StaffDef,
     WorldMetaDef, WorldPackage, authored_reputations, extract_package_assets, hash_package_file,
     is_manifest_metadata_error, is_unreadable, is_valid_package_id, load_world_package,
-    load_world_package_files, load_world_package_from_ofm, merge_world_packages,
-    qualify_package_asset_paths, read_logo_from_ofm, read_package_manifest_from_ofm,
-    validate_manifest, validate_package, validate_package_stack, validate_references,
+    load_world_package_as_world, load_world_package_files, load_world_package_from_ofm,
+    merge_world_packages, qualify_package_asset_paths, read_logo_from_ofm,
+    read_package_manifest_from_ofm, validate_manifest, validate_package, validate_package_stack,
+    validate_references,
 };
 pub use package_warnings::package_warnings;
 pub use scaffold::{
