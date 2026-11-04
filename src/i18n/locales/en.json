@@ -3000,6 +3000,7 @@
         "cannotBidOnOwnPlayer": "Cannot bid on your own player",
         "playerHasNoTeam": "Player has no team",
         "insufficientFunds": "Insufficient funds",
+        "buyerCannotAffordFee": "The buying club can no longer afford this fee, so the deal cannot go through.",
         "transferBudgetTooLow": "Transfer budget too low",
         "playerNotOwnedByUser": "Player not found or not yours",
         "offerNotPending": "Offer not found or not pending",

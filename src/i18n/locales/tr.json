@@ -3000,6 +3000,7 @@
         "cannotBidOnOwnPlayer": "Kendi oyuncunuza teklif veremezsiniz",
         "playerHasNoTeam": "Oyuncunun takımı yok",
         "insufficientFunds": "Yetersiz bakiye",
+        "buyerCannotAffordFee": "Alıcı kulüp artık bu bonservis bedelini karşılayamıyor, bu yüzden transfer gerçekleşemez.",
         "transferBudgetTooLow": "Transfer bütçesi çok düşük",
         "playerNotOwnedByUser": "Oyuncu bulunamadı veya size ait değil",
         "offerNotPending": "Teklif bulunamadı veya beklemede değil",

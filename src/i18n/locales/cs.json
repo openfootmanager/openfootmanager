@@ -3000,6 +3000,7 @@
         "cannotBidOnOwnPlayer": "Nemůžete podávat nabídku na vlastního hráče",
         "playerHasNoTeam": "Hráč nemá žádný tým",
         "insufficientFunds": "Nedostatek finančních prostředků",
+        "buyerCannotAffordFee": "Kupující klub si tuto částku už nemůže dovolit, takže přestup nemůže proběhnout.",
         "transferBudgetTooLow": "Přestupový rozpočet je příliš nízký",
         "playerNotOwnedByUser": "Hráč nebyl nalezen nebo není váš",
         "offerNotPending": "Nabídka nebyla nalezena nebo nečeká na vyřízení",

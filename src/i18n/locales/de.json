@@ -2992,6 +2992,7 @@
         "cannotBidOnOwnPlayer": "Du kannst nicht auf deinen eigenen Spieler bieten",
         "playerHasNoTeam": "Der Spieler hat kein Team",
         "insufficientFunds": "Nicht genug Geld vorhanden",
+        "buyerCannotAffordFee": "Der kaufende Verein kann sich diese Ablöse nicht mehr leisten, daher kommt der Wechsel nicht zustande.",
         "transferBudgetTooLow": "Das Transferbudget ist zu niedrig",
         "playerNotOwnedByUser": "Spieler nicht gefunden oder nicht in deinem Besitz",
         "offerNotPending": "Angebot nicht gefunden oder nicht mehr ausstehend",

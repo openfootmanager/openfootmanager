@@ -3000,6 +3000,7 @@
         "cannotBidOnOwnPlayer": "Tidak dapat menawar pemain sendiri",
         "playerHasNoTeam": "Pemain tidak memiliki tim",
         "insufficientFunds": "Dana tidak mencukupi",
+        "buyerCannotAffordFee": "Klub pembeli tidak lagi sanggup membayar biaya ini, jadi transfer tidak bisa terjadi.",
         "transferBudgetTooLow": "Anggaran transfer terlalu rendah",
         "playerNotOwnedByUser": "Pemain tidak ditemukan atau bukan milik kamu",
         "offerNotPending": "Tawaran tidak ditemukan atau tidak tertunda",
