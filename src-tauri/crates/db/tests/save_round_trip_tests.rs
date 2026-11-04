@@ -82,6 +82,10 @@ fn saved_and_loaded(game: &Game, stats: &StatsState) -> Game {
         .unwrap_or_else(|error| panic!("the save did not load back: {error}"))
 }
 
+fn by_id(items: &[Value]) -> bool {
+    !items.is_empty() && items.iter().all(|item| item["id"].is_string())
+}
+
 /// The paths at which `before` and `after` differ, at most `limit` of them, each with both values.
 fn differences(before: &Value, after: &Value, limit: usize) -> Vec<String> {
     fn walk(path: &str, before: &Value, after: &Value, found: &mut Vec<String>, limit: usize) {
@@ -101,13 +105,33 @@ fn differences(before: &Value, after: &Value, limit: usize) -> Vec<String> {
                     walk(&format!("{path}.{key}"), l, r, found, limit);
                 }
             }
+            (Value::Array(left), Value::Array(right)) if by_id(left) && by_id(right) => {
+                // Lists of records with an id are compared record by record, not position by
+                // position: a load may order a list differently (the inbox is sorted), which loses
+                // nothing. A record on one side only is a difference.
+                let id_of = |item: &Value| item["id"].as_str().unwrap_or_default().to_string();
+                let loaded: std::collections::HashMap<String, &Value> =
+                    right.iter().map(|item| (id_of(item), item)).collect();
+                let saved: std::collections::HashSet<String> = left.iter().map(id_of).collect();
+                for item in left {
+                    let id = id_of(item);
+                    match loaded.get(&id) {
+                        Some(other) => walk(&format!("{path}[{id}]"), item, other, found, limit),
+                        None if found.len() < limit => {
+                            found.push(format!("{path}[{id}]: saved, missing after the load"));
+                        }
+                        None => {}
+                    }
+                }
+                for id in loaded.keys().filter(|id| !saved.contains(*id)) {
+                    if found.len() < limit {
+                        found.push(format!("{path}[{id}]: not saved, present after the load"));
+                    }
+                }
+            }
             (Value::Array(left), Value::Array(right)) if left.len() == right.len() => {
                 for (index, (l, r)) in left.iter().zip(right).enumerate() {
-                    let label = l
-                        .get("id")
-                        .and_then(Value::as_str)
-                        .map_or_else(|| index.to_string(), str::to_string);
-                    walk(&format!("{path}[{label}]"), l, r, found, limit);
+                    walk(&format!("{path}[{index}]"), l, r, found, limit);
                 }
             }
             _ => {
