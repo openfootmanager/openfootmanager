@@ -997,57 +997,52 @@ describe("TacticsTab", () => {
 
   describe("when a lineup change is not saved because the familiarity has not arrived", () => {
     /**
-     * Given a bench player and a starter selected (the comparison is open), and the familiarity
-     *       not arrived
+     * Given a bench player and a starter selected (the comparison is open), and the game has
+     *       moved on so the squad's new answer is still in flight (the familiarity is there)
      * When a lineup action is taken from the screen
      * Then nothing is saved and both stay selected: the comparison is still open.
      *
-     * The same action is first taken with the familiarity arrived and must save: that is what
-     * proves the fixture reaches the save, so "nothing saved" below is the guard and not a lineup
-     * the action never builds.
+     * The same action is first taken with the squad answered and must save: that proves the
+     * fixture builds a lineup, so "nothing saved" below is the save refusing it and not an action
+     * that had nothing to build. (Withholding the familiarity would make the builders return no
+     * lineup, and the save would never be asked.)
      */
     async function takeActionWithPairSelected(act_: () => void): Promise<void> {
-      const mountWithPairSelected = async () => {
-        mockedInvoke.mockClear();
-        render(
-          <TacticsTab
-            gameState={makeGameState()}
-            onSelectPlayer={vi.fn()}
-            onGameUpdate={vi.fn()}
-          />,
+      const state = makeGameState();
+      const roster = state.players.filter((player) => player.team_id === "team1");
+      const takeAction = async (squadInFlight: boolean) => {
+        mockedInvoke.mockReset();
+        mockedInvoke.mockResolvedValueOnce(roster).mockResolvedValue(state);
+        const { rerender } = render(
+          <TacticsTab gameState={state} onSelectPlayer={vi.fn()} onGameUpdate={vi.fn()} />,
         );
         await act(async () => {});
         fireEvent.click(screen.getByTestId("pitch-bench-player-d5"));
         fireEvent.click(screen.getByTestId("pitch-player-d2"));
         expect(screen.getByText("tactics.comparePlayer")).toBeInTheDocument();
+        if (squadInFlight) {
+          mockedInvoke.mockReset();
+          mockedInvoke.mockReturnValue(new Promise(() => {}));
+          rerender(
+            <TacticsTab gameState={{ ...state }} onSelectPlayer={vi.fn()} onGameUpdate={vi.fn()} />,
+          );
+        }
+
+        act_();
+        await act(async () => {});
+        const result = {
+          saved: mockedInvoke.mock.calls.some(([command]) => command === "set_starting_xi"),
+          comparisonOpen: screen.queryByText("tactics.comparePlayer") !== null,
+        };
+        cleanup();
+        return result;
       };
 
-      const control = await renderToUnmount(mountWithPairSelected, act_);
-      expect(control.saved).toBe(true);
+      expect((await takeAction(false)).saved).toBe(true);
 
-      familiarityState.arrived = false;
-      try {
-        const withheld = await renderToUnmount(mountWithPairSelected, act_);
-        expect(withheld.saved).toBe(false);
-        expect(withheld.comparisonOpen).toBe(true);
-      } finally {
-        familiarityState.arrived = true;
-      }
-    }
-
-    async function renderToUnmount(
-      mount: () => Promise<void>,
-      act_: () => void,
-    ): Promise<{ saved: boolean; comparisonOpen: boolean }> {
-      await mount();
-      act_();
-      await act(async () => {});
-      const result = {
-        saved: mockedInvoke.mock.calls.some(([command]) => command === "set_starting_xi"),
-        comparisonOpen: screen.queryByText("tactics.comparePlayer") !== null,
-      };
-      cleanup();
-      return result;
+      const withheld = await takeAction(true);
+      expect(withheld.saved).toBe(false);
+      expect(withheld.comparisonOpen).toBe(true);
     }
 
     it("keeps the selection when Confirm swap is pressed", async () => {
