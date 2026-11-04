@@ -21,18 +21,15 @@ pub use berths::{
     resolve_continental_fields,
 };
 
-pub fn expected_fixture_count(team_count: usize) -> Option<usize> {
-    if team_count >= 2 {
-        // Double round robin: every club plays every other home and away.
-        // Odd-sized leagues reach the same total via byes.
-        Some(team_count * (team_count - 1))
-    } else {
-        None
-    }
+/// The league fixtures a season of `team_count` clubs over `legs` legs holds: every club meets
+/// every other once per leg. Odd-sized leagues reach the same total via byes.
+pub fn expected_fixture_count(team_count: usize, legs: u8) -> Option<usize> {
+    (team_count >= 2).then(|| team_count * (team_count - 1) / 2 * usize::from(legs))
 }
 
 pub fn has_full_schedule(league: &League) -> bool {
-    match expected_fixture_count(league.standings.len()) {
+    let legs = crate::schedule::league_table_legs(league);
+    match expected_fixture_count(league.standings.len(), legs) {
         Some(expected_fixture_count) => {
             league
                 .fixtures

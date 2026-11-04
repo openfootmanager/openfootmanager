@@ -30,6 +30,18 @@ pub fn generate_league(
     league
 }
 
+/// The legs a league table is played over: what its definition authored (`legs: 1` is a single
+/// round robin), or two, the double round robin every league was before a save stored the
+/// authored number.
+pub fn league_table_legs(league: &League) -> u8 {
+    league
+        .calendar
+        .as_ref()
+        .and_then(|calendar| calendar.league_legs)
+        .filter(|legs| *legs > 0)
+        .unwrap_or(2)
+}
+
 /// Append a full double round-robin (home & away) for `team_ids` to `league`,
 /// spacing matchdays 7 days apart from `start_date`.
 fn append_round_robin_fixtures(
@@ -196,7 +208,17 @@ pub fn regenerate_league_for_season(league: &mut League, season: u32, start_date
         .collect();
 
     if team_ids.len() >= 2 {
-        append_round_robin_fixtures(league, &team_ids, start_date);
+        // The legs it was authored with: a single round robin stays one (#1177).
+        let legs = league_table_legs(league);
+        let fixtures = build_round_robin_fixtures_with(
+            &league.id,
+            &team_ids,
+            start_date,
+            FixtureCompetition::League,
+            legs,
+            LEAGUE_MATCHDAY_GAP_DAYS.into(),
+        );
+        league.fixtures.extend(fixtures);
     }
 }
 
