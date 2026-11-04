@@ -184,14 +184,19 @@ bands:
 
 ## 5. Layout rules
 
-1. The dashboard workspace owns the scroll and applies `max-w-page` once.
+1. The dashboard workspace owns the scroll and applies `max-w-page` once. A tab listed in
+   `tabFillsWorkspace` (`src/components/dashboard/dashboardTabContentModel.ts`) fills the workspace
+   instead: the page never scrolls for it, and its own regions scroll. Tactics is the one such tab
+   (maintainer, 4 Nov 2026); adding another is the maintainer's call.
 2. The header shows the page's title; no page repeats it.
 3. One primary action per page, at the right end of its toolbar. The header's Continue is the
    game-wide forward action.
 4. Every match stage uses `MatchScreenLayout`.
 5. At the 960×640 minimum window, at every UI scale: no sideways scroll and nothing clipped.
    Vertical scroll is fine.
-6. At most two panels side by side, and one below `@split`.
+6. At most two panels side by side, and one below `@split`. The Tactics workbench is the exception:
+   its instructions panel sits beside the lineup where the workbench is 72rem or wider, and below
+   that rests as a rail and opens over the lineup.
 
 ## 6. Adding a token
 

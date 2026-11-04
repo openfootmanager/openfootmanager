@@ -808,6 +808,12 @@
     "unsavedChanges": "Cambios sin guardar",
     "currentPlanCard": "Plan actual",
     "phaseBlueprint": "Plano por fases",
+    "instructionsPanel": {
+      "title": "Instrucciones de equipo",
+      "show": "Mostrar las instrucciones de equipo",
+      "hide": "Ocultar las instrucciones de equipo",
+      "openAt": "Mostrar las instrucciones de equipo: {{section}}"
+    },
     "phaseLabels": {
       "withBall": "Con balón",
       "withoutBall": "Sin balón",

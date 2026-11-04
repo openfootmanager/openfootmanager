@@ -808,6 +808,12 @@
     "unsavedChanges": "Modifications non enregistrées",
     "currentPlanCard": "Plan actuel",
     "phaseBlueprint": "Plan par phase",
+    "instructionsPanel": {
+      "title": "Consignes d'équipe",
+      "show": "Afficher les consignes d'équipe",
+      "hide": "Masquer les consignes d'équipe",
+      "openAt": "Afficher les consignes d'équipe : {{section}}"
+    },
     "phaseLabels": {
       "withBall": "Avec ballon",
       "withoutBall": "Sans ballon",
