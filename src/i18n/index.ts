@@ -103,8 +103,10 @@ export const i18nReady = i18n
       // Before the locale has loaded every key is "missing"; that is loading, not a bug.
       if (!i18n.hasLoadedNamespace("translation")) return;
       // A caller that gives a default value chose what the player reads when the key is absent (a
-      // backend name that is a key or plain prose). Without one, the player reads the raw key.
-      if (key === "" || options?.defaultValue !== undefined) return;
+      // backend name that is a key or plain prose). Without one, or with the key itself as the
+      // default, the player reads the raw key.
+      if (key === "" || (options?.defaultValue !== undefined && options.defaultValue !== key))
+        return;
       reportMissingKey(languages[0] ?? "", key);
     },
     interpolation: {

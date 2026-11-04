@@ -33,4 +33,17 @@ describe("missing translation keys", () => {
 
     expect(takeMissingKeys()).toEqual([]);
   });
+
+  /**
+   * Given a key no locale has, asked with the key itself as its default value
+   * When the app asks i18next for it
+   * Then it is reported: the player would read the raw key.
+   */
+  it("reports a key whose default value is the key itself", () => {
+    takeMissingKeys();
+
+    i18n.t("be.msg.noSuchMessage.title", { defaultValue: "be.msg.noSuchMessage.title" });
+
+    expect(takeMissingKeys()).toEqual(["be.msg.noSuchMessage.title"]);
+  });
 });
