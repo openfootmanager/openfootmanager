@@ -1253,6 +1253,8 @@
     "boardSatisfied": "A direção está satisfeita com o teu desempenho.",
     "boardConcerns": "A direção tem preocupações com os resultados.",
     "boardThreat": "A tua posição está seriamente ameaçada.",
+    "boardWarned": "A direção advertiu-te.",
+    "boardFinalWarning": "Estás na última advertência.",
     "board": "Direção",
     "fans": "Adeptos",
     "born": "Nascido em",

@@ -1253,6 +1253,8 @@
     "boardSatisfied": "Der Vorstand ist zufrieden mit deiner Leistung.",
     "boardConcerns": "Der Vorstand hat Bedenken wegen der Ergebnisse.",
     "boardThreat": "Deine Position ist ernsthaft gefährdet.",
+    "boardWarned": "Der Vorstand hat dich verwarnt.",
+    "boardFinalWarning": "Du hast eine letzte Verwarnung erhalten.",
     "board": "Vorstand",
     "fans": "Fans",
     "born": "Geboren am",

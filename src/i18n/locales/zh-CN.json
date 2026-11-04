@@ -1253,6 +1253,8 @@
     "boardSatisfied": "董事会对你的表现感到满意。",
     "boardConcerns": "董事会对战绩感到担忧。",
     "boardThreat": "你的职位正面临严重威胁。",
+    "boardWarned": "董事会已向你发出警告。",
+    "boardFinalWarning": "你已收到最后警告。",
     "board": "董事会",
     "fans": "球迷",
     "born": "出生",

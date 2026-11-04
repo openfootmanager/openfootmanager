@@ -1253,6 +1253,8 @@
     "boardSatisfied": "Manajemen puas dengan performa kamu.",
     "boardConcerns": "Manajemen memiliki kekhawatiran tentang hasil.",
     "boardThreat": "Posisi kamu berada di bawah ancaman serius.",
+    "boardWarned": "Manajemen telah memberimu peringatan.",
+    "boardFinalWarning": "Kamu sedang dalam peringatan terakhir.",
     "board": "Manajemen",
     "fans": "Suporter",
     "born": "Lahir",
