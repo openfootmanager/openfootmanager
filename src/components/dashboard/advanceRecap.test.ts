@@ -1,5 +1,7 @@
 import { createSeasonContext } from "../../test-utils/factories";
-import { describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it } from "vitest";
+
+import { i18nReady } from "../../i18n";
 
 import type { GameStateData } from "../../store/gameStore";
 import type { AdvanceMatchResultData } from "../../services/advanceTimeService";
@@ -10,6 +12,10 @@ import {
   nextDay,
   toDatePart,
 } from "./advanceRecap";
+
+beforeAll(async () => {
+  await i18nReady;
+});
 
 function createGame(overrides: Partial<GameStateData> = {}): GameStateData {
   return {
@@ -143,10 +149,8 @@ describe("advanceRecap", (): void => {
     const recap = buildAdvanceRecap(game, "2026-07-01", []);
 
     expect(recap.news.map((article) => article.id)).toEqual(["injury"]);
-    expect(recap.news[0]).toMatchObject({
-      textKey: "news.injury",
-      params: { player: "John Star" },
-    });
+    // A key the app has no text for falls back to the headline the backend sent.
+    expect(recap.news[0].text).toBe("Star out injured");
   });
 
   it("keeps completed loan move news in the advance recap", (): void => {
@@ -191,13 +195,7 @@ describe("advanceRecap", (): void => {
       "loan-news-player-1-team-2-team-1-2026-07-01",
     ]);
     expect(recap.news[0]).toMatchObject({
-      textKey: "be.news.loanMove.headline",
-      params: {
-        player: "John Star",
-        fromTeam: "Rival FC",
-        toTeam: "User FC",
-        endDate: "2027-01-01",
-      },
+      text: "John Star joins User FC on loan",
     });
     expect(recap.hasEvents).toBe(true);
   });
@@ -237,7 +235,7 @@ describe("advanceRecap", (): void => {
     const recap = buildAdvanceRecap(game, "2026-07-01", []);
 
     expect(recap.inbox.map((item) => item.id)).toEqual(["digest"]);
-    expect(recap.inbox[0].textKey).toBe("be.msg.transferInterest.subject");
+    expect(recap.inbox[0].text).toBe("Transfer interest in John Star");
   });
 
   it("reads transfer_log from competitions, not the deprecated league mirror", (): void => {
@@ -343,7 +341,7 @@ describe("advanceRecap", (): void => {
 
     const onTheDay = entryFor("2026-06-11", "2026-06-12");
     expect(onTheDay.news).toHaveLength(1);
-    expect(onTheDay.news[0].textKey).toBe("be.news.worldCupKickoff.headline");
+    expect(onTheDay.news[0].text).toBe("The 2026 World Cup Begins");
 
     const dayAfter = entryFor("2026-06-12", "2026-06-13");
     expect(dayAfter.news).toEqual([]);
