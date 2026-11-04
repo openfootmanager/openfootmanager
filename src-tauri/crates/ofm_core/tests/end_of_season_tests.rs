@@ -1167,6 +1167,38 @@ fn a_relegated_users_season_preview_covers_the_division_they_drop_into() {
     assert_eq!(listed, ["Fourth FC", "Rival FC"]);
 }
 
+/// Given a world whose user's club plays in no league table, and no legacy league to fall back
+/// on; when the season rolls over; then no preview is published, rather than one of "0 teams".
+#[test]
+fn a_user_with_no_division_gets_no_season_preview() {
+    let mut game = make_two_division_game("team1");
+    game.teams.push(make_team("team9", "Tableless FC"));
+    game.manager.team_id = Some("team9".to_string());
+    game.league = None;
+
+    process_end_of_season(&mut game);
+
+    assert!(
+        game.news
+            .iter()
+            .all(|article| article.category != domain::news::NewsCategory::SeasonPreview)
+    );
+}
+
+/// Given an unemployed manager; when the season rolls over; then the preview covers the league
+/// the legacy `game.league` mirror holds, the division the game falls back to.
+#[test]
+fn an_unemployed_managers_season_preview_covers_the_mirrored_league() {
+    let mut game = make_two_division_game("team1");
+    game.manager.team_id = None;
+
+    process_end_of_season(&mut game);
+
+    let (count, listed, _, _) = season_preview(&game);
+    assert_eq!(count, "2");
+    assert_eq!(listed, ["Test FC", "Third FC"]);
+}
+
 #[test]
 fn season_awards_are_scoped_to_the_users_division() {
     let mut game = make_two_division_game("team1");
