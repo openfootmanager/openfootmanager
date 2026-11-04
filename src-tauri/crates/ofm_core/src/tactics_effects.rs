@@ -3,11 +3,11 @@
 //! slice that wires it (`drafts/tactics-match/wire-unread-controls.md`), which flips it in the same
 //! change.
 
-use domain::player::Position as DomainPosition;
+use domain::player::{Player, Position as DomainPosition};
 use domain::team::PlayerRole;
 use engine::{Position, TacticalDial};
 
-use crate::turn::squad::domain_to_engine_role;
+use crate::turn::squad::{domain_to_engine_role, line_familiarity};
 
 /// A control on the tactics screen.
 #[derive(Debug, Clone, PartialEq)]
@@ -45,6 +45,19 @@ pub fn has_match_effect(control: &TacticsControl) -> bool {
     }
 }
 
+/// The share of his match rating `player` plays at in `slot`: 1.0 at home, less where he can play
+/// it or is out of position. The match's own figure (`turn::squad::familiarity`), so a screen that
+/// shows what he plays like there multiplies his natural rating by it and derives nothing itself.
+pub fn match_factor(player: &Player, slot: &DomainPosition) -> f64 {
+    let line = match engine_line(slot) {
+        Position::Goalkeeper => 0,
+        Position::Defender => 1,
+        Position::Midfielder => 2,
+        Position::Forward => 3,
+    };
+    line_familiarity(player, Some(slot))[line]
+}
+
 /// The engine line a slot plays in.
 fn engine_line(slot: &DomainPosition) -> Position {
     match slot.to_group_position() {
@@ -58,6 +71,7 @@ fn engine_line(slot: &DomainPosition) -> Position {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::test_support::uniform_attributes;
     use engine::{BreakSpeed, MarkingStyle, TacticsBuildUpStyle};
 
     fn role(role: PlayerRole, slot: DomainPosition) -> bool {
@@ -156,5 +170,26 @@ mod tests {
         ] {
             assert!(!has_match_effect(&control), "{control:?}");
         }
+    }
+
+    /// Given a natural centre-back,
+    /// When the screen asks what he plays at at centre-back, at right-back and up front,
+    /// Then it is all of him, a position he can play (1 - 0.10 / 3), and out of position (0.90),
+    /// the factors the match charges.
+    #[test]
+    fn the_match_factor_is_what_the_match_charges_in_the_slot() {
+        let centre_back = Player::new(
+            "p".into(),
+            "P".into(),
+            "Player".into(),
+            "1995-01-01".into(),
+            "ENG".into(),
+            DomainPosition::CenterBack,
+            uniform_attributes(65),
+        );
+        assert_eq!(match_factor(&centre_back, &DomainPosition::CenterBack), 1.0);
+        let at_right_back = match_factor(&centre_back, &DomainPosition::RightBack);
+        assert!((at_right_back - (1.0 - 0.10 / 3.0)).abs() < 1e-12);
+        assert_eq!(match_factor(&centre_back, &DomainPosition::Striker), 0.90);
     }
 }
