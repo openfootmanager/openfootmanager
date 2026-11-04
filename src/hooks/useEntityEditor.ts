@@ -100,6 +100,9 @@ export function useEntityEditor<T extends { id: string }>(options: {
    * rule `syncEditing` follows, and for the same reason: between the pick and
    * the commit the list may have been reordered, or the record removed.
    */
+  // The open row as of this render: a `commitField` from this render targets it.
+  const rowAtRender = openRow.current;
+
   function commitField<K extends keyof T>(key: K, value: T[K]) {
     // Whether the form still holds the record this pick was started from.
     // `revision` bumps on select/add/duplicate/undo-sync — every way the open
@@ -115,13 +118,19 @@ export function useEntityEditor<T extends { id: string }>(options: {
       return;
     }
     const { items, setItems, captureHistory, saveItems, autoSave, onDirty } = latest.current;
-    // A blank id cannot be told apart from another blank one, so an unnamed
-    // record falls back to the position it had when the commit started — no
-    // worse than before, and it keeps a not-yet-named entity working.
-    const index = editingId ? rowWithId(items, editingIndex, editingId) : editingIndex;
-    // The record is gone (an undo discarded it). Writing it back would
-    // resurrect something the user just removed.
-    if (index === -1 || index >= items.length) return;
+    // The record open when the pick began, by identity: the row of the render that started it,
+    // or, if this session has since rewritten that row (a save, an undo sync), the row it became.
+    // A position or an id alone could name a different record by now: the other editor over the
+    // same list shifts rows, and two rows may share an id. Only a pick that outlived its session
+    // falls back to the id, preferring the row it had.
+    let index = rowAtRender ? items.indexOf(rowAtRender) : -1;
+    if (index === -1 && sameSession && openRow.current) index = items.indexOf(openRow.current);
+    if (index === -1 && !sameSession && editingId) {
+      index = rowWithId(items, editingIndex, editingId);
+    }
+    // The record is gone (deleted, or discarded by an undo). Writing it back would resurrect
+    // something the user just removed, or land on another record.
+    if (index === -1) return;
     // Match on the session, not on the buffer's id. The id is editable text: a
     // user who renames the club while the copy is in flight would otherwise fail
     // an `id === editingId` check, leave the buffer without the asset path, and
@@ -154,16 +163,15 @@ export function useEntityEditor<T extends { id: string }>(options: {
    * list inserts and removes rows before it, and writing back by a stale position overwrote a
    * different record (#1197).
    *
-   * Found by object identity first (`openRow`), then by id. A record with a blank id has nothing
-   * else to go by: if its row is no longer the one this editor last wrote, there is no telling
-   * which row is his, and `null` saves him as a new record rather than over somebody else.
+   * Found by object identity only (`openRow`). Every write to the list keeps it current: this
+   * editor's own save, delete, duplicate and field commit set it, and an undo or redo re-anchors it
+   * in `syncEditing`; the other editor never replaces this editor's row. So a row that is not in
+   * the list is a record that was deleted, and `null` saves it as a new one. Falling back to its id
+   * would write it over a twin that shares the id, or over whoever took a blank id's place.
    */
   function locate(list: T[]): number | null {
     if (editingIndex === null) return null;
-    const byIdentity = openRow.current ? list.indexOf(openRow.current) : -1;
-    if (byIdentity !== -1) return byIdentity;
-    if (!editingId) return null;
-    const index = rowWithId(list, editingIndex, editingId);
+    const index = openRow.current ? list.indexOf(openRow.current) : -1;
     return index === -1 ? null : index;
   }
 

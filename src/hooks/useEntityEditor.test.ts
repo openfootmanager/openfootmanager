@@ -563,13 +563,15 @@ describe("useEntityEditor", () => {
         { id: "a", name: "A" },
         { id: "b", name: "B" },
       ];
-      const { hook } = makeHook({ items });
+      const { hook, setItems, defaults } = makeHook({ items });
       act(() => {
         hook.result.current.handleSelect(1);
       });
       await act(async () => {
         await hook.result.current.handleSave();
       });
+      // The page owns the array: feed the list the hook set back in, as the page re-renders it.
+      hook.rerender({ ...defaults, items: setItems.mock.lastCall?.[0] as Item[] });
       expect(hook.result.current.editingIndex).toBe(1);
     });
 
@@ -941,6 +943,70 @@ describe("two editors over one list", () => {
       { id: "y1", name: "Youth One" },
       { id: "p", name: "First Teamer Edited" },
     ]);
+  });
+
+  // Given two rows sharing an id, the second open, and its twin left after the other editor deletes
+  //      the open one
+  // When the first editor saves its edit
+  // Then the edit is added as a new record: the twin that shares its id keeps its own data
+  it("appends the edit when the other editor deletes the open row and a same-id row remains", () => {
+    const { result } = renderTwoEditors([
+      { id: "x", name: "First X" },
+      { id: "x", name: "Second X" },
+    ]);
+    act(() => result.current.first.handleSelect(1));
+    act(() => result.current.first.updateField("name", "Second X Edited"));
+    act(() => result.current.youth.handleDelete(1));
+    act(() => {
+      void result.current.first.handleSave();
+    });
+
+    expect(result.current.items).toEqual([
+      { id: "x", name: "First X" },
+      { id: "x", name: "Second X Edited" },
+    ]);
+  });
+
+  // Given the second of two rows sharing an id open, an asset pick started, and a youth before
+  //      both removed by the other editor while the pick's dialog was open
+  // When the pick commits
+  // Then the asset lands on the record the pick began from, not on its twin
+  it("commits a picked asset onto the record the pick began from after rows shifted", () => {
+    const { result } = renderTwoEditors([
+      { id: "y0", name: "Youth Zero" },
+      { id: "x", name: "First X" },
+      { id: "x", name: "Second X" },
+    ]);
+    act(() => result.current.first.handleSelect(2));
+    const commit = result.current.first.commitField;
+    act(() => result.current.youth.handleDelete(0));
+    act(() => commit("logo", "assets/images/team/x.png"));
+
+    expect(result.current.items).toEqual([
+      { id: "x", name: "First X" },
+      { id: "x", name: "Second X", logo: "assets/images/team/x.png" },
+    ]);
+  });
+
+  // Given a record open, an asset pick started, and the record saved while the pick's dialog was
+  //      open
+  // When the pick commits
+  // Then the asset lands on the saved record: the save replaced the row the pick began from
+  it("keeps a picked asset when the record was saved before the pick finished", () => {
+    const { result } = renderTwoEditors(youthAndOne());
+    act(() => result.current.first.handleSelect(2));
+    const commit = result.current.first.commitField;
+    act(() => result.current.first.updateField("name", "First Teamer Edited"));
+    act(() => {
+      void result.current.first.handleSave();
+    });
+    act(() => commit("logo", "assets/images/player/p.png"));
+
+    expect(result.current.items[2]).toEqual({
+      id: "p",
+      name: "First Teamer Edited",
+      logo: "assets/images/player/p.png",
+    });
   });
 
   // Given a first-team player open in one editor, and a youth before him removed in the other
