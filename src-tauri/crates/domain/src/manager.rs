@@ -170,6 +170,21 @@ impl Manager {
         ));
     }
 
+    /// His open stint at `team_id`: the career entry for his spell at that club now. None for a
+    /// club he is not in charge of, or a record kept from before stints were (an old save).
+    pub fn current_stint(&self, team_id: &str) -> Option<&ManagerCareerEntry> {
+        self.career_history
+            .iter()
+            .find(|entry| entry.team_id == team_id && entry.end_date.is_none())
+    }
+
+    /// [`Self::current_stint`], to update.
+    pub fn current_stint_mut(&mut self, team_id: &str) -> Option<&mut ManagerCareerEntry> {
+        self.career_history
+            .iter_mut()
+            .find(|entry| entry.team_id == team_id && entry.end_date.is_none())
+    }
+
     pub fn fire(&mut self, date: &str) {
         if let Some(entry) = self
             .career_history
@@ -245,6 +260,30 @@ mod tests {
         m.set_known_as(Some("   ".into()));
         assert_eq!(m.known_as, None);
         assert_eq!(m.display_name, "Test Manager");
+    }
+
+    /// Given a manager whose spell at "old" has ended and who now manages "new"
+    /// When his current stint is asked for at each club
+    /// Then "new" answers his open spell there, and "old" (closed) and "other" (never his) none
+    #[test]
+    fn the_current_stint_is_the_open_spell_at_that_club() {
+        let mut m = manager();
+        let mut old = ManagerCareerEntry::open("old".into(), "Old".into(), "2020-07-01".into());
+        old.end_date = Some("2024-05-30".into());
+        m.career_history.push(old);
+        m.career_history.push(ManagerCareerEntry::open(
+            "new".into(),
+            "New".into(),
+            "2024-07-01".into(),
+        ));
+
+        assert_eq!(
+            m.current_stint("new")
+                .map(|entry| entry.start_date.as_str()),
+            Some("2024-07-01")
+        );
+        assert!(m.current_stint("old").is_none());
+        assert!(m.current_stint("other").is_none());
     }
 
     #[test]

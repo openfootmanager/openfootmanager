@@ -105,6 +105,9 @@ pub fn translate_error(key: &str) -> String {
         "be.error.scouting.playerAlreadyScouted" => "Player is already being scouted.".to_string(),
         "be.error.transfers.cannotBidOnOwnPlayer" => "Cannot bid on your own player.".to_string(),
         "be.error.transfers.insufficientFunds" => "Insufficient transfer funds.".to_string(),
+        "be.error.transfers.buyerCannotAffordFee" => {
+            "The buying club can no longer afford this fee.".to_string()
+        }
         "be.error.transfers.offerNotPending" => "Offer is no longer pending.".to_string(),
         "be.error.transfers.transferWindowClosed" => "Transfer window is closed.".to_string(),
         "be.error.mcp.noLeagueYet" => {
@@ -137,6 +140,9 @@ pub fn translate_error(key: &str) -> String {
         }
         "be.error.liveMatch.shootoutOrderNotYourSide" => {
             "You can only set your own side's shootout order.".to_string()
+        }
+        "be.error.liveMatch.notYourSide" => {
+            "You can only give orders to your own team: that side is not yours.".to_string()
         }
         "be.error.liveMatch.shootoutOrderNotEligible" => {
             "The order must list each player in your current shootout order exactly once \
@@ -211,6 +217,7 @@ mod tests {
             "be.error.noActiveLiveMatch",
             "be.error.liveMatch.shootoutOrderNotNow",
             "be.error.liveMatch.shootoutOrderNotYourSide",
+            "be.error.liveMatch.notYourSide",
             "be.error.liveMatch.shootoutOrderNotEligible",
             "be.error.liveMatch.noSubstitutionsForShootout",
         ] {

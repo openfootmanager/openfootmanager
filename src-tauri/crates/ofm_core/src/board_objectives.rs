@@ -13,7 +13,9 @@ struct ObjectiveTargets {
 }
 
 impl ObjectiveTargets {
-    fn new(reputation: u32, num_teams: u32) -> Self {
+    /// `legs` is how many times each club meets every other: the season is `(n - 1) * legs`
+    /// matches long, so a single round robin is judged on the matches it has (#1177).
+    fn new(reputation: u32, num_teams: u32, legs: u32) -> Self {
         const HIGH_REPUTATION: u32 = 800;
         const MEDIUM_REPUTATION: u32 = 650;
         const LOW_REPUTATION: u32 = 400;
@@ -35,7 +37,7 @@ impl ObjectiveTargets {
         .min(league_size);
 
         let total_matchdays = if league_size > 1 {
-            (league_size - 1) * 2
+            (league_size - 1) * legs
         } else {
             0
         };
@@ -151,8 +153,11 @@ pub fn generate_objectives(game: &mut Game) {
         })
         .filter(|&count| count > 1)
         .unwrap_or(game.teams.len()) as u32;
+    let legs = game.league.as_ref().map_or(2, |league| {
+        u32::from(crate::schedule::league_table_legs(league))
+    });
     let reputation = team.reputation;
-    let targets = ObjectiveTargets::new(reputation, num_teams);
+    let targets = ObjectiveTargets::new(reputation, num_teams, legs);
 
     game.board_objectives = vec![
         BoardObjective {
@@ -1139,14 +1144,25 @@ mod tests {
     /// The objectives' wins and goals targets for a club of reputation 800 in a 20-club world
     /// whose league holds `league_size` of those clubs.
     fn wins_and_goals_in_a_league_of(league_size: usize) -> (u32, u32) {
+        wins_and_goals_in_a_league_of_legs(league_size, None)
+    }
+
+    /// The win and goal targets of a club of reputation 800 in a league of `league_size` clubs,
+    /// whose calendar stored `legs` when given.
+    fn wins_and_goals_in_a_league_of_legs(league_size: usize, legs: Option<u8>) -> (u32, u32) {
         let mut game = make_game(800, 1, 20);
         let league_ids: Vec<String> = (1..=league_size).map(|idx| format!("team{idx}")).collect();
-        game.league = Some(League::new(
+        let mut league = League::new(
             "league1".to_string(),
             "Test League".to_string(),
             1,
             &league_ids,
-        ));
+        );
+        league.calendar = legs.map(|legs| domain::competition_calendar::CalendarMetadata {
+            league_legs: Some(legs),
+            ..Default::default()
+        });
+        game.league = Some(league);
 
         generate_objectives(&mut game);
 
@@ -1162,6 +1178,16 @@ mod tests {
     #[test]
     fn generate_objectives_scales_targets_to_the_user_league_not_the_whole_world() {
         assert_eq!(wins_and_goals_in_a_league_of(4).0, 3);
+    }
+
+    /// Given a club of reputation 800 in a twenty-club league authored as a single round robin
+    /// When the board sets its objectives
+    /// Then the targets come from its 19 matches (11 wins, 28 goals), not a double round
+    ///      robin's 38 (22 wins: more than the season has games) (#1177)
+    #[test]
+    fn a_single_round_robins_targets_fit_its_matches() {
+        assert_eq!(wins_and_goals_in_a_league_of_legs(20, Some(1)), (11, 28));
+        assert_eq!(wins_and_goals_in_a_league_of_legs(20, Some(2)), (22, 57));
     }
 
     /// Given a club of reputation 800 whose league lists only itself, in a world of twenty clubs
