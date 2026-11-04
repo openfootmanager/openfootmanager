@@ -246,8 +246,8 @@ All probabilities and multipliers are tuneable via `MatchConfig`:
 | Parameter | Default | Description |
 |---|---|---|
 | `home_advantage` | 1.08 | Multiplier for home team ratings |
-| `shot_accuracy_base` | 0.45 | Base chance a shot is on target |
-| `goal_conversion_base` | 0.30 | Base chance an on-target shot scores |
+| `shot_accuracy_base` | 0.245 | Base chance a shot is on target |
+| `goal_conversion_base` | 0.25 | Base chance an on-target shot scores |
 | `fatigue_per_minute` | 0.15 | Condition loss per minute (live mode) |
 | `foul_probability` | 0.12 | Base chance a tackle results in a foul |
 | `yellow_card_probability` | 0.30 | Chance a foul produces a yellow |
