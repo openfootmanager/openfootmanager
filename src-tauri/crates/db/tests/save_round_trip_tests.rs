@@ -17,7 +17,7 @@
 //! loses nothing); integers are compared exactly and only floats within a relative 1e-9 (one ulp of
 //! f64 text); the game saved has its calendar settled first, see [`career_with_settled_calendar`].
 
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::sync::OnceLock;
 
 use chrono::{TimeZone, Utc};
@@ -261,12 +261,36 @@ fn every_difference(game: &Game, stats: &StatsState) -> Vec<Difference> {
         .into_iter()
         .zip(parts(&loaded, &loaded_stats))
     {
+        let (saved, read_back) = if name == "game" {
+            (saved, read_back)
+        } else {
+            (canonical(&saved), canonical(&read_back))
+        };
         for mut difference in differences(&saved, &read_back) {
             difference.path = difference.path.replacen("game", name, 1);
             found.push(difference);
         }
     }
     found
+}
+
+/// `value` with every list put in a fixed order (by the text of its records). The three archives
+/// are read back in the order their tables give, not the order they were saved in, which loses
+/// nothing; what must match is the set of records and what is in each.
+fn canonical(value: &Value) -> Value {
+    match value {
+        Value::Array(items) => {
+            let mut items: Vec<Value> = items.iter().map(canonical).collect();
+            items.sort_by_key(Value::to_string);
+            Value::Array(items)
+        }
+        Value::Object(map) => Value::Object(
+            map.iter()
+                .map(|(key, item)| (key.clone(), canonical(item)))
+                .collect(),
+        ),
+        other => other.clone(),
+    }
 }
 
 fn text(value: &Value) -> &str {
@@ -276,8 +300,8 @@ fn text(value: &Value) -> &str {
 /// The known bugs, by what they are. A difference is a known bug only in the direction and for the
 /// population the bug describes, so a wider loss on the same field still fails the loss check.
 /// Each is pinned by a test that says it STILL happens (so fixing it makes that test fail, to be
-/// deleted with the fix). `opening_players` are the players of the world the career began with.
-fn known_bug(difference: &Difference, opening_players: &HashSet<String>) -> Option<&'static str> {
+/// deleted with the fix).
+fn known_bug(difference: &Difference) -> Option<&'static str> {
     let path = difference.path.as_str();
     if path == "game.days_since_last_job_offer"
         && difference.saved.is_number()
@@ -293,28 +317,22 @@ fn known_bug(difference: &Difference, opening_players: &HashSet<String>) -> Opti
     {
         return Some("staff made during a season have no nationality until a reload (#1261)");
     }
-    if let Some(rest) = path.strip_prefix("game.players[")
-        && let Some(id) = rest.strip_suffix("].weak_foot")
-        && !opening_players.contains(id.split('#').next().unwrap_or(id))
-        && difference.saved.is_number()
-        && difference.loaded.is_number()
+    // Any player, not only the season's own: a player develops during the season, and the load
+    // re-infers his weak foot from the attributes he has now, one step away from the one he kept.
+    if path.starts_with("game.players[")
+        && path.ends_with("].weak_foot")
+        && let (Some(saved), Some(loaded)) = (difference.saved.as_i64(), difference.loaded.as_i64())
+        && (saved - loaded).abs() == 1
     {
-        return Some("players made during a season change weak foot on a reload (#1262)");
+        return Some("a player's weak foot changes on a reload (#1262)");
     }
     None
 }
 
-fn opening_players(game: &Game) -> HashSet<String> {
-    game.players
-        .iter()
-        .map(|player| player.id.clone())
-        .collect()
-}
-
-fn assert_nothing_lost(game: &Game, stats: &StatsState, opening: &HashSet<String>, moment: &str) {
+fn assert_nothing_lost(game: &Game, stats: &StatsState, moment: &str) {
     let lost: Vec<String> = every_difference(game, stats)
         .into_iter()
-        .filter(|difference| known_bug(difference, opening).is_none())
+        .filter(|difference| known_bug(difference).is_none())
         .map(|difference| difference.to_string())
         .collect();
     assert!(
@@ -332,7 +350,7 @@ fn assert_nothing_lost(game: &Game, stats: &StatsState, opening: &HashSet<String
 fn a_career_at_its_start_loads_back_unchanged() {
     let (game, stats) = career();
 
-    assert_nothing_lost(&game, &stats, &opening_players(&game), "after career start");
+    assert_nothing_lost(&game, &stats, "after career start");
 }
 
 /// Given a career in which the manager has signed a free agent,
@@ -341,7 +359,6 @@ fn a_career_at_its_start_loads_back_unchanged() {
 #[test]
 fn a_career_after_a_free_agent_signing_loads_back_unchanged() {
     let (mut game, stats) = career();
-    let opening = opening_players(&game);
     let user_club = game
         .manager
         .team_id
@@ -371,7 +388,7 @@ fn a_career_after_a_free_agent_signing_loads_back_unchanged() {
         "the signing is in the game that is saved"
     );
 
-    assert_nothing_lost(&game, &stats, &opening, "after a free-agent signing");
+    assert_nothing_lost(&game, &stats, "after a free-agent signing");
 }
 
 /// A career played through one whole season and its rollover, with what the season did: the stats
@@ -379,7 +396,6 @@ fn a_career_after_a_free_agent_signing_loads_back_unchanged() {
 /// once for every test that reads it (a season of the generated world is the cost of this file).
 struct RolledOver {
     differences: Vec<Difference>,
-    opening: HashSet<String>,
     calendar_moved_on_load: usize,
 }
 
@@ -387,7 +403,6 @@ fn rolled_over() -> &'static RolledOver {
     static ROLLED_OVER: OnceLock<RolledOver> = OnceLock::new();
     ROLLED_OVER.get_or_init(|| {
         let (mut game, mut stats) = career();
-        let opening = opening_players(&game);
         assert!(
             game.last_season_rollover_on.is_none(),
             "a career that has just begun has not rolled a season over"
@@ -423,7 +438,6 @@ fn rolled_over() -> &'static RolledOver {
         let differences = every_difference(&game, &stats);
         RolledOver {
             differences,
-            opening,
             calendar_moved_on_load,
         }
     })
@@ -440,7 +454,7 @@ fn a_career_after_the_rollover_loads_back_unchanged() {
     let lost: Vec<String> = state
         .differences
         .iter()
-        .filter(|difference| known_bug(difference, &state.opening).is_none())
+        .filter(|difference| known_bug(difference).is_none())
         .map(|difference| difference.to_string())
         .collect();
     assert!(
@@ -456,7 +470,7 @@ fn known_bug_still_happens(bug: &str) -> bool {
     state
         .differences
         .iter()
-        .any(|difference| known_bug(difference, &state.opening) == Some(bug))
+        .any(|difference| known_bug(difference) == Some(bug))
 }
 
 /// KNOWN BUG #1260 (job-offer cooldown): `days_since_last_job_offer` has no column; the load sets
@@ -479,15 +493,15 @@ fn known_bug_staff_made_during_a_season_have_no_nationality_until_a_reload() {
     ));
 }
 
-/// KNOWN BUG #1262 (weak foot): a player made during a season has the weak foot the generator gave
-/// him until the load re-infers it (`player_identity.rs`), so the value a user sees changes on a
-/// reload. Which side is right is the fixer's to decide: if the generator's value is right and the
+/// KNOWN BUG #1262 (weak foot): the weak foot a player keeps through a season is not the one the
+/// load re-infers from the attributes he has by then (`player_identity.rs`), one step away (2 and 3
+/// in the first run, two players), so the value a user sees changes on a reload. Which side is right is the fixer's to decide: if the generator's value is right and the
 /// inference is wrong, the fix is in `player_identity`, not in the save (a save that stored the
 /// generator's value would only have it overwritten by the load). Delete this test with the fix.
 #[test]
 fn known_bug_players_made_during_a_season_change_weak_foot_on_a_reload() {
     assert!(known_bug_still_happens(
-        "players made during a season change weak foot on a reload (#1262)"
+        "a player's weak foot changes on a reload (#1262)"
     ));
 }
 
