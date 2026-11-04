@@ -19,13 +19,16 @@ declare global {
   }
 }
 
-/** Mounts `page` on the fixture career with the backend mocked: invoke, events and the window. */
+/**
+ * Mounts `page` on the fixture career with the backend mocked: invoke, events and the window.
+ * Returns the React root, so a test can unmount the page before it clears the mocks.
+ */
 export async function mountPageHarness(
   root: HTMLElement,
   page: HarnessPage,
   options: StyleGuideOptions,
   language: SupportedLanguageCode,
-): Promise<void> {
+): Promise<ReactDOM.Root> {
   await changeAppLanguage(language);
   const ipc = createHarnessIpc(fixtureHandlers(options, language));
   mockWindows("main");
@@ -33,11 +36,13 @@ export async function mountPageHarness(
   window.__pageHarness = { unanswered: ipc.unanswered, pastEdge: () => elementsPastEdge(root) };
 
   const manager = gameState.manager;
-  ReactDOM.createRoot(root).render(
+  const reactRoot = ReactDOM.createRoot(root);
+  reactRoot.render(
     <React.StrictMode>
       <ThemeProvider storageKey={STYLE_GUIDE_THEME_KEY}>
         <PageHarness page={page} managerName={`${manager.first_name} ${manager.last_name}`} />
       </ThemeProvider>
     </React.StrictMode>,
   );
+  return reactRoot;
 }

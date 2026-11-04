@@ -193,6 +193,7 @@ function financeVerdict(overrides: Partial<TeamFinanceSnapshotData> = {}): TeamF
     runwayStatus: "stable",
     overallStatus: "stable",
     marketingCampaignCooldownDaysRemaining: 0,
+    cashFlow: [],
     ...overrides,
   };
 }

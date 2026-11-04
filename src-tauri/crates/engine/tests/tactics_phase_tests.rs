@@ -407,3 +407,28 @@ fn aggressive_pressing_tires_the_team_more_than_passive() {
         "aggressive pressing should leave the team more tired: aggressive {aggressive_cond} vs passive {passive_cond}"
     );
 }
+
+/// Given a plan with every dial off its default,
+/// When its dials are listed and each is turned on a default plan,
+/// Then the default plan becomes the first: `dials` names all nine, each as the plan has it.
+#[test]
+fn a_plans_dials_rebuild_the_plan() {
+    let plan = engine::TacticsConfig {
+        pressing_intensity: engine::PressingIntensity::Aggressive,
+        defensive_line: engine::DefensiveLine::High,
+        width: engine::TacticsPitchWidth::Wide,
+        build_up_style: engine::TacticsBuildUpStyle::Long,
+        marking_style: engine::MarkingStyle::ManToMan,
+        tempo: engine::Tempo::Patient,
+        defensive_shape: engine::DefensiveShape::Compact,
+        counter_press_duration: engine::CounterPressDuration::Long,
+        break_speed: engine::BreakSpeed::Fast,
+    };
+    let mut rebuilt = engine::TacticsConfig::default();
+
+    for dial in plan.dials() {
+        dial.set_on(&mut rebuilt);
+    }
+
+    assert_eq!(rebuilt, plan);
+}

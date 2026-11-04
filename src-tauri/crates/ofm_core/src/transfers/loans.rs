@@ -531,9 +531,7 @@ pub fn make_loan_offer(
         return Err(ERR_CANNOT_BID_ON_OWN_PLAYER.into());
     }
 
-    if player_has_pending_registration(player) {
-        return Err(ERR_PLAYER_ALREADY_LOANED.into());
-    }
+    ensure_no_move_in_hand(player)?;
 
     if !player.loan_listed {
         return Err(ERR_PLAYER_NOT_LOAN_LISTED.into());
@@ -1799,7 +1797,9 @@ mod tests {
 
 #[cfg(test)]
 mod acceptance_tests {
-    use super::super::tests::{acceptance_game, assert_acceptance_notice, incoming_loan};
+    use super::super::tests::{
+        acceptance_game, assert_acceptance_notice, incoming_loan, incoming_transfer,
+    };
     use super::*;
 
     fn assert_loan(game: &Game, deferred: bool, option: Option<u64>, contribution: u8) {
@@ -1850,6 +1850,73 @@ mod acceptance_tests {
     fn a_deferred_loan_bid_notifies_the_borrower() {
         bid(true);
     }
+    /// Given the user's player with a transfer bid and a loan bid both open, the window closed;
+    /// when the user agrees the sale and then accepts the loan; then the loan is refused and
+    /// the sale stays agreed (#1205: the loan was agreed too, and on opening day it wiped out
+    /// the sale).
+    #[test]
+    fn a_loan_cannot_be_accepted_on_a_player_already_sold_for_the_window() {
+        let mut game = acceptance_game("team1", true);
+        let sale = incoming_transfer(&mut game);
+        let loan = incoming_loan(&mut game);
+        crate::transfers::respond_to_offer(&mut game, "player-award", &sale, true).unwrap();
+
+        let result = respond_to_loan_offer(&mut game, "player-award", &loan, true);
+
+        assert_eq!(
+            result,
+            Err("be.error.transfers.playerAlreadySold".to_string())
+        );
+        let player = &game.players[0];
+        assert_eq!(
+            player.transfer_offers[0].status,
+            domain::player::TransferOfferStatus::PendingRegistration
+        );
+        assert_eq!(
+            player.loan_offers[0].status,
+            domain::player::LoanOfferStatus::Pending
+        );
+    }
+
+    /// Given the same agreed sale; when the user counters the loan bid instead; then the counter
+    /// is refused the same way: the player has been sold.
+    #[test]
+    fn a_loan_counter_on_a_player_already_sold_is_refused() {
+        let mut game = acceptance_game("team1", true);
+        let sale = incoming_transfer(&mut game);
+        let loan = incoming_loan(&mut game);
+        crate::transfers::respond_to_offer(&mut game, "player-award", &sale, true).unwrap();
+
+        let result = counter_loan_offer(&mut game, "player-award", &loan, "2026-12-20", 70, None);
+
+        assert_eq!(
+            result.map(|outcome| outcome.decision),
+            Err("be.error.transfers.playerAlreadySold".to_string())
+        );
+    }
+
+    /// Given another club's player whose sale to a third club is agreed for the window; when the
+    /// user bids to borrow him; then the bid is refused: he has been sold.
+    #[test]
+    fn a_loan_bid_on_a_player_already_sold_elsewhere_is_refused() {
+        let mut game = acceptance_game("team2", true);
+        game.players[0].transfer_offers.push(
+            serde_json::from_value(serde_json::json!({
+                "id": "sold-elsewhere", "from_team_id": "team3", "fee": 800_000,
+                "wage_offered": 0, "status": "PendingRegistration", "date": "2026-01-10",
+                "registration_date": "2026-07-02"
+            }))
+            .unwrap(),
+        );
+
+        let result = make_loan_offer(&mut game, "player-award", "2026-12-20", 60, None);
+
+        assert_eq!(
+            result.map(|_| ()),
+            Err("be.error.transfers.playerAlreadySold".to_string())
+        );
+    }
+
     fn incoming(deferred: bool, counter: bool) {
         let mut game = acceptance_game("team1", deferred);
         let id = incoming_loan(&mut game);

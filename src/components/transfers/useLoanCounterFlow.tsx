@@ -10,18 +10,15 @@ import {
   type LoanPeriodOptionId,
   parseTransferFeeInput,
 } from "./TransfersTab.helpers";
-import type { TFunction } from "i18next";
 import type { LoanCounterTarget } from "./TransfersTab.types";
 interface Input {
   loanRegistrationDate: string;
   onGameUpdate: ((game: GameStateData) => void) | undefined;
-  t: TFunction<"translation", undefined>;
   transferWindowBlocksRegistration: boolean;
 }
 export function useLoanCounterFlow({
   loanRegistrationDate,
   onGameUpdate,
-  t,
   transferWindowBlocksRegistration,
 }: Input) {
   const [loanCounterTarget, setLoanCounterTarget] = useState<LoanCounterTarget | null>(null);
@@ -120,7 +117,7 @@ export function useLoanCounterFlow({
       if (onGameUpdate) onGameUpdate(response.game);
     } catch (err: unknown) {
       setLoanCounterResult("error");
-      setLoanCounterError(resolveTranslatedErrorMessage(getErrorMessage(err), t));
+      setLoanCounterError(resolveTranslatedErrorMessage(getErrorMessage(err)));
     } finally {
       setLoanCounterLoading(false);
     }

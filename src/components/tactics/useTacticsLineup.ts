@@ -12,6 +12,7 @@ import {
   setTeamMatchRoles,
 } from "../../services/squadService";
 import { useFetchedSquad } from "../../hooks/useFetchedSquad";
+import { useFamiliarity } from "../../hooks/useFamiliarity";
 import { usePositionTable } from "../../hooks/usePositionGroups";
 import { useAutoSetPieces } from "../../hooks/useAutoSetPieces";
 import type { TacticsPhaseSettings } from "../../store/types";
@@ -28,6 +29,7 @@ import {
   type DragState,
   type PitchSlotRow,
   type SquadSection,
+  lineupReady,
 } from "../squad/SquadTab.helpers";
 import {
   buildTacticsPitchSlots,
@@ -55,6 +57,7 @@ function isPlayerEligibleForLineup(player: PlayerData | null | undefined): boole
 export function useTacticsLineup({ gameState, onGameUpdate }: UseTacticsLineupArgs) {
   const { sessionState } = useGameStore();
   const positionTable = usePositionTable();
+  const familiarity = useFamiliarity();
   const teamId = sessionState?.manager?.team_id ?? gameState?.manager?.team_id ?? null;
   const clockDate = sessionState?.clock.current_date ?? gameState?.clock.current_date ?? "";
   const [fetchedSquad, , squadAnswered] = useFetchedSquad(
@@ -62,8 +65,9 @@ export function useTacticsLineup({ gameState, onGameUpdate }: UseTacticsLineupAr
     clockDate,
     sessionState ?? gameState,
   );
-  // The position table has loaded and the squad is the backend's answer for this revision.
-  const lineupReady = positionTable.loaded && squadAnswered;
+  // The position table, the familiarity and the squad's answer for this revision: a lineup can be
+  // graded and changed. The writers, the notice and the count all read this one flag.
+  const canGradeLineup = lineupReady(positionTable, familiarity) && squadAnswered;
   const initialTeam = sessionState?.team ?? gameState?.teams?.find((t) => t.id === teamId) ?? null;
   const initialPreset = initialTeam
     ? findTacticsPresetBySetup(
@@ -100,6 +104,7 @@ export function useTacticsLineup({ gameState, onGameUpdate }: UseTacticsLineupAr
         formation,
         pendingStartingXiIds,
         positionTable,
+        familiarity,
         playersById,
         savedStartingXiIds: team?.starting_xi_ids || [],
       }),
@@ -110,6 +115,7 @@ export function useTacticsLineup({ gameState, onGameUpdate }: UseTacticsLineupAr
       (pendingStartingXiIds || []).join(","),
       roster.map((player) => player.id).join(","),
       positionTable,
+      familiarity,
     ],
   );
 
@@ -174,24 +180,31 @@ export function useTacticsLineup({ gameState, onGameUpdate }: UseTacticsLineupAr
     startingXiIds,
   ]);
 
-  const outOfPositionCount = countOutOfPositionPlayers(startingXI, xiActivePosition, positionTable);
+  // No count is claimed before the lineup can be graded: a "0" there would read as "all in place".
+  const outOfPositionCount = canGradeLineup
+    ? countOutOfPositionPlayers(startingXI, xiActivePosition, positionTable, familiarity)
+    : null;
   const autoSetPieces = useAutoSetPieces(startingXiIds, sessionState ?? gameState);
   const effectiveMatchRoles = useMemo(
     () => resolveEffectiveMatchRoles(startingXI, team?.match_roles, autoSetPieces),
     [team?.match_roles, startingXI, autoSetPieces],
   );
 
-  async function persistStartingXI(playerIds: string[]): Promise<void> {
-    // Nothing is saved from a lineup worked out before the position table has loaded, nor from a
-    // squad the backend has not answered for this revision: its eligibility is the last one's.
-    if (!lineupReady) return;
+  /** Whether the lineup was saved: a selection is kept when it was not (nothing changed). */
+  async function persistStartingXI(playerIds: string[]): Promise<boolean> {
+    // Nothing is saved from a lineup worked out before the position table and the familiarity have
+    // loaded, nor from a squad the backend has not answered for this revision: its eligibility is
+    // the last one's.
+    if (!canGradeLineup) return false;
     setPendingStartingXiIds(playerIds);
     try {
       const updated = await setStartingXi(playerIds);
       onGameUpdate(updated);
+      return true;
     } catch (error) {
       setPendingStartingXiIds(null);
       console.error("Failed to set starting XI:", error);
+      return false;
     }
   }
 
@@ -238,14 +251,14 @@ export function useTacticsLineup({ gameState, onGameUpdate }: UseTacticsLineupAr
       formation,
       playerId,
       positionTable,
+      familiarity,
     );
 
     if (!nextXiIds || nextXiIds.join(",") === startingXiIds.join(",")) {
       return;
     }
 
-    await persistStartingXI(nextXiIds);
-    clearLineupSelection();
+    if (await persistStartingXI(nextXiIds)) clearLineupSelection();
   }
 
   async function handlePromoteBenchPlayer(playerId: string): Promise<void> {
@@ -259,14 +272,14 @@ export function useTacticsLineup({ gameState, onGameUpdate }: UseTacticsLineupAr
       formation,
       playerId,
       positionTable,
+      familiarity,
     );
 
     if (!nextXiIds || nextXiIds.join(",") === startingXiIds.join(",")) {
       return;
     }
 
-    await persistStartingXI(nextXiIds);
-    clearLineupSelection();
+    if (await persistStartingXI(nextXiIds)) clearLineupSelection();
   }
 
   async function handleDemoteStarter(playerId: string): Promise<void> {
@@ -276,14 +289,14 @@ export function useTacticsLineup({ gameState, onGameUpdate }: UseTacticsLineupAr
       formation,
       playerId,
       positionTable,
+      familiarity,
     );
 
     if (!nextXiIds || nextXiIds.join(",") === startingXiIds.join(",")) {
       return;
     }
 
-    await persistStartingXI(nextXiIds);
-    clearLineupSelection();
+    if (await persistStartingXI(nextXiIds)) clearLineupSelection();
   }
 
   function clearLineupSelection(): void {
@@ -378,8 +391,7 @@ export function useTacticsLineup({ gameState, onGameUpdate }: UseTacticsLineupAr
       return;
     }
 
-    await persistStartingXI(nextXiIds);
-    clearLineupSelection();
+    if (await persistStartingXI(nextXiIds)) clearLineupSelection();
     resetDragState();
   }
 
@@ -438,8 +450,7 @@ export function useTacticsLineup({ gameState, onGameUpdate }: UseTacticsLineupAr
       return;
     }
 
-    await persistStartingXI(nextXiIds);
-    clearLineupSelection();
+    if (await persistStartingXI(nextXiIds)) clearLineupSelection();
   }
 
   async function persistMatchRoles(nextRoles: TeamMatchRolesData): Promise<void> {
@@ -470,8 +481,10 @@ export function useTacticsLineup({ gameState, onGameUpdate }: UseTacticsLineupAr
   }
 
   return {
-    /** Lineup changes are possible: the writers and the notice both read this one flag. */
-    lineupReady,
+    /** Lineup changes are possible: the writers, the notice and the count read this one flag. */
+    lineupReady: canGradeLineup,
+    /** The one familiarity table the screen grades with (its count, its writers, its pitch). */
+    familiarity,
     team,
     formation,
     activePlayStyle,

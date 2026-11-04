@@ -57,6 +57,9 @@ pub(super) const ERR_LOAN_COUNTER_MUST_IMPROVE_TERMS: &str =
     "be.error.transfers.loanCounterMustImproveTerms";
 pub(super) const ERR_PLAYER_NOT_LOAN_LISTED: &str = "be.error.transfers.playerNotLoanListed";
 pub(super) const ERR_PLAYER_ALREADY_LOANED: &str = "be.error.transfers.playerAlreadyLoaned";
+/// A loan refused because the player's sale is already agreed and waiting for the window: "out on
+/// loan" would tell the user something untrue (#1205).
+pub(super) const ERR_PLAYER_ALREADY_SOLD: &str = "be.error.transfers.playerAlreadySold";
 pub(super) const ERR_INVALID_LOAN_END_DATE: &str = "be.error.transfers.invalidLoanEndDate";
 pub(super) const ERR_INVALID_LOAN_WAGE_CONTRIBUTION: &str =
     "be.error.transfers.invalidLoanWageContribution";
