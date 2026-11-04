@@ -32,26 +32,41 @@ const NEUTRAL_STRENGTH: f64 = 50.0;
 /// built ([`simulate_past_fixtures`]): there is no game yet to pick a side in, so each club is
 /// rated on its best eleven by OVR ([`best_eleven_strength`]).
 pub(crate) fn club_strength(game: &Game, club_id: &str, lookups: Option<&MatchdayLookups>) -> f64 {
-    let club = crate::match_day_eligibility::club_players(&game.players, club_id);
-    let selection = crate::turn::squad::match_day_selection(game, club_id, &club, lookups);
-    eleven_strength(&selection.formation, &selection.eleven)
+    let squad = crate::match_day_eligibility::club_players(&game.players, club_id);
+    squad_strength(game, club_id, &squad, lookups)
 }
 
-/// [`club_strength`] for each of `club_ids`, with the world's matchday lookups found once.
+/// [`club_strength`] for each of `club_ids`, with the world's matchday lookups found once and its
+/// players grouped by club once, not scanned again for every club (the dormant tier asks for every
+/// club playing that day).
 pub(crate) fn club_strengths<'a>(
     game: &Game,
     club_ids: impl IntoIterator<Item = &'a str>,
 ) -> HashMap<String, f64> {
     let lookups = MatchdayLookups::of(game);
+    let squads = crate::match_day_eligibility::players_by_club(&game.players);
     club_ids
         .into_iter()
         .map(|club_id| {
+            let squad = squads.get(club_id).map_or(&[][..], Vec::as_slice);
             (
                 club_id.to_string(),
-                club_strength(game, club_id, Some(&lookups)),
+                squad_strength(game, club_id, squad, Some(&lookups)),
             )
         })
         .collect()
+}
+
+/// [`club_strength`] of club `club_id`, whose players are `squad` (in the order of
+/// `game.players`, as `match_day_eligibility` finds them).
+fn squad_strength(
+    game: &Game,
+    club_id: &str,
+    squad: &[&Player],
+    lookups: Option<&MatchdayLookups>,
+) -> f64 {
+    let selection = crate::turn::squad::match_day_selection(game, club_id, squad, lookups);
+    eleven_strength(&selection.formation, &selection.eleven)
 }
 
 /// `club_id`'s strength in `strengths` (as [`club_strengths`] finds them); neutral for a club
