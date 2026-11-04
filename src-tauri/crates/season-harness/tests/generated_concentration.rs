@@ -136,8 +136,8 @@ fn the_worlds_tiers_and_mean_are_unchanged_at_opening() {
             (69.0..=70.2).contains(&world.mean_senior_ovr),
             "seed {seed}: mean rating; {message}"
         );
-        // Wonderkids are rare and the change must not raise their rate: develop's share on these
-        // seeds was 0.34% and 0.29%.
+        // Wonderkids are rare: the band is 0.15% to 0.35% of everyone (develop's share on these
+        // seeds was 0.34% and 0.29%, this change opens at 0.25% and 0.19%).
         assert!(
             (0.0015..=0.0035).contains(&world.wonderkid_share),
             "seed {seed}: wonderkids; {message}"

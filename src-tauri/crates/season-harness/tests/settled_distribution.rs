@@ -141,14 +141,36 @@ mod gate {
             .collect()
     }
 
-    /// Given two worlds, one 0.4 points under the S floor and one 0.4 over it,
+    /// Given two worlds that are each inside the band,
     /// When the band is checked,
-    /// Then their average is inside it: one world's noise does not flip the gate.
+    /// Then their average is inside it too.
     #[test]
-    fn a_low_world_and_a_high_world_average_inside_the_band() {
+    fn two_worlds_inside_the_band_average_inside_it() {
         let outside = checkpoints_outside_the_band(&[world(0.0116, 0.066), world(0.0156, 0.066)]);
 
         assert!(outside.is_empty(), "{outside:?}");
+    }
+
+    /// Given one world 0.4 points under every S floor (0.6%) and one 0.6 points above S 1.0%
+    ///       (1.6%), whose average S of 1.1% is inside the band,
+    /// When the band is checked,
+    /// Then it passes: judging each world on its own would fail the first, the average does not.
+    #[test]
+    fn a_world_outside_the_band_is_forgiven_by_an_average_inside_it() {
+        let outside = checkpoints_outside_the_band(&[world(0.006, 0.066), world(0.016, 0.066)]);
+
+        assert!(outside.is_empty(), "{outside:?}");
+    }
+
+    /// Given one world inside the band and one far under the A floor, so that the average A of
+    ///       4.9% is under it too,
+    /// When the band is checked,
+    /// Then all three checkpoints fail although the first world is inside on its own.
+    #[test]
+    fn an_average_outside_the_band_fails_although_one_world_is_inside() {
+        let outside = checkpoints_outside_the_band(&[world(0.012, 0.060), world(0.012, 0.038)]);
+
+        assert_eq!(outside.len(), 3, "{outside:?}");
     }
 
     /// Given two worlds that are both under the A floor at every checkpoint,

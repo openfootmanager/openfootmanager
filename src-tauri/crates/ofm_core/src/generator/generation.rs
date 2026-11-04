@@ -650,8 +650,8 @@ impl PlayerRoll {
         }
     }
 
-    /// A national-team top-up: a free agent at the world's centre with a tight spread, at the
-    /// slot's age.
+    /// A national-team top-up: a free agent [`NATIONAL_POOL_SHIFT`] points below the world's
+    /// centre (two points, the maintainer's 2 Nov ruling) with a tight spread, at the slot's age.
     pub(super) fn for_national_pool() -> Self {
         Self {
             age: None,
