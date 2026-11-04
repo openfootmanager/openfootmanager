@@ -31,15 +31,33 @@ pub fn generate_league(
 }
 
 /// The legs a league table is played over: what its definition authored (`legs: 1` is a single
-/// round robin), or two, the double round robin every league was before a save stored the
-/// authored number.
+/// round robin), stored in its calendar.
+///
+/// A save from before the authored legs were stored (13 Jun to 1 Oct 2026) has none, and its
+/// fixtures prove them instead: a table's league fixtures are generated all at once, so one
+/// holding exactly one leg's worth was authored single. Anything else is the double round robin
+/// every league was before legs could be authored (#1177).
 pub fn league_table_legs(league: &League) -> u8 {
-    league
+    if let Some(legs) = league
         .calendar
         .as_ref()
         .and_then(|calendar| calendar.league_legs)
         .filter(|legs| *legs > 0)
-        .unwrap_or(2)
+    {
+        return legs;
+    }
+    let clubs = league.standings.len();
+    let one_leg = clubs * clubs.saturating_sub(1) / 2;
+    let league_fixtures = league
+        .fixtures
+        .iter()
+        .filter(|fixture| fixture.counts_for_league_standings())
+        .count();
+    if one_leg > 0 && league_fixtures == one_leg {
+        1
+    } else {
+        2
+    }
 }
 
 /// Append a full double round-robin (home & away) for `team_ids` to `league`,
@@ -198,6 +216,8 @@ pub fn regenerate_league_for_season(league: &mut League, season: u32, start_date
         league.standings.iter().map(|s| s.team_id.clone()).collect()
     };
 
+    // Read before the fixtures go: a save without stored legs proves them by its fixtures.
+    let legs = league_table_legs(league);
     league.participant_ids = team_ids.clone();
     league.season = season;
     crate::calendar_identity::record_regenerated_calendar(league, start_date);
@@ -209,7 +229,6 @@ pub fn regenerate_league_for_season(league: &mut League, season: u32, start_date
 
     if team_ids.len() >= 2 {
         // The legs it was authored with: a single round robin stays one (#1177).
-        let legs = league_table_legs(league);
         let fixtures = build_round_robin_fixtures_with(
             &league.id,
             &team_ids,

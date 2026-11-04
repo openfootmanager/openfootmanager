@@ -1967,16 +1967,24 @@ fn expected_fixture_count_covers_odd_team_counts() {
     assert_eq!(expected_fixture_count(1, 2), None);
 }
 
-/// The user's league, authored as a single round robin (`legs: 1`) of four clubs: six
-/// fixtures, every one played, each won by the home side. `stored_legs` is what the league's
-/// calendar says it was authored with; `None` is a save from before it was stored.
-fn single_round_robin_season_game(stored_legs: Option<u8>) -> Game {
+/// The user's league of `club_count` clubs, scheduled over `legs` legs, every fixture played and
+/// won by the home side. `stored_legs` is what the league's calendar says it was authored with;
+/// `None` is a save from before it was stored. With `in_competitions`, the league is also the
+/// world's one competition, the path every new career takes; without, it sits only in the legacy
+/// `game.league` slot.
+fn round_robin_season_game(
+    club_count: usize,
+    legs: u8,
+    stored_legs: Option<u8>,
+    in_competitions: bool,
+) -> Game {
     let mut game = make_completed_season_game();
-    game.teams.push(make_team("team3", "Third FC"));
-    game.teams.push(make_team("team4", "Fourth FC"));
-    let clubs: Vec<String> = ["team1", "team2", "team3", "team4"]
-        .iter()
-        .map(|id| id.to_string())
+    for index in 3..=club_count {
+        game.teams
+            .push(make_team(&format!("team{index}"), &format!("Club {index}")));
+    }
+    let clubs: Vec<String> = (1..=club_count)
+        .map(|index| format!("team{index}"))
         .collect();
     let start = Utc.with_ymd_and_hms(2025, 8, 1, 0, 0, 0).unwrap();
     let mut fixtures = ofm_core::schedule::build_round_robin_fixtures_with(
@@ -1984,7 +1992,7 @@ fn single_round_robin_season_game(stored_legs: Option<u8>) -> Game {
         &clubs,
         start,
         FixtureCompetition::League,
-        1,
+        legs,
         7,
     );
     let mut standings: Vec<StandingEntry> = clubs
@@ -2018,7 +2026,14 @@ fn single_round_robin_season_game(stored_legs: Option<u8>) -> Game {
         league_legs: Some(legs),
         ..CalendarMetadata::default()
     });
+    if in_competitions {
+        game.competitions = vec![league.clone()];
+    }
     game
+}
+
+fn single_round_robin_season_game(stored_legs: Option<u8>) -> Game {
+    round_robin_season_game(4, 1, stored_legs, false)
 }
 
 fn league_fixture_count(game: &Game) -> usize {
@@ -2054,14 +2069,53 @@ fn a_single_round_robin_league_is_rescheduled_as_a_single_round_robin() {
     assert_eq!(league_fixture_count(&game), 6);
 }
 
-/// Given a save from before the authored legs were stored (no calendar), holding only a
-/// single round robin's six played fixtures; when the season's end is checked; then it is not
-/// complete: such a league was always a double round robin, and needs all twelve.
+/// Given a save from before the authored legs were stored (no calendar), whose league holds one
+/// leg's fixtures, all played; when the season's end is checked and it rolls over; then it is
+/// complete and comes back as a single round robin: its fixtures prove how it was authored.
 #[test]
-fn a_league_with_no_stored_legs_still_needs_a_double_round_robin() {
-    let game = single_round_robin_season_game(None);
+fn a_league_with_no_stored_legs_and_one_legs_fixtures_is_a_single_round_robin() {
+    let mut game = single_round_robin_season_game(None);
 
+    assert!(is_season_complete(&game));
+    advance_to_next_season(&mut game).expect("the season should roll over");
+    assert_eq!(league_fixture_count(&game), 6);
+}
+
+/// Given a save from before the authored legs were stored, whose league holds a double round
+/// robin's twelve fixtures with one still to play; when the season's end is checked; then it is
+/// not complete; and once all twelve are played, it rolls over into twelve again.
+#[test]
+fn a_league_with_no_stored_legs_and_a_double_round_robin_needs_all_of_it() {
+    let mut game = round_robin_season_game(4, 2, None, false);
+    let last = game.league.as_ref().unwrap().fixtures.len() - 1;
+    game.league.as_mut().unwrap().fixtures[last].status = FixtureStatus::Scheduled;
     assert!(!is_season_complete(&game));
+
+    game.league.as_mut().unwrap().fixtures[last].status = FixtureStatus::Completed;
+    assert!(is_season_complete(&game));
+    advance_to_next_season(&mut game).expect("the season should roll over");
+    assert_eq!(league_fixture_count(&game), 12);
+}
+
+/// Given a five-club single round robin (each club has a bye) stored as `legs: 1`, held in the
+/// world's competitions as every new career's league is; when the season's end is checked and it
+/// rolls over; then it is complete and its ten fixtures come back as ten.
+#[test]
+fn a_single_round_robin_in_the_worlds_competitions_completes_with_an_odd_field() {
+    let mut game = round_robin_season_game(5, 1, Some(1), true);
+    assert_eq!(league_fixture_count(&game), 10);
+
+    assert!(is_season_complete(&game));
+    advance_to_next_season(&mut game).expect("the season should roll over");
+    let league = &game.competitions[0];
+    assert_eq!(
+        league
+            .fixtures
+            .iter()
+            .filter(|fixture| fixture.counts_for_league_standings())
+            .count(),
+        10
+    );
 }
 
 #[test]
