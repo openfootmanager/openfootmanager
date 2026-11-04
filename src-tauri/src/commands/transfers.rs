@@ -65,6 +65,32 @@ pub fn toggle_transfer_list(
     toggle_transfer_list_internal(&state, Career::Token(career_token), &player_id)
 }
 
+/// The user's own player, to put on or take off the transfer or loan list: one at his club, and
+/// not out on (or due to go on) a loan. A listing moves a player's price, so neither list may name
+/// anyone else's: an agent once listed a rival club's star, then bought him a third cheaper (#1206).
+fn listable_player<'a>(
+    game: &'a mut Game,
+    player_id: &str,
+) -> Result<&'a mut domain::player::Player, String> {
+    let user_team_id = game
+        .manager
+        .team_id
+        .clone()
+        .ok_or_else(|| "be.error.noTeamAssigned".to_string())?;
+    let player = game
+        .players
+        .iter_mut()
+        .find(|player| player.id == player_id)
+        .ok_or_else(|| "be.error.playerNotFound".to_string())?;
+    if player.team_id.as_deref() != Some(user_team_id.as_str()) {
+        return Err(ERR_PLAYER_NOT_OWNED_BY_USER.to_string());
+    }
+    if player_has_active_or_pending_loan(player) {
+        return Err(ERR_PLAYER_ALREADY_LOANED.to_string());
+    }
+    Ok(player)
+}
+
 pub fn toggle_transfer_list_internal(
     state: &StateManager,
     career: Career,
@@ -72,12 +98,9 @@ pub fn toggle_transfer_list_internal(
 ) -> Result<Game, String> {
     info!("[cmd] toggle_transfer_list: player_id={}", player_id);
     mutate_active_game_for(state, career, |game| {
-        if let Some(p) = game.players.iter_mut().find(|p| p.id == player_id) {
-            p.transfer_listed = !p.transfer_listed;
-            Ok(())
-        } else {
-            Err("be.error.playerNotFound".into())
-        }
+        let player = listable_player(game, player_id)?;
+        player.transfer_listed = !player.transfer_listed;
+        Ok(())
     })
 }
 
@@ -97,25 +120,7 @@ pub fn toggle_loan_list_internal(
 ) -> Result<Game, String> {
     info!("[cmd] toggle_loan_list: player_id={}", player_id);
     mutate_active_game_for(state, career, |game| {
-        let user_team_id = game
-            .manager
-            .team_id
-            .clone()
-            .ok_or_else(|| "be.error.noTeamAssigned".to_string())?;
-        let player = game
-            .players
-            .iter_mut()
-            .find(|player| player.id == player_id)
-            .ok_or_else(|| "be.error.playerNotFound".to_string())?;
-
-        if player.team_id.as_deref() != Some(user_team_id.as_str()) {
-            return Err(ERR_PLAYER_NOT_OWNED_BY_USER.to_string());
-        }
-
-        if player_has_active_or_pending_loan(player) {
-            return Err(ERR_PLAYER_ALREADY_LOANED.to_string());
-        }
-
+        let player = listable_player(game, player_id)?;
         player.loan_listed = !player.loan_listed;
         Ok(())
     })
@@ -1186,6 +1191,59 @@ mod tests {
             .find(|player| player.id == "player-1")
             .expect("stored player should exist");
         assert!(stored_player.loan_listed);
+    }
+
+    /// Given a player at another club
+    /// When the user (or an agent) tries to put him on the transfer list
+    /// Then it is refused as not his player, and the player stays off the list: listing lowers
+    ///      the fee his club accepts (#1206)
+    #[test]
+    fn toggle_transfer_list_internal_rejects_other_club_player() {
+        let state = StateManager::new();
+        state.set_game(make_bid_game());
+
+        let error = toggle_transfer_list_internal(&state, Career::Active, "player-2")
+            .expect_err("transfer listing another club's player should fail");
+
+        assert_eq!(error, "be.error.transfers.playerNotOwnedByUser");
+        let stored_game = state.get_game(|game| game.clone()).expect("stored game");
+        let stored_player = stored_game
+            .players
+            .iter()
+            .find(|player| player.id == "player-2")
+            .expect("stored player should exist");
+        assert!(!stored_player.transfer_listed);
+    }
+
+    /// Given one of the user's players out on loan
+    /// When the user tries to put him on the transfer list
+    /// Then it is refused, as listing him for a loan already is
+    #[test]
+    fn toggle_transfer_list_internal_rejects_active_loan_player() {
+        let state = StateManager::new();
+        let mut game = make_game();
+        game.players[0].active_loan = Some(ActiveLoan {
+            parent_team_id: "team-1".to_string(),
+            loan_team_id: "team-2".to_string(),
+            start_date: "2026-08-01".to_string(),
+            end_date: "2027-01-01".to_string(),
+            wage_contribution_pct: 75,
+            buy_option_fee: None,
+            loan_start_minutes: 0,
+            loan_start_appearances: 0,
+            development_reported_minutes: 0,
+            development_reported_appearances: 0,
+        });
+        state.set_game(game);
+
+        let error = toggle_transfer_list_internal(&state, Career::Active, "player-1")
+            .expect_err("a player out on loan should not be transfer-listed");
+
+        assert_eq!(error, "be.error.transfers.playerAlreadyLoaned");
+        let stored = state
+            .get_game(|game| game.players[0].transfer_listed)
+            .expect("stored game");
+        assert!(!stored);
     }
 
     #[test]
