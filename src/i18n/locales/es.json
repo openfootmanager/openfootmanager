@@ -3823,7 +3823,8 @@
       "package": {
         "countryWithoutRegion": "Este paquete define el país «{{name}}» ({{code}}) fuera de la lista de países del juego y no lo sitúa en ninguna confederación, así que sus clubes se archivan en Europa. Asígnale una confederación.",
         "freeAgentFieldIgnored": "El jugador «{{id}}» no tiene club, así que es agente libre y no tiene contrato: «{{field}}» se ignora. Asígnale un club para usarlo, o quita el campo.",
-        "repeatedNamePool": "El grupo de nombres de {{country}} ya se dio en {{first}}; el de este archivo lo sustituye. Deja solo uno, o asígnalos a países distintos."
+        "repeatedNamePool": "El grupo de nombres de {{country}} ya se dio en {{first}}; el de este archivo lo sustituye. Deja solo uno, o asígnalos a países distintos.",
+        "namePoolIncomplete": "El grupo de nombres de {{country}} tiene nombres pero no apellidos, o apellidos pero no nombres, así que no se usa: los jugadores de {{country}} reciben los nombres del juego. Dale ambos."
       }
     }
   },

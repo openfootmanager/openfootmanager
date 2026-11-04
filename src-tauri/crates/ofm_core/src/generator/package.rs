@@ -402,6 +402,12 @@ impl WorldPackage {
             .unwrap_or_default()
     }
 
+    /// The file the name pool for `country` was read from (the last, when two files gave one), or
+    /// `""` when it is not known.
+    pub(super) fn name_pool_file(&self, country: &str) -> &str {
+        self.name_pool_files.get(country).map_or("", String::as_str)
+    }
+
     /// How many declarations have been recorded for `schema`; equal to that
     /// schema's entity count whenever the package was loaded from disk.
     ///
