@@ -1065,6 +1065,7 @@
     "youthSearches": "поисков талантов",
     "hireStaff": "Нанять сотрудника",
     "best": "Лучшее",
+    "staffActions": "Действия сотрудника {{name}}",
     "roles": {
       "AssistantManager": "Ассистент тренера",
       "Coach": "Тренер",

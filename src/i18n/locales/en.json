@@ -1065,6 +1065,7 @@
     "youthSearches": "youth searches",
     "hireStaff": "Hire staff member",
     "best": "Best",
+    "staffActions": "Staff actions for {{name}}",
     "roles": {
       "AssistantManager": "Assistant Manager",
       "Coach": "Coach",

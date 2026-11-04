@@ -2,6 +2,7 @@ import { act, fireEvent, render, screen, waitFor, within } from "@testing-librar
 import { describe, expect, it, vi, beforeEach } from "vitest";
 
 import type { GameStateData, StaffData, TeamData } from "../../store/gameStore";
+import { useSettingsStore } from "../../store/settingsStore";
 import StaffTab from "./StaffTab";
 import { createSeasonContext } from "../../test-utils/factories";
 
@@ -29,6 +30,10 @@ vi.mock("react-i18next", () => ({
       if (key === "staff.youthSearch") return "youth search";
       if (key === "staff.youthSearches") return "youth searches";
       if (key === "common.age") return "Age";
+      if (key === "common.ovr") return "OVR";
+      if (key === "common.listViewTable") return "Table";
+      if (key === "common.listViewCards") return "Cards";
+      if (key === "staff.staffActions") return `Staff actions for ${params?.name}`;
       if (key === "staff.best") return "Best";
       if (key.startsWith("staff.roles.")) return key.replace("staff.roles.", "");
       if (key.startsWith("staff.attrs.")) return key.replace("staff.attrs.", "");
@@ -156,8 +161,15 @@ function makeStaffSlice(
   };
 }
 
+function setListView(view: "table" | "cards") {
+  useSettingsStore.setState({
+    settings: { ...useSettingsStore.getState().settings, list_view: view },
+  });
+}
+
 describe("StaffTab", () => {
   beforeEach(() => {
+    setListView("cards");
     invokeMock.mockReset();
     const defaultStaff = [createStaff()];
     invokeMock.mockImplementation(async (command: string) => {
@@ -391,6 +403,20 @@ describe("StaffTab", () => {
     });
 
     expect(screen.getByRole("button", { name: /My Staff 2/i })).toBeInTheDocument();
+  });
+
+  /**
+   * Given the Staff page
+   * When a screen reader reaches its search box
+   * Then the box is named "Search staff", not left to a placeholder that disappears once typed in
+   *      and that not every screen reader reads.
+   */
+  it("names its search box for a screen reader", async () => {
+    render(<StaffTab gameState={createGameState([createStaff()])} />);
+
+    const searchBox = await screen.findByRole("textbox", { name: "Search staff" });
+    // A placeholder alone can stand in for a name in some readers; the label is what holds.
+    expect(searchBox).toHaveAttribute("aria-label", "Search staff");
   });
 
   it("switches to available staff and filters by role and search", async () => {
@@ -646,5 +672,155 @@ describe("StaffTab", () => {
       fireEvent.change(screen.getByPlaceholderText("Search staff"), { target: { value: query } });
       expect(screen.getByText("Cafu")).toBeInTheDocument();
     }
+  });
+});
+
+/**
+ * The club's three staff: a physio rated 90, a coach 70 and a scout 40, coaching 80, 85 and 20, and
+ * paid 3000, 1000 and 2000, so each column gives its own order.
+ */
+function clubOfThree(): StaffData[] {
+  return [
+    createStaff({
+      id: "coach",
+      wage: 1000,
+      display_name: "Cara Coach",
+      role: "Coach",
+      attributes: { coaching: 85, judgingAbility: 40, judgingPotential: 40, physiotherapy: 30 },
+    }),
+    createStaff({
+      id: "physio",
+      wage: 3000,
+      display_name: "Pat Physio",
+      role: "Physio",
+      attributes: { coaching: 80, judgingAbility: 30, judgingPotential: 30, physiotherapy: 88 },
+    }),
+    createStaff({
+      id: "scout",
+      wage: 2000,
+      display_name: "Sam Scout",
+      role: "Scout",
+      attributes: { coaching: 20, judgingAbility: 40, judgingPotential: 40, physiotherapy: 10 },
+    }),
+  ];
+}
+
+const CLUB_RATINGS = { coach: 70, physio: 90, scout: 40 };
+
+/** The staff table's rows, top down, by the member each names. */
+function staffOrder(): string[] {
+  const names = ["Cara Coach", "Pat Physio", "Sam Scout", "Fred Free"];
+  return within(screen.getByRole("table"))
+    .getAllByRole("row")
+    .slice(1)
+    .map((row) => names.find((name) => row.textContent?.includes(name)) ?? "?");
+}
+
+function renderClub(staff: StaffData[] = clubOfThree()) {
+  invokeMock.mockImplementation(async (command: string) => {
+    if (command === "get_staff") return makeStaffSlice(staff, { ratings: CLUB_RATINGS });
+    return createGameState(staff);
+  });
+  render(
+    <StaffTab gameState={createGameState(staff)} onGameUpdate={() => {}} onNavigate={() => {}} />,
+  );
+}
+
+describe("StaffTab as a table", () => {
+  beforeEach(() => {
+    setListView("table");
+    invokeMock.mockReset();
+  });
+
+  /**
+   * Given the club's physio, coach and scout, rated 90, 70 and 40 by the backend
+   * When the Staff page opens in the table view (the default)
+   * Then they are one table, highest rating first, each row showing the backend's rating.
+   */
+  it("lists the club's staff as a table, highest rating first", async () => {
+    renderClub();
+
+    await waitFor(() => expect(staffOrder()).toEqual(["Pat Physio", "Cara Coach", "Sam Scout"]));
+    const physioRow = within(screen.getByRole("table"))
+      .getAllByRole("row")
+      .find((row) => row.textContent?.includes("Pat Physio"));
+    expect(physioRow?.textContent).toContain("90");
+  });
+
+  /**
+   * Given the table in rating order
+   * When the coaching header is pressed
+   * Then the staff run from the best coach (the coach 85, the physio 80, the scout 20): an
+   *      attribute starts from the best.
+   */
+  it("sorts by an attribute, best first", async () => {
+    renderClub();
+    await waitFor(() => expect(staffOrder()).toHaveLength(3));
+
+    fireEvent.click(screen.getByRole("button", { name: "coaching" }));
+
+    expect(staffOrder()).toEqual(["Cara Coach", "Pat Physio", "Sam Scout"]);
+  });
+
+  /**
+   * Given a member of the club's staff in the table
+   * When his row's actions button is pressed and Release is chosen
+   * Then the menu is the card's, and the release goes to the backend for him.
+   */
+  it("releases a member from his row's actions menu", async () => {
+    renderClub();
+    await waitFor(() => expect(staffOrder()).toHaveLength(3));
+
+    fireEvent.click(screen.getByRole("button", { name: "Staff actions for Cara Coach" }));
+    fireEvent.click(
+      within(screen.getByRole("menu")).getByRole("menuitem", { name: "Release staff" }),
+    );
+
+    await waitFor(() =>
+      expect(invokeMock).toHaveBeenCalledWith("release_staff", {
+        careerToken: 0,
+        staffId: "coach",
+      }),
+    );
+  });
+
+  /**
+   * Given a free agent on the hiring market
+   * When the Available list's row actions button is pressed and Hire is chosen
+   * Then the hire goes to the backend for him.
+   */
+  it("hires a free agent from his row's actions menu", async () => {
+    const free = createStaff({ id: "free", display_name: "Fred Free", team_id: null });
+    renderClub([...clubOfThree(), free]);
+
+    fireEvent.click(await screen.findByRole("button", { name: /Available 1/i }));
+    fireEvent.click(screen.getByRole("button", { name: "Staff actions for Fred Free" }));
+    fireEvent.click(within(screen.getByRole("menu")).getByRole("menuitem", { name: "Hire staff" }));
+
+    await waitFor(() =>
+      expect(invokeMock).toHaveBeenCalledWith("hire_staff", { careerToken: 0, staffId: "free" }),
+    );
+  });
+
+  /**
+   * Given the Staff page as a table
+   * When Cards is picked on the view switch
+   * Then the staff are drawn as cards, and the choice is saved as the one list view every list
+   *      opens with.
+   */
+  it("switches to cards from the view switch and saves the choice", async () => {
+    renderClub();
+    await waitFor(() => expect(staffOrder()).toHaveLength(3));
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("radio", { name: "Cards" }));
+    });
+
+    expect(useSettingsStore.getState().settings.list_view).toBe("cards");
+    expect(invokeMock).toHaveBeenCalledWith("save_settings", {
+      settings: expect.objectContaining({ list_view: "cards" }),
+    });
+    expect(screen.queryByRole("table")).toBeNull();
+    expect(screen.getByTestId("staff-card-coach")).toBeInTheDocument();
   });
 });

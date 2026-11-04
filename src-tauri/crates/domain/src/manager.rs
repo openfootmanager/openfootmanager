@@ -1,6 +1,15 @@
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
+/// The scale every manager's reputation is created on: the generator's opening draw (uniform over
+/// it), a stand-in's coaching-based standing and a retired player's.
+///
+/// `Manager::rating` still reads reputation over the 300–900 club scale. Moving it onto this one
+/// lifts every AI club's management quality and changes the match side (measured on #1167:
+/// substitutions down about 4.5% a season on three seeds), so it waits for the PR that gives
+/// reputation its season-to-season movement and its 100..=900 bounds.
+pub const CREATED_REPUTATION: std::ops::RangeInclusive<u32> = 200..=700;
+
 fn default_fan_approval() -> u8 {
     50
 }

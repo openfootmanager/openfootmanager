@@ -80,7 +80,13 @@ pub(super) fn maybe_card<R: Rng>(
         .find(|p| p.id == fouler_id)
         .map(|p| p.aggression as f64 / 100.0)
         .unwrap_or(0.5);
-    let card_chance = ctx.config.yellow_card_probability * (0.5 + aggression_factor);
+    let booked = ctx.yellows.contains_key(fouler_id);
+    let caution = if booked {
+        crate::shared::BOOKED_CARD_FACTOR
+    } else {
+        1.0
+    };
+    let card_chance = ctx.config.yellow_card_probability * (0.5 + aggression_factor) * caution;
     if rng.random_range(0.0..1.0f64) >= card_chance {
         return;
     }

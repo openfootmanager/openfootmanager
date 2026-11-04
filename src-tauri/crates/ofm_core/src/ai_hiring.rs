@@ -55,13 +55,13 @@ fn next_seeded_manager_id(game: &Game, team_id: &str, source_staff: &Staff) -> S
 /// Deliberately not the club's reputation, which is what this used to take: a
 /// manager carried a standing they had not earned, and being at a big club was
 /// itself what made them well regarded. `coaching` is the attribute that most
-/// directly says "can run a football team", mapped onto the same `200..=700`
-/// band `generate_random_unemployed_manager` draws from so that a stand-in and
+/// directly says "can run a football team", mapped onto `CREATED_REPUTATION`, the
+/// band `generate_random_unemployed_manager` draws from, so that a stand-in and
 /// a manager off the market are comparable.
 fn stand_in_manager_reputation(source_staff: &Staff) -> u32 {
-    const FLOOR: u32 = 200;
     const PER_POINT: u32 = 5;
-    FLOOR + u32::from(source_staff.attributes.coaching.min(100)) * PER_POINT
+    domain::manager::CREATED_REPUTATION.start()
+        + u32::from(source_staff.attributes.coaching.min(100)) * PER_POINT
 }
 
 /// A stable id for a club's invented manager, in the shape of the stand-in ids.

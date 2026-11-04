@@ -29,12 +29,15 @@ struct Totals {
     open_and_set_piece_goals: u64,
     penalty_goals: u64,
     penalty_misses: u64,
+    straight_reds: u64,
+    second_yellows: u64,
     /// How often each event type appears in the kept reports, to show what they record.
     event_types: std::collections::BTreeMap<String, u64>,
     fouls: u64,
     corners: u64,
     yellows: u64,
     reds: u64,
+    matches_with_a_red: u64,
 }
 
 impl SeasonObserver for Totals {
@@ -60,6 +63,8 @@ impl SeasonObserver for Totals {
                 continue;
             };
             self.with_report += 1;
+            self.matches_with_a_red +=
+                u64::from(report.home_stats.red_cards + report.away_stats.red_cards > 0);
             for side in [&report.home_stats, &report.away_stats] {
                 self.shots += u64::from(side.shots);
                 self.on_target += u64::from(side.shots_on_target);
@@ -77,6 +82,8 @@ impl SeasonObserver for Totals {
                     "Goal" => self.open_and_set_piece_goals += 1,
                     "PenaltyGoal" => self.penalty_goals += 1,
                     "PenaltyMiss" => self.penalty_misses += 1,
+                    "RedCard" => self.straight_reds += 1,
+                    "SecondYellow" => self.second_yellows += 1,
                     _ => {}
                 }
             }
@@ -116,7 +123,7 @@ fn match_statistics_of_the_shipped_world() {
             pct(t.home_wins, n),
         );
         println!(
-            "MATCH_STATS shipped seed {seed}: reports {} | shots/game {:.2} | on target {:.2} ({:.1}% of shots) | open-play and set-piece goals {:.3}/game, {:.1}% of those shots and {:.1}% of those on target | penalties taken {:.3}/game, scored {:.1}%, {:.1}% of goals | fouls {:.2} | corners {:.2} | yellows {:.2} | reds {:.3}",
+            "MATCH_STATS shipped seed {seed}: reports {} | shots/game {:.2} | on target {:.2} ({:.1}% of shots) | open-play and set-piece goals {:.3}/game, {:.1}% of those shots and {:.1}% of those on target | penalties taken {:.3}/game, scored {:.1}%, {:.1}% of goals | fouls {:.2} | corners {:.2} | yellows {:.2} | reds {:.3} (straight {:.3}, second yellows {:.3}) | matches with a red {:.1}%",
             t.with_report,
             t.shots as f64 / r,
             t.on_target as f64 / r,
@@ -140,6 +147,9 @@ fn match_statistics_of_the_shipped_world() {
             t.corners as f64 / r,
             t.yellows as f64 / r,
             t.reds as f64 / r,
+            t.straight_reds as f64 / r,
+            t.second_yellows as f64 / r,
+            pct(t.matches_with_a_red, r),
         );
         let kinds: Vec<String> = t
             .event_types
