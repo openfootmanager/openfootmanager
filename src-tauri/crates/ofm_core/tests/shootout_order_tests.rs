@@ -6,7 +6,10 @@ use domain::league::{Fixture, FixtureCompetition, FixtureStatus, League, Standin
 use domain::manager::Manager;
 use domain::player::{Player, PlayerAttributes, Position};
 use domain::team::Team;
-use engine::{MatchCommand, MatchPhase, ShootoutOrderSnapshot, Side};
+use engine::{
+    MatchCommand, MatchPhase, PlayStyle, PlayerRole, PressingIntensity, ShootoutOrderSnapshot,
+    Side, TacticalDial,
+};
 use ofm_core::clock::GameClock;
 use ofm_core::game::Game;
 use ofm_core::live_match_manager::{self, LiveMatchSession, MatchMode};
@@ -224,8 +227,9 @@ fn a_manager_cannot_set_the_opponents_shootout_order() {
 const NOT_YOUR_TEAM: &str = "be.error.liveMatch.notYourSide";
 
 /// Given the home manager at kick-off, the away side with its eleven, bench and set-piece takers
-/// When an order for the away side comes in, of each kind: a substitution, a formation, a play
-///      style, a dial, a role and each set-piece taker
+/// When an order for the away side comes in, of each of the ten kinds a manager gives in a match:
+///      a substitution, a swap before kick-off, a formation, a play style, a player's role, a
+///      tactical dial, and each set-piece taker and the captain
 /// Then each is refused as not his team, and the match is exactly as it was: the opponent's eleven,
 ///      substitutions, tactics and takers are untouched (#1192: an agent's command named the other
 ///      side, and it was applied)
@@ -247,7 +251,25 @@ fn a_manager_cannot_give_the_opponent_orders() {
         MatchCommand::Substitute {
             side: Side::Away,
             player_off_id: away_starter.clone(),
+            player_on_id: away_bench.clone(),
+        },
+        MatchCommand::PreMatchSwap {
+            side: Side::Away,
+            player_off_id: away_starter.clone(),
             player_on_id: away_bench,
+        },
+        MatchCommand::ChangePlayStyle {
+            side: Side::Away,
+            play_style: PlayStyle::Attacking,
+        },
+        MatchCommand::ChangePlayerRole {
+            side: Side::Away,
+            player_id: away_starter.clone(),
+            role: PlayerRole::default(),
+        },
+        MatchCommand::ChangeTacticalDial {
+            side: Side::Away,
+            dial: TacticalDial::PressingIntensity(PressingIntensity::Aggressive),
         },
         MatchCommand::ChangeFormation {
             side: Side::Away,

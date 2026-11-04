@@ -260,7 +260,7 @@ These tools allow agents to play matches interactively instead of delegating the
 |------|-------------|
 | `match_start` | Start a live match (live, spectator, instant). Paired `competition_id` + `fixture_id` select an exact fixture, including a cup, without requiring an index; otherwise `fixture_index` is required and selects the current league mirror. Extra time follows fixture rules; `allows_extra_time` is ignored. |
 | `match_step` | Advance the live match by N minutes |
-| `match_command` | Apply a tactical command (substitution, formation change, etc.) |
+| `match_command` | Apply a tactical command (substitution, formation change, etc.) for your own side only: a command naming the other side, or given in a match you are not playing in, is refused with `be.error.liveMatch.notYourSide` |
 | `match_snapshot` | Get current match state without advancing time; during a shootout, your own side's kicking order (never the opponent's) |
 | `match_set_shootout_order` | Set your side's penalty shootout order: all your eligible players, reordered, once the shootout has started and before its first kick. A multi-minute `match_step` stops when the shootout starts, so there is always a chance to set it |
 | `match_finish` | Finish the match, apply results, and clean up |
