@@ -309,3 +309,101 @@ fn strikers_brought_on_in_defence_play_at_the_defences_cost() {
         "the opponent's duel rate moved {delta:+.4}"
     );
 }
+
+// ---------------------------------------------------------------------------
+// A swap before kick-off: the familiarity of the slot a player is swapped into
+// ---------------------------------------------------------------------------
+
+/// `line_familiarity`'s defence entry.
+const DEF: usize = 1;
+/// The factor at a position a player can play: another position in his own line.
+const CAN_PLAY: f64 = 1.0 - 0.10 / 3.0;
+
+/// The user's match at kick-off, with alpha built from `alpha`.
+fn at_kick_off(alpha: Vec<Player>) -> LiveMatchSession {
+    live_match_manager::create_live_match(&game(1, alpha), 0, MatchMode::Live, false)
+        .expect("the fixture starts")
+}
+
+/// The familiarity the engine carries for alpha's `id`, in the eleven or on the bench.
+fn familiarity_of(session: &LiveMatchSession, id: &str) -> [f64; 4] {
+    let snapshot = session.snapshot();
+    snapshot
+        .home_team
+        .players
+        .iter()
+        .chain(&snapshot.home_bench)
+        .find(|player| player.id == id)
+        .map(|player| player.line_familiarity)
+        .expect("the player is in the match")
+}
+
+fn swap(session: &mut LiveMatchSession, off: &str, on: &str) -> Result<(), String> {
+    session.apply_command(MatchCommand::PreMatchSwap {
+        side: Side::Home,
+        player_off_id: off.to_string(),
+        player_on_id: on.to_string(),
+    })
+}
+
+/// Given alpha's natural side and a natural right-back on the bench, who carries his best in
+/// defence there (1.0, he has no slot yet),
+/// When the manager swaps him in for the left-back before kick-off,
+/// Then he plays defence at a right-back's factor at left-back, a position he can play
+/// (1 - 0.10 / 3), and takes the left-back's slot.
+#[test]
+fn a_bench_player_swapped_in_before_kick_off_plays_at_his_new_slots_factor() {
+    let mut alpha = natural_side("alpha");
+    alpha.push(player("alpha", "rb2", Position::RightBack));
+    let mut session = at_kick_off(alpha);
+    assert_eq!(familiarity_of(&session, "alpha_rb2")[DEF], 1.0);
+
+    swap(&mut session, "alpha_lb", "alpha_rb2").expect("the swap is valid");
+
+    assert_eq!(session.snapshot().home_team.players[1].id, "alpha_rb2");
+    let defence = familiarity_of(&session, "alpha_rb2")[DEF];
+    assert!(
+        (defence - CAN_PLAY).abs() < 1e-12,
+        "a right-back at left-back plays defence at {defence}"
+    );
+}
+
+/// Given alpha's side with a natural right-back starting at left-back, who plays defence at that
+/// slot's factor (1 - 0.10 / 3), and a natural left-back on the bench,
+/// When the manager swaps the left-back in for him before kick-off,
+/// Then on the bench the right-back carries his best in defence again, 1.0: a bench player has
+/// no slot.
+#[test]
+fn a_starter_swapped_out_before_kick_off_goes_back_to_his_bench_familiarity() {
+    let mut alpha = natural_side("alpha");
+    alpha[1] = player("alpha", "rb_at_lb", Position::RightBack);
+    alpha.push(player("alpha", "lb", Position::LeftBack));
+    let mut session = at_kick_off(alpha);
+    let at_left_back = familiarity_of(&session, "alpha_rb_at_lb")[DEF];
+    assert!((at_left_back - CAN_PLAY).abs() < 1e-12);
+
+    swap(&mut session, "alpha_rb_at_lb", "alpha_lb").expect("the swap is valid");
+
+    assert_eq!(familiarity_of(&session, "alpha_rb_at_lb")[DEF], 1.0);
+}
+
+/// Given alpha's side with a natural right-back starting at left-back, at that slot's factor in
+/// defence (1 - 0.10 / 3),
+/// When the manager asks to swap him off for a player who is not on the bench,
+/// Then the swap is refused with the engine's own error, and he keeps his slot's familiarity:
+/// nothing is refitted for a swap that did not happen.
+#[test]
+fn a_refused_swap_before_kick_off_changes_no_familiarity() {
+    let mut alpha = natural_side("alpha");
+    alpha[1] = player("alpha", "rb_at_lb", Position::RightBack);
+    let mut session = at_kick_off(alpha);
+    let before = familiarity_of(&session, "alpha_rb_at_lb");
+
+    let refused = swap(&mut session, "alpha_rb_at_lb", "alpha_nobody");
+
+    assert_eq!(
+        refused.err().as_deref(),
+        Some("be.error.liveMatch.playerNotOnBench")
+    );
+    assert_eq!(familiarity_of(&session, "alpha_rb_at_lb"), before);
+}
