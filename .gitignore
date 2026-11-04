@@ -60,3 +60,4 @@ test-world.json
 # The page harness's career, written by `npm run fixture:pages` (CI and the pretest/prebuild
 # guard generate it). Never committed: scripts/check-untracked-generated.sh fails if it is.
 src/dev/pageHarness/fixture.generated.ts
+src/dev/pageHarness/fixture.generated.ts.partial

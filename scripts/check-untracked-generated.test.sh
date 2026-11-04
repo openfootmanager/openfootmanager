@@ -66,5 +66,9 @@ git -C "$repo" add -f "$generated"
 git -C "$repo" commit -q -m "commit the generated file"
 expect 1 "$repo" "fails when the generated file is committed"
 
+not_a_repo="$scratch/not-a-repo"
+mkdir -p "$not_a_repo"
+expect 1 "$not_a_repo" "fails when git cannot inspect the directory (not a repository)"
+
 echo "check-untracked-generated.test: $passed passed, $failed failed"
 [ "$failed" -eq 0 ]
