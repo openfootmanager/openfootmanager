@@ -1226,6 +1226,16 @@ pub fn validate_references(package: &WorldPackage) -> Vec<PackageError> {
         |id: &str| confederation_ids.contains(id) || crate::nations::is_builtin_region(id);
     let known_country =
         |code: &str| country_ids.contains(code) || crate::nations::nation_by_code(code).is_some();
+    // A `patch` adds to the database it is stacked on: it signs players and staff for that
+    // database's clubs, and names them in career histories, without defining them. Alone it cannot
+    // know them, so its club references are left to the merged stack, which is validated as a
+    // whole (`merge_world_packages`), as its competition and region defaults are below (#1198).
+    let is_patch = package
+        .meta
+        .as_ref()
+        .map(|m| m.package_type == "patch")
+        .unwrap_or(false);
+    let known_team = |id: &str| is_patch || team_ids.contains(id);
 
     for (index, country) in package.countries.iter().enumerate() {
         if !country.confederation.is_empty() && !known_confederation(&country.confederation) {
@@ -1248,7 +1258,7 @@ pub fn validate_references(package: &WorldPackage) -> Vec<PackageError> {
     }
 
     for (index, player) in package.players.iter().enumerate() {
-        if !player.club.is_empty() && !team_ids.contains(player.club.as_str()) {
+        if !player.club.is_empty() && !known_team(player.club.as_str()) {
             errors.push(
                 PackageError::new(UNKNOWN_TEAM, &package.source_at("player", index))
                     .with("entity", &player.id)
@@ -1269,12 +1279,12 @@ pub fn validate_references(package: &WorldPackage) -> Vec<PackageError> {
         errors.extend(authored_player_errors(
             player,
             &package.source_at("player", index),
-            &team_ids,
+            &known_team,
         ));
     }
 
     for (index, staff) in package.staff.iter().enumerate() {
-        if !staff.club.is_empty() && !team_ids.contains(staff.club.as_str()) {
+        if !staff.club.is_empty() && !known_team(staff.club.as_str()) {
             errors.push(
                 PackageError::new(UNKNOWN_TEAM, &package.source_at("staff", index))
                     .with("entity", &staff.id)
@@ -1304,11 +1314,6 @@ pub fn validate_references(package: &WorldPackage) -> Vec<PackageError> {
     // reference competitions defined in the base database they supplement; those
     // cross-package references are validated after merge_world_packages combines
     // the full stack.
-    let is_patch = package
-        .meta
-        .as_ref()
-        .map(|m| m.package_type == "patch")
-        .unwrap_or(false);
     if !is_patch && let Some(meta) = &package.meta {
         let comp_ids: HashSet<&str> = package.competitions.iter().map(|c| c.id.as_str()).collect();
         for id in &meta.default_active_competitions {
@@ -3914,6 +3919,124 @@ colors:
 
         std::fs::remove_dir_all(&base).ok();
         std::fs::remove_dir_all(&overlay).ok();
+    }
+
+    /// A patch that signs a player and a coach for `club`, with a career entry at it too.
+    fn roster_patch(club: &str) -> std::path::PathBuf {
+        let patch = temp_package();
+        write(
+            &patch,
+            "world.json",
+            r#"{ "schema": "world", "id": "roster", "name": "Roster", "packageType": "patch" }"#,
+        );
+        write(
+            &patch,
+            "players/signing.json",
+            &format!(
+                r#"{{ "schema": "player", "id": "new-signing", "club": "{club}",
+                    "careerHistory": [{{ "season": 2025, "teamName": "Old Club", "teamId": "{club}" }}] }}"#
+            ),
+        );
+        write(
+            &patch,
+            "staff/coach.json",
+            &format!(r#"{{ "schema": "staff", "id": "new-coach", "club": "{club}" }}"#),
+        );
+        patch
+    }
+
+    /// A database package that defines the club `base-club`.
+    fn base_database() -> std::path::PathBuf {
+        let base = temp_package();
+        write(
+            &base,
+            "world.json",
+            r#"{ "schema": "world", "id": "base", "name": "Base", "packageType": "database" }"#,
+        );
+        write(
+            &base,
+            "teams/base.json",
+            r##"{ "schema": "team", "id": "base-club", "name": "Base Club", "city": "C",
+                "country": "ENG", "colors": { "primary": "#000000", "secondary": "#ffffff" } }"##,
+        );
+        base
+    }
+
+    /// Given a patch whose player, coach and a career entry name a club only its base defines
+    /// When the patch is loaded and validated on its own, as the editor and `ofm-cli` build it
+    /// Then no unknown-team error is reported: a patch's clubs resolve against the stack it is
+    ///      loaded on, which is validated as a whole (#1198)
+    #[test]
+    fn a_patch_may_name_clubs_its_base_defines() {
+        let patch = roster_patch("base-club");
+
+        let (_, errors) = load_world_package(&patch);
+        std::fs::remove_dir_all(&patch).ok();
+
+        let unknown: Vec<_> = errors.iter().filter(|e| e.code == UNKNOWN_TEAM).collect();
+        assert!(unknown.is_empty(), "{unknown:?}");
+    }
+
+    /// Given that patch stacked on a database that defines the club
+    /// When the stack is merged
+    /// Then the merge reports no unknown team: the references the patch left open are resolved
+    #[test]
+    fn a_patch_stacked_on_its_base_resolves_its_clubs() {
+        let (base, patch) = (base_database(), roster_patch("base-club"));
+        let (base_pkg, _) = load_world_package_files(&base);
+        let (patch_pkg, _) = load_world_package_files(&patch);
+
+        let (_, errors) = merge_world_packages(vec![base_pkg, patch_pkg]);
+        std::fs::remove_dir_all(&base).ok();
+        std::fs::remove_dir_all(&patch).ok();
+
+        let unknown: Vec<_> = errors.iter().filter(|e| e.code == UNKNOWN_TEAM).collect();
+        assert!(unknown.is_empty(), "{unknown:?}");
+    }
+
+    /// Given a patch naming a club that neither it nor its base defines
+    /// When the stack is merged
+    /// Then the merge reports the unknown team, once for the player, the coach and the career
+    ///      entry each: relaxing the patch's own check does not let a dangling club through
+    #[test]
+    fn a_stacked_patch_naming_a_club_no_package_defines_is_reported() {
+        let (base, patch) = (base_database(), roster_patch("ghost-club"));
+        let (base_pkg, _) = load_world_package_files(&base);
+        let (patch_pkg, _) = load_world_package_files(&patch);
+
+        let (_, errors) = merge_world_packages(vec![base_pkg, patch_pkg]);
+        std::fs::remove_dir_all(&base).ok();
+        std::fs::remove_dir_all(&patch).ok();
+
+        let unknown = errors
+            .iter()
+            .filter(|e| e.code == UNKNOWN_TEAM)
+            .filter(|e| {
+                e.params
+                    .contains(&("team".to_string(), "ghost-club".to_string()))
+            })
+            .count();
+        assert_eq!(unknown, 3, "{errors:?}");
+    }
+
+    /// Given a database package whose player, coach and a career entry name a club it does not
+    ///      define
+    /// When it is loaded and validated
+    /// Then each reference is reported: only a patch defers its clubs to the stack
+    #[test]
+    fn a_database_package_naming_a_club_it_does_not_define_is_reported() {
+        let package = roster_patch("base-club");
+        write(
+            &package,
+            "world.json",
+            r#"{ "schema": "world", "id": "roster", "name": "Roster", "packageType": "database" }"#,
+        );
+
+        let (_, errors) = load_world_package(&package);
+        std::fs::remove_dir_all(&package).ok();
+
+        let unknown = errors.iter().filter(|e| e.code == UNKNOWN_TEAM).count();
+        assert_eq!(unknown, 3, "{errors:?}");
     }
 
     #[test]
