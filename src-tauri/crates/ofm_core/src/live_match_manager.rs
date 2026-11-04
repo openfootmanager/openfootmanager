@@ -123,6 +123,7 @@ pub enum MatchMode {
 
 /// A shootout order for a side the user does not manage, or from a user who manages neither.
 const SHOOTOUT_ORDER_NOT_YOUR_SIDE: &str = "be.error.liveMatch.shootoutOrderNotYourSide";
+const NOT_YOUR_SIDE: &str = "be.error.liveMatch.notYourSide";
 
 pub struct LiveMatchSession {
     pub match_state: LiveMatchState,
@@ -235,11 +236,19 @@ impl LiveMatchSession {
         snapshot
     }
 
+    /// A manager's order for his own team. Every command names the side it is for; one for the
+    /// other side, or for a match the user is not playing in (`user_side` None), is refused and
+    /// changes nothing. The screens only ever build commands for the user's side, but an agent
+    /// sends its own, and one naming the opponent took off their best players, made their keeper
+    /// the penalty taker and rewrote their tactics (#1192). The AI picks the other side's orders
+    /// (`apply_ai_decisions`), which do not come through here.
     pub fn apply_command(&mut self, cmd: MatchCommand) -> Result<(), String> {
-        if let MatchCommand::SetShootoutOrder { side, .. } = &cmd
-            && self.user_side != Some(*side)
-        {
-            return Err(SHOOTOUT_ORDER_NOT_YOUR_SIDE.into());
+        if self.user_side != Some(cmd.side()) {
+            let refusal = match cmd {
+                MatchCommand::SetShootoutOrder { .. } => SHOOTOUT_ORDER_NOT_YOUR_SIDE,
+                _ => NOT_YOUR_SIDE,
+            };
+            return Err(refusal.into());
         }
         if let MatchCommand::PreMatchSwap {
             side,

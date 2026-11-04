@@ -2798,6 +2798,7 @@
         "noSubstitutionsForShootout": "Não há substituições depois da prorrogação: a disputa de pênaltis é feita pelos jogadores em campo no apito final.",
         "shootoutOrderNotNow": "A ordem dos cobradores só pode ser definida depois da prorrogação, antes da primeira cobrança.",
         "shootoutOrderNotYourSide": "Você só pode definir a ordem dos cobradores do seu time.",
+        "notYourSide": "Você só pode dar ordens ao seu próprio time.",
         "shootoutOrderNotEligible": "A ordem dos cobradores deve incluir uma única vez cada um dos seus jogadores disponíveis.",
         "playerNotOnPitch": "O jogador não está em campo",
         "playerAlreadySubstitutedOff": "Esse jogador já foi substituído",

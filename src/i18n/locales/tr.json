@@ -2833,6 +2833,7 @@
         "noSubstitutionsForShootout": "Uzatmalar bittikten sonra oyuncu değişikliği yapılamaz: penaltı atışlarını son düdükte sahada olan oyuncular kullanır.",
         "shootoutOrderNotNow": "Penaltı sırası yalnızca uzatmalardan sonra, ilk atıştan önce belirlenebilir.",
         "shootoutOrderNotYourSide": "Yalnızca kendi takımınızın penaltı sırasını belirleyebilirsiniz.",
+        "notYourSide": "Yalnızca kendi takımınıza talimat verebilirsiniz.",
         "shootoutOrderNotEligible": "Penaltı sırası, atış yapabilecek her oyuncunuzu tam bir kez içermelidir.",
         "playerNotOnPitch": "Oyuncu sahada değil",
         "playerAlreadySubstitutedOff": "Oyuncu zaten oyundan alınmış",
