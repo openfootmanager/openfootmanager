@@ -523,16 +523,22 @@ fn create_live_match_with(
         away_auto_selection,
     );
 
-    // Determine user side
-    let user_side = game.manager.team_id.as_ref().and_then(|tid| {
-        if *tid == home_team_id {
-            Some(Side::Home)
-        } else if *tid == away_team_id {
-            Some(Side::Away)
-        } else {
-            None
-        }
-    });
+    // The user manages their side only in a live match. Watched as a spectator, or played
+    // instantly, nobody else would: the screen turns the user's controls off and the AI skips
+    // the user's side, so the AI manages both dugouts, as it does for a delegated match (#1211).
+    let user_side = if mode == MatchMode::Live {
+        game.manager.team_id.as_ref().and_then(|tid| {
+            if *tid == home_team_id {
+                Some(Side::Home)
+            } else if *tid == away_team_id {
+                Some(Side::Away)
+            } else {
+                None
+            }
+        })
+    } else {
+        None
+    };
 
     // Build AI profiles from team reputation
     let home_rep = game
@@ -629,7 +635,6 @@ pub(crate) fn play_unwatched_fixture_with(
         allows_extra_time,
         lookups,
     )?;
-    session.user_side = None;
     let league_round_context = session.league_round_context.clone();
     session.run_to_completion();
 
