@@ -1065,6 +1065,7 @@
     "youthSearches": "pencarian pemain muda",
     "hireStaff": "Rekrut staf",
     "best": "Terbaik",
+    "staffActions": "Tindakan staf untuk {{name}}",
     "roles": {
       "AssistantManager": "Asisten Manajer",
       "Coach": "Pelatih",

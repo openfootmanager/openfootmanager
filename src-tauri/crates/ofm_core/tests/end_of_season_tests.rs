@@ -4010,22 +4010,55 @@ fn scout_pool_is_topped_up_to_floor_after_season() {
     );
 }
 
+/// A player who retired this season, archived at `ovr` after thirteen seasons of thirty games:
+/// the career a generated world's history gives. Archived rather than pushed into `game.players`,
+/// because the season end re-derives a squad player's rating from his attributes before he retires.
+fn retired_this_season_after_thirteen_seasons(
+    game: &Game,
+    id: &str,
+    ovr: u8,
+) -> domain::retired_player::RetiredPlayer {
+    let mut player = make_retired_player(id);
+    player.ovr = ovr;
+    player.career = (1..=13)
+        .map(|season| domain::player::CareerEntry {
+            season,
+            team_id: "team1".to_string(),
+            team_name: "Test FC".to_string(),
+            appearances: 30,
+            goals: 0,
+            assists: 0,
+        })
+        .collect();
+    domain::retired_player::RetiredPlayer::from_player(
+        &player,
+        "2026-05-20",
+        game.league.as_ref().map_or(0, |league| league.season),
+    )
+}
+
+/// Given a star and a squad player who retired this season after thirteen seasons each, rated 85
+///      and 62
+/// When the season ends and they become manager candidates
+/// Then they start at 681 and 382, on the 200-700 scale every manager is created on and apart by
+///      their ability (#1160: both started at 900, above every manager the world opened with)
 #[test]
-fn retiree_manager_reputation_is_derived_from_ovr_and_career() {
+fn retirees_start_managing_on_the_created_scale_by_their_ability() {
     let mut game = make_completed_season_game();
-    game.players.push(make_retired_player("ovr_test"));
+    let star = retired_this_season_after_thirteen_seasons(&game, "star", 85);
+    let squad = retired_this_season_after_thirteen_seasons(&game, "squad", 62);
+    game.retired_players.extend([star, squad]);
 
     process_end_of_season(&mut game);
 
-    let mgr = game
-        .managers
-        .iter()
-        .find(|m| m.id == "mgr_retired_ovr_test")
-        .expect("manager should exist");
-    assert!(mgr.reputation >= 200, "reputation should be >= 200");
-    assert!(mgr.reputation <= 900, "reputation should be <= 900");
-    assert_eq!(mgr.satisfaction, 50);
-    assert_eq!(mgr.fan_approval, 50);
+    let reputation_of = |id: &str| {
+        game.managers
+            .iter()
+            .find(|m| m.id == id)
+            .map(|m| (m.reputation, m.satisfaction, m.fan_approval))
+    };
+    assert_eq!(reputation_of("mgr_retired_star"), Some((681, 50, 50)));
+    assert_eq!(reputation_of("mgr_retired_squad"), Some((382, 50, 50)));
 }
 
 #[test]

@@ -93,6 +93,79 @@ pub(crate) fn standard_normal(rng: &mut impl Rng) -> f64 {
     (-2.0 * first.ln()).sqrt() * (std::f64::consts::TAU * second).cos()
 }
 
+/// The standard normal's z at `quantile` (its inverse cumulative distribution), by Acklam's
+/// rational approximation (relative error under 1.2e-9). A bell drawn this way from one uniform
+/// draw takes as many numbers from a generator as an even draw does, so a stream that switches from
+/// one to the other moves nothing drawn after it.
+pub(crate) fn standard_normal_at(quantile: f64) -> f64 {
+    const A: [f64; 6] = [
+        -3.969_683_028_665_376e1,
+        2.209_460_984_245_205e2,
+        -2.759_285_104_469_687e2,
+        1.383_577_518_672_69e2,
+        -3.066_479_806_614_716e1,
+        2.506_628_277_459_239,
+    ];
+    const B: [f64; 5] = [
+        -5.447_609_879_822_406e1,
+        1.615_858_368_580_409e2,
+        -1.556_989_798_598_866e2,
+        6.680_131_188_771_972e1,
+        -1.328_068_155_288_572e1,
+    ];
+    const C: [f64; 6] = [
+        -7.784_894_002_430_293e-3,
+        -3.223_964_580_411_365e-1,
+        -2.400_758_277_161_838,
+        -2.549_732_539_343_734,
+        4.374_664_141_464_968,
+        2.938_163_982_698_783,
+    ];
+    const D: [f64; 4] = [
+        7.784_695_709_041_462e-3,
+        3.224_671_290_700_398e-1,
+        2.445_134_137_142_996,
+        3.754_408_661_907_416,
+    ];
+    // Below this quantile (and above its mirror) the tail's own approximation takes over.
+    const TAIL: f64 = 0.024_25;
+
+    let p = quantile.clamp(f64::MIN_POSITIVE, 1.0 - f64::EPSILON);
+    let tail = |p: f64| {
+        let q = (-2.0 * p.ln()).sqrt();
+        (((((C[0] * q + C[1]) * q + C[2]) * q + C[3]) * q + C[4]) * q + C[5])
+            / ((((D[0] * q + D[1]) * q + D[2]) * q + D[3]) * q + 1.0)
+    };
+    if p < TAIL {
+        tail(p)
+    } else if p > 1.0 - TAIL {
+        -tail(1.0 - p)
+    } else {
+        let q = p - 0.5;
+        let r = q * q;
+        (((((A[0] * r + A[1]) * r + A[2]) * r + A[3]) * r + A[4]) * r + A[5]) * q
+            / (((((B[0] * r + B[1]) * r + B[2]) * r + B[3]) * r + B[4]) * r + 1.0)
+    }
+}
+
+/// The standard normal's cumulative distribution at `z`, for tests that hold a generated bell to a
+/// normal's shape (Abramowitz and Stegun 7.1.26, |error| < 1.5e-7).
+#[cfg(test)]
+pub(crate) fn normal_cdf(z: f64) -> f64 {
+    let x = z.abs() / std::f64::consts::SQRT_2;
+    let t = 1.0 / (1.0 + 0.327_591_1 * x);
+    let poly = t
+        * (0.254_829_592
+            + t * (-0.284_496_736
+                + t * (1.421_413_741 + t * (-1.453_152_027 + t * 1.061_405_429))));
+    let erf = 1.0 - poly * (-x * x).exp();
+    if z >= 0.0 {
+        0.5 * (1.0 + erf)
+    } else {
+        0.5 * (1.0 - erf)
+    }
+}
+
 /// [`Game::rng_for`] for a seed that is not (yet) on a game: a world being built into one.
 pub fn rng_for_seed(seed: u64, tag: &str, date: &str) -> ChaCha12Rng {
     let per_purpose = stable_hash(tag.as_bytes(), seed);
@@ -190,6 +263,40 @@ pub fn seed_for_unseeded_save(save_id: &str) -> u64 {
 
 #[cfg(test)]
 mod tests {
+    /// Given the standard normal's exact cumulative shares at whole z from -4 to 4, and at 1.96
+    ///       (from the error function, to 16 places), in the middle and in both tails
+    /// When each share is turned back into a z
+    /// Then it is that z within 1e-6, and the share's mirror (1 - share) gives -z: the inverse of
+    ///      the normal's distribution, each of its three pieces included.
+    #[test]
+    fn a_quantile_turns_into_the_normal_z_it_stands_at() {
+        // (z, the share of a standard normal below z). Below 0.02425 or above 0.97575 the tail
+        // pieces answer; between them, the middle one.
+        const SHARES: [(f64, f64); 10] = [
+            (-4.0, 3.167_124_183_311_997e-5),
+            (-3.0, 1.349_898_031_630_095_7e-3),
+            (-2.0, 2.275_013_194_817_921_6e-2),
+            (-1.0, 0.158_655_253_931_457_07),
+            (0.0, 0.5),
+            (1.0, 0.841_344_746_068_542_9),
+            (1.959_963_984_540_053_6, 0.975),
+            (2.0, 0.977_249_868_051_820_8),
+            (3.0, 0.998_650_101_968_369_9),
+            (4.0, 0.999_968_328_758_166_9),
+        ];
+        for (z, share) in SHARES {
+            let back = super::standard_normal_at(share);
+            assert!((back - z).abs() < 1e-6, "share {share}: {back}, want {z}");
+            let mirrored = super::standard_normal_at(1.0 - share);
+            assert!(
+                (mirrored + z).abs() < 1e-6,
+                "share {}: {mirrored}, want {}",
+                1.0 - share,
+                -z
+            );
+        }
+    }
+
     use domain::manager::Manager;
     use rand::RngExt;
 

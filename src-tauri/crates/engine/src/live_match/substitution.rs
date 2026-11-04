@@ -127,6 +127,33 @@ impl LiveMatchState {
         Ok(())
     }
 
+    /// Give `player_id`, in `side`'s eleven or on its bench, `line_familiarity`. For a caller that
+    /// knows where a player now plays better than the engine can: the engine knows his line, not
+    /// his slot within it (`PlayerData::line_familiarity`). Whether he was found.
+    pub fn set_line_familiarity(
+        &mut self,
+        side: Side,
+        player_id: &str,
+        line_familiarity: [f64; 4],
+    ) -> bool {
+        let (team, bench) = match side {
+            Side::Home => (&mut self.home, &mut self.home_bench),
+            Side::Away => (&mut self.away, &mut self.away_bench),
+        };
+        match team
+            .players
+            .iter_mut()
+            .chain(bench.iter_mut())
+            .find(|player| player.id == player_id)
+        {
+            Some(player) => {
+                player.line_familiarity = line_familiarity;
+                true
+            }
+            None => false,
+        }
+    }
+
     /// Pre-match swap: exchange a starting player with a bench player without
     /// counting as a substitution. Only valid during PreKickOff phase.
     pub(super) fn do_pre_match_swap(
@@ -287,5 +314,111 @@ fn rebalance_lines(players: &mut [PlayerData], on_the_pitch: &[bool], wanted: [u
         };
         players[mover].position = to;
         moved.push(mover);
+    }
+}
+
+#[cfg(test)]
+mod line_familiarity_tests {
+    use crate::live_match::LiveMatchState;
+    use crate::types::{
+        MatchConfig, PlayStyle, PlayerData, PlayerRole, Position, Side, TacticsConfig, TeamData,
+    };
+
+    fn player(id: &str, position: Position) -> PlayerData {
+        PlayerData {
+            id: id.to_string(),
+            name: id.to_string(),
+            position,
+            ovr: 70,
+            condition: 100,
+            fitness: 100,
+            injury_risk: 1.0,
+            line_familiarity: [1.0; 4],
+            pace: 70,
+            stamina: 70,
+            strength: 70,
+            agility: 70,
+            passing: 70,
+            shooting: 70,
+            tackling: 70,
+            dribbling: 70,
+            defending: 70,
+            positioning: 70,
+            vision: 70,
+            decisions: 70,
+            composure: 70,
+            aggression: 70,
+            teamwork: 70,
+            leadership: 70,
+            handling: 70,
+            reflexes: 70,
+            aerial: 70,
+            traits: vec![],
+            role: PlayerRole::Standard,
+        }
+    }
+
+    fn side(prefix: &str) -> TeamData {
+        TeamData {
+            id: prefix.to_string(),
+            name: prefix.to_string(),
+            formation: "4-4-2".to_string(),
+            play_style: PlayStyle::Balanced,
+            tactics: TacticsConfig::default(),
+            players: vec![
+                player(&format!("{prefix}_gk"), Position::Goalkeeper),
+                player(&format!("{prefix}_d"), Position::Defender),
+            ],
+        }
+    }
+
+    fn state() -> LiveMatchState {
+        LiveMatchState::new(
+            side("h"),
+            side("a"),
+            MatchConfig::default(),
+            vec![player("h_sub", Position::Defender)],
+            vec![player("a_sub", Position::Defender)],
+            false,
+        )
+    }
+
+    const REFIT: [f64; 4] = [0.9, 0.95, 1.0, 0.9];
+
+    /// Given a home defender in the eleven,
+    /// When his familiarity is set,
+    /// Then he carries it, and the away side's players do not.
+    #[test]
+    fn a_player_in_the_eleven_takes_the_familiarity_he_is_given() {
+        let mut state = state();
+
+        assert!(state.set_line_familiarity(Side::Home, "h_d", REFIT));
+
+        assert_eq!(state.team(Side::Home).players[1].line_familiarity, REFIT);
+        assert_eq!(state.team(Side::Away).players[1].line_familiarity, [1.0; 4]);
+    }
+
+    /// Given a home substitute on the bench,
+    /// When his familiarity is set,
+    /// Then he carries it.
+    #[test]
+    fn a_player_on_the_bench_takes_the_familiarity_he_is_given() {
+        let mut state = state();
+
+        assert!(state.set_line_familiarity(Side::Home, "h_sub", REFIT));
+
+        assert_eq!(state.bench(Side::Home)[0].line_familiarity, REFIT);
+    }
+
+    /// Given the away side's substitute,
+    /// When the home side's familiarity is set for him,
+    /// Then nobody is found and nothing changes.
+    #[test]
+    fn a_player_not_on_that_side_is_not_found() {
+        let mut state = state();
+
+        assert!(!state.set_line_familiarity(Side::Home, "a_sub", REFIT));
+
+        assert_eq!(state.bench(Side::Away)[0].line_familiarity, [1.0; 4]);
     }
 }

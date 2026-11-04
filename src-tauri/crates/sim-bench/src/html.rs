@@ -1,5 +1,5 @@
 use crate::stats::BenchStats;
-use crate::targets::{Provenance, Verdict};
+use crate::targets::{Provenance, Verdict, REDS_BAND, YELLOWS_BAND};
 
 pub struct RunConfig<'a> {
     pub home_name: &'a str,
@@ -634,9 +634,9 @@ fn discipline_section(stats: &BenchStats) -> String {
     <span class="stat-value">{:.2}</span>
   </div>
 </div>"#,
-        range_class(y, 2.0, 4.0),
+        range_class(y, YELLOWS_BAND.0, YELLOWS_BAND.1),
         y,
-        range_class(r, 0.05, 0.15),
+        range_class(r, REDS_BAND.0, REDS_BAND.1),
         r,
         range_class(f, 18.0, 28.0),
         f,
@@ -777,6 +777,7 @@ fn targets_table(verdicts: &[Verdict]) -> String {
                 seasons,
                 ..
             } => format!(r#"<span title="{source}: {competitions}">measured, {seasons}</span>"#),
+            Provenance::Cited { source } => format!(r#"<span title="{source}">cited</span>"#),
             Provenance::Unsourced => "unsourced".to_string(),
         };
         let badge = match (verdict.is_judged(), verdict.inside) {
@@ -912,6 +913,30 @@ mod tests {
         assert!(
             !html.contains("Off target"),
             "no band in this table can be judged"
+        );
+    }
+
+    /// Given a run at 4.2 yellows and 0.20 reds a game, inside the Big Five's cited range,
+    /// When the HTML report's discipline panel is written,
+    /// Then it marks both in range, as the benchmark table does.
+    #[test]
+    fn the_discipline_panel_marks_cards_by_the_cited_bands() {
+        let stats = BenchStats {
+            games: 100,
+            yellow_cards: 420,
+            red_cards: 20,
+            ..BenchStats::default()
+        };
+
+        let panel = super::discipline_section(&stats);
+
+        assert!(
+            panel.contains(r#"<span class="stat-value ok">4.20</span>"#),
+            "{panel}"
+        );
+        assert!(
+            panel.contains(r#"<span class="stat-value ok">0.200</span>"#),
+            "{panel}"
         );
     }
 }

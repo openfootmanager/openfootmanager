@@ -299,6 +299,7 @@ fn calibration_text(verdicts: &[Verdict]) -> String {
     for verdict in verdicts {
         let source = match &verdict.provenance {
             Provenance::Measured { seasons, .. } => format!("measured, {seasons}"),
+            Provenance::Cited { .. } => "cited".to_string(),
             Provenance::Unsourced => "unsourced".dimmed().to_string(),
         };
         let mark = match (verdict.is_judged(), verdict.inside) {
@@ -331,6 +332,18 @@ fn calibration_text(verdicts: &[Verdict]) -> String {
             "measured:".dimmed()
         ));
     }
+    // Every distinct cited source once, in the table's order: bands can cite different reports.
+    let mut cited: Vec<&str> = Vec::new();
+    for verdict in verdicts {
+        if let Provenance::Cited { source } = &verdict.provenance {
+            if !cited.contains(&source.as_str()) {
+                cited.push(source);
+            }
+        }
+    }
+    for source in cited {
+        text.push_str(&format!("  {} {source}\n", "cited:".dimmed()));
+    }
     let caveated: Vec<&str> = verdicts
         .iter()
         .filter(|verdict| verdict.not_comparable.is_some())
@@ -354,8 +367,8 @@ mod tests {
 
     /// Given a run's verdicts,
     /// When the calibration table is drawn,
-    /// Then it names every band, cites the measured source once, and gives the one-fixture
-    /// caveat once for all the bands it covers.
+    /// Then it names every band, cites the measured source once and the cited one once, and gives
+    /// the one-fixture caveat once for all the bands it covers.
     #[test]
     fn the_calibration_table_names_every_band_and_gives_the_caveat_once() {
         let stats = BenchStats {
@@ -370,6 +383,7 @@ mod tests {
             assert!(text.contains(verdict.label), "{} is missing", verdict.label);
         }
         assert_eq!(text.matches("openfootball").count(), 1);
+        assert_eq!(text.matches("CIES Football Observatory").count(), 1);
         assert_eq!(text.matches("the bench replays one fixture").count(), 1);
     }
 }

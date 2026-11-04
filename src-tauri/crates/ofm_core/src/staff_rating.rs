@@ -3,13 +3,18 @@
 
 use domain::staff::{Staff, StaffRole};
 
-/// The assistant manager's quality, as delegated contract talks weigh it: coaching counts four
-/// tenths, judging ability and judging potential three each. This is the engine's figure (it
-/// rounds down), shared by the delegation score and the staff rating so the two can't drift.
+/// The tenths delegated contract talks weigh an assistant manager's coaching, judging ability and
+/// judging potential by. The generator's bell reads them too, to give his rating its spread.
+pub(crate) const ASSISTANT_WEIGHTS: [i32; 3] = [4, 3, 3];
+
+/// The assistant manager's quality, as delegated contract talks weigh it ([`ASSISTANT_WEIGHTS`]).
+/// This is the engine's figure (it rounds down), shared by the delegation score and the staff
+/// rating so the two can't drift.
 pub(crate) fn assistant_quality(staff: &Staff) -> i32 {
-    (i32::from(staff.attributes.coaching) * 4
-        + i32::from(staff.attributes.judging_ability) * 3
-        + i32::from(staff.attributes.judging_potential) * 3)
+    let [coaching, ability, potential] = ASSISTANT_WEIGHTS;
+    (i32::from(staff.attributes.coaching) * coaching
+        + i32::from(staff.attributes.judging_ability) * ability
+        + i32::from(staff.attributes.judging_potential) * potential)
         / 10
 }
 
