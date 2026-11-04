@@ -2972,6 +2972,7 @@
         "cannotBidOnOwnPlayer": "你不能为自己的球员报价",
         "playerHasNoTeam": "该球员没有所属球队",
         "insufficientFunds": "资金不足",
+        "buyerCannotAffordFee": "买方俱乐部已无力支付这笔转会费，因此交易无法完成。",
         "transferBudgetTooLow": "转会预算过低",
         "playerNotOwnedByUser": "未找到该球员，或该球员不属于你",
         "offerNotPending": "未找到报价，或该报价已不再处于待处理状态",

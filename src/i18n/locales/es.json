@@ -2972,6 +2972,7 @@
         "cannotBidOnOwnPlayer": "No puedes pujar por tu propio jugador",
         "playerHasNoTeam": "El jugador no tiene equipo",
         "insufficientFunds": "Fondos insuficientes",
+        "buyerCannotAffordFee": "El club comprador ya no puede pagar este traspaso, así que la operación no puede cerrarse.",
         "transferBudgetTooLow": "El presupuesto de fichajes es demasiado bajo",
         "playerNotOwnedByUser": "Jugador no encontrado o no te pertenece",
         "offerNotPending": "Oferta no encontrada o ya no está pendiente",
