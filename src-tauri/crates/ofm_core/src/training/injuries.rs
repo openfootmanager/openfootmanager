@@ -10,9 +10,9 @@ use std::collections::HashMap;
 /// The day's chance that a session injures the player it falls on, before his fitness scales it.
 const BASE_CHANCE: f64 = 1.0 / 50.0;
 
-/// A player worth this much is notable: his training injury makes the news if the user follows his
-/// club ([`injury_makes_the_news`]).
-const NOTABLE_MARKET_VALUE: u64 = 500_000;
+/// How many of a club's most valuable players are notable, wherever they play in its side
+/// ([`is_notable`]).
+const NOTABLE_MOST_VALUABLE: usize = 3;
 
 /// Rolls the day's training injuries. At each club that trains today, one player not already injured
 /// is picked, and his fitness scales a 2% chance that the session injures him. A club with a
@@ -107,14 +107,33 @@ fn injure(game: &mut Game, player_index: usize, injury: Injury, today: &str) {
     }
 }
 
-/// Whether `player`'s training injury makes the news: he is notable (worth [`NOTABLE_MARKET_VALUE`]
-/// or in `club`'s starting XI) and the user follows his club, the user's own or one in the user's
-/// league. A notable player hurt anywhere else is injured silently: the news covers the division the
-/// user plays in (maintainer, 4 Nov 2026), as the season preview does.
+/// Whether `player`'s training injury makes the news: he is [notable](is_notable) and the user
+/// follows his club, the user's own or one in the user's league. Anyone else hurt is injured
+/// silently: the news covers the division the user plays in (maintainer, 4 Nov 2026), as the season
+/// preview does.
 fn injury_makes_the_news(game: &Game, player: &Player, club: &Team) -> bool {
-    let is_notable =
-        player.market_value >= NOTABLE_MARKET_VALUE || club.starting_xi_ids.contains(&player.id);
-    is_notable && user_follows(game, &club.id)
+    is_notable(game, player, club) && user_follows(game, &club.id)
+}
+
+/// Whether `player` is notable at `club` (maintainer, 4 Nov 2026): he is in its usual starting XI,
+/// or among its [`NOTABLE_MOST_VALUABLE`] most valuable players. Equal values go to the lower id,
+/// so exactly that many are. It used to be any player worth 500,000, which in a top division is
+/// nearly everyone: a training-injury story every two or three days.
+fn is_notable(game: &Game, player: &Player, club: &Team) -> bool {
+    if club.starting_xi_ids.contains(&player.id) {
+        return true;
+    }
+    let ranked_ahead = |other: &&Player| {
+        other.market_value > player.market_value
+            || (other.market_value == player.market_value && other.id < player.id)
+    };
+    let more_valuable = game
+        .players
+        .iter()
+        .filter(|other| other.team_id.as_deref() == Some(club.id.as_str()))
+        .filter(ranked_ahead)
+        .count();
+    more_valuable < NOTABLE_MOST_VALUABLE
 }
 
 /// Whether the user follows `club_id`: the user's club, or a club of the division

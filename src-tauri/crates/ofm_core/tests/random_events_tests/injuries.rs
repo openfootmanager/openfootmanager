@@ -9,7 +9,9 @@ use domain::news::{NewsArticle, NewsCategory};
 const SEEDS: u64 = 1000;
 
 /// A squad of three at fitness 1, so a 6% chance a day of a training injury, all worth nothing:
-/// p0 on the bench, p1 and p2 in the starting XI. Another club, with its own XI, is listed first.
+/// p0 on the bench, p1 and p2 in the starting XI. Three injured teammates worth 900,000 each are
+/// the club's most valuable, so p0 is not among them. Another club, with its own XI, is listed
+/// first.
 fn three_unfit_players(seed: u64) -> Game {
     let mut game = make_game();
     game.seed = seed;
@@ -18,11 +20,28 @@ fn three_unfit_players(seed: u64) -> Game {
         player.fitness = 1;
         player.market_value = 0;
     }
+    game.players.extend(injured_stars(3, 900_000));
     game.teams[0].starting_xi_ids = vec!["p1".to_string(), "p2".to_string()];
     let mut other = make_team("team0", "Other Town");
     other.starting_xi_ids = vec!["q1".to_string()];
     game.teams.insert(0, other);
     game
+}
+
+/// `count` of the user's club's players worth `value` each, all injured, so none is picked for
+/// training: star0, star1, ...
+fn injured_stars(count: usize, value: u64) -> Vec<Player> {
+    (0..count)
+        .map(|index| {
+            let mut star = make_player(&format!("star{index}"), &format!("Star {index}"), "team1");
+            star.market_value = value;
+            star.injury = Some(domain::player::Injury {
+                name: "common.injuries.kneeBruise".to_string(),
+                days_remaining: 30,
+            });
+            star
+        })
+        .collect()
 }
 
 /// Who was hurt in training today, if anyone.
@@ -370,6 +389,61 @@ fn an_injured_reserve_worth_nothing_stays_out_of_the_news() {
         assert!(
             injury_story(game, "p0").is_none(),
             "seed {}: a reserve worth nothing made the news",
+            game.seed
+        );
+    }
+}
+
+/// Given p0 on the bench and worth 850,000, with two teammates worth more (so he is his club's third
+///      most valuable), over a thousand seeds
+/// When p0 is hurt in training
+/// Then the news reports it: a club's three most valuable players are notable wherever they play
+#[test]
+fn a_reserve_among_his_clubs_three_most_valuable_makes_the_news() {
+    let injuries = training_injuries(|seed| {
+        let mut game = three_unfit_players(seed);
+        game.players.retain(|player| player.id != "star2");
+        game.players[0].market_value = 850_000;
+        game
+    });
+    let p0: Vec<&Game> = injuries
+        .iter()
+        .filter(|(player, _)| player == "p0")
+        .map(|(_, game)| game)
+        .collect();
+
+    assert!(!p0.is_empty(), "p0 never hurt in {SEEDS} seeds");
+    for game in p0 {
+        assert!(
+            injury_story(game, "p0").is_some(),
+            "seed {}: the third most valuable was left out",
+            game.seed
+        );
+    }
+}
+
+/// Given p0 on the bench and worth 850,000, with three teammates worth more (so he is fourth), over
+///      a thousand seeds
+/// When p0 is hurt in training
+/// Then the news leaves it out, though he is worth more than the old 500,000 bar
+#[test]
+fn a_reserve_fourth_in_value_stays_out_of_the_news() {
+    let injuries = training_injuries(|seed| {
+        let mut game = three_unfit_players(seed);
+        game.players[0].market_value = 850_000;
+        game
+    });
+    let p0: Vec<&Game> = injuries
+        .iter()
+        .filter(|(player, _)| player == "p0")
+        .map(|(_, game)| game)
+        .collect();
+
+    assert!(!p0.is_empty(), "p0 never hurt in {SEEDS} seeds");
+    for game in p0 {
+        assert!(
+            injury_story(game, "p0").is_none(),
+            "seed {}: the fourth most valuable made the news",
             game.seed
         );
     }
