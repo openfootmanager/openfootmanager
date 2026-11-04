@@ -1,6 +1,7 @@
 import i18n from "i18next";
 import { initReactI18next } from "react-i18next";
 import resourcesToBackend from "i18next-resources-to-backend";
+import { reportMissingKey } from "./missingKeys";
 
 export const SUPPORTED_LANGUAGES = [
   { code: "en", labelKey: "settings.languages.en" },
@@ -96,6 +97,13 @@ export const i18nReady = i18n
     defaultNS: "translation",
     ns: ["translation", "pkgTranslations"],
     fallbackNS: "pkgTranslations",
+    // Only dev builds and tests ask i18next to call the handler; a player's build is unchanged.
+    saveMissing: import.meta.env.DEV,
+    missingKeyHandler: (languages, _namespace, key) => {
+      // Before the locale has loaded every key is "missing"; that is loading, not a bug.
+      if (!i18n.hasLoadedNamespace("translation")) return;
+      reportMissingKey(languages[0] ?? "", key);
+    },
     interpolation: {
       escapeValue: false,
     },
