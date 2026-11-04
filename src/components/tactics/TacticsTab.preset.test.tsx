@@ -17,6 +17,20 @@ import { createSeasonContext } from "../../test-utils/factories";
  * game the (faked) backend returns.
  */
 
+// The players the backend's familiarity grades, and whether it has arrived (every player built here).
+const familiarityState = vi.hoisted(() => ({
+  arrived: true,
+  players: new Map<string, unknown>(),
+}));
+
+vi.mock("../../hooks/useFamiliarity", async () => {
+  const { cannedFamiliarityModule } = await import("../../test-utils/familiarity");
+  return cannedFamiliarityModule(
+    (playerId) => familiarityState.players.get(playerId) as PlayerData | undefined,
+    () => familiarityState.arrived,
+  );
+});
+
 vi.mock("../../hooks/usePositionGroups", async () => {
   const { cannedPositionsModule } = await import("../../test-utils/positionTable");
   return cannedPositionsModule();
@@ -25,7 +39,7 @@ vi.mock("../../hooks/usePositionGroups", async () => {
 vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
 const mockedInvoke = vi.mocked(invoke);
 
-const makePlayer = (id: string, position: string): PlayerData => ({
+const buildPlayer = (id: string, position: string): PlayerData => ({
   id,
   match_name: id.toUpperCase(),
   full_name: `Player ${id}`,
@@ -80,6 +94,13 @@ const makePlayer = (id: string, position: string): PlayerData => ({
   transfer_offers: [],
   traits: [],
 });
+
+const makePlayer = (...args: Parameters<typeof buildPlayer>): PlayerData => {
+  const player = buildPlayer(...args);
+  // The backend would grade him; the stand-in finds him here.
+  familiarityState.players.set(player.id, player);
+  return player;
+};
 
 const makeTeam = (): TeamData => ({
   id: "team1",

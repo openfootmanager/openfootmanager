@@ -311,6 +311,11 @@ export function buildStartingXIIds(
     }
   }
 
+  // Until the backend's grade arrives every player ties on fit and rating alone would fill each
+  // slot (an outfielder in goal), then the XI would reorder. The saved ids are all that is drawn
+  // until it does; the rest is filled once it can be done properly.
+  if (familiarity && !familiarity.loaded) return validSavedIds.slice(0, 11);
+
   if (validSavedIds.length >= 8) {
     const xi = [...validSavedIds];
     while (xi.length < 11) {

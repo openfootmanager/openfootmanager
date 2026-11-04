@@ -1,6 +1,8 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
+import { getManagerStanding } from "../../services/managersService";
+
 import type { GameStateData, TeamData } from "../../store/gameStore";
 import ManagerTab from "./ManagerTab";
 import { createSeasonContext } from "../../test-utils/factories";
@@ -43,6 +45,10 @@ vi.mock("react-i18next", () => ({
     },
     i18n: { language: "en" },
   }),
+}));
+
+vi.mock("../../services/managersService", () => ({
+  getManagerStanding: vi.fn(() => Promise.resolve({ board: "very_pleased", fans: "behind" })),
 }));
 
 function createTeam(overrides: Partial<TeamData> = {}): TeamData {
@@ -153,5 +159,24 @@ describe("ManagerTab", () => {
     fireEvent.click(screen.getByRole("menuitem", { name: "View team" }));
 
     expect(onSelectTeam).toHaveBeenCalledWith("team-0");
+  });
+
+  /**
+   * Given a board on 27, which the backend reads as concerned (it only warns at 25), and fans it
+   *      reads as mixed
+   * When the Manager tab shows the board and the fans
+   * Then it shows the backend's words: concerns, not a threat (the tab called anything below 30 a
+   *      threat)
+   */
+  it("shows the board's and the fans' mood in the backend's words", async () => {
+    vi.mocked(getManagerStanding).mockResolvedValueOnce({ board: "concerned", fans: "mixed" });
+    const gameState = createGameState(true);
+    gameState.manager = { ...gameState.manager, satisfaction: 27, fan_approval: 45 };
+
+    render(<ManagerTab gameState={gameState} />);
+
+    expect(await screen.findByText("Board concerns")).toBeInTheDocument();
+    expect(screen.getByText("Fans mixed")).toBeInTheDocument();
+    expect(screen.queryByText("Board threat")).not.toBeInTheDocument();
   });
 });

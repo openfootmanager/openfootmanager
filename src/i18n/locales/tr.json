@@ -647,7 +647,7 @@
     "lastPage": "Son sayfa",
     "sortBy": "Sırala",
     "sortAscending": "Artan",
-    "lineupLoading": "Pozisyon verileri hâlâ yükleniyor, bu yüzden kadro değişiklikleri henüz kullanılamıyor."
+    "lineupLoading": "Kadro hâlâ yükleniyor, bu yüzden diziliş değişiklikleri henüz kullanılamıyor."
   },
   "teamSelection": {
     "title": "Kulübünü Seç",
