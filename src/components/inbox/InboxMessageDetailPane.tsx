@@ -36,6 +36,8 @@ interface InboxMessageDetailPaneProps {
   /** The game's knowledge revision (`gameKnowledgeRevision`): the scout's opinions are asked again when it moves. */
   knowledgeRevision: string;
   selectedMessage: MessageData | null;
+  /** A response is on its way to the backend: no other one is sent until it answers. */
+  isActionInFlight: boolean;
   onAction: (messageId: string, actionId: string, optionId?: string) => void;
   onCloseSelectedMessage: () => void;
   onRequestDelete: () => void;
@@ -49,6 +51,7 @@ export default function InboxMessageDetailPane({
   language,
   knowledgeRevision,
   selectedMessage,
+  isActionInFlight,
   onAction,
   onCloseSelectedMessage,
   onRequestDelete,
@@ -305,6 +308,7 @@ export default function InboxMessageDetailPane({
                         <button
                           type="button"
                           key={option.id}
+                          disabled={isActionInFlight}
                           onClick={() =>
                             handleOptionClick(selectedMessage.id, action.id, option.id)
                           }
@@ -326,7 +330,7 @@ export default function InboxMessageDetailPane({
                   <button
                     type="button"
                     key={action.id}
-                    disabled={action.resolved}
+                    disabled={action.resolved || isActionInFlight}
                     onClick={() => onAction(selectedMessage.id, action.id)}
                     className={getActionButtonClassName(action)}
                   >

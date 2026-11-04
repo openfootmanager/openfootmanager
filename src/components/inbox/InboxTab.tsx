@@ -79,6 +79,11 @@ export default function InboxTab({
   const [deleteModalState, setDeleteModalState] = useState<DeleteModalState>(null);
   const [effectFeedback, setEffectFeedback] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  // A response is applied by the backend as many times as it is asked (a morale hit, a trust change),
+  // so while one answer is on its way no other response is sent. The ref stops a second click that
+  // lands before React has re-rendered; the state disables the buttons.
+  const [isResolvingAction, setIsResolvingAction] = useState(false);
+  const resolvingActionRef = useRef(false);
   const inboxSeqRef = useRef(0);
 
   const categoryCounts = useMemo(() => {
@@ -162,6 +167,9 @@ export default function InboxTab({
       }
     }
 
+    if (resolvingActionRef.current) return;
+    resolvingActionRef.current = true;
+    setIsResolvingAction(true);
     try {
       const result = await resolveMessageAction(messageId, actionId, optionId);
 
@@ -181,7 +189,11 @@ export default function InboxTab({
         );
         setEffectFeedback(resolvedEffect);
       }
-    } catch {}
+    } catch {
+    } finally {
+      resolvingActionRef.current = false;
+      setIsResolvingAction(false);
+    }
   }
 
   async function handleMarkAllRead(): Promise<void> {
@@ -406,6 +418,7 @@ export default function InboxTab({
             language={i18n.language}
             knowledgeRevision={knowledgeRevision}
             selectedMessage={selectedMessage}
+            isActionInFlight={isResolvingAction}
             onAction={(messageId, actionId, optionId) => {
               void handleAction(messageId, actionId, optionId);
             }}

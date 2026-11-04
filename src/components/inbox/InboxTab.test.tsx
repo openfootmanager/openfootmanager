@@ -1518,4 +1518,52 @@ describe("InboxTab", (): void => {
     expect(screen.getByRole("button", { name: "Shortlist" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Discard" })).toBeInTheDocument();
   });
+
+  /**
+   * Given a player-event message with two responses, and the first answer still on its way
+   * When the manager clicks a response and then clicks again (the same or the other one)
+   * Then the backend is asked once and the response buttons are disabled until it answers: a
+   *      second click would apply the morale hit a second time.
+   */
+  it("asks the backend once while a response is in flight", async (): Promise<void> => {
+    const action: MessageAction = {
+      id: "respond",
+      label: "Respond",
+      action_type: {
+        ChooseOption: {
+          options: [
+            { id: "no_renewal", label: "No renewal", description: "Let it run out." },
+            { id: "reassure", label: "Reassure him", description: "Tell him he is wanted." },
+          ],
+        },
+      },
+      resolved: false,
+    };
+    const open = createGameState([
+      createMessage({ id: "contract_concern_p1", read: true, actions: [action] }),
+    ]);
+    let answer: (value: unknown) => void = () => {};
+    mockedInvoke.mockImplementation((command: string) =>
+      command === "resolve_message_action"
+        ? new Promise((resolve) => {
+            answer = resolve;
+          })
+        : Promise.resolve(open.messages),
+    );
+    await renderInboxTab({ gameState: open, initialMessageId: "contract_concern_p1" });
+    const resolveCalls = () =>
+      mockedInvoke.mock.calls.filter(([command]) => command === "resolve_message_action");
+
+    fireEvent.click(screen.getByText("No renewal"));
+    fireEvent.click(screen.getByText("No renewal"));
+    fireEvent.click(screen.getByText("Reassure him"));
+
+    expect(resolveCalls()).toHaveLength(1);
+    expect(screen.getByRole("button", { name: /No renewal/ })).toBeDisabled();
+    expect(screen.getByRole("button", { name: /Reassure him/ })).toBeDisabled();
+
+    await act(async () => {
+      answer({ game: open, effect: "", effect_i18n_key: null, effect_i18n_params: null });
+    });
+  });
 });

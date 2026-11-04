@@ -79,6 +79,7 @@ describe("the youth report's opinions of its prospects", () => {
         language="en"
         knowledgeRevision="r1"
         selectedMessage={youthReport}
+        isActionInFlight={false}
         onAction={vi.fn()}
         onCloseSelectedMessage={vi.fn()}
         onRequestDelete={vi.fn()}
