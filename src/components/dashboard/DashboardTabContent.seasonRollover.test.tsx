@@ -109,11 +109,12 @@ describe("the season rollover, on the dashboard", () => {
     expect(await screen.findByText("Awards Ceremony")).toBeInTheDocument();
     expect(screen.queryByText("Home Tab Mock")).not.toBeInTheDocument();
 
+    // The ceremony's own button, then the new season's (its label has a capital D).
     fireEvent.click(screen.getByRole("button", { name: "Continue to dashboard" }));
     expect(await screen.findByText("Season 7")).toBeInTheDocument();
     expect(screen.queryByText("Home Tab Mock")).not.toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: "Continue to dashboard" }));
+    fireEvent.click(screen.getByRole("button", { name: "Continue to Dashboard" }));
     expect(await screen.findByText("Home Tab Mock")).toBeInTheDocument();
   });
 
@@ -128,7 +129,8 @@ describe("the season rollover, on the dashboard", () => {
     await screen.findByText("Awards Ceremony");
 
     fireEvent.click(screen.getByRole("button", { name: "go to squad" }));
-    expect(screen.getByText("Squad Tab Mock")).toBeInTheDocument();
+    // The tab is lazy-loaded.
+    expect(await screen.findByText("Squad Tab Mock")).toBeInTheDocument();
     await act(async () => fireEvent.click(screen.getByRole("button", { name: "go to home" })));
 
     expect(screen.getByText("Awards Ceremony")).toBeInTheDocument();
