@@ -628,7 +628,7 @@ describe("StaffTab", () => {
     invokeMock.mockImplementation(async (command: string) => {
       if (command === "get_staff") {
         return {
-          team_staff: [{ ...staffCamelCase, rating: 63 }],
+          team_staff: [{ ...staffCamelCase, rating: 63, tier: "Rest" }],
           available_staff: [],
           scouting_assignments: [],
           youth_scouting_assignments: [],
