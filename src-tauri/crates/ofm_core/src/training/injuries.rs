@@ -2,14 +2,16 @@
 
 use crate::game::Game;
 use crate::player_wear::{injury_multiplier_from_fitness, roll_training_injury};
-use domain::player::Injury;
+use domain::player::{Injury, Player};
+use domain::team::Team;
 use rand::RngExt;
 use std::collections::HashMap;
 
 /// The day's chance that a session injures the player it falls on, before his fitness scales it.
 const BASE_CHANCE: f64 = 1.0 / 50.0;
 
-/// A player worth this much makes the news when he is hurt in training, wherever he plays.
+/// A player worth this much is notable: his training injury makes the news if the user follows his
+/// club ([`injury_makes_the_news`]).
 const NOTABLE_MARKET_VALUE: u64 = 500_000;
 
 /// Rolls the day's training injuries. At each club that trains today, one player not already injured
@@ -18,7 +20,8 @@ const NOTABLE_MARKET_VALUE: u64 = 500_000;
 ///
 /// One rule for every club: this used to run for the user's club alone, inside the user's random
 /// events, so no other club ever lost a player in training. Only the user's club is told, by an
-/// inbox message. A notable player's injury makes the news at any club.
+/// inbox message, and only a notable player in the user's league makes the news
+/// ([`injury_makes_the_news`]).
 ///
 /// Each club rolls its own dice (keyed on the seed, the date and the club), so another club's
 /// squad never changes what happens at this one. Runs after the day's matches, which is why it
@@ -59,16 +62,15 @@ fn todays_injuries(game: &Game, today: &str) -> Vec<(usize, Injury)> {
         .collect()
 }
 
-/// Gives the player his injury, tells the user when he is one of theirs, and puts it in the news
-/// when he is notable: worth [`NOTABLE_MARKET_VALUE`] or in his club's starting XI.
+/// Gives the player his injury, tells the user when he is one of theirs, and puts it in the news when
+/// [`injury_makes_the_news`].
 fn injure(game: &mut Game, player_index: usize, injury: Injury, today: &str) {
     let player = &game.players[player_index];
     let player_id = player.id.clone();
     let player_name = player.match_name.clone();
     let club_id = player.team_id.clone().unwrap_or_default();
     let club = game.teams.iter().find(|team| team.id == club_id);
-    let is_notable = player.market_value >= NOTABLE_MARKET_VALUE
-        || club.is_some_and(|club| club.starting_xi_ids.contains(&player_id));
+    let makes_the_news = club.is_some_and(|club| injury_makes_the_news(game, player, club));
     let club_name = club.map_or_else(|| club_id.clone(), |club| club.name.clone());
     let days = injury.days_remaining;
 
@@ -91,7 +93,7 @@ fn injure(game: &mut Game, player_index: usize, injury: Injury, today: &str) {
     game.players[player_index].injury = Some(injury);
 
     let news_id = format!("injury_news_{player_id}_{today}");
-    if is_notable && !game.news.iter().any(|article| article.id == news_id) {
+    if makes_the_news && !game.news.iter().any(|article| article.id == news_id) {
         let date = game.clock.current_date.to_rfc3339();
         game.news.push(crate::news::injury_news_article(
             &news_id,
@@ -103,4 +105,31 @@ fn injure(game: &mut Game, player_index: usize, injury: Injury, today: &str) {
             &date,
         ));
     }
+}
+
+/// Whether `player`'s training injury makes the news: he is notable (worth [`NOTABLE_MARKET_VALUE`]
+/// or in `club`'s starting XI) and the user follows his club, the user's own or one in the user's
+/// league. A notable player hurt anywhere else is injured silently: the news covers the division the
+/// user plays in (maintainer, 4 Nov 2026), as the season preview does.
+fn injury_makes_the_news(game: &Game, player: &Player, club: &Team) -> bool {
+    let is_notable =
+        player.market_value >= NOTABLE_MARKET_VALUE || club.starting_xi_ids.contains(&player.id);
+    is_notable && user_follows(game, &club.id)
+}
+
+/// Whether the user follows `club_id`: the user's club, or a club of the division
+/// [`crate::end_of_season::user_division`] gives, which for a manager out of work is the league the
+/// game mirrors, as for the season preview (#1220).
+fn user_follows(game: &Game, club_id: &str) -> bool {
+    let user_club = game.manager.team_id.as_deref();
+    user_club == Some(club_id)
+        || crate::end_of_season::user_division(game, user_club.unwrap_or_default()).is_some_and(
+            |division| {
+                division.participant_ids.iter().any(|id| id == club_id)
+                    || division
+                        .standings
+                        .iter()
+                        .any(|standing| standing.team_id == club_id)
+            },
+        )
 }

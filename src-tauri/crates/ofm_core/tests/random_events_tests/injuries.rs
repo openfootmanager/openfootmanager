@@ -227,15 +227,34 @@ fn another_clubs_squad_does_not_change_the_users_training_injuries() {
     }
 }
 
-/// Given Other Town's q1 in its starting XI and worth nothing, over a thousand seeds
-/// When q1 is hurt in training
-/// Then the news reports it under Other Town: one notability rule for every club
-#[test]
-fn a_starter_hurt_in_training_at_another_club_makes_the_news() {
-    let days: Vec<Game> = days_with_an_injury_at("team0", two_clubs_of_unfit_players)
+/// A division contesting a league table, `id`, between `clubs`.
+fn division(id: &str, clubs: &[&str]) -> League {
+    let mut division = league_of(Vec::new());
+    division.id = id.to_string();
+    division.participant_ids = clubs.iter().map(|club| club.to_string()).collect();
+    division
+}
+
+/// The seeds of `make` on which q1, Other Town's starter, was the one hurt there.
+fn days_q1_was_hurt(make: impl Fn(u64) -> Game) -> Vec<Game> {
+    days_with_an_injury_at("team0", make)
         .into_iter()
         .filter(|game| injured_at(game, "team0") == ["q1"])
-        .collect();
+        .collect()
+}
+
+/// Given Other Town in the user's division, its q1 in its starting XI and worth nothing, over a
+///      thousand seeds
+/// When q1 is hurt in training
+/// Then the news reports it under Other Town: a starter in the user's league is notable whoever
+///      manages his club
+#[test]
+fn a_starter_hurt_in_training_in_the_users_league_makes_the_news() {
+    let days = days_q1_was_hurt(|seed| {
+        let mut game = two_clubs_of_unfit_players(seed);
+        game.competitions = vec![division("first", &["team1", "team0"])];
+        game
+    });
 
     assert!(!days.is_empty(), "q1 never hurt in {SEEDS} seeds");
     for game in &days {
@@ -244,6 +263,55 @@ fn a_starter_hurt_in_training_at_another_club_makes_the_news() {
             story.i18n_params.get("team").map(String::as_str),
             Some("Other Town"),
             "seed {}",
+            game.seed
+        );
+    }
+}
+
+/// Given Other Town in another division from the user's, its q1 in its starting XI, over a
+///      thousand seeds
+/// When q1 is hurt in training
+/// Then he misses his matches but the news leaves it out: it covers the user's league (maintainer,
+///      4 Nov 2026)
+#[test]
+fn a_starter_hurt_in_training_in_another_league_stays_out_of_the_news() {
+    let days = days_q1_was_hurt(|seed| {
+        let mut game = two_clubs_of_unfit_players(seed);
+        game.competitions = vec![
+            division("first", &["team1"]),
+            division("second", &["team0"]),
+        ];
+        game
+    });
+
+    assert!(!days.is_empty(), "q1 never hurt in {SEEDS} seeds");
+    for game in &days {
+        assert!(
+            injury_story(game, "q1").is_none(),
+            "seed {}: another league's injury made the news",
+            game.seed
+        );
+    }
+}
+
+/// Given a manager out of work, Other Town in the league the game follows for him (the mirrored
+///      league, as the season preview uses), its q1 in its starting XI, over a thousand seeds
+/// When q1 is hurt in training
+/// Then the news reports it
+#[test]
+fn an_unemployed_managers_news_covers_the_league_the_game_follows() {
+    let days = days_q1_was_hurt(|seed| {
+        let mut game = two_clubs_of_unfit_players(seed);
+        game.manager.team_id = None;
+        game.league = Some(division("first", &["team1", "team0"]));
+        game
+    });
+
+    assert!(!days.is_empty(), "q1 never hurt in {SEEDS} seeds");
+    for game in &days {
+        assert!(
+            injury_story(game, "q1").is_some(),
+            "seed {}: the followed league's injury was left out",
             game.seed
         );
     }
