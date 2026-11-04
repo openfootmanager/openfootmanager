@@ -1102,6 +1102,50 @@ mod tests {
         assert_eq!(moved.num_days(), i64::from(days_advanced));
     }
 
+    /// Given a cup tie for the user's club today, and his next league match twenty days away
+    /// When the MCP skip runs
+    /// Then it stops at once on the match day, as the screen's skip does, and the cup tie is still
+    ///      to be played (#1193: it aimed at the league match in the mirror and simulated the cup
+    ///      tie on the way)
+    #[cfg(feature = "mcp")]
+    #[test]
+    fn the_mcp_skip_stops_on_a_cup_tie_instead_of_playing_it() {
+        use crate::mcp_server::tools_impl::time::skip_to_match_day_in;
+        use mcp_results::time::SkipToMatchDay;
+        let mut game = make_game_with_matchday();
+        let start = game.clock.current_date;
+        let today = start.format("%Y-%m-%d").to_string();
+        let later = (start + chrono::Duration::days(20))
+            .format("%Y-%m-%d")
+            .to_string();
+        let mut league = game.league.clone().expect("the game has a league");
+        league.fixtures[0].date = later;
+        let mut cup = league.clone();
+        cup.id = "cup-1".to_string();
+        cup.fixtures[0].id = "cup-tie".to_string();
+        cup.fixtures[0].competition_id = "cup-1".to_string();
+        cup.fixtures[0].competition = FixtureCompetition::Cup;
+        cup.fixtures[0].date = today;
+        game.league = Some(league.clone());
+        game.competitions = vec![league, cup];
+        let state = StateManager::new();
+        state.set_game(game);
+
+        let outcome = skip_to_match_day_in(&state).expect("the skip answers");
+
+        assert_eq!(outcome, SkipToMatchDay::MatchDayToday {});
+        let (clock, cup_status) = state
+            .get_game(|g| {
+                (
+                    g.clock.current_date,
+                    g.competitions[1].fixtures[0].status.clone(),
+                )
+            })
+            .expect("a game");
+        assert_eq!(clock, start);
+        assert_eq!(cup_status, FixtureStatus::Scheduled);
+    }
+
     /// Given career B is active (token 2) and a screen still holds career A's token (1)
     /// When each way of advancing time arrives with A's token
     /// Then each is refused with the career-changed key and career B's clock, messages and stats
