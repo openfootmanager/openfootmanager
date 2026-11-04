@@ -206,6 +206,15 @@ impl LiveMatchSession {
         results
     }
 
+    /// The rest of a match nobody is left to manage, played out at once: the AI takes the
+    /// user's dugout too, as it does for a delegated match. For a caller that finishes a live
+    /// match early (MCP `match_finish`): the user is gone, and a side the AI skips would play
+    /// the rest of it with no substitutions and no replacement keeper (#1231).
+    pub fn play_out_unmanaged(&mut self) -> Vec<MinuteResult> {
+        self.user_side = None;
+        self.run_to_completion()
+    }
+
     /// Run the entire match to completion instantly.
     pub fn run_to_completion(&mut self) -> Vec<MinuteResult> {
         let mut results = Vec::with_capacity(100);
