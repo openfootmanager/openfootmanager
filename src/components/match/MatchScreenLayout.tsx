@@ -28,10 +28,13 @@ export default function MatchScreenLayout({
   themeToggleClassName,
 }: MatchScreenLayoutProps) {
   return (
-    <div className="min-h-screen bg-gray-100 text-gray-900 dark:bg-navy-900 dark:text-white flex flex-col transition-colors duration-300">
+    <div className="h-dvh overflow-hidden bg-gray-100 text-gray-900 dark:bg-navy-900 dark:text-white flex flex-col transition-colors duration-300">
       {header && (
         <header
-          className={joinClasses("border-b border-gray-200 dark:border-navy-700", headerClassName)}
+          className={joinClasses(
+            "shrink-0 border-b border-gray-200 dark:border-navy-700",
+            headerClassName,
+          )}
         >
           <div className={joinClasses("relative mx-auto w-full px-6", headerContentClassName)}>
             <div className={showThemeToggle ? "pr-14" : undefined}>{header}</div>
@@ -44,7 +47,9 @@ export default function MatchScreenLayout({
         </header>
       )}
 
-      <div className={joinClasses("flex-1", contentClassName)}>{children}</div>
+      <div className={joinClasses("min-h-0 flex-1 flex flex-col", contentClassName)}>
+        {children}
+      </div>
 
       {footer}
     </div>

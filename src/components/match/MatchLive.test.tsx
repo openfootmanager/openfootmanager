@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ThemeProvider } from "../../context/ThemeContext";
 import type { GameStateData } from "../../store/gameStore";
 import MatchLive from "./MatchLive";
-import type { EngineTeamData, MatchSnapshot, MinuteResult } from "./types";
+import type { EngineTeamData, MatchEvent, MatchSnapshot, MinuteResult } from "./types";
 
 const invokeMock = vi.hoisted(() => vi.fn());
 vi.mock("../../hooks/usePositionGroups", async () => {
@@ -99,15 +99,46 @@ function renderLive(overrides: Partial<React.ComponentProps<typeof MatchLive>> =
     onFullTime: vi.fn(),
     ...overrides,
   };
-  render(
+  const view = render(
     <ThemeProvider>
       <MatchLive {...props} />
     </ThemeProvider>,
   );
-  return props;
+  return {
+    ...props,
+    rerenderEvents(importantEvents: MatchEvent[]) {
+      view.rerender(
+        <ThemeProvider>
+          <MatchLive {...props} importantEvents={importantEvents} />
+        </ThemeProvider>,
+      );
+    },
+  };
 }
 
 const stepCalls = () => invokeMock.mock.calls.filter(([command]) => command === "step_live_match");
+
+function mockScrollGeometry(
+  panel: HTMLElement,
+  {
+    contentHeight,
+    viewportHeight,
+    scrollTop,
+  }: { contentHeight: number; viewportHeight: number; scrollTop: number },
+) {
+  // jsdom has no layout: model measurements and clamping, not automatic scrolling.
+  Object.defineProperties(panel, {
+    clientHeight: { configurable: true, value: viewportHeight },
+    scrollHeight: { configurable: true, writable: true, value: contentHeight },
+    scrollTop: {
+      configurable: true,
+      get: () => scrollTop,
+      set: (value: number) => {
+        scrollTop = Math.max(0, Math.min(value, panel.scrollHeight - panel.clientHeight));
+      },
+    },
+  });
+}
 
 describe("MatchLive", () => {
   beforeEach(() => {
@@ -118,6 +149,144 @@ describe("MatchLive", () => {
     );
   });
   afterEach(() => vi.useRealTimers());
+
+  /**
+   * Given the commentary's scrollable panel is at the bottom of its history
+   * When a new play arrives and the history grows
+   * Then that panel scrolls to the new bottom, revealing the latest play.
+   */
+  it("scrolls the commentary panel to the latest play when a new event arrives", () => {
+    const kickoff: MatchEvent = {
+      minute: 0,
+      event_type: "KickOff",
+      side: "Home",
+      zone: "Midfield",
+      player_id: null,
+      secondary_player_id: null,
+    };
+    const { rerenderEvents } = renderLive({ importantEvents: [kickoff] });
+    const panel = screen.getByRole("region", { name: "match.events" });
+
+    mockScrollGeometry(panel, { contentHeight: 600, viewportHeight: 240, scrollTop: 360 });
+    fireEvent.scroll(panel);
+    Object.defineProperty(panel, "scrollHeight", { value: 720 });
+
+    rerenderEvents([kickoff, { ...kickoff, minute: 1, event_type: "Foul" }]);
+
+    expect(screen.getByText("1'")).toBeInTheDocument();
+    expect(panel.scrollTop).toBe(480);
+  });
+
+  /** Given older plays are being read, when new plays arrive, then the reading position stays put. */
+  it("preserves the reading position when new commentary arrives", () => {
+    const { rerenderEvents } = renderLive();
+    const panel = screen.getByRole("region", { name: "match.events" });
+    mockScrollGeometry(panel, { contentHeight: 600, viewportHeight: 240, scrollTop: 120 });
+    fireEvent.scroll(panel);
+    const event: MatchEvent = {
+      minute: 1,
+      event_type: "Foul",
+      side: "Home",
+      zone: "Midfield",
+      player_id: null,
+      secondary_player_id: null,
+    };
+    Object.defineProperty(panel, "scrollHeight", { value: 720 });
+    rerenderEvents([event]);
+    expect(screen.getByText("1'")).toBeInTheDocument();
+    expect(panel.scrollTop).toBe(120);
+    Object.defineProperty(panel, "scrollHeight", { value: 840 });
+    rerenderEvents([event, { ...event, minute: 2 }]);
+    expect(panel.scrollTop).toBe(120);
+  });
+
+  /** Given following was paused by scrolling up, when the user reaches the bottom, then new plays are followed. */
+  it("resumes following after scrolling back to the bottom", () => {
+    const { rerenderEvents } = renderLive();
+    const panel = screen.getByRole("region", { name: "match.events" });
+    mockScrollGeometry(panel, { contentHeight: 600, viewportHeight: 240, scrollTop: 120 });
+    fireEvent.scroll(panel);
+    panel.scrollTop = 360;
+    fireEvent.scroll(panel);
+    Object.defineProperty(panel, "scrollHeight", { value: 720 });
+    rerenderEvents([
+      {
+        minute: 1,
+        event_type: "Foul",
+        side: "Home",
+        zone: "Midfield",
+        player_id: null,
+        secondary_player_id: null,
+      },
+    ]);
+    expect(panel.scrollTop).toBe(480);
+  });
+
+  /**
+   * Given the user is viewing statistics with commentary already available
+   * When they return to commentary without another event arriving
+   * Then the commentary panel follows the latest play.
+   */
+  it("follows the latest play when returning from statistics to commentary", () => {
+    renderLive({
+      importantEvents: [
+        {
+          minute: 1,
+          event_type: "Foul",
+          side: "Home",
+          zone: "Midfield",
+          player_id: null,
+          secondary_player_id: null,
+        },
+      ],
+    });
+    const history = screen.getByRole("region", { name: "match.events" });
+    mockScrollGeometry(history, { contentHeight: 600, viewportHeight: 240, scrollTop: 120 });
+    fireEvent.scroll(history);
+    fireEvent.click(screen.getByRole("button", { name: "match.stats" }));
+    const panel = screen.getByRole("region", { name: "match.stats" });
+    mockScrollGeometry(panel, { contentHeight: 720, viewportHeight: 240, scrollTop: 0 });
+
+    fireEvent.click(screen.getByRole("button", { name: "match.events" }));
+
+    expect(screen.getByRole("region", { name: "match.events" }).scrollTop).toBe(480);
+  });
+
+  /** Given commentary is scrolled down, when another tab opens, then it starts at the top. */
+  it.each(["lineups", "stats"])("opens %s at the top after leaving commentary", (tab) => {
+    renderLive();
+    const panel = screen.getByRole("region", { name: "match.events" });
+    mockScrollGeometry(panel, { contentHeight: 1200, viewportHeight: 240, scrollTop: 960 });
+    fireEvent.scroll(panel);
+    fireEvent.click(screen.getByRole("button", { name: `match.${tab}` }));
+    expect(screen.getByRole("region", { name: `match.${tab}` }).scrollTop).toBe(0);
+  });
+
+  /**
+   * Given the user has scrolled through the statistics panel
+   * When another commentary event arrives
+   * Then the statistics panel keeps its reading position.
+   */
+  it("does not scroll statistics when a commentary event arrives", () => {
+    const { rerenderEvents } = renderLive();
+    fireEvent.click(screen.getByRole("button", { name: "match.stats" }));
+    const panel = screen.getByRole("region", { name: "match.stats" });
+    Object.defineProperty(panel, "scrollHeight", { configurable: true, value: 720 });
+    panel.scrollTop = 120;
+
+    rerenderEvents([
+      {
+        minute: 1,
+        event_type: "Foul",
+        side: "Home",
+        zone: "Midfield",
+        player_id: null,
+        secondary_player_id: null,
+      },
+    ]);
+
+    expect(panel.scrollTop).toBe(120);
+  });
 
   /**
    * Given a match at Fast that has just reached half time (the break shows 600ms later)
