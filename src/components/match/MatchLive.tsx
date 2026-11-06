@@ -84,7 +84,8 @@ export default function MatchLive({
   );
   const [showSubPanel, setShowSubPanel] = useState(false);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const eventFeedRef = useRef<HTMLElement>(null);
+  const matchPanelRef = useRef<HTMLElement>(null);
+  const isFollowingCommentaryRef = useRef(true);
   // Track phases we've already signaled to avoid double-firing
   const signaledRef = useRef<Set<string>>(new Set());
   // Set when a step reaches half time, extra-time half time, the shootout or the end: the screen
@@ -219,10 +220,17 @@ export default function MatchLive({
     showSubPanel,
   ]);
 
-  // Auto-scroll event feed
   useEffect(() => {
-    if (eventFeedRef.current) {
-      eventFeedRef.current.scrollTop = eventFeedRef.current.scrollHeight;
+    isFollowingCommentaryRef.current = activePanel === "events";
+    if (activePanel !== "events" && matchPanelRef.current) {
+      matchPanelRef.current.scrollTop = 0;
+    }
+  }, [activePanel]);
+
+  // Only follow new plays while the reader is at the bottom of the history.
+  useEffect(() => {
+    if (matchPanelRef.current && isFollowingCommentaryRef.current) {
+      matchPanelRef.current.scrollTop = matchPanelRef.current.scrollHeight;
     }
   }, [importantEvents.length, activePanel]);
 
@@ -419,7 +427,15 @@ export default function MatchLive({
           </div>
 
           <section
-            ref={activePanel === "events" ? eventFeedRef : undefined}
+            ref={matchPanelRef}
+            onScroll={(event) => {
+              if (activePanel !== "events") return;
+              const panel = event.currentTarget;
+              // scrollTop can be fractional while the height measurements are rounded.
+              const bottomTolerancePx = 1;
+              isFollowingCommentaryRef.current =
+                panel.scrollHeight - panel.clientHeight - panel.scrollTop <= bottomTolerancePx;
+            }}
             aria-label={t(`match.${activePanel}`)}
             // biome-ignore lint/a11y/noNoninteractiveTabindex: the scrollable history needs a tab stop for keyboard scrolling in WebKit
             tabIndex={0}

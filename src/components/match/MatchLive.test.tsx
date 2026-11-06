@@ -177,6 +177,51 @@ describe("MatchLive", () => {
     expect(panel.scrollTop).toBe(480);
   });
 
+  /** Given older plays are being read, when new plays arrive, then the reading position stays put. */
+  it("preserves the reading position when new commentary arrives", () => {
+    const { rerenderEvents } = renderLive();
+    const panel = screen.getByRole("region", { name: "match.events" });
+    mockScrollGeometry(panel, { contentHeight: 600, viewportHeight: 240, scrollTop: 120 });
+    fireEvent.scroll(panel);
+    const event: MatchEvent = {
+      minute: 1,
+      event_type: "Foul",
+      side: "Home",
+      zone: "Midfield",
+      player_id: null,
+      secondary_player_id: null,
+    };
+    Object.defineProperty(panel, "scrollHeight", { value: 720 });
+    rerenderEvents([event]);
+    expect(screen.getByText("1'")).toBeInTheDocument();
+    expect(panel.scrollTop).toBe(120);
+    Object.defineProperty(panel, "scrollHeight", { value: 840 });
+    rerenderEvents([event, { ...event, minute: 2 }]);
+    expect(panel.scrollTop).toBe(120);
+  });
+
+  /** Given following was paused by scrolling up, when the user reaches the bottom, then new plays are followed. */
+  it("resumes following after scrolling back to the bottom", () => {
+    const { rerenderEvents } = renderLive();
+    const panel = screen.getByRole("region", { name: "match.events" });
+    mockScrollGeometry(panel, { contentHeight: 600, viewportHeight: 240, scrollTop: 120 });
+    fireEvent.scroll(panel);
+    panel.scrollTop = 360;
+    fireEvent.scroll(panel);
+    Object.defineProperty(panel, "scrollHeight", { value: 720 });
+    rerenderEvents([
+      {
+        minute: 1,
+        event_type: "Foul",
+        side: "Home",
+        zone: "Midfield",
+        player_id: null,
+        secondary_player_id: null,
+      },
+    ]);
+    expect(panel.scrollTop).toBe(480);
+  });
+
   /**
    * Given the user is viewing statistics with commentary already available
    * When they return to commentary without another event arriving
@@ -195,6 +240,9 @@ describe("MatchLive", () => {
         },
       ],
     });
+    const history = screen.getByRole("region", { name: "match.events" });
+    mockScrollGeometry(history, { contentHeight: 600, viewportHeight: 240, scrollTop: 120 });
+    fireEvent.scroll(history);
     fireEvent.click(screen.getByRole("button", { name: "match.stats" }));
     const panel = screen.getByRole("region", { name: "match.stats" });
     mockScrollGeometry(panel, { contentHeight: 720, viewportHeight: 240, scrollTop: 0 });
@@ -202,6 +250,16 @@ describe("MatchLive", () => {
     fireEvent.click(screen.getByRole("button", { name: "match.events" }));
 
     expect(screen.getByRole("region", { name: "match.events" }).scrollTop).toBe(480);
+  });
+
+  /** Given commentary is scrolled down, when another tab opens, then it starts at the top. */
+  it.each(["lineups", "stats"])("opens %s at the top after leaving commentary", (tab) => {
+    renderLive();
+    const panel = screen.getByRole("region", { name: "match.events" });
+    mockScrollGeometry(panel, { contentHeight: 1200, viewportHeight: 240, scrollTop: 960 });
+    fireEvent.scroll(panel);
+    fireEvent.click(screen.getByRole("button", { name: `match.${tab}` }));
+    expect(screen.getByRole("region", { name: `match.${tab}` }).scrollTop).toBe(0);
   });
 
   /**
