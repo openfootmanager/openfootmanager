@@ -1115,6 +1115,69 @@ fn promoted_user_receives_a_promotion_message() {
     );
 }
 
+/// Given a generated division (stored under its English template name, carrying a name key)
+/// When the user is promoted into it
+/// Then the notice also carries the key, country and edition, so the screen names the division in
+///      the player's language instead of the stored English name.
+#[test]
+fn promotion_message_carries_the_divisions_name_key_country_and_season() {
+    let mut game = make_two_division_game("team3");
+    for competition in game.competitions.iter_mut() {
+        if competition.name == "ENG First Division" {
+            competition.name_key = Some("tournaments.competitions.firstDivision".to_string());
+        }
+    }
+
+    process_end_of_season(&mut game);
+
+    let renewed = ofm_core::end_of_season::user_division(&game, "team3")
+        .expect("the user still has a division")
+        .season;
+    let msg = game
+        .messages
+        .iter()
+        .find(|m| m.id == format!("promotion_{renewed}"))
+        .expect("promoted user must be told");
+    assert_eq!(
+        msg.i18n_params.get("divisionKey"),
+        Some(&"tournaments.competitions.firstDivision".to_string())
+    );
+    assert_eq!(
+        msg.i18n_params.get("divisionCountry"),
+        Some(&"ENG".to_string())
+    );
+    assert_eq!(
+        msg.i18n_params.get("divisionSeason"),
+        Some(&renewed.to_string())
+    );
+    assert_eq!(
+        msg.i18n_params.get("division"),
+        Some(&"ENG First Division".to_string()),
+        "the stored name stays as the fallback"
+    );
+}
+
+/// Given a division with no name key (a hand-made one)
+/// When the user is promoted into it
+/// Then the notice carries only the stored name, as before.
+#[test]
+fn promotion_message_without_a_name_key_carries_no_key_params() {
+    let mut game = make_two_division_game("team3");
+
+    process_end_of_season(&mut game);
+
+    let renewed = ofm_core::end_of_season::user_division(&game, "team3")
+        .expect("the user still has a division")
+        .season;
+    let msg = game
+        .messages
+        .iter()
+        .find(|m| m.id == format!("promotion_{renewed}"))
+        .expect("promoted user must be told");
+    assert!(!msg.i18n_params.contains_key("divisionKey"));
+    assert!(!msg.i18n_params.contains_key("divisionCountry"));
+}
+
 /// The season preview article the rollover published, and the clubs it names.
 fn season_preview(game: &Game) -> (String, Vec<String>, String, String) {
     let preview = game
