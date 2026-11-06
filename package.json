@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "audit:i18n": "node scripts/audit-i18n.mjs",
+    "predev": "node scripts/ensure-page-fixture.mjs",
     "dev": "vite",
     "prebuild": "node scripts/ensure-page-fixture.mjs",
     "build": "tsc && vite build",
@@ -13,9 +14,11 @@
     "lint:fix": "biome lint --write",
     "format:check": "biome format",
     "fixture:pages": "cargo run --release --manifest-path src-tauri/Cargo.toml -p ofm_core --example page_fixture -- src/dev/pageHarness/fixture.generated.ts",
+    "preknip": "node scripts/ensure-page-fixture.mjs",
     "knip": "knip --no-progress",
     "pretest": "node scripts/ensure-page-fixture.mjs",
     "test": "vitest run",
+    "pretest:watch": "node scripts/ensure-page-fixture.mjs",
     "test:watch": "vitest",
     "tauri": "tauri",
     "preflight": "npm run format:check && npm run lint && npm run knip && npm run build && npm test"

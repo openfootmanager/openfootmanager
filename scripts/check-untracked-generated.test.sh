@@ -31,18 +31,19 @@ new_repo() {
     printf '%s' "$repo"
 }
 
-# expect <expected exit status> <repo> <what this proves>
+# expect <expected exit status> <repo> <what this proves> [text the output must contain]
 expect() {
-    local want="$1" repo="$2" description="$3" output status
+    local want="$1" repo="$2" description="$3" must_say="${4:-}" output status
     output="$("$script" "$repo" "$generated" 2>&1)"
     status=$?
-    if [ "$status" -eq "$want" ]; then
+    if [ "$status" -eq "$want" ] && [[ "$output" == *"$must_say"* ]]; then
         passed=$((passed + 1))
         printf '  ok    %s\n' "$description"
     else
         failed=$((failed + 1))
         printf '  FAIL  %s\n' "$description"
-        printf '        expected exit %s, got %s. Output was:\n        %s\n' "$want" "$status" "$output"
+        printf '        expected exit %s saying "%s", got %s. Output was:\n        %s\n' \
+            "$want" "$must_say" "$status" "$output"
     fi
 }
 
@@ -65,6 +66,11 @@ printf 'export const gameState = {};\n' > "$repo/$generated"
 git -C "$repo" add -f "$generated"
 git -C "$repo" commit -q -m "commit the generated file"
 expect 1 "$repo" "fails when the generated file is committed"
+
+not_a_repo="$scratch/not-a-repo"
+mkdir -p "$not_a_repo"
+expect 1 "$not_a_repo" "fails when git cannot inspect the directory (not a repository)" \
+    "not a git repository"
 
 echo "check-untracked-generated.test: $passed passed, $failed failed"
 [ "$failed" -eq 0 ]
