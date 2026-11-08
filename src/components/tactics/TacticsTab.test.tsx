@@ -1390,8 +1390,12 @@ describe("TacticsTab", () => {
     fireEvent.click(within(row).getByRole("combobox"));
 
     // Right-midfield roles are on offer; striker-only roles are not.
-    expect(screen.getByRole("option", { name: "InvertedWinger" })).toBeInTheDocument();
-    expect(screen.queryByRole("option", { name: "Poacher" })).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("option", { name: "tactics.playerRoles.InvertedWinger" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("option", { name: "tactics.playerRoles.Poacher" }),
+    ).not.toBeInTheDocument();
   });
 
   it("does not promote an injured bench player into the starting XI", async () => {
