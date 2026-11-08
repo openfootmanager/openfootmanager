@@ -687,7 +687,9 @@ fn bolder_formation(current: &str) -> Option<&'static str> {
 
 #[cfg(test)]
 mod bench_fallback_tests {
-    use super::find_best_bench_replacement;
+    use super::{
+        find_best_bench_replacement, preferred_attacking_substitute_role, substitution_reads_role,
+    };
     use crate::live_match::LiveMatchState;
     use crate::types::{
         MatchConfig, PlayStyle, PlayerData, PlayerRole, Position, Side, TacticsConfig, TeamData,
