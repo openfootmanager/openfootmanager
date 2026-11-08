@@ -200,7 +200,7 @@ function fakeBackend(failPreset = false) {
       return { captain: "m1", penalty_taker: "f1", free_kick_taker: "m1", corner_taker: "d1" };
     }
     if (command === "list_custom_tactics") return structuredClone(savedTactics);
-    if (command === "save_custom_tactic") {
+    if (command === "save_custom_tactic" || command === "save_current_tactic") {
       const tactic = (args as { tactic: CustomTactic }).tactic;
       const at = savedTactics.findIndex((saved) => saved.id === tactic.id);
       if (at === -1) savedTactics.push(tactic);
@@ -393,6 +393,10 @@ describe("TacticsTab preset selection", { timeout: TACTICS_TAB_CASE_TIMEOUT_MS }
     const alert = await screen.findByRole("alert");
     expect(alert).toHaveTextContent("The career changed before this could be saved.");
     expect(commandsCalled()).toContain(command);
+    // The refused write changed nothing on screen: the setup is the one the backend still holds.
+    expect(screen.getByRole("button", { name: "Choose tactic" })).toHaveTextContent(
+      "Balanced Control",
+    );
   });
 
   /**
@@ -414,6 +418,25 @@ describe("TacticsTab preset selection", { timeout: TACTICS_TAB_CASE_TIMEOUT_MS }
 
     await waitFor(() => expect(screen.queryByRole("alert")).toBeNull());
     expect(screen.getByRole("button", { name: "Choose tactic" })).toHaveTextContent("High Press");
+  });
+
+  /**
+   * Given an alert for a refused preset
+   * When the manager saves the setup as a tactic and the save accepts it
+   * Then the alert is gone: a write that saved, from the tactic library too, clears it.
+   */
+  it("clears the alert once a custom tactic save is accepted", async () => {
+    refused = new Set(["apply_tactic_preset"]);
+    fakeBackend();
+    render(<ControlledTacticsTab />);
+    fireEvent.click(screen.getByRole("button", { name: "Choose tactic" }));
+    fireEvent.click(screen.getByRole("option", { name: /High Press/ }));
+    await screen.findByRole("alert");
+
+    fireEvent.click(screen.getByRole("button", { name: "Save as tactic" }));
+
+    await waitFor(() => expect(screen.queryByRole("alert")).toBeNull());
+    expect(commandsCalled()).toContain("save_current_tactic");
   });
 
   /** Given the active Balanced preset, when it is picked again from the list,

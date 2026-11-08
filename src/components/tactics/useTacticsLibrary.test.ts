@@ -26,6 +26,7 @@ function renderLibrary(gameState: GameStateData | null) {
       onApplyPreset: vi.fn(),
       onGameUpdate: vi.fn(),
       onWriteError: vi.fn(),
+      onWriteSaved: vi.fn(),
     }),
   );
 }
@@ -229,6 +230,7 @@ describe("useTacticsLibrary custom tactics and the save", () => {
           onApplyPreset: vi.fn(),
           onGameUpdate: vi.fn(),
           onWriteError: vi.fn(),
+          onWriteSaved: vi.fn(),
         }),
       { initialProps: { game: careerGame } },
     );
@@ -425,6 +427,7 @@ describe("useTacticsLibrary deleting and the old browser library", () => {
         onApplyPreset,
         onGameUpdate: vi.fn(),
         onWriteError: vi.fn(),
+        onWriteSaved: vi.fn(),
       }),
     );
     await waitFor(() => expect(customIds(result)).toEqual(["custom:mine"]));
@@ -523,6 +526,7 @@ describe("useTacticsLibrary saving and applying the whole tactic (#1189)", () =>
   it("reports a refused tactic save to the screen and restores the library", async () => {
     backendWith([], false, true);
     const onWriteError = vi.fn();
+    const onWriteSaved = vi.fn();
     const { result } = renderHook(() =>
       useTacticsLibrary({
         gameState: careerGame,
@@ -532,6 +536,7 @@ describe("useTacticsLibrary saving and applying the whole tactic (#1189)", () =>
         onApplyPreset: vi.fn(),
         onGameUpdate: vi.fn(),
         onWriteError,
+        onWriteSaved,
       }),
     );
     await waitFor(() => expect(callsTo("list_custom_tactics")).toHaveLength(1));
@@ -540,6 +545,36 @@ describe("useTacticsLibrary saving and applying the whole tactic (#1189)", () =>
 
     await waitFor(() => expect(onWriteError).toHaveBeenCalledTimes(1));
     await waitFor(() => expect(customIds(result)).toEqual([]));
+    expect(onWriteSaved).not.toHaveBeenCalled();
+  });
+
+  /**
+   * Given a save that accepts a made tactic
+   * When the player makes one
+   * Then the screen is told a write saved (so it drops an earlier alert), and no error is reported.
+   */
+  it("tells the screen when a tactic save is accepted", async () => {
+    backendWith([], false);
+    const onWriteError = vi.fn();
+    const onWriteSaved = vi.fn();
+    const { result } = renderHook(() =>
+      useTacticsLibrary({
+        gameState: careerGame,
+        formation: "4-4-2",
+        activePlayStyle: "Balanced",
+        initialPreset: null,
+        onApplyPreset: vi.fn(),
+        onGameUpdate: vi.fn(),
+        onWriteError,
+        onWriteSaved,
+      }),
+    );
+    await waitFor(() => expect(callsTo("list_custom_tactics")).toHaveLength(1));
+
+    act(() => result.current.handleCreateCustomTactic());
+
+    await waitFor(() => expect(onWriteSaved).toHaveBeenCalledTimes(1));
+    expect(onWriteError).not.toHaveBeenCalled();
   });
 
   /**
@@ -561,6 +596,7 @@ describe("useTacticsLibrary saving and applying the whole tactic (#1189)", () =>
         onApplyPreset,
         onGameUpdate,
         onWriteError: vi.fn(),
+        onWriteSaved: vi.fn(),
       }),
     );
     await waitFor(() => expect(customIds(result)).toEqual(["custom:mine"]));
@@ -601,6 +637,7 @@ describe("useTacticsLibrary saving and applying the whole tactic (#1189)", () =>
         onApplyPreset: vi.fn(),
         onGameUpdate,
         onWriteError: vi.fn(),
+        onWriteSaved: vi.fn(),
       }),
     );
     await waitFor(() => expect(customIds(result)).toEqual(["custom:mine"]));
@@ -637,6 +674,7 @@ describe("useTacticsLibrary saving and applying the whole tactic (#1189)", () =>
         onApplyPreset: vi.fn(),
         onGameUpdate,
         onWriteError,
+        onWriteSaved: vi.fn(),
       }),
     );
     await waitFor(() => expect(customIds(result)).toEqual(["custom:mine"]));

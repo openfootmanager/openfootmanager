@@ -112,6 +112,7 @@ export default function TacticsTab({
     onApplyPreset: handleApplyTacticPreset,
     onGameUpdate,
     onWriteError,
+    onWriteSaved: () => setWriteError(null),
   });
 
   if (!team) {
