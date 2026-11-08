@@ -84,7 +84,8 @@ pub struct PackageIssue {
 /// (empty = valid) so the new-game UI can show them before the player commits.
 #[tauri::command]
 pub fn validate_world_package(path: String) -> Result<Vec<PackageIssue>, String> {
-    let (_package, errors) = ofm_core::generator::load_world_package(std::path::Path::new(&path));
+    let (_package, errors) =
+        ofm_core::generator::load_world_package_as_world(std::path::Path::new(&path));
     Ok(errors
         .into_iter()
         .map(|error| PackageIssue {
@@ -124,7 +125,17 @@ pub fn inspect_world_package(
     app_handle: tauri::AppHandle,
     path: String,
 ) -> Result<WorldPackageInspection, String> {
-    let (package, errors) = ofm_core::generator::load_world_package(std::path::Path::new(&path));
+    inspect_world_package_internal(&path, &definition_sources(&app_handle))
+}
+
+/// [`inspect_world_package`] against `sources`: the package checked as the world a career would
+/// start on, the same complete-world check the start itself makes.
+fn inspect_world_package_internal(
+    path: &str,
+    sources: &ofm_core::generator::DefinitionSources,
+) -> Result<WorldPackageInspection, String> {
+    let (package, errors) =
+        ofm_core::generator::load_world_package_as_world(std::path::Path::new(path));
     let issues: Vec<PackageIssue> = errors
         .into_iter()
         .map(|error| PackageIssue {
@@ -134,7 +145,7 @@ pub fn inspect_world_package(
         })
         .collect();
 
-    let fallback_name = package_folder_name(&path);
+    let fallback_name = package_folder_name(path);
     if !issues.is_empty() {
         return Ok(WorldPackageInspection {
             name: fallback_name,
@@ -144,11 +155,7 @@ pub fn inspect_world_package(
         });
     }
 
-    let world = ofm_core::generator::build_world_from_package(
-        &package,
-        None,
-        &definition_sources(&app_handle),
-    )?;
+    let world = ofm_core::generator::build_world_from_package(&package, None, sources)?;
     let name = if world.name.trim().is_empty() {
         fallback_name
     } else {
@@ -166,6 +173,56 @@ pub fn inspect_world_package(
 mod tests {
     use super::*;
     use crate::commands::game::testkit::temp_pkg_dir;
+
+    /// A patch package directory that signs a player for a club no package defines.
+    fn ghost_club_patch(tag: &str) -> std::path::PathBuf {
+        let dir = temp_pkg_dir(tag);
+        std::fs::write(
+            dir.join("world.yaml"),
+            "schema: world\nid: roster\nname: Roster\nversion: 1.0.0\nlicense: CC0-1.0\npackageType: patch\n",
+        )
+        .unwrap();
+        std::fs::write(
+            dir.join("player.yaml"),
+            "schema: player\nid: new-signing\nclub: ghost-club\n",
+        )
+        .unwrap();
+        dir
+    }
+
+    /// Given a patch package directory whose player joins a club no package defines
+    /// When the import card inspects it as a world to start on
+    /// Then it reports the unknown team and builds nothing: as a world by itself the patch is the
+    ///      whole stack, so its references must resolve in it (#1198)
+    #[test]
+    fn the_import_card_reports_a_patch_naming_a_club_no_package_defines() {
+        let dir = ghost_club_patch("inspect-ghost");
+
+        let inspection = inspect_world_package_internal(
+            dir.to_string_lossy().as_ref(),
+            &ofm_core::generator::DefinitionSources::embedded_only(),
+        )
+        .expect("inspects");
+        let validated = validate_world_package(dir.to_string_lossy().to_string()).expect("ok");
+        std::fs::remove_dir_all(&dir).ok();
+
+        assert!(
+            inspection
+                .issues
+                .iter()
+                .any(|issue| issue.code == "be.error.package.unknownTeam"),
+            "{:?}",
+            inspection
+                .issues
+                .iter()
+                .map(|i| &i.code)
+                .collect::<Vec<_>>()
+        );
+        assert_eq!(inspection.team_count, 0);
+        assert!(validated
+            .iter()
+            .any(|issue| issue.code == "be.error.package.unknownTeam"));
+    }
 
     #[test]
     fn validate_world_package_reports_problems_and_passes_clean_packages() {

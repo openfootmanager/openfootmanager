@@ -2763,6 +2763,7 @@
       "critical": "Critical"
     },
     "error": {
+      "taskJoinFailed": "The simulation stopped unexpectedly. Please load your last save and try again.",
       "autoSave": {
         "failed": "Auto-save could not save your game. Your progress since the last save is not stored yet: save it yourself, and check that the disk has free space."
       },
@@ -3660,6 +3661,10 @@
         "body": "The agreed loan of {{player}} from {{parent}} to {{borrower}}, due to start on {{start}}, cannot go ahead: the player is no longer under contract to {{parent}}.",
         "bodyRequirementNotMet": "The agreed loan of {{player}} from {{parent}} to {{borrower}} could not start on {{start}}: one of the conditions it was agreed under, such as room in {{borrower}}'s wage budget or the length of the player's contract, no longer holds."
       },
+      "talksClosedBySale": {
+        "subject": "Signed elsewhere: {{player}}",
+        "body": "{{buyer}} have signed {{player}} for {{fee}}. Your open talks for him have been withdrawn."
+      },
       "loanOffer": {
         "subject": "Loan Offer for {{player}}",
         "body": "{{team}} want to take {{player}} on loan until {{endDate}} and cover {{wageContribution}}% of the wages. Purchase option: {{buyOption}}. Review the offer in the Transfers tab.",
@@ -3870,7 +3875,8 @@
       "package": {
         "countryWithoutRegion": "This package defines the country \"{{name}}\" ({{code}}) outside the game's nation list and puts it in no confederation, so its clubs are filed under Europe. Give it a confederation to place it.",
         "freeAgentFieldIgnored": "Player \"{{id}}\" has no club, so is a free agent with no contract: \"{{field}}\" is ignored. Give the player a club to use it, or remove the field.",
-        "repeatedNamePool": "The name pool for {{country}} was already given in {{first}}; this file's pool replaces it. Keep one of them, or give them different countries."
+        "repeatedNamePool": "The name pool for {{country}} was already given in {{first}}; this file's pool replaces it. Keep one of them, or give them different countries.",
+        "namePoolIncomplete": "The name pool for {{country}} has first names but no surnames, or surnames but no first names, so it is not used: players from {{country}} get the game's own names. Give it both."
       }
     }
   },

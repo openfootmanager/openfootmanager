@@ -14,14 +14,43 @@ use crate::nations::nation_by_code;
 pub(super) const COUNTRY_WITHOUT_REGION: &str = "be.warning.package.countryWithoutRegion";
 pub(super) const FREE_AGENT_FIELD_IGNORED: &str = "be.warning.package.freeAgentFieldIgnored";
 pub(super) const REPEATED_NAME_POOL: &str = "be.warning.package.repeatedNamePool";
+// One code for either half missing, rather than one carrying which half as a parameter: the
+// message is rendered with `t(code, params)`, so a parameter would put an English word into a
+// translated sentence.
+pub(super) const NAME_POOL_INCOMPLETE: &str = "be.warning.package.namePoolIncomplete";
 
 /// Problems that leave the package usable. Empty for a package whose own countries are all in
-/// the catalog or placed in a confederation, and whose club-less players carry no contract.
+/// the catalog or placed in a confederation, whose club-less players carry no contract, and whose
+/// name pools each have both first names and surnames.
 pub fn package_warnings(package: &WorldPackage) -> Vec<PackageError> {
     let mut warnings = country_warnings(package);
     warnings.extend(free_agent_warnings(package));
     warnings.extend(repeated_name_pool_warnings(package));
+    warnings.extend(incomplete_name_pool_warnings(package));
     warnings
+}
+
+/// A name pool missing its first names or its surnames. Building a world uses a package's pool
+/// only when it has both, and drops one that does not without a word, so the players of that
+/// country get the built-in pool's names, or generic ones (#1200).
+fn incomplete_name_pool_warnings(package: &WorldPackage) -> Vec<PackageError> {
+    let Some(names) = &package.names else {
+        return Vec::new();
+    };
+    let mut countries: Vec<&String> = names
+        .pools
+        .iter()
+        .filter(|(_, pool)| !pool.is_usable())
+        .map(|(country, _)| country)
+        .collect();
+    countries.sort();
+    countries
+        .into_iter()
+        .map(|country| {
+            PackageError::new(NAME_POOL_INCOMPLETE, package.name_pool_file(country))
+                .with("country", country.clone())
+        })
+        .collect()
 }
 
 /// A country given a name pool by two files of one package: the later file replaces the earlier
@@ -118,6 +147,63 @@ mod tests {
         let (package, _errors) = load_world_package(&dir);
         std::fs::remove_dir_all(&dir).ok();
         package_warnings(&package)
+    }
+
+    fn incomplete_pool_warnings(first: &[&str], last: &[&str]) -> Vec<PackageError> {
+        let list = |names: &[&str]| {
+            names
+                .iter()
+                .map(|name| format!("\"{name}\""))
+                .collect::<Vec<_>>()
+                .join(",")
+        };
+        let contents = format!(
+            r#"{{"schema":"names","pools":{{"BR":{{"first_names":[{}],"last_names":[{}]}}}}}}"#,
+            list(first),
+            list(last)
+        );
+        warnings_for("pool", &[("names/pools.json", contents.as_str())])
+            .into_iter()
+            .filter(|warning| warning.code == NAME_POOL_INCOMPLETE)
+            .collect()
+    }
+
+    /// Given a package whose names file gives Brazil surnames but no first names
+    /// When its warnings are listed
+    /// Then one names the country and the file: a pool is used only with both lists, so this one
+    ///      would be dropped without a word when the world is built (#1200)
+    #[test]
+    fn a_name_pool_with_only_surnames_is_warned_about() {
+        let warnings = incomplete_pool_warnings(&[], &["Silva", "Souza"]);
+
+        assert_eq!(warnings.len(), 1, "{warnings:?}");
+        assert_eq!(warnings[0].file, "names/pools.json");
+        assert_eq!(
+            warnings[0].params,
+            vec![("country".to_string(), "BR".to_string())]
+        );
+    }
+
+    /// Given a package whose names file gives Brazil first names but no surnames
+    /// When its warnings are listed
+    /// Then one names the country, as for the other half missing
+    #[test]
+    fn a_name_pool_with_only_first_names_is_warned_about() {
+        let warnings = incomplete_pool_warnings(&["Joao", "Pedro"], &[]);
+
+        assert_eq!(warnings.len(), 1, "{warnings:?}");
+        assert_eq!(
+            warnings[0].params,
+            vec![("country".to_string(), "BR".to_string())]
+        );
+    }
+
+    /// Given a package whose names file gives Brazil both first names and surnames
+    /// When its warnings are listed
+    /// Then none is about the pool
+    #[test]
+    fn a_complete_name_pool_is_not_warned_about() {
+        assert!(incomplete_pool_warnings(&["Joao"], &["Silva"]).is_empty());
     }
 
     const COUNTRY_QQ: (&str, &str) = (
