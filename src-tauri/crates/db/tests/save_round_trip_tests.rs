@@ -460,7 +460,16 @@ fn rolled_over() -> &'static RolledOver {
         );
         assert!(
             !game.archived_messages.is_empty(),
-            "the season archived read mail"
+            "the season archived read mail: {} messages in the inbox, {} read, {} with an unanswered \
+             action, oldest dated {:?}, game date {}",
+            game.messages.len(),
+            game.messages.iter().filter(|m| m.read).count(),
+            game.messages
+                .iter()
+                .filter(|m| m.actions.iter().any(|a| !a.resolved))
+                .count(),
+            game.messages.iter().map(|m| m.date.clone()).min(),
+            game.clock.current_date.date_naive()
         );
         assert!(
             !game.cash_journal.is_empty(),
