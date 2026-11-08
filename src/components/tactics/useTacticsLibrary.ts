@@ -140,7 +140,16 @@ export function useTacticsLibrary({
     const askedIn = useGameStore.getState().careerEpoch;
     const stale = () => useGameStore.getState().careerEpoch !== askedIn;
     savesInOrder.current = savesInOrder.current
-      .then(() => (stale() ? null : change().catch(() => listCustomTactics())))
+      .then(() =>
+        stale()
+          ? null
+          : change().catch((error: unknown) => {
+              // The save refused the change: tell the screen, and put the library back as the
+              // save has it.
+              if (!stale()) onWriteError(error);
+              return listCustomTactics();
+            }),
+      )
       .then((saved) => {
         if (saved && !stale()) setCustomTactics(toLibraryEntries(saved));
       })

@@ -516,6 +516,33 @@ describe("useTacticsLibrary saving and applying the whole tactic (#1189)", () =>
   });
 
   /**
+   * Given a save that refuses a made tactic
+   * When the player makes one
+   * Then the screen is told (once), and the library goes back to what the save holds.
+   */
+  it("reports a refused tactic save to the screen and restores the library", async () => {
+    backendWith([], false, true);
+    const onWriteError = vi.fn();
+    const { result } = renderHook(() =>
+      useTacticsLibrary({
+        gameState: careerGame,
+        formation: "4-4-2",
+        activePlayStyle: "Balanced",
+        initialPreset: null,
+        onApplyPreset: vi.fn(),
+        onGameUpdate: vi.fn(),
+        onWriteError,
+      }),
+    );
+    await waitFor(() => expect(callsTo("list_custom_tactics")).toHaveLength(1));
+
+    act(() => result.current.handleCreateCustomTactic());
+
+    await waitFor(() => expect(onWriteError).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(customIds(result)).toEqual([]));
+  });
+
+  /**
    * Given a saved tactic in the library
    * When the player picks it
    * Then the backend applies it whole, the screen takes the game the backend answers with, and
