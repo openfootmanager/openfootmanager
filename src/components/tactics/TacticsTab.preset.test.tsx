@@ -342,6 +342,27 @@ describe("TacticsTab preset selection", { timeout: TACTICS_TAB_CASE_TIMEOUT_MS }
     );
   });
 
+  /**
+   * Given an alert for a refused preset
+   * When the backend accepts the next write
+   * Then the alert is gone and the screen shows what the backend holds.
+   */
+  it("clears the alert once a later write saves", async () => {
+    refused = new Set(["apply_tactic_preset"]);
+    fakeBackend();
+    render(<ControlledTacticsTab />);
+    fireEvent.click(screen.getByRole("button", { name: "Choose tactic" }));
+    fireEvent.click(screen.getByRole("option", { name: /High Press/ }));
+    await screen.findByRole("alert");
+
+    refused.clear();
+    fireEvent.click(screen.getByRole("button", { name: "Choose tactic" }));
+    fireEvent.click(screen.getByRole("option", { name: /High Press/ }));
+
+    await waitFor(() => expect(screen.queryByRole("alert")).toBeNull());
+    expect(screen.getByRole("button", { name: "Choose tactic" })).toHaveTextContent("High Press");
+  });
+
   /** Given the active Balanced preset, when it is picked again from the list,
    * then the preset command is still requested to restore its blueprint. */
   it("requests a blueprint reset when the active preset is picked again", async () => {
