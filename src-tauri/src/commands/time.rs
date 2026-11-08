@@ -147,8 +147,6 @@ pub fn skip_to_match_day_internal(
     }
 
     let mut days_skipped = 0u32;
-    // Why the skip arrived: on the user's match day, or out of days (the 60-day limit) with none.
-    let mut reached_match_day = false;
     loop {
         if days_skipped >= 60 {
             break;
@@ -218,10 +216,7 @@ pub fn skip_to_match_day_internal(
         }
 
         match step {
-            Step::MatchDay => {
-                reached_match_day = true;
-                break;
-            }
+            Step::MatchDay => break,
             Step::Terminal(response) => return Ok(response),
             Step::Advanced => days_skipped += 1,
         }
@@ -236,14 +231,23 @@ pub fn skip_to_match_day_internal(
         game.clock.current_date.format("%Y-%m-%d")
     );
     let results = collect_advance_results(&game, &start_date);
+    let date = game.clock.current_date.format("%Y-%m-%d").to_string();
     Ok(serde_json::json!({
         "action": "arrived",
-        "reached_match_day": reached_match_day,
-        "date": game.clock.current_date.format("%Y-%m-%d").to_string(),
+        "reached_match_day": arrived_on_the_match_day(&game),
+        "date": date,
         "game": game,
         "days_skipped": days_skipped,
         "results": results
     }))
+}
+
+/// Whether the skip ended on the user's match day, rather than out of days (the 60-day limit). Read
+/// from the game the skip ends on, under its idle operation, never from the loop's own flag: the
+/// 60th day can be the match day, and the loop stops on the limit before it checks it.
+fn arrived_on_the_match_day(game: &Game) -> bool {
+    let today = game.clock.current_date.format("%Y-%m-%d").to_string();
+    game.user_has_scheduled_match_on(&today)
 }
 
 /// Advance exactly one day, surfacing what happened so the frontend can build a
@@ -1190,6 +1194,22 @@ mod tests {
 
         assert_eq!(outcome, SkipToMatchDay::MatchDayToday {});
         assert_eq!(clock_and_cup_tie(&state), (start, FixtureStatus::Scheduled));
+    }
+
+    /// Given the game's date is the user's match day, and then a date with no match of his
+    /// When the skip's arrival is read
+    /// Then it reached the match day on the first and not on the second: a skip whose 60th day is
+    ///      its match day arrived on it (15076519 told the agent it had not reached a match)
+    #[test]
+    fn a_skip_ending_on_the_users_match_day_arrived_on_it_whichever_day_it_is() {
+        let mut game = make_game_with_matchday();
+        let today = game.clock.current_date.format("%Y-%m-%d").to_string();
+        game.league.as_mut().unwrap().fixtures[0].date = today;
+        game.competitions = vec![game.league.clone().unwrap()];
+        assert!(super::arrived_on_the_match_day(&game));
+
+        game.clock.advance_days(1);
+        assert!(!super::arrived_on_the_match_day(&game));
     }
 
     /// Given a cup tie for the user's club tomorrow, and his next league match twenty days away

@@ -46,6 +46,10 @@ export interface SkipToMatchDayResponse {
   blockers?: BlockerData[];
   days_skipped?: number;
   results?: AdvanceMatchResultData[];
+  /** When the skip arrived: whether it stopped on the user's match day, not out of days. */
+  reached_match_day?: boolean;
+  /** When the skip arrived: the date it stopped on. */
+  date?: string;
 }
 
 export async function advanceTimeWithMode(mode: string): Promise<AdvanceTimeWithModeResponse> {
