@@ -339,7 +339,8 @@ impl LiveMatchSession {
     /// counts only where the slot he fills in the match admits it, the rule the match was built
     /// by (`turn::squad`): a swap or a change of shape before kick-off moves players in the
     /// session alone, so the saved team's slots no longer describe it. A role either refuses
-    /// leaves him on `Standard`, and nothing here can fail once the save has gone through.
+    /// leaves him on `Standard`. The engine refuses nothing that passed those checks; if it ever
+    /// did, the caller logs the error and does not report the save as failed.
     pub fn follow_saved_role_before_kick_off(
         &mut self,
         game: &Game,
