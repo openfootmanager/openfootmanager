@@ -5322,6 +5322,9 @@ colors:
 
     // ---- The projection must give the verdict the built world gives (critique #8) ----
 
+    /// One problem the competition validator raised: code, competition index and params.
+    type VerdictLine = (String, Option<usize>, Vec<(String, String)>);
+
     /// One club of the fixtures below.
     fn fixture_club(id: &str, country: &str, range: [u32; 2]) -> super::super::TeamDef {
         serde_json::from_value(serde_json::json!({
@@ -5337,9 +5340,7 @@ colors:
 
     /// The problems the competition validator raised on the world the package builds: the verdict
     /// validation used to reach, by generating every club's squad.
-    fn verdict_on_the_built_world(
-        package: &WorldPackage,
-    ) -> Vec<(String, Option<usize>, Vec<(String, String)>)> {
+    fn verdict_on_the_built_world(package: &WorldPackage) -> Vec<VerdictLine> {
         use rand::SeedableRng;
         let world = crate::generator::build_world_data_from_package_with_rng(
             package,
@@ -5363,9 +5364,7 @@ colors:
     }
 
     /// The same, on the projection of the package: no world is built.
-    fn verdict_on_the_projection(
-        package: &WorldPackage,
-    ) -> Vec<(String, Option<usize>, Vec<(String, String)>)> {
+    fn verdict_on_the_projection(package: &WorldPackage) -> Vec<VerdictLine> {
         let file = crate::generator::CompetitionDefinitionFile {
             format_version: crate::generator::SUPPORTED_DEFINITION_FORMAT_VERSION,
             competitions: package.competitions.clone(),
