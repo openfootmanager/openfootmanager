@@ -3661,6 +3661,10 @@
         "body": "Peminjaman {{player}} yang disepakati dari {{parent}} ke {{borrower}}, yang dijadwalkan mulai {{start}}, tidak bisa berjalan: pemain itu tidak lagi terikat kontrak dengan {{parent}}.",
         "bodyRequirementNotMet": "Peminjaman {{player}} yang disepakati dari {{parent}} ke {{borrower}} tidak bisa dimulai pada {{start}}: salah satu syarat kesepakatannya, seperti ruang dalam anggaran gaji {{borrower}} atau masa kontrak pemain, tidak lagi terpenuhi."
       },
+      "talksClosedBySale": {
+        "subject": "Direkrut klub lain: {{player}}",
+        "body": "{{buyer}} telah merekrut {{player}} seharga {{fee}}. Negosiasi terbukamu untuknya telah ditarik."
+      },
       "loanOffer": {
         "subject": "Tawaran Pinjaman untuk {{player}}",
         "body": "{{team}} ingin meminjam {{player}} hingga {{endDate}} dan menanggung {{wageContribution}}% dari gaji. Opsi pembelian: {{buyOption}}. Tinjau tawaran di tab Transfer.",
