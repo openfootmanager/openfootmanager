@@ -418,23 +418,32 @@ fn rolled_over() -> &'static RolledOver {
             "a career that has just begun has not rolled a season over"
         );
 
-        // The harness's loop: a day at a time until the season is complete, then the rollover.
-        for _ in 0..600 {
-            if is_season_complete(&game) {
-                break;
-            }
-            // A user reads their mail and answers it; the inbox archive takes the read, answered
-            // mail that is old enough.
-            for message in &mut game.messages {
-                message.read = true;
-                for action in &mut message.actions {
-                    action.resolved = true;
+        // The harness's loop, twice: a day at a time until the season is complete, then the
+        // rollover. Two seasons, because a season of the compact world is about four months and
+        // the inbox archive takes only mail more than 180 days old.
+        for season in 1..=2 {
+            for _ in 0..600 {
+                if is_season_complete(&game) {
+                    break;
                 }
+                // A user reads their mail and answers it; the inbox archive takes the read,
+                // answered mail that is old enough.
+                for message in &mut game.messages {
+                    message.read = true;
+                    for action in &mut message.actions {
+                        action.resolved = true;
+                    }
+                }
+                turn::process_day_with_capture(&mut game, &mut |day_stats| {
+                    stats.append(day_stats)
+                });
             }
-            turn::process_day_with_capture(&mut game, &mut |day_stats| stats.append(day_stats));
+            assert!(
+                is_season_complete(&game),
+                "season {season} finished in 600 days"
+            );
+            advance_to_next_season(&mut game).expect("the season rolls over");
         }
-        assert!(is_season_complete(&game), "the season finished in 600 days");
-        advance_to_next_season(&mut game).expect("the season rolls over");
         assert!(
             game.last_season_rollover_on.is_some(),
             "the game records the rollover that is saved"
