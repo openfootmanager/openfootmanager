@@ -278,6 +278,34 @@ describe("advanceRecap", (): void => {
     expect(recap.inbox[0].text).toBe("Transfer interest in John Star");
   });
 
+  /**
+   * Given an Urgent inbox message (the top priority) and a Normal one, both dated in the advance
+   * When the recap and its attention events are built
+   * Then the Urgent one is in the digest and pauses the advance, as a High one does.
+   */
+  it("treats an Urgent inbox item as at least High: it is listed and it pauses", (): void => {
+    const message = (id: string, priority: string) => ({
+      id,
+      subject: `Subject ${id}`,
+      body: "",
+      sender: "",
+      sender_role: "",
+      date: "2026-07-01",
+      read: false,
+      category: "System",
+      priority,
+      actions: [],
+    });
+    const game = createGame({
+      messages: [message("urgent", "Urgent"), message("normal", "Normal")],
+    } as unknown as Partial<GameStateData>);
+
+    const recap = buildAdvanceRecap(game, "2026-07-01", []);
+
+    expect(recap.inbox.map((item) => item.id)).toEqual(["urgent"]);
+    expect(detectAttentionEvents(game, recap)).toContain("highPriorityInbox");
+  });
+
   it("reads transfer_log from competitions, not the deprecated league mirror", (): void => {
     // When competitions are present they take precedence over game.league.
     const game = createGame({
