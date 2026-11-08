@@ -505,3 +505,40 @@ fn a_change_of_shape_in_play_leaves_the_kick_off_familiarity_alone() {
 
     assert_eq!(familiarity_of(&session, "alpha_rb")[DEF], 1.0);
 }
+
+/// The match's familiarity for a player who cannot play the line he stands in (0.90).
+const CANNOT_PLAY: f64 = 0.90;
+
+/// Given alpha's 4-4-2 with a natural right-back starting at left-back, the best midfielder in
+/// the squad, who plays defence at that slot's factor (1 - 0.10 / 3),
+/// When the manager changes to a 3-5-2 before kick-off and he is taken into midfield,
+/// Then he leaves the defence line: his defence is no longer a slot's factor but his best, 1.0,
+/// while in midfield, a line he cannot play, he plays at 0.90: a player moved across lines is
+/// refitted in both.
+#[test]
+fn a_change_of_shape_that_moves_a_player_across_lines_refits_both_lines() {
+    let mut alpha = natural_side("alpha");
+    alpha[1] = player("alpha", "rb_at_lb", Position::RightBack);
+    alpha[1].attributes.passing = 95;
+    alpha[1].attributes.vision = 95;
+    alpha[1].attributes.decisions = 95;
+    let mut session = at_kick_off(alpha);
+    let at_left_back = familiarity_of(&session, "alpha_rb_at_lb");
+    assert!((at_left_back[DEF] - CAN_PLAY).abs() < 1e-12);
+    assert!((at_left_back[MID] - CANNOT_PLAY).abs() < 1e-12);
+
+    change_shape(&mut session, "3-5-2").expect("the shape is valid");
+
+    let eleven = session.snapshot().home_team.players;
+    let slot = eleven
+        .iter()
+        .position(|player| player.id == "alpha_rb_at_lb")
+        .expect("he is in the eleven");
+    assert!(
+        slot > 3,
+        "a 3-5-2's back line is slots 1 to 3, he is at {slot}"
+    );
+    let in_midfield = familiarity_of(&session, "alpha_rb_at_lb");
+    assert_eq!(in_midfield[DEF], 1.0);
+    assert!((in_midfield[MID] - CANNOT_PLAY).abs() < 1e-12);
+}
