@@ -137,6 +137,8 @@ export default function InboxTab({
 
   async function handleSelectMessage(messageId: string): Promise<void> {
     setSelectedMessageId(messageId);
+    // A refusal belongs to the message whose buttons were pressed.
+    setActionError(null);
     const message = allMessages.find((currentMessage) => currentMessage.id === messageId);
 
     if (message && !message.read) {

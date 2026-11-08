@@ -1611,6 +1611,40 @@ describe("InboxTab", (): void => {
   });
 
   /**
+   * Given a refusal shown for one message
+   * When the manager opens another message
+   * Then the refusal is gone: it belonged to the first message's buttons.
+   */
+  it("clears a refusal when another message is opened", async (): Promise<void> => {
+    await i18nReady;
+    const action: MessageAction = {
+      id: "respond",
+      label: "Respond",
+      action_type: {
+        ChooseOption: {
+          options: [{ id: "no_renewal", label: "No renewal", description: "Let it run out." }],
+        },
+      },
+      resolved: false,
+    };
+    const open = createGameState([
+      createMessage({ id: "happy_player_p1", read: true, subject: "First", actions: [action] }),
+      createMessage({ id: "other", read: true, subject: "Second" }),
+    ]);
+    mockedInvoke.mockImplementation((command: string) => {
+      if (command === "resolve_message_action") return Promise.reject("be.error.careerChanged");
+      return Promise.resolve(command === "get_messages_page" ? open.messages : open);
+    });
+    await renderInboxTab({ gameState: open, initialMessageId: "happy_player_p1" });
+    fireEvent.click(screen.getByText("No renewal"));
+    await screen.findByRole("alert");
+
+    fireEvent.click(screen.getByText("Second"));
+
+    await waitFor(() => expect(screen.queryByRole("alert")).toBeNull());
+  });
+
+  /**
    * Given a response that was answered
    * When the answer lands
    * Then the other response buttons are enabled again (the next message's responses are not stuck).
