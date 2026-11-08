@@ -3288,6 +3288,21 @@ mod tests {
         );
     }
 
+    /// Given an empty market, when it replenishes, then new staff have their load-time identity.
+    #[test]
+    fn created_staff_have_football_identity_in_market() {
+        let mut game = make_staff_market_game(vec![]);
+        assert!(process_available_staff_market(&mut game));
+        assert!(!game.staff.is_empty());
+        let mut upgraded = game.clone();
+        crate::football_identity::upgrade_game_football_identities(&mut upgraded);
+        for (live, loaded) in game.staff.iter().zip(&upgraded.staff) {
+            assert!(!live.football_nation.is_empty());
+            assert_eq!(live.football_nation, loaded.football_nation);
+            assert_eq!(live.birth_country, loaded.birth_country);
+        }
+    }
+
     /// Everything that identifies the people a market brought in.
     fn market_staff(game: &Game) -> Vec<String> {
         let mut rows: Vec<String> = game
