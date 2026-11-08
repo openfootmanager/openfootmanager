@@ -1,6 +1,7 @@
 use ofm_core::generator::{
     export_directory_to_ofm, extract_ofm_to_dir, load_world_package, CompetitionDefinition,
     ConfederationDef, CountryDef, NamesDefinition, PlayerDef, StaffDef, TeamDef, WorldMetaDef,
+    WorldPackage,
 };
 use std::path::Path;
 use tauri::Manager as _;
@@ -15,6 +16,17 @@ pub struct PackageIssue {
     pub code: String,
     pub file: String,
     pub params: std::collections::HashMap<String, String>,
+}
+
+/// What validating a project reports: its issues and warnings, and nothing else. The entities stay on
+/// disk; sending them back (10.5 MB on a large package) only to read an issue list was most of Validate's
+/// cost.
+#[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PackageDiagnostics {
+    pub issues: Vec<PackageIssue>,
+    /// Problems that leave the package usable: shown to the author, never blocking.
+    pub warnings: Vec<PackageIssue>,
 }
 
 #[derive(serde::Serialize)]
@@ -86,10 +98,11 @@ pub fn create_world_project(
         .ok_or_else(|| "be.error.invalidPath".to_string())
 }
 
-/// Load an existing package directory for editing.
-#[tauri::command]
-pub fn read_package_project(dir: String) -> Result<PackageProjectData, String> {
-    let path = Path::new(&dir);
+/// Load a project directory the way every editor entry point does: the package, its issues and its
+/// warnings, or a translation key if the directory is not a project the editor can open. One
+/// pipeline, so opening and validating can never disagree about what is wrong with a package.
+fn load_project(dir: &str) -> Result<(WorldPackage, Vec<PackageIssue>, Vec<PackageIssue>), String> {
+    let path = Path::new(dir);
 
     // Anything that is not a directory cannot be walked for entity files, and
     // walking it fails *silently* — the loader simply finds nothing. Naming the
@@ -147,7 +160,13 @@ pub fn read_package_project(dir: String) -> Result<PackageProjectData, String> {
     };
     let warnings = as_issues(ofm_core::generator::package_warnings(&pkg));
     let issues = as_issues(errors);
+    Ok((pkg, issues, warnings))
+}
 
+/// Load an existing package directory for editing.
+#[tauri::command]
+pub fn read_package_project(dir: String) -> Result<PackageProjectData, String> {
+    let (pkg, issues, warnings) = load_project(&dir)?;
     Ok(PackageProjectData {
         meta: pkg.meta.unwrap_or_default(),
         confederations: pkg.confederations,
@@ -160,6 +179,14 @@ pub fn read_package_project(dir: String) -> Result<PackageProjectData, String> {
         issues,
         warnings,
     })
+}
+
+/// Validate a project directory and return only what is wrong with it. Same loading and the same
+/// refusals as [`read_package_project`], without the entities.
+#[tauri::command]
+pub fn validate_package_project(dir: String) -> Result<PackageDiagnostics, String> {
+    let (_pkg, issues, warnings) = load_project(&dir)?;
+    Ok(PackageDiagnostics { issues, warnings })
 }
 
 /// Persist in-memory edits, writing each entity back to the file it was read from
@@ -872,6 +899,199 @@ mod tests {
             "no club is declared twice: {:?}",
             reopened.issues.iter().map(|i| &i.code).collect::<Vec<_>>()
         );
+    }
+
+    /// A project with a duplicate club id (an issue) and a name pool missing its surnames (a warning).
+    fn project_with_an_issue_and_a_warning(tag: &str) -> std::path::PathBuf {
+        let team = |name: &str| {
+            format!(
+                r##"{{"id":"fc-a","name":"{name}","city":"C","country":"ENG","colors":{{"primary":"#000000","secondary":"#ffffff"}}}}"##
+            )
+        };
+        temp_project(
+            tag,
+            &[
+                (
+                    "package.json",
+                    r#"{"schema":"world","id":"diag","name":"Diag","version":"1.0.0","license":"CC0-1.0"}"#,
+                ),
+                (
+                    "teams/teams.json",
+                    &format!(
+                        r#"{{"schema":"team","items":[{},{}]}}"#,
+                        team("One"),
+                        team("Two")
+                    ),
+                ),
+                (
+                    "countries/qq.json",
+                    r#"{"schema":"country","id":"QQ","name":"Qland"}"#,
+                ),
+            ],
+        )
+    }
+
+    /// Given a project with an issue and a warning
+    /// When the editor validates it, rather than opens it
+    /// Then it gets the same issues and warnings opening reports, from the same pipeline
+    #[test]
+    fn validating_a_project_reports_what_opening_it_reports() {
+        let dir = project_with_an_issue_and_a_warning("diag-parity");
+        let path = dir.to_string_lossy().to_string();
+
+        let opened = read_package_project(path.clone()).expect("opens");
+        let validated = validate_package_project(path).expect("validates");
+        std::fs::remove_dir_all(&dir).ok();
+
+        let as_json = |issues: &[PackageIssue]| serde_json::to_value(issues).expect("serializes");
+        assert!(!validated.issues.is_empty() && !validated.warnings.is_empty());
+        assert_eq!(as_json(&validated.issues), as_json(&opened.issues));
+        assert_eq!(as_json(&validated.warnings), as_json(&opened.warnings));
+    }
+
+    /// Given a package with a parse error, a duplicate id and a semantic error (a player at a club that
+    ///       does not exist)
+    /// When the editor validates it, and the CLI's `validate` pipeline (load, then package warnings)
+    ///      runs on the same directory
+    /// Then both report the same findings, code for code: the editor's Validate cannot pass what the
+    ///      CLI fails, or the reverse
+    #[test]
+    fn editor_validate_and_cli_validate_report_the_same_findings() {
+        let team = |id: &str| {
+            format!(
+                r##"{{"id":"{id}","name":"T","city":"C","country":"ENG","colors":{{"primary":"#000000","secondary":"#ffffff"}}}}"##
+            )
+        };
+        let dir = temp_project(
+            "diag-cli-parity",
+            &[
+                (
+                    "package.json",
+                    r#"{"schema":"world","id":"parity","name":"Parity","version":"1.0.0","license":"CC0-1.0"}"#,
+                ),
+                (
+                    "teams/teams.json",
+                    &format!(
+                        r#"{{"schema":"team","items":[{},{},{{"id":"fc-bad","name":5}}]}}"#,
+                        team("fc-a"),
+                        team("fc-a")
+                    ),
+                ),
+                (
+                    "countries/qq.json",
+                    r#"{"schema":"country","id":"QQ","name":"Qland"}"#,
+                ),
+                (
+                    "players/players.json",
+                    r#"{"schema":"player","items":[{"id":"p1","name":"P One","club":"ghost-fc","nationality":"ENG","position":"Striker","overall":70}]}"#,
+                ),
+            ],
+        );
+
+        let validated = validate_package_project(dir.to_string_lossy().to_string()).expect("ok");
+        let (pkg, errors) = load_world_package(&dir);
+        let cli_warnings = ofm_core::generator::package_warnings(&pkg);
+        std::fs::remove_dir_all(&dir).ok();
+
+        let key = |code: &str, file: &str, params: &[(String, String)]| {
+            let mut params = params.to_vec();
+            params.sort();
+            format!("{code}|{file}|{params:?}")
+        };
+        let mut editor: Vec<String> = validated
+            .issues
+            .iter()
+            .map(|i| {
+                let mut p: Vec<(String, String)> = i
+                    .params
+                    .iter()
+                    .map(|(k, v)| (k.clone(), v.clone()))
+                    .collect();
+                p.sort();
+                key(&i.code, &i.file, &p)
+            })
+            .collect();
+        let mut cli: Vec<String> = errors
+            .iter()
+            .map(|e| key(&e.code, &e.file, &e.params))
+            .collect();
+        editor.sort();
+        cli.sort();
+        assert_eq!(editor, cli);
+        assert!(
+            validated
+                .issues
+                .iter()
+                .any(|i| i.code.ends_with("duplicateId")),
+            "the duplicate id must be among the findings: {:?}",
+            validated.issues.iter().map(|i| &i.code).collect::<Vec<_>>()
+        );
+        assert!(
+            validated.issues.len() >= 3,
+            "parse error, duplicate id and unknown club are three findings: {:?}",
+            validated.issues.iter().map(|i| &i.code).collect::<Vec<_>>()
+        );
+        let warning_key = |code: &str, file: &str| format!("{code}|{file}");
+        let mut editor_warnings: Vec<String> = validated
+            .warnings
+            .iter()
+            .map(|w| warning_key(&w.code, &w.file))
+            .collect();
+        let mut cli_warning_keys: Vec<String> = cli_warnings
+            .iter()
+            .map(|w| warning_key(&w.code, &w.file))
+            .collect();
+        editor_warnings.sort();
+        cli_warning_keys.sort();
+        assert!(!cli_warning_keys.is_empty(), "the fixture must warn");
+        assert_eq!(editor_warnings, cli_warning_keys);
+    }
+
+    /// Given a project with thousands of entities' worth of data
+    /// When the editor validates it
+    /// Then the response carries diagnostics only: no entity collection crosses the IPC boundary
+    ///      (the open response was 10.5 MB on a large package, only to read its issue list)
+    #[test]
+    fn validating_a_project_returns_no_entities() {
+        let dir = project_with_an_issue_and_a_warning("diag-shape");
+        let validated = validate_package_project(dir.to_string_lossy().to_string()).expect("ok");
+        std::fs::remove_dir_all(&dir).ok();
+
+        let value = serde_json::to_value(&validated).expect("serializes");
+        let mut keys: Vec<&str> = value
+            .as_object()
+            .expect("an object")
+            .keys()
+            .map(String::as_str)
+            .collect();
+        keys.sort_unstable();
+        assert_eq!(keys, vec!["issues", "warnings"]);
+    }
+
+    /// Given a path that is not a package project, and one that resolves to nothing readable
+    /// When the editor validates each
+    /// Then it is refused with the same key opening it gives, so Validate never reports "valid" for
+    ///      something Open would refuse
+    #[test]
+    fn validating_refuses_what_opening_refuses() {
+        let missing = std::env::temp_dir().join("ofm-editor-open-diag-missing");
+        std::fs::remove_dir_all(&missing).ok();
+        let unreadable = temp_project(
+            "diag-unreadable",
+            &[(
+                "package.json",
+                r#"{"schema":"world","id":"u","name":"U","version":"1.0.0","license":"CC0-1.0","formatVersion":99}"#,
+            )],
+        );
+        for dir in [&missing, &unreadable] {
+            let path = dir.to_string_lossy().to_string();
+            assert_eq!(
+                validate_package_project(path.clone()).err(),
+                read_package_project(path).err()
+            );
+        }
+        assert!(read_package_project(unreadable.to_string_lossy().to_string()).is_err());
+        std::fs::remove_dir_all(&unreadable).ok();
     }
 
     /// Given a project whose league lists one of its clubs twice

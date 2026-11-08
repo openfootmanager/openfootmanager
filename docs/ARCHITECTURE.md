@@ -516,6 +516,7 @@ Four commands in `src-tauri/src/commands/package_editor.rs` expose package autho
 |---------|-------------|
 | `create_package_project` | `mkdir` + write `package.json` manifest + empty stub files for each entity type |
 | `read_package_project` | `load_world_package(dir)` → return `PackageProjectData` (meta, confederations, countries, teams, players, names, competitions, issues) |
+| `validate_package_project` | same loading and refusals as `read_package_project`, returns only `issues` and `warnings` (no entities); the editor's Validate button |
 | `save_package_project` | Takes one `SavePackageRequest` (`dir` plus each collection as optional): a collection left out is untouched on disk, one sent empty is written empty. Writes only what was sent (write to temp → rename, as a set) and returns a receipt of the collections written, which the editor marks clean |
 | `build_ofm` | Save → validate → `export_directory_to_ofm(dir, output)` |
 
