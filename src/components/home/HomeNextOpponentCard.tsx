@@ -1,7 +1,7 @@
 import { useTranslation } from "react-i18next";
 
 import { formatDateShort, getFixtureDisplayLabel } from "../../lib/helpers";
-import { Badge, Card, CardBody, CardHeader, TeamLogo } from "../ui";
+import { Badge, Card, CardBody, CardHeader, FormDots, TeamLogo } from "../ui";
 import type { NextOpponentWidgetData } from "./HomeTab.helpers";
 
 interface HomeNextOpponentCardProps {
@@ -81,24 +81,7 @@ export default function HomeNextOpponentCard({
               </div>
             )}
 
-            {nextOpponent.recentForm.length > 0 && (
-              <div className="flex gap-1.5">
-                {nextOpponent.recentForm.map((result, index) => (
-                  <span
-                    key={`${nextOpponent.opponent.id}-${index}`}
-                    className={`w-6 h-6 rounded flex items-center justify-center text-[10px] font-heading font-bold text-white ${
-                      result === "W"
-                        ? "bg-green-500"
-                        : result === "L"
-                          ? "bg-red-500"
-                          : "bg-gray-400"
-                    }`}
-                  >
-                    {result}
-                  </span>
-                ))}
-              </div>
-            )}
+            <FormDots results={nextOpponent.recentForm} />
           </div>
         ) : (
           <p className="text-sm text-gray-500 dark:text-gray-400 py-4 text-center">

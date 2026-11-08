@@ -46,6 +46,7 @@ pub mod live_match_manager;
 pub mod manager_records;
 mod manager_reputation;
 pub mod manager_retirement;
+pub mod manager_standing;
 pub mod match_day_eligibility;
 pub mod match_rating;
 pub mod matchday;
@@ -80,6 +81,7 @@ pub mod squad_floor;
 pub mod squad_safety;
 pub(crate) mod stable_hash;
 pub mod staff_rating;
+pub mod staff_tier;
 pub mod state;
 pub mod tactics_effects;
 #[cfg(test)]

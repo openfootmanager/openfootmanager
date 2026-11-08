@@ -8,7 +8,7 @@ import { competitionDisplayName } from "../lib/competitionName";
 import AwardsCeremonyScreen from "./season/AwardsCeremonyScreen";
 import { Trophy, Star, ArrowRight, Crown } from "lucide-react";
 
-interface EndOfSeasonSummary {
+export interface EndOfSeasonSummary {
   season: number;
   league_name: string;
   champion_id: string;
@@ -28,17 +28,35 @@ interface EndOfSeasonSummary {
   season_awards: SeasonAwardsData;
 }
 
+/**
+ * Where the player is once the next season has been started: the awards of the one just played,
+ * then the new season's announcement. Held by the dashboard, not here: the same game update that
+ * carries the new season says the old one is no longer complete, which unmounts this screen, and
+ * what it kept in its own state went with it.
+ */
+export interface SeasonTransition {
+  summary: EndOfSeasonSummary;
+  step: "ceremony" | "done";
+}
+
 interface EndOfSeasonScreenProps {
   gameState: GameStateData;
   onGameUpdate: (g: GameStateData) => void;
+  transition: SeasonTransition | null;
+  onTransitionChange: (transition: SeasonTransition | null) => void;
 }
 
-export default function EndOfSeasonScreen({ gameState, onGameUpdate }: EndOfSeasonScreenProps) {
+export default function EndOfSeasonScreen({
+  gameState,
+  onGameUpdate,
+  transition,
+  onTransitionChange,
+}: EndOfSeasonScreenProps) {
   const { t } = useTranslation();
   const setShowFiredModal = useGameStore((s) => s.setShowFiredModal);
   const [loading, setLoading] = useState(false);
-  const [summary, setSummary] = useState<EndOfSeasonSummary | null>(null);
-  const [step, setStep] = useState<"review" | "ceremony" | "done">("review");
+  const summary = transition?.summary ?? null;
+  const step = transition?.step ?? "review";
 
   const league = gameState.league;
   const userTeamId = gameState.manager.team_id;
@@ -56,6 +74,8 @@ export default function EndOfSeasonScreen({ gameState, onGameUpdate }: EndOfSeas
 
   const userStandingIdx = standings.findIndex((s) => s.team_id === userTeamId);
   const userStanding = standings[userStandingIdx];
+  // A manager with no club has no place in the table: nothing of a club summary is drawn for them.
+  const userHasStanding = userStandingIdx >= 0;
   const userPosition = userStandingIdx + 1;
   const champion = standings[0];
   const championName = gameState.teams.find((t) => t.id === champion?.team_id)?.name || "";
@@ -75,9 +95,9 @@ export default function EndOfSeasonScreen({ gameState, onGameUpdate }: EndOfSeas
         setShowFiredModal(true);
         return;
       }
-      setSummary(result.summary);
+      // The transition first: the game update below is what ends the season this screen reviews.
+      onTransitionChange({ summary: result.summary, step: "ceremony" });
       onGameUpdate(result.game);
-      setStep("ceremony");
     } catch (err) {
       console.error("Failed to advance season:", err);
     } finally {
@@ -128,52 +148,54 @@ export default function EndOfSeasonScreen({ gameState, onGameUpdate }: EndOfSeas
           </div>
 
           {/* User team summary */}
-          <Card accent={isChampion ? "accent" : "primary"} className="mb-6">
-            <CardBody>
-              <div className="text-center">
-                <p className="text-xs font-heading font-bold uppercase tracking-widest text-gray-400 dark:text-gray-500 mb-1">
-                  {userTeam?.name}
-                </p>
-                <div className="flex items-center justify-center gap-6 mb-4">
-                  <div>
-                    <p className="text-4xl font-heading font-bold text-gray-900 dark:text-gray-100">
-                      {posLabel(userPosition)}
-                    </p>
-                    <p className="text-xs text-gray-400 dark:text-gray-500 font-heading uppercase">
-                      {t("endOfSeason.position")}
-                    </p>
+          {userHasStanding && (
+            <Card accent={isChampion ? "accent" : "primary"} className="mb-6">
+              <CardBody>
+                <div className="text-center">
+                  <p className="text-xs font-heading font-bold uppercase tracking-widest text-gray-400 dark:text-gray-500 mb-1">
+                    {userTeam?.name}
+                  </p>
+                  <div className="flex items-center justify-center gap-6 mb-4">
+                    <div>
+                      <p className="text-4xl font-heading font-bold text-gray-900 dark:text-gray-100">
+                        {posLabel(userPosition)}
+                      </p>
+                      <p className="text-xs text-gray-400 dark:text-gray-500 font-heading uppercase">
+                        {t("endOfSeason.position")}
+                      </p>
+                    </div>
+                    <div className="w-px h-12 bg-gray-200 dark:bg-navy-600" />
+                    <div>
+                      <p className="text-4xl font-heading font-bold text-primary-500">
+                        {userStanding?.points || 0}
+                      </p>
+                      <p className="text-xs text-gray-400 dark:text-gray-500 font-heading uppercase">
+                        {t("endOfSeason.points")}
+                      </p>
+                    </div>
                   </div>
-                  <div className="w-px h-12 bg-gray-200 dark:bg-navy-600" />
-                  <div>
-                    <p className="text-4xl font-heading font-bold text-primary-500">
-                      {userStanding?.points || 0}
-                    </p>
-                    <p className="text-xs text-gray-400 dark:text-gray-500 font-heading uppercase">
-                      {t("endOfSeason.points")}
-                    </p>
+                  <div className="flex items-center justify-center gap-8 text-sm">
+                    <span className="text-green-500 font-heading font-bold">
+                      {userStanding?.won || 0}
+                      {t("common.won")}
+                    </span>
+                    <span className="text-gray-500 font-heading font-bold">
+                      {userStanding?.drawn || 0}
+                      {t("common.drawn")}
+                    </span>
+                    <span className="text-red-500 font-heading font-bold">
+                      {userStanding?.lost || 0}
+                      {t("common.lost")}
+                    </span>
+                    <span className="text-gray-400">
+                      {userStanding?.goals_for || 0} {t("common.gf")} —{" "}
+                      {userStanding?.goals_against || 0} {t("common.ga")}
+                    </span>
                   </div>
                 </div>
-                <div className="flex items-center justify-center gap-8 text-sm">
-                  <span className="text-green-500 font-heading font-bold">
-                    {userStanding?.won || 0}
-                    {t("common.won")}
-                  </span>
-                  <span className="text-gray-500 font-heading font-bold">
-                    {userStanding?.drawn || 0}
-                    {t("common.drawn")}
-                  </span>
-                  <span className="text-red-500 font-heading font-bold">
-                    {userStanding?.lost || 0}
-                    {t("common.lost")}
-                  </span>
-                  <span className="text-gray-400">
-                    {userStanding?.goals_for || 0} {t("common.gf")} —{" "}
-                    {userStanding?.goals_against || 0} {t("common.ga")}
-                  </span>
-                </div>
-              </div>
-            </CardBody>
-          </Card>
+              </CardBody>
+            </Card>
+          )}
 
           {/* Final top 5 standings */}
           <Card className="mb-6">
@@ -260,7 +282,7 @@ export default function EndOfSeasonScreen({ gameState, onGameUpdate }: EndOfSeas
           leagueName={summary.league_name}
           gameState={gameState}
           awards={summary.season_awards}
-          onContinue={() => setStep("done")}
+          onContinue={() => onTransitionChange({ summary, step: "done" })}
         />
       )}
 
@@ -278,11 +300,7 @@ export default function EndOfSeasonScreen({ gameState, onGameUpdate }: EndOfSeas
 
           <button
             type="button"
-            onClick={() => {
-              // Game state is already updated via onGameUpdate, just force re-render
-              // by calling onGameUpdate again with the current state
-              if (gameState) onGameUpdate(gameState);
-            }}
+            onClick={() => onTransitionChange(null)}
             className="px-8 py-3 bg-primary-500 text-white rounded-xl font-heading font-bold uppercase tracking-wider hover:bg-primary-600 transition-all shadow-lg shadow-primary-500/20"
           >
             {t("endOfSeason.continueDashboard")}

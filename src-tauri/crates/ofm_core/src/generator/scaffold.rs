@@ -385,7 +385,7 @@ pub const SCHEMA_FIELDS_FIXTURE: &str =
 /// this; the CLI did not, so an interrupted `ofm-cli new` could leave a truncated
 /// manifest that then failed to parse. Sharing the scaffolder gives the CLI the
 /// safer behaviour rather than giving the editor the weaker one.
-fn write_json_atomic(path: &Path, value: &Value) -> Result<(), String> {
+pub(super) fn write_json_atomic(path: &Path, value: &Value) -> Result<(), String> {
     let content = serde_json::to_string_pretty(value).map_err(|e| e.to_string())?;
     let tmp = path.with_extension("json.tmp");
     std::fs::write(&tmp, &content).map_err(|e| e.to_string())?;

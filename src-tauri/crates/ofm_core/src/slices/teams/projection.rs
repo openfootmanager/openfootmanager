@@ -38,6 +38,7 @@ pub(super) fn project_card(
         total_value,
         league_pos,
         standing,
+        form: team.form.clone(),
         manager: manager.map(|manager| TeamCardManager {
             id: manager.id.clone(),
             name: manager.display_name.clone(),

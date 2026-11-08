@@ -7,7 +7,7 @@ import TacticsPitch from "./TacticsPitch";
 import TacticsPlayerList from "./TacticsPlayerList";
 import TacticsRightPanel from "./TacticsRightPanel";
 import TacticsCommandBar from "./TacticsCommandBar";
-import TacticsPlayerFocusPanel from "./TacticsPlayerFocusPanel";
+import TacticsCompareDialog from "./TacticsCompareDialog";
 import { useTacticsLibrary } from "./useTacticsLibrary";
 import { useTacticsFilters } from "./useTacticsFilters";
 import { useTacticsLineup } from "./useTacticsLineup";
@@ -63,6 +63,7 @@ export default function TacticsTab({
     handleAssignMatchRole,
     handleTacticsPhaseChange,
     lineupReady,
+    familiarity,
   } = useTacticsLineup({ gameState, onGameUpdate });
 
   const {
@@ -92,9 +93,8 @@ export default function TacticsTab({
     formation,
     activePlayStyle,
     initialPreset,
-    onFormationChange: handleFormationChange,
-    onPlayStyleChange: handlePlayStyleChange,
     onApplyPreset: handleApplyTacticPreset,
+    onGameUpdate,
   });
 
   if (!team) {
@@ -179,6 +179,8 @@ export default function TacticsTab({
 
         {/* Center: pitch */}
         <TacticsPitch
+          familiarity={familiarity}
+          lineupReady={lineupReady}
           dragState={dragState}
           formation={formation}
           comparePlayerId={comparePlayerId}
@@ -241,25 +243,15 @@ export default function TacticsTab({
 
       {/* Inspector modal — only when both players are selected for comparison */}
       {selectedPlayer && comparePlayer && (
-        <>
-          <div
-            className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm"
-            onClick={clearLineupSelection}
-          />
-          <div className="pointer-events-none fixed inset-0 z-50 flex items-center justify-center p-4">
-            <div className="pointer-events-auto w-full max-w-lg max-h-[85vh] overflow-y-auto">
-              <TacticsPlayerFocusPanel
-                canConfirmSwap={canConfirmSwap}
-                comparePlayer={comparePlayer}
-                onClose={clearLineupSelection}
-                onConfirmSwap={() => {
-                  void handleConfirmSwap();
-                }}
-                selectedPlayer={selectedPlayer}
-              />
-            </div>
-          </div>
-        </>
+        <TacticsCompareDialog
+          canConfirmSwap={canConfirmSwap}
+          comparePlayer={comparePlayer}
+          onClose={clearLineupSelection}
+          onConfirmSwap={() => {
+            void handleConfirmSwap();
+          }}
+          selectedPlayer={selectedPlayer}
+        />
       )}
     </div>
   );
