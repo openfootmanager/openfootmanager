@@ -4,8 +4,9 @@
 //!
 //! Budget: a few minutes. The PR gate (`gate.rs`) stays under two minutes and is not touched here.
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 
+use domain::age::age_on_or_unknown;
 use domain::league::FixtureStatus;
 use domain::message::InboxMessage;
 use domain::player::{Player, Position, SquadRole};
@@ -452,6 +453,19 @@ fn a_club_with_no_players_is_a_floor_breach() {
 /// Then no AI club is below the squad floor at the end of any season, the player's club was warned
 ///      whenever it was below the floor and could always field a side at kick-off, and every other
 ///      rule holds.
+///
+/// What this pins, and what it does not (measured by disabling each mechanism in a disposable copy
+/// of develop, see #396): the floor is kept by three layers, each of which is pinned by its own unit
+/// tests. This test pins the PROPERTY that the floor holds across seasons, so it fails only when
+/// enough layers are gone that nothing keeps it:
+/// - the emergency top-up (`squad_floor::restore_minimum_squad`): 13 unit tests in `squad_floor`
+///   fail without it; this test still passes (planning and renewals keep the floor);
+/// - AI contract renewals (`ai_contracts::renew`): 10 unit tests in `ai_contracts` fail without
+///   them, e.g. `an_ai_club_keeps_its_squad_across_seasons_by_renewing_it`; this test still passes;
+/// - AI squad planning (`ai_contracts::plan_squads`): 6 unit tests fail without it, e.g.
+///   `an_ai_club_at_the_floor_signs_a_free_agent_it_can_afford`; this test fails too (clubs short
+///   from the first season), as it does with all three off.
+/// So a green run is not evidence that every layer works; the unit tests are.
 #[test]
 #[ignore = "nightly tier"]
 fn five_seasons_leave_no_club_below_the_squad_floor() {
@@ -674,4 +688,128 @@ fn four_seasons_generate_clash_free_calendars_with_reloads() {
     }
 
     assert_eq!(clashes, Vec::<String>::new());
+}
+
+/// What the world holds after each season: how many players, how many of them joined this
+/// season as academy recruits, how many clubs took at least one, and the median age of the
+/// players at clubs. The series is printed so a bound can be chosen from it.
+#[derive(Default)]
+struct SupplyWatch {
+    known: BTreeSet<String>,
+    seasons: Vec<SupplySeason>,
+    recruits_outside_the_band: Vec<String>,
+}
+
+struct SupplySeason {
+    season: u32,
+    players: usize,
+    recruits: usize,
+    clubs_with_recruits: usize,
+    clubs: usize,
+    median_age: i32,
+}
+
+impl SupplyWatch {
+    fn remember(&mut self, game: &Game) {
+        self.known = game
+            .players
+            .iter()
+            .map(|player| player.id.clone())
+            .collect();
+    }
+}
+
+impl SeasonObserver for SupplyWatch {
+    fn on_season_end(&mut self, game: &Game, _summary: &EndOfSeasonSummary, season: u32) {
+        let today = game.clock.current_date.date_naive();
+        let mut recruits_by_club: BTreeMap<&str, usize> = BTreeMap::new();
+        let mut recruits = 0;
+        for player in game.players.iter().filter(|p| !self.known.contains(&p.id)) {
+            // Players joining a club's academy: the youth intake (free agents and the
+            // national-team top-ups are not in an academy).
+            let (Some(club), SquadRole::Youth) = (player.team_id.as_deref(), &player.squad_role)
+            else {
+                continue;
+            };
+            recruits += 1;
+            *recruits_by_club.entry(club).or_default() += 1;
+            let age = age_on_or_unknown(today, &player.date_of_birth);
+            if !(14..=ofm_core::roster::YOUTH_ACADEMY_MAX_AGE).contains(&age) {
+                self.recruits_outside_the_band.push(format!(
+                    "[season {season}] {} is {age} at {club}",
+                    player.id
+                ));
+            }
+        }
+        let mut ages: Vec<i32> = game
+            .players
+            .iter()
+            .filter(|player| player.team_id.is_some() && !player.retired)
+            .map(|player| age_on_or_unknown(today, &player.date_of_birth))
+            .collect();
+        ages.sort_unstable();
+        self.seasons.push(SupplySeason {
+            season,
+            players: game.players.iter().filter(|p| !p.retired).count(),
+            recruits,
+            clubs_with_recruits: recruits_by_club.len(),
+            clubs: game.teams.len(),
+            median_age: ages.get(ages.len() / 2).copied().unwrap_or_default(),
+        });
+        self.remember(game);
+    }
+}
+
+/// Given generated worlds from three seeds,
+/// When each is played through ten seasons,
+/// Then the world is replaced as fast as it loses people (its player count does not fall every
+///      season), every recruit joins an academy inside the youth band, and most clubs take an intake
+///      each season (#528: "youth intake for every club, so the world replaces who it loses").
+///      The series (players, recruits, clubs taking one, median age at clubs) is printed.
+#[test]
+#[ignore = "nightly tier"]
+fn ten_seasons_keep_the_world_supplied_by_the_youth_intake() {
+    for &seed in SEEDS {
+        let mut game = WorldSpec::gate(seed).build().expect("the world builds");
+        let mut watch = SupplyWatch::default();
+        watch.remember(&game);
+        let start = game.players.iter().filter(|p| !p.retired).count();
+
+        run_seasons(&mut game, RunOptions::seasons(10), &mut watch)
+            .unwrap_or_else(|error| panic!("seed {seed}: {error}"));
+
+        eprintln!("seed {seed}: {start} players at the start");
+        for season in &watch.seasons {
+            eprintln!(
+                "seed {seed} season {}: {} players, {} recruits, {} of {} clubs took an intake, median age at clubs {}",
+                season.season,
+                season.players,
+                season.recruits,
+                season.clubs_with_recruits,
+                season.clubs,
+                season.median_age
+            );
+        }
+        let counts: Vec<usize> = std::iter::once(start)
+            .chain(watch.seasons.iter().map(|season| season.players))
+            .collect();
+        assert!(
+            counts.windows(2).any(|pair| pair[1] >= pair[0]),
+            "seed {seed}: the player count fell every season: {counts:?}"
+        );
+        assert!(
+            watch.recruits_outside_the_band.is_empty(),
+            "seed {seed}: recruits outside the youth band:\n{}",
+            watch.recruits_outside_the_band.join("\n")
+        );
+        for season in &watch.seasons {
+            assert!(
+                season.clubs_with_recruits * 2 >= season.clubs,
+                "seed {seed} season {}: only {} of {} clubs took an intake",
+                season.season,
+                season.clubs_with_recruits,
+                season.clubs
+            );
+        }
+    }
 }
