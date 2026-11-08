@@ -545,6 +545,15 @@ mod tests {
     use ofm_core::state::StateManager;
     use serde_json::Value;
 
+    /// Given a simulation worker that panics, when it is joined, then the error is a translation key.
+    #[test]
+    fn panicking_simulation_returns_a_translation_key() {
+        let result = tauri::async_runtime::block_on(super::run_off_thread(|| -> Result<(), String> {
+            panic!("simulation failed")
+        }));
+        assert_eq!(result, Err("be.error.taskJoinFailed".to_string()));
+    }
+
     fn default_attrs() -> PlayerAttributes {
         PlayerAttributes {
             pace: 60,
