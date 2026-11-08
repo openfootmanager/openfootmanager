@@ -170,35 +170,58 @@ pub fn read_package_project(dir: String) -> Result<PackageProjectData, String> {
 /// transactional: a failure partway through leaves the earlier files updated and
 /// the later ones stale. Recovering from that means saving again from the
 /// still-intact in-memory project.
-// One parameter per entity type, matching the `.ofm` package layout — the editor
-// sends every collection in one call, so the argument count tracks the entity
-// count by design.
-#[allow(clippy::too_many_arguments)]
+/// What the editor sends to save. A collection left out is untouched on disk; one sent empty
+/// is written empty. `null` reads as left out, so a client can only empty a collection by
+/// sending `[]`.
+#[derive(serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SavePackageRequest {
+    pub dir: String,
+    #[serde(default)]
+    pub meta: Option<WorldMetaDef>,
+    #[serde(default)]
+    pub confederations: Option<Vec<ConfederationDef>>,
+    #[serde(default)]
+    pub countries: Option<Vec<CountryDef>>,
+    #[serde(default)]
+    pub teams: Option<Vec<TeamDef>>,
+    #[serde(default)]
+    pub players: Option<Vec<PlayerDef>>,
+    #[serde(default)]
+    pub staff: Option<Vec<StaffDef>>,
+    #[serde(default)]
+    pub names: Option<NamesDefinition>,
+    #[serde(default)]
+    pub competitions: Option<Vec<CompetitionDefinition>>,
+}
+
+/// The collections a save wrote. The editor marks a collection clean only if it is listed here.
+#[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SavePackageReceipt {
+    pub saved: Vec<String>,
+    pub files_written: usize,
+}
+
 #[tauri::command]
-pub fn save_package_project(
-    dir: String,
-    meta: WorldMetaDef,
-    confederations: Vec<ConfederationDef>,
-    countries: Vec<CountryDef>,
-    teams: Vec<TeamDef>,
-    players: Vec<PlayerDef>,
-    staff: Vec<StaffDef>,
-    names: NamesDefinition,
-    competitions: Vec<CompetitionDefinition>,
-) -> Result<(), String> {
-    ofm_core::generator::save_package_files(
-        Path::new(&dir),
+pub fn save_package_project(request: SavePackageRequest) -> Result<SavePackageReceipt, String> {
+    let outcome = ofm_core::generator::save_package_files(
+        Path::new(&request.dir),
         &ofm_core::generator::EditedPackage {
-            meta,
-            confederations,
-            countries,
-            teams,
-            players,
-            staff,
-            names,
-            competitions,
+            meta: request.meta,
+            confederations: request.confederations,
+            countries: request.countries,
+            teams: request.teams,
+            players: request.players,
+            staff: request.staff,
+            names: request.names,
+            competitions: request.competitions,
         },
-    )
+    )?;
+    Ok(SavePackageReceipt {
+        saved: outcome.saved.into_iter().map(str::to_string).collect(),
+        files_written: outcome.files_written,
+    })
 }
 
 #[cfg(test)]
@@ -758,25 +781,29 @@ mod tests {
         let path = dir.to_string_lossy().to_string();
         let opened = read_package_project(path.clone()).expect("the project opens");
 
-        let saved = save_package_project(
-            path.clone(),
-            opened.meta,
-            opened.confederations,
-            opened.countries,
-            opened.teams,
-            opened.players,
-            opened.staff,
-            opened.names.unwrap_or(NamesDefinition {
+        let saved = save_package_project(SavePackageRequest {
+            dir: path.clone(),
+            meta: Some(opened.meta),
+            confederations: Some(opened.confederations),
+            countries: Some(opened.countries),
+            teams: Some(opened.teams),
+            players: Some(opened.players),
+            staff: Some(opened.staff),
+            names: Some(opened.names.unwrap_or(NamesDefinition {
                 version: 1,
                 description: String::new(),
                 pools: HashMap::new(),
-            }),
-            opened.competitions,
-        );
+            })),
+            competitions: Some(opened.competitions),
+        });
         let reopened = read_package_project(path);
         std::fs::remove_dir_all(&dir).ok();
 
-        assert_eq!(saved, Ok(()));
+        assert_eq!(
+            saved.map(|receipt| receipt.saved.len()),
+            Ok(8),
+            "all eight collections are acknowledged"
+        );
         let teams: Vec<String> = reopened
             .expect("the saved project opens")
             .teams
@@ -812,21 +839,21 @@ mod tests {
             .filter(|team| team.id == "fc-a")
             .for_each(|team| team.name = "FC A Renamed".to_string());
 
-        save_package_project(
-            path.clone(),
-            opened.meta.clone(),
-            opened.confederations.clone(),
-            opened.countries.clone(),
-            teams,
-            opened.players.clone(),
-            opened.staff.clone(),
-            opened.names.clone().unwrap_or(NamesDefinition {
+        save_package_project(SavePackageRequest {
+            dir: path.clone(),
+            meta: Some(opened.meta.clone()),
+            confederations: Some(opened.confederations.clone()),
+            countries: Some(opened.countries.clone()),
+            teams: Some(teams),
+            players: Some(opened.players.clone()),
+            staff: Some(opened.staff.clone()),
+            names: Some(opened.names.clone().unwrap_or(NamesDefinition {
                 version: 1,
                 description: String::new(),
                 pools: HashMap::new(),
-            }),
-            opened.competitions.clone(),
-        )
+            })),
+            competitions: Some(opened.competitions.clone()),
+        })
         .expect("the save succeeds");
         let reopened = read_package_project(path).expect("the saved project opens");
         std::fs::remove_dir_all(&dir).ok();
@@ -1329,17 +1356,17 @@ mod tests {
             known_as: None,
         }];
 
-        save_package_project(
-            dir.to_str().unwrap().to_string(),
-            test_meta(),
-            confederations,
-            countries,
-            teams,
-            players,
-            staff,
-            names,
-            competitions,
-        )
+        save_package_project(SavePackageRequest {
+            dir: dir.to_str().unwrap().to_string(),
+            meta: Some(test_meta()),
+            confederations: Some(confederations),
+            countries: Some(countries),
+            teams: Some(teams),
+            players: Some(players),
+            staff: Some(staff),
+            names: Some(names),
+            competitions: Some(competitions),
+        })
         .unwrap();
 
         let loaded = read_package_project(dir.to_str().unwrap().to_string()).unwrap();
@@ -1466,6 +1493,66 @@ mod tests {
 
         std::fs::remove_dir_all(&base).ok();
         std::fs::remove_file(&secret).ok();
+    }
+
+    /// Given a save request as the frontend sends it, with some collections left out
+    /// When it is deserialized
+    /// Then a left-out collection is `None` and an empty list is `Some(empty)`: the two are not
+    ///      the same request, and `null` reads as left out
+    #[test]
+    fn a_save_request_tells_an_omitted_collection_from_an_empty_one() {
+        let request: SavePackageRequest =
+            serde_json::from_str(r#"{"dir":"/p","teams":[],"players":null,"competitions":[]}"#)
+                .expect("deserializes");
+
+        assert_eq!(request.teams.as_ref().map(Vec::len), Some(0));
+        assert!(request.players.is_none(), "null reads as left out");
+        assert!(request.staff.is_none(), "an absent key is left out");
+        assert!(request.meta.is_none() && request.names.is_none());
+        assert_eq!(request.competitions.as_ref().map(Vec::len), Some(0));
+    }
+
+    /// Given an open project with clubs and players on disk
+    /// When the editor saves a request holding only the clubs
+    /// Then the receipt names the clubs alone and the players' file is byte for byte as before
+    #[test]
+    fn saving_only_the_clubs_acknowledges_only_the_clubs() {
+        let dir = temp_project(
+            "save-only-teams",
+            &[
+                (
+                    "package.json",
+                    r#"{"schema":"world","id":"only","name":"Only","version":"1.0.0","license":"CC0-1.0"}"#,
+                ),
+                (
+                    "teams/teams.json",
+                    r##"{"schema":"team","items":[{"id":"fc-a","name":"FC A","city":"C","country":"ENG","colors":{"primary":"#000000","secondary":"#ffffff"}}]}"##,
+                ),
+            ],
+        );
+        let path = dir.to_string_lossy().to_string();
+        std::fs::create_dir_all(dir.join("players")).expect("dir");
+        let players = r#"{"schema":"player","items":[]}"#;
+        std::fs::write(dir.join("players/p.json"), players).expect("written");
+        let opened = read_package_project(path.clone()).expect("opens");
+
+        let receipt = save_package_project(SavePackageRequest {
+            dir: path,
+            meta: None,
+            confederations: None,
+            countries: None,
+            teams: Some(opened.teams),
+            players: None,
+            staff: None,
+            names: None,
+            competitions: None,
+        })
+        .expect("saves");
+        let after = std::fs::read_to_string(dir.join("players/p.json")).expect("readable");
+        std::fs::remove_dir_all(&dir).ok();
+
+        assert_eq!(receipt.saved, vec!["teams".to_string()]);
+        assert_eq!(after, players);
     }
 }
 

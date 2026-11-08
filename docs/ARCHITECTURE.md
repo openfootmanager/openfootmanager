@@ -516,7 +516,7 @@ Four commands in `src-tauri/src/commands/package_editor.rs` expose package autho
 |---------|-------------|
 | `create_package_project` | `mkdir` + write `package.json` manifest + empty stub files for each entity type |
 | `read_package_project` | `load_world_package(dir)` → return `PackageProjectData` (meta, confederations, countries, teams, players, names, competitions, issues) |
-| `save_package_project` | Atomically overwrite all entity files: `package.json`, `confederations/`, `countries/`, `teams/`, `players/`, `names/`, `competitions/` (write to temp → rename) |
+| `save_package_project` | Takes one `SavePackageRequest` (`dir` plus each collection as optional): a collection left out is untouched on disk, one sent empty is written empty. Writes only what was sent (write to temp → rename, as a set) and returns a receipt of the collections written, which the editor marks clean |
 | `build_ofm` | Save → validate → `export_directory_to_ofm(dir, output)` |
 
 All entity types (`WorldMetaDef`, `ConfederationDef`, `CountryDef`, `TeamDef`, `PlayerDef`, `NamesDefinition`, `CompetitionDefinition`) are passed directly through Tauri's invoke boundary — they are the same types `ofm_core` uses internally, so no translation layer is needed.

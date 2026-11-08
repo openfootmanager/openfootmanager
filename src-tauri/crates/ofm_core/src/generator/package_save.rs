@@ -17,16 +17,30 @@ use super::package::{
 };
 use super::scaffold::{EntityKind, manifest_json, names_json};
 
-/// What the package editor saves: every collection of a package, as the author left it.
+/// What the package editor saves. A collection that is `None` was not sent: its files are left
+/// exactly as they are on disk. `Some(vec![])` is a collection the author emptied, and is written
+/// as such; the two must never be confused, or an editor that sends only what changed would
+/// delete whatever it did not send.
+#[derive(Default)]
 pub struct EditedPackage {
-    pub meta: WorldMetaDef,
-    pub confederations: Vec<ConfederationDef>,
-    pub countries: Vec<CountryDef>,
-    pub teams: Vec<TeamDef>,
-    pub players: Vec<PlayerDef>,
-    pub staff: Vec<StaffDef>,
-    pub names: NamesDefinition,
-    pub competitions: Vec<CompetitionDefinition>,
+    pub meta: Option<WorldMetaDef>,
+    pub confederations: Option<Vec<ConfederationDef>>,
+    pub countries: Option<Vec<CountryDef>>,
+    pub teams: Option<Vec<TeamDef>>,
+    pub players: Option<Vec<PlayerDef>>,
+    pub staff: Option<Vec<StaffDef>>,
+    pub names: Option<NamesDefinition>,
+    pub competitions: Option<Vec<CompetitionDefinition>>,
+}
+
+/// What a save wrote: the collections it acknowledges, and how many files it touched. A caller
+/// marks a collection saved only if it is listed here.
+#[derive(Debug, Default, PartialEq, Eq)]
+pub struct SaveOutcome {
+    /// The names of the collections written: `meta`, `confederations`, `countries`, `teams`,
+    /// `players`, `staff`, `names`, `competitions`.
+    pub saved: Vec<&'static str>,
+    pub files_written: usize,
 }
 
 /// Write `edited` into the package at `dir`, each entity into the file it was read from.
@@ -40,6 +54,9 @@ pub struct EditedPackage {
 /// that does not read as its kind is carried over as written: the loader skipped it, so the editor
 /// never held it. A file that does not parse at all is never written.
 ///
+/// Only the collections present in `edited` are written; the files of an absent one are not read
+/// for rewriting, not staged and not renamed. A save of nothing writes nothing and succeeds.
+///
 /// Every file written is JSON, which a `.yaml` file also parses as, so an entity read from YAML
 /// stays loadable; its comments and layout do not survive the save.
 ///
@@ -47,23 +64,100 @@ pub struct EditedPackage {
 /// one is staged are they renamed into place. A save that fails while staging (a full disk, a
 /// file that cannot be created) leaves the package as it was. With entities in files of their own,
 /// a save that stopped halfway would leave some files new and some old, and nothing would say so.
-pub fn save_package_files(dir: &Path, edited: &EditedPackage) -> Result<(), String> {
+pub fn save_package_files(dir: &Path, edited: &EditedPackage) -> Result<SaveOutcome, String> {
+    let mut plan = SavePlan::default();
+    if edited.sends_nothing() {
+        return Ok(plan.outcome());
+    }
     let layout = Layout::read(dir);
-    let manifest = layout.manifest.as_deref().unwrap_or("package.json");
-    let mut pending = vec![Pending::new(dir, manifest, manifest_json(&edited.meta)?)];
     let collection = |kind: EntityKind| Collection {
         dir,
         kind,
         layout: &layout,
     };
-    pending.extend(collection(EntityKind::Confederation).files(&edited.confederations, |c| &c.id)?);
-    pending.extend(collection(EntityKind::Country).files(&edited.countries, |c| &c.id)?);
-    pending.extend(collection(EntityKind::Team).files(&edited.teams, |t| &t.id)?);
-    pending.extend(collection(EntityKind::Player).files(&edited.players, |p| &p.id)?);
-    pending.extend(collection(EntityKind::Staff).files(&edited.staff, |s| &s.id)?);
-    pending.extend(collection(EntityKind::Competition).files(&edited.competitions, |c| &c.id)?);
-    pending.extend(names_files(dir, &edited.names, &layout)?);
-    write_all(pending)
+    if let Some(meta) = &edited.meta {
+        let manifest = layout.manifest.as_deref().unwrap_or("package.json");
+        plan.add(
+            "meta",
+            vec![Pending::new(dir, manifest, manifest_json(meta)?)],
+        );
+    }
+    if let Some(items) = &edited.confederations {
+        plan.add(
+            "confederations",
+            collection(EntityKind::Confederation).files(items, |c| &c.id)?,
+        );
+    }
+    if let Some(items) = &edited.countries {
+        plan.add(
+            "countries",
+            collection(EntityKind::Country).files(items, |c| &c.id)?,
+        );
+    }
+    if let Some(items) = &edited.teams {
+        plan.add(
+            "teams",
+            collection(EntityKind::Team).files(items, |t| &t.id)?,
+        );
+    }
+    if let Some(items) = &edited.players {
+        plan.add(
+            "players",
+            collection(EntityKind::Player).files(items, |p| &p.id)?,
+        );
+    }
+    if let Some(items) = &edited.staff {
+        plan.add(
+            "staff",
+            collection(EntityKind::Staff).files(items, |s| &s.id)?,
+        );
+    }
+    if let Some(items) = &edited.competitions {
+        plan.add(
+            "competitions",
+            collection(EntityKind::Competition).files(items, |c| &c.id)?,
+        );
+    }
+    if let Some(names) = &edited.names {
+        plan.add("names", names_files(dir, names, &layout)?);
+    }
+    let outcome = plan.outcome();
+    write_all(plan.pending)?;
+    Ok(outcome)
+}
+
+impl EditedPackage {
+    fn sends_nothing(&self) -> bool {
+        self.meta.is_none()
+            && self.confederations.is_none()
+            && self.countries.is_none()
+            && self.teams.is_none()
+            && self.players.is_none()
+            && self.staff.is_none()
+            && self.names.is_none()
+            && self.competitions.is_none()
+    }
+}
+
+/// The files a save will write, and the collections they belong to.
+#[derive(Default)]
+struct SavePlan {
+    pending: Vec<Pending>,
+    saved: Vec<&'static str>,
+}
+
+impl SavePlan {
+    fn add(&mut self, collection: &'static str, files: Vec<Pending>) {
+        self.saved.push(collection);
+        self.pending.extend(files);
+    }
+
+    fn outcome(&self) -> SaveOutcome {
+        SaveOutcome {
+            saved: self.saved.clone(),
+            files_written: self.pending.len(),
+        }
+    }
 }
 
 /// A file the save will write: where, and what.
@@ -576,18 +670,18 @@ mod tests {
     fn edited(dir: &Path, edit: impl FnOnce(&mut EditedPackage)) -> EditedPackage {
         let (package, _) = load_world_package_files(dir);
         let mut edited = EditedPackage {
-            meta: package.meta.expect("a manifest"),
-            confederations: package.confederations,
-            countries: package.countries,
-            teams: package.teams,
-            players: package.players,
-            staff: package.staff,
-            names: package.names.unwrap_or(NamesDefinition {
+            meta: Some(package.meta.expect("a manifest")),
+            confederations: Some(package.confederations),
+            countries: Some(package.countries),
+            teams: Some(package.teams),
+            players: Some(package.players),
+            staff: Some(package.staff),
+            names: Some(package.names.unwrap_or(NamesDefinition {
                 version: 1,
                 description: String::new(),
                 pools: HashMap::new(),
-            }),
-            competitions: package.competitions,
+            })),
+            competitions: Some(package.competitions),
         };
         edit(&mut edited);
         edited
@@ -617,9 +711,10 @@ mod tests {
             ("teams/fc-b.json", &team_file(&["fc-b"])),
         ]);
         let package = edited(&dir, |package| {
-            let mut extra = package.teams[0].clone();
+            let teams = package.teams.as_mut().expect("teams sent");
+            let mut extra = teams[0].clone();
             extra.id = "fc-c".to_string();
-            package.teams.push(extra);
+            teams.push(extra);
         });
 
         save_package_files(&dir, &package).expect("the save succeeds");
@@ -647,7 +742,11 @@ mod tests {
             ("teams/fc-b.json", &team_file(&["fc-b"])),
         ]);
         let package = edited(&dir, |package| {
-            package.teams.retain(|team| team.id != "fc-b")
+            package
+                .teams
+                .as_mut()
+                .expect("teams sent")
+                .retain(|team| team.id != "fc-b")
         });
 
         save_package_files(&dir, &package).expect("the save succeeds");
@@ -810,7 +909,9 @@ mod tests {
             ("teams/teams.json", &team_file(&["fc-a"])),
         ]);
         std::fs::create_dir_all(dir.join("teams").join("teams.json.tmp")).expect("blocker made");
-        let package = edited(&dir, |package| package.meta.name = "Renamed".to_string());
+        let package = edited(&dir, |package| {
+            package.meta.as_mut().expect("meta sent").name = "Renamed".to_string()
+        });
 
         let result = save_package_files(&dir, &package);
         let manifest = std::fs::read_to_string(dir.join("package.json")).expect("readable");
@@ -839,7 +940,13 @@ mod tests {
             ("names/pt.json", &pools("PT", "Rui")),
         ]);
         let package = edited(&dir, |package| {
-            if let Some(pool) = package.names.pools.get_mut("BR") {
+            if let Some(pool) = package
+                .names
+                .as_mut()
+                .expect("names sent")
+                .pools
+                .get_mut("BR")
+            {
                 pool.first_names = vec!["Pedro".to_string()];
             }
         });
@@ -853,5 +960,149 @@ mod tests {
         assert!(br.contains("Pedro") && !br.contains("\"PT\""), "{br}");
         assert!(pt.contains("Rui") && !pt.contains("\"BR\""), "{pt}");
         assert!(!has_conventional, "no third names file is created");
+    }
+
+    const PLAYERS: &str = r#"{"schema":"player","items":[]}"#;
+
+    /// Every file under `dir` (relative path, bytes), sorted: the whole package on disk.
+    fn files_under(dir: &Path) -> Vec<(String, Vec<u8>)> {
+        fn walk(dir: &Path, base: &Path, into: &mut Vec<(String, Vec<u8>)>) {
+            for entry in std::fs::read_dir(dir).expect("readable").flatten() {
+                let path = entry.path();
+                if path.is_dir() {
+                    walk(&path, base, into);
+                } else {
+                    let name = path.strip_prefix(base).expect("under base");
+                    into.push((
+                        name.to_string_lossy().replace('\\', "/"),
+                        std::fs::read(&path).expect("readable"),
+                    ));
+                }
+            }
+        }
+        let mut found = Vec::new();
+        walk(dir, dir, &mut found);
+        found.sort();
+        found
+    }
+
+    fn only_teams(dir: &Path, edit: impl FnOnce(&mut Vec<TeamDef>)) -> EditedPackage {
+        let mut package = EditedPackage::default();
+        let mut teams = edited(dir, |_| {}).teams.expect("teams");
+        edit(&mut teams);
+        package.teams = Some(teams);
+        package
+    }
+
+    /// Given a package with clubs and players in files of their own
+    /// When only the clubs are saved, with one added
+    /// Then the players' file is byte for byte as it was, no staged file is left beside it, and the
+    ///      save acknowledges the clubs only, naming the two files it wrote
+    #[test]
+    fn a_collection_that_was_not_sent_is_left_untouched() {
+        let dir = package_dir(&[
+            ("package.json", MANIFEST),
+            ("teams/fc-a.json", &team_file(&["fc-a"])),
+            ("players/p.json", PLAYERS),
+        ]);
+        let package = only_teams(&dir, |teams| {
+            let mut extra = teams[0].clone();
+            extra.id = "fc-c".to_string();
+            teams.push(extra);
+        });
+
+        let outcome = save_package_files(&dir, &package).expect("the save succeeds");
+        let after = files_under(&dir);
+        std::fs::remove_dir_all(&dir).ok();
+
+        let read = |name: &str| {
+            after
+                .iter()
+                .find(|(n, _)| n == name)
+                .map(|(_, b)| b.clone())
+        };
+        assert_eq!(read("players/p.json"), Some(PLAYERS.as_bytes().to_vec()));
+        assert_eq!(read("package.json"), Some(MANIFEST.as_bytes().to_vec()));
+        assert!(
+            after.iter().all(|(name, _)| !name.ends_with(".tmp")),
+            "{after:?}"
+        );
+        assert_eq!(outcome.saved, vec!["teams"]);
+        assert_eq!(outcome.files_written, 2);
+    }
+
+    /// Given a package with clubs and players
+    /// When the clubs are sent as an empty list and the players are not sent
+    /// Then the clubs are emptied, and the players are untouched: sent-and-empty is not omitted
+    #[test]
+    fn an_emptied_collection_is_written_and_an_omitted_one_is_not() {
+        let dir = package_dir(&[
+            ("package.json", MANIFEST),
+            ("teams/teams.json", &team_file(&["fc-a", "fc-b"])),
+            ("players/p.json", PLAYERS),
+        ]);
+        let package = only_teams(&dir, |teams| teams.clear());
+
+        let outcome = save_package_files(&dir, &package).expect("the save succeeds");
+        let teams = std::fs::read_to_string(dir.join("teams/teams.json")).expect("readable");
+        let players = std::fs::read_to_string(dir.join("players/p.json")).expect("readable");
+        std::fs::remove_dir_all(&dir).ok();
+
+        assert!(
+            !teams.contains("fc-a") && !teams.contains("fc-b"),
+            "{teams}"
+        );
+        assert_eq!(players, PLAYERS);
+        assert_eq!(outcome.saved, vec!["teams"]);
+    }
+
+    /// Given a package
+    /// When a save sends no collection at all
+    /// Then it succeeds, writes no file and acknowledges nothing: a clean save costs nothing
+    #[test]
+    fn a_save_of_nothing_writes_nothing() {
+        let dir = package_dir(&[
+            ("package.json", MANIFEST),
+            ("teams/teams.json", &team_file(&["fc-a"])),
+        ]);
+        let before = files_under(&dir);
+
+        let outcome = save_package_files(&dir, &EditedPackage::default()).expect("succeeds");
+        let after = files_under(&dir);
+        std::fs::remove_dir_all(&dir).ok();
+
+        assert_eq!(outcome, SaveOutcome::default());
+        assert_eq!(after, before);
+    }
+
+    /// Given a package
+    /// When only its manifest is sent, renamed
+    /// Then the manifest changes and every other file is byte for byte as it was
+    #[test]
+    fn a_manifest_alone_leaves_every_entity_file_alone() {
+        let dir = package_dir(&[
+            ("package.json", MANIFEST),
+            ("teams/teams.json", &team_file(&["fc-a"])),
+            ("players/p.json", PLAYERS),
+        ]);
+        let before = files_under(&dir);
+        let mut package = EditedPackage::default();
+        let mut meta = edited(&dir, |_| {}).meta.expect("meta");
+        meta.name = "Renamed".to_string();
+        package.meta = Some(meta);
+
+        let outcome = save_package_files(&dir, &package).expect("succeeds");
+        let after = files_under(&dir);
+        std::fs::remove_dir_all(&dir).ok();
+
+        let changed: Vec<&str> = after
+            .iter()
+            .zip(&before)
+            .filter(|(a, b)| a != b)
+            .map(|(a, _)| a.0.as_str())
+            .collect();
+        assert_eq!(changed, vec!["package.json"]);
+        assert_eq!(outcome.saved, vec!["meta"]);
+        assert_eq!(outcome.files_written, 1);
     }
 }
