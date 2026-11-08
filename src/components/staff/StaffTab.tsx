@@ -3,7 +3,7 @@ import { type GameStateData, type StaffData, useGameStore } from "../../store/ga
 import { visibleRatingText } from "../../lib/playerKnowledge";
 import { getStaff, type StaffRow, type StaffSlice } from "../../services/staffService";
 import { useListView } from "../../hooks/useListView";
-import { Card, CardBody, Badge, CountryFlag, ProgressBar, ViewSwitch } from "../ui";
+import { Card, CardBody, Badge, CountryFlag, ProgressBar, RatingChip, ViewSwitch } from "../ui";
 import { staffMenuItems } from "./StaffTab.menu";
 import StaffTable from "./StaffTable";
 import {
@@ -284,20 +284,15 @@ export default function StaffTab({ gameState, onGameUpdate, onNavigate }: StaffT
                           <h3 className="font-heading font-bold text-sm text-gray-800 dark:text-gray-100 uppercase tracking-wide truncate">
                             {staff.display_name}
                           </h3>
-                          <Badge
-                            variant={
-                              ovr === undefined
-                                ? "neutral"
-                                : ovr >= 65
-                                  ? "success"
-                                  : ovr >= 45
-                                    ? "primary"
-                                    : "neutral"
-                            }
-                            size="sm"
-                          >
-                            {visibleRatingText(ovr ?? null)} OVR
-                          </Badge>
+                          {ovr === undefined || staff.tier === undefined ? (
+                            // A rating without its tier is not painted: the chip never picks one.
+                            <Badge variant="neutral" size="md">
+                              {visibleRatingText(null)} {t("common.ovr")}
+                            </Badge>
+                          ) : (
+                            // The tone is the backend's tier among his own role (staff_tier).
+                            <RatingChip value={ovr} tier={staff.tier} size="md" />
+                          )}
                         </div>
                         <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
                           {t(`staff.roles.${staff.role}`)} — {t("common.age")} {age}

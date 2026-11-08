@@ -1,13 +1,11 @@
 import { getPlayerOvr } from "../../lib/helpers";
 import { isFirstTeamSquadPlayer } from "../../lib/playerSquad";
 import { naturalPositionOf } from "../../lib/positions";
+import type { FamiliarityTable } from "../../hooks/useFamiliarity";
 import type { PositionTable } from "../../lib/positionTable";
 import type { PlayerData } from "../../store/gameStore";
 import {
-  buildPitchRows,
-  buildStartingXIIds,
   type PitchSlotRow,
-  comparePlayersForSlot,
   getPreferredPositions,
   isPlayerOutOfPosition,
   positionCode,
@@ -83,15 +81,6 @@ interface TacticsPlayerFilterContext {
   xiActivePosition: Map<string, string>;
 }
 
-interface ResolveStartingXiIdsOptions {
-  availablePlayers: PlayerData[];
-  positionTable: PositionTable;
-  formation: string;
-  pendingStartingXiIds: string[] | null;
-  playersById: Map<string, PlayerData>;
-  savedStartingXiIds: string[];
-}
-
 export function buildTacticsRoster(
   players: PlayerData[],
   teamId: string,
@@ -106,46 +95,6 @@ export function buildTacticsRoster(
         getPlayerOvr(rightPlayer) - getPlayerOvr(leftPlayer)
       );
     });
-}
-
-export function resolveStartingXiIds({
-  availablePlayers,
-  positionTable,
-  formation,
-  pendingStartingXiIds,
-  playersById,
-  savedStartingXiIds,
-}: ResolveStartingXiIdsOptions): string[] {
-  const baseIds = buildStartingXIIds(
-    availablePlayers,
-    savedStartingXiIds,
-    formation,
-    positionTable,
-  );
-  const slotPositions = buildPitchRows(formation).flatMap((row) => row.positions);
-
-  if (!pendingStartingXiIds || pendingStartingXiIds.length === 0) {
-    return baseIds;
-  }
-
-  const validPendingIds = pendingStartingXiIds.filter((id) => playersById.has(id));
-  const usedPlayerIds = new Set(validPendingIds);
-  const fillPlayerIds: string[] = [];
-
-  while (validPendingIds.length + fillPlayerIds.length < 11) {
-    const slotPosition = slotPositions[validPendingIds.length + fillPlayerIds.length];
-    const bestPlayer = availablePlayers
-      .filter((player) => !usedPlayerIds.has(player.id))
-      .sort((leftPlayer, rightPlayer) =>
-        comparePlayersForSlot(leftPlayer, rightPlayer, slotPosition, positionTable),
-      )[0];
-
-    if (!bestPlayer) break;
-    fillPlayerIds.push(bestPlayer.id);
-    usedPlayerIds.add(bestPlayer.id);
-  }
-
-  return [...validPendingIds, ...fillPlayerIds].slice(0, 11);
 }
 
 export function getSectionPlayerPosition(
@@ -248,11 +197,12 @@ export function countOutOfPositionPlayers(
   startingPlayers: PlayerData[],
   xiActivePosition: Map<string, string>,
   positionTable: PositionTable,
+  familiarity?: FamiliarityTable,
 ): number {
   return startingPlayers.filter((player) => {
     const currentPosition = xiActivePosition.get(player.id) ?? player.position;
 
-    return isPlayerOutOfPosition(player, currentPosition, positionTable);
+    return isPlayerOutOfPosition(player, currentPosition, positionTable, familiarity);
   }).length;
 }
 

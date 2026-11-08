@@ -53,6 +53,8 @@ export interface TeamCard {
   total_value: number;
   league_pos: number;
   standing: TeamStanding | null;
+  /** The club's last five results as "W", "D" or "L", oldest first. Results are public. */
+  form: string[];
   /** Null for a club without a manager. */
   manager: TeamCardManager | null;
 }

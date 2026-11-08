@@ -1,16 +1,18 @@
 import { invoke } from "@tauri-apps/api/core";
 
 import type { GameStateData, PlayerData, TeamMatchRolesData } from "../store/gameStore";
+import type { PlayerTier } from "../store/generated/PlayerTier";
 import type {
   ConditionStatus,
   PlayerRole,
   PlayerSquadRole,
   TacticsPhaseSettings,
 } from "../store/types";
+import type { TacticsLineup } from "../store/generated/TacticsLineup";
 import { invokeForCareer } from "./careerInvoke";
 
-/** The backend's tier names, in the order a rating climbs through them. */
-export type RatingTier = "S" | "A" | "B" | "Rest";
+/** The backend's tier names (ofm_core's PlayerTier, generated), for players and, per role, staff. */
+export type RatingTier = PlayerTier;
 
 /** The tier of every rating from 0 to 99, indexed by rating: the backend's one rule, no game needed. */
 export async function getRatingTiers(): Promise<RatingTier[]> {
@@ -19,6 +21,14 @@ export async function getRatingTiers(): Promise<RatingTier[]> {
 
 export async function getSquad(teamId: string): Promise<PlayerData[]> {
   return invoke<PlayerData[]>("get_squad", { teamId });
+}
+
+/**
+ * The side the manager's club will field (`ofm_core::tactics_lineup`): the eleven slot by slot,
+ * the bench and the rest, as the match itself picks them.
+ */
+export async function getTacticsLineup(): Promise<TacticsLineup> {
+  return invoke<TacticsLineup>("get_tactics_lineup");
 }
 
 /** How fit the squad is, as the staff's warnings read it: healthy first-team players only. */

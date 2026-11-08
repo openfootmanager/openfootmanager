@@ -779,3 +779,239 @@ fn extra_time_flag_passed_through() {
     let session = live_match_manager::create_live_match(&game, 0, MatchMode::Instant, true);
     assert!(session.is_ok());
 }
+
+// ---------------------------------------------------------------------------
+// follow_saved_dials_before_kick_off
+// ---------------------------------------------------------------------------
+
+fn waiting_session(game: &Game) -> live_match_manager::LiveMatchSession {
+    let session = live_match_manager::create_live_match(game, 0, MatchMode::Live, false).unwrap();
+    assert_eq!(session.match_state.phase(), MatchPhase::PreKickOff);
+    session
+}
+
+/// Given a user team at home whose match waits at kick-off,
+/// When a high defensive line is saved on the team,
+/// Then the home side of the match takes the high line and the away side keeps its own.
+#[test]
+fn a_saved_dial_reaches_the_users_side_of_a_waiting_match() {
+    let mut game = make_game_with_fixture();
+    let mut session = waiting_session(&game);
+    game.teams[0].tactics_phase.defensive_line = domain::team::DefensiveLine::High;
+
+    session.follow_saved_dials_before_kick_off(&game).unwrap();
+
+    let snapshot = session.snapshot();
+    assert_eq!(
+        snapshot.home_team.tactics.defensive_line,
+        engine::DefensiveLine::High
+    );
+    assert_eq!(
+        snapshot.away_team.tactics.defensive_line,
+        engine::DefensiveLine::Medium
+    );
+}
+
+/// Given a user team playing away whose match waits at kick-off,
+/// When a high defensive line is saved on the team,
+/// Then the away side of the match takes it and the home side keeps its own.
+#[test]
+fn a_saved_dial_reaches_the_users_side_when_playing_away() {
+    let mut game = make_game_with_fixture();
+    game.manager.team_id = Some("team2".to_string());
+    let mut session = waiting_session(&game);
+    game.teams[1].tactics_phase.defensive_line = domain::team::DefensiveLine::High;
+
+    session.follow_saved_dials_before_kick_off(&game).unwrap();
+
+    let snapshot = session.snapshot();
+    assert_eq!(
+        snapshot.away_team.tactics.defensive_line,
+        engine::DefensiveLine::High
+    );
+    assert_eq!(
+        snapshot.home_team.tactics.defensive_line,
+        engine::DefensiveLine::Medium
+    );
+}
+
+/// Given a match that has kicked off,
+/// When a high defensive line is saved on the user's team,
+/// Then the match keeps the line it was playing with.
+#[test]
+fn a_match_that_has_kicked_off_does_not_follow_the_saved_dials() {
+    let mut game = make_game_with_fixture();
+    let mut session = waiting_session(&game);
+    session.step();
+    assert_ne!(session.match_state.phase(), MatchPhase::PreKickOff);
+    game.teams[0].tactics_phase.defensive_line = domain::team::DefensiveLine::High;
+
+    session.follow_saved_dials_before_kick_off(&game).unwrap();
+
+    assert_eq!(
+        session.snapshot().home_team.tactics.defensive_line,
+        engine::DefensiveLine::Medium
+    );
+}
+
+/// Given a match waiting at kick-off in which a starting forward was made a Poacher through
+/// the live role command,
+/// When a dial is saved on the user's team,
+/// Then the dial reaches the match and the forward is still a Poacher.
+#[test]
+fn saving_a_dial_leaves_a_role_changed_in_the_match_alone() {
+    let mut game = make_game_with_fixture();
+    let mut session = waiting_session(&game);
+    let forward = session
+        .match_state
+        .team(engine::Side::Home)
+        .players
+        .iter()
+        .find(|player| player.position == engine::Position::Forward)
+        .map(|player| player.id.clone())
+        .expect("a forward starts");
+    session
+        .apply_command(engine::MatchCommand::ChangePlayerRole {
+            side: engine::Side::Home,
+            player_id: forward.clone(),
+            role: engine::PlayerRole::Poacher,
+        })
+        .unwrap();
+    game.teams[0].tactics_phase.defensive_line = domain::team::DefensiveLine::High;
+
+    session.follow_saved_dials_before_kick_off(&game).unwrap();
+
+    let snapshot = session.snapshot();
+    assert_eq!(
+        snapshot.home_team.tactics.defensive_line,
+        engine::DefensiveLine::High
+    );
+    let role = snapshot
+        .home_team
+        .players
+        .iter()
+        .find(|player| player.id == forward)
+        .expect("the forward starts")
+        .role;
+    assert_eq!(role, engine::PlayerRole::Poacher);
+}
+
+/// Given a match waiting at kick-off for one career,
+/// When a high line is saved in a game that belongs to another career,
+/// Then the waiting match does not take it.
+#[test]
+fn a_dial_saved_in_another_career_leaves_the_waiting_match_alone() {
+    let mut game = make_game_with_fixture();
+    let mut session = waiting_session(&game);
+    game.career_token = game.career_token.wrapping_add(1);
+    game.teams[0].tactics_phase.defensive_line = domain::team::DefensiveLine::High;
+
+    session.follow_saved_dials_before_kick_off(&game).unwrap();
+
+    assert_eq!(
+        session.snapshot().home_team.tactics.defensive_line,
+        engine::DefensiveLine::Medium
+    );
+}
+
+// ---------------------------------------------------------------------------
+// Who manages the user's side when the user is not managing it
+// ---------------------------------------------------------------------------
+
+/// Given the user's club at home,
+/// When the match is started for them to watch as a spectator,
+/// Then neither side is left to the user: the AI manages both dugouts, as it does for a
+/// delegated match.
+#[test]
+fn a_spectated_match_leaves_no_side_to_the_user() {
+    let game = make_game_with_fixture();
+
+    let session =
+        live_match_manager::create_live_match(&game, 0, MatchMode::Spectator, false).unwrap();
+
+    assert_eq!(session.user_side, None);
+}
+
+/// Given the user's club at home,
+/// When the match is played instantly (the MCP `match_start` mode "instant"),
+/// Then neither side is left to the user either.
+#[test]
+fn an_instant_match_leaves_no_side_to_the_user() {
+    let game = make_game_with_fixture();
+
+    let session =
+        live_match_manager::create_live_match(&game, 0, MatchMode::Instant, false).unwrap();
+
+    assert_eq!(session.user_side, None);
+}
+
+/// Given the user's club at home,
+/// When the match is started live,
+/// Then the home side is the user's to manage.
+#[test]
+fn a_live_match_leaves_the_users_side_to_the_user() {
+    let game = make_game_with_fixture();
+
+    let session = live_match_manager::create_live_match(&game, 0, MatchMode::Live, false).unwrap();
+
+    assert_eq!(session.user_side, Some(engine::Side::Home));
+}
+
+/// Given the user's club at home, every player of theirs worn down to a condition the AI
+/// replaces, and a full bench,
+/// When the match is watched as a spectator to the end,
+/// Then the user's side makes substitutions, as a side the AI manages does.
+#[test]
+fn a_spectated_match_replaces_the_users_tired_players() {
+    let mut game = make_game_with_fixture();
+    for player in game
+        .players
+        .iter_mut()
+        .filter(|player| player.team_id.as_deref() == Some("team1"))
+    {
+        player.condition = 30;
+    }
+    let mut session =
+        live_match_manager::create_live_match(&game, 0, MatchMode::Spectator, false).unwrap();
+
+    session.run_to_completion();
+
+    assert!(
+        session.snapshot().home_subs_made > 0,
+        "nobody managed the user's side: it played the whole match with its starting eleven"
+    );
+}
+
+/// Given the user's live match at minute 30, every one of the user's players worn down to a
+/// condition the AI replaces at once, and a full bench,
+/// When the rest of the match is played out unmanaged (`play_out_unmanaged`),
+/// Then it is played to the end with the AI managing the user's side: substitutes come on.
+#[test]
+fn a_match_played_out_unmanaged_has_the_ai_manage_the_users_side() {
+    let mut game = make_game_with_fixture();
+    for player in game
+        .players
+        .iter_mut()
+        .filter(|player| player.team_id.as_deref() == Some("team1"))
+    {
+        player.condition = 30;
+    }
+    let mut session =
+        live_match_manager::create_live_match(&game, 0, MatchMode::Live, false).unwrap();
+    while session.match_state.minute() < 30 {
+        session.step();
+    }
+    assert_eq!(
+        session.snapshot().home_subs_made,
+        0,
+        "the user made no changes"
+    );
+
+    session.play_out_unmanaged();
+
+    assert!(session.is_finished());
+    assert!(
+        session.snapshot().home_subs_made > 0,
+        "nobody managed the user's side for the rest of the match"
+    );
+}
