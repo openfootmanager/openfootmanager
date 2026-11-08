@@ -1175,3 +1175,128 @@ fn a_saved_role_his_slot_refuses_but_his_line_admits_is_left_out() {
         engine::PlayerRole::Standard
     );
 }
+
+// ---------------------------------------------------------------------------
+// A role and a pre-match swap
+// ---------------------------------------------------------------------------
+
+/// The starter at `index` of the home eleven, and a bench player of `position`.
+fn home_starter_and_bench_player(
+    session: &live_match_manager::LiveMatchSession,
+    index: usize,
+    position: engine::Position,
+) -> (String, String) {
+    let starter = session.match_state.team(engine::Side::Home).players[index]
+        .id
+        .clone();
+    let bench = session
+        .match_state
+        .bench(engine::Side::Home)
+        .iter()
+        .find(|player| player.position == position)
+        .map(|player| player.id.clone())
+        .expect("a bench player of that position");
+    (starter, bench)
+}
+
+fn swap_in(session: &mut live_match_manager::LiveMatchSession, off: &str, on: &str) {
+    session
+        .apply_command(engine::MatchCommand::PreMatchSwap {
+            side: engine::Side::Home,
+            player_off_id: off.to_string(),
+            player_on_id: on.to_string(),
+        })
+        .expect("the swap is valid");
+}
+
+/// Given a match waiting at kick-off, a defender on the bench and the left-back (a slot an
+/// Attacking Full-Back suits) in the eleven,
+/// When an Attacking Full-Back is saved for the benched defender and the manager then swaps him
+/// in for the left-back,
+/// Then he plays the left-back slot as an Attacking Full-Back: a role saved while benched is not
+/// lost.
+#[test]
+fn a_role_saved_on_the_bench_is_played_after_a_swap_into_a_slot_that_admits_it() {
+    let mut game = make_game_with_fixture();
+    let mut session = waiting_session(&game);
+    // 4-4-2: goalkeeper, then the left-back.
+    let (left_back, benched_defender) =
+        home_starter_and_bench_player(&session, 1, engine::Position::Defender);
+    game.teams[0].player_roles.insert(
+        benched_defender.clone(),
+        domain::team::PlayerRole::AttackingFB,
+    );
+    session
+        .follow_saved_role_before_kick_off(&game, &benched_defender)
+        .unwrap();
+
+    swap_in(&mut session, &left_back, &benched_defender);
+
+    assert_eq!(
+        home_role_of(&session, &benched_defender),
+        engine::PlayerRole::AttackingFB
+    );
+}
+
+/// Given a benched forward who already carried a saved Poacher role when the match was built,
+/// When the manager swaps him in for the left-back,
+/// Then he plays the left-back slot on the Standard role: a Poacher is not a full-back's role.
+#[test]
+fn a_bench_role_his_new_slot_refuses_is_dropped_by_a_swap() {
+    let mut game = make_game_with_fixture();
+    let (benched_forward, left_back) = {
+        let probe = waiting_session(&game);
+        let (left_back, benched_forward) =
+            home_starter_and_bench_player(&probe, 1, engine::Position::Forward);
+        (benched_forward, left_back)
+    };
+    game.teams[0]
+        .player_roles
+        .insert(benched_forward.clone(), domain::team::PlayerRole::Poacher);
+    let mut session = waiting_session(&game);
+    assert_eq!(
+        session
+            .match_state
+            .bench(engine::Side::Home)
+            .iter()
+            .find(|player| player.id == benched_forward)
+            .map(|player| player.role),
+        Some(engine::PlayerRole::Poacher),
+        "he waits on the bench as a Poacher"
+    );
+
+    swap_in(&mut session, &left_back, &benched_forward);
+
+    assert_eq!(
+        home_role_of(&session, &benched_forward),
+        engine::PlayerRole::Standard
+    );
+}
+
+/// Given a match waiting at kick-off and a defender on its bench,
+/// When an Attacking Full-Back is saved for him,
+/// Then he waits on the bench as one, and comes on as one in a substitution: the bench copy was
+/// built before the role was saved.
+#[test]
+fn a_role_saved_for_a_benched_player_is_the_role_he_waits_with() {
+    let mut game = make_game_with_fixture();
+    let mut session = waiting_session(&game);
+    let (_, benched_defender) =
+        home_starter_and_bench_player(&session, 1, engine::Position::Defender);
+    game.teams[0].player_roles.insert(
+        benched_defender.clone(),
+        domain::team::PlayerRole::AttackingFB,
+    );
+
+    session
+        .follow_saved_role_before_kick_off(&game, &benched_defender)
+        .unwrap();
+
+    let waiting_with = session
+        .match_state
+        .bench(engine::Side::Home)
+        .iter()
+        .find(|player| player.id == benched_defender)
+        .map(|player| player.role);
+    assert_eq!(waiting_with, Some(engine::PlayerRole::AttackingFB));
+}

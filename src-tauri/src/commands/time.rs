@@ -2121,14 +2121,9 @@ mod tests {
         );
     }
 
-    /// Given a match waiting at kick-off where a substitute forward was swapped into a
-    /// defender's slot on the pre-match screen (the saved team still has him on the bench),
-    /// When the user saves him as a Poacher,
-    /// Then the save succeeds and he plays the defender's slot on the Standard role: the slot he
-    /// fills in the match does not admit a Poacher.
-    #[test]
-    fn a_saved_role_his_slot_in_the_match_refuses_is_left_out() {
-        let state = StateManager::new();
+    /// A live match waiting at kick-off in which a spare forward, benched in the saved team, has
+    /// been swapped into the left-back slot on the pre-match screen. Returns his id.
+    fn forward_swapped_into_left_back(state: &StateManager) -> String {
         let mut game = make_round_summary_game();
         game.players.push(make_player(
             "a-fwd-spare",
@@ -2137,9 +2132,9 @@ mod tests {
             Position::Forward,
         ));
         state.set_game(game);
-        advance_time_with_mode_internal(&state, ofm_core::state::Career::Active, "live")
+        advance_time_with_mode_internal(state, ofm_core::state::Career::Active, "live")
             .expect("live advance response");
-        let (forward_on_bench, defender_starting) = state
+        let (forward_on_bench, left_back) = state
             .with_live_match(|session| {
                 let snapshot = session.snapshot();
                 let bench_forward = snapshot
@@ -2148,42 +2143,80 @@ mod tests {
                     .find(|player| player.position == engine::Position::Forward)
                     .map(|player| player.id.clone())
                     .expect("a forward waits on the bench");
-                let starting_defender = snapshot
-                    .home_team
-                    .players
-                    .iter()
-                    .find(|player| player.position == engine::Position::Defender)
-                    .map(|player| player.id.clone())
-                    .expect("a defender starts");
-                (bench_forward, starting_defender)
+                // 4-4-2: the goalkeeper, then the left-back.
+                (bench_forward, snapshot.home_team.players[1].id.clone())
             })
             .expect("a live match session exists");
         crate::application::live_match::apply_match_command(
-            &state,
+            state,
             ofm_core::state::Career::Active,
             engine::MatchCommand::PreMatchSwap {
                 side: engine::Side::Home,
-                player_off_id: defender_starting,
+                player_off_id: left_back,
                 player_on_id: forward_on_bench.clone(),
             },
         )
         .expect("the swap is made before kick-off");
+        forward_on_bench
+    }
+
+    fn role_in_the_waiting_match(state: &StateManager, player_id: &str) -> engine::PlayerRole {
+        user_side_before_kick_off(state)
+            .players
+            .iter()
+            .find(|player| player.id == player_id)
+            .expect("he starts")
+            .role
+    }
+
+    /// Given a match waiting at kick-off where a spare forward, benched in the saved team, has
+    /// been swapped into the left-back slot on the pre-match screen (his live picker offers him
+    /// the full-back roles),
+    /// When the user saves him as an Attacking Full-Back,
+    /// Then the save succeeds and he plays the left-back slot as one: the role is judged by the
+    /// slot he fills in the match, not by the saved team's bench.
+    #[test]
+    fn a_role_his_new_slot_admits_is_saved_after_a_swap() {
+        let state = StateManager::new();
+        let swapped_in = forward_swapped_into_left_back(&state);
 
         crate::commands::squad::set_player_role_internal(
             &state,
             ofm_core::state::Career::Active,
-            forward_on_bench.clone(),
-            Some("Poacher".to_string()),
+            swapped_in.clone(),
+            Some("AttackingFB".to_string()),
         )
-        .expect("the saved team still has him on the bench, as a forward who may be a Poacher");
+        .expect("the left-back slot admits an Attacking Full-Back");
 
-        let side = user_side_before_kick_off(&state);
-        let swapped_in = side
-            .players
-            .iter()
-            .find(|player| player.id == forward_on_bench)
-            .expect("the forward now starts");
-        assert_eq!(swapped_in.position, engine::Position::Defender);
-        assert_eq!(swapped_in.role, engine::PlayerRole::Standard);
+        assert_eq!(
+            role_in_the_waiting_match(&state, &swapped_in),
+            engine::PlayerRole::AttackingFB
+        );
+    }
+
+    /// Given the same swapped-in forward,
+    /// When the user saves him as a Poacher, which a left-back slot does not admit,
+    /// Then the save is refused: the picker for the slot he fills would not have offered it,
+    /// and he plays on the Standard role.
+    #[test]
+    fn a_role_his_new_slot_refuses_is_refused_after_a_swap() {
+        let state = StateManager::new();
+        let swapped_in = forward_swapped_into_left_back(&state);
+
+        let refused = crate::commands::squad::set_player_role_internal(
+            &state,
+            ofm_core::state::Career::Active,
+            swapped_in.clone(),
+            Some("Poacher".to_string()),
+        );
+
+        assert_eq!(
+            refused.err().as_deref(),
+            Some("be.error.roleNotValidForPosition")
+        );
+        assert_eq!(
+            role_in_the_waiting_match(&state, &swapped_in),
+            engine::PlayerRole::Standard
+        );
     }
 }
