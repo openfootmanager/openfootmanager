@@ -786,6 +786,87 @@ mod tests {
         assert_eq!(as_json(&validated.warnings), as_json(&opened.warnings));
     }
 
+    /// Given a package with a parse error, a duplicate id and a semantic error (a player at a club that
+    ///       does not exist)
+    /// When the editor validates it, and the CLI's `validate` pipeline (load, then package warnings)
+    ///      runs on the same directory
+    /// Then both report the same findings, code for code: the editor's Validate cannot pass what the
+    ///      CLI fails, or the reverse
+    #[test]
+    fn editor_validate_and_cli_validate_report_the_same_findings() {
+        let team = |id: &str| {
+            format!(
+                r##"{{"id":"{id}","name":"T","city":"C","country":"ENG","colors":{{"primary":"#000000","secondary":"#ffffff"}}}}"##
+            )
+        };
+        let dir = temp_project(
+            "diag-cli-parity",
+            &[
+                (
+                    "package.json",
+                    r#"{"schema":"world","id":"parity","name":"Parity","version":"1.0.0","license":"CC0-1.0"}"#,
+                ),
+                (
+                    "teams/teams.json",
+                    &format!(
+                        r#"{{"schema":"team","items":[{},{},{{"id":"fc-bad","name":5}}]}}"#,
+                        team("fc-a"),
+                        team("fc-a")
+                    ),
+                ),
+                (
+                    "players/players.json",
+                    r#"{"schema":"player","items":[{"id":"p1","name":"P One","club":"ghost-fc","nationality":"ENG","position":"Striker","overall":70}]}"#,
+                ),
+            ],
+        );
+
+        let validated = validate_package_project(dir.to_string_lossy().to_string()).expect("ok");
+        let (pkg, errors) = load_world_package(&dir);
+        let cli_warnings = ofm_core::generator::package_warnings(&pkg);
+        std::fs::remove_dir_all(&dir).ok();
+
+        let key = |code: &str, file: &str, params: &[(String, String)]| {
+            let mut params = params.to_vec();
+            params.sort();
+            format!("{code}|{file}|{params:?}")
+        };
+        let mut editor: Vec<String> = validated
+            .issues
+            .iter()
+            .map(|i| {
+                let mut p: Vec<(String, String)> = i
+                    .params
+                    .iter()
+                    .map(|(k, v)| (k.clone(), v.clone()))
+                    .collect();
+                p.sort();
+                key(&i.code, &i.file, &p)
+            })
+            .collect();
+        let mut cli: Vec<String> = errors
+            .iter()
+            .map(|e| key(&e.code, &e.file, &e.params))
+            .collect();
+        editor.sort();
+        cli.sort();
+        assert_eq!(editor, cli);
+        assert!(
+            validated
+                .issues
+                .iter()
+                .any(|i| i.code.ends_with("duplicateId")),
+            "the duplicate id must be among the findings: {:?}",
+            validated.issues.iter().map(|i| &i.code).collect::<Vec<_>>()
+        );
+        assert!(
+            validated.issues.len() >= 3,
+            "parse error, duplicate id and unknown club are three findings: {:?}",
+            validated.issues.iter().map(|i| &i.code).collect::<Vec<_>>()
+        );
+        assert_eq!(validated.warnings.len(), cli_warnings.len());
+    }
+
     /// Given a project with thousands of entities' worth of data
     /// When the editor validates it
     /// Then the response carries diagnostics only: no entity collection crosses the IPC boundary
