@@ -585,10 +585,12 @@ impl Default for MatchConfig {
             home_advantage: 1.08,
             // Calibrated (#1132): a shot finds the target as often as the Premier League's
             // 45% of unblocked shots (premierleague.com/news/4027257), and the share of those
-            // scored is set so a season of
-            // the shipped world lands in #1001's goals band (`engine/tests/shot_rate_tests.rs`).
+            // scored is set so a season of the shipped world lands in #1001's goals band
+            // (`engine/tests/shot_rate_tests.rs`). Set again after #1139's world (0.28 gave 3.1
+            // goals a game and home clean sheets under the band); below 0.25 away clean sheets
+            // leave theirs. Measure again when the world's quality moves (#1078, the academy).
             shot_accuracy_base: 0.245,
-            goal_conversion_base: 0.28,
+            goal_conversion_base: 0.25,
             fatigue_per_minute: 0.20,
             foul_probability: 0.40,
             // Calibrated against CIES Football Observatory Monthly Report n°57 (Big Five: 3.39 to

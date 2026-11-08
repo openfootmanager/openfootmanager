@@ -229,6 +229,17 @@ vi.mock("react-i18next", () => ({
 vi.mock("../../utils/backendI18n", () => ({
   resolveBackendText: (_key?: string, fallback?: string, _params?: Record<string, string>) =>
     fallback ?? "",
+  // The banners' one resolver; this file's own texts for the keys it provokes.
+  resolveBackendError: (error: unknown) => {
+    const message = error instanceof Error ? error.message : String(error);
+    if (message === "be.error.contracts.noAssistantManagerAssigned") {
+      return "Hire an assistant manager before delegating contract talks.";
+    }
+    if (message === "be.error.contracts.playerHasNoActiveContract") {
+      return "This player does not have an active contract.";
+    }
+    return message;
+  },
 }));
 
 vi.mock("../../lib/countries", () => ({

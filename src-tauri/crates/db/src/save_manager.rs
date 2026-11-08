@@ -11,8 +11,8 @@ use ofm_core::game::Game;
 use ofm_core::generator;
 use ofm_core::player_identity;
 use ofm_core::player_rating::{
-    effective_rating_for_assignment, formation_slots, reconcile_wonderkid_trait,
-    refresh_player_derived,
+    effective_rating_for_assignment, formation_row_lengths, formation_slots,
+    reconcile_wonderkid_trait, refresh_player_derived,
 };
 
 use crate::game_database::GameDatabase;
@@ -893,27 +893,6 @@ fn canonicalize_team_starting_xi_ids(
     }
 
     changed
-}
-
-fn formation_row_lengths(formation: &str) -> Vec<usize> {
-    let parts: Vec<usize> = formation
-        .split('-')
-        .filter_map(|part| part.parse::<usize>().ok())
-        .collect();
-
-    match parts.as_slice() {
-        [defenders, midfielders, forwards] => vec![1, *defenders, *midfielders, *forwards],
-        [defenders, deep_midfielders, attacking_midfielders, forwards] => {
-            vec![
-                1,
-                *defenders,
-                *deep_midfielders,
-                *attacking_midfielders,
-                *forwards,
-            ]
-        }
-        _ => formation_row_lengths("4-4-2"),
-    }
 }
 
 fn is_mirrored_side_pair(left_position: &Position, right_position: &Position) -> bool {
@@ -3514,6 +3493,31 @@ mod tests {
         );
     }
 
+    /// Given an old save's club whose formation does not parse ("5-3-3": eleven outfielders), so the
+    ///      game lays it out as 4-4-2, with its full-backs and wide midfielders on the wrong sides
+    /// When its starting XI is put back in order
+    /// Then both pairs are swapped back: the lines are read from the layout the slots come from
+    ///      (they were read from the formation text, so the line of four backs was taken as five and
+    ///      no pair was checked)
+    #[test]
+    fn an_unparseable_formation_is_put_in_order_by_the_lines_it_is_laid_out_in() {
+        let mut game = sample_game_with_side_specific_starting_xi(true);
+        game.teams[0].formation = "5-3-3".to_string();
+
+        let changed = canonicalize_game_starting_xi_ids(&mut game);
+
+        assert!(changed);
+        assert_eq!(
+            game.teams[0].starting_xi_ids,
+            vec![
+                "gk", "lb", "cb1", "cb2", "rb", "lm", "cm1", "cm2", "rm", "st1", "st2"
+            ]
+            .into_iter()
+            .map(str::to_string)
+            .collect::<Vec<_>>()
+        );
+    }
+
     #[test]
     fn test_load_game_repairs_existing_mirrored_starting_xi_order() {
         let dir = tempfile::tempdir().unwrap();
@@ -4548,6 +4552,7 @@ mod tests {
             formation: "4-4-2".to_string(),
             play_style: "Counter".to_string(),
             source_preset_name: Some("Counter".to_string()),
+            contents: None,
         };
         game.custom_tactics = vec![
             tactic("a", "First"),
@@ -4584,6 +4589,7 @@ mod tests {
             formation: "3-5-2".to_string(),
             play_style: "Counter".to_string(),
             source_preset_name: None,
+            contents: None,
         }];
         let id = manager.create_save(&game, "Source").unwrap();
 

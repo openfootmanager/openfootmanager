@@ -454,6 +454,7 @@ fn snapshot_at(overall_status: finances::FinanceHealthLevel) -> finances::TeamFi
         runway_status: overall_status,
         overall_status,
         marketing_campaign_cooldown_days_remaining: 0,
+        cash_flow: vec![],
     }
 }
 

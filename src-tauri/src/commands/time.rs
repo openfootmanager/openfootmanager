@@ -2,6 +2,7 @@ use log::info;
 use std::sync::Arc;
 use tauri::State;
 
+use crate::application::auto_save;
 use crate::application::time_advancement::advance_time_with_mode as advance_time_with_mode_service;
 pub use crate::application::time_advancement::AdvanceTimeWithModeResponse;
 use crate::application::time_blockers::stopping_blockers;
@@ -48,14 +49,23 @@ pub fn advance_time_with_mode_internal(
 ///
 /// Runs on a blocking worker so the day's simulation never freezes the webview.
 #[tauri::command]
-pub async fn advance_time_with_mode(
+pub async fn advance_time_with_mode<R: tauri::Runtime>(
     state: State<'_, Arc<StateManager>>,
+    saves: State<'_, Arc<crate::SaveManagerState>>,
+    app_handle: tauri::AppHandle<R>,
     mode: String,
     career_token: u64,
 ) -> Result<AdvanceTimeWithModeResponse, String> {
     let state = state.inner().clone();
+    let saves = saves.inner().clone();
     run_off_thread(move || {
-        advance_time_with_mode_internal(&state, Career::Token(career_token), &mode)
+        let career = Career::Token(career_token);
+        let before = auto_save::game_date(&state);
+        let mut response = advance_time_with_mode_internal(&state, career, &mode)?;
+        let enabled = || crate::commands::settings::auto_save_enabled(&app_handle);
+        response.auto_save_error =
+            auto_save::save_if_a_new_week(&state, &saves.0, enabled, before, career).error();
+        Ok(response)
     })
     .await
 }
@@ -100,12 +110,24 @@ pub fn check_blocking_actions(
 }
 
 #[tauri::command]
-pub async fn skip_to_match_day(
+pub async fn skip_to_match_day<R: tauri::Runtime>(
     state: State<'_, Arc<StateManager>>,
+    saves: State<'_, Arc<crate::SaveManagerState>>,
+    app_handle: tauri::AppHandle<R>,
     career_token: u64,
 ) -> Result<serde_json::Value, String> {
     let state = state.inner().clone();
-    run_off_thread(move || skip_to_match_day_internal(&state, Career::Token(career_token))).await
+    let saves = saves.inner().clone();
+    run_off_thread(move || {
+        let career = Career::Token(career_token);
+        let before = auto_save::game_date(&state);
+        let mut response = skip_to_match_day_internal(&state, career)?;
+        let enabled = || crate::commands::settings::auto_save_enabled(&app_handle);
+        auto_save::save_if_a_new_week(&state, &saves.0, enabled, before, career)
+            .note_on(&mut response);
+        Ok(response)
+    })
+    .await
 }
 
 pub fn skip_to_match_day_internal(
@@ -327,12 +349,24 @@ pub fn advance_one_day_internal(
 }
 
 #[tauri::command]
-pub async fn advance_one_day(
+pub async fn advance_one_day<R: tauri::Runtime>(
     state: State<'_, Arc<StateManager>>,
+    saves: State<'_, Arc<crate::SaveManagerState>>,
+    app_handle: tauri::AppHandle<R>,
     career_token: u64,
 ) -> Result<serde_json::Value, String> {
     let state = state.inner().clone();
-    run_off_thread(move || advance_one_day_internal(&state, Career::Token(career_token))).await
+    let saves = saves.inner().clone();
+    run_off_thread(move || {
+        let career = Career::Token(career_token);
+        let before = auto_save::game_date(&state);
+        let mut response = advance_one_day_internal(&state, career)?;
+        let enabled = || crate::commands::settings::auto_save_enabled(&app_handle);
+        auto_save::save_if_a_new_week(&state, &saves.0, enabled, before, career)
+            .note_on(&mut response);
+        Ok(response)
+    })
+    .await
 }
 
 fn count_high_priority_messages(game: &Game) -> usize {
@@ -851,11 +885,120 @@ mod tests {
         let date = |app: &WrapperApp| app.state().get_game(|g| g.clock.current_date).unwrap();
         let before = date(&app);
 
-        let refused =
-            tauri::async_runtime::block_on(super::advance_one_day(app.state(), app.token + 1));
+        let refused = tauri::async_runtime::block_on(super::advance_one_day(
+            app.state(),
+            app.saves(),
+            app.handle(),
+            app.token + 1,
+        ));
 
         assert_eq!(refused, Err("be.error.careerChanged".to_string()));
         assert_eq!(date(&app), before);
+    }
+
+    /// The saved career's date after the screen's Continue goes through `command` on a saved
+    /// career that opens on Sunday 15 June 2025, with Auto-Save at its default (on).
+    fn saved_date_after_a_continue(command: &str) -> chrono::NaiveDate {
+        use crate::commands::wrapper_testkit::WrapperApp;
+        let app = WrapperApp::new(make_game(11), true);
+        let outcome = match command {
+            "advance_one_day" => tauri::async_runtime::block_on(super::advance_one_day(
+                app.state(),
+                app.saves(),
+                app.handle(),
+                app.token,
+            ))
+            .map(|_| ()),
+            _ => tauri::async_runtime::block_on(super::advance_time_with_mode(
+                app.state(),
+                app.saves(),
+                app.handle(),
+                "delegate".to_string(),
+                app.token,
+            ))
+            .map(|_| ()),
+        };
+        assert_eq!(outcome, Ok(()), "{command}");
+        app.saved_game().clock.current_date.date_naive()
+    }
+
+    /// Given a saved career on a Sunday with Auto-Save on
+    /// When the screen's day-by-day Continue (advance_one_day) brings Monday
+    /// Then the save on disk reads Monday: the command saved the week it crossed (#1181).
+    #[test]
+    fn the_day_by_day_continue_saves_the_week_it_crosses() {
+        assert_eq!(
+            saved_date_after_a_continue("advance_one_day"),
+            chrono::NaiveDate::from_ymd_opt(2025, 6, 16).unwrap()
+        );
+    }
+
+    /// Given the same
+    /// When the screen's Continue goes through advance_time_with_mode
+    /// Then the save on disk reads Monday too.
+    #[test]
+    fn the_mode_continue_saves_the_week_it_crosses() {
+        assert_eq!(
+            saved_date_after_a_continue("advance_time_with_mode"),
+            chrono::NaiveDate::from_ymd_opt(2025, 6, 16).unwrap()
+        );
+    }
+
+    /// Given a saved career on a Sunday whose save has since been deleted
+    /// When the screen's day-by-day Continue brings Monday
+    /// Then the day still advances, and the response carries the auto-save error the screen shows.
+    #[test]
+    fn the_day_by_day_continue_reports_a_week_it_could_not_save() {
+        use crate::commands::wrapper_testkit::WrapperApp;
+        let app = WrapperApp::new(make_game(11), true);
+        let save_id = app.save_id.clone().expect("built with a save");
+        app.saves()
+            .0
+            .lock()
+            .expect("save manager")
+            .delete_save(&save_id)
+            .expect("delete the save");
+
+        let response = tauri::async_runtime::block_on(super::advance_one_day(
+            app.state(),
+            app.saves(),
+            app.handle(),
+            app.token,
+        ))
+        .expect("the day advances");
+
+        assert_eq!(response["auto_save_error"], "be.error.autoSave.failed");
+        assert_eq!(
+            app.state()
+                .get_game(|game| game.clock.current_date.date_naive())
+                .unwrap(),
+            chrono::NaiveDate::from_ymd_opt(2025, 6, 16).unwrap()
+        );
+    }
+
+    /// Given a saved career on Sunday 15 June 2025 with Auto-Save on
+    /// When the screen's skip to the next match day (skip_to_match_day) moves the game on
+    /// Then the save on disk reads the day the skip stopped on: any later day is a new week, and
+    ///      this command saves it through its own call, not the other two commands' (#1181 review).
+    #[test]
+    fn the_skip_to_match_day_saves_the_week_it_crosses() {
+        use crate::commands::wrapper_testkit::WrapperApp;
+        let app = WrapperApp::new(make_game(11), true);
+
+        tauri::async_runtime::block_on(super::skip_to_match_day(
+            app.state(),
+            app.saves(),
+            app.handle(),
+            app.token,
+        ))
+        .expect("the skip runs");
+
+        let stopped_on = app
+            .state()
+            .get_game(|game| game.clock.current_date.date_naive())
+            .unwrap();
+        assert!(stopped_on > chrono::NaiveDate::from_ymd_opt(2025, 6, 15).unwrap());
+        assert_eq!(app.saved_game().clock.current_date.date_naive(), stopped_on);
     }
 
     /// Given a game with nobody injured, and one where two starters are injured

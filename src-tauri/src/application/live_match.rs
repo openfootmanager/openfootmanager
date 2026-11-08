@@ -39,7 +39,7 @@ pub fn finish_live_match(
     // report always describes a completed match.
     if !session.is_finished() {
         info!("[cmd] finish_live_match: match not finished, running to completion");
-        session.run_to_completion();
+        session.play_out_unmanaged();
     }
 
     let fixture_index = session.fixture_index;

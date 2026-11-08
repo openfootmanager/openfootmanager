@@ -1,3 +1,4 @@
+pub mod cash_flow;
 pub mod gate;
 pub mod journal;
 
@@ -75,6 +76,8 @@ pub struct TeamFinanceSnapshot {
     pub runway_status: FinanceHealthLevel,
     pub overall_status: FinanceHealthLevel,
     pub marketing_campaign_cooldown_days_remaining: u32,
+    /// The club's latest weeks of money in and out, from the cash journal (`cash_flow`).
+    pub cash_flow: Vec<cash_flow::WeeklyCashFlow>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
@@ -424,6 +427,7 @@ pub fn team_finance_snapshot(game: &Game, team_id: &str) -> Option<TeamFinanceSn
             team,
             game.clock.current_date.date_naive(),
         ),
+        cash_flow: cash_flow::weekly_cash_flow(game, team_id),
     })
 }
 
