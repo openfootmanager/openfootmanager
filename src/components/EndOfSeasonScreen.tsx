@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { formatOrdinal } from "../lib/ordinal";
 import { useTranslation } from "react-i18next";
 import type { GameStateData, SeasonAwardsData } from "../store/gameStore";
 import { useGameStore } from "../store/gameStore";
@@ -52,7 +53,7 @@ export default function EndOfSeasonScreen({
   transition,
   onTransitionChange,
 }: EndOfSeasonScreenProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const setShowFiredModal = useGameStore((s) => s.setShowFiredModal);
   const [loading, setLoading] = useState(false);
   const summary = transition?.summary ?? null;
@@ -105,12 +106,8 @@ export default function EndOfSeasonScreen({
     }
   };
 
-  const posLabel = (pos: number) => {
-    if (pos === 1) return t("common.place.1");
-    if (pos === 2) return t("common.place.2");
-    if (pos === 3) return t("common.place.3");
-    return t("common.place.other", { n: pos });
-  };
+  const posLabel = (pos: number) =>
+    formatOrdinal(pos, i18n.language, (key, options) => t(key, options));
 
   return (
     <div className="py-8 px-4">

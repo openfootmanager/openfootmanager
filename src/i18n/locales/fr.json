@@ -3186,7 +3186,7 @@
       },
       "seasonPayout": {
         "subject": "Saison {{season}} — Prime attribuée",
-        "body": "Le conseil a confirmé une prime de {{amount}} pour votre {{position}}e place en championnat. Le montant a été ajouté au solde du club.",
+        "body": "Le conseil a confirmé une prime de {{amount}} pour votre place n°{{position}} en championnat. Le montant a été ajouté au solde du club.",
         "ledgerDescription": "Prime de saison {{season}} pour la place n°{{position}}"
       },
       "seasonReview": {
