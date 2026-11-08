@@ -386,6 +386,35 @@ pub enum TacticalDial {
     BreakSpeed(BreakSpeed),
 }
 
+impl TacticsConfig {
+    /// All nine dials of this plan, each set as the plan has it. A tenth dial will not compile
+    /// until it is listed here.
+    pub fn dials(&self) -> [TacticalDial; 9] {
+        let TacticsConfig {
+            pressing_intensity,
+            defensive_line,
+            width,
+            build_up_style,
+            marking_style,
+            tempo,
+            defensive_shape,
+            counter_press_duration,
+            break_speed,
+        } = self.clone();
+        [
+            TacticalDial::PressingIntensity(pressing_intensity),
+            TacticalDial::DefensiveLine(defensive_line),
+            TacticalDial::Width(width),
+            TacticalDial::BuildUpStyle(build_up_style),
+            TacticalDial::MarkingStyle(marking_style),
+            TacticalDial::Tempo(tempo),
+            TacticalDial::DefensiveShape(defensive_shape),
+            TacticalDial::CounterPressDuration(counter_press_duration),
+            TacticalDial::BreakSpeed(break_speed),
+        ]
+    }
+}
+
 impl TacticalDial {
     /// Whether this setting plays differently from the dial's others. Slow break speed plays as
     /// Medium does. Every other setting changes the match, Long build-up and non-zonal marking
@@ -557,10 +586,12 @@ impl Default for MatchConfig {
             home_advantage: 1.08,
             // Calibrated (#1132): a shot finds the target as often as the Premier League's
             // 45% of unblocked shots (premierleague.com/news/4027257), and the share of those
-            // scored is set so a season of
-            // the shipped world lands in #1001's goals band (`engine/tests/shot_rate_tests.rs`).
+            // scored is set so a season of the shipped world lands in #1001's goals band
+            // (`engine/tests/shot_rate_tests.rs`). Set again after #1139's world (0.28 gave 3.1
+            // goals a game and home clean sheets under the band); below 0.25 away clean sheets
+            // leave theirs. Measure again when the world's quality moves (#1078, the academy).
             shot_accuracy_base: 0.245,
-            goal_conversion_base: 0.28,
+            goal_conversion_base: 0.25,
             fatigue_per_minute: 0.20,
             foul_probability: 0.40,
             // Calibrated against CIES Football Observatory Monthly Report n°57 (Big Five: 3.39 to

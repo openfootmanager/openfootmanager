@@ -88,9 +88,28 @@ pub fn ensure_competition_calendar(league: &mut League) -> bool {
     league.calendar = Some(CalendarMetadata {
         definition_id: league.id.clone(),
         edition_basis: basis,
+        league_legs: proven_single_round_robin(league).then_some(1),
         ..Default::default()
     });
     true
+}
+
+/// Whether a league table's saved edition proves it was authored as a single round robin: its
+/// league fixtures, generated all at once with the edition, number exactly one leg's worth. A save
+/// from between authored legs (13 Jun 2026) and stored ones (1 Oct 2026) needs this, or a
+/// `legs: 1` league never completes (#1177). Anything else stays unknown, which schedules and
+/// counts as the double round robin every older league was.
+fn proven_single_round_robin(league: &League) -> bool {
+    if league.rules.format != CompetitionFormat::LeagueTable {
+        return false;
+    }
+    let clubs = league.standings.len();
+    let league_fixtures = league
+        .fixtures
+        .iter()
+        .filter(|fixture| fixture.counts_for_league_standings())
+        .count();
+    clubs >= 2 && league_fixtures == clubs * (clubs - 1) / 2
 }
 
 /// The opener is the first match played for something: a friendly, a friendly cup or a preseason

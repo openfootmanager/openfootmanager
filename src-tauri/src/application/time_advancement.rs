@@ -26,6 +26,9 @@ pub struct AdvanceTimeWithModeResponse {
     /// Matches finished during this advance (user's competitions + nationals).
     #[serde(default)]
     pub results: Vec<AdvanceMatchResult>,
+    /// Set when a weekly auto-save was due and could not be written (#1181): the screen shows it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub auto_save_error: Option<String>,
 }
 
 /// Where the user's fixture due today is: which competition to swap into the legacy slot, and the
@@ -235,6 +238,7 @@ fn advance_live_matchday(
             round_summary,
             cup_round_summaries: build_cup_round_summaries(game, today),
             results: Vec::new(),
+            auto_save_error: None,
         },
         session,
     ))
@@ -309,6 +313,7 @@ fn advanced_day_response(
         round_summary,
         cup_round_summaries: build_cup_round_summaries(game, today),
         results,
+        auto_save_error: None,
     }
 }
 

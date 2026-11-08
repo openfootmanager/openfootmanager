@@ -11,6 +11,8 @@
 //!   source, so `goal_conversion_base` is calibrated to the derived goal total instead: the
 //!   shipped world's goals a game against #1001's band, median 2.71 (openfootball, CC0). The band
 //!   here is that calibration's result between two equal sides, with room for the counts' noise.
+//!   It was set again after #1139 put more good players into the world (3.1 goals a game, home
+//!   clean sheets under the band): lower still, away clean sheets leave their band first.
 
 use engine::live_match::LiveMatchState;
 use engine::{EventType, MatchConfig};
@@ -104,8 +106,8 @@ fn a_shot_finds_the_target_as_often_as_in_real_football() {
 
 /// Given two equal sides of 70-rated players, over many seeds,
 /// When their open-play shots on target are counted,
-/// Then the share scored is the calibrated one (see the module comment): 28% to 32% of shots on
-/// target, where the engine used to score 38%.
+/// Then the share scored is the calibrated one (see the module comment): 24.6% to 28.6% of shots
+/// on target, where the engine scored 30% before #1139's world and 38% before #1132.
 #[test]
 fn a_shot_on_target_is_scored_as_often_as_the_goal_total_needs() {
     let shots = shots_between_equal_sides();
@@ -123,7 +125,7 @@ fn a_shot_on_target_is_scored_as_often_as_the_goal_total_needs() {
 /// either side for these 70-rated shooters and the counts' noise.
 const ACCURACY_LOW: f64 = 0.42;
 const ACCURACY_HIGH: f64 = 0.53;
-/// The calibrated 30% between equal 70-rated sides, two points either side: about five times
+/// The calibrated 26.6% between equal 70-rated sides, two points either side: about five times
 /// the noise of a share over some 16,000 shots on target.
-const CONVERSION_LOW: f64 = 0.28;
-const CONVERSION_HIGH: f64 = 0.32;
+const CONVERSION_LOW: f64 = 0.246;
+const CONVERSION_HIGH: f64 = 0.286;

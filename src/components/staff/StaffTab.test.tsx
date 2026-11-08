@@ -2,6 +2,7 @@ import { act, fireEvent, render, screen, waitFor, within } from "@testing-librar
 import { describe, expect, it, vi, beforeEach } from "vitest";
 
 import type { GameStateData, StaffData, TeamData } from "../../store/gameStore";
+import type { RatingTier } from "../../services/squadService";
 import { useSettingsStore } from "../../store/settingsStore";
 import StaffTab from "./StaffTab";
 import { createSeasonContext } from "../../test-utils/factories";
@@ -30,7 +31,12 @@ vi.mock("react-i18next", () => ({
       if (key === "staff.youthSearch") return "youth search";
       if (key === "staff.youthSearches") return "youth searches";
       if (key === "common.age") return "Age";
-      if (key === "common.ovr") return "OVR";
+      if (key === "common.overallRating") return `Overall ${params?.value}`;
+      if (key === "common.overallRatingTier")
+        return `Overall ${params?.value}, tier ${params?.tier}`;
+      if (key.startsWith("common.ratingTier.")) return key.replace("common.ratingTier.", "");
+      // German's word, so a hard-coded English "OVR" on the page fails the tests that read it.
+      if (key === "common.ovr") return "GES";
       if (key === "common.listViewTable") return "Table";
       if (key === "common.listViewCards") return "Cards";
       if (key === "staff.staffActions") return `Staff actions for ${params?.name}`;
@@ -150,9 +156,14 @@ function makeStaffSlice(
     scouting_assignments: unknown[];
     youth_scouting_assignments: unknown[];
     ratings: Record<string, number>;
+    tiers: Record<string, RatingTier>;
   }> = {},
 ) {
-  const row = (member: StaffData) => ({ ...member, rating: overrides.ratings?.[member.id] ?? 50 });
+  const row = (member: StaffData) => ({
+    ...member,
+    rating: overrides.ratings?.[member.id] ?? 50,
+    tier: overrides.tiers?.[member.id] ?? "Rest",
+  });
   return {
     team_staff: staff.filter((s) => s.team_id).map(row),
     available_staff: staff.filter((s) => !s.team_id).map(row),
@@ -207,7 +218,80 @@ describe("StaffTab", () => {
       />,
     );
 
-    expect(await screen.findByText("77 OVR")).toBeInTheDocument();
+    expect(await screen.findByText("Overall 77")).toBeInTheDocument();
+  });
+
+  /**
+   * Given a coach and an assistant whom the backend both rates 80, and tiers as the game does
+   *       among their own roles: B for the coach (coaches' B starts at 75, A at 83), S for the
+   *       assistant (assistants' S starts at 79)
+   * When their cards are drawn
+   * Then each 80 is painted in its own tier's tone and its tier is said in words: the page holds
+   *      no cut-off of its own, so one number reads two ways.
+   */
+  it("paints each member's rating in his tier among his role, as the backend sends it", async () => {
+    const coach = createStaff({
+      id: "staff-coach",
+      role: "Coach",
+      attributes: { coaching: 80, judgingAbility: 40, judgingPotential: 40, physiotherapy: 30 },
+    });
+    const assistant = createStaff({
+      id: "staff-assistant",
+      role: "AssistantManager",
+      attributes: { coaching: 80, judgingAbility: 80, judgingPotential: 80, physiotherapy: 30 },
+    });
+    invokeMock.mockImplementation(async (command: string) => {
+      if (command === "get_staff")
+        return makeStaffSlice([coach, assistant], {
+          ratings: { "staff-coach": 80, "staff-assistant": 80 },
+          tiers: { "staff-coach": "B", "staff-assistant": "S" },
+        });
+      return createGameState([coach, assistant]);
+    });
+
+    render(
+      <StaffTab
+        gameState={createGameState([coach, assistant])}
+        onGameUpdate={() => {}}
+        onNavigate={() => {}}
+      />,
+    );
+
+    const coachChip = (await screen.findByText("Overall 80, tier B")).parentElement;
+    expect(coachChip).toHaveClass("bg-tone-fair-tint", "text-tone-fair");
+    const assistantChip = screen.getByText("Overall 80, tier S").parentElement;
+    expect(assistantChip).toHaveClass("bg-tone-top-tint", "text-tone-top");
+  });
+
+  /**
+   * Given a coach whose row carries a rating but no tier
+   * When his card is drawn
+   * Then the card shows the dash, not the number in a tone the page would have had to pick: the
+   *      chip only ever paints the backend's tier.
+   */
+  it("shows a dash for a rating whose tier did not arrive", async () => {
+    const coach = createStaff({ id: "staff-coach", role: "Coach" });
+    invokeMock.mockImplementation(async (command: string) => {
+      if (command === "get_staff")
+        return {
+          team_staff: [{ ...coach, rating: 88 }],
+          available_staff: [],
+          scouting_assignments: [],
+          youth_scouting_assignments: [],
+        };
+      return createGameState([coach]);
+    });
+
+    render(
+      <StaffTab
+        gameState={createGameState([coach])}
+        onGameUpdate={() => {}}
+        onNavigate={() => {}}
+      />,
+    );
+
+    expect(await screen.findByText("– GES")).toBeInTheDocument();
+    expect(screen.queryByText(/^Overall 88/)).toBeNull();
   });
 
   /**
@@ -228,7 +312,7 @@ describe("StaffTab", () => {
       />,
     );
 
-    expect(screen.getByText("– OVR")).toBeInTheDocument();
+    expect(screen.getByText("– GES")).toBeInTheDocument();
   });
 
   /**
@@ -265,7 +349,7 @@ describe("StaffTab", () => {
 
     await waitFor(() => expect(hiredYet).toBe(true));
     fireEvent.click(await screen.findByRole("button", { name: /My Staff 1/i }));
-    expect(await screen.findByText("64 OVR")).toBeInTheDocument();
+    expect(await screen.findByText("Overall 64")).toBeInTheDocument();
   });
 
   /**
@@ -558,7 +642,7 @@ describe("StaffTab", () => {
     invokeMock.mockImplementation(async (command: string) => {
       if (command === "get_staff") {
         return {
-          team_staff: [{ ...staffCamelCase, rating: 63 }],
+          team_staff: [{ ...staffCamelCase, rating: 63, tier: "Rest" }],
           available_staff: [],
           scouting_assignments: [],
           youth_scouting_assignments: [],
@@ -572,7 +656,7 @@ describe("StaffTab", () => {
     const card = await screen.findByTestId("staff-card-staff-1");
     // The backend rates him 63. The camelCase guard rests on the attribute
     // assertions below, not on this number.
-    expect(within(card).getByText("63 OVR")).toBeInTheDocument();
+    expect(within(card).getByText("Overall 63")).toBeInTheDocument();
     expect(within(card).getByText("52")).toBeInTheDocument();
     expect(within(card).getByText("71")).toBeInTheDocument();
     expect(within(card).getByText(/judgingPotential \(71\)/)).toBeInTheDocument();
@@ -716,9 +800,9 @@ function staffOrder(): string[] {
     .map((row) => names.find((name) => row.textContent?.includes(name)) ?? "?");
 }
 
-function renderClub(staff: StaffData[] = clubOfThree()) {
+function renderClub(staff: StaffData[] = clubOfThree(), tiers: Record<string, RatingTier> = {}) {
   invokeMock.mockImplementation(async (command: string) => {
-    if (command === "get_staff") return makeStaffSlice(staff, { ratings: CLUB_RATINGS });
+    if (command === "get_staff") return makeStaffSlice(staff, { ratings: CLUB_RATINGS, tiers });
     return createGameState(staff);
   });
   render(
@@ -745,6 +829,53 @@ describe("StaffTab as a table", () => {
       .getAllByRole("row")
       .find((row) => row.textContent?.includes("Pat Physio"));
     expect(physioRow?.textContent).toContain("90");
+  });
+
+  /**
+   * Given the club's physio, whom the backend tiers S among physios, and its scout, the rest
+   * When the table is drawn
+   * Then each row's rating is painted in the tone of the tier the backend sent, with the tier in
+   *      words, as the card paints it.
+   */
+  it("paints each row's rating in his tier among his role, as the backend sends it", async () => {
+    renderClub(clubOfThree(), { physio: "S", scout: "Rest" });
+
+    const physioChip = (await screen.findByText("Overall 90, tier S")).parentElement;
+    expect(physioChip).toHaveClass("bg-tone-top-tint", "text-tone-top");
+    const scoutChip = screen.getByText("Overall 40").parentElement;
+    expect(scoutChip).toHaveClass("bg-sunken", "text-fg-muted");
+  });
+
+  /**
+   * Given the club's physio, whose row carries his rating of 90 but no tier
+   * When the table is drawn
+   * Then his rating cell shows the dash, not a chip in a tone the page would have had to pick.
+   */
+  it("shows a dash in the table for a rating whose tier did not arrive", async () => {
+    const staff = clubOfThree();
+    invokeMock.mockImplementation(async (command: string) => {
+      if (command === "get_staff")
+        return {
+          team_staff: staff.map((member) => ({
+            ...member,
+            rating: (CLUB_RATINGS as Record<string, number>)[member.id],
+          })),
+          available_staff: [],
+          scouting_assignments: [],
+          youth_scouting_assignments: [],
+        };
+      return createGameState(staff);
+    });
+    render(
+      <StaffTab gameState={createGameState(staff)} onGameUpdate={() => {}} onNavigate={() => {}} />,
+    );
+
+    await waitFor(() => expect(staffOrder()).toHaveLength(3));
+    expect(screen.queryByText(/^Overall 90/)).toBeNull();
+    const physioRow = within(screen.getByRole("table"))
+      .getAllByRole("row")
+      .find((row) => row.textContent?.includes("Pat Physio"));
+    expect(physioRow?.textContent).toContain("–");
   });
 
   /**

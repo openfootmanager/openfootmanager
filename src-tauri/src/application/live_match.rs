@@ -39,7 +39,7 @@ pub fn finish_live_match(
     // report always describes a completed match.
     if !session.is_finished() {
         info!("[cmd] finish_live_match: match not finished, running to completion");
-        session.run_to_completion();
+        session.play_out_unmanaged();
     }
 
     let fixture_index = session.fixture_index;
@@ -421,4 +421,11 @@ pub fn get_match_snapshot(state: &StateManager) -> Result<engine::MatchSnapshot,
     );
 
     Ok(snapshot)
+}
+
+/// Dials saved before kick-off also reach the match waiting to be played.
+pub fn follow_saved_dials_before_kick_off(state: &StateManager, game: &Game) -> Result<(), String> {
+    state
+        .with_live_match(|session| session.follow_saved_dials_before_kick_off(game))
+        .unwrap_or(Ok(()))
 }

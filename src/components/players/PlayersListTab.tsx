@@ -38,7 +38,7 @@ export default function PlayersListTab({
     slice,
     error: fetchError,
     refetch: refetchSlice,
-  } = usePlayersPage(PLAYERS_OPENING_QUERY, t);
+  } = usePlayersPage(PLAYERS_OPENING_QUERY);
   const { contextItemsFor, scoutError, listingError, bidFlow, contractFlow } =
     usePlayersListActions({
       gameState,
