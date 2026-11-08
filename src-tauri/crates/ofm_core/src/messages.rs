@@ -151,6 +151,60 @@ pub fn transfer_complete_message(player_name: &str, fee: u64, date: &str) -> Inb
     .with_sender_i18n("be.sender.transferCommittee", "be.role.directorOfFootball")
 }
 
+/// Why an agreed loan did not start, which picks the letter's explanation.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum LoanCancellation {
+    /// The player is no longer under contract to the lending club: released, or retired, before
+    /// the window opened (#1242).
+    LenderNoLongerHoldsHim,
+    /// On its start day, a requirement the agreement was struck under no longer held: the
+    /// borrower's wage room, the loan ending within his contract, or his being free to go (#1251).
+    RequirementNoLongerMet,
+}
+
+/// The letter for an agreed loan that can no longer start.
+pub(crate) fn loan_registration_failed_message(
+    offer: &domain::player::LoanOffer,
+    player: &domain::player::Player,
+    user_team_id: &str,
+    parent_name: &str,
+    borrower_name: &str,
+    reason: LoanCancellation,
+    date: &str,
+) -> InboxMessage {
+    let body_key = match reason {
+        LoanCancellation::LenderNoLongerHoldsHim => "be.msg.loanRegistrationFailed.body",
+        LoanCancellation::RequirementNoLongerMet => {
+            "be.msg.loanRegistrationFailed.bodyRequirementNotMet"
+        }
+    };
+    InboxMessage::new(
+        format!("loan_registration_failed_{}", offer.id),
+        String::new(),
+        String::new(),
+        String::new(),
+        date.to_string(),
+    )
+    .with_category(MessageCategory::Transfer)
+    .with_priority(MessagePriority::High)
+    .with_context(MessageContext {
+        team_id: Some(user_team_id.to_string()),
+        player_id: Some(player.id.clone()),
+        ..Default::default()
+    })
+    .with_i18n(
+        "be.msg.loanRegistrationFailed.subject",
+        body_key,
+        HashMap::from([
+            ("player".to_string(), player.full_name.clone()),
+            ("parent".to_string(), parent_name.to_string()),
+            ("borrower".to_string(), borrower_name.to_string()),
+            ("start".to_string(), offer.start_date.clone()),
+        ]),
+    )
+    .with_sender_i18n("be.sender.transferCommittee", "be.role.directorOfFootball")
+}
+
 pub(crate) fn transfer_registration_failed_message(
     offer: &domain::player::TransferOffer,
     player: &domain::player::Player,
@@ -158,6 +212,7 @@ pub(crate) fn transfer_registration_failed_message(
     buyer_name: &str,
     reason: domain::player::TransferRegistrationFailureReason,
     date: &str,
+    start: &str,
 ) -> InboxMessage {
     use domain::player::TransferRegistrationFailureReason as Failure;
     let body_key = match reason {
@@ -187,7 +242,7 @@ pub(crate) fn transfer_registration_failed_message(
             ("player".to_string(), player.full_name.clone()),
             ("buyer".to_string(), buyer_name.to_string()),
             ("fee".to_string(), offer.fee.to_string()),
-            ("start".to_string(), date.to_string()),
+            ("start".to_string(), start.to_string()),
         ]),
     )
     .with_sender_i18n("be.sender.transferCommittee", "be.role.directorOfFootball")

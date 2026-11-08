@@ -28,9 +28,12 @@ pub fn advance_to_next_season_internal(
     info!("[cmd] advance_to_next_season");
     state
         .update_game_for(career, |game| {
+            // "fired" is a dismissal this rollover made, as advance_one_day reads it: a manager
+            // already out of work must not be shown the sacking letter again (#1208).
+            let was_employed = game.manager.team_id.is_some();
             let summary = ofm_core::end_of_season::advance_to_next_season(game)?;
 
-            if game.manager.team_id.is_none() {
+            if was_employed && game.manager.team_id.is_none() {
                 Ok(serde_json::json!({
                     "action": "fired",
                     "game": game,
@@ -313,6 +316,27 @@ pub(crate) mod tests {
         assert_eq!(response["action"], "fired");
         assert_eq!(response["summary"]["season"], 2025);
         assert_eq!(response["game"]["competitions"][0]["season"], 2026);
+        assert!(response["game"]["manager"]["team_id"].is_null());
+    }
+
+    /// Given a finished season and a manager already out of work before it ends; when the season
+    /// rolls over; then the response does not say he was fired: the rollover dismissed nobody
+    /// (#1208: he was shown the sacking letter for his old club again, every season).
+    #[test]
+    fn an_unemployed_manager_rolling_the_season_over_is_not_fired_again() {
+        let state = StateManager::new();
+        let mut game = completed_checkpoint();
+        game.manager.team_id = None;
+        state.set_game(game);
+
+        let response = advance_to_next_season_internal(&state, Career::Active).unwrap();
+
+        assert!(
+            response.get("action").is_none(),
+            "{:?}",
+            response.get("action")
+        );
+        assert_eq!(response["summary"]["season"], 2025);
         assert!(response["game"]["manager"]["team_id"].is_null());
     }
 

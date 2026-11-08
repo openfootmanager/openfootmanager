@@ -10,19 +10,16 @@ import {
   type LoanPeriodOptionId,
   parseTransferFeeInput,
 } from "./TransfersTab.helpers";
-import type { TFunction } from "i18next";
 interface Input {
   gameState: GameStateData;
   loanRegistrationDate: string;
   onGameUpdate: ((game: GameStateData) => void) | undefined;
-  t: TFunction<"translation", undefined>;
   transferWindowBlocksRegistration: boolean;
 }
 export function useLoanOfferFlow({
   gameState,
   loanRegistrationDate,
   onGameUpdate,
-  t,
   transferWindowBlocksRegistration,
 }: Input) {
   // The id, not the player: read from the game state each render, so the dialog sees the player
@@ -115,7 +112,7 @@ export function useLoanOfferFlow({
       if (onGameUpdate) onGameUpdate(response.game);
     } catch (err: unknown) {
       setLoanResult("error");
-      setLoanError(resolveTranslatedErrorMessage(getErrorMessage(err), t));
+      setLoanError(resolveTranslatedErrorMessage(getErrorMessage(err)));
     } finally {
       setLoanLoading(false);
     }

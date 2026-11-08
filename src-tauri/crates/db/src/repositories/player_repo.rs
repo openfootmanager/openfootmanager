@@ -1,4 +1,5 @@
 use crate::json_column::{self, Cell};
+use std::borrow::Borrow;
 use std::collections::HashMap;
 
 use domain::player::{Footedness, Player, PlayerAttributes, PlayerMedia, Position, SquadRole};
@@ -167,15 +168,18 @@ pub fn upsert_player(conn: &Connection, p: &Player) -> Result<(), String> {
 /// else's number, and two players who really do claim one shirt still fail.
 /// The caller holds the transaction (`write_game_to_connection`), so a failure
 /// leaves no row half-cleared.
-pub fn upsert_players(conn: &Connection, players: &[Player]) -> Result<(), String> {
+pub fn upsert_players<P: Borrow<Player>>(conn: &Connection, players: &[P]) -> Result<(), String> {
     vacate_changed_shirts(conn, players)?;
     for p in players {
-        upsert_player(conn, p)?;
+        upsert_player(conn, p.borrow())?;
     }
     Ok(())
 }
 
-fn vacate_changed_shirts(conn: &Connection, players: &[Player]) -> Result<(), String> {
+fn vacate_changed_shirts<P: Borrow<Player>>(
+    conn: &Connection,
+    players: &[P],
+) -> Result<(), String> {
     let write_failed = |error: rusqlite::Error| {
         log::error!("[player_repo] clearing changed shirt numbers failed: {error}");
         GAME_PERSISTENCE_WRITE_ERROR.to_string()
@@ -193,6 +197,7 @@ fn vacate_changed_shirts(conn: &Connection, players: &[Player]) -> Result<(), St
         .prepare("UPDATE players SET jersey_number = NULL WHERE id = ?1")
         .map_err(write_failed)?;
     for player in players {
+        let player = player.borrow();
         let Some((stored_team, stored_jersey)) = stored.get(&player.id) else {
             continue;
         };

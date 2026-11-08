@@ -1,11 +1,13 @@
 use serde::{Deserialize, Serialize};
 
 use crate::game::{Game, ScoutingAssignment, YouthScoutingAssignment};
+use crate::player_tier::PlayerTier;
 use crate::staff_rating::staff_rating;
+use crate::staff_tier::staff_tier;
 use domain::staff::Staff;
 
-/// A staff member as the Staff page lists him: his record, with his rating beside it, so the
-/// frontend shows the rating the game computes instead of a formula of its own (#589).
+/// A staff member as the Staff page lists him: his record, with his rating and its tier beside it,
+/// so the frontend shows the game's figure and tone instead of formulas of its own (#589).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct StaffRow {
     #[serde(flatten)]
@@ -14,12 +16,17 @@ pub struct StaffRow {
     /// market's free agents too, as their attributes are.
     #[serde(default)]
     pub rating: u8,
+    /// [`staff_tier`]: where that rating stands among his own role, which the page paints.
+    #[serde(default)]
+    pub tier: PlayerTier,
 }
 
 impl StaffRow {
     fn of(staff: &Staff) -> Self {
+        let rating = staff_rating(staff);
         Self {
-            rating: staff_rating(staff),
+            rating,
+            tier: staff_tier(&staff.role, rating),
             staff: staff.clone(),
         }
     }

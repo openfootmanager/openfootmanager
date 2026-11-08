@@ -165,7 +165,12 @@ impl fmt::Display for Standings {
 pub enum GameStatus {
     ManagerFired {},
     AllFixturesCompleted {},
-    InProgress { remaining_fixtures: usize },
+    InProgress {
+        remaining_fixtures: usize,
+    },
+    /// The user's league has played every fixture, but another division of his country is still
+    /// playing, so the season is not over.
+    OtherDivisionsStillPlaying {},
     NoLeagueYet {},
 }
 
@@ -187,6 +192,10 @@ impl fmt::Display for GameStatus {
             Self::InProgress { remaining_fixtures } => write!(
                 f,
                 "## Game Status: In Progress\n\n**Remaining fixtures**: {remaining_fixtures}"
+            ),
+            Self::OtherDivisionsStillPlaying {} => write!(
+                f,
+                "## Game Status: In Progress\n\nYour league has played all its fixtures, but another division in your country is still playing."
             ),
             Self::NoLeagueYet {} => {
                 write!(f, "## Game Status: In Progress\n\nNo league active yet.")

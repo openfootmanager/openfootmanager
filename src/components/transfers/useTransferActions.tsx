@@ -5,14 +5,12 @@ import { toggleLoanList, toggleTransferList } from "../../services/transfersServ
 import { sendScout } from "../../services/scoutingService";
 import { calculateAvailableScouts } from "../scouting/ScoutingTab.helpers";
 import { buildAlreadyScoutingIds } from "../scouting/ScoutingTab.model";
-import type { TFunction } from "i18next";
 interface Input {
   gameState: GameStateData;
   userTeamId: string | null;
   onGameUpdate: ((game: GameStateData) => void) | undefined;
-  t: TFunction<"translation", undefined>;
 }
-export function useTransferActions({ gameState, userTeamId, onGameUpdate, t }: Input) {
+export function useTransferActions({ gameState, userTeamId, onGameUpdate }: Input) {
   const [scoutingPlayerId, setScoutingPlayerId] = useState<string | null>(null);
   const [scoutError, setScoutError] = useState<string | null>(null);
   const [listingError, setListingError] = useState<string | null>(null);
@@ -42,7 +40,7 @@ export function useTransferActions({ gameState, userTeamId, onGameUpdate, t }: I
       onGameUpdate?.(updated);
     } catch (error) {
       console.error("Failed to send scout:", error);
-      setScoutError(resolveTranslatedErrorMessage(getErrorMessage(error), t));
+      setScoutError(resolveTranslatedErrorMessage(getErrorMessage(error)));
     } finally {
       setScoutingPlayerId(null);
     }
@@ -55,7 +53,7 @@ export function useTransferActions({ gameState, userTeamId, onGameUpdate, t }: I
       setListingError(null);
       onGameUpdate?.(updated);
     } catch (error) {
-      setListingError(resolveTranslatedErrorMessage(getErrorMessage(error), t));
+      setListingError(resolveTranslatedErrorMessage(getErrorMessage(error)));
     }
   };
   const handleToggleLoanListing = async (playerId: string): Promise<void> => {
@@ -66,7 +64,7 @@ export function useTransferActions({ gameState, userTeamId, onGameUpdate, t }: I
       setListingError(null);
       onGameUpdate?.(updated);
     } catch (error) {
-      setListingError(resolveTranslatedErrorMessage(getErrorMessage(error), t));
+      setListingError(resolveTranslatedErrorMessage(getErrorMessage(error)));
     }
   };
   return {

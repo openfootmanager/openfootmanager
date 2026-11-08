@@ -11,6 +11,7 @@ import {
   Checkbox,
   ConditionMeter,
   CountryFlag,
+  FormDots,
   DataTable,
   SortHeaderButton,
   type DataTableColumn,
@@ -358,6 +359,10 @@ function DisplaySection() {
         ))}
         <ConditionMeter value={50} status={null} />
       </div>
+      <Row>
+        <FormDots results={["W", "D", "W", "W", "L"]} />
+        <FormDots results={["L", "L", "D"]} />
+      </Row>
       <Row>
         <CountryFlag code="BE" />
         <CountryFlag code="ENG" />
