@@ -75,6 +75,7 @@ export function CompetitionForm({
   } = useAssetPicker({
     relPath: editing.logo,
     projectDir,
+    entityKind: "competition",
     entityId: () => editing.id || `unnamed-competition-${Date.now()}`,
     commit: (relPath) => (commitField ?? updateField)("logo", relPath),
     onError: onAssetError,
