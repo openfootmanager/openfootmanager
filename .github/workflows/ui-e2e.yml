@@ -46,7 +46,17 @@ jobs:
       - name: Install Linux dependencies, WebKitWebDriver and a virtual display
         run: |
           sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf xdg-utils xvfb xauth webkit2gtk-driver
+          # The WebDriver package is webkit2gtk-driver on older Ubuntu and webkitgtk-webdriver on newer.
+          driver=webkit2gtk-driver
+          apt-cache show webkitgtk-webdriver >/dev/null 2>&1 && driver=webkitgtk-webdriver
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf xdg-utils xvfb xauth "$driver"
+          # tauri-driver starts WebKitWebDriver from PATH.
+          if ! command -v WebKitWebDriver >/dev/null; then
+            found="$(dpkg -L "$driver" | grep -m1 '/WebKitWebDriver$' || true)"
+            echo "WebKitWebDriver is not on PATH; the package put it at: ${found:-nowhere}"
+            test -n "$found" && sudo ln -s "$found" /usr/local/bin/WebKitWebDriver
+          fi
+          command -v WebKitWebDriver
 
       - name: Install Rust 1.95.0
         uses: dtolnay/rust-toolchain@1.95.0 # the pin check (scripts/check-toolchain-pin.sh) requires the version form

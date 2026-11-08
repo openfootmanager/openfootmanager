@@ -17,7 +17,7 @@ markup of the failing step). It becomes required once it has been green for a we
 ```bash
 npm run tauri build -- --debug --no-bundle          # the app with its frontend embedded
 cargo install tauri-driver --locked                 # once
-sudo apt-get install -y webkit2gtk-driver xvfb      # WebKitWebDriver, and a virtual display
+sudo apt-get install -y webkit2gtk-driver xvfb      # or webkitgtk-webdriver; WebKitWebDriver and a virtual display
 cd e2e/ui && npm ci
 OFM_E2E_APP=../../src-tauri/target/debug/openfootmanager bash run.sh
 ```

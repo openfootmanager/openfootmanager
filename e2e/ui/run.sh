@@ -5,7 +5,7 @@
 #
 # Build the app first with its frontend embedded (`npm run tauri build -- --debug --no-bundle`
 # from the repository root); a plain `cargo build` binary opens the dev server's URL instead.
-# Needs xvfb-run, WebKitWebDriver (the webkit2gtk-driver package) and tauri-driver
+# Needs xvfb-run, WebKitWebDriver (webkit2gtk-driver, or webkitgtk-webdriver on newer Ubuntu) and tauri-driver
 # (`cargo install tauri-driver --locked`).
 set -euo pipefail
 
