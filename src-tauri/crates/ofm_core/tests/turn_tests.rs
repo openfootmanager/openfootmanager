@@ -694,6 +694,34 @@ fn a_divisions_golden_boot_counts_its_league_goals_alone() {
     assert_eq!((leader.player_id.as_str(), leader.value), ("t1_fwd1", 2.0));
 }
 
+/// Given a league match in which a midfielder makes two assists,
+/// When the report is applied,
+/// Then both his season and his league season carry the two: assists are added, not combined.
+#[test]
+fn a_matchs_assists_are_added_to_a_players_season_and_league_season() {
+    let mut game = make_game_with_match();
+    let mut player_stats = HashMap::new();
+    player_stats.insert(
+        "t1_mid0".to_string(),
+        PlayerMatchStats {
+            minutes_played: 90,
+            assists: 2,
+            rating: 7.0,
+            ..Default::default()
+        },
+    );
+    let report = MatchReport {
+        player_stats,
+        ..empty_report(1, 0)
+    };
+
+    turn::apply_match_report(&mut game, 0, "team1", "team2", &report);
+
+    let assister = game.players.iter().find(|p| p.id == "t1_mid0").unwrap();
+    assert_eq!(assister.stats.assists, 2);
+    assert_eq!(assister.league_stats.assists, 2);
+}
+
 #[test]
 fn apply_match_report_gk_clean_sheet() {
     let mut game = make_game_with_match();
