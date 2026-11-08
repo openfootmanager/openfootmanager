@@ -802,7 +802,7 @@ describe("TacticsTab", () => {
     const others = mockedInvoke.getMockImplementation();
     mockedInvoke.mockImplementation(async (command: string, args?: InvokeArgs) => {
       if (command === "list_custom_tactics") return structuredClone(saved);
-      if (command === "save_custom_tactic") {
+      if (command === "save_custom_tactic" || command === "save_current_tactic") {
         const tactic = (args as { tactic: CustomTactic }).tactic;
         const at = saved.findIndex((existing) => existing.id === tactic.id);
         if (at === -1) saved.push(tactic);
@@ -829,7 +829,7 @@ describe("TacticsTab", () => {
     fireEvent.click(screen.getByRole("button", { name: "tactics.duplicateTactic" }));
     await waitFor(() =>
       expect(mockedInvoke).toHaveBeenCalledWith(
-        "save_custom_tactic",
+        "save_current_tactic",
         expect.objectContaining({ tactic: expect.objectContaining({ formation: "4-4-2" }) }),
       ),
     );
@@ -861,7 +861,7 @@ describe("TacticsTab", () => {
     );
     fireEvent.click(screen.getByRole("button", { name: "tactics.duplicateTactic" }));
     await waitFor(() =>
-      expect(mockedInvoke).toHaveBeenCalledWith("save_custom_tactic", expect.anything()),
+      expect(mockedInvoke).toHaveBeenCalledWith("save_current_tactic", expect.anything()),
     );
     unmount();
 

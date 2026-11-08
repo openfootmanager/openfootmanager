@@ -7,6 +7,7 @@ import { countryName } from "../../lib/countries";
 import ContextMenu from "../ContextMenu";
 import { buildViewTeamMenuItem } from "../playerActions/playerContextMenuItems";
 import type { BoardMood } from "../../store/generated/BoardMood";
+import type { BoardWarning } from "../../store/generated/BoardWarning";
 import type { FansMood } from "../../store/generated/FansMood";
 import { useManagerStanding } from "./useManagerStanding";
 
@@ -16,6 +17,12 @@ const BOARD_MOOD_KEYS: Record<BoardMood, string> = {
   satisfied: "manager.boardSatisfied",
   concerned: "manager.boardConcerns",
   under_threat: "manager.boardThreat",
+};
+
+/** The line for each board warning on record, and its colour; none shows nothing. */
+const BOARD_WARNING_LINES: Record<Exclude<BoardWarning, "none">, { key: string; tone: string }> = {
+  warned: { key: "manager.boardWarned", tone: "text-warning" },
+  final_warning: { key: "manager.boardFinalWarning", tone: "text-danger" },
 };
 
 /** The words for each fans' mood the backend sends; every mood has one. */
@@ -128,6 +135,13 @@ export default function ManagerTab({ gameState, onSelectTeam }: ManagerTabProps)
               <p className="text-[10px] text-gray-400 dark:text-gray-500 text-center mt-2">
                 {standing ? t(BOARD_MOOD_KEYS[standing.board]) : null}
               </p>
+              {standing && standing.warning !== "none" ? (
+                <p
+                  className={`text-caption font-semibold text-center mt-1 ${BOARD_WARNING_LINES[standing.warning].tone}`}
+                >
+                  {t(BOARD_WARNING_LINES[standing.warning].key)}
+                </p>
+              ) : null}
             </div>
             {/* Fans */}
             <div>

@@ -415,6 +415,7 @@ pub fn evaluate_transfer_market(game: &mut Game) {
             &candidate.owner_team_id,
             candidate.fee,
         )
+        .and_then(|()| close_open_offers_after_sale(game, &candidate.player_id, None))
         .is_ok()
         {
             moved_player_ids.insert(candidate.player_id);

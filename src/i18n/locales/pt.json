@@ -1255,6 +1255,8 @@
     "boardSatisfied": "A direção está satisfeita com o teu desempenho.",
     "boardConcerns": "A direção tem preocupações com os resultados.",
     "boardThreat": "A tua posição está seriamente ameaçada.",
+    "boardWarned": "A direção advertiu-te.",
+    "boardFinalWarning": "Estás na última advertência.",
     "board": "Direção",
     "fans": "Adeptos",
     "born": "Nascido em",
@@ -1872,7 +1874,7 @@
     "skipShootoutPickerDesc": "Começa as grandes penalidades na ordem automática, sem te pedir para a definir",
     "savesData": "Saves e Dados",
     "autoSave": "Guardar Automaticamente",
-    "autoSaveDesc": "Guardar automaticamente após cada dia",
+    "autoSaveDesc": "Guardar automaticamente todas as semanas",
     "exportWorld": "Exportar Base de Dados do Mundo",
     "exportWorldDesc": "Guardar os dados do mundo como ficheiro JSON partilhável",
     "export": "Exportar",
@@ -2755,6 +2757,9 @@
       "critical": "Crítico"
     },
     "error": {
+      "autoSave": {
+        "failed": "O guardar automático não conseguiu guardar o jogo. O seu progresso desde o último guardar ainda não está guardado: guarde-o manualmente e verifique se o disco tem espaço livre."
+      },
       "squadFloor": {
         "wouldLeaveShort": "Este jogador não pode sair: o plantel ficaria abaixo do mínimo que um clube tem de manter. Setor afetado: {{group}}.",
         "wouldLeaveSeniorsShort": "Este jogador não pode sair: o clube ficaria com menos de {{floor}} jogadores no plantel principal, o mínimo que um clube tem de manter."
@@ -3643,6 +3648,11 @@
         "subject": "Empréstimo acordado: {{player}}",
         "bodyWithOption": "{{player}} será emprestado por {{parent}} a {{borrower}} de {{start}} até {{end}}. {{borrower}} suportará {{contribution}}% do salário. Opção de compra: {{fee}}.",
         "bodyNoOption": "{{player}} será emprestado por {{parent}} a {{borrower}} de {{start}} até {{end}}. {{borrower}} suportará {{contribution}}% do salário. Sem opção de compra."
+      },
+      "loanRegistrationFailed": {
+        "subject": "Empréstimo cancelado: {{player}}",
+        "body": "O empréstimo acordado de {{player}} do {{parent}} para o {{borrower}}, previsto para {{start}}, não pode avançar: o jogador já não tem contrato com o {{parent}}.",
+        "bodyRequirementNotMet": "O empréstimo acordado de {{player}} do {{parent}} para o {{borrower}} não pôde começar a {{start}}: uma das condições em que foi acordado, como margem no orçamento salarial do {{borrower}} ou a duração do contrato do jogador, já não se verifica."
       },
       "loanOffer": {
         "subject": "Proposta de Empréstimo por {{player}}",

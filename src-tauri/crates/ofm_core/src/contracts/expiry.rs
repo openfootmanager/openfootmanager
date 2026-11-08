@@ -171,7 +171,7 @@ pub(crate) fn release_player_contract(
     crate::inbox::emit(game, message);
 }
 
-/// The letters for the agreed transfers that end with a player's contract or career. An agreement
+/// The letters for the agreed transfers and loans that end with a player's contract or career. An agreement
 /// waiting for its window dies when he is released or retires (both clear his offers), so the
 /// user, as buyer or as seller (`contract_club_id`, the club he was under contract to), is told
 /// what the registration day would have told him (#1202). Agreements between two other clubs are
@@ -186,7 +186,7 @@ pub(crate) fn lapsed_registration_messages(
         return Vec::new();
     };
     let player = &game.players[player_index];
-    player
+    let transfers = player
         .transfer_offers
         .iter()
         .filter(|offer| offer.status == domain::player::TransferOfferStatus::PendingRegistration)
@@ -203,8 +203,25 @@ pub(crate) fn lapsed_registration_messages(
                 today,
                 offer.registration_date.as_deref().unwrap_or(today),
             )
-        })
-        .collect()
+        });
+    // A loan agreed for the window ends the same way: the lender no longer holds him (#1242).
+    let loans = player
+        .loan_offers
+        .iter()
+        .filter(|offer| offer.status == domain::player::LoanOfferStatus::PendingRegistration)
+        .filter(|offer| offer.from_team_id == user_club_id || offer.parent_team_id == user_club_id)
+        .map(|offer| {
+            crate::messages::loan_registration_failed_message(
+                offer,
+                player,
+                user_club_id,
+                &game.team_name_or_id(&offer.parent_team_id),
+                &game.team_name_or_id(&offer.from_team_id),
+                crate::messages::LoanCancellation::LenderNoLongerHoldsHim,
+                today,
+            )
+        });
+    transfers.chain(loans).collect()
 }
 
 pub(crate) fn contract_expired_message(
