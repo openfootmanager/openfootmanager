@@ -69,7 +69,11 @@ expect 1 "$repo" "fails when the generated file is committed"
 
 not_a_repo="$scratch/not-a-repo"
 mkdir -p "$not_a_repo"
-expect 1 "$not_a_repo" "fails when git cannot inspect the directory (not a repository)" \
+# GIT_CEILING_DIRECTORIES: with TMPDIR inside a checkout, git would find that checkout from the
+# scratch directory and the check would pass. LC_ALL=C: git translates its messages, and the
+# assertion reads the English one.
+GIT_CEILING_DIRECTORIES="$scratch" LC_ALL=C \
+    expect 1 "$not_a_repo" "fails when git cannot inspect the directory (not a repository)" \
     "not a git repository"
 
 echo "check-untracked-generated.test: $passed passed, $failed failed"
