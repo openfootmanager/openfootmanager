@@ -5,6 +5,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { i18nReady } from "../../i18n";
 import type { GameStateData, PlayerData, TeamData } from "../../store/gameStore";
 import TacticsTab from "./TacticsTab";
+import { resetTacticsLineupCache } from "../../hooks/useTacticsLineupProjection";
 import type { CustomTactic } from "../../services/customTacticsService";
 import { createSeasonContext } from "../../test-utils/factories";
 
@@ -236,9 +237,9 @@ function ControlledTacticsTab() {
   return <TacticsTab gameState={game} onSelectPlayer={vi.fn()} onGameUpdate={setGame} />;
 }
 
-/** The phase dials sit in a collapsible section; open it when it is closed. */
+/** The with-the-ball dials sit in a section of the instructions panel; open it when it is closed. */
 function openPhaseBlueprint() {
-  const toggle = screen.getByRole("button", { name: /Phase Blueprint/i });
+  const toggle = screen.getByRole("button", { name: /With Ball/i });
   if (toggle.getAttribute("aria-expanded") !== "true") fireEvent.click(toggle);
 }
 
@@ -257,6 +258,7 @@ describe("TacticsTab preset selection", { timeout: TACTICS_TAB_CASE_TIMEOUT_MS }
 
   beforeEach(() => {
     localStorage.clear();
+    resetTacticsLineupCache();
     mockedInvoke.mockReset();
     blueprintModified = false;
     savedTactics = [];

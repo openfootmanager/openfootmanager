@@ -6,7 +6,7 @@ import DashboardAlerts from "./DashboardAlerts";
 import type { DashboardAlert } from "./dashboardHelpers";
 import type { DashboardProfileNavigationState } from "./dashboardProfileNavigation";
 import DashboardTabContent from "./DashboardTabContent";
-import type { DashboardTabContentModel } from "./dashboardTabContentModel";
+import { type DashboardTabContentModel, tabFillsWorkspace } from "./dashboardTabContentModel";
 import { ShieldX } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
@@ -45,10 +45,22 @@ export default function DashboardWorkspaceContent({
     ? (gameState.teams.find((team) => team.id === profileNavigation.selectedTeamId) ?? null)
     : null;
 
+  // A tab that fills the workspace takes its whole height and scrolls its own regions; every other
+  // page scrolls in the workspace.
+  const fillsWorkspace =
+    !selectedPlayer && !selectedTeam && tabFillsWorkspace(dashboardTabContentModel.activeTab);
+
   return (
     // The workspace owns the page's scroll (layout rule L1); min-h-0 lets it shrink inside the column
     // so it scrolls rather than growing past the window.
-    <div className="min-h-0 flex-1 overflow-auto bg-page p-6">
+    <div
+      data-fills-workspace={fillsWorkspace ? "true" : undefined}
+      className={
+        fillsWorkspace
+          ? "flex min-h-0 flex-1 flex-col overflow-hidden bg-page p-6"
+          : "min-h-0 flex-1 overflow-auto bg-page p-6"
+      }
+    >
       {isUnemployed && (
         <div className="mb-4 flex items-center gap-3 rounded-lg border border-line bg-warning-tint px-4 py-3">
           <ShieldX className="h-5 w-5 shrink-0 text-warning" />
@@ -57,7 +69,11 @@ export default function DashboardWorkspaceContent({
       )}
 
       {!selectedPlayer && !selectedTeam ? (
-        <DashboardAlerts alerts={dashboardAlerts} onNavigate={onNavigate} />
+        <DashboardAlerts
+          alerts={dashboardAlerts}
+          onNavigate={onNavigate}
+          scrolls={fillsWorkspace}
+        />
       ) : null}
 
       {selectedPlayer && !selectedTeam ? (

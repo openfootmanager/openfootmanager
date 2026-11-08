@@ -84,7 +84,9 @@ describe("FormDots", () => {
   it("tones each result from the role tokens", () => {
     render(<FormDots results={["W", "D", "L"]} />);
 
-    const [win, draw, loss] = screen.getAllByRole("listitem");
+    const [win, draw, loss] = screen
+      .getAllByRole("listitem")
+      .map((item) => item.firstElementChild as HTMLElement);
     expect(win).toHaveClass("bg-positive-tint", "text-positive");
     // With Badge's inset line: sunken alone vanishes on a white panel.
     expect(draw).toHaveClass("bg-sunken", "ring-1", "ring-line");

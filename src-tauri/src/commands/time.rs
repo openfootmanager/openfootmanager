@@ -369,26 +369,26 @@ pub async fn advance_one_day<R: tauri::Runtime>(
     .await
 }
 
-fn count_high_priority_messages(game: &Game) -> usize {
+fn count_messages_needing_attention(game: &Game) -> usize {
     game.messages
         .iter()
-        .filter(|message| message.priority == domain::message::MessagePriority::High)
+        .filter(|message| message.priority.needs_attention())
         .count()
 }
 
 /// Whether the day just processed produced something the user should pause on:
-/// a transfer deadline, the window opening, or a fresh high-priority inbox item.
+/// a transfer deadline, the window opening, or a fresh High or Urgent inbox item.
 /// (Match days and blockers are handled separately in the loop.)
 fn continue_reached_attention_event(
     transfer_status: &domain::season::TransferWindowStatus,
     opens_on: Option<&str>,
     today: &str,
-    high_priority_before: usize,
-    high_priority_after: usize,
+    attention_before: usize,
+    attention_after: usize,
 ) -> bool {
     *transfer_status == domain::season::TransferWindowStatus::DeadlineDay
         || opens_on == Some(today)
-        || high_priority_after > high_priority_before
+        || attention_after > attention_before
 }
 
 #[tauri::command]
@@ -452,7 +452,7 @@ pub fn advance_to_next_event_internal(
                 return Step::MatchDay;
             }
 
-            let high_priority_before = count_high_priority_messages(game);
+            let attention_before = count_messages_needing_attention(game);
 
             ofm_core::turn::process_day_with_capture(game, &mut |capture| {
                 captures.push(capture);
@@ -485,8 +485,8 @@ pub fn advance_to_next_event_internal(
                 &game.season_context.transfer_window.status,
                 game.season_context.transfer_window.opens_on.as_deref(),
                 &new_today,
-                high_priority_before,
-                count_high_priority_messages(game),
+                attention_before,
+                count_messages_needing_attention(game),
             ) {
                 return Step::AdvancedThenStop;
             }
@@ -849,6 +849,42 @@ mod tests {
             3,
             3,
         ));
+    }
+
+    /// Whether a continue stops after a quiet day on which one unread message of `priority`
+    /// arrived, read the way the continue loop reads it: counted before the day and after.
+    fn continue_stops_for_new_mail_of(priority: MessagePriority) -> bool {
+        let mut game = make_game(11);
+        game.messages.clear();
+        let before = super::count_messages_needing_attention(&game);
+        game.messages
+            .push(make_message("arrived-today", priority, false));
+        continue_reached_attention_event(
+            &TransferWindowStatus::Closed,
+            None,
+            "2025-06-16",
+            before,
+            super::count_messages_needing_attention(&game),
+        )
+    }
+
+    /// Given a continue rolling through quiet days
+    /// When an Urgent message arrives, as a High one would
+    /// Then the continue stops after that day, as it does for High: Urgent is the more pressing
+    ///      of the two, and it used to roll straight past it (maintainer ruling: High or Urgent).
+    #[test]
+    fn urgent_mail_stops_a_continue_as_high_mail_does() {
+        assert!(continue_stops_for_new_mail_of(MessagePriority::High));
+        assert!(continue_stops_for_new_mail_of(MessagePriority::Urgent));
+    }
+
+    /// Given the same
+    /// When a Normal or a Low message arrives
+    /// Then the continue keeps rolling.
+    #[test]
+    fn normal_and_low_mail_do_not_stop_a_continue() {
+        assert!(!continue_stops_for_new_mail_of(MessagePriority::Normal));
+        assert!(!continue_stops_for_new_mail_of(MessagePriority::Low));
     }
 
     #[test]
@@ -2043,5 +2079,147 @@ mod tests {
 
         let (_, side) = user_side_and_phase(&state);
         assert_eq!(side.tactics.defensive_line, line_at_kick_off);
+    }
+
+    // -----------------------------------------------------------------------
+    // A role saved before kick-off reaches the match waiting to be played
+    // -----------------------------------------------------------------------
+
+    fn user_goalkeeper_role_before_kick_off(state: &StateManager) -> engine::PlayerRole {
+        user_side_before_kick_off(state)
+            .players
+            .into_iter()
+            .find(|player| player.id == "a-gk")
+            .expect("the user's goalkeeper starts")
+            .role
+    }
+
+    fn set_goalkeeper_role(state: &StateManager, role: Option<&str>) {
+        crate::commands::squad::set_player_role_internal(
+            state,
+            ofm_core::state::Career::Active,
+            "a-gk".to_string(),
+            role.map(str::to_string),
+        )
+        .expect("a goalkeeper may take a keeper's role, or none");
+    }
+
+    /// Given an active career whose user team has a live match waiting at kick-off,
+    /// When the user makes the goalkeeper a Sweeper Keeper on the pre-match screen, through the
+    /// function the `set_player_role` command calls,
+    /// Then the match about to be played has him as a Sweeper Keeper.
+    #[test]
+    fn a_role_changed_before_kick_off_reaches_the_match() {
+        let state = StateManager::new();
+        state.set_game(make_round_summary_game());
+        advance_time_with_mode_internal(&state, ofm_core::state::Career::Active, "live")
+            .expect("live advance response");
+        assert_ne!(
+            user_goalkeeper_role_before_kick_off(&state),
+            engine::PlayerRole::SweeperKeeper,
+            "the fixture must start from a different role, or the test proves nothing"
+        );
+
+        set_goalkeeper_role(&state, Some("SweeperKeeper"));
+
+        let stored_role = state
+            .get_game(|game| game.teams[0].player_roles.get("a-gk").cloned())
+            .expect("active game");
+        assert_eq!(stored_role, Some(domain::team::PlayerRole::SweeperKeeper));
+        assert_eq!(
+            user_goalkeeper_role_before_kick_off(&state),
+            engine::PlayerRole::SweeperKeeper,
+            "the live session must play with the role set before kick-off"
+        );
+    }
+
+    /// Given a match waiting at kick-off whose goalkeeper was made a Sweeper Keeper on the
+    /// pre-match screen,
+    /// When the user clears his role,
+    /// Then he goes into the match on the Standard role.
+    #[test]
+    fn a_role_cleared_before_kick_off_leaves_the_match_on_standard() {
+        let state = StateManager::new();
+        state.set_game(make_round_summary_game());
+        advance_time_with_mode_internal(&state, ofm_core::state::Career::Active, "live")
+            .expect("live advance response");
+        set_goalkeeper_role(&state, Some("SweeperKeeper"));
+        assert_eq!(
+            user_goalkeeper_role_before_kick_off(&state),
+            engine::PlayerRole::SweeperKeeper
+        );
+
+        set_goalkeeper_role(&state, None);
+
+        assert_eq!(
+            user_goalkeeper_role_before_kick_off(&state),
+            engine::PlayerRole::Standard
+        );
+    }
+
+    /// Given a match waiting at kick-off where a substitute forward was swapped into a
+    /// defender's slot on the pre-match screen (the saved team still has him on the bench),
+    /// When the user saves him as a Poacher,
+    /// Then the save succeeds and he plays the defender's slot on the Standard role: the slot he
+    /// fills in the match does not admit a Poacher.
+    #[test]
+    fn a_saved_role_his_slot_in_the_match_refuses_is_left_out() {
+        let state = StateManager::new();
+        let mut game = make_round_summary_game();
+        game.players.push(make_player(
+            "a-fwd-spare",
+            "a Fwd Spare",
+            "team1",
+            Position::Forward,
+        ));
+        state.set_game(game);
+        advance_time_with_mode_internal(&state, ofm_core::state::Career::Active, "live")
+            .expect("live advance response");
+        let (forward_on_bench, defender_starting) = state
+            .with_live_match(|session| {
+                let snapshot = session.snapshot();
+                let bench_forward = snapshot
+                    .home_bench
+                    .iter()
+                    .find(|player| player.position == engine::Position::Forward)
+                    .map(|player| player.id.clone())
+                    .expect("a forward waits on the bench");
+                let starting_defender = snapshot
+                    .home_team
+                    .players
+                    .iter()
+                    .find(|player| player.position == engine::Position::Defender)
+                    .map(|player| player.id.clone())
+                    .expect("a defender starts");
+                (bench_forward, starting_defender)
+            })
+            .expect("a live match session exists");
+        crate::application::live_match::apply_match_command(
+            &state,
+            ofm_core::state::Career::Active,
+            engine::MatchCommand::PreMatchSwap {
+                side: engine::Side::Home,
+                player_off_id: defender_starting,
+                player_on_id: forward_on_bench.clone(),
+            },
+        )
+        .expect("the swap is made before kick-off");
+
+        crate::commands::squad::set_player_role_internal(
+            &state,
+            ofm_core::state::Career::Active,
+            forward_on_bench.clone(),
+            Some("Poacher".to_string()),
+        )
+        .expect("the saved team still has him on the bench, as a forward who may be a Poacher");
+
+        let side = user_side_before_kick_off(&state);
+        let swapped_in = side
+            .players
+            .iter()
+            .find(|player| player.id == forward_on_bench)
+            .expect("the forward now starts");
+        assert_eq!(swapped_in.position, engine::Position::Defender);
+        assert_eq!(swapped_in.role, engine::PlayerRole::Standard);
     }
 }
