@@ -424,7 +424,10 @@ export default function WorldEditor() {
     setIsBusy(true);
     try {
       await persist();
-      const data = await invoke<PackageProjectData>("read_package_project", { dir: projectDir });
+      const data = await invoke<Pick<PackageProjectData, "issues" | "warnings">>(
+        "validate_package_project",
+        { dir: projectDir },
+      );
       setIssues(data.issues);
       setWarnings(data.warnings ?? []);
       // An explicit Validate shows what it found, warnings included.
