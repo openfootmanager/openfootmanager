@@ -18,7 +18,6 @@ import {
 import { useUndoRedo } from "../hooks/useUndoRedo";
 import { useEntityEditor } from "../hooks/useEntityEditor";
 import { useNamesPoolEditor } from "../hooks/useNamesPoolEditor";
-import { createWriteQueue } from "../lib/writeQueue";
 import type {
   CompetitionDef,
   ConfederationDef,
@@ -39,9 +38,10 @@ import { findingsToShow } from "../components/worldEditor/validationOutcome";
 import { savePackageProject, validatePackageProject } from "../services/packageEditorService";
 import {
   hasUnsavedChanges,
-  saveChanges,
+  type Acknowledged,
   type EditorCollections,
 } from "../components/worldEditor/savePlan";
+import { createSaveSession } from "../components/worldEditor/saveSession";
 import { WorldEditorSidebar } from "../components/worldEditor/WorldEditorSidebar";
 import {
   WorldEditorFormPanel,
@@ -113,14 +113,7 @@ export default function WorldEditor() {
   // What the backend last acknowledged writing, per collection (null before a project is open).
   // "Unsaved" is derived by comparing it with what the editor holds now, so a save finishing late,
   // failing, or racing another edit can never mark newer work as saved.
-  const [acknowledged, setAcknowledgedState] = useState<EditorCollections | null>(null);
-  const acknowledgedRef = useRef<EditorCollections | null>(null);
-  function setAcknowledged(next: EditorCollections | null) {
-    acknowledgedRef.current = next;
-    setAcknowledgedState(next);
-  }
-  // Bumped each time another project is opened, so a save queued for the previous one is dropped.
-  const projectGeneration = useRef(0);
+  const [acknowledged, setAcknowledged] = useState<Acknowledged | null>(null);
 
   // Auto-save
   const [autoSave, setAutoSave] = useState<boolean>(readAutoSave);
@@ -158,6 +151,17 @@ export default function WorldEditor() {
     names,
     competitions,
   };
+
+  // One session per page: its queue, project generation and acknowledged state outlive renders.
+  const saveSessionRef = useRef<ReturnType<typeof createSaveSession> | null>(null);
+  if (saveSessionRef.current === null) {
+    saveSessionRef.current = createSaveSession({
+      current: () => stateRef.current,
+      send: (dir, collections) => savePackageProject<EditorCollections>({ dir, collections }),
+      onChange: setAcknowledged,
+    });
+  }
+  const saveSession = saveSessionRef.current;
 
   const isDirty = acknowledged !== null && hasUnsavedChanges(stateRef.current, acknowledged);
 
@@ -241,9 +245,8 @@ export default function WorldEditor() {
     setIssues(data.issues);
     setWarnings(data.warnings ?? []);
     clearHistory();
-    projectGeneration.current += 1;
     // The very values now held, so a freshly opened project has nothing unsaved.
-    setAcknowledged({
+    saveSession.openProject({
       meta: data.meta,
       confederations: data.confederations,
       countries: data.countries,
@@ -271,40 +274,24 @@ export default function WorldEditor() {
     });
   }
 
-  // Serializes save_package_project writes so concurrent saves can't interleave
-  // full-file writes or let an older write land after a newer one.
-  const enqueueWrite = useRef(createWriteQueue()).current;
-
   const persist = useCallback(
-    (overrides?: Partial<EditorCollections>) => {
-      // Which project this save is for is fixed when it is asked for, not when it reaches the front
-      // of the queue: by then another project may be open.
-      const startedAt = projectGeneration.current;
-      const dir = projectDir;
-      return enqueueWrite(async () => {
-        setSaveState("saving");
-        try {
-          const outcome = await saveChanges(startedAt, overrides, {
-            generation: () => projectGeneration.current,
-            current: () => stateRef.current,
-            acknowledged: () => acknowledgedRef.current as EditorCollections,
-            send: (collections) => savePackageProject({ dir, collections }),
-            onAcknowledged: setAcknowledged,
-          });
-          if (outcome === "stale") {
-            setSaveState("idle");
-            return;
-          }
-          setSaveState("saved");
-          setTimeout(() => setSaveState("idle"), 2000);
-        } catch (err) {
-          setSaveState("error");
-          flashError(resolveBackendError(err));
-          throw err;
+    async (overrides?: Partial<EditorCollections>) => {
+      setSaveState("saving");
+      try {
+        const outcome = await saveSession.save(projectDir, overrides);
+        if (outcome === "stale") {
+          setSaveState("idle");
+          return;
         }
-      });
+        setSaveState("saved");
+        setTimeout(() => setSaveState("idle"), 2000);
+      } catch (err) {
+        setSaveState("error");
+        flashError(resolveBackendError(err));
+        throw err;
+      }
     },
-    [projectDir],
+    [projectDir, saveSession],
   );
 
   function handleToggleAutoSave() {
@@ -355,7 +342,7 @@ export default function WorldEditor() {
     try {
       const dir = await invoke<string>("create_world_project", { slug: newMeta.id, meta: newMeta });
       if (sample) {
-        await savePackageProject({
+        await savePackageProject<EditorCollections>({
           dir,
           collections: {
             meta: newMeta,

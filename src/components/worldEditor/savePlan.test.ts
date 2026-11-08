@@ -6,6 +6,7 @@ import {
   hasUnsavedChanges,
   planSave,
   saveChanges,
+  type Acknowledged,
   type EditorCollections,
 } from "./savePlan";
 
@@ -22,7 +23,7 @@ function world(): EditorCollections {
   };
 }
 
-function deps(initial: EditorCollections, acknowledgedAtOpen = initial) {
+function deps(initial: EditorCollections, acknowledgedAtOpen: Acknowledged = initial) {
   const state = { current: initial, acknowledged: acknowledgedAtOpen, generation: 1 };
   const send = vi.fn(async (collections: Partial<EditorCollections>) => ({
     saved: Object.keys(collections),
@@ -35,7 +36,7 @@ function deps(initial: EditorCollections, acknowledgedAtOpen = initial) {
       current: () => state.current,
       acknowledged: () => state.acknowledged,
       send,
-      onAcknowledged: (next: EditorCollections) => {
+      onAcknowledged: (next: Acknowledged) => {
         state.acknowledged = next;
       },
     },
@@ -163,7 +164,6 @@ describe("saveChanges", () => {
     t.send.mockRejectedValueOnce("be.error.disk");
 
     await expect(saveChanges(1, undefined, t.deps)).rejects.toBe("be.error.disk");
-    expect(t.state.acknowledged).toBe(opened);
     await saveChanges(1, undefined, t.deps);
 
     expect(Object.keys(t.send.mock.calls[1][0]).sort()).toEqual(["names", "teams"]);
@@ -212,5 +212,41 @@ describe("saveChanges", () => {
 
     expect(await saveChanges(1, undefined, t.deps)).toBe("clean");
     expect(t.send).not.toHaveBeenCalled();
+  });
+
+  /**
+   * Given a save that fails after the backend already renamed some of its files
+   * When the author then undoes the edit, back to the list that was acknowledged before
+   * Then the next save still sends that collection: what is on disk is unknown, not as acknowledged
+   */
+  it("resends a collection after a failed save even if it is undone to its old value", async () => {
+    const opened = world();
+    const edited = { ...opened, teams: [{ id: "fc-a", name: "Renamed" } as TeamDef] };
+    const t = deps(edited, opened);
+    t.send.mockRejectedValueOnce("be.error.diskFullHalfway");
+
+    await expect(saveChanges(1, undefined, t.deps)).rejects.toBe("be.error.diskFullHalfway");
+    t.state.current = { ...t.state.current, teams: opened.teams };
+
+    expect(hasUnsavedChanges(t.state.current, t.state.acknowledged)).toBe(true);
+    await saveChanges(1, undefined, t.deps);
+    expect(t.send.mock.calls[1][0].teams).toBe(opened.teams);
+  });
+
+  /**
+   * Given a save that fails for a project that was replaced while it ran
+   * When it rejects
+   * Then the new project's acknowledged state is left alone
+   */
+  it("leaves another project's state alone when a stale save fails", async () => {
+    const opened = world();
+    const t = deps({ ...opened, teams: [] }, opened);
+    t.send.mockImplementationOnce(async () => {
+      t.state.generation = 2;
+      throw new Error("late failure");
+    });
+
+    await expect(saveChanges(1, undefined, t.deps)).rejects.toThrow("late failure");
+    expect(t.state.acknowledged).toBe(opened);
   });
 });
