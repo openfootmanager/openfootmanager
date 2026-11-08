@@ -549,48 +549,52 @@ export default function MatchLive({
           )}
 
           {/* Key Events sidebar */}
-          <div className="shrink-0 p-4">
-            <h3 className="text-xs font-heading font-bold uppercase tracking-widest text-gray-500 dark:text-gray-400 mb-3">
+          <div className="min-h-0 flex-1 flex flex-col p-4">
+            <h3 className="shrink-0 text-xs font-heading font-bold uppercase tracking-widest text-gray-500 dark:text-gray-400 mb-3">
               {t("match.keyEvents")}
             </h3>
-            <div className="flex flex-col gap-1.5">
-              {importantEvents
-                .filter((e) =>
-                  [
-                    "Goal",
-                    "PenaltyGoal",
-                    "YellowCard",
-                    "RedCard",
-                    "SecondYellow",
-                    "Substitution",
-                    "PenaltyMiss",
-                    "Injury",
-                  ].includes(e.event_type),
-                )
-                .slice(-12)
-                .reverse()
-                .map((evt, i) => {
-                  const display = getEventDisplay(evt);
-                  return (
-                    <div key={i} className="flex items-center gap-2 text-xs">
-                      <span className="text-gray-600 dark:text-gray-500 tabular-nums w-6 text-right font-heading">
-                        {evt.minute}'
-                      </span>
-                      <span>{display.icon}</span>
-                      <span className={`${display.color} font-medium truncate`}>
-                        {getPlayerName(snapshot, evt.player_id)}
-                      </span>
-                      <MatchEventSideBadge
-                        side={evt.side}
-                        homeTeam={homeTeam}
-                        awayTeam={awayTeam}
-                      />
-                    </div>
-                  );
-                })}
-              {importantEvents.length === 0 && (
-                <p className="text-gray-600 dark:text-gray-500 text-xs">{t("match.noEventsYet")}</p>
-              )}
+            <div className="min-h-0 flex-1 overflow-auto">
+              <div className="flex flex-col gap-1.5">
+                {importantEvents
+                  .filter((e) =>
+                    [
+                      "Goal",
+                      "PenaltyGoal",
+                      "YellowCard",
+                      "RedCard",
+                      "SecondYellow",
+                      "Substitution",
+                      "PenaltyMiss",
+                      "Injury",
+                    ].includes(e.event_type),
+                  )
+                  .slice(-12)
+                  .reverse()
+                  .map((evt, i) => {
+                    const display = getEventDisplay(evt);
+                    return (
+                      <div key={i} className="flex items-center gap-2 text-xs">
+                        <span className="text-gray-600 dark:text-gray-500 tabular-nums w-6 text-right font-heading">
+                          {evt.minute}'
+                        </span>
+                        <span>{display.icon}</span>
+                        <span className={`${display.color} font-medium truncate`}>
+                          {getPlayerName(snapshot, evt.player_id)}
+                        </span>
+                        <MatchEventSideBadge
+                          side={evt.side}
+                          homeTeam={homeTeam}
+                          awayTeam={awayTeam}
+                        />
+                      </div>
+                    );
+                  })}
+                {importantEvents.length === 0 && (
+                  <p className="text-gray-600 dark:text-gray-500 text-xs">
+                    {t("match.noEventsYet")}
+                  </p>
+                )}
+              </div>
             </div>
           </div>
         </aside>

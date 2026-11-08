@@ -51,7 +51,7 @@ export default function MatchScreenLayout({
         {children}
       </div>
 
-      {footer}
+      {footer != null && <div className="shrink-0">{footer}</div>}
     </div>
   );
 }
