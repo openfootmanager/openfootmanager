@@ -29,10 +29,9 @@ pub(crate) fn build_team_with_bench_from(
     lookups: Option<&super::matchday_lookups::MatchdayLookups>,
 ) -> (TeamData, Vec<PlayerData>) {
     let team = game.teams.iter().find(|t| t.id == team_id);
-    let (name, formation, play_style, tactics, saved_xi_ids) = match team {
+    let (name, play_style, tactics) = match team {
         Some(t) => (
             t.name.clone(),
-            t.formation.clone(),
             match t.play_style {
                 domain::team::PlayStyle::Attacking => PlayStyle::Attacking,
                 domain::team::PlayStyle::Defensive => PlayStyle::Defensive,
@@ -42,86 +41,36 @@ pub(crate) fn build_team_with_bench_from(
                 _ => PlayStyle::Balanced,
             },
             domain_to_engine_tactics(&t.tactics_phase),
-            t.starting_xi_ids.as_slice(),
         ),
         None => (
             "Unknown".into(),
-            "4-4-2".into(),
             PlayStyle::Balanced,
             TacticsConfig::default(),
-            &[] as &[String],
         ),
     };
 
-    let eligible = crate::match_day_eligibility::eligible_among(club);
-    let available_players: Vec<_> = eligible
-        .iter()
-        .copied()
-        .filter(|p| p.injury.is_none())
-        .collect();
     let player_roles = team.map(|t| &t.player_roles);
     // `deployed` is the granular slot the player occupies; `None` for the bench,
     // where the player's own position is used instead. The engine's coarse
     // position is derived from this so a player fielded out of position (e.g. a
     // striker at centre-back) is simulated in the position they actually play.
-    // A role counts only where the position a player is playing admits it: his
-    // slot if he starts, his natural position on the bench — the same rule the
-    // player's own role command enforces. Stored roles can outlive it: AI roles
-    // are chosen against a coarse bucket (`Forward` admits `WideForward`, a
-    // striker's slot does not), and anyone's can go stale when the side changes.
     let convert_player = |p: &domain::player::Player, deployed: Option<&DomainPosition>| {
         let playing_at = deployed.unwrap_or(&p.natural_position);
-        let role = player_roles
-            .and_then(|roles| roles.get(&p.id))
-            .filter(|role| playing_at.admits_role(role))
-            .map(domain_to_engine_role)
-            .unwrap_or(EnginePlayerRole::Standard);
+        let role = domain_to_engine_role(&effective_role(player_roles, p, playing_at));
         to_engine_player(p, role, deployed)
     };
 
-    // The user manages their own XI by hand (saved_xi_ids); AI clubs are managed
-    // by a reputation-driven policy that picks a first-choice XI and rotates for
-    // load management. Gate on the user team explicitly, NOT on "saved XI empty",
-    // so the human's early-career auto-built XI stays reputation-independent.
-    let is_user_team = game.manager.team_id.as_deref() == Some(team_id);
-    let mut starting_players = if is_user_team {
-        select_starting_xi(saved_xi_ids, &available_players, &formation)
-    } else {
-        let quality = team_management_quality(game, team);
-        // The same club must name the same side however often this is called for
-        // one fixture, so the manager's misjudgements are seeded from the club and
-        // the date rather than rolled fresh. A new matchday is a new judgement.
-        let seed = selection_seed(
-            team_id,
-            &game.clock.current_date.format("%Y-%m-%d").to_string(),
-        );
-        let load = fixture_load_among(game, team_id, lookups);
-        ai_select_starting_xi(&available_players, &formation, quality, seed, load)
-    };
-    // Both select_starting_xi and ai_select_starting_xi return a slot-aligned XI
-    // (entry i plays formation slot i), so the list index is the deployed slot.
+    let selection = match_day_selection(game, team_id, club, lookups);
+    let formation = selection.formation;
     let slots = formation_slots(&formation);
-    fill_from_the_treatment_room(&eligible, &slots, &mut starting_players);
-    let used_ids: HashSet<String> = starting_players
-        .iter()
-        .map(|player| player.id.clone())
-        .collect();
-    let starting_xi = starting_players
+    let starting_xi = selection
+        .eleven
         .into_iter()
         .enumerate()
         .map(|(slot_index, p)| convert_player(p, slots.get(slot_index)))
         .collect();
-
-    let mut bench_domain: Vec<&domain::player::Player> = available_players
-        .into_iter()
-        .filter(|player| !used_ids.contains(&player.id))
-        .collect();
-    bench_domain.sort_by(|left, right| {
-        natural_ovr(right)
-            .partial_cmp(&natural_ovr(left))
-            .unwrap_or(std::cmp::Ordering::Equal)
-    });
-    let bench = bench_domain
+    let bench = selection
+        .bench
         .into_iter()
         .map(|p| convert_player(p, None))
         .collect();
@@ -136,6 +85,90 @@ pub(crate) fn build_team_with_bench_from(
     };
 
     (team_data, bench)
+}
+
+/// Who plays and who waits for `team_id`'s next match, as the match picks them: the eleven slot
+/// by slot (entry `i` plays formation slot `i`) and the bench, best first. The kick-off and the
+/// Tactics screen's lineup projection both read this, so the screen shows the side that will play.
+pub(crate) struct MatchDaySelection<'a> {
+    /// The formation the eleven lines up in: the club's own, or 4-4-2 for a club with none. The one
+    /// default every reader of the selection shares.
+    pub(crate) formation: String,
+    pub(crate) eleven: Vec<&'a domain::player::Player>,
+    pub(crate) bench: Vec<&'a domain::player::Player>,
+}
+
+/// [`MatchDaySelection`] for `team_id`, from `club` (the club's players).
+pub(crate) fn match_day_selection<'a>(
+    game: &Game,
+    team_id: &str,
+    club: &[&'a domain::player::Player],
+    lookups: Option<&super::matchday_lookups::MatchdayLookups>,
+) -> MatchDaySelection<'a> {
+    let team = game.teams.iter().find(|t| t.id == team_id);
+    let formation = team.map_or("4-4-2", |t| t.formation.as_str());
+    let saved_xi_ids = team.map_or(&[] as &[String], |t| t.starting_xi_ids.as_slice());
+    let eligible = crate::match_day_eligibility::eligible_among(club);
+    let available_players: Vec<_> = eligible
+        .iter()
+        .copied()
+        .filter(|p| p.injury.is_none())
+        .collect();
+
+    // The user manages their own XI by hand (saved_xi_ids); AI clubs are managed
+    // by a reputation-driven policy that picks a first-choice XI and rotates for
+    // load management. Gate on the user team explicitly, NOT on "saved XI empty",
+    // so the human's early-career auto-built XI stays reputation-independent.
+    let is_user_team = game.manager.team_id.as_deref() == Some(team_id);
+    let mut eleven = if is_user_team {
+        select_starting_xi(saved_xi_ids, &available_players, formation)
+    } else {
+        let quality = team_management_quality(game, team);
+        // The same club must name the same side however often this is called for
+        // one fixture, so the manager's misjudgements are seeded from the club and
+        // the date rather than rolled fresh. A new matchday is a new judgement.
+        let seed = selection_seed(
+            team_id,
+            &game.clock.current_date.format("%Y-%m-%d").to_string(),
+        );
+        let load = fixture_load_among(game, team_id, lookups);
+        ai_select_starting_xi(&available_players, formation, quality, seed, load)
+    };
+    // Both select_starting_xi and ai_select_starting_xi return a slot-aligned XI
+    // (entry i plays formation slot i), so the list index is the deployed slot.
+    fill_from_the_treatment_room(&eligible, &formation_slots(formation), &mut eleven);
+    let used_ids: HashSet<&str> = eleven.iter().map(|player| player.id.as_str()).collect();
+    let mut bench: Vec<&domain::player::Player> = available_players
+        .into_iter()
+        .filter(|player| !used_ids.contains(player.id.as_str()))
+        .collect();
+    bench.sort_by(|left, right| {
+        natural_ovr(right)
+            .partial_cmp(&natural_ovr(left))
+            .unwrap_or(std::cmp::Ordering::Equal)
+    });
+    MatchDaySelection {
+        formation: formation.to_string(),
+        eleven,
+        bench,
+    }
+}
+
+/// The role `player` plays where he is playing (`playing_at`: his slot if he starts, his natural
+/// position on the bench). A stored role counts only where that position admits it, the same rule
+/// the player's own role command enforces; stored roles can outlive it (AI roles are chosen against
+/// a coarse bucket, and anyone's can go stale when the side changes), and then he plays the
+/// position's standard role.
+pub(crate) fn effective_role(
+    roles: Option<&HashMap<String, domain::team::PlayerRole>>,
+    player: &domain::player::Player,
+    playing_at: &DomainPosition,
+) -> domain::team::PlayerRole {
+    roles
+        .and_then(|roles| roles.get(&player.id))
+        .filter(|role| playing_at.admits_role(role))
+        .cloned()
+        .unwrap_or_default()
 }
 
 /// Replace, in place, only the saved starters the pool policy benches (youth outside the

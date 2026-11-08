@@ -21,7 +21,8 @@ const TRANSITION_FIELDS = [
   ["break_speed", "breakSpeed", ["Slow", "Medium", "Fast"]] as const,
 ];
 
-const SECTIONS = [
+/** The three phases and their dials, in the order the match is played: shared by every editor. */
+export const PHASE_SECTIONS = [
   ["withBall", WITH_BALL_FIELDS] as const,
   ["withoutBall", WITHOUT_BALL_FIELDS] as const,
   ["transitions", TRANSITION_FIELDS] as const,
@@ -82,7 +83,7 @@ export function PhaseBlueprintPanel({
   const { t } = useTranslation();
   return (
     <div className="divide-y divide-gray-100 dark:divide-navy-700">
-      {SECTIONS.map(([labelKey, fields]) => (
+      {PHASE_SECTIONS.map(([labelKey, fields]) => (
         <div key={labelKey} className="p-3 space-y-2">
           <div className="mb-1.5 text-[11px] font-heading font-bold uppercase tracking-[0.2em] text-primary-500 dark:text-primary-400">
             {t(`tactics.phaseLabels.${labelKey}`)}

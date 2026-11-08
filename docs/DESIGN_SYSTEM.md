@@ -184,14 +184,20 @@ bands:
 
 ## 5. Layout rules
 
-1. The dashboard workspace owns the scroll and applies `max-w-page` once.
+1. The dashboard workspace owns the scroll and applies `max-w-page` once. A tab listed in
+   `tabFillsWorkspace` (`src/components/dashboard/dashboardTabContentModel.ts`) fills the workspace
+   instead: the page never scrolls for it, and its own regions scroll. Tactics is the one such tab
+   (maintainer, 4 Nov 2026); adding another is the maintainer's call.
 2. The header shows the page's title; no page repeats it.
 3. One primary action per page, at the right end of its toolbar. The header's Continue is the
    game-wide forward action.
 4. Every match stage uses `MatchScreenLayout`.
 5. At the 960×640 minimum window, at every UI scale: no sideways scroll and nothing clipped.
    Vertical scroll is fine.
-6. At most two panels side by side, and one below `@split`.
+6. At most two panels side by side, and one below `@split`. The Tactics workbench is the exception:
+   its instructions panel sits beside the lineup where the workbench is 72rem or wider, and below
+   that rests as a rail and opens as a drawer (a `Dialog`: Escape, a Tab trap, focus back to the
+   rail) (maintainer, 4 Nov 2026).
 
 ## 6. Adding a token
 
@@ -245,9 +251,10 @@ window the game opens at) and 960×640 (its minimum).
     fixture was generated for, so a search or another page shows as unanswered rather than
     getting the opening page. It is generated, never committed: `npm run fixture:pages` writes it
     (the generator is `src-tauri/crates/ofm_core/examples/page_fixture.rs`), CI's frontend job runs
-    that before its checks, and `npm test` and `npm run build` run it first when the file is
-    missing (`scripts/ensure-page-fixture.mjs`). Run it again yourself after changing what it is
-    generated from; `npm exec -- vitest run <file>` skips the guard, so generate it once first.
+    that before its checks, and `npm test`, `npm run test:watch`, `npm run build`, `npm run knip`
+    (so `npm run preflight`) and `npm run dev` (so `npm run tauri dev`) run it first when the file
+    is missing (`scripts/ensure-page-fixture.mjs`). Run it again yourself after changing what it
+    is generated from; `npm exec -- vitest run <file>` skips the guard, so generate it once first.
     `scripts/check-untracked-generated.sh` fails CI if it is ever tracked again.
   - Every value in it `satisfies` the frontend type its command returns, so `npm run build` fails
     when the backend's shape and the frontend's type stop agreeing.

@@ -4,6 +4,7 @@ import { invoke, type InvokeArgs } from "@tauri-apps/api/core";
 import type { GameStateData, PlayerData, TeamData } from "../../store/gameStore";
 import type { CustomTactic } from "../../services/customTacticsService";
 import TacticsTab from "./TacticsTab";
+import { resetTacticsLineupCache } from "../../hooks/useTacticsLineupProjection";
 import { ratingTierClass } from "../../lib/ratingTier";
 import { createSeasonContext } from "../../test-utils/factories";
 
@@ -283,6 +284,7 @@ const createDataTransfer = () => {
 describe("TacticsTab", () => {
   beforeEach(() => {
     localStorage.clear();
+    resetTacticsLineupCache();
     mockedInvoke.mockReset();
     const defaultGameState = makeGameState();
     const defaultRoster = defaultGameState.players.filter((p) => p.team_id === "team1");
@@ -725,6 +727,35 @@ describe("TacticsTab", () => {
     await act(async () => {});
 
     expect(mockedInvoke).not.toHaveBeenCalledWith("set_starting_xi", expect.anything());
+  });
+
+  /**
+   * Given the position table, the familiarity and the squad have all arrived, but
+   *       get_tactics_lineup has not answered for this revision
+   * When a bench defender is dropped onto a defensive slot
+   * Then it says lineup changes wait, and nothing is saved: the eleven on screen is the saved one
+   *      standing in, not the side the match would field, so a change worked out from it is stale.
+   */
+  it("saves no lineup change while the backend's lineup has not answered", async () => {
+    const state = makeGameState();
+    const roster = state.players.filter((player) => player.team_id === "team1");
+    mockedInvoke.mockReset();
+    mockedInvoke.mockImplementation(async (command: string) => {
+      if (command === "get_squad") return roster;
+      if (command === "get_tactics_lineup") return new Promise(() => {});
+      return state;
+    });
+
+    render(<TacticsTab gameState={state} onSelectPlayer={vi.fn()} onGameUpdate={vi.fn()} />);
+    await act(async () => {}); // the squad has answered
+
+    const dataTransfer = createDataTransfer();
+    fireEvent.dragStart(screen.getByTestId("pitch-bench-player-d5"), { dataTransfer });
+    fireEvent.drop(screen.getByTestId("pitch-slot-1"), { dataTransfer });
+    await act(async () => {});
+
+    expect(mockedInvoke).not.toHaveBeenCalledWith("set_starting_xi", expect.anything());
+    expect(screen.getByRole("status")).toHaveTextContent("common.lineupLoading");
   });
 
   it("sends the correct starting xi order when a pitch-view bench defender is dropped onto a defensive slot", async () => {
@@ -1190,6 +1221,40 @@ describe("TacticsTab", () => {
     );
   });
 
+  /**
+   * Given a club whose saved eleven names the forward "f2", and a backend whose lineup fields
+   *       the bench defender "d5" in that slot instead (as the match would, for its own reasons)
+   * When the Tactics screen shows the eleven
+   * Then it shows the backend's eleven, "d5" and not "f2": the screen picks no side of its own.
+   */
+  it("shows the eleven the backend says the match will field", async () => {
+    const gameState = makeGameState();
+    const roster = gameState.players.filter((p) => p.team_id === "team1");
+    const eleven = ["gk1", "d1", "d2", "d3", "d4", "m1", "m2", "m3", "m4", "f1", "d5"];
+    mockedInvoke.mockImplementation(async (command: string) => {
+      if (command === "get_squad") return roster;
+      if (command === "get_tactics_lineup") {
+        return {
+          formation: "4-4-2",
+          eleven: eleven.map((player_id) => ({
+            position: "Striker",
+            player_id,
+            role: "Standard",
+            familiarity: "natural",
+          })),
+          substitutes: ["f2"],
+          reserves: [],
+        };
+      }
+      return gameState;
+    });
+
+    render(<TacticsTab gameState={gameState} onSelectPlayer={vi.fn()} onGameUpdate={vi.fn()} />);
+
+    expect(await screen.findByTestId("xi-player-d5")).toBeInTheDocument();
+    expect(screen.queryByTestId("xi-player-f2")).not.toBeInTheDocument();
+  });
+
   it("shows all starting XI players in the left panel list", () => {
     render(
       <TacticsTab gameState={makeGameState()} onSelectPlayer={vi.fn()} onGameUpdate={vi.fn()} />,
@@ -1574,10 +1639,12 @@ describe("TacticsTab", () => {
       expect(mockedInvoke).toHaveBeenCalledWith("auto_select_set_pieces", expect.anything());
     });
 
-    fireEvent.click(screen.getByRole("button", { name: /preMatch\.cornerTaker/ }));
-    // The right panel comes last in the page, so its list is the last match.
-    const options = await screen.findAllByRole("button", { name: /D3/ });
-    fireEvent.click(options[options.length - 1]);
+    // The takers sit in the team instructions panel; the pitch and the list name D3 too.
+    const instructions = within(
+      screen.getByRole("region", { name: "tactics.instructionsPanel.title" }),
+    );
+    fireEvent.click(instructions.getByRole("button", { name: /preMatch\.cornerTaker/ }));
+    fireEvent.click(await instructions.findByRole("button", { name: /D3/ }));
 
     await waitFor(() => {
       expect(mockedInvoke).toHaveBeenCalledWith("set_team_match_roles", expect.anything());
