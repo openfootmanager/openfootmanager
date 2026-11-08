@@ -133,21 +133,33 @@ export function useTacticsLibrary({
   // The screen answers at once; the save's own list then replaces it, or, if the save refused the
   // change (a shape the game cannot lay out, an id that is already gone), puts the library back as
   // the save has it.
-  function changeSave(change: () => Promise<CustomTactic[]>): void {
+  // Resolves whether the save accepted the change, once it has answered.
+  function changeSave(change: () => Promise<CustomTactic[]>): Promise<boolean> {
     const askedIn = useGameStore.getState().careerEpoch;
     const stale = () => useGameStore.getState().careerEpoch !== askedIn;
-    savesInOrder.current = savesInOrder.current
-      .then(() => (stale() ? null : change().catch(() => listCustomTactics())))
+    let accepted = true;
+    const answered = savesInOrder.current
+      .then(() =>
+        stale()
+          ? null
+          : change().catch(() => {
+              accepted = false;
+              return listCustomTactics();
+            }),
+      )
       .then((saved) => {
         if (saved && !stale()) setCustomTactics(toLibraryEntries(saved));
+        return accepted && !stale();
       })
-      .catch(() => {});
+      .catch(() => false);
+    savesInOrder.current = answered.then(() => undefined);
+    return answered;
   }
 
   // A save is the team's tactic as it stands, whole (#1189): the backend reads it from the team,
   // and the entry only gives it its id, name and description.
-  function persistTactic(tactic: TacticsLibraryEntry): void {
-    changeSave(() => saveCurrentTactic(toCustomTactic(tactic), careerToken));
+  function persistTactic(tactic: TacticsLibraryEntry): Promise<boolean> {
+    return changeSave(() => saveCurrentTactic(toCustomTactic(tactic), careerToken));
   }
 
   const matchedPreset = findTacticsPresetBySetup(formation, activePlayStyle);
@@ -334,7 +346,7 @@ export function useTacticsLibrary({
     changeSave(() => deleteCustomTactic(id.trim(), careerToken));
   }
 
-  function handleSaveTactic(): void {
+  function handleSaveTactic(): Promise<boolean> {
     const nextName = draftTacticName.trim() || t("tactics.customTactic");
 
     if (
@@ -352,8 +364,7 @@ export function useTacticsLibrary({
       setCustomTactics((current) =>
         current.map((entry) => (entry.id === activeTactic.id ? updated : entry)),
       );
-      persistTactic(updated);
-      return;
+      return persistTactic(updated);
     }
 
     const nextTactic = createCustomTacticEntry({
@@ -365,9 +376,10 @@ export function useTacticsLibrary({
     });
 
     setCustomTactics((current) => [nextTactic, ...current]);
-    persistTactic(nextTactic);
+    const saved = persistTactic(nextTactic);
     setActiveTacticId(nextTactic.id);
     setDraftTacticName(nextTactic.name);
+    return saved;
   }
 
   // What Reset goes back to: a preset applies as a whole (formation, style and phase blueprint, the

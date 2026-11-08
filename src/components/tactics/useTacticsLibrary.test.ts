@@ -513,6 +513,28 @@ describe("useTacticsLibrary saving and applying the whole tactic (#1189)", () =>
   });
 
   /**
+   * Given a setup the player saves as a tactic
+   * When the save answers
+   * Then Save resolves true if the backend accepted it and false if it refused it, so the screen
+   *      shows "Saved" only for a save that held.
+   */
+  it.each([
+    [false, true],
+    [true, false],
+  ])("resolves the save with %s refused: %s", async (failSaves, accepted) => {
+    backendWith([], false, failSaves);
+    const { result } = renderLibrary(careerGame);
+    await waitFor(() => expect(callsTo("list_custom_tactics")).toHaveLength(1));
+
+    let outcome: boolean | undefined;
+    await act(async () => {
+      outcome = await result.current.handleSaveTactic();
+    });
+
+    expect(outcome).toBe(accepted);
+  });
+
+  /**
    * Given a saved tactic in the library
    * When the player picks it
    * Then the backend applies it whole, the screen takes the game the backend answers with, and

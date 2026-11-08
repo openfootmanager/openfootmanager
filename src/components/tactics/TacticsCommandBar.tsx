@@ -46,7 +46,8 @@ interface TacticsCommandBarProps {
   onDuplicate: () => void;
   onFormationChange: (formation: string) => void;
   onPlayStyleChange: (playStyle: string) => void;
-  onSave: () => void;
+  /** Resolves whether the save was accepted: the "Saved" cue shows only when it was. */
+  onSave: () => Promise<boolean>;
   onSelectTactic: (id: string) => void;
   tacticLibrary: TacticsLibraryEntry[];
 }
@@ -142,8 +143,8 @@ export default function TacticsCommandBar({
     };
   }, []);
 
-  function handleSaveClick(): void {
-    onSave();
+  async function handleSaveClick(): Promise<void> {
+    if (!(await onSave())) return;
     setShowSavedCue(true);
 
     if (savedCueTimeoutRef.current) {
