@@ -1032,9 +1032,9 @@ pub(super) fn builtin_region_name(id: &str) -> String {
 /// Build the region list for a package: one region per confederation, with each
 /// club's country assigned to its confederation (package-defined first,
 /// otherwise the built-in catalog).
-fn regions_from_package(
+fn regions_from_package<'a>(
     package: &package::WorldPackage,
-    teams: &[domain::team::Team],
+    club_nations: impl Iterator<Item = &'a str>,
 ) -> Vec<WorldRegionDefinition> {
     use std::collections::{BTreeMap, BTreeSet, HashMap};
 
@@ -1060,13 +1060,7 @@ fn regions_from_package(
         .countries
         .iter()
         .map(|country| country.id.as_str())
-        .chain(teams.iter().map(|team| {
-            if team.football_nation.is_empty() {
-                team.country.as_str()
-            } else {
-                team.football_nation.as_str()
-            }
-        }))
+        .chain(club_nations)
     {
         let region = country_region
             .get(code)
@@ -1089,6 +1083,41 @@ fn regions_from_package(
             country_codes: codes.into_iter().collect(),
         })
         .collect()
+}
+
+/// What competition selectors would see in the world [`build_world_data_from_package`] makes of
+/// `package`, without making it: one club per authored team, in the nation it declares and ranked by
+/// the middle of its reputation range (the authored basis a package is validated and resolved on),
+/// and the same regions. Meaningful for a package that declares competitions: with none, the
+/// builder pads and invents clubs that this does not.
+///
+/// A club with no id is given one no authored id can equal, as the builder gives it a generated
+/// one, so it still counts as an entrant without ever matching a name in a participant list.
+pub(super) fn competition_field_of_package(package: &package::WorldPackage) -> CompetitionField {
+    let clubs = package
+        .teams
+        .iter()
+        .enumerate()
+        .map(|(index, team)| {
+            let [min, max] = team
+                .reputation_range
+                .unwrap_or(DEFAULT_TEAM_REPUTATION_RANGE);
+            competition_def::FieldClub {
+                id: if team.id.is_empty() {
+                    format!("\u{0}club-without-id-{index}")
+                } else {
+                    team.id.clone()
+                },
+                nation: team.country.clone(),
+                reputation: min.midpoint(max),
+            }
+        })
+        .collect();
+    let regions = regions_from_package(
+        package,
+        package.teams.iter().map(|team| team.country.as_str()),
+    );
+    CompetitionField::new(clubs, regions)
 }
 
 /// Generate procedural filler club definitions for a given country code. Used
@@ -1378,7 +1407,7 @@ pub fn build_world_data_from_package_with_rng(
         }
     }
 
-    let regions = regions_from_package(package, &teams);
+    let regions = regions_from_package(package, teams.iter().map(team_local_nationality));
 
     let competition_definitions = if !package.competitions.is_empty() {
         Some(CompetitionDefinitionFile {

@@ -1443,23 +1443,19 @@ fn validate_competition_references(package: &WorldPackage) -> Vec<PackageError> 
         return Vec::new();
     }
 
-    // Reuse production construction for country and regional membership. Clubs are ranked by their
+    // Reuse the production resolver's input for country and regional membership. Clubs are ranked by their
     // authored reputation, the same basis a career resolves the competitions with, so the verdict
     // here is the verdict there however the world's reputations roll.
-    let world = super::build_world_data_from_package(
-        package,
-        None,
-        &super::DefinitionSources::embedded_only(),
-    );
+    let field = super::competition_field_of_package(package);
     let authored = authored_reputations(package);
     let file = super::CompetitionDefinitionFile {
         format_version: super::SUPPORTED_DEFINITION_FORMAT_VERSION,
         competitions: package.competitions.clone(),
     };
 
-    super::validate_definitions_for_world_ranked(
+    super::validate_definitions_for_field(
         &file,
-        &world,
+        &field,
         super::ReputationBasis::Authored(&authored),
     )
     .into_iter()
@@ -5324,6 +5320,313 @@ colors:
         }
     }
 
+    // ---- The projection must give the verdict the built world gives (critique #8) ----
+
+    /// One club of the fixtures below.
+    fn fixture_club(id: &str, country: &str, range: [u32; 2]) -> super::super::TeamDef {
+        serde_json::from_value(serde_json::json!({
+            "id": id, "name": id, "city": "City", "country": country, "reputationRange": range,
+            "colors": {"primary": "#000000", "secondary": "#ffffff"}
+        }))
+        .unwrap()
+    }
+
+    fn fixture_competitions(value: serde_json::Value) -> Vec<CompetitionDefinition> {
+        serde_json::from_value(value).unwrap()
+    }
+
+    /// The problems the competition validator raised on the world the package builds: the verdict
+    /// validation used to reach, by generating every club's squad.
+    fn verdict_on_the_built_world(
+        package: &WorldPackage,
+    ) -> Vec<(String, Option<usize>, Vec<(String, String)>)> {
+        use rand::SeedableRng;
+        let world = crate::generator::build_world_data_from_package_with_rng(
+            package,
+            None,
+            &crate::generator::DefinitionSources::embedded_only(),
+            &mut rand::rngs::StdRng::seed_from_u64(11),
+        );
+        let file = crate::generator::CompetitionDefinitionFile {
+            format_version: crate::generator::SUPPORTED_DEFINITION_FORMAT_VERSION,
+            competitions: package.competitions.clone(),
+        };
+        let authored = crate::generator::authored_reputations(package);
+        crate::generator::validate_definitions_for_world_ranked(
+            &file,
+            &world,
+            crate::generator::ReputationBasis::Authored(&authored),
+        )
+        .into_iter()
+        .map(|error| (error.code, error.competition_index, error.params))
+        .collect()
+    }
+
+    /// The same, on the projection of the package: no world is built.
+    fn verdict_on_the_projection(
+        package: &WorldPackage,
+    ) -> Vec<(String, Option<usize>, Vec<(String, String)>)> {
+        let file = crate::generator::CompetitionDefinitionFile {
+            format_version: crate::generator::SUPPORTED_DEFINITION_FORMAT_VERSION,
+            competitions: package.competitions.clone(),
+        };
+        let authored = crate::generator::authored_reputations(package);
+        crate::generator::validate_definitions_for_field(
+            &file,
+            &super::super::competition_field_of_package(package),
+            crate::generator::ReputationBasis::Authored(&authored),
+        )
+        .into_iter()
+        .map(|error| (error.code, error.competition_index, error.params))
+        .collect()
+    }
+
+    /// Who each competition's selectors resolve to, from the built world and from the projection.
+    /// A club with no id is named `<no id>` on both sides: the builder gives it a generated id.
+    fn participants_both_ways(
+        package: &WorldPackage,
+    ) -> (
+        std::collections::BTreeMap<String, Vec<String>>,
+        std::collections::BTreeMap<String, Vec<String>>,
+    ) {
+        use rand::SeedableRng;
+        let world = crate::generator::build_world_data_from_package_with_rng(
+            package,
+            None,
+            &crate::generator::DefinitionSources::embedded_only(),
+            &mut rand::rngs::StdRng::seed_from_u64(11),
+        );
+        let file = crate::generator::CompetitionDefinitionFile {
+            format_version: crate::generator::SUPPORTED_DEFINITION_FORMAT_VERSION,
+            competitions: package.competitions.clone(),
+        };
+        let authored = crate::generator::authored_reputations(package);
+        let basis = crate::generator::ReputationBasis::Authored(&authored);
+        let known: std::collections::HashSet<&str> = package
+            .teams
+            .iter()
+            .map(|team| team.id.as_str())
+            .filter(|id| !id.is_empty())
+            .collect();
+        let normalise = |resolved: std::collections::HashMap<String, Vec<String>>| {
+            resolved
+                .into_iter()
+                .map(|(competition, ids)| {
+                    let mut ids: Vec<String> = ids
+                        .into_iter()
+                        .map(|id| {
+                            if known.contains(id.as_str()) {
+                                id
+                            } else {
+                                "<no id>".to_string()
+                            }
+                        })
+                        .collect();
+                    ids.sort();
+                    (competition, ids)
+                })
+                .collect()
+        };
+        (
+            normalise(
+                super::super::competition_def::resolve_definition_participants(
+                    &file,
+                    &super::super::CompetitionField::of_world(&world),
+                    basis,
+                ),
+            ),
+            normalise(
+                super::super::competition_def::resolve_definition_participants(
+                    &file,
+                    &super::super::competition_field_of_package(package),
+                    basis,
+                ),
+            ),
+        )
+    }
+
+    fn assert_projection_matches_the_built_world(label: &str, package: &WorldPackage) {
+        assert_eq!(
+            verdict_on_the_projection(package),
+            verdict_on_the_built_world(package),
+            "{label}: the verdict differs"
+        );
+        let (built, projected) = participants_both_ways(package);
+        assert_eq!(projected, built, "{label}: the participants differ");
+    }
+
+    /// Given packages that exercise every selector kind and the checks that need the field
+    ///       (country and region membership, authored reputation with id tie-breaking, exclusions,
+    ///       dependency order, `championsOf`, group qualification on a thin field, a club with no id)
+    /// When they are validated on the projection and on the built world
+    /// Then the verdicts and the resolved participants are identical, packages that are valid and
+    ///      packages that are not
+    #[test]
+    fn the_projection_gives_the_built_worlds_verdict_and_participants() {
+        let teams = |rows: &[(&str, &str, [u32; 2])]| -> Vec<super::super::TeamDef> {
+            rows.iter()
+                .map(|(id, country, range)| fixture_club(id, country, *range))
+                .collect()
+        };
+        let clubs = teams(&[
+            ("a", "ENG", [900, 900]),
+            ("b", "ENG", [900, 900]),
+            ("c", "ENG", [500, 700]),
+            ("d", "ENG", [100, 300]),
+            ("e", "ESP", [800, 800]),
+            ("f", "ESP", [200, 400]),
+            ("g", "ESP", [200, 400]),
+            ("h", "FRA", [600, 600]),
+            ("", "FRA", [100, 100]),
+        ]);
+        let competitions = [
+            // every selector kind, with exclusions and a dependency chain
+            serde_json::json!([
+                {"id":"eng-league","name":"E","type":"League","scope":"Domestic","countryId":"ENG",
+                 "format":{"kind":"LeagueTable"},"participants":{"selector":{"kind":"allInCountry","country":"ENG"}}},
+                {"id":"esp-league","name":"S","type":"League","scope":"Domestic","countryId":"ESP",
+                 "format":{"kind":"LeagueTable"},"participants":{"selector":{"kind":"topByReputation","country":"ESP","count":2}}},
+                {"id":"euro-cup","name":"C","type":"Cup","scope":"Continental",
+                 "format":{"kind":"Knockout"},"participants":{"selector":{"kind":"championsOf","sourceCompetition":"eng-league","count":2}}},
+                {"id":"rest","name":"R","type":"Cup","scope":"Domestic",
+                 "format":{"kind":"Knockout"},"participants":{"selector":{"kind":"allInCountry","country":"ENG","excludeCompetitions":["eng-league"]}}}
+            ]),
+            // a region selector, and a group cup on a field too thin for its groups
+            serde_json::json!([
+                {"id":"europe","name":"EU","type":"Cup","scope":"Continental",
+                 "format":{"kind":"Knockout"},"participants":{"selector":{"kind":"allInRegion","region":"europe"}}},
+                {"id":"fra-cup","name":"F","type":"Cup","scope":"Domestic",
+                 "format":{"kind":"GroupAndKnockout","groupSize":4,"qualifiersPerGroup":2},
+                 "participants":{"selector":{"kind":"allInCountry","country":"FRA"}}}
+            ]),
+            // explicit lists: an unknown club, a repeated club, an unknown country
+            serde_json::json!([
+                {"id":"x","name":"X","type":"Cup","scope":"Domestic","format":{"kind":"Knockout"},
+                 "participants":{"explicit":["a","a","ghost"]}},
+                {"id":"y","name":"Y","type":"League","scope":"Domestic","countryId":"ZZZ",
+                 "format":{"kind":"LeagueTable"},"participants":{"selector":{"kind":"allInCountry","country":"ZZZ"}}}
+            ]),
+        ];
+        for (index, competitions) in competitions.into_iter().enumerate() {
+            let package = WorldPackage {
+                teams: clubs.clone(),
+                competitions: fixture_competitions(competitions),
+                ..Default::default()
+            };
+            assert_projection_matches_the_built_world(&format!("fixture {index}"), &package);
+        }
+    }
+
+    /// Given a package that declares its own confederations and countries, one of them with no club
+    /// When it is validated on the projection and on the built world
+    /// Then the region catalog is the same on both: a declared country belongs to its declared region
+    #[test]
+    fn the_projection_shares_the_built_worlds_regions() {
+        let package = WorldPackage {
+            confederations: vec![ConfederationDef {
+                id: "south".into(),
+                name: "South".into(),
+            }],
+            countries: vec![
+                CountryDef {
+                    id: "QQ".into(),
+                    name: "Q".into(),
+                    confederation: "south".into(),
+                },
+                CountryDef {
+                    id: "RR".into(),
+                    name: "R".into(),
+                    confederation: "south".into(),
+                },
+            ],
+            teams: vec![
+                fixture_club("q1", "QQ", [500, 500]),
+                fixture_club("q2", "QQ", [400, 400]),
+            ],
+            competitions: fixture_competitions(serde_json::json!([
+                {"id":"south-cup","name":"S","type":"Cup","scope":"Continental","format":{"kind":"Knockout"},
+                 "participants":{"selector":{"kind":"allInRegion","region":"south"}}},
+                {"id":"rr","name":"RR","type":"Cup","scope":"Domestic","countryId":"RR","format":{"kind":"Knockout"},
+                 "participants":{"selector":{"kind":"allInCountry","country":"RR"}}}
+            ])),
+            ..Default::default()
+        };
+
+        assert_projection_matches_the_built_world("declared regions", &package);
+        let world = crate::generator::build_world_data_from_package(&package, None, &embedded());
+        assert_eq!(
+            super::super::competition_field_of_package(&package).regions,
+            world.regions
+        );
+    }
+
+    /// Given a stack of two packages, the second a patch that adds clubs to a nation of the first
+    /// When the merged stack is validated on the projection and on the built world
+    /// Then the verdicts and participants are identical
+    #[test]
+    fn the_projection_gives_the_built_worlds_verdict_on_a_patch_stack() {
+        let base = WorldPackage {
+            teams: vec![
+                fixture_club("a", "ENG", [800, 800]),
+                fixture_club("b", "ENG", [700, 700]),
+            ],
+            competitions: fixture_competitions(serde_json::json!([
+                {"id":"eng","name":"E","type":"League","scope":"Domestic","countryId":"ENG",
+                 "format":{"kind":"LeagueTable"},"participants":{"selector":{"kind":"allInCountry","country":"ENG"}}}
+            ])),
+            ..Default::default()
+        };
+        let patch = WorldPackage {
+            teams: vec![
+                fixture_club("c", "ENG", [900, 900]),
+                fixture_club("d", "ESP", [500, 500]),
+            ],
+            ..Default::default()
+        };
+        let (merged, _stack_errors) = merge_world_packages(vec![base, patch]);
+
+        assert_projection_matches_the_built_world("patch stack", &merged);
+    }
+
+    /// Given a package of 6 nations x 14 clubs with spread reputations, a league per nation, a
+    ///       region cup excluding the leagues and a continental cup of their champions
+    /// When it is validated on the projection and on the built world
+    /// Then the verdicts and participants are identical: the large case, generated deterministically
+    #[test]
+    fn the_projection_gives_the_built_worlds_verdict_on_a_large_package() {
+        let nations = ["ENG", "ESP", "FRA", "GER", "ITA", "POR"];
+        let mut teams = Vec::new();
+        let mut competitions = Vec::new();
+        for (n, nation) in nations.iter().enumerate() {
+            for club in 0..14 {
+                let centre = 200 + ((n * 14 + club) * 53 % 650) as u32;
+                teams.push(fixture_club(
+                    &format!("{nation}-{club}"),
+                    nation,
+                    [centre, centre + 40],
+                ));
+            }
+            competitions.push(serde_json::json!({"id": format!("{nation}-league"), "name": nation,
+                "type":"League","scope":"Domestic","countryId": nation, "format":{"kind":"LeagueTable"},
+                "participants":{"selector":{"kind":"allInCountry","country": nation}}}));
+        }
+        competitions.push(
+            serde_json::json!({"id":"euro","name":"Euro","type":"Cup","scope":"Continental",
+            "format":{"kind":"Knockout"},"participants":{"selector":{"kind":"championsOf",
+            "sourceCompetition":"ENG-league","count":4}}}),
+        );
+        competitions.push(serde_json::json!({"id":"cup","name":"Cup","type":"Cup","scope":"Continental",
+            "format":{"kind":"Knockout"},"participants":{"selector":{"kind":"allInRegion","region":"europe",
+            "excludeCompetitions":["euro"]}}}));
+        let package = WorldPackage {
+            teams,
+            competitions: fixture_competitions(serde_json::Value::Array(competitions)),
+            ..Default::default()
+        };
+
+        assert_projection_matches_the_built_world("large package", &package);
+    }
+
     #[test]
     fn invalid_package_references_skip_validation_world_build() {
         // Given a competition whose selectors would need a built world.
@@ -5347,7 +5650,8 @@ colors:
         };
         super::super::PACKAGE_WORLD_BUILDS.with(|count| count.set(0));
         assert!(validate_package(&package).is_empty());
-        super::super::PACKAGE_WORLD_BUILDS.with(|count| assert_eq!(count.get(), 1));
+        // Validated on the competition projection: no world, so no squads, is ever generated.
+        super::super::PACKAGE_WORLD_BUILDS.with(|count| assert_eq!(count.get(), 0));
         for (country, reputation, finance, expected) in [
             ("ZZZ", None, None, UNKNOWN_COUNTRY),
             ("ENG", Some([900, 300]), None, REVERSED_RANGE),
