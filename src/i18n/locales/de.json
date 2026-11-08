@@ -1255,6 +1255,8 @@
     "boardSatisfied": "Der Vorstand ist zufrieden mit deiner Leistung.",
     "boardConcerns": "Der Vorstand hat Bedenken wegen der Ergebnisse.",
     "boardThreat": "Deine Position ist ernsthaft gefährdet.",
+    "boardWarned": "Der Vorstand hat dich verwarnt.",
+    "boardFinalWarning": "Du hast eine letzte Verwarnung erhalten.",
     "board": "Vorstand",
     "fans": "Fans",
     "born": "Geboren am",
@@ -1872,7 +1874,7 @@
     "skipShootoutPickerDesc": "Elfmeterschießen in der automatischen Reihenfolge starten, ohne dich danach zu fragen",
     "savesData": "Speicherstände & Daten",
     "autoSave": "Automatisch speichern",
-    "autoSaveDesc": "Automatisch nach jedem Tag speichern",
+    "autoSaveDesc": "Automatisch jede Woche speichern",
     "exportWorld": "Weltdatenbank exportieren",
     "exportWorldDesc": "Aktuelle Weltdaten als teilbare JSON-Datei speichern",
     "export": "Exportieren",
@@ -2755,6 +2757,9 @@
       "critical": "Kritisch"
     },
     "error": {
+      "autoSave": {
+        "failed": "Das automatische Speichern hat dein Spiel nicht gespeichert. Dein Fortschritt seit dem letzten Speichern ist noch nicht gesichert: Speichere selbst und prüfe, ob auf dem Datenträger Platz frei ist."
+      },
       "squadFloor": {
         "wouldLeaveShort": "Dieser Spieler kann nicht gehen: Der Kader würde unter das Minimum fallen, das ein Verein halten muss. Betroffener Mannschaftsteil: {{group}}.",
         "wouldLeaveSeniorsShort": "Dieser Spieler kann nicht gehen: Der Verein hätte dann weniger als {{floor}} Spieler im Profikader, das Minimum, das ein Verein halten muss."
@@ -3646,7 +3651,8 @@
       },
       "loanRegistrationFailed": {
         "subject": "Leihe abgesagt: {{player}}",
-        "body": "Die vereinbarte Leihe von {{player}} von {{parent}} zu {{borrower}}, geplant ab {{start}}, kann nicht stattfinden: Der Spieler steht nicht mehr bei {{parent}} unter Vertrag."
+        "body": "Die vereinbarte Leihe von {{player}} von {{parent}} zu {{borrower}}, geplant ab {{start}}, kann nicht stattfinden: Der Spieler steht nicht mehr bei {{parent}} unter Vertrag.",
+        "bodyRequirementNotMet": "Die vereinbarte Leihe von {{player}} von {{parent}} zu {{borrower}} konnte am {{start}} nicht beginnen: Eine der Bedingungen, unter denen sie vereinbart wurde, etwa Platz im Gehaltsbudget von {{borrower}} oder die Laufzeit des Spielervertrags, ist nicht mehr erfüllt."
       },
       "loanOffer": {
         "subject": "Leihangebot für {{player}}",

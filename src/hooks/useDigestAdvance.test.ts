@@ -69,6 +69,26 @@ describe("useDigestAdvance", () => {
     expect(result.current.isVisible).toBe(true);
   });
 
+  // Given the weekly auto-save failing inside one day's advance; when the digest runs; then the
+  // failure reaches the screen through the callback, once (#1181).
+  it("passes an auto-save failure on to the screen", async () => {
+    mockedAdvanceOneDay
+      .mockResolvedValueOnce({
+        ...makeAdvancedResponse("2026-09-01"),
+        auto_save_error: "be.error.autoSave.failed",
+      })
+      .mockResolvedValueOnce({ action: "match_day", date: "2026-09-02", results: [] });
+    const onAutoSaveFailed = vi.fn();
+
+    const { result } = renderHook(() => useDigestAdvance(setGameState, onFired, onAutoSaveFailed));
+    await act(async () => {
+      await result.current.startDigest();
+    });
+
+    expect(onAutoSaveFailed).toHaveBeenCalledTimes(1);
+    expect(onAutoSaveFailed).toHaveBeenCalledWith("be.error.autoSave.failed");
+  });
+
   it("stops with blocked reason and surfaces blockers", async () => {
     mockedAdvanceOneDay.mockResolvedValueOnce({
       action: "blocked",
