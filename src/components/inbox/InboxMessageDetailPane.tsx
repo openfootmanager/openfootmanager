@@ -244,6 +244,7 @@ export default function InboxMessageDetailPane({
                       currentTeamId={currentTeamId}
                       language={language}
                       t={t}
+                      isActionInFlight={isActionInFlight}
                       onAction={onAction}
                       onScoutPlayerClick={onScoutPlayerClick}
                     />
