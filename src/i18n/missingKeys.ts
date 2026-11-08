@@ -1,5 +1,3 @@
-import en from "./locales/en.json";
-
 /**
  * Keys the app asked i18next for and no locale had. A missing key renders as its raw name
  * ("be.msg.foo.subject") to the player, so it is a bug wherever it happens.
@@ -16,8 +14,13 @@ export function reportMissingKey(language: string, key: string): void {
   }
 }
 
-// Dev and tests only: in a production build `en` is not referenced, so the bundler leaves it out.
-const TOP_LEVEL_NAMESPACES = new Set(import.meta.env.DEV ? Object.keys(en) : []);
+// The locale's top-level namespaces, supplied by `i18n/index.ts` once English has loaded. Asked of
+// i18next rather than imported from en.json, so the locale file is not pulled into the main chunk.
+let topLevelNamespaces: () => ReadonlySet<string> = () => new Set();
+
+export function provideTopLevelNamespaces(source: () => ReadonlySet<string>): void {
+  topLevelNamespaces = source;
+}
 
 /**
  * Whether a value is shaped like a translation key: dotted, no spaces, and under one of the
@@ -27,7 +30,7 @@ const TOP_LEVEL_NAMESPACES = new Set(import.meta.env.DEV ? Object.keys(en) : [])
 export function looksLikeTranslationKey(value: string): boolean {
   return (
     /^[A-Za-z][A-Za-z0-9_-]*(\.[A-Za-z0-9_-]+)+$/.test(value) &&
-    TOP_LEVEL_NAMESPACES.has(value.slice(0, value.indexOf(".")))
+    topLevelNamespaces().has(value.slice(0, value.indexOf(".")))
   );
 }
 

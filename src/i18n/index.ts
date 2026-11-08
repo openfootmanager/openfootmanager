@@ -1,7 +1,11 @@
 import i18n from "i18next";
 import { initReactI18next } from "react-i18next";
 import resourcesToBackend from "i18next-resources-to-backend";
-import { looksLikeTranslationKey, reportMissingKey } from "./missingKeys";
+import {
+  looksLikeTranslationKey,
+  provideTopLevelNamespaces,
+  reportMissingKey,
+} from "./missingKeys";
 
 export const SUPPORTED_LANGUAGES = [
   { code: "en", labelKey: "settings.languages.en" },
@@ -120,5 +124,11 @@ export const i18nReady = i18n
       useSuspense: false,
     },
   });
+
+if (import.meta.env.DEV) {
+  provideTopLevelNamespaces(
+    () => new Set(Object.keys(i18n.getResourceBundle("en", "translation") ?? {})),
+  );
+}
 
 export default i18n;
