@@ -66,9 +66,6 @@ pub struct SaveOutcome {
 /// a save that stopped halfway would leave some files new and some old, and nothing would say so.
 pub fn save_package_files(dir: &Path, edited: &EditedPackage) -> Result<SaveOutcome, String> {
     let mut plan = SavePlan::default();
-    if edited.sends_nothing() {
-        return Ok(plan.outcome());
-    }
     let layout = Layout::read(dir);
     let collection = |kind: EntityKind| Collection {
         dir,
@@ -124,19 +121,6 @@ pub fn save_package_files(dir: &Path, edited: &EditedPackage) -> Result<SaveOutc
     let outcome = plan.outcome();
     write_all(plan.pending)?;
     Ok(outcome)
-}
-
-impl EditedPackage {
-    fn sends_nothing(&self) -> bool {
-        self.meta.is_none()
-            && self.confederations.is_none()
-            && self.countries.is_none()
-            && self.teams.is_none()
-            && self.players.is_none()
-            && self.staff.is_none()
-            && self.names.is_none()
-            && self.competitions.is_none()
-    }
 }
 
 /// The files a save will write, and the collections they belong to.
