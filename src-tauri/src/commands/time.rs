@@ -2576,7 +2576,7 @@ mod tests {
     /// Runs `call` on another thread while this one holds the lifecycle gate, and reports whether
     /// it finished before and after the gate was released.
     fn finishes_only_after_the_gate_is_released<F>(
-        state: Arc<StateManager>,
+        state: std::sync::Arc<StateManager>,
         call: F,
     ) -> (bool, bool)
     where
@@ -2605,7 +2605,7 @@ mod tests {
     /// his slot, the save and the hand-off to the match are one step against a kick-off or a swap.
     #[test]
     fn a_role_save_waits_for_a_lifecycle_operation_in_flight() {
-        let state = Arc::new(StateManager::new());
+        let state = std::sync::Arc::new(StateManager::new());
         let swapped_in = forward_swapped_into_left_back(&state);
 
         let (while_held, after_release) =
@@ -2628,7 +2628,7 @@ mod tests {
     /// Then the swap queues behind the operation and completes once it is released.
     #[test]
     fn a_pre_match_swap_waits_for_a_lifecycle_operation_in_flight() {
-        let state = Arc::new(StateManager::new());
+        let state = std::sync::Arc::new(StateManager::new());
         let spare = benched_centre_back_holding_a_role_his_position_refuses(&state);
 
         let (while_held, after_release) =
