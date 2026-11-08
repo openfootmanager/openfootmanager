@@ -1949,6 +1949,71 @@ mod live_session_tests {
         game
     }
 
+    /// Given the user's live match at minute 30, every one of the user's starters worn down to a
+    /// condition the AI replaces at once, and five fresh players on the bench,
+    /// When the match is finished early (MCP `match_finish`),
+    /// Then the rest of it is played with the AI managing the user's side: substitutes come on,
+    /// as they would in a delegated match (#1231).
+    #[test]
+    fn finishing_a_live_match_early_has_the_ai_manage_the_users_side() {
+        let state = StateManager::new();
+        let mut game = make_game_with_matchday();
+        for player in game
+            .players
+            .iter_mut()
+            .filter(|player| player.team_id.as_deref() == Some("team1"))
+        {
+            player.condition = 30;
+        }
+        // The fixture's team1 is exactly its eleven: give it a fresh bench to bring on.
+        for (n, position) in [
+            Position::Goalkeeper,
+            Position::Defender,
+            Position::Midfielder,
+            Position::Midfielder,
+            Position::Forward,
+        ]
+        .into_iter()
+        .enumerate()
+        {
+            game.players.push(make_player(
+                &format!("bench{n}"),
+                &format!("Bench {n}"),
+                "team1",
+                position,
+            ));
+        }
+        state.set_game(game);
+        live_match::start_live_match_with_identity(
+            &state,
+            ofm_core::state::Career::Active,
+            0,
+            "live",
+            false,
+            None,
+            None,
+        )
+        .unwrap();
+        live_match::step_live_match(&state, ofm_core::state::Career::Active, 30).unwrap();
+
+        live_match::finish_live_match(&state, ofm_core::state::Career::Active).unwrap();
+
+        let played = state
+            .get_game(|game| {
+                game.players
+                    .iter()
+                    .filter(|player| {
+                        player.team_id.as_deref() == Some("team1") && player.stats.appearances > 0
+                    })
+                    .count()
+            })
+            .unwrap();
+        assert!(
+            played > 11,
+            "only {played} of the user's players appeared: nobody managed their side after the finish"
+        );
+    }
+
     fn state_at_minute_thirty() -> StateManager {
         let state = StateManager::new();
         state.set_game(make_game_with_matchday());

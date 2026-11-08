@@ -1255,6 +1255,8 @@
     "boardSatisfied": "Yönetim performansınızdan memnun.",
     "boardConcerns": "Yönetimin sonuçlarla ilgili endişeleri var.",
     "boardThreat": "Göreviniz ciddi biçimde tehlikede.",
+    "boardWarned": "Yönetim sizi uyardı.",
+    "boardFinalWarning": "Son uyarıyı aldınız.",
     "board": "Yönetim",
     "fans": "Taraftarlar",
     "born": "Doğum",
