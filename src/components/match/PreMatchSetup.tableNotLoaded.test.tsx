@@ -21,6 +21,7 @@ vi.mock("../../hooks/useRatingTiers", async () => {
 });
 vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
 vi.mock("react-i18next", () => ({
+  initReactI18next: { type: "3rdParty", init: () => undefined },
   useTranslation: () => ({ t: (key: string) => key, i18n: { language: "en" } }),
 }));
 vi.mock("../../context/ThemeContext", () => ({

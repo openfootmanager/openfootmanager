@@ -5,6 +5,7 @@ import type { PlayerData } from "../../store/gameStore";
 import HomePlayerMomentumCard from "./HomePlayerMomentumCard";
 
 vi.mock("react-i18next", () => ({
+  initReactI18next: { type: "3rdParty", init: () => undefined },
   useTranslation: () => ({
     t: (key: string) => {
       if (key === "dashboard.squad") return "Squad";
