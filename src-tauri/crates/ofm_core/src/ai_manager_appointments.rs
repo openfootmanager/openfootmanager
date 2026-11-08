@@ -27,12 +27,7 @@ const SETTLE_AFTER_DAYS: i64 = 90;
 const MAX_REPUTATION_GAP: u32 = 150;
 
 fn days_covered(stand_in: &Manager, today: NaiveDate) -> Option<i64> {
-    let started = stand_in
-        .career_history
-        .iter()
-        .find(|entry| entry.end_date.is_none())?
-        .start_date
-        .as_str();
+    let started = crate::ai_hiring::took_charge_on(stand_in)?;
     let started = NaiveDate::parse_from_str(started, "%Y-%m-%d").ok()?;
     Some((today - started).num_days())
 }

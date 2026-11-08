@@ -73,6 +73,8 @@ export function fixtureHandlers(
     get_available_jobs: () => fixture.availableJobs,
     get_rating_tiers: () => fixture.ratingTiers,
     get_position_groups: () => fixture.positionGroups,
+    // The user's club only, as in the Rust command: the grade the Squad and Tactics pages show.
+    get_familiarity: () => fixture.familiarity,
     // Only the players asked about; Rust leaves out an id no player has.
     get_contract_warning_stages: ({ playerIds }) => {
       const asked = new Set(Array.isArray(playerIds) ? playerIds : []);

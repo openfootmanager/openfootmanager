@@ -2,10 +2,12 @@ import { invoke } from "@tauri-apps/api/core";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
+  applyCustomTactic,
   deleteCustomTactic,
   legacyTacticsImportPending,
   listCustomTactics,
   markLegacyTacticsImported,
+  saveCurrentTactic,
   saveCustomTactic,
 } from "./customTacticsService";
 
@@ -45,6 +47,21 @@ describe("customTacticsService", () => {
 
     await expect(saveCustomTactic(tactic, 7)).resolves.toEqual([tactic]);
     expect(mockedInvoke).toHaveBeenCalledWith("save_custom_tactic", { tactic, careerToken: 7 });
+  });
+
+  it("saves the team's whole tactic under the draft's name and returns the whole list", async () => {
+    mockedInvoke.mockResolvedValueOnce([tactic]);
+
+    await expect(saveCurrentTactic(tactic, 7)).resolves.toEqual([tactic]);
+    expect(mockedInvoke).toHaveBeenCalledWith("save_current_tactic", { tactic, careerToken: 7 });
+  });
+
+  it("applies a saved tactic by id and returns the game", async () => {
+    const game = { manager: { id: "m" } };
+    mockedInvoke.mockResolvedValueOnce(game);
+
+    await expect(applyCustomTactic("a", 7)).resolves.toBe(game);
+    expect(mockedInvoke).toHaveBeenCalledWith("apply_custom_tactic", { id: "a", careerToken: 7 });
   });
 
   it("deletes a tactic by id", async () => {

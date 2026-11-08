@@ -151,7 +151,7 @@ export default function TeamsListTab({ gameState, onSelectTeam }: TeamsListTabPr
           role="alert"
           className="rounded-lg border border-line bg-danger-tint px-4 py-2 text-body font-medium text-danger"
         >
-          {resolveTranslatedErrorMessage(fetchError, t)}
+          {resolveTranslatedErrorMessage(fetchError)}
         </p>
       ) : null}
 

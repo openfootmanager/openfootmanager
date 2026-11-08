@@ -49,6 +49,7 @@ export function useAdvanceTime(
   settingsLoaded: boolean,
   isUnemployed: boolean,
   continueToNextEvent: boolean = false,
+  onAutoSaveFailed?: (error: string) => void,
 ): AdvanceTimeState {
   const navigate = useNavigate();
   const setShowFiredModal = useGameStore((s) => s.setShowFiredModal);
@@ -79,7 +80,7 @@ export function useAdvanceTime(
     showStaticDigest,
     abortDigest,
     dismissDigest,
-  } = useDigestAdvance(setGameState, () => setShowFiredModal(true));
+  } = useDigestAdvance(setGameState, () => setShowFiredModal(true), onAutoSaveFailed);
 
   // Sync matchMode with settings when loaded
   useEffect(() => {
@@ -125,6 +126,7 @@ export function useAdvanceTime(
     const sinceDate = toDatePart(useGameStore.getState().gameState?.clock?.current_date);
     try {
       const result = await advanceTimeWithMode(effectiveMode);
+      if (result.auto_save_error) onAutoSaveFailed?.(result.auto_save_error);
       console.info("[useAdvanceTime] doAdvance:result", {
         action: result.action,
         fixtureIndex: result.fixture_index,
@@ -233,6 +235,7 @@ export function useAdvanceTime(
     const sinceDate = toDatePart(useGameStore.getState().gameState?.clock?.current_date);
     try {
       const result = await run();
+      if (result.auto_save_error) onAutoSaveFailed?.(result.auto_save_error);
       console.info(`[useAdvanceTime] ${label}:result`, {
         action: result.action,
         daysSkipped: result.days_skipped,
