@@ -1300,3 +1300,62 @@ fn a_role_saved_for_a_benched_player_is_the_role_he_waits_with() {
         .map(|player| player.role);
     assert_eq!(waiting_with, Some(engine::PlayerRole::AttackingFB));
 }
+
+/// Given a match waiting at kick-off, built for a career with a token,
+/// When the slot of the user's left-back, and of a benched defender, are asked for,
+/// Then the left-back's is the left-back slot with the career's token, and the benched
+/// defender has none: the caller judges a role by the slot he fills in the match.
+#[test]
+fn a_starter_of_a_waiting_match_has_the_slot_he_fills_and_a_benched_player_has_none() {
+    let mut game = make_game_with_fixture();
+    game.career_token = 7;
+    let session = waiting_session(&game);
+    // 4-4-2: goalkeeper, then the left-back.
+    let (left_back, benched_defender) =
+        home_starter_and_bench_player(&session, 1, engine::Position::Defender);
+
+    assert_eq!(
+        session.user_slot_before_kick_off(&left_back),
+        Some((7, domain::player::Position::LeftBack))
+    );
+    assert_eq!(session.user_slot_before_kick_off(&benched_defender), None);
+}
+
+/// Given a match under way,
+/// When the slot of the user's left-back is asked for,
+/// Then there is none: a role saved in play is no longer judged by a pre-match slot.
+#[test]
+fn a_match_in_play_has_no_pre_match_slot() {
+    let game = make_game_with_fixture();
+    let mut session = waiting_session(&game);
+    let (left_back, _) = home_starter_and_bench_player(&session, 1, engine::Position::Defender);
+    session.step();
+    assert_ne!(session.match_state.phase(), MatchPhase::PreKickOff);
+
+    assert_eq!(session.user_slot_before_kick_off(&left_back), None);
+}
+
+/// Given an Attacking Full-Back already saved for a benched defender when the match is built,
+/// When the manager swaps him in for the left-back before any role is saved in the session,
+/// Then he plays the left-back slot as an Attacking Full-Back: the match remembers the roles the
+/// user's team had saved from the start, not only those saved since.
+#[test]
+fn a_role_saved_before_the_match_is_built_is_played_after_a_swap() {
+    let mut game = make_game_with_fixture();
+    let (left_back, benched_defender) = {
+        let probe = waiting_session(&game);
+        home_starter_and_bench_player(&probe, 1, engine::Position::Defender)
+    };
+    game.teams[0].player_roles.insert(
+        benched_defender.clone(),
+        domain::team::PlayerRole::AttackingFB,
+    );
+    let mut session = waiting_session(&game);
+
+    swap_in(&mut session, &left_back, &benched_defender);
+
+    assert_eq!(
+        home_role_of(&session, &benched_defender),
+        engine::PlayerRole::AttackingFB
+    );
+}

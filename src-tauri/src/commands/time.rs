@@ -2219,4 +2219,30 @@ mod tests {
             engine::PlayerRole::Standard
         );
     }
+
+    /// Given the same swapped-in forward, in a match that belongs to another career than the
+    /// game now open (the game was swapped for another while the match waited),
+    /// When the user saves him as an Attacking Full-Back,
+    /// Then the role is judged by the saved team, where he is a benched forward, and refused:
+    /// another career's match says nothing about this game's slots.
+    #[test]
+    fn a_role_is_judged_by_the_saved_team_when_the_waiting_match_is_another_careers() {
+        let state = StateManager::new();
+        let swapped_in = forward_swapped_into_left_back(&state);
+        state
+            .update_game(|game| game.career_token += 1)
+            .expect("a game is open");
+
+        let refused = crate::commands::squad::set_player_role_internal(
+            &state,
+            ofm_core::state::Career::Active,
+            swapped_in,
+            Some("AttackingFB".to_string()),
+        );
+
+        assert_eq!(
+            refused.err().as_deref(),
+            Some("be.error.roleNotValidForPosition")
+        );
+    }
 }
