@@ -30,8 +30,16 @@ describe("validatePackageProject", () => {
    * Then both reach the caller unchanged, with their params
    */
   it("returns the issues and warnings the backend reported", async () => {
-    const issue = { code: "be.error.package.duplicateId", file: "teams/teams.json", params: { id: "fc-a" } };
-    const warning = { code: "be.warning.package.countryWithoutRegion", file: "countries/qq.json", params: {} };
+    const issue = {
+      code: "be.error.package.duplicateId",
+      file: "teams/teams.json",
+      params: { id: "fc-a" },
+    };
+    const warning = {
+      code: "be.warning.package.countryWithoutRegion",
+      file: "countries/qq.json",
+      params: {},
+    };
     invokeMock.mockResolvedValue({ issues: [issue], warnings: [warning] });
 
     await expect(validatePackageProject("/p")).resolves.toEqual({
@@ -46,10 +54,15 @@ describe("validatePackageProject", () => {
    * Then the translation-key error propagates for the caller to show
    */
   it("propagates a refusal", async () => {
-    invokeMock.mockRejectedValue("be.error.package.notAProjectDirectory");
+    invokeMock.mockImplementation(() => Promise.reject("be.error.package.notAProjectDirectory"));
 
-    await expect(validatePackageProject("/nope")).rejects.toBe(
-      "be.error.package.notAProjectDirectory",
-    );
+    let refusal: unknown;
+    try {
+      await validatePackageProject("/nope");
+    } catch (error) {
+      refusal = error;
+    }
+
+    expect(refusal).toBe("be.error.package.notAProjectDirectory");
   });
 });
