@@ -206,6 +206,11 @@ fn ensure_international_windows(game: &mut Game) {
         for national_team in game.national_teams.iter_mut() {
             national_team.fixtures.clear();
         }
+        let blackout = crate::national_team::international_blackout_around(
+            &game.competitions,
+            game.clock.current_date.date_naive(),
+        );
+        settle_club_calendar(game, &blackout, &Default::default());
         return;
     }
 
@@ -260,9 +265,9 @@ fn ensure_international_windows(game: &mut Game) {
 
     // Qualifying spreads each window's matches across a multi-day block, so club
     // fixtures must keep clear of the whole span rather than just the openers.
-    let blackout = crate::national_team::international_blackout_dates(
-        preseason_season_start(&game.clock),
-        qualifying_running,
+    let blackout = crate::national_team::international_blackout_around(
+        &game.competitions,
+        game.clock.current_date.date_naive(),
     );
     place_club_calendar(game, &blackout, &Default::default());
 }

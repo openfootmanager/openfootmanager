@@ -693,9 +693,13 @@ fn manage_international_calendar(
         for national_team in game.national_teams.iter_mut() {
             national_team.fixtures.clear();
         }
-        // No windows to keep clear of and no preseason friendlies, but the regenerated club
-        // competitions still have to share the calendar with each other.
-        crate::world::foundations::settle_club_calendar(game, &Default::default(), retained);
+        // The tournament fills the break, but future club fixtures must still avoid
+        // international windows and each other.
+        let blackout = crate::national_team::international_blackout_around(
+            &game.competitions,
+            game.clock.current_date.date_naive(),
+        );
+        crate::world::foundations::settle_club_calendar(game, &blackout, retained);
         return;
     }
 
@@ -709,14 +713,9 @@ fn manage_international_calendar(
         .competitions
         .iter()
         .any(crate::world_cup::is_world_cup_qualifying);
-    // Qualifying spreads each window's matches across a multi-day block, so club
-    // fixtures must keep clear of the whole span rather than just the openers.
-    let blackout =
-        crate::national_team::international_blackout_dates(next_start, qualifying_in_progress);
     for national_team in game.national_teams.iter_mut() {
         national_team.fixtures.clear();
     }
-    crate::world::foundations::place_club_calendar(game, &blackout, retained);
 
     if leads_into_world_cup {
         // The windows host the qualifying campaign instead of friendlies: the
@@ -732,10 +731,7 @@ fn manage_international_calendar(
                 &window_dates,
             );
         }
-        return;
-    }
-
-    if starts_qualifying {
+    } else if starts_qualifying {
         // Two summers out: the full home-and-away campaign gets under way.
         // The in-progress guard mirrors the branch above — under the four-year
         // cadence a campaign can't still be running here, but scheduling must
@@ -747,26 +743,26 @@ fn manage_international_calendar(
                 &window_dates,
             );
         }
-        return;
-    }
-
-    if qualifying_in_progress {
+    } else if qualifying_in_progress {
         // Unreachable under the four-year cadence, but if a campaign ever
         // survives into a neutral season, keep it anchored to this season's
         // windows rather than stacking friendlies on top of stale fixtures.
         crate::world_cup::continue_world_cup_qualifying(game, &window_dates);
-        return;
+    } else {
+        // Keyed by the year the windows belong to, so a replay draws the same fixtures.
+        let mut friendlies_rng =
+            game.rng_for("national-team-friendlies", &next_start.year().to_string());
+        crate::national_team::schedule_national_team_friendlies(
+            &mut game.national_teams,
+            &window_dates,
+            &mut friendlies_rng,
+        );
     }
-
-    // Which nations meet in which window. Keyed by the year the windows belong to, so a
-    // replay of this rollover draws the same fixtures.
-    let mut friendlies_rng =
-        game.rng_for("national-team-friendlies", &next_start.year().to_string());
-    crate::national_team::schedule_national_team_friendlies(
-        &mut game.national_teams,
-        &window_dates,
-        &mut friendlies_rng,
+    let blackout = crate::national_team::international_blackout_around(
+        &game.competitions,
+        game.clock.current_date.date_naive(),
     );
+    crate::world::foundations::place_club_calendar(game, &blackout, retained);
 }
 
 /// The league-table competition the user's club contests. Falls back to the
