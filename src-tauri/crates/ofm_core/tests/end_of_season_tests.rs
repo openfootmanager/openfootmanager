@@ -1306,6 +1306,53 @@ fn a_manager_who_never_had_a_club_is_shown_no_league() {
     assert_eq!(summary.league_name, "");
 }
 
+/// Given a manager sacked from Fourth FC, and a manager who has never had a club
+/// When the season rolls over
+/// Then neither is sent the board's season review or a prize letter: they have no club to review,
+///      and the review would read "0th" for a club called nothing; and the awards ceremony article
+///      is not published for the never-employed one, who follows no league
+#[test]
+fn a_manager_with_no_club_is_sent_no_season_review_and_no_ceremony() {
+    for mut game in [sacked_from("team4"), never_employed()] {
+        process_end_of_season(&mut game);
+
+        let ids: Vec<&str> = game.messages.iter().map(|m| m.id.as_str()).collect();
+        assert!(
+            ids.iter()
+                .all(|id| !id.starts_with("season_end_") && !id.starts_with("season_payout_")),
+            "{ids:?}"
+        );
+    }
+    let mut game = never_employed();
+    process_end_of_season(&mut game);
+    assert!(
+        game.news
+            .iter()
+            .all(|article| !article.id.starts_with("season_awards_"))
+    );
+}
+
+/// Given a sacked manager whose last club is in no league table, in a world with competitions, and
+///      the mirror on the first division
+/// When the screens ask for his league
+/// Then there is none: not the mirror's first competition, which the club has nothing to do with
+#[test]
+fn a_followed_club_in_no_table_shows_no_league_in_a_modern_world() {
+    let mut game = make_two_division_game("team1");
+    game.teams.push(make_team("team9", "Tableless FC"));
+    game.manager
+        .career_history
+        .push(domain::manager::ManagerCareerEntry::open(
+            "team9".to_string(),
+            "Tableless FC".to_string(),
+            "2024-07-01".to_string(),
+        ));
+    game.manager.fire("2025-03-01");
+    game.sync_legacy_league();
+
+    assert!(ofm_core::end_of_season::user_division(&game).is_none());
+}
+
 /// Given a manager who has never had a club
 /// When the awards screen asks for the season's awards
 /// Then there are none: not the first competition's

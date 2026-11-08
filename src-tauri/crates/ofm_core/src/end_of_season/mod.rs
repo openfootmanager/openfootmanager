@@ -785,12 +785,18 @@ pub fn followed_club(game: &Game) -> Option<&str> {
 /// (#1270).
 ///
 /// A manager who has never had a club follows none (maintainer, 8 Nov 2026), so the preview, the
-/// awards and the summary show nothing for him. A club that is in no league table (a legacy save
-/// whose only league is the mirror) still falls back to the mirror. The season's rollover is a
-/// separate question, [`rollover_division`].
+/// awards and the summary show nothing for him. A followed club in no league table shows nothing
+/// too, except in a legacy save with no `competitions`, whose only league is the mirror: in a
+/// modern world the mirror is the world's first competition, a league the club has nothing to do
+/// with. The season's rollover is a separate question, [`rollover_division`].
 pub fn user_division(game: &Game) -> Option<&League> {
     let club = followed_club(game)?;
-    club_league_table(game, club).or(game.league.as_ref())
+    club_league_table(game, club).or_else(|| {
+        game.competitions
+            .is_empty()
+            .then_some(game.league.as_ref())
+            .flatten()
+    })
 }
 
 /// The division the season's rollover finishes on: the user's, else the mirror's. Not what the
@@ -1204,7 +1210,11 @@ pub fn process_end_of_season(game: &mut Game) -> EndOfSeasonSummary {
     game.news.clear();
 
     // 6d. Publish the season awards ceremony article (skipped when no marquee winners)
-    if let Some(article) = crate::news::season_awards_article(&awards, season, &last_fixture_date) {
+    // The ceremony is of the user's league, so a manager who follows none has none to read.
+    if shows_a_league
+        && let Some(article) =
+            crate::news::season_awards_article(&awards, season, &last_fixture_date)
+    {
         game.news.push(article);
     }
 
@@ -1253,7 +1263,10 @@ pub fn process_end_of_season(game: &mut Game) -> EndOfSeasonSummary {
     // below are interleaved with the checks, so a snapshot would go stale.
     let payout_msg_id = format!("season_payout_{}", season);
     let user_prize_money = division_prize_money(user_position, user_division_tier);
-    if user_prize_posted && !crate::inbox::already_emitted(game, &payout_msg_id) {
+    // The board writes to a manager it employs: with no club there is no finish to review or prize
+    // to pay (the review would read "0th" for a club called nothing).
+    let employed = game.manager.team_id.is_some();
+    if employed && user_prize_posted && !crate::inbox::already_emitted(game, &payout_msg_id) {
         let payout_message = InboxMessage::new(
             payout_msg_id,
             String::new(),
@@ -1276,7 +1289,7 @@ pub fn process_end_of_season(game: &mut Game) -> EndOfSeasonSummary {
     }
 
     let msg_id = format!("season_end_{}", season);
-    if !crate::inbox::already_emitted(game, &msg_id) {
+    if employed && !crate::inbox::already_emitted(game, &msg_id) {
         let (body_key, mut i18n_params) = if user_position == 1 {
             let mut p = std::collections::HashMap::new();
             p.insert("team".to_string(), user_team_name.clone());

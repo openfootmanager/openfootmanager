@@ -304,9 +304,6 @@ pub fn compute_season_awards(game: &Game) -> SeasonAwards {
     compute_awards(game, None)
 }
 
-/// Compute award standings within a single division: only its participating
-/// clubs' players and managers are eligible, and the manager award ranks by
-/// that division's table.
 /// The season's awards as the awards screen shows them: the race within the division the user
 /// follows (`end_of_season::user_division`), and none for a manager who follows no league (one
 /// who has never had a club).
@@ -317,6 +314,9 @@ pub fn user_division_season_awards(game: &Game) -> SeasonAwards {
     }
 }
 
+/// Compute award standings within a single division: only its participating
+/// clubs' players and managers are eligible, and the manager award ranks by
+/// that division's table.
 pub fn compute_division_season_awards(game: &Game, division: &League) -> SeasonAwards {
     compute_awards(game, Some(division))
 }

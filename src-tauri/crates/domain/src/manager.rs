@@ -180,10 +180,19 @@ impl Manager {
 
     /// The club of his most recent stint, open or closed: the last club he managed. None for a
     /// manager with no stint on record (one who never had a club, or an old save's record).
+    ///
+    /// The latest start date wins. Two stints that start the same day are told apart by their
+    /// chronology: the open one is the later, then the one that ended later; if even that ties, the
+    /// one listed later (a history is appended to as it happens).
     pub fn last_club(&self) -> Option<&str> {
         self.career_history
             .iter()
-            .max_by(|left, right| left.start_date.cmp(&right.start_date))
+            .max_by(|left, right| {
+                left.start_date
+                    .cmp(&right.start_date)
+                    .then_with(|| left.end_date.is_none().cmp(&right.end_date.is_none()))
+                    .then_with(|| left.end_date.cmp(&right.end_date))
+            })
             .map(|entry| entry.team_id.as_str())
     }
 
@@ -270,6 +279,23 @@ mod tests {
 
         assert_eq!(m.last_club(), Some("b"));
         assert_eq!(manager().last_club(), None);
+    }
+
+    /// Given two stints that start the same day, the later one listed first: one closed at "a", one
+    ///      still open at "b"
+    /// When his last club is read
+    /// Then it is "b", the open stint, whatever the order of the list
+    #[test]
+    fn stints_starting_the_same_day_are_told_apart_by_which_is_open() {
+        let mut m = manager();
+        let open = ManagerCareerEntry::open("b".into(), "B".into(), "2024-07-01".into());
+        let mut closed = ManagerCareerEntry::open("a".into(), "A".into(), "2024-07-01".into());
+        closed.end_date = Some("2024-07-01".into());
+        m.career_history = vec![open.clone(), closed.clone()];
+        assert_eq!(m.last_club(), Some("b"));
+
+        m.career_history = vec![closed, open];
+        assert_eq!(m.last_club(), Some("b"));
     }
 
     /// Given a manager with and without a known-as name (#557)
