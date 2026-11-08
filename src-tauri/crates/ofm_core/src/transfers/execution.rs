@@ -650,6 +650,7 @@ pub fn process_pending_transfer_registrations(game: &mut Game) {
                 &game.team_name_or_id(&buyer_team_id),
                 reason,
                 &today,
+                &today,
             );
             crate::inbox::emit(game, message);
         }
@@ -767,18 +768,33 @@ pub fn process_pending_loan_registrations(game: &mut Game) {
 mod tests {
     use super::*;
     use crate::transfers::tests::{make_game, sample_attributes};
+    use chrono::{TimeZone, Utc};
+    use domain::message::InboxMessage;
 
     fn pending_transfer_game(user_is_seller: bool) -> Game {
+        pending_transfer_game_with(user_is_seller, None, "2026-01-12")
+    }
+
+    /// An agreed transfer of `game.players[0]` awaiting registration on `registration_date`,
+    /// his contract ending on `contract_end` when given.
+    fn pending_transfer_game_with(
+        user_is_seller: bool,
+        contract_end: Option<&str>,
+        registration_date: &str,
+    ) -> Game {
         let mut game = make_game();
         let seller = if user_is_seller { "team1" } else { "team2" };
         let buyer = if user_is_seller { "team2" } else { "team1" };
         game.players[0].team_id = Some(seller.to_string());
+        if let Some(end) = contract_end {
+            game.players[0].stage_contract_end(Some(end.to_string()));
+        }
         game.players[0].adopt_legacy_contract();
         game.players[0].transfer_offers.push(
             serde_json::from_value(serde_json::json!({
                 "id": "registration-offer", "from_team_id": buyer, "fee": 800_000,
                 "wage_offered": 0, "status": "PendingRegistration", "date": "2025-12-01",
-                "registration_date": "2026-01-12"
+                "registration_date": registration_date
             }))
             .unwrap(),
         );
@@ -840,6 +856,223 @@ mod tests {
             game.team_name_or_id(&offer.from_team_id)
         );
         assert!(messages[0].body_key.as_deref().unwrap().ends_with(reason));
+    }
+
+    fn registration_failures(game: &Game) -> Vec<&InboxMessage> {
+        game.messages
+            .iter()
+            .filter(|message| {
+                message.subject_key.as_deref() == Some("be.msg.transferRegistrationFailed.subject")
+            })
+            .collect()
+    }
+
+    /// The day an agreed transfer's player is released before its registration day, and the
+    /// registration day after it.
+    fn release_before_registration(user_is_seller: bool) -> Game {
+        let mut game = pending_transfer_game_with(user_is_seller, Some("2026-01-12"), "2026-01-20");
+        crate::contracts::process_contract_expiries(&mut game);
+        game
+    }
+
+    /// Given the user's agreed purchase of an AI club's player, waiting for the window, whose
+    /// contract runs out first; when the contract expires; then the user is told the transfer
+    /// cannot be registered because the player is no longer available (#1202: the agreement
+    /// vanished with the contract and the user heard nothing).
+    #[test]
+    fn an_agreed_purchase_released_before_registration_is_reported_to_the_buyer() {
+        let game = release_before_registration(false);
+
+        let failures = registration_failures(&game);
+        assert_eq!(failures.len(), 1);
+        assert!(
+            failures[0]
+                .body_key
+                .as_deref()
+                .unwrap()
+                .ends_with("PlayerUnavailable")
+        );
+        assert_eq!(
+            failures[0].context.player_id.as_deref(),
+            Some("player-award")
+        );
+        assert_eq!(failures[0].context.team_id.as_deref(), Some("team1"));
+        // The day the transfer was due to be registered, not the day of the release.
+        assert_eq!(failures[0].i18n_params["start"], "2026-01-20");
+    }
+
+    /// Given the user's agreed sale of his own player, waiting for the window, whose contract
+    /// runs out first; when the contract expires; then the user is told the sale cannot go
+    /// through, beside the contract-expired letter.
+    #[test]
+    fn an_agreed_sale_released_before_registration_is_reported_to_the_seller() {
+        let game = release_before_registration(true);
+
+        let failures = registration_failures(&game);
+        assert_eq!(failures.len(), 1);
+        assert!(
+            failures[0]
+                .body_key
+                .as_deref()
+                .unwrap()
+                .ends_with("PlayerUnavailable")
+        );
+        assert_eq!(failures[0].context.team_id.as_deref(), Some("team1"));
+    }
+
+    /// Given an agreement between two AI clubs, waiting for the window, whose player's contract
+    /// runs out first; when the contract expires; then the user is told nothing: it is not his deal.
+    #[test]
+    fn an_agreement_between_two_other_clubs_lapses_without_a_letter_to_the_user() {
+        let mut game = pending_transfer_game_with(false, Some("2026-01-12"), "2026-01-20");
+        let mut third = game.teams[1].clone();
+        third.id = "team3".to_string();
+        third.name = "Third Club".to_string();
+        game.teams.push(third);
+        game.players[0].transfer_offers[0].from_team_id = "team3".to_string();
+
+        crate::contracts::process_contract_expiries(&mut game);
+
+        assert!(registration_failures(&game).is_empty());
+    }
+
+    /// Given the user's agreed sale of his own player, waiting for the window, and the player
+    /// old enough to retire at the season's end; when the season's ageing retires him; then the
+    /// user is told the sale cannot go through, as a release would tell him.
+    #[test]
+    fn an_agreed_sale_whose_player_retires_before_registration_is_reported_to_the_seller() {
+        let mut game = pending_transfer_game_with(true, None, "2026-01-20");
+        game.players[0].date_of_birth = "1980-01-01".to_string();
+
+        let today = game.clock.current_date.date_naive();
+        crate::aging::apply_seasonal_aging(&mut game, today, 2025);
+
+        let failures = registration_failures(&game);
+        assert_eq!(failures.len(), 1);
+        assert!(
+            failures[0]
+                .body_key
+                .as_deref()
+                .unwrap()
+                .ends_with("PlayerUnavailable")
+        );
+        assert!(
+            game.retired_players
+                .iter()
+                .any(|retiree| retiree.id == "player-award")
+        );
+    }
+
+    fn loan_cancellations(game: &Game) -> Vec<&InboxMessage> {
+        game.messages
+            .iter()
+            .filter(|message| {
+                message.subject_key.as_deref() == Some("be.msg.loanRegistrationFailed.subject")
+            })
+            .collect()
+    }
+
+    /// `game.players[0]`, under contract to `lender` until 12 January 2026, with a loan to
+    /// `borrower` agreed and waiting to start on 20 January.
+    fn pending_loan_game(lender: &str, borrower: &str) -> Game {
+        // The fixture contracts the player to team1 (the user) or team2; only those lend here.
+        assert!(lender == "team1" || lender == "team2");
+        let mut game =
+            pending_transfer_game_with(lender == "team1", Some("2026-01-12"), "2026-01-20");
+        game.players[0].transfer_offers.clear();
+        game.players[0].loan_offers.push(
+            serde_json::from_value(serde_json::json!({
+                "id": "agreed-loan", "from_team_id": borrower, "parent_team_id": lender,
+                "start_date": "2026-01-20", "end_date": "2026-06-30",
+                "wage_contribution_pct": 60, "status": "PendingRegistration", "date": "2026-01-05"
+            }))
+            .unwrap(),
+        );
+        game
+    }
+
+    fn with_third_club(mut game: Game) -> Game {
+        let mut third = game.teams[1].clone();
+        third.id = "team3".to_string();
+        third.name = "Third Club".to_string();
+        game.teams.push(third);
+        game
+    }
+
+    /// Given the user's player loaned out to an AI club, agreed and waiting for the window, whose
+    /// contract runs out first; when it expires; then the user, as lender, is told the loan cannot
+    /// start, naming both clubs and the day it was due (#1242: it vanished without a word).
+    #[test]
+    fn an_agreed_loan_out_whose_player_is_released_is_reported_to_the_lender() {
+        let mut game = pending_loan_game("team1", "team2");
+
+        crate::contracts::process_contract_expiries(&mut game);
+
+        let letters = loan_cancellations(&game);
+        assert_eq!(letters.len(), 1);
+        assert_eq!(letters[0].i18n_params["start"], "2026-01-20");
+        assert_eq!(
+            letters[0].i18n_params["parent"],
+            game.team_name_or_id("team1")
+        );
+        assert_eq!(
+            letters[0].i18n_params["borrower"],
+            game.team_name_or_id("team2")
+        );
+        assert_eq!(
+            letters[0].context.player_id.as_deref(),
+            Some("player-award")
+        );
+        assert!(game.players[0].loan_offers.is_empty());
+    }
+
+    /// Given an AI club's player loaned to the user, agreed and waiting; when his contract expires;
+    /// then the user, as borrower, is told the loan cannot start.
+    #[test]
+    fn an_agreed_loan_in_whose_player_is_released_is_reported_to_the_borrower() {
+        let mut game = pending_loan_game("team2", "team1");
+
+        crate::contracts::process_contract_expiries(&mut game);
+
+        assert_eq!(loan_cancellations(&game).len(), 1);
+    }
+
+    /// Given a loan agreed between two AI clubs; when the player's contract expires; then the user
+    /// is told nothing: it is not his deal.
+    #[test]
+    fn a_loan_between_two_other_clubs_lapses_without_a_letter_to_the_user() {
+        let mut game = with_third_club(pending_loan_game("team2", "team3"));
+
+        crate::contracts::process_contract_expiries(&mut game);
+
+        assert!(loan_cancellations(&game).is_empty());
+    }
+
+    /// Given the user's player loaned out and agreed, and old enough to retire at the season's end;
+    /// when the season's ageing retires him; then the user is told the loan cannot start.
+    #[test]
+    fn an_agreed_loan_whose_player_retires_is_reported_to_the_lender() {
+        let mut game = pending_loan_game("team1", "team2");
+        game.players[0].date_of_birth = "1980-01-01".to_string();
+
+        let today = game.clock.current_date.date_naive();
+        crate::aging::apply_seasonal_aging(&mut game, today, 2025);
+
+        assert_eq!(loan_cancellations(&game).len(), 1);
+    }
+
+    /// Given an agreement already reported as lapsed at the release; when its registration day
+    /// comes; then nothing more is sent and nothing is registered.
+    #[test]
+    fn a_lapsed_agreement_is_reported_once() {
+        let mut game = release_before_registration(false);
+        game.clock =
+            crate::clock::GameClock::new(Utc.with_ymd_and_hms(2026, 1, 20, 12, 0, 0).unwrap());
+
+        process_pending_transfer_registrations(&mut game);
+
+        assert_eq!(registration_failures(&game).len(), 1);
+        assert_eq!(game.players[0].team_id, None);
     }
 
     /// Given an agreed transfer and reduced cash, when registration is due, then the buyer gets a funds explanation without being charged.

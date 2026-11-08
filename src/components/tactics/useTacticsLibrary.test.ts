@@ -1,5 +1,5 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
-import { invoke } from "@tauri-apps/api/core";
+import { type InvokeArgs, invoke } from "@tauri-apps/api/core";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { type GameStateData, useGameStore } from "../../store/gameStore";
@@ -545,6 +545,46 @@ describe("useTacticsLibrary saving and applying the whole tactic (#1189)", () =>
     expect(onGameUpdate).toHaveBeenCalledWith(appliedGame);
     expect(onApplyPreset).not.toHaveBeenCalled();
     expect(result.current.activeTactic.id).toBe("custom:mine");
+  });
+
+  /**
+   * Given a saved tactic being applied, and the career replaced (the game left) before the answer
+   * When the backend's answer arrives
+   * Then the screen doesn't take it: the old career's game must not replace the one now open, and
+   *      the tactic isn't shown as active (review, #1234).
+   */
+  it("ignores an applied tactic's answer that arrives after the career changed", async () => {
+    backendWith([savedTactic], false);
+    const answer = deferred<unknown>();
+    const fallback = mockedInvoke.getMockImplementation();
+    mockedInvoke.mockImplementation(async (command: string, args?: InvokeArgs) =>
+      command === "apply_custom_tactic" ? answer.promise : fallback?.(command, args),
+    );
+    const onGameUpdate = vi.fn();
+    const { result } = renderHook(() =>
+      useTacticsLibrary({
+        gameState: careerGame,
+        formation: "4-4-2",
+        activePlayStyle: "Balanced",
+        initialPreset: null,
+        onApplyPreset: vi.fn(),
+        onGameUpdate,
+      }),
+    );
+    await waitFor(() => expect(customIds(result)).toEqual(["custom:mine"]));
+
+    let applying: Promise<void> = Promise.resolve();
+    act(() => {
+      applying = result.current.applyTacticSelection(result.current.tacticLibrary[0]);
+    });
+    act(() => useGameStore.getState().clearGame());
+    await act(async () => {
+      answer.resolve(appliedGame);
+      await applying;
+    });
+
+    expect(onGameUpdate).not.toHaveBeenCalled();
+    expect(result.current.activeTactic.id).not.toBe("custom:mine");
   });
 
   /**

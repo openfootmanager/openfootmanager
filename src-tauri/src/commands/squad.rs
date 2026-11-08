@@ -688,10 +688,26 @@ pub fn set_player_role_internal(
     })
 }
 
-// One `Option<String>` per tactical dial: this is the IPC signature the UI sends,
-// and each dial is independently optional. Bundling them into a struct would move
-// the same field count behind a serde type without making any call site simpler.
-#[allow(clippy::too_many_arguments)]
+/// One optional value per tactical dial, as the screen sends them; `None` leaves a dial alone.
+#[derive(Debug, Default)]
+pub(crate) struct TacticsPhasePatch {
+    pub(crate) build_up_style: Option<String>,
+    pub(crate) width: Option<String>,
+    pub(crate) tempo: Option<String>,
+    pub(crate) defensive_line: Option<String>,
+    pub(crate) pressing_intensity: Option<String>,
+    pub(crate) defensive_shape: Option<String>,
+    pub(crate) marking_style: Option<String>,
+    pub(crate) counter_press_duration: Option<String>,
+    pub(crate) break_speed: Option<String>,
+}
+
+// One `Option<String>` per tactical dial is the IPC signature the UI sends; the command gathers
+// them into a `TacticsPhasePatch` for the internal function.
+#[expect(
+    clippy::too_many_arguments,
+    reason = "the IPC signature the screen sends: one optional value per tactical dial"
+)]
 #[tauri::command]
 pub fn set_tactics_phase(
     state: State<'_, Arc<StateManager>>,
@@ -706,32 +722,54 @@ pub fn set_tactics_phase(
     break_speed: Option<String>,
     career_token: u64,
 ) -> Result<Game, String> {
+    set_tactics_phase_internal(
+        &state,
+        Career::Token(career_token),
+        TacticsPhasePatch {
+            build_up_style,
+            width,
+            tempo,
+            defensive_line,
+            pressing_intensity,
+            defensive_shape,
+            marking_style,
+            counter_press_duration,
+            break_speed,
+        },
+    )
+}
+
+pub(crate) fn set_tactics_phase_internal(
+    state: &StateManager,
+    career: Career,
+    patch: TacticsPhasePatch,
+) -> Result<Game, String> {
     use domain::team::*;
     info!("[cmd] set_tactics_phase");
-    mutate_active_game_for(&state, Career::Token(career_token), |game| {
+    let game = mutate_active_game_for(state, career, |game| {
         let team = user_team_mut(game)?;
         let p = &mut team.tactics_phase;
-        if let Some(v) = build_up_style {
+        if let Some(v) = patch.build_up_style {
             p.build_up_style = match v.as_str() {
                 "Short" => BuildUpStyle::Short,
                 "Long" => BuildUpStyle::Long,
                 _ => BuildUpStyle::Mixed,
             };
         }
-        if let Some(v) = width {
+        if let Some(v) = patch.width {
             p.width = match v.as_str() {
                 "Narrow" => PitchWidth::Narrow,
                 "Wide" => PitchWidth::Wide,
                 _ => PitchWidth::Normal,
             };
         }
-        if let Some(v) = tempo {
+        if let Some(v) = patch.tempo {
             p.tempo = match v.as_str() {
                 "Patient" => Tempo::Patient,
                 _ => Tempo::Direct,
             };
         }
-        if let Some(v) = defensive_line {
+        if let Some(v) = patch.defensive_line {
             p.defensive_line = match v.as_str() {
                 "VeryLow" => DefensiveLine::VeryLow,
                 "Low" => DefensiveLine::Low,
@@ -739,35 +777,35 @@ pub fn set_tactics_phase(
                 _ => DefensiveLine::Medium,
             };
         }
-        if let Some(v) = pressing_intensity {
+        if let Some(v) = patch.pressing_intensity {
             p.pressing_intensity = match v.as_str() {
                 "Passive" => PressingIntensity::Passive,
                 "Aggressive" => PressingIntensity::Aggressive,
                 _ => PressingIntensity::Medium,
             };
         }
-        if let Some(v) = defensive_shape {
+        if let Some(v) = patch.defensive_shape {
             p.defensive_shape = match v.as_str() {
                 "Stretched" => DefensiveShape::Stretched,
                 "Compact" => DefensiveShape::Compact,
                 _ => DefensiveShape::Normal,
             };
         }
-        if let Some(v) = marking_style {
+        if let Some(v) = patch.marking_style {
             p.marking_style = match v.as_str() {
                 "ManToMan" => MarkingStyle::ManToMan,
                 "Mixed" => MarkingStyle::Mixed,
                 _ => MarkingStyle::Zonal,
             };
         }
-        if let Some(v) = counter_press_duration {
+        if let Some(v) = patch.counter_press_duration {
             p.counter_press_duration = match v.as_str() {
                 "Short" => CounterPressDuration::Short,
                 "Long" => CounterPressDuration::Long,
                 _ => CounterPressDuration::None,
             };
         }
-        if let Some(v) = break_speed {
+        if let Some(v) = patch.break_speed {
             p.break_speed = match v.as_str() {
                 "Slow" => BreakSpeed::Slow,
                 "Fast" => BreakSpeed::Fast,
@@ -776,7 +814,9 @@ pub fn set_tactics_phase(
         }
 
         Ok(())
-    })
+    })?;
+    crate::application::live_match::follow_saved_dials_before_kick_off(state, &game)?;
+    Ok(game)
 }
 
 #[cfg(test)]

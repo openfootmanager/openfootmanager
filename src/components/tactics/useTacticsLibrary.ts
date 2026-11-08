@@ -260,8 +260,13 @@ export function useTacticsLibrary({
   // A saved tactic is put back whole by the backend: its formation and style, and for one that
   // holds them its instructions, eleven, roles and takers (#1189).
   async function applySavedTactic(nextTactic: TacticsLibraryEntry): Promise<boolean> {
+    // An answer that lands after the career changed (the game left, another loaded) is the old
+    // career's game: it must not replace the one now open, as `changeSave`'s steps don't.
+    const askedIn = useGameStore.getState().careerEpoch;
     try {
-      onGameUpdate(await applyCustomTactic(nextTactic.id.trim(), careerToken));
+      const applied = await applyCustomTactic(nextTactic.id.trim(), careerToken);
+      if (useGameStore.getState().careerEpoch !== askedIn) return false;
+      onGameUpdate(applied);
       return true;
     } catch (error) {
       console.error("Failed to apply the saved tactic:", error);

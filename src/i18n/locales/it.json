@@ -666,7 +666,7 @@
     "lastPage": "Ultima pagina",
     "sortBy": "Ordina per",
     "sortAscending": "Crescente",
-    "lineupLoading": "I dati sulle posizioni sono ancora in caricamento, quindi le modifiche alla formazione non sono ancora disponibili."
+    "lineupLoading": "La rosa è ancora in caricamento, quindi le modifiche alla formazione non sono ancora disponibili."
   },
   "teamSelection": {
     "title": "Scegli il tuo club",
@@ -1135,6 +1135,8 @@
     "transferBudget": "Budget trasferimenti",
     "seasonIncome": "Entrate stagionali",
     "seasonExpenses": "Spese stagionali",
+    "moneyIn": "Entrate di cassa",
+    "moneyOut": "Uscite di cassa",
     "perWeekSuffix": "/sett",
     "snapshotLoadFailed": "Impossibile caricare le finanze del club.",
     "perYearSuffix": "/anno",
@@ -3010,6 +3012,7 @@
         "loanCounterMustImproveTerms": "La controfferta di prestito deve migliorare l'offerta attuale",
         "playerNotLoanListed": "Il giocatore non è inserito nella lista prestiti",
         "playerAlreadyLoaned": "Il giocatore è già in prestito",
+        "playerAlreadySold": "Questo giocatore è già stato ceduto. Il trasferimento diventa effettivo all'apertura del mercato.",
         "invalidLoanEndDate": "La data di fine prestito deve essere tra 30 giorni e un anno da oggi",
         "invalidLoanWageContribution": "La quota stipendio del prestito deve essere tra 0% e 100%",
         "invalidLoanBuyOption": "L'opzione di riscatto del prestito deve essere superiore a zero",
@@ -3580,6 +3583,12 @@
         "subject": "Rapporto osservatore: {{player}}",
         "body": "Il tuo osservatore {{scout}} ha completato la valutazione di {{player}}. Rapporto completo disponibile nella sezione osservazione."
       },
+      "scoutingCancelled": {
+        "subject": "Incarico di osservazione annullato",
+        "body": "L'osservatore che hai mandato a seguire {{player}} ha lasciato il club, quindi non arriverà nessun rapporto. Manda un altro osservatore se ne vuoi ancora uno.",
+        "bodyWithoutPlayer": "L'osservatore che hai mandato a seguire un giocatore ha lasciato il club, e quel giocatore non è più nei nostri archivi, quindi non arriverà nessun rapporto.",
+        "youthBody": "L'osservatore che hai mandato a cercare giovani ha lasciato il club, quindi la ricerca è stata annullata. Avviane una nuova con un altro osservatore se la vuoi ancora."
+      },
       "boardWarning": {
         "subject": "Preoccupazione del Consiglio — Revisione delle Prestazioni",
         "body": "Il consiglio è sempre più preoccupato per i recenti risultati al {{team}}. La tua posizione sarà seriamente rivista se non ci sarà un miglioramento nel prossimo futuro."
@@ -3642,6 +3651,10 @@
         "subject": "Prestito concordato: {{player}}",
         "bodyWithOption": "{{player}} passerà in prestito da {{parent}} a {{borrower}} dal {{start}} al {{end}}. {{borrower}} coprirà il {{contribution}}% dello stipendio. Opzione di riscatto: {{fee}}.",
         "bodyNoOption": "{{player}} passerà in prestito da {{parent}} a {{borrower}} dal {{start}} al {{end}}. {{borrower}} coprirà il {{contribution}}% dello stipendio. Nessuna opzione di riscatto."
+      },
+      "loanRegistrationFailed": {
+        "subject": "Prestito annullato: {{player}}",
+        "body": "Il prestito concordato di {{player}} dal {{parent}} al {{borrower}}, previsto dal {{start}}, non può avere luogo: il giocatore non è più sotto contratto con il {{parent}}."
       },
       "loanOffer": {
         "subject": "Offerta di prestito per {{player}}",

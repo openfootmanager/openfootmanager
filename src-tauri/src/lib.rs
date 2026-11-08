@@ -253,6 +253,7 @@ pub fn run() {
             get_position_ratings,
             get_familiarity,
             get_tactics_lineup,
+            get_manager_standing,
             get_managers_page,
             get_squad,
             get_staff,

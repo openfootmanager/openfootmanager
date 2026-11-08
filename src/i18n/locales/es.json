@@ -647,7 +647,7 @@
     "lastPage": "Última página",
     "sortBy": "Ordenar por",
     "sortAscending": "Ascendente",
-    "lineupLoading": "Los datos de posiciones aún se están cargando, así que los cambios de alineación todavía no están disponibles."
+    "lineupLoading": "La plantilla aún se está cargando, así que los cambios de alineación todavía no están disponibles."
   },
   "teamSelection": {
     "title": "Elige Tu Club",
@@ -1116,6 +1116,8 @@
     "transferBudget": "Presupuesto de Fichajes",
     "seasonIncome": "Ingresos de Temporada",
     "seasonExpenses": "Gastos de Temporada",
+    "moneyIn": "Entradas de dinero",
+    "moneyOut": "Salidas de dinero",
     "perWeekSuffix": "/sem",
     "snapshotLoadFailed": "No se pudieron cargar las finanzas del club.",
     "perYearSuffix": "/año",
@@ -3010,6 +3012,7 @@
         "loanCounterMustImproveTerms": "La contraoferta de cesión debe mejorar la oferta actual",
         "playerNotLoanListed": "El jugador no está listado para cesión",
         "playerAlreadyLoaned": "El jugador ya está cedido",
+        "playerAlreadySold": "Este jugador ya ha sido vendido. El traspaso se completa cuando abra el mercado.",
         "invalidLoanEndDate": "La fecha de fin de la cesión debe estar entre 30 días y un año desde hoy",
         "invalidLoanWageContribution": "La aportación salarial de la cesión debe estar entre el 0% y el 100%",
         "invalidLoanBuyOption": "La opción de compra de la cesión debe ser superior a cero",
@@ -3580,6 +3583,12 @@
         "subject": "Informe del ojeador: {{player}}",
         "body": "Tu ojeador {{scout}} ha completado su evaluación de {{player}}. Informe completo disponible en la sección de ojeo."
       },
+      "scoutingCancelled": {
+        "subject": "Misión de ojeo cancelada",
+        "body": "El ojeador que enviaste a seguir a {{player}} ha dejado el club, así que no habrá informe. Envía a otro ojeador si todavía lo quieres.",
+        "bodyWithoutPlayer": "El ojeador que enviaste a seguir a un jugador ha dejado el club, y ese jugador ya no figura en nuestros registros, así que no habrá informe.",
+        "youthBody": "El ojeador que enviaste a buscar jóvenes ha dejado el club, así que la búsqueda se ha cancelado. Empieza una nueva con otro ojeador si todavía la quieres."
+      },
       "boardWarning": {
         "subject": "Preocupación de la Directiva — Revisión de Resultados",
         "body": "La directiva está cada vez más preocupada con los resultados recientes en {{team}}. Tu puesto será objeto de una seria revisión si no hay mejora en un futuro próximo."
@@ -3642,6 +3651,10 @@
         "subject": "Cesión acordada: {{player}}",
         "bodyWithOption": "{{player}} irá cedido de {{parent}} a {{borrower}} desde el {{start}} hasta el {{end}}. {{borrower}} cubrirá el {{contribution}}% del salario. Opción de compra: {{fee}}.",
         "bodyNoOption": "{{player}} irá cedido de {{parent}} a {{borrower}} desde el {{start}} hasta el {{end}}. {{borrower}} cubrirá el {{contribution}}% del salario. Sin opción de compra."
+      },
+      "loanRegistrationFailed": {
+        "subject": "Cesión cancelada: {{player}}",
+        "body": "La cesión acordada de {{player}} de {{parent}} a {{borrower}}, prevista para el {{start}}, no puede llevarse a cabo: el jugador ya no tiene contrato con {{parent}}."
       },
       "loanOffer": {
         "subject": "Oferta de cesión por {{player}}",

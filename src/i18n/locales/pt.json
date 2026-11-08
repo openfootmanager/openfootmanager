@@ -647,7 +647,7 @@
     "lastPage": "Última página",
     "sortBy": "Ordenar por",
     "sortAscending": "Ascendente",
-    "lineupLoading": "Os dados de posições ainda estão a carregar, por isso as alterações à equipa ainda não estão disponíveis."
+    "lineupLoading": "O plantel ainda está a carregar, por isso as alterações à equipa ainda não estão disponíveis."
   },
   "teamSelection": {
     "title": "Escolhe o Teu Clube",
@@ -1116,6 +1116,8 @@
     "transferBudget": "Orçamento de Transferências",
     "seasonIncome": "Receita da Temporada",
     "seasonExpenses": "Despesas da Temporada",
+    "moneyIn": "Entrada de dinheiro",
+    "moneyOut": "Saída de dinheiro",
     "perWeekSuffix": "/sem",
     "snapshotLoadFailed": "Não foi possível carregar as finanças do clube.",
     "perYearSuffix": "/ano",
@@ -3010,6 +3012,7 @@
         "loanCounterMustImproveTerms": "A contraproposta de empréstimo tem de melhorar a oferta atual",
         "playerNotLoanListed": "O jogador não está listado para empréstimo",
         "playerAlreadyLoaned": "O jogador já está emprestado",
+        "playerAlreadySold": "Este jogador já foi vendido. A transferência concretiza-se quando abrir o mercado.",
         "invalidLoanEndDate": "A data de fim do empréstimo tem de ficar entre 30 dias e um ano a partir de hoje",
         "invalidLoanWageContribution": "A comparticipação salarial do empréstimo tem de ficar entre 0% e 100%",
         "invalidLoanBuyOption": "A opção de compra do empréstimo tem de ser superior a zero",
@@ -3580,6 +3583,12 @@
         "subject": "Relatório do observador: {{player}}",
         "body": "O seu observador {{scout}} concluiu a avaliação de {{player}}. O relatório completo está disponível na secção de observação."
       },
+      "scoutingCancelled": {
+        "subject": "Missão de observação cancelada",
+        "body": "O observador que enviou para observar {{player}} saiu do clube, por isso não haverá relatório. Envie outro observador se ainda o quiser.",
+        "bodyWithoutPlayer": "O observador que enviou para observar um jogador saiu do clube, e esse jogador já não consta dos nossos registos, por isso não haverá relatório.",
+        "youthBody": "O observador que enviou numa pesquisa de jovens saiu do clube, por isso a pesquisa foi cancelada. Comece uma nova com outro observador se ainda a quiser."
+      },
       "boardWarning": {
         "subject": "Preocupação da Direção — Revisão de Desempenho",
         "body": "A direção está cada vez mais preocupada com os resultados recentes no {{team}}. A sua posição será seriamente revista se não houver melhoria num futuro próximo."
@@ -3642,6 +3651,10 @@
         "subject": "Empréstimo acordado: {{player}}",
         "bodyWithOption": "{{player}} será emprestado por {{parent}} a {{borrower}} de {{start}} até {{end}}. {{borrower}} suportará {{contribution}}% do salário. Opção de compra: {{fee}}.",
         "bodyNoOption": "{{player}} será emprestado por {{parent}} a {{borrower}} de {{start}} até {{end}}. {{borrower}} suportará {{contribution}}% do salário. Sem opção de compra."
+      },
+      "loanRegistrationFailed": {
+        "subject": "Empréstimo cancelado: {{player}}",
+        "body": "O empréstimo acordado de {{player}} do {{parent}} para o {{borrower}}, previsto para {{start}}, não pode avançar: o jogador já não tem contrato com o {{parent}}."
       },
       "loanOffer": {
         "subject": "Proposta de Empréstimo por {{player}}",

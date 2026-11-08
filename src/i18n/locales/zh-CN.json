@@ -647,7 +647,7 @@
     "lastPage": "最后一页",
     "sortBy": "排序方式",
     "sortAscending": "升序",
-    "lineupLoading": "位置数据仍在加载，暂时无法调整阵容。"
+    "lineupLoading": "球队阵容仍在加载，因此暂时无法更改首发阵容。"
   },
   "teamSelection": {
     "title": "选择您的俱乐部",
@@ -1116,6 +1116,8 @@
     "transferBudget": "转会预算",
     "seasonIncome": "赛季收入",
     "seasonExpenses": "赛季支出",
+    "moneyIn": "资金流入",
+    "moneyOut": "资金流出",
     "perWeekSuffix": "/周",
     "snapshotLoadFailed": "无法加载俱乐部财务数据。",
     "perYearSuffix": "/年",
@@ -3010,6 +3012,7 @@
         "loanCounterMustImproveTerms": "租借还价必须优于当前报价",
         "playerNotLoanListed": "该球员未被列入租借名单",
         "playerAlreadyLoaned": "该球员已经被租借",
+        "playerAlreadySold": "该球员已被出售，转会将在转会窗口开放时完成。",
         "invalidLoanEndDate": "租借结束日期必须在今天之后30天到一年之间",
         "invalidLoanWageContribution": "租借工资承担比例必须在0%到100%之间",
         "invalidLoanBuyOption": "租借买断选项金额必须大于零",
@@ -3580,6 +3583,12 @@
         "subject": "球探报告:{{player}}",
         "body": "您的球探{{scout}}已完成对{{player}}的评估。完整报告可在球探工作板块查看。"
       },
+      "scoutingCancelled": {
+        "subject": "球探任务已取消",
+        "body": "您派去考察{{player}}的球探已离开俱乐部，因此不会有报告。如仍需要，请另派一名球探。",
+        "bodyWithoutPlayer": "您派去考察一名球员的球探已离开俱乐部，且该球员已不在我们的记录中，因此不会有报告。",
+        "youthBody": "您派去寻找年轻球员的球探已离开俱乐部，因此搜寻已取消。如仍需要，请派另一名球探重新开始。"
+      },
       "boardWarning": {
         "subject": "董事会关切——战绩审视",
         "body": "董事会对{{team}}近期的战绩越来越感到担忧。如不尽快改善,您的职位将面临严肃审视。"
@@ -3642,6 +3651,10 @@
         "subject": "租借已达成：{{player}}",
         "bodyWithOption": "{{player}}将从{{parent}}租借至{{borrower}}，租期从{{start}}至{{end}}。{{borrower}}将承担{{contribution}}%的工资。买断选项：{{fee}}。",
         "bodyNoOption": "{{player}}将从{{parent}}租借至{{borrower}}，租期从{{start}}至{{end}}。{{borrower}}将承担{{contribution}}%的工资。无买断选项。"
+      },
+      "loanRegistrationFailed": {
+        "subject": "租借已取消：{{player}}",
+        "body": "{{player}}从{{parent}}租借至{{borrower}}的协议原定于{{start}}开始，但无法进行：该球员已不再与{{parent}}签约。"
       },
       "loanOffer": {
         "subject": "收到对{{player}}的租借报价",

@@ -1,5 +1,6 @@
 import { getPlayerOvr } from "../../lib/helpers";
 import { isFirstTeamSquadPlayer } from "../../lib/playerSquad";
+import type { FamiliarityTable } from "../../hooks/useFamiliarity";
 import type { PositionTable } from "../../lib/positionTable";
 import type { PlayerData } from "../../store/gameStore";
 import { type PitchSlotRow, isPlayerOutOfPosition } from "../squad/SquadTab.helpers";
@@ -74,11 +75,12 @@ export function countOutOfPositionPlayers(
   startingPlayers: PlayerData[],
   xiActivePosition: Map<string, string>,
   positionTable: PositionTable,
+  familiarity?: FamiliarityTable,
 ): number {
   return startingPlayers.filter((player) => {
     const currentPosition = xiActivePosition.get(player.id) ?? player.position;
 
-    return isPlayerOutOfPosition(player, currentPosition, positionTable);
+    return isPlayerOutOfPosition(player, currentPosition, positionTable, familiarity);
   }).length;
 }
 

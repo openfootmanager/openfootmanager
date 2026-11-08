@@ -70,6 +70,7 @@ export default function TacticsTab({
     handleTacticsPhaseChange,
     lineupReady,
     lineup,
+    familiarity,
   } = useTacticsLineup({ gameState, onGameUpdate });
 
   const {
@@ -198,6 +199,8 @@ export default function TacticsTab({
 
           {/* Center: pitch */}
           <TacticsPitch
+            familiarity={familiarity}
+            lineupReady={lineupReady}
             dragState={dragState}
             formation={formation}
             comparePlayerId={comparePlayerId}
