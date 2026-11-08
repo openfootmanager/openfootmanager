@@ -70,8 +70,12 @@ vi.mock("../teamProfile", () => ({
 }));
 
 vi.mock("./DashboardAlerts", () => ({
-  default: ({ onNavigate }: { onNavigate: (tab: string) => void }) => (
-    <button type="button" onClick={() => onNavigate("Inbox")}>
+  default: ({ onNavigate, scrolls }: { onNavigate: (tab: string) => void; scrolls?: boolean }) => (
+    <button
+      type="button"
+      data-scrolls={scrolls ? "true" : undefined}
+      onClick={() => onNavigate("Inbox")}
+    >
       alerts-mock
     </button>
   ),
@@ -307,12 +311,15 @@ describe("DashboardWorkspaceContent", () => {
     expect(tacticsArea).toHaveAttribute("data-fills-workspace", "true");
     expect(tacticsArea).toHaveClass("overflow-hidden", "flex", "flex-col");
     expect(tacticsArea).not.toHaveClass("overflow-auto");
+    // The alerts above it scroll themselves, so they cannot squeeze the lineup to a strip.
+    expect(tactics.getByText("alerts-mock")).toHaveAttribute("data-scrolls", "true");
     tactics.unmount();
 
     const squad = workspace("Squad");
     const squadArea = squad.getByText("Tab Content Squad").parentElement;
     expect(squadArea).not.toHaveAttribute("data-fills-workspace");
     expect(squadArea).toHaveClass("overflow-auto");
+    expect(squad.getByText("alerts-mock")).not.toHaveAttribute("data-scrolls");
     expect(tabFillsWorkspace("Tactics")).toBe(true);
     expect(tabFillsWorkspace("Squad")).toBe(false);
   });
