@@ -3,7 +3,8 @@
 // of `domain`, and `ofm_core/turn/` is the single bridge between the two. The
 // live path and the instant path both build their sides from there, so there is
 // one answer to "who is playing" rather than one per code path.
-use crate::player_rating::formation_slots;
+use crate::custom_tactics::INVALID_FORMATION_ERROR;
+use crate::player_rating::{formation_slots, parse_formation};
 use crate::turn::matchday_lookups::MatchdayLookups;
 pub use crate::turn::squad::auto_select_set_pieces;
 use crate::turn::squad::{
@@ -273,8 +274,13 @@ impl LiveMatchSession {
             self.refit_pre_match_swap(side, &off, &on, slot.as_ref());
             return Ok(());
         }
-        if let MatchCommand::ChangeFormation { side, .. } = &cmd {
+        if let MatchCommand::ChangeFormation { side, formation } = &cmd {
             let side = *side;
+            // The engine reads any string leniently ("4-5-1-x" plays 4, 5 and 1) while the
+            // slots are laid out by `parse_formation`; only an agent can send such a shape.
+            if parse_formation(formation).is_none() {
+                return Err(INVALID_FORMATION_ERROR.to_string());
+            }
             self.match_state.apply_command(cmd)?;
             self.refit_formation_change(side);
             return Ok(());
