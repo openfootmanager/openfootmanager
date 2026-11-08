@@ -80,6 +80,7 @@ describe("the youth report's opinions of its prospects", () => {
         knowledgeRevision="r1"
         selectedMessage={youthReport}
         isActionInFlight={false}
+        actionError={null}
         onAction={vi.fn()}
         onCloseSelectedMessage={vi.fn()}
         onRequestDelete={vi.fn()}

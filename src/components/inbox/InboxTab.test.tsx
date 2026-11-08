@@ -1,4 +1,5 @@
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { i18nReady } from "../../i18n";
 import { invoke } from "@tauri-apps/api/core";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import i18n from "../../i18n";
@@ -1566,5 +1567,84 @@ describe("InboxTab", (): void => {
     await act(async () => {
       answer({ game: open, effect: "", effect_i18n_key: null, effect_i18n_params: null });
     });
+  });
+
+  /**
+   * Given a player-event message with two responses and the backend refusing the first
+   * When the manager clicks a response
+   * Then the refusal is shown as an alert in the player's language (no raw key), and the response
+   *      buttons are enabled again so the manager can answer.
+   */
+  it("shows a refused response and enables the buttons again", async (): Promise<void> => {
+    await i18nReady;
+    const action: MessageAction = {
+      id: "respond",
+      label: "Respond",
+      action_type: {
+        ChooseOption: {
+          options: [
+            { id: "no_renewal", label: "No renewal", description: "Let it run out." },
+            { id: "reassure", label: "Reassure him", description: "Tell him he is wanted." },
+          ],
+        },
+      },
+      resolved: false,
+    };
+    const open = createGameState([
+      createMessage({ id: "happy_player_p1", read: true, actions: [action] }),
+    ]);
+    mockedInvoke.mockImplementation((command: string) => {
+      if (command === "resolve_message_action") {
+        return Promise.reject("be.error.careerChanged");
+      }
+      return Promise.resolve(command === "get_messages_page" ? open.messages : open);
+    });
+    await renderInboxTab({ gameState: open, initialMessageId: "happy_player_p1" });
+
+    fireEvent.click(screen.getByText("No renewal"));
+
+    const alert = await screen.findByRole("alert");
+    expect(alert).not.toHaveTextContent(/be\.error\./);
+    expect(alert).toHaveTextContent("The career changed before this could be saved.");
+    expect(screen.getByRole("button", { name: /No renewal/ })).toBeEnabled();
+    expect(screen.getByRole("button", { name: /Reassure him/ })).toBeEnabled();
+  });
+
+  /**
+   * Given a response that was answered
+   * When the answer lands
+   * Then the other response buttons are enabled again (the next message's responses are not stuck).
+   */
+  it("enables the response buttons again once the answer lands", async (): Promise<void> => {
+    const options = [
+      { id: "no_renewal", label: "No renewal", description: "Let it run out." },
+      { id: "reassure", label: "Reassure him", description: "Tell him he is wanted." },
+    ];
+    const action: MessageAction = {
+      id: "respond",
+      label: "Respond",
+      action_type: { ChooseOption: { options } },
+      resolved: false,
+    };
+    const open = createGameState([
+      createMessage({ id: "happy_player_p1", read: true, actions: [action] }),
+    ]);
+    // The answer leaves the action open (as when the backend keeps the conversation going).
+    mockedInvoke.mockImplementation((command: string) => {
+      if (command === "resolve_message_action") {
+        return Promise.resolve({
+          game: open,
+          effect: "",
+          effect_i18n_key: null,
+          effect_i18n_params: null,
+        });
+      }
+      return Promise.resolve(command === "get_messages_page" ? open.messages : open);
+    });
+    await renderInboxTab({ gameState: open, initialMessageId: "happy_player_p1" });
+
+    fireEvent.click(screen.getByText("No renewal"));
+
+    await waitFor(() => expect(screen.getByRole("button", { name: /Reassure him/ })).toBeEnabled());
   });
 });

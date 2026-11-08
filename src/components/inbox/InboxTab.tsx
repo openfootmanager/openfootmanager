@@ -14,6 +14,7 @@ import {
   resolveMessageAction,
 } from "../../services/inboxService";
 import { resolveBackendText, resolveMessage } from "../../utils/backendI18n";
+import { resolveTranslatedErrorMessage } from "../../utils/errorMessage";
 import { gameKnowledgeRevision } from "../../lib/playerKnowledge";
 import ArchivedMessages from "./ArchivedMessages";
 import InboxDeleteConfirmModal from "./InboxDeleteConfirmModal";
@@ -82,6 +83,7 @@ export default function InboxTab({
   // A response is applied by the backend as many times as it is asked (a morale hit, a trust change),
   // so while one answer is on its way the response buttons are disabled.
   const [isResolvingAction, setIsResolvingAction] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
   const inboxSeqRef = useRef(0);
 
   const categoryCounts = useMemo(() => {
@@ -166,6 +168,7 @@ export default function InboxTab({
     }
 
     setIsResolvingAction(true);
+    setActionError(null);
     try {
       const result = await resolveMessageAction(messageId, actionId, optionId);
 
@@ -185,7 +188,8 @@ export default function InboxTab({
         );
         setEffectFeedback(resolvedEffect);
       }
-    } catch {
+    } catch (error) {
+      setActionError(resolveTranslatedErrorMessage(error));
     } finally {
       setIsResolvingAction(false);
     }
@@ -414,6 +418,7 @@ export default function InboxTab({
             knowledgeRevision={knowledgeRevision}
             selectedMessage={selectedMessage}
             isActionInFlight={isResolvingAction}
+            actionError={actionError}
             onAction={(messageId, actionId, optionId) => {
               void handleAction(messageId, actionId, optionId);
             }}
