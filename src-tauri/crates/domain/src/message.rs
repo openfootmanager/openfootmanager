@@ -31,6 +31,16 @@ pub enum MessagePriority {
     Urgent,
 }
 
+impl MessagePriority {
+    /// Whether a message of this priority asks for the manager's attention when it arrives, so a
+    /// continue stops after the day it came: High and Urgent, by the maintainer's ruling (Urgent
+    /// is the more pressing of the two). An unread Urgent message is also listed as a time
+    /// blocker; that is a separate, Urgent-only rule.
+    pub fn needs_attention(&self) -> bool {
+        matches!(self, Self::High | Self::Urgent)
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 pub struct MessageAction {
     pub id: String,
