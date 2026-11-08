@@ -2,19 +2,18 @@ import { describe, expect, it } from "vitest";
 
 import { LOCALE_FILES, NON_ENGLISH_LOCALES, type LocaleTree } from "./i18nTestHelpers";
 
-// English adds an ordinal suffix (1st, 2nd, ...) to these messages. The listed
-// languages express ordinal position without that interpolation. Keep the
-// exception tied to each key and locale so a different omission still fails.
-const REVIEW_ORDINAL_LOCALES = ["cs", "de", "es", "fr", "id", "it", "pt", "pt-BR", "tr"];
-const ALLOWED_SUFFIX_OMISSIONS: Record<string, readonly string[]> = {
-  "be.msg.seasonReview.body.topFour": REVIEW_ORDINAL_LOCALES,
-  "be.msg.seasonReview.body.midTable": REVIEW_ORDINAL_LOCALES,
-  "be.msg.seasonReview.body.lowerHalf": REVIEW_ORDINAL_LOCALES,
-  "be.msg.seasonPayout.ledgerDescription": ["id"],
-};
+// A finishing place is written either as the bare number (`{{position}}`) or as the language's own
+// ordinal form of it (`{{ordinal}}`, from `formatOrdinal` in `resolveParamValues`): which one reads
+// naturally differs by language ("21st place", "на 21-м месте", "第21位"). Both name the same
+// value, so a locale may use either; the backend sends only `position`, never an English suffix.
+const PLACE_ALIASES: Record<string, string> = { ordinal: "position" };
 
 function placeholders(text: string): Set<string> {
-  return new Set([...text.matchAll(/\{\{\s*([^{}]+?)\s*\}\}/g)].map((match) => match[1].trim()));
+  return new Set(
+    [...text.matchAll(/\{\{\s*([^{}]+?)\s*\}\}/g)].map(
+      (match) => PLACE_ALIASES[match[1].trim()] ?? match[1].trim(),
+    ),
+  );
 }
 
 function placeholderDifferences(
@@ -44,11 +43,7 @@ function placeholderDifferences(
 
     const expected = placeholders(englishValue);
     const actual = placeholders(typeof translatedValue === "string" ? translatedValue : "");
-    const missing = [...expected].filter(
-      (name) =>
-        !actual.has(name) &&
-        !(name === "suffix" && ALLOWED_SUFFIX_OMISSIONS[key]?.includes(locale)),
-    );
+    const missing = [...expected].filter((name) => !actual.has(name));
     const extra = [...actual].filter((name) => !expected.has(name));
     return missing.length > 0 || extra.length > 0
       ? [`${key}: missing [${missing.join(", ")}], extra [${extra.join(", ")}]`]

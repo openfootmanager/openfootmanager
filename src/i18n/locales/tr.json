@@ -3187,7 +3187,7 @@
       "seasonPayout": {
         "subject": "Sezon {{season}} Ödül Parası Verildi",
         "body": "Yönetim, ligi {{position}}. sırada bitirmeniz karşılığında {{amount}} tutarında ödül ödemesini onayladı. Tutar kulüp bakiyesine eklendi.",
-        "ledgerDescription": "Sezon {{season}} — {{position}}{{suffix}} sıra ödül parası"
+        "ledgerDescription": "Sezon {{season}} — {{ordinal}} sıra ödül parası"
       },
       "seasonReview": {
         "subject": "Sezon {{season}} Değerlendirmesi",

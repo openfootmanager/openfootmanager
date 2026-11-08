@@ -2891,7 +2891,7 @@ fn champion_receives_prize_money_and_ledger_entry() {
     assert_eq!(team1.financial_ledger[0].amount, 5_000_000);
     assert_eq!(
         team1.financial_ledger[0].description,
-        "be.msg.seasonPayout.ledgerDescription?season=1&position=1&suffix=st"
+        "be.msg.seasonPayout.ledgerDescription?season=1&position=1"
     );
 }
 
@@ -4068,9 +4068,11 @@ fn season_end_board_message_top_four_uses_correct_body_key() {
         msg.i18n_params.contains_key("position"),
         "topFour key must include position param"
     );
+    // The place is a bare number: the frontend writes it as an ordinal in the player's language, so
+    // no English suffix ("2nd", "21th") is sent from here.
     assert!(
-        msg.i18n_params.contains_key("suffix"),
-        "topFour key must include suffix param"
+        !msg.i18n_params.contains_key("suffix"),
+        "topFour must not carry an English ordinal suffix"
     );
 }
 

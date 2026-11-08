@@ -3187,7 +3187,7 @@
       "seasonPayout": {
         "subject": "Saison {{season}} — Preisgeld ausgezahlt",
         "body": "Der Vorstand hat eine Preisgeldzahlung in Höhe von {{amount}} für deinen {{position}}. Tabellenplatz bestätigt. Der Betrag wurde dem Vereinskonto gutgeschrieben.",
-        "ledgerDescription": "Preisgeld der Saison {{season}} für Platz {{position}}{{suffix}}"
+        "ledgerDescription": "Preisgeld der Saison {{season}} für Platz {{position}}"
       },
       "seasonReview": {
         "subject": "Saisonrückblick {{season}}",

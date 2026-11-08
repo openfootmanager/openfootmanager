@@ -3187,7 +3187,7 @@
       "seasonPayout": {
         "subject": "Finanční odměna za sezónu {{season}} udělena",
         "body": "Představenstvo potvrdilo vyplacení odměny ve výši {{amount}} za vaše {{position}}. místo v lize. Částka byla připsána k zůstatku klubu.",
-        "ledgerDescription": "Finanční odměna za sezónu {{season}} za {{position}}{{suffix}} místo"
+        "ledgerDescription": "Finanční odměna za sezónu {{season}} za {{ordinal}} místo"
       },
       "seasonReview": {
         "subject": "Ohlédnutí za sezónou {{season}}",

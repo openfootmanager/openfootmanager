@@ -3187,7 +3187,7 @@
       "seasonPayout": {
         "subject": "Temporada {{season}} — Premiação concedida",
         "body": "A diretoria confirmou um prêmio de {{amount}} pelo seu {{position}}º lugar na liga. O valor já foi adicionado ao saldo do clube.",
-        "ledgerDescription": "Prêmio da temporada {{season}} pelo {{position}}{{suffix}} lugar"
+        "ledgerDescription": "Prêmio da temporada {{season}} pelo {{ordinal}} lugar"
       },
       "seasonReview": {
         "subject": "Revisão da Temporada {{season}}",
