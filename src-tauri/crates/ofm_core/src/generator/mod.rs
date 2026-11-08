@@ -1245,7 +1245,7 @@ pub fn build_world_data_from_package_with_rng(
         let mut merged = definitions::names_definition(sources);
         if let Some(pkg_names) = &package.names {
             for (key, pool) in &pkg_names.pools {
-                if !pool.first_names.is_empty() && !pool.last_names.is_empty() {
+                if pool.is_usable() {
                     merged.pools.insert(key.clone(), pool.clone());
                 }
             }
