@@ -582,7 +582,13 @@ impl SaveManager {
             needs_resave = true;
         }
 
-        if player_identity::upgrade_loaded_player_identities(&mut game) {
+        let missing_weak_foot = db.needs_weak_foot_backfill()?;
+        let identity_changed = if missing_weak_foot {
+            player_identity::upgrade_game_player_identities(&mut game)
+        } else {
+            player_identity::upgrade_loaded_player_identities(&mut game)
+        };
+        if identity_changed || missing_weak_foot {
             needs_resave = true;
         }
 
@@ -2493,6 +2499,8 @@ mod tests {
         }
         drop(old);
         std::fs::copy(old_path, &path).unwrap();
+        // Metadata access can migrate the database before the career is loaded.
+        drop(GameDatabase::open(&path).unwrap());
         let loaded = manager.load_game(&id).unwrap();
         let player = loaded
             .players
@@ -2500,6 +2508,18 @@ mod tests {
             .find(|p| p.id == "legacy-keeper")
             .unwrap();
         assert_eq!(player.weak_foot, 3);
+        let db = GameDatabase::open(&path).unwrap();
+        assert!(!db.needs_weak_foot_backfill().unwrap());
+        assert_eq!(
+            GamePersistenceReader::read_game(&db)
+                .unwrap()
+                .players
+                .iter()
+                .find(|p| p.id == "legacy-keeper")
+                .unwrap()
+                .weak_foot,
+            3
+        );
     }
 
     #[test]
