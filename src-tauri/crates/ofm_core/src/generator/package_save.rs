@@ -773,7 +773,11 @@ mod tests {
             ),
         ]);
         let package = edited(&dir, |_| {});
-        assert_eq!(package.teams.len(), 1, "only the readable club loads");
+        assert_eq!(
+            package.teams.as_ref().map(Vec::len),
+            Some(1),
+            "only the readable club loads"
+        );
 
         save_package_files(&dir, &package).expect("the save succeeds");
         let written =
