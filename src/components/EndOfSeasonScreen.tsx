@@ -107,7 +107,7 @@ export default function EndOfSeasonScreen({
   };
 
   const posLabel = (pos: number) =>
-    formatOrdinal(pos, i18n.language, (key, options) => t(key, options));
+    formatOrdinal(pos, i18n.language, (key, options) => t(key, options), "place");
 
   return (
     <div className="py-8 px-4">

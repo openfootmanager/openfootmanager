@@ -8,6 +8,7 @@ import type { GameStateData } from "../store/gameStore";
 import { createAwards, createEndOfSeasonGame } from "../test-utils/endOfSeason";
 
 const setShowFiredModal = vi.fn();
+const locale = vi.hoisted(() => ({ language: "en" }));
 
 vi.mock("@tauri-apps/api/core", () => ({
   invoke: vi.fn(),
@@ -16,6 +17,10 @@ vi.mock("@tauri-apps/api/core", () => ({
 vi.mock("react-i18next", () => ({
   useTranslation: () => ({
     t: (key: string, params?: Record<string, string | number>) => {
+      if (locale.language === "ru" && key.startsWith("common.ordinal.")) {
+        return `${params?.n}-${key.includes(".place.") ? "е" : "й"}`;
+      }
+      key = key.replace("common.ordinal.place.", "common.ordinal.");
       if (key === "endOfSeason.seasonComplete") return "Season complete";
       if (key === "endOfSeason.seasonLine") return `Season ${params?.season} ${params?.league}`;
       if (key === "endOfSeason.position") return "Position";
@@ -44,7 +49,7 @@ vi.mock("react-i18next", () => ({
       if (key === "common.ordinal.other") return `${params?.n}th`;
       return key;
     },
-    i18n: { language: "en" },
+    i18n: locale,
   }),
 }));
 
@@ -142,6 +147,27 @@ describe("EndOfSeasonScreen", () => {
 
     expect(screen.getByText("21st")).toBeInTheDocument();
     expect(screen.queryByText("21th")).not.toBeInTheDocument();
+  });
+
+  /** Given a second-place Russian club, when the review renders, then its place is neuter. */
+  it("writes a Russian finishing place in the neuter form", () => {
+    locale.language = "ru";
+    try {
+      const game = createEndOfSeasonGame();
+      game.league!.standings[0]!.points = 1;
+      game.league!.standings[1]!.points = 90;
+      render(
+        <EndOfSeasonScreen
+          gameState={game}
+          onGameUpdate={vi.fn()}
+          transition={null}
+          onTransitionChange={vi.fn()}
+        />,
+      );
+      expect(screen.getByText("2-е")).toBeInTheDocument();
+    } finally {
+      locale.language = "en";
+    }
   });
 
   /**

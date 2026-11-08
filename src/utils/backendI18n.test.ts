@@ -453,6 +453,38 @@ describe("resolveMessage", () => {
     }
   });
 
+  // Given a 24-team league, when a lower-half finish is rendered, then its ordinal is correct.
+  it.each([
+    ["21", "21st"],
+    ["22", "22nd"],
+    ["23", "23rd"],
+  ])("renders lower-half place %s as %s", (position, ordinal) => {
+    const result = resolveMessage(
+      makeMessage({
+        body_key: "be.msg.seasonReview.body.lowerHalf",
+        i18n_params: { team: "Alpha FC", position, points: "20", season: "1" },
+      }),
+    );
+    expect(result.body).toContain(ordinal);
+  });
+
+  // Given a French champion, when the payout renders, then it uses the neutral number notation.
+  it("renders the French first-place payout", async () => {
+    const previousLanguage = i18n.language;
+    await i18n.changeLanguage("fr");
+    try {
+      const result = resolveMessage(
+        makeMessage({
+          body_key: "be.msg.seasonPayout.body",
+          i18n_params: { amount: "5000000", position: "1", season: "1" },
+        }),
+      );
+      expect(result.body).toContain("votre place n°1");
+    } finally {
+      await i18n.changeLanguage(previousLanguage);
+    }
+  });
+
   // Given a stored season-prize ledger line and a stored season review from before the suffix was
   // dropped (they carry a "suffix" param), when rendered, then the old suffix is ignored.
   it("ignores the English suffix a saved message still carries", () => {

@@ -404,6 +404,12 @@
       "B": "B"
     },
     "ordinal": {
+      "place": {
+        "one": "{{n}}re",
+        "two": "{{n}}e",
+        "few": "{{n}}e",
+        "other": "{{n}}e"
+      },
       "one": "{{n}}er",
       "two": "{{n}}e",
       "few": "{{n}}e",

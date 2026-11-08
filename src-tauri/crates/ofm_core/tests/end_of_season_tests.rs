@@ -4065,8 +4065,8 @@ fn season_end_board_message_top_four_uses_correct_body_key() {
         "2nd-place finish should use topFour body key"
     );
     assert!(
-        msg.i18n_params.contains_key("position"),
-        "topFour key must include position param"
+        msg.i18n_params.get("position") == Some(&"2".to_string()),
+        "topFour position must be the bare number 2"
     );
     // The place is a bare number: the frontend writes it as an ordinal in the player's language, so
     // no English suffix ("2nd", "21th") is sent from here.

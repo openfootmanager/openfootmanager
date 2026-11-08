@@ -3,9 +3,15 @@ import { describe, expect, it, vi } from "vitest";
 
 import HomeLeaguePositionCard from "./HomeLeaguePositionCard";
 
+const locale = vi.hoisted(() => ({ language: "en" }));
+
 vi.mock("react-i18next", () => ({
   useTranslation: () => ({
     t: (key: string, params?: Record<string, string | number>) => {
+      if (locale.language === "ru" && key.startsWith("common.ordinal.")) {
+        return `${params?.n}-${key.includes(".place.") ? "е" : "й"}`;
+      }
+      key = key.replace("common.ordinal.place.", "common.ordinal.");
       if (key === "home.standings") return "Standings";
       if (key === "home.leaguePosition") return "League Position";
       if (key === "season.phases.Preseason") return "Preseason";
@@ -34,7 +40,7 @@ vi.mock("react-i18next", () => ({
       if (key === "common.pts") return "Pts";
       return key;
     },
-    i18n: { language: "en" },
+    i18n: locale,
   }),
 }));
 
@@ -72,6 +78,35 @@ describe("HomeLeaguePositionCard", () => {
     );
 
     expect(screen.getByText(written)).toBeInTheDocument();
+  });
+
+  /** Given a Russian club in second place, when the card renders, then its place is neuter. */
+  it("writes a Russian league place in the neuter form", () => {
+    locale.language = "ru";
+    try {
+      render(
+        <HomeLeaguePositionCard
+          isPreseason={false}
+          phase="RegularSeason"
+          seasonStartLabel={null}
+          myStanding={2}
+          myStandingData={{
+            team_id: "team-1",
+            played: 1,
+            won: 1,
+            drawn: 0,
+            lost: 0,
+            goals_for: 1,
+            goals_against: 0,
+            points: 3,
+          }}
+          teamForm={[]}
+        />,
+      );
+      expect(screen.getByText("2-е")).toBeInTheDocument();
+    } finally {
+      locale.language = "en";
+    }
   });
 
   it("renders preseason standings lock messaging", () => {

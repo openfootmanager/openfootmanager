@@ -49,6 +49,21 @@ describe("formatOrdinal", () => {
     expect(await ordinalIn("pt-BR", 2)).toBe("2º");
   });
 
+  /** Given a finishing place, when formatted, then it agrees with the locale's place noun. */
+  it.each([
+    ["ru", 2, "2-е"],
+    ["cs", 2, "2."],
+    ["es", 2, "2.ª"],
+    ["it", 2, "2ª"],
+    ["pt", 2, "2.ª"],
+    ["pt-BR", 2, "2ª"],
+    ["fr", 1, "1re"],
+    ["fr", 2, "2e"],
+  ])("writes a finishing place in %s for %i", async (language, value, expected) => {
+    await i18n.loadLanguages(language);
+    expect(formatOrdinal(value, language, i18n.getFixedT(language), "place")).toBe(expected);
+  });
+
   /**
    * Given each language the game ships
    * When a rank of 2 is formatted

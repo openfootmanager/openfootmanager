@@ -83,7 +83,12 @@ export default function HomeLeaguePositionCard({
               </div>
               <div>
                 <p className="text-xs text-gray-500 dark:text-gray-400 font-heading uppercase tracking-wider">
-                  {formatOrdinal(myStanding, i18n.language, (key, options) => t(key, options))}
+                  {formatOrdinal(
+                    myStanding,
+                    i18n.language,
+                    (key, options) => t(key, options),
+                    "place",
+                  )}
                 </p>
                 <p className="text-lg font-heading font-bold text-gray-800 dark:text-gray-100">
                   {myStandingData.points} {t("common.pts")}
