@@ -760,6 +760,12 @@
     "unsavedChanges": "Kaydedilmemiş değişiklikler",
     "currentPlanCard": "Mevcut plan",
     "phaseBlueprint": "Faz şeması",
+    "instructionsPanel": {
+      "title": "Takım talimatları",
+      "show": "Takım talimatlarını göster",
+      "hide": "Takım talimatlarını gizle",
+      "openAt": "Takım talimatlarını göster: {{section}}"
+    },
     "phaseLabels": {
       "withBall": "Topla Oyun",
       "withoutBall": "Topsuz Oyun",
@@ -2757,6 +2763,7 @@
       "critical": "Kritik"
     },
     "error": {
+      "taskJoinFailed": "Simülasyon beklenmedik şekilde durdu. Son kayıtlı oyununuzu yükleyip tekrar deneyin.",
       "autoSave": {
         "failed": "Otomatik kayıt oyununuzu kaydedemedi. Son kayıttan bu yana ilerlemeniz henüz kaydedilmedi: elle kaydedin ve diskte boş alan olduğunu kontrol edin."
       },
@@ -3654,6 +3661,10 @@
         "body": "{{player}} oyuncusunun {{parent}} kulübünden {{borrower}} kulübüne {{start}} tarihinde başlaması kararlaştırılan kiralaması gerçekleşemiyor: oyuncunun artık {{parent}} ile sözleşmesi yok.",
         "bodyRequirementNotMet": "{{player}} oyuncusunun {{parent}} kulübünden {{borrower}} kulübüne kararlaştırılan kiralaması {{start}} tarihinde başlayamadı: anlaşmanın dayandığı koşullardan biri, örneğin {{borrower}} kulübünün maaş bütçesindeki yer ya da oyuncunun sözleşme süresi, artık sağlanmıyor."
       },
+      "talksClosedBySale": {
+        "subject": "Başka kulüpte: {{player}}",
+        "body": "{{buyer}}, {{player}} oyuncusunu {{fee}} karşılığında transfer etti. Onun için açık görüşmeleriniz geri çekildi."
+      },
       "loanOffer": {
         "subject": "{{player}} için Kiralama Teklifi",
         "body": "{{team}}, {{player}} oyuncusunu {{endDate}} tarihine kadar kiralamak ve maaşların %{{wageContribution}}'ini karşılamak istiyor. Satın alma opsiyonu: {{buyOption}}. Teklifi Transferler sekmesinde inceleyin.",
@@ -3864,7 +3875,8 @@
       "package": {
         "countryWithoutRegion": "Bu paket, oyunun ülke listesinde olmayan \"{{name}}\" ({{code}}) ülkesini tanımlıyor ve hiçbir konfederasyona yerleştirmiyor; bu yüzden kulüpleri Avrupa altında toplanıyor. Ona bir konfederasyon verin.",
         "freeAgentFieldIgnored": "\"{{id}}\" oyuncusunun kulübü yok, bu yüzden sözleşmesiz bir serbest oyuncu: \"{{field}}\" yok sayılıyor. Kullanılması için ona bir kulüp verin ya da alanı kaldırın.",
-        "repeatedNamePool": "{{country}} için isim havuzu daha önce {{first}} dosyasında verilmişti; bu dosyadaki havuz onun yerine geçer. Yalnızca birini bırakın ya da farklı ülkelere atayın."
+        "repeatedNamePool": "{{country}} için isim havuzu daha önce {{first}} dosyasında verilmişti; bu dosyadaki havuz onun yerine geçer. Yalnızca birini bırakın ya da farklı ülkelere atayın.",
+        "namePoolIncomplete": "{{country}} için isim havuzunda ad var ama soyadı yok ya da soyadı var ama ad yok, bu yüzden kullanılmıyor: {{country}} oyuncuları oyunun kendi isimlerini alır. İkisini de girin."
       }
     }
   },

@@ -190,7 +190,7 @@ const CAREER_SEASONS: std::ops::RangeInclusive<u32> = 1..=9999;
 pub(super) fn authored_player_errors(
     player: &PlayerDef,
     source: &str,
-    team_ids: &HashSet<&str>,
+    known_team: &dyn Fn(&str) -> bool,
 ) -> Vec<PackageError> {
     let mut errors = Vec::new();
     let error = |code: &str| PackageError::new(code, source).with("entity", &player.id);
@@ -297,9 +297,9 @@ pub(super) fn authored_player_errors(
             ));
         }
         // The name is free text, so a club the package does not define is fine. An id
-        // is a reference, and is held to the package.
+        // is a reference, and is held to the package (or, for a patch, to its stack).
         if let Some(team_id) = entry.team_id.as_deref().filter(|id| !id.is_empty())
-            && !team_ids.contains(team_id)
+            && !known_team(team_id)
         {
             errors.push(error(UNKNOWN_TEAM).with("team", team_id));
         }

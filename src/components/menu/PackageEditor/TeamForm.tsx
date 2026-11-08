@@ -54,6 +54,7 @@ export function TeamForm({
   } = useAssetPicker({
     relPath: editingTeam.logo,
     projectDir,
+    entityKind: "team",
     entityId: () => editingTeam.id || `unnamed-team-${Date.now()}`,
     commit: (relPath) => (commitField ?? updateField)("logo", relPath),
     onError: onAssetError,

@@ -145,8 +145,7 @@ pub(super) fn pick_name_from_def(
 
     for candidate in candidate_codes {
         if let Some(pool) = names_def.pools.get(candidate)
-            && !pool.first_names.is_empty()
-            && !pool.last_names.is_empty()
+            && pool.is_usable()
         {
             let first = pool.first_names[rng.random_range(0..pool.first_names.len())].clone();
             let last = pool.last_names[rng.random_range(0..pool.last_names.len())].clone();
@@ -202,7 +201,7 @@ fn fallback_pool<'a>(
     names_def: &'a NamesDefinition,
     rng: &mut impl Rng,
 ) -> Option<&'a NamePool> {
-    let usable = |pool: &NamePool| !pool.first_names.is_empty() && !pool.last_names.is_empty();
+    let usable = NamePool::is_usable;
     let region_of = |code: &str| nations::nation_by_code(code).map(|nation| nation.region_id);
 
     let mut candidates: Vec<(&String, &NamePool)> = Vec::new();

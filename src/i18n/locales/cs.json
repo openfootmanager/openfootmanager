@@ -760,6 +760,12 @@
     "unsavedChanges": "Neuložené změny",
     "currentPlanCard": "Aktuální plán",
     "phaseBlueprint": "Plán herní fáze",
+    "instructionsPanel": {
+      "title": "Týmové pokyny",
+      "show": "Zobrazit týmové pokyny",
+      "hide": "Skrýt týmové pokyny",
+      "openAt": "Zobrazit týmové pokyny: {{section}}"
+    },
     "phaseLabels": {
       "withBall": "S míčem",
       "withoutBall": "Bez míče",
@@ -2757,6 +2763,7 @@
       "critical": "Kritický"
     },
     "error": {
+      "taskJoinFailed": "Simulace se nečekaně zastavila. Načtěte svou poslední uloženou hru a zkuste to znovu.",
       "autoSave": {
         "failed": "Automatické ukládání hru neuložilo. Postup od posledního uložení zatím uložen není: uložte hru ručně a zkontrolujte, zda je na disku volné místo."
       },
@@ -3654,6 +3661,10 @@
         "body": "Dohodnuté hostování hráče {{player}} z {{parent}} do {{borrower}}, které mělo začít {{start}}, se neuskuteční: hráč už nemá smlouvu s {{parent}}.",
         "bodyRequirementNotMet": "Dohodnuté hostování hráče {{player}} z {{parent}} do {{borrower}} nemohlo začít {{start}}: jedna z podmínek, za nichž bylo dohodnuto, například místo v mzdovém rozpočtu {{borrower}} nebo délka hráčovy smlouvy, už neplatí."
       },
+      "talksClosedBySale": {
+        "subject": "Podepsal jinde: {{player}}",
+        "body": "{{buyer}} podepsal hráče {{player}} za {{fee}}. Vaše otevřená jednání o něm byla stažena."
+      },
       "loanOffer": {
         "subject": "Nabídka hostování pro hráče {{player}}",
         "body": "Klub {{team}} chce získat hráče {{player}} na hostování do {{endDate}} a pokrýt {{wageContribution}} % jeho platu. Opce na odkup: {{buyOption}}. Zkontrolujte nabídku v záložce Přestupy.",
@@ -3864,7 +3875,8 @@
       "package": {
         "countryWithoutRegion": "Tento balíček definuje zemi „{{name}}“ ({{code}}), která není v seznamu zemí hry, a nezařazuje ji do žádné konfederace, takže její kluby jsou vedeny v Evropě. Přiřaďte jí konfederaci.",
         "freeAgentFieldIgnored": "Hráč „{{id}}“ nemá klub, je tedy volný hráč bez smlouvy: pole „{{field}}“ se ignoruje. Přiřaďte mu klub, aby se použilo, nebo pole odstraňte.",
-        "repeatedNamePool": "Sada jmen pro {{country}} už byla uvedena v {{first}}; sada v tomto souboru ji nahrazuje. Ponechte jen jednu, nebo je přiřaďte různým zemím."
+        "repeatedNamePool": "Sada jmen pro {{country}} už byla uvedena v {{first}}; sada v tomto souboru ji nahrazuje. Ponechte jen jednu, nebo je přiřaďte různým zemím.",
+        "namePoolIncomplete": "Sada jmen pro {{country}} má křestní jména, ale ne příjmení, nebo příjmení, ale ne křestní jména, a proto se nepoužije: hráči z {{country}} dostanou jména ze hry. Uveďte obojí."
       }
     }
   },

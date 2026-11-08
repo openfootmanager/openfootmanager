@@ -808,6 +808,12 @@
     "unsavedChanges": "Modifications non enregistrées",
     "currentPlanCard": "Plan actuel",
     "phaseBlueprint": "Plan par phase",
+    "instructionsPanel": {
+      "title": "Consignes d'équipe",
+      "show": "Afficher les consignes d'équipe",
+      "hide": "Masquer les consignes d'équipe",
+      "openAt": "Afficher les consignes d'équipe : {{section}}"
+    },
     "phaseLabels": {
       "withBall": "Avec ballon",
       "withoutBall": "Sans ballon",
@@ -2757,6 +2763,7 @@
       "critical": "Critique"
     },
     "error": {
+      "taskJoinFailed": "La simulation s'est arrêtée de manière inattendue. Chargez votre dernière sauvegarde et réessayez.",
       "autoSave": {
         "failed": "La sauvegarde automatique n'a pas pu enregistrer votre partie. Votre progression depuis la dernière sauvegarde n'est pas encore enregistrée : sauvegardez vous-même et vérifiez qu'il reste de l'espace disque."
       },
@@ -3654,6 +3661,10 @@
         "body": "Le prêt convenu de {{player}} de {{parent}} à {{borrower}}, prévu le {{start}}, ne peut pas avoir lieu : le joueur n'est plus sous contrat avec {{parent}}.",
         "bodyRequirementNotMet": "Le prêt convenu de {{player}} de {{parent}} à {{borrower}} n'a pas pu commencer le {{start}} : l'une des conditions auxquelles il avait été conclu, comme la marge dans la masse salariale de {{borrower}} ou la durée du contrat du joueur, n'est plus remplie."
       },
+      "talksClosedBySale": {
+        "subject": "Recruté ailleurs : {{player}}",
+        "body": "{{buyer}} a recruté {{player}} pour {{fee}}. Vos négociations en cours pour lui ont été retirées."
+      },
       "loanOffer": {
         "subject": "Offre de prêt pour {{player}}",
         "body": "{{team}} souhaite emprunter {{player}} jusqu'au {{endDate}} et prendre en charge {{wageContribution}}% de son salaire. Option d'achat : {{buyOption}}. Consultez l'offre dans l'onglet Transferts.",
@@ -3864,7 +3875,8 @@
       "package": {
         "countryWithoutRegion": "Ce paquet définit le pays « {{name}} » ({{code}}) en dehors de la liste des pays du jeu et ne le place dans aucune confédération ; ses clubs sont donc classés en Europe. Donnez-lui une confédération.",
         "freeAgentFieldIgnored": "Le joueur « {{id}} » n’a pas de club : il est donc libre, sans contrat, et « {{field}} » est ignoré. Donnez-lui un club pour l’utiliser, ou retirez ce champ.",
-        "repeatedNamePool": "Le groupe de noms de {{country}} a déjà été donné dans {{first}} ; celui de ce fichier le remplace. Gardez-en un seul, ou attribuez-les à des pays différents."
+        "repeatedNamePool": "Le groupe de noms de {{country}} a déjà été donné dans {{first}} ; celui de ce fichier le remplace. Gardez-en un seul, ou attribuez-les à des pays différents.",
+        "namePoolIncomplete": "Le groupe de noms de {{country}} a des prénoms mais pas de noms de famille, ou l'inverse, il n'est donc pas utilisé : les joueurs de {{country}} reçoivent les noms du jeu. Donnez-lui les deux."
       }
     }
   },

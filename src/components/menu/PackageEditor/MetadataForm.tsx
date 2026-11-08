@@ -110,6 +110,7 @@ export function MetadataForm({
   } = useAssetPicker({
     relPath: meta.logo,
     projectDir,
+    entityKind: "package",
     entityId: () => metaRef.current.id || "package-logo",
     commit: (relPath) => (onCommit ?? onChange)({ ...metaRef.current, logo: relPath }),
     onError: onAssetError,

@@ -827,6 +827,12 @@
     "unsavedChanges": "Modifiche non salvate",
     "currentPlanCard": "Piano attuale",
     "phaseBlueprint": "Schema per fasi",
+    "instructionsPanel": {
+      "title": "Istruzioni di squadra",
+      "show": "Mostra le istruzioni di squadra",
+      "hide": "Nascondi le istruzioni di squadra",
+      "openAt": "Mostra le istruzioni di squadra: {{section}}"
+    },
     "phaseLabels": {
       "withBall": "Con palla",
       "withoutBall": "Senza palla",
@@ -2757,6 +2763,7 @@
       "critical": "Critico"
     },
     "error": {
+      "taskJoinFailed": "La simulazione si è interrotta inaspettatamente. Carica il tuo ultimo salvataggio e riprova.",
       "autoSave": {
         "failed": "Il salvataggio automatico non è riuscito a salvare la partita. I progressi dall'ultimo salvataggio non sono ancora salvati: salva tu stesso e controlla che ci sia spazio libero sul disco."
       },
@@ -3654,6 +3661,10 @@
         "body": "Il prestito concordato di {{player}} dal {{parent}} al {{borrower}}, previsto dal {{start}}, non può avere luogo: il giocatore non è più sotto contratto con il {{parent}}.",
         "bodyRequirementNotMet": "Il prestito concordato di {{player}} dal {{parent}} al {{borrower}} non è potuto partire il {{start}}: una delle condizioni alle quali era stato concordato, come lo spazio nel monte ingaggi del {{borrower}} o la durata del contratto del giocatore, non è più rispettata."
       },
+      "talksClosedBySale": {
+        "subject": "Ingaggiato altrove: {{player}}",
+        "body": "Il {{buyer}} ha ingaggiato {{player}} per {{fee}}. Le tue trattative aperte per lui sono state ritirate."
+      },
       "loanOffer": {
         "subject": "Offerta di prestito per {{player}}",
         "body": "{{team}} vuole prendere {{player}} in prestito fino al {{endDate}} e coprire il {{wageContribution}}% dello stipendio. Opzione di riscatto: {{buyOption}}. Controlla l'offerta nella scheda Trasferimenti.",
@@ -3864,7 +3875,8 @@
       "package": {
         "countryWithoutRegion": "Questo pacchetto definisce il paese \"{{name}}\" ({{code}}) fuori dall'elenco dei paesi del gioco e non lo colloca in nessuna confederazione, quindi i suoi club sono archiviati in Europa. Assegnagli una confederazione.",
         "freeAgentFieldIgnored": "Il giocatore «{{id}}» non ha un club, quindi è svincolato e senza contratto: «{{field}}» viene ignorato. Assegnagli un club per usarlo, oppure rimuovi il campo.",
-        "repeatedNamePool": "Il gruppo di nomi di {{country}} è già stato dato in {{first}}; quello di questo file lo sostituisce. Tieni solo uno dei due, oppure assegnali a paesi diversi."
+        "repeatedNamePool": "Il gruppo di nomi di {{country}} è già stato dato in {{first}}; quello di questo file lo sostituisce. Tieni solo uno dei due, oppure assegnali a paesi diversi.",
+        "namePoolIncomplete": "Il gruppo di nomi di {{country}} ha nomi ma non cognomi, o cognomi ma non nomi, quindi non viene usato: i giocatori di {{country}} ricevono i nomi del gioco. Dagli entrambi."
       }
     }
   },
