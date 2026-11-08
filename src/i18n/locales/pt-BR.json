@@ -2763,6 +2763,7 @@
       "critical": "Crítico"
     },
     "error": {
+      "taskJoinFailed": "A simulação parou inesperadamente. Carregue seu último jogo salvo e tente novamente.",
       "autoSave": {
         "failed": "O salvamento automático não conseguiu salvar o jogo. Seu progresso desde o último salvamento ainda não está salvo: salve manualmente e verifique se há espaço livre no disco."
       },

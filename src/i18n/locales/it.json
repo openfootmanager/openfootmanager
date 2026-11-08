@@ -2763,6 +2763,7 @@
       "critical": "Critico"
     },
     "error": {
+      "taskJoinFailed": "La simulazione si è interrotta inaspettatamente. Carica il tuo ultimo salvataggio e riprova.",
       "autoSave": {
         "failed": "Il salvataggio automatico non è riuscito a salvare la partita. I progressi dall'ultimo salvataggio non sono ancora salvati: salva tu stesso e controlla che ci sia spazio libero sul disco."
       },

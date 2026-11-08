@@ -2763,6 +2763,7 @@
       "critical": "Kritický"
     },
     "error": {
+      "taskJoinFailed": "Simulace se nečekaně zastavila. Načtěte svou poslední uloženou hru a zkuste to znovu.",
       "autoSave": {
         "failed": "Automatické ukládání hru neuložilo. Postup od posledního uložení zatím uložen není: uložte hru ručně a zkontrolujte, zda je na disku volné místo."
       },

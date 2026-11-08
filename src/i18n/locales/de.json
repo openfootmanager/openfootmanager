@@ -2763,6 +2763,7 @@
       "critical": "Kritisch"
     },
     "error": {
+      "taskJoinFailed": "Die Simulation wurde unerwartet beendet. Lade deinen letzten Spielstand und versuche es erneut.",
       "autoSave": {
         "failed": "Das automatische Speichern hat dein Spiel nicht gespeichert. Dein Fortschritt seit dem letzten Speichern ist noch nicht gesichert: Speichere selbst und prüfe, ob auf dem Datenträger Platz frei ist."
       },
