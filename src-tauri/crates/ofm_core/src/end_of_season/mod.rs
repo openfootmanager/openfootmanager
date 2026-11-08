@@ -1761,6 +1761,74 @@ mod tests {
         );
     }
 
+    /// Given a retained club fixture on an international window when a career rolls into a
+    /// World Cup year, when the rollover settles its calendar, then the fixture avoids the window
+    /// and a subsequent load repair changes nothing or announces another postponement.
+    #[test]
+    fn world_cup_rollover_settles_international_windows_before_reload() {
+        let start = crate::world::start_date_for_year(2030).unwrap();
+        assert_eq!(
+            start.date_naive(),
+            chrono::NaiveDate::from_ymd_opt(2030, 6, 1).unwrap()
+        );
+        let mut game = calendar_game(start);
+        game.clock.current_date = at(2034, 6, 1);
+        add_division(&mut game, "retained", "south-america", at(2034, 9, 9));
+        game.competitions[0].fixtures.truncate(1);
+        let fixture = &game.competitions[0].fixtures[0];
+        assert_eq!(fixture.date, "2034-09-09", "the premise: a window fixture");
+        assert_eq!(fixture.status, FixtureStatus::Scheduled);
+        let fixture_id = fixture.id.clone();
+        game.manager.hire(fixture.home_team_id.clone());
+        assert!(!is_regenerated_at_rollover(&game.competitions[0]));
+        assert!(crate::world_cup::is_world_cup_summer(
+            (game.clock.current_date + Duration::days(2)).year()
+        ));
+        let blackout = crate::national_team::international_blackout_around(
+            &game.competitions,
+            game.clock.current_date.date_naive(),
+        );
+        assert!(blackout.contains(&chrono::NaiveDate::from_ymd_opt(2034, 9, 9).unwrap()));
+
+        regenerate_competitions_for_new_season(&mut game, 2035, at(2034, 6, 29));
+
+        let fixture = game
+            .competitions
+            .iter()
+            .flat_map(|c| &c.fixtures)
+            .find(|f| f.id == fixture_id)
+            .expect("the retained fixture survives");
+        assert_ne!(
+            fixture.date, "2034-09-09",
+            "the rollover must move the window fixture"
+        );
+        let blackout = crate::national_team::international_blackout_around(
+            &game.competitions,
+            game.clock.current_date.date_naive(),
+        );
+        for fixture in game
+            .competitions
+            .iter()
+            .flat_map(|c| &c.fixtures)
+            .filter(|f| {
+                f.competition != FixtureCompetition::InternationalNation
+                    && f.status == FixtureStatus::Scheduled
+            })
+        {
+            let date = chrono::NaiveDate::parse_from_str(&fixture.date, "%Y-%m-%d").unwrap();
+            assert!(
+                !blackout.contains(&date),
+                "{} remains on a window",
+                fixture.id
+            );
+        }
+        let before = serde_json::to_value(&game.competitions).unwrap();
+        let messages = game.messages.len();
+        assert_eq!(crate::calendar_repair::repair_loaded_calendar(&mut game), 0);
+        assert_eq!(serde_json::to_value(&game.competitions).unwrap(), before);
+        assert_eq!(game.messages.len(), messages);
+    }
+
     /// Given a cup whose final was postponed past the rollover, so its edition is not finished,
     /// When the rollover regenerates the competitions,
     /// Then the edition is kept with its unplayed final: it is played or moved by the sweep, never
