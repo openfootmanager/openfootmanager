@@ -449,6 +449,32 @@ describe("resolveMessage", () => {
     }
   });
 
+  // Given a relegation notice for a generated division, when rendered in German, then the division
+  // is named by the locale too (the relegation subject takes the same path as the promotion one).
+  it("names a relegated-to division in the player's language", async () => {
+    const previousLanguage = i18n.language;
+    await i18n.changeLanguage("de");
+    try {
+      const relegation = resolveMessage(
+        makeMessage({
+          subject_key: "be.msg.relegation.subject",
+          body_key: "be.msg.relegation.body",
+          i18n_params: {
+            division: "Germany Second Division",
+            divisionKey: "tournaments.competitions.secondDivision",
+            divisionCountry: "DE",
+            divisionSeason: "3",
+            season: "3",
+          },
+        }),
+      );
+      expect(relegation.subject).toContain("Deutschland Zweite Division");
+      expect(relegation.subject).not.toContain("Germany");
+    } finally {
+      await i18n.changeLanguage(previousLanguage);
+    }
+  });
+
   // Given a promotion notice with no division key (a hand-made division, or an older save),
   // when resolved, then the stored name is used as it is.
   it("keeps the stored division name when the notice carries no key", () => {

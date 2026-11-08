@@ -611,9 +611,6 @@ function normalizeTransferRoundupParams(
 }
 
 /**
- * Resolve all translatable fields on a message, returning a copy with resolved strings.
- */
-/**
  * A promotion or relegation names the division the club moved to. A generated division is stored
  * under an English template name ("Germany Second Division"); the notice also carries its name key,
  * country and season, so it reads as every other screen names it. Without a key the stored name
@@ -643,6 +640,9 @@ function normalizeDivisionName(
   };
 }
 
+/**
+ * Resolve all translatable fields on a message, returning a copy with resolved strings.
+ */
 export function resolveMessage(msg: MessageData): MessageData {
   const inferredParams = msg.i18n_params ?? inferLegacyDelegatedRenewalsParams(msg);
   const p = resolveParamValues(normalizeDivisionName(msg, inferredParams));
