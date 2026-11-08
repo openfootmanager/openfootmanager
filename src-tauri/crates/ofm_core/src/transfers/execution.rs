@@ -459,10 +459,15 @@ pub(super) fn execute_transfer(
     Ok(())
 }
 
-pub(super) fn finalize_successful_transfer_offer(
+/// Closes the talks still open on a player who has just been sold: every other pending bid and
+/// every pending loan request, whoever made them, are withdrawn today. Every sale goes through
+/// here, the AI market's as well as the user's (#1251): left open, they went on with the old club
+/// over a player who is no longer theirs. `accepted_offer_id` is the bid the sale came from, when
+/// it came from one.
+pub(super) fn close_open_offers_after_sale(
     game: &mut Game,
     player_id: &str,
-    accepted_offer_id: &str,
+    accepted_offer_id: Option<&str>,
 ) -> Result<(), String> {
     let today = game.clock.current_date.format("%Y-%m-%d").to_string();
     let player = game
@@ -472,7 +477,9 @@ pub(super) fn finalize_successful_transfer_offer(
         .ok_or("be.error.playerNotFound")?;
 
     for offer in &mut player.transfer_offers {
-        if offer.id != accepted_offer_id && offer.status == TransferOfferStatus::Pending {
+        if Some(offer.id.as_str()) != accepted_offer_id
+            && offer.status == TransferOfferStatus::Pending
+        {
             close_transfer_offer(offer, TransferOfferStatus::Withdrawn, &today);
         }
     }
@@ -603,7 +610,7 @@ pub fn process_pending_transfer_registrations(game: &mut Game) {
             }
             execute_transfer(game, &player_id, &buyer_team_id, from_team_id, fee)
                 .map_err(|_| Failure::RegistrationBlocked)?;
-            finalize_successful_transfer_offer(game, &player_id, &offer_id)
+            close_open_offers_after_sale(game, &player_id, Some(&offer_id))
                 .map_err(|_| Failure::RegistrationBlocked)
         })();
         let failure_reason = registration_result.err();
@@ -761,7 +768,41 @@ pub fn process_pending_loan_registrations(game: &mut Game) {
                 close_loan_offer(offer, LoanOfferStatus::Withdrawn, &today);
             }
         }
+        if !executed
+            && let Some(letter) =
+                failed_loan_registration_letter(game, &player_id, &offer_id, &today)
+        {
+            crate::inbox::emit(game, letter);
+        }
     }
+}
+
+/// The letter for an agreed loan withdrawn on its start day, when the user lent or borrowed: the
+/// permanent path's registration day tells the user, and a loan did not (#1251). Loans between two
+/// other clubs are theirs.
+fn failed_loan_registration_letter(
+    game: &Game,
+    player_id: &str,
+    offer_id: &str,
+    today: &str,
+) -> Option<domain::message::InboxMessage> {
+    let user_club_id = game.manager.team_id.as_deref()?;
+    let player = game.players.iter().find(|player| player.id == player_id)?;
+    let offer = player
+        .loan_offers
+        .iter()
+        .find(|offer| offer.id == offer_id)?;
+    (offer.from_team_id == user_club_id || offer.parent_team_id == user_club_id).then(|| {
+        crate::messages::loan_registration_failed_message(
+            offer,
+            player,
+            user_club_id,
+            &game.team_name_or_id(&offer.parent_team_id),
+            &game.team_name_or_id(&offer.from_team_id),
+            crate::messages::LoanCancellation::RequirementNoLongerMet,
+            today,
+        )
+    })
 }
 
 #[cfg(test)]
@@ -960,6 +1001,199 @@ mod tests {
             game.retired_players
                 .iter()
                 .any(|retiree| retiree.id == "player-award")
+        );
+    }
+
+    fn loan_cancellations(game: &Game) -> Vec<&InboxMessage> {
+        game.messages
+            .iter()
+            .filter(|message| {
+                message.subject_key.as_deref() == Some("be.msg.loanRegistrationFailed.subject")
+            })
+            .collect()
+    }
+
+    /// `game.players[0]`, under contract to `lender` until 12 January 2026, with a loan to
+    /// `borrower` agreed and waiting to start on 20 January.
+    fn pending_loan_game(lender: &str, borrower: &str) -> Game {
+        pending_loan_game_with(lender, borrower, "2026-01-12")
+    }
+
+    /// The same, his contract with `lender` ending on `contract_end`.
+    fn pending_loan_game_with(lender: &str, borrower: &str, contract_end: &str) -> Game {
+        // The fixture contracts the player to team1 (the user) or team2; only those lend here.
+        assert!(lender == "team1" || lender == "team2");
+        let mut game =
+            pending_transfer_game_with(lender == "team1", Some(contract_end), "2026-01-20");
+        game.players[0].transfer_offers.clear();
+        game.players[0].loan_offers.push(
+            serde_json::from_value(serde_json::json!({
+                "id": "agreed-loan", "from_team_id": borrower, "parent_team_id": lender,
+                "start_date": "2026-01-20", "end_date": "2026-06-30",
+                "wage_contribution_pct": 60, "status": "PendingRegistration", "date": "2026-01-05"
+            }))
+            .unwrap(),
+        );
+        game
+    }
+
+    fn with_third_club(mut game: Game) -> Game {
+        let mut third = game.teams[1].clone();
+        third.id = "team3".to_string();
+        third.name = "Third Club".to_string();
+        game.teams.push(third);
+        game
+    }
+
+    /// Given the user's player loaned out to an AI club, agreed and waiting for the window, whose
+    /// contract runs out first; when it expires; then the user, as lender, is told the loan cannot
+    /// start, naming both clubs and the day it was due (#1242: it vanished without a word).
+    #[test]
+    fn an_agreed_loan_out_whose_player_is_released_is_reported_to_the_lender() {
+        let mut game = pending_loan_game("team1", "team2");
+
+        crate::contracts::process_contract_expiries(&mut game);
+
+        let letters = loan_cancellations(&game);
+        assert_eq!(letters.len(), 1);
+        assert_eq!(letters[0].i18n_params["start"], "2026-01-20");
+        assert_eq!(
+            letters[0].i18n_params["parent"],
+            game.team_name_or_id("team1")
+        );
+        assert_eq!(
+            letters[0].i18n_params["borrower"],
+            game.team_name_or_id("team2")
+        );
+        assert_eq!(
+            letters[0].context.player_id.as_deref(),
+            Some("player-award")
+        );
+        assert!(game.players[0].loan_offers.is_empty());
+    }
+
+    /// Given an AI club's player loaned to the user, agreed and waiting; when his contract expires;
+    /// then the user, as borrower, is told the loan cannot start.
+    #[test]
+    fn an_agreed_loan_in_whose_player_is_released_is_reported_to_the_borrower() {
+        let mut game = pending_loan_game("team2", "team1");
+
+        crate::contracts::process_contract_expiries(&mut game);
+
+        assert_eq!(loan_cancellations(&game).len(), 1);
+    }
+
+    /// Given a loan agreed between two AI clubs; when the player's contract expires; then the user
+    /// is told nothing: it is not his deal.
+    #[test]
+    fn a_loan_between_two_other_clubs_lapses_without_a_letter_to_the_user() {
+        let mut game = with_third_club(pending_loan_game("team2", "team3"));
+
+        crate::contracts::process_contract_expiries(&mut game);
+
+        assert!(loan_cancellations(&game).is_empty());
+    }
+
+    /// Given the user's player loaned out and agreed, and old enough to retire at the season's end;
+    /// when the season's ageing retires him; then the user is told the loan cannot start.
+    #[test]
+    fn an_agreed_loan_whose_player_retires_is_reported_to_the_lender() {
+        let mut game = pending_loan_game("team1", "team2");
+        game.players[0].date_of_birth = "1980-01-01".to_string();
+
+        let today = game.clock.current_date.date_naive();
+        crate::aging::apply_seasonal_aging(&mut game, today, 2025);
+
+        assert_eq!(loan_cancellations(&game).len(), 1);
+    }
+
+    /// The loan agreed in `pending_loan_game_with` on its start day, 20 January, the player still
+    /// under contract to `lender` for two more seasons, and `borrower` with no room left for his
+    /// share of the wage: the one requirement of the registration day that no longer holds.
+    fn loan_due_with_a_borrower_out_of_wage_room(lender: &str, borrower: &str) -> Game {
+        let mut game = with_third_club(pending_loan_game_with(lender, borrower, "2028-06-30"));
+        game.clock =
+            crate::clock::GameClock::new(Utc.with_ymd_and_hms(2026, 1, 20, 12, 0, 0).unwrap());
+        game.teams
+            .iter_mut()
+            .find(|team| team.id == borrower)
+            .unwrap()
+            .wage_budget = 0;
+        game
+    }
+
+    fn loan_status(game: &Game) -> &LoanOfferStatus {
+        &game.players[0].loan_offers[0].status
+    }
+
+    /// Given an AI club's player loaned to the user, agreed and due to start today, and the user's
+    /// wage bill no longer able to take his share; when the day's registrations run; then the loan
+    /// is withdrawn and the user, as borrower, is told it could not start, why, and on which day
+    /// (#1251: it was withdrawn without a word).
+    #[test]
+    fn a_loan_in_that_fails_on_its_registration_day_is_reported_to_the_borrower() {
+        let mut game = loan_due_with_a_borrower_out_of_wage_room("team2", "team1");
+
+        process_pending_loan_registrations(&mut game);
+
+        assert_eq!(loan_status(&game), &LoanOfferStatus::Withdrawn);
+        let letters = loan_cancellations(&game);
+        assert_eq!(letters.len(), 1);
+        assert_eq!(
+            letters[0].body_key.as_deref(),
+            Some("be.msg.loanRegistrationFailed.bodyRequirementNotMet")
+        );
+        assert_eq!(letters[0].i18n_params["start"], "2026-01-20");
+        assert_eq!(
+            letters[0].i18n_params["parent"],
+            game.team_name_or_id("team2")
+        );
+        assert_eq!(
+            letters[0].i18n_params["borrower"],
+            game.team_name_or_id("team1")
+        );
+        assert_eq!(
+            letters[0].context.player_id.as_deref(),
+            Some("player-award")
+        );
+    }
+
+    /// Given the user's player loaned out to an AI club whose wage bill can no longer take him;
+    /// when the loan's registration day comes; then the user, as lender, is told it did not start.
+    #[test]
+    fn a_loan_out_that_fails_on_its_registration_day_is_reported_to_the_lender() {
+        let mut game = loan_due_with_a_borrower_out_of_wage_room("team1", "team2");
+
+        process_pending_loan_registrations(&mut game);
+
+        assert_eq!(loan_status(&game), &LoanOfferStatus::Withdrawn);
+        assert_eq!(game.players[0].team_id.as_deref(), Some("team1"));
+        assert_eq!(loan_cancellations(&game).len(), 1);
+    }
+
+    /// Given a loan between two AI clubs that fails on its registration day; when it is withdrawn;
+    /// then the user is told nothing: it is not the user's deal.
+    #[test]
+    fn a_loan_between_two_other_clubs_fails_without_a_letter_to_the_user() {
+        let mut game = loan_due_with_a_borrower_out_of_wage_room("team2", "team3");
+
+        process_pending_loan_registrations(&mut game);
+
+        assert_eq!(loan_status(&game), &LoanOfferStatus::Withdrawn);
+        assert!(loan_cancellations(&game).is_empty());
+    }
+
+    /// Given a loan that lapsed with the player's contract; when the letter is written; then it
+    /// says the lender no longer holds him, not the registration-day wording.
+    #[test]
+    fn a_loan_lapsed_with_the_contract_keeps_its_own_explanation() {
+        let mut game = pending_loan_game("team1", "team2");
+
+        crate::contracts::process_contract_expiries(&mut game);
+
+        assert_eq!(
+            loan_cancellations(&game)[0].body_key.as_deref(),
+            Some("be.msg.loanRegistrationFailed.body")
         );
     }
 

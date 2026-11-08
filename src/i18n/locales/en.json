@@ -1255,6 +1255,8 @@
     "boardSatisfied": "The board is satisfied with your performance.",
     "boardConcerns": "The board has concerns about results.",
     "boardThreat": "Your position is under serious threat.",
+    "boardWarned": "The board has warned you.",
+    "boardFinalWarning": "You are on a final warning.",
     "board": "Board",
     "fans": "Fans",
     "born": "Born",
@@ -1872,7 +1874,7 @@
     "skipShootoutPickerDesc": "Start penalty shootouts in the automatic order, without asking you to set it",
     "savesData": "Saves & Data",
     "autoSave": "Auto-Save",
-    "autoSaveDesc": "Automatically save your game after each day",
+    "autoSaveDesc": "Automatically save your game every week",
     "exportWorld": "Export World Database",
     "exportWorldDesc": "Save the current world data as a shareable JSON file",
     "export": "Export",
@@ -2755,6 +2757,9 @@
       "critical": "Critical"
     },
     "error": {
+      "autoSave": {
+        "failed": "Auto-save could not save your game. Your progress since the last save is not stored yet: save it yourself, and check that the disk has free space."
+      },
       "squadFloor": {
         "wouldLeaveShort": "This player cannot leave: the squad would fall below the minimum a club must keep. Position group affected: {{group}}.",
         "wouldLeaveSeniorsShort": "This player cannot leave: the club would be left with fewer than {{floor}} senior players, the minimum a club must keep."
@@ -3643,6 +3648,11 @@
         "subject": "Loan agreed: {{player}}",
         "bodyWithOption": "{{player}} will move on loan from {{parent}} to {{borrower}} from {{start}} until {{end}}. {{borrower}} will cover {{contribution}}% of the wages. Purchase option: {{fee}}.",
         "bodyNoOption": "{{player}} will move on loan from {{parent}} to {{borrower}} from {{start}} until {{end}}. {{borrower}} will cover {{contribution}}% of the wages. No purchase option."
+      },
+      "loanRegistrationFailed": {
+        "subject": "Loan cancelled: {{player}}",
+        "body": "The agreed loan of {{player}} from {{parent}} to {{borrower}}, due to start on {{start}}, cannot go ahead: the player is no longer under contract to {{parent}}.",
+        "bodyRequirementNotMet": "The agreed loan of {{player}} from {{parent}} to {{borrower}} could not start on {{start}}: one of the conditions it was agreed under, such as room in {{borrower}}'s wage budget or the length of the player's contract, no longer holds."
       },
       "loanOffer": {
         "subject": "Loan Offer for {{player}}",

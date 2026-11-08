@@ -80,6 +80,11 @@ impl WrapperApp {
         self.app.state::<Arc<SaveManagerState>>()
     }
 
+    /// The mock app's handle, for a command that takes one.
+    pub fn handle(&self) -> tauri::AppHandle<MockRuntime> {
+        self.app.handle().clone()
+    }
+
     /// The saved copy of the active career, read back from disk.
     pub fn saved_game(&self) -> Game {
         let id = self.save_id.as_deref().expect("built with a save");
