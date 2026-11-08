@@ -15,6 +15,10 @@ import { useFetchedSquad } from "../../hooks/useFetchedSquad";
 import { useFamiliarity } from "../../hooks/useFamiliarity";
 import { usePositionTable } from "../../hooks/usePositionGroups";
 import { useAutoSetPieces } from "../../hooks/useAutoSetPieces";
+import {
+  tacticsLineupRevision,
+  useTacticsLineupProjection,
+} from "../../hooks/useTacticsLineupProjection";
 import type { TacticsPhaseSettings } from "../../store/types";
 
 import {
@@ -37,7 +41,6 @@ import {
   countOutOfPositionPlayers,
   findTacticsPresetBySetup,
   getSelectedAndComparePlayers,
-  resolveStartingXiIds,
 } from "./TacticsTab.helpers";
 import {
   buildUpdatedMatchRolesForAssignment,
@@ -65,10 +68,20 @@ export function useTacticsLineup({ gameState, onGameUpdate }: UseTacticsLineupAr
     clockDate,
     sessionState ?? gameState,
   );
-  // The position table, the familiarity and the squad's answer for this revision: a lineup can be
-  // graded and changed. The writers, the notice and the count all read this one flag.
-  const canGradeLineup = lineupReady(positionTable, familiarity) && squadAnswered;
   const initialTeam = sessionState?.team ?? gameState?.teams?.find((t) => t.id === teamId) ?? null;
+  const backendLineup = useTacticsLineupProjection(
+    tacticsLineupRevision(
+      gameState?.career_token ?? 0,
+      initialTeam,
+      fetchedSquad ?? gameState?.players ?? [],
+      clockDate,
+    ),
+  );
+  // The position table, the familiarity, the squad's answer and the backend's side for this
+  // revision: a lineup can be graded and changed. A change worked out from an older eleven must not
+  // be saved. The writers, the notice and the count all read this one flag.
+  const canGradeLineup =
+    lineupReady(positionTable, familiarity) && squadAnswered && backendLineup.loaded;
   const initialPreset = initialTeam
     ? findTacticsPresetBySetup(
         initialTeam.formation || "4-4-2",
@@ -97,25 +110,21 @@ export function useTacticsLineup({ gameState, onGameUpdate }: UseTacticsLineupAr
   const available = roster.filter(isMatchDayEligible);
   const pitchRows = useMemo(() => buildPitchRows(formation), [formation]);
 
+  // The eleven is the one the match would field, as the backend picks it (`get_tactics_lineup`);
+  // the screen keeps no selection of its own. A change the manager just made shows at once, until
+  // the save's answer catches up, and the saved eleven stands in until the first answer arrives.
+  const backendEleven = backendLineup.lineup?.eleven.map((slot) => slot.player_id) ?? null;
   const startingXiIds = useMemo(
     () =>
-      resolveStartingXiIds({
-        availablePlayers: available,
-        formation,
-        pendingStartingXiIds,
-        positionTable,
-        familiarity,
-        playersById,
-        savedStartingXiIds: team?.starting_xi_ids || [],
-      }),
+      (pendingStartingXiIds && pendingStartingXiIds.length > 0
+        ? pendingStartingXiIds
+        : (backendEleven ?? team?.starting_xi_ids ?? [])
+      ).filter((id) => playersById.has(id)),
     [
-      available.map((player) => player.id).join(","),
-      formation,
-      (team?.starting_xi_ids || []).join(","),
       (pendingStartingXiIds || []).join(","),
+      (backendEleven || []).join(","),
+      (team?.starting_xi_ids || []).join(","),
       roster.map((player) => player.id).join(","),
-      positionTable,
-      familiarity,
     ],
   );
 

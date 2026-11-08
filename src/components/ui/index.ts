@@ -30,4 +30,5 @@ export { CardGrid } from "./CardGrid";
 export { EntityCard } from "./EntityCard";
 export { ConditionMeter } from "./ConditionMeter";
 export { FormDots } from "./FormDots";
+export { FormResultMark, formResultOf } from "./FormResultMark";
 export { ViewSwitch } from "./ViewSwitch";
