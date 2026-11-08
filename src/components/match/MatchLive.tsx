@@ -548,8 +548,8 @@ export default function MatchLive({
             </div>
           )}
 
-          {/* Key Events sidebar */}
-          <div className="min-h-0 flex-1 flex flex-col p-4">
+          {/* Keep the list usable when the controls force the sidebar to scroll. */}
+          <div className="min-h-40 flex-1 flex flex-col p-4">
             <h3 className="shrink-0 text-xs font-heading font-bold uppercase tracking-widest text-gray-500 dark:text-gray-400 mb-3">
               {t("match.keyEvents")}
             </h3>
