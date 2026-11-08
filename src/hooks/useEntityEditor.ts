@@ -122,11 +122,15 @@ export function useEntityEditor<T extends { id: string }>(options: {
     // or, if this session has since rewritten that row (a save, an undo sync), the row it became.
     // A position or an id alone could name a different record by now: the other editor over the
     // same list shifts rows, and two rows may share an id, but neither replaces this row, so the
-    // identity still finds it. Only when the row objects themselves were rebuilt (a pick that
-    // outlived its session, a list built anew) is the id used, preferring the row it had.
+    // identity still finds it, and every delete keeps the surviving row objects. So within the
+    // session a missing row is a deleted record, and the id must not name its twin. Only a pick
+    // that outlived its session (another record was opened during the dialog) has lost the
+    // identity it began with, and falls back to the id, preferring the row it had.
     let index = rowAtRender ? items.indexOf(rowAtRender) : -1;
     if (index === -1 && sameSession && openRow.current) index = items.indexOf(openRow.current);
-    if (index === -1 && editingId) index = rowWithId(items, editingIndex, editingId);
+    if (index === -1 && !sameSession && editingId) {
+      index = rowWithId(items, editingIndex, editingId);
+    }
     // The record is gone (deleted, or discarded by an undo). Writing it back would resurrect
     // something the user just removed, or land on another record.
     if (index === -1) return;

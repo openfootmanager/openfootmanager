@@ -411,8 +411,9 @@ describe("useEntityEditor", () => {
       });
       const staleCommit = hook.result.current.commitField;
 
-      // Meanwhile the user deletes the first entity, so "b" is now at index 0.
-      const reordered: Item[] = [{ id: "b", name: "B" }];
+      // Meanwhile the user deletes the first entity, so "b" is now at index 0. A delete filters
+      // the existing array, so the surviving row is the same object.
+      const reordered: Item[] = [items[1]];
       hook.rerender({ ...defaults, items: reordered });
 
       act(() => {
@@ -986,6 +987,23 @@ describe("two editors over one list", () => {
       { id: "x", name: "First X" },
       { id: "x", name: "Second X", logo: "assets/images/team/x.png" },
     ]);
+  });
+
+  // Given the second of two rows sharing an id open, an asset pick started, and that row deleted by
+  //      the other editor while the pick's dialog was open
+  // When the pick commits
+  // Then the asset is dropped: it does not land on the remaining twin
+  it("drops a picked asset when the other editor deletes the open row and a twin remains", () => {
+    const { result } = renderTwoEditors([
+      { id: "x", name: "First X" },
+      { id: "x", name: "Second X" },
+    ]);
+    act(() => result.current.first.handleSelect(1));
+    const commit = result.current.first.commitField;
+    act(() => result.current.youth.handleDelete(1));
+    act(() => commit("logo", "assets/images/team/x.png"));
+
+    expect(result.current.items).toEqual([{ id: "x", name: "First X" }]);
   });
 
   // Given a record open, an asset pick started, and the record saved while the pick's dialog was
