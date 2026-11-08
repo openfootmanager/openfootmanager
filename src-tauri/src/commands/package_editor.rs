@@ -761,8 +761,8 @@ mod tests {
                     ),
                 ),
                 (
-                    "names/names.json",
-                    r#"{"schema":"names","pools":{"BR":{"first_names":["Joao"],"last_names":[]}}}"#,
+                    "countries/qq.json",
+                    r#"{"schema":"country","id":"QQ","name":"Qland"}"#,
                 ),
             ],
         )
@@ -815,6 +815,10 @@ mod tests {
                     ),
                 ),
                 (
+                    "countries/qq.json",
+                    r#"{"schema":"country","id":"QQ","name":"Qland"}"#,
+                ),
+                (
                     "players/players.json",
                     r#"{"schema":"player","items":[{"id":"p1","name":"P One","club":"ghost-fc","nationality":"ENG","position":"Striker","overall":70}]}"#,
                 ),
@@ -864,7 +868,20 @@ mod tests {
             "parse error, duplicate id and unknown club are three findings: {:?}",
             validated.issues.iter().map(|i| &i.code).collect::<Vec<_>>()
         );
-        assert_eq!(validated.warnings.len(), cli_warnings.len());
+        let warning_key = |code: &str, file: &str| format!("{code}|{file}");
+        let mut editor_warnings: Vec<String> = validated
+            .warnings
+            .iter()
+            .map(|w| warning_key(&w.code, &w.file))
+            .collect();
+        let mut cli_warning_keys: Vec<String> = cli_warnings
+            .iter()
+            .map(|w| warning_key(&w.code, &w.file))
+            .collect();
+        editor_warnings.sort();
+        cli_warning_keys.sort();
+        assert!(!cli_warning_keys.is_empty(), "the fixture must warn");
+        assert_eq!(editor_warnings, cli_warning_keys);
     }
 
     /// Given a project with thousands of entities' worth of data
