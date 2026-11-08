@@ -701,6 +701,24 @@ mod tests {
         assert_eq!(bytes, "logo bytes");
     }
 
+    /// Given an entity id with a drive prefix, such as `C:evil`
+    /// When an asset is copied for it
+    /// Then the copy is refused: on Windows a drive prefix makes `Path::join` replace the folder it
+    ///      joins to, so the file would land outside the package
+    #[test]
+    fn an_asset_for_an_id_with_a_drive_prefix_is_refused() {
+        let dir = temp_project("asset-drive", &[("logo.png", "logo bytes")]);
+        let result = copy_package_asset(
+            dir.to_string_lossy().to_string(),
+            "team".to_string(),
+            "C:evil".to_string(),
+            dir.join("logo.png").to_string_lossy().to_string(),
+        );
+        std::fs::remove_dir_all(&dir).ok();
+
+        assert_eq!(result, Err("be.error.invalidPath".to_string()));
+    }
+
     /// Given a picker that names no known kind of entity
     /// When it asks to copy an asset
     /// Then the copy is refused, as an unusable id is, rather than writing an unnamespaced file
@@ -1635,7 +1653,8 @@ pub fn build_ofm(dir: String, output: String) -> Result<(), String> {
 }
 
 fn sanitize_entity_id(id: &str) -> Result<(), String> {
-    if id.is_empty() || id.contains('/') || id.contains('\\') || id.contains("..") {
+    // `:` too: on Windows a drive prefix (`C:evil`) makes `Path::join` replace the folder it joins to.
+    if id.is_empty() || id.contains(['/', '\\', ':']) || id.contains("..") {
         return Err("be.error.invalidPath".to_string());
     }
     Ok(())
