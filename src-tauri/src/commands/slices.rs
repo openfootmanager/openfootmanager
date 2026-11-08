@@ -28,6 +28,7 @@ use ofm_core::slices::teams::{
     TeamsDirectory, TeamsDirectoryQuery,
 };
 use ofm_core::state::StateManager;
+use ofm_core::tactics_lineup::{tactics_lineup, TacticsLineup};
 
 const NO_ACTIVE_GAME: &str = "be.error.noActiveGameSession";
 
@@ -201,6 +202,15 @@ pub async fn get_familiarity(
     get_familiarity_internal(&state)
 }
 
+/// The side the manager's club will field: the eleven slot by slot with each one's role and how
+/// he stands there, the bench, and everyone else. The match's own selection, for the Tactics screen.
+#[tauri::command]
+pub async fn get_tactics_lineup(
+    state: State<'_, Arc<StateManager>>,
+) -> Result<TacticsLineup, String> {
+    get_tactics_lineup_internal(&state)
+}
+
 /// The managers directory: every active manager with his club, reputation band and record, and
 /// every club with no manager, filtered by `status`.
 #[tauri::command]
@@ -218,6 +228,12 @@ fn get_managers_page_internal(
     state
         .get_game(|game| query_managers_page(game, status))
         .ok_or_else(|| NO_ACTIVE_GAME.to_string())
+}
+
+fn get_tactics_lineup_internal(state: &StateManager) -> Result<TacticsLineup, String> {
+    state
+        .get_game(tactics_lineup)
+        .ok_or_else(|| NO_ACTIVE_GAME.to_string())?
 }
 
 /// How the board and the fans feel about the user's manager, in the words the Manager tab shows
@@ -346,6 +362,16 @@ mod tests {
     fn the_team_card_adapter_reports_a_missing_session() {
         assert_eq!(
             get_team_card_internal(&StateManager::new(), "club").unwrap_err(),
+            NO_ACTIVE_GAME
+        );
+    }
+
+    /// Given no active game, when the tactics lineup adapter reads it,
+    /// then the translated session error is returned.
+    #[test]
+    fn the_tactics_lineup_adapter_reports_a_missing_session() {
+        assert_eq!(
+            get_tactics_lineup_internal(&StateManager::new()).unwrap_err(),
             NO_ACTIVE_GAME
         );
     }
