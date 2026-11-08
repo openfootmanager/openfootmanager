@@ -4098,6 +4098,12 @@
     "winRate": "Siegquote"
   },
   "worldEditor": {
+    "previewPlaceholder": {
+      "team": "Neues Team",
+      "player": "Neuer Spieler",
+      "competition": "Neuer Wettbewerb"
+    },
+    "estimatedRating": "gesch.",
     "positionGroupFilter": {
       "Goalkeeper": "Alle Torhüter",
       "Defender": "Alle Verteidiger",
