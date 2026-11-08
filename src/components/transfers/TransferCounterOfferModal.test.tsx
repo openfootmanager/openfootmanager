@@ -278,4 +278,36 @@ describe("TransferCounterOfferModal", () => {
 
     expect(screen.getByText("common.posAbbr.LeftBack")).toBeInTheDocument();
   });
+
+  /**
+   * Given a club's offer being answered
+   * When the counter-offer dialog opens, and the player presses Escape
+   * Then it is a dialog named by its heading with the focus inside it (it used to leave the focus
+   *      on the transfers list behind, with no Escape and no Tab trap), and Escape closes it
+   */
+  it("is a named dialog that takes the focus and closes on Escape", () => {
+    const onClose = vi.fn();
+    render(
+      <TransferCounterOfferModal
+        counterTarget={createCounterTarget()}
+        teams={[createTeam(), createTeam({ id: "team-2", name: "Buyer FC" })]}
+        counterAmount=""
+        onCounterAmountChange={vi.fn()}
+        counterFeedback={null}
+        activeCounterOffer={createOffer()}
+        counterResult={null}
+        counterError={null}
+        counterLoading={false}
+        onSubmit={vi.fn()}
+        onClose={onClose}
+      />,
+    );
+
+    const dialog = screen.getByRole("dialog", { name: "Counter Offer" });
+    expect(dialog).toHaveAttribute("aria-modal", "true");
+    expect(dialog).toContainElement(document.activeElement as HTMLElement);
+
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(onClose).toHaveBeenCalledOnce();
+  });
 });

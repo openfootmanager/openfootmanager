@@ -573,12 +573,14 @@ function FinancesTabLoaded({
               </p>
             </div>
           </div>
-          {(myTeam.financial_ledger?.length ?? 0) > 0 && (
+          {financeSnapshot.cashFlow.length > 0 && (
             <div className="mt-4">
               <FinanceCashFlowChart
-                ledger={myTeam.financial_ledger ?? []}
-                incomeLabel={t("finances.seasonIncome")}
-                expensesLabel={t("finances.seasonExpenses")}
+                weeks={financeSnapshot.cashFlow}
+                // The weeks hold every movement, transfer and loan fees included, which the season
+                // figures beside them leave out: so the series are money in and out, not the season's.
+                incomeLabel={t("finances.moneyIn")}
+                expensesLabel={t("finances.moneyOut")}
               />
             </div>
           )}

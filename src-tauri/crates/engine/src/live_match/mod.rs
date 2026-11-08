@@ -95,6 +95,25 @@ pub enum MatchCommand {
     },
 }
 
+impl MatchCommand {
+    /// The side the command is for. Every command names one: a manager's orders go to a team.
+    pub fn side(&self) -> Side {
+        match self {
+            Self::Substitute { side, .. }
+            | Self::ChangeFormation { side, .. }
+            | Self::ChangePlayStyle { side, .. }
+            | Self::SetFreeKickTaker { side, .. }
+            | Self::SetCornerTaker { side, .. }
+            | Self::SetPenaltyTaker { side, .. }
+            | Self::SetCaptain { side, .. }
+            | Self::PreMatchSwap { side, .. }
+            | Self::ChangePlayerRole { side, .. }
+            | Self::ChangeTacticalDial { side, .. }
+            | Self::SetShootoutOrder { side, .. } => *side,
+        }
+    }
+}
+
 // ---------------------------------------------------------------------------
 // SubstitutionRecord — tracks a substitution that was made
 // ---------------------------------------------------------------------------

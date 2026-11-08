@@ -76,6 +76,15 @@ jobs:
       - name: Check every build-check job has a timeout
         run: ./scripts/check-job-timeouts.sh .github/workflows/build-check.yml
 
+      # The page harness's career is generated at build time and must stay out of git: committed,
+      # two PRs that each regenerated it conflicted, or merged into a copy no fresh generation
+      # produced, and dropped out of the merge queue. The fixtures first, for the reason above.
+      - name: Check the untracked-generated check still rejects a tracked file
+        run: ./scripts/check-untracked-generated.test.sh
+
+      - name: Check build-time generated files are not tracked
+        run: ./scripts/check-untracked-generated.sh
+
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 24 # pinned with the frontend job; see the reason there
@@ -193,7 +202,7 @@ jobs:
 
   frontend:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 35
 
     steps:
       - name: Checkout
@@ -213,8 +222,23 @@ jobs:
           node-version: 24
           cache: npm
 
+      # The page harness's career (src/dev/pageHarness/fixture.generated.ts) is built from the Rust
+      # side and is not committed, so this job generates it before the checks that read it: the
+      # build type-checks every value in it against the frontend's types, from the code being
+      # merged rather than from a copy a PR committed.
+      - name: Install Rust 1.95.0
+        uses: dtolnay/rust-toolchain@1.95.0
+
+      - name: Rust cache
+        uses: swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2
+        with:
+          workspaces: ./src-tauri -> target
+
       - name: Install frontend dependencies
         run: npm ci
+
+      - name: Generate the page harness's career
+        run: npm run fixture:pages
 
       # There is an unrelated package on npm literally called `biome`, last published at 0.3.3.
       # `npx biome` finds it, prints nothing and exits 0. This repository has always documented

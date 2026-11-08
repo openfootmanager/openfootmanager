@@ -21,6 +21,7 @@ const MAX_DIGEST_DAYS = 60;
 export function useDigestAdvance(
   setGameState: (state: GameStateData) => void,
   onFired: () => void,
+  onAutoSaveFailed?: (error: string) => void,
 ) {
   const [isRunning, setIsRunning] = useState(false);
   const [isAborting, setIsAborting] = useState(false);
@@ -51,6 +52,8 @@ export function useDigestAdvance(
         }
 
         const result = await advanceOneDay();
+        // The weekly auto-save runs inside the advance; a failure must reach the screen.
+        if (result.auto_save_error) onAutoSaveFailed?.(result.auto_save_error);
 
         if (abortRef.current) {
           setStopReason({ kind: "stopped" });

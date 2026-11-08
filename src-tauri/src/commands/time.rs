@@ -2,6 +2,7 @@ use log::info;
 use std::sync::Arc;
 use tauri::State;
 
+use crate::application::auto_save;
 use crate::application::time_advancement::advance_time_with_mode as advance_time_with_mode_service;
 pub use crate::application::time_advancement::AdvanceTimeWithModeResponse;
 use crate::application::time_blockers::stopping_blockers;
@@ -48,14 +49,23 @@ pub fn advance_time_with_mode_internal(
 ///
 /// Runs on a blocking worker so the day's simulation never freezes the webview.
 #[tauri::command]
-pub async fn advance_time_with_mode(
+pub async fn advance_time_with_mode<R: tauri::Runtime>(
     state: State<'_, Arc<StateManager>>,
+    saves: State<'_, Arc<crate::SaveManagerState>>,
+    app_handle: tauri::AppHandle<R>,
     mode: String,
     career_token: u64,
 ) -> Result<AdvanceTimeWithModeResponse, String> {
     let state = state.inner().clone();
+    let saves = saves.inner().clone();
     run_off_thread(move || {
-        advance_time_with_mode_internal(&state, Career::Token(career_token), &mode)
+        let career = Career::Token(career_token);
+        let before = auto_save::game_date(&state);
+        let mut response = advance_time_with_mode_internal(&state, career, &mode)?;
+        let enabled = || crate::commands::settings::auto_save_enabled(&app_handle);
+        response.auto_save_error =
+            auto_save::save_if_a_new_week(&state, &saves.0, enabled, before, career).error();
+        Ok(response)
     })
     .await
 }
@@ -100,12 +110,24 @@ pub fn check_blocking_actions(
 }
 
 #[tauri::command]
-pub async fn skip_to_match_day(
+pub async fn skip_to_match_day<R: tauri::Runtime>(
     state: State<'_, Arc<StateManager>>,
+    saves: State<'_, Arc<crate::SaveManagerState>>,
+    app_handle: tauri::AppHandle<R>,
     career_token: u64,
 ) -> Result<serde_json::Value, String> {
     let state = state.inner().clone();
-    run_off_thread(move || skip_to_match_day_internal(&state, Career::Token(career_token))).await
+    let saves = saves.inner().clone();
+    run_off_thread(move || {
+        let career = Career::Token(career_token);
+        let before = auto_save::game_date(&state);
+        let mut response = skip_to_match_day_internal(&state, career)?;
+        let enabled = || crate::commands::settings::auto_save_enabled(&app_handle);
+        auto_save::save_if_a_new_week(&state, &saves.0, enabled, before, career)
+            .note_on(&mut response);
+        Ok(response)
+    })
+    .await
 }
 
 pub fn skip_to_match_day_internal(
@@ -327,34 +349,46 @@ pub fn advance_one_day_internal(
 }
 
 #[tauri::command]
-pub async fn advance_one_day(
+pub async fn advance_one_day<R: tauri::Runtime>(
     state: State<'_, Arc<StateManager>>,
+    saves: State<'_, Arc<crate::SaveManagerState>>,
+    app_handle: tauri::AppHandle<R>,
     career_token: u64,
 ) -> Result<serde_json::Value, String> {
     let state = state.inner().clone();
-    run_off_thread(move || advance_one_day_internal(&state, Career::Token(career_token))).await
+    let saves = saves.inner().clone();
+    run_off_thread(move || {
+        let career = Career::Token(career_token);
+        let before = auto_save::game_date(&state);
+        let mut response = advance_one_day_internal(&state, career)?;
+        let enabled = || crate::commands::settings::auto_save_enabled(&app_handle);
+        auto_save::save_if_a_new_week(&state, &saves.0, enabled, before, career)
+            .note_on(&mut response);
+        Ok(response)
+    })
+    .await
 }
 
-fn count_high_priority_messages(game: &Game) -> usize {
+fn count_messages_needing_attention(game: &Game) -> usize {
     game.messages
         .iter()
-        .filter(|message| message.priority == domain::message::MessagePriority::High)
+        .filter(|message| message.priority.needs_attention())
         .count()
 }
 
 /// Whether the day just processed produced something the user should pause on:
-/// a transfer deadline, the window opening, or a fresh high-priority inbox item.
+/// a transfer deadline, the window opening, or a fresh High or Urgent inbox item.
 /// (Match days and blockers are handled separately in the loop.)
 fn continue_reached_attention_event(
     transfer_status: &domain::season::TransferWindowStatus,
     opens_on: Option<&str>,
     today: &str,
-    high_priority_before: usize,
-    high_priority_after: usize,
+    attention_before: usize,
+    attention_after: usize,
 ) -> bool {
     *transfer_status == domain::season::TransferWindowStatus::DeadlineDay
         || opens_on == Some(today)
-        || high_priority_after > high_priority_before
+        || attention_after > attention_before
 }
 
 #[tauri::command]
@@ -418,7 +452,7 @@ pub fn advance_to_next_event_internal(
                 return Step::MatchDay;
             }
 
-            let high_priority_before = count_high_priority_messages(game);
+            let attention_before = count_messages_needing_attention(game);
 
             ofm_core::turn::process_day_with_capture(game, &mut |capture| {
                 captures.push(capture);
@@ -451,8 +485,8 @@ pub fn advance_to_next_event_internal(
                 &game.season_context.transfer_window.status,
                 game.season_context.transfer_window.opens_on.as_deref(),
                 &new_today,
-                high_priority_before,
-                count_high_priority_messages(game),
+                attention_before,
+                count_messages_needing_attention(game),
             ) {
                 return Step::AdvancedThenStop;
             }
@@ -817,6 +851,42 @@ mod tests {
         ));
     }
 
+    /// Whether a continue stops after a quiet day on which one unread message of `priority`
+    /// arrived, read the way the continue loop reads it: counted before the day and after.
+    fn continue_stops_for_new_mail_of(priority: MessagePriority) -> bool {
+        let mut game = make_game(11);
+        game.messages.clear();
+        let before = super::count_messages_needing_attention(&game);
+        game.messages
+            .push(make_message("arrived-today", priority, false));
+        continue_reached_attention_event(
+            &TransferWindowStatus::Closed,
+            None,
+            "2025-06-16",
+            before,
+            super::count_messages_needing_attention(&game),
+        )
+    }
+
+    /// Given a continue rolling through quiet days
+    /// When an Urgent message arrives, as a High one would
+    /// Then the continue stops after that day, as it does for High: Urgent is the more pressing
+    ///      of the two, and it used to roll straight past it (maintainer ruling: High or Urgent).
+    #[test]
+    fn urgent_mail_stops_a_continue_as_high_mail_does() {
+        assert!(continue_stops_for_new_mail_of(MessagePriority::High));
+        assert!(continue_stops_for_new_mail_of(MessagePriority::Urgent));
+    }
+
+    /// Given the same
+    /// When a Normal or a Low message arrives
+    /// Then the continue keeps rolling.
+    #[test]
+    fn normal_and_low_mail_do_not_stop_a_continue() {
+        assert!(!continue_stops_for_new_mail_of(MessagePriority::Normal));
+        assert!(!continue_stops_for_new_mail_of(MessagePriority::Low));
+    }
+
     #[test]
     fn advance_time_records_match_history_in_active_stats_state() {
         let state = StateManager::new();
@@ -851,11 +921,120 @@ mod tests {
         let date = |app: &WrapperApp| app.state().get_game(|g| g.clock.current_date).unwrap();
         let before = date(&app);
 
-        let refused =
-            tauri::async_runtime::block_on(super::advance_one_day(app.state(), app.token + 1));
+        let refused = tauri::async_runtime::block_on(super::advance_one_day(
+            app.state(),
+            app.saves(),
+            app.handle(),
+            app.token + 1,
+        ));
 
         assert_eq!(refused, Err("be.error.careerChanged".to_string()));
         assert_eq!(date(&app), before);
+    }
+
+    /// The saved career's date after the screen's Continue goes through `command` on a saved
+    /// career that opens on Sunday 15 June 2025, with Auto-Save at its default (on).
+    fn saved_date_after_a_continue(command: &str) -> chrono::NaiveDate {
+        use crate::commands::wrapper_testkit::WrapperApp;
+        let app = WrapperApp::new(make_game(11), true);
+        let outcome = match command {
+            "advance_one_day" => tauri::async_runtime::block_on(super::advance_one_day(
+                app.state(),
+                app.saves(),
+                app.handle(),
+                app.token,
+            ))
+            .map(|_| ()),
+            _ => tauri::async_runtime::block_on(super::advance_time_with_mode(
+                app.state(),
+                app.saves(),
+                app.handle(),
+                "delegate".to_string(),
+                app.token,
+            ))
+            .map(|_| ()),
+        };
+        assert_eq!(outcome, Ok(()), "{command}");
+        app.saved_game().clock.current_date.date_naive()
+    }
+
+    /// Given a saved career on a Sunday with Auto-Save on
+    /// When the screen's day-by-day Continue (advance_one_day) brings Monday
+    /// Then the save on disk reads Monday: the command saved the week it crossed (#1181).
+    #[test]
+    fn the_day_by_day_continue_saves_the_week_it_crosses() {
+        assert_eq!(
+            saved_date_after_a_continue("advance_one_day"),
+            chrono::NaiveDate::from_ymd_opt(2025, 6, 16).unwrap()
+        );
+    }
+
+    /// Given the same
+    /// When the screen's Continue goes through advance_time_with_mode
+    /// Then the save on disk reads Monday too.
+    #[test]
+    fn the_mode_continue_saves_the_week_it_crosses() {
+        assert_eq!(
+            saved_date_after_a_continue("advance_time_with_mode"),
+            chrono::NaiveDate::from_ymd_opt(2025, 6, 16).unwrap()
+        );
+    }
+
+    /// Given a saved career on a Sunday whose save has since been deleted
+    /// When the screen's day-by-day Continue brings Monday
+    /// Then the day still advances, and the response carries the auto-save error the screen shows.
+    #[test]
+    fn the_day_by_day_continue_reports_a_week_it_could_not_save() {
+        use crate::commands::wrapper_testkit::WrapperApp;
+        let app = WrapperApp::new(make_game(11), true);
+        let save_id = app.save_id.clone().expect("built with a save");
+        app.saves()
+            .0
+            .lock()
+            .expect("save manager")
+            .delete_save(&save_id)
+            .expect("delete the save");
+
+        let response = tauri::async_runtime::block_on(super::advance_one_day(
+            app.state(),
+            app.saves(),
+            app.handle(),
+            app.token,
+        ))
+        .expect("the day advances");
+
+        assert_eq!(response["auto_save_error"], "be.error.autoSave.failed");
+        assert_eq!(
+            app.state()
+                .get_game(|game| game.clock.current_date.date_naive())
+                .unwrap(),
+            chrono::NaiveDate::from_ymd_opt(2025, 6, 16).unwrap()
+        );
+    }
+
+    /// Given a saved career on Sunday 15 June 2025 with Auto-Save on
+    /// When the screen's skip to the next match day (skip_to_match_day) moves the game on
+    /// Then the save on disk reads the day the skip stopped on: any later day is a new week, and
+    ///      this command saves it through its own call, not the other two commands' (#1181 review).
+    #[test]
+    fn the_skip_to_match_day_saves_the_week_it_crosses() {
+        use crate::commands::wrapper_testkit::WrapperApp;
+        let app = WrapperApp::new(make_game(11), true);
+
+        tauri::async_runtime::block_on(super::skip_to_match_day(
+            app.state(),
+            app.saves(),
+            app.handle(),
+            app.token,
+        ))
+        .expect("the skip runs");
+
+        let stopped_on = app
+            .state()
+            .get_game(|game| game.clock.current_date.date_naive())
+            .unwrap();
+        assert!(stopped_on > chrono::NaiveDate::from_ymd_opt(2025, 6, 15).unwrap());
+        assert_eq!(app.saved_game().clock.current_date.date_naive(), stopped_on);
     }
 
     /// Given a game with nobody injured, and one where two starters are injured
@@ -1747,5 +1926,158 @@ mod tests {
             game.clock.current_date.date_naive().to_string(),
             "2025-06-16"
         );
+    }
+
+    // -----------------------------------------------------------------------
+    // A dial saved before kick-off reaches the match waiting to be played
+    // -----------------------------------------------------------------------
+
+    /// The user's side as the live session holds it (the engine's own copy of the team, which
+    /// is what the match is played with), and the match's phase.
+    fn user_side_and_phase(state: &StateManager) -> (engine::MatchPhase, engine::TeamData) {
+        let snapshot = state
+            .with_live_match(|session| session.snapshot())
+            .expect("a live match session exists after a live advance");
+        let side = [snapshot.home_team, snapshot.away_team]
+            .into_iter()
+            .find(|team| team.id == "team1")
+            .expect("the user's club is one of the two sides");
+        (snapshot.phase, side)
+    }
+
+    /// The user's side while the match still waits at kick-off.
+    fn user_side_before_kick_off(state: &StateManager) -> engine::TeamData {
+        let (phase, side) = user_side_and_phase(state);
+        assert_eq!(phase, engine::MatchPhase::PreKickOff);
+        side
+    }
+
+    /// The round-summary game with the user's fixture turned round, so team1 plays away.
+    fn make_round_summary_game_away() -> Game {
+        let mut game = make_round_summary_game();
+        for league in game.league.iter_mut().chain(game.competitions.iter_mut()) {
+            for fixture in league.fixtures.iter_mut().filter(|f| f.id == "fix1") {
+                std::mem::swap(&mut fixture.home_team_id, &mut fixture.away_team_id);
+            }
+        }
+        game
+    }
+
+    /// What the pre-match screen does when the user raises the defensive line.
+    fn set_defensive_line_high(state: &StateManager) {
+        crate::commands::squad::set_tactics_phase_internal(
+            state,
+            ofm_core::state::Career::Active,
+            crate::commands::squad::TacticsPhasePatch {
+                defensive_line: Some("High".to_string()),
+                ..Default::default()
+            },
+        )
+        .expect("the dial is stored on the user's team");
+    }
+
+    /// Given an active career whose user team has a live match waiting at kick-off (built by
+    /// the live advance, as on match day),
+    /// When the user raises the defensive line to High on the pre-match screen,
+    /// Then the match about to be played uses a high defensive line.
+    #[test]
+    fn a_dial_changed_before_kick_off_reaches_the_match() {
+        let state = StateManager::new();
+        state.set_game(make_round_summary_game());
+        advance_time_with_mode_internal(&state, ofm_core::state::Career::Active, "live")
+            .expect("live advance response");
+        assert_ne!(
+            user_side_before_kick_off(&state).tactics.defensive_line,
+            engine::DefensiveLine::High,
+            "the fixture must start from a different line, or the test proves nothing"
+        );
+
+        set_defensive_line_high(&state);
+
+        let stored_line = state
+            .get_game(|game| game.teams[0].tactics_phase.defensive_line.clone())
+            .expect("active game");
+        assert_eq!(stored_line, domain::team::DefensiveLine::High);
+        assert_eq!(
+            user_side_before_kick_off(&state).tactics.defensive_line,
+            engine::DefensiveLine::High,
+            "the live session must play with the defensive line set before kick-off"
+        );
+    }
+
+    /// Given an active career whose user team plays away, with the match waiting at kick-off,
+    /// When the user raises the defensive line on the pre-match screen,
+    /// Then the away side of the match plays with the high line.
+    #[test]
+    fn a_dial_changed_before_kick_off_reaches_an_away_match() {
+        let state = StateManager::new();
+        state.set_game(make_round_summary_game_away());
+        advance_time_with_mode_internal(&state, ofm_core::state::Career::Active, "live")
+            .expect("live advance response");
+        let away_id = state
+            .with_live_match(|session| session.snapshot().away_team.id)
+            .expect("a live match session exists");
+        assert_eq!(
+            away_id, "team1",
+            "the fixture must put the user's club away"
+        );
+        assert_ne!(
+            user_side_before_kick_off(&state).tactics.defensive_line,
+            engine::DefensiveLine::High
+        );
+
+        set_defensive_line_high(&state);
+
+        assert_eq!(
+            user_side_before_kick_off(&state).tactics.defensive_line,
+            engine::DefensiveLine::High
+        );
+    }
+
+    /// Given an active career whose user team already has a high defensive line on the eve of
+    /// match day,
+    /// When the live advance builds the match session,
+    /// Then the session carries it: so a failure in the tests above is the missing hand-over to
+    /// a session already built, not the domain-to-engine mapping of the dial.
+    #[test]
+    fn a_dial_set_before_the_session_is_built_reaches_the_match() {
+        let state = StateManager::new();
+        state.set_game(make_round_summary_game());
+        set_defensive_line_high(&state);
+
+        advance_time_with_mode_internal(&state, ofm_core::state::Career::Active, "live")
+            .expect("live advance response");
+
+        assert_eq!(
+            user_side_before_kick_off(&state).tactics.defensive_line,
+            engine::DefensiveLine::High
+        );
+    }
+
+    /// Given a user team whose live match has already kicked off,
+    /// When the user saves a high defensive line on the team,
+    /// Then the match in play keeps its line: once it has started, only the live commands
+    /// change it.
+    #[test]
+    fn a_dial_saved_after_kick_off_leaves_the_match_alone() {
+        let state = StateManager::new();
+        state.set_game(make_round_summary_game());
+        advance_time_with_mode_internal(&state, ofm_core::state::Career::Active, "live")
+            .expect("live advance response");
+        crate::application::live_match::step_live_match(&state, ofm_core::state::Career::Active, 1)
+            .expect("the match kicks off");
+        let (phase, side) = user_side_and_phase(&state);
+        assert_ne!(
+            phase,
+            engine::MatchPhase::PreKickOff,
+            "the match must have started"
+        );
+        let line_at_kick_off = side.tactics.defensive_line;
+        assert_ne!(line_at_kick_off, engine::DefensiveLine::High);
+
+        set_defensive_line_high(&state);
+
+        let (_, side) = user_side_and_phase(&state);
+        assert_eq!(side.tactics.defensive_line, line_at_kick_off);
     }
 }

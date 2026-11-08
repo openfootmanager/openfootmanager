@@ -408,6 +408,13 @@ impl WorldPackage {
         self.name_pool_files.get(country).map_or("", String::as_str)
     }
 
+    /// The file each entity of `schema` was declared in, parallel to that schema's entity list;
+    /// empty for a package assembled in memory.
+    #[cfg(test)]
+    pub(super) fn sources_of(&self, schema: &str) -> &[String] {
+        self.sources.get(schema).map_or(&[], Vec::as_slice)
+    }
+
     /// How many declarations have been recorded for `schema`; equal to that
     /// schema's entity count whenever the package was loaded from disk.
     ///
@@ -519,7 +526,7 @@ impl PackageError {
 // ---------------------------------------------------------------------------
 
 /// Recursively collect every JSON/YAML file under `dir`.
-fn collect_data_files(dir: &Path, out: &mut Vec<PathBuf>) {
+pub(super) fn collect_data_files(dir: &Path, out: &mut Vec<PathBuf>) {
     let Ok(entries) = std::fs::read_dir(dir) else {
         return;
     };

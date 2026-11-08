@@ -433,6 +433,12 @@
     "drawnFull": "Unentschieden",
     "lostFull": "Niederlagen",
     "ptsFull": "Punkte",
+    "recentForm": "Aktuelle Form",
+    "formResult": {
+      "W": "S",
+      "D": "U",
+      "L": "N"
+    },
     "played": "Sp",
     "won": "S",
     "drawn": "U",
@@ -641,7 +647,7 @@
     "lastPage": "Letzte Seite",
     "sortBy": "Sortieren nach",
     "sortAscending": "Aufsteigend",
-    "lineupLoading": "Die Positionsdaten werden noch geladen, daher sind Aufstellungsänderungen noch nicht möglich."
+    "lineupLoading": "Der Kader wird noch geladen, daher sind Aufstellungsänderungen noch nicht möglich."
   },
   "teamSelection": {
     "title": "Wähle Deinen Verein",
@@ -1102,6 +1108,8 @@
     "transferBudget": "Transferbudget",
     "seasonIncome": "Saisoneinnahmen",
     "seasonExpenses": "Saisonausgaben",
+    "moneyIn": "Geld rein",
+    "moneyOut": "Geld raus",
     "perWeekSuffix": "/Wo",
     "snapshotLoadFailed": "Die Vereinsfinanzen konnten nicht geladen werden.",
     "perYearSuffix": "/Jahr",
@@ -1247,6 +1255,8 @@
     "boardSatisfied": "Der Vorstand ist zufrieden mit deiner Leistung.",
     "boardConcerns": "Der Vorstand hat Bedenken wegen der Ergebnisse.",
     "boardThreat": "Deine Position ist ernsthaft gefährdet.",
+    "boardWarned": "Der Vorstand hat dich verwarnt.",
+    "boardFinalWarning": "Du hast eine letzte Verwarnung erhalten.",
     "board": "Vorstand",
     "fans": "Fans",
     "born": "Geboren am",
@@ -1263,6 +1273,15 @@
     "employed": "Im Amt",
     "unemployed": "Vereinslos",
     "reputation": "Ruf",
+    "reputationBand": {
+      "world_class": "Weltklasse",
+      "established": "Etabliert",
+      "great": "Hervorragend",
+      "good": "Gut",
+      "average": "Durchschnittlich",
+      "below_average": "Unterdurchschnittlich",
+      "unknown": "Unbekannt"
+    },
     "winRate": "Siegquote",
     "matches": "Spiele",
     "currentClub": "Aktueller Klub",
@@ -1530,6 +1549,7 @@
     "yourTeam": "Dein Team",
     "squad": "Kader",
     "avgOvr": "Durchschn. OVR",
+    "manager": "Trainer",
     "rep": "Ruf",
     "est": "Gegr."
   },
@@ -1854,7 +1874,7 @@
     "skipShootoutPickerDesc": "Elfmeterschießen in der automatischen Reihenfolge starten, ohne dich danach zu fragen",
     "savesData": "Speicherstände & Daten",
     "autoSave": "Automatisch speichern",
-    "autoSaveDesc": "Automatisch nach jedem Tag speichern",
+    "autoSaveDesc": "Automatisch jede Woche speichern",
     "exportWorld": "Weltdatenbank exportieren",
     "exportWorldDesc": "Aktuelle Weltdaten als teilbare JSON-Datei speichern",
     "export": "Exportieren",
@@ -2737,6 +2757,9 @@
       "critical": "Kritisch"
     },
     "error": {
+      "autoSave": {
+        "failed": "Das automatische Speichern hat dein Spiel nicht gespeichert. Dein Fortschritt seit dem letzten Speichern ist noch nicht gesichert: Speichere selbst und prüfe, ob auf dem Datenträger Platz frei ist."
+      },
       "squadFloor": {
         "wouldLeaveShort": "Dieser Spieler kann nicht gehen: Der Kader würde unter das Minimum fallen, das ein Verein halten muss. Betroffener Mannschaftsteil: {{group}}.",
         "wouldLeaveSeniorsShort": "Dieser Spieler kann nicht gehen: Der Verein hätte dann weniger als {{floor}} Spieler im Profikader, das Minimum, das ein Verein halten muss."
@@ -2782,6 +2805,7 @@
         "noSubstitutionsForShootout": "Nach dem Ende der Verlängerung sind keine Wechsel mehr möglich: Das Elfmeterschießen bestreiten die Spieler, die beim Schlusspfiff auf dem Platz standen.",
         "shootoutOrderNotNow": "Die Schützenreihenfolge kann nur nach der Verlängerung und vor dem ersten Schuss festgelegt werden.",
         "shootoutOrderNotYourSide": "Du kannst nur die Schützenreihenfolge deiner eigenen Mannschaft festlegen.",
+        "notYourSide": "Du kannst nur deiner eigenen Mannschaft Anweisungen geben.",
         "shootoutOrderNotEligible": "Die Schützenreihenfolge muss jeden deiner spielberechtigten Spieler genau einmal enthalten.",
         "playerNotOnPitch": "Spieler ist nicht auf dem Platz",
         "playerAlreadySubstitutedOff": "Dieser Spieler wurde bereits ausgewechselt",
@@ -2801,6 +2825,7 @@
         "missingSchema": "Einer Paketdatei fehlt das Feld \"schema\".",
         "worldExportNotPackage": "Dieser Ordner ist eine exportierte Weltspeicherung, kein Paketprojekt. Exportierte Welten verwenden ein anderes Format und können hier nicht bearbeitet werden.",
         "notAProjectDirectory": "Dies ist kein Paketprojekt-Ordner. Wähle den Ordner, der die package.json des Pakets enthält — oder nutze für ein installiertes .ofm-Paket „.ofm-Datei öffnen“.",
+        "saveWouldDropItem": "Nicht gespeichert: {{file}} enthält einen Eintrag, den der Editor weder lesen noch als JSON behalten kann. Korrigiere diesen Eintrag in der Datei und speichere erneut.",
         "unknownSchema": "Unbekanntes Schema \"{{schema}}\".",
         "invalidEntity": "Ein \"{{schema}}\"-Eintrag ist ungültig: {{detail}}",
         "duplicateWorld": "Das Paket hat bereits ein Manifest in „{{first}}“; ein Paket kann nur eine „world“-Datei haben.",
@@ -2841,6 +2866,8 @@
       },
       "competitionDef": {
         "invalidCalendar": "Ungültiger Wettbewerbskalender: Prüfe die Ligafamilie, die Spielklasse, die Phase und das Enddatum.",
+        "invalidSeasonMonth": "Der Startmonat der Saison {{month}} ist ungültig (erlaubt sind 1–12).",
+        "invalidSeasonDay": "Der Starttag der Saison {{day}} ist kein gültiger Tag des Startmonats.",
         "invalidEmbedded": "Die Wettbewerbsdefinitionen dieser Welt sind ungültig und konnten nicht geladen werden.",
         "invalidStandalone": "Die ausgewählte Wettbewerbsdefinitionsdatei ist ungültig.",
         "parseFailed": "Die Wettbewerbsdefinitionsdatei konnte nicht als JSON gelesen werden.",
@@ -2972,6 +2999,7 @@
         "cannotBidOnOwnPlayer": "Du kannst nicht auf deinen eigenen Spieler bieten",
         "playerHasNoTeam": "Der Spieler hat kein Team",
         "insufficientFunds": "Nicht genug Geld vorhanden",
+        "buyerCannotAffordFee": "Der kaufende Verein kann sich diese Ablöse nicht mehr leisten, daher kommt der Wechsel nicht zustande.",
         "transferBudgetTooLow": "Das Transferbudget ist zu niedrig",
         "playerNotOwnedByUser": "Spieler nicht gefunden oder nicht in deinem Besitz",
         "offerNotPending": "Angebot nicht gefunden oder nicht mehr ausstehend",
@@ -2981,6 +3009,7 @@
         "loanCounterMustImproveTerms": "Das Leih-Gegenangebot muss das aktuelle Angebot verbessern",
         "playerNotLoanListed": "Der Spieler steht nicht auf der Leihliste",
         "playerAlreadyLoaned": "Der Spieler ist bereits verliehen",
+        "playerAlreadySold": "Dieser Spieler wurde bereits verkauft. Der Wechsel wird wirksam, wenn das Transferfenster öffnet.",
         "invalidLoanEndDate": "Das Leihende muss zwischen 30 Tagen und einem Jahr ab heute liegen",
         "invalidLoanWageContribution": "Die Gehaltsbeteiligung der Leihe muss zwischen 0% und 100% liegen",
         "invalidLoanBuyOption": "Die Kaufoption der Leihe muss größer als null sein",
@@ -3508,6 +3537,7 @@
         },
         "notes": {
           "managerBlocked": "Du hast mir gesagt, ich soll die Vertragsgespräche noch nicht wieder aufnehmen.",
+          "markedLetExpire": "Du hast diesen Vertrag zum Auslaufen markiert, also habe ich keine Gespräche begonnen.",
           "completed": "Ich konnte das ohne dein Eingreifen abschließen.",
           "completedToKeepSquadFloor": "Erledigt, über der Gehaltsvorgabe des Vorstands. Der Vorstand hat zugestimmt, weil wir ohne diesen Spieler unter den Mindestkader fallen würden.",
           "beyondLimits": "Die Spielerseite will etwa {{wage}}/Woche für {{years}} Jahre, das liegt außerhalb der Delegationsgrenzen.",
@@ -3549,6 +3579,12 @@
       "scoutReport": {
         "subject": "Scout-Bericht: {{player}}",
         "body": "Dein Scout {{scout}} hat seine Einschätzung zu {{player}} abgeschlossen. Der vollständige Bericht ist im Scouting-Bereich verfügbar."
+      },
+      "scoutingCancelled": {
+        "subject": "Scouting-Auftrag abgebrochen",
+        "body": "Der Scout, den du zu {{player}} geschickt hast, hat den Verein verlassen, daher kommt kein Bericht. Schick einen anderen Scout, wenn du noch einen willst.",
+        "bodyWithoutPlayer": "Der Scout, den du zu einem Spieler geschickt hast, hat den Verein verlassen, und dieser Spieler ist nicht mehr erfasst, daher kommt kein Bericht.",
+        "youthBody": "Der Scout, den du auf Talentsuche geschickt hast, hat den Verein verlassen, daher wurde die Suche abgebrochen. Starte eine neue mit einem anderen Scout, wenn du sie noch willst."
       },
       "boardWarning": {
         "subject": "Bedenken des Vorstands — Leistungsüberprüfung",
@@ -3612,6 +3648,11 @@
         "subject": "Leihe vereinbart: {{player}}",
         "bodyWithOption": "{{player}} wechselt vom {{start}} bis zum {{end}} auf Leihbasis von {{parent}} zu {{borrower}}. {{borrower}} übernimmt {{contribution}}% des Gehalts. Kaufoption: {{fee}}.",
         "bodyNoOption": "{{player}} wechselt vom {{start}} bis zum {{end}} auf Leihbasis von {{parent}} zu {{borrower}}. {{borrower}} übernimmt {{contribution}}% des Gehalts. Keine Kaufoption."
+      },
+      "loanRegistrationFailed": {
+        "subject": "Leihe abgesagt: {{player}}",
+        "body": "Die vereinbarte Leihe von {{player}} von {{parent}} zu {{borrower}}, geplant ab {{start}}, kann nicht stattfinden: Der Spieler steht nicht mehr bei {{parent}} unter Vertrag.",
+        "bodyRequirementNotMet": "Die vereinbarte Leihe von {{player}} von {{parent}} zu {{borrower}} konnte am {{start}} nicht beginnen: Eine der Bedingungen, unter denen sie vereinbart wurde, etwa Platz im Gehaltsbudget von {{borrower}} oder die Laufzeit des Spielervertrags, ist nicht mehr erfüllt."
       },
       "loanOffer": {
         "subject": "Leihangebot für {{player}}",
