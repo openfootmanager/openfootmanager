@@ -808,6 +808,12 @@
     "unsavedChanges": "Alterações por guardar",
     "currentPlanCard": "Plano atual",
     "phaseBlueprint": "Plano por fases",
+    "instructionsPanel": {
+      "title": "Instruções da equipa",
+      "show": "Mostrar as instruções da equipa",
+      "hide": "Ocultar as instruções da equipa",
+      "openAt": "Mostrar as instruções da equipa: {{section}}"
+    },
     "phaseLabels": {
       "withBall": "Com bola",
       "withoutBall": "Sem bola",
@@ -2757,6 +2763,7 @@
       "critical": "Crítico"
     },
     "error": {
+      "taskJoinFailed": "A simulação parou inesperadamente. Carregue o seu último jogo guardado e tente novamente.",
       "autoSave": {
         "failed": "O guardar automático não conseguiu guardar o jogo. O seu progresso desde o último guardar ainda não está guardado: guarde-o manualmente e verifique se o disco tem espaço livre."
       },
@@ -3654,6 +3661,10 @@
         "body": "O empréstimo acordado de {{player}} do {{parent}} para o {{borrower}}, previsto para {{start}}, não pode avançar: o jogador já não tem contrato com o {{parent}}.",
         "bodyRequirementNotMet": "O empréstimo acordado de {{player}} do {{parent}} para o {{borrower}} não pôde começar a {{start}}: uma das condições em que foi acordado, como margem no orçamento salarial do {{borrower}} ou a duração do contrato do jogador, já não se verifica."
       },
+      "talksClosedBySale": {
+        "subject": "Contratado por outro clube: {{player}}",
+        "body": "O {{buyer}} contratou {{player}} por {{fee}}. As tuas negociações em aberto por ele foram retiradas."
+      },
       "loanOffer": {
         "subject": "Proposta de Empréstimo por {{player}}",
         "body": "{{team}} quer receber {{player}} por empréstimo até {{endDate}} e cobrir {{wageContribution}}% do salário. Opção de compra: {{buyOption}}. Reveja a proposta no separador Transferências.",
@@ -3864,7 +3875,8 @@
       "package": {
         "countryWithoutRegion": "Este pacote define o país \"{{name}}\" ({{code}}) fora da lista de países do jogo e não o coloca em nenhuma confederação, pelo que os seus clubes ficam na Europa. Atribua-lhe uma confederação.",
         "freeAgentFieldIgnored": "O jogador «{{id}}» não tem clube, pelo que é um jogador livre sem contrato: «{{field}}» é ignorado. Atribua-lhe um clube para o usar, ou remova o campo.",
-        "repeatedNamePool": "O conjunto de nomes de {{country}} já foi dado em {{first}}; o deste ficheiro substitui-o. Mantenha só um, ou atribua-os a países diferentes."
+        "repeatedNamePool": "O conjunto de nomes de {{country}} já foi dado em {{first}}; o deste ficheiro substitui-o. Mantenha só um, ou atribua-os a países diferentes.",
+        "namePoolIncomplete": "O conjunto de nomes de {{country}} tem nomes próprios mas não apelidos, ou apelidos mas não nomes próprios, por isso não é usado: os jogadores de {{country}} recebem os nomes do jogo. Dê-lhe ambos."
       }
     }
   },
@@ -4086,6 +4098,12 @@
     "winRate": "Taxa de vitórias"
   },
   "worldEditor": {
+    "previewPlaceholder": {
+      "team": "Nova equipa",
+      "player": "Novo jogador",
+      "competition": "Nova competição"
+    },
+    "estimatedRating": "est.",
     "positionGroupFilter": {
       "Goalkeeper": "Todos os guarda-redes",
       "Defender": "Todos os defesas",

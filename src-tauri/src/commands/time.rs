@@ -88,7 +88,10 @@ where
 {
     tauri::async_runtime::spawn_blocking(work)
         .await
-        .map_err(|err| format!("be.error.taskJoinFailed: {err}"))?
+        .map_err(|err| {
+            log::error!("Simulation worker failed: {err}");
+            "be.error.taskJoinFailed".to_string()
+        })?
 }
 
 #[tauri::command]
@@ -253,12 +256,23 @@ pub fn skip_to_match_day_internal(
         game.clock.current_date.format("%Y-%m-%d")
     );
     let results = collect_advance_results(&game, &start_date);
+    let date = game.clock.current_date.format("%Y-%m-%d").to_string();
     Ok(serde_json::json!({
         "action": "arrived",
+        "reached_match_day": arrived_on_the_match_day(&game),
+        "date": date,
         "game": game,
         "days_skipped": days_skipped,
         "results": results
     }))
+}
+
+/// Whether the skip ended on the user's match day, rather than out of days (the 60-day limit). Read
+/// from the game the skip ends on, under its idle operation, never from the loop's own flag: the
+/// 60th day can be the match day, and the loop stops on the limit before it checks it.
+fn arrived_on_the_match_day(game: &Game) -> bool {
+    let today = game.clock.current_date.format("%Y-%m-%d").to_string();
+    game.user_has_scheduled_match_on(&today)
 }
 
 /// Advance exactly one day, surfacing what happened so the frontend can build a
@@ -369,26 +383,26 @@ pub async fn advance_one_day<R: tauri::Runtime>(
     .await
 }
 
-fn count_high_priority_messages(game: &Game) -> usize {
+fn count_messages_needing_attention(game: &Game) -> usize {
     game.messages
         .iter()
-        .filter(|message| message.priority == domain::message::MessagePriority::High)
+        .filter(|message| message.priority.needs_attention())
         .count()
 }
 
 /// Whether the day just processed produced something the user should pause on:
-/// a transfer deadline, the window opening, or a fresh high-priority inbox item.
+/// a transfer deadline, the window opening, or a fresh High or Urgent inbox item.
 /// (Match days and blockers are handled separately in the loop.)
 fn continue_reached_attention_event(
     transfer_status: &domain::season::TransferWindowStatus,
     opens_on: Option<&str>,
     today: &str,
-    high_priority_before: usize,
-    high_priority_after: usize,
+    attention_before: usize,
+    attention_after: usize,
 ) -> bool {
     *transfer_status == domain::season::TransferWindowStatus::DeadlineDay
         || opens_on == Some(today)
-        || high_priority_after > high_priority_before
+        || attention_after > attention_before
 }
 
 #[tauri::command]
@@ -452,7 +466,7 @@ pub fn advance_to_next_event_internal(
                 return Step::MatchDay;
             }
 
-            let high_priority_before = count_high_priority_messages(game);
+            let attention_before = count_messages_needing_attention(game);
 
             ofm_core::turn::process_day_with_capture(game, &mut |capture| {
                 captures.push(capture);
@@ -485,8 +499,8 @@ pub fn advance_to_next_event_internal(
                 &game.season_context.transfer_window.status,
                 game.season_context.transfer_window.opens_on.as_deref(),
                 &new_today,
-                high_priority_before,
-                count_high_priority_messages(game),
+                attention_before,
+                count_messages_needing_attention(game),
             ) {
                 return Step::AdvancedThenStop;
             }
@@ -544,6 +558,20 @@ mod tests {
     use ofm_core::game::Game;
     use ofm_core::state::StateManager;
     use serde_json::Value;
+
+    /// Given a simulation worker that panics, when it is joined, then the error is a translation key.
+    #[test]
+    fn panicking_simulation_returns_a_translation_key() {
+        let result =
+            tauri::async_runtime::block_on(super::run_off_thread(|| -> Result<(), String> {
+                panic!("simulation failed")
+            }));
+        assert_eq!(result, Err("be.error.taskJoinFailed".to_string()));
+        let english: Value =
+            serde_json::from_str(include_str!("../../../src/i18n/locales/en.json"))
+                .expect("English locale is valid JSON");
+        assert!(english["be"]["error"]["taskJoinFailed"].is_string());
+    }
 
     fn default_attrs() -> PlayerAttributes {
         PlayerAttributes {
@@ -849,6 +877,42 @@ mod tests {
             3,
             3,
         ));
+    }
+
+    /// Whether a continue stops after a quiet day on which one unread message of `priority`
+    /// arrived, read the way the continue loop reads it: counted before the day and after.
+    fn continue_stops_for_new_mail_of(priority: MessagePriority) -> bool {
+        let mut game = make_game(11);
+        game.messages.clear();
+        let before = super::count_messages_needing_attention(&game);
+        game.messages
+            .push(make_message("arrived-today", priority, false));
+        continue_reached_attention_event(
+            &TransferWindowStatus::Closed,
+            None,
+            "2025-06-16",
+            before,
+            super::count_messages_needing_attention(&game),
+        )
+    }
+
+    /// Given a continue rolling through quiet days
+    /// When an Urgent message arrives, as a High one would
+    /// Then the continue stops after that day, as it does for High: Urgent is the more pressing
+    ///      of the two, and it used to roll straight past it (maintainer ruling: High or Urgent).
+    #[test]
+    fn urgent_mail_stops_a_continue_as_high_mail_does() {
+        assert!(continue_stops_for_new_mail_of(MessagePriority::High));
+        assert!(continue_stops_for_new_mail_of(MessagePriority::Urgent));
+    }
+
+    /// Given the same
+    /// When a Normal or a Low message arrives
+    /// Then the continue keeps rolling.
+    #[test]
+    fn normal_and_low_mail_do_not_stop_a_continue() {
+        assert!(!continue_stops_for_new_mail_of(MessagePriority::Normal));
+        assert!(!continue_stops_for_new_mail_of(MessagePriority::Low));
     }
 
     #[test]
@@ -1243,6 +1307,132 @@ mod tests {
         );
         let moved = state.get_game(|g| g.clock.current_date - start).unwrap();
         assert_eq!(moved.num_days(), i64::from(days_advanced));
+    }
+
+    /// Given a manager on a warning whose board stands at 5, and his next match thirty days away
+    /// When the MCP skip runs
+    /// Then the board sacks him on the first day and the skip ends there, fired after one day,
+    ///      the manager out of work
+    #[cfg(feature = "mcp")]
+    #[test]
+    fn the_mcp_skip_reports_a_sacking_on_the_way() {
+        use crate::mcp_server::tools_impl::time::skip_to_match_day_in;
+        use mcp_results::time::SkipToMatchDay;
+        let mut game = make_game_with_matchday();
+        let far = (game.clock.current_date + chrono::Duration::days(30))
+            .format("%Y-%m-%d")
+            .to_string();
+        game.league.as_mut().unwrap().fixtures[0].date = far;
+        game.manager.satisfaction = 5;
+        game.manager.warning_stage = 1;
+        let state = StateManager::new();
+        state.set_game(game);
+
+        let outcome = skip_to_match_day_in(&state).expect("the skip answers");
+
+        assert_eq!(outcome, SkipToMatchDay::Fired { days_advanced: 1 });
+        let employed = state.get_game(|g| g.manager.team_id.clone()).unwrap();
+        assert_eq!(employed, None);
+    }
+
+    /// A game whose user's club has a cup tie `cup_in_days` from today, in `game.competitions` only
+    /// (the `game.league` mirror never holds a cup), and its next league match twenty days away.
+    #[cfg(feature = "mcp")]
+    fn state_with_a_cup_tie_in(cup_in_days: i64) -> (StateManager, chrono::DateTime<chrono::Utc>) {
+        let mut game = make_game_with_matchday();
+        let start = game.clock.current_date;
+        let date_in = |days: i64| {
+            (start + chrono::Duration::days(days))
+                .format("%Y-%m-%d")
+                .to_string()
+        };
+        let mut league = game.league.clone().expect("the game has a league");
+        league.fixtures[0].date = date_in(20);
+        let mut cup = league.clone();
+        cup.id = "cup-1".to_string();
+        cup.fixtures[0].id = "cup-tie".to_string();
+        cup.fixtures[0].competition_id = "cup-1".to_string();
+        cup.fixtures[0].competition = FixtureCompetition::Cup;
+        cup.fixtures[0].date = date_in(cup_in_days);
+        game.league = Some(league.clone());
+        game.competitions = vec![league, cup];
+        let state = StateManager::new();
+        state.set_game(game);
+        (state, start)
+    }
+
+    /// The game's date and the cup tie's status.
+    #[cfg(feature = "mcp")]
+    fn clock_and_cup_tie(state: &StateManager) -> (chrono::DateTime<chrono::Utc>, FixtureStatus) {
+        state
+            .get_game(|g| {
+                (
+                    g.clock.current_date,
+                    g.competitions[1].fixtures[0].status.clone(),
+                )
+            })
+            .expect("a game")
+    }
+
+    /// Given a cup tie for the user's club today, and his next league match twenty days away
+    /// When the MCP skip runs
+    /// Then it stops at once on the match day, as the screen's skip does, and the cup tie is still
+    ///      to be played (#1193: it aimed at the league match in the mirror and simulated the cup
+    ///      tie on the way)
+    #[cfg(feature = "mcp")]
+    #[test]
+    fn the_mcp_skip_stops_on_a_cup_tie_instead_of_playing_it() {
+        use crate::mcp_server::tools_impl::time::skip_to_match_day_in;
+        use mcp_results::time::SkipToMatchDay;
+        let (state, start) = state_with_a_cup_tie_in(0);
+
+        let outcome = skip_to_match_day_in(&state).expect("the skip answers");
+
+        assert_eq!(outcome, SkipToMatchDay::MatchDayToday {});
+        assert_eq!(clock_and_cup_tie(&state), (start, FixtureStatus::Scheduled));
+    }
+
+    /// Given the game's date is the user's match day, and then a date with no match of his
+    /// When the skip's arrival is read
+    /// Then it reached the match day on the first and not on the second: a skip whose 60th day is
+    ///      its match day arrived on it (15076519 told the agent it had not reached a match)
+    #[test]
+    fn a_skip_ending_on_the_users_match_day_arrived_on_it_whichever_day_it_is() {
+        let mut game = make_game_with_matchday();
+        let today = game.clock.current_date.format("%Y-%m-%d").to_string();
+        game.league.as_mut().unwrap().fixtures[0].date = today;
+        game.competitions = vec![game.league.clone().unwrap()];
+        assert!(super::arrived_on_the_match_day(&game));
+
+        game.clock.advance_days(1);
+        assert!(!super::arrived_on_the_match_day(&game));
+    }
+
+    /// Given a cup tie for the user's club tomorrow, and his next league match twenty days away
+    /// When the MCP skip runs
+    /// Then it skips one day and stops on the cup tie's day with the tie still to be played (#1193:
+    ///      it aimed at the league match in the mirror and played the cup tie on the way)
+    #[cfg(feature = "mcp")]
+    #[test]
+    fn the_mcp_skip_stops_on_the_day_of_a_cup_tie_before_the_league_match() {
+        use crate::mcp_server::tools_impl::time::skip_to_match_day_in;
+        use mcp_results::time::SkipToMatchDay;
+        let (state, start) = state_with_a_cup_tie_in(1);
+        let tomorrow = start + chrono::Duration::days(1);
+
+        let outcome = skip_to_match_day_in(&state).expect("the skip answers");
+
+        assert_eq!(
+            outcome,
+            SkipToMatchDay::Skipped {
+                days_advanced: 1,
+                target_date: tomorrow.format("%Y-%m-%d").to_string(),
+            }
+        );
+        assert_eq!(
+            clock_and_cup_tie(&state),
+            (tomorrow, FixtureStatus::Scheduled)
+        );
     }
 
     /// Given career B is active (token 2) and a screen still holds career A's token (1)

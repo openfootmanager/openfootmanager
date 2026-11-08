@@ -110,9 +110,12 @@ impl fmt::Display for DayAdvanced {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "outcome", rename_all = "snake_case")]
 pub enum SkipToMatchDay {
-    NoUpcomingMatch {},
     MatchDayToday {},
     Aborted {
+        days_advanced: u32,
+    },
+    /// The board sacked the manager on one of the days skipped; the skip ends there.
+    Fired {
         days_advanced: u32,
     },
     Skipped {
@@ -130,17 +133,17 @@ pub enum SkipToMatchDay {
 impl fmt::Display for SkipToMatchDay {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::NoUpcomingMatch {} => write!(
-                f,
-                "## No Upcoming Match\n\nNo more fixtures scheduled for your team."
-            ),
             Self::MatchDayToday {} => write!(
                 f,
                 "## Match Day Today\n\nYour next match is today. Use `time_advance` to play it."
             ),
-            Self::Aborted { .. } => write!(
+            Self::Aborted { days_advanced } => write!(
                 f,
-                "## Skip Aborted\n\nSkipped more than 365 days without reaching match. Something may be wrong."
+                "## Skip Stopped\n\nSkipped {days_advanced} days, the skip's limit, without reaching a match of yours."
+            ),
+            Self::Fired { days_advanced } => write!(
+                f,
+                "## Manager Sacked\n\nThe board sacked you after {days_advanced} day(s) of the skip."
             ),
             Self::Skipped {
                 days_advanced,

@@ -10,6 +10,18 @@ export interface DashboardTabContentHandlers {
   onSquadListSortChange?: (sortState: SquadListSortState) => void;
 }
 
+/**
+ * The tabs that fill the workspace rather than scroll in it: the page never scrolls for them, and
+ * their own regions do (layout rule 1's exception; the maintainer's ruling of 4 Nov 2026 for
+ * Tactics, whose table, instructions and pitch each scroll inside themselves).
+ */
+const TABS_THAT_FILL_THE_WORKSPACE: ReadonlySet<string> = new Set(["Tactics"]);
+
+/** Whether `tab` fills the workspace instead of scrolling in it. */
+export function tabFillsWorkspace(tab: string): boolean {
+  return TABS_THAT_FILL_THE_WORKSPACE.has(tab);
+}
+
 export interface DashboardTabContentModel {
   activeTab: string;
   gameState: GameStateData;
