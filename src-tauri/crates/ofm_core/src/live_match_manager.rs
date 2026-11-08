@@ -273,6 +273,12 @@ impl LiveMatchSession {
             self.refit_pre_match_swap(side, &off, &on, slot.as_ref());
             return Ok(());
         }
+        if let MatchCommand::ChangeFormation { side, .. } = &cmd {
+            let side = *side;
+            self.match_state.apply_command(cmd)?;
+            self.refit_formation_change(side);
+            return Ok(());
+        }
         self.match_state.apply_command(cmd)
     }
 
@@ -285,8 +291,8 @@ impl LiveMatchSession {
 
     /// After a swap before kick-off, the newcomer plays at the familiarity of the slot he took,
     /// and the player he replaced, now on the bench, at his best in each line, as any bench
-    /// player does. The engine cannot work either out: it knows lines, not slots. A pre-kick-off
-    /// change of formation moves starters between slots too and is not refitted here.
+    /// player does. The engine cannot work either out: it knows lines, not slots. A change of
+    /// formation moves starters between slots too: `refit_formation_change`.
     fn refit_pre_match_swap(
         &mut self,
         side: Side,
@@ -304,6 +310,36 @@ impl LiveMatchSession {
                 .set_line_familiarity(side, player_id, familiarity)
             {
                 log::warn!("[live_match] pre-match swap: {player_id} is not in the match");
+            }
+        }
+    }
+
+    /// After a change of shape before kick-off, every starter plays at the familiarity of the
+    /// slot he now stands in: the engine regroups the eleven so that entry i plays slot i of the
+    /// new formation, and cannot tell which slot within a line that is. A match in play keeps
+    /// the familiarity each starter kicked off with (`PlayerData::line_familiarity` is his
+    /// kick-off slot's), as a substitute keeps the line he came on in.
+    fn refit_formation_change(&mut self, side: Side) {
+        if self.match_state.phase() != MatchPhase::PreKickOff {
+            return;
+        }
+        let team = self.match_state.team(side);
+        let starters: Vec<(String, DomainPosition)> = team
+            .players
+            .iter()
+            .zip(formation_slots(&team.formation))
+            .map(|(player, slot)| (player.id.clone(), slot))
+            .collect();
+        for (player_id, slot) in starters {
+            let Some(player) = self.squad_players.get(&player_id) else {
+                continue;
+            };
+            let familiarity = line_familiarity(player, Some(&slot));
+            if !self
+                .match_state
+                .set_line_familiarity(side, &player_id, familiarity)
+            {
+                log::warn!("[live_match] change of shape: {player_id} is not in the match");
             }
         }
     }
