@@ -13,7 +13,7 @@ use rand::rngs::StdRng;
 mod common;
 use common::equal_side;
 
-const SEEDS: u64 = 4000;
+const SEEDS: u64 = 10_000;
 /// How many standard errors a role's effect must clear.
 const STANDARD_ERRORS: f64 = 3.0;
 
@@ -143,10 +143,12 @@ fn pressing_forwards_win_the_ball_higher_in_an_instant_match() {
 
 /// Given a home side with one forward a Pressing Forward and the other, alike in every
 /// attribute, on Standard,
-/// When a live match is played to the end,
-/// Then the pressing forward has less left: he runs more.
+/// When live matches are played to the end,
+/// Then the pressing forward has less left on average: he runs more. Both forwards play the same
+/// match, so the difference per match is paired and its spread is small.
 #[test]
 fn a_pressing_forward_tires_faster_than_a_standard_one() {
+    const MATCHES: u64 = 300;
     let mut home = equal_side("h");
     let forwards: Vec<String> = home
         .players
@@ -159,31 +161,44 @@ fn a_pressing_forward_tires_faster_than_a_standard_one() {
         .find(|p| p.id == forwards[0])
         .expect("a forward")
         .role = PlayerRole::PressingForward;
-    let mut state = LiveMatchState::new(
-        home,
-        equal_side("a"),
-        MatchConfig::default(),
-        vec![],
-        vec![],
-        false,
-    );
-    let mut rng = StdRng::seed_from_u64(1);
-    while !state.step_minute(&mut rng).is_finished {}
 
-    let snapshot = state.snapshot();
-    let condition = |id: &str| {
-        snapshot
-            .home_team
-            .players
-            .iter()
-            .find(|p| p.id == id)
-            .expect("he played")
-            .condition
-    };
+    let extra_tiredness: Vec<f64> = (0..MATCHES)
+        .map(|seed| {
+            let mut state = LiveMatchState::new(
+                home.clone(),
+                equal_side("a"),
+                MatchConfig::default(),
+                vec![],
+                vec![],
+                false,
+            );
+            let mut rng = StdRng::seed_from_u64(seed);
+            while !state.step_minute(&mut rng).is_finished {}
+            let snapshot = state.snapshot();
+            let condition = |id: &str| {
+                f64::from(
+                    snapshot
+                        .home_team
+                        .players
+                        .iter()
+                        .find(|p| p.id == id)
+                        .expect("he played")
+                        .condition,
+                )
+            };
+            condition(&forwards[1]) - condition(&forwards[0])
+        })
+        .collect();
+    let n = extra_tiredness.len() as f64;
+    let mean = extra_tiredness.iter().sum::<f64>() / n;
+    let variance = extra_tiredness
+        .iter()
+        .map(|v| (v - mean).powi(2))
+        .sum::<f64>()
+        / (n - 1.0);
+    let errors = mean / (variance / n).sqrt();
     assert!(
-        condition(&forwards[0]) < condition(&forwards[1]),
-        "the pressing forward ended at {} and the standard one at {}",
-        condition(&forwards[0]),
-        condition(&forwards[1])
+        errors > STANDARD_ERRORS,
+        "the pressing forward ended {mean:+.3} points more tired ({errors:.1} standard errors)"
     );
 }
