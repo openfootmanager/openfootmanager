@@ -1,3 +1,4 @@
+import { takeMissingKeys } from "../i18n/missingKeys";
 import { afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import i18n, { i18nReady } from "../i18n";
 import { useSettingsStore } from "../store/settingsStore";
@@ -331,6 +332,8 @@ describe("resolveAction", () => {
     const action = makeAction({ label: "fallback", label_key: "nonexistent.key" });
     const result = resolveAction(action);
     expect(result.label).toBe("fallback");
+    // The key is absent on purpose: the fallback text is what is under test.
+    expect(takeMissingKeys()).toEqual(["nonexistent.key"]);
   });
 
   it("infers player-event action and option keys for legacy saved messages", () => {
@@ -1190,6 +1193,7 @@ describe("resolveBoardObjective", () => {
     const result = resolveBoardObjective(objective);
 
     expect(result.description).toBe("Custom target");
+    expect(takeMissingKeys()).toEqual(["boardObjectives.objective.CustomObjective"]);
   });
 });
 

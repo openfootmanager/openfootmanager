@@ -1,4 +1,5 @@
 import i18n from "../i18n";
+import { reportIfKeyShaped } from "../i18n/missingKeys";
 import { extractErrorMessage } from "./errorText";
 import { formatExactMoney, formatPreciseCompact } from "../lib/helpers";
 import { formatDate } from "../lib/dateFormatting";
@@ -38,8 +39,16 @@ function resolve(
   return resolved;
 }
 
+/**
+ * Whether a string the backend sent is a translation key we have text for. It may as well be plain
+ * text (a name, a money figure), so `exists` is asked rather than `t`; a key-shaped string that has
+ * no text is a missing key shown raw, and is reported for the dev log and the test gate.
+ */
 function isTranslationKey(value: string): boolean {
-  return value.includes(".") && i18n.t(value) !== value;
+  if (!value.includes(".")) return false;
+  if (i18n.exists(value)) return true;
+  reportIfKeyShaped(i18n.language, value);
+  return false;
 }
 
 function parseBackendMessage(message: string): {
@@ -247,12 +256,10 @@ function resolveParamValues(
     }
   }
   for (const [key, value] of Object.entries(resolved)) {
-    if (value.includes(".")) {
-      const attempted = i18n.t(value);
-      if (attempted !== value) {
-        resolved[key] = attempted;
-        continue;
-      }
+    // A param may be a key (a position group) or a plain value (a name, a money figure).
+    if (isTranslationKey(value)) {
+      resolved[key] = i18n.t(value);
+      continue;
     }
 
     resolved[key] = resolveDateParamValue(
