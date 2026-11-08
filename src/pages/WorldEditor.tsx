@@ -36,6 +36,7 @@ import type { SamplePackage } from "../components/menu/PackageEditor/sampleData"
 import { WorldEditorLayout } from "../components/worldEditor/WorldEditorLayout";
 import { WorldEditorTopBar, type SaveState } from "../components/worldEditor/WorldEditorTopBar";
 import { findingsToShow } from "../components/worldEditor/validationOutcome";
+import { validatePackageProject } from "../services/packageEditorService";
 import { WorldEditorSidebar } from "../components/worldEditor/WorldEditorSidebar";
 import {
   WorldEditorFormPanel,
@@ -424,10 +425,7 @@ export default function WorldEditor() {
     setIsBusy(true);
     try {
       await persist();
-      const data = await invoke<Pick<PackageProjectData, "issues" | "warnings">>(
-        "validate_package_project",
-        { dir: projectDir },
-      );
+      const data = await validatePackageProject(projectDir);
       setIssues(data.issues);
       setWarnings(data.warnings ?? []);
       // An explicit Validate shows what it found, warnings included.
