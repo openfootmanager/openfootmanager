@@ -1148,3 +1148,30 @@ fn a_match_that_has_kicked_off_does_not_follow_a_saved_role() {
         engine::PlayerRole::Standard
     );
 }
+
+/// Given a match waiting at kick-off,
+/// When a starting centre-back carries a saved Attacking Full-Back role, which the engine's
+/// defender group admits but his centre-back slot does not,
+/// Then the plan is followed without an error and he stays on the Standard role: a saved role
+/// counts only where his slot admits it, the rule the match was built by.
+#[test]
+fn a_saved_role_his_slot_refuses_but_his_line_admits_is_left_out() {
+    let mut game = make_game_with_fixture();
+    let mut session = waiting_session(&game);
+    // 4-4-2: goalkeeper, left-back, two centre-backs, right-back.
+    let centre_back = session.match_state.team(engine::Side::Home).players[2]
+        .id
+        .clone();
+    game.teams[0]
+        .player_roles
+        .insert(centre_back.clone(), domain::team::PlayerRole::AttackingFB);
+
+    session
+        .follow_saved_role_before_kick_off(&game, &centre_back)
+        .unwrap();
+
+    assert_eq!(
+        home_role_of(&session, &centre_back),
+        engine::PlayerRole::Standard
+    );
+}
