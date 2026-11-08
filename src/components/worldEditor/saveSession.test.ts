@@ -85,16 +85,18 @@ describe("createSaveSession", () => {
   });
 
   /**
-   * Given saves asked for in order
-   * When the first has not finished
-   * Then the second does not start: writes run one at a time, in the order asked for
+   * Given a save of the clubs in flight
+   * When the author edits them again and asks for another save
+   * Then the second does not start until the first finishes, and then sends the newer clubs:
+   *      writes run one at a time, and the edit made during the first stays unsaved until it
    */
-  it("runs saves one at a time", async () => {
+  it("runs saves one at a time and resends an edit made during the first", async () => {
     const a = project("a");
     const t = editor(a);
     t.session.openProject(a);
     t.state.held = { ...a, teams: [{ id: "a-fc", name: "One" } as TeamDef] };
     const first = t.session.save("/projects/a");
+    await vi.waitFor(() => expect(t.writes).toHaveLength(1));
     t.state.held = { ...a, teams: [{ id: "a-fc", name: "Two" } as TeamDef] };
     const second = t.session.save("/projects/a");
     await Promise.resolve();
@@ -105,5 +107,6 @@ describe("createSaveSession", () => {
     await vi.waitFor(() => expect(t.writes).toHaveLength(2));
     t.release[1]();
     expect(await second).toBe("saved");
+    expect(hasUnsavedChanges(t.state.held, t.state.acknowledged as Acknowledged)).toBe(false);
   });
 });
