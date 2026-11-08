@@ -3186,7 +3186,7 @@
       },
       "seasonPayout": {
         "subject": "Season {{season}} Prize Money Awarded",
-        "body": "The board has confirmed a prize payout of {{amount}} for your {{position}}-place league finish. The amount has been added to the club balance.",
+        "body": "The board has confirmed a prize payout of {{amount}} for your {{ordinal}}-place league finish. The amount has been added to the club balance.",
         "ledgerDescription": "Season {{season}} prize money for {{ordinal}} place"
       },
       "seasonReview": {

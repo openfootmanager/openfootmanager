@@ -467,6 +467,19 @@ describe("resolveMessage", () => {
     expect(result.body).not.toContain("21th");
   });
 
+  // Given the prize-money message for a first-place finish, when it is shown in English, then the
+  // place reads "1st-place", not "1-place".
+  it("writes the prize-money message's place as an ordinal", () => {
+    const result = resolveMessage(
+      makeMessage({
+        body_key: "be.msg.seasonPayout.body",
+        i18n_params: { amount: "5000000", position: "1", season: "1" },
+      }),
+    );
+
+    expect(result.body).toContain("your 1st-place league finish");
+  });
+
   // Given the season prize ledger line the backend writes ("key?season=1&position=3"), when it is
   // shown in English, then the place is "3rd".
   it("writes the prize-money ledger line's place as an ordinal", () => {
