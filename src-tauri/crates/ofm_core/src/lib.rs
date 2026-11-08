@@ -46,6 +46,7 @@ pub mod live_match_manager;
 pub mod manager_records;
 mod manager_reputation;
 pub mod manager_retirement;
+pub mod manager_standing;
 pub mod match_day_eligibility;
 pub mod match_rating;
 pub mod matchday;

@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import { useTranslation } from "react-i18next";
 
 import type { GameStateData, PlayerData } from "../../store/gameStore";
 import { sendScout as sendScoutRequest } from "../../services/scoutingService";
@@ -35,7 +34,6 @@ export function useScoutPlayerFlow({
   gameState,
   onGameUpdate,
 }: UseScoutPlayerFlowArgs): UseScoutPlayerFlowResult {
-  const { t } = useTranslation();
   const [scoutStatus, setScoutStatus] = useState<PlayerProfileScoutStatus>("idle");
   const [scoutError, setScoutError] = useState<string | null>(null);
 
@@ -71,7 +69,7 @@ export function useScoutPlayerFlow({
         onGameUpdate(updated);
         setScoutStatus("sent");
       } catch (err) {
-        setScoutError(resolveTranslatedErrorMessage(err, t));
+        setScoutError(resolveTranslatedErrorMessage(err));
         setScoutStatus("error");
       }
     })();

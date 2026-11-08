@@ -311,6 +311,11 @@ export function buildStartingXIIds(
     }
   }
 
+  // Until the backend's grade arrives every player ties on fit and rating alone would fill each
+  // slot (an outfielder in goal), then the XI would reorder. The saved ids are all that is drawn
+  // until it does; the rest is filled once it can be done properly.
+  if (familiarity && !familiarity.loaded) return validSavedIds.slice(0, 11);
+
   if (validSavedIds.length >= 8) {
     const xi = [...validSavedIds];
     while (xi.length < 11) {
@@ -327,6 +332,10 @@ export function buildStartingXIIds(
     return xi.slice(0, 11);
   }
 
+  // Too few saved players to keep: the XI is rebuilt from the whole pool, so the ids reserved above
+  // for the kept ones are released. Left reserved, they were barred from the rebuild in any squad,
+  // and a small one came up short (nine of eleven from twelve with three saved).
+  used.clear();
   const xi: string[] = [];
   slotPositions.slice(0, 11).forEach((slotPosition) => {
     const candidates = available.filter((player) => !used.has(player.id));

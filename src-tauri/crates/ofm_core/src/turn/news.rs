@@ -78,9 +78,12 @@ fn matchday_results(game: &Game, fixtures: &[&Fixture]) -> Vec<(String, u8, Stri
         .collect()
 }
 
+/// The table as the standings article prints it: in the league table's own order
+/// (`domain::league::sort_standings`: points, goal difference, then goals scored). It sorted on
+/// points and goal difference only, so two clubs level on both could be printed in the opposite
+/// order to the table.
 fn standings_rows(game: &Game, league: &League) -> Vec<(String, u32, i16)> {
-    let mut standings: Vec<(String, u32, i16)> = league
-        .standings
+    domain::league::sort_standings(league.standings.clone())
         .iter()
         .map(|entry| {
             (
@@ -89,9 +92,7 @@ fn standings_rows(game: &Game, league: &League) -> Vec<(String, u32, i16)> {
                 entry.goal_difference() as i16,
             )
         })
-        .collect();
-    standings.sort_by(|a, b| b.1.cmp(&a.1).then(b.2.cmp(&a.2)));
-    standings
+        .collect()
 }
 
 fn pre_match_target_date(today: &str) -> Option<String> {
@@ -883,7 +884,7 @@ pub(super) fn generate_pre_match_messages(game: &mut Game, today: &str) {
 mod tests {
     use super::{
         generate_match_news, generate_matchday_news, generate_pre_match_messages,
-        generate_weekly_digest_news,
+        generate_weekly_digest_news, standings_rows,
     };
     use crate::clock::GameClock;
     use crate::game::Game;
@@ -1006,6 +1007,30 @@ mod tests {
             home_penalties: None,
             away_penalties: None,
         }
+    }
+
+    /// Given two clubs level on points and goal difference, the one listed first having scored
+    ///      fewer (5 against 8)
+    /// When the standings article lists the table
+    /// Then the club that scored more is above, as in the league table (it kept the listed order)
+    #[test]
+    fn the_standings_article_breaks_a_tie_on_goals_scored_as_the_table_does() {
+        let mut game = make_game("2025-08-12", FixtureStatus::Completed);
+        let mut fewer = StandingEntry::new("team1".to_string());
+        fewer.points = 10;
+        fewer.goals_for = 5;
+        fewer.goals_against = 3;
+        let mut more = StandingEntry::new("team2".to_string());
+        more.points = 10;
+        more.goals_for = 8;
+        more.goals_against = 6;
+        let league = game.league.as_mut().expect("the game has a league");
+        league.standings = vec![fewer, more];
+
+        let rows = standings_rows(&game, game.league.as_ref().expect("the game has a league"));
+
+        let names: Vec<&str> = rows.iter().map(|(name, _, _)| name.as_str()).collect();
+        assert_eq!(names, vec!["Beta FC", "Alpha FC"]);
     }
 
     fn make_game(today: &str, todays_fixture_status: FixtureStatus) -> Game {

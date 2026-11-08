@@ -34,6 +34,8 @@ fn visit_wire_roots(visitor: &mut impl TypeVisitor) {
     visitor.visit::<ofm_core::familiarity_projection::FamiliarityProjection>();
     // `get_tactics_lineup` returns it; nothing in `Game` reaches it.
     visitor.visit::<ofm_core::tactics_lineup::TacticsLineup>();
+    // `get_manager_standing` returns it; nothing in `Game` reaches it.
+    visitor.visit::<ofm_core::manager_standing::ManagerStanding>();
     // `get_managers_page` returns the first and takes the second; nothing in `Game` reaches them.
     visitor.visit::<ofm_core::slices::managers::ManagersPage>();
     visitor.visit::<ofm_core::slices::managers::ManagersStatus>();

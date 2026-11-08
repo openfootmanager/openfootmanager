@@ -109,7 +109,7 @@ export default function ScheduleTab({ gameState, onSelectTeam }: ScheduleTabProp
       })
       .catch((err) => {
         if (cancelled) return;
-        setFetchError(resolveTranslatedErrorMessage(getErrorMessage(err), t));
+        setFetchError(resolveTranslatedErrorMessage(getErrorMessage(err)));
       });
     return () => {
       cancelled = true;
