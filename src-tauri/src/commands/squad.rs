@@ -651,8 +651,15 @@ pub fn set_player_role_internal(
         "[cmd] set_player_role: player={} role={:?}",
         player_id, role
     );
+    // Where a pre-match swap has put him, read before the game lock (the two locks are never
+    // nested). A swap or a change of shape moves players in the waiting match alone, so the saved
+    // team's slots no longer describe it. If a swap lands between this read and the save, the
+    // saved role is judged by the old slot while the match is still handed the right one: the
+    // hand-off below filters it by the slot he now fills.
+    let waiting_slot = crate::application::live_match::user_slot_before_kick_off(state, &player_id);
     let game = mutate_active_game_for(state, career, |game| {
         let team_id = user_team_id(game)?;
+        let game_career_token = game.career_token;
 
         // Validate the role against where the player is actually deployed (the
         // granular slot from formation + starting XI), falling back to their
@@ -666,8 +673,11 @@ pub fn set_player_role_internal(
             .map(|p| p.natural_position.clone())
             .ok_or_else(|| "be.error.playerNotOnTeam".to_string())?;
         let team = user_team_mut(game)?;
-        let validation_position = ofm_core::player_rating::deployed_position(team, &player_id)
-            .unwrap_or(natural_position);
+        let validation_position = match waiting_slot {
+            Some((career_token, slot)) if career_token == game_career_token => slot,
+            _ => ofm_core::player_rating::deployed_position(team, &player_id)
+                .unwrap_or(natural_position),
+        };
 
         match role {
             Some(r) => {

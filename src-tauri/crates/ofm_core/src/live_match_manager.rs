@@ -20,7 +20,7 @@ use crate::game::Game;
 use domain::league::{FixtureStatus, StandingEntry};
 use domain::manager::Manager;
 use domain::player::{Player, Position as DomainPosition};
-use domain::team::MatchRoles;
+use domain::team::{MatchRoles, PlayerRole as DomainPlayerRole};
 use engine::ai::{self, AiPersonality, AiProfile};
 use engine::{
     LiveMatchState, MatchCommand, MatchConfig, MatchPhase, MatchReport, MatchSnapshot,
@@ -168,6 +168,13 @@ pub struct LiveMatchSession {
     /// Both clubs' players as the game knows them, by id, so a swap before kick-off can work
     /// out what the newcomer's slot asks of him (`refit_pre_match_swap`).
     squad_players: HashMap<String, Player>,
+    /// The roles the user's team has saved, by player, as the session last saw them: seeded when
+    /// the match is built and kept current by `follow_saved_role_before_kick_off`, which is the
+    /// only way a role is saved before kick-off, so it is exact until the match starts. A
+    /// pre-match swap reads it to give the newcomer the role his new slot admits; the game's
+    /// roles are not at hand there, and taking the game lock under the live-match lock is the
+    /// nesting this codebase avoids.
+    saved_roles: HashMap<String, DomainPlayerRole>,
 }
 
 impl LiveMatchSession {
@@ -307,6 +314,37 @@ impl LiveMatchSession {
                 log::warn!("[live_match] pre-match swap: {player_id} is not in the match");
             }
         }
+        if let Some(slot) = slot {
+            self.refit_swapped_in_role(side, on, slot);
+        }
+    }
+
+    /// The newcomer plays the role his new slot admits: the team's saved role for him if it does,
+    /// else Standard, not the role his bench copy carried from a slot or line he no longer fills.
+    fn refit_swapped_in_role(&mut self, side: Side, on: &str, slot: &DomainPosition) {
+        let Some(newcomer) = self
+            .match_state
+            .team(side)
+            .players
+            .iter()
+            .find(|player| player.id == on)
+        else {
+            return;
+        };
+        let role = role_at(self.saved_roles.get(on), slot, newcomer.position);
+        if role == newcomer.role {
+            return;
+        }
+        if let Err(error) = self
+            .match_state
+            .apply_command(MatchCommand::ChangePlayerRole {
+                side,
+                player_id: on.to_string(),
+                role,
+            })
+        {
+            log::warn!("[live_match] pre-match swap: {on} did not take his role: {error}");
+        }
     }
 
     /// Sets the user's own side's shootout order, for a caller that does not name the side.
@@ -349,7 +387,16 @@ impl LiveMatchSession {
         let Some((side, team)) = self.user_team_before_kick_off(game) else {
             return Ok(());
         };
+        match team.player_roles.get(player_id) {
+            Some(role) => {
+                self.saved_roles.insert(player_id.to_string(), role.clone());
+            }
+            None => {
+                self.saved_roles.remove(player_id);
+            }
+        }
         let Some(slot) = self.slot_of(side, player_id) else {
+            self.follow_saved_role_on_the_bench(side, player_id);
             return Ok(());
         };
         let Some(starter) = self
@@ -361,13 +408,7 @@ impl LiveMatchSession {
         else {
             return Ok(());
         };
-        let role = team
-            .player_roles
-            .get(player_id)
-            .filter(|role| slot.admits_role(role))
-            .map(domain_to_engine_role)
-            .filter(|role| role.suits(starter.position))
-            .unwrap_or(engine::PlayerRole::Standard);
+        let role = role_at(self.saved_roles.get(player_id), &slot, starter.position);
         if role == starter.role {
             return Ok(());
         }
@@ -377,6 +418,42 @@ impl LiveMatchSession {
                 player_id: player_id.to_string(),
                 role,
             })
+    }
+
+    /// A benched player's saved role is the one he comes on with, if his natural position admits
+    /// it and his line can take it: the bench copy was built before the role was saved.
+    fn follow_saved_role_on_the_bench(&mut self, side: Side, player_id: &str) {
+        let Some(player) = self.squad_players.get(player_id) else {
+            return;
+        };
+        let Some(line) = self
+            .match_state
+            .bench(side)
+            .iter()
+            .find(|benched| benched.id == player_id)
+            .map(|benched| benched.position)
+        else {
+            return;
+        };
+        let role = role_at(
+            self.saved_roles.get(player_id),
+            &player.natural_position,
+            line,
+        );
+        self.match_state.set_bench_role(side, player_id, role);
+    }
+
+    /// The slot the user's `player_id` fills in the match still waiting at kick-off, with the
+    /// career the match belongs to: the position a role saved for him is judged at, which a
+    /// pre-match swap can have changed from the saved team's. `None` for a benched player, a
+    /// match in play, or a match the user is not in. The caller reads this before it takes the
+    /// game lock, never inside it.
+    pub fn user_slot_before_kick_off(&self, player_id: &str) -> Option<(u64, DomainPosition)> {
+        if self.match_state.phase() != MatchPhase::PreKickOff {
+            return None;
+        }
+        let side = self.user_side?;
+        Some((self.career_token, self.slot_of(side, player_id)?))
     }
 
     /// The user's side and saved team, while this career's match still waits at kick-off.
@@ -656,6 +733,17 @@ fn create_live_match_with(
         personality: derive_personality(away_rep, game.manager_of_club(&away_team_id)),
     };
 
+    let saved_roles = user_side
+        .and_then(|side| {
+            let team_id = match side {
+                Side::Home => &home_team_id,
+                Side::Away => &away_team_id,
+            };
+            game.teams.iter().find(|team| &team.id == team_id)
+        })
+        .map(|team| team.player_roles.clone())
+        .unwrap_or_default();
+
     Ok(LiveMatchSession {
         match_state,
         // The clubs tell this match from any other played today, as for a batch match.
@@ -674,7 +762,24 @@ fn create_live_match_with(
         ai_away,
         career_token: game.career_token,
         squad_players,
+        saved_roles,
     })
+}
+
+/// The role a player plays when he is judged at `position`: the one the team saved for him if
+/// that position admits it and his `line` can take it (`PlayerRole::suits`, the engine's one
+/// rule), else Standard. At a formation slot this is the rule the match was built by
+/// (`turn::squad`); on the bench, with his natural position, it is the role he waits with.
+fn role_at(
+    saved: Option<&DomainPlayerRole>,
+    position: &DomainPosition,
+    line: engine::Position,
+) -> engine::PlayerRole {
+    saved
+        .filter(|role| position.admits_role(role))
+        .map(domain_to_engine_role)
+        .filter(|role| role.suits(line))
+        .unwrap_or(engine::PlayerRole::Standard)
 }
 
 /// What a fixture nobody watched produced, with the two clubs it belongs to so

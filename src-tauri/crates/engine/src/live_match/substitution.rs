@@ -1,5 +1,5 @@
 use crate::event::{EventType, MatchEvent};
-use crate::types::{PlayerData, Position, Side, Zone};
+use crate::types::{PlayerData, PlayerRole, Position, Side, Zone};
 
 use super::{LiveMatchState, MatchPhase, SubstitutionRecord};
 
@@ -148,6 +148,24 @@ impl LiveMatchState {
         {
             Some(player) => {
                 player.line_familiarity = line_familiarity;
+                true
+            }
+            None => false,
+        }
+    }
+
+    /// Give `player_id`, on `side`'s bench, `role`: the role he plays if he comes on. For a
+    /// caller that knows a role the bench copy was built without (a role saved after the match
+    /// was built). It is the caller's to check the role against the line he will enter, as
+    /// `PlayerRole::suits` does. Whether he was found on the bench.
+    pub fn set_bench_role(&mut self, side: Side, player_id: &str, role: PlayerRole) -> bool {
+        let bench = match side {
+            Side::Home => &mut self.home_bench,
+            Side::Away => &mut self.away_bench,
+        };
+        match bench.iter_mut().find(|player| player.id == player_id) {
+            Some(player) => {
+                player.role = role;
                 true
             }
             None => false,
@@ -408,6 +426,32 @@ mod line_familiarity_tests {
         assert!(state.set_line_familiarity(Side::Home, "h_sub", REFIT));
 
         assert_eq!(state.bench(Side::Home)[0].line_familiarity, REFIT);
+    }
+
+    /// Given a home substitute on the bench,
+    /// When he is given a role,
+    /// Then he carries it, and nobody in the eleven or on the other bench does.
+    #[test]
+    fn a_player_on_the_bench_takes_the_role_he_is_given() {
+        let mut state = state();
+
+        assert!(state.set_bench_role(Side::Home, "h_sub", PlayerRole::Stopper));
+
+        assert_eq!(state.bench(Side::Home)[0].role, PlayerRole::Stopper);
+        assert_eq!(state.bench(Side::Away)[0].role, PlayerRole::Standard);
+        assert_eq!(state.team(Side::Home).players[1].role, PlayerRole::Standard);
+    }
+
+    /// Given a home player in the eleven,
+    /// When a bench role is asked for him,
+    /// Then he is not found there and keeps his role.
+    #[test]
+    fn a_player_in_the_eleven_is_not_on_the_bench() {
+        let mut state = state();
+
+        assert!(!state.set_bench_role(Side::Home, "h_d", PlayerRole::Stopper));
+
+        assert_eq!(state.team(Side::Home).players[1].role, PlayerRole::Standard);
     }
 
     /// Given the away side's substitute,

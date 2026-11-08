@@ -430,6 +430,17 @@ pub fn follow_saved_dials_before_kick_off(state: &StateManager, game: &Game) -> 
         .unwrap_or(Ok(()))
 }
 
+/// The slot the user's player fills in the match waiting at kick-off, with that match's career.
+/// Read before the game lock is taken, never inside it.
+pub fn user_slot_before_kick_off(
+    state: &StateManager,
+    player_id: &str,
+) -> Option<(u64, domain::player::Position)> {
+    state
+        .with_live_match(|session| session.user_slot_before_kick_off(player_id))
+        .flatten()
+}
+
 /// A starter's role saved before kick-off also reaches the match waiting to be played.
 pub fn follow_saved_role_before_kick_off(
     state: &StateManager,
