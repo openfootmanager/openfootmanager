@@ -16,7 +16,8 @@ export function reportMissingKey(language: string, key: string): void {
   }
 }
 
-const TOP_LEVEL_NAMESPACES = new Set(Object.keys(en));
+// Dev and tests only: in a production build `en` is not referenced, so the bundler leaves it out.
+const TOP_LEVEL_NAMESPACES = new Set(import.meta.env.DEV ? Object.keys(en) : []);
 
 /**
  * Whether a value is shaped like a translation key: dotted, no spaces, and under one of the
