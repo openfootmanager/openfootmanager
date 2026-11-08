@@ -3,7 +3,8 @@
 // of `domain`, and `ofm_core/turn/` is the single bridge between the two. The
 // live path and the instant path both build their sides from there, so there is
 // one answer to "who is playing" rather than one per code path.
-use crate::player_rating::formation_slots;
+use crate::custom_tactics::INVALID_FORMATION_ERROR;
+use crate::player_rating::{formation_slots, parse_formation};
 use crate::turn::matchday_lookups::MatchdayLookups;
 pub use crate::turn::squad::auto_select_set_pieces;
 use crate::turn::squad::{
@@ -274,6 +275,17 @@ impl LiveMatchSession {
             self.refit_pre_match_swap(side, &off, &on, slot.as_ref());
             return Ok(());
         }
+        if let MatchCommand::ChangeFormation { side, formation } = &cmd {
+            let side = *side;
+            // The engine reads any string leniently ("4-5-1-x" plays 4, 5 and 1) while the
+            // slots are laid out by `parse_formation`; only an agent can send such a shape.
+            if parse_formation(formation).is_none() {
+                return Err(INVALID_FORMATION_ERROR.to_string());
+            }
+            self.match_state.apply_command(cmd)?;
+            self.refit_formation_change(side);
+            return Ok(());
+        }
         self.match_state.apply_command(cmd)
     }
 
@@ -286,8 +298,8 @@ impl LiveMatchSession {
 
     /// After a swap before kick-off, the newcomer plays at the familiarity of the slot he took,
     /// and the player he replaced, now on the bench, at his best in each line, as any bench
-    /// player does. The engine cannot work either out: it knows lines, not slots. A pre-kick-off
-    /// change of formation moves starters between slots too and is not refitted here.
+    /// player does. The engine cannot work either out: it knows lines, not slots. A change of
+    /// formation moves starters between slots too: `refit_formation_change`.
     fn refit_pre_match_swap(
         &mut self,
         side: Side,
@@ -305,6 +317,36 @@ impl LiveMatchSession {
                 .set_line_familiarity(side, player_id, familiarity)
             {
                 log::warn!("[live_match] pre-match swap: {player_id} is not in the match");
+            }
+        }
+    }
+
+    /// After a change of shape before kick-off, every starter plays at the familiarity of the
+    /// slot he now stands in: the engine regroups the eleven so that entry i plays slot i of the
+    /// new formation, and cannot tell which slot within a line that is. A match in play keeps
+    /// the familiarity each starter kicked off with (`PlayerData::line_familiarity` is his
+    /// kick-off slot's), as a substitute keeps the line he came on in.
+    fn refit_formation_change(&mut self, side: Side) {
+        if self.match_state.phase() != MatchPhase::PreKickOff {
+            return;
+        }
+        let team = self.match_state.team(side);
+        let starters: Vec<(String, DomainPosition)> = team
+            .players
+            .iter()
+            .zip(formation_slots(&team.formation))
+            .map(|(player, slot)| (player.id.clone(), slot))
+            .collect();
+        for (player_id, slot) in starters {
+            let Some(player) = self.squad_players.get(&player_id) else {
+                continue;
+            };
+            let familiarity = line_familiarity(player, Some(&slot));
+            if !self
+                .match_state
+                .set_line_familiarity(side, &player_id, familiarity)
+            {
+                log::warn!("[live_match] change of shape: {player_id} is not in the match");
             }
         }
     }
