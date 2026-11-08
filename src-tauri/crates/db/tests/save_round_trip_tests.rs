@@ -318,12 +318,6 @@ fn text(value: &Value) -> &str {
 /// deleted with the fix).
 fn known_bug(difference: &Difference) -> Option<&'static str> {
     let path = difference.path.as_str();
-    if path == "game.days_since_last_job_offer"
-        && difference.saved.is_number()
-        && difference.loaded.is_null()
-    {
-        return Some("the job-offer cooldown is not saved (#1260)");
-    }
     let staff_nationality = path.starts_with("game.staff[")
         && (path.ends_with("].birth_country") || path.ends_with("].football_nation"));
     if staff_nationality
@@ -517,16 +511,6 @@ fn known_bug_still_happens(bug: &str) -> bool {
         .differences
         .iter()
         .any(|difference| known_bug(difference) == Some(bug))
-}
-
-/// KNOWN BUG #1260 (job-offer cooldown): `days_since_last_job_offer` has no column; the load sets
-/// it to `None` (`game_persistence.rs`), so a save and load restarts the cooldown. Delete this test
-/// with the fix.
-#[test]
-fn known_bug_the_job_offer_cooldown_is_not_saved() {
-    assert!(known_bug_still_happens(
-        "the job-offer cooldown is not saved (#1260)"
-    ));
 }
 
 /// KNOWN BUG #1261 (staff nationality): a staff member made during a season has no `birth_country`
