@@ -128,13 +128,19 @@ export function PlayerPreviewCard({
         {/* Overall rating badge */}
         {editing.overall !== null && (
           <div className="flex items-baseline gap-1.5">
-            <span className="text-[10px] uppercase tracking-wide text-gray-400">OVR</span>
+            <span className="text-[10px] uppercase tracking-wide text-gray-400">
+              {t("common.ovr")}
+            </span>
             <span
               className={`text-2xl font-heading font-black leading-none ${ratingTierClass(tierOf(editing.overall), "text")}`}
             >
               {editing.overall}
             </span>
-            {isEstimated && <span className="text-[10px] text-gray-400 italic">est.</span>}
+            {isEstimated && (
+              <span className="text-[10px] text-gray-400 italic">
+                {t("worldEditor.estimatedRating")}
+              </span>
+            )}
           </div>
         )}
 

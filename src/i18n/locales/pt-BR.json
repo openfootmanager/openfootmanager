@@ -4091,6 +4091,7 @@
       "player": "Novo jogador",
       "competition": "Nova competição"
     },
+    "estimatedRating": "est.",
     "positionGroupFilter": {
       "Goalkeeper": "Todos os goleiros",
       "Defender": "Todos os defensores",

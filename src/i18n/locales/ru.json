@@ -4091,6 +4091,7 @@
       "player": "Новый игрок",
       "competition": "Новый турнир"
     },
+    "estimatedRating": "оцен.",
     "positionGroupFilter": {
       "Goalkeeper": "Все вратари",
       "Defender": "Все защитники",
