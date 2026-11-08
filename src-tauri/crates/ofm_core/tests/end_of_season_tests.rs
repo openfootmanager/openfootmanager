@@ -1130,7 +1130,7 @@ fn promotion_message_carries_the_divisions_name_key_country_and_season() {
 
     process_end_of_season(&mut game);
 
-    let renewed = ofm_core::end_of_season::user_division(&game, "team3")
+    let renewed = ofm_core::end_of_season::club_league_table(&game, "team3")
         .expect("the user still has a division")
         .season;
     let msg = game
@@ -1166,7 +1166,7 @@ fn promotion_message_without_a_name_key_carries_no_key_params() {
 
     process_end_of_season(&mut game);
 
-    let renewed = ofm_core::end_of_season::user_division(&game, "team3")
+    let renewed = ofm_core::end_of_season::club_league_table(&game, "team3")
         .expect("the user still has a division")
         .season;
     let msg = game
