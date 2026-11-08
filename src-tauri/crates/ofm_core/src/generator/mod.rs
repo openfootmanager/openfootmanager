@@ -1033,7 +1033,7 @@ pub(super) fn builtin_region_name(id: &str) -> String {
 /// club's country assigned to its confederation (package-defined first,
 /// otherwise the built-in catalog).
 fn regions_from_package<'a>(
-    package: &package::WorldPackage,
+    package: &'a package::WorldPackage,
     club_nations: impl Iterator<Item = &'a str>,
 ) -> Vec<WorldRegionDefinition> {
     use std::collections::{BTreeMap, BTreeSet, HashMap};
