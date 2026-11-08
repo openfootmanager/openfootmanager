@@ -6,6 +6,12 @@ import type { DashboardAlert } from "./dashboardHelpers";
 interface DashboardAlertsProps {
   alerts: DashboardAlert[];
   onNavigate: (tab: string) => void;
+  /**
+   * The list sits above a tab that fills the workspace, which has no scroll of its own to carry it:
+   * cap the list at about three alerts and scroll it, so six of them cannot squeeze that tab to a
+   * strip at a small window or a large UI scale.
+   */
+  scrolls?: boolean;
 }
 
 // The alert is a sentence, so it reads in sentence case; the tint says how urgent, the icon and
@@ -24,13 +30,16 @@ function getAlertButtonClassName(severity: DashboardAlert["severity"]): string {
 export default function DashboardAlerts({
   alerts,
   onNavigate,
+  scrolls = false,
 }: DashboardAlertsProps): JSX.Element | null {
   if (alerts.length === 0) {
     return null;
   }
 
   return (
-    <div className="mb-4 flex flex-col gap-1.5">
+    <div
+      className={`mb-4 flex flex-col gap-1.5 ${scrolls ? "max-h-24 shrink-0 overflow-y-auto" : ""}`}
+    >
       {alerts.map((alert) => (
         <button
           type="button"

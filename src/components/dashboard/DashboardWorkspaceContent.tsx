@@ -69,7 +69,11 @@ export default function DashboardWorkspaceContent({
       )}
 
       {!selectedPlayer && !selectedTeam ? (
-        <DashboardAlerts alerts={dashboardAlerts} onNavigate={onNavigate} />
+        <DashboardAlerts
+          alerts={dashboardAlerts}
+          onNavigate={onNavigate}
+          scrolls={fillsWorkspace}
+        />
       ) : null}
 
       {selectedPlayer && !selectedTeam ? (
