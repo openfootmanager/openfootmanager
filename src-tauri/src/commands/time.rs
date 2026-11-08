@@ -2435,4 +2435,208 @@ mod tests {
             Some("be.error.roleNotValidForPosition")
         );
     }
+
+    // -----------------------------------------------------------------------
+    // A saved role the team drops, and the gate a role save and a swap pass through
+    // -----------------------------------------------------------------------
+
+    /// A live match waiting at kick-off whose team holds an Attacking Full-Back for a spare centre-back
+    /// on its bench (a role his natural position refuses, as a stale save can carry). Returns his id.
+    fn benched_centre_back_holding_a_role_his_position_refuses(state: &StateManager) -> String {
+        let mut game = make_round_summary_game();
+        game.players.push(make_player(
+            "a-cb-spare",
+            "a Cb Spare",
+            "team1",
+            Position::CenterBack,
+        ));
+        game.teams
+            .iter_mut()
+            .find(|team| team.id == "team1")
+            .expect("the user's team")
+            .player_roles
+            .insert(
+                "a-cb-spare".to_string(),
+                domain::team::PlayerRole::AttackingFB,
+            );
+        state.set_game(game);
+        advance_time_with_mode_internal(state, ofm_core::state::Career::Active, "live")
+            .expect("live advance response");
+        "a-cb-spare".to_string()
+    }
+
+    fn swap_into_left_back(state: &StateManager, player_on_id: &str) {
+        let left_back = state
+            .with_live_match(|session| session.snapshot().home_team.players[1].id.clone())
+            .expect("a live match session exists");
+        crate::application::live_match::apply_match_command(
+            state,
+            ofm_core::state::Career::Active,
+            engine::MatchCommand::PreMatchSwap {
+                side: engine::Side::Home,
+                player_off_id: left_back,
+                player_on_id: player_on_id.to_string(),
+            },
+        )
+        .expect("the swap is made before kick-off");
+    }
+
+    /// Given a team that holds a role for a benched centre-back his position refuses,
+    /// When `change` rewrites the team's roles (it reconciles them and drops that one) and the
+    /// manager then swaps him into the left-back slot,
+    /// Then he plays the slot on Standard: the match was told the role is gone, not left holding it.
+    fn assert_a_dropped_role_is_not_restored_by_a_swap(change: impl FnOnce(&StateManager)) {
+        let state = StateManager::new();
+        let spare = benched_centre_back_holding_a_role_his_position_refuses(&state);
+        change(&state);
+
+        swap_into_left_back(&state, &spare);
+
+        assert_eq!(
+            role_in_the_waiting_match(&state, &spare),
+            engine::PlayerRole::Standard
+        );
+    }
+
+    fn current_eleven(state: &StateManager) -> Vec<String> {
+        state
+            .get_game(|game| game.teams[0].starting_xi_ids.clone())
+            .expect("a game is open")
+    }
+
+    /// Given the scenario above, changed by saving the same starting eleven.
+    #[test]
+    fn a_role_the_starting_eleven_save_drops_is_not_restored_by_a_swap() {
+        assert_a_dropped_role_is_not_restored_by_a_swap(|state| {
+            let eleven = current_eleven(state);
+            crate::commands::squad::set_starting_xi_internal(
+                state,
+                ofm_core::state::Career::Active,
+                eleven,
+            )
+            .expect("the eleven is saved");
+        });
+    }
+
+    /// Given the scenario above, changed by saving a formation.
+    #[test]
+    fn a_role_the_formation_save_drops_is_not_restored_by_a_swap() {
+        assert_a_dropped_role_is_not_restored_by_a_swap(|state| {
+            crate::commands::squad::set_formation_internal(
+                state,
+                ofm_core::state::Career::Active,
+                "4-4-2",
+            )
+            .expect("the formation is saved");
+        });
+    }
+
+    /// Given the scenario above, changed by applying a tactic preset.
+    #[test]
+    fn a_role_the_tactic_preset_drops_is_not_restored_by_a_swap() {
+        assert_a_dropped_role_is_not_restored_by_a_swap(|state| {
+            crate::commands::squad::apply_tactic_preset_internal(
+                state,
+                ofm_core::state::Career::Active,
+                "4-4-2",
+                "Balanced",
+            )
+            .expect("the preset is applied");
+        });
+    }
+
+    /// Given the scenario above, changed by applying a saved custom tactic.
+    #[test]
+    fn a_role_the_custom_tactic_drops_is_not_restored_by_a_swap() {
+        assert_a_dropped_role_is_not_restored_by_a_swap(|state| {
+            let tactic = domain::custom_tactic::CustomTactic {
+                id: "mine".to_string(),
+                name: "Mine".to_string(),
+                description: String::new(),
+                formation: "4-4-2".to_string(),
+                play_style: "Balanced".to_string(),
+                source_preset_name: None,
+                contents: None,
+            };
+            crate::commands::custom_tactics::save_current_tactic_internal(
+                state,
+                &tactic,
+                ofm_core::state::Career::Active,
+            )
+            .expect("the tactic is saved");
+            crate::commands::custom_tactics::apply_custom_tactic_internal(
+                state,
+                "mine",
+                ofm_core::state::Career::Active,
+            )
+            .expect("the tactic is applied");
+        });
+    }
+
+    /// Runs `call` on another thread while this one holds the lifecycle gate, and reports whether
+    /// it finished before and after the gate was released.
+    fn finishes_only_after_the_gate_is_released<F>(
+        state: Arc<StateManager>,
+        call: F,
+    ) -> (bool, bool)
+    where
+        F: FnOnce(&StateManager) + Send + 'static,
+    {
+        let operation = crate::application::live_session::operation();
+        let (done_tx, done_rx) = std::sync::mpsc::channel();
+        let handle = std::thread::spawn(move || {
+            call(&state);
+            done_tx.send(()).unwrap();
+        });
+        let finished_while_held = done_rx
+            .recv_timeout(std::time::Duration::from_millis(300))
+            .is_ok();
+        drop(operation);
+        let finished_after_release = done_rx
+            .recv_timeout(std::time::Duration::from_secs(30))
+            .is_ok();
+        handle.join().unwrap();
+        (finished_while_held, finished_after_release)
+    }
+
+    /// Given a lifecycle operation in flight,
+    /// When a role is saved for a player of the waiting match,
+    /// Then the save queues behind the operation, and completes once it is released: the read of
+    /// his slot, the save and the hand-off to the match are one step against a kick-off or a swap.
+    #[test]
+    fn a_role_save_waits_for_a_lifecycle_operation_in_flight() {
+        let state = Arc::new(StateManager::new());
+        let swapped_in = forward_swapped_into_left_back(&state);
+
+        let (while_held, after_release) =
+            finishes_only_after_the_gate_is_released(state, move |state| {
+                crate::commands::squad::set_player_role_internal(
+                    state,
+                    ofm_core::state::Career::Active,
+                    swapped_in,
+                    Some("AttackingFB".to_string()),
+                )
+                .expect("the role is saved");
+            });
+
+        assert!(!while_held, "the save ran inside a held operation");
+        assert!(after_release, "the save never completed once released");
+    }
+
+    /// Given a lifecycle operation in flight,
+    /// When a pre-match swap is made,
+    /// Then the swap queues behind the operation and completes once it is released.
+    #[test]
+    fn a_pre_match_swap_waits_for_a_lifecycle_operation_in_flight() {
+        let state = Arc::new(StateManager::new());
+        let spare = benched_centre_back_holding_a_role_his_position_refuses(&state);
+
+        let (while_held, after_release) =
+            finishes_only_after_the_gate_is_released(state, move |state| {
+                swap_into_left_back(state, &spare);
+            });
+
+        assert!(!while_held, "the swap ran inside a held operation");
+        assert!(after_release, "the swap never completed once released");
+    }
 }
