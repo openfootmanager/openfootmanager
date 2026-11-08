@@ -49,12 +49,25 @@ fn parse_play_style(play_style: &str) -> domain::team::PlayStyle {
     }
 }
 
+/// A save that rewrote the team's roles also reaches the match waiting at kick-off. A hand-off the
+/// match cannot take is logged, not reported: the save is done, and an error here would roll the
+/// screen back to roles that are no longer the saved ones.
+pub(crate) fn follow_saved_roles_into_the_waiting_match(state: &StateManager, game: &Game) {
+    if let Err(error) =
+        crate::application::live_match::follow_saved_roles_before_kick_off(state, game)
+    {
+        log::warn!("[cmd] the waiting match did not take the saved roles: {error}");
+    }
+}
+
 pub fn set_formation_internal(
     state: &StateManager,
     career: Career,
     formation: &str,
 ) -> Result<Game, String> {
-    mutate_active_game_for(state, career, |game| apply_formation(game, formation))
+    let game = mutate_active_game_for(state, career, |game| apply_formation(game, formation))?;
+    follow_saved_roles_into_the_waiting_match(state, &game);
+    Ok(game)
 }
 
 /// Picks a tactic preset: its formation and play style, and the phase blueprint
@@ -69,7 +82,7 @@ pub fn apply_tactic_preset_internal(
     formation: &str,
     play_style: &str,
 ) -> Result<Game, String> {
-    mutate_active_game_for(state, career, |game| {
+    let game = mutate_active_game_for(state, career, |game| {
         apply_formation(game, formation)?;
 
         let style = parse_play_style(play_style);
@@ -78,7 +91,9 @@ pub fn apply_tactic_preset_internal(
         team.play_style = style;
 
         Ok(())
-    })
+    })?;
+    follow_saved_roles_into_the_waiting_match(state, &game);
+    Ok(game)
 }
 
 #[tauri::command]
@@ -133,7 +148,7 @@ pub fn set_starting_xi_internal(
     career: Career,
     player_ids: Vec<String>,
 ) -> Result<Game, String> {
-    mutate_active_game_for(state, career, |game| {
+    let game = mutate_active_game_for(state, career, |game| {
         let team_id = user_team_id(game)?;
         // Refused before anything is written: the screens and an MCP agent both save through here.
         validate_starting_xi(&game.players, &team_id, &player_ids)?;
@@ -144,7 +159,9 @@ pub fn set_starting_xi_internal(
         reconcile_player_roles(game, &team_id);
 
         Ok(())
-    })
+    })?;
+    follow_saved_roles_into_the_waiting_match(state, &game);
+    Ok(game)
 }
 
 #[tauri::command]
@@ -651,6 +668,9 @@ pub fn set_player_role_internal(
         "[cmd] set_player_role: player={} role={:?}",
         player_id, role
     );
+    // One step against a swap or a kick-off: the read of his slot, the save and the hand-off to
+    // the match. The data locks are still taken one at a time, never nested.
+    let _operation = crate::application::live_session::operation();
     // Where a pre-match swap has put him, read before the game lock (the two locks are never
     // nested). A swap or a change of shape moves players in the waiting match alone, so the saved
     // team's slots no longer describe it. If a swap lands between this read and the save, the

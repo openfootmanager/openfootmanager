@@ -390,6 +390,10 @@ pub fn apply_match_command(
     command: engine::MatchCommand,
 ) -> Result<engine::MatchSnapshot, String> {
     info!("[cmd] apply_match_command: {:?}", command);
+    // A swap reads the roles the team has saved and a role save reads the slots a swap fills: the
+    // lifecycle gate makes each a whole step against the other. The data locks stay one at a time.
+    let _operation = matches!(command, engine::MatchCommand::PreMatchSwap { .. })
+        .then(super::live_session::operation);
     let snapshot = state
         .with_live_match(|session| {
             career.check_token(session.career_token)?;
@@ -427,6 +431,14 @@ pub fn get_match_snapshot(state: &StateManager) -> Result<engine::MatchSnapshot,
 pub fn follow_saved_dials_before_kick_off(state: &StateManager, game: &Game) -> Result<(), String> {
     state
         .with_live_match(|session| session.follow_saved_dials_before_kick_off(game))
+        .unwrap_or(Ok(()))
+}
+
+/// A save that rewrites the team's roles (a formation, an eleven, a tactic) also reaches the
+/// match waiting to be played: a role it drops is dropped there.
+pub fn follow_saved_roles_before_kick_off(state: &StateManager, game: &Game) -> Result<(), String> {
+    state
+        .with_live_match(|session| session.follow_saved_roles_before_kick_off(game))
         .unwrap_or(Ok(()))
 }
 

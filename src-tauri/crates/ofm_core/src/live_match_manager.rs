@@ -170,8 +170,9 @@ pub struct LiveMatchSession {
     /// out what the newcomer's slot asks of him (`refit_pre_match_swap`).
     squad_players: HashMap<String, Player>,
     /// The roles the user's team has saved, by player, as the session last saw them: seeded when
-    /// the match is built and kept current by `follow_saved_role_before_kick_off`, which is the
-    /// only way a role is saved before kick-off, so it is exact until the match starts. A
+    /// the match is built and kept current by `follow_saved_role_before_kick_off` (a role saved
+    /// for one player) and `follow_saved_roles_before_kick_off` (a save that rewrites them all:
+    /// a formation, an eleven, a tactic), so it is exact until the match starts. A
     /// pre-match swap reads it to give the newcomer the role his new slot admits; the game's
     /// roles are not at hand there, and taking the game lock under the live-match lock is the
     /// nesting this codebase avoids.
@@ -415,6 +416,26 @@ impl LiveMatchSession {
         Ok(())
     }
 
+    /// Every role the user's team has saved, handed to the match as a whole: for a save that
+    /// rewrites them (a formation, a starting eleven or a tactic reconciles them and can drop a
+    /// role). A player whose role is gone returns to `Standard`, and the session stops
+    /// remembering it, so a later swap does not bring it back. The same rule as for one player.
+    pub fn follow_saved_roles_before_kick_off(&mut self, game: &Game) -> Result<(), String> {
+        let Some((_, team)) = self.user_team_before_kick_off(game) else {
+            return Ok(());
+        };
+        let players: HashSet<String> = self
+            .saved_roles
+            .keys()
+            .chain(team.player_roles.keys())
+            .cloned()
+            .collect();
+        for player_id in players {
+            self.follow_saved_role_before_kick_off(game, &player_id)?;
+        }
+        Ok(())
+    }
+
     /// The role saved for one player before kick-off, handed to the match if he starts. It
     /// counts only where the slot he fills in the match admits it, the rule the match was built
     /// by (`turn::squad`): a swap or a change of shape before kick-off moves players in the
@@ -645,6 +666,27 @@ pub fn create_live_match(
     create_live_match_with(game, fixture_index, mode, allows_extra_time, None)
 }
 
+/// The roles the user's team has saved, for the session to remember (`LiveMatchSession::saved_roles`).
+fn saved_roles_of(
+    game: &Game,
+    user_side: Option<Side>,
+    home_team_id: &str,
+    away_team_id: &str,
+) -> HashMap<String, DomainPlayerRole> {
+    let Some(side) = user_side else {
+        return HashMap::new();
+    };
+    let team_id = match side {
+        Side::Home => home_team_id,
+        Side::Away => away_team_id,
+    };
+    game.teams
+        .iter()
+        .find(|team| team.id == team_id)
+        .map(|team| team.player_roles.clone())
+        .unwrap_or_default()
+}
+
 /// [`create_live_match`] for a matchday that has already found the clubs with a match soon
 /// (`lookups`: where each club's players stand, and who plays again soon).
 fn create_live_match_with(
@@ -775,16 +817,7 @@ fn create_live_match_with(
         personality: derive_personality(away_rep, game.manager_of_club(&away_team_id)),
     };
 
-    let saved_roles = user_side
-        .and_then(|side| {
-            let team_id = match side {
-                Side::Home => &home_team_id,
-                Side::Away => &away_team_id,
-            };
-            game.teams.iter().find(|team| &team.id == team_id)
-        })
-        .map(|team| team.player_roles.clone())
-        .unwrap_or_default();
+    let saved_roles = saved_roles_of(game, user_side, &home_team_id, &away_team_id);
 
     Ok(LiveMatchSession {
         match_state,
