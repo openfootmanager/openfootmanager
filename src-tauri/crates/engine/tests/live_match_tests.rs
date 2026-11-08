@@ -776,6 +776,48 @@ fn a_role_that_suits_the_position_is_applied() {
     assert_eq!(striker.role, PlayerRole::Poacher);
 }
 
+/// Given a forward on the pitch,
+/// When he is made a Wide Forward, an Inside Forward or an Inverted Winger,
+/// Then he takes each, as he would have had the role been set before the match: the wide roles
+/// are open to wide midfielders and to wingers (`PlayerRole::position_groups`).
+#[test]
+fn every_wide_role_of_the_forward_group_suits_a_forward() {
+    for role in [
+        PlayerRole::WideForward,
+        PlayerRole::InsideForward,
+        PlayerRole::InvertedWinger,
+    ] {
+        let mut state = make_live_match(false);
+        let mut rng = seeded_rng(42);
+        state.step_minute(&mut rng);
+        let striker_id = state
+            .snapshot()
+            .home_team
+            .players
+            .iter()
+            .find(|p| p.position == Position::Forward)
+            .unwrap()
+            .id
+            .clone();
+
+        let applied = state.apply_command(MatchCommand::ChangePlayerRole {
+            side: Side::Home,
+            player_id: striker_id.clone(),
+            role,
+        });
+
+        assert_eq!(applied, Ok(()), "{role:?} must suit a forward");
+        let snap = state.snapshot();
+        let striker = snap
+            .home_team
+            .players
+            .iter()
+            .find(|p| p.id == striker_id)
+            .unwrap();
+        assert_eq!(striker.role, role);
+    }
+}
+
 /// Given a forward on the pitch
 /// When a goalkeeper's role is requested for them
 /// Then the command is refused with the position error and the role is untouched.
