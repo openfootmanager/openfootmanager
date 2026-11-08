@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { localizeCompetitionName } from "../../lib/competitionName";
 import { Briefcase, Star, Trophy } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
@@ -82,7 +83,10 @@ export default function AwardsCeremonyScreen({
               {t("awardsCeremony.title")}
             </p>
             <h2 className="text-2xl font-heading font-bold uppercase tracking-wide text-gray-900 dark:text-gray-100">
-              {t("awardsCeremony.subtitle", { season, league: leagueName })}
+              {t("awardsCeremony.subtitle", {
+                season,
+                league: localizeCompetitionName(leagueName, gameState.competitions, t),
+              })}
             </h2>
           </div>
           <div className="flex flex-wrap gap-2 text-xs">

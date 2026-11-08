@@ -11,6 +11,9 @@ vi.mock("react-i18next", () => ({
     t: (key: string, params?: Record<string, string | number>) => {
       if (key === "awardsCeremony.title") return "Awards Ceremony";
       if (key === "awardsCeremony.subtitle") return `Season ${params?.season} in ${params?.league}`;
+      if (key === "tournaments.competitions.firstDivision")
+        return `${params?.country} Erste Division`;
+      if (key === "nations.de") return "Deutschland";
       if (key === "awardsCeremony.managerOfSeason") return "Manager of the Season";
       if (key === "awardsCeremony.goldenBoot") return "Golden Boot";
       if (key === "awardsCeremony.playerOfYear") return "Player of the Year";
@@ -216,6 +219,38 @@ describe("AwardsCeremonyScreen", () => {
     expect(screen.getAllByText("Manager of the Season").length).toBeGreaterThan(0);
     expect(screen.getByText("Jane Doe")).toBeInTheDocument();
     expect(screen.getAllByText("Victor Vale").length).toBeGreaterThan(0);
+  });
+
+  /**
+   * Given the awards of a season in a league stored under its English template name
+   * When the ceremony subtitle is drawn
+   * Then the league is named through the competition's name key and country, as every screen does.
+   */
+  it("names the league in the subtitle through its name key", () => {
+    const base = createGameState();
+    const gameState = {
+      ...base,
+      competitions: [
+        {
+          id: "league-de",
+          name: "Germany First Division",
+          name_key: "tournaments.competitions.firstDivision",
+          country_id: "DE",
+          season: 6,
+        },
+      ],
+    } as unknown as GameStateData;
+
+    render(
+      <AwardsCeremonyScreen
+        season={6}
+        leagueName="Germany First Division"
+        gameState={gameState}
+        awards={createAwards()}
+      />,
+    );
+
+    expect(screen.getByText("Season 6 in Deutschland Erste Division")).toBeInTheDocument();
   });
 
   it("routes winner interactions and renders ceremony actions", () => {
