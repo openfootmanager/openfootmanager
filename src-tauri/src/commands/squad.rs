@@ -65,6 +65,8 @@ pub fn set_formation_internal(
     career: Career,
     formation: &str,
 ) -> Result<Game, String> {
+    // One step against a role save, a swap or a kick-off: the commit and the hand-off to the match.
+    let _operation = crate::application::live_session::operation();
     let game = mutate_active_game_for(state, career, |game| apply_formation(game, formation))?;
     follow_saved_roles_into_the_waiting_match(state, &game);
     Ok(game)
@@ -82,6 +84,8 @@ pub fn apply_tactic_preset_internal(
     formation: &str,
     play_style: &str,
 ) -> Result<Game, String> {
+    // One step against a role save, a swap or a kick-off: the commit and the hand-off to the match.
+    let _operation = crate::application::live_session::operation();
     let game = mutate_active_game_for(state, career, |game| {
         apply_formation(game, formation)?;
 
@@ -148,6 +152,8 @@ pub fn set_starting_xi_internal(
     career: Career,
     player_ids: Vec<String>,
 ) -> Result<Game, String> {
+    // One step against a role save, a swap or a kick-off: the commit and the hand-off to the match.
+    let _operation = crate::application::live_session::operation();
     let game = mutate_active_game_for(state, career, |game| {
         let team_id = user_team_id(game)?;
         // Refused before anything is written: the screens and an MCP agent both save through here.

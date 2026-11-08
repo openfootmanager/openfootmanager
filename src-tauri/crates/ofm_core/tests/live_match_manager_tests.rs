@@ -1275,8 +1275,8 @@ fn a_bench_role_his_new_slot_refuses_is_dropped_by_a_swap() {
 
 /// Given a match waiting at kick-off and a defender on its bench,
 /// When an Attacking Full-Back is saved for him,
-/// Then he waits on the bench as one, and comes on as one in a substitution: the bench copy was
-/// built before the role was saved.
+/// Then he waits on the bench as one: the bench copy was built before the role was saved. (The
+/// in-match substitution that reads the bench copy is not exercised here.)
 #[test]
 fn a_role_saved_for_a_benched_player_is_the_role_he_waits_with() {
     let mut game = make_game_with_fixture();

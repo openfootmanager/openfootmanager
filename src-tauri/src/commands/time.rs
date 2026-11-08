@@ -2440,29 +2440,50 @@ mod tests {
     // A saved role the team drops, and the gate a role save and a swap pass through
     // -----------------------------------------------------------------------
 
-    /// A live match waiting at kick-off whose team holds an Attacking Full-Back for a spare centre-back
-    /// on its bench (a role his natural position refuses, as a stale save can carry). Returns his id.
+    /// A live match waiting at kick-off whose team holds an Attacking Full-Back for a benched
+    /// defender whose natural position, centre-back, refuses it (as a stale save can carry), and
+    /// that the match has been told about. Returns his id.
     fn benched_centre_back_holding_a_role_his_position_refuses(state: &StateManager) -> String {
-        let mut game = make_round_summary_game();
-        game.players.push(make_player(
-            "a-cb-spare",
-            "a Cb Spare",
-            "team1",
-            Position::CenterBack,
-        ));
-        game.teams
-            .iter_mut()
-            .find(|team| team.id == "team1")
-            .expect("the user's team")
-            .player_roles
-            .insert(
-                "a-cb-spare".to_string(),
-                domain::team::PlayerRole::AttackingFB,
-            );
-        state.set_game(game);
+        state.set_game(make_round_summary_game());
         advance_time_with_mode_internal(state, ofm_core::state::Career::Active, "live")
             .expect("live advance response");
-        "a-cb-spare".to_string()
+        let benched_defender = state
+            .with_live_match(|session| {
+                session
+                    .snapshot()
+                    .home_bench
+                    .iter()
+                    .find(|player| player.position == engine::Position::Defender)
+                    .map(|player| player.id.clone())
+            })
+            .flatten()
+            .expect("a defender waits on the bench");
+        let game = state
+            .update_game(|game| {
+                game.players
+                    .iter_mut()
+                    .find(|player| player.id == benched_defender)
+                    .expect("he is on the user's team")
+                    .natural_position = Position::CenterBack;
+                game.teams
+                    .iter_mut()
+                    .find(|team| team.id == "team1")
+                    .expect("the user's team")
+                    .player_roles
+                    .insert(
+                        benched_defender.clone(),
+                        domain::team::PlayerRole::AttackingFB,
+                    );
+                game.clone()
+            })
+            .expect("a game is open");
+        crate::application::live_match::follow_saved_role_before_kick_off(
+            state,
+            &game,
+            &benched_defender,
+        )
+        .expect("the match is told");
+        benched_defender
     }
 
     fn swap_into_left_back(state: &StateManager, player_on_id: &str) {
@@ -2498,10 +2519,19 @@ mod tests {
         );
     }
 
+    /// The eleven the waiting match starts, which is a valid eleven to save.
     fn current_eleven(state: &StateManager) -> Vec<String> {
         state
-            .get_game(|game| game.teams[0].starting_xi_ids.clone())
-            .expect("a game is open")
+            .with_live_match(|session| {
+                session
+                    .snapshot()
+                    .home_team
+                    .players
+                    .iter()
+                    .map(|player| player.id.clone())
+                    .collect()
+            })
+            .expect("a live match session exists")
     }
 
     /// Given the scenario above, changed by saving the same starting eleven.
