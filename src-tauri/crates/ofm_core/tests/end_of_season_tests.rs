@@ -1277,23 +1277,66 @@ fn a_sacked_manager_hears_nothing_of_his_former_clubs_promotion() {
     );
 }
 
-/// Given a manager who has never had a club (no club, no stint on record), with the mirror synced
-///      as the game syncs it, on the first division
-/// When the season rolls over
-/// Then the preview covers the mirrored first division: with no league of his own he follows the
-///      world's first competition, and the season still rolls over
-#[test]
-fn a_manager_who_never_had_a_club_follows_the_mirrored_league() {
+/// A world whose manager has never had a club (no club, no stint on record: the career stage
+/// "awaiting a club"), with the `game.league` mirror synced as the game syncs it, on the first
+/// division.
+fn never_employed() -> Game {
     let mut game = make_two_division_game("team1");
     game.manager.team_id = None;
     game.manager.career_history.clear();
     game.sync_legacy_league();
+    game
+}
+
+/// Given a manager who has never had a club, with the mirror on the first division
+/// When the season rolls over
+/// Then no preview is published and the summary is empty: he follows no league, and the screens
+///      show nothing of the first competition (maintainer, 8 Nov 2026)
+#[test]
+fn a_manager_who_never_had_a_club_is_shown_no_league() {
+    let mut game = never_employed();
+
+    let summary = process_end_of_season(&mut game);
+
+    assert!(
+        game.news
+            .iter()
+            .all(|article| article.category != domain::news::NewsCategory::SeasonPreview)
+    );
+    assert_eq!(summary.league_name, "");
+}
+
+/// Given a manager who has never had a club
+/// When the awards screen asks for the season's awards
+/// Then there are none: not the first competition's
+#[test]
+fn a_manager_who_never_had_a_club_is_shown_no_awards() {
+    let game = never_employed();
+
+    let awards = ofm_core::season_awards::user_division_season_awards(&game);
+
+    assert!(awards.golden_boot.is_empty());
+    assert!(awards.player_of_year.is_empty());
+}
+
+/// Given a manager who has never had a club
+/// When the season rolls over
+/// Then the world still rolls over: every competition moves on to the next season
+#[test]
+fn the_season_still_rolls_over_for_a_manager_who_never_had_a_club() {
+    let mut game = never_employed();
+    let seasons_before: Vec<u32> = game.competitions.iter().map(|c| c.season).collect();
 
     process_end_of_season(&mut game);
 
-    let (count, listed, _, _) = season_preview(&game);
-    assert_eq!(count, "2");
-    assert_eq!(listed, ["Test FC", "Third FC"]);
+    let seasons_after: Vec<u32> = game.competitions.iter().map(|c| c.season).collect();
+    assert!(
+        seasons_before
+            .iter()
+            .zip(&seasons_after)
+            .all(|(before, after)| after > before),
+        "{seasons_before:?} -> {seasons_after:?}"
+    );
 }
 
 #[test]

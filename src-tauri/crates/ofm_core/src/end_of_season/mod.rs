@@ -779,17 +779,25 @@ pub fn followed_club(game: &Game) -> Option<&str> {
         .or_else(|| game.manager.last_club())
 }
 
-/// The league-table competition the user follows: [`followed_club`]'s. It used to take the user's
-/// club, so for a manager out of work it fell to the `game.league` mirror, which with no club is the
-/// world's first competition: a sacked manager from England read Argentina's awards (#1270).
+/// The league-table competition the screens show as the user's: [`followed_club`]'s. It used to take
+/// the user's club, so for a manager out of work it fell to the `game.league` mirror, which with no
+/// club is the world's first competition: a sacked manager from England read Argentina's awards
+/// (#1270).
 ///
-/// It still falls back to the mirror for a manager who has never had a club, and for a legacy save
-/// whose only league is the mirror. That keeps the season rolling over, since the rollover stops
-/// when there is no division at all.
+/// A manager who has never had a club follows none (maintainer, 8 Nov 2026), so the preview, the
+/// awards and the summary show nothing for him. A club that is in no league table (a legacy save
+/// whose only league is the mirror) still falls back to the mirror. The season's rollover is a
+/// separate question, [`rollover_division`].
 pub fn user_division(game: &Game) -> Option<&League> {
-    followed_club(game)
-        .and_then(|club| club_league_table(game, club))
-        .or(game.league.as_ref())
+    let club = followed_club(game)?;
+    club_league_table(game, club).or(game.league.as_ref())
+}
+
+/// The division the season's rollover finishes on: the user's, else the mirror's. Not what the
+/// screens show ([`user_division`] is): a manager who has never had a club follows no league, but the
+/// world's season still has to roll over, and the rollover stops when it has no division at all.
+fn rollover_division(game: &Game) -> Option<&League> {
+    user_division(game).or(game.league.as_ref())
 }
 
 /// The league table a club contests, for any club. `None` when no league table lists it (a cup
@@ -943,7 +951,9 @@ pub fn process_end_of_season(game: &mut Game) -> EndOfSeasonSummary {
     // the user's club actually contests — not whichever competition happens to
     // be first in the list.
     let user_team_id = game.manager.team_id.clone().unwrap_or_default();
-    let league = match user_division(game) {
+    // Whether the screens have a league of his to show; the rollover below runs either way.
+    let shows_a_league = user_division(game).is_some();
+    let league = match rollover_division(game) {
         Some(l) => l,
         None => return EndOfSeasonSummary::default(),
     };
@@ -1205,27 +1215,29 @@ pub fn process_end_of_season(game: &mut Game) -> EndOfSeasonSummary {
     let next_season = season + 1;
     let rollover_anchor = game.clock.current_date + Duration::days(28);
     let user_division_before =
-        user_division(game).map(|division| (division.id.clone(), division.priority));
+        rollover_division(game).map(|division| (division.id.clone(), division.priority));
     regenerate_competitions_for_new_season(game, next_season, rollover_anchor);
     notify_user_division_change(game, user_division_before, &last_fixture_date);
 
     // The preview is of the user's division as the new season has it, after promotion and
     // relegation; the world's other clubs are not in the race it previews (#1179).
     let preview_date = game.clock.current_date.to_rfc3339();
-    let division_club_names: Vec<String> = user_division(game)
-        .map(|division| {
-            division
-                .participant_ids
-                .iter()
-                .filter_map(|club_id| game.teams.iter().find(|team| &team.id == club_id))
-                .map(|team| team.name.clone())
-                .collect()
-        })
-        .unwrap_or_default();
-    game.news.push(crate::news::season_preview_article(
-        &division_club_names,
-        &preview_date,
-    ));
+    if shows_a_league {
+        let division_club_names: Vec<String> = user_division(game)
+            .map(|division| {
+                division
+                    .participant_ids
+                    .iter()
+                    .filter_map(|club_id| game.teams.iter().find(|team| &team.id == club_id))
+                    .map(|team| team.name.clone())
+                    .collect()
+            })
+            .unwrap_or_default();
+        game.news.push(crate::news::season_preview_article(
+            &division_club_names,
+            &preview_date,
+        ));
+    }
 
     // 8. Send end-of-season messages
     let pos_suffix = position_suffix(user_position);
@@ -1334,7 +1346,12 @@ pub fn process_end_of_season(game: &mut Game) -> EndOfSeasonSummary {
 
     crate::season_context::refresh_game_context(game);
 
-    summary
+    // A manager with no league of his own is shown no summary of the one the rollover finished on.
+    if shows_a_league {
+        summary
+    } else {
+        EndOfSeasonSummary::default()
+    }
 }
 
 /// Roll a finished season over: the one sequence behind the player's "advance

@@ -308,11 +308,12 @@ pub fn compute_season_awards(game: &Game) -> SeasonAwards {
 /// clubs' players and managers are eligible, and the manager award ranks by
 /// that division's table.
 /// The season's awards as the awards screen shows them: the race within the division the user
-/// follows (`end_of_season::user_division`), or the whole world's when there is none.
+/// follows (`end_of_season::user_division`), and none for a manager who follows no league (one
+/// who has never had a club).
 pub fn user_division_season_awards(game: &Game) -> SeasonAwards {
     match crate::end_of_season::user_division(game) {
         Some(division) => compute_division_season_awards(game, division),
-        None => compute_season_awards(game),
+        None => SeasonAwards::default(),
     }
 }
 
