@@ -32,8 +32,11 @@ pub enum TacticsControl {
 /// Whether the match plays differently for this control.
 pub fn has_match_effect(control: &TacticsControl) -> bool {
     match control {
+        // A role the slot does not admit is played as Standard (`turn::squad`), so it changes
+        // nothing: only a role the slot admits can count.
         TacticsControl::Role { role, slot } => {
-            engine::role_has_match_effect(domain_to_engine_role(role), engine_line(slot))
+            slot.admits_role(role)
+                && engine::role_has_match_effect(domain_to_engine_role(role), engine_line(slot))
         }
         TacticsControl::Dial(dial) => dial.has_match_effect(),
         TacticsControl::PenaltyTaker => true,
@@ -88,10 +91,6 @@ mod tests {
     #[test]
     fn a_role_only_the_ai_reads_counts_in_the_line_it_reads_it_in() {
         assert!(role(PlayerRole::PressingForward, DomainPosition::Striker));
-        assert!(role(
-            PlayerRole::PressingForward,
-            DomainPosition::LeftWinger
-        ));
         assert!(!role(
             PlayerRole::PressingForward,
             DomainPosition::AttackingMidfielder
@@ -100,6 +99,17 @@ mod tests {
             PlayerRole::PressingForward,
             DomainPosition::CenterBack
         ));
+    }
+
+    /// Given a Poacher, whom the resolvers read (and penalise) in the back line,
+    /// When the screen asks about him at centre-back and on the wing, slots that do not admit a
+    /// Poacher,
+    /// Then he does not change the match there: the match plays the role as Standard.
+    #[test]
+    fn a_role_the_slot_does_not_admit_has_no_match_effect() {
+        assert!(!role(PlayerRole::Poacher, DomainPosition::CenterBack));
+        assert!(!role(PlayerRole::Poacher, DomainPosition::LeftWinger));
+        assert!(role(PlayerRole::Poacher, DomainPosition::Striker));
     }
 
     /// Given a role a resolver reads in one line,
