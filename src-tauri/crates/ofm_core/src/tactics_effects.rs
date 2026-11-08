@@ -1,13 +1,14 @@
 //! Which tactics controls change a match, for the screens to say so: one answer, from the engine
-//! where the engine can give it. A control the engine does not read yet is reported here until the
-//! slice that wires it (`drafts/tactics-match/wire-unread-controls.md`), which flips it in the same
+//! where the engine can give it. A control counts when a resolver reads it or the engine's AI does
+//! (it chooses by it in a match it manages). A control nothing reads yet is reported here as having
+//! no effect until the slice of the tactics wiring plan that wires it, which flips it in the same
 //! change.
 
 use domain::player::{Player, Position as DomainPosition};
 use domain::team::PlayerRole;
-use engine::{Position, TacticalDial};
+use engine::TacticalDial;
 
-use crate::turn::squad::{domain_to_engine_role, line_familiarity};
+use crate::turn::squad::{domain_to_engine_role, engine_line, slot_factor};
 
 /// A control on the tactics screen.
 #[derive(Debug, Clone, PartialEq)]
@@ -46,26 +47,10 @@ pub fn has_match_effect(control: &TacticsControl) -> bool {
 }
 
 /// The share of his match rating `player` plays at in `slot`: 1.0 at home, less where he can play
-/// it or is out of position. The match's own figure (`turn::squad::familiarity`), so a screen that
-/// shows what he plays like there multiplies his natural rating by it and derives nothing itself.
+/// it or is out of position. The match's own figure, so a screen that shows what he plays like
+/// there multiplies his natural rating by it and derives nothing itself.
 pub fn match_factor(player: &Player, slot: &DomainPosition) -> f64 {
-    let line = match engine_line(slot) {
-        Position::Goalkeeper => 0,
-        Position::Defender => 1,
-        Position::Midfielder => 2,
-        Position::Forward => 3,
-    };
-    line_familiarity(player, Some(slot))[line]
-}
-
-/// The engine line a slot plays in.
-fn engine_line(slot: &DomainPosition) -> Position {
-    match slot.to_group_position() {
-        DomainPosition::Goalkeeper => Position::Goalkeeper,
-        DomainPosition::Defender => Position::Defender,
-        DomainPosition::Forward => Position::Forward,
-        _ => Position::Midfielder,
-    }
+    slot_factor(player, slot)
 }
 
 #[cfg(test)]
@@ -96,6 +81,39 @@ mod tests {
         assert!(role(PlayerRole::InsideForward, DomainPosition::LeftWinger));
     }
 
+    /// Given a Pressing Forward, whom no resolver reads but the AI's substitutions prefer for a
+    /// side that presses,
+    /// When the screen asks about him in each line,
+    /// Then he changes the match up front, where the AI looks for him, and nowhere else.
+    #[test]
+    fn a_role_only_the_ai_reads_counts_in_the_line_it_reads_it_in() {
+        assert!(role(PlayerRole::PressingForward, DomainPosition::Striker));
+        assert!(role(
+            PlayerRole::PressingForward,
+            DomainPosition::LeftWinger
+        ));
+        assert!(!role(
+            PlayerRole::PressingForward,
+            DomainPosition::AttackingMidfielder
+        ));
+        assert!(!role(
+            PlayerRole::PressingForward,
+            DomainPosition::CenterBack
+        ));
+    }
+
+    /// Given a role a resolver reads in one line,
+    /// When the screen asks about it in a slot of each line,
+    /// Then it counts where its line is consulted and not in the lines it is not.
+    #[test]
+    fn a_role_counts_in_the_line_of_the_slot_it_is_played_in() {
+        assert!(role(PlayerRole::Stopper, DomainPosition::CenterBack));
+        assert!(!role(PlayerRole::Stopper, DomainPosition::Goalkeeper));
+        assert!(!role(PlayerRole::Stopper, DomainPosition::Striker));
+        assert!(role(PlayerRole::Poacher, DomainPosition::Striker));
+        assert!(!role(PlayerRole::Poacher, DomainPosition::CenterBack));
+    }
+
     /// Given the roles no resolver reads in these slots today,
     /// When the screen asks about them,
     /// Then none changes the match, until the slice that wires it.
@@ -118,7 +136,6 @@ mod tests {
                 DomainPosition::AttackingMidfielder,
             ),
             (PlayerRole::DeepLyingForward, DomainPosition::Striker),
-            (PlayerRole::PressingForward, DomainPosition::Striker),
             (PlayerRole::InvertedWinger, DomainPosition::RightWinger),
             (PlayerRole::WideForward, DomainPosition::LeftMidfielder),
         ] {
@@ -172,24 +189,66 @@ mod tests {
         }
     }
 
+    fn natural(position: DomainPosition) -> Player {
+        Player::new(
+            "p".into(),
+            "P".into(),
+            "Player".into(),
+            "1995-01-01".into(),
+            "ENG".into(),
+            position,
+            uniform_attributes(65),
+        )
+    }
+
+    const CAN_PLAY: f64 = 1.0 - 0.10 / 3.0;
+
     /// Given a natural centre-back,
     /// When the screen asks what he plays at at centre-back, at right-back and up front,
     /// Then it is all of him, a position he can play (1 - 0.10 / 3), and out of position (0.90),
     /// the factors the match charges.
     #[test]
     fn the_match_factor_is_what_the_match_charges_in_the_slot() {
-        let centre_back = Player::new(
-            "p".into(),
-            "P".into(),
-            "Player".into(),
-            "1995-01-01".into(),
-            "ENG".into(),
-            DomainPosition::CenterBack,
-            uniform_attributes(65),
-        );
+        let centre_back = natural(DomainPosition::CenterBack);
         assert_eq!(match_factor(&centre_back, &DomainPosition::CenterBack), 1.0);
         let at_right_back = match_factor(&centre_back, &DomainPosition::RightBack);
-        assert!((at_right_back - (1.0 - 0.10 / 3.0)).abs() < 1e-12);
+        assert!((at_right_back - CAN_PLAY).abs() < 1e-12);
         assert_eq!(match_factor(&centre_back, &DomainPosition::Striker), 0.90);
+    }
+
+    /// Given a natural goalkeeper,
+    /// When the screen asks what he plays at in goal and in the other lines,
+    /// Then it is all of him in goal and 0.90 outfield; and an outfielder in goal plays at 0.90.
+    #[test]
+    fn the_match_factor_in_goal_is_all_of_a_goalkeeper_and_a_tenth_less_for_an_outfielder() {
+        let goalkeeper = natural(DomainPosition::Goalkeeper);
+        assert_eq!(match_factor(&goalkeeper, &DomainPosition::Goalkeeper), 1.0);
+        assert_eq!(match_factor(&goalkeeper, &DomainPosition::Striker), 0.90);
+        let midfielder = natural(DomainPosition::CentralMidfielder);
+        assert_eq!(match_factor(&midfielder, &DomainPosition::Goalkeeper), 0.90);
+    }
+
+    /// Given a natural central midfielder and a natural striker,
+    /// When the screen asks what each plays at in a slot of his own line, and of another,
+    /// Then the same line is all of him or a position he can play, and the other line 0.90.
+    #[test]
+    fn the_match_factor_in_midfield_and_up_front_follows_the_line_of_the_slot() {
+        let midfielder = natural(DomainPosition::CentralMidfielder);
+        assert_eq!(
+            match_factor(&midfielder, &DomainPosition::CentralMidfielder),
+            1.0
+        );
+        let at_attacking_midfield = match_factor(&midfielder, &DomainPosition::AttackingMidfielder);
+        assert!((at_attacking_midfield - CAN_PLAY).abs() < 1e-12);
+        assert_eq!(match_factor(&midfielder, &DomainPosition::Striker), 0.90);
+
+        let striker = natural(DomainPosition::Striker);
+        assert_eq!(match_factor(&striker, &DomainPosition::Striker), 1.0);
+        let on_the_wing = match_factor(&striker, &DomainPosition::LeftWinger);
+        assert!((on_the_wing - CAN_PLAY).abs() < 1e-12);
+        assert_eq!(
+            match_factor(&striker, &DomainPosition::CentralMidfielder),
+            0.90
+        );
     }
 }

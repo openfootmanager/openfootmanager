@@ -371,9 +371,7 @@ fn chase_the_game<R: Rng>(
 
     let player_off = least_missed(&candidates, obs, profile, rng)?;
 
-    // A side that presses wants a forward who presses.
-    let preferred_role =
-        (obs.team.play_style == PlayStyle::HighPress).then_some(PlayerRole::PressingForward);
+    let preferred_role = preferred_attacking_substitute_role(obs.team.play_style);
     let attacker_on = find_best_bench_replacement(
         obs.bench,
         Position::Forward,
@@ -387,6 +385,28 @@ fn chase_the_game<R: Rng>(
         player_off_id: player_off.id.clone(),
         player_on_id: attacker_on.id.clone(),
     })
+}
+
+/// The role a side of each style wants in the forward it brings on: a side that presses wants a
+/// forward who presses.
+const ATTACKING_SUBSTITUTE_ROLES: [(PlayStyle, PlayerRole); 1] =
+    [(PlayStyle::HighPress, PlayerRole::PressingForward)];
+
+fn preferred_attacking_substitute_role(style: PlayStyle) -> Option<PlayerRole> {
+    ATTACKING_SUBSTITUTE_ROLES
+        .iter()
+        .find(|(preferred_by, _)| *preferred_by == style)
+        .map(|&(_, role)| role)
+}
+
+/// Whether the AI's substitutions read `role` in a player of `position`'s line: a role that no
+/// resolver reads still changes a match the AI manages (delegated, spectated, finished early)
+/// when it decides which bench player comes on.
+pub(crate) fn substitution_reads_role(role: PlayerRole, position: Position) -> bool {
+    position == Position::Forward
+        && ATTACKING_SUBSTITUTE_ROLES
+            .iter()
+            .any(|&(_, preferred)| preferred == role)
 }
 
 /// Ahead: a defender for a forward, keeping someone up there to hold the ball.
@@ -849,5 +869,43 @@ mod bench_fallback_tests {
             ),
             "fresh_65"
         );
+    }
+
+    /// Given a side playing High Press, and sides that do not,
+    /// When the AI chooses the role it wants in the forward it brings on,
+    /// Then a pressing side wants a Pressing Forward and the others want none.
+    #[test]
+    fn only_a_pressing_side_wants_a_pressing_forward_on() {
+        assert_eq!(
+            preferred_attacking_substitute_role(PlayStyle::HighPress),
+            Some(PlayerRole::PressingForward)
+        );
+        assert_eq!(
+            preferred_attacking_substitute_role(PlayStyle::Balanced),
+            None
+        );
+    }
+
+    /// Given the role the AI prefers in a substitute,
+    /// When the screens ask whether the substitutions read a role in a line,
+    /// Then the preferred role counts for a forward and for no other line, and another role never.
+    #[test]
+    fn the_substitutions_read_the_preferred_role_in_the_forward_line_only() {
+        assert!(substitution_reads_role(
+            PlayerRole::PressingForward,
+            Position::Forward
+        ));
+        assert!(!substitution_reads_role(
+            PlayerRole::PressingForward,
+            Position::Midfielder
+        ));
+        assert!(!substitution_reads_role(
+            PlayerRole::PressingForward,
+            Position::Defender
+        ));
+        assert!(!substitution_reads_role(
+            PlayerRole::DeepLyingForward,
+            Position::Forward
+        ));
     }
 }
