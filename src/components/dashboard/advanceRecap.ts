@@ -1,5 +1,5 @@
 import type { AdvanceMatchResultData } from "../../services/advanceTimeService";
-import type { GameStateData, MessageData } from "../../store/gameStore";
+import type { GameStateData } from "../../store/gameStore";
 import { getUserCompetition } from "../../lib/fixtures";
 import { resolveMessage, resolveNewsArticle } from "../../utils/backendI18n";
 import { needsAttention } from "../../utils/messagePriority";
