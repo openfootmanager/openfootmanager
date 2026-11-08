@@ -3654,6 +3654,10 @@
         "body": "Die vereinbarte Leihe von {{player}} von {{parent}} zu {{borrower}}, geplant ab {{start}}, kann nicht stattfinden: Der Spieler steht nicht mehr bei {{parent}} unter Vertrag.",
         "bodyRequirementNotMet": "Die vereinbarte Leihe von {{player}} von {{parent}} zu {{borrower}} konnte am {{start}} nicht beginnen: Eine der Bedingungen, unter denen sie vereinbart wurde, etwa Platz im Gehaltsbudget von {{borrower}} oder die Laufzeit des Spielervertrags, ist nicht mehr erfüllt."
       },
+      "talksClosedBySale": {
+        "subject": "Anderswo verpflichtet: {{player}}",
+        "body": "{{buyer}} hat {{player}} für {{fee}} verpflichtet. Ihre offenen Verhandlungen über ihn wurden zurückgezogen."
+      },
       "loanOffer": {
         "subject": "Leihangebot für {{player}}",
         "body": "{{team}} möchte {{player}} bis {{endDate}} ausleihen und {{wageContribution}}% des Gehalts übernehmen. Kaufoption: {{buyOption}}. Prüfen Sie das Angebot im Transfers-Tab.",

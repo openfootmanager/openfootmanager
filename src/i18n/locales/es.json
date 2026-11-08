@@ -3654,6 +3654,10 @@
         "body": "La cesión acordada de {{player}} de {{parent}} a {{borrower}}, prevista para el {{start}}, no puede llevarse a cabo: el jugador ya no tiene contrato con {{parent}}.",
         "bodyRequirementNotMet": "La cesión acordada de {{player}} de {{parent}} a {{borrower}} no pudo comenzar el {{start}}: una de las condiciones con las que se acordó, como el margen en el presupuesto salarial de {{borrower}} o la duración del contrato del jugador, ya no se cumple."
       },
+      "talksClosedBySale": {
+        "subject": "Fichado por otro club: {{player}}",
+        "body": "{{buyer}} ha fichado a {{player}} por {{fee}}. Tus negociaciones abiertas por él se han retirado."
+      },
       "loanOffer": {
         "subject": "Oferta de cesión por {{player}}",
         "body": "{{team}} quiere llevarse cedido a {{player}} hasta {{endDate}} y cubrir el {{wageContribution}}% del salario. Opción de compra: {{buyOption}}. Revisa la propuesta en la pestaña de Fichajes.",

@@ -3654,6 +3654,10 @@
         "body": "O empréstimo acordado de {{player}} do {{parent}} para o {{borrower}}, previsto para {{start}}, não pode avançar: o jogador já não tem contrato com o {{parent}}.",
         "bodyRequirementNotMet": "O empréstimo acordado de {{player}} do {{parent}} para o {{borrower}} não pôde começar a {{start}}: uma das condições em que foi acordado, como margem no orçamento salarial do {{borrower}} ou a duração do contrato do jogador, já não se verifica."
       },
+      "talksClosedBySale": {
+        "subject": "Contratado por outro clube: {{player}}",
+        "body": "O {{buyer}} contratou {{player}} por {{fee}}. As tuas negociações em aberto por ele foram retiradas."
+      },
       "loanOffer": {
         "subject": "Proposta de Empréstimo por {{player}}",
         "body": "{{team}} quer receber {{player}} por empréstimo até {{endDate}} e cobrir {{wageContribution}}% do salário. Opção de compra: {{buyOption}}. Reveja a proposta no separador Transferências.",

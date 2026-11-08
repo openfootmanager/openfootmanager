@@ -542,7 +542,7 @@ pub fn make_transfer_bid(
 
         if register_immediately {
             execute_transfer(game, player_id, &user_team_id, &owner_team_id, fee)?;
-            close_open_offers_after_sale(game, player_id, Some(&offer_id))?;
+            close_open_offers_after_sale(game, player_id, &user_team_id, fee, Some(&offer_id))?;
         } else {
             reserve_player_for_pending_transfer(game, player_id, &offer_id)?;
         }
@@ -758,7 +758,7 @@ pub fn respond_to_offer(
     if accept {
         if register_immediately {
             execute_transfer(game, player_id, &from_team_id, &user_team_id, fee)?;
-            close_open_offers_after_sale(game, player_id, Some(offer_id))?;
+            close_open_offers_after_sale(game, player_id, &from_team_id, fee, Some(offer_id))?;
         } else {
             reserve_player_for_pending_transfer(game, player_id, offer_id)?;
         }
@@ -893,7 +893,13 @@ pub fn counter_offer(
                 &user_team_id,
                 requested_fee,
             )?;
-            close_open_offers_after_sale(game, player_id, Some(offer_id))?;
+            close_open_offers_after_sale(
+                game,
+                player_id,
+                &buyer_team_id,
+                requested_fee,
+                Some(offer_id),
+            )?;
         } else {
             reserve_player_for_pending_transfer(game, player_id, offer_id)?;
         }
@@ -1015,6 +1021,34 @@ mod acceptance_tests {
     #[test]
     fn a_deferred_bid_notifies_the_buyer_of_registration() {
         bid(true);
+    }
+
+    /// Given the user has an open loan request for team2's player, When the user then buys him
+    ///      outright, Then the request is withdrawn and no "talks ended by a purchase" letter is
+    ///      sent: it was the user's own purchase that ended them (#1256).
+    #[test]
+    fn the_users_own_purchase_ends_their_loan_request_without_a_letter() {
+        let mut game = acceptance_game("team2", false);
+        game.players[0].loan_offers.push(
+            serde_json::from_value(serde_json::json!({
+                "id": "own-loan-request", "from_team_id": "team1", "parent_team_id": "team2",
+                "start_date": "2026-01-12", "end_date": "2026-06-30",
+                "wage_contribution_pct": 50, "status": "Pending", "date": "2026-01-10"
+            }))
+            .unwrap(),
+        );
+
+        let outcome = make_transfer_bid(&mut game, "player-award", 2_000_001).unwrap();
+
+        assert_eq!(outcome.decision, TransferNegotiationDecision::Accepted);
+        assert_eq!(game.players[0].team_id.as_deref(), Some("team1"));
+        assert_eq!(
+            game.players[0].loan_offers[0].status,
+            domain::player::LoanOfferStatus::Withdrawn
+        );
+        assert!(!game.messages.iter().any(|message| {
+            message.subject_key.as_deref() == Some("be.msg.talksClosedBySale.subject")
+        }));
     }
 
     fn incoming(deferred: bool, counter: bool) {

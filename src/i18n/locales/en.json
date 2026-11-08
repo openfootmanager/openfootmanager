@@ -3654,6 +3654,10 @@
         "body": "The agreed loan of {{player}} from {{parent}} to {{borrower}}, due to start on {{start}}, cannot go ahead: the player is no longer under contract to {{parent}}.",
         "bodyRequirementNotMet": "The agreed loan of {{player}} from {{parent}} to {{borrower}} could not start on {{start}}: one of the conditions it was agreed under, such as room in {{borrower}}'s wage budget or the length of the player's contract, no longer holds."
       },
+      "talksClosedBySale": {
+        "subject": "Signed elsewhere: {{player}}",
+        "body": "{{buyer}} have signed {{player}} for {{fee}}. Your open talks for him have been withdrawn."
+      },
       "loanOffer": {
         "subject": "Loan Offer for {{player}}",
         "body": "{{team}} want to take {{player}} on loan until {{endDate}} and cover {{wageContribution}}% of the wages. Purchase option: {{buyOption}}. Review the offer in the Transfers tab.",

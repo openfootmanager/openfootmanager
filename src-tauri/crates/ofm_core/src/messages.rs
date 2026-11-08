@@ -151,6 +151,42 @@ pub fn transfer_complete_message(player_name: &str, fee: u64, date: &str) -> Inb
     .with_sender_i18n("be.sender.transferCommittee", "be.role.directorOfFootball")
 }
 
+/// The letter for a player the user was negotiating for (a bid or a loan request) whom another
+/// club has bought: the talks were withdrawn with the sale (#1256). `fee` is the raw amount, for
+/// the shared frontend currency formatter.
+pub(crate) fn talks_closed_by_sale_message(
+    player: &domain::player::Player,
+    user_team_id: &str,
+    buyer_name: &str,
+    fee: u64,
+    date: &str,
+) -> InboxMessage {
+    InboxMessage::new(
+        format!("talks_closed_by_sale_{}_{date}", player.id),
+        String::new(),
+        String::new(),
+        String::new(),
+        date.to_string(),
+    )
+    .with_category(MessageCategory::Transfer)
+    .with_priority(MessagePriority::Normal)
+    .with_context(MessageContext {
+        team_id: Some(user_team_id.to_string()),
+        player_id: Some(player.id.clone()),
+        ..Default::default()
+    })
+    .with_i18n(
+        "be.msg.talksClosedBySale.subject",
+        "be.msg.talksClosedBySale.body",
+        HashMap::from([
+            ("player".to_string(), player.full_name.clone()),
+            ("buyer".to_string(), buyer_name.to_string()),
+            ("fee".to_string(), fee.to_string()),
+        ]),
+    )
+    .with_sender_i18n("be.sender.transferCommittee", "be.role.directorOfFootball")
+}
+
 /// Why an agreed loan did not start, which picks the letter's explanation.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum LoanCancellation {

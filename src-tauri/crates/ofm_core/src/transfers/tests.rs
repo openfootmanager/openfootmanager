@@ -418,18 +418,16 @@ fn a_buyer_moves_on_from_a_target_its_board_would_refuse() {
     assert_eq!(club_of("modest").as_deref(), Some("a"));
 }
 
-/// Given the user still negotiating with club "a" for its listed bargain, a bid and a loan request
-///      both open, When club "b" buys him in the day's market,
-/// Then both are withdrawn that day, as when the user's own deals complete: left open, the talks
-///      went on with "a" over a player now at "b" (#1251).
-#[test]
-fn a_sale_in_the_market_closes_the_other_open_talks_on_the_player() {
+/// Club "a"'s listed bargain, with an open bid and an open loan request from `bidder`, after the
+/// day's market in which club "b" buys him.
+fn market_sale_with_open_talks_from(bidder: &str) -> Game {
     let mut game = make_game();
     game.players.clear();
     game.teams = vec![
         make_team("team1", "Alpha FC", 700),
         make_team("b", "Beta FC", 700),
         make_team("a", "Atlas FC", 700),
+        make_team("c", "Cobra FC", 700),
     ];
     game.teams[1].wage_budget = 50_000_000;
     for club in ["b", "a"] {
@@ -438,14 +436,14 @@ fn a_sale_in_the_market_closes_the_other_open_talks_on_the_player() {
     let mut wanted = bargain("wanted", "a", 20_000);
     wanted.transfer_offers.push(
         serde_json::from_value(serde_json::json!({
-            "id": "user-bid", "from_team_id": "team1", "fee": 900_000,
+            "id": "user-bid", "from_team_id": bidder, "fee": 900_000,
             "wage_offered": 0, "status": "Pending", "date": "2026-01-10"
         }))
         .unwrap(),
     );
     wanted.loan_offers.push(
         serde_json::from_value(serde_json::json!({
-            "id": "user-loan", "from_team_id": "team1", "parent_team_id": "a",
+            "id": "user-loan", "from_team_id": bidder, "parent_team_id": "a",
             "start_date": "2026-01-12", "end_date": "2026-06-30",
             "wage_contribution_pct": 50, "status": "Pending", "date": "2026-01-10"
         }))
@@ -454,6 +452,25 @@ fn a_sale_in_the_market_closes_the_other_open_talks_on_the_player() {
     game.players.push(wanted);
 
     evaluate_transfer_market(&mut game);
+    game
+}
+
+fn talks_closed_letters(game: &Game) -> Vec<&domain::message::InboxMessage> {
+    game.messages
+        .iter()
+        .filter(|message| {
+            message.subject_key.as_deref() == Some("be.msg.talksClosedBySale.subject")
+        })
+        .collect()
+}
+
+/// Given the user still negotiating with club "a" for its listed bargain, a bid and a loan request
+///      both open, When club "b" buys him in the day's market,
+/// Then both are withdrawn that day, as when the user's own deals complete: left open, the talks
+///      went on with "a" over a player now at "b" (#1251).
+#[test]
+fn a_sale_in_the_market_closes_the_other_open_talks_on_the_player() {
+    let game = market_sale_with_open_talks_from("team1");
 
     let wanted = game.players.iter().find(|p| p.id == "wanted").unwrap();
     assert_eq!(
@@ -475,6 +492,49 @@ fn a_sale_in_the_market_closes_the_other_open_talks_on_the_player() {
         .unwrap();
     assert_eq!(user_loan.status, LoanOfferStatus::Withdrawn);
     assert_eq!(user_loan.closed_on.as_deref(), Some("2026-01-12"));
+}
+
+/// Given the same: the user's bid and loan request with "a" are open, When "b" buys the player,
+/// Then the user gets one letter for the sale, naming the player, the buying club and its fee:
+///      the talks used to vanish from the transfer screens without a word (#1256).
+#[test]
+fn the_user_is_told_once_when_another_clubs_purchase_ends_their_talks() {
+    let game = market_sale_with_open_talks_from("team1");
+
+    let letters = talks_closed_letters(&game);
+    assert_eq!(
+        letters.len(),
+        1,
+        "one letter for the sale, not one per approach"
+    );
+    let buyer = game.teams.iter().find(|team| team.id == "b").unwrap();
+    let wanted = game.players.iter().find(|p| p.id == "wanted").unwrap();
+    assert_eq!(letters[0].i18n_params["player"], wanted.full_name);
+    assert_eq!(letters[0].i18n_params["buyer"], "Beta FC");
+    assert_eq!(
+        letters[0].i18n_params["fee"],
+        (5_000_000 - buyer.transfer_budget).to_string()
+    );
+    assert_eq!(letters[0].context.player_id.as_deref(), Some("wanted"));
+}
+
+/// Given the open talks are another AI club's ("c"), When "b" buys the player,
+/// Then they are withdrawn and the user is told nothing: they were not the user's.
+#[test]
+fn another_clubs_talks_ended_by_a_purchase_send_the_user_no_letter() {
+    let game = market_sale_with_open_talks_from("c");
+
+    let wanted = game.players.iter().find(|p| p.id == "wanted").unwrap();
+    assert_eq!(
+        wanted.team_id.as_deref(),
+        Some("b"),
+        "the sale did not happen"
+    );
+    assert_eq!(
+        wanted.transfer_offers[0].status,
+        TransferOfferStatus::Withdrawn
+    );
+    assert!(talks_closed_letters(&game).is_empty());
 }
 
 /// A forward at "owner" with no contract end, so only morale, playing time, the clubs'

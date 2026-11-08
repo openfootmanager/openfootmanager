@@ -3654,6 +3654,10 @@
         "body": "{{player}} oyuncusunun {{parent}} kulübünden {{borrower}} kulübüne {{start}} tarihinde başlaması kararlaştırılan kiralaması gerçekleşemiyor: oyuncunun artık {{parent}} ile sözleşmesi yok.",
         "bodyRequirementNotMet": "{{player}} oyuncusunun {{parent}} kulübünden {{borrower}} kulübüne kararlaştırılan kiralaması {{start}} tarihinde başlayamadı: anlaşmanın dayandığı koşullardan biri, örneğin {{borrower}} kulübünün maaş bütçesindeki yer ya da oyuncunun sözleşme süresi, artık sağlanmıyor."
       },
+      "talksClosedBySale": {
+        "subject": "Başka kulüpte: {{player}}",
+        "body": "{{buyer}}, {{player}} oyuncusunu {{fee}} karşılığında transfer etti. Onun için açık görüşmeleriniz geri çekildi."
+      },
       "loanOffer": {
         "subject": "{{player}} için Kiralama Teklifi",
         "body": "{{team}}, {{player}} oyuncusunu {{endDate}} tarihine kadar kiralamak ve maaşların %{{wageContribution}}'ini karşılamak istiyor. Satın alma opsiyonu: {{buyOption}}. Teklifi Transferler sekmesinde inceleyin.",
