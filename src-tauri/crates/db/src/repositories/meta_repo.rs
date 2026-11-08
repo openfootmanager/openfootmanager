@@ -55,6 +55,7 @@ pub struct GameMeta {
     /// `Game::last_season_rollover_on`. NULL until the career's first season end.
     #[serde(default)]
     pub last_season_rollover_on: Option<String>,
+    /// `Game::days_since_last_job_offer`. NULL is no cooldown running, which is how every save before v064 loads.
     #[serde(default)]
     pub days_since_last_job_offer: Option<u32>,
 }
