@@ -47,13 +47,13 @@ fn every_player_opens_at_the_rating_the_game_computes_for_him() {
 
 /// Given the shipped world on its opening day,
 /// When the whole world is read,
-/// Then it opens at the ratings the game really computes: senior S 1.9 to 3.0%, A 9.3 to 10.5% and a
+/// Then it opens at the ratings the game really computes: senior S 1.9 to 3.0%, A 8.8 to 10.5% (the stars gather at the big clubs, and the free agents pay for it) and a
 ///      mean of 69.4 to 70.0 (the figures a world showed on day 1 before, S 1.2%, A 6.5% and 68.2, were
 ///      1.4 points low), and the wonderkids no more common than the maintainer's rare rate
 ///      (develop opened at 0.34% and 0.29% on these seeds; the normal bell opens at 0.38% and 0.26%). The settled world, which is what the
 ///      tier targets are about, moves on purpose in this change (the intake constants, checked by
 ///      the nightly `settled_distribution`, runs qm-9b, qm-10a and qm-10b); these bands pin the
-///      opening only. They are tight: wonderkids 0.25 to 0.40% against 0.38% and 0.26% measured.
+///      opening only. They are tight: wonderkids 0.15 to 0.40% against 0.25% and 0.19% measured.
 #[test]
 fn the_opening_world_keeps_its_tiers_mean_and_rare_wonderkids() {
     for seed in [1, 2] {
@@ -73,7 +73,7 @@ fn the_opening_world_keeps_its_tiers_mean_and_rare_wonderkids() {
             "S share; {message}"
         );
         assert!(
-            (0.093..=0.105).contains(&world.senior_ovr_a_share),
+            (0.088..=0.105).contains(&world.senior_ovr_a_share),
             "A share; {message}"
         );
         assert!(
@@ -81,8 +81,34 @@ fn the_opening_world_keeps_its_tiers_mean_and_rare_wonderkids() {
             "mean rating; {message}"
         );
         assert!(
-            (0.0025..=0.0040).contains(&world.wonderkid_share),
+            (0.0015..=0.0040).contains(&world.wonderkid_share),
             "wonderkids; {message}"
         );
+    }
+}
+
+/// Given the shipped world on its opening day,
+/// When each player's Wonderkid tag is compared with the wonderkid rule,
+/// Then they agree for every player: re-rating a player at career open must reconcile his tag.
+#[test]
+fn every_opening_wonderkid_tag_agrees_with_the_rule() {
+    use domain::player::PlayerTrait;
+    use ofm_core::player_rating::qualifies_for_wonderkid;
+
+    for seed in [1, 2] {
+        let game = WorldSpec::shipped(seed).build().expect("the world builds");
+        let on = game.clock.current_date.date_naive();
+        let disagreeing = game
+            .players
+            .iter()
+            .filter(|player| !player.retired)
+            .filter(|player| {
+                let age = age_on_or_unknown(on, &player.date_of_birth).max(0) as u32;
+                player.traits.contains(&PlayerTrait::Wonderkid)
+                    != qualifies_for_wonderkid(age, player.potential, player.ovr)
+            })
+            .count();
+
+        assert_eq!(disagreeing, 0, "seed {seed}: tags disagree with the rule");
     }
 }

@@ -872,6 +872,10 @@ fn notify_user_division_change(
         });
     let promoted = new_division.priority < old_priority || promoted_by_berth;
     let division_name = new_division.name.clone();
+    // A generated division's stored name is an English template; its key, country and edition let
+    // the frontend name it in the player's language (a hand-made division has no key).
+    let division_key = new_division.name_key.clone();
+    let division_country = new_division.country_id.clone();
     // The renewed edition's own label: a delayed edition renews to the calendar year, which is not
     // always last season plus one.
     let renewed_season = new_division.season;
@@ -884,6 +888,13 @@ fn notify_user_division_change(
     let mut params = std::collections::HashMap::new();
     params.insert("division".to_string(), division_name);
     params.insert("season".to_string(), renewed_season.to_string());
+    if let Some(key) = division_key {
+        params.insert("divisionKey".to_string(), key);
+        params.insert("divisionSeason".to_string(), renewed_season.to_string());
+        if let Some(country) = division_country {
+            params.insert("divisionCountry".to_string(), country);
+        }
+    }
 
     let message = InboxMessage::new(
         msg_id,

@@ -28,6 +28,7 @@ function setup(overrides: Partial<Parameters<typeof useAssetPicker>[0]> = {}) {
   const opts = {
     relPath: null as string | null,
     projectDir: "/proj" as string | undefined,
+    entityKind: "team" as const,
     entityId: () => "man-utd",
     commit,
     onError,
@@ -54,6 +55,7 @@ describe("useAssetPicker", () => {
 
     expect(mockedInvoke).toHaveBeenCalledWith("copy_package_asset", {
       dir: "/proj",
+      entityKind: "team",
       entityId: "man-utd",
       srcPath: "/home/me/crest.png",
     });

@@ -1,6 +1,11 @@
 import i18n from "i18next";
 import { initReactI18next } from "react-i18next";
 import resourcesToBackend from "i18next-resources-to-backend";
+import {
+  looksLikeTranslationKey,
+  provideTopLevelNamespaces,
+  reportMissingKey,
+} from "./missingKeys";
 
 export const SUPPORTED_LANGUAGES = [
   { code: "en", labelKey: "settings.languages.en" },
@@ -96,6 +101,22 @@ export const i18nReady = i18n
     defaultNS: "translation",
     ns: ["translation", "pkgTranslations"],
     fallbackNS: "pkgTranslations",
+    // Only dev builds and tests ask i18next to call the handler; a player's build is unchanged.
+    saveMissing: import.meta.env.DEV,
+    missingKeyHandler: (languages, _namespace, key, _fallbackValue, _updateMissing, options) => {
+      // Before the locale has loaded every key is "missing"; that is loading, not a bug.
+      if (!i18n.hasLoadedNamespace("translation")) return;
+      // A caller that gives a default value chose what the player reads when the key is absent (a
+      // backend name that is a key or plain prose). Without one, or with a default that is
+      // itself a key (or the key), the player reads a raw key.
+      const fallback = options?.defaultValue;
+      const hidesTheKey =
+        fallback === undefined ||
+        fallback === key ||
+        (typeof fallback === "string" && looksLikeTranslationKey(fallback));
+      if (key === "" || !hidesTheKey) return;
+      reportMissingKey(languages[0] ?? "", key);
+    },
     interpolation: {
       escapeValue: false,
     },
@@ -103,5 +124,11 @@ export const i18nReady = i18n
       useSuspense: false,
     },
   });
+
+if (import.meta.env.DEV) {
+  provideTopLevelNamespaces(
+    () => new Set(Object.keys(i18n.getResourceBundle("en", "translation") ?? {})),
+  );
+}
 
 export default i18n;
