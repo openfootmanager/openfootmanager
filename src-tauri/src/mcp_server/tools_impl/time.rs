@@ -495,6 +495,11 @@ mod tests {
         let ids: Vec<&str> = blockers.iter().map(|b| b.id.as_str()).collect();
         assert_eq!(ids, vec!["injured_xi"]);
         assert_eq!(blockers[0].tab, "Squad");
+        assert_eq!(blockers[0].severity, "warn");
+        assert_eq!(
+            blockers[0].params,
+            Some(serde_json::json!({ "count": "1" }))
+        );
     }
 
     /// Given each way a skip can end
