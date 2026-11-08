@@ -1,0 +1,112 @@
+name: ui-e2e
+
+# The real-UI suite (e2e/ui): WebdriverIO over tauri-driver, driving the built app's own window.
+#
+# Advisory: the job is `continue-on-error`, so a red run shows in the run and its summary but fails
+# no pull request and no queue. It becomes a required check once it has been green for a week.
+# It sits beside nightly-e2e.yml (which drives the app over MCP) rather than inside it, so a red
+# screen test does not open the nightly issue, and so a pull request that changes the suite can
+# run it.
+#
+#   - 03:45 UTC every night, after the MCP nightly; on demand (workflow_dispatch);
+#   - on a pull request that changes e2e/ or this file.
+# Only on openfootmanager/openfootmanager: a fork's copy of this file stays idle.
+
+on:
+  schedule:
+    - cron: "45 3 * * *"
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "e2e/**"
+      - ".github/workflows/ui-e2e.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ui-e2e-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: never
+
+jobs:
+  ui-e2e:
+    if: github.repository == 'openfootmanager/openfootmanager'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    continue-on-error: true
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install Linux dependencies, WebKitWebDriver and a virtual display
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf xdg-utils xvfb xauth webkit2gtk-driver
+
+      - name: Install Rust 1.95.0
+        uses: dtolnay/rust-toolchain@1.95.0 # the pin check (scripts/check-toolchain-pin.sh) requires the version form
+
+      - name: Rust cache
+        uses: swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2
+        with:
+          workspaces: ./src-tauri -> target
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24 # pinned with the frontend job in build-check.yml; see the reason there
+          cache: npm
+
+      - name: Install tauri-driver
+        run: cargo install tauri-driver --locked
+
+      - name: Install the app's frontend dependencies
+        run: npm ci
+
+      - name: Build the app with its frontend embedded
+        # `tauri build` embeds ../dist; a plain `cargo build` binary opens the dev server's URL.
+        run: npm run tauri build -- --debug --no-bundle
+
+      - name: Install the suite's dependencies
+        working-directory: e2e/ui
+        # No lockfile is committed yet: this run makes one, and keeps it below.
+        run: npm install --no-audit --no-fund
+
+      - name: Keep the lockfile this run made
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: e2e-ui-lockfile
+          path: e2e/ui/package-lock.json
+          retention-days: 3
+
+      - name: Check the isolation guard
+        working-directory: e2e/ui
+        run: npm run test:guard
+
+      - name: Play flow 1
+        env:
+          OFM_E2E_APP: ${{ github.workspace }}/src-tauri/target/debug/openfootmanager
+          OFM_E2E_ARTIFACTS: ${{ github.workspace }}/e2e-artifacts
+        run: bash e2e/ui/run.sh
+
+      - name: Say what failed
+        if: failure()
+        run: |
+          {
+            echo "### ui-e2e (advisory)"
+            echo "A screenshot and the page markup of each failing step are in the e2e-artifacts artifact."
+            ls e2e-artifacts 2>/dev/null || true
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Keep the evidence
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: e2e-artifacts
+          path: e2e-artifacts
+          retention-days: 14
+          if-no-files-found: ignore

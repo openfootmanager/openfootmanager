@@ -10,7 +10,7 @@
 set -euo pipefail
 
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-app="${OFM_E2E_APP:-$here/../../src-tauri/target/debug/openfootmanager}"
+app="$(realpath -m "${OFM_E2E_APP:-$here/../../src-tauri/target/debug/openfootmanager}")"
 [ -x "$app" ] || { echo "run.sh: no app at $app (set OFM_E2E_APP)" >&2; exit 2; }
 command -v xvfb-run >/dev/null || { echo "run.sh: xvfb-run is required" >&2; exit 2; }
 
@@ -37,4 +37,4 @@ env -u WAYLAND_DISPLAY -u WAYLAND_SOCKET \
   WEBKIT_DISABLE_DMABUF_RENDERER=1 \
   OFM_GPU_PROFILE=safe \
   xvfb-run -a -s "-screen 0 1280x800x24" \
-  npx --no-install wdio run "$here/wdio.conf.mjs" "$@"
+  bash -c 'cd "$1" && shift && exec npx --no-install wdio run wdio.conf.mjs "$@"' _ "$here" "$@"
