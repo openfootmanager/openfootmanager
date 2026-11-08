@@ -1,7 +1,7 @@
 import i18n from "i18next";
 import { initReactI18next } from "react-i18next";
 import resourcesToBackend from "i18next-resources-to-backend";
-import { reportMissingKey } from "./missingKeys";
+import { looksLikeTranslationKey, reportMissingKey } from "./missingKeys";
 
 export const SUPPORTED_LANGUAGES = [
   { code: "en", labelKey: "settings.languages.en" },
@@ -103,10 +103,14 @@ export const i18nReady = i18n
       // Before the locale has loaded every key is "missing"; that is loading, not a bug.
       if (!i18n.hasLoadedNamespace("translation")) return;
       // A caller that gives a default value chose what the player reads when the key is absent (a
-      // backend name that is a key or plain prose). Without one, or with the key itself as the
-      // default, the player reads the raw key.
-      if (key === "" || (options?.defaultValue !== undefined && options.defaultValue !== key))
-        return;
+      // backend name that is a key or plain prose). Without one, or with a default that is
+      // itself a key (or the key), the player reads a raw key.
+      const fallback = options?.defaultValue;
+      const hidesTheKey =
+        fallback === undefined ||
+        fallback === key ||
+        (typeof fallback === "string" && looksLikeTranslationKey(fallback));
+      if (key === "" || !hidesTheKey) return;
       reportMissingKey(languages[0] ?? "", key);
     },
     interpolation: {

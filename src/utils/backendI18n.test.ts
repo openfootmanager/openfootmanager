@@ -333,7 +333,7 @@ describe("resolveAction", () => {
     const result = resolveAction(action);
     expect(result.label).toBe("fallback");
     // The key is absent on purpose: the fallback text is what is under test.
-    takeMissingKeys();
+    expect(takeMissingKeys()).toEqual(["nonexistent.key"]);
   });
 
   it("infers player-event action and option keys for legacy saved messages", () => {
@@ -1126,7 +1126,7 @@ describe("resolveBoardObjective", () => {
     const result = resolveBoardObjective(objective);
 
     expect(result.description).toBe("Custom target");
-    takeMissingKeys();
+    expect(takeMissingKeys()).toEqual(["boardObjectives.objective.CustomObjective"]);
   });
 });
 

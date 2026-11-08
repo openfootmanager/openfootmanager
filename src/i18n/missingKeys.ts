@@ -1,3 +1,5 @@
+import en from "./locales/en.json";
+
 /**
  * Keys the app asked i18next for and no locale had. A missing key renders as its raw name
  * ("be.msg.foo.subject") to the player, so it is a bug wherever it happens.
@@ -12,6 +14,29 @@ export function reportMissingKey(language: string, key: string): void {
   if (import.meta.env.DEV) {
     console.error(`[i18n] missing translation key "${key}" (language: ${language})`);
   }
+}
+
+const TOP_LEVEL_NAMESPACES = new Set(Object.keys(en));
+
+/**
+ * Whether a value is shaped like a translation key: dotted, no spaces, and under one of the
+ * locale's top-level namespaces ("be.msg.x", not "€1.8M" or "Mr. Smith"). Prose and figures that
+ * happen to contain a dot are not.
+ */
+export function looksLikeTranslationKey(value: string): boolean {
+  return (
+    /^[A-Za-z][A-Za-z0-9_-]*(\.[A-Za-z0-9_-]+)+$/.test(value) &&
+    TOP_LEVEL_NAMESPACES.has(value.slice(0, value.indexOf(".")))
+  );
+}
+
+/**
+ * A resolver asks `i18n.exists(value)` before translating a string that may be a key or plain text.
+ * When the answer is no, a value that is shaped like a key is a missing key the player would read
+ * raw, so it is reported here as `exists` would otherwise hide it. Dev and tests only.
+ */
+export function reportIfKeyShaped(language: string, value: string): void {
+  if (import.meta.env.DEV && looksLikeTranslationKey(value)) reportMissingKey(language, value);
 }
 
 /** The keys reported since the last call. */

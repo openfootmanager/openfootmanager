@@ -52,7 +52,7 @@ describe("resolveTranslatedErrorMessage", () => {
     );
     expect(resolveTranslatedErrorMessage({ message: "plain" })).toBe("plain");
     // `be.error.noSuchKey` is unknown on purpose.
-    takeMissingKeys();
+    expect(takeMissingKeys()).toEqual(["be.error.noSuchKey"]);
   });
 });
 

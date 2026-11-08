@@ -1,5 +1,6 @@
 import i18n, { i18nReady } from "./index";
-import { takeMissingKeys } from "./missingKeys";
+import { resolveBackendError } from "../utils/backendI18n";
+import { looksLikeTranslationKey, takeMissingKeys } from "./missingKeys";
 import { beforeAll, describe, expect, it } from "vitest";
 
 beforeAll(async () => {
@@ -45,5 +46,63 @@ describe("missing translation keys", () => {
     i18n.t("be.msg.noSuchMessage.title", { defaultValue: "be.msg.noSuchMessage.title" });
 
     expect(takeMissingKeys()).toEqual(["be.msg.noSuchMessage.title"]);
+  });
+
+  /**
+   * Given a key no locale has, asked with another key as its default value (a caller that "falls
+   *       back" to a backend key)
+   * When the app asks i18next for it
+   * Then it is reported: the player would read a raw key either way.
+   */
+  it("reports a key whose default value is itself a key", () => {
+    takeMissingKeys();
+
+    i18n.t("be.msg.noSuchMessage.title", { defaultValue: "be.msg.noSuchMessage.fallback" });
+
+    expect(takeMissingKeys()).toEqual(["be.msg.noSuchMessage.title"]);
+  });
+
+  /**
+   * Given a backend error whose param is a key no locale has (the digest-leak shape)
+   * When the error is resolved
+   * Then that key is reported, though the resolver asks `exists` before translating a param.
+   */
+  it("reports a key-shaped param that has no text", () => {
+    takeMissingKeys();
+
+    resolveBackendError("be.error.squadFloor.wouldLeaveShort?group=common.positionGroups.Nope");
+
+    expect(takeMissingKeys()).toEqual(["common.positionGroups.Nope"]);
+  });
+
+  /**
+   * Given a backend error that is a key no locale has
+   * When the error is resolved
+   * Then the key is reported, though the resolver asks `exists` first.
+   */
+  it("reports a backend error that is a key without text", () => {
+    takeMissingKeys();
+
+    resolveBackendError("be.error.noSuchError");
+
+    expect(takeMissingKeys()).toEqual(["be.error.noSuchError"]);
+  });
+
+  /**
+   * Given plain values that contain a dot (a money figure, a name with an initial, a number), and
+   *       one that is under a namespace the locale has
+   * When they are checked for the shape of a key
+   * Then only the dotted, space-free one under a real namespace is key-shaped.
+   */
+  it.each([
+    ["€1.8M", false],
+    ["Mr. Smith", false],
+    ["1.25", false],
+    ["St.Mary", false],
+    ["unknownNamespace.thing", false],
+    ["common.positionGroups.Nope", true],
+    ["be.msg.noSuchMessage.subject", true],
+  ])("tells whether %s is shaped like a key: %s", (value, shaped) => {
+    expect(looksLikeTranslationKey(value)).toBe(shaped);
   });
 });
