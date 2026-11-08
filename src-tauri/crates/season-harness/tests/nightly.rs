@@ -465,6 +465,7 @@ fn a_club_with_no_players_is_a_floor_breach() {
 /// - AI squad planning (`ai_contracts::plan_squads`): 6 unit tests fail without it, e.g.
 ///   `an_ai_club_at_the_floor_signs_a_free_agent_it_can_afford`; this test fails too (clubs short
 ///   from the first season), as it does with all three off.
+///
 /// So a green run is not evidence that every layer works; the unit tests are.
 #[test]
 #[ignore = "nightly tier"]
