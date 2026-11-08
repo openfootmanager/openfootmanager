@@ -222,14 +222,19 @@ fn differences(saved: &Value, loaded: &Value) -> Vec<Difference> {
     found
 }
 
-/// A game with its calendar settled: a load runs `repair_loaded_calendar`, which moves clashing
-/// unplayed matches to the earliest legal day and records them as postponed. That repair is meant,
-/// but on a game the game itself just produced it should find nothing to move. The count it moved
-/// is returned so that the caller can say what it was (see
-/// `known_bug_a_reload_reschedules_matches_the_live_game_scheduled`).
+/// A game with what a load repairs already repaired, so that what is compared is what the save has
+/// to keep and not the repairs the load is meant to make:
+/// - the calendar: a load runs `repair_loaded_calendar`, which moves clashing unplayed matches to
+///   the earliest legal day and records them as postponed. On a game the game itself just produced
+///   it should find nothing to move; it does (#1265), and the count is returned, see
+///   `known_bug_a_reload_reschedules_matches_the_live_game_scheduled`;
+/// - the cash journal: a load runs `backfill_opening_balances`, which gives every club the opening
+///   balance post a journal that was never posted to does not have yet (the live game writes it
+///   with a club's first post).
 fn career_with_settled_calendar(game: &Game) -> (Game, usize) {
     let mut settled = game.clone();
     let moved = ofm_core::calendar_repair::repair_loaded_calendar(&mut settled);
+    ofm_core::finances::backfill_opening_balances(&mut settled);
     (settled, moved)
 }
 
@@ -424,9 +429,13 @@ fn rolled_over() -> &'static RolledOver {
             if is_season_complete(&game) {
                 break;
             }
-            // A user reads their mail; the inbox archive takes the read mail that is old enough.
+            // A user reads their mail and answers it; the inbox archive takes the read, answered
+            // mail that is old enough.
             for message in &mut game.messages {
                 message.read = true;
+                for action in &mut message.actions {
+                    action.resolved = true;
+                }
             }
             turn::process_day_with_capture(&mut game, &mut |day_stats| stats.append(day_stats));
         }
