@@ -234,7 +234,7 @@ export default function TacticsCommandBar({
                 {showSavedCue && !isDirty ? t("tactics.tacticSaved") : saveLabel}
               </Button>
               {/* The button's own text changing is not announced; this is. */}
-              <span aria-live="polite" className="sr-only" data-testid="saved-cue-live-region">
+              <span aria-live="polite" className="sr-only">
                 {showSavedCue && !isDirty ? t("tactics.tacticSaved") : ""}
               </span>
             </div>

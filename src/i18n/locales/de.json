@@ -2763,6 +2763,7 @@
       "critical": "Kritisch"
     },
     "error": {
+      "taskJoinFailed": "Die Simulation wurde unerwartet beendet. Lade deinen letzten Spielstand und versuche es erneut.",
       "autoSave": {
         "failed": "Das automatische Speichern hat dein Spiel nicht gespeichert. Dein Fortschritt seit dem letzten Speichern ist noch nicht gesichert: Speichere selbst und prüfe, ob auf dem Datenträger Platz frei ist."
       },
@@ -3660,6 +3661,10 @@
         "body": "Die vereinbarte Leihe von {{player}} von {{parent}} zu {{borrower}}, geplant ab {{start}}, kann nicht stattfinden: Der Spieler steht nicht mehr bei {{parent}} unter Vertrag.",
         "bodyRequirementNotMet": "Die vereinbarte Leihe von {{player}} von {{parent}} zu {{borrower}} konnte am {{start}} nicht beginnen: Eine der Bedingungen, unter denen sie vereinbart wurde, etwa Platz im Gehaltsbudget von {{borrower}} oder die Laufzeit des Spielervertrags, ist nicht mehr erfüllt."
       },
+      "talksClosedBySale": {
+        "subject": "Anderswo verpflichtet: {{player}}",
+        "body": "{{buyer}} hat {{player}} für {{fee}} verpflichtet. Ihre offenen Verhandlungen über ihn wurden zurückgezogen."
+      },
       "loanOffer": {
         "subject": "Leihangebot für {{player}}",
         "body": "{{team}} möchte {{player}} bis {{endDate}} ausleihen und {{wageContribution}}% des Gehalts übernehmen. Kaufoption: {{buyOption}}. Prüfen Sie das Angebot im Transfers-Tab.",
@@ -3870,7 +3875,8 @@
       "package": {
         "countryWithoutRegion": "Dieses Paket definiert das Land „{{name}}“ ({{code}}) außerhalb der Länderliste des Spiels und ordnet es keinem Verband zu, daher werden seine Vereine unter Europa geführt. Weise ihm einen Verband zu.",
         "freeAgentFieldIgnored": "Der Spieler „{{id}}“ hat keinen Verein und ist daher ein Free Agent ohne Vertrag: „{{field}}“ wird ignoriert. Gib ihm einen Verein, um das Feld zu nutzen, oder entferne es.",
-        "repeatedNamePool": "Der Namenspool für {{country}} wurde bereits in {{first}} angegeben; der Pool dieser Datei ersetzt ihn. Behalte nur einen oder ordne sie verschiedenen Ländern zu."
+        "repeatedNamePool": "Der Namenspool für {{country}} wurde bereits in {{first}} angegeben; der Pool dieser Datei ersetzt ihn. Behalte nur einen oder ordne sie verschiedenen Ländern zu.",
+        "namePoolIncomplete": "Der Namenspool für {{country}} hat Vornamen, aber keine Nachnamen, oder Nachnamen, aber keine Vornamen, und wird daher nicht verwendet: Spieler aus {{country}} erhalten die Namen des Spiels. Gib ihm beides."
       }
     }
   },

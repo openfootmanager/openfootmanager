@@ -172,6 +172,28 @@ describe("TacticsCommandBar", () => {
   });
 
   /**
+   * Given two saves started before either answers
+   * When the older one is saved and the newer one is refused
+   * Then no Saved cue shows at any point: the older answer belongs to a save that has been
+   *      superseded, and the newer one did not save.
+   */
+  it("shows no Saved cue for overlapping saves when the newer one is refused", async () => {
+    vi.useFakeTimers();
+    const answers: Array<(saved: boolean) => void> = [];
+    const onSave = vi.fn(() => new Promise<boolean>((resolve) => answers.push(resolve)));
+    const props = buildProps({ activeTactic: customTactic, isDirty: true, onSave });
+    const { rerender } = render(<TacticsCommandBar {...props} />);
+    fireEvent.click(screen.getByRole("button", { name: "tactics.updateTactic" }));
+    fireEvent.click(screen.getByRole("button", { name: "tactics.updateTactic" }));
+    rerender(<TacticsCommandBar {...props} isDirty={false} />);
+
+    await act(async () => answers[0](true));
+    expect(screen.queryByRole("button", { name: "tactics.tacticSaved" })).not.toBeInTheDocument();
+    await act(async () => answers[1](false));
+    expect(screen.queryByRole("button", { name: "tactics.tacticSaved" })).not.toBeInTheDocument();
+  });
+
+  /**
    * Given a save of tactic A that has not answered
    * When the manager switches to another tactic, B, and A's answer then lands as saved
    * Then no Saved cue shows on B.
@@ -210,7 +232,8 @@ describe("TacticsCommandBar", () => {
     await act(async () => {});
     rerender(<TacticsCommandBar {...props} isDirty={false} />);
 
-    const liveRegion = screen.getByTestId("saved-cue-live-region");
+    const liveRegion = screen.getByRole("button", { name: "tactics.tacticSaved" })
+      .nextElementSibling as HTMLElement;
     expect(liveRegion).toHaveAttribute("aria-live", "polite");
     expect(liveRegion).toHaveTextContent("tactics.tacticSaved");
   });
