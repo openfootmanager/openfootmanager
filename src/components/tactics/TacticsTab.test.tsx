@@ -326,9 +326,38 @@ describe("TacticsTab", () => {
 
     const eleven = screen.getByRole("list", { name: /preMatch\.startingXI - 4-4-2/ });
     expect(within(eleven).getAllByRole("listitem")).toHaveLength(11);
-    expect(within(eleven).getAllByRole("listitem")[0]).toHaveTextContent(
-      "common.positions.Goalkeeper: GK1. squad.pitchTokenConditionOnly",
+    expect(within(eleven).getAllByRole("listitem")[0]).toHaveTextContent("tactics.slotSummary");
+  });
+
+  /**
+   * Given the goalkeeper is the captain and the penalty taker
+   * When the pitch is drawn
+   * Then the drawing's C and PK markers are in words in his slot's entry and not in anyone else's:
+   *      the drawing is hidden from a screen reader, so the list is where he learns who holds them.
+   */
+  it("says the match roles a starter holds in the pitch's list", async () => {
+    const gameState = makeGameState();
+    gameState.teams[0].match_roles = {
+      captain: "gk1",
+      vice_captain: null,
+      penalty_taker: "gk1",
+      free_kick_taker: null,
+      corner_taker: null,
+    };
+    mockedInvoke.mockImplementation(async (command: string) => {
+      if (command === "get_squad") return gameState.players.filter((p) => p.team_id === "team1");
+      return gameState;
+    });
+
+    render(<TacticsTab gameState={gameState} onSelectPlayer={vi.fn()} onGameUpdate={vi.fn()} />);
+    await act(async () => {});
+
+    const items = within(screen.getByRole("list", { name: /preMatch\.startingXI/ })).getAllByRole(
+      "listitem",
     );
+    expect(items[0]).toHaveTextContent("preMatch.captain");
+    expect(items[0]).toHaveTextContent("preMatch.penaltyTaker");
+    expect(items[1]).not.toHaveTextContent("preMatch.captain");
   });
 
   it("renders the top tactical controls plus bench player in the left panel", () => {

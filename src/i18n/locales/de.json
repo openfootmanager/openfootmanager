@@ -777,6 +777,7 @@
     "startingXI": "Startelf — {{formation}}",
     "fullSquad": "Gesamter Kader",
     "emptySlot": "{{position}}: kein Spieler",
+    "slotSummary": "{{position}}: {{player}}. {{summary}}",
     "selectedPlayer": "Ausgewählter Spieler",
     "comparePlayer": "Vergleichsspieler",
     "selectSecondPlayer": "Wähle in der Aufstellungsansicht einen zweiten Spieler aus, um Attribute zu vergleichen und den Tausch vorzubereiten.",

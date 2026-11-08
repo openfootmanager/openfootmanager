@@ -777,6 +777,7 @@
     "startingXI": "首发十一人 — {{formation}}",
     "fullSquad": "全队阵容",
     "emptySlot": "{{position}}：无球员",
+    "slotSummary": "{{position}}：{{player}}。{{summary}}",
     "selectedPlayer": "已选球员",
     "comparePlayer": "对比球员",
     "selectSecondPlayer": "在首发视图中选择第二名球员以对比属性并准备互换。",

@@ -881,6 +881,7 @@
     "startingXI": "İlk 11 — {{formation}}",
     "fullSquad": "Tam Kadro",
     "emptySlot": "{{position}}: oyuncu yok",
+    "slotSummary": "{{position}}: {{player}}. {{summary}}",
     "clearSelection": "Seçimi temizle",
     "compareWithSelected": "Seçiliyle karşılaştır",
     "selectForSwap": "Takas için seç",

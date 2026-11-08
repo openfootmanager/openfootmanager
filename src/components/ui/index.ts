@@ -15,7 +15,7 @@ export { TeamLogo } from "./TeamLogo";
 export { InjuryBadge } from "./InjuryBadge";
 export { UnreadBadge } from "./UnreadBadge";
 export { default as JerseyIcon } from "./JerseyIcon";
-export { PitchToken, usePitchTokenFocus } from "./PitchToken";
+export { PitchToken, fitLabelKey, usePitchTokenFocus } from "./PitchToken";
 export { PositionBadge, PositionBadges } from "./PositionBadge";
 export type { PitchFitTone } from "./PitchToken";
 export { PageToolbar } from "./PageToolbar";

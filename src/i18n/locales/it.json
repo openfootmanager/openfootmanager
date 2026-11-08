@@ -796,6 +796,7 @@
     "startingXI": "XI titolare — {{formation}}",
     "fullSquad": "Rosa completa",
     "emptySlot": "{{position}}: nessun giocatore",
+    "slotSummary": "{{position}}: {{player}}. {{summary}}",
     "selectedPlayer": "Giocatore selezionato",
     "comparePlayer": "Giocatore di confronto",
     "selectSecondPlayer": "Seleziona un secondo giocatore nella vista formazione per confrontare gli attributi e preparare lo scambio.",

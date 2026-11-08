@@ -777,6 +777,7 @@
     "startingXI": "Onze Inicial — {{formation}}",
     "fullSquad": "Plantel Completo",
     "emptySlot": "{{position}}: sem jogador",
+    "slotSummary": "{{position}}: {{player}}. {{summary}}",
     "selectedPlayer": "Jogador selecionado",
     "comparePlayer": "Jogador de comparação",
     "selectSecondPlayer": "Seleciona um segundo jogador na vista da escalação para comparar atributos e preparar a troca.",

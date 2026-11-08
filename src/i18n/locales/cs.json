@@ -881,6 +881,7 @@
     "startingXI": "Základní sestava — {{formation}}",
     "fullSquad": "Celá soupiska",
     "emptySlot": "{{position}}: bez hráče",
+    "slotSummary": "{{position}}: {{player}}. {{summary}}",
     "clearSelection": "Zrušit výběr",
     "compareWithSelected": "Porovnat s vybraným",
     "selectForSwap": "Vybrat pro výměnu",

@@ -881,6 +881,7 @@
     "startingXI": "Starting XI — {{formation}}",
     "fullSquad": "Full Squad",
     "emptySlot": "{{position}}: no player",
+    "slotSummary": "{{position}}: {{player}}. {{summary}}",
     "clearSelection": "Clear selection",
     "compareWithSelected": "Compare with selected",
     "selectForSwap": "Select for swap",

@@ -777,6 +777,7 @@
     "startingXI": "Стартовый состав — {{formation}}",
     "fullSquad": "Вся команда",
     "emptySlot": "{{position}}: нет игрока",
+    "slotSummary": "{{position}}: {{player}}. {{summary}}",
     "selectedPlayer": "Выбранный игрок",
     "comparePlayer": "Игрок для сравнения",
     "selectSecondPlayer": "Выберите второго игрока в обзоре состава, чтобы сравнить характеристики и подготовить обмен.",

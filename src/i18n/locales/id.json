@@ -881,6 +881,7 @@
     "startingXI": "Starting XI — {{formation}}",
     "fullSquad": "Skuad Penuh",
     "emptySlot": "{{position}}: tanpa pemain",
+    "slotSummary": "{{position}}: {{player}}. {{summary}}",
     "clearSelection": "Hapus pilihan",
     "compareWithSelected": "Bandingkan dengan yang dipilih",
     "selectForSwap": "Pilih untuk ditukar",

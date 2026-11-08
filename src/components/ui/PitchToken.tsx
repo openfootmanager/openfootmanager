@@ -124,7 +124,7 @@ function useGracefulHover() {
 }
 
 /** The existing label for how a player fits the slot; `empty` has no verdict to state. */
-function fitLabelKey(fitTone: PitchFitTone): string | null {
+export function fitLabelKey(fitTone: PitchFitTone): string | null {
   switch (fitTone) {
     case "exact":
       return "squad.naturalFit";

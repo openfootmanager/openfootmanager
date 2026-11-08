@@ -777,6 +777,7 @@
     "startingXI": "Onze de départ — {{formation}}",
     "fullSquad": "Effectif complet",
     "emptySlot": "{{position}}: aucun joueur",
+    "slotSummary": "{{position}} : {{player}}. {{summary}}",
     "selectedPlayer": "Joueur sélectionné",
     "comparePlayer": "Joueur de comparaison",
     "selectSecondPlayer": "Sélectionnez un deuxième joueur dans la vue de composition pour comparer les attributs et préparer l'échange.",

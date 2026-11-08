@@ -777,6 +777,7 @@
     "startingXI": "Once Titular — {{formation}}",
     "fullSquad": "Plantilla Completa",
     "emptySlot": "{{position}}: sin jugador",
+    "slotSummary": "{{position}}: {{player}}. {{summary}}",
     "selectedPlayer": "Jugador seleccionado",
     "comparePlayer": "Jugador de comparación",
     "selectSecondPlayer": "Selecciona un segundo jugador en la vista de alineación para comparar atributos y preparar el cambio.",

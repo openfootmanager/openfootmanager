@@ -7,7 +7,7 @@ import type { FamiliarityTable } from "../../hooks/useFamiliarity";
 import type { PositionTable } from "../../lib/positionTable";
 import { usePositionTable } from "../../hooks/usePositionGroups";
 import type { PlayerData, TeamMatchRolesData } from "../../store/gameStore";
-import { Badge, Card, PitchToken } from "../ui";
+import { Badge, Card, PitchToken, fitLabelKey, type PitchFitTone } from "../ui";
 import {
   getSquadTacticalFit,
   translatePositionAbbreviation,
@@ -33,8 +33,6 @@ interface TacticsPitchProps {
   pitchSlots: TacticsPitchSlot[];
 }
 
-type FitTone = "exact" | "adapted" | "out" | "empty";
-
 interface RoleMarker {
   key: keyof TeamMatchRolesData;
   shortLabel: string;
@@ -47,7 +45,7 @@ function getFitTone(
   positionTable: PositionTable,
   familiarity: FamiliarityTable,
   lineupReady: boolean,
-): FitTone {
+): PitchFitTone {
   // The tone waits on what the count waits on, so the pitch never states a verdict in one place
   // and withholds it in another.
   if (!player || !lineupReady) {
@@ -219,19 +217,14 @@ function TacticalOverlays({ phase }: { phase: TacticsPhaseSettings }): JSX.Eleme
   );
 }
 
-/** The words for how a player fits his slot; `empty` has no verdict to state. */
-function fitWordKey(fitTone: FitTone): string | null {
-  switch (fitTone) {
-    case "exact":
-      return "squad.naturalFit";
-    case "adapted":
-      return "squad.adaptedFit";
-    case "out":
-      return "squad.outOfPosition";
-    default:
-      return null;
-  }
-}
+/** The label key for each match role, as the pitch's markers (C, VC, PK, FK, CK) abbreviate it. */
+const ROLE_LABEL_KEYS: Record<keyof TeamMatchRolesData, string> = {
+  captain: "preMatch.captain",
+  vice_captain: "tactics.viceCaptain",
+  penalty_taker: "preMatch.penaltyTaker",
+  free_kick_taker: "preMatch.freeKickTaker",
+  corner_taker: "preMatch.cornerTaker",
+};
 
 export default function TacticsPitch({
   familiarity,
@@ -249,19 +242,29 @@ export default function TacticsPitch({
   const title = `${t("preMatch.startingXI")} - ${formation}`;
 
   // What the drawing says about one slot, in words: the position, the player and, once the lineup
-  // can be graded, how he fits it. An empty slot says so.
-  function describeSlot(slot: TacticsPitchSlot): string {
+  // can be graded, how he fits it; then the match roles he holds (the drawing's C, VC, PK, FK, CK).
+  // An empty slot says so.
+  function describeSlot(slot: TacticsPitchSlot): { text: string; roles: string[] } {
     const position = translatePositionLabel(t, slot.position);
-    if (!slot.player) return t("tactics.emptySlot", { position });
+    if (!slot.player) return { text: t("tactics.emptySlot", { position }), roles: [] };
 
     const fitTone = getFitTone(slot.player, slot.position, positionTable, familiarity, lineupReady);
-    const fitKey = fitWordKey(fitTone);
+    const fitKey = fitLabelKey(fitTone);
     const condition = Math.round(slot.player.condition);
     const summary = fitKey
       ? t("squad.pitchTokenTooltip", { condition, fit: t(fitKey) })
       : t("squad.pitchTokenConditionOnly", { condition });
 
-    return `${position}: ${getPitchDisplayName(slot.player)}. ${summary}`;
+    return {
+      text: t("tactics.slotSummary", {
+        position,
+        player: getPitchDisplayName(slot.player),
+        summary,
+      }),
+      roles: getRoleMarkers(matchRoles, slot.player.id).map((marker) =>
+        t(ROLE_LABEL_KEYS[marker.key]),
+      ),
+    };
   }
 
   return (
@@ -293,11 +296,17 @@ export default function TacticsPitch({
         {/* The pitch only shows the eleven; every change is made in the player table. Its words
             for a screen reader are the list below, so the drawing itself is hidden from them. */}
         <ul aria-label={title} className="sr-only">
-          {pitchSlots.map((slot) => (
-            <li key={slot.index}>
-              {describeSlot(slot, positionTable, familiarity, lineupReady, t)}
-            </li>
-          ))}
+          {pitchSlots.map((slot) => {
+            const { text, roles } = describeSlot(slot);
+            return (
+              <li key={slot.index}>
+                {text}
+                {roles.map((role) => (
+                  <span key={role}> {role}</span>
+                ))}
+              </li>
+            );
+          })}
         </ul>
         <div
           aria-hidden="true"

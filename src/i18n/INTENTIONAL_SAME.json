@@ -2,6 +2,7 @@
   "global": [
     "app.name",
     "app.publisher",
+    "tactics.slotSummary",
     "date.day",
     "match.pen",
     "squad.jerseyNumber",
