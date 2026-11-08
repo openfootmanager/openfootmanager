@@ -647,7 +647,7 @@
     "lastPage": "最后一页",
     "sortBy": "排序方式",
     "sortAscending": "升序",
-    "lineupLoading": "位置数据仍在加载，暂时无法调整阵容。"
+    "lineupLoading": "球队阵容仍在加载，因此暂时无法更改首发阵容。"
   },
   "teamSelection": {
     "title": "选择您的俱乐部",
@@ -1108,6 +1108,8 @@
     "transferBudget": "转会预算",
     "seasonIncome": "赛季收入",
     "seasonExpenses": "赛季支出",
+    "moneyIn": "资金流入",
+    "moneyOut": "资金流出",
     "perWeekSuffix": "/周",
     "snapshotLoadFailed": "无法加载俱乐部财务数据。",
     "perYearSuffix": "/年",
@@ -1253,6 +1255,8 @@
     "boardSatisfied": "董事会对你的表现感到满意。",
     "boardConcerns": "董事会对战绩感到担忧。",
     "boardThreat": "你的职位正面临严重威胁。",
+    "boardWarned": "董事会已向你发出警告。",
+    "boardFinalWarning": "你已收到最后警告。",
     "board": "董事会",
     "fans": "球迷",
     "born": "出生",
@@ -1870,7 +1874,7 @@
     "skipShootoutPickerDesc": "点球大战直接使用自动顺序，不再询问你",
     "savesData": "存档与数据",
     "autoSave": "自动存档",
-    "autoSaveDesc": "每天结束后自动保存游戏",
+    "autoSaveDesc": "每周自动保存游戏",
     "exportWorld": "导出世界数据库",
     "exportWorldDesc": "将当前世界数据保存为可分享的 JSON 文件",
     "export": "导出",
@@ -2753,6 +2757,9 @@
       "critical": "体能危急"
     },
     "error": {
+      "autoSave": {
+        "failed": "自动保存未能保存您的游戏。自上次保存以来的进度尚未保存：请手动保存，并检查磁盘是否有可用空间。"
+      },
       "squadFloor": {
         "wouldLeaveShort": "该球员无法离队：阵容将低于俱乐部必须保留的最低人数。涉及位置：{{group}}。",
         "wouldLeaveSeniorsShort": "该球员无法离队：俱乐部一线队将少于 {{floor}} 名球员，低于俱乐部必须保留的最低人数。"
@@ -2798,6 +2805,7 @@
         "noSubstitutionsForShootout": "加时赛结束后不能再换人：点球大战由终场哨响时在场上的球员主罚。",
         "shootoutOrderNotNow": "只能在加时赛结束后、第一轮点球之前设定罚球顺序。",
         "shootoutOrderNotYourSide": "你只能设定本队的罚球顺序。",
+        "notYourSide": "你只能向本队下达指令。",
         "shootoutOrderNotEligible": "罚球顺序必须包含你每一名可以罚球的球员，且每人仅出现一次。",
         "playerNotOnPitch": "球员不在场上",
         "playerAlreadySubstitutedOff": "该球员已经被换下",
@@ -2817,6 +2825,7 @@
         "missingSchema": "某个包文件缺少 \"schema\" 字段。",
         "worldExportNotPackage": "此文件夹是导出的世界存档，而不是软件包项目。导出的世界使用不同的格式，无法在此处编辑。",
         "notAProjectDirectory": "这不是数据包项目文件夹。请选择包含数据包 package.json 的文件夹；如果是已安装的 .ofm 数据包，请使用“打开 .ofm 文件”。",
+        "saveWouldDropItem": "未保存：{{file}} 中有一个条目，编辑器既无法读取，也无法以 JSON 保留。请先在文件中修正该条目，然后再次保存。",
         "unknownSchema": "未知的 schema \"{{schema}}\"。",
         "invalidEntity": "\"{{schema}}\" 条目无效：{{detail}}",
         "duplicateWorld": "该包已在“{{first}}”中有清单；一个包只能有一个“world”文件。",
@@ -2857,6 +2866,8 @@
       },
       "competitionDef": {
         "invalidCalendar": "赛事日历无效：请检查联赛系列、级别、阶段和结束日期。",
+        "invalidSeasonMonth": "赛季开始月份 {{month}} 无效（必须为 1–12）。",
+        "invalidSeasonDay": "赛季开始日期 {{day}} 不是开始月份中的有效日期。",
         "invalidEmbedded": "该世界的赛事定义无效，无法加载。",
         "invalidStandalone": "所选的赛事定义文件无效。",
         "parseFailed": "无法将赛事定义文件解析为 JSON。",
@@ -2988,6 +2999,7 @@
         "cannotBidOnOwnPlayer": "你不能为自己的球员报价",
         "playerHasNoTeam": "该球员没有所属球队",
         "insufficientFunds": "资金不足",
+        "buyerCannotAffordFee": "买方俱乐部已无力支付这笔转会费，因此交易无法完成。",
         "transferBudgetTooLow": "转会预算过低",
         "playerNotOwnedByUser": "未找到该球员，或该球员不属于你",
         "offerNotPending": "未找到报价，或该报价已不再处于待处理状态",
@@ -2997,6 +3009,7 @@
         "loanCounterMustImproveTerms": "租借还价必须优于当前报价",
         "playerNotLoanListed": "该球员未被列入租借名单",
         "playerAlreadyLoaned": "该球员已经被租借",
+        "playerAlreadySold": "该球员已被出售，转会将在转会窗口开放时完成。",
         "invalidLoanEndDate": "租借结束日期必须在今天之后30天到一年之间",
         "invalidLoanWageContribution": "租借工资承担比例必须在0%到100%之间",
         "invalidLoanBuyOption": "租借买断选项金额必须大于零",
@@ -3524,6 +3537,7 @@
         },
         "notes": {
           "managerBlocked": "您交代过暂不重启合同谈判。",
+          "markedLetExpire": "您已将这份合同标记为任其到期，所以我没有开启谈判。",
           "completed": "我无需您亲自出面便已谈妥此人。",
           "completedToKeepSquadFloor": "已谈妥，超出了董事会的薪资政策。董事会予以批准，因为没有这名球员，我们的阵容将低于最低人数。",
           "beyondLimits": "他们团队要求约{{wage}}/周、{{years}}年,超出了我可授权的范围。",
@@ -3565,6 +3579,12 @@
       "scoutReport": {
         "subject": "球探报告:{{player}}",
         "body": "您的球探{{scout}}已完成对{{player}}的评估。完整报告可在球探工作板块查看。"
+      },
+      "scoutingCancelled": {
+        "subject": "球探任务已取消",
+        "body": "您派去考察{{player}}的球探已离开俱乐部，因此不会有报告。如仍需要，请另派一名球探。",
+        "bodyWithoutPlayer": "您派去考察一名球员的球探已离开俱乐部，且该球员已不在我们的记录中，因此不会有报告。",
+        "youthBody": "您派去寻找年轻球员的球探已离开俱乐部，因此搜寻已取消。如仍需要，请派另一名球探重新开始。"
       },
       "boardWarning": {
         "subject": "董事会关切——战绩审视",
@@ -3628,6 +3648,11 @@
         "subject": "租借已达成：{{player}}",
         "bodyWithOption": "{{player}}将从{{parent}}租借至{{borrower}}，租期从{{start}}至{{end}}。{{borrower}}将承担{{contribution}}%的工资。买断选项：{{fee}}。",
         "bodyNoOption": "{{player}}将从{{parent}}租借至{{borrower}}，租期从{{start}}至{{end}}。{{borrower}}将承担{{contribution}}%的工资。无买断选项。"
+      },
+      "loanRegistrationFailed": {
+        "subject": "租借已取消：{{player}}",
+        "body": "{{player}}从{{parent}}租借至{{borrower}}的协议原定于{{start}}开始，但无法进行：该球员已不再与{{parent}}签约。",
+        "bodyRequirementNotMet": "{{player}}从{{parent}}租借至{{borrower}}的协议未能于{{start}}开始：达成协议时的某项条件已不再满足，例如{{borrower}}的工资预算空间或该球员的合同期限。"
       },
       "loanOffer": {
         "subject": "收到对{{player}}的租借报价",

@@ -29,10 +29,9 @@ pub(crate) fn build_team_with_bench_from(
     lookups: Option<&super::matchday_lookups::MatchdayLookups>,
 ) -> (TeamData, Vec<PlayerData>) {
     let team = game.teams.iter().find(|t| t.id == team_id);
-    let (name, formation, play_style, tactics) = match team {
+    let (name, play_style, tactics) = match team {
         Some(t) => (
             t.name.clone(),
-            t.formation.clone(),
             match t.play_style {
                 domain::team::PlayStyle::Attacking => PlayStyle::Attacking,
                 domain::team::PlayStyle::Defensive => PlayStyle::Defensive,
@@ -45,7 +44,6 @@ pub(crate) fn build_team_with_bench_from(
         ),
         None => (
             "Unknown".into(),
-            "4-4-2".into(),
             PlayStyle::Balanced,
             TacticsConfig::default(),
         ),
@@ -63,6 +61,7 @@ pub(crate) fn build_team_with_bench_from(
     };
 
     let selection = match_day_selection(game, team_id, club, lookups);
+    let formation = selection.formation;
     let slots = formation_slots(&formation);
     let starting_xi = selection
         .eleven
@@ -92,7 +91,8 @@ pub(crate) fn build_team_with_bench_from(
 /// by slot (entry `i` plays formation slot `i`) and the bench, best first. The kick-off and the
 /// Tactics screen's lineup projection both read this, so the screen shows the side that will play.
 pub(crate) struct MatchDaySelection<'a> {
-    /// The formation the eleven lines up in: the club's own, or 4-4-2 for a club with none.
+    /// The formation the eleven lines up in: the club's own, or 4-4-2 for a club with none. The one
+    /// default every reader of the selection shares.
     pub(crate) formation: String,
     pub(crate) eleven: Vec<&'a domain::player::Player>,
     pub(crate) bench: Vec<&'a domain::player::Player>,
