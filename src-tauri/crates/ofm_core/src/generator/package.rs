@@ -5559,6 +5559,34 @@ colors:
         );
     }
 
+    /// Given clubs of a nation the package never declares and the catalog does not know
+    /// When a region cup selects everyone in the region that nation falls into
+    /// Then the nation's clubs are in that region on the projection exactly as in the built world:
+    ///      a club's own nation puts it in a region even without a `countries` entry
+    #[test]
+    fn the_projection_puts_an_undeclared_nations_clubs_in_their_region() {
+        let package = WorldPackage {
+            teams: vec![
+                fixture_club("u1", "UND", [500, 500]),
+                fixture_club("u2", "UND", [400, 400]),
+                fixture_club("e1", "ENG", [600, 600]),
+            ],
+            competitions: fixture_competitions(serde_json::json!([
+                {"id":"everyone","name":"All","type":"Cup","scope":"Continental","format":{"kind":"Knockout"},
+                 "participants":{"selector":{"kind":"allInRegion","region":
+                     crate::nations::region_for_code("UND")}}}
+            ])),
+            ..Default::default()
+        };
+
+        assert_projection_matches_the_built_world("undeclared nation", &package);
+        let (_, projected) = participants_both_ways(&package);
+        assert!(
+            projected["everyone"].iter().any(|id| id == "u1"),
+            "the undeclared nation's club is in its region: {projected:?}"
+        );
+    }
+
     /// Given a stack of two packages, the second a patch that adds clubs to a nation of the first
     /// When the merged stack is validated on the projection and on the built world
     /// Then the verdicts and participants are identical
