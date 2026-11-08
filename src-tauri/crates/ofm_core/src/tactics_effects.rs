@@ -111,7 +111,7 @@ mod tests {
         assert!(!role(PlayerRole::Stopper, DomainPosition::Goalkeeper));
         assert!(!role(PlayerRole::Stopper, DomainPosition::Striker));
         assert!(role(PlayerRole::Poacher, DomainPosition::Striker));
-        assert!(!role(PlayerRole::Poacher, DomainPosition::CenterBack));
+        assert!(!role(PlayerRole::Poacher, DomainPosition::Goalkeeper));
     }
 
     /// Given the roles no resolver reads in these slots today,
