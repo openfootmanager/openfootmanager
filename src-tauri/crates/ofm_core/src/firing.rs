@@ -8,21 +8,32 @@ use std::collections::HashMap;
 pub(crate) const WARN_THRESHOLD: u8 = 25;
 const FINAL_WARN_THRESHOLD: u8 = 18;
 const FIRE_THRESHOLD: u8 = 10;
+/// The satisfaction from which the board is satisfied with its manager: the Manager tab's
+/// "satisfied" band starts here (`manager_standing`), and here the board forgives him and its
+/// warning lapses (maintainer, 4 Nov 2026). One constant, so the tab can never call a board
+/// satisfied while it still holds a warning; well clear of the warning threshold, so a manager
+/// hovering near 25 is not sent a fresh letter each time he dips back to it.
+pub(crate) const SATISFIED_FROM: u8 = 50;
 
 const WARNING_ID_PREFIX: &str = "board_warning";
 const FINAL_WARNING_ID_PREFIX: &str = "board_final_warning";
 const FIRED_ID_PREFIX: &str = "board_fired";
 
 // warning_stage on Manager: 0 = none, 1 = warning issued, 2 = final warning issued.
-// Reset on hire/fire so warnings don't carry across clubs.
-const STAGE_WARNING: u8 = 1;
-const STAGE_FINAL: u8 = 2;
+// Reset on hire/fire so warnings don't carry across clubs, and when the board's satisfaction climbs
+// back to SATISFIED_FROM, so a manager who recovered is warned afresh before he is sacked.
+/// The board has warned its manager once.
+pub(crate) const STAGE_WARNING: u8 = 1;
+/// The board has given its manager a final warning.
+pub(crate) const STAGE_FINAL: u8 = 2;
 
 enum FiringDecision {
     NoAction,
     Warning,
     FinalWarning,
     Fire,
+    /// The board is satisfied again (from [`SATISFIED_FROM`]): its warning lapses.
+    LiftWarning,
 }
 
 fn params(pairs: &[(&str, &str)]) -> HashMap<String, String> {
@@ -44,7 +55,21 @@ pub fn check_manager_firing(game: &mut Game) -> bool {
     user_fired
 }
 
+/// What the board does at `satisfaction` with its manager at warning `stage`. One rule for the user and
+/// every AI manager.
+///
+/// From [`SATISFIED_FROM`] a warning on record lapses (#1249); between the warning threshold and it,
+/// the warning stands and no new letter is sent. It used to stay until the manager was hired or
+/// sacked, so a manager who recovered and later slid again was sacked at 10 with no fresh warning,
+/// while the Manager tab told him the board was satisfied.
 fn firing_decision(satisfaction: u8, stage: u8) -> FiringDecision {
+    if satisfaction > WARN_THRESHOLD {
+        return if satisfaction >= SATISFIED_FROM && stage > 0 {
+            FiringDecision::LiftWarning
+        } else {
+            FiringDecision::NoAction
+        };
+    }
     if satisfaction <= FIRE_THRESHOLD {
         if stage >= STAGE_WARNING {
             FiringDecision::Fire
@@ -81,6 +106,7 @@ fn check_user_manager_firing(game: &mut Game) -> bool {
         FiringDecision::FinalWarning => {
             send_final_warning(game);
         }
+        FiringDecision::LiftWarning => game.manager.warning_stage = 0,
         FiringDecision::NoAction => {}
     }
 
@@ -122,6 +148,9 @@ fn check_ai_manager_firings(game: &mut Game) {
             }
             FiringDecision::Fire => {
                 execute_ai_firing(game, index);
+            }
+            FiringDecision::LiftWarning => {
+                game.managers[index].warning_stage = 0;
             }
             FiringDecision::NoAction => {}
         }
@@ -512,6 +541,85 @@ mod tests {
         assert!(game.manager.team_id.is_some());
         assert_eq!(game.messages.len(), 1);
         assert!(game.messages[0].id.starts_with(WARNING_ID_PREFIX));
+    }
+
+    /// Given a manager on a final warning whose board climbs back to 50, then slides to 24
+    /// When the board checks him at 50 and again at 24
+    /// Then at 50, satisfied, the warning lapses, and at 24 he gets a fresh warning and keeps his job (the old
+    ///      warning stayed on record, so 24 brought no letter and 10 would have sacked him unwarned)
+    #[test]
+    fn a_manager_who_recovers_is_warned_afresh_when_he_slips_again() {
+        let mut game = make_game(50);
+        game.manager.warning_stage = STAGE_FINAL;
+
+        check_manager_firing(&mut game);
+        assert_eq!(game.manager.warning_stage, 0);
+        assert!(game.messages.is_empty());
+
+        game.manager.satisfaction = 24;
+        let fired = check_manager_firing(&mut game);
+
+        assert!(!fired);
+        assert_eq!(game.manager.warning_stage, STAGE_WARNING);
+        let ids: Vec<&str> = game.messages.iter().map(|m| m.id.as_str()).collect();
+        assert_eq!(ids, vec![format!("{WARNING_ID_PREFIX}_team1_2026-10-15")]);
+    }
+
+    /// Given a warned manager whose board is at 25, 26, 40 or 49
+    /// When the board checks him
+    /// Then the warning stands and no second letter is sent: the board forgives only once it is
+    ///      satisfied, at 50
+    #[test]
+    fn a_warning_stands_until_the_board_is_satisfied_again() {
+        for satisfaction in [25, 26, 40, 49] {
+            let mut game = make_game(satisfaction);
+            game.manager.warning_stage = STAGE_WARNING;
+
+            check_manager_firing(&mut game);
+
+            assert_eq!(
+                game.manager.warning_stage, STAGE_WARNING,
+                "at {satisfaction}"
+            );
+            assert!(game.messages.is_empty(), "at {satisfaction}");
+        }
+    }
+
+    /// Given two AI managers on a final warning, one whose board is back to 50 and one at 49
+    /// When the boards check their managers
+    /// Then the first's warning lapses and the second's stands: one rule for the user and every AI
+    ///      manager
+    #[test]
+    fn an_ai_managers_warning_lapses_when_his_board_recovers() {
+        let mut game = make_game(60);
+        let mut ai_manager = Manager::new(
+            "mgr2".to_string(),
+            "Marco".to_string(),
+            "Rossi".to_string(),
+            "1978-03-12".to_string(),
+            "Italy".to_string(),
+        );
+        ai_manager.hire("team2".to_string());
+        ai_manager.satisfaction = 50;
+        ai_manager.warning_stage = STAGE_FINAL;
+        let mut still_warned = ai_manager.clone();
+        still_warned.id = "mgr3".to_string();
+        still_warned.hire("team3".to_string());
+        // A hire clears the warning stage, so his final warning is set after it.
+        still_warned.warning_stage = STAGE_FINAL;
+        still_warned.satisfaction = 49;
+        game.managers = vec![game.manager.clone(), ai_manager, still_warned];
+
+        check_manager_firing(&mut game);
+
+        let stage_of = |id: &str| {
+            game.managers
+                .iter()
+                .find(|m| m.id == id)
+                .map(|m| m.warning_stage)
+        };
+        assert_eq!(stage_of("mgr2"), Some(0));
+        assert_eq!(stage_of("mgr3"), Some(STAGE_FINAL));
     }
 
     #[test]

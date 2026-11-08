@@ -9,7 +9,7 @@ use domain::manager::Manager;
 use serde::Serialize;
 use ts_rs::TS;
 
-use crate::firing::WARN_THRESHOLD;
+use crate::firing::{SATISFIED_FROM, STAGE_WARNING, WARN_THRESHOLD};
 
 /// The board's view of the manager, best first.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, TS)]
@@ -35,18 +35,29 @@ pub enum FansMood {
     Unrest,
 }
 
+/// Whether the board has warned its manager, and how far: the warnings still on record.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, TS)]
+#[serde(rename_all = "snake_case")]
+pub enum BoardWarning {
+    None,
+    Warned,
+    FinalWarning,
+}
+
 /// The board's and the fans' view of a manager, as the Manager tab shows them.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, TS)]
 pub struct ManagerStanding {
     pub board: BoardMood,
     pub fans: FansMood,
+    /// The board's warning on record: none, a warning, or a final warning.
+    pub warning: BoardWarning,
 }
 
 /// The board's view at `satisfaction`. Under threat exactly where the board warns.
 pub fn board_mood(satisfaction: u8) -> BoardMood {
     if satisfaction <= WARN_THRESHOLD {
         BoardMood::UnderThreat
-    } else if satisfaction < 50 {
+    } else if satisfaction < SATISFIED_FROM {
         BoardMood::Concerned
     } else if satisfaction < 80 {
         BoardMood::Satisfied
@@ -66,16 +77,27 @@ pub fn fans_mood(fan_approval: u8) -> FansMood {
     }
 }
 
+/// The board's warning at `warning_stage`, as `firing` records it.
+pub fn board_warning(warning_stage: u8) -> BoardWarning {
+    match warning_stage {
+        0 => BoardWarning::None,
+        STAGE_WARNING => BoardWarning::Warned,
+        _ => BoardWarning::FinalWarning,
+    }
+}
+
 pub fn manager_standing(manager: &Manager) -> ManagerStanding {
     ManagerStanding {
         board: board_mood(manager.satisfaction),
         fans: fans_mood(manager.fan_approval),
+        warning: board_warning(manager.warning_stage),
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::firing::STAGE_FINAL;
 
     /// Given the board's satisfaction just above and at its warning threshold (25)
     /// When its mood is read
@@ -126,7 +148,7 @@ mod tests {
 
     /// Given a manager's standing
     /// When it goes over the wire
-    /// Then both moods are snake_case words
+    /// Then both moods and the warning are snake_case words
     #[test]
     fn a_standing_serializes_as_two_words() {
         let mut manager = Manager::new(
@@ -138,10 +160,30 @@ mod tests {
         );
         manager.satisfaction = 20;
         manager.fan_approval = 85;
+        manager.warning_stage = STAGE_FINAL;
 
         assert_eq!(
             serde_json::to_value(manager_standing(&manager)).unwrap(),
-            serde_json::json!({ "board": "under_threat", "fans": "adore" })
+            serde_json::json!({ "board": "under_threat", "fans": "adore", "warning": "final_warning" })
+        );
+    }
+
+    /// Given the board's warning stage as `firing` records it: none, a warning, a final warning
+    /// When the standing reads it
+    /// Then it says none, warned and final warning, so the tab can tell a manager where he stands
+    #[test]
+    fn a_standing_carries_the_boards_warning() {
+        let read: Vec<BoardWarning> = [0, STAGE_WARNING, STAGE_FINAL]
+            .into_iter()
+            .map(board_warning)
+            .collect();
+        assert_eq!(
+            read,
+            vec![
+                BoardWarning::None,
+                BoardWarning::Warned,
+                BoardWarning::FinalWarning
+            ]
         );
     }
 }
