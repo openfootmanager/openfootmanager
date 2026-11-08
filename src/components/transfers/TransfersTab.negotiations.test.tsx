@@ -23,6 +23,7 @@ vi.mock("@tauri-apps/api/core", () => ({
 }));
 
 vi.mock("../../utils/backendI18n", () => ({
+  resolveBackendText: (key: string) => key,
   resolveBackendError: (error: unknown) => (error instanceof Error ? error.message : String(error)),
 }));
 

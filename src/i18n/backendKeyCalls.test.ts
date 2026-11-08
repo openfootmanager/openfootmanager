@@ -1,3 +1,4 @@
+import ts from "typescript";
 import { describe, expect, it } from "vitest";
 
 // Every non-test source file, as text.
@@ -11,33 +12,177 @@ const SOURCES = import.meta.glob(
 ) as Record<string, string>;
 
 /**
- * A backend `*_key` field (`feedback.headline_key`, `status.label_key`) names text the backend
- * chose. It goes through `resolveBackendText(key, fallback, params)`, which falls back to the
- * given text when a locale has no entry, never straight into `t(...)`, which would draw the raw
- * key. A `defaultValue` that is itself the key is the same leak.
- *
- * `name_key` of a competition is the one named exception: `competitionDisplayName` passes the
- * stored name as the default, so a missing key shows the name.
+ * Tracks key fields through local identifiers and named helper arguments within each file.
+ * This follows symbols within one source file; imports,
+ * dynamic property names, object mutation and indirect calls are not followed across files.
+ * The two named adapters below are trusted to keep their separately tested fallback checks.
  */
-const EXCEPTIONS: Record<string, string> = {
-  "../lib/competitionName.ts": "name_key with the stored name as its default",
-};
-
-/** `t(` or `i18n.t(` whose first argument ends in a snake_case `_key` field. */
-const DIRECT_KEY_CALL = /\b(?:i18n\.)?t\(\s*[A-Za-z0-9_$.?!]*\b[a-z0-9]+_key\b/;
-/** `defaultValue:` given a `*_key` field: the raw key as the fallback. */
-const KEY_AS_DEFAULT = /defaultValue:\s*[A-Za-z0-9_$.?!]*\b[a-z0-9]+_key\b/;
+function scanSource(path: string, source: string): string[] {
+  const file = ts.createSourceFile(
+    path,
+    source,
+    ts.ScriptTarget.Latest,
+    true,
+    path.endsWith(".tsx") ? ts.ScriptKind.TSX : ts.ScriptKind.TS,
+  );
+  const host = ts.createCompilerHost({ noResolve: true, noLib: true });
+  host.getSourceFile = (name) => (name === path ? file : undefined);
+  const checker = ts.createProgram([path], { noResolve: true, noLib: true }, host).getTypeChecker();
+  const tainted = new Set<ts.Symbol>();
+  const helpers = new Map<ts.Symbol, readonly ts.ParameterDeclaration[]>();
+  const mark = (id: ts.Identifier): void => {
+    const symbol = checker.getSymbolAtLocation(id);
+    if (symbol) tainted.add(symbol);
+  };
+  const isTainted = (id: ts.Identifier): boolean => {
+    const symbol = checker.getSymbolAtLocation(id);
+    return !!symbol && tainted.has(symbol);
+  };
+  const walk = (node: ts.Node, visit: (node: ts.Node) => void): void => {
+    visit(node);
+    ts.forEachChild(node, (child) => walk(child, visit));
+  };
+  const keyName = (name: string): boolean => /^[a-z0-9_]+_key$/.test(name);
+  const containsKey = (node: ts.Node): boolean => {
+    let found = false;
+    walk(node, (part) => {
+      if (ts.isIdentifier(part) && isTainted(part)) found = true;
+      if (ts.isPropertyAccessExpression(part) && keyName(part.name.text)) found = true;
+      if (
+        ts.isElementAccessExpression(part) &&
+        part.argumentExpression &&
+        ts.isStringLiteral(part.argumentExpression) &&
+        keyName(part.argumentExpression.text)
+      )
+        found = true;
+    });
+    return found;
+  };
+  walk(file, (node) => {
+    if (ts.isFunctionDeclaration(node) && node.name) {
+      const symbol = checker.getSymbolAtLocation(node.name);
+      if (symbol) helpers.set(symbol, node.parameters);
+    }
+    if (
+      ts.isVariableDeclaration(node) &&
+      ts.isIdentifier(node.name) &&
+      node.initializer &&
+      (ts.isArrowFunction(node.initializer) || ts.isFunctionExpression(node.initializer))
+    ) {
+      const symbol = checker.getSymbolAtLocation(node.name);
+      if (symbol) helpers.set(symbol, node.initializer.parameters);
+    }
+  });
+  let previous = -1;
+  while (previous !== tainted.size) {
+    previous = tainted.size;
+    walk(file, (node) => {
+      if (ts.isVariableDeclaration(node)) {
+        if (ts.isIdentifier(node.name) && node.initializer && containsKey(node.initializer))
+          mark(node.name);
+        if (ts.isObjectBindingPattern(node.name)) {
+          for (const element of node.name.elements) {
+            const property = element.propertyName ?? element.name;
+            if (
+              ts.isIdentifier(property) &&
+              keyName(property.text) &&
+              ts.isIdentifier(element.name)
+            )
+              mark(element.name);
+          }
+        }
+      }
+      if (
+        ts.isBinaryExpression(node) &&
+        node.operatorToken.kind === ts.SyntaxKind.EqualsToken &&
+        ts.isIdentifier(node.left) &&
+        containsKey(node.right)
+      )
+        mark(node.left);
+      if (ts.isCallExpression(node) && ts.isIdentifier(node.expression)) {
+        const symbol = checker.getSymbolAtLocation(node.expression);
+        if (!symbol) return;
+        helpers.get(symbol)?.forEach((param, index) => {
+          if (
+            node.arguments[index] &&
+            containsKey(node.arguments[index]) &&
+            ts.isIdentifier(param.name)
+          )
+            mark(param.name);
+        });
+      }
+    });
+  }
+  const inFunction = (node: ts.Node, name: string): boolean => {
+    let parent: ts.Node | undefined = node.parent;
+    while (parent) {
+      if (ts.isFunctionDeclaration(parent)) return parent.name?.text === name;
+      parent = parent.parent;
+    }
+    return false;
+  };
+  const results: string[] = [];
+  walk(file, (node) => {
+    if (ts.isCallExpression(node)) {
+      const callee = node.expression;
+      const isTranslation =
+        (ts.isIdentifier(callee) && callee.text === "t") ||
+        (ts.isPropertyAccessExpression(callee) &&
+          ts.isIdentifier(callee.expression) &&
+          callee.expression.text === "i18n" &&
+          callee.name.text === "t");
+      const first = node.arguments[0];
+      let safeCompetition = false;
+      if (
+        path === "../lib/competitionName.ts" &&
+        inFunction(node, "competitionDisplayName") &&
+        first?.getText(file) === "comp.name_key"
+      ) {
+        const options = node.arguments[1];
+        safeCompetition =
+          !!options &&
+          ts.isObjectLiteralExpression(options) &&
+          options.properties
+            .slice(-1)
+            .some(
+              (property) =>
+                ts.isPropertyAssignment(property) &&
+                property.name.getText(file) === "defaultValue" &&
+                property.initializer.getText(file) === 'comp.name ?? ""',
+            );
+      }
+      // These two adapters check the translated result before returning it to the player.
+      const safeAdapter =
+        (path === "../utils/backendI18n.ts" &&
+          inFunction(node, "resolve") &&
+          node.getText(file) === "i18n.t(key, params ?? {})") ||
+        (path === "../lib/nationalTeams.ts" &&
+          inFunction(node, "nationalTeamDisplayName") &&
+          node.getText(file) === 't(nameKey, { defaultValue: "" })');
+      if (isTranslation && first && containsKey(first) && !safeCompetition && !safeAdapter)
+        results.push(node.getStart(file).toString());
+    }
+    if (
+      ts.isPropertyAssignment(node) &&
+      node.name.getText(file).replace(/['"]/g, "") === "defaultValue" &&
+      containsKey(node.initializer)
+    )
+      results.push(node.getStart(file).toString());
+    if (
+      ts.isJsxAttribute(node) &&
+      node.name.getText(file) === "i18nKey" &&
+      node.initializer &&
+      containsKey(node.initializer)
+    )
+      results.push(node.getStart(file).toString());
+  });
+  return results.map(
+    (position) => `${path}:${file.getLineAndCharacterOfPosition(Number(position)).line + 1}`,
+  );
+}
 
 function offenders(): string[] {
-  return Object.entries(SOURCES).flatMap(([path, source]) => {
-    if (EXCEPTIONS[path]) return [];
-    return source.split("\n").flatMap((line, index) => {
-      const code = line.replace(/\/\/.*$/, "");
-      return DIRECT_KEY_CALL.test(code) || KEY_AS_DEFAULT.test(code)
-        ? [`${path.replace("../", "src/")}:${index + 1}: ${line.trim()}`]
-        : [];
-    });
-  });
+  return Object.entries(SOURCES).flatMap(([path, source]) => scanSource(path, source));
 }
 
 describe("backend key fields reach the player through the resolver", () => {
@@ -48,7 +193,7 @@ describe("backend key fields reach the player through the resolver", () => {
    */
   it("has no t(<backend *_key>) call and no *_key default value", () => {
     expect(offenders()).toEqual([]);
-  });
+  }, 60000);
 
   /**
    * Given the shapes the guard exists for
@@ -56,16 +201,48 @@ describe("backend key fields reach the player through the resolver", () => {
    * Then each is caught, and the sanctioned forms are not.
    */
   it.each([
-    ["{t(feedback.headline_key, { a: 1 })}", true],
-    ["{t(report.rating_key)} (~1)", true],
-    ["i18n.t(status.label_key)", true],
-    ["t(x, { defaultValue: feedback.headline_key })", true],
-    ["resolveBackendText(feedback.headline_key, '', {})", false],
-    ["t(labelKey)", false],
-    ['t("scouting.confidence")', false],
-    ["const x = status.label_key;", false],
-  ])("matches %s: %s", (line, matched) => {
-    const hit = DIRECT_KEY_CALL.test(line) || KEY_AS_DEFAULT.test(line);
-    expect(hit).toBe(matched);
+    ["multiline call", "t(\n feedback.headline_key, feedback.params)", true],
+    ["multiline default", "t('label', {defaultValue:\n feedback.headline_key})", true],
+    ["template literal", "t(`" + "${" + "feedback.headline_key}`)", true],
+    ["generic arrow before sink", "const id = <T>(x: T) => x; t(feedback.headline_key)", true],
+    ["element access", "t(feedback['headline_key'])", true],
+    ["optional call", "t?.(feedback.headline_key)", true],
+    ["Trans key", "<Trans i18nKey={feedback.headline_key} />", true],
+    ["multiword direct", "t(msg.sender_role_key)", true],
+    ["multiword default", "t('x', {defaultValue: msg.sender_role_key})", true],
+    ["local alias", "const x = feedback.headline_key; t(x)", true],
+    ["renamed destructuring", "const {headline_key: key} = feedback; t(key)", true],
+    [
+      "helper parameter",
+      "function renderKey(key: string) { return t(key); } renderKey(feedback.headline_key)",
+      true,
+    ],
+    ["i18n call", "i18n.t(feedback.headline_key)", true],
+    ["nested default", "t('x', {other: {defaultValue: feedback.headline_key}})", true],
+    [
+      "safe competition fallback",
+      'function competitionDisplayName(comp, t) { return t(comp.name_key, {defaultValue: comp.name ?? ""}); }',
+      false,
+    ],
+    [
+      "competition fallback overridden by spread",
+      'function competitionDisplayName(comp, t) { return t(comp.name_key, {defaultValue: comp.name ?? "", ...unsafe}); }',
+      true,
+    ],
+    [
+      "competition without fallback",
+      "function competitionDisplayName(comp, t) { return t(comp.name_key); }",
+      true,
+    ],
+    [
+      "unrelated competition call",
+      "function competitionDisplayName(comp, t) { return t(feedback.detail_key); }",
+      true,
+    ],
+    ["resolver", "resolveBackendText(feedback.headline_key, '', {})", false],
+    ["literal", "t('scouting.confidence')", false],
+  ])("detects %s", (name, source, matched) => {
+    const path = name === "Trans key" ? "../component.tsx" : "../lib/competitionName.ts";
+    expect(scanSource(path, source).length > 0).toBe(matched);
   });
 });

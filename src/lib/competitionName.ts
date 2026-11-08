@@ -30,6 +30,6 @@ export function competitionDisplayName(comp: NamedCompetition, t: TranslateFn): 
   return t(comp.name_key, {
     year: comp.season,
     country,
-    defaultValue: comp.name ?? comp.name_key,
+    defaultValue: comp.name ?? "",
   }).trim();
 }

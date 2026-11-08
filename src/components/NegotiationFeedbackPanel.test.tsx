@@ -51,6 +51,24 @@ describe("NegotiationFeedbackPanel", () => {
     expect(screen.queryByText(/playerProfile\./)).toBeNull();
   });
 
+  /** Given a nested key as a headline parameter, when rendered, then both keys resolve. */
+  it("resolves a nested headline parameter", () => {
+    const { container } = render(
+      panel(feedback({ headline_key: "menu.manager", params: { name: "common.cancel" } })),
+    );
+    expect(screen.getByText("Manager: Cancel")).toBeInTheDocument();
+    expect(container.textContent).not.toContain("common.cancel");
+  });
+
+  /** Given a nested key as a detail parameter, when rendered, then both keys resolve. */
+  it("resolves a nested detail parameter", () => {
+    const { container } = render(
+      panel(feedback({ detail_key: "menu.manager", params: { name: "common.cancel" } })),
+    );
+    expect(screen.getByText("Manager: Cancel")).toBeInTheDocument();
+    expect(container.textContent).not.toContain("common.cancel");
+  });
+
   /**
    * Given a headline and a detail key that no locale has
    * When the panel is drawn
@@ -61,13 +79,16 @@ describe("NegotiationFeedbackPanel", () => {
     const { container } = render(
       panel(
         feedback({
-          headline_key: "negotiation.noSuchHeadline",
-          detail_key: "negotiation.noSuchDetail",
+          headline_key: "playerProfile.noSuchHeadline",
+          detail_key: "playerProfile.noSuchDetail",
         }),
       ),
     );
 
-    expect(container.textContent).not.toContain("negotiation.noSuch");
-    expect(takeMissingKeys()).toEqual(["negotiation.noSuchHeadline", "negotiation.noSuchDetail"]);
+    expect(container.textContent).not.toContain("playerProfile.noSuch");
+    expect(takeMissingKeys()).toEqual([
+      "playerProfile.noSuchHeadline",
+      "playerProfile.noSuchDetail",
+    ]);
   });
 });
