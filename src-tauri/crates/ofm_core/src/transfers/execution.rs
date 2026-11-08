@@ -502,13 +502,10 @@ pub(super) fn close_open_offers_after_sale(
         }
     }
 
-    if user_talks_ended
-        && !made_by_the_user(buyer_team_id)
-        && let Some(user_club_id) = user_club_id.as_deref()
-    {
+    if user_talks_ended && !made_by_the_user(buyer_team_id) {
         let letter = crate::messages::talks_closed_by_sale_message(
             player,
-            user_club_id,
+            buyer_team_id,
             &buyer_name,
             fee,
             &today,

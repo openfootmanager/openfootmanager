@@ -516,6 +516,9 @@ fn the_user_is_told_once_when_another_clubs_purchase_ends_their_talks() {
         (5_000_000 - buyer.transfer_budget).to_string()
     );
     assert_eq!(letters[0].context.player_id.as_deref(), Some("wanted"));
+    // The card is the club that signed him, not the user's own.
+    assert_eq!(letters[0].context.team_id.as_deref(), Some("b"));
+    assert_eq!(letters[0].context.team_name.as_deref(), Some("Beta FC"));
 }
 
 /// Given the open talks are another AI club's ("c"), When "b" buys the player,

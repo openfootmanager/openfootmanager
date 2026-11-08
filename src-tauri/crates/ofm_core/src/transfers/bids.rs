@@ -1023,6 +1023,36 @@ mod acceptance_tests {
         bid(true);
     }
 
+    /// Given the user owns the player, with a bid from another club open besides the one the user
+    ///      accepts, When the user sells him, Then the other bid is withdrawn and no "talks ended
+    ///      by a purchase" letter is sent: the user is the seller, and the withdrawn bid was not
+    ///      the user's (#1256).
+    #[test]
+    fn the_user_selling_a_player_gets_no_talks_closed_letter() {
+        let mut game = acceptance_game("team1", false);
+        let accepted = incoming_transfer(&mut game);
+        game.players[0].transfer_offers.push(
+            serde_json::from_value(serde_json::json!({
+                "id": "rival-bid", "from_team_id": "team3", "fee": 500_000,
+                "wage_offered": 0, "status": "Pending", "date": "2026-01-10"
+            }))
+            .unwrap(),
+        );
+
+        respond_to_offer(&mut game, "player-award", &accepted, true).unwrap();
+
+        assert_eq!(game.players[0].team_id.as_deref(), Some("team2"));
+        let rival = game.players[0]
+            .transfer_offers
+            .iter()
+            .find(|offer| offer.id == "rival-bid")
+            .unwrap();
+        assert_eq!(rival.status, TransferOfferStatus::Withdrawn);
+        assert!(!game.messages.iter().any(|message| {
+            message.subject_key.as_deref() == Some("be.msg.talksClosedBySale.subject")
+        }));
+    }
+
     /// Given the user has an open loan request for team2's player, When the user then buys him
     ///      outright, Then the request is withdrawn and no "talks ended by a purchase" letter is
     ///      sent: it was the user's own purchase that ended them (#1256).

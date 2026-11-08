@@ -156,7 +156,7 @@ pub fn transfer_complete_message(player_name: &str, fee: u64, date: &str) -> Inb
 /// the shared frontend currency formatter.
 pub(crate) fn talks_closed_by_sale_message(
     player: &domain::player::Player,
-    user_team_id: &str,
+    buyer_team_id: &str,
     buyer_name: &str,
     fee: u64,
     date: &str,
@@ -170,8 +170,10 @@ pub(crate) fn talks_closed_by_sale_message(
     )
     .with_category(MessageCategory::Transfer)
     .with_priority(MessagePriority::Normal)
+    // The club the letter names, so the card shows who signed him (not the user's own club).
     .with_context(MessageContext {
-        team_id: Some(user_team_id.to_string()),
+        team_id: Some(buyer_team_id.to_string()),
+        team_name: Some(buyer_name.to_string()),
         player_id: Some(player.id.clone()),
         ..Default::default()
     })
