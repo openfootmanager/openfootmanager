@@ -243,9 +243,9 @@ function ControlledTacticsTab() {
   return <TacticsTab gameState={game} onSelectPlayer={vi.fn()} onGameUpdate={setGame} />;
 }
 
-/** The phase dials sit in a collapsible section; open it when it is closed. */
+/** The with-the-ball dials sit in a section of the instructions panel; open it when it is closed. */
 function openPhaseBlueprint() {
-  const toggle = screen.getByRole("button", { name: /Phase Blueprint/i });
+  const toggle = screen.getByRole("button", { name: /With Ball/i });
   if (toggle.getAttribute("aria-expanded") !== "true") fireEvent.click(toggle);
 }
 
