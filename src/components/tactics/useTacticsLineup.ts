@@ -51,13 +51,15 @@ import { isMatchDayEligible } from "../../lib/playerSquad";
 interface UseTacticsLineupArgs {
   gameState: GameStateData | null;
   onGameUpdate: (g: GameStateData) => void;
+  /** A write the backend refused: the screen tells the manager it did not save. */
+  onWriteError: (error: unknown) => void;
 }
 
 function isPlayerEligibleForLineup(player: PlayerData | null | undefined): boolean {
   return Boolean(player && isMatchDayEligible(player));
 }
 
-export function useTacticsLineup({ gameState, onGameUpdate }: UseTacticsLineupArgs) {
+export function useTacticsLineup({ gameState, onGameUpdate, onWriteError }: UseTacticsLineupArgs) {
   const { sessionState } = useGameStore();
   const positionTable = usePositionTable();
   const familiarity = useFamiliarity();
@@ -213,6 +215,7 @@ export function useTacticsLineup({ gameState, onGameUpdate }: UseTacticsLineupAr
     } catch (error) {
       setPendingStartingXiIds(null);
       console.error("Failed to set starting XI:", error);
+      onWriteError(error);
       return false;
     }
   }
@@ -224,6 +227,7 @@ export function useTacticsLineup({ gameState, onGameUpdate }: UseTacticsLineupAr
       return true;
     } catch (error) {
       console.error("Failed to set formation:", error);
+      onWriteError(error);
       return false;
     }
   }
@@ -235,6 +239,7 @@ export function useTacticsLineup({ gameState, onGameUpdate }: UseTacticsLineupAr
       return true;
     } catch (error) {
       console.error("Failed to set play style:", error);
+      onWriteError(error);
       return false;
     }
   }
@@ -249,6 +254,7 @@ export function useTacticsLineup({ gameState, onGameUpdate }: UseTacticsLineupAr
       return true;
     } catch (error) {
       console.error("Failed to apply tactic preset:", error);
+      onWriteError(error);
       return false;
     }
   }
@@ -468,6 +474,7 @@ export function useTacticsLineup({ gameState, onGameUpdate }: UseTacticsLineupAr
       onGameUpdate(updated);
     } catch (error) {
       console.error("Failed to set team match roles:", error);
+      onWriteError(error);
     }
   }
 
@@ -486,6 +493,7 @@ export function useTacticsLineup({ gameState, onGameUpdate }: UseTacticsLineupAr
       onGameUpdate(updated);
     } catch (error) {
       console.error("Failed to set tactics phase:", error);
+      onWriteError(error);
     }
   }
 

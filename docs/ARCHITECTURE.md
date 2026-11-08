@@ -214,7 +214,7 @@ All frontend↔backend communication goes through Tauri's `invoke()` mechanism. 
 | `get_career_stage` | — | `awaitingClub` \| `unemployed` \| `employed` | Decided in Rust (`career_stage`): a manager with no club who has never held one is awaiting a club, so the menu and dashboard send them to team selection; a sacked manager stays on the dashboard |
 | `advance_time` | — | `Game` | Advance one day |
 | `advance_time_with_mode` | mode | `{action, game?, snapshot?}` | Advance with match mode preference |
-| `skip_to_match_day` | — | `Game` | Fast-forward to next fixture |
+| `skip_to_match_day` | — | `{ action, game, days_skipped, results }`, plus `blockers` when `action` is `blocked`, and `reached_match_day` and `date` when it is `arrived` | Fast-forward day by day until a day the user's club has a match in any competition, stopping before it; `fired` if the board sacks him on the way, `blocked` after a day that brings a blocker, `arrived` on the match day or after 60 days without one (`reached_match_day` says which). The MCP `time_skip_to_match_day` runs this same skip |
 | `save_game` | — | — | Persist current game |
 | `load_game` | save_id | — | Load a saved game |
 | `exit_to_menu` | — | — | Save and clear active game |

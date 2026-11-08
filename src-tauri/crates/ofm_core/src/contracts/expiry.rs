@@ -209,7 +209,7 @@ pub(crate) fn lapsed_registration_messages(
         .loan_offers
         .iter()
         .filter(|offer| offer.status == domain::player::LoanOfferStatus::PendingRegistration)
-        .filter(|offer| offer.from_team_id == user_club_id || offer.parent_team_id == user_club_id)
+        .filter(|offer| offer.involves(user_club_id))
         .map(|offer| {
             crate::messages::loan_registration_failed_message(
                 offer,
