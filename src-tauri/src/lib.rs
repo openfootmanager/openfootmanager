@@ -369,6 +369,7 @@ pub fn run() {
             create_package_project,
             create_world_project,
             read_package_project,
+            validate_package_project,
             save_package_project,
             build_ofm,
             extract_ofm_for_editing,
