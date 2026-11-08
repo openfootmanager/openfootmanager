@@ -3376,6 +3376,24 @@ mod tests {
         );
     }
 
+    /// Given an active job-offer cooldown
+    /// When the career is saved and loaded by a fresh manager
+    /// Then the elapsed cooldown days survive.
+    #[test]
+    fn job_offer_cooldown_survives_save_and_load() {
+        let dir = tempfile::tempdir().unwrap();
+        let saves = dir.path().join("saves");
+        let mut game = sample_game();
+        game.days_since_last_job_offer = Some(17);
+        let id = SaveManager::init(&saves)
+            .unwrap()
+            .create_save(&game, "Cooldown")
+            .unwrap();
+
+        let loaded = SaveManager::init(&saves).unwrap().load_game(&id).unwrap();
+        assert_eq!(loaded.days_since_last_job_offer, Some(17));
+    }
+
     #[test]
     fn test_save_and_load_roundtrips_vacant_team_days() {
         let dir = tempfile::tempdir().unwrap();
