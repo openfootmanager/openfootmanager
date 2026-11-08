@@ -1,5 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 
+import type { GameStateData } from "../store/gameStore";
+import type { TacticContents } from "../store/generated/TacticContents";
 import { invokeForCareer } from "./careerInvoke";
 
 /** A tactic the player saved, as the save keeps it (camelCase on the wire). */
@@ -10,6 +12,8 @@ export interface CustomTactic {
   formation: string;
   playStyle: string;
   sourcePresetName?: string | null;
+  /** Everything else the tactic holds (#1189); absent for one saved before tactics held it. */
+  contents?: TacticContents | null;
 }
 
 /** The career's saved tactics, in the order they were made. */
@@ -30,6 +34,23 @@ export async function saveCustomTactic(
   careerToken: number,
 ): Promise<CustomTactic[]> {
   return invokeForCareer<CustomTactic[]>("save_custom_tactic", { tactic }, careerToken);
+}
+
+/**
+ * Saves the team's tactic as it stands, whole (formation, style, every instruction, the eleven and
+ * their roles, the takers), under the draft's id and name. The backend reads all of it from the
+ * team; the draft only names it. Returns the whole list.
+ */
+export async function saveCurrentTactic(
+  draft: CustomTactic,
+  careerToken: number,
+): Promise<CustomTactic[]> {
+  return invokeForCareer<CustomTactic[]>("save_current_tactic", { tactic: draft }, careerToken);
+}
+
+/** Puts the saved tactic on the team; returns the game as it now stands. */
+export async function applyCustomTactic(id: string, careerToken: number): Promise<GameStateData> {
+  return invokeForCareer<GameStateData>("apply_custom_tactic", { id }, careerToken);
 }
 
 /** Removes the tactic with `id`; returns the list that is left. */

@@ -1,3 +1,4 @@
+pub(crate) mod auto_save;
 pub(crate) mod career;
 pub mod live_match;
 pub mod live_session;

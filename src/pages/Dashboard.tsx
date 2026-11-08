@@ -358,6 +358,7 @@ export default function Dashboard({ initialTab = "Home" }: DashboardProps): JSX.
     settingsLoaded,
     isUnemployed ?? false,
     settings.continue_to_next_event,
+    setSaveError,
   );
 
   const handleSave = useCallback(async () => {
