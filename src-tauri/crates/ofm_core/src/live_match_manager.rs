@@ -7,7 +7,8 @@ use crate::player_rating::formation_slots;
 use crate::turn::matchday_lookups::MatchdayLookups;
 pub use crate::turn::squad::auto_select_set_pieces;
 use crate::turn::squad::{
-    build_team_with_bench_from, domain_to_engine_tactics, line_familiarity, set_piece_takers_among,
+    build_team_with_bench_from, domain_to_engine_role, domain_to_engine_tactics, line_familiarity,
+    set_piece_takers_among,
 };
 
 use rand_chacha::ChaCha12Rng;
@@ -209,6 +210,15 @@ impl LiveMatchSession {
         results
     }
 
+    /// The rest of a match nobody is left to manage, played out at once: the AI takes the
+    /// user's dugout too, as it does for a delegated match. For a caller that finishes a live
+    /// match early (MCP `match_finish`): the user is gone, and a side the AI skips would play
+    /// the rest of it with no substitutions and no replacement keeper (#1231).
+    pub fn play_out_unmanaged(&mut self) -> Vec<MinuteResult> {
+        self.user_side = None;
+        self.run_to_completion()
+    }
+
     /// Run the entire match to completion instantly.
     pub fn run_to_completion(&mut self) -> Vec<MinuteResult> {
         let mut results = Vec::with_capacity(100);
@@ -323,6 +333,50 @@ impl LiveMatchSession {
                 .apply_command(MatchCommand::ChangeTacticalDial { side, dial })?;
         }
         Ok(())
+    }
+
+    /// The role saved for one player before kick-off, handed to the match if he starts. It
+    /// counts only where the slot he fills in the match admits it, the rule the match was built
+    /// by (`turn::squad`): a swap or a change of shape before kick-off moves players in the
+    /// session alone, so the saved team's slots no longer describe it. A role either refuses
+    /// leaves him on `Standard`. The engine refuses nothing that passed those checks; if it ever
+    /// did, the caller logs the error and does not report the save as failed.
+    pub fn follow_saved_role_before_kick_off(
+        &mut self,
+        game: &Game,
+        player_id: &str,
+    ) -> Result<(), String> {
+        let Some((side, team)) = self.user_team_before_kick_off(game) else {
+            return Ok(());
+        };
+        let Some(slot) = self.slot_of(side, player_id) else {
+            return Ok(());
+        };
+        let Some(starter) = self
+            .match_state
+            .team(side)
+            .players
+            .iter()
+            .find(|player| player.id == player_id)
+        else {
+            return Ok(());
+        };
+        let role = team
+            .player_roles
+            .get(player_id)
+            .filter(|role| slot.admits_role(role))
+            .map(domain_to_engine_role)
+            .filter(|role| role.suits(starter.position))
+            .unwrap_or(engine::PlayerRole::Standard);
+        if role == starter.role {
+            return Ok(());
+        }
+        self.match_state
+            .apply_command(MatchCommand::ChangePlayerRole {
+                side,
+                player_id: player_id.to_string(),
+                role,
+            })
     }
 
     /// The user's side and saved team, while this career's match still waits at kick-off.

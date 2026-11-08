@@ -808,6 +808,12 @@
     "unsavedChanges": "Alterações não salvas",
     "currentPlanCard": "Plano atual",
     "phaseBlueprint": "Plano por fases",
+    "instructionsPanel": {
+      "title": "Instruções da equipe",
+      "show": "Mostrar as instruções da equipe",
+      "hide": "Ocultar as instruções da equipe",
+      "openAt": "Mostrar as instruções da equipe: {{section}}"
+    },
     "phaseLabels": {
       "withBall": "Com a bola",
       "withoutBall": "Sem a bola",
@@ -1255,6 +1261,8 @@
     "boardSatisfied": "A diretoria está satisfeita com seu desempenho.",
     "boardConcerns": "A diretoria tem preocupações com os resultados.",
     "boardThreat": "Sua posição está seriamente ameaçada.",
+    "boardWarned": "A diretoria te advertiu.",
+    "boardFinalWarning": "Você está na última advertência.",
     "board": "Diretoria",
     "fans": "Torcida",
     "born": "Nascido em",
@@ -1872,7 +1880,7 @@
     "skipShootoutPickerDesc": "Começa as disputas de pênaltis na ordem automática, sem pedir que você a defina",
     "savesData": "Saves e Dados",
     "autoSave": "Salvar Automaticamente",
-    "autoSaveDesc": "Salvar automaticamente após cada dia",
+    "autoSaveDesc": "Salvar automaticamente toda semana",
     "exportWorld": "Exportar Banco de Dados do Mundo",
     "exportWorldDesc": "Salvar os dados do mundo atual como um arquivo JSON compartilhável",
     "export": "Exportar",
@@ -2755,6 +2763,9 @@
       "critical": "Crítico"
     },
     "error": {
+      "autoSave": {
+        "failed": "O salvamento automático não conseguiu salvar o jogo. Seu progresso desde o último salvamento ainda não está salvo: salve manualmente e verifique se há espaço livre no disco."
+      },
       "squadFloor": {
         "wouldLeaveShort": "Este jogador não pode sair: o elenco ficaria abaixo do mínimo que um clube precisa manter. Setor afetado: {{group}}.",
         "wouldLeaveSeniorsShort": "Este jogador não pode sair: o clube ficaria com menos de {{floor}} jogadores no elenco profissional, o mínimo que um clube precisa manter."
@@ -3643,6 +3654,11 @@
         "subject": "Empréstimo acertado: {{player}}",
         "bodyWithOption": "{{player}} será emprestado por {{parent}} a {{borrower}} de {{start}} até {{end}}. {{borrower}} pagará {{contribution}}% do salário. Opção de compra: {{fee}}.",
         "bodyNoOption": "{{player}} será emprestado por {{parent}} a {{borrower}} de {{start}} até {{end}}. {{borrower}} pagará {{contribution}}% do salário. Sem opção de compra."
+      },
+      "loanRegistrationFailed": {
+        "subject": "Empréstimo cancelado: {{player}}",
+        "body": "O empréstimo acertado de {{player}} do {{parent}} para o {{borrower}}, previsto para {{start}}, não pode acontecer: o jogador não tem mais contrato com o {{parent}}.",
+        "bodyRequirementNotMet": "O empréstimo acertado de {{player}} do {{parent}} para o {{borrower}} não pôde começar em {{start}}: uma das condições em que foi acertado, como espaço na folha salarial do {{borrower}} ou a duração do contrato do jogador, não vale mais."
       },
       "loanOffer": {
         "subject": "Proposta de Empréstimo por {{player}}",

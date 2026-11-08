@@ -5,6 +5,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { i18nReady } from "../../i18n";
 import type { GameStateData, PlayerData, TeamData } from "../../store/gameStore";
 import TacticsTab from "./TacticsTab";
+import { resetTacticsLineupCache } from "../../hooks/useTacticsLineupProjection";
 import type { CustomTactic } from "../../services/customTacticsService";
 import { createSeasonContext } from "../../test-utils/factories";
 
@@ -219,6 +220,14 @@ function fakeBackend(failPreset = false) {
     }
     if (command === "set_formation") team.formation = params.formation;
     if (command === "set_play_style") team.play_style = params.playStyle;
+    // As the real command: the saved tactic's formation and style, and nothing else for one saved
+    // before tactics held their contents (these seeds hold none), so the dials stay the manager's.
+    if (command === "apply_custom_tactic") {
+      const saved = savedTactics.find((tactic) => tactic.id === params.id);
+      if (!saved) throw new Error("be.error.customTactic.notFound");
+      team.formation = saved.formation;
+      team.play_style = saved.playStyle;
+    }
     return structuredClone(backend);
   });
 }
@@ -228,9 +237,9 @@ function ControlledTacticsTab() {
   return <TacticsTab gameState={game} onSelectPlayer={vi.fn()} onGameUpdate={setGame} />;
 }
 
-/** The phase dials sit in a collapsible section; open it when it is closed. */
+/** The with-the-ball dials sit in a section of the instructions panel; open it when it is closed. */
 function openPhaseBlueprint() {
-  const toggle = screen.getByRole("button", { name: /Phase Blueprint/i });
+  const toggle = screen.getByRole("button", { name: /With Ball/i });
   if (toggle.getAttribute("aria-expanded") !== "true") fireEvent.click(toggle);
 }
 
@@ -249,6 +258,7 @@ describe("TacticsTab preset selection", { timeout: TACTICS_TAB_CASE_TIMEOUT_MS }
 
   beforeEach(() => {
     localStorage.clear();
+    resetTacticsLineupCache();
     mockedInvoke.mockReset();
     blueprintModified = false;
     savedTactics = [];
@@ -317,16 +327,10 @@ describe("TacticsTab preset selection", { timeout: TACTICS_TAB_CASE_TIMEOUT_MS }
       render(<ControlledTacticsTab />);
       fireEvent.click(screen.getByRole("button", { name: "Choose tactic" }));
       fireEvent.click(await screen.findByRole("option", { name: /Saved custom/ }));
+      // The backend applies the saved tactic whole (#1189); no preset, so no blueprint reset.
       await waitFor(() =>
-        expect(mockedInvoke).toHaveBeenCalledWith("set_play_style", {
-          careerToken: 0,
-          playStyle: "HighPress",
-        }),
+        expect(mockedInvoke).toHaveBeenCalledWith("apply_custom_tactic", { careerToken: 0, id }),
       );
-      expect(mockedInvoke).toHaveBeenCalledWith("set_formation", {
-        careerToken: 0,
-        formation: "3-4-3",
-      });
       expect(commandsCalled()).not.toContain("apply_tactic_preset");
       await waitFor(() =>
         expect(screen.getByRole("button", { name: "Choose tactic" })).toHaveTextContent(
@@ -500,11 +504,15 @@ describe("TacticsTab preset selection", { timeout: TACTICS_TAB_CASE_TIMEOUT_MS }
 
     fireEvent.click(screen.getByRole("button", { name: "Reset to defaults" }));
 
+    // Reset puts the saved tactic back, through the backend, as it was saved.
     await waitFor(() =>
-      expect(mockedInvoke).toHaveBeenCalledWith("set_formation", {
+      expect(mockedInvoke).toHaveBeenCalledWith("apply_custom_tactic", {
         careerToken: 0,
-        formation: "4-4-2",
+        id: "custom:saved",
       }),
+    );
+    await waitFor(() =>
+      expect(screen.getByRole("combobox", { name: "Formation" })).toHaveTextContent("4-4-2"),
     );
     expect(commandsCalled()).not.toContain("apply_tactic_preset");
   });

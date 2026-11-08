@@ -808,6 +808,12 @@
     "unsavedChanges": "Modifications non enregistrées",
     "currentPlanCard": "Plan actuel",
     "phaseBlueprint": "Plan par phase",
+    "instructionsPanel": {
+      "title": "Consignes d'équipe",
+      "show": "Afficher les consignes d'équipe",
+      "hide": "Masquer les consignes d'équipe",
+      "openAt": "Afficher les consignes d'équipe : {{section}}"
+    },
     "phaseLabels": {
       "withBall": "Avec ballon",
       "withoutBall": "Sans ballon",
@@ -1255,6 +1261,8 @@
     "boardSatisfied": "La direction est satisfaite de vos performances.",
     "boardConcerns": "La direction a des inquiétudes concernant les résultats.",
     "boardThreat": "Votre poste est sérieusement menacé.",
+    "boardWarned": "La direction vous a adressé un avertissement.",
+    "boardFinalWarning": "Vous êtes sous le coup d'un dernier avertissement.",
     "board": "Direction",
     "fans": "Supporters",
     "born": "Né le",
@@ -1872,7 +1880,7 @@
     "skipShootoutPickerDesc": "Lancer les séances de tirs au but dans l’ordre automatique, sans vous demander de le choisir",
     "savesData": "Sauvegardes et Données",
     "autoSave": "Sauvegarde Auto",
-    "autoSaveDesc": "Sauvegarder automatiquement après chaque jour",
+    "autoSaveDesc": "Sauvegarder automatiquement chaque semaine",
     "exportWorld": "Exporter la Base de Données",
     "exportWorldDesc": "Sauvegarder les données du monde en fichier JSON partageable",
     "export": "Exporter",
@@ -2755,6 +2763,9 @@
       "critical": "Critique"
     },
     "error": {
+      "autoSave": {
+        "failed": "La sauvegarde automatique n'a pas pu enregistrer votre partie. Votre progression depuis la dernière sauvegarde n'est pas encore enregistrée : sauvegardez vous-même et vérifiez qu'il reste de l'espace disque."
+      },
       "squadFloor": {
         "wouldLeaveShort": "Ce joueur ne peut pas partir : l'effectif passerait sous le minimum qu'un club doit conserver. Ligne concernée : {{group}}.",
         "wouldLeaveSeniorsShort": "Ce joueur ne peut pas partir : le club aurait moins de {{floor}} joueurs dans son effectif professionnel, le minimum qu'un club doit conserver."
@@ -3643,6 +3654,11 @@
         "subject": "Prêt convenu : {{player}}",
         "bodyWithOption": "{{player}} sera prêté par {{parent}} à {{borrower}} du {{start}} au {{end}}. {{borrower}} prendra en charge {{contribution}}% du salaire. Option d’achat : {{fee}}.",
         "bodyNoOption": "{{player}} sera prêté par {{parent}} à {{borrower}} du {{start}} au {{end}}. {{borrower}} prendra en charge {{contribution}}% du salaire. Aucune option d’achat."
+      },
+      "loanRegistrationFailed": {
+        "subject": "Prêt annulé : {{player}}",
+        "body": "Le prêt convenu de {{player}} de {{parent}} à {{borrower}}, prévu le {{start}}, ne peut pas avoir lieu : le joueur n'est plus sous contrat avec {{parent}}.",
+        "bodyRequirementNotMet": "Le prêt convenu de {{player}} de {{parent}} à {{borrower}} n'a pas pu commencer le {{start}} : l'une des conditions auxquelles il avait été conclu, comme la marge dans la masse salariale de {{borrower}} ou la durée du contrat du joueur, n'est plus remplie."
       },
       "loanOffer": {
         "subject": "Offre de prêt pour {{player}}",

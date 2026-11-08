@@ -775,6 +775,7 @@ impl SaveManager {
         game.youth_scouting_assignments.clear();
         game.scouted_players.clear();
         game.board_objectives.clear();
+        game.days_since_last_job_offer = None;
 
         // A new career is a new game: its World Cups are drawn from its own seed, whatever the
         // save it began from did.
@@ -3376,6 +3377,47 @@ mod tests {
         );
     }
 
+    /// Given an active job-offer cooldown
+    /// When the career is saved and loaded by a fresh manager
+    /// Then the elapsed cooldown days survive.
+    #[test]
+    fn job_offer_cooldown_survives_save_and_load() {
+        let dir = tempfile::tempdir().unwrap();
+        let saves = dir.path().join("saves");
+        let mut game = sample_game();
+        game.days_since_last_job_offer = Some(17);
+        let id = SaveManager::init(&saves)
+            .unwrap()
+            .create_save(&game, "Cooldown")
+            .unwrap();
+
+        let reader = rusqlite::Connection::open(saves.join(format!("{id}.db"))).unwrap();
+        let stored: Option<u32> = reader
+            .query_row(
+                "SELECT days_since_last_job_offer FROM game_meta",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(stored, Some(17));
+        let loaded = SaveManager::init(&saves).unwrap().load_game(&id).unwrap();
+        assert_eq!(loaded.days_since_last_job_offer, Some(17));
+    }
+
+    /// Given a saved career with a job-offer cooldown
+    /// When a new career is started from that save
+    /// Then the new career has no cooldown from the previous career.
+    #[test]
+    fn a_new_career_does_not_inherit_the_job_offer_cooldown() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut manager = SaveManager::init(&dir.path().join("saves")).unwrap();
+        let mut game = sample_game();
+        game.days_since_last_job_offer = Some(17);
+        let id = manager.create_save(&game, "Cooldown").unwrap();
+        let fresh = manager.new_game_from_save(&id).unwrap();
+        assert_eq!(fresh.days_since_last_job_offer, None);
+    }
+
     #[test]
     fn test_save_and_load_roundtrips_vacant_team_days() {
         let dir = tempfile::tempdir().unwrap();
@@ -4552,6 +4594,7 @@ mod tests {
             formation: "4-4-2".to_string(),
             play_style: "Counter".to_string(),
             source_preset_name: Some("Counter".to_string()),
+            contents: None,
         };
         game.custom_tactics = vec![
             tactic("a", "First"),
@@ -4588,6 +4631,7 @@ mod tests {
             formation: "3-5-2".to_string(),
             play_style: "Counter".to_string(),
             source_preset_name: None,
+            contents: None,
         }];
         let id = manager.create_save(&game, "Source").unwrap();
 

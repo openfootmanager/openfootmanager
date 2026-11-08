@@ -760,6 +760,12 @@
     "unsavedChanges": "Perubahan belum disimpan",
     "currentPlanCard": "Rencana saat ini",
     "phaseBlueprint": "Cetak biru fase",
+    "instructionsPanel": {
+      "title": "Instruksi tim",
+      "show": "Tampilkan instruksi tim",
+      "hide": "Sembunyikan instruksi tim",
+      "openAt": "Tampilkan instruksi tim: {{section}}"
+    },
     "phaseLabels": {
       "withBall": "Dengan Bola",
       "withoutBall": "Tanpa Bola",
@@ -1255,6 +1261,8 @@
     "boardSatisfied": "Manajemen puas dengan performa kamu.",
     "boardConcerns": "Manajemen memiliki kekhawatiran tentang hasil.",
     "boardThreat": "Posisi kamu berada di bawah ancaman serius.",
+    "boardWarned": "Manajemen telah memberimu peringatan.",
+    "boardFinalWarning": "Kamu sedang dalam peringatan terakhir.",
     "board": "Manajemen",
     "fans": "Suporter",
     "born": "Lahir",
@@ -1872,7 +1880,7 @@
     "skipShootoutPickerDesc": "Mulai adu penalti dengan urutan otomatis tanpa memintamu mengaturnya",
     "savesData": "Simpanan & Data",
     "autoSave": "Simpan Otomatis",
-    "autoSaveDesc": "Simpan permainan secara otomatis setelah setiap hari",
+    "autoSaveDesc": "Simpan permainan secara otomatis setiap minggu",
     "exportWorld": "Ekspor Database Dunia",
     "exportWorldDesc": "Simpan data dunia saat ini sebagai file JSON yang dapat dibagikan",
     "export": "Ekspor",
@@ -2755,6 +2763,9 @@
       "critical": "Kritis"
     },
     "error": {
+      "autoSave": {
+        "failed": "Simpan otomatis tidak bisa menyimpan permainanmu. Kemajuanmu sejak penyimpanan terakhir belum tersimpan: simpan sendiri, dan periksa apakah disk masih punya ruang kosong."
+      },
       "squadFloor": {
         "wouldLeaveShort": "Pemain ini tidak bisa pergi: skuad akan turun di bawah batas minimum yang harus dipertahankan klub. Lini terdampak: {{group}}.",
         "wouldLeaveSeniorsShort": "Pemain ini tidak bisa pergi: klub akan tinggal memiliki kurang dari {{floor}} pemain di tim utama, batas minimum yang harus dipertahankan klub."
@@ -3643,6 +3654,11 @@
         "subject": "Pinjaman disepakati: {{player}}",
         "bodyWithOption": "{{player}} akan dipinjamkan dari {{parent}} ke {{borrower}} mulai {{start}} hingga {{end}}. {{borrower}} akan menanggung {{contribution}}% gaji. Opsi pembelian: {{fee}}.",
         "bodyNoOption": "{{player}} akan dipinjamkan dari {{parent}} ke {{borrower}} mulai {{start}} hingga {{end}}. {{borrower}} akan menanggung {{contribution}}% gaji. Tanpa opsi pembelian."
+      },
+      "loanRegistrationFailed": {
+        "subject": "Peminjaman dibatalkan: {{player}}",
+        "body": "Peminjaman {{player}} yang disepakati dari {{parent}} ke {{borrower}}, yang dijadwalkan mulai {{start}}, tidak bisa berjalan: pemain itu tidak lagi terikat kontrak dengan {{parent}}.",
+        "bodyRequirementNotMet": "Peminjaman {{player}} yang disepakati dari {{parent}} ke {{borrower}} tidak bisa dimulai pada {{start}}: salah satu syarat kesepakatannya, seperti ruang dalam anggaran gaji {{borrower}} atau masa kontrak pemain, tidak lagi terpenuhi."
       },
       "loanOffer": {
         "subject": "Tawaran Pinjaman untuk {{player}}",

@@ -760,6 +760,12 @@
     "unsavedChanges": "Kaydedilmemiş değişiklikler",
     "currentPlanCard": "Mevcut plan",
     "phaseBlueprint": "Faz şeması",
+    "instructionsPanel": {
+      "title": "Takım talimatları",
+      "show": "Takım talimatlarını göster",
+      "hide": "Takım talimatlarını gizle",
+      "openAt": "Takım talimatlarını göster: {{section}}"
+    },
     "phaseLabels": {
       "withBall": "Topla Oyun",
       "withoutBall": "Topsuz Oyun",
@@ -1255,6 +1261,8 @@
     "boardSatisfied": "Yönetim performansınızdan memnun.",
     "boardConcerns": "Yönetimin sonuçlarla ilgili endişeleri var.",
     "boardThreat": "Göreviniz ciddi biçimde tehlikede.",
+    "boardWarned": "Yönetim sizi uyardı.",
+    "boardFinalWarning": "Son uyarıyı aldınız.",
     "board": "Yönetim",
     "fans": "Taraftarlar",
     "born": "Doğum",
@@ -1872,7 +1880,7 @@
     "skipShootoutPickerDesc": "Penaltı atışlarını size sormadan otomatik sırayla başlatır",
     "savesData": "Kayıtlar ve Veriler",
     "autoSave": "Otomatik Kayıt",
-    "autoSaveDesc": "Her günün ardından oyunu otomatik kaydet",
+    "autoSaveDesc": "Oyunu her hafta otomatik kaydet",
     "exportWorld": "Dünya Veritabanını Dışa Aktar",
     "exportWorldDesc": "Mevcut dünya verisini paylaşılabilir JSON dosyası olarak kaydet",
     "export": "Dışa Aktar",
@@ -2755,6 +2763,9 @@
       "critical": "Kritik"
     },
     "error": {
+      "autoSave": {
+        "failed": "Otomatik kayıt oyununuzu kaydedemedi. Son kayıttan bu yana ilerlemeniz henüz kaydedilmedi: elle kaydedin ve diskte boş alan olduğunu kontrol edin."
+      },
       "squadFloor": {
         "wouldLeaveShort": "Bu oyuncu ayrılamaz: kadro, bir kulübün koruması gereken asgari sayının altına düşer. Etkilenen bölge: {{group}}.",
         "wouldLeaveSeniorsShort": "Bu oyuncu ayrılamaz: kulübün A takımında {{floor}} oyuncudan az kalır, bu da bir kulübün koruması gereken asgari sayıdır."
@@ -3643,6 +3654,11 @@
         "subject": "Kiralama anlaşması: {{player}}",
         "bodyWithOption": "{{player}}, {{start}} ile {{end}} tarihleri arasında {{parent}} kulübünden {{borrower}} kulübüne kiralanacak. {{borrower}} maaşın %{{contribution}} kısmını karşılayacak. Satın alma opsiyonu: {{fee}}.",
         "bodyNoOption": "{{player}}, {{start}} ile {{end}} tarihleri arasında {{parent}} kulübünden {{borrower}} kulübüne kiralanacak. {{borrower}} maaşın %{{contribution}} kısmını karşılayacak. Satın alma opsiyonu yok."
+      },
+      "loanRegistrationFailed": {
+        "subject": "Kiralama iptal edildi: {{player}}",
+        "body": "{{player}} oyuncusunun {{parent}} kulübünden {{borrower}} kulübüne {{start}} tarihinde başlaması kararlaştırılan kiralaması gerçekleşemiyor: oyuncunun artık {{parent}} ile sözleşmesi yok.",
+        "bodyRequirementNotMet": "{{player}} oyuncusunun {{parent}} kulübünden {{borrower}} kulübüne kararlaştırılan kiralaması {{start}} tarihinde başlayamadı: anlaşmanın dayandığı koşullardan biri, örneğin {{borrower}} kulübünün maaş bütçesindeki yer ya da oyuncunun sözleşme süresi, artık sağlanmıyor."
       },
       "loanOffer": {
         "subject": "{{player}} için Kiralama Teklifi",

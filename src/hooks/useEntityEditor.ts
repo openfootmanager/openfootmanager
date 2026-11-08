@@ -56,6 +56,11 @@ export function useEntityEditor<T extends { id: string }>(options: {
   // after an undo/redo that may have reordered the list, so the form can't end
   // up bound to a different record that happens to share the old array index.
   const [editingId, setEditingId] = useState<string | null>(null);
+  // The row this editor last opened or wrote, by object identity. A row nobody else touched keeps
+  // its identity through the other editor's inserts and deletes (the first-team and youth player
+  // editors share one list), so this finds the open record exactly whatever its id: a duplicate id,
+  // or a blank one, is told apart from its twin (#1197).
+  const openRow = useRef<T | null>(null);
   // Bumped only when the whole editing buffer is replaced (select / add / undo-
   // redo sync), never on a field edit. Consumers use it as a React `key` so the
   // form remounts and re-derives local state on a buffer swap, but keeps its
@@ -95,6 +100,9 @@ export function useEntityEditor<T extends { id: string }>(options: {
    * rule `syncEditing` follows, and for the same reason: between the pick and
    * the commit the list may have been reordered, or the record removed.
    */
+  // The open row as of this render: a `commitField` from this render targets it.
+  const rowAtRender = openRow.current;
+
   function commitField<K extends keyof T>(key: K, value: T[K]) {
     // Whether the form still holds the record this pick was started from.
     // `revision` bumps on select/add/duplicate/undo-sync — every way the open
@@ -110,20 +118,31 @@ export function useEntityEditor<T extends { id: string }>(options: {
       return;
     }
     const { items, setItems, captureHistory, saveItems, autoSave, onDirty } = latest.current;
-    // A blank id cannot be told apart from another blank one, so an unnamed
-    // record falls back to the position it had when the commit started — no
-    // worse than before, and it keeps a not-yet-named entity working.
-    const index = editingId ? items.findIndex((item) => item.id === editingId) : editingIndex;
-    // The record is gone (an undo discarded it). Writing it back would
-    // resurrect something the user just removed.
-    if (index === -1 || index >= items.length) return;
+    // The record open when the pick began, by identity: the row of the render that started it,
+    // or, if this session has since rewritten that row (a save, an undo sync), the row it became.
+    // A position or an id alone could name a different record by now: the other editor over the
+    // same list shifts rows, and two rows may share an id, but neither replaces this row, so the
+    // identity still finds it, and every delete keeps the surviving row objects. So within the
+    // session a missing row is a deleted record, and the id must not name its twin. Only a pick
+    // that outlived its session (another record was opened during the dialog) has lost the
+    // identity it began with, and falls back to the id, preferring the row it had.
+    let index = rowAtRender ? items.indexOf(rowAtRender) : -1;
+    if (index === -1 && sameSession && openRow.current) index = items.indexOf(openRow.current);
+    if (index === -1 && !sameSession && editingId) {
+      index = rowWithId(items, editingIndex, editingId);
+    }
+    // The record is gone (deleted, or discarded by an undo). Writing it back would resurrect
+    // something the user just removed, or land on another record.
+    if (index === -1) return;
     // Match on the session, not on the buffer's id. The id is editable text: a
     // user who renames the club while the copy is in flight would otherwise fail
     // an `id === editingId` check, leave the buffer without the asset path, and
     // lose it on the next Save — the record having been written correctly.
     if (sameSession) setEditing((prev) => ({ ...prev, [key]: value }));
     captureHistory();
-    const updated = items.map((item, i) => (i === index ? { ...item, [key]: value } : item));
+    const written = { ...items[index], [key]: value };
+    const updated = items.map((item, i) => (i === index ? written : item));
+    if (sameSession) openRow.current = written;
     setItems(updated);
     onDirty?.();
     if (autoSave)
@@ -132,7 +151,35 @@ export function useEntityEditor<T extends { id: string }>(options: {
       });
   }
 
+  /**
+   * `id`'s row in `list`: `hint` while that row still carries the id, so a duplicate id that has
+   * not moved stays told apart from its twin; otherwise the first row with it, or -1.
+   */
+  function rowWithId(list: T[], hint: number | null, id: string): number {
+    if (hint !== null && list[hint]?.id === id) return hint;
+    return list.findIndex((item) => item.id === id);
+  }
+
+  /**
+   * Where the record being edited sits in `list` now, or `null` for a new record or one that is
+   * no longer there. Not trusted to the position it was opened at: a second editor over the same
+   * list inserts and removes rows before it, and writing back by a stale position overwrote a
+   * different record (#1197).
+   *
+   * Found by object identity only (`openRow`). Every write to the list keeps it current: this
+   * editor's own save, delete, duplicate and field commit set it, and an undo or redo re-anchors it
+   * in `syncEditing`; the other editor never replaces this editor's row. So a row that is not in
+   * the list is a record that was deleted, and `null` saves it as a new one. Falling back to its id
+   * would write it over a twin that shares the id, or over whoever took a blank id's place.
+   */
+  function locate(list: T[]): number | null {
+    if (editingIndex === null) return null;
+    const index = openRow.current ? list.indexOf(openRow.current) : -1;
+    return index === -1 ? null : index;
+  }
+
   function handleSelect(index: number) {
+    openRow.current = items[index];
     setEditing({ ...items[index] });
     setEditingIndex(index);
     setEditingId(items[index].id);
@@ -141,6 +188,7 @@ export function useEntityEditor<T extends { id: string }>(options: {
   }
 
   function handleAdd() {
+    openRow.current = null;
     setEditing(empty());
     setEditingIndex(null);
     setEditingId(null);
@@ -149,6 +197,7 @@ export function useEntityEditor<T extends { id: string }>(options: {
   }
 
   function handleDelete(index: number) {
+    const open = locate(items);
     captureHistory();
     const updated = items.filter((_, i) => i !== index);
     setItems(updated);
@@ -156,10 +205,10 @@ export function useEntityEditor<T extends { id: string }>(options: {
       void saveItems(updated).catch(() => {
         /* persist already showed the error */
       });
-    if (editingIndex === index) {
+    if (open === index) {
       onClose();
-    } else if (editingIndex !== null && index < editingIndex) {
-      setEditingIndex(editingIndex - 1);
+    } else if (open !== null && index < open) {
+      setEditingIndex(open - 1);
     }
   }
 
@@ -180,6 +229,7 @@ export function useEntityEditor<T extends { id: string }>(options: {
     // blank id that findIndex can't tell apart from the original.
     const clone = cloneItem(source, uniqueEntityId(source.id || "copy", taken));
     const updated = [...items.slice(0, index + 1), clone, ...items.slice(index + 1)];
+    openRow.current = clone;
     setItems(updated);
     if (autoSave)
       void saveItems(updated).catch(() => {
@@ -200,13 +250,15 @@ export function useEntityEditor<T extends { id: string }>(options: {
     // redo can reorder the list, so newItems[editingIndex] may be a different
     // record. Find it by id and resync both the buffer and its (possibly moved)
     // index.
-    const idx = newItems.findIndex((item) => item.id === editingId);
+    let idx = openRow.current ? newItems.indexOf(openRow.current) : -1;
+    if (idx === -1 && editingId) idx = rowWithId(newItems, editingIndex, editingId);
     if (idx === -1) {
       // The restored snapshot no longer contains the record (e.g. an undo that
       // removed it). Close so a save can't re-add it.
       onClose();
       return;
     }
+    openRow.current = newItems[idx];
     setEditing({ ...newItems[idx] });
     setEditingIndex(idx);
     setRevision((r) => r + 1);
@@ -214,11 +266,13 @@ export function useEntityEditor<T extends { id: string }>(options: {
 
   async function handleSave() {
     captureHistory();
+    // A record another editor removed while it was open is saved as a new one: what the form
+    // shows is what the user asked to keep, and writing it over a different record loses that one.
+    const open = locate(items);
     const updated =
-      editingIndex === null
-        ? [...items, editing]
-        : items.map((item, i) => (i === editingIndex ? editing : item));
-    const newIndex = editingIndex ?? updated.length - 1;
+      open === null ? [...items, editing] : items.map((item, i) => (i === open ? editing : item));
+    const newIndex = open ?? updated.length - 1;
+    openRow.current = editing;
     setItems(updated);
     setEditingIndex(newIndex);
     // Track the saved record's id so a later undo/redo can re-locate it — covers
@@ -238,7 +292,8 @@ export function useEntityEditor<T extends { id: string }>(options: {
 
   return {
     editing,
-    editingIndex,
+    // The open record's current row, so a list highlights the record the form shows.
+    editingIndex: locate(items),
     revision,
     setEditing,
     updateField,
