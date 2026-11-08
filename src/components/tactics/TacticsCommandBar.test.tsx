@@ -201,7 +201,7 @@ describe("TacticsCommandBar", () => {
    * When the screen is read by assistive technology
    * Then the confirmation is in a polite live region, so it is announced.
    */
-  it("announces the Saved cue in a polite status region", async () => {
+  it("announces the Saved cue in a polite live region", async () => {
     vi.useFakeTimers();
     const onSave = vi.fn().mockResolvedValue(true);
     const props = buildProps({ activeTactic: customTactic, isDirty: true, onSave });
@@ -210,7 +210,9 @@ describe("TacticsCommandBar", () => {
     await act(async () => {});
     rerender(<TacticsCommandBar {...props} isDirty={false} />);
 
-    expect(screen.getByRole("status")).toHaveTextContent("tactics.tacticSaved");
+    const liveRegion = screen.getByTestId("saved-cue-live-region");
+    expect(liveRegion).toHaveAttribute("aria-live", "polite");
+    expect(liveRegion).toHaveTextContent("tactics.tacticSaved");
   });
 
   it("clears the Saved cue immediately when new edits make the tactic dirty again mid-cue", async () => {
