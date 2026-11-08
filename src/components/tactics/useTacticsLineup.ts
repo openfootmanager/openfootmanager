@@ -1,5 +1,4 @@
-import type { DragEvent } from "react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import type { GameStateData, PlayerData, TeamMatchRolesData } from "../../store/gameStore";
 import { useGameStore } from "../../store/gameStore";
@@ -22,7 +21,6 @@ import {
 import type { TacticsPhaseSettings } from "../../store/types";
 
 import {
-  applyLineupDrop,
   applyLineupSwap,
   buildAssignBestFitSlot,
   buildActivePositionMap,
@@ -30,7 +28,6 @@ import {
   buildPitchRows,
   buildPitchSlotRows,
   buildPromoteToStartingXi,
-  type DragState,
   type PitchSlotRow,
   type SquadSection,
   lineupReady,
@@ -88,16 +85,11 @@ export function useTacticsLineup({ gameState, onGameUpdate }: UseTacticsLineupAr
         initialTeam.play_style || "Balanced",
       )
     : null;
-  const [dragState, setDragState] = useState<DragState | null>(null);
-  const [hoveredSlot, setHoveredSlot] = useState<number | null>(null);
   const [pendingStartingXiIds, setPendingStartingXiIds] = useState<string[] | null>(null);
   const [selectedPlayerId, setSelectedPlayerId] = useState<string | null>(null);
   const [selectedPlayerSection, setSelectedPlayerSection] = useState<SquadSection | null>(null);
   const [comparePlayerId, setComparePlayerId] = useState<string | null>(null);
   const [comparePlayerSection, setComparePlayerSection] = useState<SquadSection | null>(null);
-  const dragStateRef = useRef<DragState | null>(null);
-  const hoveredSlotRef = useRef<number | null>(null);
-  const dragPreviewRef = useRef<HTMLDivElement | null>(null);
 
   const team = sessionState?.team ?? gameState?.teams?.find((t) => t.id === teamId) ?? null;
   const players = fetchedSquad ?? gameState?.players ?? [];
@@ -315,95 +307,6 @@ export function useTacticsLineup({ gameState, onGameUpdate }: UseTacticsLineupAr
     setComparePlayerSection(null);
   }
 
-  function setHoveredSlotValue(slotIndex: number | null): void {
-    if (hoveredSlotRef.current === slotIndex) {
-      return;
-    }
-
-    hoveredSlotRef.current = slotIndex;
-    setHoveredSlot(slotIndex);
-  }
-
-  function resetDragState(): void {
-    dragStateRef.current = null;
-    setDragState(null);
-    setHoveredSlotValue(null);
-  }
-
-  function applyLightweightDragPreview(event: DragEvent<HTMLElement>): void {
-    if (!dragPreviewRef.current) {
-      return;
-    }
-
-    if (typeof event.dataTransfer.setDragImage !== "function") {
-      return;
-    }
-
-    event.dataTransfer.setDragImage(dragPreviewRef.current, 16, 16);
-  }
-
-  function handleDragStart(
-    event: DragEvent<HTMLElement>,
-    playerId: string,
-    from: SquadSection,
-    slotIndex: number | null = null,
-  ): void {
-    event.dataTransfer.effectAllowed = "move";
-    event.dataTransfer.setData("text/plain", playerId);
-    applyLightweightDragPreview(event);
-    const nextDragState = { playerId, from, slotIndex };
-    dragStateRef.current = nextDragState;
-    setDragState(nextDragState);
-  }
-
-  function handleSlotDragOver(event: DragEvent<HTMLElement>, slotIndex: number): void {
-    event.preventDefault();
-    event.dataTransfer.dropEffect = "move";
-    setHoveredSlotValue(slotIndex);
-  }
-
-  function handleSlotDragLeave(slotIndex: number): void {
-    if (hoveredSlotRef.current !== slotIndex) {
-      return;
-    }
-
-    setHoveredSlotValue(null);
-  }
-
-  async function handleSlotDrop(event: DragEvent<HTMLElement>, slotIndex: number): Promise<void> {
-    event.preventDefault();
-    const draggedPlayerId = event.dataTransfer.getData("text/plain");
-    const currentDragState = dragStateRef.current ?? dragState;
-    const resolvedDragState =
-      currentDragState ??
-      (draggedPlayerId
-        ? {
-            playerId: draggedPlayerId,
-            from: xiIds.has(draggedPlayerId) ? "xi" : "bench",
-            slotIndex: xiIds.has(draggedPlayerId) ? startingXiIds.indexOf(draggedPlayerId) : null,
-          }
-        : null);
-
-    if (!resolvedDragState) return;
-
-    if (
-      resolvedDragState.from === "bench" &&
-      !isPlayerEligibleForLineup(playersById.get(resolvedDragState.playerId))
-    ) {
-      resetDragState();
-      return;
-    }
-
-    const nextXiIds = applyLineupDrop(startingXiIds, resolvedDragState, slotIndex);
-    if (nextXiIds.join(",") === startingXiIds.join(",")) {
-      resetDragState();
-      return;
-    }
-
-    if (await persistStartingXI(nextXiIds)) clearLineupSelection();
-    resetDragState();
-  }
-
   async function handleLineupPlayerClick(playerId: string, section: SquadSection): Promise<void> {
     if (!selectedPlayerId || !selectedPlayerSection) {
       setSelectedPlayerId(playerId);
@@ -513,9 +416,6 @@ export function useTacticsLineup({ gameState, onGameUpdate }: UseTacticsLineupAr
     selectedPlayerId,
     comparePlayerId,
     canConfirmSwap,
-    dragState,
-    hoveredSlot,
-    dragPreviewRef,
     handleFormationChange,
     handlePlayStyleChange,
     handleApplyTacticPreset,
@@ -523,13 +423,8 @@ export function useTacticsLineup({ gameState, onGameUpdate }: UseTacticsLineupAr
     handlePromoteBenchPlayer,
     handleDemoteStarter,
     clearLineupSelection,
-    handleDragStart,
-    handleSlotDragOver,
-    handleSlotDragLeave,
-    handleSlotDrop,
     handleLineupPlayerClick,
     handleConfirmSwap,
-    resetDragState,
     handleAssignMatchRole,
     handleTacticsPhaseChange,
   };

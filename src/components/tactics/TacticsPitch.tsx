@@ -1,4 +1,4 @@
-import type { DragEvent, JSX } from "react";
+import type { JSX } from "react";
 import { Star } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
@@ -7,55 +7,30 @@ import type { FamiliarityTable } from "../../hooks/useFamiliarity";
 import type { PositionTable } from "../../lib/positionTable";
 import { usePositionTable } from "../../hooks/usePositionGroups";
 import type { PlayerData, TeamMatchRolesData } from "../../store/gameStore";
-import ContextMenu from "../ContextMenu";
-import { Badge, Card, PitchToken, Select, usePitchTokenFocus } from "../ui";
+import { Badge, Card, PitchToken } from "../ui";
 import {
   getSquadTacticalFit,
   translatePositionAbbreviation,
-  type DragState,
-  type SquadSection,
+  translatePositionLabel,
 } from "../squad/SquadTab.helpers";
 import type { TacticsPitchSlot } from "./TacticsTab.helpers";
-import { buildTacticsPlayerContextMenuItems } from "./TacticsContextMenu.helpers";
-import type { PlayerRole, TacticsPhaseSettings } from "../../store/types";
-import { getRoleOptions } from "../../lib/playerRoles";
+import type { TacticsPhaseSettings } from "../../store/types";
 
 interface TacticsPitchProps {
   /** The screen's one familiarity table, the one its count and its writers grade with. */
   familiarity: FamiliarityTable;
   /** The table, the familiarity and the squad's answer are all in: tokens state a fit only then. */
   lineupReady: boolean;
-  benchPlayers?: PlayerData[];
-  dragState: DragState | null;
   formation: string;
   matchRoles?: TeamMatchRolesData;
-  onRoleChange?: (playerId: string, role: PlayerRole) => void;
-  playerRoles?: Record<string, PlayerRole>;
   tacticsPhase?: TacticsPhaseSettings;
+  /** The player picked in the table, marked here so the two views agree. */
+  selectedPlayerId: string | null;
+  /** The second pick, marked the same way. */
   comparePlayerId: string | null;
-  hoveredSlot: number | null;
-  onAssignBestFit?: (playerId: string) => void;
-  onAssignMatchRole?: (role: keyof TeamMatchRolesData, playerId: string) => void;
-  onClearSelection: () => void;
-  onDemoteStarter?: (playerId: string) => void;
-  onDragStart: (
-    event: DragEvent<HTMLElement>,
-    playerId: string,
-    from: SquadSection,
-    slotIndex: number | null,
-  ) => void;
-  onDragEnd: () => void;
-  onLineupPlayerClick: (playerId: string, section: SquadSection) => void;
-  onOpenPlayerProfile?: (playerId: string) => void;
-  onPromoteBench?: (playerId: string) => void;
-  onSlotDragOver: (event: DragEvent<HTMLElement>, slotIndex: number) => void;
-  onSlotDragLeave: (slotIndex: number) => void;
-  onSlotDrop: (event: DragEvent<HTMLElement>, slotIndex: number) => void;
   /** Null until the lineup can be graded: the badge then claims no count. */
   outOfPositionCount: number | null;
   pitchSlots: TacticsPitchSlot[];
-  selectedPlayer: PlayerData | null;
-  selectedPlayerId: string | null;
 }
 
 type FitTone = "exact" | "adapted" | "out" | "empty";
@@ -145,26 +120,9 @@ function getRoleMarkers(
   return markers;
 }
 
-function getPitchMarkerClassName(options: {
-  comparePlayerId: string | null;
-  draggedPlayerId: string | null;
-  hoveredSlot: number | null;
-  player: PlayerData;
-  selectedPlayerId: string | null;
-  slot: TacticsPitchSlot;
-}): string {
-  const { comparePlayerId, draggedPlayerId, hoveredSlot, player, selectedPlayerId, slot } = options;
-  const isDragged = draggedPlayerId === player.id;
-  const isSelected = selectedPlayerId === player.id;
-  const isComparing = comparePlayerId === player.id;
-  const isHovered = hoveredSlot === slot.index;
-
+function getPitchMarkerClassName(isSelected: boolean, isComparing: boolean): string {
   const base =
-    "absolute z-20 flex w-[6rem] -translate-x-1/2 -translate-y-1/2 cursor-grab flex-col items-center gap-0.5 rounded-2xl px-1 py-1 text-center transition-all active:cursor-grabbing";
-
-  if (isDragged) {
-    return `${base} opacity-60`;
-  }
+    "absolute z-20 flex w-[6rem] -translate-x-1/2 -translate-y-1/2 flex-col items-center gap-0.5 rounded-2xl px-1 py-1 text-center";
 
   if (isSelected) {
     return `${base} bg-accent-500/15 ring-2 ring-accent-300/60 shadow-lg`;
@@ -174,18 +132,10 @@ function getPitchMarkerClassName(options: {
     return `${base} bg-primary-500/10 ring-2 ring-primary-300/50 shadow-lg`;
   }
 
-  if (isHovered) {
-    return `${base} bg-primary-500/10 shadow-lg`;
-  }
-
-  return `${base} hover:-translate-y-[54%]`;
+  return base;
 }
 
-function getSlotTargetClassName(isHovered: boolean, hasPlayer: boolean): string {
-  if (isHovered) {
-    return "absolute z-10 h-[4.5rem] w-[4.5rem] -translate-x-1/2 -translate-y-1/2 rounded-full border border-primary-300 bg-primary-500/10";
-  }
-
+function getSlotTargetClassName(hasPlayer: boolean): string {
   if (hasPlayer) {
     return "absolute z-10 h-[4.5rem] w-[4.5rem] -translate-x-1/2 -translate-y-1/2 rounded-full border border-white/10 bg-transparent";
   }
@@ -269,49 +219,58 @@ function TacticalOverlays({ phase }: { phase: TacticsPhaseSettings }): JSX.Eleme
   );
 }
 
+/** The words for how a player fits his slot; `empty` has no verdict to state. */
+function fitWordKey(fitTone: FitTone): string | null {
+  switch (fitTone) {
+    case "exact":
+      return "squad.naturalFit";
+    case "adapted":
+      return "squad.adaptedFit";
+    case "out":
+      return "squad.outOfPosition";
+    default:
+      return null;
+  }
+}
+
 export default function TacticsPitch({
-  dragState,
   familiarity,
   lineupReady,
   formation,
   matchRoles,
-  onRoleChange,
-  playerRoles,
   tacticsPhase,
+  selectedPlayerId,
   comparePlayerId,
-  hoveredSlot,
-  onAssignBestFit,
-  onAssignMatchRole,
-  onClearSelection,
-  onDemoteStarter,
-  onDragEnd,
-  onDragStart,
-  onLineupPlayerClick,
-  onOpenPlayerProfile,
-  onPromoteBench,
-  onSlotDragLeave,
-  onSlotDragOver,
-  onSlotDrop,
   outOfPositionCount,
   pitchSlots,
-  selectedPlayer,
-  selectedPlayerId,
 }: TacticsPitchProps): JSX.Element {
   const { t } = useTranslation();
   const positionTable = usePositionTable();
-  const { focusedPlayerId, focusToken, blurToken, getDescriptionId } = usePitchTokenFocus();
-  const draggedPlayerId = dragState?.playerId ?? null;
+  const title = `${t("preMatch.startingXI")} - ${formation}`;
+
+  // What the drawing says about one slot, in words: the position, the player and, once the lineup
+  // can be graded, how he fits it. An empty slot says so.
+  function describeSlot(slot: TacticsPitchSlot): string {
+    const position = translatePositionLabel(t, slot.position);
+    if (!slot.player) return t("tactics.emptySlot", { position });
+
+    const fitTone = getFitTone(slot.player, slot.position, positionTable, familiarity, lineupReady);
+    const fitKey = fitWordKey(fitTone);
+    const condition = Math.round(slot.player.condition);
+    const summary = fitKey
+      ? t("squad.pitchTokenTooltip", { condition, fit: t(fitKey) })
+      : t("squad.pitchTokenConditionOnly", { condition });
+
+    return `${position}: ${getPitchDisplayName(slot.player)}. ${summary}`;
+  }
 
   return (
     <Card className="overflow-hidden">
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-t-xl border-b border-gray-100 bg-linear-to-r from-navy-700 to-navy-800 px-5 py-4 dark:border-navy-600">
-        <div>
-          <h3 className="flex items-center gap-2 text-sm font-heading font-bold uppercase tracking-wide text-white">
-            <Star className="h-4 w-4 fill-current text-accent-400" />
-            {t("preMatch.startingXI")} - {formation}
-          </h3>
-          <p className="mt-0.5 text-xs text-gray-400">{t("tactics.pitchInteractionHint")}</p>
-        </div>
+        <h3 className="flex items-center gap-2 text-sm font-heading font-bold uppercase tracking-wide text-white">
+          <Star className="h-4 w-4 fill-current text-accent-400" />
+          {title}
+        </h3>
         <div className="flex flex-wrap items-center justify-end gap-2">
           {outOfPositionCount === null ? null : (
             <Badge variant={outOfPositionCount > 0 ? "danger" : "success"} size="sm">
@@ -327,23 +286,23 @@ export default function TacticsPitch({
           <span className="rounded-full bg-red-500/15 px-2.5 py-1 text-[10px] font-heading font-bold uppercase tracking-widest text-red-300">
             {t("squad.outOfPosition")}
           </span>
-          <span className="rounded-full bg-white/8 px-2.5 py-1 text-[10px] font-heading font-bold uppercase tracking-widest text-white/70">
-            {t("tactics.tableInteractionHint")}
-          </span>
-          {selectedPlayer ? (
-            <button
-              type="button"
-              onClick={onClearSelection}
-              className="text-xs font-heading font-bold uppercase tracking-wider text-accent-400 hover:text-accent-300"
-            >
-              {t("common.clear")}
-            </button>
-          ) : null}
         </div>
       </div>
 
       <div className="p-5 sm:p-6 lg:p-7">
-        <div className="relative mx-auto w-full max-w-[36rem] overflow-hidden rounded-[1.5rem] border border-primary-500/20 bg-linear-to-b from-primary-500 to-primary-700 shadow-inner">
+        {/* The pitch only shows the eleven; every change is made in the player table. Its words
+            for a screen reader are the list below, so the drawing itself is hidden from them. */}
+        <ul aria-label={title} className="sr-only">
+          {pitchSlots.map((slot) => (
+            <li key={slot.index}>
+              {describeSlot(slot, positionTable, familiarity, lineupReady, t)}
+            </li>
+          ))}
+        </ul>
+        <div
+          aria-hidden="true"
+          className="relative mx-auto w-full max-w-[36rem] overflow-hidden rounded-[1.5rem] border border-primary-500/20 bg-linear-to-b from-primary-500 to-primary-700 shadow-inner"
+        >
           <div className="aspect-[8/10] min-h-[35rem] w-full">
             <svg
               viewBox="0 0 100 140"
@@ -453,7 +412,6 @@ export default function TacticsPitch({
                 familiarity,
                 lineupReady,
               );
-              const isHovered = hoveredSlot === slot.index;
 
               return (
                 <div
@@ -463,126 +421,32 @@ export default function TacticsPitch({
                 >
                   <div
                     data-testid={`pitch-slot-${slot.index}`}
-                    className={getSlotTargetClassName(isHovered, !!player)}
-                    onDragOver={(event) => onSlotDragOver(event, slot.index)}
-                    onDragLeave={() => onSlotDragLeave(slot.index)}
-                    onDrop={(event) => onSlotDrop(event, slot.index)}
+                    className={getSlotTargetClassName(!!player)}
                   />
 
                   {player ? (
-                    (() => {
-                      const roleMarkers = getRoleMarkers(matchRoles, player.id);
-
-                      return (
-                        <ContextMenu
-                          items={buildTacticsPlayerContextMenuItems({
-                            isSelected: selectedPlayerId === player.id,
-                            matchRoles,
-                            onAssignBestFit,
-                            onAssignMatchRole,
-                            onClearSelection,
-                            onDemoteStarter,
-                            onOpenProfile: (playerId) => {
-                              if (onOpenPlayerProfile) {
-                                onOpenPlayerProfile(playerId);
-                              } else {
-                                onLineupPlayerClick(playerId, "xi");
-                              }
-                            },
-                            onPromoteBench,
-                            onTacticalSelect: onLineupPlayerClick,
-                            player,
-                            section: "xi",
-                            selectedPlayerId,
-                            t,
-                          })}
-                        >
-                          <div
-                            role="button"
-                            tabIndex={0}
-                            aria-describedby={getDescriptionId(player.id)}
-                            onFocus={() => focusToken(player.id)}
-                            onBlur={blurToken}
-                            draggable
-                            data-testid={`pitch-player-${player.id}`}
-                            onClick={() => onLineupPlayerClick(player.id, "xi")}
-                            onKeyDown={(e) => {
-                              if (e.key === "Enter" || e.key === " ") {
-                                e.preventDefault();
-                                onLineupPlayerClick(player.id, "xi");
-                              }
-                            }}
-                            onDragOver={(event) => onSlotDragOver(event, slot.index)}
-                            onDragLeave={() => onSlotDragLeave(slot.index)}
-                            onDrop={(event) => onSlotDrop(event, slot.index)}
-                            onDragStart={(event) => onDragStart(event, player.id, "xi", slot.index)}
-                            onDragEnd={onDragEnd}
-                            className={getPitchMarkerClassName({
-                              comparePlayerId,
-                              draggedPlayerId,
-                              hoveredSlot,
-                              player,
-                              selectedPlayerId,
-                              slot,
-                            })}
-                          >
-                            <PitchToken
-                              descriptionId={getDescriptionId(player.id)}
-                              focused={focusedPlayerId === player.id}
-                              name={getPitchDisplayName(player)}
-                              positionAbbr={translatePositionAbbreviation(t, slot.position)}
-                              position={slot.position}
-                              ovr={getPlayerOvr(player)}
-                              condition={player.condition}
-                              fitTone={fitTone}
-                              hidePortrait
-                              markers={roleMarkers}
-                            >
-                              {/* Role combobox */}
-                              {onRoleChange && (
-                                <div
-                                  draggable={false}
-                                  onMouseDown={(e) => e.stopPropagation()}
-                                  onKeyDown={(e) => e.stopPropagation()}
-                                  className="w-full"
-                                >
-                                  <Select
-                                    selectSize="sm"
-                                    variant="ghost"
-                                    fullWidth
-                                    value={playerRoles?.[player.id] ?? "Standard"}
-                                    onChange={(e) => {
-                                      onRoleChange(player.id, e.target.value as PlayerRole);
-                                    }}
-                                  >
-                                    {getRoleOptions(
-                                      // Roles follow the deployed slot, which is
-                                      // what the backend validates against —
-                                      // natural-position roles for an
-                                      // out-of-position player would be
-                                      // rejected and silently revert (#272).
-                                      slot.position,
-                                      playerRoles?.[player.id] ?? "Standard",
-                                    ).map((role) => (
-                                      <option key={role} value={role}>
-                                        {t(`tactics.playerRoles.${role}`, role)}
-                                      </option>
-                                    ))}
-                                  </Select>
-                                </div>
-                              )}
-                            </PitchToken>
-                          </div>
-                        </ContextMenu>
-                      );
-                    })()
+                    <div
+                      data-testid={`pitch-player-${player.id}`}
+                      className={getPitchMarkerClassName(
+                        selectedPlayerId === player.id,
+                        comparePlayerId === player.id,
+                      )}
+                    >
+                      <PitchToken
+                        name={getPitchDisplayName(player)}
+                        positionAbbr={translatePositionAbbreviation(t, slot.position)}
+                        position={slot.position}
+                        ovr={getPlayerOvr(player)}
+                        condition={player.condition}
+                        fitTone={fitTone}
+                        hidePortrait
+                        markers={getRoleMarkers(matchRoles, player.id)}
+                      />
+                    </div>
                   ) : (
                     <div className="absolute z-20 flex w-[4.5rem] -translate-x-1/2 -translate-y-1/2 flex-col items-center text-center">
                       <div className="flex h-11 w-11 items-center justify-center rounded-full border border-dashed border-white/28 bg-black/12 text-[10px] font-heading font-bold uppercase tracking-[0.18em] text-white/70">
                         {translatePositionAbbreviation(t, slot.position)}
-                      </div>
-                      <div className="mt-1 max-w-full text-[9px] font-heading font-bold uppercase tracking-[0.16em] text-white/45">
-                        {t("squad.dropPlayerHere")}
                       </div>
                     </div>
                   )}

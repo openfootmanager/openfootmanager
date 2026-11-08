@@ -49,9 +49,6 @@ export default function TacticsTab({
     selectedPlayerId,
     comparePlayerId,
     canConfirmSwap,
-    dragState,
-    hoveredSlot,
-    dragPreviewRef,
     handleFormationChange,
     handlePlayStyleChange,
     handleApplyTacticPreset,
@@ -59,13 +56,8 @@ export default function TacticsTab({
     handlePromoteBenchPlayer,
     handleDemoteStarter,
     clearLineupSelection,
-    handleDragStart,
-    handleSlotDragOver,
-    handleSlotDragLeave,
-    handleSlotDrop,
     handleLineupPlayerClick,
     handleConfirmSwap,
-    resetDragState,
     handleAssignMatchRole,
     handleTacticsPhaseChange,
     lineupReady,
@@ -102,11 +94,6 @@ export default function TacticsTab({
     // The tab fills the workspace (it is one of `tabFillsWorkspace`'s): its regions scroll, the page
     // doesn't.
     <div className="flex min-h-0 w-full flex-1 flex-col gap-4">
-      <div
-        ref={dragPreviewRef}
-        aria-hidden="true"
-        className="pointer-events-none fixed -left-20 top-0 h-8 w-8 rounded-full border border-white/15 bg-navy-900/90 shadow-lg"
-      />
       <TacticsCommandBar
         activeTactic={activeTactic}
         activePlayStyle={activePlayStyle}
@@ -185,6 +172,9 @@ export default function TacticsTab({
               onAssignMatchRole={(role, playerId) => {
                 void handleAssignMatchRole(role, playerId);
               }}
+              onAssignBestFit={(playerId) => {
+                void handleAssignBestFit(playerId);
+              }}
               onPromoteBench={(playerId) => {
                 void handlePromoteBenchPlayer(playerId);
               }}
@@ -192,58 +182,19 @@ export default function TacticsTab({
                 void handleDemoteStarter(playerId);
               }}
               onClearSelection={clearLineupSelection}
-              onDragStart={handleDragStart}
-              onDragEnd={resetDragState}
             />
           </div>
 
-          {/* Center: pitch */}
+          {/* The pitch shows the eleven; every change is made in the table. */}
           <TacticsPitch
             familiarity={familiarity}
             lineupReady={lineupReady}
-            dragState={dragState}
             formation={formation}
             comparePlayerId={comparePlayerId}
-            hoveredSlot={hoveredSlot}
             matchRoles={effectiveMatchRoles}
-            onRoleChange={(playerId, role) => {
-              void setPlayerRole(playerId, role)
-                .then(onGameUpdate)
-                .catch((error: unknown) => {
-                  console.error("Failed to set player role:", error);
-                });
-            }}
-            playerRoles={team?.player_roles}
             tacticsPhase={team?.tactics_phase}
-            onAssignBestFit={(playerId) => {
-              void handleAssignBestFit(playerId);
-            }}
-            onAssignMatchRole={(role, playerId) => {
-              void handleAssignMatchRole(role, playerId);
-            }}
-            onClearSelection={clearLineupSelection}
-            onDemoteStarter={(playerId) => {
-              void handleDemoteStarter(playerId);
-            }}
-            onDragEnd={resetDragState}
-            onDragStart={handleDragStart}
-            onLineupPlayerClick={(playerId, section) => {
-              void handleLineupPlayerClick(playerId, section);
-            }}
-            onOpenPlayerProfile={(playerId) => {
-              onSelectPlayer(playerId);
-            }}
-            onPromoteBench={(playerId) => {
-              void handlePromoteBenchPlayer(playerId);
-            }}
-            onSlotDragLeave={handleSlotDragLeave}
-            onSlotDragOver={handleSlotDragOver}
-            onSlotDrop={(event, slotIndex) => {
-              void handleSlotDrop(event, slotIndex);
-            }}
             outOfPositionCount={outOfPositionCount}
             pitchSlots={pitchSlots}
-            selectedPlayer={selectedPlayer}
             selectedPlayerId={selectedPlayerId}
           />
         </div>

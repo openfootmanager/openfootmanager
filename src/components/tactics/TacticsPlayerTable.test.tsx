@@ -73,8 +73,7 @@ function renderTable(overrides: Partial<Parameters<typeof TacticsPlayerTable>[0]
     onPromoteBench: vi.fn(),
     onDemoteStarter: vi.fn(),
     onClearSelection: vi.fn(),
-    onDragStart: vi.fn(),
-    onDragEnd: vi.fn(),
+    onAssignBestFit: vi.fn(),
   };
   render(
     <TacticsPlayerTable
@@ -199,15 +198,29 @@ describe("TacticsPlayerTable", () => {
   /**
    * Given a fit substitute and an injured reserve
    * When the table is drawn
-   * Then the substitute can be dragged onto the pitch and the injured reserve can't, and the
+   * Then nobody can be dragged (the pitch only shows the eleven; a change is two picks), and the
    *      reserve's injury is shown by his name.
    */
-  it("lets only an available player be dragged to the pitch", () => {
+  it("offers no dragging and shows a reserve's injury by his name", () => {
     renderTable();
 
-    expect(screen.getByTestId("pitch-bench-player-sub1")).toHaveAttribute("draggable", "true");
-    expect(screen.getByTestId("pitch-bench-player-hurt")).toHaveAttribute("draggable", "false");
+    expect(screen.getByTestId("pitch-bench-player-sub1")).not.toHaveAttribute("draggable");
+    expect(screen.getByTestId("pitch-bench-player-hurt")).not.toHaveAttribute("draggable");
     expect(within(screen.getByTestId("bench-player-hurt")).getByText("Knock")).toBeInTheDocument();
+  });
+
+  /**
+   * Given a starter in the table
+   * When his context menu is opened and "Assign best fit" is chosen
+   * Then the table asks for his best slot (the pitch used to be where that was offered).
+   */
+  it("offers a starter the best slot from his context menu", () => {
+    const handlers = renderTable();
+
+    fireEvent.contextMenu(screen.getByTestId("xi-row-st"));
+    fireEvent.click(screen.getByRole("menuitem", { name: "tactics.assignBestFit" }));
+
+    expect(handlers.onAssignBestFit).toHaveBeenCalledWith("st");
   });
 
   /**

@@ -1,11 +1,10 @@
 import { MoreVertical } from "lucide-react";
-import type { DragEvent, JSX } from "react";
+import type { JSX } from "react";
 import { useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useRatingTiers } from "../../hooks/useRatingTiers";
 import { contextMenuPoint } from "../../lib/contextMenuPoint";
 import { getPlayerOvr } from "../../lib/helpers";
-import { isMatchDayEligible } from "../../lib/playerSquad";
 import { getRoleOptions } from "../../lib/playerRoles";
 import type { PlayerData, TeamMatchRolesData } from "../../store/gameStore";
 import type { PlayerRole } from "../../store/types";
@@ -67,16 +66,10 @@ interface TacticsPlayerTableProps {
   onRoleChange: (playerId: string, role: PlayerRole) => void;
   onOpenPlayerProfile: (playerId: string) => void;
   onAssignMatchRole?: (role: keyof TeamMatchRolesData, playerId: string) => void;
+  onAssignBestFit: (playerId: string) => void;
   onPromoteBench: (playerId: string) => void;
   onDemoteStarter: (playerId: string) => void;
   onClearSelection: () => void;
-  onDragStart: (
-    event: DragEvent<HTMLElement>,
-    playerId: string,
-    from: SquadSection,
-    slotIndex: number | null,
-  ) => void;
-  onDragEnd: () => void;
 }
 
 /** The rows in table order: the eleven by slot, the substitutes as the match ranks them, then the reserves. */
@@ -174,7 +167,7 @@ export default function TacticsPlayerTable(props: TacticsPlayerTableProps): JSX.
             items={buildTacticsPlayerContextMenuItems({
               isSelected: row.player.id === props.selectedPlayerId,
               matchRoles: props.matchRoles,
-              onAssignBestFit: undefined,
+              onAssignBestFit: props.onAssignBestFit,
               onAssignMatchRole: props.onAssignMatchRole,
               onClearSelection: props.onClearSelection,
               onDemoteStarter: props.onDemoteStarter,
@@ -335,7 +328,7 @@ function tableColumns(
   ];
 }
 
-/** The name: the swap's pick button, with his picture; a bench player can also be dragged to the pitch. */
+/** The name: the swap's pick button, with his picture. */
 function PlayerName({
   row,
   props,
@@ -344,7 +337,6 @@ function PlayerName({
   props: TacticsPlayerTableProps;
 }): JSX.Element {
   const section: SquadSection = row.group === "xi" ? "xi" : "bench";
-  const draggable = section === "bench" && isMatchDayEligible(row.player);
   return (
     <button
       type="button"
@@ -352,12 +344,7 @@ function PlayerName({
         section === "xi" ? `xi-player-${row.player.id}` : `pitch-bench-player-${row.player.id}`
       }
       aria-pressed={row.player.id === props.selectedPlayerId}
-      draggable={draggable}
       onClick={() => props.onTacticalSelect(row.player.id, section)}
-      onDragStart={(event) => {
-        if (draggable) props.onDragStart(event, row.player.id, "bench", null);
-      }}
-      onDragEnd={props.onDragEnd}
       className="inline-flex min-w-0 items-center gap-2 rounded text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-focus"
     >
       <PlayerAvatar player={row.player} />
