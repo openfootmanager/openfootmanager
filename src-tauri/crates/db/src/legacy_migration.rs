@@ -883,6 +883,24 @@ mod tests {
         );
     }
 
+    /// Given legacy JSON with an explicit weak foot, when migrated, then it stays unchanged.
+    #[test]
+    fn legacy_json_preserves_an_explicit_weak_foot() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut json: serde_json::Value = serde_json::from_str(&minimal_game_json()).unwrap();
+        json["players"][0]["weak_foot"] = serde_json::json!(1);
+        let json = serde_json::to_string(&json).unwrap();
+        create_legacy_db(
+            &dir.path().join("saves.db"),
+            &[("old", "Career", "Manager", &json)],
+        );
+        let mut manager = SaveManager::init(&dir.path().join("saves")).unwrap();
+        migrate_legacy_saves(dir.path(), &mut manager).unwrap();
+        let id = manager.list_saves()[0].id.clone();
+        let loaded = manager.load_game(&id).unwrap();
+        assert_eq!(loaded.players[0].weak_foot, 1);
+    }
+
     /// Given a save from before `natural_position` existed: an outfielder and a keeper, neither
     ///       with a `natural_position` key
     /// When it is migrated and loaded
