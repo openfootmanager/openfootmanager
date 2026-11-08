@@ -173,6 +173,8 @@ const makeGame = (): GameStateData => ({
 let backend: GameStateData;
 /** The backend's verdict on whether the phase dials still equal the style's blueprint. */
 let blueprintModified = false;
+/** Commands the faked backend refuses with the career-changed error. */
+let refused = new Set<string>();
 /** The tactics the faked save holds, in the order made. */
 let savedTactics: CustomTactic[] = [];
 
@@ -192,6 +194,7 @@ function seedSavedTactics(
 function fakeBackend(failPreset = false) {
   mockedInvoke.mockImplementation(async (command: string, args?: unknown) => {
     const params = (args ?? {}) as Record<string, string>;
+    if (refused.has(command)) throw "be.error.careerChanged";
     if (command === "get_squad") return backend.players;
     if (command === "list_custom_tactics") return structuredClone(savedTactics);
     if (command === "save_custom_tactic") {
@@ -262,6 +265,7 @@ describe("TacticsTab preset selection", { timeout: TACTICS_TAB_CASE_TIMEOUT_MS }
     mockedInvoke.mockReset();
     blueprintModified = false;
     savedTactics = [];
+    refused = new Set();
     backend = makeGame();
   });
 
@@ -290,6 +294,52 @@ describe("TacticsTab preset selection", { timeout: TACTICS_TAB_CASE_TIMEOUT_MS }
     await waitFor(() => {
       expect(screen.getByRole("button", { name: "Choose tactic" })).toHaveTextContent("High Press");
     });
+  });
+
+  /**
+   * Given a backend that refuses a tactic write (the career changed under the screen)
+   * When the manager picks a preset, a formation, or a saved tactic
+   * Then a translated alert says it did not save, the previous setup stays, and the next write
+   *      that succeeds clears the alert.
+   */
+  it.each([
+    [
+      "a preset",
+      "apply_tactic_preset",
+      async () => {
+        fireEvent.click(screen.getByRole("button", { name: "Choose tactic" }));
+        fireEvent.click(screen.getByRole("option", { name: /High Press/ }));
+      },
+    ],
+    [
+      "a saved tactic",
+      "apply_custom_tactic",
+      async () => {
+        fireEvent.click(screen.getByRole("button", { name: "Choose tactic" }));
+        fireEvent.click(await screen.findByRole("option", { name: /Saved custom/ }));
+      },
+    ],
+  ])("tells the manager that %s did not save", async (_name, command, pick) => {
+    seedSavedTactics([
+      {
+        id: "custom:saved",
+        name: "Saved custom",
+        description: "Custom setup",
+        formation: "3-4-3",
+        playStyle: "HighPress",
+      },
+    ]);
+    refused = new Set([command]);
+    fakeBackend();
+    render(<ControlledTacticsTab />);
+
+    await pick();
+
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent("The career changed before this could be saved.");
+    expect(screen.getByRole("button", { name: "Choose tactic" })).toHaveTextContent(
+      "Balanced Control",
+    );
   });
 
   /** Given the active Balanced preset, when it is picked again from the list,

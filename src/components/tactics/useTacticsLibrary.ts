@@ -32,6 +32,8 @@ interface UseTacticsLibraryArgs {
   initialPreset: TacticsPresetDefinition | null;
   onApplyPreset: (formation: string, playStyle: string) => Promise<boolean>;
   onGameUpdate: (game: GameStateData) => void;
+  /** A write the backend refused: the screen tells the manager it did not save. */
+  onWriteError: (error: unknown) => void;
 }
 
 export function useTacticsLibrary({
@@ -41,6 +43,7 @@ export function useTacticsLibrary({
   initialPreset,
   onApplyPreset,
   onGameUpdate,
+  onWriteError,
 }: UseTacticsLibraryArgs) {
   const { t } = useTranslation();
   // The library is the career's, kept in the save: it follows a change of club and a reload. It
@@ -270,6 +273,7 @@ export function useTacticsLibrary({
       return true;
     } catch (error) {
       console.error("Failed to apply the saved tactic:", error);
+      onWriteError(error);
       return false;
     }
   }

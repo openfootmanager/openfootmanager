@@ -1,7 +1,9 @@
 import type { JSX } from "react";
+import { useCallback, useState } from "react";
 import type { GameStateData, PlayerSelectionOptions } from "../../store/gameStore";
 import { useTranslation } from "react-i18next";
 import { setPlayerRole } from "../../services/squadService";
+import { resolveTranslatedErrorMessage } from "../../utils/errorMessage";
 
 import TacticsPitch from "./TacticsPitch";
 import TacticsPlayerList from "./TacticsPlayerList";
@@ -21,9 +23,22 @@ interface TacticsTabProps {
 export default function TacticsTab({
   gameState,
   onSelectPlayer,
-  onGameUpdate,
+  onGameUpdate: onGameUpdateProp,
 }: TacticsTabProps): JSX.Element {
   const { t } = useTranslation();
+  // Why the last tactic write did not save, in the player's language. A write that succeeds
+  // clears it: the screen then shows what the backend holds.
+  const [writeError, setWriteError] = useState<string | null>(null);
+  const onWriteError = useCallback((error: unknown) => {
+    setWriteError(resolveTranslatedErrorMessage(error));
+  }, []);
+  const onGameUpdate = useCallback(
+    (game: GameStateData) => {
+      setWriteError(null);
+      onGameUpdateProp(game);
+    },
+    [onGameUpdateProp],
+  );
 
   const {
     team,
@@ -64,7 +79,7 @@ export default function TacticsTab({
     handleTacticsPhaseChange,
     lineupReady,
     familiarity,
-  } = useTacticsLineup({ gameState, onGameUpdate });
+  } = useTacticsLineup({ gameState, onGameUpdate, onWriteError });
 
   const {
     playerSearch,
@@ -95,6 +110,7 @@ export default function TacticsTab({
     initialPreset,
     onApplyPreset: handleApplyTacticPreset,
     onGameUpdate,
+    onWriteError,
   });
 
   if (!team) {
@@ -108,6 +124,14 @@ export default function TacticsTab({
         aria-hidden="true"
         className="pointer-events-none fixed -left-20 top-0 h-8 w-8 rounded-full border border-white/15 bg-navy-900/90 shadow-lg"
       />
+      {writeError ? (
+        <p
+          role="alert"
+          className="rounded-lg border border-line bg-danger-tint px-4 py-2 text-body font-medium text-danger"
+        >
+          {writeError}
+        </p>
+      ) : null}
       <TacticsCommandBar
         activeTactic={activeTactic}
         activePlayStyle={activePlayStyle}
@@ -191,6 +215,7 @@ export default function TacticsTab({
               .then(onGameUpdate)
               .catch((error: unknown) => {
                 console.error("Failed to set player role:", error);
+                onWriteError(error);
               });
           }}
           playerRoles={team?.player_roles}
@@ -233,6 +258,7 @@ export default function TacticsTab({
           autoSetPieces={autoSetPieces}
           matchRoles={team.match_roles}
           onGameUpdate={onGameUpdate}
+          onWriteError={onWriteError}
           onTacticsPhaseChange={(patch) => {
             void handleTacticsPhaseChange(patch);
           }}

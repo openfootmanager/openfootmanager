@@ -25,6 +25,7 @@ function renderLibrary(gameState: GameStateData | null) {
       initialPreset: null,
       onApplyPreset: vi.fn(),
       onGameUpdate: vi.fn(),
+      onWriteError: vi.fn(),
     }),
   );
 }
@@ -227,6 +228,7 @@ describe("useTacticsLibrary custom tactics and the save", () => {
           initialPreset: null,
           onApplyPreset: vi.fn(),
           onGameUpdate: vi.fn(),
+          onWriteError: vi.fn(),
         }),
       { initialProps: { game: careerGame } },
     );
@@ -422,6 +424,7 @@ describe("useTacticsLibrary deleting and the old browser library", () => {
         initialPreset: null,
         onApplyPreset,
         onGameUpdate: vi.fn(),
+        onWriteError: vi.fn(),
       }),
     );
     await waitFor(() => expect(customIds(result)).toEqual(["custom:mine"]));
@@ -530,6 +533,7 @@ describe("useTacticsLibrary saving and applying the whole tactic (#1189)", () =>
         initialPreset: null,
         onApplyPreset,
         onGameUpdate,
+        onWriteError: vi.fn(),
       }),
     );
     await waitFor(() => expect(customIds(result)).toEqual(["custom:mine"]));
@@ -569,6 +573,7 @@ describe("useTacticsLibrary saving and applying the whole tactic (#1189)", () =>
         initialPreset: null,
         onApplyPreset: vi.fn(),
         onGameUpdate,
+        onWriteError: vi.fn(),
       }),
     );
     await waitFor(() => expect(customIds(result)).toEqual(["custom:mine"]));
@@ -595,6 +600,7 @@ describe("useTacticsLibrary saving and applying the whole tactic (#1189)", () =>
   it("keeps the current setup when the backend refuses to apply a saved tactic", async () => {
     backendWith([savedTactic], false, false, true);
     const onGameUpdate = vi.fn();
+    const onWriteError = vi.fn();
     const { result } = renderHook(() =>
       useTacticsLibrary({
         gameState: careerGame,
@@ -603,6 +609,7 @@ describe("useTacticsLibrary saving and applying the whole tactic (#1189)", () =>
         initialPreset: null,
         onApplyPreset: vi.fn(),
         onGameUpdate,
+        onWriteError,
       }),
     );
     await waitFor(() => expect(customIds(result)).toEqual(["custom:mine"]));
@@ -614,6 +621,8 @@ describe("useTacticsLibrary saving and applying the whole tactic (#1189)", () =>
 
     expect(callsTo("apply_custom_tactic")).toHaveLength(1);
     expect(onGameUpdate).not.toHaveBeenCalled();
+    // The screen is told, so the manager sees it did not save.
+    expect(onWriteError).toHaveBeenCalledTimes(1);
     expect(result.current.activeTactic.id).not.toBe("custom:mine");
   });
 });

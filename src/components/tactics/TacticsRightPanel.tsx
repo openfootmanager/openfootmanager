@@ -22,6 +22,8 @@ interface TacticsRightPanelProps {
   autoSetPieces: AutoSetPieces | null;
   matchRoles?: TeamMatchRolesData;
   onGameUpdate: (g: GameStateData) => void;
+  /** A write the backend refused: the screen tells the manager it did not save. */
+  onWriteError: (error: unknown) => void;
   onTacticsPhaseChange: (patch: Partial<TacticsPhaseSettings>) => void;
   startingPlayers: PlayerData[];
   tacticsPhase?: TacticsPhaseSettings;
@@ -32,6 +34,7 @@ export default function TacticsRightPanel({
   autoSetPieces,
   matchRoles,
   onGameUpdate,
+  onWriteError,
   onTacticsPhaseChange,
   startingPlayers,
   tacticsPhase,
@@ -59,6 +62,7 @@ export default function TacticsRightPanel({
       onGameUpdate(updated);
     } catch (error) {
       console.error("Failed to set team match roles:", error);
+      onWriteError(error);
     }
   }
 
@@ -85,6 +89,7 @@ export default function TacticsRightPanel({
       await persistMatchRoles(resolveEffectiveMatchRoles(startingPlayers, matchRoles, picks));
     } catch (error) {
       console.error("Failed to read the automatic set-piece takers:", error);
+      onWriteError(error);
     }
   }
 
