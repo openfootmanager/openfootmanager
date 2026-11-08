@@ -3,7 +3,7 @@ use crate::clock::GameClock;
 use crate::game::Game;
 use chrono::{NaiveDate, TimeZone, Utc};
 use domain::manager::Manager;
-use domain::player::{Player, PlayerAttributes, Position, TransferOfferStatus};
+use domain::player::{LoanOfferStatus, Player, PlayerAttributes, Position, TransferOfferStatus};
 use domain::season::TransferWindowStatus;
 use domain::team::Team;
 
@@ -416,6 +416,65 @@ fn a_buyer_moves_on_from_a_target_its_board_would_refuse() {
     };
     assert_eq!(club_of("dear").as_deref(), Some("c"));
     assert_eq!(club_of("modest").as_deref(), Some("a"));
+}
+
+/// Given the user still negotiating with club "a" for its listed bargain, a bid and a loan request
+///      both open, When club "b" buys him in the day's market,
+/// Then both are withdrawn that day, as when the user's own deals complete: left open, the talks
+///      went on with "a" over a player now at "b" (#1251).
+#[test]
+fn a_sale_in_the_market_closes_the_other_open_talks_on_the_player() {
+    let mut game = make_game();
+    game.players.clear();
+    game.teams = vec![
+        make_team("team1", "Alpha FC", 700),
+        make_team("b", "Beta FC", 700),
+        make_team("a", "Atlas FC", 700),
+    ];
+    game.teams[1].wage_budget = 50_000_000;
+    for club in ["b", "a"] {
+        game.players.extend(full_squad(club));
+    }
+    let mut wanted = bargain("wanted", "a", 20_000);
+    wanted.transfer_offers.push(
+        serde_json::from_value(serde_json::json!({
+            "id": "user-bid", "from_team_id": "team1", "fee": 900_000,
+            "wage_offered": 0, "status": "Pending", "date": "2026-01-10"
+        }))
+        .unwrap(),
+    );
+    wanted.loan_offers.push(
+        serde_json::from_value(serde_json::json!({
+            "id": "user-loan", "from_team_id": "team1", "parent_team_id": "a",
+            "start_date": "2026-01-12", "end_date": "2026-06-30",
+            "wage_contribution_pct": 50, "status": "Pending", "date": "2026-01-10"
+        }))
+        .unwrap(),
+    );
+    game.players.push(wanted);
+
+    evaluate_transfer_market(&mut game);
+
+    let wanted = game.players.iter().find(|p| p.id == "wanted").unwrap();
+    assert_eq!(
+        wanted.team_id.as_deref(),
+        Some("b"),
+        "the sale did not happen"
+    );
+    let user_bid = wanted
+        .transfer_offers
+        .iter()
+        .find(|o| o.id == "user-bid")
+        .unwrap();
+    assert_eq!(user_bid.status, TransferOfferStatus::Withdrawn);
+    assert_eq!(user_bid.closed_on.as_deref(), Some("2026-01-12"));
+    let user_loan = wanted
+        .loan_offers
+        .iter()
+        .find(|o| o.id == "user-loan")
+        .unwrap();
+    assert_eq!(user_loan.status, LoanOfferStatus::Withdrawn);
+    assert_eq!(user_loan.closed_on.as_deref(), Some("2026-01-12"));
 }
 
 /// A forward at "owner" with no contract end, so only morale, playing time, the clubs'

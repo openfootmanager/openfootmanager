@@ -1274,6 +1274,8 @@
     "boardSatisfied": "La dirigenza è soddisfatta delle tue prestazioni.",
     "boardConcerns": "La dirigenza ha preoccupazioni sui risultati.",
     "boardThreat": "La tua posizione è seriamente a rischio.",
+    "boardWarned": "La dirigenza ti ha ammonito.",
+    "boardFinalWarning": "Sei all'ultimo avvertimento.",
     "board": "Consiglio",
     "fans": "Tifosi",
     "born": "Nato il",
@@ -1891,7 +1893,7 @@
     "skipShootoutPickerDesc": "Avvia i calci di rigore nell'ordine automatico, senza chiederti di impostarlo",
     "savesData": "Salvataggi e dati",
     "autoSave": "Salvataggio automatico",
-    "autoSaveDesc": "Salva automaticamente la partita dopo ogni giorno",
+    "autoSaveDesc": "Salva automaticamente la partita ogni settimana",
     "exportWorld": "Esporta database del mondo",
     "exportWorldDesc": "Salva i dati del mondo attuale come file JSON condivisibile",
     "export": "Esporta",
@@ -2755,6 +2757,9 @@
       "critical": "Critico"
     },
     "error": {
+      "autoSave": {
+        "failed": "Il salvataggio automatico non è riuscito a salvare la partita. I progressi dall'ultimo salvataggio non sono ancora salvati: salva tu stesso e controlla che ci sia spazio libero sul disco."
+      },
       "squadFloor": {
         "wouldLeaveShort": "Questo giocatore non può partire: la rosa scenderebbe sotto il minimo che un club deve mantenere. Reparto interessato: {{group}}.",
         "wouldLeaveSeniorsShort": "Questo giocatore non può partire: il club resterebbe con meno di {{floor}} giocatori in prima squadra, il minimo che un club deve mantenere."
@@ -3646,7 +3651,8 @@
       },
       "loanRegistrationFailed": {
         "subject": "Prestito annullato: {{player}}",
-        "body": "Il prestito concordato di {{player}} dal {{parent}} al {{borrower}}, previsto dal {{start}}, non può avere luogo: il giocatore non è più sotto contratto con il {{parent}}."
+        "body": "Il prestito concordato di {{player}} dal {{parent}} al {{borrower}}, previsto dal {{start}}, non può avere luogo: il giocatore non è più sotto contratto con il {{parent}}.",
+        "bodyRequirementNotMet": "Il prestito concordato di {{player}} dal {{parent}} al {{borrower}} non è potuto partire il {{start}}: una delle condizioni alle quali era stato concordato, come lo spazio nel monte ingaggi del {{borrower}} o la durata del contratto del giocatore, non è più rispettata."
       },
       "loanOffer": {
         "subject": "Offerta di prestito per {{player}}",
