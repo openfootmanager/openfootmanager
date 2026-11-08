@@ -2391,6 +2391,31 @@ mod tests {
         assert_eq!(retired.team_id, None);
     }
 
+    /// Given a developed goalkeeper whose stored weak foot differs from today's inference,
+    /// when the career is saved and loaded by a fresh manager, then the value survives.
+    #[test]
+    fn a_developed_players_weak_foot_survives_a_save_and_reload() {
+        let dir = tempfile::tempdir().unwrap();
+        let saves_dir = dir.path().join("saves");
+        let mut manager = SaveManager::init(&saves_dir).unwrap();
+        let mut game = sample_game();
+        let mut player =
+            make_lineup_player("developed-keeper", Position::Goalkeeper, Footedness::Right);
+        player.weak_foot = 2;
+        game.players.push(player);
+        let save_id = manager.create_save(&game, "Developed player").unwrap();
+        drop(manager);
+
+        let mut reader = SaveManager::init(&saves_dir).unwrap();
+        let loaded = reader.load_game(&save_id).unwrap();
+        let player = loaded
+            .players
+            .iter()
+            .find(|p| p.id == "developed-keeper")
+            .unwrap();
+        assert_eq!(player.weak_foot, 2);
+    }
+
     #[test]
     fn test_load_game_upgrades_football_identity_fields() {
         let dir = tempfile::tempdir().unwrap();
