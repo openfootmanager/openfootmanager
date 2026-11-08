@@ -808,6 +808,12 @@
     "unsavedChanges": "Modifications non enregistrées",
     "currentPlanCard": "Plan actuel",
     "phaseBlueprint": "Plan par phase",
+    "instructionsPanel": {
+      "title": "Consignes d'équipe",
+      "show": "Afficher les consignes d'équipe",
+      "hide": "Masquer les consignes d'équipe",
+      "openAt": "Afficher les consignes d'équipe : {{section}}"
+    },
     "phaseLabels": {
       "withBall": "Avec ballon",
       "withoutBall": "Sans ballon",
@@ -1255,6 +1261,8 @@
     "boardSatisfied": "La direction est satisfaite de vos performances.",
     "boardConcerns": "La direction a des inquiétudes concernant les résultats.",
     "boardThreat": "Votre poste est sérieusement menacé.",
+    "boardWarned": "La direction vous a adressé un avertissement.",
+    "boardFinalWarning": "Vous êtes sous le coup d'un dernier avertissement.",
     "board": "Direction",
     "fans": "Supporters",
     "born": "Né le",

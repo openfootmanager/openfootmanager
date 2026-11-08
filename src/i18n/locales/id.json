@@ -760,6 +760,12 @@
     "unsavedChanges": "Perubahan belum disimpan",
     "currentPlanCard": "Rencana saat ini",
     "phaseBlueprint": "Cetak biru fase",
+    "instructionsPanel": {
+      "title": "Instruksi tim",
+      "show": "Tampilkan instruksi tim",
+      "hide": "Sembunyikan instruksi tim",
+      "openAt": "Tampilkan instruksi tim: {{section}}"
+    },
     "phaseLabels": {
       "withBall": "Dengan Bola",
       "withoutBall": "Tanpa Bola",
@@ -1255,6 +1261,8 @@
     "boardSatisfied": "Manajemen puas dengan performa kamu.",
     "boardConcerns": "Manajemen memiliki kekhawatiran tentang hasil.",
     "boardThreat": "Posisi kamu berada di bawah ancaman serius.",
+    "boardWarned": "Manajemen telah memberimu peringatan.",
+    "boardFinalWarning": "Kamu sedang dalam peringatan terakhir.",
     "board": "Manajemen",
     "fans": "Suporter",
     "born": "Lahir",

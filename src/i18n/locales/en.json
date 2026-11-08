@@ -760,6 +760,12 @@
     "unsavedChanges": "Unsaved changes",
     "currentPlanCard": "Current plan",
     "phaseBlueprint": "Phase blueprint",
+    "instructionsPanel": {
+      "title": "Team instructions",
+      "show": "Show team instructions",
+      "hide": "Hide team instructions",
+      "openAt": "Show team instructions: {{section}}"
+    },
     "phaseLabels": {
       "withBall": "With Ball",
       "withoutBall": "Without Ball",
@@ -1255,6 +1261,8 @@
     "boardSatisfied": "The board is satisfied with your performance.",
     "boardConcerns": "The board has concerns about results.",
     "boardThreat": "Your position is under serious threat.",
+    "boardWarned": "The board has warned you.",
+    "boardFinalWarning": "You are on a final warning.",
     "board": "Board",
     "fans": "Fans",
     "born": "Born",

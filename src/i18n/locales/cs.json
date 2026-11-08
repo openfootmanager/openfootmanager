@@ -760,6 +760,12 @@
     "unsavedChanges": "Neuložené změny",
     "currentPlanCard": "Aktuální plán",
     "phaseBlueprint": "Plán herní fáze",
+    "instructionsPanel": {
+      "title": "Týmové pokyny",
+      "show": "Zobrazit týmové pokyny",
+      "hide": "Skrýt týmové pokyny",
+      "openAt": "Zobrazit týmové pokyny: {{section}}"
+    },
     "phaseLabels": {
       "withBall": "S míčem",
       "withoutBall": "Bez míče",
@@ -1255,6 +1261,8 @@
     "boardSatisfied": "Vedení je s vašimi výsledky spokojeno.",
     "boardConcerns": "Vedení má k výsledkům výhrady.",
     "boardThreat": "Vaše pozice je vážně ohrožena.",
+    "boardWarned": "Vedení vás varovalo.",
+    "boardFinalWarning": "Jste na posledním varování.",
     "board": "Vedení",
     "fans": "Fanoušci",
     "born": "Narození",

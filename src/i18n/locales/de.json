@@ -808,6 +808,12 @@
     "unsavedChanges": "Ungespeicherte Änderungen",
     "currentPlanCard": "Aktueller Plan",
     "phaseBlueprint": "Phasenplan",
+    "instructionsPanel": {
+      "title": "Mannschaftsanweisungen",
+      "show": "Mannschaftsanweisungen anzeigen",
+      "hide": "Mannschaftsanweisungen ausblenden",
+      "openAt": "Mannschaftsanweisungen anzeigen: {{section}}"
+    },
     "phaseLabels": {
       "withBall": "Mit Ball",
       "withoutBall": "Ohne Ball",
@@ -1255,6 +1261,8 @@
     "boardSatisfied": "Der Vorstand ist zufrieden mit deiner Leistung.",
     "boardConcerns": "Der Vorstand hat Bedenken wegen der Ergebnisse.",
     "boardThreat": "Deine Position ist ernsthaft gefährdet.",
+    "boardWarned": "Der Vorstand hat dich verwarnt.",
+    "boardFinalWarning": "Du hast eine letzte Verwarnung erhalten.",
     "board": "Vorstand",
     "fans": "Fans",
     "born": "Geboren am",

@@ -808,6 +808,12 @@
     "unsavedChanges": "Cambios sin guardar",
     "currentPlanCard": "Plan actual",
     "phaseBlueprint": "Plano por fases",
+    "instructionsPanel": {
+      "title": "Instrucciones de equipo",
+      "show": "Mostrar las instrucciones de equipo",
+      "hide": "Ocultar las instrucciones de equipo",
+      "openAt": "Mostrar las instrucciones de equipo: {{section}}"
+    },
     "phaseLabels": {
       "withBall": "Con balón",
       "withoutBall": "Sin balón",
@@ -1255,6 +1261,8 @@
     "boardSatisfied": "La directiva está satisfecha con tu rendimiento.",
     "boardConcerns": "La directiva tiene preocupaciones sobre los resultados.",
     "boardThreat": "Tu puesto está seriamente amenazado.",
+    "boardWarned": "La directiva te ha advertido.",
+    "boardFinalWarning": "Estás en tu última advertencia.",
     "board": "Directiva",
     "fans": "Afición",
     "born": "Nacido el",

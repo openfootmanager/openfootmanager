@@ -808,6 +808,12 @@
     "unsavedChanges": "未保存的更改",
     "currentPlanCard": "当前计划",
     "phaseBlueprint": "阶段蓝图",
+    "instructionsPanel": {
+      "title": "球队指令",
+      "show": "显示球队指令",
+      "hide": "隐藏球队指令",
+      "openAt": "显示球队指令：{{section}}"
+    },
     "phaseLabels": {
       "withBall": "有球",
       "withoutBall": "无球",
@@ -1255,6 +1261,8 @@
     "boardSatisfied": "董事会对你的表现感到满意。",
     "boardConcerns": "董事会对战绩感到担忧。",
     "boardThreat": "你的职位正面临严重威胁。",
+    "boardWarned": "董事会已向你发出警告。",
+    "boardFinalWarning": "你已收到最后警告。",
     "board": "董事会",
     "fans": "球迷",
     "born": "出生",
