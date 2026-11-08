@@ -59,23 +59,26 @@ describe("locale interpolation placeholders", () => {
     ]);
   });
 
-  it("allows only the documented ordinal omission", () => {
-    const en = {
-      be: { msg: { seasonReview: { body: { topFour: "{{position}}{{suffix}} {{points}}" } } } },
-    };
-    const allowed = {
-      be: { msg: { seasonReview: { body: { topFour: "{{position}} {{points}}" } } } },
-    };
-    const wrongLocale = placeholderDifferences(en, allowed, "ru");
-    expect(placeholderDifferences(en, allowed, "fr")).toEqual([]);
-    expect(wrongLocale).toEqual(["be.msg.seasonReview.body.topFour: missing [suffix], extra []"]);
-    expect(
-      placeholderDifferences(
-        en,
-        { be: { msg: { seasonReview: { body: { topFour: "{{position}} {{surprise}}" } } } } },
-        "fr",
-      ),
-    ).toEqual(["be.msg.seasonReview.body.topFour: missing [points], extra [surprise]"]);
+  /**
+   * Given an English template that writes the place as its ordinal
+   * When a locale writes it as the bare number, or as its own ordinal
+   * Then both are the same value and match; leaving the place out, or inventing a placeholder, is
+   *      still a difference.
+   */
+  it("treats the place as the same value whether it is written bare or as an ordinal", () => {
+    const tree = (text: string) => ({
+      be: { msg: { seasonReview: { body: { topFour: text } } } },
+    });
+    const en = tree("{{ordinal}} {{points}}");
+
+    expect(placeholderDifferences(en, tree("{{position}} {{points}}"), "ru")).toEqual([]);
+    expect(placeholderDifferences(en, tree("{{ordinal}} {{points}}"), "fr")).toEqual([]);
+    expect(placeholderDifferences(en, tree("{{points}}"), "ru")).toEqual([
+      "be.msg.seasonReview.body.topFour: missing [position], extra []",
+    ]);
+    expect(placeholderDifferences(en, tree("{{position}} {{surprise}}"), "fr")).toEqual([
+      "be.msg.seasonReview.body.topFour: missing [points], extra [surprise]",
+    ]);
   });
 
   it("matches every locale's placeholder set to English", () => {
