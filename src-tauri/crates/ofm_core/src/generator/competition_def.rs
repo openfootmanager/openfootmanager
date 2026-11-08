@@ -723,6 +723,10 @@ pub fn validate_definitions_for_world_ranked(
     errors
 }
 
+/// A participant list naming a club the world does not define. `pub(super)`: a patch package
+/// leaves exactly this one to its stack (`package::validate_references`).
+pub(super) const UNKNOWN_TEAM: &str = "be.error.competitionDef.unknownTeam";
+
 fn validate_participants(
     competition: &CompetitionDefinition,
     ctx: &WorldValidationContext,
@@ -763,8 +767,7 @@ fn validate_explicit_participants(
     for team_id in explicit {
         if !ctx.team_ids.contains(team_id.as_str()) {
             errors.push(
-                DefinitionError::new("be.error.competitionDef.unknownTeam", &competition.id)
-                    .with("team", team_id.clone()),
+                DefinitionError::new(UNKNOWN_TEAM, &competition.id).with("team", team_id.clone()),
             );
         }
     }
