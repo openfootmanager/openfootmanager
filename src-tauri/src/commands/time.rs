@@ -369,26 +369,26 @@ pub async fn advance_one_day<R: tauri::Runtime>(
     .await
 }
 
-fn count_high_priority_messages(game: &Game) -> usize {
+fn count_messages_needing_attention(game: &Game) -> usize {
     game.messages
         .iter()
-        .filter(|message| message.priority == domain::message::MessagePriority::High)
+        .filter(|message| message.priority.needs_attention())
         .count()
 }
 
 /// Whether the day just processed produced something the user should pause on:
-/// a transfer deadline, the window opening, or a fresh high-priority inbox item.
+/// a transfer deadline, the window opening, or a fresh High or Urgent inbox item.
 /// (Match days and blockers are handled separately in the loop.)
 fn continue_reached_attention_event(
     transfer_status: &domain::season::TransferWindowStatus,
     opens_on: Option<&str>,
     today: &str,
-    high_priority_before: usize,
-    high_priority_after: usize,
+    attention_before: usize,
+    attention_after: usize,
 ) -> bool {
     *transfer_status == domain::season::TransferWindowStatus::DeadlineDay
         || opens_on == Some(today)
-        || high_priority_after > high_priority_before
+        || attention_after > attention_before
 }
 
 #[tauri::command]
@@ -452,7 +452,7 @@ pub fn advance_to_next_event_internal(
                 return Step::MatchDay;
             }
 
-            let high_priority_before = count_high_priority_messages(game);
+            let attention_before = count_messages_needing_attention(game);
 
             ofm_core::turn::process_day_with_capture(game, &mut |capture| {
                 captures.push(capture);
@@ -485,8 +485,8 @@ pub fn advance_to_next_event_internal(
                 &game.season_context.transfer_window.status,
                 game.season_context.transfer_window.opens_on.as_deref(),
                 &new_today,
-                high_priority_before,
-                count_high_priority_messages(game),
+                attention_before,
+                count_messages_needing_attention(game),
             ) {
                 return Step::AdvancedThenStop;
             }
@@ -849,6 +849,42 @@ mod tests {
             3,
             3,
         ));
+    }
+
+    /// Whether a continue stops after a quiet day on which one unread message of `priority`
+    /// arrived, read the way the continue loop reads it: counted before the day and after.
+    fn continue_stops_for_new_mail_of(priority: MessagePriority) -> bool {
+        let mut game = make_game(11);
+        game.messages.clear();
+        let before = super::count_messages_needing_attention(&game);
+        game.messages
+            .push(make_message("arrived-today", priority, false));
+        continue_reached_attention_event(
+            &TransferWindowStatus::Closed,
+            None,
+            "2025-06-16",
+            before,
+            super::count_messages_needing_attention(&game),
+        )
+    }
+
+    /// Given a continue rolling through quiet days
+    /// When an Urgent message arrives, as a High one would
+    /// Then the continue stops after that day, as it does for High: Urgent is the more pressing
+    ///      of the two, and it used to roll straight past it (maintainer ruling: High or Urgent).
+    #[test]
+    fn urgent_mail_stops_a_continue_as_high_mail_does() {
+        assert!(continue_stops_for_new_mail_of(MessagePriority::High));
+        assert!(continue_stops_for_new_mail_of(MessagePriority::Urgent));
+    }
+
+    /// Given the same
+    /// When a Normal or a Low message arrives
+    /// Then the continue keeps rolling.
+    #[test]
+    fn normal_and_low_mail_do_not_stop_a_continue() {
+        assert!(!continue_stops_for_new_mail_of(MessagePriority::Normal));
+        assert!(!continue_stops_for_new_mail_of(MessagePriority::Low));
     }
 
     #[test]
