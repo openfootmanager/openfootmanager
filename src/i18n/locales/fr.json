@@ -2757,7 +2757,7 @@
       "critical": "Critique"
     },
     "error": {
-      "taskJoinFailed": "La simulation s’est arrêtée de manière inattendue. Chargez votre dernière sauvegarde et réessayez.",
+      "taskJoinFailed": "La simulation s'est arrêtée de manière inattendue. Chargez votre dernière sauvegarde et réessayez.",
       "autoSave": {
         "failed": "La sauvegarde automatique n'a pas pu enregistrer votre partie. Votre progression depuis la dernière sauvegarde n'est pas encore enregistrée : sauvegardez vous-même et vérifiez qu'il reste de l'espace disque."
       },
