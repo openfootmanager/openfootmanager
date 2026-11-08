@@ -172,6 +172,14 @@ mod tests {
     }
 
     fn intake_bell_ceilings_n(seed: u64, count: usize) -> Vec<f64> {
+        intake_bell_recruits_n(seed, count)
+            .into_iter()
+            .map(|(potential, _)| f64::from(potential))
+            .collect()
+    }
+
+    /// The intake's recruits as `(potential, ovr)`: the two a wonderkid is judged by.
+    fn intake_bell_recruits_n(seed: u64, count: usize) -> Vec<(u8, u8)> {
         let mut rng = rand::rngs::StdRng::seed_from_u64(seed);
         let names = default_names_definition();
         let slot = youth_slots_for_target(Some(Position::Midfielder))[0];
@@ -186,9 +194,18 @@ mod tests {
                     &names,
                     &mut rng,
                 );
-                f64::from(recruit.potential)
+                (recruit.potential, recruit.ovr)
             })
             .collect()
+    }
+
+    fn wonderkids_among(recruits: &[(u8, u8)]) -> usize {
+        recruits
+            .iter()
+            .filter(|&&(potential, ovr)| {
+                crate::player_rating::qualifies_for_wonderkid(AGE, potential, ovr)
+            })
+            .count()
     }
 
     fn mean(values: &[f64]) -> f64 {
@@ -292,6 +309,51 @@ mod tests {
         assert!(
             star_ratio <= 1.1,
             "academies reach the S tier {star_ratio:.2} times as often as the intake"
+        );
+    }
+
+    /// Given every club of the shipped world, at its real reputation
+    /// When each takes recruits
+    /// Then the young high-ceiling tail the maintainer wants rare is no fatter than the intake's:
+    ///      the academy standard sorts the wonderkids into the big clubs, it does not make more
+    #[test]
+    fn the_shipped_worlds_academies_add_no_wonderkids() {
+        const PER_CLUB: usize = 50;
+        let reputations = shipped_reputations();
+        let scale = ReputationScale::of_reputations(reputations.iter().copied());
+        let mut rng = rand::rngs::StdRng::seed_from_u64(7);
+        let academies: Vec<(u8, u8)> = reputations
+            .iter()
+            .flat_map(|&reputation| {
+                let team = club(reputation);
+                (0..PER_CLUB)
+                    .map(|_| {
+                        let recruit = generate_youth_intake_recruit(
+                            &team,
+                            &scale,
+                            &Position::Midfielder,
+                            AGE,
+                            YEAR,
+                            &mut rng,
+                        );
+                        (recruit.potential, recruit.ovr)
+                    })
+                    .collect::<Vec<_>>()
+            })
+            .collect();
+        let intake: Vec<(u8, u8)> = (0..reputations.len() as u64)
+            .flat_map(|seed| intake_bell_recruits_n(1_000 + seed, PER_CLUB))
+            .collect();
+
+        let bell = wonderkids_among(&intake);
+        let academy = wonderkids_among(&academies);
+        assert!(
+            bell >= 50,
+            "the intake must produce enough wonderkids for a ratio to mean anything: {bell}"
+        );
+        assert!(
+            academy as f64 <= bell as f64 * 1.25,
+            "academies made {academy} wonderkids against the intake's {bell} from the same number of recruits"
         );
     }
 

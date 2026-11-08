@@ -528,13 +528,16 @@ const NATIONAL_POOL_SHIFT: f64 = -2.0;
 const YOUNG_SPREAD_KEPT: f64 = 1.0;
 const YOUNG_SHIFT_KEPT: f64 = 1.0;
 /// The fraction of a club's standard shift its academy's recruits take: all of it. Measured over 20
-/// seasons on seeds 1 to 4 of the shipped world (run ofm-perf-acad9-measure, on #1078's constants):
-/// - the top fifth of clubs holds 61 / 66 / 60% of the S-tier seniors at seasons 5 / 10 / 20 (each
-///   seed at least 53%), against 61 / 41 / 25% with no academy standard;
-/// - there are 527 S-tier seniors at season 20 over the four seeds, against 541 (−2.6%);
-/// - wonderkids are 0.131% pooled, against 0.149%.
+/// seasons on seeds 1 to 4 of the shipped world (run ofm-perf-acad10-measure, on #1078's merged
+/// head 9f4c4796, four seeds pooled or averaged):
+/// - the top fifth of clubs holds 62 / 64 / 54% of the S-tier seniors at seasons 5 / 10 / 20 (the
+///   worst seed 49 / 60 / 49%), against 61 / 41 / 20% with no academy standard (worst 49 / 34 / 16%);
+/// - S-tier seniors at season 20: 525 over the four seeds against 519, and the S share is 1.25%
+///   against 1.23%; the A share is 6.79% against 6.83%;
+/// - wonderkids are 0.159% of everyone at season 20 against 0.149% (0.124% against 0.169% at
+///   season 10), under the 0.20% the maintainer allows.
 ///
-/// Three-quarters of the shift (0.75) let the top fifth's share fall to 47% by season 20. The full
+/// Three-quarters of the shift (0.75) let the top fifth's share fall to 44% by season 20. The full
 /// shift does not crowd the young tail into the big clubs, because the recruit's spread gives back
 /// the shift's variance (`absorbed_shift_variance`), so the world's intake keeps its bell.
 const ACADEMY_SHIFT_KEPT: f64 = 1.0;
