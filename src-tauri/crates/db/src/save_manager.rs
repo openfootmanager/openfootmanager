@@ -582,7 +582,7 @@ impl SaveManager {
             needs_resave = true;
         }
 
-        if player_identity::upgrade_game_player_identities(&mut game) {
+        if player_identity::upgrade_loaded_player_identities(&mut game) {
             needs_resave = true;
         }
 

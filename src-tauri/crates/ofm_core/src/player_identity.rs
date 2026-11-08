@@ -4,13 +4,22 @@ use domain::player::{Footedness, Player, Position};
 use std::collections::HashMap;
 
 pub fn upgrade_game_player_identities(game: &mut Game) -> bool {
+    upgrade_game_identities(game, false)
+}
+
+/// A saved weak foot is authoritative, even when other identity fields need upgrading.
+pub fn upgrade_loaded_player_identities(game: &mut Game) -> bool {
+    upgrade_game_identities(game, true)
+}
+
+fn upgrade_game_identities(game: &mut Game, preserve_weak_foot: bool) -> bool {
     let slot_map = build_assigned_slot_map(game);
     let mut changed = false;
 
     let on = game.clock.current_date.date_naive();
 
     for player in &mut game.players {
-        if upgrade_player_identity(player, slot_map.get(&player.id)) {
+        if upgrade_identity(player, slot_map.get(&player.id), preserve_weak_foot) {
             changed = true;
             // The upgrade re-rated him, and the wonderkid tag is a function of his rating.
             crate::player_rating::reconcile_wonderkid_trait(player, on);
@@ -21,6 +30,14 @@ pub fn upgrade_game_player_identities(game: &mut Game) -> bool {
 }
 
 pub fn upgrade_player_identity(player: &mut Player, assigned_slot: Option<&Position>) -> bool {
+    upgrade_identity(player, assigned_slot, false)
+}
+
+fn upgrade_identity(
+    player: &mut Player,
+    assigned_slot: Option<&Position>,
+    preserve_weak_foot: bool,
+) -> bool {
     if !needs_identity_upgrade(player) {
         return false;
     }
@@ -28,7 +45,11 @@ pub fn upgrade_player_identity(player: &mut Player, assigned_slot: Option<&Posit
     let natural_position = infer_natural_position(player, assigned_slot);
     let alternate_positions = infer_alternate_positions(player, &natural_position, assigned_slot);
     let footedness = infer_footedness(player, &natural_position, assigned_slot);
-    let weak_foot = infer_weak_foot(player, &alternate_positions, footedness);
+    let weak_foot = if preserve_weak_foot {
+        player.weak_foot
+    } else {
+        infer_weak_foot(player, &alternate_positions, footedness)
+    };
 
     let changed = player.natural_position != natural_position
         || player.alternate_positions != alternate_positions
