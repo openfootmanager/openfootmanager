@@ -7,12 +7,6 @@ import { getPlayerOvr } from "../../lib/helpers";
 import { isMatchDayEligible } from "../../lib/playerSquad";
 
 export type SquadSection = "xi" | "bench";
-export type DragState = {
-  playerId: string;
-  from: SquadSection;
-  slotIndex: number | null;
-};
-
 export type PitchRow = { label: string; y: string; positions: string[] };
 export type PitchSlot = {
   index: number;
@@ -829,46 +823,6 @@ export function buildDemoteFromStartingXi(
   const nextXiIds = [...currentXiIds];
   nextXiIds[slotIndex] = replacement.id;
   return nextXiIds;
-}
-
-export function applyLineupDrop(
-  currentXiIds: string[],
-  dragState: DragState,
-  slotIndex: number,
-): string[] {
-  const nextXiIds = [...currentXiIds];
-
-  if (slotIndex < 0 || slotIndex >= nextXiIds.length) {
-    return nextXiIds;
-  }
-
-  if (dragState.from === "xi") {
-    const fromIndex = dragState.slotIndex ?? nextXiIds.indexOf(dragState.playerId);
-    if (fromIndex < 0 || fromIndex === slotIndex) {
-      return nextXiIds;
-    }
-    [nextXiIds[fromIndex], nextXiIds[slotIndex]] = [nextXiIds[slotIndex], nextXiIds[fromIndex]];
-    return nextXiIds;
-  }
-
-  const existingIndex = nextXiIds.indexOf(dragState.playerId);
-  if (existingIndex === slotIndex) {
-    return nextXiIds;
-  }
-  if (existingIndex >= 0) {
-    nextXiIds.splice(existingIndex, 1);
-    if (existingIndex < slotIndex) {
-      slotIndex -= 1;
-    }
-    nextXiIds.splice(slotIndex, 0, dragState.playerId);
-    return nextXiIds.slice(0, currentXiIds.length);
-  }
-  if (slotIndex >= nextXiIds.length) {
-    nextXiIds.push(dragState.playerId);
-  } else {
-    nextXiIds[slotIndex] = dragState.playerId;
-  }
-  return nextXiIds.slice(0, currentXiIds.length);
 }
 
 export function applyLineupSwap(

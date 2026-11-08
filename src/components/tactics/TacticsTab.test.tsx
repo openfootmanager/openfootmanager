@@ -269,16 +269,14 @@ const makeGameState = (): GameStateData => {
   };
 };
 
-const createDataTransfer = () => {
-  const data = new Map<string, string>();
-  return {
-    effectAllowed: "move",
-    dropEffect: "move",
-    setData: (type: string, value: string) => {
-      data.set(type, value);
-    },
-    getData: (type: string) => data.get(type) ?? "",
-  };
+/**
+ * Swaps the bench defender d5 in for the centre back d1 the way the screen offers it: pick one in
+ * the table, pick the other, then confirm in the comparison.
+ */
+const swapBenchDefenderIn = () => {
+  fireEvent.click(screen.getByTestId("pitch-bench-player-d5"));
+  fireEvent.click(screen.getByTestId("xi-player-d1"));
+  fireEvent.click(screen.getByRole("button", { name: "tactics.confirmSwap" }));
 };
 
 describe("TacticsTab", () => {
@@ -308,20 +306,58 @@ describe("TacticsTab", () => {
     expect(control).not.toContainElement(tooltip);
   });
 
-  /** Given a tactics pitch token, when its player control receives keyboard focus,
-   * then its summary is visible and supplies an accessible description. */
-  it("describes a tactics token and shows its summary on focus", async () => {
+  /**
+   * Given the pitch with its eleven
+   * When it is drawn
+   * Then it has no controls and no tab stops, and says each slot in words for a screen reader:
+   *      the position, the player and, once graded, his fit.
+   */
+  it("shows the pitch without controls and describes each slot in words", async () => {
     render(
       <TacticsTab gameState={makeGameState()} onSelectPlayer={vi.fn()} onGameUpdate={vi.fn()} />,
     );
-    await act(async () => {}); // the squad has answered, so the summary states the fit
-    const control = screen.getByTestId("pitch-player-gk1");
-    act(() => control.focus());
-    expect(control).toHaveFocus();
-    expect(control).toHaveAccessibleDescription("squad.pitchTokenTooltip");
-    expect(screen.getByRole("tooltip")).toHaveTextContent("squad.pitchTokenTooltip");
-    act(() => control.blur());
-    expect(screen.queryByRole("tooltip")).not.toBeInTheDocument();
+    await act(async () => {}); // the squad has answered, so the words state the fit
+
+    const token = screen.getByTestId("pitch-player-gk1");
+    expect(within(token).queryByRole("button")).toBeNull();
+    expect(within(token).queryByRole("combobox")).toBeNull();
+    expect(token).not.toHaveAttribute("tabindex");
+    expect(token).not.toHaveAttribute("draggable");
+
+    const eleven = screen.getByRole("list", { name: /preMatch\.startingXI - 4-4-2/ });
+    expect(within(eleven).getAllByRole("listitem")).toHaveLength(11);
+    expect(within(eleven).getAllByRole("listitem")[0]).toHaveTextContent("tactics.slotSummary");
+  });
+
+  /**
+   * Given the goalkeeper is the captain and the penalty taker
+   * When the pitch is drawn
+   * Then the drawing's C and PK markers are in words in his slot's entry and not in anyone else's:
+   *      the drawing is hidden from a screen reader, so the list is where he learns who holds them.
+   */
+  it("says the match roles a starter holds in the pitch's list", async () => {
+    const gameState = makeGameState();
+    gameState.teams[0].match_roles = {
+      captain: "gk1",
+      vice_captain: null,
+      penalty_taker: "gk1",
+      free_kick_taker: null,
+      corner_taker: null,
+    };
+    mockedInvoke.mockImplementation(async (command: string) => {
+      if (command === "get_squad") return gameState.players.filter((p) => p.team_id === "team1");
+      return gameState;
+    });
+
+    render(<TacticsTab gameState={gameState} onSelectPlayer={vi.fn()} onGameUpdate={vi.fn()} />);
+    await act(async () => {});
+
+    const items = within(screen.getByRole("list", { name: /preMatch\.startingXI/ })).getAllByRole(
+      "listitem",
+    );
+    expect(items[0]).toHaveTextContent("preMatch.captain");
+    expect(items[0]).toHaveTextContent("preMatch.penaltyTaker");
+    expect(items[1]).not.toHaveTextContent("preMatch.captain");
   });
 
   it("renders the top tactical controls plus bench player in the left panel", () => {
@@ -449,7 +485,7 @@ describe("TacticsTab", () => {
 
   /**
    * Given the position table has not arrived
-   * When a bench defender is dropped onto a defensive slot of the pitch
+   * When a bench defender is swapped in for a centre back of the pitch
    * Then nothing is saved: a lineup worked out without the lines must not be written.
    */
   /**
@@ -483,11 +519,7 @@ describe("TacticsTab", () => {
         <TacticsTab gameState={makeGameState()} onSelectPlayer={vi.fn()} onGameUpdate={vi.fn()} />,
       );
 
-      const benchPlayer = screen.getByTestId("pitch-bench-player-d5");
-      const pitchSlot = screen.getByTestId("pitch-slot-1");
-      const dataTransfer = createDataTransfer();
-      fireEvent.dragStart(benchPlayer, { dataTransfer });
-      fireEvent.drop(pitchSlot, { dataTransfer });
+      swapBenchDefenderIn();
       await act(async () => {});
 
       expect(mockedInvoke).not.toHaveBeenCalledWith("set_starting_xi", expect.anything());
@@ -498,7 +530,7 @@ describe("TacticsTab", () => {
 
   /**
    * Given the position table has arrived but the backend's familiarity has not
-   * When the tactics screen is drawn and a bench defender is dropped onto a defensive slot
+   * When the tactics screen is drawn and a bench defender is swapped in for a centre back
    * Then it says lineup changes wait, and nothing is saved: a lineup worked out without the
    *      backend's grade must not be written.
    */
@@ -510,9 +542,7 @@ describe("TacticsTab", () => {
       );
       expect(screen.getByRole("status")).toHaveTextContent("common.lineupLoading");
 
-      const dataTransfer = createDataTransfer();
-      fireEvent.dragStart(screen.getByTestId("pitch-bench-player-d5"), { dataTransfer });
-      fireEvent.drop(screen.getByTestId("pitch-slot-1"), { dataTransfer });
+      swapBenchDefenderIn();
       await act(async () => {});
 
       expect(mockedInvoke).not.toHaveBeenCalledWith("set_starting_xi", expect.anything());
@@ -704,7 +734,7 @@ describe("TacticsTab", () => {
   /**
    * Given the squad answered once, and then the game moved on (a new revision) with its fetch
    *       still in flight
-   * When a bench defender is dropped onto a defensive slot
+   * When a bench defender is swapped in for a centre back
    * Then nothing is saved: the squad's eligibility is the previous revision's until it answers.
    */
   it("saves no lineup change while a newer get_squad is in flight", async () => {
@@ -721,9 +751,7 @@ describe("TacticsTab", () => {
       <TacticsTab gameState={{ ...state }} onSelectPlayer={vi.fn()} onGameUpdate={vi.fn()} />,
     );
 
-    const dataTransfer = createDataTransfer();
-    fireEvent.dragStart(screen.getByTestId("pitch-bench-player-d5"), { dataTransfer });
-    fireEvent.drop(screen.getByTestId("pitch-slot-1"), { dataTransfer });
+    swapBenchDefenderIn();
     await act(async () => {});
 
     expect(mockedInvoke).not.toHaveBeenCalledWith("set_starting_xi", expect.anything());
@@ -732,7 +760,7 @@ describe("TacticsTab", () => {
   /**
    * Given the position table, the familiarity and the squad have all arrived, but
    *       get_tactics_lineup has not answered for this revision
-   * When a bench defender is dropped onto a defensive slot
+   * When a bench defender is swapped in for a centre back
    * Then it says lineup changes wait, and nothing is saved: the eleven on screen is the saved one
    *      standing in, not the side the match would field, so a change worked out from it is stale.
    */
@@ -749,27 +777,20 @@ describe("TacticsTab", () => {
     render(<TacticsTab gameState={state} onSelectPlayer={vi.fn()} onGameUpdate={vi.fn()} />);
     await act(async () => {}); // the squad has answered
 
-    const dataTransfer = createDataTransfer();
-    fireEvent.dragStart(screen.getByTestId("pitch-bench-player-d5"), { dataTransfer });
-    fireEvent.drop(screen.getByTestId("pitch-slot-1"), { dataTransfer });
+    swapBenchDefenderIn();
     await act(async () => {});
 
     expect(mockedInvoke).not.toHaveBeenCalledWith("set_starting_xi", expect.anything());
     expect(screen.getByRole("status")).toHaveTextContent("common.lineupLoading");
   });
 
-  it("sends the correct starting xi order when a pitch-view bench defender is dropped onto a defensive slot", async () => {
+  it("sends the correct starting xi order when a bench defender is swapped in for a centre back through the table", async () => {
     render(
       <TacticsTab gameState={makeGameState()} onSelectPlayer={vi.fn()} onGameUpdate={vi.fn()} />,
     );
     await act(async () => {}); // the squad has answered for this revision
 
-    const benchPlayer = screen.getByTestId("pitch-bench-player-d5");
-    const pitchSlot = screen.getByTestId("pitch-slot-1");
-    const dataTransfer = createDataTransfer();
-
-    fireEvent.dragStart(benchPlayer, { dataTransfer });
-    fireEvent.drop(pitchSlot, { dataTransfer });
+    swapBenchDefenderIn();
 
     await waitFor(() => {
       expect(mockedInvoke).toHaveBeenCalledWith("set_starting_xi", {
@@ -779,14 +800,14 @@ describe("TacticsTab", () => {
     });
   });
 
-  it("does not render drag handles in the lineup tables", () => {
+  it("offers no dragging anywhere: the table picks and the pitch only shows", () => {
     render(
       <TacticsTab gameState={makeGameState()} onSelectPlayer={vi.fn()} onGameUpdate={vi.fn()} />,
     );
 
     expect(screen.queryByTestId("bench-player-drag-handle-d5")).not.toBeInTheDocument();
     expect(screen.queryByTestId("xi-player-drag-handle-d1")).not.toBeInTheDocument();
-    expect(screen.getByTestId("pitch-bench-player-d5")).toHaveAttribute("draggable", "true");
+    expect(screen.getByTestId("pitch-bench-player-d5")).not.toHaveAttribute("draggable");
   });
 
   it("shows a bench player's natural position on the pitch bench cards when it differs from position", async () => {
@@ -809,10 +830,12 @@ describe("TacticsTab", () => {
 
     render(<TacticsTab gameState={gameState} onSelectPlayer={vi.fn()} onGameUpdate={vi.fn()} />);
 
-    const benchCard = await screen.findByTestId("pitch-bench-player-d5");
+    // His positions are the row's "can play" badges, natural first.
+    await screen.findByTestId("pitch-bench-player-d5");
+    const benchRow = screen.getByTestId("bench-player-d5");
 
-    expect(within(benchCard).getByText("common.posAbbr.Defender")).toBeInTheDocument();
-    expect(within(benchCard).queryByText("common.posAbbr.Midfielder")).not.toBeInTheDocument();
+    expect(within(benchRow).getByText("common.posAbbr.Defender")).toBeInTheDocument();
+    expect(within(benchRow).queryByText("common.posAbbr.Midfielder")).not.toBeInTheDocument();
   });
 
   it("can duplicate the current setup into a custom tactic shell", () => {
@@ -991,33 +1014,31 @@ describe("TacticsTab", () => {
     );
 
     // Modal requires two players — select f1 then m1 to open comparison
-    fireEvent.click(screen.getByTestId("pitch-player-f1"));
-    fireEvent.click(screen.getByTestId("pitch-player-m1"));
+    fireEvent.click(screen.getByTestId("xi-player-f1"));
+    fireEvent.click(screen.getByTestId("xi-player-m1"));
 
-    expect(screen.getByText("common.positions.Forward")).toBeInTheDocument();
+    // The table names positions too (its badges' full names), so look in the comparison itself.
+    const comparison = within(screen.getByRole("dialog"));
+    expect(comparison.getAllByText("common.positions.Forward").length).toBeGreaterThan(0);
     expect(screen.queryByText("Forward")).not.toBeInTheDocument();
   });
 
   /**
-   * Given a bench player selected on the pitch, and the familiarity not arrived
-   * When he is dropped onto a slot (nothing can be saved yet) and then a starter is clicked
-   * Then the drop did not clear his selection: the click opens the comparison with him, as it
-   *      would have had the drop never happened.
+   * Given a bench player and a starter picked in the table, and the familiarity not arrived
+   * When Confirm swap is pressed (nothing can be saved yet)
+   * Then the swap is not saved and the comparison stays open with both picks, as it would have
+   *      had Confirm never been pressed.
    */
-  it("keeps the selection when a dropped lineup is not saved", async () => {
+  it("keeps the picks when a swap is confirmed before the familiarity has loaded", async () => {
     familiarityState.arrived = false;
     try {
       render(
         <TacticsTab gameState={makeGameState()} onSelectPlayer={vi.fn()} onGameUpdate={vi.fn()} />,
       );
       await act(async () => {});
-      fireEvent.click(screen.getByTestId("pitch-bench-player-d5"));
 
-      const dataTransfer = createDataTransfer();
-      fireEvent.dragStart(screen.getByTestId("pitch-bench-player-d5"), { dataTransfer });
-      fireEvent.drop(screen.getByTestId("pitch-slot-1"), { dataTransfer });
+      swapBenchDefenderIn();
       await act(async () => {});
-      fireEvent.click(screen.getByTestId("pitch-player-d2"));
 
       expect(screen.getByText("tactics.comparePlayer")).toBeInTheDocument();
       expect(mockedInvoke).not.toHaveBeenCalledWith("set_starting_xi", expect.anything());
@@ -1049,7 +1070,7 @@ describe("TacticsTab", () => {
         );
         await act(async () => {});
         fireEvent.click(screen.getByTestId("pitch-bench-player-d5"));
-        fireEvent.click(screen.getByTestId("pitch-player-d2"));
+        fireEvent.click(screen.getByTestId("xi-player-d2"));
         expect(screen.getByText("tactics.comparePlayer")).toBeInTheDocument();
         if (squadInFlight) {
           mockedInvoke.mockReset();
@@ -1084,14 +1105,14 @@ describe("TacticsTab", () => {
 
     it("keeps the selection when a starter is moved to the bench", async () => {
       await takeActionWithPairSelected(() => {
-        fireEvent.contextMenu(screen.getByTestId("pitch-player-d1"));
+        fireEvent.contextMenu(screen.getByTestId("xi-row-d1"));
         fireEvent.click(screen.getByRole("menuitem", { name: "tactics.moveToBench" }));
       });
     });
 
     it("keeps the selection when a starter is given his best-fit slot", async () => {
       await takeActionWithPairSelected(() => {
-        fireEvent.contextMenu(screen.getByTestId("pitch-player-d1"));
+        fireEvent.contextMenu(screen.getByTestId("xi-row-d1"));
         fireEvent.click(screen.getByRole("menuitem", { name: "tactics.assignBestFit" }));
       });
     });
@@ -1115,7 +1136,7 @@ describe("TacticsTab", () => {
     // Modal only opens after both players are selected
     expect(screen.queryByText("tactics.selectedPlayer")).not.toBeInTheDocument();
 
-    fireEvent.click(screen.getByTestId("pitch-player-d2"));
+    fireEvent.click(screen.getByTestId("xi-player-d2"));
 
     expect(mockedInvoke).not.toHaveBeenCalledWith("set_starting_xi", expect.anything());
     expect(screen.getByText("tactics.comparePlayer")).toBeInTheDocument();
@@ -1142,13 +1163,13 @@ describe("TacticsTab", () => {
     );
     await act(async () => {}); // the squad has answered for this revision
 
-    fireEvent.click(screen.getByTestId("pitch-player-d1"));
+    fireEvent.click(screen.getByTestId("xi-player-d1"));
 
     expect(onSelectPlayer).not.toHaveBeenCalled();
     // Modal only opens after both players are selected
     expect(screen.queryByText("tactics.selectedPlayer")).not.toBeInTheDocument();
 
-    fireEvent.click(screen.getByTestId("pitch-player-d2"));
+    fireEvent.click(screen.getByTestId("xi-player-d2"));
 
     expect(onSelectPlayer).not.toHaveBeenCalled();
     expect(mockedInvoke).not.toHaveBeenCalledWith("set_starting_xi", expect.anything());
@@ -1169,8 +1190,8 @@ describe("TacticsTab", () => {
       <TacticsTab gameState={makeGameState()} onSelectPlayer={vi.fn()} onGameUpdate={vi.fn()} />,
     );
 
-    fireEvent.click(screen.getByTestId("pitch-player-d1"));
-    fireEvent.click(screen.getByTestId("pitch-player-m1"));
+    fireEvent.click(screen.getByTestId("xi-player-d1"));
+    fireEvent.click(screen.getByTestId("xi-player-m1"));
 
     expect(screen.getByText("tactics.comparePlayer")).toBeInTheDocument();
     expect(screen.getAllByText("Player m1").length).toBeGreaterThan(0);
@@ -1213,10 +1234,11 @@ describe("TacticsTab", () => {
 
     render(<TacticsTab gameState={gameState} onSelectPlayer={vi.fn()} onGameUpdate={vi.fn()} />);
 
-    expect(within(screen.getByTestId("xi-player-f1")).getByText("77")).toHaveClass(
+    // The rating is the row's RatingChip, whose box carries the tier's tone.
+    expect(within(screen.getByTestId("xi-row-f1")).getByText("77").parentElement).toHaveClass(
       ...ratingTierClass("A", "badge").split(" "),
     );
-    expect(within(screen.getByTestId("xi-player-d1")).getByText("76")).toHaveClass(
+    expect(within(screen.getByTestId("xi-row-d1")).getByText("76").parentElement).toHaveClass(
       ...ratingTierClass("B", "badge").split(" "),
     );
   });
@@ -1253,6 +1275,69 @@ describe("TacticsTab", () => {
 
     expect(await screen.findByTestId("xi-player-d5")).toBeInTheDocument();
     expect(screen.queryByTestId("xi-player-f2")).not.toBeInTheDocument();
+    // The pitch draws the same eleven as the table.
+    expect(screen.getByTestId("pitch-player-d5")).toBeInTheDocument();
+    expect(screen.queryByTestId("pitch-player-f2")).not.toBeInTheDocument();
+  });
+
+  /**
+   * Given the backend's lineup has answered once, and its next answer (after a save) never comes
+   * When the bench defender is swapped in for the centre back through the table
+   * Then the pitch shows him at once and no longer shows the centre back: it draws the eleven the
+   *      table shows, change included, and does not blank while the new answer is awaited.
+   */
+  it("shows a swap on the pitch before the backend's next answer arrives", async () => {
+    const gameState = makeGameState();
+    const roster = gameState.players.filter((p) => p.team_id === "team1");
+    const saved = gameState.teams[0].starting_xi_ids ?? [];
+    const lineup = {
+      formation: "4-4-2",
+      eleven: saved.map((player_id) => ({
+        position: "Striker",
+        player_id,
+        role: "Standard",
+        familiarity: "natural",
+      })),
+      substitutes: ["d5"],
+      reserves: [],
+    };
+    let lineupAsks = 0;
+    mockedInvoke.mockImplementation(async (command: string) => {
+      if (command === "get_squad") return roster;
+      if (command === "get_tactics_lineup") {
+        lineupAsks += 1;
+        return lineupAsks === 1 ? lineup : new Promise(() => {});
+      }
+      return gameState;
+    });
+
+    const { rerender } = render(
+      <TacticsTab gameState={gameState} onSelectPlayer={vi.fn()} onGameUpdate={vi.fn()} />,
+    );
+    await screen.findByTestId("xi-player-d1");
+    expect(screen.getByTestId("pitch-player-d1")).toBeInTheDocument();
+
+    swapBenchDefenderIn();
+    await waitFor(() => {
+      expect(mockedInvoke).toHaveBeenCalledWith("set_starting_xi", expect.anything());
+    });
+    // The save's result comes back: a new revision, whose lineup the backend never answers.
+    const swapped = saved.map((id) => (id === "d1" ? "d5" : id));
+    rerender(
+      <TacticsTab
+        gameState={{
+          ...gameState,
+          teams: [{ ...gameState.teams[0], starting_xi_ids: swapped }],
+        }}
+        onSelectPlayer={vi.fn()}
+        onGameUpdate={vi.fn()}
+      />,
+    );
+    await act(async () => {});
+
+    expect(lineupAsks).toBe(2);
+    expect(screen.getByTestId("pitch-player-d5")).toBeInTheDocument();
+    expect(screen.queryByTestId("pitch-player-d1")).not.toBeInTheDocument();
   });
 
   it("shows all starting XI players in the left panel list", () => {
@@ -1285,9 +1370,11 @@ describe("TacticsTab", () => {
 
     render(<TacticsTab gameState={gameState} onSelectPlayer={vi.fn()} onGameUpdate={vi.fn()} />);
 
-    const row = screen.getByTestId("xi-player-m4");
-    expect(within(row).getByText("common.posAbbr.RightMidfielder")).toBeInTheDocument();
-    expect(within(row).queryByText("common.posAbbr.Striker")).not.toBeInTheDocument();
+    // The row's position cell is the slot he plays in, not his natural position (his natural one is
+    // among the "can play" badges).
+    const positionCell = within(screen.getByTestId("xi-row-m4")).getAllByRole("cell")[1];
+    expect(positionCell).toHaveTextContent("common.posAbbr.RightMidfielder");
+    expect(positionCell).not.toHaveTextContent("common.posAbbr.Striker");
   });
 
   it("offers pitch roles for the deployed slot, not the natural position", () => {
@@ -1299,12 +1386,16 @@ describe("TacticsTab", () => {
 
     render(<TacticsTab gameState={gameState} onSelectPlayer={vi.fn()} onGameUpdate={vi.fn()} />);
 
-    const card = screen.getByTestId("pitch-player-m4");
-    fireEvent.click(within(card).getByRole("combobox"));
+    const row = screen.getByTestId("xi-row-m4");
+    fireEvent.click(within(row).getByRole("combobox"));
 
     // Right-midfield roles are on offer; striker-only roles are not.
-    expect(screen.getByRole("option", { name: "InvertedWinger" })).toBeInTheDocument();
-    expect(screen.queryByRole("option", { name: "Poacher" })).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("option", { name: "tactics.playerRoles.InvertedWinger" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("option", { name: "tactics.playerRoles.Poacher" }),
+    ).not.toBeInTheDocument();
   });
 
   it("does not promote an injured bench player into the starting XI", async () => {
@@ -1375,7 +1466,7 @@ describe("TacticsTab", () => {
     render(<TacticsTab gameState={gameState} onSelectPlayer={vi.fn()} onGameUpdate={vi.fn()} />);
 
     fireEvent.click(screen.getByTestId("pitch-bench-player-d5"));
-    fireEvent.click(screen.getByTestId("pitch-player-d2"));
+    fireEvent.click(screen.getByTestId("xi-player-d2"));
 
     expect(screen.getByRole("button", { name: "tactics.confirmSwap" })).toBeDisabled();
   });
@@ -1400,13 +1491,13 @@ describe("TacticsTab", () => {
     });
   });
 
-  it("offers pitch context-menu actions to move a starter to the bench", async () => {
+  it("offers a starter's context menu the move to the bench", async () => {
     render(
       <TacticsTab gameState={makeGameState()} onSelectPlayer={vi.fn()} onGameUpdate={vi.fn()} />,
     );
     await act(async () => {}); // the squad has answered for this revision
 
-    fireEvent.contextMenu(screen.getByTestId("pitch-player-d1"));
+    fireEvent.contextMenu(screen.getByTestId("xi-row-d1"));
     fireEvent.click(screen.getByRole("menuitem", { name: "tactics.moveToBench" }));
 
     await waitFor(() => {
@@ -1451,7 +1542,7 @@ describe("TacticsTab", () => {
     });
   });
 
-  it("assigns captaincy from the pitch context menu", async () => {
+  it("assigns captaincy from a starter's context menu", async () => {
     const gameState = makeGameState();
     const roster = gameState.players.filter((p) => p.team_id === "team1");
     mockedInvoke.mockImplementation(async (command: string) => {
@@ -1468,7 +1559,7 @@ describe("TacticsTab", () => {
     });
     await waitFor(() => expect(screen.getAllByText("match.notAssigned")).toHaveLength(1));
 
-    fireEvent.contextMenu(screen.getByTestId("pitch-player-d1"));
+    fireEvent.contextMenu(screen.getByTestId("xi-row-d1"));
     fireEvent.click(screen.getByRole("menuitem", { name: "tactics.makeCaptain" }));
 
     await waitFor(() => {

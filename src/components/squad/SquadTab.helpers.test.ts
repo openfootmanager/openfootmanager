@@ -6,7 +6,6 @@ import type { Familiarity } from "../../store/generated/Familiarity";
 import { pendingFamiliarityTable } from "../../test-utils/familiarity";
 import { cannedPositionTable } from "../../test-utils/positionTable";
 import {
-  applyLineupDrop,
   buildAssignBestFitSlot,
   applyLineupSwap,
   buildActivePositionMap,
@@ -392,36 +391,6 @@ describe("SquadTab helpers", () => {
     );
 
     expect(ids).toEqual(["gk", "rb", "cb1", "cb2", "lb", "rm", "cm1", "cm2", "lm", "st1", "st2"]);
-  });
-
-  it("swaps XI players when dragging from one slot to another", () => {
-    const nextXiIds = applyLineupDrop(
-      ["gk", "d1", "d2", "d3"],
-      { playerId: "d1", from: "xi", slotIndex: 1 },
-      3,
-    );
-
-    expect(nextXiIds).toEqual(["gk", "d3", "d2", "d1"]);
-  });
-
-  it("replaces the target slot when dropping a bench player onto the pitch", () => {
-    const nextXiIds = applyLineupDrop(
-      ["gk", "d1", "d2", "d3"],
-      { playerId: "b1", from: "bench", slotIndex: null },
-      2,
-    );
-
-    expect(nextXiIds).toEqual(["gk", "d1", "b1", "d3"]);
-  });
-
-  it("keeps order stable when a dragged bench player is already present in the xi", () => {
-    const nextXiIds = applyLineupDrop(
-      ["gk", "d1", "b1", "d3"],
-      { playerId: "b1", from: "bench", slotIndex: null },
-      1,
-    );
-
-    expect(nextXiIds).toEqual(["gk", "b1", "d1", "d3"]);
   });
 
   it("supports bench-to-xi and xi-to-xi swap actions", () => {
