@@ -1,8 +1,10 @@
 use crate::json_column::{self, Cell};
 use chrono::Utc;
+use domain::player::Player;
 use domain::stats::StatsState;
 use domain::world_history::WorldHistoryArchive;
 use rusqlite::Connection;
+use std::collections::HashSet;
 
 use ofm_core::clock::GameClock;
 use ofm_core::game::{
@@ -150,7 +152,24 @@ fn write_game_to_connection(
     }
     team_repo::upsert_teams(conn, &game.teams)?;
     journal_repo::persist_cash_journal(conn, game)?;
-    player_repo::upsert_players(conn, &game.players)?;
+    // Retirees first: archiving one deletes his row from `players`, and until then that row
+    // still holds his club's shirt. A newcomer given the number he left would collide with it
+    // on the club's unique shirt index, and the whole save would fail (#1004).
+    retired_player_repo::archive_retired_players(conn, &game.retired_players)?;
+    // The reorder above is the #1004 fix. This keeps the earlier rule that the archive wins over
+    // a roster that still lists one of them (the in-memory archive moves retirees off the roster,
+    // so only an overlapping roster reaches this): he is not written back.
+    let archived: HashSet<&str> = game
+        .retired_players
+        .iter()
+        .map(|retiree| retiree.id.as_str())
+        .collect();
+    let active: Vec<&Player> = game
+        .players
+        .iter()
+        .filter(|player| !archived.contains(player.id.as_str()))
+        .collect();
+    player_repo::upsert_players(conn, &active)?;
     staff_repo::replace_staff_list(conn, &game.staff)?;
     message_repo::replace_messages(conn, &game.messages)?;
     archived_message_repo::archive_messages(conn, &game.archived_messages)?;
@@ -162,7 +181,6 @@ fn write_game_to_connection(
     competition_repo::replace_competitions(conn, &game.competitions)?;
     edition_archive_repo::persist_new_editions(conn, &game.edition_archive)?;
     custom_tactic_repo::replace_custom_tactics(conn, &game.custom_tactics)?;
-    retired_player_repo::archive_retired_players(conn, &game.retired_players)?;
     retired_manager_repo::archive_retired_managers(conn, &game.retired_managers)?;
     national_team_repo::replace_national_teams(conn, &game.national_teams)?;
 

@@ -322,10 +322,11 @@ move fast because `release` is the thing that has to be trustworthy.
 
 OpenFoot Manager ships in **every locale listed in `SUPPORTED_LANGUAGES`** (`src/i18n/index.ts`). Any string a player can read must exist in all of them, not only English.
 
-Two tests enforce this, and it is worth knowing precisely what each one catches, because between them they leave a gap:
+Three tests enforce this, and it is worth knowing precisely what each one catches, because between them they leave a gap:
 
 - `src/i18n/localeCoverage.test.ts` — every locale file has every key `en.json` has, and no locale simply copies the English text. Add a key to `en.json` and stop, and CI fails here.
 - `src/i18n/frontendKeyCoverage.test.ts` — every literal `t("…")` key used in `src/` exists in `en.json`, so a typo'd key fails too.
+- `src-tauri/tests/backend_keys.rs` — every translation key the shipped Rust code can emit exists in `en.json`, under any of its top-level roots (`be.*`, `common.*`, `playerProfile.*`, `notifications.*`, ...). That covers literals, prefixes, and format families such as `be.news.roundup.headline{}`, of which at least one variant must exist. It skips test-only code, the crates whose reader is not a player (`ofm-cli`, the harnesses), and the errors MCP tools return to their agent; what an MCP tool writes into the game is checked like the rest. A key you add in Rust fails here until `en.json` has it, and then `localeCoverage` asks for the other locales. Run it with `cargo test --manifest-path src-tauri/Cargo.toml --test backend_keys`.
 
 Neither catches English text hardcoded straight into a component, because it never becomes a key at all. `npm run audit:i18n` scans for those, but it is a heuristic reporter and **always exits 0** — read its output, don't rely on its exit code.
 

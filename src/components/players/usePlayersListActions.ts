@@ -98,7 +98,7 @@ export function usePlayersListActions({
       handleGameUpdate(updated);
     } catch (error) {
       console.error("Failed to send scout:", error);
-      setScoutError(resolveTranslatedErrorMessage(getErrorMessage(error), t));
+      setScoutError(resolveTranslatedErrorMessage(getErrorMessage(error)));
     } finally {
       setSendingPlayerId(null);
     }
@@ -110,7 +110,7 @@ export function usePlayersListActions({
       handleGameUpdate(await toggle());
     } catch (error) {
       console.error("Failed to change the player's listing:", error);
-      setListingError(resolveTranslatedErrorMessage(getErrorMessage(error), t));
+      setListingError(resolveTranslatedErrorMessage(getErrorMessage(error)));
     }
   };
 

@@ -120,21 +120,15 @@ pub fn check_random_events(game: &mut Game) {
                 if rng.random_bool(injury_prob) {
                     let msg_id = format!("training_injury_{}_{}", player.id, today);
                     if !existing_ids.contains(&msg_id) {
-                        let days = rng.random_range(3..=14);
-                        let injury_names = [
-                            "common.injuries.minorMuscleStrain",
-                            "common.injuries.twistedAnkle",
-                            "common.injuries.kneeBruise",
-                            "common.injuries.hamstringTightness",
-                            "common.injuries.calfStrain",
-                        ];
-                        let injury_name = injury_names[rng.random_range(0..injury_names.len())];
+                        let injury = crate::player_wear::roll_training_injury(&mut rng);
+                        let injury_name = injury.name.clone();
+                        let days = injury.days_remaining;
 
                         new_messages.push(message_builders::training_injury_message(
                             &msg_id,
                             &player.id,
                             &player.match_name,
-                            injury_name,
+                            &injury_name,
                             days,
                             &today,
                         ));
@@ -152,10 +146,7 @@ pub fn check_random_events(game: &mut Game) {
                             });
 
                         if let Some(p) = game.players.iter_mut().find(|p| p.id == pid) {
-                            p.injury = Some(domain::player::Injury {
-                                name: injury_name.to_string(),
-                                days_remaining: days,
-                            });
+                            p.injury = Some(injury);
                         }
 
                         // Generate a public news article for notable players

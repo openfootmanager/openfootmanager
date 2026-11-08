@@ -14,28 +14,56 @@ pub const A_TIER_MIN_RATING: u8 = 77;
 /// screens call good.
 pub const B_TIER_MIN_RATING: u8 = 70;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, ts_rs::TS)]
+/// The four tiers, shared by players and, cut per role, by staff (`staff_tier`).
+#[derive(
+    Debug, Clone, Copy, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize, ts_rs::TS,
+)]
 pub enum PlayerTier {
     S,
     A,
     B,
     /// Everyone below B: the game names no lower tier.
+    #[default]
     Rest,
 }
+
+/// The lowest rating of each of the S, A and B tiers: the one rule that turns a rating into a tier,
+/// for players ([`PLAYER_CUT_OFFS`]) and, per role, for staff (`staff_tier`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) struct TierCutOffs {
+    pub(crate) s: u8,
+    pub(crate) a: u8,
+    pub(crate) b: u8,
+}
+
+impl TierCutOffs {
+    /// `S` from `s` up, `A` from `a` to one below `s`, `B` from `b` to one below `a`, and `Rest`
+    /// for everything lower.
+    pub(crate) fn tier(&self, rating: u8) -> PlayerTier {
+        if rating >= self.s {
+            PlayerTier::S
+        } else if rating >= self.a {
+            PlayerTier::A
+        } else if rating >= self.b {
+            PlayerTier::B
+        } else {
+            PlayerTier::Rest
+        }
+    }
+}
+
+/// The players' cut-offs.
+const PLAYER_CUT_OFFS: TierCutOffs = TierCutOffs {
+    s: S_TIER_MIN_RATING,
+    a: A_TIER_MIN_RATING,
+    b: B_TIER_MIN_RATING,
+};
 
 /// The tier a 1-99 rating falls in: `S` from `S_TIER_MIN_RATING` (81) up, `A` from
 /// `A_TIER_MIN_RATING` (77) to one below that, `B` from `B_TIER_MIN_RATING` (70) to one below A,
 /// and `Rest` for everything lower. Works on `ovr` and on `potential` alike.
 pub fn player_tier(rating: u8) -> PlayerTier {
-    if rating >= S_TIER_MIN_RATING {
-        PlayerTier::S
-    } else if rating >= A_TIER_MIN_RATING {
-        PlayerTier::A
-    } else if rating >= B_TIER_MIN_RATING {
-        PlayerTier::B
-    } else {
-        PlayerTier::Rest
-    }
+    PLAYER_CUT_OFFS.tier(rating)
 }
 
 /// The tier of every rating from 0 to 99, indexed by rating. The screens colour a rating by

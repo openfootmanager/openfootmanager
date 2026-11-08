@@ -296,6 +296,114 @@ fn complete_scouting(game: &mut Game) {
     }
 }
 
+/// The letters about cancelled scouting, by body key.
+fn cancellation_letters(game: &Game) -> Vec<&InboxMessage> {
+    game.messages
+        .iter()
+        .filter(|message| {
+            message.subject_key.as_deref() == Some("be.msg.scoutingCancelled.subject")
+        })
+        .collect()
+}
+
+fn scout_reports(game: &Game) -> usize {
+    game.messages
+        .iter()
+        .filter(|message| message.subject_key.as_deref() == Some("be.msg.scoutReport.subject"))
+        .count()
+}
+
+/// Given a scout sent to watch a player; when he leaves the club before the report is due and
+/// the days run out; then no report arrives from him, and the user is told the assignment was
+/// cancelled (#476: a released scout still reported, and one gone from the game left the
+/// assignment to end in silence).
+#[test]
+fn a_scout_who_left_the_club_cancels_his_report_with_a_letter() {
+    let mut game = make_game();
+    send_scout(&mut game, "scout1", "p2").unwrap();
+    game.staff[0].team_id = None;
+
+    complete_scouting(&mut game);
+
+    assert_eq!(scout_reports(&game), 0);
+    let letters = cancellation_letters(&game);
+    assert_eq!(letters.len(), 1);
+    assert_eq!(
+        letters[0].body_key.as_deref(),
+        Some("be.msg.scoutingCancelled.body")
+    );
+    assert_eq!(letters[0].i18n_params["player"], "Target Player");
+    // The letter carries the player, so the inbox shows his card.
+    assert_eq!(letters[0].context.player_id.as_deref(), Some("p2"));
+    assert!(game.scouting_assignments.is_empty());
+}
+
+/// Given a scout sent to watch a player; when the scout leaves and the player is gone from the
+/// game too before the report is due; then the user still gets the letter, worded without the
+/// player's name.
+#[test]
+fn a_scout_who_left_after_a_player_who_is_gone_still_cancels_with_a_letter() {
+    let mut game = make_game();
+    send_scout(&mut game, "scout1", "p2").unwrap();
+    game.staff[0].team_id = None;
+    game.players.retain(|player| player.id != "p2");
+
+    complete_scouting(&mut game);
+
+    let letters = cancellation_letters(&game);
+    assert_eq!(letters.len(), 1);
+    assert_eq!(
+        letters[0].body_key.as_deref(),
+        Some("be.msg.scoutingCancelled.bodyWithoutPlayer")
+    );
+    assert!(game.scouting_assignments.is_empty());
+}
+
+/// Given a scout sent to watch a player; when the scout is gone from the game altogether before
+/// the report is due; then the user is told the assignment was cancelled.
+#[test]
+fn a_scout_gone_from_the_game_cancels_his_report_with_a_letter() {
+    let mut game = make_game();
+    send_scout(&mut game, "scout1", "p2").unwrap();
+    game.staff.clear();
+
+    complete_scouting(&mut game);
+
+    assert_eq!(scout_reports(&game), 0);
+    assert_eq!(cancellation_letters(&game).len(), 1);
+}
+
+/// Given a scout on a youth search; when he leaves the club before it ends; then no youth report
+/// or recruits arrive, and the user is told the search was called off.
+#[test]
+fn a_scout_who_left_the_club_calls_off_his_youth_search_with_a_letter() {
+    let mut game = make_game();
+    let players_before = game.players.len();
+    start_youth_scouting(
+        &mut game,
+        "scout1",
+        YouthScoutingRegion::Domestic,
+        YouthScoutingObjective::Balanced,
+        Some(Position::Defender),
+    )
+    .unwrap();
+    game.staff[0].team_id = Some("team2".to_string());
+
+    complete_scouting(&mut game);
+
+    assert!(game.messages.iter().all(|message| {
+        message.subject_key.as_deref() != Some("be.msg.youthRecruitmentReport.subject")
+    }));
+    assert_eq!(game.players.len(), players_before);
+    let letters = cancellation_letters(&game);
+    assert_eq!(letters.len(), 1);
+    assert_eq!(
+        letters[0].body_key.as_deref(),
+        Some("be.msg.scoutingCancelled.youthBody")
+    );
+    assert!(game.youth_scouting_assignments.is_empty());
+}
+
 #[test]
 fn process_scouting_generates_report_message() {
     let mut game = make_game();

@@ -7,8 +7,6 @@ import {
 } from "../services/playersService";
 import { getErrorMessage, resolveTranslatedErrorMessage } from "../utils/errorMessage";
 
-type Translate = Parameters<typeof resolveTranslatedErrorMessage>[1];
-
 /**
  * One filtered, sorted, paged list of players, answered by the backend for every screen that
  * lists them. The query is state; `patchQuery` changes it and goes back to page 1 unless the
@@ -19,11 +17,7 @@ type Translate = Parameters<typeof resolveTranslatedErrorMessage>[1];
  * hook asks again when it moves, and `answeredRevision` says which one the page it holds answers,
  * so a screen can refuse an answer about another club or career while the next is on its way.
  */
-export function usePlayersPage(
-  initialQuery: PlayersPageQuery,
-  translate: Translate,
-  revision = "",
-) {
+export function usePlayersPage(initialQuery: PlayersPageQuery, revision = "") {
   const [query, setQuery] = useState<PlayersPageQuery>(initialQuery);
   const [answer, setAnswer] = useState<{
     query: PlayersPageQuery;
@@ -50,12 +44,12 @@ export function usePlayersPage(
       })
       .catch((failure) => {
         if (cancelled) return;
-        setError(resolveTranslatedErrorMessage(getErrorMessage(failure), translate));
+        setError(resolveTranslatedErrorMessage(getErrorMessage(failure)));
       });
     return () => {
       cancelled = true;
     };
-  }, [query, refetchKey, translate, revision]);
+  }, [query, refetchKey, revision]);
 
   // A game update can leave fewer players than the page the user is on (a day passes, a scout is
   // sent): the backend then answers that page empty, and pagination hides once one page is left.
