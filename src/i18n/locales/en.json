@@ -2757,6 +2757,7 @@
       "critical": "Critical"
     },
     "error": {
+      "taskJoinFailed": "The simulation stopped unexpectedly. Please load your last save and try again.",
       "autoSave": {
         "failed": "Auto-save could not save your game. Your progress since the last save is not stored yet: save it yourself, and check that the disk has free space."
       },

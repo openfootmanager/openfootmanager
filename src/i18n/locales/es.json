@@ -2757,6 +2757,7 @@
       "critical": "Crítico"
     },
     "error": {
+      "taskJoinFailed": "La simulación se ha detenido inesperadamente. Carga tu última partida guardada y vuelve a intentarlo.",
       "autoSave": {
         "failed": "El guardado automático no pudo guardar la partida. Tu progreso desde el último guardado aún no está guardado: guárdala tú mismo y comprueba que haya espacio libre en el disco."
       },

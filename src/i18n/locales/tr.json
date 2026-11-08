@@ -2757,6 +2757,7 @@
       "critical": "Kritik"
     },
     "error": {
+      "taskJoinFailed": "Simülasyon beklenmedik şekilde durdu. Son kayıtlı oyununuzu yükleyip tekrar deneyin.",
       "autoSave": {
         "failed": "Otomatik kayıt oyununuzu kaydedemedi. Son kayıttan bu yana ilerlemeniz henüz kaydedilmedi: elle kaydedin ve diskte boş alan olduğunu kontrol edin."
       },

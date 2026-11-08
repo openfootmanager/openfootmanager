@@ -2757,6 +2757,7 @@
       "critical": "Kritis"
     },
     "error": {
+      "taskJoinFailed": "Simulasi berhenti secara tak terduga. Muat simpanan terakhirmu dan coba lagi.",
       "autoSave": {
         "failed": "Simpan otomatis tidak bisa menyimpan permainanmu. Kemajuanmu sejak penyimpanan terakhir belum tersimpan: simpan sendiri, dan periksa apakah disk masih punya ruang kosong."
       },
