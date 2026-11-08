@@ -498,6 +498,7 @@ mod tests {
                 legacy_tactics_imported: false,
                 gate_settled_from: None,
                 last_season_rollover_on: None,
+                days_since_last_job_offer: None,
             },
         )
         .unwrap();
@@ -627,6 +628,7 @@ mod tests {
                 legacy_tactics_imported: false,
                 gate_settled_from: None,
                 last_season_rollover_on: None,
+                days_since_last_job_offer: None,
             },
         )
         .unwrap();
