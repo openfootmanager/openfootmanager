@@ -647,7 +647,7 @@
     "lastPage": "Last page",
     "sortBy": "Sort by",
     "sortAscending": "Ascending",
-    "lineupLoading": "Position data is still loading, so lineup changes are not available yet."
+    "lineupLoading": "The squad is still loading, so lineup changes are not available yet."
   },
   "teamSelection": {
     "title": "Choose Your Club",
@@ -1114,6 +1114,8 @@
     "transferBudget": "Transfer Budget",
     "seasonIncome": "Season Income",
     "seasonExpenses": "Season Expenses",
+    "moneyIn": "Money in",
+    "moneyOut": "Money out",
     "perWeekSuffix": "/wk",
     "snapshotLoadFailed": "Could not load the club finances.",
     "perYearSuffix": "/yr",
@@ -1259,6 +1261,8 @@
     "boardSatisfied": "The board is satisfied with your performance.",
     "boardConcerns": "The board has concerns about results.",
     "boardThreat": "Your position is under serious threat.",
+    "boardWarned": "The board has warned you.",
+    "boardFinalWarning": "You are on a final warning.",
     "board": "Board",
     "fans": "Fans",
     "born": "Born",
@@ -1876,7 +1880,7 @@
     "skipShootoutPickerDesc": "Start penalty shootouts in the automatic order, without asking you to set it",
     "savesData": "Saves & Data",
     "autoSave": "Auto-Save",
-    "autoSaveDesc": "Automatically save your game after each day",
+    "autoSaveDesc": "Automatically save your game every week",
     "exportWorld": "Export World Database",
     "exportWorldDesc": "Save the current world data as a shareable JSON file",
     "export": "Export",
@@ -2759,6 +2763,9 @@
       "critical": "Critical"
     },
     "error": {
+      "autoSave": {
+        "failed": "Auto-save could not save your game. Your progress since the last save is not stored yet: save it yourself, and check that the disk has free space."
+      },
       "squadFloor": {
         "wouldLeaveShort": "This player cannot leave: the squad would fall below the minimum a club must keep. Position group affected: {{group}}.",
         "wouldLeaveSeniorsShort": "This player cannot leave: the club would be left with fewer than {{floor}} senior players, the minimum a club must keep."
@@ -2839,6 +2846,7 @@
         "noSubstitutionsForShootout": "No substitutions once extra time is over: the shootout is taken by the players on the pitch at the final whistle.",
         "shootoutOrderNotNow": "The shootout order can only be set after extra time, before the first kick.",
         "shootoutOrderNotYourSide": "You can only set your own side's shootout order.",
+        "notYourSide": "You can only give orders to your own team.",
         "shootoutOrderNotEligible": "The shootout order must list each of your eligible players exactly once.",
         "playerNotOnPitch": "Player not on pitch",
         "playerAlreadySubstitutedOff": "Player has already been substituted off",
@@ -2858,6 +2866,7 @@
         "missingSchema": "A package file is missing its \"schema\" field.",
         "worldExportNotPackage": "This folder is an exported world save, not a package project. Exported worlds use a different format and cannot be edited here.",
         "notAProjectDirectory": "This is not a package project folder. Pick the folder that contains the package's package.json — or, for an installed .ofm package, use \"Open .ofm File\".",
+        "saveWouldDropItem": "Not saved: {{file}} holds an entry the editor can't read and can't keep in JSON. Fix that entry in the file, then save again.",
         "unknownSchema": "Unknown schema \"{{schema}}\".",
         "invalidEntity": "A \"{{schema}}\" entry is invalid: {{detail}}",
         "duplicateWorld": "The package already has a manifest in \"{{first}}\"; a package can have only one \"world\" file.",
@@ -2906,6 +2915,8 @@
       },
       "competitionDef": {
         "invalidCalendar": "Invalid competition calendar: check the division family, tier, phase and closing date.",
+        "invalidSeasonMonth": "Season start month {{month}} is not valid (it must be 1–12).",
+        "invalidSeasonDay": "Season start day {{day}} is not a valid day of the start month.",
         "invalidEmbedded": "This world's competition definitions are invalid and could not be loaded.",
         "invalidStandalone": "The selected competition definition file is invalid.",
         "parseFailed": "The competition definition file could not be read as JSON.",
@@ -3002,6 +3013,7 @@
         "cannotBidOnOwnPlayer": "Cannot bid on your own player",
         "playerHasNoTeam": "Player has no team",
         "insufficientFunds": "Insufficient funds",
+        "buyerCannotAffordFee": "The buying club can no longer afford this fee, so the deal cannot go through.",
         "transferBudgetTooLow": "Transfer budget too low",
         "playerNotOwnedByUser": "Player not found or not yours",
         "offerNotPending": "Offer not found or not pending",
@@ -3011,6 +3023,7 @@
         "loanCounterMustImproveTerms": "Loan counter must improve the current offer",
         "playerNotLoanListed": "Player is not listed for loan",
         "playerAlreadyLoaned": "Player is already out on loan",
+        "playerAlreadySold": "This player has already been sold. The transfer goes through when the window opens.",
         "invalidLoanEndDate": "Loan end date must be between 30 days and one year from today",
         "invalidLoanWageContribution": "Loan wage contribution must be between 0% and 100%",
         "invalidLoanBuyOption": "Loan buy option must be greater than zero",
@@ -3530,6 +3543,7 @@
         },
         "notes": {
           "managerBlocked": "You told me not to reopen contract talks yet.",
+          "markedLetExpire": "You marked this contract to run down, so I didn't open talks.",
           "completed": "I was able to close this one without needing you to step in.",
           "completedToKeepSquadFloor": "Done, over the board's wage policy. The board allowed it because without this player we would fall below the minimum squad.",
           "beyondLimits": "Their camp want around {{wage}}/wk for {{years}} years, which is beyond the delegation limits.",
@@ -3571,6 +3585,12 @@
       "scoutReport": {
         "subject": "Scout Report: {{player}}",
         "body": "Your scout {{scout}} has completed their assessment of {{player}}. Full report available in the scouting section."
+      },
+      "scoutingCancelled": {
+        "subject": "Scouting assignment cancelled",
+        "body": "The scout you sent to watch {{player}} has left the club, so no report will come. Send another scout if you still want one.",
+        "bodyWithoutPlayer": "The scout you sent to watch a player has left the club, and that player is no longer on our books, so no report will come.",
+        "youthBody": "The scout you sent on a youth search has left the club, so the search has been called off. Start a new one with another scout if you still want it."
       },
       "boardWarning": {
         "subject": "Board Concern — Performance Review",
@@ -3634,6 +3654,11 @@
         "subject": "Loan agreed: {{player}}",
         "bodyWithOption": "{{player}} will move on loan from {{parent}} to {{borrower}} from {{start}} until {{end}}. {{borrower}} will cover {{contribution}}% of the wages. Purchase option: {{fee}}.",
         "bodyNoOption": "{{player}} will move on loan from {{parent}} to {{borrower}} from {{start}} until {{end}}. {{borrower}} will cover {{contribution}}% of the wages. No purchase option."
+      },
+      "loanRegistrationFailed": {
+        "subject": "Loan cancelled: {{player}}",
+        "body": "The agreed loan of {{player}} from {{parent}} to {{borrower}}, due to start on {{start}}, cannot go ahead: the player is no longer under contract to {{parent}}.",
+        "bodyRequirementNotMet": "The agreed loan of {{player}} from {{parent}} to {{borrower}} could not start on {{start}}: one of the conditions it was agreed under, such as room in {{borrower}}'s wage budget or the length of the player's contract, no longer holds."
       },
       "loanOffer": {
         "subject": "Loan Offer for {{player}}",

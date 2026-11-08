@@ -647,7 +647,7 @@
     "lastPage": "Última página",
     "sortBy": "Ordenar por",
     "sortAscending": "Ascendente",
-    "lineupLoading": "Los datos de posiciones aún se están cargando, así que los cambios de alineación todavía no están disponibles."
+    "lineupLoading": "La plantilla aún se está cargando, así que los cambios de alineación todavía no están disponibles."
   },
   "teamSelection": {
     "title": "Elige Tu Club",
@@ -1114,6 +1114,8 @@
     "transferBudget": "Presupuesto de Fichajes",
     "seasonIncome": "Ingresos de Temporada",
     "seasonExpenses": "Gastos de Temporada",
+    "moneyIn": "Entradas de dinero",
+    "moneyOut": "Salidas de dinero",
     "perWeekSuffix": "/sem",
     "snapshotLoadFailed": "No se pudieron cargar las finanzas del club.",
     "perYearSuffix": "/año",
@@ -1259,6 +1261,8 @@
     "boardSatisfied": "La directiva está satisfecha con tu rendimiento.",
     "boardConcerns": "La directiva tiene preocupaciones sobre los resultados.",
     "boardThreat": "Tu puesto está seriamente amenazado.",
+    "boardWarned": "La directiva te ha advertido.",
+    "boardFinalWarning": "Estás en tu última advertencia.",
     "board": "Directiva",
     "fans": "Afición",
     "born": "Nacido el",
@@ -1876,7 +1880,7 @@
     "skipShootoutPickerDesc": "Empieza las tandas de penaltis con el orden automático, sin pedirte que lo fijes",
     "savesData": "Guardados y Datos",
     "autoSave": "Autoguardado",
-    "autoSaveDesc": "Guardar automáticamente después de cada día",
+    "autoSaveDesc": "Guardar automáticamente cada semana",
     "exportWorld": "Exportar Base de Datos del Mundo",
     "exportWorldDesc": "Guardar los datos del mundo como archivo JSON compartible",
     "export": "Exportar",
@@ -2759,6 +2763,9 @@
       "critical": "Crítico"
     },
     "error": {
+      "autoSave": {
+        "failed": "El guardado automático no pudo guardar la partida. Tu progreso desde el último guardado aún no está guardado: guárdala tú mismo y comprueba que haya espacio libre en el disco."
+      },
       "squadFloor": {
         "wouldLeaveShort": "Este jugador no puede salir: la plantilla quedaría por debajo del mínimo que un club debe mantener. Línea afectada: {{group}}.",
         "wouldLeaveSeniorsShort": "Este jugador no puede salir: el club se quedaría con menos de {{floor}} jugadores en la primera plantilla, el mínimo que un club debe mantener."
@@ -2804,6 +2811,7 @@
         "noSubstitutionsForShootout": "No se permiten cambios una vez terminada la prórroga: la tanda la lanzan los jugadores que estaban en el campo al pitido final.",
         "shootoutOrderNotNow": "El orden de la tanda de penaltis solo se puede fijar después de la prórroga y antes del primer lanzamiento.",
         "shootoutOrderNotYourSide": "Solo puedes fijar el orden de lanzamiento de tu equipo.",
+        "notYourSide": "Solo puedes dar órdenes a tu propio equipo.",
         "shootoutOrderNotEligible": "El orden de lanzamiento debe incluir una sola vez a cada uno de tus jugadores disponibles.",
         "playerNotOnPitch": "El jugador no está en el campo",
         "playerAlreadySubstitutedOff": "Ese jugador ya fue sustituido",
@@ -2823,6 +2831,7 @@
         "missingSchema": "A un archivo del paquete le falta el campo \"schema\".",
         "worldExportNotPackage": "Esta carpeta es una partida de mundo exportada, no un proyecto de paquete. Los mundos exportados usan otro formato y no se pueden editar aquí.",
         "notAProjectDirectory": "Esta no es una carpeta de proyecto de paquete. Elige la carpeta que contiene el package.json del paquete; si es un paquete .ofm instalado, usa «Abrir archivo .ofm».",
+        "saveWouldDropItem": "No se guardó: {{file}} contiene una entrada que el editor no puede leer ni conservar en JSON. Corrige esa entrada en el archivo y vuelve a guardar.",
         "unknownSchema": "Esquema desconocido \"{{schema}}\".",
         "invalidEntity": "Una entrada \"{{schema}}\" no es válida: {{detail}}",
         "duplicateWorld": "El paquete ya tiene un manifiesto en «{{first}}»; un paquete solo puede tener un archivo «world».",
@@ -2863,6 +2872,8 @@
       },
       "competitionDef": {
         "invalidCalendar": "Calendario de competición no válido: comprueba la familia de divisiones, el nivel, la fase y la fecha de cierre.",
+        "invalidSeasonMonth": "El mes de inicio de temporada {{month}} no es válido (debe estar entre 1 y 12).",
+        "invalidSeasonDay": "El día de inicio de temporada {{day}} no es un día válido del mes de inicio.",
         "invalidEmbedded": "Las definiciones de competiciones de este mundo no son válidas y no se pudieron cargar.",
         "invalidStandalone": "El archivo de definición de competiciones seleccionado no es válido.",
         "parseFailed": "No se pudo leer el archivo de definición de competiciones como JSON.",
@@ -2994,6 +3005,7 @@
         "cannotBidOnOwnPlayer": "No puedes pujar por tu propio jugador",
         "playerHasNoTeam": "El jugador no tiene equipo",
         "insufficientFunds": "Fondos insuficientes",
+        "buyerCannotAffordFee": "El club comprador ya no puede pagar este traspaso, así que la operación no puede cerrarse.",
         "transferBudgetTooLow": "El presupuesto de fichajes es demasiado bajo",
         "playerNotOwnedByUser": "Jugador no encontrado o no te pertenece",
         "offerNotPending": "Oferta no encontrada o ya no está pendiente",
@@ -3003,6 +3015,7 @@
         "loanCounterMustImproveTerms": "La contraoferta de cesión debe mejorar la oferta actual",
         "playerNotLoanListed": "El jugador no está listado para cesión",
         "playerAlreadyLoaned": "El jugador ya está cedido",
+        "playerAlreadySold": "Este jugador ya ha sido vendido. El traspaso se completa cuando abra el mercado.",
         "invalidLoanEndDate": "La fecha de fin de la cesión debe estar entre 30 días y un año desde hoy",
         "invalidLoanWageContribution": "La aportación salarial de la cesión debe estar entre el 0% y el 100%",
         "invalidLoanBuyOption": "La opción de compra de la cesión debe ser superior a cero",
@@ -3530,6 +3543,7 @@
         },
         "notes": {
           "managerBlocked": "Me dijiste que todavía no reabriera las conversaciones contractuales.",
+          "markedLetExpire": "Marcaste este contrato para dejarlo expirar, así que no abrí conversaciones.",
           "completed": "Pude cerrar esta sin que tuvieras que intervenir.",
           "completedToKeepSquadFloor": "Hecho, por encima de la política salarial de la directiva. La directiva lo autorizó porque sin este jugador quedaríamos por debajo de la plantilla mínima.",
           "beyondLimits": "Su entorno pide alrededor de {{wage}}/semana por {{years}} años, fuera de los límites de delegación.",
@@ -3571,6 +3585,12 @@
       "scoutReport": {
         "subject": "Informe del ojeador: {{player}}",
         "body": "Tu ojeador {{scout}} ha completado su evaluación de {{player}}. Informe completo disponible en la sección de ojeo."
+      },
+      "scoutingCancelled": {
+        "subject": "Misión de ojeo cancelada",
+        "body": "El ojeador que enviaste a seguir a {{player}} ha dejado el club, así que no habrá informe. Envía a otro ojeador si todavía lo quieres.",
+        "bodyWithoutPlayer": "El ojeador que enviaste a seguir a un jugador ha dejado el club, y ese jugador ya no figura en nuestros registros, así que no habrá informe.",
+        "youthBody": "El ojeador que enviaste a buscar jóvenes ha dejado el club, así que la búsqueda se ha cancelado. Empieza una nueva con otro ojeador si todavía la quieres."
       },
       "boardWarning": {
         "subject": "Preocupación de la Directiva — Revisión de Resultados",
@@ -3634,6 +3654,11 @@
         "subject": "Cesión acordada: {{player}}",
         "bodyWithOption": "{{player}} irá cedido de {{parent}} a {{borrower}} desde el {{start}} hasta el {{end}}. {{borrower}} cubrirá el {{contribution}}% del salario. Opción de compra: {{fee}}.",
         "bodyNoOption": "{{player}} irá cedido de {{parent}} a {{borrower}} desde el {{start}} hasta el {{end}}. {{borrower}} cubrirá el {{contribution}}% del salario. Sin opción de compra."
+      },
+      "loanRegistrationFailed": {
+        "subject": "Cesión cancelada: {{player}}",
+        "body": "La cesión acordada de {{player}} de {{parent}} a {{borrower}}, prevista para el {{start}}, no puede llevarse a cabo: el jugador ya no tiene contrato con {{parent}}.",
+        "bodyRequirementNotMet": "La cesión acordada de {{player}} de {{parent}} a {{borrower}} no pudo comenzar el {{start}}: una de las condiciones con las que se acordó, como el margen en el presupuesto salarial de {{borrower}} o la duración del contrato del jugador, ya no se cumple."
       },
       "loanOffer": {
         "subject": "Oferta de cesión por {{player}}",

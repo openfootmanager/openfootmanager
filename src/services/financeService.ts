@@ -17,6 +17,14 @@ interface BackendTeamFinanceSnapshotData {
   runway_status: FinanceHealthLevelData;
   overall_status: FinanceHealthLevelData;
   marketing_campaign_cooldown_days_remaining: number;
+  cash_flow: BackendWeeklyCashFlowData[];
+}
+
+/** One week of a club's money in and out, summed by the backend from its cash journal. */
+interface BackendWeeklyCashFlowData {
+  week_start: string;
+  income: number;
+  expenses: number;
 }
 
 interface BackendBoardSupportPreviewData {
@@ -72,6 +80,16 @@ export interface TeamFinanceSnapshotData {
   runwayStatus: FinanceHealthLevelData;
   overallStatus: FinanceHealthLevelData;
   marketingCampaignCooldownDaysRemaining: number;
+  /** The club's latest weeks of cash flow, oldest first, from the backend's cash journal. */
+  cashFlow: WeeklyCashFlowData[];
+}
+
+export interface WeeklyCashFlowData {
+  /** The Monday the week starts on, `YYYY-MM-DD`. */
+  weekStart: string;
+  income: number;
+  /** Money out, as a positive number. */
+  expenses: number;
 }
 
 export interface BoardSupportPreviewData {
@@ -130,6 +148,11 @@ function mapSnapshot(snapshot: BackendTeamFinanceSnapshotData): TeamFinanceSnaps
     runwayStatus: snapshot.runway_status,
     overallStatus: snapshot.overall_status,
     marketingCampaignCooldownDaysRemaining: snapshot.marketing_campaign_cooldown_days_remaining,
+    cashFlow: snapshot.cash_flow.map((week) => ({
+      weekStart: week.week_start,
+      income: week.income,
+      expenses: week.expenses,
+    })),
   };
 }
 
