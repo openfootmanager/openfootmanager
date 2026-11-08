@@ -5,6 +5,7 @@ pub mod definitions;
 pub mod file_format;
 mod generation;
 pub mod package;
+mod package_save;
 mod package_warnings;
 pub mod scaffold;
 mod staff_bell;
@@ -24,6 +25,7 @@ pub use package::{
     qualify_package_asset_paths, read_logo_from_ofm, read_package_manifest_from_ofm,
     validate_manifest, validate_package, validate_package_stack, validate_references,
 };
+pub use package_save::{EditedPackage, save_package_files};
 pub use package_warnings::package_warnings;
 pub use scaffold::{
     EntityKind, entity_template, manifest_json, names_json, new_package_meta, scaffold_package,
@@ -365,15 +367,8 @@ fn generate_missing_team_staff(
 ) -> bool {
     let (names_def, country_codes) = create_staff_generator_context();
     let mut generated_staff = Vec::new();
-    let roles = [
-        StaffRole::AssistantManager,
-        StaffRole::Coach,
-        StaffRole::Scout,
-        StaffRole::Physio,
-    ];
-
     for team in &world.teams {
-        for role in &roles {
+        for role in &StaffRole::ALL {
             let has_role = world.staff.iter().any(|staff_member| {
                 staff_member.team_id.as_deref() == Some(team.id.as_str())
                     && &staff_member.role == role
@@ -789,12 +784,7 @@ fn build_club(
     }
 
     let mut team_staff = Vec::with_capacity(4);
-    for role in [
-        StaffRole::AssistantManager,
-        StaffRole::Coach,
-        StaffRole::Scout,
-        StaffRole::Physio,
-    ] {
+    for role in StaffRole::ALL {
         let nationality = pick_nationality_from_def(&tdef.country, country_codes, rng);
         team_staff.push(generate_random_staff_from_def(
             &team_id,

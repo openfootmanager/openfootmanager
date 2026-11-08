@@ -6,7 +6,10 @@ use domain::league::{Fixture, FixtureCompetition, FixtureStatus, League, Standin
 use domain::manager::Manager;
 use domain::player::{Player, PlayerAttributes, Position};
 use domain::team::Team;
-use engine::{MatchCommand, MatchPhase, ShootoutOrderSnapshot, Side};
+use engine::{
+    MatchCommand, MatchPhase, PlayStyle, PlayerRole, PressingIntensity, ShootoutOrderSnapshot,
+    Side, TacticalDial,
+};
 use ofm_core::clock::GameClock;
 use ofm_core::game::Game;
 use ofm_core::live_match_manager::{self, LiveMatchSession, MatchMode};
@@ -219,6 +222,129 @@ fn a_manager_cannot_set_the_opponents_shootout_order() {
         Err(NOT_YOUR_SIDE.to_string())
     );
     assert_eq!(session.match_state.shootout_order(Side::Away), away_order);
+}
+
+const NOT_YOUR_TEAM: &str = "be.error.liveMatch.notYourSide";
+
+/// Given the home manager at kick-off, the away side with its eleven, bench and set-piece takers
+/// When an order for the away side comes in, of each of the ten kinds a manager gives in a match:
+///      a substitution, a swap before kick-off, a formation, a play style, a player's role, a
+///      tactical dial, and each set-piece taker and the captain
+/// Then each is refused as not his team, and the match is exactly as it was: the opponent's eleven,
+///      substitutions, tactics and takers are untouched (#1192: an agent's command named the other
+///      side, and it was applied)
+#[test]
+fn a_manager_cannot_give_the_opponent_orders() {
+    let mut session = live_match_manager::create_live_match(
+        &game_managing(Some("alpha")),
+        0,
+        MatchMode::Live,
+        true,
+    )
+    .unwrap();
+    let away_starter = session.match_state.team(Side::Away).players[10].id.clone();
+    let away_keeper = session.match_state.team(Side::Away).players[0].id.clone();
+    let away_bench = session.match_state.bench(Side::Away)[0].id.clone();
+    let before = serde_json::to_value(session.snapshot()).unwrap();
+
+    let orders = vec![
+        MatchCommand::Substitute {
+            side: Side::Away,
+            player_off_id: away_starter.clone(),
+            player_on_id: away_bench.clone(),
+        },
+        MatchCommand::PreMatchSwap {
+            side: Side::Away,
+            player_off_id: away_starter.clone(),
+            player_on_id: away_bench,
+        },
+        MatchCommand::ChangePlayStyle {
+            side: Side::Away,
+            play_style: PlayStyle::Attacking,
+        },
+        MatchCommand::ChangePlayerRole {
+            side: Side::Away,
+            player_id: away_starter.clone(),
+            role: PlayerRole::default(),
+        },
+        MatchCommand::ChangeTacticalDial {
+            side: Side::Away,
+            dial: TacticalDial::PressingIntensity(PressingIntensity::Aggressive),
+        },
+        MatchCommand::ChangeFormation {
+            side: Side::Away,
+            formation: "3-4-3".to_string(),
+        },
+        MatchCommand::SetPenaltyTaker {
+            side: Side::Away,
+            player_id: away_keeper.clone(),
+        },
+        MatchCommand::SetFreeKickTaker {
+            side: Side::Away,
+            player_id: away_keeper.clone(),
+        },
+        MatchCommand::SetCornerTaker {
+            side: Side::Away,
+            player_id: away_keeper.clone(),
+        },
+        MatchCommand::SetCaptain {
+            side: Side::Away,
+            player_id: away_keeper,
+        },
+    ];
+    for order in orders {
+        let kind = format!("{order:?}");
+        assert_eq!(
+            session.apply_command(order),
+            Err(NOT_YOUR_TEAM.to_string()),
+            "{kind}"
+        );
+    }
+
+    assert_eq!(serde_json::to_value(session.snapshot()).unwrap(), before);
+}
+
+/// Given the home manager at kick-off
+/// When he makes a substitution for his own side
+/// Then it is accepted: the check refuses the other side only
+#[test]
+fn a_manager_still_gives_his_own_team_orders() {
+    let mut session = live_match_manager::create_live_match(
+        &game_managing(Some("alpha")),
+        0,
+        MatchMode::Live,
+        true,
+    )
+    .unwrap();
+    let home_starter = session.match_state.team(Side::Home).players[10].id.clone();
+    let home_bench = session.match_state.bench(Side::Home)[0].id.clone();
+
+    session
+        .apply_command(MatchCommand::Substitute {
+            side: Side::Home,
+            player_off_id: home_starter,
+            player_on_id: home_bench,
+        })
+        .expect("his own side, a starter for a bench player");
+}
+
+/// Given a match between two clubs the user does not manage
+/// When any order comes in for either side
+/// Then it is refused: nobody in it is his to command
+#[test]
+fn nobody_gives_orders_in_a_match_the_user_is_not_in() {
+    let mut session =
+        live_match_manager::create_live_match(&game_managing(None), 0, MatchMode::Live, true)
+            .unwrap();
+    let home_starter = session.match_state.team(Side::Home).players[0].id.clone();
+
+    assert_eq!(
+        session.apply_command(MatchCommand::SetCaptain {
+            side: Side::Home,
+            player_id: home_starter,
+        }),
+        Err(NOT_YOUR_TEAM.to_string())
+    );
 }
 
 /// Given the away manager at the start of a shootout,

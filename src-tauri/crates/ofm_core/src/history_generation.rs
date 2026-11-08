@@ -387,11 +387,7 @@ fn prepare_seeded_managers(game: &mut Game, first_season: u32) {
             continue;
         };
 
-        if let Some(entry) = manager
-            .career_history
-            .iter_mut()
-            .find(|entry| entry.team_id == team_id && entry.end_date.is_none())
-        {
+        if let Some(entry) = manager.current_stint_mut(&team_id) {
             if entry.matches == 0 && entry.wins == 0 && entry.draws == 0 && entry.losses == 0 {
                 entry.start_date = start_date.clone();
             }

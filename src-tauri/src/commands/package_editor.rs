@@ -2,7 +2,6 @@ use ofm_core::generator::{
     export_directory_to_ofm, extract_ofm_to_dir, load_world_package, CompetitionDefinition,
     ConfederationDef, CountryDef, NamesDefinition, PlayerDef, StaffDef, TeamDef, WorldMetaDef,
 };
-use serde_json::json;
 use std::path::Path;
 use tauri::Manager as _;
 
@@ -32,17 +31,6 @@ pub struct PackageProjectData {
     pub issues: Vec<PackageIssue>,
     /// Problems that leave the package usable: shown to the author, never blocking.
     pub warnings: Vec<PackageIssue>,
-}
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-fn write_json_atomic(path: &Path, value: &serde_json::Value) -> Result<(), String> {
-    let content = serde_json::to_string_pretty(value).map_err(|e| e.to_string())?;
-    let tmp = path.with_extension("json.tmp");
-    std::fs::write(&tmp, &content).map_err(|e| e.to_string())?;
-    std::fs::rename(&tmp, path).map_err(|e| e.to_string())
 }
 
 // ---------------------------------------------------------------------------
@@ -174,14 +162,14 @@ pub fn read_package_project(dir: String) -> Result<PackageProjectData, String> {
     })
 }
 
-/// Persist in-memory edits, overwriting every package entity file.
+/// Persist in-memory edits, writing each entity back to the file it was read from
+/// (`ofm_core::generator::save_package_files` has the rule).
 ///
-/// Each file is written atomically — `write_json_atomic` writes a `.tmp` sibling
-/// and renames over the target — so no single file can be left half-written.
-/// The *set* of files is **not** transactional: this walks the entity types in
-/// sequence with `?`, so a failure partway through leaves the earlier files
-/// updated and the later ones stale. Recovering from that means saving again
-/// from the still-intact in-memory project.
+/// Each file is written atomically — a `.tmp` sibling renamed over the target — so
+/// no single file can be left half-written. The *set* of files is **not**
+/// transactional: a failure partway through leaves the earlier files updated and
+/// the later ones stale. Recovering from that means saving again from the
+/// still-intact in-memory project.
 // One parameter per entity type, matching the `.ofm` package layout — the editor
 // sends every collection in one call, so the argument count tracks the entity
 // count by design.
@@ -198,56 +186,19 @@ pub fn save_package_project(
     names: NamesDefinition,
     competitions: Vec<CompetitionDefinition>,
 ) -> Result<(), String> {
-    let pkg_dir = Path::new(&dir);
-
-    write_json_atomic(
-        &pkg_dir.join("package.json"),
-        &ofm_core::generator::manifest_json(&meta)?,
-    )?;
-
-    let confs = serde_json::to_value(&confederations).map_err(|e| e.to_string())?;
-    write_json_atomic(
-        &pkg_dir.join("confederations").join("confederations.json"),
-        &json!({"schema": "confederation", "items": confs}),
-    )?;
-
-    let ctrs = serde_json::to_value(&countries).map_err(|e| e.to_string())?;
-    write_json_atomic(
-        &pkg_dir.join("countries").join("countries.json"),
-        &json!({"schema": "country", "items": ctrs}),
-    )?;
-
-    let tms = serde_json::to_value(&teams).map_err(|e| e.to_string())?;
-    write_json_atomic(
-        &pkg_dir.join("teams").join("teams.json"),
-        &json!({"schema": "team", "items": tms}),
-    )?;
-
-    let pls = serde_json::to_value(&players).map_err(|e| e.to_string())?;
-    write_json_atomic(
-        &pkg_dir.join("players").join("players.json"),
-        &json!({"schema": "player", "items": pls}),
-    )?;
-
-    std::fs::create_dir_all(pkg_dir.join("staff")).map_err(|e| e.to_string())?;
-    let stf = serde_json::to_value(&staff).map_err(|e| e.to_string())?;
-    write_json_atomic(
-        &pkg_dir.join("staff").join("staff.json"),
-        &json!({"schema": "staff", "items": stf}),
-    )?;
-
-    write_json_atomic(
-        &pkg_dir.join("names").join("names.json"),
-        &ofm_core::generator::names_json(&names)?,
-    )?;
-
-    let comps = serde_json::to_value(&competitions).map_err(|e| e.to_string())?;
-    write_json_atomic(
-        &pkg_dir.join("competitions").join("competitions.json"),
-        &json!({"schema": "competition", "items": comps}),
-    )?;
-
-    Ok(())
+    ofm_core::generator::save_package_files(
+        Path::new(&dir),
+        &ofm_core::generator::EditedPackage {
+            meta,
+            confederations,
+            countries,
+            teams,
+            players,
+            staff,
+            names,
+            competitions,
+        },
+    )
 }
 
 #[cfg(test)]
@@ -765,6 +716,117 @@ mod tests {
         std::fs::remove_dir_all(&dir).ok();
 
         assert_eq!(result, Err("be.error.invalidPath".to_string()));
+    }
+
+    /// Given a hand-made project with a manifest and one teams file, and no folder for any other kind
+    /// When the editor opens it and saves it unchanged
+    /// Then the save succeeds and the club is still there once: a save must not need the folders a
+    ///      scaffold would have made
+    #[test]
+    fn a_project_without_every_kinds_folder_can_be_saved() {
+        let dir = temp_project(
+            "no-folders",
+            &[
+                (
+                    "package.json",
+                    r#"{"schema":"world","id":"bare","name":"Bare","version":"1.0.0","license":"CC0-1.0"}"#,
+                ),
+                (
+                    "teams/teams.json",
+                    r##"{"schema":"team","items":[{"id":"fc-a","name":"FC A","city":"C","country":"ENG","colors":{"primary":"#000000","secondary":"#ffffff"}}]}"##,
+                ),
+            ],
+        );
+        let path = dir.to_string_lossy().to_string();
+        let opened = read_package_project(path.clone()).expect("the project opens");
+
+        let saved = save_package_project(
+            path.clone(),
+            opened.meta,
+            opened.confederations,
+            opened.countries,
+            opened.teams,
+            opened.players,
+            opened.staff,
+            opened.names.unwrap_or(NamesDefinition {
+                version: 1,
+                description: String::new(),
+                pools: HashMap::new(),
+            }),
+            opened.competitions,
+        );
+        let reopened = read_package_project(path);
+        std::fs::remove_dir_all(&dir).ok();
+
+        assert_eq!(saved, Ok(()));
+        let teams: Vec<String> = reopened
+            .expect("the saved project opens")
+            .teams
+            .into_iter()
+            .map(|team| team.id)
+            .collect();
+        assert_eq!(teams, vec!["fc-a".to_string()]);
+    }
+
+    /// Given a project whose clubs are split over two files, as `ofm-cli add` writes them
+    /// When the editor opens it, renames one club, saves, and opens it again
+    /// Then each club is there once, with no duplicate-id issue, and the rename is the club's
+    ///      name: a save must not leave the files it read beside the ones it wrote
+    #[test]
+    fn saving_a_project_split_over_several_files_keeps_each_club_once() {
+        let team = |id: &str, name: &str| {
+            format!(
+                r##"{{"schema":"team","items":[{{"id":"{id}","name":"{name}","city":"C","country":"ENG","colors":{{"primary":"#000000","secondary":"#ffffff"}}}}]}}"##
+            )
+        };
+        // A project as `ofm-cli new` scaffolds it, with two clubs in files of their own as
+        // `ofm-cli add` writes them.
+        let dir = temp_project("split-teams", &[]);
+        let path = dir.to_string_lossy().to_string();
+        create_package_project(path.clone(), test_meta()).expect("the project is scaffolded");
+        std::fs::write(dir.join("teams").join("fc-a.json"), team("fc-a", "FC A")).expect("written");
+        std::fs::write(dir.join("teams").join("fc-b.json"), team("fc-b", "FC B")).expect("written");
+        let opened = read_package_project(path.clone()).expect("the split project opens");
+        assert_eq!(opened.teams.len(), 2, "both clubs load before any save");
+        let mut teams = opened.teams.clone();
+        teams
+            .iter_mut()
+            .filter(|team| team.id == "fc-a")
+            .for_each(|team| team.name = "FC A Renamed".to_string());
+
+        save_package_project(
+            path.clone(),
+            opened.meta.clone(),
+            opened.confederations.clone(),
+            opened.countries.clone(),
+            teams,
+            opened.players.clone(),
+            opened.staff.clone(),
+            opened.names.clone().unwrap_or(NamesDefinition {
+                version: 1,
+                description: String::new(),
+                pools: HashMap::new(),
+            }),
+            opened.competitions.clone(),
+        )
+        .expect("the save succeeds");
+        let reopened = read_package_project(path).expect("the saved project opens");
+        std::fs::remove_dir_all(&dir).ok();
+
+        let names: Vec<(&str, &str)> = reopened
+            .teams
+            .iter()
+            .map(|team| (team.id.as_str(), team.name.as_str()))
+            .collect();
+        assert_eq!(names, vec![("fc-a", "FC A Renamed"), ("fc-b", "FC B")]);
+        assert!(
+            reopened
+                .issues
+                .iter()
+                .all(|issue| issue.code != "be.error.package.duplicateId"),
+            "no club is declared twice: {:?}",
+            reopened.issues.iter().map(|i| &i.code).collect::<Vec<_>>()
+        );
     }
 
     /// Given a project whose league lists one of its clubs twice

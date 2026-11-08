@@ -21,18 +21,15 @@ pub use berths::{
     resolve_continental_fields,
 };
 
-pub fn expected_fixture_count(team_count: usize) -> Option<usize> {
-    if team_count >= 2 {
-        // Double round robin: every club plays every other home and away.
-        // Odd-sized leagues reach the same total via byes.
-        Some(team_count * (team_count - 1))
-    } else {
-        None
-    }
+/// The league fixtures a season of `team_count` clubs over `legs` legs holds: every club meets
+/// every other once per leg. Odd-sized leagues reach the same total via byes.
+pub fn expected_fixture_count(team_count: usize, legs: u8) -> Option<usize> {
+    (team_count >= 2).then(|| team_count * (team_count - 1) / 2 * usize::from(legs))
 }
 
 pub fn has_full_schedule(league: &League) -> bool {
-    match expected_fixture_count(league.standings.len()) {
+    let legs = crate::schedule::league_table_legs(league);
+    match expected_fixture_count(league.standings.len(), legs) {
         Some(expected_fixture_count) => {
             league
                 .fixtures
@@ -106,6 +103,38 @@ pub(crate) fn is_cup_edition_finished(cup: &League) -> bool {
         .all(|fixture| fixture.status == FixtureStatus::Completed)
 }
 
+/// The user's own league tables: every league-table competition his club plays in (two for a
+/// split season, the Apertura and the Clausura).
+fn user_league_tables(game: &Game) -> Vec<&League> {
+    let user_id = game.manager.team_id.as_deref().unwrap_or_default();
+    game.competitions
+        .iter()
+        .filter(|c| {
+            c.rules.format == CompetitionFormat::LeagueTable
+                && c.participant_ids.iter().any(|id| id == user_id)
+        })
+        .collect()
+}
+
+/// The league tables whose fixtures decide whether the user's season is over, as
+/// [`is_season_complete`] reads them: his own league tables; every league table for a manager with
+/// none (out of work, or international-only); the legacy single league when the game holds no
+/// competitions. A status that counts what is left of the season counts these, so it never
+/// disagrees with the rule that lets the season roll over.
+pub fn season_tables(game: &Game) -> Vec<&League> {
+    if game.competitions.is_empty() {
+        return game.league.iter().collect();
+    }
+    let user_leagues = user_league_tables(game);
+    if !user_leagues.is_empty() {
+        return user_leagues;
+    }
+    game.competitions
+        .iter()
+        .filter(|c| c.rules.format == CompetitionFormat::LeagueTable)
+        .collect()
+}
+
 /// Check if the season is complete for the purposes of allowing rollover.
 /// Only the user's own league(s) gate the button; foreign leagues on different
 /// hemispheres may still be in progress and are skipped during regeneration.
@@ -113,16 +142,8 @@ pub fn is_season_complete(game: &Game) -> bool {
     // Only the user's own league(s) gate the season-complete button. Other
     // leagues (different hemisphere, foreign divisions) may still be in
     // progress without blocking the rollover.
-    let user_id = game.manager.team_id.as_deref().unwrap_or_default();
     if !game.competitions.is_empty() {
-        let user_leagues: Vec<&League> = game
-            .competitions
-            .iter()
-            .filter(|c| {
-                c.rules.format == CompetitionFormat::LeagueTable
-                    && c.participant_ids.iter().any(|id| id == user_id)
-            })
-            .collect();
+        let user_leagues = user_league_tables(game);
         if !user_leagues.is_empty() {
             if !user_leagues.iter().copied().all(is_league_complete) {
                 return false;
@@ -1173,10 +1194,21 @@ pub fn process_end_of_season(game: &mut Game) -> EndOfSeasonSummary {
         &last_fixture_date,
     );
 
+    // The preview is of the user's division as the new season has it, after promotion and
+    // relegation; the world's other clubs are not in the race it previews (#1179).
     let preview_date = game.clock.current_date.to_rfc3339();
-    let team_names: Vec<String> = game.teams.iter().map(|team| team.name.clone()).collect();
+    let division_club_names: Vec<String> = user_division(game, &user_team_id)
+        .map(|division| {
+            division
+                .participant_ids
+                .iter()
+                .filter_map(|club_id| game.teams.iter().find(|team| &team.id == club_id))
+                .map(|team| team.name.clone())
+                .collect()
+        })
+        .unwrap_or_default();
     game.news.push(crate::news::season_preview_article(
-        &team_names,
+        &division_club_names,
         &preview_date,
     ));
 
@@ -1316,9 +1348,14 @@ pub fn advance_to_next_season(game: &mut Game) -> Result<EndOfSeasonSummary, Str
 // Retiree conversion
 // ---------------------------------------------------------------------------
 
+/// The start of the id of a scout made from a retired player (the player's id follows), so a
+/// measurement that counts them reads the same convention the end of season writes.
+pub const RETIRED_PLAYER_SCOUT_ID_PREFIX: &str = "staff_retired_scout_";
+
 /// For every player archived this season with at least one career entry:
 /// * Creates an unemployed manager candidate with deterministic ID `mgr_retired_{player_id}`.
-/// * Creates an unattached scout with deterministic ID `staff_retired_scout_{player_id}`.
+/// * Creates an unattached scout with deterministic ID `staff_retired_scout_{player_id}`
+///   ([`RETIRED_PLAYER_SCOUT_ID_PREFIX`]).
 ///
 /// Both checks are idempotent — if the ID already exists the entry is not duplicated.
 fn convert_retired_players_to_candidates(game: &mut Game, season: u32) {
@@ -1402,7 +1439,7 @@ fn convert_retired_players_to_candidates(game: &mut Game, season: u32) {
         }
 
         // Scout candidate
-        let scout_id = format!("staff_retired_scout_{}", r.player_id);
+        let scout_id = format!("{RETIRED_PLAYER_SCOUT_ID_PREFIX}{}", r.player_id);
         if !existing_staff_ids.contains(&scout_id) {
             let judging_ability = ((r.vision as u16 + r.decisions as u16) / 2).min(100) as u8;
             let judging_potential = ((r.positioning as u16 + r.teamwork as u16) / 2).min(100) as u8;
