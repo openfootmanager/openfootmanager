@@ -1533,15 +1533,23 @@ describe("InboxTab", (): void => {
       action_type: {
         ChooseOption: {
           options: [
-            { id: "no_renewal", label: "No renewal", description: "Let it run out." },
-            { id: "reassure", label: "Reassure him", description: "Tell him he is wanted." },
+            {
+              id: "no_renewal",
+              label: "Tell them you won't renew",
+              description: "Honest but brutal. Morale will tank.",
+            },
+            {
+              id: "reassure",
+              label: "Reassure them about renewal",
+              description: "Tell them you want them to stay. Big morale boost.",
+            },
           ],
         },
       },
       resolved: false,
     };
     const open = createGameState([
-      createMessage({ id: "happy_player_p1", read: true, actions: [action] }),
+      createMessage({ id: "contract_concern_p1", read: true, actions: [action] }),
     ]);
     let answer: (value: unknown) => void = () => {};
     mockedInvoke.mockImplementation((command: string) => {
@@ -1552,17 +1560,17 @@ describe("InboxTab", (): void => {
       }
       return Promise.resolve(command === "get_messages_page" ? open.messages : open);
     });
-    await renderInboxTab({ gameState: open, initialMessageId: "happy_player_p1" });
+    await renderInboxTab({ gameState: open, initialMessageId: "contract_concern_p1" });
     const resolveCalls = () =>
       mockedInvoke.mock.calls.filter(([command]) => command === "resolve_message_action");
 
-    fireEvent.click(screen.getByText("No renewal"));
-    fireEvent.click(screen.getByText("No renewal"));
-    fireEvent.click(screen.getByText("Reassure him"));
+    fireEvent.click(screen.getByText("Tell them you won't renew"));
+    fireEvent.click(screen.getByText("Tell them you won't renew"));
+    fireEvent.click(screen.getByText("Reassure them about renewal"));
 
     expect(resolveCalls()).toHaveLength(1);
-    expect(screen.getByRole("button", { name: /No renewal/ })).toBeDisabled();
-    expect(screen.getByRole("button", { name: /Reassure him/ })).toBeDisabled();
+    expect(screen.getByRole("button", { name: /won't renew/ })).toBeDisabled();
+    expect(screen.getByRole("button", { name: /Reassure them/ })).toBeDisabled();
 
     await act(async () => {
       answer({ game: open, effect: "", effect_i18n_key: null, effect_i18n_params: null });
@@ -1583,15 +1591,23 @@ describe("InboxTab", (): void => {
       action_type: {
         ChooseOption: {
           options: [
-            { id: "no_renewal", label: "No renewal", description: "Let it run out." },
-            { id: "reassure", label: "Reassure him", description: "Tell him he is wanted." },
+            {
+              id: "no_renewal",
+              label: "Tell them you won't renew",
+              description: "Honest but brutal. Morale will tank.",
+            },
+            {
+              id: "reassure",
+              label: "Reassure them about renewal",
+              description: "Tell them you want them to stay. Big morale boost.",
+            },
           ],
         },
       },
       resolved: false,
     };
     const open = createGameState([
-      createMessage({ id: "happy_player_p1", read: true, actions: [action] }),
+      createMessage({ id: "contract_concern_p1", read: true, actions: [action] }),
     ]);
     mockedInvoke.mockImplementation((command: string) => {
       if (command === "resolve_message_action") {
@@ -1599,15 +1615,15 @@ describe("InboxTab", (): void => {
       }
       return Promise.resolve(command === "get_messages_page" ? open.messages : open);
     });
-    await renderInboxTab({ gameState: open, initialMessageId: "happy_player_p1" });
+    await renderInboxTab({ gameState: open, initialMessageId: "contract_concern_p1" });
 
-    fireEvent.click(screen.getByText("No renewal"));
+    fireEvent.click(screen.getByText("Tell them you won't renew"));
 
     const alert = await screen.findByRole("alert");
     expect(alert).not.toHaveTextContent(/be\.error\./);
     expect(alert).toHaveTextContent("The career changed before this could be saved.");
-    expect(screen.getByRole("button", { name: /No renewal/ })).toBeEnabled();
-    expect(screen.getByRole("button", { name: /Reassure him/ })).toBeEnabled();
+    expect(screen.getByRole("button", { name: /won't renew/ })).toBeEnabled();
+    expect(screen.getByRole("button", { name: /Reassure them/ })).toBeEnabled();
   });
 
   /**
@@ -1622,21 +1638,27 @@ describe("InboxTab", (): void => {
       label: "Respond",
       action_type: {
         ChooseOption: {
-          options: [{ id: "no_renewal", label: "No renewal", description: "Let it run out." }],
+          options: [
+            {
+              id: "no_renewal",
+              label: "Tell them you won't renew",
+              description: "Honest but brutal. Morale will tank.",
+            },
+          ],
         },
       },
       resolved: false,
     };
     const open = createGameState([
-      createMessage({ id: "happy_player_p1", read: true, subject: "First", actions: [action] }),
+      createMessage({ id: "contract_concern_p1", read: true, subject: "First", actions: [action] }),
       createMessage({ id: "other", read: true, subject: "Second" }),
     ]);
     mockedInvoke.mockImplementation((command: string) => {
       if (command === "resolve_message_action") return Promise.reject("be.error.careerChanged");
       return Promise.resolve(command === "get_messages_page" ? open.messages : open);
     });
-    await renderInboxTab({ gameState: open, initialMessageId: "happy_player_p1" });
-    fireEvent.click(screen.getByText("No renewal"));
+    await renderInboxTab({ gameState: open, initialMessageId: "contract_concern_p1" });
+    fireEvent.click(screen.getByText("Tell them you won't renew"));
     await screen.findByRole("alert");
 
     fireEvent.click(screen.getByText("Second"));
@@ -1651,8 +1673,16 @@ describe("InboxTab", (): void => {
    */
   it("enables the response buttons again once the answer lands", async (): Promise<void> => {
     const options = [
-      { id: "no_renewal", label: "No renewal", description: "Let it run out." },
-      { id: "reassure", label: "Reassure him", description: "Tell him he is wanted." },
+      {
+        id: "no_renewal",
+        label: "Tell them you won't renew",
+        description: "Honest but brutal. Morale will tank.",
+      },
+      {
+        id: "reassure",
+        label: "Reassure them about renewal",
+        description: "Tell them you want them to stay. Big morale boost.",
+      },
     ];
     const action: MessageAction = {
       id: "respond",
@@ -1661,7 +1691,7 @@ describe("InboxTab", (): void => {
       resolved: false,
     };
     const open = createGameState([
-      createMessage({ id: "happy_player_p1", read: true, actions: [action] }),
+      createMessage({ id: "contract_concern_p1", read: true, actions: [action] }),
     ]);
     // The answer leaves the action open (as when the backend keeps the conversation going).
     mockedInvoke.mockImplementation((command: string) => {
@@ -1675,10 +1705,12 @@ describe("InboxTab", (): void => {
       }
       return Promise.resolve(command === "get_messages_page" ? open.messages : open);
     });
-    await renderInboxTab({ gameState: open, initialMessageId: "happy_player_p1" });
+    await renderInboxTab({ gameState: open, initialMessageId: "contract_concern_p1" });
 
-    fireEvent.click(screen.getByText("No renewal"));
+    fireEvent.click(screen.getByText("Tell them you won't renew"));
 
-    await waitFor(() => expect(screen.getByRole("button", { name: /Reassure him/ })).toBeEnabled());
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: /Reassure them/ })).toBeEnabled(),
+    );
   });
 });
