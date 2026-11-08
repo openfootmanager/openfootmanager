@@ -316,7 +316,17 @@ pub(crate) mod tests {
     fn an_unemployed_manager_rolling_the_season_over_is_not_fired_again() {
         let state = StateManager::new();
         let mut game = completed_checkpoint();
-        game.manager.team_id = None;
+        // Sacked as the game records it: a stint at his club, closed. A manager with no stint at all
+        // has never had a club and is shown no league (#1270).
+        let club = game.manager.team_id.clone().unwrap();
+        game.manager
+            .career_history
+            .push(domain::manager::ManagerCareerEntry::open(
+                club.clone(),
+                club,
+                "2024-07-01".to_string(),
+            ));
+        game.manager.fire("2025-03-01");
         state.set_game(game);
 
         let response = advance_to_next_season_internal(&state, Career::Active).unwrap();
