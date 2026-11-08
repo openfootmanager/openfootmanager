@@ -146,6 +146,73 @@ describe("TacticsCommandBar", () => {
     expect(screen.queryByRole("button", { name: "tactics.tacticSaved" })).not.toBeInTheDocument();
   });
 
+  /**
+   * Given a Saved cue from a first save, and the tactic edited again within the cue's time
+   * When the manager saves a second time and that save has not answered yet
+   * Then the old cue is gone while the second save is pending (it must not claim the new save).
+   */
+  it("drops the old Saved cue while a second save is pending", async () => {
+    vi.useFakeTimers();
+    const answers: Array<(saved: boolean) => void> = [];
+    const onSave = vi.fn(() => new Promise<boolean>((resolve) => answers.push(resolve)));
+    const props = buildProps({ activeTactic: customTactic, isDirty: true, onSave });
+    const { rerender } = render(<TacticsCommandBar {...props} />);
+    fireEvent.click(screen.getByRole("button", { name: "tactics.updateTactic" }));
+    await act(async () => answers[0](true));
+    rerender(<TacticsCommandBar {...props} isDirty={false} />);
+    expect(screen.getByRole("button", { name: "tactics.tacticSaved" })).toBeInTheDocument();
+
+    rerender(<TacticsCommandBar {...props} isDirty />);
+    fireEvent.click(screen.getByRole("button", { name: "tactics.updateTactic" }));
+    rerender(<TacticsCommandBar {...props} isDirty={false} />);
+
+    expect(screen.queryByRole("button", { name: "tactics.tacticSaved" })).not.toBeInTheDocument();
+    await act(async () => answers[1](true));
+    expect(screen.getByRole("button", { name: "tactics.tacticSaved" })).toBeInTheDocument();
+  });
+
+  /**
+   * Given a save of tactic A that has not answered
+   * When the manager switches to another tactic, B, and A's answer then lands as saved
+   * Then no Saved cue shows on B.
+   */
+  it("shows no Saved cue on another tactic when a late save answers", async () => {
+    vi.useFakeTimers();
+    let answer: (saved: boolean) => void = () => {};
+    const onSave = vi.fn(() => new Promise<boolean>((resolve) => (answer = resolve)));
+    const otherTactic = { ...customTactic, id: "custom:other", name: "Other" };
+    const props = buildProps({
+      activeTactic: customTactic,
+      isDirty: true,
+      onSave,
+      tacticLibrary: [customTactic, otherTactic, presetTactic],
+    });
+    const { rerender } = render(<TacticsCommandBar {...props} />);
+    fireEvent.click(screen.getByRole("button", { name: "tactics.updateTactic" }));
+
+    rerender(<TacticsCommandBar {...props} activeTactic={otherTactic} isDirty={false} />);
+    await act(async () => answer(true));
+
+    expect(screen.queryByRole("button", { name: "tactics.tacticSaved" })).not.toBeInTheDocument();
+  });
+
+  /**
+   * Given a Saved cue showing
+   * When the screen is read by assistive technology
+   * Then the confirmation is in a polite live region, so it is announced.
+   */
+  it("announces the Saved cue in a polite status region", async () => {
+    vi.useFakeTimers();
+    const onSave = vi.fn().mockResolvedValue(true);
+    const props = buildProps({ activeTactic: customTactic, isDirty: true, onSave });
+    const { rerender } = render(<TacticsCommandBar {...props} />);
+    fireEvent.click(screen.getByRole("button", { name: "tactics.updateTactic" }));
+    await act(async () => {});
+    rerender(<TacticsCommandBar {...props} isDirty={false} />);
+
+    expect(screen.getByRole("status")).toHaveTextContent("tactics.tacticSaved");
+  });
+
   it("clears the Saved cue immediately when new edits make the tactic dirty again mid-cue", async () => {
     vi.useFakeTimers();
     const onSave = vi.fn().mockResolvedValue(true);
