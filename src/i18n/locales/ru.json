@@ -421,12 +421,6 @@
     "listViewTable": "Таблица",
     "listViewCards": "Карточки",
     "noResults": "Ничего не найдено.",
-    "place": {
-      "1": "1-е",
-      "2": "2-е",
-      "3": "3-е",
-      "other": "{{n}}-е"
-    },
     "pts": "О",
     "playedFull": "Игры",
     "wonFull": "Победы",

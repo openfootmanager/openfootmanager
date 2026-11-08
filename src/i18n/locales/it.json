@@ -440,12 +440,6 @@
     "listViewTable": "Tabella",
     "listViewCards": "Schede",
     "noResults": "Nessun risultato trovato.",
-    "place": {
-      "1": "1°",
-      "2": "2°",
-      "3": "3°",
-      "other": "{{n}}°"
-    },
     "pts": "Pt",
     "playedFull": "Giocate",
     "wonFull": "Vinte",

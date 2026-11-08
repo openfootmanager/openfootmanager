@@ -421,12 +421,6 @@
     "listViewTable": "Tabulka",
     "listViewCards": "Karty",
     "noResults": "Výsledky nenalezeny.",
-    "place": {
-      "1": "1.",
-      "2": "2.",
-      "3": "3.",
-      "other": "{{n}}."
-    },
     "pts": "Bod",
     "playedFull": "Zápasy",
     "wonFull": "Výhry",

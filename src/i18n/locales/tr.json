@@ -421,12 +421,6 @@
     "listViewTable": "Tablo",
     "listViewCards": "Kartlar",
     "noResults": "Sonuç bulunamadı.",
-    "place": {
-      "1": "1.",
-      "2": "2.",
-      "3": "3.",
-      "other": "{{n}}."
-    },
     "pts": "P",
     "playedFull": "Oynanan",
     "wonFull": "Galibiyet",

@@ -421,12 +421,6 @@
     "listViewTable": "Tabel",
     "listViewCards": "Kartu",
     "noResults": "Tidak ada hasil ditemukan.",
-    "place": {
-      "1": "ke-1",
-      "2": "ke-2",
-      "3": "ke-3",
-      "other": "ke-{{n}}"
-    },
     "pts": "Poin",
     "playedFull": "Main",
     "wonFull": "Menang",

@@ -421,12 +421,6 @@
     "listViewTable": "Tabla",
     "listViewCards": "Tarjetas",
     "noResults": "No se encontraron resultados.",
-    "place": {
-      "1": "1º",
-      "2": "2º",
-      "3": "3º",
-      "other": "{{n}}º"
-    },
     "pts": "Pts",
     "playedFull": "Jugados",
     "wonFull": "Ganados",

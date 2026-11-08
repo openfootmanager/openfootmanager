@@ -421,12 +421,6 @@
     "listViewTable": "表格",
     "listViewCards": "卡片",
     "noResults": "未找到结果。",
-    "place": {
-      "1": "第1",
-      "2": "第2",
-      "3": "第3",
-      "other": "第{{n}}"
-    },
     "pts": "积分",
     "playedFull": "已赛场次",
     "wonFull": "胜场",

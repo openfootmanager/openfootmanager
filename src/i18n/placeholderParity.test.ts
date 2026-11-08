@@ -7,11 +7,21 @@ import { LOCALE_FILES, NON_ENGLISH_LOCALES, type LocaleTree } from "./i18nTestHe
 // naturally differs by language ("21st place", "на 21-м месте", "第21位"). Both name the same
 // value, so a locale may use either; the backend sends only `position`, never an English suffix.
 const PLACE_ALIASES: Record<string, string> = { ordinal: "position" };
+// Only these keys write a finishing place; elsewhere `{{position}}` is a player's position and
+// `{{ordinal}}` is not an alias for it.
+const PLACE_KEYS = new Set([
+  "be.msg.seasonReview.body.topFour",
+  "be.msg.seasonReview.body.midTable",
+  "be.msg.seasonReview.body.lowerHalf",
+  "be.msg.seasonPayout.body",
+  "be.msg.seasonPayout.ledgerDescription",
+]);
 
-function placeholders(text: string): Set<string> {
+function placeholders(text: string, key: string): Set<string> {
   return new Set(
     [...text.matchAll(/\{\{\s*([^{}]+?)\s*\}\}/g)].map(
-      (match) => PLACE_ALIASES[match[1].trim()] ?? match[1].trim(),
+      (match) =>
+        (PLACE_KEYS.has(key) ? PLACE_ALIASES[match[1].trim()] : undefined) ?? match[1].trim(),
     ),
   );
 }
@@ -41,8 +51,8 @@ function placeholderDifferences(
     }
     if (typeof englishValue !== "string") return [];
 
-    const expected = placeholders(englishValue);
-    const actual = placeholders(typeof translatedValue === "string" ? translatedValue : "");
+    const expected = placeholders(englishValue, key);
+    const actual = placeholders(typeof translatedValue === "string" ? translatedValue : "", key);
     const missing = [...expected].filter((name) => !actual.has(name));
     const extra = [...actual].filter((name) => !expected.has(name));
     return missing.length > 0 || extra.length > 0
@@ -76,6 +86,11 @@ describe("locale interpolation placeholders", () => {
     expect(placeholderDifferences(en, tree("{{points}}"), "ru")).toEqual([
       "be.msg.seasonReview.body.topFour: missing [position], extra []",
     ]);
+    // Outside the five place keys `{{position}}` is a player's position: no alias there.
+    const elsewhere = (text: string) => ({ percentileGroup: text });
+    expect(
+      placeholderDifferences(elsewhere("{{ordinal}}"), elsewhere("{{position}}"), "ru"),
+    ).toEqual(["percentileGroup: missing [ordinal], extra [position]"]);
     expect(placeholderDifferences(en, tree("{{position}} {{surprise}}"), "fr")).toEqual([
       "be.msg.seasonReview.body.topFour: missing [points], extra [surprise]",
     ]);

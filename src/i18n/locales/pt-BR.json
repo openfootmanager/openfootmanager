@@ -421,12 +421,6 @@
     "listViewTable": "Tabela",
     "listViewCards": "Cartões",
     "noResults": "Nenhum resultado encontrado.",
-    "place": {
-      "1": "1º",
-      "2": "2º",
-      "3": "3º",
-      "other": "{{n}}º"
-    },
     "pts": "Pts",
     "playedFull": "Jogos",
     "wonFull": "Vitórias",
