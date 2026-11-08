@@ -15,6 +15,7 @@ import { Badge, Card, CardBody } from "../ui";
 interface AwardsCeremonyScreenProps {
   season: number;
   leagueName: string;
+  competitionId?: string | null;
   gameState: GameStateData;
   awards?: SeasonAwardsData;
   article?: NewsArticle;
@@ -44,6 +45,7 @@ interface ResolvedManagerWinner {
 export default function AwardsCeremonyScreen({
   season,
   leagueName,
+  competitionId,
   gameState,
   awards,
   article,
@@ -85,7 +87,12 @@ export default function AwardsCeremonyScreen({
             <h2 className="text-2xl font-heading font-bold uppercase tracking-wide text-gray-900 dark:text-gray-100">
               {t("awardsCeremony.subtitle", {
                 season,
-                league: localizeCompetitionName(leagueName, gameState.competitions, t),
+                league: localizeCompetitionName(
+                  leagueName,
+                  gameState.competitions,
+                  t,
+                  competitionId,
+                ),
               })}
             </h2>
           </div>

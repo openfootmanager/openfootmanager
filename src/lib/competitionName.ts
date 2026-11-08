@@ -2,6 +2,7 @@ type TranslateFn = (key: string, options?: Record<string, unknown>) => string;
 
 /** The fields needed to render a competition's display name. */
 export interface NamedCompetition {
+  id?: string;
   name?: string;
   name_key?: string | null;
   season?: number;
@@ -34,24 +35,15 @@ export function competitionDisplayName(comp: NamedCompetition, t: TranslateFn): 
   }).trim();
 }
 
-/**
- * A competition's name as a screen shows it when all it has is the name the backend stored (a
- * generated division is stored under its English template: "Germany First Division"): the
- * competition carrying that name supplies its key and country, so it reads as the others do. With
- * no such competition the stored name stands. Several editions can carry one name; the latest
- * edition's season is the one interpolated.
- */
+/** Resolve only the identified competition; names are not unique. */
 export function localizeCompetitionName(
   name: string,
   competitions: readonly NamedCompetition[] | undefined,
   t: TranslateFn,
+  competitionId?: string | null,
 ): string {
-  const carriers = (competitions ?? []).filter(
-    (competition) => competition.name === name && competition.name_key,
-  );
-  if (carriers.length === 0) return name;
-  const latest = carriers.reduce((best, next) =>
-    (next.season ?? 0) > (best.season ?? 0) ? next : best,
-  );
-  return competitionDisplayName(latest, t);
+  const competition = competitionId
+    ? competitions?.find((item) => item.id === competitionId)
+    : undefined;
+  return competition ? competitionDisplayName(competition, t) : name;
 }

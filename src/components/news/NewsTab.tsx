@@ -173,6 +173,7 @@ export default function NewsTab({ gameState, onSelectTeam }: NewsTabProps) {
         <AwardsCeremonyScreen
           season={seasonFromArticle(selectedArticle)}
           leagueName={leagueName}
+          competitionId={feed?.competition_id}
           gameState={gameState}
           article={selectedArticle}
           onBack={() => setSelectedId(null)}

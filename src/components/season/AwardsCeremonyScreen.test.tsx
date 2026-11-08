@@ -245,6 +245,7 @@ describe("AwardsCeremonyScreen", () => {
       <AwardsCeremonyScreen
         season={6}
         leagueName="Germany First Division"
+        competitionId="league-de"
         gameState={gameState}
         awards={createAwards()}
       />,

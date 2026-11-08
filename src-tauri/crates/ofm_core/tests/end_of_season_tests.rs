@@ -1668,6 +1668,7 @@ fn summary_reflects_the_users_division_when_not_in_the_primary_competition() {
     let summary = process_end_of_season(&mut game);
 
     assert_eq!(summary.league_name, "ENG Second Division");
+    assert_eq!(summary.competition_id, "eng-2");
     assert_eq!(summary.user_position, 1);
     assert_eq!(summary.champion_id, "team3");
     assert_eq!(summary.total_teams, 2);
