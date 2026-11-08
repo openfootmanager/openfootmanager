@@ -52,11 +52,49 @@ fn career() -> (Game, StatsState) {
     (game, stats)
 }
 
+fn assert_calendar_is_legal(game: &Game) {
+    use std::collections::BTreeMap;
+    let today = game.clock.current_date.date_naive();
+    let blackout =
+        ofm_core::national_team::international_blackout_around(&game.competitions, today);
+    let plan = ofm_core::calendar_reconcile::plan(
+        &game.competitions,
+        &blackout,
+        today.pred_opt().unwrap(),
+    )
+    .expect("the live calendar can be planned");
+    assert!(plan.moves.is_empty());
+    assert!(plan.dropped_friendlies.is_empty());
+    let mut dates = BTreeMap::<&str, Vec<chrono::NaiveDate>>::new();
+    for fixture in game.competitions.iter().flat_map(|c| &c.fixtures) {
+        if fixture.competition == domain::league::FixtureCompetition::InternationalNation {
+            continue;
+        }
+        let date = chrono::NaiveDate::parse_from_str(&fixture.date, "%Y-%m-%d").unwrap();
+        if date < today {
+            continue;
+        }
+        for club in [&fixture.home_team_id, &fixture.away_team_id] {
+            dates.entry(club).or_default().push(date);
+        }
+    }
+    for (club, mut club_dates) in dates {
+        club_dates.sort();
+        assert!(
+            club_dates
+                .windows(2)
+                .all(|pair| (pair[1] - pair[0]).num_days() >= 3),
+            "{club} is double booked"
+        );
+    }
+}
+
 /// Given a freshly generated career, when its calendar is checked as on load,
 /// then no fixtures move or disappear and no postponement is announced.
 #[test]
 fn a_new_career_needs_no_calendar_repair() {
     let (mut game, _) = career();
+    assert_calendar_is_legal(&game);
     let before = serde_json::to_value(&game.competitions).unwrap();
     let messages = game.messages.len();
     let changed = ofm_core::calendar_repair::repair_loaded_calendar(&mut game);
@@ -78,6 +116,7 @@ fn a_rolled_over_career_needs_no_calendar_repair() {
     }
     assert!(is_season_complete(&game));
     advance_to_next_season(&mut game).unwrap();
+    assert_calendar_is_legal(&game);
     let before = serde_json::to_value(&game.competitions).unwrap();
     let messages = game.messages.len();
     let changed = ofm_core::calendar_repair::repair_loaded_calendar(&mut game);
