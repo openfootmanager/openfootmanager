@@ -40,7 +40,7 @@ fn incomplete_name_pool_warnings(package: &WorldPackage) -> Vec<PackageError> {
     let mut countries: Vec<&String> = names
         .pools
         .iter()
-        .filter(|(_, pool)| pool.first_names.is_empty() || pool.last_names.is_empty())
+        .filter(|(_, pool)| !pool.is_usable())
         .map(|(country, _)| country)
         .collect();
     countries.sort();
