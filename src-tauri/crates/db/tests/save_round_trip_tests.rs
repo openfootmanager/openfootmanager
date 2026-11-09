@@ -19,7 +19,7 @@
 //! loses nothing); integers are compared exactly and only floats within a relative 1e-9 (one ulp of
 //! f64 text); the game saved has its calendar settled first, see [`settled_as_a_load_settles_it`].
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::sync::OnceLock;
 
 use chrono::{TimeZone, Utc};
@@ -161,6 +161,22 @@ fn differences(saved: &Value, loaded: &Value) -> Vec<Difference> {
                     .keys()
                     .chain(right.keys().filter(|key| !left.contains_key(*key)))
                 {
+                    // A key that is missing on one side is not a key that is null on it: a load
+                    // that loses a null-valued key has lost something.
+                    if left.contains_key(key) != right.contains_key(key) {
+                        found.push(Difference {
+                            path: format!("{path}.{key}"),
+                            saved: left
+                                .get(key)
+                                .cloned()
+                                .unwrap_or_else(|| Value::from("<missing>")),
+                            loaded: right
+                                .get(key)
+                                .cloned()
+                                .unwrap_or_else(|| Value::from("<missing>")),
+                        });
+                        continue;
+                    }
                     walk(
                         &format!("{path}.{key}"),
                         left.get(key).unwrap_or(&Value::Null),
@@ -225,8 +241,10 @@ fn differences(saved: &Value, loaded: &Value) -> Vec<Difference> {
 /// What the repairs a load makes found to repair in a game the game itself produced.
 struct LoadRepairs {
     /// Clashing unplayed matches moved to the earliest legal day and recorded as postponed
-    /// (`repair_loaded_calendar`): #1265.
+    /// (`repair_loaded_calendar`): #1265. The repair reports moved plus dropped; the fixtures it
+    /// dropped (ids gone after it) are counted apart, so a drop is not read as a move.
     calendar_moved: usize,
+    calendar_dropped: usize,
     /// Fixtures left scheduled in the past, played out by `repair_stranded_fixtures` ("no fixture
     /// stays Scheduled in the past" is an invariant the load enforces).
     stranded: usize,
@@ -244,11 +262,25 @@ fn settled_as_a_load_settles_it(game: &Game) -> (Game, LoadRepairs) {
     let mut settled = game.clone();
     ofm_core::finances::backfill_opening_balances(&mut settled);
     let stranded = ofm_core::catchup::repair_stranded_fixtures(&mut settled);
-    let calendar_moved = ofm_core::calendar_repair::repair_loaded_calendar(&mut settled);
+    let fixture_ids = |game: &Game| -> HashSet<String> {
+        game.competitions
+            .iter()
+            .flat_map(|competition| {
+                competition
+                    .fixtures
+                    .iter()
+                    .map(|fixture| fixture.id.clone())
+            })
+            .collect()
+    };
+    let before = fixture_ids(&settled);
+    let changed = ofm_core::calendar_repair::repair_loaded_calendar(&mut settled);
+    let calendar_dropped = before.difference(&fixture_ids(&settled)).count();
     (
         settled,
         LoadRepairs {
-            calendar_moved,
+            calendar_moved: changed.saturating_sub(calendar_dropped),
+            calendar_dropped,
             stranded,
         },
     )
@@ -511,7 +543,8 @@ fn known_bug_a_reload_reschedules_matches_the_live_game_scheduled() {
 
     assert!(
         moved_at_start > 0 && moved_after_two_seasons > 0,
-        "#1265: a reload moved {moved_at_start} fixtures at career start and {moved_after_two_seasons} after two seasons"
+        "#1265: a reload moved {moved_at_start} fixtures at career start and {moved_after_two_seasons} after two seasons (dropped after two seasons: {})",
+        rolled_over().repairs.calendar_dropped
     );
 }
 
@@ -550,4 +583,17 @@ fn a_reversed_archived_table_is_a_difference() {
     );
 
     assert!(!found.is_empty(), "a reversed final table compared equal");
+}
+
+/// Given a record that loses a key whose value was null,
+/// When the saved and the loaded record are compared, in either direction,
+/// Then the difference is reported: a missing key is not a null one.
+#[test]
+fn a_key_lost_with_a_null_value_is_a_difference() {
+    let with_key = serde_json::json!({"id": "p1", "retired": null});
+    let without_key = serde_json::json!({"id": "p1"});
+
+    assert_eq!(differences(&with_key, &without_key).len(), 1);
+    assert_eq!(differences(&without_key, &with_key).len(), 1);
+    assert!(differences(&with_key, &with_key).is_empty());
 }
