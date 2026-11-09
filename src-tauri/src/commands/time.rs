@@ -383,11 +383,12 @@ pub async fn advance_one_day<R: tauri::Runtime>(
     .await
 }
 
-fn count_messages_needing_attention(game: &Game) -> usize {
+fn messages_needing_attention(game: &Game) -> std::collections::HashSet<String> {
     game.messages
         .iter()
         .filter(|message| message.priority.needs_attention())
-        .count()
+        .map(|message| message.id.clone())
+        .collect()
 }
 
 /// Whether the day just processed produced something the user should pause on:
@@ -397,12 +398,12 @@ fn continue_reached_attention_event(
     transfer_status: &domain::season::TransferWindowStatus,
     opens_on: Option<&str>,
     today: &str,
-    attention_before: usize,
-    attention_after: usize,
+    attention_before: &std::collections::HashSet<String>,
+    attention_after: &std::collections::HashSet<String>,
 ) -> bool {
     *transfer_status == domain::season::TransferWindowStatus::DeadlineDay
         || opens_on == Some(today)
-        || attention_after > attention_before
+        || !attention_after.is_subset(attention_before)
 }
 
 #[tauri::command]
@@ -466,7 +467,7 @@ pub fn advance_to_next_event_internal(
                 return Step::MatchDay;
             }
 
-            let attention_before = count_messages_needing_attention(game);
+            let attention_before = messages_needing_attention(game);
 
             ofm_core::turn::process_day_with_capture(game, &mut |capture| {
                 captures.push(capture);
@@ -499,8 +500,8 @@ pub fn advance_to_next_event_internal(
                 &game.season_context.transfer_window.status,
                 game.season_context.transfer_window.opens_on.as_deref(),
                 &new_today,
-                attention_before,
-                count_messages_needing_attention(game),
+                &attention_before,
+                &messages_needing_attention(game),
             ) {
                 return Step::AdvancedThenStop;
             }
@@ -816,6 +817,47 @@ mod tests {
         message
     }
 
+    /// Given old attention mail and an exhausted squad on the first, when Continue processes
+    /// the day, then it stops for the new urgent warning even though old mail is archived.
+    #[test]
+    fn continue_stops_for_new_urgent_mail_when_old_attention_mail_is_archived() {
+        let mut game = make_game(22);
+        game.seed = 1;
+        game.clock = GameClock::new(Utc.with_ymd_and_hms(2025, 10, 1, 12, 0, 0).unwrap());
+        for player in game.players.iter_mut().skip(11) {
+            player.condition = 1;
+        }
+        let mut high = make_message("old-high", MessagePriority::High, true);
+        high.date = "2025-01-01".to_string();
+        let mut urgent = make_message("old-urgent", MessagePriority::Urgent, true);
+        urgent.date = "2025-01-01".to_string();
+        game.messages = vec![high, urgent];
+        for index in 0..50 {
+            let mut old = make_message(&format!("old-{index}"), MessagePriority::High, true);
+            old.date = "2025-01-01".to_string();
+            game.messages.push(old);
+        }
+        let state = StateManager::new();
+        state.set_game(game);
+        state.set_stats_state(StatsState::default());
+
+        let result =
+            super::advance_to_next_event_internal(&state, ofm_core::state::Career::Active).unwrap();
+        state
+            .get_game(|game| {
+                assert!(game.archived_messages.iter().any(|m| m.id == "old-high"));
+                assert!(game.archived_messages.iter().any(|m| m.id == "old-urgent"));
+                assert!(game
+                    .messages
+                    .iter()
+                    .any(|m| m.id == "fitness_warn_2025-10-01"
+                        && m.priority == MessagePriority::Urgent));
+            })
+            .unwrap();
+        assert_eq!(result["days_skipped"], 1);
+        assert_eq!(result["action"], "arrived", "{}", result["blockers"]);
+    }
+
     fn blocker_by_id<'a>(blockers: &'a [Value], id: &str) -> Option<&'a Value> {
         blockers
             .iter()
@@ -850,49 +892,49 @@ mod tests {
             &TransferWindowStatus::DeadlineDay,
             None,
             "2026-08-31",
-            0,
-            0,
+            &Default::default(),
+            &Default::default(),
         ));
         // The window's opening day stops.
         assert!(continue_reached_attention_event(
             &TransferWindowStatus::Open,
             Some("2026-07-01"),
             "2026-07-01",
-            0,
-            0,
+            &Default::default(),
+            &Default::default(),
         ));
         // A freshly arrived high-priority message stops.
         assert!(continue_reached_attention_event(
             &TransferWindowStatus::Closed,
             None,
             "2026-07-05",
-            1,
-            2,
+            &["old".to_string()].into_iter().collect(),
+            &["old".to_string(), "new".to_string()].into_iter().collect(),
         ));
         // A quiet day mid-window with no new mail keeps rolling.
         assert!(!continue_reached_attention_event(
             &TransferWindowStatus::Open,
             Some("2026-07-01"),
             "2026-07-10",
-            3,
-            3,
+            &["old".to_string()].into_iter().collect(),
+            &["old".to_string()].into_iter().collect(),
         ));
     }
 
     /// Whether a continue stops after a quiet day on which one unread message of `priority`
-    /// arrived, read the way the continue loop reads it: counted before the day and after.
+    /// arrived, compared by ID before and after the day.
     fn continue_stops_for_new_mail_of(priority: MessagePriority) -> bool {
         let mut game = make_game(11);
         game.messages.clear();
-        let before = super::count_messages_needing_attention(&game);
+        let before = super::messages_needing_attention(&game);
         game.messages
             .push(make_message("arrived-today", priority, false));
         continue_reached_attention_event(
             &TransferWindowStatus::Closed,
             None,
             "2025-06-16",
-            before,
-            super::count_messages_needing_attention(&game),
+            &before,
+            &super::messages_needing_attention(&game),
         )
     }
 
