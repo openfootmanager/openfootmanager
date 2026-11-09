@@ -385,6 +385,80 @@ mod line_familiarity_tests {
 
     const REFIT: [f64; 4] = [0.9, 0.95, 1.0, 0.9];
 
+    fn round_trip(mixed: bool) {
+        let mut home = side("h");
+        let names = if mixed {
+            [
+                "gk", "st", "cb1", "cb2", "rb", "lm", "cm1", "cm2", "rm", "lb", "st2",
+            ]
+        } else {
+            [
+                "gk", "lb", "cb1", "cb2", "rb", "lm", "cm1", "cm2", "rm", "st1", "st2",
+            ]
+        };
+        home.players = names
+            .iter()
+            .enumerate()
+            .map(|(i, name)| {
+                let position = match i {
+                    0 => Position::Goalkeeper,
+                    1..=4 => Position::Defender,
+                    5..=8 => Position::Midfielder,
+                    _ => Position::Forward,
+                };
+                let mut p = player(name, position);
+                if i == 1 {
+                    p.passing = 99;
+                    p.vision = 99;
+                    p.decisions = 99;
+                }
+                p
+            })
+            .collect();
+        let mut state = LiveMatchState::new(
+            home,
+            side("a"),
+            MatchConfig::default(),
+            vec![],
+            vec![],
+            false,
+        );
+        state.apply_formation(Side::Home, "3-5-2");
+        let intermediate: Vec<_> = state
+            .team(Side::Home)
+            .players
+            .iter()
+            .map(|p| p.id.as_str())
+            .collect();
+        assert_eq!(
+            intermediate,
+            [
+                names[0], names[2], names[3], names[4], names[1], names[5], names[6], names[7],
+                names[8], names[9], names[10]
+            ]
+        );
+        state.apply_formation(Side::Home, "4-4-2");
+        let restored: Vec<_> = state
+            .team(Side::Home)
+            .players
+            .iter()
+            .map(|p| p.id.as_str())
+            .collect();
+        assert_eq!(restored, names);
+    }
+
+    /// Given a natural 4-4-2, when it changes to 3-5-2 and back, then every slot is restored.
+    #[test]
+    fn natural_lineup_returns_to_its_slots_after_formation_round_trip() {
+        round_trip(false);
+    }
+
+    /// Given a mixed 4-4-2, when it changes to 3-5-2 and back, then every slot is restored.
+    #[test]
+    fn mixed_lineup_returns_to_its_slots_after_formation_round_trip() {
+        round_trip(true);
+    }
+
     /// Given a home defender in the eleven,
     /// When his familiarity is set,
     /// Then he carries it, and the away side's players do not.
