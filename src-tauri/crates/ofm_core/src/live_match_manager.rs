@@ -283,6 +283,20 @@ impl LiveMatchSession {
             self.refit_pre_match_swap(side, &off, &on, slot.as_ref());
             return Ok(());
         }
+        if let MatchCommand::Substitute {
+            side,
+            player_off_id,
+            player_on_id,
+        } = &cmd
+        {
+            let (side, off, on) = (*side, player_off_id.clone(), player_on_id.clone());
+            let slot = self.slot_of(side, &off);
+            self.match_state.apply_command(cmd)?;
+            if let Some(slot) = slot.as_ref() {
+                self.refit_swapped_in_role(side, &on, slot);
+            }
+            return Ok(());
+        }
         if let MatchCommand::ChangeFormation { side, formation } = &cmd {
             let side = *side;
             // The engine reads any string leniently ("4-5-1-x" plays 4, 5 and 1) while the
