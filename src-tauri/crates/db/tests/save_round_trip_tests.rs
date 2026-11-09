@@ -17,7 +17,8 @@
 //! session state that a load starts empty by design); and the stats state, read back with `load_stats_state`. Rules of the comparison:
 //! lists of records with an `id` are matched by id and counted (a load re-sorts the inbox, which
 //! loses nothing); integers are compared exactly and only floats within a relative 1e-9 (one ulp of
-//! f64 text); the game saved has its calendar settled first, see [`settled_as_a_load_settles_it`].
+//! f64 text); cash and stranded fixtures are normalized before comparison, but the calendar is
+//! saved as produced by the game so a load cannot silently reschedule it.
 
 use std::collections::{HashMap, HashSet};
 use std::sync::OnceLock;
@@ -255,9 +256,8 @@ struct LoadRepairs {
 /// - the cash journal: `backfill_opening_balances` gives every club the opening balance post a
 ///   journal that was never posted to does not have yet (the live game writes it with a club's
 ///   first post);
-/// - stranded fixtures, then the calendar, as in [`LoadRepairs`]. On a game the game itself just
-///   produced both should find nothing to do; they do (#1265, and see
-///   `known_bug_the_live_game_leaves_fixtures_scheduled_in_the_past`, #1321), and the counts are returned.
+/// - stranded fixtures, as in [`LoadRepairs`] (the remaining #1321 known bug). The calendar
+///   repair is measured on a separate clone: the actual round trip must detect any load-time move.
 fn settled_as_a_load_settles_it(game: &Game) -> (Game, LoadRepairs) {
     let mut settled = game.clone();
     ofm_core::finances::backfill_opening_balances(&mut settled);
@@ -273,9 +273,10 @@ fn settled_as_a_load_settles_it(game: &Game) -> (Game, LoadRepairs) {
             })
             .collect()
     };
-    let before = fixture_ids(&settled);
-    let changed = ofm_core::calendar_repair::repair_loaded_calendar(&mut settled);
-    let calendar_dropped = before.difference(&fixture_ids(&settled)).count();
+    let mut calendar_probe = settled.clone();
+    let before = fixture_ids(&calendar_probe);
+    let changed = ofm_core::calendar_repair::repair_loaded_calendar(&mut calendar_probe);
+    let calendar_dropped = before.difference(&fixture_ids(&calendar_probe)).count();
     (
         settled,
         LoadRepairs {
@@ -530,21 +531,34 @@ fn a_career_after_the_rollover_loads_back_unchanged() {
     );
 }
 
-/// KNOWN BUG #1265 (a reload reschedules matches). The settled calendar is only a harmless step if the game never leaves anything to settle. On a
-/// game the game itself just produced the repair moves fixtures, so a reload reschedules matches
-/// the live game scheduled and tells the user they were postponed (`save_manager.rs`). The count is
-/// measured below. Delete this test, and settle the calendar nowhere in this file, when the live
-/// scheduler stops building clashes.
+/// Given a freshly generated career, when the load-time calendar repair is measured, then it
+/// neither moves nor drops fixtures.
 #[test]
-fn known_bug_a_reload_reschedules_matches_the_live_game_scheduled() {
-    let (start, _) = career();
-    let moved_at_start = settled_as_a_load_settles_it(&start).1.calendar_moved;
-    let moved_after_two_seasons = rolled_over().repairs.calendar_moved;
+fn a_new_career_has_no_calendar_repairs() {
+    let (game, _) = career();
+    let repairs = settled_as_a_load_settles_it(&game).1;
+    assert_eq!(
+        repairs.calendar_moved, 0,
+        "#1265: fixtures moved at career start"
+    );
+    assert_eq!(
+        repairs.calendar_dropped, 0,
+        "#1265: fixtures dropped at career start"
+    );
+}
 
-    assert!(
-        moved_at_start > 0 && moved_after_two_seasons > 0,
-        "#1265: a reload moved {moved_at_start} fixtures at career start and {moved_after_two_seasons} after two seasons (dropped after two seasons: {})",
-        rolled_over().repairs.calendar_dropped
+/// Given a career played through two rollovers, when the load-time calendar repair is measured,
+/// then it neither moves nor drops fixtures.
+#[test]
+fn a_career_after_two_seasons_has_no_calendar_repairs() {
+    let repairs = &rolled_over().repairs;
+    assert_eq!(
+        repairs.calendar_moved, 0,
+        "#1265: fixtures moved after two seasons"
+    );
+    assert_eq!(
+        repairs.calendar_dropped, 0,
+        "#1265: fixtures dropped after two seasons"
     );
 }
 
