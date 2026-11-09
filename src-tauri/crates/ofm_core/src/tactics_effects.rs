@@ -82,14 +82,15 @@ mod tests {
             DomainPosition::RightMidfielder
         ));
         assert!(role(PlayerRole::InsideForward, DomainPosition::LeftWinger));
+        assert!(role(PlayerRole::PressingForward, DomainPosition::Striker));
     }
 
-    /// Given a Pressing Forward, whom no resolver reads but the AI's substitutions prefer for a
-    /// side that presses,
+    /// Given a Pressing Forward, whom the press reads up front and whom the AI's substitutions
+    /// prefer for a side that presses,
     /// When the screen asks about him in each line,
-    /// Then he changes the match up front, where the AI looks for him, and nowhere else.
+    /// Then he changes the match up front and nowhere else.
     #[test]
-    fn a_role_only_the_ai_reads_counts_in_the_line_it_reads_it_in() {
+    fn a_pressing_forward_counts_up_front_and_nowhere_else() {
         assert!(role(PlayerRole::PressingForward, DomainPosition::Striker));
         assert!(!role(
             PlayerRole::PressingForward,

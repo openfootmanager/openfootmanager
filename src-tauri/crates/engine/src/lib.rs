@@ -5,6 +5,8 @@ pub mod live_match;
 pub mod rating;
 pub mod report;
 pub(crate) mod shared;
+#[cfg(test)]
+pub(crate) mod test_support;
 pub mod types;
 
 // Re-export key types for convenience
