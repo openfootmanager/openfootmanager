@@ -152,17 +152,15 @@ fn migrate_single_save(
             }
         }
     }
+    ofm_core::league_stats_compat::upgrade_world_json(&mut json)
+        .map_err(|_| LEGACY_MIGRATION_FAILED_ERROR.to_string())?;
     let mut game: Game =
         serde_json::from_value(json).map_err(|_| LEGACY_MIGRATION_FAILED_ERROR.to_string())?;
 
     canonicalize_game_starting_xi_ids(&mut game);
     player_identity::upgrade_loaded_player_identities(&mut game);
     ofm_core::football_identity::upgrade_game_football_identities(&mut game);
-    // A legacy save has no league-only stats: read its season so far as the league season, as
-    // the player repository does for a row saved before the column.
-    for player in &mut game.players {
-        player.league_stats = player.stats.clone();
-    }
+    game.promote_legacy_league();
 
     save_manager.create_save(&game, &row.name)
 }
@@ -322,7 +320,16 @@ mod tests {
         json["players"][0]["stats"] = serde_json::json!({ "appearances": 9, "goals": 7 });
         if let Some(player) = json["players"][0].as_object_mut() {
             player.remove("league_stats");
+            player.remove("league_stats_by_competition");
         }
+        json["players"][0]["team_id"] = serde_json::json!("team-001");
+        json["league"] = serde_json::to_value(domain::league::League::new(
+            "legacy-league".into(),
+            "League".into(),
+            2026,
+            &["team-001".into()],
+        ))
+        .unwrap();
         serde_json::to_string(&json).expect("legacy game json should serialize")
     }
 
@@ -705,7 +712,10 @@ mod tests {
         let loaded = sm.load_game(&save_id).unwrap();
         let player = loaded.players.iter().find(|p| p.id == "p-001").unwrap();
         assert_eq!(
-            (player.league_stats.appearances, player.league_stats.goals),
+            (
+                player.league_stats_by_competition["legacy-league"].appearances,
+                player.league_stats_by_competition["legacy-league"].goals
+            ),
             (9, 7)
         );
     }

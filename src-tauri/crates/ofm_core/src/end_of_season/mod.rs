@@ -1,12 +1,14 @@
+mod club_league;
+mod player_statistics;
 use crate::game::Game;
 use crate::season_awards::compute_division_season_awards;
 use chrono::{DateTime, Datelike, Duration, Utc};
+pub use club_league::{club_league_table, club_league_table_in, followed_club, user_division};
 use domain::league::{
     CompetitionFormat, CompetitionScope, CompetitionType, FixtureStatus, League, StandingEntry,
 };
 use domain::manager::Manager;
 use domain::message::*;
-use domain::player::PlayerSeasonStats;
 use domain::staff::{Staff, StaffAttributes, StaffRole};
 use domain::team::{FinancialTransaction, FinancialTransactionKind, TeamSeasonRecord};
 
@@ -764,36 +766,6 @@ fn manage_international_calendar(
     crate::world::foundations::place_club_calendar(game, &blackout, retained);
 }
 
-/// The club whose league the user follows: his own, or, for a manager out of work, the last club
-/// he managed (maintainer, 5 Nov 2026), so a sacked manager reads the awards, summary, preview and
-/// news of the league he left. None for a manager who has never had a club.
-pub fn followed_club(game: &Game) -> Option<&str> {
-    game.manager
-        .team_id
-        .as_deref()
-        .or_else(|| game.manager.last_club())
-}
-
-/// The league-table competition the screens show as the user's: [`followed_club`]'s. It used to take
-/// the user's club, so for a manager out of work it fell to the `game.league` mirror, which with no
-/// club is the world's first competition: a sacked manager from England read Argentina's awards
-/// (#1270).
-///
-/// A manager who has never had a club follows none (maintainer, 8 Nov 2026), so the preview, the
-/// awards and the summary show nothing for him. A followed club in no league table shows nothing
-/// too, except in a legacy save with no `competitions`, whose only league is the mirror: in a
-/// modern world the mirror is the world's first competition, a league the club has nothing to do
-/// with. The season's rollover is a separate question, [`rollover_division`].
-pub fn user_division(game: &Game) -> Option<&League> {
-    let club = followed_club(game)?;
-    club_league_table(game, club).or_else(|| {
-        game.competitions
-            .is_empty()
-            .then_some(game.league.as_ref())
-            .flatten()
-    })
-}
-
 /// The division the season's rollover finishes on: the user's, else a world league, or the legacy
 /// mirror. A manager with no followed league still needs the world season to roll over; the mirror
 /// alone may point at a cup in a modern world.
@@ -805,32 +777,6 @@ fn rollover_division(game: &Game) -> Option<&League> {
                 .find(|competition| competition.rules.format == CompetitionFormat::LeagueTable)
         })
         .or(game.league.as_ref())
-}
-
-/// The league table a club contests, for any club. `None` when no league table lists it (a cup
-/// has no table).
-///
-/// A split-season country runs a club through more than one table. Take the one the year
-/// ended on — the same one the payout and the club's record are taken from — or the summary
-/// crowns them from one half while they are paid for the other.
-pub fn club_league_table<'a>(game: &'a Game, club_id: &str) -> Option<&'a League> {
-    let contains_club = |competition: &League| {
-        competition.rules.format == CompetitionFormat::LeagueTable
-            && (competition.participant_ids.iter().any(|id| id == club_id)
-                || competition
-                    .standings
-                    .iter()
-                    .any(|standing| standing.team_id == club_id))
-    };
-
-    game.competitions
-        .iter()
-        .filter(|competition| contains_club(competition))
-        .max_by(|left, right| {
-            division_finished_on(left)
-                .cmp(&division_finished_on(right))
-                .then_with(|| right.priority.cmp(&left.priority))
-        })
 }
 
 /// Send a board message when the user's club starts the new season in a
@@ -1169,11 +1115,7 @@ pub fn process_end_of_season(game: &mut Game) -> EndOfSeasonSummary {
 
     apply_season_end_squad_turnover(game, game.clock.current_date.date_naive(), season);
 
-    for player in game.players.iter_mut() {
-        // Reset stats for next season
-        player.stats = PlayerSeasonStats::default();
-        player.league_stats = PlayerSeasonStats::default();
-    }
+    player_statistics::reset_for_new_season(game);
 
     // 5b. Convert retired players to unemployed manager/scout candidates, then
     //     ensure the unemployed pools meet the season-end floor.
