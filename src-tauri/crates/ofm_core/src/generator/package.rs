@@ -4490,6 +4490,32 @@ colors:
         std::fs::remove_dir_all(&dir).ok();
     }
 
+    /// Given a names file whose `items` is not a list and whose `pools` is not a map
+    /// When it is loaded
+    /// Then both halves are read as entities and both are reported, each against this file: the
+    ///      file as written, and its own pools without `items`, as `--append-to` would split it
+    #[test]
+    fn a_names_file_with_non_list_items_and_malformed_pools_reports_both_halves() {
+        let dir = temp_package();
+        write(
+            &dir,
+            "names/odd.json",
+            r#"{ "schema": "names", "pools": 5, "items": 3 }"#,
+        );
+
+        let (package, errors) = load_world_package_files(&dir);
+
+        let invalid: Vec<&PackageError> =
+            errors.iter().filter(|e| e.code == INVALID_ENTITY).collect();
+        assert_eq!(invalid.len(), 2, "{errors:?}");
+        assert!(
+            invalid.iter().all(|e| e.file == "names/odd.json"),
+            "{invalid:?}"
+        );
+        assert!(package.names.is_none(), "neither half is a usable pool set");
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
     /// Given one names file whose top-level `pools` and `items` both give England, with different names
     /// When it is loaded
     /// Then the top-level `pools` win: they are folded in after the `items`.
