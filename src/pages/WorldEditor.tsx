@@ -18,7 +18,6 @@ import {
 import { useUndoRedo } from "../hooks/useUndoRedo";
 import { useEntityEditor } from "../hooks/useEntityEditor";
 import { useNamesPoolEditor } from "../hooks/useNamesPoolEditor";
-import { createWriteQueue } from "../lib/writeQueue";
 import type {
   CompetitionDef,
   ConfederationDef,
@@ -36,6 +35,13 @@ import type { SamplePackage } from "../components/menu/PackageEditor/sampleData"
 import { WorldEditorLayout } from "../components/worldEditor/WorldEditorLayout";
 import { WorldEditorTopBar, type SaveState } from "../components/worldEditor/WorldEditorTopBar";
 import { findingsToShow } from "../components/worldEditor/validationOutcome";
+import { savePackageProject, validatePackageProject } from "../services/packageEditorService";
+import {
+  hasUnsavedChanges,
+  type Acknowledged,
+  type EditorCollections,
+} from "../components/worldEditor/savePlan";
+import { createSaveSession } from "../components/worldEditor/saveSession";
 import { WorldEditorSidebar } from "../components/worldEditor/WorldEditorSidebar";
 import {
   WorldEditorFormPanel,
@@ -104,7 +110,10 @@ export default function WorldEditor() {
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [saveState, setSaveState] = useState<SaveState>("idle");
-  const [isDirty, setIsDirty] = useState(false);
+  // What the backend last acknowledged writing, per collection (null before a project is open).
+  // "Unsaved" is derived by comparing it with what the editor holds now, so a save finishing late,
+  // failing, or racing another edit can never mark newer work as saved.
+  const [acknowledged, setAcknowledged] = useState<Acknowledged | null>(null);
 
   // Auto-save
   const [autoSave, setAutoSave] = useState<boolean>(readAutoSave);
@@ -143,6 +152,19 @@ export default function WorldEditor() {
     competitions,
   };
 
+  // One session per page: its queue, project generation and acknowledged state outlive renders.
+  const saveSessionRef = useRef<ReturnType<typeof createSaveSession> | null>(null);
+  if (saveSessionRef.current === null) {
+    saveSessionRef.current = createSaveSession({
+      current: () => stateRef.current,
+      send: (dir, collections) => savePackageProject({ dir, collections }),
+      onChange: setAcknowledged,
+    });
+  }
+  const saveSession = saveSessionRef.current;
+
+  const isDirty = acknowledged !== null && hasUnsavedChanges(stateRef.current, acknowledged);
+
   /**
    * The undo snapshot, read through `stateRef` rather than this render's state.
    * An asset pick calls back after awaiting a native file dialog, so a snapshot
@@ -162,7 +184,6 @@ export default function WorldEditor() {
     setStaff(snapshot.staff);
     setNames(snapshot.names);
     setCompetitions(snapshot.competitions);
-    setIsDirty(true);
     // Sync each editor's in-progress buffer from the restored snapshot so
     // the open form shows post-undo values rather than pre-undo ones.
     // Safe forward reference: applySnapshot is only called from keyboard
@@ -185,7 +206,6 @@ export default function WorldEditor() {
     getSnapshot: currentSnapshot,
     applySnapshot,
     enabled: !!projectDir,
-    onDirty: () => setIsDirty(true),
   });
 
   const captureHistory = () => pushHistory(currentSnapshot());
@@ -205,26 +225,37 @@ export default function WorldEditor() {
   }
 
   function loadProjectState(data: PackageProjectData) {
-    setMeta(data.meta);
-    setConfederations(data.confederations);
-    setCountries(data.countries);
     // Coerce play styles the engine no longer knows (packages authored when
     // the editor still offered "Pressing"), so the value the user sees is the
     // value that gets saved.
-    setTeams(
-      data.teams.map((team) => ({
-        ...team,
-        playStyle: normalizePlayStyle(team.playStyle),
-      })),
-    );
+    const loadedTeams = data.teams.map((team) => ({
+      ...team,
+      playStyle: normalizePlayStyle(team.playStyle),
+    }));
+    const loadedStaff = data.staff ?? [];
+    const loadedNames = data.names ?? emptyNamesDefinition();
+    setMeta(data.meta);
+    setConfederations(data.confederations);
+    setCountries(data.countries);
+    setTeams(loadedTeams);
     setPlayers(data.players);
-    setStaff(data.staff ?? []);
-    setNames(data.names ?? emptyNamesDefinition());
+    setStaff(loadedStaff);
+    setNames(loadedNames);
     setCompetitions(data.competitions);
     setIssues(data.issues);
     setWarnings(data.warnings ?? []);
     clearHistory();
-    setIsDirty(false);
+    // The very values now held, so a freshly opened project has nothing unsaved.
+    saveSession.openProject({
+      meta: data.meta,
+      confederations: data.confederations,
+      countries: data.countries,
+      teams: loadedTeams,
+      players: data.players,
+      staff: loadedStaff,
+      names: loadedNames,
+      competitions: data.competitions,
+    });
   }
 
   function addRecentProject(path: string, name: string) {
@@ -243,47 +274,24 @@ export default function WorldEditor() {
     });
   }
 
-  // Serializes save_package_project writes so concurrent saves can't interleave
-  // full-file writes or let an older write land after a newer one.
-  const enqueueWrite = useRef(createWriteQueue()).current;
-
   const persist = useCallback(
-    (overrides?: {
-      meta?: WorldMetaDef;
-      confederations?: ConfederationDef[];
-      countries?: CountryDef[];
-      teams?: TeamDef[];
-      players?: PlayerDef[];
-      staff?: StaffDef[];
-      names?: NamesDefinition;
-      competitions?: CompetitionDef[];
-    }) =>
-      enqueueWrite(async () => {
-        const s = stateRef.current;
-        setSaveState("saving");
-        try {
-          await invoke("save_package_project", {
-            dir: projectDir,
-            meta: overrides?.meta ?? s.meta,
-            confederations: overrides?.confederations ?? s.confederations,
-            countries: overrides?.countries ?? s.countries,
-            teams: overrides?.teams ?? s.teams,
-            players: overrides?.players ?? s.players,
-            staff: overrides?.staff ?? s.staff,
-            names: overrides?.names ?? s.names,
-            competitions: overrides?.competitions ?? s.competitions,
-          });
-          setSaveState("saved");
-          setIsDirty(false);
-          setTimeout(() => setSaveState("idle"), 2000);
-        } catch (err) {
-          setSaveState("error");
-          flashError(resolveBackendError(err));
-          throw err;
+    async (overrides?: Partial<EditorCollections>) => {
+      setSaveState("saving");
+      try {
+        const outcome = await saveSession.save(projectDir, overrides);
+        if (outcome === "stale") {
+          setSaveState("idle");
+          return;
         }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-      }),
-    [projectDir],
+        setSaveState("saved");
+        setTimeout(() => setSaveState("idle"), 2000);
+      } catch (err) {
+        setSaveState("error");
+        flashError(resolveBackendError(err));
+        throw err;
+      }
+    },
+    [projectDir, saveSession],
   );
 
   function handleToggleAutoSave() {
@@ -334,16 +342,18 @@ export default function WorldEditor() {
     try {
       const dir = await invoke<string>("create_world_project", { slug: newMeta.id, meta: newMeta });
       if (sample) {
-        await invoke("save_package_project", {
+        await savePackageProject({
           dir,
-          meta: newMeta,
-          confederations: sample.confederations,
-          countries: sample.countries,
-          teams: sample.teams,
-          players: sample.players,
-          staff: sample.staff ?? [],
-          names: sample.names,
-          competitions: sample.competitions,
+          collections: {
+            meta: newMeta,
+            confederations: sample.confederations,
+            countries: sample.countries,
+            teams: sample.teams,
+            players: sample.players,
+            staff: sample.staff ?? [],
+            names: sample.names,
+            competitions: sample.competitions,
+          },
         });
       }
       const data = await invoke<PackageProjectData>("read_package_project", { dir });
@@ -424,7 +434,7 @@ export default function WorldEditor() {
     setIsBusy(true);
     try {
       await persist();
-      const data = await invoke<PackageProjectData>("read_package_project", { dir: projectDir });
+      const data = await validatePackageProject(projectDir);
       setIssues(data.issues);
       setWarnings(data.warnings ?? []);
       // An explicit Validate shows what it found, warnings included.
@@ -511,7 +521,6 @@ export default function WorldEditor() {
     onOpen: () => setFormPanel("team"),
     onClose: () => setFormPanel("empty"),
     setIsBusy,
-    onDirty: () => setIsDirty(true),
   });
 
   const confEditor = useEntityEditor({
@@ -524,7 +533,6 @@ export default function WorldEditor() {
     onOpen: () => setFormPanel("confederation"),
     onClose: () => setFormPanel("empty"),
     setIsBusy,
-    onDirty: () => setIsDirty(true),
   });
 
   const countryEditor = useEntityEditor({
@@ -537,7 +545,6 @@ export default function WorldEditor() {
     onOpen: () => setFormPanel("country"),
     onClose: () => setFormPanel("empty"),
     setIsBusy,
-    onDirty: () => setIsDirty(true),
   });
 
   const playerEditor = useEntityEditor({
@@ -550,7 +557,6 @@ export default function WorldEditor() {
     onOpen: () => setFormPanel("player"),
     onClose: () => setFormPanel("empty"),
     setIsBusy,
-    onDirty: () => setIsDirty(true),
   });
 
   const youthEditor = useEntityEditor({
@@ -563,7 +569,6 @@ export default function WorldEditor() {
     onOpen: () => setFormPanel("youth"),
     onClose: () => setFormPanel("empty"),
     setIsBusy,
-    onDirty: () => setIsDirty(true),
   });
 
   const staffEditor = useEntityEditor({
@@ -576,7 +581,6 @@ export default function WorldEditor() {
     onOpen: () => setFormPanel("staff"),
     onClose: () => setFormPanel("empty"),
     setIsBusy,
-    onDirty: () => setIsDirty(true),
   });
 
   const compEditor = useEntityEditor({
@@ -589,7 +593,6 @@ export default function WorldEditor() {
     onOpen: () => setFormPanel("competition"),
     onClose: () => setFormPanel("empty"),
     setIsBusy,
-    onDirty: () => setIsDirty(true),
   });
 
   // ---------------------------------------------------------------------------
@@ -730,14 +733,10 @@ export default function WorldEditor() {
             isBusy={isBusy}
             projectDir={projectDir}
             meta={meta}
-            onMetaChange={(m) => {
-              setMeta(m);
-              setIsDirty(true);
-            }}
+            onMetaChange={(m) => setMeta(m)}
             onMetaCommit={(m) => {
               pushHistory(currentSnapshot());
               setMeta(m);
-              setIsDirty(true);
               if (autoSave) void persist({ meta: m }).catch(() => {});
             }}
             onSaveMetadata={() => {

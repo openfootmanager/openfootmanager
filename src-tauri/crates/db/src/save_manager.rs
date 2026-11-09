@@ -582,7 +582,13 @@ impl SaveManager {
             needs_resave = true;
         }
 
-        if player_identity::upgrade_game_player_identities(&mut game) {
+        let missing_weak_foot = db.needs_weak_foot_backfill()?;
+        let identity_changed = if missing_weak_foot {
+            player_identity::upgrade_game_player_identities(&mut game)
+        } else {
+            player_identity::upgrade_loaded_player_identities(&mut game)
+        };
+        if identity_changed || missing_weak_foot {
             needs_resave = true;
         }
 
@@ -2389,6 +2395,131 @@ mod tests {
         let retired = loaded.retired_players[0].to_player();
         assert!(retired.retired);
         assert_eq!(retired.team_id, None);
+    }
+
+    /// Given a developed goalkeeper whose stored weak foot differs from today's inference,
+    /// when the career is saved and loaded by a fresh manager, then the value survives.
+    #[test]
+    fn a_developed_players_weak_foot_survives_a_save_and_reload() {
+        let dir = tempfile::tempdir().unwrap();
+        let saves_dir = dir.path().join("saves");
+        let mut manager = SaveManager::init(&saves_dir).unwrap();
+        let mut game = sample_game();
+        let mut player =
+            make_lineup_player("developed-keeper", Position::Goalkeeper, Footedness::Right);
+        player.weak_foot = 2;
+        game.players.push(player);
+        let save_id = manager.create_save(&game, "Developed player").unwrap();
+        drop(manager);
+
+        let mut reader = SaveManager::init(&saves_dir).unwrap();
+        let loaded = reader.load_game(&save_id).unwrap();
+        let player = loaded
+            .players
+            .iter()
+            .find(|p| p.id == "developed-keeper")
+            .unwrap();
+        assert_eq!(player.weak_foot, 2);
+    }
+
+    /// Given a non-default weak foot, when saved and reloaded, then SQLite retains it.
+    #[test]
+    fn a_non_default_weak_foot_survives_sqlite_reload() {
+        let dir = tempfile::tempdir().unwrap();
+        let saves_dir = dir.path().join("saves");
+        let mut manager = SaveManager::init(&saves_dir).unwrap();
+        let mut game = sample_game();
+        let mut player =
+            make_lineup_player("weak-foot-one", Position::Goalkeeper, Footedness::Right);
+        player.weak_foot = 1;
+        game.players.push(player);
+        let id = manager.create_save(&game, "Career").unwrap();
+        drop(manager);
+        let mut reader = SaveManager::init(&saves_dir).unwrap();
+        let loaded = reader.load_game(&id).unwrap();
+        assert_eq!(
+            loaded
+                .players
+                .iter()
+                .find(|p| p.id == "weak-foot-one")
+                .unwrap()
+                .weak_foot,
+            1
+        );
+        let db = GameDatabase::open(&saves_dir.join(format!("{id}.db"))).unwrap();
+        let persisted = GamePersistenceReader::read_game(&db).unwrap();
+        assert_eq!(
+            persisted
+                .players
+                .iter()
+                .find(|p| p.id == "weak-foot-one")
+                .unwrap()
+                .weak_foot,
+            1
+        );
+    }
+
+    /// Given a pre-v11 save without weak-foot data, when loaded, then the old inference runs.
+    #[test]
+    fn a_pre_v11_save_backfills_the_missing_weak_foot() {
+        let dir = tempfile::tempdir().unwrap();
+        let saves_dir = dir.path().join("saves");
+        let mut manager = SaveManager::init(&saves_dir).unwrap();
+        let mut game = sample_game();
+        let player = make_lineup_player("legacy-keeper", Position::Goalkeeper, Footedness::Right);
+        game.players.push(player);
+        let id = manager.create_save(&game, "Career").unwrap();
+        let path = saves_dir.join(format!("{id}.db"));
+        let old_path = dir.path().join("old.db");
+        let mut old = rusqlite::Connection::open(&old_path).unwrap();
+        crate::migrations::all_migrations()
+            .to_version(&mut old, 10)
+            .unwrap();
+        old.execute("ATTACH DATABASE ?1 AS source", [path.to_str().unwrap()])
+            .unwrap();
+        let tables: Vec<String> = old.prepare("SELECT name FROM main.sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'").unwrap()
+            .query_map([], |row| row.get(0)).unwrap().map(Result::unwrap).collect();
+        for table in tables {
+            let columns: Vec<String> = old
+                .prepare(&format!("PRAGMA main.table_info(\"{table}\")"))
+                .unwrap()
+                .query_map([], |row| row.get::<_, String>(1))
+                .unwrap()
+                .map(Result::unwrap)
+                .collect();
+            let names = columns
+                .iter()
+                .map(|name| format!("\"{name}\""))
+                .collect::<Vec<_>>()
+                .join(", ");
+            old.execute_batch(&format!(
+                "INSERT INTO main.\"{table}\" ({names}) SELECT {names} FROM source.\"{table}\""
+            ))
+            .unwrap();
+        }
+        drop(old);
+        std::fs::copy(old_path, &path).unwrap();
+        // Metadata access can migrate the database before the career is loaded.
+        drop(GameDatabase::open(&path).unwrap());
+        let loaded = manager.load_game(&id).unwrap();
+        let player = loaded
+            .players
+            .iter()
+            .find(|p| p.id == "legacy-keeper")
+            .unwrap();
+        assert_eq!(player.weak_foot, 3);
+        let db = GameDatabase::open(&path).unwrap();
+        assert!(!db.needs_weak_foot_backfill().unwrap());
+        assert_eq!(
+            GamePersistenceReader::read_game(&db)
+                .unwrap()
+                .players
+                .iter()
+                .find(|p| p.id == "legacy-keeper")
+                .unwrap()
+                .weak_foot,
+            3
+        );
     }
 
     #[test]
