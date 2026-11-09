@@ -6,7 +6,7 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 
-use domain::age::age_on_or_unknown;
+use domain::age::{age_on, age_on_or_unknown};
 use domain::league::FixtureStatus;
 use domain::message::InboxMessage;
 use domain::player::{Player, Position, SquadRole};
@@ -734,12 +734,18 @@ impl SeasonObserver for SupplyWatch {
             };
             recruits += 1;
             *recruits_by_club.entry(club).or_default() += 1;
-            let age = age_on_or_unknown(today, &player.date_of_birth);
-            if !(14..=ofm_core::roster::YOUTH_ACADEMY_MAX_AGE).contains(&age) {
-                self.recruits_outside_the_band.push(format!(
-                    "[season {season}] {} is {age} at {club}",
-                    player.id
-                ));
+            match age_on(today, &player.date_of_birth) {
+                None => self.recruits_outside_the_band.push(format!(
+                    "[season {season}] {} at {club} has an unreadable birth date {:?}",
+                    player.id, player.date_of_birth
+                )),
+                Some(age) if !(14..=ofm_core::roster::YOUTH_ACADEMY_MAX_AGE).contains(&age) => {
+                    self.recruits_outside_the_band.push(format!(
+                        "[season {season}] {} is {age} at {club}",
+                        player.id
+                    ));
+                }
+                Some(_) => {}
             }
         }
         let mut ages: Vec<i32> = game
@@ -764,8 +770,9 @@ impl SeasonObserver for SupplyWatch {
 /// Given generated worlds from three seeds,
 /// When each is played through ten seasons,
 /// Then the world is replaced as fast as it loses people (its player count does not fall every
-///      season), every recruit joins an academy inside the youth band, and most clubs take an intake
-///      each season (#528: "youth intake for every club, so the world replaces who it loses").
+///      season, falls below 90% of the start or ends below it), every recruit joins an academy
+///      inside the youth band with a readable birth date, and at least nine in ten clubs take an
+///      intake each season (#528: "youth intake for every club, so the world replaces who it loses").
 ///      The series (players, recruits, clubs taking one, median age at clubs) is printed.
 #[test]
 #[ignore = "nightly tier"]
@@ -798,6 +805,17 @@ fn ten_seasons_keep_the_world_supplied_by_the_youth_intake() {
             counts.windows(2).any(|pair| pair[1] >= pair[0]),
             "seed {seed}: the player count fell every season: {counts:?}"
         );
+        // Measured on all three seeds (3 563 to 3 744 players at the start): the count never fell
+        // below 96.8% of the start and ended 6 to 10% above it.
+        let floor = start * 9 / 10;
+        assert!(
+            counts.iter().all(|count| *count >= floor),
+            "seed {seed}: the player count fell below 90% of the start ({start}): {counts:?}"
+        );
+        assert!(
+            counts.last().is_some_and(|last| *last >= start),
+            "seed {seed}: ten seasons ended with fewer players than the {start} at the start: {counts:?}"
+        );
         assert!(
             watch.recruits_outside_the_band.is_empty(),
             "seed {seed}: recruits outside the youth band:\n{}",
@@ -805,7 +823,7 @@ fn ten_seasons_keep_the_world_supplied_by_the_youth_intake() {
         );
         for season in &watch.seasons {
             assert!(
-                season.clubs_with_recruits * 2 >= season.clubs,
+                season.clubs_with_recruits * 10 >= season.clubs * 9,
                 "seed {seed} season {}: only {} of {} clubs took an intake",
                 season.season,
                 season.clubs_with_recruits,
