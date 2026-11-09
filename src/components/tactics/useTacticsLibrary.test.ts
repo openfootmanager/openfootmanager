@@ -614,6 +614,41 @@ describe("useTacticsLibrary saving and applying the whole tactic (#1189)", () =>
   });
 
   /**
+   * Given two creates queued while the first save is pending
+   * When both saves and both recovery reloads fail
+   * Then neither unconfirmed tactic remains in the library.
+   */
+  it("restores the confirmed library after consecutive failed creates", async () => {
+    const firstSave = deferred<void>();
+    let lists = 0;
+    let saves = 0;
+    mockedInvoke.mockReset();
+    mockedInvoke.mockImplementation(async (command: string) => {
+      if (command === "list_custom_tactics") {
+        if (++lists > 1) throw new Error("reload failed");
+        return [];
+      }
+      if (command === "legacy_tactics_import_pending") return false;
+      if (command === "save_current_tactic") {
+        if (++saves === 1) await firstSave.promise;
+        throw new Error("save failed");
+      }
+      return { modified: false };
+    });
+    const { result } = renderLibrary(careerGame);
+    await waitFor(() => expect(callsTo("legacy_tactics_import_pending")).toHaveLength(1));
+
+    act(() => result.current.handleCreateCustomTactic());
+    await waitFor(() => expect(saves).toBe(1));
+    act(() => result.current.handleCreateCustomTactic());
+    expect(customIds(result)).toHaveLength(2);
+    await act(async () => firstSave.resolve());
+
+    await waitFor(() => expect(lists).toBe(3));
+    await waitFor(() => expect(customIds(result)).toEqual([]));
+  });
+
+  /**
    * Given a save that accepts a made tactic
    * When the player makes one
    * Then the screen is told a write saved (so it drops an earlier alert), and no error is reported.

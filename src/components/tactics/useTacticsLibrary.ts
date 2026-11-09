@@ -100,6 +100,12 @@ export function useTacticsLibrary({
   // not put its older list over the save's newer one. Each step's reply is the whole list, so the
   // last step to finish is the library as the save has it.
   const savesInOrder = useRef<Promise<void>>(Promise.resolve());
+  const confirmedLibrary = useRef<{ epoch: number; entries: TacticsLibraryEntry[] } | null>(null);
+  function confirmLibrary(tactics: CustomTactic[], epoch: number): TacticsLibraryEntry[] {
+    const entries = toLibraryEntries(tactics);
+    confirmedLibrary.current = { epoch, entries };
+    return entries;
+  }
   // The commands act on whichever game is active, and carry no career with them. A step still
   // waiting in the queue when the career changes (another game loaded or the game left) would
   // write one career's tactic into the next, so each step remembers the store's career epoch it
@@ -116,6 +122,7 @@ export function useTacticsLibrary({
       .then(async () => {
         if (stale()) return;
         let tactics = await listCustomTactics();
+        if (!stale()) confirmLibrary(tactics, askedIn);
         // Once per career: the save records that the old browser library was copied in, so a
         // tactic the player has since deleted is not copied back from the browser's key.
         if (await legacyTacticsImportPending()) {
@@ -125,13 +132,15 @@ export function useTacticsLibrary({
             tactics,
             async (tactic) => {
               if (stale()) throw new Error("the career changed");
-              return saveCustomTactic(tactic, careerToken);
+              const saved = await saveCustomTactic(tactic, careerToken);
+              if (!stale()) confirmLibrary(saved, askedIn);
+              return saved;
             },
           );
           tactics = imported.tactics;
           if (imported.complete && !stale()) await markLegacyTacticsImported(careerToken);
         }
-        if (!stale()) setCustomTactics(toLibraryEntries(tactics));
+        if (!stale()) setCustomTactics(confirmLibrary(tactics, askedIn));
       })
       .catch(() => {});
   }, [managerId, careerStartDate, careerEpoch, careerToken]);
@@ -154,13 +163,16 @@ export function useTacticsLibrary({
               accepted = false;
               if (!stale()) onWriteError(error);
               return listCustomTactics().catch(() => {
-                if (!stale()) setCustomTactics(customTactics);
+                if (!stale()) {
+                  const confirmed = confirmedLibrary.current;
+                  setCustomTactics(confirmed?.epoch === askedIn ? confirmed.entries : []);
+                }
                 return null;
               });
             }),
       )
       .then((saved) => {
-        if (saved && !stale()) setCustomTactics(toLibraryEntries(saved));
+        if (saved && !stale()) setCustomTactics(confirmLibrary(saved, askedIn));
         const held = saved !== null && accepted && !stale();
         if (held) onWriteSaved();
         return accepted && !stale();
