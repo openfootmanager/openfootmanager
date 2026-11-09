@@ -87,10 +87,7 @@ impl LiveMatchState {
         if !goes_in_goal {
             player_on.position = player_off.position;
         }
-        // His role comes with him from the bench, where it was judged for the line he played
-        // there; in the slot he takes it counts only if that line admits it (the rule the live
-        // role command asks), else he plays it as Standard, as the match was built to.
-        if !player_on.role.suits(player_on.position) {
+        if !self.slot_admits_role(side, off_idx, player_on.position, player_on.role) {
             player_on.role = PlayerRole::Standard;
         }
 
@@ -112,7 +109,11 @@ impl LiveMatchState {
             Side::Away => &mut self.away_subs_made,
         } += 1;
 
-        // Record the substitution
+        self.record_substitution(side, player_off_id, player_on_id);
+        Ok(())
+    }
+
+    fn record_substitution(&mut self, side: Side, player_off_id: &str, player_on_id: &str) {
         let evt = MatchEvent::new(
             self.current_minute,
             EventType::Substitution,
@@ -123,15 +124,54 @@ impl LiveMatchState {
         .with_secondary(player_off_id);
         self.unreported_events.push(evt.clone());
         self.events.push(evt);
-
         self.substitutions.push(SubstitutionRecord {
             minute: self.current_minute,
             side,
             player_off_id: player_off_id.to_string(),
             player_on_id: player_on_id.to_string(),
         });
+    }
 
-        Ok(())
+    pub(super) fn slot_admits_role(
+        &self,
+        side: Side,
+        index: usize,
+        position: Position,
+        role: PlayerRole,
+    ) -> bool {
+        let slots = match side {
+            Side::Home => &self.home_slot_roles,
+            Side::Away => &self.away_slot_roles,
+        };
+        let slot_index = if position == Position::Goalkeeper {
+            0
+        } else {
+            index
+        };
+        slots
+            .as_ref()
+            .and_then(|roles| roles.get(slot_index))
+            .map_or_else(|| role.suits(position), |roles| roles.contains(&role))
+    }
+
+    /// Set the admitted roles for each formation slot, supplied by the host's formation rules.
+    /// The host must replace these after changing the formation.
+    pub fn set_slot_roles(&mut self, side: Side, roles: Vec<Vec<PlayerRole>>) {
+        match side {
+            Side::Home => self.home_slot_roles = Some(roles),
+            Side::Away => self.away_slot_roles = Some(roles),
+        }
+    }
+
+    /// Restore the bench line of a player who left a pre-match slot.
+    pub fn set_bench_position(&mut self, side: Side, player_id: &str, position: Position) {
+        let bench = match side {
+            Side::Home => &mut self.home_bench,
+            Side::Away => &mut self.away_bench,
+        };
+        if let Some(player) = bench.iter_mut().find(|player| player.id == player_id) {
+            player.position = position;
+        }
     }
 
     /// Give `player_id`, in `side`'s eleven or on its bench, `line_familiarity`. For a caller that
@@ -163,8 +203,8 @@ impl LiveMatchState {
 
     /// Give `player_id`, on `side`'s bench, `role`: the role he plays if he comes on. For a
     /// caller that knows a role the bench copy was built without (a role saved after the match
-    /// was built). It is the caller's to check the role against the line he will enter, as
-    /// `PlayerRole::suits` does. Whether he was found on the bench.
+    /// was built). The caller checks the role at the bench position; substitution checks the
+    /// destination slot. Whether he was found on the bench.
     pub fn set_bench_role(&mut self, side: Side, player_id: &str, role: PlayerRole) -> bool {
         let bench = match side {
             Side::Home => &mut self.home_bench,
@@ -212,6 +252,15 @@ impl LiveMatchState {
         // last one — the lineup visibly "reorganized" after a swap. Keep the
         // vacated index and adopt the slot's position instead.
         player_on.position = player_off.position;
+        let has_slot_roles = match side {
+            Side::Home => self.home_slot_roles.is_some(),
+            Side::Away => self.away_slot_roles.is_some(),
+        };
+        if has_slot_roles
+            && !self.slot_admits_role(side, off_idx, player_on.position, player_on.role)
+        {
+            player_on.role = PlayerRole::Standard;
+        }
 
         // Initialize condition for incoming player
         self.player_conditions
@@ -448,6 +497,68 @@ mod line_familiarity_tests {
             vec![player("a_sub", Position::Defender)],
             false,
         )
+    }
+
+    /// Given a bench Poacher and a centre-back slot with explicit admitted roles, when an
+    /// engine host swaps him in, then his incompatible role becomes Standard.
+    #[test]
+    fn a_pre_match_swap_checks_the_destination_slot_role() {
+        let mut newcomer = player("poacher", Position::Forward);
+        newcomer.role = PlayerRole::Poacher;
+        let mut state = LiveMatchState::new(
+            side("h"),
+            side("a"),
+            MatchConfig::default(),
+            vec![newcomer],
+            vec![],
+            false,
+        );
+        state.set_slot_roles(
+            Side::Home,
+            vec![
+                vec![PlayerRole::Standard],
+                vec![PlayerRole::Standard, PlayerRole::Stopper],
+            ],
+        );
+        state
+            .apply_command(crate::live_match::MatchCommand::PreMatchSwap {
+                side: Side::Home,
+                player_off_id: "h_d".into(),
+                player_on_id: "poacher".into(),
+            })
+            .unwrap();
+        assert_eq!(state.team(Side::Home).players[1].role, PlayerRole::Standard);
+    }
+
+    /// Given a bench Stopper and a centre-back slot that admits him, when an engine host swaps
+    /// him in, then his role is retained.
+    #[test]
+    fn a_pre_match_swap_keeps_a_role_admitted_by_the_destination() {
+        let mut newcomer = player("stopper", Position::Defender);
+        newcomer.role = PlayerRole::Stopper;
+        let mut state = LiveMatchState::new(
+            side("h"),
+            side("a"),
+            MatchConfig::default(),
+            vec![newcomer],
+            vec![],
+            false,
+        );
+        state.set_slot_roles(
+            Side::Home,
+            vec![
+                vec![PlayerRole::Standard],
+                vec![PlayerRole::Standard, PlayerRole::Stopper],
+            ],
+        );
+        state
+            .apply_command(crate::live_match::MatchCommand::PreMatchSwap {
+                side: Side::Home,
+                player_off_id: "h_d".into(),
+                player_on_id: "stopper".into(),
+            })
+            .unwrap();
+        assert_eq!(state.team(Side::Home).players[1].role, PlayerRole::Stopper);
     }
 
     const REFIT: [f64; 4] = [0.9, 0.95, 1.0, 0.9];

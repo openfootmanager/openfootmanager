@@ -30,11 +30,10 @@ ovr: number,
  */
 potential: number, market_value: number, stats: PlayerSeasonStats, 
 /**
- * This season's league matches alone, which the division's awards rank by, so they agree
- * with the league's own tables. A save from before it loads its season so far here
- * (`db::repositories::player_repo`).
+ * This season's league matches, keyed by the competition where they were played.
+ * Transfers preserve the entries; each division ranks only its own matches.
  */
-league_stats: PlayerSeasonStats, career: Array<CareerEntry>, training_focus: TrainingFocus | null, transfer_listed: boolean, loan_listed: boolean, transfer_offers: Array<TransferOffer>, loan_offers: Array<LoanOffer>, active_loan?: ActiveLoan | null, morale_core: PlayerMoraleCore, 
+league_stats_by_competition: { [key in string]: PlayerSeasonStats }, career: Array<CareerEntry>, training_focus: TrainingFocus | null, transfer_listed: boolean, loan_listed: boolean, transfer_offers: Array<TransferOffer>, loan_offers: Array<LoanOffer>, active_loan?: ActiveLoan | null, morale_core: PlayerMoraleCore, 
 /**
  * Jersey/squad number (1–99). None means unassigned.
  */
