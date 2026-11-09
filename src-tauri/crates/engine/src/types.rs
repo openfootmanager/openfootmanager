@@ -422,6 +422,13 @@ impl TacticsConfig {
 }
 
 impl TacticalDial {
+    /// Whether this setting plays differently from the dial's others. Slow break speed plays as
+    /// Medium does. Every other setting changes the match, Long build-up and non-zonal marking
+    /// included, though today they only cost.
+    pub fn has_match_effect(self) -> bool {
+        !matches!(self, TacticalDial::BreakSpeed(BreakSpeed::Slow))
+    }
+
     /// Turn this one dial, leaving the other eight where they are.
     pub fn set_on(self, tactics: &mut TacticsConfig) {
         match self {
