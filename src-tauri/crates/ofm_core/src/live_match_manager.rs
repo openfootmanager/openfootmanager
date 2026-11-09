@@ -642,17 +642,14 @@ impl LiveMatchSession {
 
     fn apply_substitution(&mut self, cmd: MatchCommand) -> Result<(), String> {
         let MatchCommand::Substitute {
-            side,
-            player_off_id,
-            player_on_id,
+            side, player_on_id, ..
         } = &cmd
         else {
             return self.match_state.apply_command(cmd);
         };
         let (side, on) = (*side, player_on_id.clone());
-        let slot = self.slot_of(side, player_off_id);
         self.match_state.apply_command(cmd)?;
-        if let Some(slot) = slot.as_ref() {
+        if let Some(slot) = self.slot_of(side, &on).as_ref() {
             self.refit_swapped_in_role(side, &on, slot);
         }
         Ok(())
