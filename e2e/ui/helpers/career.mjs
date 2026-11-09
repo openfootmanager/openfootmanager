@@ -3,13 +3,7 @@
 // A flow that is not about starting a career still has to start one, and the screens it passes
 // through are the same ones flow 1 checks. Keeping each step here means a changed screen is fixed
 // once; flow 1 calls the steps one `it` at a time so a red night names the step that broke.
-import {
-  buttonNamed,
-  buttonStartingWith,
-  clickWhenReady,
-  typeInto,
-  waitForRoute,
-} from "./ui.mjs";
+import { buttonNamed, buttonStartingWith, clickWhenReady, typeInto, waitForRoute } from "./ui.mjs";
 
 export async function openMainMenu() {
   await buttonNamed("New Game").waitForDisplayed({ timeout: 60_000 });

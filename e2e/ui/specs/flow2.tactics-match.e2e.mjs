@@ -15,7 +15,9 @@ const edit = { formation: "", playStyle: "" };
  * WebKitWebDriver gives an empty string for these controls' buttons, which are text in a span.
  */
 async function textOf(element) {
-  return (await element.getText()).trim() || String(await element.getProperty("textContent")).trim();
+  return (
+    (await element.getText()).trim() || String(await element.getProperty("textContent")).trim()
+  );
 }
 
 /**
