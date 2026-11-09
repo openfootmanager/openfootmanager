@@ -32,3 +32,34 @@ pub fn club_league_table_in<'a>(competitions: &'a [League], club_id: &str) -> Op
                 .then_with(|| right.priority.cmp(&left.priority))
         })
 }
+
+/// The club whose league the user follows: his own, or, for a manager out of work, the last club
+/// he managed (maintainer, 5 Nov 2026), so a sacked manager reads the awards, summary, preview and
+/// news of the league he left. None for a manager who has never had a club.
+pub fn followed_club(game: &Game) -> Option<&str> {
+    game.manager
+        .team_id
+        .as_deref()
+        .or_else(|| game.manager.last_club())
+}
+
+/// The league-table competition the screens show as the user's: [`followed_club`]'s. It used to take
+/// the user's club, so for a manager out of work it fell to the `game.league` mirror, which with no
+/// club is the world's first competition: a sacked manager from England read Argentina's awards
+/// (#1270).
+///
+/// A manager who has never had a club follows none (maintainer, 8 Nov 2026), so the preview, the
+/// awards and the summary show nothing for him. A followed club in no league table shows nothing
+/// too, except in a legacy save with no `competitions`, whose only league is the mirror: in a
+/// modern world the mirror is the world's first competition, a league the club has nothing to do
+/// with. The season's rollover is a separate question, `rollover_division`.
+pub fn user_division(game: &Game) -> Option<&League> {
+    let club = followed_club(game)?;
+    club_league_table(game, club).or_else(|| {
+        game.competitions
+            .is_empty()
+            .then_some(game.league.as_ref())
+            .flatten()
+    })
+}
+
