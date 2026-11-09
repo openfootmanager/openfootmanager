@@ -257,7 +257,7 @@ struct LoadRepairs {
 ///   first post);
 /// - stranded fixtures, then the calendar, as in [`LoadRepairs`]. On a game the game itself just
 ///   produced both should find nothing to do; they do (#1265, and see
-///   `known_bug_the_live_game_leaves_fixtures_scheduled_in_the_past`), and the counts are returned.
+///   `known_bug_the_live_game_leaves_fixtures_scheduled_in_the_past`, #1321), and the counts are returned.
 fn settled_as_a_load_settles_it(game: &Game) -> (Game, LoadRepairs) {
     let mut settled = game.clone();
     ofm_core::finances::backfill_opening_balances(&mut settled);
@@ -548,7 +548,7 @@ fn known_bug_a_reload_reschedules_matches_the_live_game_scheduled() {
     );
 }
 
-/// KNOWN BUG (stranded fixtures, issue to be named). "No fixture stays Scheduled in the past" is an
+/// KNOWN BUG #1321 (stranded fixtures). "No fixture stays Scheduled in the past" is an
 /// invariant the load enforces (`repair_stranded_fixtures`), but the live game does not keep it: after
 /// two seasons national-team fixtures are still Scheduled with a date behind the clock, and a reload
 /// plays them out (status Completed, a result, an advancing team). The counts are measured; delete
@@ -559,7 +559,7 @@ fn known_bug_the_live_game_leaves_fixtures_scheduled_in_the_past() {
 
     assert!(
         stranded > 0,
-        "a reload played out {stranded} fixtures left scheduled in the past"
+        "#1321: a reload played out {stranded} fixtures left scheduled in the past"
     );
 }
 
