@@ -504,7 +504,12 @@ impl LiveMatchSession {
         let Some((_, team)) = self.user_team_before_kick_off(game) else {
             return Ok(());
         };
-        self.follow_team_role_before_kick_off(game, &team.id, player_id)
+        self.follow_team_role_before_kick_off(
+            game.career_token,
+            &team.id,
+            player_id,
+            team.player_roles.get(player_id),
+        )
     }
 
     fn intended_role_at(&self, player_id: &str, slot: &DomainPosition) -> engine::PlayerRole {
@@ -531,13 +536,12 @@ impl LiveMatchSession {
     /// Hand off a role changed by a transfer, loan or contract termination on either side.
     pub fn follow_team_role_before_kick_off(
         &mut self,
-        game: &Game,
+        career_token: u64,
         team_id: &str,
         player_id: &str,
+        saved: Option<&DomainPlayerRole>,
     ) -> Result<(), String> {
-        if self.match_state.phase() != MatchPhase::PreKickOff
-            || self.career_token != game.career_token
-        {
+        if self.match_state.phase() != MatchPhase::PreKickOff || self.career_token != career_token {
             return Ok(());
         }
         let side = if self.home_team_id == team_id {
@@ -547,10 +551,6 @@ impl LiveMatchSession {
         } else {
             return Ok(());
         };
-        let Some(team) = game.teams.iter().find(|team| team.id == team_id) else {
-            return Ok(());
-        };
-        let saved = team.player_roles.get(player_id);
         if self.user_side == Some(side) {
             match saved {
                 Some(role) => {

@@ -16,7 +16,7 @@ use std::sync::{Mutex, MutexGuard};
 
 #[cfg(test)]
 thread_local! {
-    pub(crate) static ROLE_GAME_SNAPSHOTS: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
+    pub(crate) static ROLE_HANDOFF_PROJECTIONS: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
 }
 
 static OPERATION: Mutex<()> = Mutex::new(());
@@ -48,6 +48,9 @@ pub(crate) fn player_role_operation<T>(
     write: impl FnOnce() -> Result<T, String>,
 ) -> Result<T, String> {
     let _operation = operation();
+    if state.with_live_match(|_| ()).is_none() {
+        return write();
+    }
     let before = state.get_game(|game| {
         game.teams
             .iter()
@@ -59,30 +62,29 @@ pub(crate) fn player_role_operation<T>(
             .collect::<std::collections::HashMap<_, _>>()
     });
     let result = write()?;
-    if let Some((game, changed)) = state
-        .get_game(|game| {
-            let changed = game
-                .teams
-                .iter()
-                .filter(|team| {
-                    before.as_ref().and_then(|roles| roles.get(&team.id))
-                        != team.player_roles.get(player_id)
-                })
-                .map(|team| team.id.clone())
-                .collect::<Vec<_>>();
-            if changed.is_empty() {
-                None
-            } else {
-                #[cfg(test)]
-                ROLE_GAME_SNAPSHOTS.with(|count| count.set(count.get() + 1));
-                Some((game.clone(), changed))
-            }
-        })
-        .flatten()
-    {
-        for team_id in changed {
+    let projection = state.get_game(|game| {
+        let changed = game
+            .teams
+            .iter()
+            .filter(|team| {
+                before.as_ref().and_then(|roles| roles.get(&team.id))
+                    != team.player_roles.get(player_id)
+            })
+            .map(|team| (team.id.clone(), team.player_roles.get(player_id).cloned()))
+            .collect::<Vec<_>>();
+        #[cfg(test)]
+        ROLE_HANDOFF_PROJECTIONS.with(|count| count.set(count.get() + 1));
+        (game.career_token, changed)
+    });
+    if let Some((career_token, changed)) = projection {
+        for (team_id, role) in changed {
             let result = state.with_live_match(|session| {
-                session.follow_team_role_before_kick_off(&game, &team_id, player_id)
+                session.follow_team_role_before_kick_off(
+                    career_token,
+                    &team_id,
+                    player_id,
+                    role.as_ref(),
+                )
             });
             if let Some(Err(error)) = result {
                 log::warn!("[live_match] could not follow a changed saved role: {error}");
