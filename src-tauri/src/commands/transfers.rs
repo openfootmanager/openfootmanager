@@ -641,6 +641,53 @@ mod tests {
         }
     }
 
+    /// Given a gate held during a valid purchase or loan, when the command starts, then the
+    /// player's club changes only after the gate is released.
+    #[test]
+    fn successful_player_moves_write_only_after_the_gate_is_released() {
+        for is_loan in [false, true] {
+            let mut game = make_bid_game();
+            game.players[0].loan_listed = true;
+            let state = std::sync::Arc::new(StateManager::new());
+            state.set_game(game);
+            let gate = crate::application::live_session::operation();
+            let (started_tx, started_rx) = std::sync::mpsc::channel();
+            let worker = state.clone();
+            let handle = std::thread::spawn(move || {
+                started_tx.send(()).unwrap();
+                if is_loan {
+                    make_loan_offer_internal(
+                        &worker,
+                        Career::Active,
+                        "player-2",
+                        "2027-01-01",
+                        100,
+                        None,
+                    )
+                    .map(|_| ())
+                } else {
+                    make_transfer_bid_internal(&worker, Career::Active, "player-2", 1_050_000)
+                        .map(|_| ())
+                }
+            });
+            started_rx.recv().unwrap();
+            std::thread::sleep(std::time::Duration::from_millis(300));
+            let before_release = state
+                .get_game(|game| game.players[0].team_id.clone())
+                .unwrap();
+            drop(gate);
+            handle.join().unwrap().unwrap();
+            assert_eq!(before_release.as_deref(), Some("team-2"));
+            assert_eq!(
+                state
+                    .get_game(|game| game.players[0].team_id.clone())
+                    .unwrap()
+                    .as_deref(),
+                Some("team-1")
+            );
+        }
+    }
+
     fn default_attrs() -> PlayerAttributes {
         PlayerAttributes {
             pace: 60,

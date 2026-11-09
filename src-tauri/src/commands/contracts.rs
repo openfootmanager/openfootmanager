@@ -1103,11 +1103,14 @@ mod tests {
             .player_roles
             .insert("player-1".into(), domain::team::PlayerRole::Poacher);
         state.set_game(game);
+        crate::application::live_session::ROLE_INITIAL_SNAPSHOTS.with(|count| count.set(0));
         crate::application::live_session::ROLE_HANDOFF_PROJECTIONS.with(|count| count.set(0));
         terminate_contract_now_internal(&state, Career::Active, "player-1").unwrap();
         assert!(!state
             .get_game(|game| game.teams[0].player_roles.contains_key("player-1"))
             .unwrap());
+        crate::application::live_session::ROLE_INITIAL_SNAPSHOTS
+            .with(|count| assert_eq!(count.get(), 0, "no initial role snapshot between matches"));
         crate::application::live_session::ROLE_HANDOFF_PROJECTIONS
             .with(|count| assert_eq!(count.get(), 0, "no waiting match needs a snapshot"));
     }
