@@ -35,7 +35,7 @@ describe("flow 1: a new game, to the first match day", () => {
     await clickWhenReady(buttonNamed("Choose World"));
     // "Build your world": no package is installed, so a random world is generated.
     await clickWhenReady(buttonNamed("Next"));
-    await clickWhenReady(buttonNamed("Begin Career"));
+    await clickWhenReady(buttonNamed("Start Career"));
     // The world is generated before the club list opens: the longest wait of the flow.
     await waitForRoute("/select-team", 300_000);
   });
