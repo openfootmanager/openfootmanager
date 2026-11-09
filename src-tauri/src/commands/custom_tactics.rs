@@ -74,6 +74,28 @@ pub fn apply_custom_tactic_internal(
         Ok(())
     })?;
     crate::commands::squad::follow_saved_roles_into_the_waiting_match(state, &game);
+    let team_id = user_team_id(&game)?;
+    if let (Some(team), Some(contents)) = (
+        game.teams.iter().find(|team| team.id == team_id),
+        game.custom_tactics
+            .iter()
+            .find(|tactic| tactic.id == id)
+            .and_then(|tactic| tactic.contents.as_ref()),
+    ) {
+        for (slot, saved) in contents.slots.iter().enumerate() {
+            if team.starting_xi_ids.get(slot) == Some(&saved.player_id) {
+                if let Err(error) =
+                    crate::application::live_match::follow_saved_role_before_kick_off(
+                        state,
+                        &game,
+                        &saved.player_id,
+                    )
+                {
+                    log::warn!("[cmd] the waiting match did not take a tactic role: {error}");
+                }
+            }
+        }
+    }
     Ok(game)
 }
 
