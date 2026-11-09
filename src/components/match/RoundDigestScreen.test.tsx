@@ -14,6 +14,10 @@ vi.mock("react-i18next", () => ({
       if (key === "schedule.matchday") return `Matchday ${params?.number}`;
       if (key === "match.assist") return `assist: ${params?.name}`;
       if (key === "match.subFor") return `for ${params?.name}`;
+      if (key === "tournaments.competitions.firstDivision")
+        return `${params?.country} Erste Division`;
+      if (key === "tournaments.competitions.nationalCup") return `${params?.country} Pokal`;
+      if (key === "nations.de") return "Deutschland";
       return key;
     },
   }),
@@ -327,6 +331,67 @@ describe("RoundDigestScreen", () => {
 
     expect(screen.getByText(/Matchday 1/)).toBeInTheDocument();
     expect(screen.getByText("match.roundSummary")).toBeInTheDocument();
+  });
+
+  /**
+   * Given a league stored under its English template name, and the competition carrying that name
+   *       with its name key and country
+   * When the digest heading is drawn
+   * Then the league is named as the player's language names it, not by the stored English name.
+   */
+  it("names the league in the heading through its name key", () => {
+    const base = makeGameState();
+    const gameState: GameStateData = {
+      ...base,
+      league: { ...base.league!, name: "Germany First Division" },
+      competitions: [
+        {
+          ...base.league!,
+          name: "Germany First Division",
+          name_key: "tournaments.competitions.firstDivision",
+          country_id: "DE",
+        },
+      ],
+    };
+
+    render(<RoundDigestScreen {...defaultProps} gameState={gameState} />);
+
+    expect(screen.getByText("Matchday 1 — Deutschland Erste Division")).toBeInTheDocument();
+    expect(screen.queryByText(/Germany First Division/)).not.toBeInTheDocument();
+  });
+
+  /** Given a German keyed cup, when its round is shown in the digest, then the heading is localized. */
+  it("shows the localized cup heading in the digest", () => {
+    const base = makeGameState();
+    const gameState: GameStateData = {
+      ...base,
+      competitions: [
+        {
+          ...base.league!,
+          id: "cup-de",
+          name: "Germany National Cup",
+          name_key: "tournaments.competitions.nationalCup",
+          country_id: "DE",
+        },
+      ],
+    };
+    render(
+      <RoundDigestScreen
+        {...defaultProps}
+        gameState={gameState}
+        cupRoundSummaries={[
+          {
+            competition_id: "cup-de",
+            competition_name: "Germany National Cup",
+            round_name: "",
+            is_complete: true,
+            pending_fixture_count: 0,
+            results: [],
+          },
+        ]}
+      />,
+    );
+    expect(screen.getByRole("heading", { name: "Deutschland Pokal" })).toBeInTheDocument();
   });
 
   it("renders the hero result card with score and win badge", () => {

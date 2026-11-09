@@ -58,6 +58,16 @@ pub struct PlayerMatchStats {
     pub red_cards: u8,
     /// Match rating 0.0–10.0, computed after the match.
     pub rating: f32,
+    /// He kept a clean sheet: in goal for most of the match and his side conceded none. Set
+    /// with the ratings (`MatchReport::assign_ratings`), so the mark and the season's clean
+    /// sheets count by one rule.
+    #[serde(default)]
+    pub clean_sheet: bool,
+    /// The minutes he stood in goal, whoever he is: the keeper, or an outfielder who went in
+    /// after the keeper was sent off with no other left. `None` for a report that did not
+    /// track it (the instant engine's), where a goalkeeper's minutes are his minutes in goal.
+    #[serde(default)]
+    pub minutes_in_goal: Option<u8>,
 }
 
 // ---------------------------------------------------------------------------

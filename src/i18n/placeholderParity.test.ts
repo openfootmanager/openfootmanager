@@ -2,19 +2,28 @@ import { describe, expect, it } from "vitest";
 
 import { LOCALE_FILES, NON_ENGLISH_LOCALES, type LocaleTree } from "./i18nTestHelpers";
 
-// English adds an ordinal suffix (1st, 2nd, ...) to these messages. The listed
-// languages express ordinal position without that interpolation. Keep the
-// exception tied to each key and locale so a different omission still fails.
-const REVIEW_ORDINAL_LOCALES = ["cs", "de", "es", "fr", "id", "it", "pt", "pt-BR", "tr"];
-const ALLOWED_SUFFIX_OMISSIONS: Record<string, readonly string[]> = {
-  "be.msg.seasonReview.body.topFour": REVIEW_ORDINAL_LOCALES,
-  "be.msg.seasonReview.body.midTable": REVIEW_ORDINAL_LOCALES,
-  "be.msg.seasonReview.body.lowerHalf": REVIEW_ORDINAL_LOCALES,
-  "be.msg.seasonPayout.ledgerDescription": ["id"],
-};
+// A finishing place is written either as the bare number (`{{position}}`) or as the language's own
+// ordinal form of it (`{{ordinal}}`, from `formatOrdinal` in `resolveParamValues`): which one reads
+// naturally differs by language ("21st place", "на 21-м месте", "第21位"). Both name the same
+// value, so a locale may use either; the backend sends only `position`, never an English suffix.
+const PLACE_ALIASES: Record<string, string> = { ordinal: "position" };
+// Only these keys write a finishing place; elsewhere `{{position}}` is a player's position and
+// `{{ordinal}}` is not an alias for it.
+const PLACE_KEYS = new Set([
+  "be.msg.seasonReview.body.topFour",
+  "be.msg.seasonReview.body.midTable",
+  "be.msg.seasonReview.body.lowerHalf",
+  "be.msg.seasonPayout.body",
+  "be.msg.seasonPayout.ledgerDescription",
+]);
 
-function placeholders(text: string): Set<string> {
-  return new Set([...text.matchAll(/\{\{\s*([^{}]+?)\s*\}\}/g)].map((match) => match[1].trim()));
+function placeholders(text: string, key: string): Set<string> {
+  return new Set(
+    [...text.matchAll(/\{\{\s*([^{}]+?)\s*\}\}/g)].map(
+      (match) =>
+        (PLACE_KEYS.has(key) ? PLACE_ALIASES[match[1].trim()] : undefined) ?? match[1].trim(),
+    ),
+  );
 }
 
 function placeholderDifferences(
@@ -42,13 +51,9 @@ function placeholderDifferences(
     }
     if (typeof englishValue !== "string") return [];
 
-    const expected = placeholders(englishValue);
-    const actual = placeholders(typeof translatedValue === "string" ? translatedValue : "");
-    const missing = [...expected].filter(
-      (name) =>
-        !actual.has(name) &&
-        !(name === "suffix" && ALLOWED_SUFFIX_OMISSIONS[key]?.includes(locale)),
-    );
+    const expected = placeholders(englishValue, key);
+    const actual = placeholders(typeof translatedValue === "string" ? translatedValue : "", key);
+    const missing = [...expected].filter((name) => !actual.has(name));
     const extra = [...actual].filter((name) => !expected.has(name));
     return missing.length > 0 || extra.length > 0
       ? [`${key}: missing [${missing.join(", ")}], extra [${extra.join(", ")}]`]
@@ -64,23 +69,31 @@ describe("locale interpolation placeholders", () => {
     ]);
   });
 
-  it("allows only the documented ordinal omission", () => {
-    const en = {
-      be: { msg: { seasonReview: { body: { topFour: "{{position}}{{suffix}} {{points}}" } } } },
-    };
-    const allowed = {
-      be: { msg: { seasonReview: { body: { topFour: "{{position}} {{points}}" } } } },
-    };
-    const wrongLocale = placeholderDifferences(en, allowed, "ru");
-    expect(placeholderDifferences(en, allowed, "fr")).toEqual([]);
-    expect(wrongLocale).toEqual(["be.msg.seasonReview.body.topFour: missing [suffix], extra []"]);
+  /**
+   * Given an English template that writes the place as its ordinal
+   * When a locale writes it as the bare number, or as its own ordinal
+   * Then both are the same value and match; leaving the place out, or inventing a placeholder, is
+   *      still a difference.
+   */
+  it("treats the place as the same value whether it is written bare or as an ordinal", () => {
+    const tree = (text: string) => ({
+      be: { msg: { seasonReview: { body: { topFour: text } } } },
+    });
+    const en = tree("{{ordinal}} {{points}}");
+
+    expect(placeholderDifferences(en, tree("{{position}} {{points}}"), "ru")).toEqual([]);
+    expect(placeholderDifferences(en, tree("{{ordinal}} {{points}}"), "fr")).toEqual([]);
+    expect(placeholderDifferences(en, tree("{{points}}"), "ru")).toEqual([
+      "be.msg.seasonReview.body.topFour: missing [position], extra []",
+    ]);
+    // Outside the five place keys `{{position}}` is a player's position: no alias there.
+    const elsewhere = (text: string) => ({ percentileGroup: text });
     expect(
-      placeholderDifferences(
-        en,
-        { be: { msg: { seasonReview: { body: { topFour: "{{position}} {{surprise}}" } } } } },
-        "fr",
-      ),
-    ).toEqual(["be.msg.seasonReview.body.topFour: missing [points], extra [surprise]"]);
+      placeholderDifferences(elsewhere("{{ordinal}}"), elsewhere("{{position}}"), "ru"),
+    ).toEqual(["percentileGroup: missing [ordinal], extra [position]"]);
+    expect(placeholderDifferences(en, tree("{{position}} {{surprise}}"), "fr")).toEqual([
+      "be.msg.seasonReview.body.topFour: missing [points], extra [surprise]",
+    ]);
   });
 
   it("matches every locale's placeholder set to English", () => {
