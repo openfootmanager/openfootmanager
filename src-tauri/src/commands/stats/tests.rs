@@ -980,15 +980,23 @@ fn a_friendly_is_not_part_of_the_advanced_totals() {
         "team-1",
         Position::Striker,
     )]));
+    let mut friendly = history_record("friendly", FixtureCompetition::Friendly, 20);
+    friendly.passes_completed = 5;
+    friendly.passes_attempted = 20;
+    let mut league = history_record("league", FixtureCompetition::League, 10);
+    league.passes_completed = 40;
+    league.passes_attempted = 50;
     state.set_stats_state(StatsState {
-        player_matches: vec![
-            history_record("friendly", FixtureCompetition::Friendly, 20),
-            history_record("league", FixtureCompetition::League, 10),
-        ],
+        player_matches: vec![friendly, league],
         team_matches: vec![],
     });
 
     let overview = get_player_stats_overview_internal(&state, "player-1").unwrap();
 
     assert_eq!(overview.metrics.shots.total, 10);
+    assert_eq!(overview.metrics.passes.completed, 40);
+    assert_eq!(overview.metrics.passes.attempted, 50);
+    // One league match of 90 minutes: the per-90 rate is that match's alone, not spread over the
+    // friendly's minutes too.
+    assert_eq!(overview.metrics.shots.per90, Some(10.0));
 }

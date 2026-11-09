@@ -587,8 +587,18 @@ fn scorer_after(competition: FixtureCompetition) -> domain::player::PlayerSeason
 /// his development and his valuation read these stats.
 #[test]
 fn a_friendly_is_not_part_of_a_players_season_stats() {
-    let stats = scorer_after(FixtureCompetition::Friendly);
-    assert_eq!((stats.appearances, stats.goals), (0, 0));
+    for competition in [
+        FixtureCompetition::Friendly,
+        FixtureCompetition::FriendlyCup,
+        FixtureCompetition::PreseasonTournament,
+    ] {
+        let stats = scorer_after(competition.clone());
+        assert_eq!(
+            (stats.appearances, stats.goals),
+            (0, 0),
+            "{competition:?} counts for nothing"
+        );
+    }
 }
 
 /// Given a cup tie in which a forward scores twice,
