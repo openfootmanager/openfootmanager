@@ -291,6 +291,17 @@ pub(crate) fn knockout_bye_count(entrants: usize) -> Option<usize> {
         .map(|size| size - entrants)
 }
 
+/// The number of byes, ties and occupied days in one knockout round.
+pub(crate) fn knockout_round_shape(
+    entrants: usize,
+    matches_per_day: u32,
+) -> Option<(usize, usize, usize)> {
+    let byes = knockout_bye_count(entrants)?;
+    let ties = (entrants - byes) / 2;
+    let days = ties.div_ceil(matches_per_day.max(1) as usize);
+    Some((byes, ties, days))
+}
+
 /// Seed the next knockout round of `cup` from `team_ids` (strongest first —
 /// any byes for a non-power-of-two field go to the leading seeds).
 pub fn seed_knockout_round(
@@ -310,7 +321,9 @@ pub fn seed_knockout_round(
     // When the entrant count is not a power of two, the strongest seeds (which
     // the caller passes first) receive a bye into the next round so the bracket
     // converges to a power of two.
-    let Some(byes) = knockout_bye_count(team_ids.len()) else {
+    let Some((byes, _, _)) =
+        knockout_round_shape(team_ids.len(), cup.rules.knockout_matches_per_day)
+    else {
         log::warn!(
             "[schedule] a knockout field of {} entrants cannot form a bracket",
             team_ids.len()

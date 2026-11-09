@@ -109,7 +109,7 @@ pub fn international_blackout_around(
         .max()
         .unwrap_or(today.year())
         .max(today.year());
-    (today.year() - 1..=last_fixture_year)
+    let mut blackout: std::collections::BTreeSet<_> = (today.year() - 1..=last_fixture_year)
         .filter_map(|year| chrono::NaiveDate::from_ymd_opt(year, 7, 1))
         .filter_map(|start| start.and_hms_opt(0, 0, 0))
         .flat_map(|start| {
@@ -118,7 +118,18 @@ pub fn international_blackout_around(
                 qualifying,
             )
         })
-        .collect()
+        .collect();
+    for (first, last) in competitions
+        .iter()
+        .filter_map(crate::world_cup::finals_period)
+    {
+        for offset in 0..=(last - first).num_days() {
+            if let Some(date) = first.checked_add_signed(chrono::Duration::days(offset)) {
+                blackout.insert(date);
+            }
+        }
+    }
+    blackout
 }
 
 /// Schedule one friendly per international window for every national team that
@@ -536,7 +547,10 @@ mod tests {
         let last = *dates.last().unwrap();
         assert!(last > first);
         let blackout = international_blackout_around(&game.competitions, kickoff.date_naive());
-        for day in 0..=(last - first).num_days() {
+        // A 48-team finals has five knockout rounds; with the configured gaps and
+        // four ties per day, the final lands 19 days after the last group game.
+        let final_day = last + chrono::Duration::days(19);
+        for day in 0..=(final_day - first).num_days() {
             let date = first + chrono::Duration::days(day);
             assert!(
                 blackout.contains(&date),

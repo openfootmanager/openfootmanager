@@ -73,6 +73,36 @@ pub fn is_world_cup_competition(competition: &League) -> bool {
         && competition.scope == CompetitionScope::International
 }
 
+/// The finals' planned last day, including knockout rounds not yet drawn. Actual round dates
+/// take precedence as they appear, so postponements update the reservation.
+pub(crate) fn finals_period(cup: &League) -> Option<(chrono::NaiveDate, chrono::NaiveDate)> {
+    if !is_world_cup_competition(cup) || is_world_cup_qualifying(cup) || is_world_cup_playoff(cup) {
+        return None;
+    }
+    let dates: Vec<_> = cup
+        .fixtures
+        .iter()
+        .filter_map(|f| chrono::NaiveDate::parse_from_str(&f.date, "%Y-%m-%d").ok())
+        .collect();
+    let first = *dates.iter().min()?;
+    let mut last = *dates.iter().max()?;
+    let mut entrants = match cup.knockout_rounds.last() {
+        Some(round) => round.fixture_ids.len() + round.bye_team_ids.len(),
+        None => crate::group_stage::knockout_qualifiers(cup).len(),
+    };
+    while entrants >= 2 {
+        let (byes, ties, days) =
+            crate::schedule::knockout_round_shape(entrants, cup.rules.knockout_matches_per_day)?;
+        if ties == 0 || days == 0 {
+            break;
+        }
+        let offset = i64::from(cup.rules.knockout_round_gap_days) + i64::try_from(days - 1).ok()?;
+        last = last.checked_add_signed(chrono::Duration::days(offset))?;
+        entrants = byes + ties;
+    }
+    Some((first, last))
+}
+
 /// Player OVRs per nation, strongest first.
 fn national_pools(game: &Game) -> BTreeMap<String, Vec<u8>> {
     let mut pools: BTreeMap<String, Vec<u8>> = BTreeMap::new();
