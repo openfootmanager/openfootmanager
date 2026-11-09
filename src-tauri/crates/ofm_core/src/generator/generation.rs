@@ -2189,6 +2189,35 @@ mod tests {
         assert_eq!(absorbed, 0.0);
     }
 
+    /// Given a skewed world that the cap clips: nine clubs at reputation 100 and one at 1000
+    /// When an academy's standard is read
+    /// Then it absorbs exactly the variance the clubs' capped shifts add (the population variance of
+    ///      those shifts), which is strictly between none and the shift's whole variance: a rule that
+    ///      absorbed it all whenever the clubs differ, or none of it, would fail
+    #[test]
+    fn a_clipped_world_absorbs_the_variance_its_capped_shifts_add() {
+        let mut reputations = vec![100; 9];
+        reputations.push(1000);
+
+        let (shifts, absorbed) = academy_shifts(&reputations);
+
+        let centre = shifts.iter().sum::<f64>() / shifts.len() as f64;
+        let added = shifts
+            .iter()
+            .map(|shift| (shift - centre).powi(2))
+            .sum::<f64>()
+            / shifts.len() as f64;
+        let whole = (ACADEMY_SHIFT_KEPT * BETWEEN_CLUB_SD).powi(2);
+        assert!(
+            (absorbed - added).abs() < 1e-9,
+            "absorbed {absorbed}, added {added}"
+        );
+        assert!(
+            absorbed > 0.0 && absorbed < whole - 1e-6,
+            "{absorbed} against {whole}"
+        );
+    }
+
     /// Given a world whose reputations the cap does not reach
     /// When an academy's standard is read
     /// Then it absorbs the shift's whole variance, as before: only a clipped world changes
