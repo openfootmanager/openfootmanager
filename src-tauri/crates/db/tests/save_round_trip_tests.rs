@@ -425,6 +425,7 @@ struct RolledOver {
     edition_archive: Vec<domain::edition_archive::CompletedEdition>,
     differences: Vec<Difference>,
     repairs: LoadRepairs,
+    calendar_game: Game,
 }
 
 fn rolled_over() -> &'static RolledOver {
@@ -500,12 +501,13 @@ fn rolled_over() -> &'static RolledOver {
             !stats.player_matches.is_empty(),
             "the season recorded player stats"
         );
-        let repairs = settled_as_a_load_settles_it(&game).1;
+        let (calendar_game, repairs) = settled_as_a_load_settles_it(&game);
         let differences = every_difference(&game, &stats);
         RolledOver {
             edition_archive: game.edition_archive.clone(),
             differences,
             repairs,
+            calendar_game,
         }
     })
 }
@@ -551,7 +553,50 @@ fn a_new_career_has_no_calendar_repairs() {
 /// then it neither moves nor drops fixtures.
 #[test]
 fn a_career_after_two_seasons_has_no_calendar_repairs() {
-    let repairs = &rolled_over().repairs;
+    use domain::league::{FixtureCompetition, FixtureStatus};
+
+    let rolled = rolled_over();
+    let game = &rolled.calendar_game;
+    let today = game.clock.current_date.date_naive();
+    let blackout =
+        ofm_core::national_team::international_blackout_around(&game.competitions, today);
+    let mut checked = 0;
+    for fixture in game.competitions.iter().flat_map(|c| &c.fixtures) {
+        if fixture.status != FixtureStatus::Scheduled
+            || fixture.competition == FixtureCompetition::InternationalNation
+        {
+            continue;
+        }
+        checked += 1;
+        let date = chrono::NaiveDate::parse_from_str(&fixture.date, "%Y-%m-%d")
+            .expect("a scheduled club fixture has a readable date");
+        assert!(
+            !blackout.contains(&date),
+            "club fixture {} is on blackout {date}",
+            fixture.id
+        );
+    }
+    assert!(
+        checked > 0,
+        "the two-season calendar has scheduled club fixtures to check"
+    );
+    let plan = ofm_core::calendar_reconcile::plan(
+        &game.competitions,
+        &blackout,
+        today.pred_opt().unwrap(),
+    )
+    .expect("the two-season calendar can be planned");
+    assert!(
+        plan.moves.is_empty(),
+        "the two-season plan has moves: {:?}",
+        plan.moves
+    );
+    assert!(
+        plan.dropped_friendlies.is_empty(),
+        "the two-season plan drops friendlies: {:?}",
+        plan.dropped_friendlies
+    );
+    let repairs = &rolled.repairs;
     assert_eq!(
         repairs.calendar_moved, 0,
         "#1265: fixtures moved after two seasons"
