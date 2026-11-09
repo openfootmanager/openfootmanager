@@ -15,7 +15,8 @@ const SOURCES = import.meta.glob(
  * Tracks key fields through local identifiers, named helper arguments and returns within each file.
  * This follows symbols within one source file; imports,
  * dynamic property names, object mutation and indirect or external calls are not followed.
- * Helper analysis is context-insensitive, so a safe call may inherit taint from another call.
+ * Direct parameter returns are call-sensitive; other helper returns are context-insensitive,
+ * so a safe call may inherit taint from another call.
  * The two named adapters below are trusted to keep their separately tested fallback checks.
  */
 function scanSource(path: string, source: string): string[] {
@@ -48,15 +49,40 @@ function scanSource(path: string, source: string): string[] {
     ts.forEachChild(node, (child) => walk(child, visit));
   };
   const keyName = (name: string): boolean => /^[a-z0-9_]+_key$/.test(name);
+  const returnedParameterIndex = (
+    helper: ts.FunctionDeclaration | ts.ArrowFunction | ts.FunctionExpression,
+  ): number => {
+    const body = helper.body;
+    if (
+      !body ||
+      helper.asteriskToken ||
+      helper.modifiers?.some((modifier) => modifier.kind === ts.SyntaxKind.AsyncKeyword)
+    )
+      return -1;
+    const value = ts.isBlock(body)
+      ? body.statements.length === 1 && ts.isReturnStatement(body.statements[0])
+        ? body.statements[0].expression
+        : undefined
+      : body;
+    if (!value || !ts.isIdentifier(value)) return -1;
+    const returned = checker.getSymbolAtLocation(value);
+    if (!returned) return -1;
+    return helper.parameters.findIndex(
+      (parameter) =>
+        ts.isIdentifier(parameter.name) &&
+        !parameter.initializer &&
+        !parameter.dotDotDotToken &&
+        checker.getSymbolAtLocation(parameter.name) === returned,
+    );
+  };
   const containsKey = (node: ts.Node): boolean => {
     if (ts.isIdentifier(node)) return isTainted(node);
     if (ts.isPropertyAccessExpression(node)) return keyName(node.name.text);
-    if (ts.isElementAccessExpression(node))
-      return (
-        !!node.argumentExpression &&
-        ts.isStringLiteral(node.argumentExpression) &&
-        keyName(node.argumentExpression.text)
-      );
+    if (ts.isElementAccessExpression(node)) {
+      if (node.argumentExpression && ts.isStringLiteral(node.argumentExpression))
+        return keyName(node.argumentExpression.text);
+      return containsKey(node.expression);
+    }
     if (
       ts.isParenthesizedExpression(node) ||
       ts.isAsExpression(node) ||
@@ -85,6 +111,11 @@ function scanSource(path: string, source: string): string[] {
       const symbol = checker.getSymbolAtLocation(node.expression);
       if (node.expression.text === "resolveBackendText" && (!symbol || !helpers.has(symbol)))
         return false;
+      const helper = symbol && helpers.get(symbol);
+      if (helper) {
+        const index = returnedParameterIndex(helper);
+        if (index >= 0 && node.arguments[index]) return containsKey(node.arguments[index]);
+      }
       return !!symbol && returnsKey.has(symbol);
     }
     return false;
@@ -234,7 +265,10 @@ describe("backend key fields reach the player through the resolver", () => {
    * Then it is listed: a missing key there would be drawn raw, as the digest once did.
    */
   it("has no t(<backend *_key>) call and no *_key default value", () => {
-    expect(offenders()).toEqual([]);
+    expect(
+      offenders(),
+      "Backend keys must use resolveBackendText. For a helper-related false positive, pass a literal directly to t; resolve backend keys before rendering.",
+    ).toEqual([]);
   }, 60000);
 
   /**
@@ -248,6 +282,7 @@ describe("backend key fields reach the player through the resolver", () => {
     ["template literal", "t(`" + "${" + "feedback.headline_key}`)", true],
     ["generic arrow before sink", "const id = <T>(x: T) => x; t(feedback.headline_key)", true],
     ["element access", "t(feedback['headline_key'])", true],
+    ["indexed key array", "t([feedback.headline_key][0], feedback.params)", true],
     ["optional call", "t?.(feedback.headline_key)", true],
     ["Trans key", "<Trans i18nKey={feedback.headline_key} />", true],
     ["multiword direct", "t(msg.sender_role_key)", true],
@@ -267,6 +302,16 @@ describe("backend key fields reach the player through the resolver", () => {
     [
       "identity helper return",
       "function identity(key) { return key; } t(identity(feedback.headline_key))",
+      true,
+    ],
+    [
+      "identity literal after backend key",
+      "function identity(x: string) { return x; } const detail = resolveBackendText(identity(feedback.detail_key), '', feedback.params); t(identity('common.cancel'));",
+      false,
+    ],
+    [
+      "identity key after literal",
+      "function identity(x: string) { return x; } identity('common.cancel'); t(identity(feedback.detail_key));",
       true,
     ],
     [
