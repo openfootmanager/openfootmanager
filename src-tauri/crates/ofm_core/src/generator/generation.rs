@@ -2102,6 +2102,74 @@ mod tests {
         );
     }
 
+    /// The shift of an academy of each club of a world holding `reputations`, as the intake takes it.
+    fn academy_shifts(reputations: &[u32]) -> (Vec<f64>, f64) {
+        let scale = ReputationScale::of_reputations(reputations.iter().copied());
+        let standards: Vec<Standard> = reputations
+            .iter()
+            .map(|&reputation| {
+                PlayerRoll::for_academy(reputation, Some(16), &scale)
+                    .standard
+                    .expect("an academy has a standard")
+            })
+            .collect();
+        let variance = standards[0].absorbed_shift_variance;
+        (
+            standards
+                .iter()
+                .map(|standard| standard.shift - INTAKE_CEILING_OFFSET)
+                .collect(),
+            variance,
+        )
+    }
+
+    /// Given a skewed world: nine clubs at reputation 100 and one at 1000, which the cap clips
+    /// When the clubs' academy shifts are taken together
+    /// Then they average to nothing: the cap redistributes the intake across clubs, it does not move
+    ///      the pooled ceiling (it moved it by about 0.11 points before the shifts were recentred)
+    #[test]
+    fn capped_academy_shifts_average_to_nothing_in_a_skewed_world() {
+        let mut reputations = vec![100; 9];
+        reputations.push(1000);
+
+        let (shifts, _) = academy_shifts(&reputations);
+
+        let centre = shifts.iter().sum::<f64>() / shifts.len() as f64;
+        assert!(centre.abs() < 1e-9, "the pooled shift is {centre}");
+        assert!(
+            shifts[9] > 0.0 && shifts[0] < 0.0,
+            "the big club still leads: {shifts:?}"
+        );
+    }
+
+    /// Given a world whose clubs all hold the same reputation
+    /// When an academy's standard is read
+    /// Then it adds no shift and absorbs no variance: nothing was added across clubs, so the
+    ///      recruits' spread keeps all of the intake's
+    #[test]
+    fn clubs_that_do_not_differ_absorb_no_variance() {
+        let (shifts, absorbed) = academy_shifts(&[640, 640, 640, 640]);
+
+        assert!(shifts.iter().all(|shift| shift.abs() < 1e-9), "{shifts:?}");
+        assert_eq!(absorbed, 0.0);
+    }
+
+    /// Given a world whose reputations the cap does not reach
+    /// When an academy's standard is read
+    /// Then it absorbs the shift's whole variance, as before: only a clipped world changes
+    #[test]
+    fn an_unclipped_world_absorbs_the_whole_shift_variance() {
+        let reputations: Vec<u32> = (0..40).map(|club| 300 + club * 10).collect();
+
+        let (_, absorbed) = academy_shifts(&reputations);
+
+        let whole = (ACADEMY_SHIFT_KEPT * BETWEEN_CLUB_SD).powi(2);
+        assert!(
+            (absorbed - whole).abs() < 1e-9,
+            "{absorbed} against {whole}"
+        );
+    }
+
     /// Given a world whose clubs all share one pinned reputation,
     /// When a club's standard score is read,
     /// Then it is 0: clubs that do not differ get no standard to spread.

@@ -216,6 +216,43 @@ mod tests {
         values.iter().filter(|&&value| value >= ceiling).count() as f64 / values.len() as f64
     }
 
+    /// Given a big club and a small one, and a youth scout finding prospects for each
+    /// When the prospects are generated through the scout's entry point, from the same seeds
+    /// Then the big club's prospects have clearly higher ceilings: scouting draws on the club's
+    ///      standing as the annual intake does (a regression that dropped the scaling only for
+    ///      scouts would pass the intake tests)
+    #[test]
+    fn a_scout_finds_higher_ceilings_for_a_big_club_than_for_a_small_one() {
+        let prospects = |team: &Team| -> f64 {
+            let mut rng = rand::rngs::StdRng::seed_from_u64(5);
+            let scale = world_scale();
+            let ceilings: Vec<f64> = (0..RECRUITS)
+                .map(|_| {
+                    f64::from(
+                        generate_youth_academy_recruit_with_nationality(
+                            team,
+                            &scale,
+                            Some(&Position::Midfielder),
+                            None,
+                            YEAR,
+                            &mut rng,
+                        )
+                        .potential,
+                    )
+                })
+                .collect();
+            mean(&ceilings)
+        };
+
+        let big = prospects(&club(800));
+        let small = prospects(&club(200));
+
+        assert!(
+            big - small > 2.0,
+            "big club's prospects {big:.2} against the small club's {small:.2}"
+        );
+    }
+
     /// Given a big club and a small one taking recruits from the same seeds
     /// When each takes its intake
     /// Then the big club's recruits have clearly higher ceilings: an academy draws on its club's
