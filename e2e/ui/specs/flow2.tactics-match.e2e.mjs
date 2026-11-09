@@ -20,12 +20,20 @@ async function chooseAnotherOption(label) {
   const current = (await combobox.getText()).trim();
 
   await clickWhenReady(combobox);
+  // A plain loop: WebdriverIO's element array does not take part in Promise.all(.map(...)).
   const options = await $$('[role="option"]');
-  const texts = await Promise.all(options.map(async (option) => (await option.getText()).trim()));
-  const index = texts.findIndex((text) => text !== "" && text !== current);
-  expect(index).toBeGreaterThanOrEqual(0);
-  const picked = texts[index];
-  await clickWhenReady(options[index]);
+  let picked = "";
+  let pickedOption;
+  for (const option of options) {
+    const text = (await option.getText()).trim();
+    if (text !== "" && text !== current) {
+      picked = text;
+      pickedOption = option;
+      break;
+    }
+  }
+  expect(picked).not.toBe("");
+  await clickWhenReady(pickedOption);
 
   await browser.waitUntil(async () => (await combobox.getText()).trim() === picked, {
     timeout: 10_000,
