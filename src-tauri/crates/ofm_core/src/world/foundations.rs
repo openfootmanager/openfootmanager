@@ -1217,6 +1217,39 @@ mod tests {
         );
     }
 
+    /// Given a new club calendar with a match on a blackout date, when it is placed,
+    /// then all competitive fixture identities survive settlement.
+    #[test]
+    fn creation_settlement_keeps_every_competitive_fixture() {
+        let clock = GameClock::new(Utc.with_ymd_and_hms(2035, 7, 1, 12, 0, 0).unwrap());
+        let mut game = Game::new(clock, manager_for("e-0"), vec![], vec![], vec![], vec![]);
+        let teams: Vec<String> = (0..8).map(|i| format!("e-{i}")).collect();
+        let start = Utc.with_ymd_and_hms(2035, 9, 9, 0, 0, 0).unwrap();
+        game.competitions.push(crate::schedule::generate_league(
+            "Europe", 2035, &teams, start,
+        ));
+        let ids = |game: &Game| -> std::collections::BTreeSet<String> {
+            game.competitions
+                .iter()
+                .flat_map(|c| &c.fixtures)
+                .filter(|f| f.competition != FixtureCompetition::Friendly)
+                .map(|f| f.id.clone())
+                .collect()
+        };
+        let before = ids(&game);
+        assert!(!before.is_empty());
+        let blackout = crate::national_team::international_blackout_around(
+            &game.competitions,
+            game.clock.current_date.date_naive(),
+        );
+        place_club_calendar(&mut game, &blackout, &Default::default());
+        assert_eq!(
+            ids(&game),
+            before,
+            "creation settlement must not lose competitive fixtures"
+        );
+    }
+
     /// Given a division with preseason friendlies appended, one of which falls on a blackout date,
     /// When the club calendar is placed,
     /// Then that friendly is settled like everything else: it is dropped, and the others stay.

@@ -1697,6 +1697,81 @@ mod tests {
         );
     }
 
+    /// Given a rollover during an active qualifying campaign and a club match on a qualifying
+    /// window, when the campaign continues, then placement moves the match and load repair is idle.
+    #[test]
+    fn continuing_qualifying_settles_club_matches_before_reload() {
+        let mut game = calendar_game(at(2033, 6, 20));
+        let first_windows = crate::national_team::international_window_dates(at(2032, 7, 1));
+        crate::world_cup::schedule_world_cup_qualifying(&mut game, 2034, &first_windows);
+        let qualifier = game
+            .competitions
+            .iter()
+            .find(|c| crate::world_cup::is_world_cup_qualifying(c))
+            .expect("a qualifying campaign exists");
+        assert!(
+            qualifier
+                .fixtures
+                .iter()
+                .any(|f| f.status == FixtureStatus::Scheduled)
+        );
+        add_division(&mut game, "league", "europe", at(2033, 9, 11));
+        let club_match = game.competitions.last().unwrap().fixtures[0].id.clone();
+        assert_eq!(
+            game.competitions.last().unwrap().fixtures[0].date,
+            "2033-09-11"
+        );
+        game.competitions.last_mut().unwrap().fixtures.truncate(1);
+        manage_international_calendar(
+            &mut game,
+            at(2033, 7, 18),
+            at(2033, 6, 22),
+            false,
+            None,
+            &Default::default(),
+        );
+        let fixture = game
+            .competitions
+            .iter()
+            .flat_map(|c| &c.fixtures)
+            .find(|f| f.id == club_match)
+            .unwrap();
+        assert_ne!(
+            fixture.date, "2033-09-11",
+            "the qualifying window must be cleared"
+        );
+        let before = serde_json::to_value(&game.competitions).unwrap();
+        let notices = game.messages.len();
+        assert_eq!(crate::calendar_repair::repair_loaded_calendar(&mut game), 0);
+        assert_eq!(serde_json::to_value(&game.competitions).unwrap(), before);
+        assert_eq!(game.messages.len(), notices);
+    }
+
+    /// Given a competition with a match on an international window, when rollover settles the
+    /// calendar, then every competitive fixture survives even if its date moves.
+    #[test]
+    fn rollover_settlement_keeps_every_competitive_fixture() {
+        let mut game = calendar_game(at(2033, 6, 20));
+        add_division(&mut game, "league", "europe", at(2033, 9, 9));
+        let ids = |game: &Game| -> std::collections::BTreeSet<String> {
+            game.competitions
+                .iter()
+                .filter(|c| c.id == "league")
+                .flat_map(|c| &c.fixtures)
+                .filter(|f| f.competition != FixtureCompetition::Friendly)
+                .map(|f| f.id.clone())
+                .collect()
+        };
+        let before = ids(&game);
+        assert!(!before.is_empty());
+        initialize_rollover_calendar(&mut game);
+        assert_eq!(
+            ids(&game),
+            before,
+            "rollover settlement must not lose competitive fixtures"
+        );
+    }
+
     /// Given a World Cup year, where the rollover returns before the windows and friendlies, and
     /// two regenerated competitions whose dates clash for one club,
     /// When the rollover builds the international calendar,
