@@ -62,3 +62,36 @@ pub fn user_division(game: &Game) -> Option<&League> {
             .flatten()
     })
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use domain::league::{CompetitionScope, CompetitionType, Fixture, FixtureStatus};
+
+    /// Given a domestic league and later-finishing cup and international tables for the same
+    /// club, when its league is selected, then only the domestic league is eligible.
+    #[test]
+    fn a_later_cup_or_international_table_cannot_replace_a_clubs_domestic_league() {
+        let mut domestic = League::new("domestic".into(), "League".into(), 2025, &["club".into()]);
+        domestic.fixtures.push(Fixture {
+            date: "2025-05-01".into(),
+            status: FixtureStatus::Completed,
+            ..Default::default()
+        });
+        for (kind, scope) in [
+            (CompetitionType::Cup, CompetitionScope::Domestic),
+            (CompetitionType::League, CompetitionScope::International),
+        ] {
+            let mut later = domestic.clone();
+            later.id = "later".into();
+            later.kind = kind;
+            later.scope = scope;
+            later.fixtures[0].date = "2025-06-01".into();
+            let competitions = [domestic.clone(), later];
+            assert_eq!(
+                club_league_table_in(&competitions, "club").map(|league| league.id.as_str()),
+                Some("domestic")
+            );
+        }
+    }
+}

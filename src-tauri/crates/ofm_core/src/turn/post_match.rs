@@ -1222,4 +1222,37 @@ mod tests {
         );
         assert_eq!(morales(&after_a_second_yellow), morales(&after_a_red));
     }
+    /// Given an imported league fixture with a different nonempty competition id,
+    /// when its report is recorded, then its owning division receives the league statistics.
+    #[test]
+    fn an_imported_fixture_credits_its_owning_leagues_awards() {
+        let mut game = match_game();
+        game.league.as_mut().unwrap().fixtures[0].competition_id = "old-import-id".into();
+        let report = report(HashMap::from([(
+            "home-9".into(),
+            PlayerMatchStats {
+                goals: 2,
+                minutes_played: 90,
+                rating: 7.0,
+                ..Default::default()
+            },
+        )]));
+        apply_match_report(&mut game, 0, "home", "away", &report);
+        let division = game.league.as_ref().unwrap();
+        let awards = crate::season_awards::compute_division_season_awards(&game, division);
+        assert_eq!(
+            awards.golden_boot.first().map(|entry| entry.value),
+            Some(2.0)
+        );
+        let player = game
+            .players
+            .iter()
+            .find(|player| player.id == "home-9")
+            .unwrap();
+        assert!(
+            !player
+                .league_stats_by_competition
+                .contains_key("old-import-id")
+        );
+    }
 }

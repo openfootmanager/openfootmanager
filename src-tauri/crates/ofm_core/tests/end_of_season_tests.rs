@@ -2741,6 +2741,22 @@ fn player_career_entry_added() {
 #[test]
 fn player_stats_reset() {
     let mut game = make_completed_season_game();
+    let mut second = game.league.clone().unwrap();
+    second.id = "second-completed".into();
+    second.priority = 1;
+    game.competitions = vec![game.league.clone().unwrap(), second];
+    for player in &mut game.players {
+        player.league_stats_by_competition.insert(
+            "second-completed".into(),
+            PlayerSeasonStats {
+                appearances: 5,
+                goals: 4,
+                clean_sheets: 2,
+                ..Default::default()
+            },
+        );
+        assert_eq!(player.league_stats_by_competition.len(), 2);
+    }
     process_end_of_season(&mut game);
 
     let p1 = game.players.iter().find(|p| p.id == "p1").unwrap();
@@ -2748,6 +2764,69 @@ fn player_stats_reset() {
     assert_eq!(p1.stats.goals, 0);
     assert!(p1.league_stats_by_competition.is_empty());
     assert_eq!(p1.stats.assists, 0);
+}
+
+/// Given a retained foreign league and completed domestic league with user and AI stints,
+/// when the user's season rolls over, then retained statistics and award standings survive.
+#[test]
+fn a_rollover_preserves_user_and_ai_statistics_for_retained_league_editions() {
+    let mut game = make_completed_season_game();
+    game.teams.extend([
+        make_team("team3", "Third FC"),
+        make_team("team4", "Fourth FC"),
+    ]);
+    let mut retained = first_division("retained", "BR", "south-america", &["team3", "team4"]);
+    let mut future = make_completed_fixture("future", "team4", "team3", 0, 0);
+    future.status = FixtureStatus::Scheduled;
+    future.result = None;
+    future.date = "2025-12-01".into();
+    retained.fixtures = vec![
+        make_completed_fixture("past", "team3", "team4", 2, 0),
+        future,
+    ];
+    assert!(!ofm_core::end_of_season::is_regenerated_at_rollover(
+        &retained
+    ));
+    let retained_stats = PlayerSeasonStats {
+        appearances: 8,
+        goals: 7,
+        assists: 3,
+        clean_sheets: 2,
+        rated_appearances: 6,
+        avg_rating: 7.25,
+        minutes_played: 640,
+        ..Default::default()
+    };
+    game.players[0]
+        .league_stats_by_competition
+        .insert("retained".into(), retained_stats.clone());
+    let mut ai = make_player("foreign", "Foreign Star", "team3", Position::Forward);
+    ai.league_stats_by_competition
+        .insert("retained".into(), retained_stats.clone());
+    ai.league_stats_by_competition.insert(
+        "league1".into(),
+        PlayerSeasonStats {
+            appearances: 3,
+            goals: 2,
+            ..Default::default()
+        },
+    );
+    game.players.push(ai);
+    game.competitions = vec![game.league.clone().unwrap(), retained.clone()];
+
+    process_end_of_season(&mut game);
+
+    for id in ["p1", "foreign"] {
+        let player = game.players.iter().find(|player| player.id == id).unwrap();
+        assert_eq!(
+            player.league_stats_by_competition.get("retained"),
+            Some(&retained_stats)
+        );
+        assert!(!player.league_stats_by_competition.contains_key("league1"));
+    }
+    let awards = ofm_core::season_awards::compute_division_season_awards(&game, &retained);
+    assert_eq!(awards.golden_boot.len(), 2);
+    assert!(awards.golden_boot.iter().all(|entry| entry.value == 7.0));
 }
 
 #[test]

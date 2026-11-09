@@ -1459,4 +1459,53 @@ mod tests {
             assert!(awards.young_player.is_empty());
         }
     }
+    /// Given nine rated appearances for an 18-match club and another club on 20 matches,
+    /// when the player leaves the division, then his former club still supplies the threshold.
+    #[test]
+    fn a_departed_players_rating_eligibility_uses_his_former_clubs_matches() {
+        use domain::player::{PlayerMovementEntry, PlayerMovementKind};
+        let mut player = rated_player("departed", "2006-01-01", 9, 7.5);
+        let mut game = make_game(
+            vec![],
+            vec![
+                make_team("team1", "Old FC"),
+                make_team("team2", "Other FC"),
+                make_team("outside", "New FC"),
+            ],
+        );
+        let division = League {
+            standings: vec![standing_after("team1", 18), standing_after("team2", 20)],
+            ..Default::default()
+        };
+        game.players.push(player.clone());
+        assert_eq!(
+            compute_division_season_awards(&game, &division)
+                .player_of_year
+                .len(),
+            1
+        );
+        for kind in [
+            PlayerMovementKind::PermanentTransfer,
+            PlayerMovementKind::LoanStart,
+            PlayerMovementKind::LoanReturn,
+            PlayerMovementKind::Released,
+        ] {
+            player.team_id = Some("outside".into());
+            player
+                .record_movement(PlayerMovementEntry {
+                    from_team_id: Some("team1".into()),
+                    to_team_id: Some("outside".into()),
+                    ..PlayerMovementEntry::new("2025-06-01", kind)
+                })
+                .unwrap();
+            game.players = vec![player.clone()];
+            let awards = compute_division_season_awards(&game, &division);
+            assert_eq!(
+                awards.player_of_year.len(),
+                1,
+                "nine of his former club's 18 still qualifies"
+            );
+            assert_eq!(awards.young_player.len(), 1);
+        }
+    }
 }
