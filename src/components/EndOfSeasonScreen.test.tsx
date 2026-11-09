@@ -1,5 +1,5 @@
 import french from "../i18n/locales/fr.json";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { invoke } from "@tauri-apps/api/core";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -79,6 +79,47 @@ vi.mock("../store/gameStore", async () => {
 
 describe("EndOfSeasonScreen", () => {
   beforeEach(() => vi.mocked(invoke).mockReset());
+  /** Given a pending division read, when the review loads, then rollover waits until the read completes. */
+  it("disables the next season while the division is loading", async () => {
+    const game = createEndOfSeasonGame();
+    let finishRead: (value: GameStateData["league"]) => void = () => {};
+    vi.mocked(invoke).mockReturnValueOnce(
+      new Promise((resolve) => {
+        finishRead = resolve;
+      }),
+    );
+    render(
+      <EndOfSeasonScreen
+        gameState={game}
+        onGameUpdate={vi.fn()}
+        transition={null}
+        onTransitionChange={vi.fn()}
+      />,
+    );
+    const button = screen.getByRole("button", { name: "Start next season" });
+    expect(button).toBeDisabled();
+    fireEvent.click(button);
+    expect(invoke).not.toHaveBeenCalledWith("advance_to_next_season", expect.anything());
+    await act(async () => finishRead(game.league));
+    expect(button).toBeEnabled();
+  });
+
+  /** Given a failed division read, when its error is shown, then rollover remains available. */
+  it("allows the next season after the division read fails", async () => {
+    const game = createEndOfSeasonGame();
+    vi.mocked(invoke).mockRejectedValueOnce(new Error("offline"));
+    render(
+      <EndOfSeasonScreen
+        gameState={game}
+        onGameUpdate={vi.fn()}
+        transition={null}
+        onTransitionChange={vi.fn()}
+      />,
+    );
+    expect(await screen.findByRole("alert")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "common.retry" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Start next season" })).toBeEnabled();
+  });
   /** Given a failed division read, when retried, then the followed division is shown. */
   it("reports and retries a failed division read", async () => {
     const game = createEndOfSeasonGame();
