@@ -383,11 +383,11 @@ pub async fn advance_one_day<R: tauri::Runtime>(
     .await
 }
 
-fn messages_needing_attention(game: &Game) -> std::collections::HashSet<String> {
+fn messages_needing_attention(game: &Game) -> std::collections::HashSet<(String, bool)> {
     game.messages
         .iter()
         .filter(|message| message.priority.needs_attention())
-        .map(|message| message.id.clone())
+        .map(|message| (message.id.clone(), message.read))
         .collect()
 }
 
@@ -398,8 +398,8 @@ fn continue_reached_attention_event(
     transfer_status: &domain::season::TransferWindowStatus,
     opens_on: Option<&str>,
     today: &str,
-    attention_before: &std::collections::HashSet<String>,
-    attention_after: &std::collections::HashSet<String>,
+    attention_before: &std::collections::HashSet<(String, bool)>,
+    attention_after: &std::collections::HashSet<(String, bool)>,
 ) -> bool {
     *transfer_status == domain::season::TransferWindowStatus::DeadlineDay
         || opens_on == Some(today)
@@ -929,16 +929,18 @@ mod tests {
             &TransferWindowStatus::Closed,
             None,
             "2026-07-05",
-            &["old".to_string()].into_iter().collect(),
-            &["old".to_string(), "new".to_string()].into_iter().collect(),
+            &[("old".to_string(), false)].into_iter().collect(),
+            &[("old".to_string(), false), ("new".to_string(), false)]
+                .into_iter()
+                .collect(),
         ));
         // A quiet day mid-window with no new mail keeps rolling.
         assert!(!continue_reached_attention_event(
             &TransferWindowStatus::Open,
             Some("2026-07-01"),
             "2026-07-10",
-            &["old".to_string()].into_iter().collect(),
-            &["old".to_string()].into_iter().collect(),
+            &[("old".to_string(), false)].into_iter().collect(),
+            &[("old".to_string(), false)].into_iter().collect(),
         ));
     }
 
