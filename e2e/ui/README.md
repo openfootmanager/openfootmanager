@@ -8,7 +8,8 @@ Drives the built app's own window, the way a player does. It sits beside `src-ta
 | 1. New game, to the first match day's pre-match lineup | `specs/flow1.new-game.e2e.mjs` | here |
 | 2. Tactics edit, then match; 3. substitutions; 4. end of season; 5. a package, then a career | | later |
 
-**Nightly and advisory.** `nightly-e2e.yml` runs it (job `ui-e2e`). A red run does not open the
+**Nightly and advisory.** `.github/workflows/ui-e2e.yml` runs it (nightly, on demand, and on a pull
+request that changes `e2e/`; it is separate from `nightly-e2e.yml`). A red run does not open the
 nightly issue; it is reported in the job summary and kept as artifacts (a screenshot and the page
 markup of the failing step). It becomes required once it has been green for a week.
 
@@ -23,10 +24,12 @@ OFM_E2E_APP=../../src-tauri/target/debug/openfootmanager bash run.sh
 ```
 
 `run.sh` is the only entry point. It makes a scratch `HOME` with private `XDG_*` directories, forces
-`GDK_BACKEND=x11`, runs under `xvfb-run`, and deletes the scratch directory afterwards. The suite
-refuses to start otherwise (`helpers/isolation.mjs`, tested by `npm run test:guard`): a flow that
-starts a new game must never touch a real career. **Do not launch the app any other way against
-your own home.**
+`GDK_BACKEND=x11`, starts an Xvfb of its own on a free display number (100 or above, never your
+session's), and deletes the scratch directory afterwards. The suite refuses to start otherwise
+(`helpers/isolation.mjs`, tested by `npm run test:guard`): the scratch paths are resolved through
+symlinks, and the display must be served by the Xvfb `run.sh` started (its process id is checked),
+so setting variables by hand does not get past it. A flow that starts a new game must never touch
+a real career. **Do not launch the app any other way against your own home.**
 
 ## Writing a step
 

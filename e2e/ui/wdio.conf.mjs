@@ -19,7 +19,9 @@ export const config = {
   logLevel: "warn",
   framework: "mocha",
   reporters: ["spec"],
-  mochaOpts: { ui: "bdd", timeout: 180_000 },
+  // Longer than the longest wait inside a step: generating the world allows 300 s for the club
+  // screen, and mocha must not cut a step off before its own wait gives up and names the cause.
+  mochaOpts: { ui: "bdd", timeout: 360_000 },
 
   onPrepare() {
     assertIsolated();
