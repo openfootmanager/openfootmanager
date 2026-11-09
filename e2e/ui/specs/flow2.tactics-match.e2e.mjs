@@ -69,6 +69,8 @@ describe("flow 2: a tactics edit, then the match", () => {
   it("changes the formation and the play style on the Tactics screen", async () => {
     await clickWhenReady(buttonNamed("Tactics"));
     edit.formation = await chooseAnotherOption("Formation");
+    // BITE: change the formation again, so the screen no longer has what the spec recorded.
+    await chooseAnotherOption("Formation");
     edit.playStyle = await chooseAnotherOption("Play Style");
   });
 
