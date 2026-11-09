@@ -62,6 +62,8 @@ describe("flow 1: a new game, to the first match day", () => {
       { timeout: 120_000, interval: 1000, timeoutMsg: "the skip never reached a match day" },
     );
 
+    // The skip ends in a digest of what happened on the way; the match is behind it.
+    await clickWhenReady(buttonNamed("Back to Dashboard"));
     await clickWhenReady($('//button[contains(., "Go to the Field")]'));
     await clickWhenReady(buttonNamed("Confirm"));
     await waitForRoute("/match");
