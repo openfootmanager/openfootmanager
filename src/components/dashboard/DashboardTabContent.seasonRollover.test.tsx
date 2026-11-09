@@ -95,6 +95,17 @@ beforeEach(() => {
 });
 
 describe("the season rollover, on the dashboard", () => {
+  /** Given no followed league, when rollover completes, then skip the ceremony and show the next season. */
+  it("skips the ceremony without a followed league", async () => {
+    vi.mocked(invoke).mockResolvedValueOnce({
+      game: nextSeason(),
+      summary: { season: 6, league_name: "", season_awards: createAwards() },
+    });
+    render(<Dashboard />);
+    fireEvent.click(screen.getByRole("button", { name: "Start Next Season" }));
+    expect(await screen.findByText("Season 7")).toBeInTheDocument();
+    expect(screen.queryByText("Awards Ceremony")).not.toBeInTheDocument();
+  });
   /**
    * Given a finished season on Home, and a rollover whose new game says the season is not complete
    * When the player starts the next season

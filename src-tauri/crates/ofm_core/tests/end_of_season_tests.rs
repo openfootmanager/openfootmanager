@@ -1351,6 +1351,30 @@ fn never_employed() -> Game {
     game
 }
 
+/// Given an unemployed manager with an older career but no recorded club
+/// When the world season rolls over
+/// Then no unrelated league schedule is announced.
+#[test]
+fn no_schedule_notice_without_a_followed_division() {
+    let mut game = never_employed();
+    game.manager.career_stats.matches_managed = 12;
+    process_end_of_season(&mut game);
+    assert!(game.messages.iter().all(|m| !m.id.starts_with("new_season_")));
+}
+
+/// Given an unemployed manager with an older career but no recorded club
+/// When a completed world season rolls over
+/// Then the summary retains the season number without exposing a league.
+#[test]
+fn no_followed_division_keeps_the_completed_season() {
+    let mut game = never_employed();
+    game.manager.career_stats.matches_managed = 12;
+    let season = game.league.as_ref().unwrap().season;
+    let summary = process_end_of_season(&mut game);
+    assert_eq!(summary.season, season);
+    assert!(summary.league_name.is_empty());
+}
+
 /// Given a manager who has never had a club, with the mirror on the first division
 /// When the season rolls over
 /// Then no preview is published and the summary is empty: he follows no league, and the screens
