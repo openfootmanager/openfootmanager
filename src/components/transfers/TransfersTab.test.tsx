@@ -29,6 +29,10 @@ vi.mock("@tauri-apps/api/core", () => ({
 }));
 
 vi.mock("../../utils/backendI18n", () => ({
+  resolveBackendText: (key: string, fallback: string, params?: Record<string, string>) => {
+    const translated = transferTestTranslation(key, params);
+    return translated === key ? fallback : translated;
+  },
   resolveBackendError: (error: unknown) => (error instanceof Error ? error.message : String(error)),
 }));
 

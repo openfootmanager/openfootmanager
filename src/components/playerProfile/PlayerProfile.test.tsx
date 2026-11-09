@@ -1,13 +1,18 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { useState } from "react";
-import { beforeEach } from "vitest";
+import { beforeAll, beforeEach } from "vitest";
 import { describe, expect, it, vi } from "vitest";
 import { invoke } from "@tauri-apps/api/core";
 import type { InvokeArgs } from "@tauri-apps/api/core";
 import type { GameStateData, PlayerData, StaffData, TeamData } from "../../store/gameStore";
 import type { PlayerKnowledge, VisibleWage } from "../../services/scoutingService";
 import PlayerProfile from "./PlayerProfile";
+import { i18nReady } from "../../i18n";
 import { createSeasonContext } from "../../test-utils/factories";
+
+beforeAll(async () => {
+  await i18nReady;
+});
 
 /**
  * The fields these mocks read out of an invoke payload. Tauri's IPC boundary is untyped by
@@ -226,9 +231,8 @@ vi.mock("react-i18next", () => ({
   }),
 }));
 
-vi.mock("../../utils/backendI18n", () => ({
-  resolveBackendText: (_key?: string, fallback?: string, _params?: Record<string, string>) =>
-    fallback ?? "",
+vi.mock("../../utils/backendI18n", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../../utils/backendI18n")>()),
   // The banners' one resolver; this file's own texts for the keys it provokes.
   resolveBackendError: (error: unknown) => {
     const message = error instanceof Error ? error.message : String(error);

@@ -7,6 +7,7 @@ import type { SeasonAwardsData } from "../../store/gameStore";
 vi.mock("react-i18next", async () => {
   const { useRef } = await import("react");
   return {
+    initReactI18next: { type: "3rdParty", init: () => undefined },
     useTranslation: () => {
       // The real useTranslation always costs a hook slot; a hook-free mock lets
       // a component that returns early render zero hooks, which hides
