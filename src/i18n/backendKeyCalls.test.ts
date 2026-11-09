@@ -19,6 +19,8 @@ const SOURCES = import.meta.glob(
  * so a safe call may inherit taint from another call.
  * Array destructuring, quoted destructuring properties, JSX props spreads and backend keys in
  * resolver fallbacks are not tracked.
+ * Destructured helper parameters and later rest arguments are not tracked; taint is not cleared
+ * on reassignment, and defaultValue properties are checked outside translation options too.
  * The two named adapters below are trusted to keep their separately tested fallback checks.
  */
 function scanSource(path: string, source: string): string[] {
