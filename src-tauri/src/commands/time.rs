@@ -816,6 +816,47 @@ mod tests {
         message
     }
 
+    /// Given old attention mail and an exhausted squad on the first, when Continue processes
+    /// the day, then it stops for the new urgent warning even though old mail is archived.
+    #[test]
+    fn continue_stops_for_new_urgent_mail_when_old_attention_mail_is_archived() {
+        let mut game = make_game(22);
+        game.seed = 1;
+        game.clock = GameClock::new(Utc.with_ymd_and_hms(2025, 10, 1, 12, 0, 0).unwrap());
+        for player in game.players.iter_mut().skip(11) {
+            player.condition = 1;
+        }
+        let mut high = make_message("old-high", MessagePriority::High, true);
+        high.date = "2025-01-01".to_string();
+        let mut urgent = make_message("old-urgent", MessagePriority::Urgent, true);
+        urgent.date = "2025-01-01".to_string();
+        game.messages = vec![high, urgent];
+        for index in 0..50 {
+            let mut old = make_message(&format!("old-{index}"), MessagePriority::High, true);
+            old.date = "2025-01-01".to_string();
+            game.messages.push(old);
+        }
+        let state = StateManager::new();
+        state.set_game(game);
+        state.set_stats_state(StatsState::default());
+
+        let result =
+            super::advance_to_next_event_internal(&state, ofm_core::state::Career::Active).unwrap();
+        state
+            .get_game(|game| {
+                assert!(game.archived_messages.iter().any(|m| m.id == "old-high"));
+                assert!(game.archived_messages.iter().any(|m| m.id == "old-urgent"));
+                assert!(game
+                    .messages
+                    .iter()
+                    .any(|m| m.id == "fitness_warn_2025-10-01"
+                        && m.priority == MessagePriority::Urgent));
+            })
+            .unwrap();
+        assert_eq!(result["days_skipped"], 1);
+        assert_eq!(result["action"], "arrived", "{}", result["blockers"]);
+    }
+
     fn blocker_by_id<'a>(blockers: &'a [Value], id: &str) -> Option<&'a Value> {
         blockers
             .iter()
