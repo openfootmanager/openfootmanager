@@ -246,11 +246,13 @@ fn has_world_shape(value: &serde_json::Value) -> bool {
 
 /// Parse a JSON string into a `WorldData`.
 pub fn load_world_from_json(json: &str) -> Result<WorldData, String> {
-    let value: serde_json::Value =
+    let mut value: serde_json::Value =
         serde_json::from_str(json).map_err(|_| WORLD_PARSE_FAILED_ERROR.to_string())?;
     if !has_world_shape(&value) {
         return Err(WORLD_PARSE_FAILED_ERROR.to_string());
     }
+    crate::league_stats_compat::upgrade_world_json(&mut value)
+        .map_err(|_| WORLD_PARSE_FAILED_ERROR.to_string())?;
     let world: WorldData =
         serde_json::from_value(value).map_err(|_| WORLD_PARSE_FAILED_ERROR.to_string())?;
     let world = normalize_world(world);
@@ -319,7 +321,8 @@ fn load_world_from_manifest_path(
     }
 
     let teams = read_json_file(&manifest_shard_path(path, &manifest.shards.teams))?;
-    let players = read_json_file(&manifest_shard_path(path, &manifest.shards.players))?;
+    let mut players: serde_json::Value =
+        read_json_file(&manifest_shard_path(path, &manifest.shards.players))?;
     let staff = read_json_file(&manifest_shard_path(path, &manifest.shards.staff))?;
     let managers = read_json_file(&manifest_shard_path(path, &manifest.shards.managers))?;
     // Absent from a manifest written before the archives existed: nothing to read.
@@ -335,7 +338,12 @@ fn load_world_from_manifest_path(
     }
     let retired_managers = read_optional(path, &manifest.shards.retired_managers)?;
     let retired_players = read_optional(path, &manifest.shards.retired_players)?;
-    let competitions = read_json_file(&manifest_shard_path(path, &manifest.shards.competitions))?;
+    let competitions: Vec<domain::league::League> =
+        read_json_file(&manifest_shard_path(path, &manifest.shards.competitions))?;
+    crate::league_stats_compat::upgrade_players_json(&mut players, &competitions)
+        .map_err(|_| WORLD_PARSE_FAILED_ERROR.to_string())?;
+    let players =
+        serde_json::from_value(players).map_err(|_| WORLD_PARSE_FAILED_ERROR.to_string())?;
     let national_teams =
         read_json_file(&manifest_shard_path(path, &manifest.shards.national_teams))?;
     let news = read_json_file(&manifest_shard_path(path, &manifest.shards.news))?;

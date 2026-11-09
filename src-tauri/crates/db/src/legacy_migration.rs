@@ -152,7 +152,8 @@ fn migrate_single_save(
             }
         }
     }
-    let old_league_stats = legacy_league_stats(&json)?;
+    ofm_core::league_stats_compat::upgrade_world_json(&mut json)
+        .map_err(|_| LEGACY_MIGRATION_FAILED_ERROR.to_string())?;
     let mut game: Game =
         serde_json::from_value(json).map_err(|_| LEGACY_MIGRATION_FAILED_ERROR.to_string())?;
 
@@ -160,56 +161,8 @@ fn migrate_single_save(
     player_identity::upgrade_loaded_player_identities(&mut game);
     ofm_core::football_identity::upgrade_game_football_identities(&mut game);
     game.promote_legacy_league();
-    let competitions: std::collections::HashMap<_, _> = game
-        .players
-        .iter()
-        .filter_map(|player| {
-            let club = player.team_id.as_deref()?;
-            let league = ofm_core::end_of_season::club_league_table(&game, club)?;
-            Some((player.id.clone(), league.id.clone()))
-        })
-        .collect();
-    for player in &mut game.players {
-        if let Some(stats) = old_league_stats.get(&player.id)
-            && let Some(competition) = competitions.get(&player.id)
-        {
-            player
-                .league_stats_by_competition
-                .insert(competition.clone(), stats.clone());
-        }
-    }
 
     save_manager.create_save(&game, &row.name)
-}
-
-/// Only old JSON needs a backfill: an explicitly saved empty map means no league appearances.
-fn legacy_league_stats(
-    json: &serde_json::Value,
-) -> Result<std::collections::HashMap<String, domain::player::PlayerSeasonStats>, String> {
-    let mut stats = std::collections::HashMap::new();
-    for player in json
-        .get("players")
-        .and_then(serde_json::Value::as_array)
-        .into_iter()
-        .flatten()
-    {
-        if player.get("league_stats_by_competition").is_some() {
-            continue;
-        }
-        if let Some(id) = player.get("id").and_then(serde_json::Value::as_str)
-            && let Some(season) = player
-                .get("league_stats")
-                .filter(|value| !value.is_null())
-                .or_else(|| player.get("stats"))
-        {
-            stats.insert(
-                id.to_string(),
-                serde_json::from_value(season.clone())
-                    .map_err(|_| LEGACY_MIGRATION_FAILED_ERROR.to_string())?,
-            );
-        }
-    }
-    Ok(stats)
 }
 
 #[cfg(test)]
