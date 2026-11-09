@@ -2081,6 +2081,39 @@ mod tests {
         Game::new(clock, manager, vec![], vec![], vec![], vec![])
     }
 
+    /// Given a World Cup group stage, when its first knockout round is drawn at the normal gap,
+    /// then the projected final day is unchanged for each supported finals format.
+    #[test]
+    fn finals_reservation_is_stable_when_the_bracket_is_drawn() {
+        for format in [&FORMAT_16, &FORMAT_32, &FORMAT_48] {
+            let mut game = empty_game();
+            schedule_world_cup(&mut game, kickoff(2030), format);
+            let cup = game
+                .competitions
+                .iter_mut()
+                .find(|c| is_world_cup_competition(c))
+                .unwrap();
+            let before = finals_period(cup).expect("the finals have dates");
+            let participants = crate::group_stage::knockout_qualifiers(cup);
+            assert!(participants.len() >= 2);
+            let last_group = cup.fixtures.iter().map(|f| f.date.as_str()).max().unwrap();
+            let next = crate::schedule::date_str_to_utc(last_group).unwrap()
+                + chrono::Duration::days(i64::from(cup.rules.knockout_round_gap_days));
+            crate::schedule::seed_knockout_round(
+                cup,
+                &participants,
+                next,
+                FixtureCompetition::InternationalNation,
+            );
+            assert_eq!(
+                finals_period(cup),
+                Some(before),
+                "field size {}",
+                format.field
+            );
+        }
+    }
+
     /// Every World Cup competition in the live game must already hold exactly what the
     /// load-time backfill would give it, so a live game and its reload cannot disagree.
     fn assert_calendars_match_the_backfill(game: &Game) {
