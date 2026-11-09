@@ -46,7 +46,8 @@ interface TacticsCommandBarProps {
   onDuplicate: () => void;
   onFormationChange: (formation: string) => void;
   onPlayStyleChange: (playStyle: string) => void;
-  onSave: () => void;
+  /** Resolves whether the save was accepted: the "Saved" cue shows only when it was. */
+  onSave: () => Promise<boolean>;
   onSelectTactic: (id: string) => void;
   tacticLibrary: TacticsLibraryEntry[];
 }
@@ -142,13 +143,27 @@ export default function TacticsCommandBar({
     };
   }, []);
 
-  function handleSaveClick(): void {
-    onSave();
-    setShowSavedCue(true);
+  // The tactic and the save a cue would confirm: an answer that lands after the manager moved on
+  // (another tactic, a newer save) must not confirm the wrong one.
+  const activeTacticIdRef = useRef(activeTactic?.id);
+  activeTacticIdRef.current = activeTactic?.id;
+  const latestSaveRef = useRef(0);
 
+  async function handleSaveClick(): Promise<void> {
+    // The old cue belongs to the previous save: it goes while this one is pending.
+    setShowSavedCue(false);
     if (savedCueTimeoutRef.current) {
       clearTimeout(savedCueTimeoutRef.current);
     }
+    const thisSave = ++latestSaveRef.current;
+    const savedTacticId = activeTactic?.id;
+    // Saving a preset makes a new custom tactic and the bar moves to it; saving a custom one keeps
+    // it active, so a different active tactic after the answer means the manager moved away.
+    const createsATactic = activeTactic?.type !== "custom";
+    const saved = await onSave();
+    if (!saved || thisSave !== latestSaveRef.current) return;
+    if (!createsATactic && activeTacticIdRef.current !== savedTacticId) return;
+    setShowSavedCue(true);
 
     savedCueTimeoutRef.current = setTimeout(() => {
       setShowSavedCue(false);
@@ -218,6 +233,10 @@ export default function TacticsCommandBar({
               >
                 {showSavedCue && !isDirty ? t("tactics.tacticSaved") : saveLabel}
               </Button>
+              {/* The button's own text changing is not announced; this is. */}
+              <span aria-live="polite" className="sr-only">
+                {showSavedCue && !isDirty ? t("tactics.tacticSaved") : ""}
+              </span>
             </div>
           </div>
 
