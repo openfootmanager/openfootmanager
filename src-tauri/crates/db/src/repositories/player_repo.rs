@@ -1551,6 +1551,57 @@ mod tests {
         assert_eq!(loaded[0].stats.appearances, 12);
     }
 
+    /// Given distinct league stints, when a player is saved twice and read through a fresh
+    /// database connection, then both competitions retain all of their non-default statistics.
+    #[test]
+    fn league_stints_survive_a_fresh_database_reader() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("league-stints.db");
+        let db = GameDatabase::open(&path).unwrap();
+        let mut value = serde_json::to_value(sample_player("stints", Some("team-b"))).unwrap();
+        let mut first = domain::player::PlayerSeasonStats {
+            appearances: 10,
+            goals: 10,
+            assists: 3,
+            clean_sheets: 2,
+            rated_appearances: 8,
+            avg_rating: 7.5,
+            minutes_played: 800,
+            ..Default::default()
+        };
+        let second = domain::player::PlayerSeasonStats {
+            appearances: 5,
+            goals: 2,
+            assists: 1,
+            clean_sheets: 0,
+            rated_appearances: 4,
+            avg_rating: 6.5,
+            minutes_played: 400,
+            ..Default::default()
+        };
+        value["league_stats_by_competition"] = serde_json::json!({"a": first, "b": second});
+        let player: Player = serde_json::from_value(value.clone()).unwrap();
+        upsert_player(db.conn(), &player).unwrap();
+        first.goals = 11;
+        value["league_stats_by_competition"]["a"] = serde_json::to_value(first).unwrap();
+        let player: Player = serde_json::from_value(value.clone()).unwrap();
+        upsert_player(db.conn(), &player).unwrap();
+        drop(db);
+
+        let reader = GameDatabase::open(&path).unwrap();
+        let loaded = load_all_players(reader.conn()).unwrap();
+        let loaded_by_team = load_players_by_team(reader.conn(), "team-b").unwrap();
+        let expected = &value["league_stats_by_competition"];
+        assert_eq!(
+            &serde_json::to_value(&loaded[0]).unwrap()["league_stats_by_competition"],
+            expected
+        );
+        assert_eq!(
+            &serde_json::to_value(&loaded_by_team[0]).unwrap()["league_stats_by_competition"],
+            expected
+        );
+    }
+
     /// Given a player row saved before league stats existed (the column NULL),
     /// When it is loaded,
     /// Then his season so far reads as his league season, so an upgraded save keeps its award

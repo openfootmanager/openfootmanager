@@ -857,6 +857,101 @@ mod tests {
             .collect()
     }
 
+    fn season_after_changing_divisions() -> (Game, League, League) {
+        let mut game = match_game();
+        game.league.as_mut().unwrap().participant_ids = vec!["home".into()];
+        let first = report(HashMap::from([
+            (
+                "home-9".into(),
+                PlayerMatchStats {
+                    goals: 10,
+                    minutes_played: 90,
+                    rating: 8.0,
+                    ..Default::default()
+                },
+            ),
+            (
+                "home-0".into(),
+                PlayerMatchStats {
+                    clean_sheet: true,
+                    minutes_played: 90,
+                    minutes_in_goal: 90,
+                    rating: 7.0,
+                    ..Default::default()
+                },
+            ),
+        ]));
+        apply_match_report(&mut game, 0, "home", "away", &first);
+        let division_a = game.league.clone().unwrap();
+        for player in &mut game.players {
+            if matches!(player.id.as_str(), "home-9" | "home-0") {
+                player.team_id = Some("away".into());
+            }
+        }
+        let mut division_b = division_a.clone();
+        division_b.id = "league-b".into();
+        division_b.participant_ids = vec!["away".into()];
+        division_b.fixtures[0].id = "fixture-b".into();
+        division_b.fixtures[0].competition_id = "league-b".into();
+        game.league = Some(division_b);
+        let second = report(HashMap::from([
+            (
+                "home-9".into(),
+                PlayerMatchStats {
+                    goals: 2,
+                    minutes_played: 90,
+                    rating: 6.0,
+                    ..Default::default()
+                },
+            ),
+            (
+                "home-0".into(),
+                PlayerMatchStats {
+                    minutes_played: 90,
+                    minutes_in_goal: 90,
+                    rating: 6.0,
+                    ..Default::default()
+                },
+            ),
+        ]));
+        apply_match_report(&mut game, 0, "home", "away", &second);
+        let division_b = game.league.clone().unwrap();
+        (game, division_a, division_b)
+    }
+
+    /// Given ten goals in A and two after moving to B, when both divisions rank awards,
+    /// then each counts only the goals earned there, regardless of the player's current club.
+    #[test]
+    fn a_transfer_keeps_goals_in_the_division_where_they_were_scored() {
+        let (game, division_a, division_b) = season_after_changing_divisions();
+        let awards_b = crate::season_awards::compute_division_season_awards(&game, &division_b);
+        assert_eq!(awards_b.golden_boot[0].value, 2.0);
+        let awards_a = crate::season_awards::compute_division_season_awards(&game, &division_a);
+        assert_eq!(awards_a.golden_boot[0].player_id, "home-9");
+        assert_eq!(awards_a.golden_boot[0].value, 10.0);
+        assert_eq!(
+            game.players
+                .iter()
+                .find(|p| p.id == "home-9")
+                .unwrap()
+                .stats
+                .goals,
+            12
+        );
+    }
+
+    /// Given an engine-credited clean sheet in A and none after moving to B,
+    /// when both divisions rank keepers, then the clean sheet stays in A.
+    #[test]
+    fn a_transfer_keeps_clean_sheets_in_the_division_where_they_were_earned() {
+        let (game, division_a, division_b) = season_after_changing_divisions();
+        let awards_b = crate::season_awards::compute_division_season_awards(&game, &division_b);
+        assert!(awards_b.clean_sheet_king.is_empty());
+        let awards_a = crate::season_awards::compute_division_season_awards(&game, &division_a);
+        assert_eq!(awards_a.clean_sheet_king[0].player_id, "home-0");
+        assert_eq!(awards_a.clean_sheet_king[0].value, 1.0);
+    }
+
     /// Given a real match day for user and AI squads, when process_day runs,
     /// then every captured player carries an engine rating on the 1-10 scale.
     #[test]
