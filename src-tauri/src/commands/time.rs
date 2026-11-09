@@ -3056,6 +3056,85 @@ mod tests {
             role_in_the_waiting_match(&state, &target),
             engine::PlayerRole::Standard
         );
+        swap_into_left_back(&state, "spare-team1-def2");
+        swap_into_left_back(&state, &target);
+        assert_eq!(
+            role_in_the_waiting_match(&state, &target),
+            engine::PlayerRole::Standard
+        );
+    }
+
+    fn save_standard_tactic_with_session_role() -> (StateManager, String) {
+        let state = waiting_match_with_transfer_targets();
+        let target = state
+            .with_live_match(|session| session.snapshot().home_team.players[1].id.clone())
+            .unwrap();
+        let tactic = domain::custom_tactic::CustomTactic {
+            id: "standard".into(),
+            name: "Standard".into(),
+            description: String::new(),
+            formation: "4-4-2".into(),
+            play_style: "Balanced".into(),
+            source_preset_name: None,
+            contents: None,
+        };
+        crate::commands::custom_tactics::save_current_tactic_internal(
+            &state,
+            &tactic,
+            ofm_core::state::Career::Active,
+        )
+        .unwrap();
+        crate::application::live_match::apply_match_command(
+            &state,
+            ofm_core::state::Career::Active,
+            engine::MatchCommand::ChangePlayerRole {
+                side: engine::Side::Home,
+                player_id: target.clone(),
+                role: engine::PlayerRole::AttackingFB,
+            },
+        )
+        .unwrap();
+        (state, target)
+    }
+
+    /// Given a Standard saved tactic and a session role, when its id has spaces, then the
+    /// hand-off finds the same tactic that the save applies.
+    #[test]
+    fn a_tactic_id_with_spaces_still_hands_off_its_standard_role() {
+        let (state, target) = save_standard_tactic_with_session_role();
+        crate::commands::custom_tactics::apply_custom_tactic_internal(
+            &state,
+            " standard ",
+            ofm_core::state::Career::Active,
+        )
+        .unwrap();
+        assert_eq!(
+            role_in_the_waiting_match(&state, &target),
+            engine::PlayerRole::Standard
+        );
+    }
+
+    /// Given a tactic with an invalid duplicate lineup, when it is applied, then a session role
+    /// on the unchanged lineup is not overwritten by the rejected saved slots.
+    #[test]
+    fn a_rejected_saved_lineup_does_not_overwrite_a_session_role() {
+        let (state, target) = save_standard_tactic_with_session_role();
+        state
+            .update_game(|game| {
+                let slots = &mut game.custom_tactics[0].contents.as_mut().unwrap().slots;
+                slots[2].player_id = slots[1].player_id.clone();
+            })
+            .unwrap();
+        crate::commands::custom_tactics::apply_custom_tactic_internal(
+            &state,
+            "standard",
+            ofm_core::state::Career::Active,
+        )
+        .unwrap();
+        assert_eq!(
+            role_in_the_waiting_match(&state, &target),
+            engine::PlayerRole::AttackingFB
+        );
     }
 
     /// The eleven the waiting match starts, which is a valid eleven to save.

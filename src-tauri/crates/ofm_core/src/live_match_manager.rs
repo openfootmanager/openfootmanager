@@ -1155,6 +1155,21 @@ mod tests {
                 team.starting_xi_ids.push(player_id);
                 players.push(player);
             }
+            if id == "away" {
+                let mut reserve = Player::new(
+                    "away-reserve".into(),
+                    "Reserve".into(),
+                    "Reserve".into(),
+                    "1995-01-01".into(),
+                    "GB".into(),
+                    Position::Forward,
+                    attrs.clone(),
+                );
+                reserve.team_id = Some(id.into());
+                team.player_roles
+                    .insert(reserve.id.clone(), PlayerRole::AttackingFB);
+                players.push(reserve);
+            }
             teams.push(team);
         }
         teams[1]
@@ -1186,6 +1201,46 @@ mod tests {
         let mut session = create_live_match(&game, 0, MatchMode::Live, false).unwrap();
         session.user_side = Some(engine::Side::Home);
         session
+    }
+
+    /// Given an AI reserve whose full-back role is suppressed on the bench, when the AI brings
+    /// him into a compatible slot, then he plays his intended role.
+    #[test]
+    fn an_ai_substitute_recovers_his_admitted_intended_role() {
+        let mut session = formation_role_fixture();
+        assert_eq!(
+            session
+                .match_state
+                .bench(engine::Side::Away)
+                .iter()
+                .find(|p| p.id == "away-reserve")
+                .unwrap()
+                .role,
+            engine::PlayerRole::Standard
+        );
+        let off = session.match_state.team(engine::Side::Away).players[4]
+            .id
+            .clone();
+        session.step();
+        session.apply_ai_command(
+            engine::Side::Away,
+            engine::MatchCommand::Substitute {
+                side: engine::Side::Away,
+                player_off_id: off,
+                player_on_id: "away-reserve".into(),
+            },
+        );
+        assert_eq!(
+            session
+                .match_state
+                .team(engine::Side::Away)
+                .players
+                .iter()
+                .find(|p| p.id == "away-reserve")
+                .unwrap()
+                .role,
+            engine::PlayerRole::AttackingFB
+        );
     }
 
     /// Given an AI full-back after kick-off, when the AI changes to a back five, then his

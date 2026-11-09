@@ -1898,6 +1898,16 @@ mod issue_1319 {
                 })
                 .unwrap();
             swap_in(&mut session, &forward, &left_back);
+            assert_eq!(
+                session
+                    .match_state
+                    .bench(engine::Side::Home)
+                    .iter()
+                    .find(|player| player.id == forward)
+                    .unwrap()
+                    .role,
+                engine::PlayerRole::Standard
+            );
             session.step();
             session
                 .apply_command(engine::MatchCommand::Substitute {
