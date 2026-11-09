@@ -240,6 +240,25 @@ mod tests {
         assert!(midfielder.abs() < 1e-5);
     }
 
+    /// Given tracked minutes in goal at the threshold and one minute under it,
+    /// When it is asked whether he stood in goal for most of the match,
+    /// Then it is yes at the threshold and no under it, for an outfielder and for a keeper alike;
+    /// the clean-sheet flag is that and his side's clean sheet (`assign_ratings`).
+    #[test]
+    fn standing_in_goal_for_most_of_it_starts_at_the_threshold() {
+        for position in [Position::Defender, Position::Goalkeeper] {
+            let there = appearance(position);
+            assert!(in_goal_for_most_of_it(
+                &in_goal(MIN_CLEAN_SHEET_MINUTES),
+                &there
+            ));
+            assert!(!in_goal_for_most_of_it(
+                &in_goal(MIN_CLEAN_SHEET_MINUTES - 1),
+                &there
+            ));
+        }
+    }
+
     /// Given a clean sheet and a goalkeeper-listed player who never stood in goal,
     /// When he is rated,
     /// Then he gets no bonus: being listed as a keeper is not being in goal.

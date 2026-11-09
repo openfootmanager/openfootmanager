@@ -377,3 +377,19 @@ fn only_the_keeper_of_the_side_that_conceded_none_keeps_a_clean_sheet() {
     assert!(away_kept.player_stats["away_Goalkeeper_0"].clean_sheet);
     assert!(!away_kept.player_stats["home_Goalkeeper_0"].clean_sheet);
 }
+
+/// Given a live match in which the away keeper is sent off before kick-off, an outfielder goes
+/// in goal for the whole match, and the home side scores (the first such seed),
+/// When the report is drawn up,
+/// Then the outfielder in goal has no clean sheet: the minutes in goal are not enough, his side
+/// must have conceded none.
+#[test]
+fn an_outfielder_in_goal_who_concedes_keeps_no_clean_sheet() {
+    let (report, in_goal) = (1..=400)
+        .map(|seed| keeper_sent_off_before_kick_off(Side::Away, seed))
+        .find(|(report, _)| report.home_goals > 0)
+        .expect("in 400 seeds the home side scores at least once");
+
+    assert!(report.player_stats[&in_goal].minutes_in_goal.unwrap_or(0) >= 60);
+    assert!(!report.player_stats[&in_goal].clean_sheet);
+}
