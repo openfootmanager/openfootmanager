@@ -279,3 +279,46 @@ fn the_keeper_in_goal_for_most_of_a_clean_sheet_keeps_it() {
         "a keeper's flag only"
     );
 }
+
+/// A live match from `seed` in which the home keeper is sent off before kick-off with no
+/// reserve keeper, so the first player left on the pitch goes in goal; played to the end.
+/// Returns the report and the id of the outfielder who stood in goal.
+fn keeper_sent_off_before_kick_off(seed: u64) -> (MatchReport, String) {
+    let mut live = LiveMatchState::new(
+        team("home", 70),
+        team("away", 70),
+        MatchConfig::default(),
+        vec![],
+        vec![],
+        false,
+    );
+    live.test_send_off("home_Goalkeeper_0");
+    let in_goal = live
+        .team(Side::Home)
+        .players
+        .iter()
+        .find(|player| player.id != "home_Goalkeeper_0")
+        .map(|player| player.id.clone())
+        .expect("an outfielder is left to go in goal");
+    let mut rng = StdRng::seed_from_u64(seed);
+    while !live.is_finished() {
+        live.step_minute(&mut rng);
+    }
+    (live.into_report(), in_goal)
+}
+
+/// Given a live match in which the home keeper is sent off before kick-off, an outfielder goes
+/// in goal for the whole match, and the away side does not score (the first such seed),
+/// When the report is drawn up,
+/// Then the outfielder in goal kept the clean sheet and the keeper sent off did not: it goes to
+/// whoever stood in goal, not to whoever is listed as a keeper.
+#[test]
+fn an_outfielder_in_goal_for_most_of_a_clean_sheet_keeps_it() {
+    let (report, in_goal) = (1..=400)
+        .map(keeper_sent_off_before_kick_off)
+        .find(|(report, _)| report.away_goals == 0)
+        .expect("in 400 seeds the away side fails to score at least once");
+
+    assert!(report.player_stats[&in_goal].clean_sheet);
+    assert!(!report.player_stats["home_Goalkeeper_0"].clean_sheet);
+}

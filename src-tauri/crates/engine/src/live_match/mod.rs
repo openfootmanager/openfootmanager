@@ -277,6 +277,9 @@ pub struct LiveMatchState {
     yellows: HashMap<String, u8>,
     sent_off: HashSet<String>,
 
+    /// The minutes each player has stood in goal (`goalkeeper_in_goal`), for the clean sheet.
+    minutes_in_goal: HashMap<String, u8>,
+
     // Substitutions
     home_subs_made: u8,
     away_subs_made: u8,
@@ -347,6 +350,7 @@ impl LiveMatchState {
             away_possession_ticks: 0,
             yellows: HashMap::new(),
             sent_off: HashSet::new(),
+            minutes_in_goal: HashMap::new(),
             home_subs_made: 0,
             away_subs_made: 0,
             max_subs: 5,
@@ -497,6 +501,9 @@ impl LiveMatchState {
             self.home.players.iter().chain(&self.home_bench).collect();
         let away_squad: Vec<&PlayerData> =
             self.away.players.iter().chain(&self.away_bench).collect();
+        for (id, stats) in report.player_stats.iter_mut() {
+            stats.minutes_in_goal = Some(self.minutes_in_goal.get(id).copied().unwrap_or(0));
+        }
         report.assign_ratings(&home_squad, &away_squad);
         report
     }

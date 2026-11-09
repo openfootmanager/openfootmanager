@@ -62,7 +62,7 @@ impl MatchReport {
             let appearance = appearances.get(id.as_str());
             stats.rating = appearance.map_or(0.0, |appearance| rate(stats, appearance));
             stats.clean_sheet = appearance.is_some_and(|appearance| {
-                appearance.position == Position::Goalkeeper && shared_clean_sheet(stats, appearance)
+                appearance.kept_clean_sheet && in_goal_for_most_of_it(stats, appearance)
             });
         }
     }
@@ -130,19 +130,35 @@ fn card_penalty(stats: &PlayerMatchStats) -> f32 {
 }
 
 /// Whether this player shared in a clean sheet: his side conceded none, and he was on for most
-/// of the match. A keeper's clean sheet, and the bonus a defender's mark gets for one.
+/// of the match. The bonus a defender's mark gets for one; the keeper's own is
+/// `in_goal_for_most_of_it`.
 fn shared_clean_sheet(stats: &PlayerMatchStats, appearance: &Appearance) -> bool {
     appearance.kept_clean_sheet && stats.minutes_played >= MIN_CLEAN_SHEET_MINUTES
+}
+
+/// Whether he stood in goal for most of the match: by the minutes the match tracked, whoever
+/// he is (an outfielder sent in goal after the keeper was sent off counts), and where it did
+/// not track them, by a goalkeeper's minutes on the pitch.
+fn in_goal_for_most_of_it(stats: &PlayerMatchStats, appearance: &Appearance) -> bool {
+    match stats.minutes_in_goal {
+        Some(minutes) => minutes >= MIN_CLEAN_SHEET_MINUTES,
+        None => {
+            appearance.position == Position::Goalkeeper
+                && stats.minutes_played >= MIN_CLEAN_SHEET_MINUTES
+        }
+    }
 }
 
 fn clean_sheet_bonus(stats: &PlayerMatchStats, appearance: &Appearance) -> f32 {
     if !shared_clean_sheet(stats, appearance) {
         return 0.0;
     }
+    if in_goal_for_most_of_it(stats, appearance) {
+        return GOALKEEPER_CLEAN_SHEET_BONUS;
+    }
     match appearance.position {
-        Position::Goalkeeper => GOALKEEPER_CLEAN_SHEET_BONUS,
         Position::Defender => DEFENDER_CLEAN_SHEET_BONUS,
-        Position::Midfielder | Position::Forward => 0.0,
+        Position::Goalkeeper | Position::Midfielder | Position::Forward => 0.0,
     }
 }
 
