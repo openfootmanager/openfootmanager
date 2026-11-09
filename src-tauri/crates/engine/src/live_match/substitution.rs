@@ -246,6 +246,7 @@ impl LiveMatchState {
             .collect();
         let team = self.team_ref(side);
         let old_formation = team.formation.clone();
+        let changing_shape = old_formation != formation;
         let slots: Vec<_> = team
             .players
             .iter()
@@ -260,7 +261,8 @@ impl LiveMatchState {
         let previous = history
             .get(formation)
             .filter(|previous| {
-                previous.len() == slots.len()
+                changing_shape
+                    && previous.len() == slots.len()
                     && previous.iter().all(|(id, _, playing)| {
                         slots
                             .iter()
