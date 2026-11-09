@@ -41,10 +41,7 @@ test("an XDG directory pointing at the real data is refused", () => {
     () => assertIsolated(isolatedEnv({ XDG_DATA_HOME: "/home/someone/.local/share" })),
     /XDG_DATA_HOME/,
   );
-  assert.throws(
-    () => assertIsolated(isolatedEnv({ XDG_STATE_HOME: undefined })),
-    /XDG_STATE_HOME/,
-  );
+  assert.throws(() => assertIsolated(isolatedEnv({ XDG_STATE_HOME: undefined })), /XDG_STATE_HOME/);
 });
 
 test("a Wayland or non-X11 session is refused: the window would open on the desktop", () => {
