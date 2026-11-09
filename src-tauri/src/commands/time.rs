@@ -383,11 +383,11 @@ pub async fn advance_one_day<R: tauri::Runtime>(
     .await
 }
 
-fn messages_needing_attention(game: &Game) -> std::collections::HashSet<String> {
+fn messages_needing_attention(game: &Game) -> std::collections::HashSet<(String, bool)> {
     game.messages
         .iter()
         .filter(|message| message.priority.needs_attention())
-        .map(|message| message.id.clone())
+        .map(|message| (message.id.clone(), message.read))
         .collect()
 }
 
@@ -398,12 +398,15 @@ fn continue_reached_attention_event(
     transfer_status: &domain::season::TransferWindowStatus,
     opens_on: Option<&str>,
     today: &str,
-    attention_before: &std::collections::HashSet<String>,
-    attention_after: &std::collections::HashSet<String>,
+    attention_before: &std::collections::HashSet<(String, bool)>,
+    attention_after: &std::collections::HashSet<(String, bool)>,
 ) -> bool {
     *transfer_status == domain::season::TransferWindowStatus::DeadlineDay
         || opens_on == Some(today)
-        || !attention_after.is_subset(attention_before)
+        || attention_after.iter().any(|(id, read)| {
+            !attention_before.contains(&(id.clone(), *read))
+                && (!read || !attention_before.contains(&(id.clone(), false)))
+        })
 }
 
 #[tauri::command]
@@ -817,6 +820,44 @@ mod tests {
         message
     }
 
+    /// Given a read transfer digest, when a second club's offer replaces it,
+    /// then Continue stops for the reopened digest even though its ID is unchanged.
+    #[test]
+    fn continue_stops_when_a_transfer_digest_is_reopened_by_another_offer() {
+        let mut game = make_game(11);
+        let digest = ofm_core::messages::transfer_interest_digest_message;
+        let mut first = digest("player", "Player", 1, "First club", 100, "2025-06-15");
+        first.read = true;
+        game.messages = vec![first];
+        let before = super::messages_needing_attention(&game);
+        game.messages[0] = digest("player", "Player", 2, "Second club", 200, "2025-06-16");
+        assert!(!game.messages[0].read);
+        assert!(continue_reached_attention_event(
+            &TransferWindowStatus::Closed,
+            None,
+            "2025-06-16",
+            &before,
+            &super::messages_needing_attention(&game),
+        ));
+    }
+
+    /// Given an unread high-priority offer, when it is resolved and marked read,
+    /// then Continue does not stop for that already-seen offer.
+    #[test]
+    fn continue_does_not_stop_when_an_unread_offer_is_marked_read() {
+        let mut game = make_game(11);
+        game.messages = vec![make_message("job-offer", MessagePriority::High, false)];
+        let before = super::messages_needing_attention(&game);
+        game.messages[0].read = true;
+        assert!(!continue_reached_attention_event(
+            &TransferWindowStatus::Closed,
+            None,
+            "2025-06-16",
+            &before,
+            &super::messages_needing_attention(&game),
+        ));
+    }
+
     /// Given old attention mail and an exhausted squad on the first, when Continue processes
     /// the day, then it stops for the new urgent warning even though old mail is archived.
     #[test]
@@ -908,16 +949,18 @@ mod tests {
             &TransferWindowStatus::Closed,
             None,
             "2026-07-05",
-            &["old".to_string()].into_iter().collect(),
-            &["old".to_string(), "new".to_string()].into_iter().collect(),
+            &[("old".to_string(), false)].into_iter().collect(),
+            &[("old".to_string(), false), ("new".to_string(), false)]
+                .into_iter()
+                .collect(),
         ));
         // A quiet day mid-window with no new mail keeps rolling.
         assert!(!continue_reached_attention_event(
             &TransferWindowStatus::Open,
             Some("2026-07-01"),
             "2026-07-10",
-            &["old".to_string()].into_iter().collect(),
-            &["old".to_string()].into_iter().collect(),
+            &[("old".to_string(), false)].into_iter().collect(),
+            &[("old".to_string(), false)].into_iter().collect(),
         ));
     }
 
