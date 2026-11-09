@@ -15,6 +15,21 @@ const GAME_DATABASE_SCHEMA_VERSION_READ_FAILED: &str =
 const GAME_DATABASE_CURRENT_VERSION_READ_FAILED: &str =
     "be.error.gameDatabase.currentVersionReadFailed";
 
+// A database may be migrated by a metadata read before the game itself is loaded.
+// Persist this marker until the repaired game is written, including across failed loads.
+fn mark_missing_weak_foot(conn: &Connection, version: i64) -> rusqlite::Result<()> {
+    if (1..11).contains(&version) {
+        conn.execute_batch(
+            "CREATE TABLE IF NOT EXISTS ofm_pending_weak_foot_backfill (pending INTEGER)",
+        )?;
+    }
+    Ok(())
+}
+
+pub(crate) fn clear_weak_foot_backfill(conn: &Connection) -> rusqlite::Result<()> {
+    conn.execute_batch("DROP TABLE IF EXISTS ofm_pending_weak_foot_backfill")
+}
+
 fn verify_layout_matches_version(
     conn: &Connection,
     save_version: usize,
@@ -55,6 +70,12 @@ impl GameDatabase {
             error!("[game_db] failed to open database at {:?}: {}", path, e);
             GAME_DATABASE_OPEN_FAILED.to_string()
         })?;
+
+        let version = conn
+            .pragma_query_value(None, "user_version", |row| row.get(0))
+            .map_err(|_| GAME_DATABASE_SCHEMA_VERSION_READ_FAILED.to_string())?;
+        mark_missing_weak_foot(&conn, version)
+            .map_err(|_| GAME_DATABASE_MIGRATION_FAILED.to_string())?;
 
         let migrations = all_migrations();
         migrations.to_latest(&mut conn).map_err(|e| {
@@ -97,6 +118,8 @@ impl GameDatabase {
         // before touching a byte.
         verify_layout_matches_version(&conn, save_version as usize, path)?;
 
+        mark_missing_weak_foot(&conn, save_version).map_err(|_| SaveLoadError::Corrupted)?;
+
         let migrations = all_migrations();
         migrations.to_latest(&mut conn).map_err(|e| {
             error!("[game_db] migration failed for save {:?}: {}", path, e);
@@ -130,6 +153,14 @@ impl GameDatabase {
     /// Get a reference to the underlying connection (for repositories).
     pub fn conn(&self) -> &Connection {
         &self.conn
+    }
+
+    pub(crate) fn needs_weak_foot_backfill(&self) -> Result<bool, String> {
+        self.conn.query_row(
+            "SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'ofm_pending_weak_foot_backfill')",
+            [],
+            |row| row.get(0),
+        ).map_err(|_| GAME_DATABASE_SCHEMA_VERSION_READ_FAILED.to_string())
     }
 
     /// Get the file path, if this is a file-backed database.

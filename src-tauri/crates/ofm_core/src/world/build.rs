@@ -80,6 +80,7 @@ pub fn build_game_from_world_data(
                         &format!("catchup/definitions/{}", comp.id),
                         &game_start.format("%Y-%m-%d").to_string(),
                     );
+                    // No game yet to pick a side in: each club is rated on its best eleven.
                     crate::catchup::simulate_past_fixtures(
                         comp,
                         &world.players,

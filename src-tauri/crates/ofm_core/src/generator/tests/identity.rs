@@ -18,7 +18,16 @@ fn a_generated_squad_is_given_something_to_do() {
     let names_def = default_names_definition();
     let country_codes = generation::nationality_distribution();
 
-    let (team, players, _) = build_club(&tdef, country_codes, 2026, &names_def, &mut rng);
+    let reputations = reputation_scale_of(std::slice::from_ref(&tdef));
+
+    let (team, players, _) = build_club(
+        &tdef,
+        &reputations,
+        country_codes,
+        2026,
+        &names_def,
+        &mut rng,
+    );
 
     assert!(
         !team.player_roles.is_empty(),
