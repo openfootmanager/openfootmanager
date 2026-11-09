@@ -2720,6 +2720,68 @@ mod tests {
         );
     }
 
+    /// Given a saved role on a waiting bench player, when his contract is terminated and he is
+    /// swapped into a compatible slot, then the removed role is not restored in the session.
+    #[test]
+    fn a_terminated_players_saved_role_is_removed_from_the_waiting_match() {
+        let mut game = make_round_summary_game();
+        game.teams[0].starting_xi_ids = game
+            .players
+            .iter()
+            .filter(|p| p.team_id.as_deref() == Some("team1"))
+            .map(|p| p.id.clone())
+            .collect();
+        for (id, position) in [
+            ("spare-gk", Position::Goalkeeper),
+            ("spare-def", Position::Defender),
+            ("spare-def2", Position::Defender),
+            ("spare-mid", Position::Midfielder),
+            ("spare-mid2", Position::Midfielder),
+            ("spare-fwd", Position::Forward),
+        ] {
+            game.players.push(make_player(id, id, "team1", position));
+        }
+        let target = game
+            .players
+            .iter_mut()
+            .find(|p| p.id == "spare-def")
+            .unwrap();
+        target.stage_contract_end(Some("2027-06-15".into()));
+        target.stage_wage(1000);
+        game.teams[0]
+            .player_roles
+            .insert("spare-def".into(), domain::team::PlayerRole::AttackingFB);
+        let state = StateManager::new();
+        state.set_game(game);
+        advance_time_with_mode_internal(&state, ofm_core::state::Career::Active, "live").unwrap();
+        let bench_role = state
+            .with_live_match(|session| {
+                session
+                    .snapshot()
+                    .home_bench
+                    .iter()
+                    .find(|p| p.id == "spare-def")
+                    .unwrap()
+                    .role
+            })
+            .unwrap();
+        assert_eq!(bench_role, engine::PlayerRole::AttackingFB);
+        crate::commands::contracts::terminate_contract_now_internal(
+            &state,
+            ofm_core::state::Career::Active,
+            "spare-def",
+        )
+        .unwrap();
+        assert!(!state
+            .get_game(|game| game.teams[0].player_roles.contains_key("spare-def"))
+            .unwrap());
+        swap_into_left_back(&state, "spare-def");
+        assert_eq!(
+            role_in_the_waiting_match(&state, "spare-def"),
+            engine::PlayerRole::Standard
+        );
+    }
+
     /// The eleven the waiting match starts, which is a valid eleven to save.
     fn current_eleven(state: &StateManager) -> Vec<String> {
         state

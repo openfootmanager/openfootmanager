@@ -1092,4 +1092,40 @@ mod tests {
                 && entry.from_team_name.as_deref() == Some("Alpha FC")
         }));
     }
+    /// Given a lifecycle operation in progress, when a contract is terminated, then the
+    /// termination waits for the operation to finish before it can write the game.
+    #[test]
+    fn terminating_a_contract_waits_for_the_live_session_gate() {
+        let state = std::sync::Arc::new(StateManager::new());
+        state.set_game(make_squad_game());
+        let operation = crate::application::live_session::operation();
+        let (started_tx, started_rx) = std::sync::mpsc::channel();
+        let (done_tx, done_rx) = std::sync::mpsc::channel();
+        let worker = state.clone();
+        let handle = std::thread::spawn(move || {
+            started_tx.send(()).unwrap();
+            let result = terminate_contract_now_internal(&worker, Career::Active, "player-1");
+            done_tx.send(result.is_ok()).unwrap();
+        });
+        started_rx.recv().unwrap();
+        let while_held = done_rx
+            .recv_timeout(std::time::Duration::from_millis(300))
+            .ok();
+        drop(operation);
+        let after_release = while_held.or_else(|| {
+            done_rx
+                .recv_timeout(std::time::Duration::from_secs(30))
+                .ok()
+        });
+        handle.join().unwrap();
+        assert_eq!(
+            while_held, None,
+            "termination must wait behind the lifecycle gate"
+        );
+        assert_eq!(
+            after_release,
+            Some(true),
+            "termination completes after release"
+        );
+    }
 }
