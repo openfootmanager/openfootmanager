@@ -1,5 +1,5 @@
 import french from "../i18n/locales/fr.json";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { invoke } from "@tauri-apps/api/core";
 import { describe, expect, it, vi } from "vitest";
 
@@ -78,14 +78,44 @@ vi.mock("../store/gameStore", async () => {
 });
 
 describe("EndOfSeasonScreen", () => {
+  /** Given a failed division read, when retried, then the followed division is shown. */
+  it("reports and retries a failed division read", async () => {
+    const game = createEndOfSeasonGame();
+    vi.mocked(invoke)
+      .mockRejectedValueOnce(new Error("offline"))
+      .mockResolvedValueOnce(game.league);
+    render(
+      <EndOfSeasonScreen
+        gameState={game}
+        onGameUpdate={vi.fn()}
+        transition={null}
+        onTransitionChange={vi.fn()}
+      />,
+    );
+    expect(await screen.findByRole("alert")).toHaveTextContent("errors.title");
+    fireEvent.click(screen.getByRole("button", { name: "common.retry" }));
+    expect(await screen.findByText(/Premier League/)).toBeInTheDocument();
+  });
   /** Given a clubless manager with no recorded club, when reviewing the season, then no division is shown. */
   it("shows no division details when no division is followed", async () => {
     const game = createEndOfSeasonGame();
     game.manager.team_id = null;
     vi.mocked(invoke).mockResolvedValue(null);
-    render(<EndOfSeasonScreen gameState={game} onGameUpdate={vi.fn()} transition={null} onTransitionChange={vi.fn()} />);
+    render(
+      <EndOfSeasonScreen
+        gameState={game}
+        onGameUpdate={vi.fn()}
+        transition={null}
+        onTransitionChange={vi.fn()}
+      />,
+    );
 
     expect(await screen.findByText("Season complete")).toBeInTheDocument();
+    await waitFor(() =>
+      expect(invoke).toHaveBeenCalledWith("get_followed_division", {
+        careerToken: game.career_token ?? 0,
+      }),
+    );
     expect(screen.queryByText(/Premier League/)).not.toBeInTheDocument();
     expect(screen.queryByText("Final standings")).not.toBeInTheDocument();
     expect(screen.queryByText("Alpha FC")).not.toBeInTheDocument();
@@ -95,9 +125,34 @@ describe("EndOfSeasonScreen", () => {
   it("shows the sacked managers followed division", async () => {
     const game = createEndOfSeasonGame();
     game.manager.team_id = null;
-    const followed = { ...game.league!, id: "league-2", name: "Second Division", standings: [game.league!.standings[1]!] };
+    game.manager.career_history = [
+      {
+        team_id: "team-2",
+        team_name: "Beta FC",
+        start_date: "2025-01-01",
+        end_date: "2026-01-01",
+        matches: 10,
+        wins: 4,
+        draws: 3,
+        losses: 3,
+        best_league_position: 2,
+      },
+    ];
+    const followed = {
+      ...game.league!,
+      id: "league-2",
+      name: "Second Division",
+      standings: [game.league!.standings[1]!],
+    };
     vi.mocked(invoke).mockResolvedValue(followed);
-    render(<EndOfSeasonScreen gameState={game} onGameUpdate={vi.fn()} transition={null} onTransitionChange={vi.fn()} />);
+    render(
+      <EndOfSeasonScreen
+        gameState={game}
+        onGameUpdate={vi.fn()}
+        transition={null}
+        onTransitionChange={vi.fn()}
+      />,
+    );
 
     expect(await screen.findByText(/Second Division/)).toBeInTheDocument();
     expect(screen.getByText("Final standings")).toBeInTheDocument();
@@ -203,7 +258,7 @@ describe("EndOfSeasonScreen", () => {
    * When the review is drawn
    * Then the place reads "21st", not "21th".
    */
-  it("writes a 21st-place finish as 21st", () => {
+  it("writes a 21st-place finish as 21st", async () => {
     const game = createEndOfSeasonGame();
     const rival = game.league!.standings[1]!;
     game.league!.standings = [
@@ -214,6 +269,7 @@ describe("EndOfSeasonScreen", () => {
       })),
       { ...game.league!.standings[0]!, points: 1 },
     ];
+    vi.mocked(invoke).mockResolvedValue(game.league);
     function Holder() {
       const [transition, setTransition] = useState<SeasonTransition | null>(null);
       return (
@@ -228,12 +284,12 @@ describe("EndOfSeasonScreen", () => {
 
     render(<Holder />);
 
-    expect(screen.getByText("21st")).toBeInTheDocument();
+    expect(await screen.findByText("21st")).toBeInTheDocument();
     expect(screen.queryByText("21th")).not.toBeInTheDocument();
   });
 
   /** Given a French club in 21st place, when the review renders, then it uses French ordinal rules. */
-  it("writes a French 21st-place finish", () => {
+  it("writes a French 21st-place finish", async () => {
     locale.language = "fr";
     try {
       const game = createEndOfSeasonGame();
@@ -246,6 +302,7 @@ describe("EndOfSeasonScreen", () => {
         })),
         { ...game.league!.standings[0]!, points: 1 },
       ];
+      vi.mocked(invoke).mockResolvedValue(game.league);
       render(
         <EndOfSeasonScreen
           gameState={game}
@@ -254,19 +311,20 @@ describe("EndOfSeasonScreen", () => {
           onTransitionChange={vi.fn()}
         />,
       );
-      expect(screen.getByText("21e")).toBeInTheDocument();
+      expect(await screen.findByText("21e")).toBeInTheDocument();
     } finally {
       locale.language = "en";
     }
   });
 
   /** Given a second-place Russian club, when the review renders, then its place is neuter. */
-  it("writes a Russian finishing place in the neuter form", () => {
+  it("writes a Russian finishing place in the neuter form", async () => {
     locale.language = "ru";
     try {
       const game = createEndOfSeasonGame();
       game.league!.standings[0]!.points = 1;
       game.league!.standings[1]!.points = 90;
+      vi.mocked(invoke).mockResolvedValue(game.league);
       render(
         <EndOfSeasonScreen
           gameState={game}
@@ -275,7 +333,7 @@ describe("EndOfSeasonScreen", () => {
           onTransitionChange={vi.fn()}
         />,
       );
-      expect(screen.getByText("2-е")).toBeInTheDocument();
+      expect(await screen.findByText("2-е")).toBeInTheDocument();
     } finally {
       locale.language = "en";
     }
@@ -287,9 +345,10 @@ describe("EndOfSeasonScreen", () => {
    * Then there is no club summary at all: no "0th" place and no blank club name, and the league's
    *      final standings and champions still show.
    */
-  it("shows the review without a club summary for an unemployed manager", () => {
+  it("shows the review without a club summary for an unemployed manager", async () => {
     const game = createEndOfSeasonGame();
     game.manager.team_id = null;
+    vi.mocked(invoke).mockResolvedValue(game.league);
     function Holder() {
       const [transition, setTransition] = useState<SeasonTransition | null>(null);
       return (
@@ -305,7 +364,7 @@ describe("EndOfSeasonScreen", () => {
     render(<Holder />);
 
     expect(screen.getByText("Season complete")).toBeInTheDocument();
-    expect(screen.getByText("Final standings")).toBeInTheDocument();
+    expect(await screen.findByText("Final standings")).toBeInTheDocument();
     expect(screen.queryByText("0th")).not.toBeInTheDocument();
     expect(screen.queryByText("Position")).not.toBeInTheDocument();
   });

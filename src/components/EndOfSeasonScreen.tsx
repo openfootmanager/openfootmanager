@@ -4,9 +4,11 @@ import { useTranslation } from "react-i18next";
 import type { GameStateData, SeasonAwardsData } from "../store/gameStore";
 import { useGameStore } from "../store/gameStore";
 import { invokeForCareer } from "../services/careerInvoke";
+import { useReviewDivision } from "./season/useReviewDivision";
 import { Card, CardBody } from "./ui";
 import { competitionDisplayName } from "../lib/competitionName";
 import AwardsCeremonyScreen from "./season/AwardsCeremonyScreen";
+import SeasonReviewTables from "./season/SeasonReviewTables";
 import { Trophy, Star, ArrowRight, Crown } from "lucide-react";
 
 export interface EndOfSeasonSummary {
@@ -60,7 +62,8 @@ export default function EndOfSeasonScreen({
   const summary = transition?.summary ?? null;
   const step = transition?.step ?? "review";
 
-  const league = gameState.league;
+  const review = useReviewDivision(gameState, step === "review");
+  const league = review.league;
   const userTeamId = gameState.manager.team_id;
   const userTeam = gameState.teams.find((t) => t.id === userTeamId);
 
@@ -80,7 +83,6 @@ export default function EndOfSeasonScreen({
   const userHasStanding = userStandingIdx >= 0;
   const userPosition = userStandingIdx + 1;
   const champion = standings[0];
-  const championName = gameState.teams.find((t) => t.id === champion?.team_id)?.name || "";
   const isChampion = champion?.team_id === userTeamId;
 
   const handleAdvance = async () => {
@@ -117,6 +119,15 @@ export default function EndOfSeasonScreen({
     <div className="py-8 px-4">
       {step === "review" && (
         <>
+          {review.loading && <p role="status">{t("common.loading")}</p>}
+          {review.failed && (
+            <div>
+              <p role="alert">{t("errors.title")}</p>
+              <button type="button" onClick={review.retry}>
+                {t("common.retry")}
+              </button>
+            </div>
+          )}
           {/* Hero */}
           <div className="text-center mb-8">
             <div
@@ -135,12 +146,14 @@ export default function EndOfSeasonScreen({
             <h1 className="text-3xl font-heading font-bold text-gray-900 dark:text-gray-100 uppercase tracking-wide">
               {t("endOfSeason.seasonComplete")}
             </h1>
-            <p className="text-lg text-gray-500 dark:text-gray-400 mt-1">
-              {t("endOfSeason.seasonLine", {
-                league: league ? competitionDisplayName(league, t) : "",
-                season: league?.season ?? "",
-              })}
-            </p>
+            {league && (
+              <p className="text-lg text-gray-500 dark:text-gray-400 mt-1">
+                {t("endOfSeason.seasonLine", {
+                  league: league ? competitionDisplayName(league, t) : "",
+                  season: league?.season ?? "",
+                })}
+              </p>
+            )}
             {isChampion && (
               <p className="text-xl font-heading font-bold text-accent-500 mt-2 uppercase tracking-wider animate-pulse">
                 {t("endOfSeason.champions")}
@@ -198,66 +211,12 @@ export default function EndOfSeasonScreen({
             </Card>
           )}
 
-          {/* Final top 5 standings */}
-          <Card className="mb-6">
-            <CardBody>
-              <h3 className="font-heading font-bold text-sm uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-3 flex items-center gap-2">
-                <Trophy className="w-4 h-4 text-accent-500" /> {t("endOfSeason.finalStandings")}
-              </h3>
-              <div className="divide-y divide-gray-100 dark:divide-navy-600">
-                {standings.slice(0, 5).map((entry, idx) => {
-                  const teamName = gameState.teams.find((t) => t.id === entry.team_id)?.name || "";
-                  const isUser = entry.team_id === userTeamId;
-                  const gd = entry.goals_for - entry.goals_against;
-                  return (
-                    <div
-                      key={entry.team_id}
-                      className={`flex items-center py-2.5 gap-3 ${isUser ? "bg-primary-50/50 dark:bg-primary-500/5 -mx-2 px-2 rounded-lg" : ""}`}
-                    >
-                      <span
-                        className={`font-heading font-bold text-sm w-6 text-center ${idx === 0 ? "text-accent-500" : "text-gray-400"}`}
-                      >
-                        {idx + 1}
-                      </span>
-                      <span
-                        className={`flex-1 text-sm font-semibold ${isUser ? "text-primary-600 dark:text-primary-400" : "text-gray-800 dark:text-gray-200"}`}
-                      >
-                        {teamName}
-                      </span>
-                      <span className="text-xs text-gray-500 dark:text-gray-400 tabular-nums w-16 text-center">
-                        {entry.won}W {entry.drawn}D {entry.lost}L
-                      </span>
-                      <span
-                        className={`text-xs font-semibold tabular-nums w-8 text-center ${gd > 0 ? "text-primary-500" : gd < 0 ? "text-red-500" : "text-gray-500"}`}
-                      >
-                        {gd > 0 ? `+${gd}` : gd}
-                      </span>
-                      <span className="font-heading font-bold text-sm text-gray-800 dark:text-gray-100 tabular-nums w-8 text-right">
-                        {entry.points}
-                      </span>
-                    </div>
-                  );
-                })}
-              </div>
-            </CardBody>
-          </Card>
-
-          {/* Champion + awards */}
-          {!isChampion && (
-            <Card className="mb-6">
-              <CardBody>
-                <div className="flex items-center gap-3">
-                  <Crown className="w-6 h-6 text-accent-500" />
-                  <div>
-                    <p className="text-sm font-heading font-bold text-gray-800 dark:text-gray-200 uppercase tracking-wider">
-                      {t("endOfSeason.leagueChampions")}
-                    </p>
-                    <p className="text-lg font-heading font-bold text-accent-500">{championName}</p>
-                  </div>
-                </div>
-              </CardBody>
-            </Card>
-          )}
+          <SeasonReviewTables
+            gameState={gameState}
+            league={league}
+            standings={standings}
+            isChampion={isChampion}
+          />
 
           {/* Action */}
           <div className="text-center">

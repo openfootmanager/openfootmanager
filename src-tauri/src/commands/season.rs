@@ -59,9 +59,29 @@ pub fn get_season_awards(
         .ok_or_else(|| "be.error.noActiveGameSession".to_string())
 }
 
+#[tauri::command]
+pub fn get_followed_division(
+    state: State<'_, Arc<StateManager>>,
+    career_token: u64,
+) -> Result<Option<domain::league::League>, String> {
+    get_followed_division_internal(&state, Career::Token(career_token))
+}
+
+fn get_followed_division_internal(
+    state: &StateManager,
+    career: Career,
+) -> Result<Option<domain::league::League>, String> {
+    state
+        .get_game(|game| {
+            career.check(game)?;
+            Ok(ofm_core::end_of_season::user_division(game).cloned())
+        })
+        .unwrap_or_else(|| Err("be.error.noActiveGameSession".to_string()))
+}
+
 #[cfg(test)]
 pub(crate) mod tests {
-    use super::advance_to_next_season_internal;
+    use super::{advance_to_next_season_internal, get_followed_division_internal};
     use chrono::{TimeZone, Utc};
     use domain::league::{
         Fixture, FixtureCompetition, FixtureStatus, League, MatchResult, StandingEntry,
@@ -189,6 +209,65 @@ pub(crate) mod tests {
         game.league = Some(league.clone());
         game.competitions = vec![league];
         game
+    }
+
+    /// Given a manager without a club or career history, when reading the review division,
+    /// then the unrelated mirror is not returned.
+    #[test]
+    fn review_division_is_empty_without_a_followed_club() {
+        let mut game = completed_checkpoint();
+        game.manager.team_id = None;
+        game.manager.career_history.clear();
+        let state = StateManager::new();
+        state.set_game(game);
+        assert!(get_followed_division_internal(&state, Career::Active)
+            .unwrap()
+            .is_none());
+    }
+
+    /// Given a sacked manager whose former club is in another division, when reading the review,
+    /// then the former club's division is returned instead of the mirror.
+    #[test]
+    fn review_division_follows_the_sacked_managers_last_club() {
+        let mut game = completed_checkpoint();
+        let mut former_division = game.league.clone().unwrap();
+        former_division.id = "former".into();
+        former_division.participant_ids = vec!["away".into()];
+        game.competitions[0].participant_ids = vec!["home".into()];
+        game.competitions[0]
+            .standings
+            .retain(|entry| entry.team_id == "home");
+        game.competitions.push(former_division);
+        game.manager
+            .career_history
+            .push(domain::manager::ManagerCareerEntry::open(
+                "away".into(),
+                "Away FC".into(),
+                "2024-01-01".into(),
+            ));
+        game.manager.fire("2025-01-01");
+        let state = StateManager::new();
+        state.set_game(game);
+        assert_eq!(
+            get_followed_division_internal(&state, Career::Active)
+                .unwrap()
+                .unwrap()
+                .id,
+            "former"
+        );
+    }
+
+    /// Given a screen from a replaced career, when it reads the division, then the read is refused.
+    #[test]
+    fn review_division_rejects_a_replaced_career() {
+        let mut game = completed_checkpoint();
+        game.career_token = 2;
+        let state = StateManager::new();
+        state.set_game(game);
+        assert_eq!(
+            get_followed_division_internal(&state, Career::Token(1)).unwrap_err(),
+            "be.error.careerChanged"
+        );
     }
 
     /// Given a finished season in career B (token 2) and a screen holding career A's token (1)

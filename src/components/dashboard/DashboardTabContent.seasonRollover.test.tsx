@@ -70,7 +70,7 @@ function Dashboard({ startOn = "Home" }: { startOn?: string }) {
 
 beforeEach(() => {
   vi.mocked(invoke).mockReset();
-  vi.mocked(invoke).mockResolvedValue({
+  const result = {
     game: nextSeason(),
     summary: {
       season: 6,
@@ -91,16 +91,23 @@ beforeEach(() => {
       total_teams: 2,
       season_awards: createAwards(),
     },
-  });
+  };
+  vi.mocked(invoke).mockImplementation(async (command) =>
+    command === "get_followed_division" ? finishedSeason().league : result,
+  );
 });
 
 describe("the season rollover, on the dashboard", () => {
   /** Given no followed league, when rollover completes, then skip the ceremony and show the next season. */
   it("skips the ceremony without a followed league", async () => {
-    vi.mocked(invoke).mockResolvedValueOnce({
-      game: nextSeason(),
-      summary: { season: 6, league_name: "", season_awards: createAwards() },
-    });
+    vi.mocked(invoke).mockImplementation(async (command) =>
+      command === "get_followed_division"
+        ? null
+        : {
+            game: nextSeason(),
+            summary: { season: 6, league_name: "", season_awards: createAwards() },
+          },
+    );
     render(<Dashboard />);
     fireEvent.click(screen.getByRole("button", { name: "Start Next Season" }));
     expect(await screen.findByText("Season 7")).toBeInTheDocument();
