@@ -361,11 +361,12 @@ pub fn step_live_match(
     log::debug!("[cmd] step_live_match: minutes={}", minutes);
     // The step that kicks the match off takes the lifecycle gate, so a role save or a swap is
     // wholly before or wholly after it. A match already under way needs no gate (it cannot
-    // un-start), and the phase is read again by the step itself, so a kick-off that lands
+    // un-start). With no session at this look the gate is taken too: a waiting match installed
+    // before the step runs would otherwise be kicked off outside it. A kick-off that lands
     // between this look and the step only costs a gate held for nothing.
     let waiting_at_kick_off = state
         .with_live_match(|session| session.match_state.phase() == engine::MatchPhase::PreKickOff)
-        .unwrap_or(false);
+        .unwrap_or(true);
     let _operation = waiting_at_kick_off.then(super::live_session::operation);
     let results = state
         .with_live_match(|session| {
