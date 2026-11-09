@@ -6,13 +6,17 @@
 // run.sh, which makes a scratch HOME, points every XDG directory into it, and starts an Xvfb of its
 // own on a display number it chose.
 //
-// Variables alone prove nothing (anyone can set them), so what is checked is what they point at:
-// real paths, after symlinks, and a live Xvfb process serving exactly the DISPLAY in use.
-import { readFileSync, realpathSync } from "node:fs";
-import { tmpdir } from "node:os";
+// Variables alone prove nothing (anyone can set them, TMPDIR included), so what is checked is what
+// they point at: real paths, after symlinks, under scratch roots fixed in this file; and a live
+// Xvfb process started on exactly the DISPLAY in use.
+import { existsSync, readFileSync, realpathSync } from "node:fs";
 import path from "node:path";
 
 const XDG_DIRECTORIES = ["XDG_DATA_HOME", "XDG_CONFIG_HOME", "XDG_CACHE_HOME", "XDG_STATE_HOME"];
+
+// Where a scratch home may live. Fixed here, never read from TMPDIR: that variable is the caller's
+// to set, and a boundary taken from it moves to wherever it points, a real home included.
+const SCRATCH_ROOTS = ["/tmp", "/dev/shm"];
 
 function inside(parent, child) {
   const relative = path.relative(parent, child);
@@ -28,10 +32,19 @@ function resolved(candidate) {
   }
 }
 
+function scratchRoots() {
+  return SCRATCH_ROOTS.filter((root) => existsSync(root)).map((root) => realpathSync(root));
+}
+
 const procfs = {
   readCmdline: (pid) => readFileSync(`/proc/${pid}/cmdline`, "utf8"),
 };
 
+/**
+ * The process named by OFM_E2E_XVFB_PID must be an Xvfb started on exactly `display`. Xvfb takes
+ * its display as the first argument (run.sh starts it as `Xvfb :N ...`), so that argument is what
+ * is compared: ":0" appearing later, as an option's value, serves nothing.
+ */
 function assertOwnXvfbServes(display, pid, processes) {
   if (!pid || !/^[0-9]+$/.test(pid)) {
     throw new Error("Refusing to start: OFM_E2E_XVFB_PID is not set; run.sh starts the display.");
@@ -42,10 +55,9 @@ function assertOwnXvfbServes(display, pid, processes) {
   } catch {
     throw new Error(`Refusing to start: no Xvfb is running as process ${pid}.`);
   }
-  const program = path.basename(argv[0] ?? "");
-  if (program !== "Xvfb" || !argv.includes(display)) {
+  if (path.basename(argv[0] ?? "") !== "Xvfb" || argv[1] !== display) {
     throw new Error(
-      `Refusing to start: DISPLAY ${display} is not served by an Xvfb of the suite's own ` +
+      `Refusing to start: DISPLAY ${display} is not served by an Xvfb started on it ` +
         `(process ${pid} is ${argv.slice(0, 2).join(" ") || "unknown"}).`,
     );
   }
@@ -55,10 +67,12 @@ export function assertIsolated(env = process.env, processes = procfs) {
   if (env.OFM_E2E_ISOLATED !== "1") {
     throw new Error("Refusing to start: run the suite through e2e/ui/run.sh, which isolates it.");
   }
-  const tmp = resolved(tmpdir());
+  const roots = scratchRoots();
   const home = env.HOME ? resolved(env.HOME) : null;
-  if (!tmp || !home || !inside(tmp, home)) {
-    throw new Error(`Refusing to start: HOME (${env.HOME}) is not a scratch directory.`);
+  if (!home || !roots.some((root) => inside(root, home))) {
+    throw new Error(
+      `Refusing to start: HOME (${env.HOME}) is not a scratch directory under ${SCRATCH_ROOTS.join(" or ")}.`,
+    );
   }
   for (const name of XDG_DIRECTORIES) {
     const directory = env[name] ? resolved(env[name]) : null;
