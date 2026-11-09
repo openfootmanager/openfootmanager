@@ -344,10 +344,12 @@ pub(crate) fn forward_press_factor<'a>(forwards: impl Iterator<Item = &'a Player
 
 /// What a role costs a player in condition each minute: a Pressing Forward runs more, at the
 /// aggressive press's rate (`tactics_pressing_fatigue`). The live engine's alone, which is the
-/// one that tracks each player's condition.
-pub(crate) fn role_fatigue(role: PlayerRole) -> f64 {
+/// one that tracks each player's condition. Only while the line he plays admits the role
+/// (`PlayerRole::suits`, the rule the press reads the front line by): a striker moved into
+/// midfield by a change of shape no longer presses, so he no longer pays for it.
+pub(crate) fn role_fatigue(role: PlayerRole, position: Position) -> f64 {
     match role {
-        PlayerRole::PressingForward => 1.08,
+        PlayerRole::PressingForward if role.suits(position) => 1.08,
         _ => 1.0,
     }
 }

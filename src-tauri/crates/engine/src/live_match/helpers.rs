@@ -38,7 +38,7 @@ impl LiveMatchState {
             // Higher stamina → less depletion; higher fitness → less depletion.
             // Fitness scales the base depletion more aggressively (unfit players tire much faster).
             let depletion = fatigue_rate
-                * role_fatigue(p.role)
+                * role_fatigue(p.role, p.position)
                 * (1.0 - stamina_factor * 0.5)
                 * (1.3 - fitness_factor * 0.6);
             if let Some(cond) = self.player_conditions.get_mut(&p.id) {
@@ -840,7 +840,7 @@ mod press_and_fatigue_tests {
         let config = MatchConfig::default();
         let expected = config.fatigue_per_minute
             * tactics_pressing_fatigue(&state.home.tactics)
-            * role_fatigue(PlayerRole::PressingForward)
+            * role_fatigue(PlayerRole::PressingForward, Position::Forward)
             * (1.0 - 0.80 * 0.5)
             * (1.3 - 0.70 * 0.6);
 
@@ -848,5 +848,33 @@ mod press_and_fatigue_tests {
 
         assert!(expected > 0.0 && !same(expected, config.fatigue_per_minute));
         assert!(same(100.0 - state.player_conditions["h_fwd0"], expected));
+    }
+
+    /// The condition a minute costs `h_fwd0`, with his role and the line he plays in.
+    fn minute_cost_of(role: PlayerRole, position: Position) -> f64 {
+        let mut home = full_side("h");
+        for player in home.players.iter_mut().filter(|p| p.id == "h_fwd0") {
+            player.role = role;
+            player.position = position;
+        }
+        let mut state = match_between(home, full_side("a"));
+        state.deplete_stamina_tick();
+        100.0 - state.player_conditions["h_fwd0"]
+    }
+
+    /// Given a Pressing Forward in the front line, and one a change of shape has moved into
+    /// midfield (where he no longer presses),
+    /// When a minute's stamina is spent against a Standard player in the same line,
+    /// Then the one up front pays 1.08 of the Standard cost and the one moved pays no more than
+    /// Standard: a role the line does not admit costs nothing.
+    #[test]
+    fn a_pressing_forward_pays_for_the_role_only_up_front() {
+        let up_front = minute_cost_of(PlayerRole::PressingForward, Position::Forward)
+            / minute_cost_of(PlayerRole::Standard, Position::Forward);
+        let moved = minute_cost_of(PlayerRole::PressingForward, Position::Midfielder)
+            / minute_cost_of(PlayerRole::Standard, Position::Midfielder);
+
+        assert!(same(up_front, 1.08));
+        assert!(same(moved, 1.0));
     }
 }
