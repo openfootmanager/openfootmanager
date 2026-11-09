@@ -403,7 +403,10 @@ fn continue_reached_attention_event(
 ) -> bool {
     *transfer_status == domain::season::TransferWindowStatus::DeadlineDay
         || opens_on == Some(today)
-        || !attention_after.is_subset(attention_before)
+        || attention_after.iter().any(|(id, read)| {
+            !attention_before.contains(&(id.clone(), *read))
+                && (!read || !attention_before.contains(&(id.clone(), false)))
+        })
 }
 
 #[tauri::command]
