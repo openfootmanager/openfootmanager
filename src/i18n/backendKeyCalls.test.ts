@@ -15,6 +15,7 @@ const SOURCES = import.meta.glob(
  * Tracks key fields through local identifiers, named helper arguments and returns within each file.
  * This follows symbols within one source file; imports,
  * dynamic property names, object mutation and indirect or external calls are not followed.
+ * Helper analysis is context-insensitive, so a safe call may inherit taint from another call.
  * The two named adapters below are trusted to keep their separately tested fallback checks.
  */
 function scanSource(path: string, source: string): string[] {
@@ -66,6 +67,8 @@ function scanSource(path: string, source: string): string[] {
       return !!node.expression && containsKey(node.expression);
     if (ts.isTemplateExpression(node))
       return node.templateSpans.some((span) => containsKey(span.expression));
+    if (ts.isArrayLiteralExpression(node)) return node.elements.some(containsKey);
+    if (ts.isSpreadElement(node)) return containsKey(node.expression);
     if (ts.isConditionalExpression(node))
       return containsKey(node.whenTrue) || containsKey(node.whenFalse);
     if (
@@ -79,8 +82,9 @@ function scanSource(path: string, source: string): string[] {
     )
       return containsKey(node.left) || containsKey(node.right);
     if (ts.isCallExpression(node) && ts.isIdentifier(node.expression)) {
-      if (node.expression.text === "resolveBackendText") return false;
       const symbol = checker.getSymbolAtLocation(node.expression);
+      if (node.expression.text === "resolveBackendText" && (!symbol || !helpers.has(symbol)))
+        return false;
       return !!symbol && returnsKey.has(symbol);
     }
     return false;
@@ -292,6 +296,12 @@ describe("backend key fields reach the player through the resolver", () => {
       true,
     ],
     ["i18n call", "i18n.t(feedback.headline_key)", true],
+    ["key array", "t([feedback.headline_key, 'fallback.label'])", true],
+    [
+      "local helper shadows resolver",
+      "function resolveBackendText(f) { return f.headline_key; } t(resolveBackendText(feedback))",
+      true,
+    ],
     ["nested default", "t('x', {other: {defaultValue: feedback.headline_key}})", true],
     [
       "safe competition fallback",
