@@ -161,6 +161,20 @@ pub fn ensure_multi_competition_foundations(game: &mut Game) {
 /// As [`ensure_multi_competition_foundations`], but with an explicit division
 /// size. See [`build_foundation_competitions`] for why that exists.
 pub fn ensure_multi_competition_foundations_with(game: &mut Game, division_size: usize) {
+    ensure_foundations(game, division_size, &Default::default());
+}
+
+/// Existing snapshot fixtures have already been published and must keep their postponement history.
+pub(crate) fn ensure_snapshot_foundations(game: &mut Game) {
+    let retained = game.competitions.iter().map(|c| c.id.clone()).collect();
+    ensure_foundations(game, TOP_DIVISION_SIZE, &retained);
+}
+
+fn ensure_foundations(
+    game: &mut Game,
+    division_size: usize,
+    retained: &std::collections::HashSet<String>,
+) {
     if game.national_teams.is_empty() {
         game.national_teams = build_national_teams(game);
     }
@@ -183,7 +197,7 @@ pub fn ensure_multi_competition_foundations_with(game: &mut Game, division_size:
             .map(|competition| competition.id.clone())
             .collect();
     }
-    ensure_international_windows(game);
+    ensure_international_windows(game, retained);
     game.sync_legacy_league();
 }
 
@@ -191,7 +205,7 @@ pub fn ensure_multi_competition_foundations_with(game: &mut Game, division_size:
 /// fixtures off those dates, so call-ups never clash with club matches.
 /// Idempotent: existing national-team fixtures (e.g. from a loaded save) are
 /// left untouched, and shifting already-clear club fixtures is a no-op.
-fn ensure_international_windows(game: &mut Game) {
+fn ensure_international_windows(game: &mut Game, retained: &std::collections::HashSet<String>) {
     // A career that opens during a World Cup summer stages the tournament right
     // away: the World Cup is otherwise created only at season rollover, which a
     // fresh save beginning in a cup summer (e.g. mid-2026) never reaches, so the
@@ -210,7 +224,7 @@ fn ensure_international_windows(game: &mut Game) {
             &game.competitions,
             game.clock.current_date.date_naive(),
         );
-        settle_club_calendar(game, &blackout, &Default::default());
+        settle_club_calendar(game, &blackout, retained);
         return;
     }
 
@@ -269,7 +283,7 @@ fn ensure_international_windows(game: &mut Game) {
         &game.competitions,
         game.clock.current_date.date_naive(),
     );
-    place_club_calendar(game, &blackout, &Default::default());
+    place_club_calendar(game, &blackout, retained);
 }
 
 /// Appends the preseason friendlies, then settles every club clash and window overlap once.
@@ -496,7 +510,7 @@ mod tests {
         // A non-empty active scope so staging registers the tournament as active.
         game.active_competition_ids = vec!["dummy".to_string()];
 
-        ensure_international_windows(&mut game);
+        ensure_international_windows(&mut game, &Default::default());
 
         let world_cup = game
             .competitions
@@ -529,7 +543,7 @@ mod tests {
             vec![],
         );
         game.active_competition_ids = vec!["dummy".to_string()];
-        ensure_international_windows(&mut game);
+        ensure_international_windows(&mut game, &Default::default());
 
         // Capture the World Cup's id and fixture dates before any re-anchoring.
         let (wc_id, before): (String, Vec<String>) = {
@@ -592,7 +606,7 @@ mod tests {
             vec![],
         );
 
-        ensure_international_windows(&mut game);
+        ensure_international_windows(&mut game, &Default::default());
 
         assert!(
             !game.competitions.iter().any(is_world_cup_competition),
@@ -1189,7 +1203,7 @@ mod tests {
         let moved_id = league.fixtures[0].id.clone();
         game.competitions = vec![league];
 
-        ensure_international_windows(&mut game);
+        ensure_international_windows(&mut game, &Default::default());
 
         let moved = game.competitions[0]
             .fixtures

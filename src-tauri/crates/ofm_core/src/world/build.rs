@@ -163,7 +163,7 @@ pub fn build_game_from_world_data(
             game.news = news;
             game.world_history = world_history;
             game.extra_translations = extra_translations;
-            crate::world::ensure_multi_competition_foundations(&mut game);
+            crate::world::foundations::ensure_snapshot_foundations(&mut game);
             crate::season_context::refresh_game_context(&mut game);
             (game, stats)
         }
