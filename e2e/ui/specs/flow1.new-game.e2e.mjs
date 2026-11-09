@@ -26,7 +26,10 @@ describe("flow 1: a new game, to the first match day", () => {
     // manager can bring on.
     const substitutes = await $$('[data-testid^="pre-match-bench-"]');
     expect(substitutes.length).toBeGreaterThan(0);
-    // The formation panel counts each line "filled/needed"; the goalkeeper line is 1/1 in any shape.
-    await $("//*[normalize-space(.)='1/1']").waitForDisplayed({ timeout: 10_000 });
+    // The formation panel counts each line "filled/needed", one cell per position: the goalkeeper's
+    // cell reads 1/1 in any shape, and anything else means the XI has no keeper.
+    const goalkeeperCount = $('//div[span[1][normalize-space(.)="GK"]]/span[2]');
+    await goalkeeperCount.waitForDisplayed({ timeout: 10_000 });
+    expect((await goalkeeperCount.getText()).trim()).toBe("1/1");
   });
 });

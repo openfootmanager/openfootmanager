@@ -46,6 +46,8 @@ export async function manageTheSelectedClub() {
   await $("//*[normalize-space(.)='Selected Club']").waitForDisplayed({ timeout: 60_000 });
   await clickWhenReady(buttonStartingWith("Manage "));
   await waitForRoute("/dashboard");
+  // The career is the one the player asked for: the sidebar names the manager just created.
+  await $('//*[normalize-space(.)="Ada Tester"]').waitForDisplayed({ timeout: 30_000 });
 }
 
 /** Everything from the main menu to the dashboard of a fresh career. */
