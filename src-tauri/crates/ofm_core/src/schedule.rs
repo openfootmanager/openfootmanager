@@ -1356,6 +1356,17 @@ mod tests {
         );
     }
 
+    /// Given an empty field, when a knockout round is seeded, then it is skipped without a panic
+    /// or an empty bracket round.
+    #[test]
+    fn an_empty_knockout_field_is_skipped() {
+        let mut cup = League::new("empty".into(), "Empty".into(), 2034, &[]);
+        let start = Utc.with_ymd_and_hms(2034, 7, 1, 0, 0, 0).unwrap();
+        seed_knockout_round(&mut cup, &[], start, FixtureCompetition::Cup);
+        assert!(cup.fixtures.is_empty());
+        assert!(cup.knockout_rounds.is_empty());
+    }
+
     #[test]
     fn seed_knockout_round_groups_matches_per_day() {
         // Round of 32 (16 matches) with mpd=4 should span exactly 4 days.
