@@ -770,7 +770,7 @@ impl SeasonObserver for SupplyWatch {
 /// Given generated worlds from three seeds,
 /// When each is played through ten seasons,
 /// Then the world is replaced as fast as it loses people (its player count does not fall every
-///      season, falls below 90% of the start or ends below it), every recruit joins an academy
+///      season, never drops below 90% of the start and ends at or above it), every recruit joins an academy
 ///      inside the youth band with a readable birth date, and at least nine in ten clubs take an
 ///      intake each season (#528: "youth intake for every club, so the world replaces who it loses").
 ///      The series (players, recruits, clubs taking one, median age at clubs) is printed.
