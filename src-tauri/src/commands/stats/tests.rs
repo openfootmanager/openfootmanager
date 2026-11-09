@@ -933,3 +933,70 @@ fn a_stranger_has_no_stats_overview() {
 
     assert_eq!(error, "be.error.playerNotFound");
 }
+
+fn history_record(
+    fixture_id: &str,
+    competition: FixtureCompetition,
+    shots: u8,
+) -> PlayerMatchStatsRecord {
+    PlayerMatchStatsRecord {
+        fixture_id: fixture_id.to_string(),
+        season: 2026,
+        matchday: 1,
+        date: "2026-08-01".to_string(),
+        competition,
+        player_id: "player-1".to_string(),
+        team_id: "team-1".to_string(),
+        opponent_team_id: "team-2".to_string(),
+        home_team_id: "team-1".to_string(),
+        away_team_id: "team-2".to_string(),
+        home_goals: 0,
+        away_goals: 0,
+        minutes_played: 90,
+        goals: 0,
+        assists: 0,
+        shots,
+        shots_on_target: 0,
+        passes_completed: 0,
+        passes_attempted: 0,
+        tackles_won: 0,
+        interceptions: 0,
+        fouls_committed: 0,
+        yellow_cards: 0,
+        red_cards: 0,
+        rating: 7.0,
+    }
+}
+
+/// Given a striker who shot 20 times in a friendly and then 10 times in a league match,
+/// When his advanced totals are read from the match history,
+/// Then they count the league match alone: a friendly is not part of a player's season
+/// (`Fixture::is_competitive`), whether it came before or after.
+#[test]
+fn a_friendly_is_not_part_of_the_advanced_totals() {
+    let state = StateManager::new();
+    state.set_game(make_game(vec![make_player(
+        "player-1",
+        "team-1",
+        Position::Striker,
+    )]));
+    let mut friendly = history_record("friendly", FixtureCompetition::Friendly, 20);
+    friendly.passes_completed = 5;
+    friendly.passes_attempted = 20;
+    let mut league = history_record("league", FixtureCompetition::League, 10);
+    league.passes_completed = 40;
+    league.passes_attempted = 50;
+    state.set_stats_state(StatsState {
+        player_matches: vec![friendly, league],
+        team_matches: vec![],
+    });
+
+    let overview = get_player_stats_overview_internal(&state, "player-1").unwrap();
+
+    assert_eq!(overview.metrics.shots.total, 10);
+    assert_eq!(overview.metrics.passes.completed, 40);
+    assert_eq!(overview.metrics.passes.attempted, 50);
+    // One league match of 90 minutes: the per-90 rate is that match's alone, not spread over the
+    // friendly's minutes too.
+    assert_eq!(overview.metrics.shots.per90, Some(10.0));
+}

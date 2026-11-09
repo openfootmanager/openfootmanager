@@ -5,6 +5,7 @@ import type { NewsArticle } from "../../store/gameStore";
 import HomeLeagueDigestCard from "./HomeLeagueDigestCard";
 
 vi.mock("react-i18next", () => ({
+  initReactI18next: { type: "3rdParty", init: () => undefined },
   useTranslation: () => ({
     t: (key: string) => {
       if (key === "dashboard.news") return "News";

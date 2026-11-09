@@ -569,6 +569,47 @@ fn apply_match_report_updates_player_stats() {
     assert!(scorer.stats.avg_rating > 0.0);
 }
 
+/// team1's fixture, played as `competition`, with t1_fwd0 scoring twice in a 2-0.
+fn scorer_after(competition: FixtureCompetition) -> domain::player::PlayerSeasonStats {
+    let mut game = make_game_with_match();
+    game.league.as_mut().unwrap().fixtures[0].competition = competition;
+    let report = report_with_scorer(2, 0, "t1_fwd0", Side::Home);
+
+    turn::apply_match_report(&mut game, 0, "team1", "team2", &report);
+
+    let scorer = game.players.iter().find(|p| p.id == "t1_fwd0").unwrap();
+    scorer.stats.clone()
+}
+
+/// Given a pre-season friendly in which a forward scores twice,
+/// When the report is applied,
+/// Then his season stats do not move: a friendly is played for nothing, and the Golden Boot,
+/// his development and his valuation read these stats.
+#[test]
+fn a_friendly_is_not_part_of_a_players_season_stats() {
+    for competition in [
+        FixtureCompetition::Friendly,
+        FixtureCompetition::FriendlyCup,
+        FixtureCompetition::PreseasonTournament,
+    ] {
+        let stats = scorer_after(competition.clone());
+        assert_eq!(
+            (stats.appearances, stats.goals),
+            (0, 0),
+            "{competition:?} counts for nothing"
+        );
+    }
+}
+
+/// Given a cup tie in which a forward scores twice,
+/// When the report is applied,
+/// Then his season stats count it: a cup match is played for something.
+#[test]
+fn a_cup_tie_is_part_of_a_players_season_stats() {
+    let stats = scorer_after(FixtureCompetition::Cup);
+    assert_eq!((stats.appearances, stats.goals), (1, 2));
+}
+
 #[test]
 fn apply_match_report_gk_clean_sheet() {
     let mut game = make_game_with_match();

@@ -9,6 +9,7 @@ import type { FixtureData } from "../../store/gameStore";
 vi.mock("react-i18next", async () => {
   const { useRef } = await import("react");
   return {
+    initReactI18next: { type: "3rdParty", init: () => undefined },
     useTranslation: () => {
       useRef(null);
       return {

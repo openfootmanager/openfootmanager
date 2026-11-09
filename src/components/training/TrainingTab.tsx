@@ -14,6 +14,7 @@ import {
   Zap,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { resolveBackendText } from "../../utils/backendI18n";
 
 import type { GameStateData } from "../../store/gameStore";
 import { useGameStore } from "../../store/gameStore";
@@ -324,7 +325,7 @@ export default function TrainingTab({ gameState, onGameUpdate }: TrainingTabProp
                       </span>
                       {status ? (
                         <span className={`text-caption font-semibold ${TONE_TEXT[status.tone]}`}>
-                          {t(status.label_key)}
+                          {resolveBackendText(status.label_key, "")}
                         </span>
                       ) : null}
                       <ProgressBar

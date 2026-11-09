@@ -254,6 +254,20 @@ pub enum FixtureCompetition {
     PreseasonTournament,
 }
 
+impl FixtureCompetition {
+    /// Whether a match of this competition is played for something: everything but a friendly, a
+    /// friendly cup and a preseason tournament. `Fixture::is_competitive` asks it, and so does
+    /// anything that holds only a competition (a stats record).
+    pub fn is_competitive(&self) -> bool {
+        !matches!(
+            self,
+            FixtureCompetition::Friendly
+                | FixtureCompetition::FriendlyCup
+                | FixtureCompetition::PreseasonTournament
+        )
+    }
+}
+
 #[derive(Debug, Clone, Deserialize, TS)]
 #[serde(default)]
 #[ts(as = "FixtureWire<'static>")]
@@ -509,12 +523,7 @@ impl Fixture {
     /// preseason tournament. The one statement of it (the cup summaries, the completion proof and
     /// the screens all ask it).
     pub fn is_competitive(&self) -> bool {
-        !matches!(
-            self.competition,
-            FixtureCompetition::Friendly
-                | FixtureCompetition::FriendlyCup
-                | FixtureCompetition::PreseasonTournament
-        )
+        self.competition.is_competitive()
     }
 
     /// The team advancing from this knockout fixture once a result is
