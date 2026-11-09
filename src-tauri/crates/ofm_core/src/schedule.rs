@@ -297,7 +297,7 @@ pub(crate) fn knockout_round_shape(
     matches_per_day: u32,
 ) -> Option<(usize, usize, usize)> {
     let byes = knockout_bye_count(entrants)?;
-    let ties = (entrants - byes) / 2;
+    let ties = entrants.checked_sub(byes)? / 2;
     let days = ties.div_ceil(matches_per_day.max(1) as usize);
     Some((byes, ties, days))
 }
