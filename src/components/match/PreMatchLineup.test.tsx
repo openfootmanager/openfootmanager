@@ -23,6 +23,7 @@ vi.mock("../../hooks/useRatingTiers", async () => {
 
 // Mock react-i18next
 vi.mock("react-i18next", () => ({
+  initReactI18next: { type: "3rdParty", init: () => undefined },
   useTranslation: () => ({
     t: (key: string, arg?: unknown) => {
       if (typeof arg === "string") {

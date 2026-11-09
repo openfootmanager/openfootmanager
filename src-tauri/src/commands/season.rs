@@ -152,6 +152,7 @@ pub(crate) mod tests {
                 player.team_id = Some(team.into());
                 player.stats.appearances = 2;
                 player.stats.goals = if team == "home" { 3 } else { 1 };
+                player.league_stats = player.stats.clone();
                 player
             })
             .collect();

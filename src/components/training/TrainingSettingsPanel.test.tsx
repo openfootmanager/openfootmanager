@@ -5,6 +5,7 @@ import type { TrainingFocusAttributesData } from "../../store/types";
 import TrainingSettingsPanel from "./TrainingSettingsPanel";
 
 vi.mock("react-i18next", () => ({
+  initReactI18next: { type: "3rdParty", init: () => undefined },
   useTranslation: () => ({
     t: (key: string, params?: Record<string, string | number>) => {
       const scheduleText: Record<string, string> = {

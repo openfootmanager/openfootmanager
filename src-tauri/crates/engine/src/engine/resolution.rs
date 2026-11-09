@@ -399,5 +399,129 @@ fn effective_press(ctx: &MatchContext, pressing_side: Side) -> f64 {
         ((p.stamina as u16 + p.tackling as u16 + p.pace as u16) / 3) as u8
     });
     let modifier = play_style_modifier(team.play_style, PlayStylePhase::Press, true);
-    base * modifier * tactics_pressing_press(&team.tactics) * home_mod(pressing_side, ctx.config)
+    let forwards = team
+        .players
+        .iter()
+        .filter(|p| p.position == Position::Forward && !ctx.sent_off.contains(&p.id));
+    base * modifier
+        * crate::shared::forward_press_factor(forwards)
+        * tactics_pressing_press(&team.tactics)
+        * home_mod(pressing_side, ctx.config)
+}
+
+#[cfg(test)]
+mod press_tests {
+    use super::*;
+    use crate::test_support::{full_side, same};
+    use crate::types::{MatchConfig, PlayStyle, PlayerRole, PressingIntensity, TeamData};
+
+    fn press(home: &TeamData, away: &TeamData, side: Side) -> f64 {
+        let config = MatchConfig::default();
+        effective_press(&MatchContext::new(home, away, &config), side)
+    }
+
+    /// The Away side's press, with `change` made to its team: the ratio against the unchanged
+    /// team isolates what the change multiplies it by (Away, so the home advantage is not in it).
+    fn press_ratio(change: impl FnOnce(&mut TeamData)) -> f64 {
+        let home = full_side("h");
+        let plain = full_side("a");
+        let mut changed = full_side("a");
+        change(&mut changed);
+        press(&home, &changed, Side::Away) / press(&home, &plain, Side::Away)
+    }
+
+    fn forwards_on(team: &mut TeamData, role: PlayerRole) {
+        for player in team
+            .players
+            .iter_mut()
+            .filter(|player| player.position == Position::Forward)
+        {
+            player.role = role;
+        }
+    }
+
+    /// Given a side whose forwards are Pressing Forwards,
+    /// When its press is read against the same side on Standard,
+    /// Then it is 7.5% stronger.
+    #[test]
+    fn pressing_forwards_strengthen_the_press_by_their_share() {
+        assert!(same(
+            press_ratio(|team| forwards_on(team, PlayerRole::PressingForward)),
+            1.075
+        ));
+    }
+
+    /// Given a High Press side against a Balanced one,
+    /// When its press is read,
+    /// Then it is multiplied by the style's Press entry, 1.20.
+    #[test]
+    fn a_high_press_style_multiplies_the_press_by_its_entry() {
+        assert!(same(
+            press_ratio(|team| team.play_style = PlayStyle::HighPress),
+            1.20
+        ));
+    }
+
+    /// Given an aggressive pressing dial against a medium one,
+    /// When the press is read,
+    /// Then it is multiplied by 1.06.
+    #[test]
+    fn an_aggressive_dial_multiplies_the_press_by_its_figure() {
+        assert!(same(
+            press_ratio(|team| team.tactics.pressing_intensity = PressingIntensity::Aggressive),
+            1.06
+        ));
+    }
+
+    /// Given the same two sides,
+    /// When the home side's press is read against the away side's,
+    /// Then it is multiplied by the home advantage.
+    #[test]
+    fn the_home_side_presses_by_the_home_advantage_more() {
+        let (home, away) = (full_side("h"), full_side("h"));
+
+        assert!(same(
+            press(&home, &away, Side::Home) / press(&home, &away, Side::Away),
+            MatchConfig::default().home_advantage
+        ));
+    }
+
+    /// Given Pressing Forward on a midfielder (the role is not a midfielder's, but the press reads
+    /// the front line by position),
+    /// When the press is read,
+    /// Then it does not change: only forwards count.
+    #[test]
+    fn a_midfielder_on_the_forwards_role_adds_nothing() {
+        assert!(same(
+            press_ratio(|team| {
+                for player in team
+                    .players
+                    .iter_mut()
+                    .filter(|player| player.position == Position::Midfielder)
+                {
+                    player.role = PlayerRole::PressingForward;
+                }
+            }),
+            1.0
+        ));
+    }
+
+    /// Given both forwards Pressing Forwards and one of them sent off,
+    /// When the press is read,
+    /// Then only the one still on the pitch adds: 3.75%, not 7.5%.
+    #[test]
+    fn a_forward_sent_off_adds_nothing_to_the_press() {
+        let home = full_side("h");
+        let mut pressing = full_side("a");
+        forwards_on(&mut pressing, PlayerRole::PressingForward);
+        let plain = full_side("a");
+        let config = MatchConfig::default();
+        let mut ctx = MatchContext::new(&home, &pressing, &config);
+        ctx.sent_off.insert("a_fwd0".to_string());
+
+        let with_one_off = effective_press(&ctx, Side::Away);
+        let standard = press(&home, &plain, Side::Away);
+
+        assert!(same(with_one_off / standard, 1.0375));
+    }
 }

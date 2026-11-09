@@ -5,6 +5,7 @@ import { Circle, Users } from "lucide-react";
 import HomeOnboardingChecklistCard from "./HomeOnboardingChecklistCard";
 
 vi.mock("react-i18next", () => ({
+  initReactI18next: { type: "3rdParty", init: () => undefined },
   useTranslation: () => ({
     t: (key: string) => {
       if (key === "onboarding.title") return "Getting Started";

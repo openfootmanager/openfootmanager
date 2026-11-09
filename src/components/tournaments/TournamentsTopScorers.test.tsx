@@ -7,6 +7,7 @@ import type { TopScorerEntry } from "./TournamentsTab.helpers";
 vi.mock("react-i18next", async () => {
   const { useRef } = await import("react");
   return {
+    initReactI18next: { type: "3rdParty", init: () => undefined },
     useTranslation: () => {
       useRef(null);
       return {

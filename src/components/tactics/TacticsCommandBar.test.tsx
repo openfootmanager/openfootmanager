@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import TacticsCommandBar, { type TacticsLibraryEntry } from "./TacticsCommandBar";
 
 vi.mock("react-i18next", () => ({
+  initReactI18next: { type: "3rdParty", init: () => undefined },
   useTranslation: () => ({
     t: (key: string, fallback?: string | Record<string, unknown>) =>
       typeof fallback === "string" ? fallback : key,

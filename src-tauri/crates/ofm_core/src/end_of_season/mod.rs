@@ -1169,6 +1169,7 @@ pub fn process_end_of_season(game: &mut Game) -> EndOfSeasonSummary {
     for player in game.players.iter_mut() {
         // Reset stats for next season
         player.stats = PlayerSeasonStats::default();
+        player.league_stats = PlayerSeasonStats::default();
     }
 
     // 5b. Convert retired players to unemployed manager/scout candidates, then

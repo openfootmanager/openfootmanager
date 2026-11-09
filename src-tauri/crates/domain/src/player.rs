@@ -70,8 +70,13 @@ pub struct Player {
     // frontend and the save columns keep the shape they always had.
     pub market_value: u64,
 
-    // Season stats
+    // Season stats: every competitive match (`ofm_core::turn::post_match`).
     pub stats: PlayerSeasonStats,
+    /// This season's league matches alone, which the division's awards rank by, so they agree
+    /// with the league's own tables. A save from before it loads its season so far here
+    /// (`db::repositories::player_repo`).
+    #[serde(default)]
+    pub league_stats: PlayerSeasonStats,
 
     // Career history
     pub career: Vec<CareerEntry>,
@@ -988,6 +993,7 @@ impl Player {
             potential: 0,
             market_value: 0,
             stats: PlayerSeasonStats::default(),
+            league_stats: PlayerSeasonStats::default(),
             career: Vec::new(),
             movement_history: Default::default(),
             training_focus: None,

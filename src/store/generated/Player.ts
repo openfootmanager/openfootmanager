@@ -28,7 +28,13 @@ ovr: number,
 /**
  * Player's ceiling rating (1–99). Set at generation; higher than ovr for young players.
  */
-potential: number, market_value: number, stats: PlayerSeasonStats, career: Array<CareerEntry>, training_focus: TrainingFocus | null, transfer_listed: boolean, loan_listed: boolean, transfer_offers: Array<TransferOffer>, loan_offers: Array<LoanOffer>, active_loan?: ActiveLoan | null, morale_core: PlayerMoraleCore, 
+potential: number, market_value: number, stats: PlayerSeasonStats, 
+/**
+ * This season's league matches alone, which the division's awards rank by, so they agree
+ * with the league's own tables. A save from before it loads its season so far here
+ * (`db::repositories::player_repo`).
+ */
+league_stats: PlayerSeasonStats, career: Array<CareerEntry>, training_focus: TrainingFocus | null, transfer_listed: boolean, loan_listed: boolean, transfer_offers: Array<TransferOffer>, loan_offers: Array<LoanOffer>, active_loan?: ActiveLoan | null, morale_core: PlayerMoraleCore, 
 /**
  * Jersey/squad number (1–99). None means unassigned.
  */
