@@ -5381,7 +5381,8 @@ colors:
     }
 
     /// Who each competition's selectors resolve to, from the built world and from the projection.
-    /// A club with no id is named `<no id>` on both sides: the builder gives it a generated id.
+    /// A club with no id is named `<no id>` on both sides: the builder gives it a generated id. The
+    /// order is kept as resolved: scheduling and group seeding read it.
     fn participants_both_ways(
         package: &WorldPackage,
     ) -> (
@@ -5411,7 +5412,7 @@ colors:
             resolved
                 .into_iter()
                 .map(|(competition, ids)| {
-                    let mut ids: Vec<String> = ids
+                    let ids: Vec<String> = ids
                         .into_iter()
                         .map(|id| {
                             if known.contains(id.as_str()) {
@@ -5421,7 +5422,6 @@ colors:
                             }
                         })
                         .collect();
-                    ids.sort();
                     (competition, ids)
                 })
                 .collect()
@@ -5556,6 +5556,100 @@ colors:
         assert_eq!(
             super::super::competition_field_of_package(&package).regions,
             world.regions
+        );
+    }
+
+    /// Given a custom country code written in lower case and a nation written as a name
+    /// When cups select everyone of ENG and of SCO
+    /// Then the projection selects the clubs the built world does: the club's football nation is
+    ///      its country normalised, however the author wrote it
+    #[test]
+    fn the_projection_normalises_a_clubs_nation_like_the_built_world() {
+        let package = WorldPackage {
+            teams: vec![
+                fixture_club("e1", "eng", [500, 500]),
+                fixture_club("e2", "ENG", [400, 400]),
+                fixture_club("s1", "Scotland", [300, 300]),
+            ],
+            competitions: fixture_competitions(serde_json::json!([
+                {"id":"eng-cup","name":"E","type":"Cup","scope":"Domestic","format":{"kind":"Knockout"},
+                 "participants":{"selector":{"kind":"allInCountry","country":"ENG"}}},
+                {"id":"sco-cup","name":"S","type":"Cup","scope":"Domestic","format":{"kind":"Knockout"},
+                 "participants":{"selector":{"kind":"allInCountry","country":"SCO"}}}
+            ])),
+            ..Default::default()
+        };
+
+        assert_projection_matches_the_built_world("normalised nations", &package);
+        let (built, projected) = participants_both_ways(&package);
+        assert_eq!(projected["eng-cup"].len(), 2, "{projected:?}");
+        assert_eq!(built["eng-cup"].len(), 2, "{built:?}");
+        assert_eq!(projected["sco-cup"], ["s1"]);
+    }
+
+    /// Given clubs whose ids are not in order, several with the same reputation
+    /// When selectors rank and list them
+    /// Then the participants come out in the same order on the projection as in the built world:
+    ///      ties break by id, and the order feeds scheduling and group seeding
+    #[test]
+    fn the_projection_orders_participants_like_the_built_world() {
+        let package = WorldPackage {
+            teams: vec![
+                fixture_club("m", "ENG", [500, 500]),
+                fixture_club("c", "ENG", [500, 500]),
+                fixture_club("x", "ENG", [900, 900]),
+                fixture_club("a", "ENG", [500, 500]),
+                fixture_club("q", "ENG", [900, 900]),
+                fixture_club("b", "ESP", [500, 500]),
+            ],
+            competitions: fixture_competitions(serde_json::json!([
+                {"id":"league","name":"L","type":"League","scope":"Domestic","countryId":"ENG",
+                 "format":{"kind":"LeagueTable"},"participants":{"selector":{"kind":"allInCountry","country":"ENG"}}},
+                {"id":"top","name":"T","type":"Cup","scope":"Domestic","format":{"kind":"Knockout"},
+                 "participants":{"selector":{"kind":"topByReputation","country":"ENG","count":4}}},
+                {"id":"champions","name":"C","type":"Cup","scope":"Continental","format":{"kind":"Knockout"},
+                 "participants":{"selector":{"kind":"championsOf","sourceCompetition":"league","count":3}}}
+            ])),
+            ..Default::default()
+        };
+
+        assert_projection_matches_the_built_world("ordering", &package);
+        let (_, projected) = participants_both_ways(&package);
+        assert_eq!(
+            projected["top"],
+            ["q", "x", "a", "c"],
+            "ties break by id: {projected:?}"
+        );
+    }
+
+    /// Given an explicit participant list that names the text a placeholder for a club without an id
+    ///       could have been given, including one with an escaped NUL
+    /// When the package is validated on the projection and on the built world
+    /// Then both report the same unknown clubs: a club with no id cannot be named, however it is spelled
+    #[test]
+    fn a_club_without_an_id_cannot_be_named_in_a_participant_list() {
+        let package = WorldPackage {
+            teams: vec![
+                fixture_club("a", "ENG", [500, 500]),
+                fixture_club("", "ENG", [400, 400]),
+                fixture_club("b", "ENG", [300, 300]),
+            ],
+            competitions: fixture_competitions(serde_json::json!([
+                {"id":"cup","name":"Cup","type":"Cup","scope":"Domestic","format":{"kind":"Knockout"},
+                 "participants":{"explicit":[
+                     "a", "club-without-id-1", "\u{0}club-without-id-1", "\u{0}club-without-id-3"]}}
+            ])),
+            ..Default::default()
+        };
+
+        assert_projection_matches_the_built_world("unnameable club", &package);
+        assert_eq!(
+            verdict_on_the_projection(&package)
+                .iter()
+                .filter(|(code, _, _)| code.ends_with("unknownTeam"))
+                .count(),
+            3,
+            "every spelling of the placeholder is an unknown club"
         );
     }
 
