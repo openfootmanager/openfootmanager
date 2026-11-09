@@ -2678,18 +2678,19 @@ mod tests {
         assert!(after_release, "the swap never completed once released");
     }
 
-    /// Runs `call` against a game at rest while a lifecycle operation is held. It must not have
-    /// finished, nor changed what `observe` reads, while the gate is held; once the gate is
-    /// released it completes and, when `changes` is set, `observe` reads something different.
+    /// Runs `call` against a game at rest (after `setup`) while a lifecycle operation is held.
+    /// It must not have finished, nor changed what `observe` reads, while the gate is held; once
+    /// the gate is released it completes and `observe` reads something different.
     fn assert_a_bulk_role_write_waits_for_the_gate<F>(
+        setup: fn(&StateManager),
         call: F,
         observe: fn(&StateManager) -> String,
-        changes: bool,
     ) where
         F: FnOnce(&StateManager) + Send + 'static,
     {
         let state = std::sync::Arc::new(StateManager::new());
         state.set_game(make_round_summary_game());
+        setup(&state);
         let before = observe(&state);
         let worker_state = state.clone();
         let operation = crate::application::live_session::operation();
@@ -2718,10 +2719,10 @@ mod tests {
             finished_after_release,
             "the write never completed once released"
         );
-        if changes {
-            assert_ne!(observe(&state), before, "the write changed nothing");
-        }
+        assert_ne!(observe(&state), before, "the write changed nothing");
     }
+
+    fn no_setup(_: &StateManager) {}
 
     fn formation_of_the_user_team(state: &StateManager) -> String {
         state
@@ -2735,12 +2736,25 @@ mod tests {
             .unwrap_or_default()
     }
 
+    fn starting_eleven_of_the_user_team(state: &StateManager) -> String {
+        state
+            .get_game(|game| {
+                game.teams
+                    .iter()
+                    .find(|team| team.id == "team1")
+                    .map(|team| team.starting_xi_ids.join(","))
+                    .unwrap_or_default()
+            })
+            .unwrap_or_default()
+    }
+
     /// Given a lifecycle operation in flight, when the formation is saved,
     /// then the save queues behind it: commit and hand-off to the waiting match are one step
     /// against a role save.
     #[test]
     fn a_formation_save_waits_for_a_lifecycle_operation_in_flight() {
         assert_a_bulk_role_write_waits_for_the_gate(
+            no_setup,
             |state| {
                 crate::commands::squad::set_formation_internal(
                     state,
@@ -2750,7 +2764,6 @@ mod tests {
                 .expect("the formation is saved");
             },
             formation_of_the_user_team,
-            true,
         );
     }
 
@@ -2758,6 +2771,7 @@ mod tests {
     #[test]
     fn a_tactic_preset_waits_for_a_lifecycle_operation_in_flight() {
         assert_a_bulk_role_write_waits_for_the_gate(
+            no_setup,
             |state| {
                 crate::commands::squad::apply_tactic_preset_internal(
                     state,
@@ -2768,45 +2782,67 @@ mod tests {
                 .expect("the preset is applied");
             },
             formation_of_the_user_team,
-            true,
         );
     }
 
     /// The same for a starting eleven.
     #[test]
     fn a_starting_eleven_save_waits_for_a_lifecycle_operation_in_flight() {
-        // An empty eleven is refused after the gate is taken (a refusal changes nothing): the
-        // test pins the wait, and that the call got as far as its own validation.
+        // The club's eleven healthy seniors, in an order no fixture starts from.
         assert_a_bulk_role_write_waits_for_the_gate(
+            no_setup,
             |state| {
-                let refused = crate::commands::squad::set_starting_xi_internal(
+                let eleven = [
+                    "a-gk", "a-fwd1", "a-fwd0", "a-mid3", "a-mid2", "a-mid1", "a-mid0", "a-def3",
+                    "a-def2", "a-def1", "a-def0",
+                ]
+                .map(String::from)
+                .to_vec();
+                crate::commands::squad::set_starting_xi_internal(
                     state,
                     ofm_core::state::Career::Active,
-                    Vec::new(),
-                );
-                assert!(refused.is_err(), "an empty eleven is refused");
+                    eleven,
+                )
+                .expect("the eleven is saved");
             },
-            formation_of_the_user_team,
-            false,
+            starting_eleven_of_the_user_team,
         );
     }
 
     /// The same for applying a saved custom tactic.
     #[test]
     fn a_custom_tactic_applied_waits_for_a_lifecycle_operation_in_flight() {
-        // A tactic that was never saved is refused after the gate is taken: the test pins the
-        // wait, and that the call got as far as its own lookup.
+        // A tactic saved with a 3-5-2 team, then the team put back to 4-4-2: applying it changes
+        // the formation again.
+        fn save_a_three_five_two_tactic(state: &StateManager) {
+            let career = ofm_core::state::Career::Active;
+            crate::commands::squad::set_formation_internal(state, career, "3-5-2")
+                .expect("the formation is saved");
+            let tactic = domain::custom_tactic::CustomTactic {
+                id: "mine".to_string(),
+                name: "Mine".to_string(),
+                description: String::new(),
+                formation: "3-5-2".to_string(),
+                play_style: "Balanced".to_string(),
+                source_preset_name: None,
+                contents: None,
+            };
+            crate::commands::custom_tactics::save_current_tactic_internal(state, &tactic, career)
+                .expect("the tactic is saved");
+            crate::commands::squad::set_formation_internal(state, career, "4-4-2")
+                .expect("the formation is put back");
+        }
         assert_a_bulk_role_write_waits_for_the_gate(
+            save_a_three_five_two_tactic,
             |state| {
-                let refused = crate::commands::custom_tactics::apply_custom_tactic_internal(
+                crate::commands::custom_tactics::apply_custom_tactic_internal(
                     state,
-                    "none-saved",
+                    "mine",
                     ofm_core::state::Career::Active,
-                );
-                assert!(refused.is_err(), "a tactic that was never saved is refused");
+                )
+                .expect("the tactic is applied");
             },
             formation_of_the_user_team,
-            false,
         );
     }
 
@@ -2893,28 +2929,5 @@ mod tests {
         });
 
         assert!(while_held, "a step in play was held up by the operation");
-    }
-
-    /// Given no live match yet and a lifecycle operation in flight,
-    /// When the match is stepped,
-    /// Then the step waits for the operation before it reports there is no match: a waiting match
-    /// installed in between would otherwise be kicked off outside the gate.
-    #[test]
-    fn a_step_with_no_match_waits_for_a_lifecycle_operation_in_flight() {
-        let state = std::sync::Arc::new(StateManager::new());
-        state.set_game(make_round_summary_game());
-
-        let (while_held, after_release) =
-            finishes_only_after_the_gate_is_released(state, |state| {
-                let refused = crate::application::live_match::step_live_match(
-                    state,
-                    ofm_core::state::Career::Active,
-                    1,
-                );
-                assert_eq!(refused.err().as_deref(), Some("be.error.noActiveLiveMatch"));
-            });
-
-        assert!(!while_held, "the step ran inside a held operation");
-        assert!(after_release, "the step never completed once released");
     }
 }

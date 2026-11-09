@@ -360,24 +360,31 @@ pub fn step_live_match(
 ) -> Result<Vec<engine::MinuteResult>, String> {
     log::debug!("[cmd] step_live_match: minutes={}", minutes);
     // The step that kicks the match off takes the lifecycle gate, so a role save or a swap is
-    // wholly before or wholly after it. A match already under way needs no gate (it cannot
-    // un-start). With no session at this look the gate is taken too: a waiting match installed
-    // before the step runs would otherwise be kicked off outside it. A kick-off that lands
-    // between this look and the step only costs a gate held for nothing.
-    let waiting_at_kick_off = state
-        .with_live_match(|session| session.match_state.phase() == engine::MatchPhase::PreKickOff)
-        .unwrap_or(true);
-    let _operation = waiting_at_kick_off.then(super::live_session::operation);
-    let results = state
-        .with_live_match(|session| {
-            career.check_token(session.career_token)?;
-            Ok::<_, String>(if minutes <= 1 {
-                vec![session.step()]
-            } else {
-                session.step_many(minutes)
+    // wholly before or wholly after it. The phase is read and the step taken in one look at the
+    // session: a match already under way is stepped without the gate (it cannot un-start), and a
+    // match still waiting at kick-off is left alone, the gate is taken and the step retried under
+    // it, where nothing can replace the session (finishing and starting both hold the gate).
+    let mut gate = None;
+    let results = loop {
+        let stepped = state
+            .with_live_match(|session| {
+                career.check_token(session.career_token)?;
+                let waiting = session.match_state.phase() == engine::MatchPhase::PreKickOff;
+                if waiting && gate.is_none() {
+                    return Ok::<_, String>(None);
+                }
+                Ok(Some(if minutes <= 1 {
+                    vec![session.step()]
+                } else {
+                    session.step_many(minutes)
+                }))
             })
-        })
-        .ok_or_else(|| "be.error.noActiveLiveMatch".to_string())??;
+            .ok_or_else(|| "be.error.noActiveLiveMatch".to_string())??;
+        match stepped {
+            Some(results) => break results,
+            None => gate = Some(super::live_session::operation()),
+        }
+    };
 
     if let Some(last) = results.last() {
         info!(
