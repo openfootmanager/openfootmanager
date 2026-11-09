@@ -489,14 +489,9 @@ fn apply_player_stats(
             .fixtures
             .get(fixture_index)
             .filter(|fixture| fixture.counts_for_league_standings())
-            .map(|fixture| {
-                // Old single-league fixtures did not name their competition.
-                if fixture.competition_id.is_empty() {
-                    league.id.clone()
-                } else {
-                    fixture.competition_id.clone()
-                }
-            })
+            // The staged league owns both the standings update and this statistics entry;
+            // imported fixtures can still carry an obsolete nonempty competition id.
+            .map(|_| league.id.clone())
     });
     for position in report_players(game, report, both_clubs) {
         let player = &mut game.players[position];
