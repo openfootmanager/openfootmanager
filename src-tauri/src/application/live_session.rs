@@ -35,3 +35,52 @@ pub(crate) fn idle_operation(state: &StateManager) -> Result<MutexGuard<'static,
     ensure_idle(state)?;
     Ok(guard)
 }
+
+/// Hold the lifecycle gate across a player move and hand off only roles it changed.
+pub(crate) fn player_role_operation<T>(
+    state: &StateManager,
+    player_id: &str,
+    write: impl FnOnce() -> Result<T, String>,
+) -> Result<T, String> {
+    let _operation = operation();
+    let before = state.get_game(|game| {
+        game.teams
+            .iter()
+            .filter_map(|team| {
+                team.player_roles
+                    .get(player_id)
+                    .map(|role| (team.id.clone(), role.clone()))
+            })
+            .collect::<std::collections::HashMap<_, _>>()
+    });
+    let result = write()?;
+    if let Some((game, changed)) = state
+        .get_game(|game| {
+            let changed = game
+                .teams
+                .iter()
+                .filter(|team| {
+                    before.as_ref().and_then(|roles| roles.get(&team.id))
+                        != team.player_roles.get(player_id)
+                })
+                .map(|team| team.id.clone())
+                .collect::<Vec<_>>();
+            if changed.is_empty() {
+                None
+            } else {
+                Some((game.clone(), changed))
+            }
+        })
+        .flatten()
+    {
+        for team_id in changed {
+            let result = state.with_live_match(|session| {
+                session.follow_team_role_before_kick_off(&game, &team_id, player_id)
+            });
+            if let Some(Err(error)) = result {
+                log::warn!("[live_match] could not follow a changed saved role: {error}");
+            }
+        }
+    }
+    Ok(result)
+}

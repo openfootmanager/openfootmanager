@@ -423,22 +423,24 @@ pub fn terminate_contract_now_internal(
     career: Career,
     player_id: &str,
 ) -> Result<ContractTerminationCommandResponse, String> {
-    info!("[cmd] terminate_contract_now: player_id={}", player_id);
+    crate::application::live_session::player_role_operation(state, player_id, || {
+        info!("[cmd] terminate_contract_now: player_id={}", player_id);
 
-    // terminate_contract_now previews and checks squad safety before mutating.
-    state
-        .update_game_for(career, |game| {
-            let ContractTerminationResult {
-                severance_cost,
-                squad_safety,
-            } = ofm_core::contracts::terminate_contract_now(game, player_id)?;
-            Ok(ContractTerminationCommandResponse {
-                game: game.clone(),
-                severance_cost,
-                squad_safety,
+        // terminate_contract_now previews and checks squad safety before mutating.
+        state
+            .update_game_for(career, |game| {
+                let ContractTerminationResult {
+                    severance_cost,
+                    squad_safety,
+                } = ofm_core::contracts::terminate_contract_now(game, player_id)?;
+                Ok(ContractTerminationCommandResponse {
+                    game: game.clone(),
+                    severance_cost,
+                    squad_safety,
+                })
             })
-        })
-        .and_then(|response| response)
+            .and_then(|response| response)
+    })
 }
 
 #[cfg(test)]
