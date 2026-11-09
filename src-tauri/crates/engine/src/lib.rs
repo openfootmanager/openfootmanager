@@ -16,6 +16,7 @@ pub use live_match::{
     SetPieceTakers, ShootoutOrderSnapshot, SubstitutionRecord,
 };
 pub use report::{GoalDetail, GoalSource, MatchReport, PlayerMatchStats, TeamStats};
+pub use shared::role_has_match_effect;
 pub use types::{
     BreakSpeed, CounterPressDuration, DefensiveLine, DefensiveShape, MarkingStyle, MatchConfig,
     PlayStyle, PlayerData, PlayerRole, Position, PressingIntensity, Side, TacticalDial,
