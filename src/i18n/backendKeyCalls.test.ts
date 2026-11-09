@@ -12,9 +12,9 @@ const SOURCES = import.meta.glob(
 ) as Record<string, string>;
 
 /**
- * Tracks key fields through local identifiers and named helper arguments within each file.
+ * Tracks key fields through local identifiers, named helper arguments and returns within each file.
  * This follows symbols within one source file; imports,
- * dynamic property names, object mutation and indirect calls are not followed across files.
+ * dynamic property names, object mutation and indirect or external calls are not followed.
  * The two named adapters below are trusted to keep their separately tested fallback checks.
  */
 function scanSource(path: string, source: string): string[] {
@@ -29,7 +29,11 @@ function scanSource(path: string, source: string): string[] {
   host.getSourceFile = (name) => (name === path ? file : undefined);
   const checker = ts.createProgram([path], { noResolve: true, noLib: true }, host).getTypeChecker();
   const tainted = new Set<ts.Symbol>();
-  const helpers = new Map<ts.Symbol, readonly ts.ParameterDeclaration[]>();
+  const helpers = new Map<
+    ts.Symbol,
+    ts.FunctionDeclaration | ts.ArrowFunction | ts.FunctionExpression
+  >();
+  const returnsKey = new Set<ts.Symbol>();
   const mark = (id: ts.Identifier): void => {
     const symbol = checker.getSymbolAtLocation(id);
     if (symbol) tainted.add(symbol);
@@ -44,24 +48,47 @@ function scanSource(path: string, source: string): string[] {
   };
   const keyName = (name: string): boolean => /^[a-z0-9_]+_key$/.test(name);
   const containsKey = (node: ts.Node): boolean => {
-    let found = false;
-    walk(node, (part) => {
-      if (ts.isIdentifier(part) && isTainted(part)) found = true;
-      if (ts.isPropertyAccessExpression(part) && keyName(part.name.text)) found = true;
-      if (
-        ts.isElementAccessExpression(part) &&
-        part.argumentExpression &&
-        ts.isStringLiteral(part.argumentExpression) &&
-        keyName(part.argumentExpression.text)
-      )
-        found = true;
-    });
-    return found;
+    if (ts.isIdentifier(node)) return isTainted(node);
+    if (ts.isPropertyAccessExpression(node)) return keyName(node.name.text);
+    if (ts.isElementAccessExpression(node))
+      return (
+        !!node.argumentExpression &&
+        ts.isStringLiteral(node.argumentExpression) &&
+        keyName(node.argumentExpression.text)
+      );
+    if (
+      ts.isParenthesizedExpression(node) ||
+      ts.isAsExpression(node) ||
+      ts.isTypeAssertionExpression(node) ||
+      ts.isNonNullExpression(node) ||
+      ts.isJsxExpression(node)
+    )
+      return !!node.expression && containsKey(node.expression);
+    if (ts.isTemplateExpression(node))
+      return node.templateSpans.some((span) => containsKey(span.expression));
+    if (ts.isConditionalExpression(node))
+      return containsKey(node.whenTrue) || containsKey(node.whenFalse);
+    if (
+      ts.isBinaryExpression(node) &&
+      [
+        ts.SyntaxKind.PlusToken,
+        ts.SyntaxKind.BarBarToken,
+        ts.SyntaxKind.AmpersandAmpersandToken,
+        ts.SyntaxKind.QuestionQuestionToken,
+      ].includes(node.operatorToken.kind)
+    )
+      return containsKey(node.left) || containsKey(node.right);
+    if (ts.isCallExpression(node) && ts.isIdentifier(node.expression)) {
+      if (node.expression.text === "resolveBackendText") return false;
+      const symbol = checker.getSymbolAtLocation(node.expression);
+      return !!symbol && returnsKey.has(symbol);
+    }
+    return false;
   };
   walk(file, (node) => {
     if (ts.isFunctionDeclaration(node) && node.name) {
       const symbol = checker.getSymbolAtLocation(node.name);
-      if (symbol) helpers.set(symbol, node.parameters);
+      if (symbol) helpers.set(symbol, node);
     }
     if (
       ts.isVariableDeclaration(node) &&
@@ -70,12 +97,12 @@ function scanSource(path: string, source: string): string[] {
       (ts.isArrowFunction(node.initializer) || ts.isFunctionExpression(node.initializer))
     ) {
       const symbol = checker.getSymbolAtLocation(node.name);
-      if (symbol) helpers.set(symbol, node.initializer.parameters);
+      if (symbol) helpers.set(symbol, node.initializer);
     }
   });
   let previous = -1;
-  while (previous !== tainted.size) {
-    previous = tainted.size;
+  while (previous !== tainted.size + returnsKey.size) {
+    previous = tainted.size + returnsKey.size;
     walk(file, (node) => {
       if (ts.isVariableDeclaration(node)) {
         if (ts.isIdentifier(node.name) && node.initializer && containsKey(node.initializer))
@@ -102,7 +129,7 @@ function scanSource(path: string, source: string): string[] {
       if (ts.isCallExpression(node) && ts.isIdentifier(node.expression)) {
         const symbol = checker.getSymbolAtLocation(node.expression);
         if (!symbol) return;
-        helpers.get(symbol)?.forEach((param, index) => {
+        helpers.get(symbol)?.parameters.forEach((param, index) => {
           if (
             node.arguments[index] &&
             containsKey(node.arguments[index]) &&
@@ -112,6 +139,17 @@ function scanSource(path: string, source: string): string[] {
         });
       }
     });
+    for (const [symbol, helper] of helpers) {
+      if (!helper.body) continue;
+      const visitReturn = (node: ts.Node): void => {
+        if (node !== helper.body && ts.isFunctionLike(node)) return;
+        if (ts.isReturnStatement(node) && node.expression && containsKey(node.expression))
+          returnsKey.add(symbol);
+        ts.forEachChild(node, visitReturn);
+      };
+      if (ts.isBlock(helper.body)) visitReturn(helper.body);
+      else if (containsKey(helper.body)) returnsKey.add(symbol);
+    }
   }
   const inFunction = (node: ts.Node, name: string): boolean => {
     let parent: ts.Node | undefined = node.parent;
@@ -211,6 +249,42 @@ describe("backend key fields reach the player through the resolver", () => {
     ["multiword direct", "t(msg.sender_role_key)", true],
     ["multiword default", "t('x', {defaultValue: msg.sender_role_key})", true],
     ["local alias", "const x = feedback.headline_key; t(x)", true],
+    [
+      "helper return",
+      "function getKey(f) { return f.headline_key; } t(getKey(feedback), feedback.params)",
+      true,
+    ],
+    ["arrow helper return", "const getKey = (f) => f.detail_key; t(getKey(feedback))", true],
+    [
+      "chained helper return",
+      "const first = (f) => f.detail_key; function second(f) { return first(f); } t(second(feedback))",
+      true,
+    ],
+    [
+      "identity helper return",
+      "function identity(key) { return key; } t(identity(feedback.headline_key))",
+      true,
+    ],
+    [
+      "resolved text default",
+      "const detail = resolveBackendText(feedback.detail_key, '', feedback.params); t('label', { defaultValue: detail })",
+      false,
+    ],
+    [
+      "helper returns resolved text",
+      "function render(f) { return resolveBackendText(f.detail_key, '', f.params); } t('label', { defaultValue: render(feedback) })",
+      false,
+    ],
+    [
+      "predicate selects literal",
+      "const hasKey = !!feedback.headline_key; t(hasKey ? 'label.yes' : 'label.no')",
+      false,
+    ],
+    [
+      "conditional returns key",
+      "const key = hasKey ? feedback.headline_key : 'label.no'; t(key)",
+      true,
+    ],
     ["renamed destructuring", "const {headline_key: key} = feedback; t(key)", true],
     [
       "helper parameter",
