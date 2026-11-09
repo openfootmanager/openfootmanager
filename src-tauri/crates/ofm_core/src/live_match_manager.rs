@@ -1022,4 +1022,106 @@ mod tests {
             .expect("the core entry point must reject a completed fixture");
         assert_eq!(error, "be.error.liveMatch.fixtureNotScheduled");
     }
+    /// Given an AI full-back after kick-off, when the AI changes to a back five, then his
+    /// centre-back slot suppresses his full-back role.
+    #[test]
+    fn an_ai_formation_change_during_play_normalises_a_starters_role() {
+        use domain::player::{Player, PlayerAttributes, Position};
+        use domain::team::{PlayerRole, Team};
+        use engine::{MatchCommand, Side};
+        let attrs: PlayerAttributes = serde_json::from_value(serde_json::json!({
+            "pace": 65, "stamina": 65, "strength": 65, "agility": 65, "passing": 65,
+            "shooting": 65, "tackling": 65, "dribbling": 65, "defending": 65,
+            "positioning": 65, "vision": 65, "decisions": 65, "composure": 65,
+            "aggression": 65, "teamwork": 65, "leadership": 65, "handling": 65,
+            "reflexes": 65, "aerial": 65
+        }))
+        .unwrap();
+        let positions = [
+            Position::Goalkeeper,
+            Position::Defender,
+            Position::Defender,
+            Position::Defender,
+            Position::Defender,
+            Position::Midfielder,
+            Position::Midfielder,
+            Position::Midfielder,
+            Position::Midfielder,
+            Position::Forward,
+            Position::Forward,
+        ];
+        let mut teams = Vec::new();
+        let mut players = Vec::new();
+        for id in ["home", "away"] {
+            let mut team = Team::new(
+                id.into(),
+                id.into(),
+                id.into(),
+                "GB".into(),
+                "City".into(),
+                "Ground".into(),
+                10000,
+            );
+            for (index, position) in positions.iter().enumerate() {
+                let player_id = format!("{id}-{index}");
+                let mut player = Player::new(
+                    player_id.clone(),
+                    player_id.clone(),
+                    player_id.clone(),
+                    "1995-01-01".into(),
+                    "GB".into(),
+                    position.clone(),
+                    attrs.clone(),
+                );
+                player.team_id = Some(id.into());
+                team.starting_xi_ids.push(player_id);
+                players.push(player);
+            }
+            teams.push(team);
+        }
+        teams[1]
+            .player_roles
+            .insert("away-4".into(), PlayerRole::AttackingFB);
+        let clock = GameClock::new(Utc.with_ymd_and_hms(2025, 6, 15, 12, 0, 0).unwrap());
+        let mut manager = Manager::new(
+            "mgr".into(),
+            "Test".into(),
+            "Manager".into(),
+            "1980-01-01".into(),
+            "GB".into(),
+        );
+        manager.hire("home".into());
+        let mut game = Game::new(clock, manager, teams, players, vec![], vec![]);
+        game.league = Some(League {
+            fixtures: vec![Fixture {
+                id: "fixture".into(),
+                home_team_id: "home".into(),
+                away_team_id: "away".into(),
+                status: FixtureStatus::Scheduled,
+                ..Default::default()
+            }],
+            ..Default::default()
+        });
+        let mut session = create_live_match(&game, 0, MatchMode::Live, false).unwrap();
+        let role = |session: &super::LiveMatchSession| {
+            session
+                .match_state
+                .team(Side::Away)
+                .players
+                .iter()
+                .find(|p| p.id == "away-4")
+                .unwrap()
+                .role
+        };
+        assert_eq!(role(&session), engine::PlayerRole::AttackingFB);
+        session.step();
+        session.apply_ai_command(
+            Side::Away,
+            MatchCommand::ChangeFormation {
+                side: Side::Away,
+                formation: "5-3-2".into(),
+            },
+        );
+        assert_eq!(role(&session), engine::PlayerRole::Standard);
+    }
 }

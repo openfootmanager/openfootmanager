@@ -1676,4 +1676,119 @@ mod issue_1319 {
             engine::PlayerRole::Standard
         );
     }
+    mod review_1328 {
+        use super::*;
+
+        /// Given an attacking full-back at right-back, when the formation changes after kick-off,
+        /// then he plays Standard in the centre-back slot.
+        #[test]
+        fn a_formation_change_during_play_normalises_a_starters_role() {
+            let mut game = make_game_with_fixture();
+            let probe = waiting_session(&game);
+            let right_back = probe.match_state.team(engine::Side::Home).players[4]
+                .id
+                .clone();
+            game.teams[0]
+                .player_roles
+                .insert(right_back.clone(), domain::team::PlayerRole::AttackingFB);
+            let mut session = waiting_session(&game);
+            assert_eq!(
+                home_role_of(&session, &right_back),
+                engine::PlayerRole::AttackingFB
+            );
+            session.step();
+            session
+                .apply_command(engine::MatchCommand::ChangeFormation {
+                    side: engine::Side::Home,
+                    formation: "5-3-2".into(),
+                })
+                .unwrap();
+            assert_eq!(
+                home_role_of(&session, &right_back),
+                engine::PlayerRole::Standard
+            );
+        }
+
+        /// Given a saved attacking full-back, when the formation changes away and back, then his
+        /// role is suppressed and restored without changing the saved roles.
+        #[test]
+        fn a_saved_role_returns_when_its_formation_slot_returns() {
+            let mut game = make_game_with_fixture();
+            let probe = waiting_session(&game);
+            let right_back = probe.match_state.team(engine::Side::Home).players[4]
+                .id
+                .clone();
+            game.teams[0]
+                .player_roles
+                .insert(right_back.clone(), domain::team::PlayerRole::AttackingFB);
+            let saved = game.teams[0].player_roles.clone();
+            let mut session = waiting_session(&game);
+            assert_eq!(
+                home_role_of(&session, &right_back),
+                engine::PlayerRole::AttackingFB
+            );
+            session
+                .apply_command(engine::MatchCommand::ChangeFormation {
+                    side: engine::Side::Home,
+                    formation: "5-3-2".into(),
+                })
+                .unwrap();
+            assert_eq!(
+                home_role_of(&session, &right_back),
+                engine::PlayerRole::Standard
+            );
+            assert_eq!(game.teams[0].player_roles, saved);
+            session
+                .apply_command(engine::MatchCommand::ChangeFormation {
+                    side: engine::Side::Home,
+                    formation: "4-4-2".into(),
+                })
+                .unwrap();
+            assert_eq!(
+                home_role_of(&session, &right_back),
+                engine::PlayerRole::AttackingFB
+            );
+            assert_eq!(game.teams[0].player_roles, saved);
+        }
+
+        /// Given a session-only full-back role, when the formation moves away and back, then that
+        /// intended role returns without creating a saved role.
+        #[test]
+        fn a_session_role_returns_when_its_formation_slot_returns() {
+            let game = make_game_with_fixture();
+            let mut session = waiting_session(&game);
+            let right_back = session.match_state.team(engine::Side::Home).players[4]
+                .id
+                .clone();
+            assert!(!game.teams[0].player_roles.contains_key(&right_back));
+            session
+                .apply_command(engine::MatchCommand::ChangePlayerRole {
+                    side: engine::Side::Home,
+                    player_id: right_back.clone(),
+                    role: engine::PlayerRole::AttackingFB,
+                })
+                .unwrap();
+            session
+                .apply_command(engine::MatchCommand::ChangeFormation {
+                    side: engine::Side::Home,
+                    formation: "5-3-2".into(),
+                })
+                .unwrap();
+            assert_eq!(
+                home_role_of(&session, &right_back),
+                engine::PlayerRole::Standard
+            );
+            session
+                .apply_command(engine::MatchCommand::ChangeFormation {
+                    side: engine::Side::Home,
+                    formation: "4-4-2".into(),
+                })
+                .unwrap();
+            assert_eq!(
+                home_role_of(&session, &right_back),
+                engine::PlayerRole::AttackingFB
+            );
+            assert!(!game.teams[0].player_roles.contains_key(&right_back));
+        }
+    }
 }
