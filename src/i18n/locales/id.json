@@ -2763,6 +2763,7 @@
       "critical": "Kritis"
     },
     "error": {
+      "taskJoinFailed": "Simulasi berhenti secara tak terduga. Muat simpanan terakhirmu dan coba lagi.",
       "autoSave": {
         "failed": "Simpan otomatis tidak bisa menyimpan permainanmu. Kemajuanmu sejak penyimpanan terakhir belum tersimpan: simpan sendiri, dan periksa apakah disk masih punya ruang kosong."
       },
@@ -3660,6 +3661,10 @@
         "body": "Peminjaman {{player}} yang disepakati dari {{parent}} ke {{borrower}}, yang dijadwalkan mulai {{start}}, tidak bisa berjalan: pemain itu tidak lagi terikat kontrak dengan {{parent}}.",
         "bodyRequirementNotMet": "Peminjaman {{player}} yang disepakati dari {{parent}} ke {{borrower}} tidak bisa dimulai pada {{start}}: salah satu syarat kesepakatannya, seperti ruang dalam anggaran gaji {{borrower}} atau masa kontrak pemain, tidak lagi terpenuhi."
       },
+      "talksClosedBySale": {
+        "subject": "Direkrut klub lain: {{player}}",
+        "body": "{{buyer}} telah merekrut {{player}} seharga {{fee}}. Negosiasi terbukamu untuknya telah ditarik."
+      },
       "loanOffer": {
         "subject": "Tawaran Pinjaman untuk {{player}}",
         "body": "{{team}} ingin meminjam {{player}} hingga {{endDate}} dan menanggung {{wageContribution}}% dari gaji. Opsi pembelian: {{buyOption}}. Tinjau tawaran di tab Transfer.",
@@ -3870,7 +3875,8 @@
       "package": {
         "countryWithoutRegion": "Paket ini mendefinisikan negara \"{{name}}\" ({{code}}) di luar daftar negara permainan dan tidak menempatkannya di konfederasi mana pun, sehingga klubnya dikelompokkan di Eropa. Berikan konfederasi untuknya.",
         "freeAgentFieldIgnored": "Pemain \"{{id}}\" tidak punya klub, sehingga menjadi pemain bebas tanpa kontrak: \"{{field}}\" diabaikan. Berikan klub untuknya agar dipakai, atau hapus kolom itu.",
-        "repeatedNamePool": "Kumpulan nama untuk {{country}} sudah diberikan di {{first}}; kumpulan di berkas ini menggantikannya. Simpan salah satu saja, atau berikan ke negara yang berbeda."
+        "repeatedNamePool": "Kumpulan nama untuk {{country}} sudah diberikan di {{first}}; kumpulan di berkas ini menggantikannya. Simpan salah satu saja, atau berikan ke negara yang berbeda.",
+        "namePoolIncomplete": "Kumpulan nama untuk {{country}} punya nama depan tetapi tanpa nama keluarga, atau sebaliknya, sehingga tidak dipakai: pemain dari {{country}} mendapat nama bawaan game. Isi keduanya."
       }
     }
   },
@@ -4092,6 +4098,12 @@
     "winRate": "Persentase kemenangan"
   },
   "worldEditor": {
+    "previewPlaceholder": {
+      "team": "Tim baru",
+      "player": "Pemain baru",
+      "competition": "Kompetisi baru"
+    },
+    "estimatedRating": "perk.",
     "positionGroupFilter": {
       "Goalkeeper": "Semua penjaga gawang",
       "Defender": "Semua bek",

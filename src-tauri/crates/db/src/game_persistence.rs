@@ -82,6 +82,8 @@ fn write_game_to_connection(
     save_id: &str,
     save_name: &str,
 ) -> Result<(), String> {
+    crate::game_database::clear_weak_foot_backfill(conn)
+        .map_err(|_| game_persistence_write_error())?;
     let now = Utc::now().to_rfc3339();
     let vacant_team_days_json = serde_json::to_string(&game.vacant_team_days)
         .map_err(|_| game_persistence_write_error())?;

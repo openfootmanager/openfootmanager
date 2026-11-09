@@ -6,17 +6,16 @@
 use std::collections::HashMap;
 
 use domain::league::{FixtureStatus, League};
-use domain::player::Player;
 
 /// Resolve every fixture due `today` in the dormant `competition` with a scoreline-only model:
 /// update the fixture result and league standings, and advance any group/knockout progression —
 /// but skip the expensive per-player post-match work that the full engine path does.
-/// `players_by_club` is every club's players, as `match_day_eligibility::players_by_club` finds
-/// them.
+/// `strengths` holds every club playing today, as `catchup::club_strengths` finds them; a club
+/// missing from it is rated neutral.
 pub(super) fn simulate_dormant_competition_day(
     competition: &mut League,
     seed: u64,
-    players_by_club: &HashMap<&str, Vec<&Player>>,
+    strengths: &HashMap<String, f64>,
     today: &str,
 ) {
     let due: Vec<usize> = competition
@@ -39,11 +38,7 @@ pub(super) fn simulate_dormant_competition_day(
         crate::catchup::resolve_fixture_with_strengths(
             competition,
             fixture_index,
-            |team_id| {
-                crate::catchup::club_strength_among(
-                    players_by_club.get(team_id).map_or(&[][..], Vec::as_slice),
-                )
-            },
+            |team_id| crate::catchup::strength_in(strengths, team_id),
             &mut rng,
         );
     }
@@ -117,8 +112,9 @@ mod tests {
     }
 
     fn play_day(game: &mut Game, today: &str) {
-        let clubs = crate::match_day_eligibility::players_by_club(&game.players);
-        simulate_dormant_competition_day(&mut game.competitions[0], game.seed, &clubs, today);
+        let strengths =
+            crate::catchup::club_strengths(game, game.teams.iter().map(|team| team.id.as_str()));
+        simulate_dormant_competition_day(&mut game.competitions[0], game.seed, &strengths, today);
     }
 
     fn player(id: &str, team_id: &str, ovr: u8) -> Player {
@@ -201,10 +197,11 @@ mod tests {
     }
 
     /// Given a dormant day whose clubs have players (one of them on loan) and one club with nobody
-    /// on its books, when the day is played from the players grouped once, then every fixture and
-    /// table entry is what settling each fixture by scanning the players gives, seed after seed.
+    /// on its books, when the day is played from strengths found once for the day, then every
+    /// fixture and table entry is what rating each club afresh for its fixture gives, seed after
+    /// seed.
     #[test]
-    fn a_dormant_day_from_grouped_players_settles_as_the_player_scan_does() {
+    fn a_dormant_day_from_strengths_found_once_settles_as_rating_each_fixture_does() {
         let today = "2030-08-10";
         for seed in 0..40 {
             let mut grouped = two_fixture_dormant_game(today);
@@ -219,10 +216,11 @@ mod tests {
                     scanned.competitions[0].id, fixture.home_team_id, fixture.away_team_id
                 );
                 let mut rng = scanned.rng_for(&tag, today);
-                crate::catchup::resolve_fixture_by_scoreline(
-                    &scanned.players,
+                let rated = scanned.clone();
+                crate::catchup::resolve_fixture_with_strengths(
                     &mut scanned.competitions[0],
                     fixture_index,
+                    |team_id| crate::catchup::club_strength(&rated, team_id, None),
                     &mut rng,
                 );
             }
