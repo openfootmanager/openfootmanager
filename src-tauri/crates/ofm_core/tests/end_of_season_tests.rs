@@ -1315,6 +1315,7 @@ fn a_sacked_managers_awards_are_his_last_clubs_league() {
         minutes_played: 900,
         ..PlayerSeasonStats::default()
     };
+    lower.league_stats = lower.stats.clone();
     game.players.push(lower);
 
     let awards = ofm_core::season_awards::user_division_season_awards(&game);
