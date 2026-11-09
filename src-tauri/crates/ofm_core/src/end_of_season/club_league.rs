@@ -62,4 +62,3 @@ pub fn user_division(game: &Game) -> Option<&League> {
             .flatten()
     })
 }
-
