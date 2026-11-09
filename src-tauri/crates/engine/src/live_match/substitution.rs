@@ -490,6 +490,37 @@ mod line_familiarity_tests {
         )
     }
 
+    /// Given a bench Poacher and a centre-back slot with explicit admitted roles, when an
+    /// engine host swaps him in, then his incompatible role becomes Standard.
+    #[test]
+    fn a_pre_match_swap_checks_the_destination_slot_role() {
+        let mut newcomer = player("poacher", Position::Forward);
+        newcomer.role = PlayerRole::Poacher;
+        let mut state = LiveMatchState::new(
+            side("h"),
+            side("a"),
+            MatchConfig::default(),
+            vec![newcomer],
+            vec![],
+            false,
+        );
+        state.set_slot_roles(
+            Side::Home,
+            vec![
+                vec![PlayerRole::Standard],
+                vec![PlayerRole::Standard, PlayerRole::Stopper],
+            ],
+        );
+        state
+            .apply_command(crate::live_match::MatchCommand::PreMatchSwap {
+                side: Side::Home,
+                player_off_id: "h_d".into(),
+                player_on_id: "poacher".into(),
+            })
+            .unwrap();
+        assert_eq!(state.team(Side::Home).players[1].role, PlayerRole::Standard);
+    }
+
     const REFIT: [f64; 4] = [0.9, 0.95, 1.0, 0.9];
 
     fn lineup(mixed: bool) -> (TeamData, [&'static str; 11]) {

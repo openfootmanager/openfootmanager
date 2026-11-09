@@ -1881,5 +1881,119 @@ mod issue_1319 {
                 engine::PlayerRole::Standard
             );
         }
+        /// Given a session-only role, when the player is swapped out and back and the same
+        /// formation is selected, then the swap's Standard role stays in effect.
+        #[test]
+        fn a_swap_reset_does_not_restore_a_cleared_session_role() {
+            let game = make_game_with_fixture();
+            let mut session = waiting_session(&game);
+            let (right_back, reserve) =
+                home_starter_and_bench_player(&session, 4, engine::Position::Defender);
+            session
+                .apply_command(engine::MatchCommand::ChangePlayerRole {
+                    side: engine::Side::Home,
+                    player_id: right_back.clone(),
+                    role: engine::PlayerRole::AttackingFB,
+                })
+                .unwrap();
+            swap_in(&mut session, &right_back, &reserve);
+            swap_in(&mut session, &reserve, &right_back);
+            assert_eq!(
+                home_role_of(&session, &right_back),
+                engine::PlayerRole::Standard
+            );
+            session
+                .apply_command(engine::MatchCommand::ChangeFormation {
+                    side: engine::Side::Home,
+                    formation: "4-4-2".into(),
+                })
+                .unwrap();
+            assert_eq!(
+                home_role_of(&session, &right_back),
+                engine::PlayerRole::Standard
+            );
+        }
+
+        /// Given a centre-back, when a full-back role is refused and the player returns to a
+        /// full-back slot, then the refused role is not applied later.
+        #[test]
+        fn a_rejected_session_role_is_not_restored_after_a_formation_change() {
+            let game = make_game_with_fixture();
+            let mut session = waiting_session(&game);
+            session
+                .apply_command(engine::MatchCommand::ChangeFormation {
+                    side: engine::Side::Home,
+                    formation: "5-3-2".into(),
+                })
+                .unwrap();
+            let player = session.match_state.team(engine::Side::Home).players[4]
+                .id
+                .clone();
+            let rejected = session.apply_command(engine::MatchCommand::ChangePlayerRole {
+                side: engine::Side::Home,
+                player_id: player.clone(),
+                role: engine::PlayerRole::AttackingFB,
+            });
+            assert_eq!(
+                rejected.err().as_deref(),
+                Some("be.error.roleNotValidForPosition")
+            );
+            session
+                .apply_command(engine::MatchCommand::ChangeFormation {
+                    side: engine::Side::Home,
+                    formation: "4-4-2".into(),
+                })
+                .unwrap();
+            assert_eq!(
+                session.user_slot_before_kick_off(&player).unwrap().1,
+                Position::RightBack
+            );
+            assert_eq!(
+                home_role_of(&session, &player),
+                engine::PlayerRole::Standard
+            );
+        }
+        /// Given a sent-off defender, when the shape changes and an active defender occupies a
+        /// midfield array index, then a midfield-only role is refused for that defender.
+        #[test]
+        fn a_defender_after_a_sending_off_rejects_a_midfield_role() {
+            let game = make_game_with_fixture();
+            let mut session = waiting_session(&game);
+            session.step();
+            let sent_off = session.match_state.team(engine::Side::Home).players[1]
+                .id
+                .clone();
+            session.match_state.test_send_off(&sent_off);
+            session
+                .apply_command(engine::MatchCommand::ChangeFormation {
+                    side: engine::Side::Home,
+                    formation: "4-3-3".into(),
+                })
+                .unwrap();
+            let team = session.match_state.team(engine::Side::Home);
+            let (index, defender) = team
+                .players
+                .iter()
+                .enumerate()
+                .find(|(i, p)| {
+                    *i >= 5 && p.position == engine::Position::Defender && p.id != sent_off
+                })
+                .map(|(i, p)| (i, p.id.clone()))
+                .unwrap();
+            assert_eq!(
+                ofm_core::player_rating::formation_slots(&team.formation)[index]
+                    .to_group_position(),
+                Position::Midfielder
+            );
+            let refused = session.apply_command(engine::MatchCommand::ChangePlayerRole {
+                side: engine::Side::Home,
+                player_id: defender,
+                role: engine::PlayerRole::AnchorMan,
+            });
+            assert_eq!(
+                refused.err().as_deref(),
+                Some("be.error.roleNotValidForPosition")
+            );
+        }
     }
 }

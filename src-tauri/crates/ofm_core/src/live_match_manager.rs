@@ -1071,13 +1071,9 @@ mod tests {
             .expect("the core entry point must reject a completed fixture");
         assert_eq!(error, "be.error.liveMatch.fixtureNotScheduled");
     }
-    /// Given an AI full-back after kick-off, when the AI changes to a back five, then his
-    /// centre-back slot suppresses his full-back role.
-    #[test]
-    fn an_ai_formation_change_during_play_normalises_a_starters_role() {
+    fn formation_role_fixture() -> super::LiveMatchSession {
         use domain::player::{Player, PlayerAttributes, Position};
         use domain::team::{PlayerRole, Team};
-        use engine::{MatchCommand, Side};
         let attrs: PlayerAttributes = serde_json::from_value(serde_json::json!({
             "pace": 65, "stamina": 65, "strength": 65, "agility": 65, "passing": 65,
             "shooting": 65, "tackling": 65, "dribbling": 65, "defending": 65,
@@ -1123,6 +1119,11 @@ mod tests {
                     attrs.clone(),
                 );
                 player.team_id = Some(id.into());
+                if id == "away" && index == 6 {
+                    player.attributes.pace = 99;
+                    player.attributes.dribbling = 99;
+                    player.attributes.shooting = 99;
+                }
                 team.starting_xi_ids.push(player_id);
                 players.push(player);
             }
@@ -1131,6 +1132,9 @@ mod tests {
         teams[1]
             .player_roles
             .insert("away-4".into(), PlayerRole::AttackingFB);
+        teams[1]
+            .player_roles
+            .insert("away-6".into(), PlayerRole::BoxToBox);
         let clock = GameClock::new(Utc.with_ymd_and_hms(2025, 6, 15, 12, 0, 0).unwrap());
         let mut manager = Manager::new(
             "mgr".into(),
@@ -1139,7 +1143,7 @@ mod tests {
             "1980-01-01".into(),
             "GB".into(),
         );
-        manager.hire("home".into());
+        manager.hire("away".into());
         let mut game = Game::new(clock, manager, teams, players, vec![], vec![]);
         game.league = Some(League {
             fixtures: vec![Fixture {
@@ -1152,6 +1156,16 @@ mod tests {
             ..Default::default()
         });
         let mut session = create_live_match(&game, 0, MatchMode::Live, false).unwrap();
+        session.user_side = Some(engine::Side::Home);
+        session
+    }
+
+    /// Given an AI full-back after kick-off, when the AI changes to a back five, then his
+    /// centre-back slot suppresses his full-back role.
+    #[test]
+    fn an_ai_formation_change_during_play_normalises_a_starters_role() {
+        use engine::{MatchCommand, Side};
+        let mut session = formation_role_fixture();
         let role = |session: &super::LiveMatchSession| {
             session
                 .match_state
@@ -1181,5 +1195,41 @@ mod tests {
             },
         );
         assert_eq!(role(&session), engine::PlayerRole::AttackingFB);
+    }
+    /// Given an AI midfielder with a role invalid in the forward slot, when its real decision
+    /// loop changes shape at the hour, then the new slot admits his effective role.
+    #[test]
+    fn an_ai_decision_loop_normalises_the_role_after_a_formation_change() {
+        use engine::ai::AiPersonality;
+        use engine::{PlayerRole, Position, Side};
+        let mut session = formation_role_fixture();
+        session.ai_away.personality = AiPersonality::Visionary;
+        session.ai_away.experience = 100;
+        for _ in 0..130 {
+            if session.match_state.minute() >= 60 {
+                break;
+            }
+            session.match_state.step_minute(&mut session.rng);
+        }
+        assert_eq!(session.match_state.minute(), 60);
+        session.match_state.test_set_score(1, 0);
+        let before = session
+            .match_state
+            .team(Side::Away)
+            .players
+            .iter()
+            .find(|p| p.id == "away-6")
+            .unwrap();
+        assert_eq!(before.role, PlayerRole::BoxToBox);
+        assert_eq!(before.position, Position::Midfielder);
+        session.apply_ai_decisions();
+        let team = session.match_state.team(Side::Away);
+        assert_eq!(team.formation, "4-3-3");
+        let index = team.players.iter().position(|p| p.id == "away-6").unwrap();
+        assert_eq!(team.players[index].position, Position::Forward);
+        let slot = crate::player_rating::formation_slots(&team.formation)[index].clone();
+        assert!(!slot.admits_role(&domain::team::PlayerRole::BoxToBox));
+        assert_eq!(team.players[index].role, PlayerRole::Standard);
+        assert!(slot.admits_role(&domain::team::PlayerRole::Standard));
     }
 }
