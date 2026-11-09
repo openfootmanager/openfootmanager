@@ -11,6 +11,7 @@ import { Trophy, Star, ArrowRight, Crown } from "lucide-react";
 export interface EndOfSeasonSummary {
   season: number;
   league_name: string;
+  competition_id?: string;
   champion_id: string;
   champion_name: string;
   user_position: number;
@@ -280,6 +281,7 @@ export default function EndOfSeasonScreen({
         <AwardsCeremonyScreen
           season={summary.season}
           leagueName={summary.league_name}
+          competitionId={summary.competition_id}
           gameState={gameState}
           awards={summary.season_awards}
           onContinue={() => onTransitionChange({ summary, step: "done" })}

@@ -1,13 +1,19 @@
 import { render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { beforeAll, describe, expect, it, vi } from "vitest";
+import i18n, { i18nReady } from "../../i18n";
 
 import CupRoundSection from "./CupRoundSection";
 import type { CupRoundSummary, CupTieResult } from "./types";
 
-vi.mock("react-i18next", () => ({
+vi.mock("react-i18next", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("react-i18next")>()),
   useTranslation: () => ({
     t: (key: string, params?: Record<string, string | number>) =>
-      params ? `${key}:${Object.values(params).join("/")}` : key,
+      key === "tournaments.competitions.nationalCup" || key === "nations.de"
+        ? String(i18n.t(key, params))
+        : params
+          ? `${key}:${Object.values(params).join("/")}`
+          : key,
   }),
 }));
 
@@ -40,7 +46,30 @@ function summary(overrides: Partial<CupRoundSummary> = {}): CupRoundSummary {
   };
 }
 
+beforeAll(async () => {
+  await i18nReady;
+  await i18n.changeLanguage("de");
+});
+
 describe("CupRoundSection", () => {
+  /** Given a German generated cup, when rendered, then its translated name is shown. */
+  it("translates the cup using its competition id", () => {
+    render(
+      <CupRoundSection
+        summary={summary()}
+        competitions={[
+          {
+            id: "cup",
+            name: "Germany National Cup",
+            name_key: "tournaments.competitions.nationalCup",
+            country_id: "DE",
+          },
+        ]}
+      />,
+    );
+    expect(screen.getByRole("heading", { name: /Deutschland Pokal/ })).toBeInTheDocument();
+  });
+
   /** Given a played tie, when rendered, then the score and who went through are shown. */
   it("shows the score and who went through", () => {
     render(<CupRoundSection summary={summary()} />);

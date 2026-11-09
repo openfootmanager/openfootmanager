@@ -25,6 +25,9 @@ vi.mock("react-i18next", () => ({
       if (key === "endOfSeason.startNextSeason") return "Start next season";
       if (key === "endOfSeason.statsArchived") return "Stats archived";
       if (key === "endOfSeason.continueDashboard") return "Continue to dashboard";
+      if (key === "tournaments.competitions.firstDivision")
+        return `${params?.country} Erste Division`;
+      if (key === "nations.de") return "Deutschland";
       if (key === "awardsCeremony.title") return "Awards Ceremony";
       if (key === "awardsCeremony.subtitle") return `Season ${params?.season} in ${params?.league}`;
       if (key === "awardsCeremony.managerOfSeason") return "Manager of the Season";
@@ -107,6 +110,52 @@ describe("EndOfSeasonScreen", () => {
     expect(screen.getAllByText("Manager of the Season").length).toBeGreaterThan(0);
     expect(screen.getByText("Jane Doe")).toBeInTheDocument();
     expect(onGameUpdate).toHaveBeenCalled();
+  });
+
+  /** Given a summary for a keyed German division, when the ceremony opens, then its subtitle is localized. */
+  it("shows the localized division in the ceremony subtitle", () => {
+    const game = createEndOfSeasonGame();
+    game.competitions = [
+      {
+        ...game.league!,
+        id: "league-de",
+        name: "Germany First Division",
+        name_key: "tournaments.competitions.firstDivision",
+        country_id: "DE",
+      },
+    ];
+    const transition: SeasonTransition = {
+      step: "ceremony",
+      summary: {
+        season: 6,
+        league_name: "Germany First Division",
+        competition_id: "league-de",
+        champion_id: "team-1",
+        champion_name: "Alpha FC",
+        user_position: 1,
+        user_points: 83,
+        user_won: 25,
+        user_drawn: 8,
+        user_lost: 5,
+        user_goals_for: 72,
+        user_goals_against: 30,
+        golden_boot_player: "Victor Vale",
+        golden_boot_goals: 24,
+        poty_player: "Victor Vale",
+        poty_rating: 7.8,
+        total_teams: 2,
+        season_awards: createAwards(),
+      },
+    };
+    render(
+      <EndOfSeasonScreen
+        gameState={game}
+        onGameUpdate={vi.fn()}
+        transition={transition}
+        onTransitionChange={vi.fn()}
+      />,
+    );
+    expect(screen.getByText("Season 6 in Deutschland Erste Division")).toBeInTheDocument();
   });
 
   /**
