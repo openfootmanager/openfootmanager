@@ -817,6 +817,27 @@ mod tests {
         message
     }
 
+    /// Given a read transfer digest, when a second club's offer replaces it,
+    /// then Continue stops for the reopened digest even though its ID is unchanged.
+    #[test]
+    fn continue_stops_when_a_transfer_digest_is_reopened_by_another_offer() {
+        let mut game = make_game(11);
+        let digest = ofm_core::messages::transfer_interest_digest_message;
+        let mut first = digest("player", "Player", 1, "First club", 100, "2025-06-15");
+        first.read = true;
+        game.messages = vec![first];
+        let before = super::messages_needing_attention(&game);
+        game.messages[0] = digest("player", "Player", 2, "Second club", 200, "2025-06-16");
+        assert!(!game.messages[0].read);
+        assert!(continue_reached_attention_event(
+            &TransferWindowStatus::Closed,
+            None,
+            "2025-06-16",
+            &before,
+            &super::messages_needing_attention(&game),
+        ));
+    }
+
     /// Given old attention mail and an exhausted squad on the first, when Continue processes
     /// the day, then it stops for the new urgent warning even though old mail is archived.
     #[test]
