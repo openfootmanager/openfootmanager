@@ -78,6 +78,32 @@ vi.mock("../store/gameStore", async () => {
 });
 
 describe("EndOfSeasonScreen", () => {
+  /** Given a clubless manager with no recorded club, when reviewing the season, then no division is shown. */
+  it("shows no division details when no division is followed", async () => {
+    const game = createEndOfSeasonGame();
+    game.manager.team_id = null;
+    vi.mocked(invoke).mockResolvedValue(null);
+    render(<EndOfSeasonScreen gameState={game} onGameUpdate={vi.fn()} transition={null} onTransitionChange={vi.fn()} />);
+
+    expect(await screen.findByText("Season complete")).toBeInTheDocument();
+    expect(screen.queryByText(/Premier League/)).not.toBeInTheDocument();
+    expect(screen.queryByText("Final standings")).not.toBeInTheDocument();
+    expect(screen.queryByText("Alpha FC")).not.toBeInTheDocument();
+  });
+
+  /** Given a sacked manager following a different division from the mirror, when reviewing, then show the backend's division. */
+  it("shows the sacked managers followed division", async () => {
+    const game = createEndOfSeasonGame();
+    game.manager.team_id = null;
+    const followed = { ...game.league!, id: "league-2", name: "Second Division", standings: [game.league!.standings[1]!] };
+    vi.mocked(invoke).mockResolvedValue(followed);
+    render(<EndOfSeasonScreen gameState={game} onGameUpdate={vi.fn()} transition={null} onTransitionChange={vi.fn()} />);
+
+    expect(await screen.findByText(/Second Division/)).toBeInTheDocument();
+    expect(screen.getByText("Final standings")).toBeInTheDocument();
+    expect(screen.getAllByText("Beta FC").length).toBeGreaterThan(0);
+    expect(screen.queryByText(/Premier League/)).not.toBeInTheDocument();
+  });
   it("shows the awards ceremony after advancing to the next season", async () => {
     vi.mocked(invoke).mockResolvedValue({
       game: createEndOfSeasonGame(),
