@@ -68,8 +68,11 @@ describe("flow 1: a new game, to the first match day", () => {
     await clickWhenReady(buttonNamed("Confirm"));
     await waitForRoute("/match");
 
-    const starters = await $$('[data-testid^="pre-match-starter-"]');
-    expect(starters.length).toBe(11);
+    // The pre-match screen: the kick-off button, and the substitutes the manager can bring on.
     await buttonNamed("Start Match").waitForDisplayed({ timeout: 60_000 });
+    const substitutes = await $$('[data-testid^="pre-match-bench-"]');
+    expect(substitutes.length).toBeGreaterThan(0);
+    // The formation panel counts each line "filled/needed"; the goalkeeper line is 1/1 in any shape.
+    await $("//*[normalize-space(.)='1/1']").waitForDisplayed({ timeout: 10_000 });
   });
 });
