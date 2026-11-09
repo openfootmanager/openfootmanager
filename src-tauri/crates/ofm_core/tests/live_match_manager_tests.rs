@@ -1359,3 +1359,98 @@ fn a_role_saved_before_the_match_is_built_is_played_after_a_swap() {
         engine::PlayerRole::AttackingFB
     );
 }
+
+/// Given a Poacher swapped into defence, when he returns to the bench, then his natural
+/// position and saved role are restored.
+#[test]
+fn a_swapped_out_player_recovers_his_bench_position_and_role() {
+    let mut game = make_game_with_fixture();
+    let probe = waiting_session(&game);
+    let (left_back, forward) = home_starter_and_bench_player(&probe, 1, engine::Position::Forward);
+    game.teams[0]
+        .player_roles
+        .insert(forward.clone(), domain::team::PlayerRole::Poacher);
+    let mut session = waiting_session(&game);
+    swap_in(&mut session, &left_back, &forward);
+    swap_in(&mut session, &forward, &left_back);
+    let benched = session
+        .match_state
+        .bench(engine::Side::Home)
+        .iter()
+        .find(|p| p.id == forward)
+        .unwrap();
+    assert_eq!(benched.position, engine::Position::Forward);
+    assert_eq!(benched.role, engine::PlayerRole::Poacher);
+}
+
+/// Given an attacking full-back, when a new formation puts him at centre-back, then his
+/// role is Standard because the new slot does not admit AttackingFB.
+#[test]
+fn a_formation_change_rechecks_a_starters_role_against_his_new_slot() {
+    let mut game = make_game_with_fixture();
+    let probe = waiting_session(&game);
+    let right_back = probe.match_state.team(engine::Side::Home).players[4]
+        .id
+        .clone();
+    game.teams[0]
+        .player_roles
+        .insert(right_back.clone(), domain::team::PlayerRole::AttackingFB);
+    let mut session = waiting_session(&game);
+    assert_eq!(
+        home_role_of(&session, &right_back),
+        engine::PlayerRole::AttackingFB
+    );
+    session
+        .apply_command(engine::MatchCommand::ChangeFormation {
+            side: engine::Side::Home,
+            formation: "5-3-2".into(),
+        })
+        .unwrap();
+    assert_eq!(
+        home_role_of(&session, &right_back),
+        engine::PlayerRole::Standard
+    );
+}
+
+/// Given a benched attacking full-back, when he substitutes into a centre-back slot, then
+/// he plays Standard even though the defender line accepts his saved role.
+#[test]
+fn a_substitute_role_is_checked_against_the_destination_slot() {
+    let mut game = make_game_with_fixture();
+    let probe = waiting_session(&game);
+    let (centre_back, defender) =
+        home_starter_and_bench_player(&probe, 2, engine::Position::Defender);
+    game.teams[0]
+        .player_roles
+        .insert(defender.clone(), domain::team::PlayerRole::AttackingFB);
+    let mut session = waiting_session(&game);
+    session.step();
+    session
+        .apply_command(engine::MatchCommand::Substitute {
+            side: engine::Side::Home,
+            player_off_id: centre_back,
+            player_on_id: defender.clone(),
+        })
+        .unwrap();
+    assert_eq!(
+        home_role_of(&session, &defender),
+        engine::PlayerRole::Standard
+    );
+}
+
+/// Given a forward swapped out of a saved defensive slot, when his waiting-match position is
+/// queried for role validation, then it is his natural forward position.
+#[test]
+fn a_waiting_bench_player_is_validated_at_his_natural_position() {
+    let mut game = make_game_with_fixture();
+    game.career_token = 7;
+    let mut session = waiting_session(&game);
+    let (left_back, forward) =
+        home_starter_and_bench_player(&session, 1, engine::Position::Forward);
+    swap_in(&mut session, &left_back, &forward);
+    swap_in(&mut session, &forward, &left_back);
+    assert_eq!(
+        session.user_slot_before_kick_off(&forward),
+        Some((7, Position::Forward))
+    );
+}
