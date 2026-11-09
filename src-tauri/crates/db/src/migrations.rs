@@ -15,7 +15,7 @@ pub const MIGRATION_COUNT: usize = MIGRATIONS.len();
 /// **Lowering this is almost always wrong.** A save written by a release with N migrations
 /// reports `user_version = N` and expects every column those migrations added; a build with
 /// fewer can neither open it nor recreate it.
-const EXPECTED_MIGRATION_COUNT: usize = 64;
+const EXPECTED_MIGRATION_COUNT: usize = 65;
 
 // Compile-time rather than a test: adding or removing a migration should fail the build, not
 // merely turn a suite red.

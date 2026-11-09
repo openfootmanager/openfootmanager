@@ -957,6 +957,7 @@ mod tests {
     fn unrated_appearances_do_not_count_towards_the_threshold() {
         let mut mostly_unrated = rated_player("mostly-unrated", "1998-01-01", 3, 8.9);
         mostly_unrated.stats.appearances = 30;
+        mostly_unrated.league_stats.appearances = 30;
 
         let awards = division_awards(vec![mostly_unrated], 38);
 
