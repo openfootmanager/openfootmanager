@@ -63,6 +63,11 @@ pub struct PlayerMatchStats {
     /// sheets count by one rule.
     #[serde(default)]
     pub clean_sheet: bool,
+    /// The minutes he stood in goal, whoever he is: the keeper, or an outfielder who went in
+    /// after the keeper was sent off with no other left. `None` for a report that did not
+    /// track it (the instant engine's), where a goalkeeper's minutes are his minutes in goal.
+    #[serde(default)]
+    pub minutes_in_goal: Option<u8>,
 }
 
 // ---------------------------------------------------------------------------

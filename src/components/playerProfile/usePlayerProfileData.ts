@@ -104,10 +104,6 @@ export function usePlayerProfileData({
     // old list until the new one arrives shows it under the wrong name.
     setRecentMatches((current) => (current.length === 0 ? current : []));
 
-    if (player.stats.appearances <= 0) {
-      return;
-    }
-
     let cancelled = false;
 
     const loadRecentMatches = async (): Promise<void> => {
@@ -132,7 +128,7 @@ export function usePlayerProfileData({
     return () => {
       cancelled = true;
     };
-  }, [player.id, player.stats.appearances]);
+  }, [player.id, player.stats.appearances, currentDate]);
 
   return {
     advancedStats: advancedStatsOverride ?? fallbackAdvancedStats,
