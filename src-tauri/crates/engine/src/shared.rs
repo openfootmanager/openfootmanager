@@ -353,14 +353,16 @@ pub(crate) fn role_fatigue(role: PlayerRole) -> f64 {
 }
 
 /// Whether the engine plays `role` differently from Standard for a player in `position`'s line:
-/// some phase that line is consulted on has an entry for it. Read off the table the resolvers use,
-/// so a role starts to count here the moment a resolver reads it. `Standard` is the baseline the
-/// others are measured from, and counts as itself.
+/// some phase that line is consulted on has an entry for it, or the AI's substitutions prefer
+/// it. Read off the table the resolvers use and the preference the AI reads, so a role starts to
+/// count here the moment either reads it. `Standard` is the baseline the others are measured
+/// from, and counts as itself.
 pub fn role_has_match_effect(role: PlayerRole, position: Position) -> bool {
     role == PlayerRole::Standard
         || consulted_phases(position)
             .iter()
             .any(|phase| role_attribute_modifier(role, *phase) != 1.0)
+        || crate::ai::substitution_reads_role(role, position)
 }
 
 /// Returns a multiplier (0.88–1.20) applied to the player's effective skill

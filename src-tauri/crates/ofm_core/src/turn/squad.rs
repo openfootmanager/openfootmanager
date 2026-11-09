@@ -845,6 +845,17 @@ pub(crate) fn domain_to_engine_tactics(t: &domain::team::TacticsPhaseSettings) -
 /// moves players' fitness (training, condition, recovery) changes.
 const CLUB_MATCH_MEAN_INJURY_MULTIPLIER: f64 = 1.1384;
 
+/// The engine line a position plays in.
+pub(crate) fn engine_line(position: &DomainPosition) -> Position {
+    match position.to_group_position() {
+        DomainPosition::Goalkeeper => Position::Goalkeeper,
+        DomainPosition::Defender => Position::Defender,
+        DomainPosition::Midfielder => Position::Midfielder,
+        DomainPosition::Forward => Position::Forward,
+        _ => Position::Midfielder,
+    }
+}
+
 fn to_engine_player(
     p: &domain::player::Player,
     role: EnginePlayerRole,
@@ -853,17 +864,7 @@ fn to_engine_player(
     // Fall back to the player's natural position (not `p.position`, which on
     // legacy saves can still hold a stale coarse bucket written by the old
     // set_formation stat-ranking).
-    let group = deployed
-        .cloned()
-        .unwrap_or_else(|| p.natural_position.clone())
-        .to_group_position();
-    let pos = match group {
-        DomainPosition::Goalkeeper => Position::Goalkeeper,
-        DomainPosition::Defender => Position::Defender,
-        DomainPosition::Midfielder => Position::Midfielder,
-        DomainPosition::Forward => Position::Forward,
-        _ => Position::Midfielder,
-    };
+    let pos = engine_line(deployed.unwrap_or(&p.natural_position));
 
     PlayerData {
         id: p.id.clone(),
@@ -974,7 +975,7 @@ pub(crate) fn set_piece_takers_among(
 }
 
 mod familiarity;
-pub(crate) use familiarity::line_familiarity;
+pub(crate) use familiarity::{line_familiarity, slot_factor};
 
 #[cfg(test)]
 mod tests;
