@@ -96,7 +96,10 @@ export default function EndOfSeasonScreen({
         return;
       }
       // The transition first: the game update below is what ends the season this screen reviews.
-      onTransitionChange({ summary: result.summary, step: "ceremony" });
+      onTransitionChange({
+        summary: result.summary,
+        step: result.summary.league_name ? "ceremony" : "done",
+      });
       onGameUpdate(result.game);
     } catch (err) {
       console.error("Failed to advance season:", err);
@@ -294,9 +297,11 @@ export default function EndOfSeasonScreen({
           <h1 className="text-3xl font-heading font-bold text-gray-900 dark:text-gray-100 uppercase tracking-wide mb-2">
             {t("endOfSeason.newSeason", { n: summary.season + 1 })}
           </h1>
-          <p className="text-gray-500 dark:text-gray-400 mb-8">
-            {t("endOfSeason.newScheduleReleased")}
-          </p>
+          {summary.league_name && (
+            <p className="text-gray-500 dark:text-gray-400 mb-8">
+              {t("endOfSeason.newScheduleReleased")}
+            </p>
+          )}
 
           <button
             type="button"

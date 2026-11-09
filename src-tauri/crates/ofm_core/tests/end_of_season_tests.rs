@@ -1359,7 +1359,11 @@ fn no_schedule_notice_without_a_followed_division() {
     let mut game = never_employed();
     game.manager.career_stats.matches_managed = 12;
     process_end_of_season(&mut game);
-    assert!(game.messages.iter().all(|m| !m.id.starts_with("new_season_")));
+    assert!(
+        game.messages
+            .iter()
+            .all(|m| !m.id.starts_with("new_season_"))
+    );
 }
 
 /// Given an unemployed manager with an older career but no recorded club
@@ -1369,7 +1373,11 @@ fn no_schedule_notice_without_a_followed_division() {
 fn no_followed_division_keeps_the_completed_season() {
     let mut game = never_employed();
     game.manager.career_stats.matches_managed = 12;
-    let season = game.league.as_ref().unwrap().season;
+    let season = game.competitions[0].season;
+    let mut cup = game.competitions[0].clone();
+    cup.rules.format = domain::league::CompetitionFormat::Knockout;
+    cup.season = season + 10;
+    game.league = Some(cup);
     let summary = process_end_of_season(&mut game);
     assert_eq!(summary.season, season);
     assert!(summary.league_name.is_empty());

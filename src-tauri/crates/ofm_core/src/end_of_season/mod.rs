@@ -799,11 +799,17 @@ pub fn user_division(game: &Game) -> Option<&League> {
     })
 }
 
-/// The division the season's rollover finishes on: the user's, else the mirror's. Not what the
-/// screens show ([`user_division`] is): a manager who has never had a club follows no league, but the
-/// world's season still has to roll over, and the rollover stops when it has no division at all.
+/// The division the season's rollover finishes on: the user's, else a world league, or the legacy
+/// mirror. A manager with no followed league still needs the world season to roll over; the mirror
+/// alone may point at a cup in a modern world.
 fn rollover_division(game: &Game) -> Option<&League> {
-    user_division(game).or(game.league.as_ref())
+    user_division(game)
+        .or_else(|| {
+            game.competitions
+                .iter()
+                .find(|competition| competition.rules.format == CompetitionFormat::LeagueTable)
+        })
+        .or(game.league.as_ref())
 }
 
 /// The league table a club contests, for any club. `None` when no league table lists it (a cup
@@ -1346,7 +1352,7 @@ pub fn process_end_of_season(game: &mut Game) -> EndOfSeasonSummary {
     }
 
     let sched_msg_id = format!("new_season_{}", next_season);
-    if !crate::inbox::already_emitted(game, &sched_msg_id) {
+    if shows_a_league && !crate::inbox::already_emitted(game, &sched_msg_id) {
         let mut sched_params = std::collections::HashMap::new();
         sched_params.insert("season".to_string(), next_season.to_string());
         let sched_msg = InboxMessage::new(
@@ -1374,7 +1380,10 @@ pub fn process_end_of_season(game: &mut Game) -> EndOfSeasonSummary {
     if shows_a_league {
         summary
     } else {
-        EndOfSeasonSummary::default()
+        EndOfSeasonSummary {
+            season,
+            ..EndOfSeasonSummary::default()
+        }
     }
 }
 

@@ -105,6 +105,7 @@ describe("the season rollover, on the dashboard", () => {
     fireEvent.click(screen.getByRole("button", { name: "Start Next Season" }));
     expect(await screen.findByText("Season 7")).toBeInTheDocument();
     expect(screen.queryByText("Awards Ceremony")).not.toBeInTheDocument();
+    expect(screen.queryByText(/schedule.*released/i)).not.toBeInTheDocument();
   });
   /**
    * Given a finished season on Home, and a rollover whose new game says the season is not complete
