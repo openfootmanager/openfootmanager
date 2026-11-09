@@ -26,15 +26,23 @@ async function chooseAnotherOption(label) {
   const options = await $$('[role="option"]');
   let picked = "";
   let pickedOption;
+  const seen = [];
   for (const option of options) {
-    const text = (await option.getText()).trim();
+    // The rendered text, or the DOM's where the driver reports none for an option in a popover.
+    const text =
+      (await option.getText()).trim() || String(await option.getProperty("textContent")).trim();
+    seen.push(text);
     if (text !== "" && text !== current) {
       picked = text;
       pickedOption = option;
       break;
     }
   }
-  expect(picked).not.toBe("");
+  if (picked === "") {
+    throw new Error(
+      `no ${label} option differs from "${current}": ${options.length} options, texts ${JSON.stringify(seen)}`,
+    );
+  }
   await clickWhenReady(pickedOption);
 
   await browser.waitUntil(async () => (await combobox.getText()).trim() === picked, {
