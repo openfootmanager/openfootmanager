@@ -838,6 +838,23 @@ mod tests {
         ));
     }
 
+    /// Given an unread high-priority offer, when it is resolved and marked read,
+    /// then Continue does not stop for that already-seen offer.
+    #[test]
+    fn continue_does_not_stop_when_an_unread_offer_is_marked_read() {
+        let mut game = make_game(11);
+        game.messages = vec![make_message("job-offer", MessagePriority::High, false)];
+        let before = super::messages_needing_attention(&game);
+        game.messages[0].read = true;
+        assert!(!continue_reached_attention_event(
+            &TransferWindowStatus::Closed,
+            None,
+            "2025-06-16",
+            &before,
+            &super::messages_needing_attention(&game),
+        ));
+    }
+
     /// Given old attention mail and an exhausted squad on the first, when Continue processes
     /// the day, then it stops for the new urgent warning even though old mail is archived.
     #[test]
