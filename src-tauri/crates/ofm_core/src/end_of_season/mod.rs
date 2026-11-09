@@ -477,8 +477,15 @@ fn regenerate_competitions_for_new_season(
 
     // Read the World Cup field from this cycle's qualifying before competitions
     // are retired below.
-    let kickoff = game.clock.current_date + Duration::days(2);
-    let world_cup_due = crate::world_cup::is_world_cup_summer(kickoff.year());
+    let earliest_kickoff = game.clock.current_date + Duration::days(2);
+    let world_cup_due = crate::world_cup::is_world_cup_summer(earliest_kickoff.year());
+    // A club season can finish in spring; the finals still begin in the summer break.
+    let kickoff = if world_cup_due {
+        crate::world::start_date_for_year(earliest_kickoff.year())
+            .map_or(earliest_kickoff, |summer| earliest_kickoff.max(summer))
+    } else {
+        earliest_kickoff
+    };
     let qualified_field = if world_cup_due {
         // The club season can finish before the campaign's June dates play
         // out; settle whatever remains (the last matchday, the playoff) so the
