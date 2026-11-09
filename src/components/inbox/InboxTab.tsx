@@ -14,6 +14,7 @@ import {
   resolveMessageAction,
 } from "../../services/inboxService";
 import { resolveBackendText, resolveMessage } from "../../utils/backendI18n";
+import { resolveTranslatedErrorMessage } from "../../utils/errorMessage";
 import { gameKnowledgeRevision } from "../../lib/playerKnowledge";
 import ArchivedMessages from "./ArchivedMessages";
 import InboxDeleteConfirmModal from "./InboxDeleteConfirmModal";
@@ -79,6 +80,10 @@ export default function InboxTab({
   const [deleteModalState, setDeleteModalState] = useState<DeleteModalState>(null);
   const [effectFeedback, setEffectFeedback] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  // A response is applied by the backend as many times as it is asked (a morale hit, a trust change),
+  // so while one answer is on its way the response buttons are disabled.
+  const [isResolvingAction, setIsResolvingAction] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
   const inboxSeqRef = useRef(0);
 
   const categoryCounts = useMemo(() => {
@@ -132,6 +137,8 @@ export default function InboxTab({
 
   async function handleSelectMessage(messageId: string): Promise<void> {
     setSelectedMessageId(messageId);
+    // A refusal belongs to the message whose buttons were pressed.
+    setActionError(null);
     const message = allMessages.find((currentMessage) => currentMessage.id === messageId);
 
     if (message && !message.read) {
@@ -162,6 +169,8 @@ export default function InboxTab({
       }
     }
 
+    setIsResolvingAction(true);
+    setActionError(null);
     try {
       const result = await resolveMessageAction(messageId, actionId, optionId);
 
@@ -181,7 +190,11 @@ export default function InboxTab({
         );
         setEffectFeedback(resolvedEffect);
       }
-    } catch {}
+    } catch (error) {
+      setActionError(resolveTranslatedErrorMessage(error));
+    } finally {
+      setIsResolvingAction(false);
+    }
   }
 
   async function handleMarkAllRead(): Promise<void> {
@@ -406,6 +419,8 @@ export default function InboxTab({
             language={i18n.language}
             knowledgeRevision={knowledgeRevision}
             selectedMessage={selectedMessage}
+            isActionInFlight={isResolvingAction}
+            actionError={actionError}
             onAction={(messageId, actionId, optionId) => {
               void handleAction(messageId, actionId, optionId);
             }}

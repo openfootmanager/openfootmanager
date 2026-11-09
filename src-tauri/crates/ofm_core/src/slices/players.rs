@@ -287,7 +287,7 @@ fn has_offer_involving(player: &Player, club_id: &str) -> bool {
         || player
             .loan_offers
             .iter()
-            .any(|offer| offer.parent_team_id == club_id || offer.from_team_id == club_id)
+            .any(|offer| offer.involves(club_id))
 }
 
 fn matches_position(player: &Player, filters: &[PositionFilter]) -> bool {

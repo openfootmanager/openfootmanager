@@ -67,6 +67,7 @@ export function PlayerForm({
   } = useAssetPicker({
     relPath: editing.photo,
     projectDir,
+    entityKind: "player",
     entityId: () => editing.id || `unnamed-player-${Date.now()}`,
     commit: (relPath) => (commitField ?? updateField)("photo", relPath),
     onError: onAssetError,
