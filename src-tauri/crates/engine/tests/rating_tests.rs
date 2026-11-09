@@ -280,10 +280,10 @@ fn the_keeper_in_goal_for_most_of_a_clean_sheet_keeps_it() {
     );
 }
 
-/// A live match from `seed` in which the home keeper is sent off before kick-off with no
+/// A live match from `seed` in which `side`'s keeper is sent off before kick-off with no
 /// reserve keeper, so the first player left on the pitch goes in goal; played to the end.
 /// Returns the report and the id of the outfielder who stood in goal.
-fn keeper_sent_off_before_kick_off(seed: u64) -> (MatchReport, String) {
+fn keeper_sent_off_before_kick_off(side: Side, seed: u64) -> (MatchReport, String) {
     let mut live = LiveMatchState::new(
         team("home", 70),
         team("away", 70),
@@ -292,12 +292,16 @@ fn keeper_sent_off_before_kick_off(seed: u64) -> (MatchReport, String) {
         vec![],
         false,
     );
-    live.test_send_off("home_Goalkeeper_0");
+    let keeper = match side {
+        Side::Home => "home_Goalkeeper_0",
+        Side::Away => "away_Goalkeeper_0",
+    };
+    live.test_send_off(keeper);
     let in_goal = live
-        .team(Side::Home)
+        .team(side)
         .players
         .iter()
-        .find(|player| player.id != "home_Goalkeeper_0")
+        .find(|player| player.id != keeper)
         .map(|player| player.id.clone())
         .expect("an outfielder is left to go in goal");
     let mut rng = StdRng::seed_from_u64(seed);
@@ -315,12 +319,25 @@ fn keeper_sent_off_before_kick_off(seed: u64) -> (MatchReport, String) {
 #[test]
 fn an_outfielder_in_goal_for_most_of_a_clean_sheet_keeps_it() {
     let (report, in_goal) = (1..=400)
-        .map(keeper_sent_off_before_kick_off)
+        .map(|seed| keeper_sent_off_before_kick_off(Side::Home, seed))
         .find(|(report, _)| report.away_goals == 0)
         .expect("in 400 seeds the away side fails to score at least once");
 
     assert!(report.player_stats[&in_goal].clean_sheet);
     assert!(!report.player_stats["home_Goalkeeper_0"].clean_sheet);
+}
+
+/// The same for the away side: its keeper is sent off, an outfielder goes in goal, and the home
+/// side does not score.
+#[test]
+fn an_away_outfielder_in_goal_for_most_of_a_clean_sheet_keeps_it() {
+    let (report, in_goal) = (1..=400)
+        .map(|seed| keeper_sent_off_before_kick_off(Side::Away, seed))
+        .find(|(report, _)| report.home_goals == 0)
+        .expect("in 400 seeds the home side fails to score at least once");
+
+    assert!(report.player_stats[&in_goal].clean_sheet);
+    assert!(!report.player_stats["away_Goalkeeper_0"].clean_sheet);
 }
 
 /// A live match from `seed` between two equal sides, played to the end.
