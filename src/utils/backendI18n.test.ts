@@ -425,6 +425,117 @@ describe("resolveMessage", () => {
     expect(result.body).not.toContain("800001");
   });
 
+  // Given a season-review message for a finish in a place that takes each English ordinal ending
+  // (21st, 22nd, 23rd, 5th), when it is rendered in each language, then the place reads as that
+  // language writes it and no English suffix ("21th", "5th") sits inside another language's text.
+  it.each([
+    ["en", "21", "finished the season in 21st place", /21th/],
+    ["en", "22", "finished the season in 22nd place", /22th/],
+    ["en", "23", "finished the season in 23rd place", /23th/],
+    ["en", "5", "finished the season in 5th place", /5st/],
+    ["ru", "5", "на 5-м месте", /5th|5-th/],
+    ["zh-CN", "5", "第5位", /5th/],
+    ["de", "5", "5", /5th/],
+  ])("writes a place in %s: %s", async (language, position, expected, forbidden) => {
+    const previousLanguage = i18n.language;
+    await i18n.changeLanguage(language);
+    try {
+      const result = resolveMessage(
+        makeMessage({
+          body_key: "be.msg.seasonReview.body.midTable",
+          i18n_params: { team: "Alpha FC", position, points: "40", season: "1" },
+        }),
+      );
+      expect(result.body).toContain(expected);
+      expect(result.body).not.toMatch(forbidden);
+    } finally {
+      await i18n.changeLanguage(previousLanguage);
+    }
+  });
+
+  // Given a 24-team league, when a lower-half finish is rendered, then its ordinal is correct.
+  it.each([
+    ["21", "21st"],
+    ["22", "22nd"],
+    ["23", "23rd"],
+  ])("renders lower-half place %s as %s", (position, ordinal) => {
+    const result = resolveMessage(
+      makeMessage({
+        body_key: "be.msg.seasonReview.body.lowerHalf",
+        i18n_params: { team: "Alpha FC", position, points: "20", season: "1" },
+      }),
+    );
+    expect(result.body).toContain(ordinal);
+  });
+
+  // Given a French champion, when the payout renders, then it uses the neutral number notation.
+  it("renders the French first-place payout", async () => {
+    const previousLanguage = i18n.language;
+    await i18n.changeLanguage("fr");
+    try {
+      const result = resolveMessage(
+        makeMessage({
+          body_key: "be.msg.seasonPayout.body",
+          i18n_params: { amount: "5000000", position: "1", season: "1" },
+        }),
+      );
+      expect(result.body).toContain("votre place n°1 en championnat.");
+    } finally {
+      await i18n.changeLanguage(previousLanguage);
+    }
+  });
+
+  // Given a French champion, when the prize ledger renders, then the place has no ordinal suffix.
+  it("renders the French first-place prize ledger", async () => {
+    const previousLanguage = i18n.language;
+    await i18n.changeLanguage("fr");
+    try {
+      expect(
+        resolveBackendText("be.msg.seasonPayout.ledgerDescription?season=1&position=1", ""),
+      ).toBe("Prime de saison 1 pour la place n°1");
+    } finally {
+      await i18n.changeLanguage(previousLanguage);
+    }
+  });
+
+  // Given a stored season-prize ledger line and a stored season review from before the suffix was
+  // dropped (they carry a "suffix" param), when rendered, then the old suffix is ignored.
+  it("ignores the English suffix a saved message still carries", () => {
+    const result = resolveMessage(
+      makeMessage({
+        body_key: "be.msg.seasonReview.body.midTable",
+        i18n_params: { team: "Alpha FC", position: "21", suffix: "th", points: "40", season: "1" },
+      }),
+    );
+
+    expect(result.body).toContain("21st place");
+    expect(result.body).not.toContain("21th");
+  });
+
+  // Given the prize-money message for a first-place finish, when it is shown in English, then the
+  // place reads "1st-place", not "1-place".
+  it("writes the prize-money message's place as an ordinal", () => {
+    const result = resolveMessage(
+      makeMessage({
+        body_key: "be.msg.seasonPayout.body",
+        i18n_params: { amount: "5000000", position: "1", season: "1" },
+      }),
+    );
+
+    expect(result.body).toContain("your 1st-place league finish");
+  });
+
+  // Given the season prize ledger line the backend writes ("key?season=1&position=3"), when it is
+  // shown in English, then the place is "3rd".
+  it("writes the prize-money ledger line's place as an ordinal", () => {
+    const text = resolveBackendText(
+      "be.msg.seasonPayout.ledgerDescription?season=1&position=3",
+      "",
+    );
+
+    expect(text).toBe("Season 1 prize money for 3rd place");
+  });
+
   // Given a promotion notice for a generated division (stored under its English template name),
   // when rendered in German, then the division reads as the locale names it, not in English.
   it("names a promoted-to division in the player's language", async () => {

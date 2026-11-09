@@ -99,6 +99,7 @@ impl LiveMatchState {
             .insert(player_on.id.clone(), player_on.condition as f64);
 
         self.team_mut(side).players.insert(off_idx, player_on);
+        self.clear_formation_slots(side);
 
         // Move subbed-off player to bench (they can't come back, but we keep them)
         match side {
@@ -217,6 +218,7 @@ impl LiveMatchState {
             .insert(player_on.id.clone(), player_on.condition as f64);
 
         self.team_mut(side).players.insert(off_idx, player_on);
+        self.clear_formation_slots(side);
 
         // Move swapped-out player to bench
         match side {
@@ -230,6 +232,13 @@ impl LiveMatchState {
     // -----------------------------------------------------------------------
     // Formation mechanics
     // -----------------------------------------------------------------------
+
+    fn clear_formation_slots(&mut self, side: Side) {
+        match side {
+            Side::Home => self.home_formation_slots.clear(),
+            Side::Away => self.away_formation_slots.clear(),
+        }
+    }
 
     /// Parse a formation string like "4-4-2" into (defenders, midfielders, forwards).
     pub(super) fn parse_formation(formation: &str) -> (usize, usize, usize) {
@@ -259,8 +268,42 @@ impl LiveMatchState {
             .iter()
             .map(|player| self.is_on_the_pitch(side, &player.id))
             .collect();
+        let team = self.team_ref(side);
+        let old_formation = team.formation.clone();
+        let changing_shape = old_formation != formation;
+        let slots: Vec<_> = team
+            .players
+            .iter()
+            .zip(&on_the_pitch)
+            .map(|(player, &playing)| (player.id.clone(), player.position, playing))
+            .collect();
+        let history = match side {
+            Side::Home => &mut self.home_formation_slots,
+            Side::Away => &mut self.away_formation_slots,
+        };
+        history.insert(old_formation, slots.clone());
+        let previous = history
+            .get(formation)
+            .filter(|previous| {
+                changing_shape
+                    && previous.len() == slots.len()
+                    && previous.iter().all(|(id, _, playing)| {
+                        slots
+                            .iter()
+                            .any(|(current, _, active)| current == id && active == playing)
+                    })
+            })
+            .cloned();
         let team = self.team_mut(side);
         team.formation = formation.to_string();
+        if let Some(previous) = previous {
+            team.players
+                .sort_by_key(|player| previous.iter().position(|(id, _, _)| id == &player.id));
+            for (player, (_, position, _)) in team.players.iter_mut().zip(previous) {
+                player.position = position;
+            }
+            return;
+        }
         rebalance_lines(
             &mut team.players,
             &on_the_pitch,
@@ -408,6 +451,129 @@ mod line_familiarity_tests {
     }
 
     const REFIT: [f64; 4] = [0.9, 0.95, 1.0, 0.9];
+
+    fn lineup(mixed: bool) -> (TeamData, [&'static str; 11]) {
+        let mut home = side("h");
+        let names = if mixed {
+            [
+                "gk", "st", "cb1", "cb2", "rb", "lm", "cm1", "cm2", "rm", "lb", "st2",
+            ]
+        } else {
+            [
+                "gk", "lb", "cb1", "cb2", "rb", "lm", "cm1", "cm2", "rm", "st1", "st2",
+            ]
+        };
+        home.players = names
+            .iter()
+            .enumerate()
+            .map(|(i, name)| {
+                let position = match i {
+                    0 => Position::Goalkeeper,
+                    1..=4 => Position::Defender,
+                    5..=8 => Position::Midfielder,
+                    _ => Position::Forward,
+                };
+                let mut p = player(name, position);
+                if i == 1 {
+                    p.passing = 99;
+                    p.vision = 99;
+                    p.decisions = 99;
+                }
+                p
+            })
+            .collect();
+        (home, names)
+    }
+
+    fn round_trip(mixed: bool) {
+        let (home, names) = lineup(mixed);
+        let original: Vec<_> = home
+            .players
+            .iter()
+            .map(|p| (p.id.clone(), p.position))
+            .collect();
+        let mut state = LiveMatchState::new(
+            home,
+            side("a"),
+            MatchConfig::default(),
+            vec![],
+            vec![],
+            false,
+        );
+        state.apply_formation(Side::Home, "3-5-2");
+        let intermediate: Vec<_> = state
+            .team(Side::Home)
+            .players
+            .iter()
+            .map(|p| p.id.as_str())
+            .collect();
+        assert_eq!(
+            intermediate,
+            [
+                names[0], names[2], names[3], names[4], names[1], names[5], names[6], names[7],
+                names[8], names[9], names[10]
+            ]
+        );
+        state.apply_formation(Side::Home, "4-4-2");
+        let restored: Vec<_> = state
+            .team(Side::Home)
+            .players
+            .iter()
+            .map(|p| p.id.as_str())
+            .collect();
+        assert_eq!(restored, names);
+        let restored_lines: Vec<_> = state
+            .team(Side::Home)
+            .players
+            .iter()
+            .map(|p| (p.id.clone(), p.position))
+            .collect();
+        assert_eq!(restored_lines, original);
+    }
+
+    /// Given a natural 4-4-2, when it changes to 3-5-2 and back, then every slot is restored.
+    #[test]
+    fn natural_lineup_returns_to_its_slots_after_formation_round_trip() {
+        round_trip(false);
+    }
+
+    /// Given a mixed 4-4-2, when it changes to 3-5-2 and back, then every slot is restored.
+    #[test]
+    fn mixed_lineup_returns_to_its_slots_after_formation_round_trip() {
+        round_trip(true);
+    }
+
+    /// Given a formation change, when two starters exchange slots via the bench,
+    /// then returning to the original formation keeps the swap instead of restoring stale slots.
+    #[test]
+    fn formation_history_does_not_undo_a_bench_swap_between_starters() {
+        let (home, _) = lineup(false);
+        let mut state = LiveMatchState::new(
+            home,
+            side("a"),
+            MatchConfig::default(),
+            vec![player("sub", Position::Defender)],
+            vec![],
+            false,
+        );
+        state.apply_formation(Side::Home, "3-5-2");
+        state.do_pre_match_swap(Side::Home, "cb1", "sub").unwrap();
+        state.do_pre_match_swap(Side::Home, "cb2", "cb1").unwrap();
+        state.do_pre_match_swap(Side::Home, "sub", "cb2").unwrap();
+        state.apply_formation(Side::Home, "4-4-2");
+        let players: Vec<_> = state
+            .team(Side::Home)
+            .players
+            .iter()
+            .map(|p| p.id.as_str())
+            .collect();
+        assert_eq!(
+            players,
+            [
+                "gk", "cb2", "cb1", "rb", "lb", "lm", "cm1", "cm2", "rm", "st1", "st2"
+            ]
+        );
+    }
 
     /// Given a home defender in the eleven,
     /// When his familiarity is set,

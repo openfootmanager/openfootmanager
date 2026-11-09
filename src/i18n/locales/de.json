@@ -404,6 +404,12 @@
       "B": "B"
     },
     "ordinal": {
+      "place": {
+        "one": "{{n}}.",
+        "two": "{{n}}.",
+        "few": "{{n}}.",
+        "other": "{{n}}."
+      },
       "one": "{{n}}.",
       "two": "{{n}}.",
       "few": "{{n}}.",
@@ -421,12 +427,6 @@
     "listViewTable": "Tabelle",
     "listViewCards": "Karten",
     "noResults": "Keine Ergebnisse gefunden.",
-    "place": {
-      "1": "1.",
-      "2": "2.",
-      "3": "3.",
-      "other": "{{n}}."
-    },
     "pts": "Pkt",
     "playedFull": "Spiele",
     "wonFull": "Siege",
@@ -3187,7 +3187,7 @@
       "seasonPayout": {
         "subject": "Saison {{season}} — Preisgeld ausgezahlt",
         "body": "Der Vorstand hat eine Preisgeldzahlung in Höhe von {{amount}} für deinen {{position}}. Tabellenplatz bestätigt. Der Betrag wurde dem Vereinskonto gutgeschrieben.",
-        "ledgerDescription": "Preisgeld der Saison {{season}} für Platz {{position}}{{suffix}}"
+        "ledgerDescription": "Preisgeld der Saison {{season}} für Platz {{position}}"
       },
       "seasonReview": {
         "subject": "Saisonrückblick {{season}}",

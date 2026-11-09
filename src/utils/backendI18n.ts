@@ -3,6 +3,7 @@ import { reportIfKeyShaped } from "../i18n/missingKeys";
 import { extractErrorMessage } from "./errorText";
 import { formatExactMoney, formatPreciseCompact } from "../lib/helpers";
 import { formatDate } from "../lib/dateFormatting";
+import { formatOrdinal } from "../lib/ordinal";
 import { countryName } from "../lib/countries";
 import { competitionDisplayName } from "../lib/competitionName";
 import { useSettingsStore } from "../store/settingsStore";
@@ -250,6 +251,14 @@ function resolveParamValues(
 ): Record<string, string> | undefined {
   if (!params) return params;
   const resolved = { ...params };
+  // A finishing place travels as a bare number; the ordinal ("21st", "5.º", "5.") is the
+  // language's own form of it, written by the one formatter (`formatOrdinal`), never an English
+  // suffix from the backend. Templates that want it say `{{ordinal}}`.
+  if (resolved.ordinal === undefined && /^\d+$/.test(resolved.position ?? "")) {
+    resolved.ordinal = formatOrdinal(Number(resolved.position), i18n.language, (key, options) =>
+      i18n.t(key, options),
+    );
+  }
   for (const [legacy, current] of Object.entries(LEGACY_PARAM_NAMES)) {
     if (legacy in resolved && !(current in resolved)) {
       resolved[current] = resolved[legacy];

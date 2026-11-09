@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 
 import type { PlayerData } from "../../store/gameStore";
@@ -52,6 +52,7 @@ export function usePlayerProfileData({
   const [advancedStatsOverride, setAdvancedStatsOverride] =
     useState<PlayerAdvancedStatsSummary | null>(null);
   const [recentMatches, setRecentMatches] = useState<PlayerRecentMatchEntry[]>([]);
+  const listedPlayerId = useRef<string | null>(null);
 
   const fallbackAdvancedStats = buildPlayerAdvancedStats(player);
 
@@ -99,13 +100,13 @@ export function usePlayerProfileData({
   ]);
 
   useEffect(() => {
-    // Clear first, the way the advanced-stats effect above does. The profile is
-    // not remounted when the manager moves to another player, so holding the
-    // old list until the new one arrives shows it under the wrong name.
-    setRecentMatches((current) => (current.length === 0 ? current : []));
-
-    if (player.stats.appearances <= 0) {
-      return;
+    // Clear when the player changes, the way the advanced-stats effect above does. The profile
+    // is not remounted when the manager moves to another player, so holding the old list until
+    // the new one arrives shows it under the wrong name. A refresh for the same player (the date
+    // moved) keeps what is shown until the new list arrives, and when it fails.
+    if (listedPlayerId.current !== player.id) {
+      listedPlayerId.current = player.id;
+      setRecentMatches((current) => (current.length === 0 ? current : []));
     }
 
     let cancelled = false;
@@ -121,9 +122,8 @@ export function usePlayerProfileData({
           setRecentMatches((current) => (haveSameFixtures(current, result) ? current : result));
         }
       } catch {
-        if (!cancelled) {
-          setRecentMatches((current) => (current.length === 0 ? current : []));
-        }
+        // The list already on screen is this player's (a change of player cleared it above), and
+        // a failed refresh is not an empty history: leave it.
       }
     };
 
@@ -132,7 +132,7 @@ export function usePlayerProfileData({
     return () => {
       cancelled = true;
     };
-  }, [player.id, player.stats.appearances]);
+  }, [player.id, player.stats.appearances, currentDate]);
 
   return {
     advancedStats: advancedStatsOverride ?? fallbackAdvancedStats,
