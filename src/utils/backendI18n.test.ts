@@ -479,7 +479,20 @@ describe("resolveMessage", () => {
           i18n_params: { amount: "5000000", position: "1", season: "1" },
         }),
       );
-      expect(result.body).toContain("votre place n°1");
+      expect(result.body).toContain("votre place n°1 en championnat.");
+    } finally {
+      await i18n.changeLanguage(previousLanguage);
+    }
+  });
+
+  // Given a French champion, when the prize ledger renders, then the place has no ordinal suffix.
+  it("renders the French first-place prize ledger", async () => {
+    const previousLanguage = i18n.language;
+    await i18n.changeLanguage("fr");
+    try {
+      expect(
+        resolveBackendText("be.msg.seasonPayout.ledgerDescription?season=1&position=1", ""),
+      ).toBe("Prime de saison 1 pour la place n°1");
     } finally {
       await i18n.changeLanguage(previousLanguage);
     }

@@ -1,3 +1,4 @@
+import french from "../../i18n/locales/fr.json";
 import { render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
@@ -8,6 +9,10 @@ const locale = vi.hoisted(() => ({ language: "en" }));
 vi.mock("react-i18next", () => ({
   useTranslation: () => ({
     t: (key: string, params?: Record<string, string | number>) => {
+      if (locale.language === "fr" && key.startsWith("common.ordinal.place.")) {
+        const forms: Record<string, string> = french.common.ordinal.place;
+        return (forms[key.split(".").at(-1) ?? ""] ?? key).replace("{{n}}", String(params?.n));
+      }
       if (locale.language === "ru" && key.startsWith("common.ordinal.")) {
         return `${params?.n}-${key.includes(".place.") ? "е" : "й"}`;
       }
@@ -78,6 +83,35 @@ describe("HomeLeaguePositionCard", () => {
     );
 
     expect(screen.getByText(written)).toBeInTheDocument();
+  });
+
+  /** Given a French club in 21st place, when the card renders, then it uses French ordinal rules. */
+  it("writes a French 21st-place league position", () => {
+    locale.language = "fr";
+    try {
+      render(
+        <HomeLeaguePositionCard
+          isPreseason={false}
+          phase="RegularSeason"
+          seasonStartLabel={null}
+          myStanding={21}
+          myStandingData={{
+            team_id: "team-1",
+            played: 1,
+            won: 1,
+            drawn: 0,
+            lost: 0,
+            goals_for: 1,
+            goals_against: 0,
+            points: 3,
+          }}
+          teamForm={[]}
+        />,
+      );
+      expect(screen.getByText("21e")).toBeInTheDocument();
+    } finally {
+      locale.language = "en";
+    }
   });
 
   /** Given a Russian club in second place, when the card renders, then its place is neuter. */

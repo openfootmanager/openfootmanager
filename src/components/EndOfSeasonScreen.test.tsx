@@ -1,3 +1,4 @@
+import french from "../i18n/locales/fr.json";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { invoke } from "@tauri-apps/api/core";
 import { describe, expect, it, vi } from "vitest";
@@ -17,6 +18,10 @@ vi.mock("@tauri-apps/api/core", () => ({
 vi.mock("react-i18next", () => ({
   useTranslation: () => ({
     t: (key: string, params?: Record<string, string | number>) => {
+      if (locale.language === "fr" && key.startsWith("common.ordinal.place.")) {
+        const forms: Record<string, string> = french.common.ordinal.place;
+        return (forms[key.split(".").at(-1) ?? ""] ?? key).replace("{{n}}", String(params?.n));
+      }
       if (locale.language === "ru" && key.startsWith("common.ordinal.")) {
         return `${params?.n}-${key.includes(".place.") ? "е" : "й"}`;
       }
@@ -147,6 +152,34 @@ describe("EndOfSeasonScreen", () => {
 
     expect(screen.getByText("21st")).toBeInTheDocument();
     expect(screen.queryByText("21th")).not.toBeInTheDocument();
+  });
+
+  /** Given a French club in 21st place, when the review renders, then it uses French ordinal rules. */
+  it("writes a French 21st-place finish", () => {
+    locale.language = "fr";
+    try {
+      const game = createEndOfSeasonGame();
+      const rival = game.league!.standings[1]!;
+      game.league!.standings = [
+        ...Array.from({ length: 20 }, (_, index) => ({
+          ...rival,
+          team_id: `rival-${index}`,
+          points: 90 - index,
+        })),
+        { ...game.league!.standings[0]!, points: 1 },
+      ];
+      render(
+        <EndOfSeasonScreen
+          gameState={game}
+          onGameUpdate={vi.fn()}
+          transition={null}
+          onTransitionChange={vi.fn()}
+        />,
+      );
+      expect(screen.getByText("21e")).toBeInTheDocument();
+    } finally {
+      locale.language = "en";
+    }
   });
 
   /** Given a second-place Russian club, when the review renders, then its place is neuter. */
