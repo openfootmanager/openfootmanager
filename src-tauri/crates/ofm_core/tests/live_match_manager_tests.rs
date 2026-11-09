@@ -1301,26 +1301,6 @@ fn a_role_saved_for_a_benched_player_is_the_role_he_waits_with() {
     assert_eq!(waiting_with, Some(engine::PlayerRole::AttackingFB));
 }
 
-/// Given a match waiting at kick-off, built for a career with a token,
-/// When the slot of the user's left-back, and of a benched defender, are asked for,
-/// Then the left-back's is the left-back slot with the career's token, and the benched
-/// defender has none: the caller judges a role by the slot he fills in the match.
-#[test]
-fn a_starter_of_a_waiting_match_has_the_slot_he_fills_and_a_benched_player_has_none() {
-    let mut game = make_game_with_fixture();
-    game.career_token = 7;
-    let session = waiting_session(&game);
-    // 4-4-2: goalkeeper, then the left-back.
-    let (left_back, benched_defender) =
-        home_starter_and_bench_player(&session, 1, engine::Position::Defender);
-
-    assert_eq!(
-        session.user_slot_before_kick_off(&left_back),
-        Some((7, domain::player::Position::LeftBack))
-    );
-    assert_eq!(session.user_slot_before_kick_off(&benched_defender), None);
-}
-
 /// Given a match under way,
 /// When the slot of the user's left-back is asked for,
 /// Then there is none: a role saved in play is no longer judged by a pre-match slot.
@@ -1358,4 +1338,723 @@ fn a_role_saved_before_the_match_is_built_is_played_after_a_swap() {
         home_role_of(&session, &benched_defender),
         engine::PlayerRole::AttackingFB
     );
+}
+
+mod issue_1319 {
+    use super::*;
+
+    /// Given a match waiting at kick-off, built for a career with a token,
+    /// When the slot of the user's left-back, and of a benched defender, are asked for,
+    /// Then the left-back's is the left-back slot with the career's token, and the benched
+    /// defender has his natural position: the caller judges a role where he plays.
+    #[test]
+    fn a_waiting_match_uses_the_starters_slot_and_bench_players_natural_position() {
+        let mut game = make_game_with_fixture();
+        game.career_token = 7;
+        let session = waiting_session(&game);
+        // 4-4-2: goalkeeper, then the left-back.
+        let (left_back, benched_defender) =
+            home_starter_and_bench_player(&session, 1, engine::Position::Defender);
+
+        assert_eq!(
+            session.user_slot_before_kick_off(&left_back),
+            Some((7, domain::player::Position::LeftBack))
+        );
+        assert_eq!(
+            session.user_slot_before_kick_off(&benched_defender),
+            Some((7, Position::Defender))
+        );
+    }
+
+    /// Given a Poacher swapped into defence, when he returns to the bench, then his natural
+    /// position and saved role are restored.
+    #[test]
+    fn a_swapped_out_player_recovers_his_bench_position_and_role() {
+        let mut game = make_game_with_fixture();
+        let probe = waiting_session(&game);
+        let (left_back, forward) =
+            home_starter_and_bench_player(&probe, 1, engine::Position::Forward);
+        game.teams[0]
+            .player_roles
+            .insert(forward.clone(), domain::team::PlayerRole::Poacher);
+        let mut session = waiting_session(&game);
+        swap_in(&mut session, &left_back, &forward);
+        swap_in(&mut session, &forward, &left_back);
+        let benched = session
+            .match_state
+            .bench(engine::Side::Home)
+            .iter()
+            .find(|p| p.id == forward)
+            .unwrap();
+        assert_eq!(benched.position, engine::Position::Forward);
+        assert_eq!(benched.role, engine::PlayerRole::Poacher);
+        let starting_forward = session.match_state.team(engine::Side::Home).players[9]
+            .id
+            .clone();
+        session.step();
+        session
+            .apply_command(engine::MatchCommand::Substitute {
+                side: engine::Side::Home,
+                player_off_id: starting_forward,
+                player_on_id: forward.clone(),
+            })
+            .unwrap();
+        assert_eq!(
+            home_role_of(&session, &forward),
+            engine::PlayerRole::Poacher
+        );
+    }
+
+    /// Given an attacking full-back, when a new formation puts him at centre-back, then his
+    /// role is Standard because the new slot does not admit AttackingFB.
+    #[test]
+    fn a_formation_change_rechecks_a_starters_role_against_his_new_slot() {
+        let mut game = make_game_with_fixture();
+        let probe = waiting_session(&game);
+        let right_back = probe.match_state.team(engine::Side::Home).players[4]
+            .id
+            .clone();
+        game.teams[0]
+            .player_roles
+            .insert(right_back.clone(), domain::team::PlayerRole::AttackingFB);
+        let mut session = waiting_session(&game);
+        assert_eq!(
+            home_role_of(&session, &right_back),
+            engine::PlayerRole::AttackingFB
+        );
+        session
+            .apply_command(engine::MatchCommand::ChangeFormation {
+                side: engine::Side::Home,
+                formation: "5-3-2".into(),
+            })
+            .unwrap();
+        assert_eq!(
+            home_role_of(&session, &right_back),
+            engine::PlayerRole::Standard
+        );
+    }
+
+    /// Given a benched attacking full-back, when he substitutes into a centre-back slot, then
+    /// he plays Standard even though the defender line accepts his saved role.
+    #[test]
+    fn a_substitute_role_is_checked_against_the_destination_slot() {
+        let mut game = make_game_with_fixture();
+        let probe = waiting_session(&game);
+        let (centre_back, defender) =
+            home_starter_and_bench_player(&probe, 2, engine::Position::Defender);
+        game.teams[0]
+            .player_roles
+            .insert(defender.clone(), domain::team::PlayerRole::AttackingFB);
+        let mut session = waiting_session(&game);
+        session.step();
+        session
+            .apply_command(engine::MatchCommand::Substitute {
+                side: engine::Side::Home,
+                player_off_id: centre_back,
+                player_on_id: defender.clone(),
+            })
+            .unwrap();
+        assert_eq!(
+            home_role_of(&session, &defender),
+            engine::PlayerRole::Standard
+        );
+    }
+
+    /// Given a forward swapped out of a saved defensive slot, when his waiting-match position is
+    /// queried for role validation, then it is his natural forward position.
+    #[test]
+    fn a_waiting_bench_player_is_validated_at_his_natural_position() {
+        let mut game = make_game_with_fixture();
+        game.career_token = 7;
+        let mut session = waiting_session(&game);
+        let (left_back, forward) =
+            home_starter_and_bench_player(&session, 1, engine::Position::Forward);
+        swap_in(&mut session, &left_back, &forward);
+        swap_in(&mut session, &forward, &left_back);
+        assert_eq!(
+            session.user_slot_before_kick_off(&forward),
+            Some((7, Position::Forward))
+        );
+    }
+
+    /// Given a defensive full-back on the bench, when he enters a centre-back slot, then he plays
+    /// Standard even though both positions belong to the defender line.
+    #[test]
+    fn a_defensive_full_back_substituted_at_centre_back_plays_standard() {
+        let mut game = make_game_with_fixture();
+        let probe = waiting_session(&game);
+        let (centre_back, defender) =
+            home_starter_and_bench_player(&probe, 2, engine::Position::Defender);
+        game.teams[0]
+            .player_roles
+            .insert(defender.clone(), domain::team::PlayerRole::DefensiveFB);
+        let mut session = waiting_session(&game);
+        assert_eq!(
+            session
+                .match_state
+                .bench(engine::Side::Home)
+                .iter()
+                .find(|p| p.id == defender)
+                .unwrap()
+                .role,
+            engine::PlayerRole::DefensiveFB
+        );
+        session.step();
+        session
+            .apply_command(engine::MatchCommand::Substitute {
+                side: engine::Side::Home,
+                player_off_id: centre_back,
+                player_on_id: defender.clone(),
+            })
+            .unwrap();
+        assert_eq!(
+            home_role_of(&session, &defender),
+            engine::PlayerRole::Standard
+        );
+    }
+
+    /// Given a session role accepted by a centre-back slot, when the same formation is selected,
+    /// then the player's session role remains in place.
+    #[test]
+    fn a_compatible_session_role_survives_a_formation_change() {
+        let game = make_game_with_fixture();
+        let mut session = waiting_session(&game);
+        let centre_back = session.match_state.team(engine::Side::Home).players[2]
+            .id
+            .clone();
+        session
+            .apply_command(engine::MatchCommand::ChangePlayerRole {
+                side: engine::Side::Home,
+                player_id: centre_back.clone(),
+                role: engine::PlayerRole::Stopper,
+            })
+            .unwrap();
+        session
+            .apply_command(engine::MatchCommand::ChangeFormation {
+                side: engine::Side::Home,
+                formation: "4-4-2".into(),
+            })
+            .unwrap();
+        assert_eq!(
+            home_role_of(&session, &centre_back),
+            engine::PlayerRole::Stopper
+        );
+    }
+
+    /// Given a defensive full-back on the bench, when he substitutes into a full-back slot,
+    /// then his admitted role is retained.
+    #[test]
+    fn a_substitute_retains_a_role_admitted_by_his_destination() {
+        let mut game = make_game_with_fixture();
+        let probe = waiting_session(&game);
+        let (left_back, defender) =
+            home_starter_and_bench_player(&probe, 1, engine::Position::Defender);
+        game.teams[0]
+            .player_roles
+            .insert(defender.clone(), domain::team::PlayerRole::DefensiveFB);
+        let mut session = waiting_session(&game);
+        session.step();
+        session
+            .apply_command(engine::MatchCommand::Substitute {
+                side: engine::Side::Home,
+                player_off_id: left_back,
+                player_on_id: defender.clone(),
+            })
+            .unwrap();
+        assert_eq!(
+            home_role_of(&session, &defender),
+            engine::PlayerRole::DefensiveFB
+        );
+    }
+
+    /// Given a defensive full-back on the away bench, when the away side substitutes him at
+    /// centre-back, then the granular slot rejects that role.
+    #[test]
+    fn an_away_substitute_is_checked_against_his_destination_slot() {
+        let mut game = make_game_with_fixture();
+        let probe = waiting_session(&game);
+        let centre_back = probe.match_state.team(engine::Side::Away).players[2]
+            .id
+            .clone();
+        let defender = probe
+            .match_state
+            .bench(engine::Side::Away)
+            .iter()
+            .find(|p| p.position == engine::Position::Defender)
+            .unwrap()
+            .id
+            .clone();
+        game.teams[1]
+            .player_roles
+            .insert(defender.clone(), domain::team::PlayerRole::DefensiveFB);
+        let mut session = waiting_session(&game);
+        assert_eq!(
+            session
+                .match_state
+                .bench(engine::Side::Away)
+                .iter()
+                .find(|p| p.id == defender)
+                .unwrap()
+                .role,
+            engine::PlayerRole::DefensiveFB
+        );
+        session
+            .match_state
+            .apply_command(engine::MatchCommand::Substitute {
+                side: engine::Side::Away,
+                player_off_id: centre_back,
+                player_on_id: defender.clone(),
+            })
+            .unwrap();
+        assert_eq!(
+            session
+                .match_state
+                .team(engine::Side::Away)
+                .players
+                .iter()
+                .find(|p| p.id == defender)
+                .unwrap()
+                .role,
+            engine::PlayerRole::Standard
+        );
+    }
+
+    /// Given a change to a back five, when a defensive full-back enters its fourth defensive slot,
+    /// then that centre-back slot rejects his role.
+    #[test]
+    fn a_substitute_uses_the_changed_formations_slot_roles() {
+        let mut game = make_game_with_fixture();
+        let probe = waiting_session(&game);
+        let (_, defender) = home_starter_and_bench_player(&probe, 1, engine::Position::Defender);
+        game.teams[0]
+            .player_roles
+            .insert(defender.clone(), domain::team::PlayerRole::DefensiveFB);
+        let mut session = waiting_session(&game);
+        session
+            .apply_command(engine::MatchCommand::ChangeFormation {
+                side: engine::Side::Home,
+                formation: "5-3-2".into(),
+            })
+            .unwrap();
+        let centre_back = session.match_state.team(engine::Side::Home).players[4]
+            .id
+            .clone();
+        session.step();
+        session
+            .apply_command(engine::MatchCommand::Substitute {
+                side: engine::Side::Home,
+                player_off_id: centre_back,
+                player_on_id: defender.clone(),
+            })
+            .unwrap();
+        assert_eq!(
+            home_role_of(&session, &defender),
+            engine::PlayerRole::Standard
+        );
+    }
+
+    /// Given a centre-back in a waiting match, when the manager assigns a full-back role directly,
+    /// then the command is refused and the centre-back remains Standard.
+    #[test]
+    fn a_session_role_command_rejects_a_role_the_slot_does_not_admit() {
+        let game = make_game_with_fixture();
+        let mut session = waiting_session(&game);
+        let centre_back = session.match_state.team(engine::Side::Home).players[2]
+            .id
+            .clone();
+        let result = session.apply_command(engine::MatchCommand::ChangePlayerRole {
+            side: engine::Side::Home,
+            player_id: centre_back.clone(),
+            role: engine::PlayerRole::DefensiveFB,
+        });
+        assert_eq!(
+            result.err().as_deref(),
+            Some("be.error.roleNotValidForPosition")
+        );
+        assert_eq!(
+            home_role_of(&session, &centre_back),
+            engine::PlayerRole::Standard
+        );
+    }
+    mod review_1328 {
+        use super::*;
+
+        /// Given an attacking full-back at right-back, when the formation changes after kick-off,
+        /// then he plays Standard in the centre-back slot.
+        #[test]
+        fn a_formation_change_during_play_normalises_a_starters_role() {
+            let mut game = make_game_with_fixture();
+            let probe = waiting_session(&game);
+            let right_back = probe.match_state.team(engine::Side::Home).players[4]
+                .id
+                .clone();
+            game.teams[0]
+                .player_roles
+                .insert(right_back.clone(), domain::team::PlayerRole::AttackingFB);
+            let mut session = waiting_session(&game);
+            assert_eq!(
+                home_role_of(&session, &right_back),
+                engine::PlayerRole::AttackingFB
+            );
+            session.step();
+            assert_ne!(session.match_state.phase(), MatchPhase::PreKickOff);
+            session
+                .apply_command(engine::MatchCommand::ChangeFormation {
+                    side: engine::Side::Home,
+                    formation: "5-3-2".into(),
+                })
+                .unwrap();
+            assert_eq!(
+                home_role_of(&session, &right_back),
+                engine::PlayerRole::Standard
+            );
+        }
+
+        /// Given a saved attacking full-back, when the formation changes away and back, then his
+        /// role is suppressed and restored without changing the saved roles.
+        #[test]
+        fn a_saved_role_returns_when_its_formation_slot_returns() {
+            let mut game = make_game_with_fixture();
+            let probe = waiting_session(&game);
+            let right_back = probe.match_state.team(engine::Side::Home).players[4]
+                .id
+                .clone();
+            game.teams[0]
+                .player_roles
+                .insert(right_back.clone(), domain::team::PlayerRole::AttackingFB);
+            let saved = game.teams[0].player_roles.clone();
+            let mut session = waiting_session(&game);
+            assert_eq!(
+                home_role_of(&session, &right_back),
+                engine::PlayerRole::AttackingFB
+            );
+            session
+                .apply_command(engine::MatchCommand::ChangeFormation {
+                    side: engine::Side::Home,
+                    formation: "5-3-2".into(),
+                })
+                .unwrap();
+            assert_eq!(
+                home_role_of(&session, &right_back),
+                engine::PlayerRole::Standard
+            );
+            assert_eq!(game.teams[0].player_roles, saved);
+            session
+                .apply_command(engine::MatchCommand::ChangeFormation {
+                    side: engine::Side::Home,
+                    formation: "4-4-2".into(),
+                })
+                .unwrap();
+            assert_eq!(
+                home_role_of(&session, &right_back),
+                engine::PlayerRole::AttackingFB
+            );
+            assert_eq!(game.teams[0].player_roles, saved);
+        }
+
+        /// Given a session-only full-back role, when the formation moves away and back, then that
+        /// intended role returns without creating a saved role.
+        #[test]
+        fn a_session_role_returns_when_its_formation_slot_returns() {
+            let game = make_game_with_fixture();
+            let mut session = waiting_session(&game);
+            let right_back = session.match_state.team(engine::Side::Home).players[4]
+                .id
+                .clone();
+            assert!(!game.teams[0].player_roles.contains_key(&right_back));
+            session
+                .apply_command(engine::MatchCommand::ChangePlayerRole {
+                    side: engine::Side::Home,
+                    player_id: right_back.clone(),
+                    role: engine::PlayerRole::AttackingFB,
+                })
+                .unwrap();
+            session
+                .apply_command(engine::MatchCommand::ChangeFormation {
+                    side: engine::Side::Home,
+                    formation: "5-3-2".into(),
+                })
+                .unwrap();
+            assert_eq!(
+                home_role_of(&session, &right_back),
+                engine::PlayerRole::Standard
+            );
+            session
+                .apply_command(engine::MatchCommand::ChangeFormation {
+                    side: engine::Side::Home,
+                    formation: "4-4-2".into(),
+                })
+                .unwrap();
+            assert_eq!(
+                home_role_of(&session, &right_back),
+                engine::PlayerRole::AttackingFB
+            );
+            assert!(!game.teams[0].player_roles.contains_key(&right_back));
+        }
+        /// Given a saved defensive full-back, when a different session role is chosen and the
+        /// formation moves away and back, then the session choice wins and the saved role remains.
+        #[test]
+        fn a_session_choice_overrides_a_different_saved_role_through_a_formation_round_trip() {
+            let mut game = make_game_with_fixture();
+            let probe = waiting_session(&game);
+            let right_back = probe.match_state.team(engine::Side::Home).players[4]
+                .id
+                .clone();
+            game.teams[0]
+                .player_roles
+                .insert(right_back.clone(), domain::team::PlayerRole::DefensiveFB);
+            let mut session = waiting_session(&game);
+            session
+                .apply_command(engine::MatchCommand::ChangePlayerRole {
+                    side: engine::Side::Home,
+                    player_id: right_back.clone(),
+                    role: engine::PlayerRole::AttackingFB,
+                })
+                .unwrap();
+            session
+                .apply_command(engine::MatchCommand::ChangeFormation {
+                    side: engine::Side::Home,
+                    formation: "5-3-2".into(),
+                })
+                .unwrap();
+            assert_eq!(
+                home_role_of(&session, &right_back),
+                engine::PlayerRole::Standard
+            );
+            session
+                .apply_command(engine::MatchCommand::ChangeFormation {
+                    side: engine::Side::Home,
+                    formation: "4-4-2".into(),
+                })
+                .unwrap();
+            assert_eq!(
+                home_role_of(&session, &right_back),
+                engine::PlayerRole::AttackingFB
+            );
+            assert_eq!(
+                game.teams[0].player_roles.get(&right_back),
+                Some(&domain::team::PlayerRole::DefensiveFB)
+            );
+        }
+
+        /// Given a suppressed full-back role, when a new centre-back role is selected before
+        /// returning to right-back, then the old role is not restored.
+        #[test]
+        fn a_new_session_choice_replaces_the_suppressed_intended_role() {
+            let game = make_game_with_fixture();
+            let mut session = waiting_session(&game);
+            let right_back = session.match_state.team(engine::Side::Home).players[4]
+                .id
+                .clone();
+            session
+                .apply_command(engine::MatchCommand::ChangePlayerRole {
+                    side: engine::Side::Home,
+                    player_id: right_back.clone(),
+                    role: engine::PlayerRole::AttackingFB,
+                })
+                .unwrap();
+            session
+                .apply_command(engine::MatchCommand::ChangeFormation {
+                    side: engine::Side::Home,
+                    formation: "5-3-2".into(),
+                })
+                .unwrap();
+            assert_eq!(
+                home_role_of(&session, &right_back),
+                engine::PlayerRole::Standard
+            );
+            session
+                .apply_command(engine::MatchCommand::ChangePlayerRole {
+                    side: engine::Side::Home,
+                    player_id: right_back.clone(),
+                    role: engine::PlayerRole::Stopper,
+                })
+                .unwrap();
+            session
+                .apply_command(engine::MatchCommand::ChangeFormation {
+                    side: engine::Side::Home,
+                    formation: "4-4-2".into(),
+                })
+                .unwrap();
+            assert_eq!(
+                home_role_of(&session, &right_back),
+                engine::PlayerRole::Standard
+            );
+        }
+        /// Given a session-only role, when the player is swapped out and back and the same
+        /// formation is selected, then the swap's Standard role stays in effect.
+        #[test]
+        fn a_swap_reset_does_not_restore_a_cleared_session_role() {
+            let game = make_game_with_fixture();
+            let mut session = waiting_session(&game);
+            let (right_back, reserve) =
+                home_starter_and_bench_player(&session, 4, engine::Position::Defender);
+            session
+                .apply_command(engine::MatchCommand::ChangePlayerRole {
+                    side: engine::Side::Home,
+                    player_id: right_back.clone(),
+                    role: engine::PlayerRole::AttackingFB,
+                })
+                .unwrap();
+            swap_in(&mut session, &right_back, &reserve);
+            swap_in(&mut session, &reserve, &right_back);
+            assert_eq!(
+                home_role_of(&session, &right_back),
+                engine::PlayerRole::Standard
+            );
+            session
+                .apply_command(engine::MatchCommand::ChangeFormation {
+                    side: engine::Side::Home,
+                    formation: "4-4-2".into(),
+                })
+                .unwrap();
+            assert_eq!(
+                home_role_of(&session, &right_back),
+                engine::PlayerRole::Standard
+            );
+        }
+
+        /// Given a centre-back, when a full-back role is refused and the player returns to a
+        /// full-back slot, then the refused role is not applied later.
+        #[test]
+        fn a_rejected_session_role_is_not_restored_after_a_formation_change() {
+            let game = make_game_with_fixture();
+            let mut session = waiting_session(&game);
+            session
+                .apply_command(engine::MatchCommand::ChangeFormation {
+                    side: engine::Side::Home,
+                    formation: "5-3-2".into(),
+                })
+                .unwrap();
+            let player = session.match_state.team(engine::Side::Home).players[4]
+                .id
+                .clone();
+            let rejected = session.apply_command(engine::MatchCommand::ChangePlayerRole {
+                side: engine::Side::Home,
+                player_id: player.clone(),
+                role: engine::PlayerRole::AttackingFB,
+            });
+            assert_eq!(
+                rejected.err().as_deref(),
+                Some("be.error.roleNotValidForPosition")
+            );
+            session
+                .apply_command(engine::MatchCommand::ChangeFormation {
+                    side: engine::Side::Home,
+                    formation: "4-4-2".into(),
+                })
+                .unwrap();
+            assert_eq!(
+                session.user_slot_before_kick_off(&player).unwrap().1,
+                Position::RightBack
+            );
+            assert_eq!(
+                home_role_of(&session, &player),
+                engine::PlayerRole::Standard
+            );
+        }
+        /// Given a sent-off defender, when the shape changes and an active defender occupies a
+        /// midfield array index, then a midfield-only role is refused for that defender.
+        #[test]
+        fn a_defender_after_a_sending_off_rejects_a_midfield_role() {
+            let game = make_game_with_fixture();
+            let mut session = waiting_session(&game);
+            session.step();
+            let sent_off = session.match_state.team(engine::Side::Home).players[1]
+                .id
+                .clone();
+            session.match_state.test_send_off(&sent_off);
+            session
+                .apply_command(engine::MatchCommand::ChangeFormation {
+                    side: engine::Side::Home,
+                    formation: "4-3-3".into(),
+                })
+                .unwrap();
+            let team = session.match_state.team(engine::Side::Home);
+            let (index, defender) = team
+                .players
+                .iter()
+                .enumerate()
+                .find(|(i, p)| {
+                    *i >= 5 && p.position == engine::Position::Defender && p.id != sent_off
+                })
+                .map(|(i, p)| (i, p.id.clone()))
+                .unwrap();
+            assert_eq!(
+                ofm_core::player_rating::formation_slots(&team.formation)[index]
+                    .to_group_position(),
+                Position::Midfielder
+            );
+            let refused = session.apply_command(engine::MatchCommand::ChangePlayerRole {
+                side: engine::Side::Home,
+                player_id: defender.clone(),
+                role: engine::PlayerRole::AnchorMan,
+            });
+            assert_eq!(
+                refused.err().as_deref(),
+                Some("be.error.roleNotValidForPosition")
+            );
+            session
+                .apply_command(engine::MatchCommand::ChangePlayerRole {
+                    side: engine::Side::Home,
+                    player_id: defender.clone(),
+                    role: engine::PlayerRole::Stopper,
+                })
+                .unwrap();
+            assert_eq!(
+                home_role_of(&session, &defender),
+                engine::PlayerRole::Stopper
+            );
+        }
+        /// Given a midfielder suited to defence with a midfield-only role, when a dismissal
+        /// moves him into the defensive line, then that role is normalized to Standard.
+        #[test]
+        fn a_midfielder_moved_into_defence_after_a_sending_off_loses_an_incompatible_role() {
+            let mut game = make_game_with_fixture();
+            game.teams[0].formation = "4-1-4-1".into();
+            let probe = waiting_session(&game);
+            let promoted = probe.match_state.team(engine::Side::Home).players[5]
+                .id
+                .clone();
+            game.teams[0].starting_xi_ids = probe
+                .match_state
+                .team(engine::Side::Home)
+                .players
+                .iter()
+                .map(|p| p.id.clone())
+                .collect();
+            let player = game.players.iter_mut().find(|p| p.id == promoted).unwrap();
+            player.attributes.defending = 99;
+            player.attributes.tackling = 99;
+            player.attributes.strength = 99;
+            game.teams[0]
+                .player_roles
+                .insert(promoted.clone(), domain::team::PlayerRole::AnchorMan);
+            let mut session = waiting_session(&game);
+            assert_eq!(
+                home_role_of(&session, &promoted),
+                engine::PlayerRole::AnchorMan
+            );
+            session.step();
+            let sent_off = session.match_state.team(engine::Side::Home).players[1]
+                .id
+                .clone();
+            session.match_state.test_send_off(&sent_off);
+            session
+                .apply_command(engine::MatchCommand::ChangeFormation {
+                    side: engine::Side::Home,
+                    formation: "4-3-3".into(),
+                })
+                .unwrap();
+            let player = session
+                .match_state
+                .team(engine::Side::Home)
+                .players
+                .iter()
+                .find(|p| p.id == promoted)
+                .unwrap();
+            assert_eq!(player.position, engine::Position::Defender);
+            assert_eq!(player.role, engine::PlayerRole::Standard);
+        }
+    }
 }

@@ -291,6 +291,8 @@ pub struct LiveMatchState {
     // Bench players (available for substitution)
     home_bench: Vec<PlayerData>,
     away_bench: Vec<PlayerData>,
+    home_slot_roles: Option<Vec<Vec<crate::types::PlayerRole>>>,
+    away_slot_roles: Option<Vec<Vec<crate::types::PlayerRole>>>,
 
     // Set piece takers
     home_set_pieces: SetPieceTakers,
@@ -361,6 +363,8 @@ impl LiveMatchState {
             substitutions: Vec::new(),
             home_bench,
             away_bench,
+            home_slot_roles: None,
+            away_slot_roles: None,
             home_set_pieces: SetPieceTakers::default(),
             away_set_pieces: SetPieceTakers::default(),
             allows_extra_time,
@@ -456,16 +460,15 @@ impl LiveMatchState {
                 player_id,
                 role,
             } => {
-                let player = self
-                    .team_mut(side)
-                    .players
-                    .iter_mut()
-                    .find(|p| p.id == player_id)
+                let players = &self.team_ref(side).players;
+                let index = players
+                    .iter()
+                    .position(|p| p.id == player_id)
                     .ok_or("be.error.liveMatch.playerNotOnPitch")?;
-                if !role.suits(player.position) {
+                if !self.slot_admits_role(side, index, players[index].position, role) {
                     return Err("be.error.roleNotValidForPosition".into());
                 }
-                player.role = role;
+                self.team_mut(side).players[index].role = role;
                 Ok(())
             }
         }
