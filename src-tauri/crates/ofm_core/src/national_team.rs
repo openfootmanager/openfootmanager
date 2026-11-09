@@ -514,6 +514,37 @@ mod tests {
     use rand::SeedableRng;
     use rand::rngs::StdRng;
 
+    /// Given an active World Cup, when its blackout is calculated, then club football is
+    /// kept clear throughout its scheduled group-stage dates, including gaps between matchdays.
+    #[test]
+    fn an_active_world_cup_reserves_its_tournament_dates() {
+        let mut game = empty_game();
+        let kickoff = Utc.with_ymd_and_hms(2026, 6, 20, 0, 0, 0).unwrap();
+        crate::world_cup::schedule_world_cup(&mut game, kickoff, &crate::world_cup::FORMAT_48);
+        let cup = game
+            .competitions
+            .iter()
+            .find(|c| crate::world_cup::is_world_cup_competition(c))
+            .expect("the finals exist");
+        let mut dates: Vec<_> = cup
+            .fixtures
+            .iter()
+            .map(|f| chrono::NaiveDate::parse_from_str(&f.date, "%Y-%m-%d").unwrap())
+            .collect();
+        dates.sort();
+        let first = *dates.first().expect("the finals have fixtures");
+        let last = *dates.last().unwrap();
+        assert!(last > first);
+        let blackout = international_blackout_around(&game.competitions, kickoff.date_naive());
+        for day in 0..=(last - first).num_days() {
+            let date = first + chrono::Duration::days(day);
+            assert!(
+                blackout.contains(&date),
+                "World Cup date {date} is not reserved"
+            );
+        }
+    }
+
     #[test]
     fn penalty_shootout_always_produces_a_winner() {
         for seed in 0..50u64 {
