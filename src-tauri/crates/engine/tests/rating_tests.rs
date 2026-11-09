@@ -393,3 +393,32 @@ fn an_outfielder_in_goal_who_concedes_keeps_no_clean_sheet() {
     assert!(report.player_stats[&in_goal].minutes_in_goal.unwrap_or(0) >= 60);
     assert!(!report.player_stats[&in_goal].clean_sheet);
 }
+
+/// A goalless report in which one outfielder of the home side stood in goal for
+/// `minutes_in_goal` of his 90 minutes, rated; whether he has the clean sheet.
+fn clean_sheet_after(minutes_in_goal: u8) -> bool {
+    let mut report = MatchReport::from_events(Vec::new(), 0, 0, 0);
+    report.player_stats.insert(
+        "home_stand_in".to_string(),
+        PlayerMatchStats {
+            minutes_played: 90,
+            minutes_in_goal: Some(minutes_in_goal),
+            ..Default::default()
+        },
+    );
+    let stand_in = player("home_stand_in", Position::Defender, 70);
+
+    report.assign_ratings(&[&stand_in], &[]);
+
+    report.player_stats["home_stand_in"].clean_sheet
+}
+
+/// Given a goalless match and an outfielder who stood in goal for 60 minutes, or for 59,
+/// When the report is rated,
+/// Then he has the clean sheet at 60 and not at 59: the threshold, with literal inputs, is the
+/// rule's own (changing the constant fails this).
+#[test]
+fn the_clean_sheet_needs_sixty_minutes_in_goal() {
+    assert!(clean_sheet_after(60));
+    assert!(!clean_sheet_after(59));
+}
