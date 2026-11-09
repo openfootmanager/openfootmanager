@@ -4,7 +4,7 @@
   "type": "module",
   "description": "Drives the built app's real UI over WebDriver (tauri-driver). Nightly and advisory; its dependencies are kept out of the app's own package.json on purpose.",
   "scripts": {
-    "test:guard": "node --test helpers/isolation.test.mjs helpers/driver.test.mjs",
+    "test:guard": "node --test --test-timeout=60000 helpers/isolation.test.mjs helpers/driver.test.mjs",
     "e2e": "bash run.sh"
   },
   "devDependencies": {
