@@ -5381,8 +5381,8 @@ colors:
     }
 
     /// Who each competition's selectors resolve to, from the built world and from the projection.
-    /// A club with no id is named `<no id>` on both sides: the builder gives it a generated id. The
-    /// order is kept as resolved: scheduling and group seeding read it.
+    /// A club with no id is named `<no id #position>` on both sides: the builder gives it a generated
+    /// id. The order is kept as resolved: scheduling and group seeding read it.
     fn participants_both_ways(
         package: &WorldPackage,
     ) -> (
@@ -5402,32 +5402,40 @@ colors:
         };
         let authored = crate::generator::authored_reputations(package);
         let basis = crate::generator::ReputationBasis::Authored(&authored);
-        let known: std::collections::HashSet<&str> = package
+        let field = super::super::competition_field_of_package(package);
+        // A club with no id is named by where the package lists it, so swapping two of them shows.
+        let built_labels: std::collections::HashMap<String, String> = world
             .teams
             .iter()
-            .map(|team| team.id.as_str())
-            .filter(|id| !id.is_empty())
+            .zip(&package.teams)
+            .enumerate()
+            .filter(|(_, (_, authored))| authored.id.is_empty())
+            .map(|(index, (club, _))| (club.id.clone(), format!("<no id #{index}>")))
             .collect();
-        let normalise = |resolved: std::collections::HashMap<String, Vec<String>>| {
-            resolved
-                .into_iter()
-                .map(|(competition, ids)| {
-                    let ids: Vec<String> = ids
-                        .into_iter()
-                        .map(|id| {
-                            if known.contains(id.as_str()) {
-                                id
-                            } else {
-                                "<no id>".to_string()
-                            }
-                        })
-                        .collect();
-                    (competition, ids)
-                })
-                .collect()
-        };
+        let projected_labels: std::collections::HashMap<String, String> = field
+            .clubs
+            .iter()
+            .enumerate()
+            .filter(|(_, club)| club.anonymous)
+            .map(|(index, club)| (club.id.clone(), format!("<no id #{index}>")))
+            .collect();
+        let normalise =
+            |labels: &std::collections::HashMap<String, String>,
+             resolved: std::collections::HashMap<String, Vec<String>>| {
+                resolved
+                    .into_iter()
+                    .map(|(competition, ids)| {
+                        let ids: Vec<String> = ids
+                            .into_iter()
+                            .map(|id| labels.get(&id).cloned().unwrap_or(id))
+                            .collect();
+                        (competition, ids)
+                    })
+                    .collect()
+            };
         (
             normalise(
+                &built_labels,
                 super::super::competition_def::resolve_definition_participants(
                     &file,
                     &super::super::CompetitionField::of_world(&world),
@@ -5435,10 +5443,9 @@ colors:
                 ),
             ),
             normalise(
+                &projected_labels,
                 super::super::competition_def::resolve_definition_participants(
-                    &file,
-                    &super::super::competition_field_of_package(package),
-                    basis,
+                    &file, &field, basis,
                 ),
             ),
         )
@@ -5653,6 +5660,92 @@ colors:
         );
     }
 
+    /// Given two clubs without an id among clubs with one
+    /// When a cup takes everyone of their nation
+    /// Then each anonymous club is in the field at the position it has in the package, on the
+    ///      projection and on the built world: swapping the two would show
+    #[test]
+    fn the_projection_keeps_each_club_without_an_id_where_the_package_lists_it() {
+        let package = WorldPackage {
+            teams: vec![
+                fixture_club("", "ENG", [500, 500]),
+                fixture_club("a", "ENG", [400, 400]),
+                fixture_club("", "ENG", [300, 300]),
+                fixture_club("b", "ENG", [200, 200]),
+            ],
+            competitions: fixture_competitions(serde_json::json!([
+                {"id":"all","name":"All","type":"Cup","scope":"Domestic","format":{"kind":"Knockout"},
+                 "participants":{"selector":{"kind":"allInCountry","country":"ENG"}}}
+            ])),
+            ..Default::default()
+        };
+
+        assert_projection_matches_the_built_world("two clubs without an id", &package);
+        let (built, projected) = participants_both_ways(&package);
+        assert_eq!(projected["all"], ["<no id #0>", "a", "<no id #2>", "b"]);
+        assert_eq!(built["all"], projected["all"]);
+    }
+
+    /// Known issue #1312, still happening: a club without an id ranks by its rolled reputation on
+    /// the built world (its generated id is not in the authored map), so which field it lands in
+    /// changes between builds, while the projection ranks it by the middle of its range. Packages
+    /// with such a club already fail validation (`missingId`). When #1312 is fixed this test is
+    /// deleted, and `the_projection_keeps_each_club_without_an_id_where_the_package_lists_it` gains
+    /// a ranked selector.
+    #[test]
+    fn known_issue_1312_a_club_without_an_id_is_ranked_by_its_roll_on_the_built_world() {
+        use rand::SeedableRng;
+        let package = WorldPackage {
+            teams: vec![
+                fixture_club("", "ENG", [0, 1000]),
+                fixture_club("authored", "ENG", [600, 600]),
+            ],
+            competitions: fixture_competitions(serde_json::json!([
+                {"id":"best","name":"B","type":"Cup","scope":"Domestic","format":{"kind":"Knockout"},
+                 "participants":{"selector":{"kind":"topByReputation","country":"ENG","count":1}}}
+            ])),
+            ..Default::default()
+        };
+        let file = crate::generator::CompetitionDefinitionFile {
+            format_version: crate::generator::SUPPORTED_DEFINITION_FORMAT_VERSION,
+            competitions: package.competitions.clone(),
+        };
+        let authored = crate::generator::authored_reputations(&package);
+        let basis = crate::generator::ReputationBasis::Authored(&authored);
+
+        let projected = super::super::competition_def::resolve_definition_participants(
+            &file,
+            &super::super::competition_field_of_package(&package),
+            basis,
+        );
+        assert_eq!(
+            projected["best"],
+            ["authored"],
+            "the middle of 0..1000 is below 600"
+        );
+
+        let built_top_is_the_anonymous_club = |seed: u64| {
+            let world = crate::generator::build_world_data_from_package_with_rng(
+                &package,
+                None,
+                &crate::generator::DefinitionSources::embedded_only(),
+                &mut rand::rngs::StdRng::seed_from_u64(seed),
+            );
+            let anonymous_id = world.teams[0].id.clone();
+            let built = super::super::competition_def::resolve_definition_participants(
+                &file,
+                &super::super::CompetitionField::of_world(&world),
+                basis,
+            );
+            built["best"] == [anonymous_id]
+        };
+        let wins: Vec<bool> = (0..40).map(built_top_is_the_anonymous_club).collect();
+        assert!(
+            wins.iter().any(|won| *won) && wins.iter().any(|won| !*won),
+            "the built world's pick changes with the roll (#1312): {wins:?}"
+        );
+    }
+
     /// Given clubs of a nation the package never declares and the catalog does not know
     /// When a region cup selects everyone in the region that nation falls into
     /// Then the nation's clubs are in that region on the projection exactly as in the built world:
@@ -5681,32 +5774,63 @@ colors:
         );
     }
 
-    /// Given a stack of two packages, the second a patch that adds clubs to a nation of the first
+    /// Given a stack of two packages, the second a patch with metadata that overrides a club of the
+    ///       first (moving it to another nation) and adds clubs
     /// When the merged stack is validated on the projection and on the built world
-    /// Then the verdicts and participants are identical
+    /// Then the merge has no problems and carries the patch's version of the club, and the verdicts
+    ///      and participants are identical
     #[test]
     fn the_projection_gives_the_built_worlds_verdict_on_a_patch_stack() {
+        let meta = |id: &str, package_type: &str| WorldMetaDef {
+            id: id.to_string(),
+            name: id.to_string(),
+            package_type: package_type.to_string(),
+            ..Default::default()
+        };
         let base = WorldPackage {
+            meta: Some(meta("base", "database")),
             teams: vec![
                 fixture_club("a", "ENG", [800, 800]),
                 fixture_club("b", "ENG", [700, 700]),
             ],
             competitions: fixture_competitions(serde_json::json!([
                 {"id":"eng","name":"E","type":"League","scope":"Domestic","countryId":"ENG",
-                 "format":{"kind":"LeagueTable"},"participants":{"selector":{"kind":"allInCountry","country":"ENG"}}}
+                 "format":{"kind":"LeagueTable"},"participants":{"selector":{"kind":"allInCountry","country":"ENG"}}},
+                {"id":"esp","name":"S","type":"League","scope":"Domestic","countryId":"ESP",
+                 "format":{"kind":"LeagueTable"},"participants":{"selector":{"kind":"allInCountry","country":"ESP"}}}
             ])),
             ..Default::default()
         };
         let patch = WorldPackage {
+            meta: Some(meta("patch", "patch")),
             teams: vec![
+                // overrides the base's club `a`: it now plays in Spain, at a different reputation
+                fixture_club("a", "ESP", [300, 300]),
                 fixture_club("c", "ENG", [900, 900]),
                 fixture_club("d", "ESP", [500, 500]),
             ],
             ..Default::default()
         };
-        let (merged, _stack_errors) = merge_world_packages(vec![base, patch]);
+        let (merged, stack_errors) = merge_world_packages(vec![base, patch]);
 
+        assert!(stack_errors.is_empty(), "{stack_errors:?}");
+        let overridden = merged
+            .teams
+            .iter()
+            .find(|team| team.id == "a")
+            .expect("club a");
+        assert_eq!(
+            overridden.country, "ESP",
+            "the patch's version of the club wins"
+        );
+        assert_eq!(overridden.reputation_range, Some([300, 300]));
         assert_projection_matches_the_built_world("patch stack", &merged);
+        let (_, projected) = participants_both_ways(&merged);
+        assert_eq!(
+            projected["esp"].len(),
+            2,
+            "club a is a Spanish club after the patch: {projected:?}"
+        );
     }
 
     /// Given a package of 6 nations x 14 clubs with spread reputations, a league per nation, a

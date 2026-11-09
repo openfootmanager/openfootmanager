@@ -1094,6 +1094,11 @@ fn regions_from_package<'a>(
 /// A club with no id is an anonymous entrant: the builder gives it a generated id nothing can name,
 /// so here it carries a placeholder that equals no authored id (it is lengthened until it does not)
 /// and is kept out of the ids a definition may reference.
+///
+/// Known divergence (#1312): the built world ranks such a club by its rolled reputation, which its
+/// generated id keeps out of the authored map, and breaks ties by that random id; here it ranks by
+/// the middle of its range and by the placeholder. A package with such a club already fails
+/// validation (`missingId`), and only a ranked selector can tell the two apart.
 pub(super) fn competition_field_of_package(package: &package::WorldPackage) -> CompetitionField {
     let authored_ids: HashSet<&str> = package.teams.iter().map(|team| team.id.as_str()).collect();
     let nations: Vec<String> = package
