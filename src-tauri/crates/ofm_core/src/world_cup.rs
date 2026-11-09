@@ -2114,6 +2114,59 @@ mod tests {
         }
     }
 
+    /// Given a drawn first knockout round, when its latest tie is postponed, then the projected
+    /// final and the shared blackout both extend by the same delay.
+    #[test]
+    fn a_postponed_knockout_tie_extends_the_finals_blackout() {
+        let mut game = empty_game();
+        schedule_world_cup(&mut game, kickoff(2030), &FORMAT_48);
+        let cup = game
+            .competitions
+            .iter_mut()
+            .find(|c| is_world_cup_competition(c))
+            .unwrap();
+        let entrants = crate::group_stage::knockout_qualifiers(cup);
+        let last_group = cup.fixtures.iter().map(|f| f.date.as_str()).max().unwrap();
+        let first_round = crate::schedule::date_str_to_utc(last_group).unwrap()
+            + chrono::Duration::days(i64::from(cup.rules.knockout_round_gap_days));
+        crate::schedule::seed_knockout_round(
+            cup,
+            &entrants,
+            first_round,
+            FixtureCompetition::InternationalNation,
+        );
+        let initial = finals_period(cup).unwrap();
+        let last_id = cup
+            .knockout_rounds
+            .last()
+            .unwrap()
+            .fixture_ids
+            .iter()
+            .max_by_key(|id| {
+                cup.fixtures
+                    .iter()
+                    .find(|f| &f.id == *id)
+                    .unwrap()
+                    .date
+                    .clone()
+            })
+            .unwrap()
+            .clone();
+        let fixture = cup.fixtures.iter_mut().find(|f| f.id == last_id).unwrap();
+        let old_date = chrono::NaiveDate::parse_from_str(&fixture.date, "%Y-%m-%d").unwrap();
+        fixture.date = (old_date + chrono::Duration::days(5)).to_string();
+        let revised = finals_period(cup).unwrap();
+        assert_eq!(revised.0, initial.0);
+        assert_eq!(revised.1, initial.1 + chrono::Duration::days(5));
+        let blackout = crate::national_team::international_blackout_around(
+            &game.competitions,
+            kickoff(2030).date_naive(),
+        );
+        for offset in 1..=5 {
+            assert!(blackout.contains(&(initial.1 + chrono::Duration::days(offset))));
+        }
+    }
+
     /// Every World Cup competition in the live game must already hold exactly what the
     /// load-time backfill would give it, so a live game and its reload cannot disagree.
     fn assert_calendars_match_the_backfill(game: &Game) {
