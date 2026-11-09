@@ -223,17 +223,16 @@ mod tests {
         rate(stats, &kept(position)) - rate(stats, &appearance(position))
     }
 
-    /// Given a clean sheet and an outfielder who stood in goal for exactly the minimum of it, or
-    /// one minute less,
+    /// Given a clean sheet and an outfielder who stood in goal for 60 minutes, or for 59 (literal
+    /// inputs: the boundary itself is what is pinned, not a constant read back),
     /// When both are rated,
     /// Then the first gets the goalkeeper's bonus and the second only what his position gets (a
     /// defender's, or nothing for a midfielder): the bonus follows the minutes in goal.
     #[test]
     fn the_clean_sheet_bonus_follows_the_minutes_in_goal() {
-        let goalkeepers = clean_sheet_mark(&in_goal(MIN_CLEAN_SHEET_MINUTES), Position::Defender);
-        let defender = clean_sheet_mark(&in_goal(MIN_CLEAN_SHEET_MINUTES - 1), Position::Defender);
-        let midfielder =
-            clean_sheet_mark(&in_goal(MIN_CLEAN_SHEET_MINUTES - 1), Position::Midfielder);
+        let goalkeepers = clean_sheet_mark(&in_goal(60), Position::Defender);
+        let defender = clean_sheet_mark(&in_goal(59), Position::Defender);
+        let midfielder = clean_sheet_mark(&in_goal(59), Position::Midfielder);
 
         assert!((goalkeepers - GOALKEEPER_CLEAN_SHEET_BONUS).abs() < 1e-5);
         assert!((defender - DEFENDER_CLEAN_SHEET_BONUS).abs() < 1e-5);
@@ -248,14 +247,8 @@ mod tests {
     fn standing_in_goal_for_most_of_it_starts_at_the_threshold() {
         for position in [Position::Defender, Position::Goalkeeper] {
             let there = appearance(position);
-            assert!(in_goal_for_most_of_it(
-                &in_goal(MIN_CLEAN_SHEET_MINUTES),
-                &there
-            ));
-            assert!(!in_goal_for_most_of_it(
-                &in_goal(MIN_CLEAN_SHEET_MINUTES - 1),
-                &there
-            ));
+            assert!(in_goal_for_most_of_it(&in_goal(60), &there));
+            assert!(!in_goal_for_most_of_it(&in_goal(59), &there));
         }
     }
 
