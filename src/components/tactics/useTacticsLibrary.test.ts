@@ -571,6 +571,49 @@ describe("useTacticsLibrary saving and applying the whole tactic (#1189)", () =>
   });
 
   /**
+   * Given a tactic save and its recovery reload both fail
+   * When the player saves a tactic
+   * Then the previous library is restored and the save failure is reported.
+   */
+  it("restores the library when both the save and recovery reload fail", async () => {
+    let lists = 0;
+    const failure = new Error("disk full");
+    mockedInvoke.mockReset();
+    mockedInvoke.mockImplementation(async (command: string) => {
+      if (command === "list_custom_tactics") {
+        if (++lists > 1) throw new Error("reload failed");
+        return [savedTactic];
+      }
+      if (command === "legacy_tactics_import_pending") return false;
+      if (command === "save_current_tactic") throw failure;
+      return { modified: false };
+    });
+    const onWriteError = vi.fn();
+    const { result } = renderHook(() =>
+      useTacticsLibrary({
+        gameState: careerGame,
+        formation: "4-4-2",
+        activePlayStyle: "Balanced",
+        initialPreset: null,
+        onApplyPreset: vi.fn(),
+        onGameUpdate: vi.fn(),
+        onWriteError,
+        onWriteSaved: vi.fn(),
+      }),
+    );
+    await waitFor(() => expect(customIds(result)).toEqual([savedTactic.id]));
+
+    let outcome: boolean | undefined;
+    await act(async () => {
+      outcome = await result.current.handleSaveTactic();
+    });
+
+    expect(outcome).toBe(false);
+    expect(onWriteError).toHaveBeenCalledWith(failure);
+    expect(customIds(result)).toEqual([savedTactic.id]);
+  });
+
+  /**
    * Given a save that accepts a made tactic
    * When the player makes one
    * Then the screen is told a write saved (so it drops an earlier alert), and no error is reported.

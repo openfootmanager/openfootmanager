@@ -153,7 +153,10 @@ export function useTacticsLibrary({
               // save has it.
               accepted = false;
               if (!stale()) onWriteError(error);
-              return listCustomTactics();
+              return listCustomTactics().catch(() => {
+                if (!stale()) setCustomTactics(customTactics);
+                return null;
+              });
             }),
       )
       .then((saved) => {
