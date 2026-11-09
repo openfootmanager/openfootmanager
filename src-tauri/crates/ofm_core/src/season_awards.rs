@@ -121,6 +121,32 @@ fn matches_played_by_club<'a>(
     played
 }
 
+/// A departure does not change the share of his former club's season he played. The saved
+/// movement ledger covers transfers, loans and releases; only legacy records without that
+/// membership evidence fall back to the division's longest season.
+fn player_club_matches(
+    player: &Player,
+    division: Option<&League>,
+    played: &std::collections::HashMap<&str, u32>,
+) -> u32 {
+    player
+        .team_id
+        .as_deref()
+        .and_then(|club| played.get(club).copied())
+        .or_else(|| {
+            division.and_then(|_| {
+                player
+                    .movement_history
+                    .iter()
+                    .rev()
+                    .filter_map(|movement| movement.from_team_id.as_deref())
+                    .find_map(|club| played.get(club).copied())
+            })
+        })
+        .or_else(|| division.and_then(|_| played.values().copied().max()))
+        .unwrap_or(0)
+}
+
 fn build_player_award_contexts<'a>(
     game: &'a Game,
     division: Option<&League>,
@@ -141,13 +167,8 @@ fn build_player_award_contexts<'a>(
                 return None;
             }
             let (team_id, team_name) = resolve_team_info(game, player);
-            let club_matches_played = matches_played_by_club
-                .get(team_id.as_str())
-                .copied()
-                // A departed player's new club is outside this table. He still needs a
-                // season's share of this division's matches, rather than only the floor.
-                .or_else(|| division.and_then(|_| matches_played_by_club.values().copied().max()))
-                .unwrap_or(0);
+            let club_matches_played =
+                player_club_matches(player, division, &matches_played_by_club);
 
             Some(PlayerAwardContext {
                 player,
