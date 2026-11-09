@@ -5,7 +5,7 @@
 // pre-match screen; the match then starts and goes live. Each `it` is one step of the player's
 // path, so a red night names the step that broke.
 import { goToThePreMatchScreen, startCareerToDashboard } from "../helpers/career.mjs";
-import { buttonNamed, clickWhenReady } from "../helpers/ui.mjs";
+import { buttonNamed, clickWhenReady, xpathLiteral } from "../helpers/ui.mjs";
 
 // What the Tactics screen was changed to, read back for the later steps.
 const edit = { formation: "", playStyle: "" };
@@ -61,9 +61,24 @@ async function chooseAnotherOption(label) {
   return picked;
 }
 
-/** An XPath condition: the element's text contains `text`, whatever its case. */
-const containsIgnoringCase = (text) =>
-  `contains(translate(normalize-space(.), "ABCDEFGHIJKLMNOPQRSTUVWXYZ", "abcdefghijklmnopqrstuvwxyz"), "${text.toLowerCase()}")`;
+/**
+ * The line under the player's own club name in the pre-match header, "4-3-3 · Possession".
+ *
+ * The header shows both sides, home on the left and away on the right, and either can be the
+ * player's, so the side is found by name: the first tab is labelled with the player's club (the
+ * opponent's tab follows it), and the line is the second paragraph of the block naming that club.
+ * Searching the whole page would also read the opponent's line.
+ */
+async function ownSideLine() {
+  const ownTab = $(
+    '//button[starts-with(normalize-space(.), "Opponent")]/preceding-sibling::button[1]',
+  );
+  await ownTab.waitForDisplayed({ timeout: 30_000 });
+  // The DOM's text: the tab is drawn in capitals by CSS, and the header's name is not.
+  const club = String(await ownTab.getProperty("textContent")).trim();
+  expect(club).not.toBe("");
+  return $(`//header//div[p[1][normalize-space(.)=${xpathLiteral(club)}]]/p[2]`);
+}
 
 describe("flow 2: a tactics edit, then the match", () => {
   it("starts a career and reaches the dashboard", startCareerToDashboard);
@@ -82,13 +97,26 @@ describe("flow 2: a tactics edit, then the match", () => {
     await clickWhenReady(buttonNamed("Home"));
     await goToThePreMatchScreen();
 
-    // The pre-match header names the side's formation and style, "4-4-2 · Defensive".
-    // Leaf elements only: an ancestor contains whatever its descendants say.
-    await $(`//*[not(*) and contains(normalize-space(.), "${edit.formation}")]`).waitForDisplayed({
-      timeout: 30_000,
-    });
-    await $(`//*[not(*) and ${containsIgnoringCase(edit.playStyle)}]`).waitForDisplayed({
-      timeout: 10_000,
+    // The player's own side of the pre-match header names its formation and style, and only that
+    // side counts: the opponent's line is on the same page.
+    const line = await ownSideLine();
+    await line.waitForDisplayed({ timeout: 30_000 });
+    let shown = "";
+    await browser.waitUntil(
+      async () => {
+        shown = await textOf(line);
+        const lower = shown.toLowerCase();
+        return (
+          lower.includes(edit.formation.toLowerCase()) &&
+          lower.includes(edit.playStyle.toLowerCase())
+        );
+      },
+      {
+        timeout: 10_000,
+        timeoutMsg: `the player's side never showed ${edit.formation} and ${edit.playStyle}`,
+      },
+    ).catch((error) => {
+      throw new Error(`${error.message}; it shows "${shown}"`);
     });
   });
 
