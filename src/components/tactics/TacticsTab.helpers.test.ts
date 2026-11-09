@@ -3,13 +3,11 @@ import type { PlayerData } from "../../store/gameStore";
 import { createPositionTable } from "../../lib/positionTable";
 import type { FamiliarityTable } from "../../hooks/useFamiliarity";
 import type { Familiarity } from "../../store/generated/Familiarity";
-import { pendingFamiliarityTable } from "../../test-utils/familiarity";
 import { cannedPositionTable } from "../../test-utils/positionTable";
 import {
   buildTacticsRoster,
   countOutOfPositionPlayers,
   filterAndSortTacticsPlayers,
-  resolveStartingXiIds,
 } from "./TacticsTab.helpers";
 
 const makePlayer = (
@@ -71,82 +69,6 @@ const makePlayer = (
   transfer_offers: [],
   traits: [],
   ...overrides,
-});
-
-describe("resolveStartingXiIds", () => {
-  it("prefers exact slot matches when filling pending tactics slots", () => {
-    const availablePlayers = [
-      makePlayer("gk", "Goalkeeper"),
-      makePlayer("lb", "Left Back", {
-        natural_position: "Left Back",
-        attributes: {
-          pace: 55,
-          stamina: 55,
-          strength: 55,
-          agility: 55,
-          passing: 55,
-          shooting: 40,
-          tackling: 68,
-          dribbling: 50,
-          defending: 68,
-          positioning: 62,
-          vision: 52,
-          decisions: 58,
-          composure: 56,
-          aggression: 58,
-          teamwork: 60,
-          leadership: 50,
-          handling: 10,
-          reflexes: 10,
-          aerial: 10,
-        },
-      }),
-      makePlayer("cb1", "Center Back", {
-        natural_position: "Center Back",
-        attributes: {
-          pace: 70,
-          stamina: 70,
-          strength: 74,
-          agility: 62,
-          passing: 62,
-          shooting: 42,
-          tackling: 78,
-          dribbling: 52,
-          defending: 80,
-          positioning: 74,
-          vision: 58,
-          decisions: 70,
-          composure: 68,
-          aggression: 71,
-          teamwork: 68,
-          leadership: 60,
-          handling: 10,
-          reflexes: 10,
-          aerial: 10,
-        },
-      }),
-      makePlayer("cb2", "Center Back"),
-      makePlayer("rb", "Right Back", { natural_position: "Right Back" }),
-      makePlayer("m1", "Midfielder"),
-      makePlayer("m2", "Midfielder"),
-      makePlayer("m3", "Midfielder"),
-      makePlayer("m4", "Midfielder"),
-      makePlayer("f1", "Forward"),
-      makePlayer("f2", "Forward"),
-    ];
-    const playersById = new Map(availablePlayers.map((player) => [player.id, player]));
-
-    const ids = resolveStartingXiIds({
-      availablePlayers,
-      positionTable: cannedPositionTable(),
-      formation: "4-4-2",
-      pendingStartingXiIds: ["gk"],
-      playersById,
-      savedStartingXiIds: [],
-    });
-
-    expect(ids[1]).toBe("lb");
-  });
 });
 
 describe("the tactics roster and its lists, by the backend's position table", () => {
@@ -234,85 +156,6 @@ describe("the tactics roster and its lists, by the backend's position table", ()
         ),
       ).toBe(1);
       expect(countOutOfPositionPlayers(xi, slots, cannedPositionTable())).toBe(0);
-    });
-
-    /**
-     * Given a pool of midfielders in which only the lowest-rated, last-named one is the backend's
-     *       natural goalkeeper, and no saved lineup
-     * When the lineup is resolved with that table
-     * Then he takes the goalkeeper slot: the backend's grade orders the auto-fill.
-     */
-    it("fills a slot by the backend's grade", () => {
-      const weak = { ...makePlayer("zz-keeper", "Midfielder").attributes, pace: 20, passing: 20 };
-      const availablePlayers = [
-        ...Array.from({ length: 11 }, (_, index) => makePlayer(`m${index}`, "Midfielder")),
-        makePlayer("zz-keeper", "Midfielder", { attributes: weak, condition: 50 }),
-      ];
-      const playersById = new Map(availablePlayers.map((player) => [player.id, player]));
-
-      const ids = resolveStartingXiIds({
-        availablePlayers,
-        positionTable: cannedPositionTable(),
-        familiarity: byPlayer({ "zz-keeper": "natural" }),
-        formation: "4-4-2",
-        pendingStartingXiIds: null,
-        playersById,
-        savedStartingXiIds: [],
-      });
-
-      expect(ids[0]).toBe("zz-keeper");
-    });
-
-    /**
-     * Given a pending lineup of one player, and the familiarity not arrived
-     * When the lineup is resolved
-     * Then only that player is drawn: the rest is not filled by a grade that is not there.
-     */
-    it("fills nothing of a pending lineup before the familiarity has loaded", () => {
-      const availablePlayers = Array.from({ length: 12 }, (_, index) =>
-        makePlayer(`m${index}`, "Midfielder"),
-      );
-      const playersById = new Map(availablePlayers.map((player) => [player.id, player]));
-
-      const ids = resolveStartingXiIds({
-        availablePlayers,
-        positionTable: cannedPositionTable(),
-        familiarity: pendingFamiliarityTable(),
-        formation: "4-4-2",
-        pendingStartingXiIds: ["m0"],
-        playersById,
-        savedStartingXiIds: [],
-      });
-
-      expect(ids).toEqual(["m0"]);
-    });
-
-    /**
-     * Given a pending lineup of one player and the same pool, where only the lowest-rated,
-     *       last-named midfielder is graded natural by the backend
-     * When the lineup is resolved with that table
-     * Then he takes the next slot: the pending fill reads the backend's grade too.
-     */
-    it("fills the rest of a pending lineup by the backend's grade", () => {
-      const weak = { ...makePlayer("zz-keeper", "Midfielder").attributes, pace: 20, passing: 20 };
-      const availablePlayers = [
-        ...Array.from({ length: 11 }, (_, index) => makePlayer(`m${index}`, "Midfielder")),
-        makePlayer("zz-keeper", "Midfielder", { attributes: weak, condition: 50 }),
-      ];
-      const playersById = new Map(availablePlayers.map((player) => [player.id, player]));
-
-      const ids = resolveStartingXiIds({
-        availablePlayers,
-        positionTable: cannedPositionTable(),
-        familiarity: byPlayer({ "zz-keeper": "natural" }),
-        formation: "4-4-2",
-        pendingStartingXiIds: ["m0"],
-        playersById,
-        savedStartingXiIds: [],
-      });
-
-      expect(ids[0]).toBe("m0");
-      expect(ids[1]).toBe("zz-keeper");
     });
   });
 });

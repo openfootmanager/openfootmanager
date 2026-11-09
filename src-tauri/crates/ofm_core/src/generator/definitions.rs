@@ -121,11 +121,11 @@ impl UsableDefinition for NamesDefinition {
         // keyed by country names parses and reads perfectly well to its author,
         // while every pool in it is unreachable by lookup — so it is no more
         // usable than one with no names in it at all.
-        if self.pools.iter().any(|(code, pool)| {
-            is_pool_key_usable_as_nationality(code)
-                && !pool.first_names.is_empty()
-                && !pool.last_names.is_empty()
-        }) {
+        if self
+            .pools
+            .iter()
+            .any(|(code, pool)| is_pool_key_usable_as_nationality(code) && pool.is_usable())
+        {
             None
         } else {
             Some("it declares no pool with both first and last names under a country code")
@@ -258,6 +258,15 @@ impl NamesDefinition {
 pub struct NamePool {
     pub first_names: Vec<String>,
     pub last_names: Vec<String>,
+}
+
+impl NamePool {
+    /// Whether a name can be made from this pool: it has both first names and surnames. The one
+    /// rule for every place that picks, merges, validates or warns about a pool; a pool missing
+    /// either half is never used (#1200).
+    pub fn is_usable(&self) -> bool {
+        !self.first_names.is_empty() && !self.last_names.is_empty()
+    }
 }
 
 /// Per-nation inputs to procedural club generation.

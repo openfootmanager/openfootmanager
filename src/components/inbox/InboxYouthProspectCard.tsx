@@ -26,6 +26,8 @@ interface InboxYouthProspectCardProps {
   currentTeamId: string | null;
   language: string;
   t: TFunction;
+  /** A response is on its way to the backend: no other one is sent until it answers. */
+  isActionInFlight: boolean;
   onAction: (messageId: string, actionId: string, optionId?: string) => void;
   onScoutPlayerClick: (playerId: string) => void;
 }
@@ -39,6 +41,7 @@ export default function InboxYouthProspectCard({
   currentTeamId,
   language,
   t,
+  isActionInFlight,
   onAction,
   onScoutPlayerClick,
 }: InboxYouthProspectCardProps): JSX.Element {
@@ -136,6 +139,7 @@ export default function InboxYouthProspectCard({
                 type="button"
                 size="sm"
                 variant={option.id === "discard" ? "outline" : "primary"}
+                disabled={isActionInFlight}
                 onClick={() => onAction(messageId, chooseOptionActionId, option.id)}
               >
                 {option.label}
