@@ -139,19 +139,23 @@ test(
   },
 );
 
-test("a real home is refused even when TMPDIR is forged to contain it", needsAHomeOutsideTheRoots, () => {
-  // tmpdir() follows the caller's TMPDIR, so a boundary taken from it moves to wherever TMPDIR
-  // points. The scratch roots are fixed, whatever the variable says.
-  const home = homeOutsideTheRoots();
-  const saved = process.env.TMPDIR;
-  process.env.TMPDIR = path.dirname(home);
-  try {
-    assert.throws(() => assertIsolated(isolatedEnv(home), ourXvfb), /HOME/);
-  } finally {
-    if (saved === undefined) delete process.env.TMPDIR;
-    else process.env.TMPDIR = saved;
-  }
-});
+test(
+  "a real home is refused even when TMPDIR is forged to contain it",
+  needsAHomeOutsideTheRoots,
+  () => {
+    // tmpdir() follows the caller's TMPDIR, so a boundary taken from it moves to wherever TMPDIR
+    // points. The scratch roots are fixed, whatever the variable says.
+    const home = homeOutsideTheRoots();
+    const saved = process.env.TMPDIR;
+    process.env.TMPDIR = path.dirname(home);
+    try {
+      assert.throws(() => assertIsolated(isolatedEnv(home), ourXvfb), /HOME/);
+    } finally {
+      if (saved === undefined) delete process.env.TMPDIR;
+      else process.env.TMPDIR = saved;
+    }
+  },
+);
 
 test("a Wayland or non-X11 session is refused: the window would open on the desktop", () => {
   const home = scratchHome();
