@@ -549,12 +549,25 @@ const ACADEMY_SHIFT_KEPT: f64 = 1.0;
 pub struct ReputationScale {
     mean: f64,
     sd: f64,
+    /// The mean of the clubs' capped scores ([`REPUTATION_Z_CAP`]). 0 unless the cap clips a skewed
+    /// world: nine clubs at 100 and one at 1000 have one at the cap and nine near -0.3, which
+    /// average to -0.05 rather than 0. An academy shift is taken from this centre, so clipping
+    /// redistributes the intake across clubs and does not move it.
+    capped_mean: f64,
+    /// The variance of the clubs' capped scores: 1 unless the cap clips (or the clubs do not differ,
+    /// when it is 0). It is the share of the shift's variance the clubs actually add.
+    capped_variance: f64,
 }
 
 impl ReputationScale {
     #[cfg(test)]
     pub(super) fn new(mean: f64, sd: f64) -> Self {
-        Self { mean, sd }
+        Self {
+            mean,
+            sd,
+            capped_mean: 0.0,
+            capped_variance: if sd < 1.0 { 0.0 } else { 1.0 },
+        }
     }
 
     /// The scale of a running world made of `clubs`, at the reputations they hold now: the one
@@ -586,7 +599,12 @@ impl ReputationScale {
             })
             .collect();
         if clubs.is_empty() {
-            return Self { mean: 0.0, sd: 0.0 };
+            return Self {
+                mean: 0.0,
+                sd: 0.0,
+                capped_mean: 0.0,
+                capped_variance: 0.0,
+            };
         }
         let count = clubs.len() as f64;
         let mean = clubs.iter().map(|(centre, _)| centre).sum::<f64>() / count;
@@ -595,10 +613,25 @@ impl ReputationScale {
             .map(|(centre, own)| own + (centre - mean).powi(2))
             .sum::<f64>()
             / count;
-        Self {
+        let mut scale = Self {
             mean,
             sd: variance.sqrt(),
-        }
+            capped_mean: 0.0,
+            capped_variance: 0.0,
+        };
+        // The moments of the capped scores, taken at each club's expected reputation: exact for
+        // clubs whose reputation is known, which is every running world's.
+        let capped: Vec<f64> = clubs
+            .iter()
+            .map(|(centre, _)| scale.capped_score(centre.round() as u32))
+            .collect();
+        scale.capped_mean = capped.iter().sum::<f64>() / count;
+        scale.capped_variance = capped
+            .iter()
+            .map(|score| (score - scale.capped_mean).powi(2))
+            .sum::<f64>()
+            / count;
+        scale
     }
 
     /// `reputation` in standard deviations from the world's mean; 0 when the clubs do not differ.
@@ -706,9 +739,10 @@ impl PlayerRoll {
         Self {
             age,
             standard: Some(Standard {
-                shift: INTAKE_CEILING_OFFSET + shift_spread * scale.capped_score(reputation),
+                shift: INTAKE_CEILING_OFFSET
+                    + shift_spread * (scale.capped_score(reputation) - scale.capped_mean),
                 spread_kept: INTAKE_SPREAD_KEPT,
-                absorbed_shift_variance: shift_spread.powi(2),
+                absorbed_shift_variance: shift_spread.powi(2) * scale.capped_variance,
             }),
         }
     }
