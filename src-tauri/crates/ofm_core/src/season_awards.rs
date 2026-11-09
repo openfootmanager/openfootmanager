@@ -789,6 +789,48 @@ mod tests {
         compute_division_season_awards(&game, &division)
     }
 
+    /// Given six rated matches in A and fourteen in B during twenty-match seasons,
+    /// when both divisions rank a young transferred player, then only B qualifies him,
+    /// using B's rating rather than his whole-season rating.
+    #[test]
+    fn rating_awards_use_the_rated_appearances_and_average_from_that_competition() {
+        let player = make_player(
+            "traveller",
+            "Traveller",
+            Some("team2"),
+            Position::Forward,
+            "2006-01-01",
+            PlayerSeasonStats {
+                appearances: 20,
+                rated_appearances: 20,
+                avg_rating: 8.0,
+                ..Default::default()
+            },
+        );
+        let mut value = serde_json::to_value(player).unwrap();
+        value["league_stats_by_competition"] = serde_json::json!({
+            "a": PlayerSeasonStats { appearances: 6, rated_appearances: 6, avg_rating: 9.0, ..Default::default() },
+            "b": PlayerSeasonStats { appearances: 14, rated_appearances: 14, avg_rating: 6.5, ..Default::default() }
+        });
+        let game = make_game(
+            vec![serde_json::from_value(value).unwrap()],
+            vec![make_team("team1", "A FC"), make_team("team2", "B FC")],
+        );
+        let division = |id: &str, club: &str| League {
+            id: id.into(),
+            participant_ids: vec![club.into()],
+            standings: vec![standing_after(club, 20)],
+            ..Default::default()
+        };
+
+        let awards_b = compute_division_season_awards(&game, &division("b", "team2"));
+        assert_eq!(awards_b.player_of_year[0].value, 6.5);
+        assert_eq!(awards_b.young_player[0].value, 6.5);
+        let awards_a = compute_division_season_awards(&game, &division("a", "team1"));
+        assert!(awards_a.player_of_year.is_empty());
+        assert!(awards_a.young_player.is_empty());
+    }
+
     /// Given a 38-match season and a forward who was brilliant in six matches,
     /// when awards are computed, then the regular starter wins Player of the Year.
     #[test]
