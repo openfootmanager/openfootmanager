@@ -2880,6 +2880,7 @@ mod tests {
             waiting_bench_role(&state, id, engine::Side::Away),
             engine::PlayerRole::AttackingFB
         );
+        crate::application::live_session::ROLE_INITIAL_SNAPSHOTS.with(|count| count.set(0));
         crate::application::live_session::ROLE_HANDOFF_PROJECTIONS.with(|count| count.set(0));
         let result = crate::commands::transfers::make_transfer_bid_internal(
             &state,
@@ -2888,6 +2889,8 @@ mod tests {
             1_050_000,
         )
         .unwrap();
+        crate::application::live_session::ROLE_INITIAL_SNAPSHOTS
+            .with(|count| assert_eq!(count.get(), 1));
         crate::application::live_session::ROLE_HANDOFF_PROJECTIONS
             .with(|count| assert_eq!(count.get(), 1));
         assert_eq!(
