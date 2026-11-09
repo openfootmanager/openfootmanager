@@ -674,7 +674,9 @@ fn classify_file(
     package: &mut WorldPackage,
     errors: &mut Vec<PackageError>,
 ) {
-    let Some(map) = value.as_mapping() else {
+    // The file's tree is consumed, not cloned: on a large package it is most of the data, and
+    // copying it (the entries once, then every entry again) was a visible share of opening one.
+    let Value::Mapping(mut map) = value else {
         errors.push(PackageError::new(MISSING_SCHEMA, file));
         return;
     };
@@ -689,17 +691,28 @@ fn classify_file(
 
     // A file holds one entity (its fields at the top level) or a bulk `items`
     // list of entities of the same schema.
-    let mut entities: Vec<Value> = match map.get("items") {
-        Some(Value::Sequence(items)) => items.clone(),
-        _ => vec![value.clone()],
-    };
+    //
     // `ofm-cli add names --append-to` adds an `items` list to a file that already declares
     // `pools` at the top level; both halves are name pools, so neither may be dropped.
-    if schema == "names" && map.contains_key("items") && map.contains_key("pools") {
+    let both_name_halves =
+        schema == "names" && map.contains_key("items") && map.contains_key("pools");
+    let entities: Vec<Value> = if matches!(map.get("items"), Some(Value::Sequence(_))) {
+        let Some(Value::Sequence(items)) = map.remove("items") else {
+            return;
+        };
+        let mut entities = items;
+        if both_name_halves {
+            // `map` no longer holds `items`: what is left is the file's own pools.
+            entities.push(Value::Mapping(map));
+        }
+        entities
+    } else if both_name_halves {
         let mut own_pools = map.clone();
         own_pools.remove("items");
-        entities.push(Value::Mapping(own_pools));
-    }
+        vec![Value::Mapping(map), Value::Mapping(own_pools)]
+    } else {
+        vec![Value::Mapping(map)]
+    };
     for entity in entities {
         classify_entity(&schema, entity, file, package, errors);
     }
@@ -4412,6 +4425,94 @@ colors:
 
         assert!(errors.is_empty(), "{errors:?}");
         assert_eq!(pool_keys(&package), ["BRA", "ENG"]);
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    /// Given a bulk teams file whose middle entry is malformed
+    /// When it is loaded
+    /// Then the entry is reported, its valid siblings still load, and each loaded club's recorded
+    ///      source file is its own: one bad entry neither fails the file nor shifts the sources
+    #[test]
+    fn one_malformed_item_is_reported_and_its_siblings_still_load() {
+        let dir = temp_package();
+        let team = |id: &str| {
+            format!(
+                r##"{{"id":"{id}","name":"{id}","city":"C","country":"ENG","colors":{{"primary":"#000000","secondary":"#ffffff"}}}}"##
+            )
+        };
+        write(
+            &dir,
+            "teams/a.json",
+            &format!(
+                r#"{{"schema":"team","items":[{},{{"id":"bad","name":5}},{}]}}"#,
+                team("fc-a"),
+                team("fc-c")
+            ),
+        );
+        write(
+            &dir,
+            "teams/b.json",
+            &format!(r#"{{"schema":"team","items":[{}]}}"#, team("fc-b")),
+        );
+
+        let (package, errors) = load_world_package_files(&dir);
+
+        let ids: Vec<&str> = package.teams.iter().map(|t| t.id.as_str()).collect();
+        assert_eq!(ids, ["fc-a", "fc-b", "fc-c"]);
+        assert_eq!(
+            package.sources_of("team"),
+            ["teams/a.json", "teams/b.json", "teams/a.json"]
+        );
+        let invalid: Vec<&PackageError> =
+            errors.iter().filter(|e| e.code == INVALID_ENTITY).collect();
+        assert_eq!(invalid.len(), 1, "{errors:?}");
+        assert_eq!(invalid[0].file, "teams/a.json");
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    /// Given a file whose `items` is not a list
+    /// When it is loaded
+    /// Then the whole file is read as one entity, as a single-entity file always was, and its
+    ///      `items` key is not silently dropped from what is parsed
+    #[test]
+    fn a_file_whose_items_is_not_a_list_is_one_entity() {
+        let dir = temp_package();
+        write(
+            &dir,
+            "teams/odd.json",
+            r##"{"schema":"team","id":"fc-a","name":"A","city":"C","country":"ENG","colors":{"primary":"#000000","secondary":"#ffffff"},"items":5}"##,
+        );
+
+        let (package, errors) = load_world_package_files(&dir);
+
+        assert_eq!(package.teams.len(), 1, "{errors:?}");
+        assert_eq!(package.teams[0].id, "fc-a");
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    /// Given a names file whose `items` is not a list and whose `pools` is not a map
+    /// When it is loaded
+    /// Then both halves are read as entities and both are reported, each against this file: the
+    ///      file as written, and its own pools without `items`, as `--append-to` would split it
+    #[test]
+    fn a_names_file_with_non_list_items_and_malformed_pools_reports_both_halves() {
+        let dir = temp_package();
+        write(
+            &dir,
+            "names/odd.json",
+            r#"{ "schema": "names", "pools": 5, "items": 3 }"#,
+        );
+
+        let (package, errors) = load_world_package_files(&dir);
+
+        let invalid: Vec<&PackageError> =
+            errors.iter().filter(|e| e.code == INVALID_ENTITY).collect();
+        assert_eq!(invalid.len(), 2, "{errors:?}");
+        assert!(
+            invalid.iter().all(|e| e.file == "names/odd.json"),
+            "{invalid:?}"
+        );
+        assert!(package.names.is_none(), "neither half is a usable pool set");
         std::fs::remove_dir_all(&dir).ok();
     }
 
