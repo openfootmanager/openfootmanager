@@ -687,6 +687,68 @@ fn saved_roles_of(
         .unwrap_or_default()
 }
 
+/// A club's players, found through the matchday lookups when the caller has them.
+fn club_players_of<'g>(
+    game: &'g Game,
+    lookups: Option<&MatchdayLookups>,
+    team_id: &str,
+) -> Vec<&'g Player> {
+    match lookups {
+        Some(lookups) => lookups
+            .club(game, team_id)
+            .iter()
+            .map(|&position| &game.players[position])
+            .collect(),
+        None => crate::match_day_eligibility::club_players(&game.players, team_id),
+    }
+}
+
+/// The captain and set-piece takers the club has saved.
+fn match_roles_of(game: &Game, team_id: &str) -> MatchRoles {
+    game.teams
+        .iter()
+        .find(|team| team.id == team_id)
+        .map(|team| team.match_roles.clone())
+        .unwrap_or_default()
+}
+
+/// The side the user manages. Only in a live match: watched as a spectator, or played instantly,
+/// nobody would manage it, the screen turns the user's controls off and the AI skips the user's
+/// side, so the AI manages both dugouts, as it does for a delegated match (#1211).
+fn user_side_of(
+    game: &Game,
+    mode: MatchMode,
+    home_team_id: &str,
+    away_team_id: &str,
+) -> Option<Side> {
+    if mode != MatchMode::Live {
+        return None;
+    }
+    let managed = game.manager.team_id.as_deref()?;
+    if managed == home_team_id {
+        Some(Side::Home)
+    } else if managed == away_team_id {
+        Some(Side::Away)
+    } else {
+        None
+    }
+}
+
+/// The AI's profile of a club, from its reputation.
+fn ai_profile_of(game: &Game, team_id: &str) -> AiProfile {
+    let reputation = game
+        .teams
+        .iter()
+        .find(|team| team.id == team_id)
+        .map(|team| team.reputation)
+        .unwrap_or(500);
+    AiProfile {
+        reputation,
+        experience: (reputation / 10).min(100) as u8,
+        personality: derive_personality(reputation, game.manager_of_club(team_id)),
+    }
+}
+
 /// [`create_live_match`] for a matchday that has already found the clubs with a match soon
 /// (`lookups`: where each club's players stand, and who plays again soon).
 fn create_live_match_with(
@@ -709,17 +771,10 @@ fn create_live_match_with(
     let away_team_id = fixture.away_team_id.clone();
 
     // Each club's players are found once and serve its team, its bench and its set-piece takers.
-    let club_of = |team_id: &str| -> Vec<&Player> {
-        match lookups {
-            Some(lookups) => lookups
-                .club(game, team_id)
-                .iter()
-                .map(|&position| &game.players[position])
-                .collect(),
-            None => crate::match_day_eligibility::club_players(&game.players, team_id),
-        }
-    };
-    let (home_club, away_club) = (club_of(&home_team_id), club_of(&away_team_id));
+    let (home_club, away_club) = (
+        club_players_of(game, lookups, &home_team_id),
+        club_players_of(game, lookups, &away_team_id),
+    );
     let squad_players = home_club
         .iter()
         .chain(&away_club)
@@ -731,18 +786,6 @@ fn create_live_match_with(
         build_team_with_bench_from(game, &away_team_id, &away_club, lookups);
     let home_starter_ids = starter_ids(&home_xi);
     let away_starter_ids = starter_ids(&away_xi);
-    let home_match_roles = game
-        .teams
-        .iter()
-        .find(|team| team.id == home_team_id)
-        .map(|team| team.match_roles.clone())
-        .unwrap_or_default();
-    let away_match_roles = game
-        .teams
-        .iter()
-        .find(|team| team.id == away_team_id)
-        .map(|team| team.match_roles.clone())
-        .unwrap_or_default();
     let home_auto_selection = set_piece_takers_among(&starters_among(&home_xi, &home_club));
     let away_auto_selection = set_piece_takers_among(&starters_among(&away_xi, &away_club));
 
@@ -750,12 +793,10 @@ fn create_live_match_with(
         return Err(LIVE_MATCH_EMPTY_SQUAD_ERROR.to_string());
     }
 
-    let config = MatchConfig::default();
-
     let mut match_state = LiveMatchState::new(
         home_xi,
         away_xi,
-        config,
+        MatchConfig::default(),
         home_bench,
         away_bench,
         allows_extra_time,
@@ -763,14 +804,14 @@ fn create_live_match_with(
     apply_saved_match_roles(
         &mut match_state,
         Side::Home,
-        &home_match_roles,
+        &match_roles_of(game, &home_team_id),
         &home_starter_ids,
         home_auto_selection,
     );
     apply_saved_match_roles(
         &mut match_state,
         Side::Away,
-        &away_match_roles,
+        &match_roles_of(game, &away_team_id),
         &away_starter_ids,
         away_auto_selection,
     );
@@ -778,44 +819,12 @@ fn create_live_match_with(
     // The user manages their side only in a live match. Watched as a spectator, or played
     // instantly, nobody else would: the screen turns the user's controls off and the AI skips
     // the user's side, so the AI manages both dugouts, as it does for a delegated match (#1211).
-    let user_side = if mode == MatchMode::Live {
-        game.manager.team_id.as_ref().and_then(|tid| {
-            if *tid == home_team_id {
-                Some(Side::Home)
-            } else if *tid == away_team_id {
-                Some(Side::Away)
-            } else {
-                None
-            }
-        })
-    } else {
-        None
-    };
+    let user_side = user_side_of(game, mode, &home_team_id, &away_team_id);
 
-    // Build AI profiles from team reputation
-    let home_rep = game
-        .teams
-        .iter()
-        .find(|t| t.id == home_team_id)
-        .map(|t| t.reputation)
-        .unwrap_or(500);
-    let away_rep = game
-        .teams
-        .iter()
-        .find(|t| t.id == away_team_id)
-        .map(|t| t.reputation)
-        .unwrap_or(500);
-
-    let ai_home = AiProfile {
-        reputation: home_rep,
-        experience: (home_rep / 10).min(100) as u8,
-        personality: derive_personality(home_rep, game.manager_of_club(&home_team_id)),
-    };
-    let ai_away = AiProfile {
-        reputation: away_rep,
-        experience: (away_rep / 10).min(100) as u8,
-        personality: derive_personality(away_rep, game.manager_of_club(&away_team_id)),
-    };
+    let (ai_home, ai_away) = (
+        ai_profile_of(game, &home_team_id),
+        ai_profile_of(game, &away_team_id),
+    );
 
     let saved_roles = saved_roles_of(game, user_side, &home_team_id, &away_team_id);
 

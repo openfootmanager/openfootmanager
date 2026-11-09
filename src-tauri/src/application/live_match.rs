@@ -359,6 +359,14 @@ pub fn step_live_match(
     minutes: u16,
 ) -> Result<Vec<engine::MinuteResult>, String> {
     log::debug!("[cmd] step_live_match: minutes={}", minutes);
+    // The step that kicks the match off takes the lifecycle gate, so a role save or a swap is
+    // wholly before or wholly after it. A match already under way needs no gate (it cannot
+    // un-start), and the phase is read again by the step itself, so a kick-off that lands
+    // between this look and the step only costs a gate held for nothing.
+    let waiting_at_kick_off = state
+        .with_live_match(|session| session.match_state.phase() == engine::MatchPhase::PreKickOff)
+        .unwrap_or(false);
+    let _operation = waiting_at_kick_off.then(super::live_session::operation);
     let results = state
         .with_live_match(|session| {
             career.check_token(session.career_token)?;
@@ -390,10 +398,14 @@ pub fn apply_match_command(
     command: engine::MatchCommand,
 ) -> Result<engine::MatchSnapshot, String> {
     info!("[cmd] apply_match_command: {:?}", command);
-    // A swap reads the roles the team has saved and a role save reads the slots a swap fills: the
-    // lifecycle gate makes each a whole step against the other. The data locks stay one at a time.
-    let _operation = matches!(command, engine::MatchCommand::PreMatchSwap { .. })
-        .then(super::live_session::operation);
+    // A swap or a change of shape moves players in the waiting match, and a role save reads the
+    // slots they fill: the lifecycle gate makes each a whole step against the other. The data
+    // locks stay one at a time.
+    let _operation = matches!(
+        command,
+        engine::MatchCommand::PreMatchSwap { .. } | engine::MatchCommand::ChangeFormation { .. }
+    )
+    .then(super::live_session::operation);
     let snapshot = state
         .with_live_match(|session| {
             career.check_token(session.career_token)?;
