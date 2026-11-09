@@ -166,7 +166,7 @@ export default function EndOfSeasonScreen({
             <button
               type="button"
               onClick={handleAdvance}
-              disabled={loading}
+              disabled={loading || review.loading}
               className="px-8 py-4 bg-primary-500 text-white rounded-xl font-heading font-bold text-lg uppercase tracking-wider hover:bg-primary-600 transition-all shadow-lg shadow-primary-500/20 hover:shadow-xl hover:shadow-primary-500/30 disabled:opacity-50 flex items-center gap-3 mx-auto"
             >
               {loading ? t("endOfSeason.processing") : t("endOfSeason.startNextSeason")}

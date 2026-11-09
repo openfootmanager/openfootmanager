@@ -107,7 +107,9 @@ describe("EndOfSeasonScreen", () => {
   /** Given a failed division read, when its error is shown, then rollover remains available. */
   it("allows the next season after the division read fails", async () => {
     const game = createEndOfSeasonGame();
-    vi.mocked(invoke).mockRejectedValueOnce(new Error("offline"));
+    vi.mocked(invoke)
+      .mockRejectedValueOnce(new Error("offline"))
+      .mockResolvedValueOnce({ game, summary: { league_name: "", season: 6 } });
     render(
       <EndOfSeasonScreen
         gameState={game}
@@ -118,7 +120,12 @@ describe("EndOfSeasonScreen", () => {
     );
     expect(await screen.findByRole("alert")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "common.retry" })).toBeEnabled();
-    expect(screen.getByRole("button", { name: "Start next season" })).toBeEnabled();
+    const button = screen.getByRole("button", { name: "Start next season" });
+    expect(button).toBeEnabled();
+    fireEvent.click(button);
+    await waitFor(() =>
+      expect(invoke).toHaveBeenCalledWith("advance_to_next_season", { careerToken: 0 }),
+    );
   });
   /** Given a failed division read, when retried, then the followed division is shown. */
   it("reports and retries a failed division read", async () => {
@@ -203,7 +210,8 @@ describe("EndOfSeasonScreen", () => {
     expect(screen.queryByText(/Premier League/)).not.toBeInTheDocument();
   });
   it("shows the awards ceremony after advancing to the next season", async () => {
-    vi.mocked(invoke).mockResolvedValue({
+    const game = createEndOfSeasonGame();
+    const result = {
       game: createEndOfSeasonGame(),
       summary: {
         season: 6,
@@ -224,7 +232,10 @@ describe("EndOfSeasonScreen", () => {
         total_teams: 2,
         season_awards: createAwards(),
       },
-    });
+    };
+    vi.mocked(invoke).mockImplementation(async (command) =>
+      command === "get_followed_division" ? game.league : result,
+    );
 
     const onGameUpdate = vi.fn();
 
@@ -233,7 +244,7 @@ describe("EndOfSeasonScreen", () => {
       const [transition, setTransition] = useState<SeasonTransition | null>(null);
       return (
         <EndOfSeasonScreen
-          gameState={createEndOfSeasonGame()}
+          gameState={game}
           onGameUpdate={onGameUpdate as (game: GameStateData) => void}
           transition={transition}
           onTransitionChange={setTransition}
@@ -242,7 +253,9 @@ describe("EndOfSeasonScreen", () => {
     }
     render(<Holder />);
 
-    fireEvent.click(screen.getByRole("button", { name: "Start next season" }));
+    const button = screen.getByRole("button", { name: "Start next season" });
+    await waitFor(() => expect(button).toBeEnabled());
+    fireEvent.click(button);
 
     expect(await screen.findByText("Awards Ceremony")).toBeInTheDocument();
     expect(screen.getAllByText("Manager of the Season").length).toBeGreaterThan(0);

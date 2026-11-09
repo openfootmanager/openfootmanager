@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { invoke } from "@tauri-apps/api/core";
 import { useState } from "react";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
@@ -109,7 +109,9 @@ describe("the season rollover, on the dashboard", () => {
           },
     );
     render(<Dashboard />);
-    fireEvent.click(screen.getByRole("button", { name: "Start Next Season" }));
+    const button = screen.getByRole("button", { name: "Start Next Season" });
+    await waitFor(() => expect(button).toBeEnabled());
+    fireEvent.click(button);
     expect(await screen.findByText("Season 7")).toBeInTheDocument();
     expect(screen.queryByText("Awards Ceremony")).not.toBeInTheDocument();
     expect(screen.queryByText(/schedule.*released/i)).not.toBeInTheDocument();
@@ -123,7 +125,9 @@ describe("the season rollover, on the dashboard", () => {
   it("shows the awards ceremony and the new-season screen, then Home", async () => {
     render(<Dashboard />);
 
-    fireEvent.click(screen.getByRole("button", { name: "Start Next Season" }));
+    const button = screen.getByRole("button", { name: "Start Next Season" });
+    await waitFor(() => expect(button).toBeEnabled());
+    fireEvent.click(button);
 
     expect(await screen.findByText("Awards Ceremony")).toBeInTheDocument();
     expect(screen.queryByText("Home Tab Mock")).not.toBeInTheDocument();
@@ -144,7 +148,9 @@ describe("the season rollover, on the dashboard", () => {
    */
   it("keeps the ceremony when the player leaves Home and returns", async () => {
     render(<Dashboard />);
-    fireEvent.click(screen.getByRole("button", { name: "Start Next Season" }));
+    const button = screen.getByRole("button", { name: "Start Next Season" });
+    await waitFor(() => expect(button).toBeEnabled());
+    fireEvent.click(button);
     await screen.findByText("Awards Ceremony");
 
     fireEvent.click(screen.getByRole("button", { name: "go to squad" }));
