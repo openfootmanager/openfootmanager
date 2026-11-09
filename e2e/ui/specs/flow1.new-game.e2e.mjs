@@ -42,9 +42,8 @@ describe("flow 1: a new game, to the first match day", () => {
 
   it("lets the player choose a club, and manage it", async () => {
     await $("//*[normalize-space(.)='Choose Your Club']").waitForDisplayed({ timeout: 60_000 });
-    const clubs = await $$("main button");
-    await clubs[0].waitForClickable({ timeout: 60_000 });
-    await clubs[0].click();
+    // A club is selected on arrival; the panel naming it is what the player confirms.
+    await $("//*[normalize-space(.)='Selected Club']").waitForDisplayed({ timeout: 60_000 });
     await clickWhenReady(buttonStartingWith("Manage "));
     await waitForRoute("/dashboard");
   });
