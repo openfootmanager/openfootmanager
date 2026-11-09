@@ -15,7 +15,7 @@ pub(crate) use observation::AiObservation;
 use crate::event::MatchEvent;
 use crate::report::MatchReport;
 use crate::types::{
-    MatchConfig, PlayStyle, PlayerData, PlayerRole, Side, TacticalDial, TeamData, Zone,
+    MatchConfig, PlayStyle, PlayerData, PlayerRole, Position, Side, TacticalDial, TeamData, Zone,
 };
 
 // ---------------------------------------------------------------------------
@@ -250,6 +250,8 @@ pub struct LiveMatchState {
     home: TeamData,
     away: TeamData,
     config: MatchConfig,
+    home_formation_slots: HashMap<String, Vec<(String, Position, bool)>>,
+    away_formation_slots: HashMap<String, Vec<(String, Position, bool)>>,
 
     // Match progress
     phase: MatchPhase,
@@ -338,6 +340,8 @@ impl LiveMatchState {
             home,
             away,
             config,
+            home_formation_slots: HashMap::new(),
+            away_formation_slots: HashMap::new(),
             phase: MatchPhase::PreKickOff,
             current_minute: 0,
             home_score: 0,

@@ -404,6 +404,12 @@
       "B": "B"
     },
     "ordinal": {
+      "place": {
+        "one": "ke-{{n}}",
+        "two": "ke-{{n}}",
+        "few": "ke-{{n}}",
+        "other": "ke-{{n}}"
+      },
       "one": "ke-{{n}}",
       "two": "ke-{{n}}",
       "few": "ke-{{n}}",
@@ -421,12 +427,6 @@
     "listViewTable": "Tabel",
     "listViewCards": "Kartu",
     "noResults": "Tidak ada hasil ditemukan.",
-    "place": {
-      "1": "ke-1",
-      "2": "ke-2",
-      "3": "ke-3",
-      "other": "ke-{{n}}"
-    },
     "pts": "Poin",
     "playedFull": "Main",
     "wonFull": "Menang",
