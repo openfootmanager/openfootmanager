@@ -4098,6 +4098,12 @@
     "winRate": "胜率"
   },
   "worldEditor": {
+    "previewPlaceholder": {
+      "team": "新球队",
+      "player": "新球员",
+      "competition": "新赛事"
+    },
+    "estimatedRating": "估计",
     "positionGroupFilter": {
       "Goalkeeper": "所有门将",
       "Defender": "所有后卫",

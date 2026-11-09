@@ -4098,6 +4098,12 @@
     "winRate": "Úspěšnost"
   },
   "worldEditor": {
+    "previewPlaceholder": {
+      "team": "Nový tým",
+      "player": "Nový hráč",
+      "competition": "Nová soutěž"
+    },
+    "estimatedRating": "odh.",
     "positionGroupFilter": {
       "Goalkeeper": "Všichni brankáři",
       "Defender": "Všichni obránci",
