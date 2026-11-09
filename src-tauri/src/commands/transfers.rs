@@ -654,7 +654,8 @@ mod tests {
             let (started_tx, started_rx) = std::sync::mpsc::channel();
             let worker = state.clone();
             let handle = std::thread::spawn(move || {
-                started_tx.send(()).unwrap();
+                crate::application::live_session::GATE_ATTEMPT
+                    .with(|hook| *hook.borrow_mut() = Some(started_tx));
                 if is_loan {
                     make_loan_offer_internal(
                         &worker,
@@ -670,13 +671,16 @@ mod tests {
                         .map(|_| ())
                 }
             });
-            started_rx.recv().unwrap();
+            let reached_gate = started_rx
+                .recv_timeout(std::time::Duration::from_secs(2))
+                .is_ok();
             std::thread::sleep(std::time::Duration::from_millis(300));
             let before_release = state
                 .get_game(|game| game.players[0].team_id.clone())
                 .unwrap();
             drop(gate);
             handle.join().unwrap().unwrap();
+            assert!(reached_gate, "player move must attempt the lifecycle gate");
             assert_eq!(before_release.as_deref(), Some("team-2"));
             assert_eq!(
                 state

@@ -16,6 +16,7 @@ use std::sync::{Mutex, MutexGuard};
 
 #[cfg(test)]
 thread_local! {
+    pub(crate) static GATE_ATTEMPT: std::cell::RefCell<Option<std::sync::mpsc::Sender<()>>> = const { std::cell::RefCell::new(None) };
     pub(crate) static ROLE_INITIAL_SNAPSHOTS: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
     pub(crate) static ROLE_HANDOFF_PROJECTIONS: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
 }
@@ -23,6 +24,12 @@ thread_local! {
 static OPERATION: Mutex<()> = Mutex::new(());
 
 pub(crate) fn operation() -> MutexGuard<'static, ()> {
+    #[cfg(test)]
+    GATE_ATTEMPT.with(|hook| {
+        if let Some(sender) = hook.borrow_mut().take() {
+            let _ = sender.send(());
+        }
+    });
     OPERATION
         .lock()
         .unwrap_or_else(|poisoned| poisoned.into_inner())

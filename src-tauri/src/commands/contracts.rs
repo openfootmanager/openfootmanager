@@ -1126,11 +1126,14 @@ mod tests {
         let (done_tx, done_rx) = std::sync::mpsc::channel();
         let worker = state.clone();
         let handle = std::thread::spawn(move || {
-            started_tx.send(()).unwrap();
+            crate::application::live_session::GATE_ATTEMPT
+                .with(|hook| *hook.borrow_mut() = Some(started_tx));
             let result = terminate_contract_now_internal(&worker, Career::Active, "player-1");
             done_tx.send(result.is_ok()).unwrap();
         });
-        started_rx.recv().unwrap();
+        let reached_gate = started_rx
+            .recv_timeout(std::time::Duration::from_secs(2))
+            .is_ok();
         let while_held = done_rx
             .recv_timeout(std::time::Duration::from_millis(300))
             .ok();
@@ -1151,6 +1154,7 @@ mod tests {
                 .ok()
         });
         handle.join().unwrap();
+        assert!(reached_gate, "termination must attempt the lifecycle gate");
         assert_eq!(club_while_held.as_deref(), Some("team-1"));
         assert_eq!(
             while_held, None,
