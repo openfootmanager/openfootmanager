@@ -97,6 +97,22 @@ describe("flow 2: a tactics edit, then the match", () => {
     await clickWhenReady(buttonNamed("Home"));
     await goToThePreMatchScreen();
 
+    // BITE: the opponent holds the "chosen" values, while the player's side keeps its real edit.
+    const ownClub = String(
+      await $(
+        '//button[starts-with(normalize-space(.), "Opponent")]/preceding-sibling::button[1]',
+      ).getProperty("textContent"),
+    ).trim();
+    const opponentLine = $(
+      `//header//div[p[2] and not(p[1][normalize-space(.)=${xpathLiteral(ownClub)}])]/p[2]`,
+    );
+    const [opponentFormation, opponentStyle] = (await textOf(opponentLine))
+      .split("·")
+      .map((part) => part.trim());
+    console.log(`BITE: the opponent shows ${opponentFormation} · ${opponentStyle}`);
+    edit.formation = opponentFormation;
+    edit.playStyle = opponentStyle;
+
     // The player's own side of the pre-match header names its formation and style, and only that
     // side counts: the opponent's line is on the same page.
     const line = await ownSideLine();
