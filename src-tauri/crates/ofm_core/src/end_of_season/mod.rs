@@ -1,4 +1,5 @@
 mod club_league;
+mod player_statistics;
 use crate::game::Game;
 use crate::season_awards::compute_division_season_awards;
 use chrono::{DateTime, Datelike, Duration, Utc};
@@ -8,7 +9,6 @@ use domain::league::{
 };
 use domain::manager::Manager;
 use domain::message::*;
-use domain::player::PlayerSeasonStats;
 use domain::staff::{Staff, StaffAttributes, StaffRole};
 use domain::team::{FinancialTransaction, FinancialTransactionKind, TeamSeasonRecord};
 
@@ -1115,11 +1115,7 @@ pub fn process_end_of_season(game: &mut Game) -> EndOfSeasonSummary {
 
     apply_season_end_squad_turnover(game, game.clock.current_date.date_naive(), season);
 
-    for player in game.players.iter_mut() {
-        // Reset stats for next season
-        player.stats = PlayerSeasonStats::default();
-        player.league_stats_by_competition.clear();
-    }
+    player_statistics::reset_for_new_season(game);
 
     // 5b. Convert retired players to unemployed manager/scout candidates, then
     //     ensure the unemployed pools meet the season-end floor.
