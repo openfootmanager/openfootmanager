@@ -4397,6 +4397,25 @@ fn retirees_start_managing_on_the_created_scale_by_their_ability() {
     assert_eq!(reputation_of("mgr_retired_squad"), Some((382, 50, 50)));
 }
 
+/// Given a Belgian retiree, when the season ends, then his scout identity is ready immediately.
+#[test]
+fn created_staff_have_football_identity_from_retirees() {
+    let mut game = make_completed_season_game();
+    let mut retired = retired_this_season_after_thirteen_seasons(&game, "identity", 70);
+    retired.nationality = "BE".into();
+    game.retired_players.push(retired);
+
+    process_end_of_season(&mut game);
+
+    let scout = game
+        .staff
+        .iter()
+        .find(|s| s.id == "staff_retired_scout_identity")
+        .unwrap();
+    assert_eq!(scout.football_nation, "BE");
+    assert_eq!(scout.birth_country.as_deref(), Some("BE"));
+}
+
 #[test]
 fn retiree_scout_judging_attributes_derived_from_player_attrs() {
     let mut game = make_completed_season_game();

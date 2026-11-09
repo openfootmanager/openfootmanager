@@ -1050,6 +1050,7 @@ pub(super) fn generate_random_staff_unattached_from_def(
 
     let mut s = Staff::new(seeded_id(rng), first_name, last_name, dob, role, attributes);
     s.nationality = nationality.to_string();
+    crate::football_identity::initialize_unattached_staff_identity(&mut s);
     s
 }
 
