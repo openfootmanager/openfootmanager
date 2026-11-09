@@ -283,19 +283,8 @@ impl LiveMatchSession {
             self.refit_pre_match_swap(side, &off, &on, slot.as_ref());
             return Ok(());
         }
-        if let MatchCommand::Substitute {
-            side,
-            player_off_id,
-            player_on_id,
-        } = &cmd
-        {
-            let (side, off, on) = (*side, player_off_id.clone(), player_on_id.clone());
-            let slot = self.slot_of(side, &off);
-            self.match_state.apply_command(cmd)?;
-            if let Some(slot) = slot.as_ref() {
-                self.refit_swapped_in_role(side, &on, slot);
-            }
-            return Ok(());
+        if matches!(cmd, MatchCommand::Substitute { .. }) {
+            return self.apply_substitution(cmd);
         }
         if let MatchCommand::ChangeFormation { side, formation } = &cmd {
             let side = *side;
@@ -651,9 +640,27 @@ impl LiveMatchSession {
         }
     }
 
+    fn apply_substitution(&mut self, cmd: MatchCommand) -> Result<(), String> {
+        let MatchCommand::Substitute {
+            side,
+            player_off_id,
+            player_on_id,
+        } = &cmd
+        else {
+            return self.match_state.apply_command(cmd);
+        };
+        let (side, on) = (*side, player_on_id.clone());
+        let slot = self.slot_of(side, player_off_id);
+        self.match_state.apply_command(cmd)?;
+        if let Some(slot) = slot.as_ref() {
+            self.refit_swapped_in_role(side, &on, slot);
+        }
+        Ok(())
+    }
+
     fn apply_ai_command(&mut self, side: Side, cmd: MatchCommand) {
         let formation_changed = matches!(cmd, MatchCommand::ChangeFormation { .. });
-        match self.match_state.apply_command(cmd) {
+        match self.apply_substitution(cmd) {
             Ok(()) if formation_changed => {
                 self.sync_slot_roles(side);
                 self.normalize_formation_roles(side);
