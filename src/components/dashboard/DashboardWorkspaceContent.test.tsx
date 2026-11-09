@@ -7,7 +7,7 @@ import {
   selectDashboardPlayer,
   selectDashboardTeam,
 } from "./dashboardProfileNavigation";
-import { createDashboardTabContentModel } from "./dashboardTabContentModel";
+import { createDashboardTabContentModel, tabFillsWorkspace } from "./dashboardTabContentModel";
 import DashboardWorkspaceContent from "./DashboardWorkspaceContent";
 import { createSeasonContext } from "../../test-utils/factories";
 
@@ -70,8 +70,12 @@ vi.mock("../teamProfile", () => ({
 }));
 
 vi.mock("./DashboardAlerts", () => ({
-  default: ({ onNavigate }: { onNavigate: (tab: string) => void }) => (
-    <button type="button" onClick={() => onNavigate("Inbox")}>
+  default: ({ onNavigate, scrolls }: { onNavigate: (tab: string) => void; scrolls?: boolean }) => (
+    <button
+      type="button"
+      data-scrolls={scrolls ? "true" : undefined}
+      onClick={() => onNavigate("Inbox")}
+    >
       alerts-mock
     </button>
   ),
@@ -265,6 +269,59 @@ function renderWorkspace(
 describe("DashboardWorkspaceContent", () => {
   beforeEach(() => {
     mockedFetchRetiredPlayer.mockReset();
+  });
+
+  /**
+   * Given the Tactics tab, and the Squad tab
+   * When the workspace draws each
+   * Then Tactics fills the workspace and the workspace doesn't scroll (its own regions do), while
+   *      Squad scrolls in the workspace as every other page does.
+   */
+  it("lets the Tactics tab fill the workspace while other tabs scroll in it", () => {
+    const gameState = createGameState();
+    const workspace = (activeTab: string) =>
+      render(
+        <DashboardWorkspaceContent
+          dashboardAlerts={[]}
+          gameState={gameState}
+          profileNavigation={createDashboardProfileNavigationState(activeTab)}
+          dashboardTabContentModel={createDashboardTabContentModel({
+            activeTab,
+            gameState,
+            seasonComplete: false,
+            visitedOnboardingTabs: new Set<string>(),
+            initialMessageId: null,
+            handlers: {
+              onSelectPlayer: vi.fn(),
+              onSelectTeam: vi.fn(),
+              onGameUpdate: vi.fn(),
+              onNavigate: vi.fn(),
+            },
+          })}
+          onNavigate={vi.fn()}
+          onSelectPlayer={vi.fn()}
+          onSelectTeam={vi.fn()}
+          onGameUpdate={vi.fn()}
+          isUnemployed={false}
+        />,
+      );
+
+    const tactics = workspace("Tactics");
+    const tacticsArea = tactics.getByText("Tab Content Tactics").parentElement;
+    expect(tacticsArea).toHaveAttribute("data-fills-workspace", "true");
+    expect(tacticsArea).toHaveClass("overflow-hidden", "flex", "flex-col");
+    expect(tacticsArea).not.toHaveClass("overflow-auto");
+    // The alerts above it scroll themselves, so they cannot squeeze the lineup to a strip.
+    expect(tactics.getByText("alerts-mock")).toHaveAttribute("data-scrolls", "true");
+    tactics.unmount();
+
+    const squad = workspace("Squad");
+    const squadArea = squad.getByText("Tab Content Squad").parentElement;
+    expect(squadArea).not.toHaveAttribute("data-fills-workspace");
+    expect(squadArea).toHaveClass("overflow-auto");
+    expect(squad.getByText("alerts-mock")).not.toHaveAttribute("data-scrolls");
+    expect(tabFillsWorkspace("Tactics")).toBe(true);
+    expect(tabFillsWorkspace("Squad")).toBe(false);
   });
 
   it("renders alerts and tab content when no profile is selected", () => {

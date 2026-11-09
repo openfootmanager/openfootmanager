@@ -47,9 +47,13 @@ pub(crate) fn build_foundation_competitions(game: &Game, division_size: usize) -
                     &format!("catchup/foundations/{}", competition.id),
                     &game_start.format("%Y-%m-%d").to_string(),
                 );
-                crate::catchup::simulate_past_fixtures(
+                let strengths = crate::catchup::club_strengths(
+                    game,
+                    competition.participant_ids.iter().map(String::as_str),
+                );
+                crate::catchup::simulate_past_fixtures_with(
                     &mut competition,
-                    &game.players,
+                    &strengths,
                     game_start,
                     &mut rng,
                 );
@@ -63,7 +67,9 @@ pub(crate) fn build_foundation_competitions(game: &Game, division_size: usize) -
 }
 
 pub fn rebuild_competitions_for_management_date(game: &mut Game, management_date: DateTime<Utc>) {
-    let players = &game.players;
+    // Found before the competitions are borrowed to be rebuilt.
+    let strengths =
+        crate::catchup::club_strengths(game, game.teams.iter().map(|team| team.id.as_str()));
     let seed = game.seed;
     for competition in &mut game.competitions {
         // International tournaments (the World Cup and its qualifying) own a fixed
@@ -98,7 +104,12 @@ pub fn rebuild_competitions_for_management_date(game: &mut Game, management_date
                 &format!("catchup/foundations/{}", competition.id),
                 &management_date.format("%Y-%m-%d").to_string(),
             );
-            crate::catchup::simulate_past_fixtures(competition, players, management_date, &mut rng);
+            crate::catchup::simulate_past_fixtures_with(
+                competition,
+                &strengths,
+                management_date,
+                &mut rng,
+            );
         }
     }
 
@@ -127,9 +138,13 @@ pub fn rebuild_competitions_for_management_date(game: &mut Game, management_date
                 &format!("catchup/foundations/{}", competition.id),
                 &management_date.format("%Y-%m-%d").to_string(),
             );
-            crate::catchup::simulate_past_fixtures(
+            let strengths = crate::catchup::club_strengths(
+                game,
+                competition.participant_ids.iter().map(String::as_str),
+            );
+            crate::catchup::simulate_past_fixtures_with(
                 competition,
-                &game.players,
+                &strengths,
                 management_date,
                 &mut rng,
             );

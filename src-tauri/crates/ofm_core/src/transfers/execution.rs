@@ -464,30 +464,53 @@ pub(super) fn execute_transfer(
 /// here, the AI market's as well as the user's (#1251): left open, they went on with the old club
 /// over a player who is no longer theirs. `accepted_offer_id` is the bid the sale came from, when
 /// it came from one.
+///
+/// When that ends talks the user had opened (a bid, or a loan request) and another club is the
+/// buyer, the user gets one letter for the sale naming that club and its fee (#1256). A sale's fee
+/// is public: it is in the transfer log the news reads. The user's own purchase sends none.
 pub(super) fn close_open_offers_after_sale(
     game: &mut Game,
     player_id: &str,
+    buyer_team_id: &str,
+    fee: u64,
     accepted_offer_id: Option<&str>,
 ) -> Result<(), String> {
     let today = game.clock.current_date.format("%Y-%m-%d").to_string();
+    let user_club_id = game.manager.team_id.clone();
+    let made_by_the_user = |team_id: &str| user_club_id.as_deref() == Some(team_id);
+    let buyer_name = game.team_name_or_id(buyer_team_id);
     let player = game
         .players
         .iter_mut()
         .find(|player| player.id == player_id)
         .ok_or("be.error.playerNotFound")?;
 
+    let mut user_talks_ended = false;
     for offer in &mut player.transfer_offers {
         if Some(offer.id.as_str()) != accepted_offer_id
             && offer.status == TransferOfferStatus::Pending
         {
+            user_talks_ended |= made_by_the_user(&offer.from_team_id);
             close_transfer_offer(offer, TransferOfferStatus::Withdrawn, &today);
         }
     }
 
     for offer in &mut player.loan_offers {
         if offer.status == LoanOfferStatus::Pending {
+            user_talks_ended |= made_by_the_user(&offer.from_team_id);
             close_loan_offer(offer, LoanOfferStatus::Withdrawn, &today);
         }
+    }
+
+    if user_talks_ended && !made_by_the_user(buyer_team_id) {
+        let letter = crate::messages::talks_closed_by_sale_message(
+            player,
+            buyer_team_id,
+            &buyer_name,
+            fee,
+            &today,
+        );
+        crate::inbox::emit(game, letter);
     }
 
     Ok(())
@@ -610,7 +633,7 @@ pub fn process_pending_transfer_registrations(game: &mut Game) {
             }
             execute_transfer(game, &player_id, &buyer_team_id, from_team_id, fee)
                 .map_err(|_| Failure::RegistrationBlocked)?;
-            close_open_offers_after_sale(game, &player_id, Some(&offer_id))
+            close_open_offers_after_sale(game, &player_id, &buyer_team_id, fee, Some(&offer_id))
                 .map_err(|_| Failure::RegistrationBlocked)
         })();
         let failure_reason = registration_result.err();
@@ -792,7 +815,7 @@ fn failed_loan_registration_letter(
         .loan_offers
         .iter()
         .find(|offer| offer.id == offer_id)?;
-    (offer.from_team_id == user_club_id || offer.parent_team_id == user_club_id).then(|| {
+    offer.involves(user_club_id).then(|| {
         crate::messages::loan_registration_failed_message(
             offer,
             player,

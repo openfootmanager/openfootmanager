@@ -1,6 +1,7 @@
 use ofm_core::generator::{
     export_directory_to_ofm, extract_ofm_to_dir, load_world_package, CompetitionDefinition,
     ConfederationDef, CountryDef, NamesDefinition, PlayerDef, StaffDef, TeamDef, WorldMetaDef,
+    WorldPackage,
 };
 use std::path::Path;
 use tauri::Manager as _;
@@ -15,6 +16,17 @@ pub struct PackageIssue {
     pub code: String,
     pub file: String,
     pub params: std::collections::HashMap<String, String>,
+}
+
+/// What validating a project reports: its issues and warnings, and nothing else. The entities stay on
+/// disk; sending them back (10.5 MB on a large package) only to read an issue list was most of Validate's
+/// cost.
+#[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PackageDiagnostics {
+    pub issues: Vec<PackageIssue>,
+    /// Problems that leave the package usable: shown to the author, never blocking.
+    pub warnings: Vec<PackageIssue>,
 }
 
 #[derive(serde::Serialize)]
@@ -86,10 +98,11 @@ pub fn create_world_project(
         .ok_or_else(|| "be.error.invalidPath".to_string())
 }
 
-/// Load an existing package directory for editing.
-#[tauri::command]
-pub fn read_package_project(dir: String) -> Result<PackageProjectData, String> {
-    let path = Path::new(&dir);
+/// Load a project directory the way every editor entry point does: the package, its issues and its
+/// warnings, or a translation key if the directory is not a project the editor can open. One
+/// pipeline, so opening and validating can never disagree about what is wrong with a package.
+fn load_project(dir: &str) -> Result<(WorldPackage, Vec<PackageIssue>, Vec<PackageIssue>), String> {
+    let path = Path::new(dir);
 
     // Anything that is not a directory cannot be walked for entity files, and
     // walking it fails *silently* — the loader simply finds nothing. Naming the
@@ -147,7 +160,13 @@ pub fn read_package_project(dir: String) -> Result<PackageProjectData, String> {
     };
     let warnings = as_issues(ofm_core::generator::package_warnings(&pkg));
     let issues = as_issues(errors);
+    Ok((pkg, issues, warnings))
+}
 
+/// Load an existing package directory for editing.
+#[tauri::command]
+pub fn read_package_project(dir: String) -> Result<PackageProjectData, String> {
+    let (pkg, issues, warnings) = load_project(&dir)?;
     Ok(PackageProjectData {
         meta: pkg.meta.unwrap_or_default(),
         confederations: pkg.confederations,
@@ -162,6 +181,14 @@ pub fn read_package_project(dir: String) -> Result<PackageProjectData, String> {
     })
 }
 
+/// Validate a project directory and return only what is wrong with it. Same loading and the same
+/// refusals as [`read_package_project`], without the entities.
+#[tauri::command]
+pub fn validate_package_project(dir: String) -> Result<PackageDiagnostics, String> {
+    let (_pkg, issues, warnings) = load_project(&dir)?;
+    Ok(PackageDiagnostics { issues, warnings })
+}
+
 /// Persist in-memory edits, writing each entity back to the file it was read from
 /// (`ofm_core::generator::save_package_files` has the rule).
 ///
@@ -170,35 +197,58 @@ pub fn read_package_project(dir: String) -> Result<PackageProjectData, String> {
 /// transactional: a failure partway through leaves the earlier files updated and
 /// the later ones stale. Recovering from that means saving again from the
 /// still-intact in-memory project.
-// One parameter per entity type, matching the `.ofm` package layout — the editor
-// sends every collection in one call, so the argument count tracks the entity
-// count by design.
-#[allow(clippy::too_many_arguments)]
+/// What the editor sends to save. A collection left out is untouched on disk; one sent empty
+/// is written empty. `null` reads as left out, so a client can only empty a collection by
+/// sending `[]`.
+#[derive(serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SavePackageRequest {
+    pub dir: String,
+    #[serde(default)]
+    pub meta: Option<WorldMetaDef>,
+    #[serde(default)]
+    pub confederations: Option<Vec<ConfederationDef>>,
+    #[serde(default)]
+    pub countries: Option<Vec<CountryDef>>,
+    #[serde(default)]
+    pub teams: Option<Vec<TeamDef>>,
+    #[serde(default)]
+    pub players: Option<Vec<PlayerDef>>,
+    #[serde(default)]
+    pub staff: Option<Vec<StaffDef>>,
+    #[serde(default)]
+    pub names: Option<NamesDefinition>,
+    #[serde(default)]
+    pub competitions: Option<Vec<CompetitionDefinition>>,
+}
+
+/// The collections a save wrote. The editor marks a collection clean only if it is listed here.
+#[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SavePackageReceipt {
+    pub saved: Vec<String>,
+    pub files_written: usize,
+}
+
 #[tauri::command]
-pub fn save_package_project(
-    dir: String,
-    meta: WorldMetaDef,
-    confederations: Vec<ConfederationDef>,
-    countries: Vec<CountryDef>,
-    teams: Vec<TeamDef>,
-    players: Vec<PlayerDef>,
-    staff: Vec<StaffDef>,
-    names: NamesDefinition,
-    competitions: Vec<CompetitionDefinition>,
-) -> Result<(), String> {
-    ofm_core::generator::save_package_files(
-        Path::new(&dir),
+pub fn save_package_project(request: SavePackageRequest) -> Result<SavePackageReceipt, String> {
+    let outcome = ofm_core::generator::save_package_files(
+        Path::new(&request.dir),
         &ofm_core::generator::EditedPackage {
-            meta,
-            confederations,
-            countries,
-            teams,
-            players,
-            staff,
-            names,
-            competitions,
+            meta: request.meta,
+            confederations: request.confederations,
+            countries: request.countries,
+            teams: request.teams,
+            players: request.players,
+            staff: request.staff,
+            names: request.names,
+            competitions: request.competitions,
         },
-    )
+    )?;
+    Ok(SavePackageReceipt {
+        saved: outcome.saved.into_iter().map(str::to_string).collect(),
+        files_written: outcome.files_written,
+    })
 }
 
 #[cfg(test)]
@@ -600,6 +650,142 @@ mod tests {
         std::fs::remove_dir_all(&dir).ok();
     }
 
+    /// Given a package and a competition that share the id `premier-league`
+    /// When a logo is picked for each, from two different images
+    /// Then each is copied to a file of its own, and both keep their own bytes: an id is unique
+    ///      only within its kind, so the file is named for the kind too (#1201)
+    #[test]
+    fn same_id_assets_of_two_kinds_do_not_overwrite_each_other() {
+        let dir = temp_project(
+            "asset-kinds",
+            &[
+                ("src/package.png", "package bytes"),
+                ("src/cup.png", "cup bytes"),
+            ],
+        );
+        let path = dir.to_string_lossy().to_string();
+        let source = |name: &str| dir.join("src").join(name).to_string_lossy().to_string();
+
+        let package = copy_package_asset(
+            path.clone(),
+            "package".to_string(),
+            "premier-league".to_string(),
+            source("package.png"),
+        )
+        .expect("the package logo is copied");
+        let cup = copy_package_asset(
+            path.clone(),
+            "competition".to_string(),
+            "premier-league".to_string(),
+            source("cup.png"),
+        )
+        .expect("the competition logo is copied");
+        let read = |rel: &str| std::fs::read_to_string(dir.join(rel)).expect("readable");
+        let (package_bytes, cup_bytes) = (read(&package), read(&cup));
+        std::fs::remove_dir_all(&dir).ok();
+
+        assert_ne!(package, cup);
+        assert_eq!(package_bytes, "package bytes");
+        assert_eq!(cup_bytes, "cup bytes");
+    }
+
+    /// Given a package whose team `team-fc-a` has its logo, named the old way by id alone, at
+    ///      `assets/images/team-fc-a.png`
+    /// When a logo is picked for another team, `fc-a`
+    /// Then the old logo keeps its bytes: the new file goes in the kind's own folder, where no file
+    ///      named the old way can be
+    #[test]
+    fn a_new_asset_does_not_overwrite_one_named_the_old_way() {
+        let dir = temp_project(
+            "asset-legacy",
+            &[
+                ("assets/images/team-fc-a.png", "old logo"),
+                ("src/new.png", "new logo"),
+            ],
+        );
+        let copied = copy_package_asset(
+            dir.to_string_lossy().to_string(),
+            "team".to_string(),
+            "fc-a".to_string(),
+            dir.join("src")
+                .join("new.png")
+                .to_string_lossy()
+                .to_string(),
+        )
+        .expect("the logo is copied");
+        let old = std::fs::read_to_string(dir.join("assets/images/team-fc-a.png")).expect("there");
+        let new = std::fs::read_to_string(dir.join(&copied)).expect("there");
+        std::fs::remove_dir_all(&dir).ok();
+
+        assert_eq!(copied, "assets/images/team/fc-a.png");
+        assert_eq!(old, "old logo");
+        assert_eq!(new, "new logo");
+    }
+
+    /// Given a team whose logo is already in the package's assets folder
+    /// When the author picks that same file again
+    /// Then the file keeps its bytes: copying a file onto itself would truncate it
+    #[test]
+    fn re_picking_the_asset_already_in_place_keeps_its_bytes() {
+        let dir = temp_project("asset-self", &[("logo.png", "logo bytes")]);
+        let path = dir.to_string_lossy().to_string();
+        let first = copy_package_asset(
+            path.clone(),
+            "team".to_string(),
+            "fc-a".to_string(),
+            dir.join("logo.png").to_string_lossy().to_string(),
+        )
+        .expect("the logo is copied");
+
+        let again = copy_package_asset(
+            path.clone(),
+            "team".to_string(),
+            "fc-a".to_string(),
+            dir.join(&first).to_string_lossy().to_string(),
+        )
+        .expect("re-picking succeeds");
+        let bytes = std::fs::read_to_string(dir.join(&again)).expect("readable");
+        std::fs::remove_dir_all(&dir).ok();
+
+        assert_eq!(again, first);
+        assert_eq!(bytes, "logo bytes");
+    }
+
+    /// Given an entity id with a drive prefix, such as `C:evil`
+    /// When an asset is copied for it
+    /// Then the copy is refused: on Windows a drive prefix makes `Path::join` replace the folder it
+    ///      joins to, so the file would land outside the package
+    #[test]
+    fn an_asset_for_an_id_with_a_drive_prefix_is_refused() {
+        let dir = temp_project("asset-drive", &[("logo.png", "logo bytes")]);
+        let result = copy_package_asset(
+            dir.to_string_lossy().to_string(),
+            "team".to_string(),
+            "C:evil".to_string(),
+            dir.join("logo.png").to_string_lossy().to_string(),
+        );
+        std::fs::remove_dir_all(&dir).ok();
+
+        assert_eq!(result, Err("be.error.invalidPath".to_string()));
+    }
+
+    /// Given a picker that names no known kind of entity
+    /// When it asks to copy an asset
+    /// Then the copy is refused, as an unusable id is, rather than writing an unnamespaced file
+    #[test]
+    fn an_asset_for_an_unknown_kind_is_refused() {
+        let dir = temp_project("asset-kind-unknown", &[("logo.png", "logo bytes")]);
+        let result = copy_package_asset(
+            dir.to_string_lossy().to_string(),
+            "stadium".to_string(),
+            "fc-a".to_string(),
+            dir.join("logo.png").to_string_lossy().to_string(),
+        );
+        std::fs::remove_dir_all(&dir).ok();
+
+        assert_eq!(result, Err("be.error.invalidPath".to_string()));
+    }
+
     /// Given a hand-made project with a manifest and one teams file, and no folder for any other kind
     /// When the editor opens it and saves it unchanged
     /// Then the save succeeds and the club is still there once: a save must not need the folders a
@@ -622,25 +808,29 @@ mod tests {
         let path = dir.to_string_lossy().to_string();
         let opened = read_package_project(path.clone()).expect("the project opens");
 
-        let saved = save_package_project(
-            path.clone(),
-            opened.meta,
-            opened.confederations,
-            opened.countries,
-            opened.teams,
-            opened.players,
-            opened.staff,
-            opened.names.unwrap_or(NamesDefinition {
+        let saved = save_package_project(SavePackageRequest {
+            dir: path.clone(),
+            meta: Some(opened.meta),
+            confederations: Some(opened.confederations),
+            countries: Some(opened.countries),
+            teams: Some(opened.teams),
+            players: Some(opened.players),
+            staff: Some(opened.staff),
+            names: Some(opened.names.unwrap_or(NamesDefinition {
                 version: 1,
                 description: String::new(),
                 pools: HashMap::new(),
-            }),
-            opened.competitions,
-        );
+            })),
+            competitions: Some(opened.competitions),
+        });
         let reopened = read_package_project(path);
         std::fs::remove_dir_all(&dir).ok();
 
-        assert_eq!(saved, Ok(()));
+        assert_eq!(
+            saved.map(|receipt| receipt.saved.len()),
+            Ok(8),
+            "all eight collections are acknowledged"
+        );
         let teams: Vec<String> = reopened
             .expect("the saved project opens")
             .teams
@@ -676,21 +866,21 @@ mod tests {
             .filter(|team| team.id == "fc-a")
             .for_each(|team| team.name = "FC A Renamed".to_string());
 
-        save_package_project(
-            path.clone(),
-            opened.meta.clone(),
-            opened.confederations.clone(),
-            opened.countries.clone(),
-            teams,
-            opened.players.clone(),
-            opened.staff.clone(),
-            opened.names.clone().unwrap_or(NamesDefinition {
+        save_package_project(SavePackageRequest {
+            dir: path.clone(),
+            meta: Some(opened.meta.clone()),
+            confederations: Some(opened.confederations.clone()),
+            countries: Some(opened.countries.clone()),
+            teams: Some(teams),
+            players: Some(opened.players.clone()),
+            staff: Some(opened.staff.clone()),
+            names: Some(opened.names.clone().unwrap_or(NamesDefinition {
                 version: 1,
                 description: String::new(),
                 pools: HashMap::new(),
-            }),
-            opened.competitions.clone(),
-        )
+            })),
+            competitions: Some(opened.competitions.clone()),
+        })
         .expect("the save succeeds");
         let reopened = read_package_project(path).expect("the saved project opens");
         std::fs::remove_dir_all(&dir).ok();
@@ -709,6 +899,199 @@ mod tests {
             "no club is declared twice: {:?}",
             reopened.issues.iter().map(|i| &i.code).collect::<Vec<_>>()
         );
+    }
+
+    /// A project with a duplicate club id (an issue) and a name pool missing its surnames (a warning).
+    fn project_with_an_issue_and_a_warning(tag: &str) -> std::path::PathBuf {
+        let team = |name: &str| {
+            format!(
+                r##"{{"id":"fc-a","name":"{name}","city":"C","country":"ENG","colors":{{"primary":"#000000","secondary":"#ffffff"}}}}"##
+            )
+        };
+        temp_project(
+            tag,
+            &[
+                (
+                    "package.json",
+                    r#"{"schema":"world","id":"diag","name":"Diag","version":"1.0.0","license":"CC0-1.0"}"#,
+                ),
+                (
+                    "teams/teams.json",
+                    &format!(
+                        r#"{{"schema":"team","items":[{},{}]}}"#,
+                        team("One"),
+                        team("Two")
+                    ),
+                ),
+                (
+                    "countries/qq.json",
+                    r#"{"schema":"country","id":"QQ","name":"Qland"}"#,
+                ),
+            ],
+        )
+    }
+
+    /// Given a project with an issue and a warning
+    /// When the editor validates it, rather than opens it
+    /// Then it gets the same issues and warnings opening reports, from the same pipeline
+    #[test]
+    fn validating_a_project_reports_what_opening_it_reports() {
+        let dir = project_with_an_issue_and_a_warning("diag-parity");
+        let path = dir.to_string_lossy().to_string();
+
+        let opened = read_package_project(path.clone()).expect("opens");
+        let validated = validate_package_project(path).expect("validates");
+        std::fs::remove_dir_all(&dir).ok();
+
+        let as_json = |issues: &[PackageIssue]| serde_json::to_value(issues).expect("serializes");
+        assert!(!validated.issues.is_empty() && !validated.warnings.is_empty());
+        assert_eq!(as_json(&validated.issues), as_json(&opened.issues));
+        assert_eq!(as_json(&validated.warnings), as_json(&opened.warnings));
+    }
+
+    /// Given a package with a parse error, a duplicate id and a semantic error (a player at a club that
+    ///       does not exist)
+    /// When the editor validates it, and the CLI's `validate` pipeline (load, then package warnings)
+    ///      runs on the same directory
+    /// Then both report the same findings, code for code: the editor's Validate cannot pass what the
+    ///      CLI fails, or the reverse
+    #[test]
+    fn editor_validate_and_cli_validate_report_the_same_findings() {
+        let team = |id: &str| {
+            format!(
+                r##"{{"id":"{id}","name":"T","city":"C","country":"ENG","colors":{{"primary":"#000000","secondary":"#ffffff"}}}}"##
+            )
+        };
+        let dir = temp_project(
+            "diag-cli-parity",
+            &[
+                (
+                    "package.json",
+                    r#"{"schema":"world","id":"parity","name":"Parity","version":"1.0.0","license":"CC0-1.0"}"#,
+                ),
+                (
+                    "teams/teams.json",
+                    &format!(
+                        r#"{{"schema":"team","items":[{},{},{{"id":"fc-bad","name":5}}]}}"#,
+                        team("fc-a"),
+                        team("fc-a")
+                    ),
+                ),
+                (
+                    "countries/qq.json",
+                    r#"{"schema":"country","id":"QQ","name":"Qland"}"#,
+                ),
+                (
+                    "players/players.json",
+                    r#"{"schema":"player","items":[{"id":"p1","name":"P One","club":"ghost-fc","nationality":"ENG","position":"Striker","overall":70}]}"#,
+                ),
+            ],
+        );
+
+        let validated = validate_package_project(dir.to_string_lossy().to_string()).expect("ok");
+        let (pkg, errors) = load_world_package(&dir);
+        let cli_warnings = ofm_core::generator::package_warnings(&pkg);
+        std::fs::remove_dir_all(&dir).ok();
+
+        let key = |code: &str, file: &str, params: &[(String, String)]| {
+            let mut params = params.to_vec();
+            params.sort();
+            format!("{code}|{file}|{params:?}")
+        };
+        let mut editor: Vec<String> = validated
+            .issues
+            .iter()
+            .map(|i| {
+                let mut p: Vec<(String, String)> = i
+                    .params
+                    .iter()
+                    .map(|(k, v)| (k.clone(), v.clone()))
+                    .collect();
+                p.sort();
+                key(&i.code, &i.file, &p)
+            })
+            .collect();
+        let mut cli: Vec<String> = errors
+            .iter()
+            .map(|e| key(&e.code, &e.file, &e.params))
+            .collect();
+        editor.sort();
+        cli.sort();
+        assert_eq!(editor, cli);
+        assert!(
+            validated
+                .issues
+                .iter()
+                .any(|i| i.code.ends_with("duplicateId")),
+            "the duplicate id must be among the findings: {:?}",
+            validated.issues.iter().map(|i| &i.code).collect::<Vec<_>>()
+        );
+        assert!(
+            validated.issues.len() >= 3,
+            "parse error, duplicate id and unknown club are three findings: {:?}",
+            validated.issues.iter().map(|i| &i.code).collect::<Vec<_>>()
+        );
+        let warning_key = |code: &str, file: &str| format!("{code}|{file}");
+        let mut editor_warnings: Vec<String> = validated
+            .warnings
+            .iter()
+            .map(|w| warning_key(&w.code, &w.file))
+            .collect();
+        let mut cli_warning_keys: Vec<String> = cli_warnings
+            .iter()
+            .map(|w| warning_key(&w.code, &w.file))
+            .collect();
+        editor_warnings.sort();
+        cli_warning_keys.sort();
+        assert!(!cli_warning_keys.is_empty(), "the fixture must warn");
+        assert_eq!(editor_warnings, cli_warning_keys);
+    }
+
+    /// Given a project with thousands of entities' worth of data
+    /// When the editor validates it
+    /// Then the response carries diagnostics only: no entity collection crosses the IPC boundary
+    ///      (the open response was 10.5 MB on a large package, only to read its issue list)
+    #[test]
+    fn validating_a_project_returns_no_entities() {
+        let dir = project_with_an_issue_and_a_warning("diag-shape");
+        let validated = validate_package_project(dir.to_string_lossy().to_string()).expect("ok");
+        std::fs::remove_dir_all(&dir).ok();
+
+        let value = serde_json::to_value(&validated).expect("serializes");
+        let mut keys: Vec<&str> = value
+            .as_object()
+            .expect("an object")
+            .keys()
+            .map(String::as_str)
+            .collect();
+        keys.sort_unstable();
+        assert_eq!(keys, vec!["issues", "warnings"]);
+    }
+
+    /// Given a path that is not a package project, and one that resolves to nothing readable
+    /// When the editor validates each
+    /// Then it is refused with the same key opening it gives, so Validate never reports "valid" for
+    ///      something Open would refuse
+    #[test]
+    fn validating_refuses_what_opening_refuses() {
+        let missing = std::env::temp_dir().join("ofm-editor-open-diag-missing");
+        std::fs::remove_dir_all(&missing).ok();
+        let unreadable = temp_project(
+            "diag-unreadable",
+            &[(
+                "package.json",
+                r#"{"schema":"world","id":"u","name":"U","version":"1.0.0","license":"CC0-1.0","formatVersion":99}"#,
+            )],
+        );
+        for dir in [&missing, &unreadable] {
+            let path = dir.to_string_lossy().to_string();
+            assert_eq!(
+                validate_package_project(path.clone()).err(),
+                read_package_project(path).err()
+            );
+        }
+        assert!(read_package_project(unreadable.to_string_lossy().to_string()).is_err());
+        std::fs::remove_dir_all(&unreadable).ok();
     }
 
     /// Given a project whose league lists one of its clubs twice
@@ -1193,17 +1576,17 @@ mod tests {
             known_as: None,
         }];
 
-        save_package_project(
-            dir.to_str().unwrap().to_string(),
-            test_meta(),
-            confederations,
-            countries,
-            teams,
-            players,
-            staff,
-            names,
-            competitions,
-        )
+        save_package_project(SavePackageRequest {
+            dir: dir.to_str().unwrap().to_string(),
+            meta: Some(test_meta()),
+            confederations: Some(confederations),
+            countries: Some(countries),
+            teams: Some(teams),
+            players: Some(players),
+            staff: Some(staff),
+            names: Some(names),
+            competitions: Some(competitions),
+        })
         .unwrap();
 
         let loaded = read_package_project(dir.to_str().unwrap().to_string()).unwrap();
@@ -1330,6 +1713,66 @@ mod tests {
 
         std::fs::remove_dir_all(&base).ok();
         std::fs::remove_file(&secret).ok();
+    }
+
+    /// Given a save request as the frontend sends it, with some collections left out
+    /// When it is deserialized
+    /// Then a left-out collection is `None` and an empty list is `Some(empty)`: the two are not
+    ///      the same request, and `null` reads as left out
+    #[test]
+    fn a_save_request_tells_an_omitted_collection_from_an_empty_one() {
+        let request: SavePackageRequest =
+            serde_json::from_str(r#"{"dir":"/p","teams":[],"players":null,"competitions":[]}"#)
+                .expect("deserializes");
+
+        assert_eq!(request.teams.as_ref().map(Vec::len), Some(0));
+        assert!(request.players.is_none(), "null reads as left out");
+        assert!(request.staff.is_none(), "an absent key is left out");
+        assert!(request.meta.is_none() && request.names.is_none());
+        assert_eq!(request.competitions.as_ref().map(Vec::len), Some(0));
+    }
+
+    /// Given an open project with clubs and players on disk
+    /// When the editor saves a request holding only the clubs
+    /// Then the receipt names the clubs alone and the players' file is byte for byte as before
+    #[test]
+    fn saving_only_the_clubs_acknowledges_only_the_clubs() {
+        let dir = temp_project(
+            "save-only-teams",
+            &[
+                (
+                    "package.json",
+                    r#"{"schema":"world","id":"only","name":"Only","version":"1.0.0","license":"CC0-1.0"}"#,
+                ),
+                (
+                    "teams/teams.json",
+                    r##"{"schema":"team","items":[{"id":"fc-a","name":"FC A","city":"C","country":"ENG","colors":{"primary":"#000000","secondary":"#ffffff"}}]}"##,
+                ),
+            ],
+        );
+        let path = dir.to_string_lossy().to_string();
+        std::fs::create_dir_all(dir.join("players")).expect("dir");
+        let players = r#"{"schema":"player","items":[]}"#;
+        std::fs::write(dir.join("players/p.json"), players).expect("written");
+        let opened = read_package_project(path.clone()).expect("opens");
+
+        let receipt = save_package_project(SavePackageRequest {
+            dir: path,
+            meta: None,
+            confederations: None,
+            countries: None,
+            teams: Some(opened.teams),
+            players: None,
+            staff: None,
+            names: None,
+            competitions: None,
+        })
+        .expect("saves");
+        let after = std::fs::read_to_string(dir.join("players/p.json")).expect("readable");
+        std::fs::remove_dir_all(&dir).ok();
+
+        assert_eq!(receipt.saved, vec!["teams".to_string()]);
+        assert_eq!(after, players);
     }
 }
 
@@ -1517,22 +1960,39 @@ pub fn build_ofm(dir: String, output: String) -> Result<(), String> {
 }
 
 fn sanitize_entity_id(id: &str) -> Result<(), String> {
-    if id.is_empty() || id.contains('/') || id.contains('\\') || id.contains("..") {
+    // `:` too: on Windows a drive prefix (`C:evil`) makes `Path::join` replace the folder it joins to.
+    if id.is_empty() || id.contains(['/', '\\', ':']) || id.contains("..") {
         return Err("be.error.invalidPath".to_string());
     }
     Ok(())
 }
 
-/// Copy a local image file into `<dir>/assets/images/<entity_id>.<ext>` and
-/// return the relative path from the package root (e.g. `assets/images/man-utd.png`).
-/// The destination is namespaced by `entity_id` so two entities picking files
-/// with the same source name cannot overwrite each other.
+/// The entity kinds an asset is picked for, as named in an asset's file name.
+const ASSET_KINDS: [&str; 4] = ["package", "team", "player", "competition"];
+
+/// Copy a local image file into `<dir>/assets/images/<entity_kind>/<entity_id>.<ext>`
+/// and return the relative path from the package root (e.g.
+/// `assets/images/team/man-utd.png`).
+///
+/// The destination is named for the entity, so two entities picking files with
+/// the same source name cannot overwrite each other. It sits in a folder for the
+/// kind because an id is unique only within its kind: a package and its
+/// competition, or a club and a player, may share one, and named by id alone their
+/// images overwrote each other (#1201). A folder rather than a `<kind>-` prefix:
+/// files named the old way, by id alone, sit directly in `assets/images/`, and a
+/// prefixed name could be one of them (a team `team-fc-a`'s old logo is the new
+/// name for a team `fc-a`). No old file is in a kind's folder, since an id cannot
+/// contain `/`, so they all stay where the entities that point at them expect them.
 #[tauri::command]
 pub fn copy_package_asset(
     dir: String,
+    entity_kind: String,
     entity_id: String,
     src_path: String,
 ) -> Result<String, String> {
+    if !ASSET_KINDS.contains(&entity_kind.as_str()) {
+        return Err("be.error.invalidPath".to_string());
+    }
     sanitize_entity_id(&entity_id)?;
 
     let pkg_dir = Path::new(&dir);
@@ -1544,14 +2004,21 @@ pub fn copy_package_asset(
         .unwrap_or("png")
         .to_lowercase();
 
-    let assets_dir = pkg_dir.join("assets").join("images");
+    let assets_dir = pkg_dir.join("assets").join("images").join(&entity_kind);
     std::fs::create_dir_all(&assets_dir).map_err(|e| e.to_string())?;
 
-    let dest_name = format!("{}.{}", entity_id, ext);
+    let dest_name = format!("{entity_id}.{ext}");
     let dest = assets_dir.join(&dest_name);
-    std::fs::copy(src, &dest).map_err(|e| e.to_string())?;
+    // Re-picking the file already in place: copying a file onto itself truncates it.
+    let same_file = matches!(
+        (src.canonicalize(), dest.canonicalize()),
+        (Ok(from), Ok(to)) if from == to
+    );
+    if !same_file {
+        std::fs::copy(src, &dest).map_err(|e| e.to_string())?;
+    }
 
-    Ok(format!("assets/images/{}", dest_name))
+    Ok(format!("assets/images/{entity_kind}/{dest_name}"))
 }
 
 /// Read a local file and return it as a data URL (`data:<mime>;base64,<data>`).

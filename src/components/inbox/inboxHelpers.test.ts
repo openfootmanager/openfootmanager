@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 
 import type { MessageData } from "../../store/gameStore";
+import type { MessageAction } from "../../store/gameStore";
 import {
+  getActionButtonClassName,
   getFilteredMessages,
   getNavigationTarget,
   isPlayerEventMessage,
@@ -127,4 +129,22 @@ describe("toggleVisibleSelection", () => {
   it("selects nothing when no message is visible", () => {
     expect(toggleVisibleSelection(["x"], [])).toEqual([]);
   });
+});
+
+describe("getActionButtonClassName", () => {
+  /**
+   * Given an open action of each look (primary, and the quiet Acknowledge / Dismiss)
+   * When its button is disabled while a response is in flight
+   * Then it looks disabled, like the option buttons.
+   */
+  it.each(["Acknowledge", "Dismiss", { NavigateTo: { route: "squad" } }])(
+    "dims a disabled open action (%j)",
+    (actionType) => {
+      const action = { id: "a", label: "A", action_type: actionType, resolved: false };
+
+      expect(getActionButtonClassName(action as unknown as MessageAction)).toContain(
+        "disabled:opacity-50",
+      );
+    },
+  );
 });

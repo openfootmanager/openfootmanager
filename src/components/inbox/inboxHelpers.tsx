@@ -241,10 +241,10 @@ export function getActionButtonClassName(action: MessageAction): string {
   }
 
   if (action.action_type === "Acknowledge" || action.action_type === "Dismiss") {
-    return `${baseClassName} bg-gray-200 dark:bg-navy-600 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-navy-500`;
+    return `${baseClassName} bg-gray-200 dark:bg-navy-600 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-navy-500 disabled:opacity-50 disabled:cursor-not-allowed`;
   }
 
-  return `${baseClassName} bg-primary-500 text-white hover:bg-primary-600 shadow-sm hover:shadow-md hover:shadow-primary-500/20`;
+  return `${baseClassName} bg-primary-500 text-white hover:bg-primary-600 shadow-sm hover:shadow-md hover:shadow-primary-500/20 disabled:opacity-50 disabled:cursor-not-allowed`;
 }
 
 export function renderMessageBodyLine(line: string, index: number): JSX.Element {

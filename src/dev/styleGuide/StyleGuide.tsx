@@ -12,6 +12,7 @@ import {
   ConditionMeter,
   CountryFlag,
   FormDots,
+  FormResultMark,
   DataTable,
   SortHeaderButton,
   type DataTableColumn,
@@ -362,6 +363,7 @@ function DisplaySection() {
       <Row>
         <FormDots results={["W", "D", "W", "W", "L"]} />
         <FormDots results={["L", "L", "D"]} />
+        <FormResultMark result="W" className="px-1.5 py-0.5" />
       </Row>
       <Row>
         <CountryFlag code="BE" />
