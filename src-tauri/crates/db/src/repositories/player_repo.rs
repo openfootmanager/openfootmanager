@@ -1581,6 +1581,16 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("empty-map.db");
         let db = GameDatabase::open(&path).unwrap();
+        super::super::competition_repo::replace_competitions(
+            db.conn(),
+            &[domain::league::League::new(
+                "division".into(),
+                "Division".into(),
+                2025,
+                &["club".into()],
+            )],
+        )
+        .unwrap();
         let mut player = sample_player("reset", Some("club"));
         player.stats.goals = 3;
         upsert_player(db.conn(), &player).unwrap();
