@@ -1131,6 +1131,16 @@ mod tests {
         let while_held = done_rx
             .recv_timeout(std::time::Duration::from_millis(300))
             .ok();
+        let club_while_held = state
+            .get_game(|game| {
+                game.players
+                    .iter()
+                    .find(|player| player.id == "player-1")
+                    .unwrap()
+                    .team_id
+                    .clone()
+            })
+            .unwrap();
         drop(operation);
         let after_release = while_held.or_else(|| {
             done_rx
@@ -1138,6 +1148,7 @@ mod tests {
                 .ok()
         });
         handle.join().unwrap();
+        assert_eq!(club_while_held.as_deref(), Some("team-1"));
         assert_eq!(
             while_held, None,
             "termination must wait behind the lifecycle gate"

@@ -2775,6 +2775,10 @@ mod tests {
         assert!(!state
             .get_game(|game| game.teams[0].player_roles.contains_key("spare-def"))
             .unwrap());
+        assert_eq!(
+            waiting_bench_role(&state, "spare-def", engine::Side::Home),
+            engine::PlayerRole::Standard
+        );
         swap_into_left_back(&state, "spare-def");
         assert_eq!(
             role_in_the_waiting_match(&state, "spare-def"),
@@ -2958,6 +2962,96 @@ mod tests {
         assert_eq!(
             role_in_the_waiting_match(&state, &id),
             engine::PlayerRole::Poacher
+        );
+    }
+
+    /// Given a session-only role on a bench player, when his contract ends, then the waiting
+    /// session drops the role immediately and does not restore it on a later swap.
+    #[test]
+    fn terminating_a_player_clears_his_session_only_role() {
+        let state = waiting_match_with_transfer_targets();
+        let target = "spare-team1-def2";
+        let left_back = state
+            .with_live_match(|session| session.snapshot().home_team.players[1].id.clone())
+            .unwrap();
+        swap_into_left_back(&state, target);
+        crate::application::live_match::apply_match_command(
+            &state,
+            ofm_core::state::Career::Active,
+            engine::MatchCommand::ChangePlayerRole {
+                side: engine::Side::Home,
+                player_id: target.into(),
+                role: engine::PlayerRole::AttackingFB,
+            },
+        )
+        .unwrap();
+        swap_into_left_back(&state, &left_back);
+        assert_eq!(
+            waiting_bench_role(&state, target, engine::Side::Home),
+            engine::PlayerRole::AttackingFB
+        );
+        assert!(!state
+            .get_game(|game| game.teams[0].player_roles.contains_key(target))
+            .unwrap());
+        crate::commands::contracts::terminate_contract_now_internal(
+            &state,
+            ofm_core::state::Career::Active,
+            target,
+        )
+        .unwrap();
+        assert_eq!(
+            waiting_bench_role(&state, target, engine::Side::Home),
+            engine::PlayerRole::Standard
+        );
+        swap_into_left_back(&state, target);
+        assert_eq!(
+            role_in_the_waiting_match(&state, target),
+            engine::PlayerRole::Standard
+        );
+    }
+
+    /// Given a saved tactic with a Standard role, when a session-only role is chosen and the
+    /// tactic is applied, then the tactic restores Standard for that player.
+    #[test]
+    fn a_saved_tactics_standard_role_replaces_a_session_only_choice() {
+        let state = waiting_match_with_transfer_targets();
+        let target = state
+            .with_live_match(|session| session.snapshot().home_team.players[1].id.clone())
+            .unwrap();
+        let tactic = domain::custom_tactic::CustomTactic {
+            id: "standard".into(),
+            name: "Standard".into(),
+            description: String::new(),
+            formation: "4-4-2".into(),
+            play_style: "Balanced".into(),
+            source_preset_name: None,
+            contents: None,
+        };
+        crate::commands::custom_tactics::save_current_tactic_internal(
+            &state,
+            &tactic,
+            ofm_core::state::Career::Active,
+        )
+        .unwrap();
+        crate::application::live_match::apply_match_command(
+            &state,
+            ofm_core::state::Career::Active,
+            engine::MatchCommand::ChangePlayerRole {
+                side: engine::Side::Home,
+                player_id: target.clone(),
+                role: engine::PlayerRole::AttackingFB,
+            },
+        )
+        .unwrap();
+        crate::commands::custom_tactics::apply_custom_tactic_internal(
+            &state,
+            "standard",
+            ofm_core::state::Career::Active,
+        )
+        .unwrap();
+        assert_eq!(
+            role_in_the_waiting_match(&state, &target),
+            engine::PlayerRole::Standard
         );
     }
 

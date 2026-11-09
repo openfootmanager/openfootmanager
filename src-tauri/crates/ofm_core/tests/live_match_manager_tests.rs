@@ -1881,6 +1881,37 @@ mod issue_1319 {
                 engine::PlayerRole::Standard
             );
         }
+        /// Given a session role suppressed on the bench, when he substitutes into its compatible
+        /// slot after kick-off, then the intended role is restored.
+        #[test]
+        fn a_substitute_recovers_his_session_role_at_a_compatible_slot() {
+            let game = make_game_with_fixture();
+            let mut session = waiting_session(&game);
+            let (left_back, forward) =
+                home_starter_and_bench_player(&session, 1, engine::Position::Forward);
+            swap_in(&mut session, &left_back, &forward);
+            session
+                .apply_command(engine::MatchCommand::ChangePlayerRole {
+                    side: engine::Side::Home,
+                    player_id: forward.clone(),
+                    role: engine::PlayerRole::AttackingFB,
+                })
+                .unwrap();
+            swap_in(&mut session, &forward, &left_back);
+            session.step();
+            session
+                .apply_command(engine::MatchCommand::Substitute {
+                    side: engine::Side::Home,
+                    player_off_id: left_back,
+                    player_on_id: forward.clone(),
+                })
+                .unwrap();
+            assert_eq!(
+                home_role_of(&session, &forward),
+                engine::PlayerRole::AttackingFB
+            );
+        }
+
         /// Given a session-only role, when the player is swapped out and back and the same
         /// formation is selected, then his intended role remains in effect.
         #[test]
