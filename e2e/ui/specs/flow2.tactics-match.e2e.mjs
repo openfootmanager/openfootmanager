@@ -20,6 +20,8 @@ async function chooseAnotherOption(label) {
   const current = (await combobox.getText()).trim();
 
   await clickWhenReady(combobox);
+  // The list is drawn after the click, and $$ does not wait for it.
+  await $('[role="listbox"]').waitForDisplayed({ timeout: 10_000 });
   // A plain loop: WebdriverIO's element array does not take part in Promise.all(.map(...)).
   const options = await $$('[role="option"]');
   let picked = "";
