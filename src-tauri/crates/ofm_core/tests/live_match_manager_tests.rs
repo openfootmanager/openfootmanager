@@ -1454,3 +1454,39 @@ fn a_waiting_bench_player_is_validated_at_his_natural_position() {
         Some((7, Position::Forward))
     );
 }
+
+/// Given a defensive full-back on the bench, when he enters a centre-back slot, then he plays
+/// Standard even though both positions belong to the defender line.
+#[test]
+fn a_defensive_full_back_substituted_at_centre_back_plays_standard() {
+    let mut game = make_game_with_fixture();
+    let probe = waiting_session(&game);
+    let (centre_back, defender) =
+        home_starter_and_bench_player(&probe, 2, engine::Position::Defender);
+    game.teams[0]
+        .player_roles
+        .insert(defender.clone(), domain::team::PlayerRole::DefensiveFB);
+    let mut session = waiting_session(&game);
+    assert_eq!(
+        session
+            .match_state
+            .bench(engine::Side::Home)
+            .iter()
+            .find(|p| p.id == defender)
+            .unwrap()
+            .role,
+        engine::PlayerRole::DefensiveFB
+    );
+    session.step();
+    session
+        .apply_command(engine::MatchCommand::Substitute {
+            side: engine::Side::Home,
+            player_off_id: centre_back,
+            player_on_id: defender.clone(),
+        })
+        .unwrap();
+    assert_eq!(
+        home_role_of(&session, &defender),
+        engine::PlayerRole::Standard
+    );
+}
