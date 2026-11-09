@@ -266,7 +266,8 @@
     "worldEditor.sectionStaff",
     "worldEditor.staffClub",
     "worldEditor.staffSpecialization.Technique",
-    "packageBuild.patches"
+    "packageBuild.patches",
+    "worldEditor.estimatedRating"
   ],
   "it": [
     "settings.sidebarWidthOptions.standard",
@@ -397,7 +398,8 @@
     "worldEditor.playerClub",
     "worldEditor.competitionSelector",
     "worldEditor.staffClub",
-    "worldEditor.staffSpecialization.Fitness"
+    "worldEditor.staffSpecialization.Fitness",
+    "worldEditor.estimatedRating"
   ],
   "pt-BR": [
     "settings.sidebarBehaviourOptions.normal",
@@ -441,7 +443,8 @@
     "match.phases.Finished",
     "match.commentary.Goal.hattrick.headline",
     "squad.kitPatterns.Diagonal",
-    "packageBuild.patches"
+    "packageBuild.patches",
+    "worldEditor.estimatedRating"
   ],
   "pt": [
     "settings.sidebarBehaviourOptions.normal",
@@ -483,7 +486,8 @@
     "match.phases.Finished",
     "match.commentary.Goal.hattrick.headline",
     "squad.kitPatterns.Diagonal",
-    "packageBuild.patches"
+    "packageBuild.patches",
+    "worldEditor.estimatedRating"
   ],
   "ru": ["dashboard.recapTransferLine"],
   "zh-CN": ["be.news.roundup.resultLine", "be.news.preseasonDigest.resultLine"],

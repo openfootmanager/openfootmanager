@@ -404,6 +404,12 @@
       "B": "B"
     },
     "ordinal": {
+      "place": {
+        "one": "第{{n}}",
+        "two": "第{{n}}",
+        "few": "第{{n}}",
+        "other": "第{{n}}"
+      },
       "one": "第{{n}}",
       "two": "第{{n}}",
       "few": "第{{n}}",
@@ -421,12 +427,6 @@
     "listViewTable": "表格",
     "listViewCards": "卡片",
     "noResults": "未找到结果。",
-    "place": {
-      "1": "第1",
-      "2": "第2",
-      "3": "第3",
-      "other": "第{{n}}"
-    },
     "pts": "积分",
     "playedFull": "已赛场次",
     "wonFull": "胜场",
@@ -3187,15 +3187,15 @@
       "seasonPayout": {
         "subject": "{{season}}赛季奖金发放",
         "body": "董事会已确认因您获得联赛第{{position}}名发放奖金{{amount}}。该款项已计入俱乐部账户。",
-        "ledgerDescription": "{{season}}赛季第{{position}}{{suffix}}名奖金"
+        "ledgerDescription": "{{season}}赛季第{{position}}名奖金"
       },
       "seasonReview": {
         "subject": "{{season}}赛季回顾",
         "body": {
           "champion": "恭喜!{{team}}荣膺联赛冠军!这是一项难以置信的成就。\n\n董事会对您的表现非常满意。您以{{points}}积分收官。\n\n我们期待下赛季成功卫冕。",
-          "topFour": "{{team}}度过了稳健的一个赛季。您以{{points}}积分排名第{{position}}{{suffix}}位。\n\n董事会对本赛季表示满意。下赛季让我们一起冲击冠军。",
-          "midTable": "{{team}}本赛季以{{points}}积分排名第{{position}}{{suffix}}位。\n\n中游收官。董事会期望下赛季有所进步。我们需要更具竞争力。",
-          "lowerHalf": "{{team}}度过了令人失望的一个赛季。仅以{{points}}积分排名第{{position}}{{suffix}}位,低于预期。\n\n董事会表示关切。下赛季需要大幅改进,否则您的职位可能受到审视。"
+          "topFour": "{{team}}度过了稳健的一个赛季。您以{{points}}积分排名第{{position}}位。\n\n董事会对本赛季表示满意。下赛季让我们一起冲击冠军。",
+          "midTable": "{{team}}本赛季以{{points}}积分排名第{{position}}位。\n\n中游收官。董事会期望下赛季有所进步。我们需要更具竞争力。",
+          "lowerHalf": "{{team}}度过了令人失望的一个赛季。仅以{{points}}积分排名第{{position}}位,低于预期。\n\n董事会表示关切。下赛季需要大幅改进,否则您的职位可能受到审视。"
         }
       },
       "promotion": {
@@ -4098,6 +4098,12 @@
     "winRate": "胜率"
   },
   "worldEditor": {
+    "previewPlaceholder": {
+      "team": "新球队",
+      "player": "新球员",
+      "competition": "新赛事"
+    },
+    "estimatedRating": "估计",
     "positionGroupFilter": {
       "Goalkeeper": "所有门将",
       "Defender": "所有后卫",

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { localizeCompetitionName } from "../../lib/competitionName";
 import { useTranslation } from "react-i18next";
 import type { FixtureData, GameStateData } from "../../store/gameStore";
 import type { CompactMatchEventData } from "../../store/types";
@@ -159,7 +160,9 @@ export default function RoundDigestScreen({
     ? userStanding.previous_position - userStanding.current_position
     : 0;
 
-  const leagueName = gameState.league?.name;
+  const leagueName = gameState.league
+    ? localizeCompetitionName(gameState.league.name, gameState.competitions, t, gameState.league.id)
+    : undefined;
   const matchdayLabel = roundSummary
     ? t("schedule.matchday", { number: roundSummary.matchday })
     : null;
@@ -447,7 +450,11 @@ export default function RoundDigestScreen({
           </div>
 
           {cupRoundSummaries.map((summary) => (
-            <CupRoundSection key={summary.competition_id} summary={summary} />
+            <CupRoundSection
+              key={summary.competition_id}
+              summary={summary}
+              competitions={gameState.competitions}
+            />
           ))}
 
           {/* The user's match was not in the league round (a cup tie, say) but the league played

@@ -81,26 +81,32 @@ impl LiveMatchState {
             .unwrap_or_else(PlayerSnap::nobody)
     }
 
+    /// Who stands in goal for `side` right now: its goalkeeper, or with none left on the pitch
+    /// the first player who is, who keeps his own attributes but plays out of position.
+    pub(super) fn goalkeeper_in_goal(&self, side: Side) -> Option<&PlayerData> {
+        self.keeper_on_the_pitch(side).or_else(|| {
+            self.team_ref(side)
+                .players
+                .iter()
+                .find(|p| !self.sent_off.contains(&p.id))
+        })
+    }
+
     pub(super) fn pick_goalkeeper(&self, side: Side) -> PlayerSnap {
-        if let Some(keeper) = self.keeper_on_the_pitch(side) {
-            return PlayerSnap::from(keeper);
+        match self.goalkeeper_in_goal(side) {
+            Some(keeper) if keeper.position == Position::Goalkeeper => PlayerSnap::from(keeper),
+            Some(outfielder) => PlayerSnap::playing_in(outfielder, Position::Goalkeeper),
+            // Everyone is sent off, or there is nobody at all. `create_live_match`
+            // refuses a side with no players, so the latter should not reach here —
+            // but a blank name in an event is a bug worth reporting, and indexing
+            // an empty squad is a window that stops responding.
+            None => self
+                .team_ref(side)
+                .players
+                .first()
+                .map(|p| PlayerSnap::playing_in(p, Position::Goalkeeper))
+                .unwrap_or_else(PlayerSnap::nobody),
         }
-        let team = self.team_ref(side);
-        // No goalkeeper available: the first player still on the pitch goes in, keeping his own
-        // attributes but out of position, at his goalkeeping factor.
-        for p in &team.players {
-            if !self.sent_off.contains(&p.id) {
-                return PlayerSnap::playing_in(p, Position::Goalkeeper);
-            }
-        }
-        // Everyone is sent off, or there is nobody at all. `create_live_match`
-        // refuses a side with no players, so the latter should not reach here —
-        // but a blank name in an event is a bug worth reporting, and indexing
-        // an empty squad is a window that stops responding.
-        team.players
-            .first()
-            .map(|p| PlayerSnap::playing_in(p, Position::Goalkeeper))
-            .unwrap_or_else(PlayerSnap::nobody)
     }
 
     // -----------------------------------------------------------------------

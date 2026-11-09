@@ -404,6 +404,12 @@
       "B": "B"
     },
     "ordinal": {
+      "place": {
+        "one": "{{n}}re",
+        "two": "{{n}}e",
+        "few": "{{n}}e",
+        "other": "{{n}}e"
+      },
       "one": "{{n}}er",
       "two": "{{n}}e",
       "few": "{{n}}e",
@@ -421,12 +427,6 @@
     "listViewTable": "Tableau",
     "listViewCards": "Cartes",
     "noResults": "Aucun résultat trouvé.",
-    "place": {
-      "1": "1er",
-      "2": "2e",
-      "3": "3e",
-      "other": "{{n}}e"
-    },
     "pts": "Pts",
     "playedFull": "Joués",
     "wonFull": "Victoires",
@@ -3186,8 +3186,8 @@
       },
       "seasonPayout": {
         "subject": "Saison {{season}} — Prime attribuée",
-        "body": "Le conseil a confirmé une prime de {{amount}} pour votre {{position}}e place en championnat. Le montant a été ajouté au solde du club.",
-        "ledgerDescription": "Prime de saison {{season}} pour la {{position}}{{suffix}} place"
+        "body": "Le conseil a confirmé une prime de {{amount}} pour votre place n°{{position}} en championnat. Le montant a été ajouté au solde du club.",
+        "ledgerDescription": "Prime de saison {{season}} pour la place n°{{position}}"
       },
       "seasonReview": {
         "subject": "Bilan de la Saison {{season}}",
@@ -4098,6 +4098,12 @@
     "winRate": "Taux de victoire"
   },
   "worldEditor": {
+    "previewPlaceholder": {
+      "team": "Nouvelle équipe",
+      "player": "Nouveau joueur",
+      "competition": "Nouvelle compétition"
+    },
+    "estimatedRating": "est.",
     "positionGroupFilter": {
       "Goalkeeper": "Tous les gardiens",
       "Defender": "Tous les défenseurs",

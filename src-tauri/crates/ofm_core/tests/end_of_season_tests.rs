@@ -1668,6 +1668,7 @@ fn summary_reflects_the_users_division_when_not_in_the_primary_competition() {
     let summary = process_end_of_season(&mut game);
 
     assert_eq!(summary.league_name, "ENG Second Division");
+    assert_eq!(summary.competition_id, "eng-2");
     assert_eq!(summary.user_position, 1);
     assert_eq!(summary.champion_id, "team3");
     assert_eq!(summary.total_teams, 2);
@@ -2891,7 +2892,7 @@ fn champion_receives_prize_money_and_ledger_entry() {
     assert_eq!(team1.financial_ledger[0].amount, 5_000_000);
     assert_eq!(
         team1.financial_ledger[0].description,
-        "be.msg.seasonPayout.ledgerDescription?season=1&position=1&suffix=st"
+        "be.msg.seasonPayout.ledgerDescription?season=1&position=1"
     );
 }
 
@@ -4065,12 +4066,14 @@ fn season_end_board_message_top_four_uses_correct_body_key() {
         "2nd-place finish should use topFour body key"
     );
     assert!(
-        msg.i18n_params.contains_key("position"),
-        "topFour key must include position param"
+        msg.i18n_params.get("position") == Some(&"2".to_string()),
+        "topFour position must be the bare number 2"
     );
+    // The place is a bare number: the frontend writes it as an ordinal in the player's language, so
+    // no English suffix ("2nd", "21th") is sent from here.
     assert!(
-        msg.i18n_params.contains_key("suffix"),
-        "topFour key must include suffix param"
+        !msg.i18n_params.contains_key("suffix"),
+        "topFour must not carry an English ordinal suffix"
     );
 }
 
@@ -4394,6 +4397,25 @@ fn retirees_start_managing_on_the_created_scale_by_their_ability() {
     };
     assert_eq!(reputation_of("mgr_retired_star"), Some((681, 50, 50)));
     assert_eq!(reputation_of("mgr_retired_squad"), Some((382, 50, 50)));
+}
+
+/// Given a Belgian retiree, when the season ends, then his scout identity is ready immediately.
+#[test]
+fn created_staff_have_football_identity_from_retirees() {
+    let mut game = make_completed_season_game();
+    let mut retired = retired_this_season_after_thirteen_seasons(&game, "identity", 70);
+    retired.nationality = "BE".into();
+    game.retired_players.push(retired);
+
+    process_end_of_season(&mut game);
+
+    let scout = game
+        .staff
+        .iter()
+        .find(|s| s.id == "staff_retired_scout_identity")
+        .unwrap();
+    assert_eq!(scout.football_nation, "BE");
+    assert_eq!(scout.birth_country.as_deref(), Some("BE"));
 }
 
 #[test]

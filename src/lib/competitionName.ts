@@ -2,6 +2,7 @@ type TranslateFn = (key: string, options?: Record<string, unknown>) => string;
 
 /** The fields needed to render a competition's display name. */
 export interface NamedCompetition {
+  id?: string;
   name?: string;
   name_key?: string | null;
   season?: number;
@@ -32,4 +33,17 @@ export function competitionDisplayName(comp: NamedCompetition, t: TranslateFn): 
     country,
     defaultValue: comp.name ?? comp.name_key,
   }).trim();
+}
+
+/** Resolve only the identified competition; names are not unique. */
+export function localizeCompetitionName(
+  name: string,
+  competitions: readonly NamedCompetition[] | undefined,
+  t: TranslateFn,
+  competitionId?: string | null,
+): string {
+  const competition = competitionId
+    ? competitions?.find((item) => item.id === competitionId)
+    : undefined;
+  return competition ? competitionDisplayName(competition, t) : name;
 }
