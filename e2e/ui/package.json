@@ -1,0 +1,16 @@
+{
+  "name": "ofm-ui-e2e",
+  "private": true,
+  "type": "module",
+  "description": "Drives the built app's real UI over WebDriver (tauri-driver). Nightly and advisory; its dependencies are kept out of the app's own package.json on purpose.",
+  "scripts": {
+    "test:guard": "node --test --test-timeout=60000 helpers/isolation.test.mjs helpers/driver.test.mjs",
+    "e2e": "bash run.sh"
+  },
+  "devDependencies": {
+    "@wdio/cli": "^9.0.0",
+    "@wdio/local-runner": "^9.0.0",
+    "@wdio/mocha-framework": "^9.0.0",
+    "@wdio/spec-reporter": "^9.0.0"
+  }
+}
