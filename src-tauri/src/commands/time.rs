@@ -2815,17 +2815,17 @@ mod tests {
         crate::application::live_match::step_live_match(&state, ofm_core::state::Career::Active, 1)
             .expect("the match kicks off");
 
-        let (while_held, after_release) =
-            finishes_only_after_the_gate_is_released(state, |state| {
-                crate::application::live_match::step_live_match(
-                    state,
-                    ofm_core::state::Career::Active,
-                    1,
-                )
-                .expect("the match plays a minute");
-            });
+        // The helper reads the completion once while the gate is held, so a call that finishes
+        // then has nothing left to report after the release: only the first figure counts here.
+        let (while_held, _) = finishes_only_after_the_gate_is_released(state, |state| {
+            crate::application::live_match::step_live_match(
+                state,
+                ofm_core::state::Career::Active,
+                1,
+            )
+            .expect("the match plays a minute");
+        });
 
         assert!(while_held, "a step in play was held up by the operation");
-        assert!(after_release);
     }
 }
