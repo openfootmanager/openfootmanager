@@ -1,7 +1,7 @@
 use crate::game::Game;
 use domain::league::League;
 use domain::manager::Manager;
-use domain::player::{Player, Position};
+use domain::player::{Player, PlayerSeasonStats, Position};
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 
@@ -46,6 +46,9 @@ const YOUNG_PLAYER_MIN_RATED_MATCHES: u32 = 3;
 
 struct PlayerAwardContext<'a> {
     player: &'a Player,
+    /// The stats the awards rank him by: a division's league matches, or every competitive
+    /// match for the whole world (`compute_season_awards`).
+    stats: &'a PlayerSeasonStats,
     team_id: String,
     team_name: String,
     age: i32,
@@ -55,8 +58,8 @@ struct PlayerAwardContext<'a> {
 impl PlayerAwardContext<'_> {
     fn has_rated_share_of_season(&self, floor: u32) -> bool {
         let share = (AWARD_MIN_SHARE_OF_MATCHES * self.club_matches_played as f64).ceil() as u32;
-        crate::match_rating::is_rated(self.player.stats.avg_rating)
-            && self.player.stats.rated_appearances >= share.max(floor)
+        crate::match_rating::is_rated(self.stats.avg_rating)
+            && self.stats.rated_appearances >= share.max(floor)
     }
 }
 
@@ -126,9 +129,19 @@ fn build_player_award_contexts<'a>(
     let today = game.clock.current_date.date_naive();
     let matches_played_by_club = matches_played_by_club(game, division);
 
+    // A division's awards count its own matches, as its tables do; the world's count every
+    // competitive match (#1212).
+    let season = |player: &'a Player| {
+        if division.is_some() {
+            &player.league_stats
+        } else {
+            &player.stats
+        }
+    };
+
     game.players
         .iter()
-        .filter(|player| player.stats.appearances > 0)
+        .filter(|player| season(player).appearances > 0)
         .filter(|player| match scope {
             Some(team_ids) => player
                 .team_id
@@ -145,6 +158,7 @@ fn build_player_award_contexts<'a>(
 
             PlayerAwardContext {
                 player,
+                stats: season(player),
                 team_id,
                 team_name,
                 age: domain::age::age_on_or_unknown(today, &player.date_of_birth),
@@ -319,38 +333,36 @@ fn compute_awards(game: &Game, division: Option<&League>) -> SeasonAwards {
     // Golden Boot — top scorers
     let golden_boot = top_awards(
         &contexts,
-        |context| context.player.stats.goals > 0,
-        |context| context.player.stats.goals as f64,
+        |context| context.stats.goals > 0,
+        |context| context.stats.goals as f64,
     );
 
     // Assist King
     let assist_king = top_awards(
         &contexts,
-        |context| context.player.stats.assists > 0,
-        |context| context.player.stats.assists as f64,
+        |context| context.stats.assists > 0,
+        |context| context.stats.assists as f64,
     );
 
     // Player of the Year — best avg rating over a real share of the season
     let player_of_year = top_awards(
         &contexts,
         |context| context.has_rated_share_of_season(PLAYER_OF_YEAR_MIN_RATED_MATCHES),
-        |context| context.player.stats.avg_rating as f64,
+        |context| context.stats.avg_rating as f64,
     );
 
     // Clean Sheet King — GKs only
     let clean_sheet_king = top_awards(
         &contexts,
-        |context| {
-            context.player.position == Position::Goalkeeper && context.player.stats.clean_sheets > 0
-        },
-        |context| context.player.stats.clean_sheets as f64,
+        |context| context.player.position == Position::Goalkeeper && context.stats.clean_sheets > 0,
+        |context| context.stats.clean_sheets as f64,
     );
 
     // Most Appearances
     let most_appearances = top_awards(
         &contexts,
         |_| true,
-        |context| context.player.stats.appearances as f64,
+        |context| context.stats.appearances as f64,
     );
 
     // Young Player of the Year — age <= 21, best avg rating over the same share
@@ -359,7 +371,7 @@ fn compute_awards(game: &Game, division: Option<&League>) -> SeasonAwards {
         |context| {
             context.age <= 21 && context.has_rated_share_of_season(YOUNG_PLAYER_MIN_RATED_MATCHES)
         },
-        |context| context.player.stats.avg_rating as f64,
+        |context| context.stats.avg_rating as f64,
     );
     let manager_of_season = top_manager_awards(&manager_contexts);
 
@@ -440,6 +452,8 @@ mod tests {
             default_attrs(),
         );
         player.team_id = team_id.map(str::to_string);
+        // A test season of league matches alone: the division awards read league_stats.
+        player.league_stats = stats.clone();
         player.stats = stats;
         player
     }
@@ -943,6 +957,7 @@ mod tests {
     fn unrated_appearances_do_not_count_towards_the_threshold() {
         let mut mostly_unrated = rated_player("mostly-unrated", "1998-01-01", 3, 8.9);
         mostly_unrated.stats.appearances = 30;
+        mostly_unrated.league_stats.appearances = 30;
 
         let awards = division_awards(vec![mostly_unrated], 38);
 

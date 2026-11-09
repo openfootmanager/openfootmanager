@@ -5,7 +5,7 @@ use domain::league::{
     CompactMatchEvent, CompactMatchReport, CompactTeamMatchStats, FixtureStatus, GoalEvent,
     MatchResult,
 };
-use domain::player::{PlayerIssue, PlayerIssueCategory, PlayerPromiseKind};
+use domain::player::{PlayerIssue, PlayerIssueCategory, PlayerPromiseKind, PlayerSeasonStats};
 use domain::stats::{PlayerMatchStatsRecord, StatsState, TeamMatchStatsRecord};
 
 fn compact_team_stats(stats: &engine::TeamStats, possession_pct: u8) -> CompactTeamMatchStats {
@@ -194,7 +194,7 @@ pub(super) fn apply_match_report_in<F>(
     // A player's season stats count the matches played for something: a friendly feeds
     // neither the awards nor his development nor his valuation (#1212).
     if is_competitive {
-        apply_player_stats(game, report, &both_clubs);
+        apply_player_stats(game, report, &both_clubs, counts_for_standings);
     }
     resolve_post_match_promises(game, report, &both_clubs);
 
@@ -478,33 +478,46 @@ fn report_players(game: &Game, report: &engine::MatchReport, both_clubs: &[usize
         .collect()
 }
 
-fn apply_player_stats(game: &mut Game, report: &engine::MatchReport, both_clubs: &[usize]) {
+fn apply_player_stats(
+    game: &mut Game,
+    report: &engine::MatchReport,
+    both_clubs: &[usize],
+    counts_for_league: bool,
+) {
     for position in report_players(game, report, both_clubs) {
         let player = &mut game.players[position];
         if let Some(ps) = report.player_stats.get(&player.id) {
-            player.stats.appearances += 1;
-            player.stats.goals += ps.goals as u32;
-            player.stats.assists += ps.assists as u32;
-            player.stats.yellow_cards += ps.yellow_cards as u32;
-            player.stats.red_cards += ps.red_cards as u32;
-            player.stats.minutes_played += ps.minutes_played as u32;
-            player.stats.shots += ps.shots as u32;
-            player.stats.shots_on_target += ps.shots_on_target as u32;
-            player.stats.passes_completed += ps.passes_completed as u32;
-            player.stats.passes_attempted += ps.passes_attempted as u32;
-            player.stats.tackles_won += ps.tackles_won as u32;
-            player.stats.interceptions += ps.interceptions as u32;
-            player.stats.fouls_committed += ps.fouls_committed as u32;
-
-            crate::match_rating::record_rating(&mut player.stats, ps.rating);
-
-            // The keeper who kept it, as the match report judged it with the ratings: in goal
-            // for most of the match, his side conceding none. Not every registered keeper with
-            // a stats row (a late substitute, one sent off early).
-            if ps.clean_sheet {
-                player.stats.clean_sheets += 1;
+            add_match(&mut player.stats, ps);
+            if counts_for_league {
+                add_match(&mut player.league_stats, ps);
             }
         }
+    }
+}
+
+/// One match added to a season's stats.
+fn add_match(season: &mut PlayerSeasonStats, ps: &engine::PlayerMatchStats) {
+    season.appearances += 1;
+    season.goals += ps.goals as u32;
+    season.assists += ps.assists as u32;
+    season.yellow_cards += ps.yellow_cards as u32;
+    season.red_cards += ps.red_cards as u32;
+    season.minutes_played += ps.minutes_played as u32;
+    season.shots += ps.shots as u32;
+    season.shots_on_target += ps.shots_on_target as u32;
+    season.passes_completed += ps.passes_completed as u32;
+    season.passes_attempted += ps.passes_attempted as u32;
+    season.tackles_won += ps.tackles_won as u32;
+    season.interceptions += ps.interceptions as u32;
+    season.fouls_committed += ps.fouls_committed as u32;
+
+    crate::match_rating::record_rating(season, ps.rating);
+
+    // The keeper who kept it, as the match report judged it with the ratings: in goal
+    // for most of the match, his side conceding none. Not every registered keeper with
+    // a stats row (a late substitute, one sent off early).
+    if ps.clean_sheet {
+        season.clean_sheets += 1;
     }
 }
 
