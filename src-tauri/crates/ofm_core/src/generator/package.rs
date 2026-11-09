@@ -5649,7 +5649,13 @@ colors:
             ..Default::default()
         };
 
-        assert_projection_matches_the_built_world("unnameable club", &package);
+        // Verdicts only: an explicit list resolves verbatim, so a participant spelled like a
+        // placeholder is not a club and must not be labelled as one.
+        assert_eq!(
+            verdict_on_the_projection(&package),
+            verdict_on_the_built_world(&package),
+            "unnameable club: the verdict differs"
+        );
         assert_eq!(
             verdict_on_the_projection(&package)
                 .iter()
@@ -5796,18 +5802,18 @@ colors:
             competitions: fixture_competitions(serde_json::json!([
                 {"id":"eng","name":"E","type":"League","scope":"Domestic","countryId":"ENG",
                  "format":{"kind":"LeagueTable"},"participants":{"selector":{"kind":"allInCountry","country":"ENG"}}},
-                {"id":"esp","name":"S","type":"League","scope":"Domestic","countryId":"ESP",
-                 "format":{"kind":"LeagueTable"},"participants":{"selector":{"kind":"allInCountry","country":"ESP"}}}
+                {"id":"sco","name":"S","type":"League","scope":"Domestic","countryId":"SCO",
+                 "format":{"kind":"LeagueTable"},"participants":{"selector":{"kind":"allInCountry","country":"SCO"}}}
             ])),
             ..Default::default()
         };
         let patch = WorldPackage {
             meta: Some(meta("patch", "patch")),
             teams: vec![
-                // overrides the base's club `a`: it now plays in Spain, at a different reputation
-                fixture_club("a", "ESP", [300, 300]),
+                // overrides the base's club `a`: it now plays in Scotland, at a different reputation
+                fixture_club("a", "SCO", [300, 300]),
                 fixture_club("c", "ENG", [900, 900]),
-                fixture_club("d", "ESP", [500, 500]),
+                fixture_club("d", "SCO", [500, 500]),
             ],
             ..Default::default()
         };
@@ -5820,16 +5826,16 @@ colors:
             .find(|team| team.id == "a")
             .expect("club a");
         assert_eq!(
-            overridden.country, "ESP",
+            overridden.country, "SCO",
             "the patch's version of the club wins"
         );
         assert_eq!(overridden.reputation_range, Some([300, 300]));
         assert_projection_matches_the_built_world("patch stack", &merged);
         let (_, projected) = participants_both_ways(&merged);
         assert_eq!(
-            projected["esp"].len(),
+            projected["sco"].len(),
             2,
-            "club a is a Spanish club after the patch: {projected:?}"
+            "club a is a Scottish club after the patch: {projected:?}"
         );
     }
 
