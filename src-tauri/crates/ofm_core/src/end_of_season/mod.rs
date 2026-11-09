@@ -469,8 +469,15 @@ fn regenerate_competitions_for_new_season(
 
     // Read the World Cup field from this cycle's qualifying before competitions
     // are retired below.
-    let kickoff = game.clock.current_date + Duration::days(2);
-    let world_cup_due = crate::world_cup::is_world_cup_summer(kickoff.year());
+    let earliest_kickoff = game.clock.current_date + Duration::days(2);
+    let world_cup_due = crate::world_cup::is_world_cup_summer(earliest_kickoff.year());
+    // A club season can finish in spring; the finals still begin in the summer break.
+    let kickoff = if world_cup_due {
+        crate::world::start_date_for_year(earliest_kickoff.year())
+            .map_or(earliest_kickoff, |summer| earliest_kickoff.max(summer))
+    } else {
+        earliest_kickoff
+    };
     let qualified_field = if world_cup_due {
         // The club season can finish before the campaign's June dates play
         // out; settle whatever remains (the last matchday, the playoff) so the
@@ -685,9 +692,13 @@ fn manage_international_calendar(
         for national_team in game.national_teams.iter_mut() {
             national_team.fixtures.clear();
         }
-        // No windows to keep clear of and no preseason friendlies, but the regenerated club
-        // competitions still have to share the calendar with each other.
-        crate::world::foundations::settle_club_calendar(game, &Default::default(), retained);
+        // The tournament fills the break, but future club fixtures must still avoid
+        // international windows and each other.
+        let blackout = crate::national_team::international_blackout_around(
+            &game.competitions,
+            game.clock.current_date.date_naive(),
+        );
+        crate::world::foundations::settle_club_calendar(game, &blackout, retained);
         return;
     }
 
@@ -701,14 +712,9 @@ fn manage_international_calendar(
         .competitions
         .iter()
         .any(crate::world_cup::is_world_cup_qualifying);
-    // Qualifying spreads each window's matches across a multi-day block, so club
-    // fixtures must keep clear of the whole span rather than just the openers.
-    let blackout =
-        crate::national_team::international_blackout_dates(next_start, qualifying_in_progress);
     for national_team in game.national_teams.iter_mut() {
         national_team.fixtures.clear();
     }
-    crate::world::foundations::place_club_calendar(game, &blackout, retained);
 
     if leads_into_world_cup {
         // The windows host the qualifying campaign instead of friendlies: the
@@ -724,10 +730,7 @@ fn manage_international_calendar(
                 &window_dates,
             );
         }
-        return;
-    }
-
-    if starts_qualifying {
+    } else if starts_qualifying {
         // Two summers out: the full home-and-away campaign gets under way.
         // The in-progress guard mirrors the branch above — under the four-year
         // cadence a campaign can't still be running here, but scheduling must
@@ -739,26 +742,26 @@ fn manage_international_calendar(
                 &window_dates,
             );
         }
-        return;
-    }
-
-    if qualifying_in_progress {
+    } else if qualifying_in_progress {
         // Unreachable under the four-year cadence, but if a campaign ever
         // survives into a neutral season, keep it anchored to this season's
         // windows rather than stacking friendlies on top of stale fixtures.
         crate::world_cup::continue_world_cup_qualifying(game, &window_dates);
-        return;
+    } else {
+        // Keyed by the year the windows belong to, so a replay draws the same fixtures.
+        let mut friendlies_rng =
+            game.rng_for("national-team-friendlies", &next_start.year().to_string());
+        crate::national_team::schedule_national_team_friendlies(
+            &mut game.national_teams,
+            &window_dates,
+            &mut friendlies_rng,
+        );
     }
-
-    // Which nations meet in which window. Keyed by the year the windows belong to, so a
-    // replay of this rollover draws the same fixtures.
-    let mut friendlies_rng =
-        game.rng_for("national-team-friendlies", &next_start.year().to_string());
-    crate::national_team::schedule_national_team_friendlies(
-        &mut game.national_teams,
-        &window_dates,
-        &mut friendlies_rng,
+    let blackout = crate::national_team::international_blackout_around(
+        &game.competitions,
+        game.clock.current_date.date_naive(),
     );
+    crate::world::foundations::place_club_calendar(game, &blackout, retained);
 }
 
 /// The league-table competition the user's club contests. Falls back to the
@@ -1689,6 +1692,81 @@ mod tests {
         );
     }
 
+    /// Given a rollover during an active qualifying campaign and a club match on a qualifying
+    /// window, when the campaign continues, then placement moves the match and load repair is idle.
+    #[test]
+    fn continuing_qualifying_settles_club_matches_before_reload() {
+        let mut game = calendar_game(at(2033, 6, 20));
+        let first_windows = crate::national_team::international_window_dates(at(2032, 7, 1));
+        crate::world_cup::schedule_world_cup_qualifying(&mut game, 2034, &first_windows);
+        let qualifier = game
+            .competitions
+            .iter()
+            .find(|c| crate::world_cup::is_world_cup_qualifying(c))
+            .expect("a qualifying campaign exists");
+        assert!(
+            qualifier
+                .fixtures
+                .iter()
+                .any(|f| f.status == FixtureStatus::Scheduled)
+        );
+        add_division(&mut game, "league", "europe", at(2033, 9, 11));
+        let club_match = game.competitions.last().unwrap().fixtures[0].id.clone();
+        assert_eq!(
+            game.competitions.last().unwrap().fixtures[0].date,
+            "2033-09-11"
+        );
+        game.competitions.last_mut().unwrap().fixtures.truncate(1);
+        manage_international_calendar(
+            &mut game,
+            at(2033, 7, 18),
+            at(2033, 6, 22),
+            false,
+            None,
+            &Default::default(),
+        );
+        let fixture = game
+            .competitions
+            .iter()
+            .flat_map(|c| &c.fixtures)
+            .find(|f| f.id == club_match)
+            .unwrap();
+        assert_ne!(
+            fixture.date, "2033-09-11",
+            "the qualifying window must be cleared"
+        );
+        let before = serde_json::to_value(&game.competitions).unwrap();
+        let notices = game.messages.len();
+        assert_eq!(crate::calendar_repair::repair_loaded_calendar(&mut game), 0);
+        assert_eq!(serde_json::to_value(&game.competitions).unwrap(), before);
+        assert_eq!(game.messages.len(), notices);
+    }
+
+    /// Given a competition with a match on an international window, when rollover settles the
+    /// calendar, then every competitive fixture survives even if its date moves.
+    #[test]
+    fn rollover_settlement_keeps_every_competitive_fixture() {
+        let mut game = calendar_game(at(2033, 6, 20));
+        add_division(&mut game, "league", "europe", at(2033, 9, 9));
+        let ids = |game: &Game| -> std::collections::BTreeSet<String> {
+            game.competitions
+                .iter()
+                .filter(|c| c.id == "league")
+                .flat_map(|c| &c.fixtures)
+                .filter(|f| f.competition != FixtureCompetition::Friendly)
+                .map(|f| f.id.clone())
+                .collect()
+        };
+        let before = ids(&game);
+        assert!(!before.is_empty());
+        initialize_rollover_calendar(&mut game);
+        assert_eq!(
+            ids(&game),
+            before,
+            "rollover settlement must not lose competitive fixtures"
+        );
+    }
+
     /// Given a World Cup year, where the rollover returns before the windows and friendlies, and
     /// two regenerated competitions whose dates clash for one club,
     /// When the rollover builds the international calendar,
@@ -1751,6 +1829,74 @@ mod tests {
                 .flat_map(|c| &c.fixtures)
                 .all(|f| f.competition != FixtureCompetition::Friendly)
         );
+    }
+
+    /// Given a retained club fixture on an international window when a career rolls into a
+    /// World Cup year, when the rollover settles its calendar, then the fixture avoids the window
+    /// and a subsequent load repair changes nothing or announces another postponement.
+    #[test]
+    fn world_cup_rollover_settles_international_windows_before_reload() {
+        let start = crate::world::start_date_for_year(2030).unwrap();
+        assert_eq!(
+            start.date_naive(),
+            chrono::NaiveDate::from_ymd_opt(2030, 6, 1).unwrap()
+        );
+        let mut game = calendar_game(start);
+        game.clock.current_date = at(2034, 6, 1);
+        add_division(&mut game, "retained", "south-america", at(2034, 9, 9));
+        game.competitions[0].fixtures.truncate(1);
+        let fixture = &game.competitions[0].fixtures[0];
+        assert_eq!(fixture.date, "2034-09-09", "the premise: a window fixture");
+        assert_eq!(fixture.status, FixtureStatus::Scheduled);
+        let fixture_id = fixture.id.clone();
+        game.manager.hire(fixture.home_team_id.clone());
+        assert!(!is_regenerated_at_rollover(&game.competitions[0]));
+        assert!(crate::world_cup::is_world_cup_summer(
+            (game.clock.current_date + Duration::days(2)).year()
+        ));
+        let blackout = crate::national_team::international_blackout_around(
+            &game.competitions,
+            game.clock.current_date.date_naive(),
+        );
+        assert!(blackout.contains(&chrono::NaiveDate::from_ymd_opt(2034, 9, 9).unwrap()));
+
+        regenerate_competitions_for_new_season(&mut game, 2035, at(2034, 6, 29));
+
+        let fixture = game
+            .competitions
+            .iter()
+            .flat_map(|c| &c.fixtures)
+            .find(|f| f.id == fixture_id)
+            .expect("the retained fixture survives");
+        assert_ne!(
+            fixture.date, "2034-09-09",
+            "the rollover must move the window fixture"
+        );
+        let blackout = crate::national_team::international_blackout_around(
+            &game.competitions,
+            game.clock.current_date.date_naive(),
+        );
+        for fixture in game
+            .competitions
+            .iter()
+            .flat_map(|c| &c.fixtures)
+            .filter(|f| {
+                f.competition != FixtureCompetition::InternationalNation
+                    && f.status == FixtureStatus::Scheduled
+            })
+        {
+            let date = chrono::NaiveDate::parse_from_str(&fixture.date, "%Y-%m-%d").unwrap();
+            assert!(
+                !blackout.contains(&date),
+                "{} remains on a window",
+                fixture.id
+            );
+        }
+        let before = serde_json::to_value(&game.competitions).unwrap();
+        let messages = game.messages.len();
+        assert_eq!(crate::calendar_repair::repair_loaded_calendar(&mut game), 0);
+        assert_eq!(serde_json::to_value(&game.competitions).unwrap(), before);
+        assert_eq!(game.messages.len(), messages);
     }
 
     /// Given a cup whose final was postponed past the rollover, so its edition is not finished,
@@ -1882,13 +2028,49 @@ mod tests {
             crate::turn::cup_renewal::renew_finished_cups(&mut game, "2034-07-01"),
             1
         );
-        let renewed = serde_json::to_string(&game.competitions[0]).unwrap();
+        let renewed = game.competitions[0].clone();
+        assert_eq!(
+            renewed.fixtures.len(),
+            4,
+            "the hook drew four quarterfinals"
+        );
 
         regenerate_competitions_for_new_season(&mut game, season + 1, at(2034, 7, 1));
 
+        let blackout = crate::national_team::international_blackout_around(
+            &game.competitions,
+            game.clock.current_date.date_naive(),
+        );
+        let mut after = game.competitions[0].clone();
+        assert_eq!(after.fixtures.len(), renewed.fixtures.len());
+        for (fixture, original) in after.fixtures.iter_mut().zip(&renewed.fixtures) {
+            assert_eq!(fixture.id, original.id, "the hook's fixture survives");
+            let old_date = chrono::NaiveDate::parse_from_str(&original.date, "%Y-%m-%d").unwrap();
+            let new_date = chrono::NaiveDate::parse_from_str(&fixture.date, "%Y-%m-%d").unwrap();
+            assert!(
+                blackout.contains(&old_date),
+                "the published date clashes with the finals"
+            );
+            assert!(
+                !blackout.contains(&new_date),
+                "the moved date avoids the finals"
+            );
+            let postponement = fixture
+                .postponement
+                .as_ref()
+                .expect("the published date was moved");
+            assert_eq!(postponement.original_date, original.date);
+            assert_eq!(
+                postponement.reason,
+                domain::league::RescheduleReason::InternationalWindow
+            );
+            fixture.date = original.date.clone();
+            fixture.postponement = original.postponement.clone();
+        }
         assert_eq!(
-            serde_json::to_string(&game.competitions[0]).unwrap(),
-            renewed
+            serde_json::to_value(&after).unwrap(),
+            serde_json::to_value(&renewed).unwrap(),
+            "apart from justified postponements the hook's edition is unchanged"
         );
         assert_eq!(game.edition_archive.len(), 1);
     }
