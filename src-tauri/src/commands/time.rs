@@ -2677,4 +2677,70 @@ mod tests {
         assert!(!while_held, "the swap ran inside a held operation");
         assert!(after_release, "the swap never completed once released");
     }
+
+    /// Runs `call` against a game at rest while a lifecycle operation is held, and asserts it
+    /// queues behind it and completes once it is released.
+    fn assert_a_bulk_role_write_waits_for_the_gate<F>(call: F)
+    where
+        F: FnOnce(&StateManager) + Send + 'static,
+    {
+        let state = std::sync::Arc::new(StateManager::new());
+        state.set_game(make_round_summary_game());
+
+        let (while_held, after_release) = finishes_only_after_the_gate_is_released(state, call);
+
+        assert!(!while_held, "the write ran inside a held operation");
+        assert!(after_release, "the write never completed once released");
+    }
+
+    /// Given a lifecycle operation in flight, when the formation is saved,
+    /// then the save queues behind it: commit and hand-off to the waiting match are one step
+    /// against a role save.
+    #[test]
+    fn a_formation_save_waits_for_a_lifecycle_operation_in_flight() {
+        assert_a_bulk_role_write_waits_for_the_gate(|state| {
+            let _ = crate::commands::squad::set_formation_internal(
+                state,
+                ofm_core::state::Career::Active,
+                "4-4-2",
+            );
+        });
+    }
+
+    /// The same for a tactic preset.
+    #[test]
+    fn a_tactic_preset_waits_for_a_lifecycle_operation_in_flight() {
+        assert_a_bulk_role_write_waits_for_the_gate(|state| {
+            let _ = crate::commands::squad::apply_tactic_preset_internal(
+                state,
+                ofm_core::state::Career::Active,
+                "4-4-2",
+                "Balanced",
+            );
+        });
+    }
+
+    /// The same for a starting eleven.
+    #[test]
+    fn a_starting_eleven_save_waits_for_a_lifecycle_operation_in_flight() {
+        assert_a_bulk_role_write_waits_for_the_gate(|state| {
+            let _ = crate::commands::squad::set_starting_xi_internal(
+                state,
+                ofm_core::state::Career::Active,
+                Vec::new(),
+            );
+        });
+    }
+
+    /// The same for applying a saved custom tactic.
+    #[test]
+    fn a_custom_tactic_applied_waits_for_a_lifecycle_operation_in_flight() {
+        assert_a_bulk_role_write_waits_for_the_gate(|state| {
+            let _ = crate::commands::custom_tactics::apply_custom_tactic_internal(
+                state,
+                "none-saved",
+                ofm_core::state::Career::Active,
+            );
+        });
+    }
 }
