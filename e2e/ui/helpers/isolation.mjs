@@ -36,6 +36,9 @@ export function assertIsolated(env = process.env) {
   if (env.WAYLAND_DISPLAY || env.WAYLAND_SOCKET) {
     throw new Error("Refusing to start: a Wayland session is visible; the window would open on it.");
   }
+  if (env.GDK_BACKEND !== "x11") {
+    throw new Error("Refusing to start: GDK_BACKEND must be x11.");
+  }
   if (!env.DISPLAY) {
     throw new Error("Refusing to start: no DISPLAY; run under xvfb-run.");
   }
