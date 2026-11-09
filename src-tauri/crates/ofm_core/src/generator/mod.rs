@@ -16,6 +16,7 @@ pub use clubs::WorldGenConfig;
 pub use competition_def::*;
 pub use definitions::*;
 pub use file_format::{load_definition_file, parse_definition_str};
+pub use generation::ReputationScale;
 pub use package::{
     ConfederationDef, ConflictSeverity, CountryDef, MAX_ARCHIVE_BYTES, PackageError, PackageInfo,
     PackageLock, PlayerCareerEntryDef, PlayerDef, RESERVED_PACKAGE_ID, StackConflict, StaffDef,
@@ -2717,6 +2718,7 @@ mod tests {
             .map(|_| {
                 generate_youth_academy_recruit_with_nationality(
                     &team,
+                    &ReputationScale::new(500.0, 150.0),
                     None,
                     None,
                     TEST_OPENING_YEAR,
@@ -2750,6 +2752,7 @@ mod tests {
 
         let player = generate_youth_academy_recruit_with_nationality(
             &team,
+            &ReputationScale::new(500.0, 150.0),
             None,
             Some("GB"),
             TEST_OPENING_YEAR,
@@ -2784,12 +2787,14 @@ mod tests {
             for _ in 0..20 {
                 let scouted = generate_youth_academy_recruit(
                     &team,
+                    &ReputationScale::new(500.0, 150.0),
                     Some(&group),
                     TEST_OPENING_YEAR,
                     &mut rand::rng(),
                 );
                 let intake = generate_youth_intake_recruit(
                     &team,
+                    &ReputationScale::new(500.0, 150.0),
                     &group,
                     16,
                     TEST_OPENING_YEAR,
@@ -2838,6 +2843,7 @@ mod tests {
         for _ in 0..16 {
             let player = generate_youth_academy_recruit_with_nationality(
                 &team,
+                &ReputationScale::new(500.0, 150.0),
                 Some(&Position::Goalkeeper),
                 None,
                 TEST_OPENING_YEAR,

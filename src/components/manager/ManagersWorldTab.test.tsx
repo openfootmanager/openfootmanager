@@ -12,6 +12,7 @@ vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn(async () => undefined) })
 const mockedInvoke = vi.mocked(invoke);
 
 vi.mock("react-i18next", () => ({
+  initReactI18next: { type: "3rdParty", init: () => undefined },
   useTranslation: () => ({
     t: (key: string, params?: Record<string, string | number>) => {
       if (key === "managersWorld.title") return "Managers";

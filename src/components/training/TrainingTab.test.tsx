@@ -1,13 +1,19 @@
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { GameStateData, PlayerData, TeamData } from "../../store/gameStore";
 import TrainingTab from "./TrainingTab";
+import { i18nReady } from "../../i18n";
+
 import {
   createConditionStatus,
   createSeasonContext,
   createSquadFitness,
 } from "../../test-utils/factories";
+
+beforeAll(async () => {
+  await i18nReady;
+});
 
 const invokeMock = vi.fn();
 
@@ -16,6 +22,7 @@ vi.mock("@tauri-apps/api/core", () => ({
 }));
 
 vi.mock("react-i18next", () => ({
+  initReactI18next: { type: "3rdParty", init: () => undefined },
   useTranslation: () => ({
     t: (key: string, params?: Record<string, string | number>, fallback?: string) => {
       if (key === "common.noTeam") return "No team";
@@ -410,11 +417,11 @@ describe("TrainingTab", () => {
     render(<TrainingTab gameState={state} />);
 
     const critical = await screen.findByRole("listitem", { name: /Flagged Critical/ });
-    expect(within(critical).getByText("be.condition.critical")).toHaveClass("text-tone-bad");
+    expect(within(critical).getByText("Critical")).toHaveClass("text-tone-bad");
     const criticalBar = within(critical).getByRole("progressbar", { name: "common.condition" });
     expect(criticalBar.firstElementChild).toHaveClass("bg-tone-bad-solid");
     const fresh = screen.getByRole("listitem", { name: /Flagged Fresh/ });
-    expect(within(fresh).getByText("be.condition.fresh")).toHaveClass("text-tone-good");
+    expect(within(fresh).getByText("Fresh")).toHaveClass("text-tone-good");
     const freshBar = within(fresh).getByRole("progressbar", { name: "common.condition" });
     expect(freshBar.firstElementChild).toHaveClass("bg-tone-good-solid");
   });
@@ -475,7 +482,7 @@ describe("TrainingTab", () => {
     render(<TrainingTab gameState={state} />);
 
     const injured = await screen.findByRole("listitem", { name: /Sidelined/ });
-    expect(await within(injured).findByText("be.condition.exhausted")).toBeInTheDocument();
+    expect(await within(injured).findByText("Exhausted")).toBeInTheDocument();
     expect(screen.queryByRole("progressbar", { name: "training.avgCondition" })).toBeNull();
   });
 });

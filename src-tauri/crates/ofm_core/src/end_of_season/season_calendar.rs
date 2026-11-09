@@ -158,6 +158,29 @@ mod tests {
         assert!(league.standings.iter().all(|row| row.played == 0));
     }
 
+    /// Given an April rollover in a World Cup year, when the finals are staged, then their
+    /// first match waits until the World Cup summer rather than occupying the club season.
+    #[test]
+    fn an_april_rollover_does_not_start_the_world_cup_before_june() {
+        let mut game = english_game(at(2034, 4, 18));
+        advance_to_next_season(&mut game).unwrap();
+        let cup = game
+            .competitions
+            .iter()
+            .find(|c| crate::world_cup::is_world_cup_competition(c))
+            .expect("the finals are staged");
+        let first = cup
+            .fixtures
+            .iter()
+            .map(|f| f.date.as_str())
+            .min()
+            .expect("the finals have matches");
+        assert!(
+            first >= "2034-06-01",
+            "World Cup started before summer: {first}"
+        );
+    }
+
     /// Given a foreign league that finished long before the user's late rollover, when the user advances, then it renews by exactly one edition with its participants and authored opener kept.
     #[test]
     fn overdue_foreign_league_advances_one_edition() {

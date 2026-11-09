@@ -519,6 +519,28 @@ describe("useTacticsLibrary saving and applying the whole tactic (#1189)", () =>
   });
 
   /**
+   * Given a setup the player saves as a tactic
+   * When the save answers
+   * Then Save resolves true if the backend accepted it and false if it refused it, so the screen
+   *      shows "Saved" only for a save that held.
+   */
+  it.each([
+    [false, true],
+    [true, false],
+  ])("resolves the save with %s refused: %s", async (failSaves, accepted) => {
+    backendWith([], false, failSaves);
+    const { result } = renderLibrary(careerGame);
+    await waitFor(() => expect(callsTo("list_custom_tactics")).toHaveLength(1));
+
+    let outcome: boolean | undefined;
+    await act(async () => {
+      outcome = await result.current.handleSaveTactic();
+    });
+
+    expect(outcome).toBe(accepted);
+  });
+
+  /**
    * Given a save that refuses a made tactic
    * When the player makes one
    * Then the screen is told (once), and the library goes back to what the save holds.
@@ -546,6 +568,84 @@ describe("useTacticsLibrary saving and applying the whole tactic (#1189)", () =>
     await waitFor(() => expect(onWriteError).toHaveBeenCalledTimes(1));
     await waitFor(() => expect(customIds(result)).toEqual([]));
     expect(onWriteSaved).not.toHaveBeenCalled();
+  });
+
+  /**
+   * Given a tactic save and its recovery reload both fail
+   * When the player saves a tactic
+   * Then the previous library is restored and the save failure is reported.
+   */
+  it("restores the library when both the save and recovery reload fail", async () => {
+    let lists = 0;
+    const failure = new Error("disk full");
+    mockedInvoke.mockReset();
+    mockedInvoke.mockImplementation(async (command: string) => {
+      if (command === "list_custom_tactics") {
+        if (++lists > 1) throw new Error("reload failed");
+        return [savedTactic];
+      }
+      if (command === "legacy_tactics_import_pending") return false;
+      if (command === "save_current_tactic") throw failure;
+      return { modified: false };
+    });
+    const onWriteError = vi.fn();
+    const { result } = renderHook(() =>
+      useTacticsLibrary({
+        gameState: careerGame,
+        formation: "4-4-2",
+        activePlayStyle: "Balanced",
+        initialPreset: null,
+        onApplyPreset: vi.fn(),
+        onGameUpdate: vi.fn(),
+        onWriteError,
+        onWriteSaved: vi.fn(),
+      }),
+    );
+    await waitFor(() => expect(customIds(result)).toEqual([savedTactic.id]));
+
+    let outcome: boolean | undefined;
+    await act(async () => {
+      outcome = await result.current.handleSaveTactic();
+    });
+
+    expect(outcome).toBe(false);
+    expect(onWriteError).toHaveBeenCalledWith(failure);
+    expect(customIds(result)).toEqual([savedTactic.id]);
+  });
+
+  /**
+   * Given two creates queued while the first save is pending
+   * When both saves and both recovery reloads fail
+   * Then neither unconfirmed tactic remains in the library.
+   */
+  it("restores the confirmed library after consecutive failed creates", async () => {
+    const firstSave = deferred<void>();
+    let lists = 0;
+    let saves = 0;
+    mockedInvoke.mockReset();
+    mockedInvoke.mockImplementation(async (command: string) => {
+      if (command === "list_custom_tactics") {
+        if (++lists > 1) throw new Error("reload failed");
+        return [];
+      }
+      if (command === "legacy_tactics_import_pending") return false;
+      if (command === "save_current_tactic") {
+        if (++saves === 1) await firstSave.promise;
+        throw new Error("save failed");
+      }
+      return { modified: false };
+    });
+    const { result } = renderLibrary(careerGame);
+    await waitFor(() => expect(callsTo("legacy_tactics_import_pending")).toHaveLength(1));
+
+    act(() => result.current.handleCreateCustomTactic());
+    await waitFor(() => expect(saves).toBe(1));
+    act(() => result.current.handleCreateCustomTactic());
+    expect(customIds(result)).toHaveLength(2);
+    await act(async () => firstSave.resolve());
+
+    await waitFor(() => expect(lists).toBe(3));
+    await waitFor(() => expect(customIds(result)).toEqual([]));
   });
 
   /**

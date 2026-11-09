@@ -493,8 +493,10 @@ fn complete_youth_scouting_assignment(
     // clock rather than the year the world opened in.
     let current_year = chrono::Datelike::year(&game.clock.current_date) as u32;
     let mut rng = game.rng_today(&format!("youth-scouting/{}", assignment.id));
+    let reputations = crate::generator::ReputationScale::of_clubs(&game.teams);
     let prospects = generate_youth_recruitment_candidates(
         &team,
+        &reputations,
         assignment.region,
         assignment.objective,
         assignment.target_position.as_ref(),
@@ -682,6 +684,7 @@ fn prospect_score(player: &Player, objective: YouthScoutingObjective) -> (u8, u8
 
 fn generate_youth_recruitment_candidates(
     team: &domain::team::Team,
+    reputations: &crate::generator::ReputationScale,
     region: YouthScoutingRegion,
     objective: YouthScoutingObjective,
     target_position: Option<&Position>,
@@ -703,6 +706,7 @@ fn generate_youth_recruitment_candidates(
         .map(|_| {
             let mut prospect = crate::generator::generate_youth_academy_recruit_with_nationality(
                 team,
+                reputations,
                 target_position,
                 match region {
                     YouthScoutingRegion::Domestic => domestic_nationality,

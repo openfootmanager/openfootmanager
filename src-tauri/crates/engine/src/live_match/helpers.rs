@@ -2,8 +2,8 @@ use rand::Rng;
 
 use crate::event::{DangerBand, FoulSeverity, GoalContext, SaveQuality};
 use crate::shared::{
-    PlayStylePhase, PlayerSnap, condition_factor, home_mod, play_style_modifier,
-    tactics_pressing_fatigue, tactics_pressing_press,
+    PlayStylePhase, PlayerSnap, condition_factor, forward_press_factor, home_mod,
+    play_style_modifier, role_fatigue, tactics_pressing_fatigue, tactics_pressing_press,
 };
 use crate::types::{PlayerData, Position, Side, TeamData};
 
@@ -37,8 +37,10 @@ impl LiveMatchState {
             let fitness_factor = p.fitness as f64 / 100.0;
             // Higher stamina → less depletion; higher fitness → less depletion.
             // Fitness scales the base depletion more aggressively (unfit players tire much faster).
-            let depletion =
-                fatigue_rate * (1.0 - stamina_factor * 0.5) * (1.3 - fitness_factor * 0.6);
+            let depletion = fatigue_rate
+                * role_fatigue(p.role, p.position)
+                * (1.0 - stamina_factor * 0.5)
+                * (1.3 - fitness_factor * 0.6);
             if let Some(cond) = self.player_conditions.get_mut(&p.id) {
                 *cond = (*cond - depletion).max(5.0);
             }
@@ -81,26 +83,32 @@ impl LiveMatchState {
             .unwrap_or_else(PlayerSnap::nobody)
     }
 
+    /// Who stands in goal for `side` right now: its goalkeeper, or with none left on the pitch
+    /// the first player who is, who keeps his own attributes but plays out of position.
+    pub(super) fn goalkeeper_in_goal(&self, side: Side) -> Option<&PlayerData> {
+        self.keeper_on_the_pitch(side).or_else(|| {
+            self.team_ref(side)
+                .players
+                .iter()
+                .find(|p| !self.sent_off.contains(&p.id))
+        })
+    }
+
     pub(super) fn pick_goalkeeper(&self, side: Side) -> PlayerSnap {
-        if let Some(keeper) = self.keeper_on_the_pitch(side) {
-            return PlayerSnap::from(keeper);
+        match self.goalkeeper_in_goal(side) {
+            Some(keeper) if keeper.position == Position::Goalkeeper => PlayerSnap::from(keeper),
+            Some(outfielder) => PlayerSnap::playing_in(outfielder, Position::Goalkeeper),
+            // Everyone is sent off, or there is nobody at all. `create_live_match`
+            // refuses a side with no players, so the latter should not reach here —
+            // but a blank name in an event is a bug worth reporting, and indexing
+            // an empty squad is a window that stops responding.
+            None => self
+                .team_ref(side)
+                .players
+                .first()
+                .map(|p| PlayerSnap::playing_in(p, Position::Goalkeeper))
+                .unwrap_or_else(PlayerSnap::nobody),
         }
-        let team = self.team_ref(side);
-        // No goalkeeper available: the first player still on the pitch goes in, keeping his own
-        // attributes but out of position, at his goalkeeping factor.
-        for p in &team.players {
-            if !self.sent_off.contains(&p.id) {
-                return PlayerSnap::playing_in(p, Position::Goalkeeper);
-            }
-        }
-        // Everyone is sent off, or there is nobody at all. `create_live_match`
-        // refuses a side with no players, so the latter should not reach here —
-        // but a blank name in an event is a bug worth reporting, and indexing
-        // an empty squad is a window that stops responding.
-        team.players
-            .first()
-            .map(|p| PlayerSnap::playing_in(p, Position::Goalkeeper))
-            .unwrap_or_else(PlayerSnap::nobody)
     }
 
     // -----------------------------------------------------------------------
@@ -129,7 +137,11 @@ impl LiveMatchState {
             self.midfield_slots(pressing_side),
         );
         let modifier = play_style_modifier(team.play_style, PlayStylePhase::Press, true);
+        let forwards = team.players.iter().filter(|p| {
+            p.position == Position::Forward && self.is_on_the_pitch(pressing_side, &p.id)
+        });
         base * modifier
+            * forward_press_factor(forwards)
             * self.short_handed_cover(pressing_side)
             * tactics_pressing_press(&team.tactics)
             * home_mod(pressing_side, &self.config)
@@ -681,5 +693,194 @@ mod short_handed_line_tests {
             (ratio - 0.75 / 1.7).abs() < 1e-12,
             "the press kept {ratio} of its strength"
         );
+    }
+}
+
+#[cfg(test)]
+mod press_and_fatigue_tests {
+    use crate::live_match::LiveMatchState;
+    use crate::shared::{role_fatigue, tactics_pressing_fatigue};
+    use crate::test_support::{full_side, same};
+    use crate::types::{
+        MatchConfig, PlayStyle, PlayerRole, Position, PressingIntensity, Side, TeamData,
+    };
+
+    fn match_between(home: TeamData, away: TeamData) -> LiveMatchState {
+        LiveMatchState::new(home, away, MatchConfig::default(), vec![], vec![], false)
+    }
+
+    /// The Away side's press, with `change` made to its team: the ratio against the unchanged
+    /// team isolates what the change multiplies it by (Away, so the home advantage is not in it).
+    fn press_ratio(change: impl FnOnce(&mut TeamData)) -> f64 {
+        let mut changed = full_side("a");
+        change(&mut changed);
+        let plain = match_between(full_side("h"), full_side("a")).effective_press(Side::Away);
+        match_between(full_side("h"), changed).effective_press(Side::Away) / plain
+    }
+
+    fn forwards_on(team: &mut TeamData, role: PlayerRole) {
+        for player in team
+            .players
+            .iter_mut()
+            .filter(|player| player.position == Position::Forward)
+        {
+            player.role = role;
+        }
+    }
+
+    /// Given a side whose forwards are Pressing Forwards,
+    /// When its press is read against the same side on Standard,
+    /// Then it is 7.5% stronger.
+    #[test]
+    fn pressing_forwards_strengthen_the_live_press_by_their_share() {
+        assert!(same(
+            press_ratio(|team| forwards_on(team, PlayerRole::PressingForward)),
+            1.075
+        ));
+    }
+
+    /// Given a High Press side against a Balanced one,
+    /// When its press is read,
+    /// Then it is multiplied by the style's Press entry, 1.20.
+    #[test]
+    fn a_high_press_style_multiplies_the_live_press_by_its_entry() {
+        assert!(same(
+            press_ratio(|team| team.play_style = PlayStyle::HighPress),
+            1.20
+        ));
+    }
+
+    /// Given an aggressive pressing dial against a medium one,
+    /// When the press is read,
+    /// Then it is multiplied by 1.06.
+    #[test]
+    fn an_aggressive_dial_multiplies_the_live_press_by_its_figure() {
+        assert!(same(
+            press_ratio(|team| team.tactics.pressing_intensity = PressingIntensity::Aggressive),
+            1.06
+        ));
+    }
+
+    /// Given the same two sides,
+    /// When the home side's press is read against the away side's,
+    /// Then it is multiplied by the home advantage.
+    #[test]
+    fn the_home_side_presses_by_the_home_advantage_more_live() {
+        let state = match_between(full_side("h"), full_side("h"));
+
+        assert!(same(
+            state.effective_press(Side::Home) / state.effective_press(Side::Away),
+            MatchConfig::default().home_advantage
+        ));
+    }
+
+    /// Given a side with a defender sent off (a midfield and a front line untouched),
+    /// When its press is read against the same side with eleven,
+    /// Then it is multiplied by what a side a man short covers (`short_handed_cover`).
+    #[test]
+    fn a_side_a_man_short_presses_by_its_cover() {
+        let mut ten = match_between(full_side("h"), full_side("a"));
+        let eleven = match_between(full_side("h"), full_side("a")).effective_press(Side::Away);
+        ten.test_send_off("a_def0");
+
+        let cover = ten.short_handed_cover(Side::Away);
+
+        assert!(cover < 1.0, "a man short covers less");
+        assert!(same(ten.effective_press(Side::Away) / eleven, cover));
+    }
+
+    /// Given Pressing Forward on a midfielder,
+    /// When the press is read,
+    /// Then it does not change: the press reads the front line by position.
+    #[test]
+    fn a_midfielder_on_the_forwards_role_adds_nothing_live() {
+        assert!(same(
+            press_ratio(|team| {
+                for player in team
+                    .players
+                    .iter_mut()
+                    .filter(|player| player.position == Position::Midfielder)
+                {
+                    player.role = PlayerRole::PressingForward;
+                }
+            }),
+            1.0
+        ));
+    }
+
+    /// Given both forwards Pressing Forwards and one of them sent off,
+    /// When the press is read,
+    /// Then only the one still on the pitch adds: 3.75%, not 7.5%.
+    #[test]
+    fn a_forward_sent_off_adds_nothing_to_the_live_press() {
+        let mut pressing = full_side("a");
+        forwards_on(&mut pressing, PlayerRole::PressingForward);
+        let mut state = match_between(full_side("h"), pressing);
+        state.test_send_off("a_fwd0");
+        let standard = match_between(full_side("h"), full_side("a")).effective_press(Side::Away);
+        let cover = state.short_handed_cover(Side::Away);
+
+        // The side is a man short as well: that cover is read out so the front line's share is
+        // what is left.
+        assert!(same(
+            state.effective_press(Side::Away) / standard / cover,
+            1.0375
+        ));
+    }
+
+    /// Given a player of stamina 80 and fitness 70 on the Pressing Forward role in a side with an
+    /// aggressive pressing dial,
+    /// When a minute's stamina is spent,
+    /// Then he loses fatigue x dial x role x (1 - stamina / 2) x (1.3 - fitness x 0.6), with
+    /// every one of those distinct from 1.0 so each factor has to be there.
+    #[test]
+    fn a_minute_costs_each_factor_of_the_depletion() {
+        let mut home = full_side("h");
+        home.tactics.pressing_intensity = PressingIntensity::Aggressive;
+        for player in home.players.iter_mut().filter(|p| p.id == "h_fwd0") {
+            player.role = PlayerRole::PressingForward;
+            player.stamina = 80;
+            player.fitness = 70;
+        }
+        let mut state = match_between(home, full_side("a"));
+        let config = MatchConfig::default();
+        let expected = config.fatigue_per_minute
+            * tactics_pressing_fatigue(&state.home.tactics)
+            * role_fatigue(PlayerRole::PressingForward, Position::Forward)
+            * (1.0 - 0.80 * 0.5)
+            * (1.3 - 0.70 * 0.6);
+
+        state.deplete_stamina_tick();
+
+        assert!(expected > 0.0 && !same(expected, config.fatigue_per_minute));
+        assert!(same(100.0 - state.player_conditions["h_fwd0"], expected));
+    }
+
+    /// The condition a minute costs `h_fwd0`, with his role and the line he plays in.
+    fn minute_cost_of(role: PlayerRole, position: Position) -> f64 {
+        let mut home = full_side("h");
+        for player in home.players.iter_mut().filter(|p| p.id == "h_fwd0") {
+            player.role = role;
+            player.position = position;
+        }
+        let mut state = match_between(home, full_side("a"));
+        state.deplete_stamina_tick();
+        100.0 - state.player_conditions["h_fwd0"]
+    }
+
+    /// Given a Pressing Forward in the front line, and one a change of shape has moved into
+    /// midfield (where he no longer presses),
+    /// When a minute's stamina is spent against a Standard player in the same line,
+    /// Then the one up front pays 1.08 of the Standard cost and the one moved pays no more than
+    /// Standard: a role the line does not admit costs nothing.
+    #[test]
+    fn a_pressing_forward_pays_for_the_role_only_up_front() {
+        let up_front = minute_cost_of(PlayerRole::PressingForward, Position::Forward)
+            / minute_cost_of(PlayerRole::Standard, Position::Forward);
+        let moved = minute_cost_of(PlayerRole::PressingForward, Position::Midfielder)
+            / minute_cost_of(PlayerRole::Standard, Position::Midfielder);
+
+        assert!(same(up_front, 1.08));
+        assert!(same(moved, 1.0));
     }
 }

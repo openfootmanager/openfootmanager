@@ -6,6 +6,7 @@ import type { FreeAgentContractProjection } from "../../services/freeAgentServic
 import FreeAgentContractModal from "./FreeAgentContractModal";
 
 vi.mock("react-i18next", () => ({
+  initReactI18next: { type: "3rdParty", init: () => undefined },
   useTranslation: () => ({
     t: (key: string, params?: Record<string, string | number>) => {
       if (key === "transfers.offerContract") return "Offer Contract";

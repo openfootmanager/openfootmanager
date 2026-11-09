@@ -1,5 +1,6 @@
+import { i18nReady } from "../../i18n";
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type {
   GameStateData,
@@ -13,17 +14,23 @@ import { marketPageOf } from "../transfers/TransfersTab.testFixtures";
 import ScoutingTab from "./ScoutingTab";
 import { createSeasonContext } from "../../test-utils/factories";
 
+beforeAll(async () => {
+  await i18nReady;
+});
+
 const invokeMock = vi.fn();
 
 vi.mock("@tauri-apps/api/core", () => ({
   invoke: (...args: unknown[]) => invokeMock(...args),
 }));
 
-vi.mock("../../utils/backendI18n", () => ({
+vi.mock("../../utils/backendI18n", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../../utils/backendI18n")>()),
   resolveBackendError: (error: unknown) => (error instanceof Error ? error.message : String(error)),
 }));
 
 vi.mock("react-i18next", () => ({
+  initReactI18next: { type: "3rdParty", init: () => undefined },
   useTranslation: () => ({
     t: (key: string, params?: Record<string, string | number>) => {
       if (key === "scouting.title") return "Scouting";

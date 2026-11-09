@@ -6,6 +6,7 @@ import type { HomeRecentResult } from "./HomeTab.helpers";
 import HomeRecentResultsCard from "./HomeRecentResultsCard";
 
 vi.mock("react-i18next", () => ({
+  initReactI18next: { type: "3rdParty", init: () => undefined },
   useTranslation: () => ({
     t: (key: string) => {
       if (key === "dashboard.schedule") return "Schedule";

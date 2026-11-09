@@ -10,69 +10,14 @@
 //! bands below are this fixture's calibrated rates with room for the counts' noise.
 
 use engine::live_match::LiveMatchState;
-use engine::{
-    EventType, MatchConfig, MatchEvent, PlayStyle, PlayerData, PlayerRole, Position, TacticsConfig,
-    TeamData, simulate_with_rng,
-};
+use engine::{EventType, MatchConfig, MatchEvent, simulate_with_rng};
 use rand::SeedableRng;
 use rand::rngs::StdRng;
 
+mod common;
+use common::equal_side;
+
 const SEEDS: u64 = 2000;
-
-fn player(id: &str, position: Position) -> PlayerData {
-    PlayerData {
-        id: id.to_string(),
-        name: id.to_string(),
-        position,
-        ovr: 70,
-        condition: 100,
-        fitness: 100,
-        injury_risk: 1.0,
-        line_familiarity: [1.0; 4],
-        pace: 70,
-        stamina: 70,
-        strength: 70,
-        agility: 70,
-        passing: 70,
-        shooting: 70,
-        tackling: 70,
-        dribbling: 70,
-        defending: 70,
-        positioning: 70,
-        vision: 70,
-        decisions: 70,
-        composure: 70,
-        aggression: 70,
-        teamwork: 70,
-        leadership: 70,
-        handling: 70,
-        reflexes: 70,
-        aerial: 70,
-        traits: vec![],
-        role: PlayerRole::Standard,
-    }
-}
-
-/// A 4-4-2 of equal players.
-fn side(prefix: &str) -> TeamData {
-    let mut players = vec![player(&format!("{prefix}_gk"), Position::Goalkeeper)];
-    for number in 1..=10 {
-        let position = match number {
-            1..=4 => Position::Defender,
-            5..=8 => Position::Midfielder,
-            _ => Position::Forward,
-        };
-        players.push(player(&format!("{prefix}_{number}"), position));
-    }
-    TeamData {
-        id: prefix.to_string(),
-        name: prefix.to_string(),
-        formation: "4-4-2".to_string(),
-        play_style: PlayStyle::Balanced,
-        tactics: TacticsConfig::default(),
-        players,
-    }
-}
 
 /// Cards over every seed. A second yellow is a booking and a sending-off, as the match report
 /// counts it.
@@ -112,8 +57,8 @@ fn play_equal_sides() -> Cards {
     let mut cards = Cards::default();
     for seed in 0..SEEDS {
         let mut state = LiveMatchState::new(
-            side("h"),
-            side("a"),
+            equal_side("h"),
+            equal_side("a"),
             MatchConfig::default(),
             vec![],
             vec![],
@@ -165,8 +110,12 @@ fn instant_cards_between_equal_sides() -> &'static Cards {
         let mut cards = Cards::default();
         for seed in 0..SEEDS {
             let mut rng = StdRng::seed_from_u64(seed);
-            let report =
-                simulate_with_rng(&side("h"), &side("a"), &MatchConfig::default(), &mut rng);
+            let report = simulate_with_rng(
+                &equal_side("h"),
+                &equal_side("a"),
+                &MatchConfig::default(),
+                &mut rng,
+            );
             report.events.iter().for_each(|event| cards.count(event));
         }
         cards
