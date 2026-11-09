@@ -1602,6 +1602,78 @@ mod tests {
         );
     }
 
+    /// Given a v065 save with a league and a cup, when it upgrades and a fresh reader loads
+    /// the player, then his old league totals belong only to his current club's league.
+    #[test]
+    fn an_existing_save_moves_league_totals_into_the_clubs_competition() {
+        use domain::league::{CompetitionType, League};
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("v065.db");
+        let mut conn = Connection::open(&path).unwrap();
+        crate::migrations::all_migrations()
+            .to_version(&mut conn, 65)
+            .unwrap();
+        let mut league = League::new("division-b".into(), "B".into(), 2025, &["club".into()]);
+        let mut cup = league.clone();
+        cup.id = "cup".into();
+        cup.kind = CompetitionType::Cup;
+        // Legacy competitions without participants still identify their clubs in the table.
+        league.participant_ids.clear();
+        super::super::competition_repo::replace_competitions(&conn, &[cup, league]).unwrap();
+        let league_stats = domain::player::PlayerSeasonStats {
+            appearances: 12,
+            goals: 9,
+            clean_sheets: 4,
+            rated_appearances: 10,
+            avg_rating: 7.3,
+            ..Default::default()
+        };
+        let total_stats = domain::player::PlayerSeasonStats {
+            goals: 20,
+            ..league_stats.clone()
+        };
+        for (id, old_league_stats) in [
+            ("v065", Some(serde_json::to_string(&league_stats).unwrap())),
+            ("pre-v065", None),
+        ] {
+            conn.execute(
+                "INSERT INTO players (id, match_name, full_name, date_of_birth, nationality,
+                 position, attributes, team_id, stats, league_stats)
+                 VALUES (?1, 'Player', 'Player', '2000-01-01', 'ENG', 'Forward', ?2, 'club', ?3, ?4)",
+                params![id, serde_json::to_string(&sample_player(id, None).attributes).unwrap(),
+                    serde_json::to_string(&total_stats).unwrap(), old_league_stats],
+            ).unwrap();
+        }
+        drop(conn);
+
+        let reader = GameDatabase::open(&path).unwrap();
+        let players = load_all_players(reader.conn()).unwrap();
+        for (id, expected) in [("v065", league_stats), ("pre-v065", total_stats)] {
+            let player = players.iter().find(|p| p.id == id).unwrap();
+            assert_eq!(
+                serde_json::to_value(player).unwrap()["league_stats_by_competition"],
+                serde_json::json!({"division-b": expected})
+            );
+        }
+        assert_eq!(reader.schema_version().unwrap(), 66);
+    }
+
+    /// Given a player's JSON from before competition stats existed, when it loads,
+    /// then the absent field defaults to an empty map.
+    #[test]
+    fn old_player_json_defaults_to_no_competition_stints() {
+        let mut value = serde_json::to_value(sample_player("old-json", None)).unwrap();
+        value
+            .as_object_mut()
+            .unwrap()
+            .remove("league_stats_by_competition");
+        let player: Player = serde_json::from_value(value).unwrap();
+        assert_eq!(
+            serde_json::to_value(player).unwrap()["league_stats_by_competition"],
+            serde_json::json!({})
+        );
+    }
+
     /// Given a player row saved before league stats existed (the column NULL),
     /// When it is loaded,
     /// Then his season so far reads as his league season, so an upgraded save keeps its award
