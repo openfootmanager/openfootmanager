@@ -11,13 +11,22 @@ import { buttonNamed, clickWhenReady } from "../helpers/ui.mjs";
 const edit = { formation: "", playStyle: "" };
 
 /**
+ * The text of an element: what the driver renders, or the DOM's where the driver reports none.
+ * WebKitWebDriver gives an empty string for these controls' buttons, which are text in a span.
+ */
+async function textOf(element) {
+  return (await element.getText()).trim() || String(await element.getProperty("textContent")).trim();
+}
+
+/**
  * Opens the combobox named `label`, picks the first option whose text differs from the one shown,
  * and returns the text of the option picked once the combobox shows it.
  */
 async function chooseAnotherOption(label) {
   const combobox = $(`button[role="combobox"][aria-label="${label}"]`);
   await combobox.waitForDisplayed({ timeout: 30_000 });
-  const current = (await combobox.getText()).trim();
+  const current = await textOf(combobox);
+  expect(current).not.toBe("");
 
   await clickWhenReady(combobox);
   // The list is drawn after the click, and $$ does not wait for it.
@@ -28,9 +37,7 @@ async function chooseAnotherOption(label) {
   let pickedOption;
   const seen = [];
   for (const option of options) {
-    // The rendered text, or the DOM's where the driver reports none for an option in a popover.
-    const text =
-      (await option.getText()).trim() || String(await option.getProperty("textContent")).trim();
+    const text = await textOf(option);
     seen.push(text);
     if (text !== "" && text !== current) {
       picked = text;
@@ -45,7 +52,7 @@ async function chooseAnotherOption(label) {
   }
   await clickWhenReady(pickedOption);
 
-  await browser.waitUntil(async () => (await combobox.getText()).trim() === picked, {
+  await browser.waitUntil(async () => (await textOf(combobox)) === picked, {
     timeout: 10_000,
     timeoutMsg: `the ${label} control never showed ${picked}`,
   });
