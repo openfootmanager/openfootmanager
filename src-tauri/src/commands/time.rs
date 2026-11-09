@@ -2782,6 +2782,182 @@ mod tests {
         );
     }
 
+    fn waiting_match_with_transfer_targets() -> StateManager {
+        let mut game = make_round_summary_game();
+        for team_id in ["team1", "team2"] {
+            let team = game.teams.iter_mut().find(|t| t.id == team_id).unwrap();
+            team.starting_xi_ids = game
+                .players
+                .iter()
+                .filter(|p| p.team_id.as_deref() == Some(team_id))
+                .map(|p| p.id.clone())
+                .collect();
+            team.finance = 20_000_000;
+            team.transfer_budget = 20_000_000;
+            team.reputation = if team_id == "team1" { 700 } else { 350 };
+            for (suffix, position) in [
+                ("gk", Position::Goalkeeper),
+                ("def", Position::Defender),
+                ("def2", Position::Defender),
+                ("mid", Position::Midfielder),
+                ("mid2", Position::Midfielder),
+                ("fwd", Position::Forward),
+            ] {
+                let id = format!("spare-{team_id}-{suffix}");
+                let mut player = make_player(&id, &id, team_id, position);
+                player.stage_contract_end(Some("2028-06-30".into()));
+                player.stage_wage(1_000);
+                player.market_value = 1_000_000;
+                player.morale = 35;
+                player.stats.appearances = 1;
+                if suffix == "def" {
+                    team.player_roles
+                        .insert(id.clone(), domain::team::PlayerRole::AttackingFB);
+                    if team_id == "team1" {
+                        player.transfer_offers.push(domain::player::TransferOffer {
+                            id: "offer-1".into(),
+                            from_team_id: "team2".into(),
+                            fee: 1_050_000,
+                            wage_offered: 0,
+                            last_manager_fee: None,
+                            negotiation_round: 1,
+                            suggested_counter_fee: None,
+                            status: domain::player::TransferOfferStatus::Pending,
+                            date: "2025-06-15".into(),
+                            registration_date: None,
+                            closed_on: None,
+                            registration_failure_reason: None,
+                        });
+                    }
+                }
+                game.players.push(player);
+            }
+        }
+        let state = StateManager::new();
+        state.set_game(game);
+        advance_time_with_mode_internal(&state, ofm_core::state::Career::Active, "live").unwrap();
+        state
+            .update_game(|game| {
+                game.season_context.transfer_window.status =
+                    domain::season::TransferWindowStatus::Open
+            })
+            .unwrap();
+        state
+    }
+
+    fn waiting_bench_role(
+        state: &StateManager,
+        player_id: &str,
+        side: engine::Side,
+    ) -> engine::PlayerRole {
+        state
+            .with_live_match(|session| {
+                let snapshot = session.snapshot();
+                let bench = if side == engine::Side::Home {
+                    snapshot.home_bench
+                } else {
+                    snapshot.away_bench
+                };
+                bench
+                    .iter()
+                    .find(|player| player.id == player_id)
+                    .unwrap()
+                    .role
+            })
+            .unwrap()
+    }
+
+    /// Given an opponent's saved bench role, when the player is bought immediately, then both copies are cleared.
+    #[test]
+    fn purchasing_an_opponents_bench_player_clears_his_waiting_role() {
+        let state = waiting_match_with_transfer_targets();
+        let id = "spare-team2-def";
+        assert_eq!(
+            waiting_bench_role(&state, id, engine::Side::Away),
+            engine::PlayerRole::AttackingFB
+        );
+        let result = crate::commands::transfers::make_transfer_bid_internal(
+            &state,
+            ofm_core::state::Career::Active,
+            id,
+            1_050_000,
+        )
+        .unwrap();
+        assert_eq!(
+            result.decision,
+            ofm_core::transfers::TransferNegotiationDecision::Accepted
+        );
+        assert!(!result.game.teams[1].player_roles.contains_key(id));
+        assert_eq!(
+            waiting_bench_role(&state, id, engine::Side::Away),
+            engine::PlayerRole::Standard
+        );
+    }
+
+    /// Given the user's saved bench role, when his sale is accepted, then both copies are cleared.
+    #[test]
+    fn selling_a_user_bench_player_clears_his_waiting_role() {
+        let state = waiting_match_with_transfer_targets();
+        let id = "spare-team1-def";
+        assert_eq!(
+            waiting_bench_role(&state, id, engine::Side::Home),
+            engine::PlayerRole::AttackingFB
+        );
+        let game = crate::commands::transfers::respond_to_offer_internal(
+            &state,
+            ofm_core::state::Career::Active,
+            id,
+            "offer-1",
+            true,
+        )
+        .unwrap();
+        assert!(!game.teams[0].player_roles.contains_key(id));
+        assert_eq!(
+            waiting_bench_role(&state, id, engine::Side::Home),
+            engine::PlayerRole::Standard
+        );
+    }
+
+    /// Given a session-only role, when another player is sold, then the session choice survives.
+    #[test]
+    fn selling_a_bench_player_preserves_an_unrelated_session_choice() {
+        let state = waiting_match_with_transfer_targets();
+        let id = state
+            .with_live_match(|session| {
+                session
+                    .snapshot()
+                    .home_team
+                    .players
+                    .last()
+                    .unwrap()
+                    .id
+                    .clone()
+            })
+            .unwrap();
+        crate::application::live_match::apply_match_command(
+            &state,
+            ofm_core::state::Career::Active,
+            engine::MatchCommand::ChangePlayerRole {
+                side: engine::Side::Home,
+                player_id: id.clone(),
+                role: engine::PlayerRole::Poacher,
+            },
+        )
+        .unwrap();
+        crate::commands::transfers::respond_to_offer_internal(
+            &state,
+            ofm_core::state::Career::Active,
+            "spare-team1-def",
+            "offer-1",
+            true,
+        )
+        .unwrap();
+        assert_eq!(
+            role_in_the_waiting_match(&state, &id),
+            engine::PlayerRole::Poacher
+        );
+    }
+
     /// The eleven the waiting match starts, which is a valid eleven to save.
     fn current_eleven(state: &StateManager) -> Vec<String> {
         state

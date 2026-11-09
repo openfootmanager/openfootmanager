@@ -560,6 +560,87 @@ mod tests {
     use ofm_core::state::StateManager;
     use ofm_core::transfers::{LoanOfferDecision, TransferNegotiationDecision};
 
+    /// Given a lifecycle operation, when any player-move command runs, then it waits at the gate.
+    #[test]
+    fn every_player_move_command_waits_for_the_lifecycle_gate() {
+        type MoveCommand = fn(&StateManager);
+        let commands: [(&str, MoveCommand); 8] = [
+            ("termination", |state| {
+                let _ = crate::commands::contracts::terminate_contract_now_internal(
+                    state,
+                    Career::Active,
+                    "missing",
+                );
+            }),
+            ("bid", |state| {
+                let _ = make_transfer_bid_internal(state, Career::Active, "missing", 1);
+            }),
+            ("respond transfer", |state| {
+                let _ =
+                    respond_to_offer_internal(state, Career::Active, "missing", "missing", true);
+            }),
+            ("counter transfer", |state| {
+                let _ = counter_offer_internal(state, Career::Active, "missing", "missing", 1);
+            }),
+            ("loan", |state| {
+                let _ = make_loan_offer_internal(
+                    state,
+                    Career::Active,
+                    "missing",
+                    "2027-01-01",
+                    50,
+                    None,
+                );
+            }),
+            ("respond loan", |state| {
+                let _ = respond_to_loan_offer_internal(
+                    state,
+                    Career::Active,
+                    "missing",
+                    "missing",
+                    true,
+                );
+            }),
+            ("counter loan", |state| {
+                let _ = counter_loan_offer_internal(
+                    state,
+                    Career::Active,
+                    "missing",
+                    "missing",
+                    "2027-01-01",
+                    50,
+                    None,
+                );
+            }),
+            ("buy option", |state| {
+                let _ = exercise_loan_buy_option_internal(state, Career::Active, "missing");
+            }),
+        ];
+        for (name, command) in commands {
+            let state = std::sync::Arc::new(StateManager::new());
+            let gate = crate::application::live_session::operation();
+            let (started_tx, started_rx) = std::sync::mpsc::channel();
+            let (done_tx, done_rx) = std::sync::mpsc::channel();
+            let handle = std::thread::spawn(move || {
+                started_tx.send(()).unwrap();
+                command(&state);
+                done_tx.send(()).unwrap();
+            });
+            started_rx.recv().unwrap();
+            let while_held = done_rx
+                .recv_timeout(std::time::Duration::from_millis(300))
+                .ok();
+            drop(gate);
+            if while_held.is_none() {
+                done_rx
+                    .recv_timeout(std::time::Duration::from_secs(30))
+                    .unwrap();
+            }
+            handle.join().unwrap();
+            assert_eq!(while_held, None, "{name} must wait for the lifecycle gate");
+        }
+    }
+
     fn default_attrs() -> PlayerAttributes {
         PlayerAttributes {
             pace: 60,

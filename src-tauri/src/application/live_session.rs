@@ -14,6 +14,11 @@
 use ofm_core::state::StateManager;
 use std::sync::{Mutex, MutexGuard};
 
+#[cfg(test)]
+thread_local! {
+    pub(crate) static ROLE_GAME_SNAPSHOTS: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
+}
+
 static OPERATION: Mutex<()> = Mutex::new(());
 
 pub(crate) fn operation() -> MutexGuard<'static, ()> {
@@ -68,6 +73,8 @@ pub(crate) fn player_role_operation<T>(
             if changed.is_empty() {
                 None
             } else {
+                #[cfg(test)]
+                ROLE_GAME_SNAPSHOTS.with(|count| count.set(count.get() + 1));
                 Some((game.clone(), changed))
             }
         })

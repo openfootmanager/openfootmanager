@@ -1094,6 +1094,21 @@ mod tests {
                 && entry.from_team_name.as_deref() == Some("Alpha FC")
         }));
     }
+    /// Given a saved role between matches, when the player is released, then no match snapshot is built.
+    #[test]
+    fn a_between_match_termination_does_not_build_a_match_snapshot() {
+        let state = StateManager::new();
+        let mut game = make_squad_game();
+        game.teams[0]
+            .player_roles
+            .insert("player-1".into(), domain::team::PlayerRole::Poacher);
+        state.set_game(game);
+        crate::application::live_session::ROLE_GAME_SNAPSHOTS.with(|count| count.set(0));
+        terminate_contract_now_internal(&state, Career::Active, "player-1").unwrap();
+        crate::application::live_session::ROLE_GAME_SNAPSHOTS
+            .with(|count| assert_eq!(count.get(), 0, "no waiting match needs a snapshot"));
+    }
+
     /// Given a lifecycle operation in progress, when a contract is terminated, then the
     /// termination waits for the operation to finish before it can write the game.
     #[test]
