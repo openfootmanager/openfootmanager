@@ -98,17 +98,15 @@ test("an XDG directory that is a symlink out of the scratch home is refused", ()
 // is a writable directory outside /tmp on Linux; where it is not, there is nothing to test with.
 const outsideTmp = existsSync("/dev/shm") ? "/dev/shm" : null;
 
-test(
-  "a scratch HOME that is itself a symlink out of the temporary directory is refused",
-  { skip: outsideTmp === null },
-  () => {
-    const elsewhere = realpathSync(mkdtempSync(path.join(outsideTmp, "ofm-e2e-elsewhere-")));
-    for (const name of ["data", "config", "cache", "state"]) mkdirSync(path.join(elsewhere, name));
-    const home = path.join(realpathSync(tmpdir()), `ofm-e2e-link-${process.pid}`);
-    symlinkSync(elsewhere, home);
-    assert.throws(() => assertIsolated(isolatedEnv(home), ourXvfb), /HOME/);
-  },
-);
+test("a scratch HOME that is itself a symlink out of the temporary directory is refused", {
+  skip: outsideTmp === null,
+}, () => {
+  const elsewhere = realpathSync(mkdtempSync(path.join(outsideTmp, "ofm-e2e-elsewhere-")));
+  for (const name of ["data", "config", "cache", "state"]) mkdirSync(path.join(elsewhere, name));
+  const home = path.join(realpathSync(tmpdir()), `ofm-e2e-link-${process.pid}`);
+  symlinkSync(elsewhere, home);
+  assert.throws(() => assertIsolated(isolatedEnv(home), ourXvfb), /HOME/);
+});
 
 test("a Wayland or non-X11 session is refused: the window would open on the desktop", () => {
   const home = scratchHome();
@@ -133,15 +131,9 @@ test("the developer's own X11 display is refused, even with every other variable
   // DISPLAY=:0 is a real session's. Nothing the suite started serves it, so the process the
   // environment names is not an Xvfb for :0, however well the other variables are set.
   const real = processes({ [XVFB_PID]: xvfbOn(":107") });
-  assert.throws(
-    () => assertIsolated(isolatedEnv(scratchHome(), { DISPLAY: ":0" }), real),
-    /Xvfb/,
-  );
+  assert.throws(() => assertIsolated(isolatedEnv(scratchHome(), { DISPLAY: ":0" }), real), /Xvfb/);
   const xorg = processes({ [XVFB_PID]: cmdline("/usr/lib/Xorg", ":0", "-nolisten", "tcp") });
-  assert.throws(
-    () => assertIsolated(isolatedEnv(scratchHome(), { DISPLAY: ":0" }), xorg),
-    /Xvfb/,
-  );
+  assert.throws(() => assertIsolated(isolatedEnv(scratchHome(), { DISPLAY: ":0" }), xorg), /Xvfb/);
 });
 
 test("no Xvfb of the suite's own is refused", () => {
@@ -149,8 +141,5 @@ test("no Xvfb of the suite's own is refused", () => {
     () => assertIsolated(isolatedEnv(scratchHome(), { OFM_E2E_XVFB_PID: undefined }), ourXvfb),
     /OFM_E2E_XVFB_PID/,
   );
-  assert.throws(
-    () => assertIsolated(isolatedEnv(scratchHome()), processes({})),
-    /Xvfb/,
-  );
+  assert.throws(() => assertIsolated(isolatedEnv(scratchHome()), processes({})), /Xvfb/);
 });
