@@ -17,7 +17,7 @@
 //! session state that a load starts empty by design); and the stats state, read back with `load_stats_state`. Rules of the comparison:
 //! lists of records with an `id` are matched by id and counted (a load re-sorts the inbox, which
 //! loses nothing); integers are compared exactly and only floats within a relative 1e-9 (one ulp of
-//! f64 text); the game saved has its calendar settled first, see [`career_with_settled_calendar`].
+//! f64 text); the game saved has its calendar settled first, see [`settled_as_a_load_settles_it`].
 
 use std::collections::HashMap;
 use std::sync::OnceLock;
@@ -222,20 +222,36 @@ fn differences(saved: &Value, loaded: &Value) -> Vec<Difference> {
     found
 }
 
+/// What the repairs a load makes found to repair in a game the game itself produced.
+struct LoadRepairs {
+    /// Clashing unplayed matches moved to the earliest legal day and recorded as postponed
+    /// (`repair_loaded_calendar`): #1265.
+    calendar_moved: usize,
+    /// Fixtures left scheduled in the past, played out by `repair_stranded_fixtures` ("no fixture
+    /// stays Scheduled in the past" is an invariant the load enforces).
+    stranded: usize,
+}
+
 /// A game with what a load repairs already repaired, so that what is compared is what the save has
-/// to keep and not the repairs the load is meant to make:
-/// - the calendar: a load runs `repair_loaded_calendar`, which moves clashing unplayed matches to
-///   the earliest legal day and records them as postponed. On a game the game itself just produced
-///   it should find nothing to move; it does (#1265), and the count is returned, see
-///   `known_bug_a_reload_reschedules_matches_the_live_game_scheduled`;
-/// - the cash journal: a load runs `backfill_opening_balances`, which gives every club the opening
-///   balance post a journal that was never posted to does not have yet (the live game writes it
-///   with a club's first post).
-fn career_with_settled_calendar(game: &Game) -> (Game, usize) {
+/// to keep and not the repairs the load is meant to make, in the order the load makes them:
+/// - the cash journal: `backfill_opening_balances` gives every club the opening balance post a
+///   journal that was never posted to does not have yet (the live game writes it with a club's
+///   first post);
+/// - stranded fixtures, then the calendar, as in [`LoadRepairs`]. On a game the game itself just
+///   produced both should find nothing to do; they do (#1265, and see
+///   `known_bug_the_live_game_leaves_fixtures_scheduled_in_the_past`), and the counts are returned.
+fn settled_as_a_load_settles_it(game: &Game) -> (Game, LoadRepairs) {
     let mut settled = game.clone();
-    let moved = ofm_core::calendar_repair::repair_loaded_calendar(&mut settled);
     ofm_core::finances::backfill_opening_balances(&mut settled);
-    (settled, moved)
+    let stranded = ofm_core::catchup::repair_stranded_fixtures(&mut settled);
+    let calendar_moved = ofm_core::calendar_repair::repair_loaded_calendar(&mut settled);
+    (
+        settled,
+        LoadRepairs {
+            calendar_moved,
+            stranded,
+        },
+    )
 }
 
 /// Everything the save keeps, as one value for each part: the game (its `#[serde(skip)]` fields
@@ -269,7 +285,7 @@ fn parts(game: &Game, stats: &StatsState) -> [(&'static str, Value); 7] {
 
 /// Every difference between `game` (with `stats`) and what a save and load gives back.
 fn every_difference(game: &Game, stats: &StatsState) -> Vec<Difference> {
-    let (settled, _) = career_with_settled_calendar(game);
+    let (settled, _) = settled_as_a_load_settles_it(game);
     let (loaded, loaded_stats) = saved_and_loaded(&settled, stats);
     let mut found = Vec::new();
     for ((name, saved), (_, read_back)) in parts(&settled, stats)
@@ -308,40 +324,9 @@ fn records_in_a_fixed_order(value: &Value) -> Value {
     }
 }
 
-fn text(value: &Value) -> &str {
-    value.as_str().unwrap_or_default()
-}
-
-/// The known bugs, by what they are. A difference is a known bug only in the direction and for the
-/// population the bug describes, so a wider loss on the same field still fails the loss check.
-/// Each is pinned by a test that says it STILL happens (so fixing it makes that test fail, to be
-/// deleted with the fix).
-fn known_bug(difference: &Difference) -> Option<&'static str> {
-    let path = difference.path.as_str();
-    let staff_nationality = path.starts_with("game.staff[")
-        && (path.ends_with("].birth_country") || path.ends_with("].football_nation"));
-    if staff_nationality
-        && (difference.saved.is_null() || text(&difference.saved).is_empty())
-        && !text(&difference.loaded).is_empty()
-    {
-        return Some("staff made during a season have no nationality until a reload (#1261)");
-    }
-    // Any player, not only the season's own: a player develops during the season, and the load
-    // re-infers his weak foot from the attributes he has now, one step away from the one he kept.
-    if path.starts_with("game.players[")
-        && path.ends_with("].weak_foot")
-        && let (Some(saved), Some(loaded)) = (difference.saved.as_i64(), difference.loaded.as_i64())
-        && (saved - loaded).abs() == 1
-    {
-        return Some("a player's weak foot changes on a reload (#1262)");
-    }
-    None
-}
-
 fn assert_nothing_lost(game: &Game, stats: &StatsState, moment: &str) {
     let lost: Vec<String> = every_difference(game, stats)
         .into_iter()
-        .filter(|difference| known_bug(difference).is_none())
         .map(|difference| difference.to_string())
         .collect();
     assert!(
@@ -406,7 +391,7 @@ fn a_career_after_a_free_agent_signing_loads_back_unchanged() {
 struct RolledOver {
     edition_archive: Vec<domain::edition_archive::CompletedEdition>,
     differences: Vec<Difference>,
-    calendar_moved_on_load: usize,
+    repairs: LoadRepairs,
 }
 
 fn rolled_over() -> &'static RolledOver {
@@ -482,19 +467,19 @@ fn rolled_over() -> &'static RolledOver {
             !stats.player_matches.is_empty(),
             "the season recorded player stats"
         );
-        let calendar_moved_on_load = career_with_settled_calendar(&game).1;
+        let repairs = settled_as_a_load_settles_it(&game).1;
         let differences = every_difference(&game, &stats);
         RolledOver {
             edition_archive: game.edition_archive.clone(),
             differences,
-            calendar_moved_on_load,
+            repairs,
         }
     })
 }
 
 /// Given a career played through a whole season and its rollover,
 /// When it is saved and loaded back,
-/// Then nothing but the known bugs below differs: the new season's calendar, tables, ladders,
+/// Then nothing differs: the new season's calendar, tables, ladders,
 ///      players, staff, the three archives and the stats included.
 #[test]
 fn a_career_after_the_rollover_loads_back_unchanged() {
@@ -503,7 +488,6 @@ fn a_career_after_the_rollover_loads_back_unchanged() {
     let lost: Vec<String> = state
         .differences
         .iter()
-        .filter(|difference| known_bug(difference).is_none())
         .map(|difference| difference.to_string())
         .collect();
     assert!(
@@ -514,36 +498,6 @@ fn a_career_after_the_rollover_loads_back_unchanged() {
     );
 }
 
-fn known_bug_still_happens(bug: &str) -> bool {
-    let state = rolled_over();
-    state
-        .differences
-        .iter()
-        .any(|difference| known_bug(difference) == Some(bug))
-}
-
-/// KNOWN BUG #1261 (staff nationality): a staff member made during a season has no `birth_country`
-/// and an empty `football_nation` until the save is loaded, which fills both in. Delete this test
-/// with the fix.
-#[test]
-fn known_bug_staff_made_during_a_season_have_no_nationality_until_a_reload() {
-    assert!(known_bug_still_happens(
-        "staff made during a season have no nationality until a reload (#1261)"
-    ));
-}
-
-/// KNOWN BUG #1262 (weak foot): the weak foot a player keeps through a season is not the one the
-/// load re-infers from the attributes he has by then (`player_identity.rs`), one step away (2 and 3
-/// in the first run, two players), so the value a user sees changes on a reload. Which side is right is the fixer's to decide: if the generator's value is right and the
-/// inference is wrong, the fix is in `player_identity`, not in the save (a save that stored the
-/// generator's value would only have it overwritten by the load). Delete this test with the fix.
-#[test]
-fn known_bug_a_players_weak_foot_changes_by_one_step_on_a_reload() {
-    assert!(known_bug_still_happens(
-        "a player's weak foot changes on a reload (#1262)"
-    ));
-}
-
 /// KNOWN BUG #1265 (a reload reschedules matches). The settled calendar is only a harmless step if the game never leaves anything to settle. On a
 /// game the game itself just produced the repair moves fixtures, so a reload reschedules matches
 /// the live game scheduled and tells the user they were postponed (`save_manager.rs`). The count is
@@ -552,33 +506,26 @@ fn known_bug_a_players_weak_foot_changes_by_one_step_on_a_reload() {
 #[test]
 fn known_bug_a_reload_reschedules_matches_the_live_game_scheduled() {
     let (start, _) = career();
-    let moved_at_start = career_with_settled_calendar(&start).1;
-    let moved_after_a_season = rolled_over().calendar_moved_on_load;
+    let moved_at_start = settled_as_a_load_settles_it(&start).1.calendar_moved;
+    let moved_after_two_seasons = rolled_over().repairs.calendar_moved;
 
     assert!(
-        moved_at_start > 0 && moved_after_a_season > 0,
-        "#1265: a reload moved {moved_at_start} fixtures at career start and {moved_after_a_season} after a season"
+        moved_at_start > 0 && moved_after_two_seasons > 0,
+        "#1265: a reload moved {moved_at_start} fixtures at career start and {moved_after_two_seasons} after two seasons"
     );
 }
 
-/// Given the archived editions of a season,
-/// When one edition's final table is reversed,
-/// Then the comparison sees it: the order of `standings` is the table, and the archives are only
-///      sorted at the level of their records. (A mutant of the comparison, not of the game.)
+/// KNOWN BUG (stranded fixtures, issue to be named). "No fixture stays Scheduled in the past" is an
+/// invariant the load enforces (`repair_stranded_fixtures`), but the live game does not keep it: after
+/// two seasons national-team fixtures are still Scheduled with a date behind the clock, and a reload
+/// plays them out (status Completed, a result, an advancing team). The counts are measured; delete
+/// this test with the fix.
 #[test]
-fn a_reversed_archived_table_is_a_difference() {
-    let archive = &rolled_over().edition_archive;
-    let mut changed = archive.clone();
-    let edition = changed
-        .iter_mut()
-        .find(|edition| edition.standings.len() > 1)
-        .expect("an archived edition has a table");
-    edition.standings.reverse();
+fn known_bug_the_live_game_leaves_fixtures_scheduled_in_the_past() {
+    let stranded = rolled_over().repairs.stranded;
 
-    let found = differences(
-        &records_in_a_fixed_order(&serde_json::to_value(archive).unwrap()),
-        &records_in_a_fixed_order(&serde_json::to_value(&changed).unwrap()),
+    assert!(
+        stranded > 0,
+        "a reload played out {stranded} fixtures left scheduled in the past"
     );
-
-    assert!(!found.is_empty(), "a reversed final table compared equal");
 }
