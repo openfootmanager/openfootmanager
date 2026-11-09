@@ -1,6 +1,6 @@
 use domain::player::{Player, PlayerAttributes, Position};
 use domain::staff::{Staff, StaffRole};
-use domain::team::PlayStyle;
+use domain::team::{PlayStyle, Team};
 use rand::{Rng, RngExt};
 
 use super::authored_player::{is_valid_date_of_birth, resolve_authored_contract};
@@ -526,21 +526,65 @@ const NATIONAL_POOL_SHIFT: f64 = -2.0;
 /// for a younger feature that does (the academy intake).
 const YOUNG_SPREAD_KEPT: f64 = 1.0;
 const YOUNG_SHIFT_KEPT: f64 = 1.0;
+/// The fraction of a club's standard shift its academy's recruits take: all of it. Measured over 20
+/// seasons on seeds 1 to 4 of the shipped world (run ofm-perf-acad10-measure, on #1078's merged
+/// head 9f4c4796, four seeds pooled or averaged):
+/// - the top fifth of clubs holds 62 / 64 / 54% of the S-tier seniors at seasons 5 / 10 / 20 (the
+///   worst seed 49 / 60 / 49%), against 61 / 41 / 20% with no academy standard (worst 49 / 34 / 16%);
+/// - S-tier seniors at season 20: 525 over the four seeds against 519, and the S share is 1.25%
+///   against 1.23%; the A share is 6.79% against 6.83%;
+/// - wonderkids are 0.159% of everyone at season 20 against 0.149% (0.124% against 0.169% at
+///   season 10), under the 0.20% the maintainer allows.
+///
+/// Three-quarters of the shift (0.75) let the top fifth's share fall to 44% by season 20. The full
+/// shift does not crowd the young tail into the big clubs, because the recruit's spread gives back
+/// the shift's variance (`absorbed_shift_variance`), so the world's intake keeps its bell.
+const ACADEMY_SHIFT_KEPT: f64 = 1.0;
 
 /// How club reputations are spread in the world being generated: the centre and spread that turn
 /// a club's reputation into a standard score. Computed from the world's own clubs, not fixed: a
 /// package world (a historical league, a modder's one) has its own spread, and fixed figures
 /// would only move the mis-centring there.
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub(super) struct ReputationScale {
+pub struct ReputationScale {
     mean: f64,
     sd: f64,
+    /// The mean of the clubs' capped scores ([`REPUTATION_Z_CAP`]). 0 unless the cap clips a skewed
+    /// world: nine clubs at 100 and one at 1000 have one at the cap and nine near -0.3, which
+    /// average to -0.05 rather than 0. An academy shift is taken from this centre, so clipping
+    /// redistributes the intake across clubs and does not move it.
+    capped_mean: f64,
+    /// The variance of the clubs' capped scores: 1 unless the cap clips (or the clubs do not differ,
+    /// when it is 0). It is the share of the shift's variance the clubs actually add.
+    capped_variance: f64,
 }
 
 impl ReputationScale {
     #[cfg(test)]
     pub(super) fn new(mean: f64, sd: f64) -> Self {
-        Self { mean, sd }
+        Self {
+            mean,
+            sd,
+            capped_mean: 0.0,
+            capped_variance: if sd < 1.0 { 0.0 } else { 1.0 },
+        }
+    }
+
+    /// The scale of a running world made of `clubs`, at the reputations they hold now: the one
+    /// rule for which clubs a recruit's standard is measured against, shared by the annual intake
+    /// and a youth scout's prospects.
+    pub fn of_clubs(clubs: &[Team]) -> Self {
+        Self::of_reputations(clubs.iter().map(|club| club.reputation))
+    }
+
+    /// The scale of a world whose clubs hold `reputations`, each known rather than drawn from a
+    /// range.
+    pub(super) fn of_reputations(reputations: impl IntoIterator<Item = u32>) -> Self {
+        Self::of_ranges(
+            reputations
+                .into_iter()
+                .map(|reputation| [reputation, reputation]),
+        )
     }
 
     /// The scale of a world whose clubs draw their reputation uniformly from `ranges` (one range
@@ -555,7 +599,12 @@ impl ReputationScale {
             })
             .collect();
         if clubs.is_empty() {
-            return Self { mean: 0.0, sd: 0.0 };
+            return Self {
+                mean: 0.0,
+                sd: 0.0,
+                capped_mean: 0.0,
+                capped_variance: 0.0,
+            };
         }
         let count = clubs.len() as f64;
         let mean = clubs.iter().map(|(centre, _)| centre).sum::<f64>() / count;
@@ -564,10 +613,25 @@ impl ReputationScale {
             .map(|(centre, own)| own + (centre - mean).powi(2))
             .sum::<f64>()
             / count;
-        Self {
+        let mut scale = Self {
             mean,
             sd: variance.sqrt(),
-        }
+            capped_mean: 0.0,
+            capped_variance: 0.0,
+        };
+        // The moments of the capped scores, taken at each club's expected reputation: exact for
+        // clubs whose reputation is known, which is every running world's.
+        let capped: Vec<f64> = clubs
+            .iter()
+            .map(|(centre, _)| scale.capped_score(centre.round() as u32))
+            .collect();
+        scale.capped_mean = capped.iter().sum::<f64>() / count;
+        scale.capped_variance = capped
+            .iter()
+            .map(|score| (score - scale.capped_mean).powi(2))
+            .sum::<f64>()
+            / count;
+        scale
     }
 
     /// `reputation` in standard deviations from the world's mean; 0 when the clubs do not differ.
@@ -576,6 +640,12 @@ impl ReputationScale {
             return 0.0;
         }
         (f64::from(reputation) - self.mean) / self.sd
+    }
+
+    /// [`Self::standard_score`], capped at [`REPUTATION_Z_CAP`].
+    fn capped_score(&self, reputation: u32) -> f64 {
+        self.standard_score(reputation)
+            .clamp(-REPUTATION_Z_CAP, REPUTATION_Z_CAP)
     }
 }
 
@@ -586,6 +656,12 @@ pub(super) struct Standard {
     shift: f64,
     /// The fraction of the rolled spread the bell keeps.
     spread_kept: f64,
+    /// The variance (rating points squared) this bell's shift adds across clubs, which its
+    /// spread gives back at the player's own age, so the clubs' bells together make the one they
+    /// share. It is taken from the bell as it is at that age, narrowed for the ceiling drift still
+    /// to come: taken from the full bell, the drift would later widen it again and every season's
+    /// intake would add stars. Zero for a bell whose `spread_kept` already pays for its shift.
+    absorbed_shift_variance: f64,
 }
 
 impl Standard {
@@ -637,14 +713,36 @@ impl PlayerRoll {
 
     /// A player of a club of `reputation`, at the slot's age.
     pub(super) fn for_club(reputation: u32, scale: &ReputationScale) -> Self {
-        let z = scale
-            .standard_score(reputation)
-            .clamp(-REPUTATION_Z_CAP, REPUTATION_Z_CAP);
         Self {
             age: None,
             standard: Some(Standard {
-                shift: CLUB_LIFT + BETWEEN_CLUB_SD * z,
+                shift: CLUB_LIFT + BETWEEN_CLUB_SD * scale.capped_score(reputation),
                 spread_kept: Standard::within_club_spread(),
+                absorbed_shift_variance: 0.0,
+            }),
+        }
+    }
+
+    /// A youngster joining the academy of a club of `reputation`, of `age` (or the slot's age),
+    /// in a world whose clubs' reputations are spread as `scale` says.
+    ///
+    /// The scale is the world's as it stands at the intake, not at its opening: a club that has
+    /// risen recruits as the big club it now is. He is drawn on the intake's bell
+    /// ([`INTAKE_CEILING_OFFSET`], [`INTAKE_SPREAD_KEPT`]) moved by [`ACADEMY_SHIFT_KEPT`] of the
+    /// club's standard shift, and by
+    /// none of [`CLUB_LIFT`], which pays for the opening free-agent pool and would inflate the
+    /// world every season. His spread gives back the variance the shift takes, at his age, so
+    /// across clubs of every standing the academies together keep the intake's bell, mean and
+    /// tails alike: the best prospects gather at the big clubs, but there are no more of them.
+    pub(super) fn for_academy(reputation: u32, age: Option<u32>, scale: &ReputationScale) -> Self {
+        let shift_spread = ACADEMY_SHIFT_KEPT * BETWEEN_CLUB_SD;
+        Self {
+            age,
+            standard: Some(Standard {
+                shift: INTAKE_CEILING_OFFSET
+                    + shift_spread * (scale.capped_score(reputation) - scale.capped_mean),
+                spread_kept: INTAKE_SPREAD_KEPT,
+                absorbed_shift_variance: shift_spread.powi(2) * scale.capped_variance,
             }),
         }
     }
@@ -657,6 +755,7 @@ impl PlayerRoll {
             standard: Some(Standard {
                 shift: NATIONAL_POOL_SHIFT,
                 spread_kept: NATIONAL_POOL_SPREAD_KEPT,
+                absorbed_shift_variance: 0.0,
             }),
         }
     }
@@ -668,17 +767,22 @@ impl PlayerRoll {
             standard: Some(Standard {
                 shift: FREE_AGENT_SHIFT,
                 spread_kept: Standard::within_club_spread(),
+                absorbed_shift_variance: 0.0,
             }),
         }
     }
 
-    /// A youth intake recruit or scouted prospect, of `age` (or the slot's age).
+    /// The bell the world's academies make together, of `age` (or the slot's age): every
+    /// [`Self::for_academy`] recruit pooled over clubs of every standing. The tests compare the
+    /// academies against it.
+    #[cfg(test)]
     pub(super) fn for_intake(age: Option<u32>) -> Self {
         Self {
             age,
             standard: Some(Standard {
                 shift: INTAKE_CEILING_OFFSET,
                 spread_kept: INTAKE_SPREAD_KEPT,
+                absorbed_shift_variance: 0.0,
             }),
         }
     }
@@ -775,10 +879,20 @@ fn rolled_to_z(group: &Position, rolled: f64) -> f64 {
 fn shaped_ceiling(group: &Position, rolled: f64, age: u32, standard: Option<Standard>) -> u8 {
     let (_, drift_variance) = crate::development::ceiling_drift_still_to_come(age);
     let narrowing = (1.0 - drift_variance / CEILING_SD.powi(2)).max(0.0).sqrt();
-    let Standard { shift, spread_kept } = standard.unwrap_or(Standard {
+    let Standard {
+        shift,
+        spread_kept,
+        absorbed_shift_variance,
+    } = standard.unwrap_or(Standard {
         shift: 0.0,
         spread_kept: 1.0,
+        absorbed_shift_variance: 0.0,
     });
+    let spread_kept = spread_kept
+        * spread_left_after(
+            absorbed_shift_variance,
+            narrowing * CEILING_SD * spread_kept,
+        );
     // A player young enough to be a wonderkid keeps only part of his standard's shift and spread.
     let (shift, spread_kept) = if age <= WONDERKID_MAX_AGE {
         (shift * YOUNG_SHIFT_KEPT, spread_kept * YOUNG_SPREAD_KEPT)
@@ -788,6 +902,19 @@ fn shaped_ceiling(group: &Position, rolled: f64, age: u32, standard: Option<Stan
     (CEILING_MEAN + shift + narrowing * CEILING_SD * spread_kept * rolled_to_z(group, rolled))
         .round()
         .clamp(1.0, 99.0) as u8
+}
+
+/// The share of a bell of spread `bell_sd` (rating points) left once `shift_variance` is taken
+/// from it, so that a bell moved by a shift of that variance across clubs and narrowed by this
+/// share adds up, over the clubs, to the bell it was taken from.
+fn spread_left_after(shift_variance: f64, bell_sd: f64) -> f64 {
+    if shift_variance <= 0.0 {
+        return 1.0;
+    }
+    if bell_sd <= 0.0 {
+        return 0.0;
+    }
+    (1.0 - shift_variance / bell_sd.powi(2)).max(0.0).sqrt()
 }
 
 /// The attributes a generated player of a position group is rolled with: each drawn uniformly from a
@@ -2007,6 +2134,103 @@ mod tests {
         assert_eq!(
             PlayerRoll::for_club(2000, &scale).standard,
             PlayerRoll::for_club(1000, &scale).standard
+        );
+    }
+
+    /// The shift of an academy of each club of a world holding `reputations`, as the intake takes it.
+    fn academy_shifts(reputations: &[u32]) -> (Vec<f64>, f64) {
+        let scale = ReputationScale::of_reputations(reputations.iter().copied());
+        let standards: Vec<Standard> = reputations
+            .iter()
+            .map(|&reputation| {
+                PlayerRoll::for_academy(reputation, Some(16), &scale)
+                    .standard
+                    .expect("an academy has a standard")
+            })
+            .collect();
+        let variance = standards[0].absorbed_shift_variance;
+        (
+            standards
+                .iter()
+                .map(|standard| standard.shift - INTAKE_CEILING_OFFSET)
+                .collect(),
+            variance,
+        )
+    }
+
+    /// Given a skewed world: nine clubs at reputation 100 and one at 1000, which the cap clips
+    /// When the clubs' academy shifts are taken together
+    /// Then they average to nothing: the cap redistributes the intake across clubs, it does not move
+    ///      the pooled ceiling (it moved it by about 0.11 points before the shifts were recentred)
+    #[test]
+    fn capped_academy_shifts_average_to_nothing_in_a_skewed_world() {
+        let mut reputations = vec![100; 9];
+        reputations.push(1000);
+
+        let (shifts, _) = academy_shifts(&reputations);
+
+        let centre = shifts.iter().sum::<f64>() / shifts.len() as f64;
+        assert!(centre.abs() < 1e-9, "the pooled shift is {centre}");
+        assert!(
+            shifts[9] > 0.0 && shifts[0] < 0.0,
+            "the big club still leads: {shifts:?}"
+        );
+    }
+
+    /// Given a world whose clubs all hold the same reputation
+    /// When an academy's standard is read
+    /// Then it adds no shift and absorbs no variance: nothing was added across clubs, so the
+    ///      recruits' spread keeps all of the intake's
+    #[test]
+    fn clubs_that_do_not_differ_absorb_no_variance() {
+        let (shifts, absorbed) = academy_shifts(&[640, 640, 640, 640]);
+
+        assert!(shifts.iter().all(|shift| shift.abs() < 1e-9), "{shifts:?}");
+        assert_eq!(absorbed, 0.0);
+    }
+
+    /// Given a skewed world that the cap clips: nine clubs at reputation 100 and one at 1000
+    /// When an academy's standard is read
+    /// Then it absorbs exactly the variance the clubs' capped shifts add (the population variance of
+    ///      those shifts), which is strictly between none and the shift's whole variance: a rule that
+    ///      absorbed it all whenever the clubs differ, or none of it, would fail
+    #[test]
+    fn a_clipped_world_absorbs_the_variance_its_capped_shifts_add() {
+        let mut reputations = vec![100; 9];
+        reputations.push(1000);
+
+        let (shifts, absorbed) = academy_shifts(&reputations);
+
+        let centre = shifts.iter().sum::<f64>() / shifts.len() as f64;
+        let added = shifts
+            .iter()
+            .map(|shift| (shift - centre).powi(2))
+            .sum::<f64>()
+            / shifts.len() as f64;
+        let whole = (ACADEMY_SHIFT_KEPT * BETWEEN_CLUB_SD).powi(2);
+        assert!(
+            (absorbed - added).abs() < 1e-9,
+            "absorbed {absorbed}, added {added}"
+        );
+        assert!(
+            absorbed > 0.0 && absorbed < whole - 1e-6,
+            "{absorbed} against {whole}"
+        );
+    }
+
+    /// Given a world whose reputations the cap does not reach
+    /// When an academy's standard is read
+    /// Then it absorbs the shift's whole variance, as before: only a clipped world changes
+    #[test]
+    fn an_unclipped_world_absorbs_the_whole_shift_variance() {
+        let reputations: Vec<u32> = (0..40).map(|club| 300 + club * 10).collect();
+
+        let (_, absorbed) = academy_shifts(&reputations);
+
+        let whole = (ACADEMY_SHIFT_KEPT * BETWEEN_CLUB_SD).powi(2);
+        assert!(
+            (absorbed - whole).abs() < 1e-9,
+            "{absorbed} against {whole}"
         );
     }
 

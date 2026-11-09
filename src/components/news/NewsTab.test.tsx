@@ -6,7 +6,9 @@ import NewsTab from "./NewsTab";
 import { createSeasonContext } from "../../test-utils/factories";
 
 vi.mock("../season/AwardsCeremonyScreen", () => ({
-  default: () => <div>Awards Ceremony Mock</div>,
+  default: ({ competitionId }: { competitionId?: string }) => (
+    <div>Awards Ceremony Mock {competitionId}</div>
+  ),
 }));
 
 vi.mock("react-i18next", () => ({
@@ -208,6 +210,21 @@ describe("NewsTab", () => {
     ).not.toBeInTheDocument();
   });
 
+  /** Given a fallback league and awards article, when opened, then the league ID accompanies its name. */
+  it("passes the fallback league id to the awards ceremony", () => {
+    const game = createGameState([
+      createNewsArticle({
+        id: "season_awards_6",
+        headline: "Season awards night",
+        category: "Editorial",
+      }),
+    ]);
+    game.league = { id: "league-de", name: "Germany First Division" } as GameStateData["league"];
+    render(<NewsTab gameState={game} onSelectTeam={vi.fn()} />);
+    fireEvent.click(screen.getByRole("button", { name: /Season awards night/i }));
+    expect(screen.getByText("Awards Ceremony Mock league-de")).toBeInTheDocument();
+  });
+
   it("opens the dedicated awards ceremony page from a season awards article", () => {
     render(
       <NewsTab
@@ -236,6 +253,6 @@ describe("NewsTab", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /Season awards night/i }));
 
-    expect(screen.getByText("Awards Ceremony Mock")).toBeInTheDocument();
+    expect(screen.getByText(/Awards Ceremony Mock/)).toBeInTheDocument();
   });
 });

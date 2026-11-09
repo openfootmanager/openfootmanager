@@ -5,9 +5,7 @@ use domain::league::{
     CompactMatchEvent, CompactMatchReport, CompactTeamMatchStats, FixtureStatus, GoalEvent,
     MatchResult,
 };
-use domain::player::{
-    PlayerIssue, PlayerIssueCategory, PlayerPromiseKind, Position as DomainPosition,
-};
+use domain::player::{PlayerIssue, PlayerIssueCategory, PlayerPromiseKind};
 use domain::stats::{PlayerMatchStatsRecord, StatsState, TeamMatchStatsRecord};
 
 fn compact_team_stats(stats: &engine::TeamStats, possession_pct: u8) -> CompactTeamMatchStats {
@@ -191,7 +189,7 @@ pub(super) fn apply_match_report_in<F>(
     ));
 
     // Update player season stats from the engine report
-    apply_player_stats(game, report, home_team_id, away_team_id, &both_clubs);
+    apply_player_stats(game, report, &both_clubs);
     resolve_post_match_promises(game, report, &both_clubs);
 
     // Deplete stamina for players who played, scaled by minutes on pitch
@@ -474,13 +472,7 @@ fn report_players(game: &Game, report: &engine::MatchReport, both_clubs: &[usize
         .collect()
 }
 
-fn apply_player_stats(
-    game: &mut Game,
-    report: &engine::MatchReport,
-    home_team_id: &str,
-    away_team_id: &str,
-    both_clubs: &[usize],
-) {
+fn apply_player_stats(game: &mut Game, report: &engine::MatchReport, both_clubs: &[usize]) {
     for position in report_players(game, report, both_clubs) {
         let player = &mut game.players[position];
         if let Some(ps) = report.player_stats.get(&player.id) {
@@ -500,19 +492,11 @@ fn apply_player_stats(
 
             crate::match_rating::record_rating(&mut player.stats, ps.rating);
 
-            // Clean sheet for goalkeepers
-            if matches!(player.position, DomainPosition::Goalkeeper) {
-                let tid = player.team_id.as_deref().unwrap_or("");
-                let conceded_zero = if tid == home_team_id {
-                    report.away_goals == 0
-                } else if tid == away_team_id {
-                    report.home_goals == 0
-                } else {
-                    false
-                };
-                if conceded_zero {
-                    player.stats.clean_sheets += 1;
-                }
+            // The keeper who kept it, as the match report judged it with the ratings: in goal
+            // for most of the match, his side conceding none. Not every registered keeper with
+            // a stats row (a late substitute, one sent off early).
+            if ps.clean_sheet {
+                player.stats.clean_sheets += 1;
             }
         }
     }
@@ -734,6 +718,7 @@ mod tests {
     use super::*;
     use crate::{clock::GameClock, test_support::uniform_attributes};
     use chrono::{TimeZone, Utc};
+    use domain::player::Position as DomainPosition;
     use domain::{
         league::{Fixture, FixtureCompetition, League, StandingEntry},
         manager::Manager,
