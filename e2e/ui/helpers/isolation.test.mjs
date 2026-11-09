@@ -43,7 +43,13 @@ function processes(table) {
   };
 }
 
-const ourXvfb = processes({ [XVFB_PID]: "Xvfb\0:107\0-screen\00\01280x800x24\0-nolisten\0tcp\0" });
+/** A command line as /proc shows it: each argument ends in a NUL. */
+const cmdline = (...argv) => `${argv.join("\u0000")}\u0000`;
+
+const xvfbOn = (display) =>
+  cmdline("Xvfb", display, "-screen", "0", "1280x800x24", "-nolisten", "tcp");
+
+const ourXvfb = processes({ [XVFB_PID]: xvfbOn(":107") });
 
 test("an environment run.sh made is accepted", () => {
   assert.doesNotThrow(() => assertIsolated(isolatedEnv(scratchHome()), ourXvfb));
@@ -126,12 +132,12 @@ test("a missing display is refused", () => {
 test("the developer's own X11 display is refused, even with every other variable right", () => {
   // DISPLAY=:0 is a real session's. Nothing the suite started serves it, so the process the
   // environment names is not an Xvfb for :0, however well the other variables are set.
-  const real = processes({ [XVFB_PID]: "Xvfb\0:107\0-screen\00\01280x800x24\0" });
+  const real = processes({ [XVFB_PID]: xvfbOn(":107") });
   assert.throws(
     () => assertIsolated(isolatedEnv(scratchHome(), { DISPLAY: ":0" }), real),
     /Xvfb/,
   );
-  const xorg = processes({ [XVFB_PID]: "/usr/lib/Xorg\0:0\0-nolisten\0tcp\0" });
+  const xorg = processes({ [XVFB_PID]: cmdline("/usr/lib/Xorg", ":0", "-nolisten", "tcp") });
   assert.throws(
     () => assertIsolated(isolatedEnv(scratchHome(), { DISPLAY: ":0" }), xorg),
     /Xvfb/,
