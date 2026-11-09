@@ -4,7 +4,7 @@
 // first, not a CSS selector against the styling.
 const SECOND = 1000;
 
-const xpathLiteral = (text) => (text.includes('"') ? `'${text}'` : `"${text}"`);
+export const xpathLiteral = (text) => (text.includes('"') ? `'${text}'` : `"${text}"`);
 
 export function buttonNamed(name) {
   return $(`//button[normalize-space(.)=${xpathLiteral(name)}]`);

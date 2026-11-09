@@ -89,7 +89,7 @@ jobs:
         working-directory: e2e/ui
         run: npm run test:guard
 
-      - name: Play flow 1
+      - name: Play the flows
         env:
           OFM_E2E_APP: ${{ github.workspace }}/src-tauri/target/debug/openfootmanager
           OFM_E2E_ARTIFACTS: ${{ github.workspace }}/e2e-artifacts
