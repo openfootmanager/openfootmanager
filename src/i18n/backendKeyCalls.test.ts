@@ -80,7 +80,10 @@ function scanSource(path: string, source: string): string[] {
     if (ts.isPropertyAccessExpression(node)) return keyName(node.name.text);
     if (ts.isElementAccessExpression(node)) {
       if (node.argumentExpression && ts.isStringLiteral(node.argumentExpression))
-        return keyName(node.argumentExpression.text);
+        return (
+          keyName(node.argumentExpression.text) ||
+          (/^(0|[1-9]\d*)$/.test(node.argumentExpression.text) && containsKey(node.expression))
+        );
       return containsKey(node.expression);
     }
     if (
@@ -283,6 +286,7 @@ describe("backend key fields reach the player through the resolver", () => {
     ["generic arrow before sink", "const id = <T>(x: T) => x; t(feedback.headline_key)", true],
     ["element access", "t(feedback['headline_key'])", true],
     ["indexed key array", "t([feedback.headline_key][0], feedback.params)", true],
+    ["string indexed key array", "t([feedback.headline_key]['0'], feedback.params)", true],
     ["optional call", "t?.(feedback.headline_key)", true],
     ["Trans key", "<Trans i18nKey={feedback.headline_key} />", true],
     ["multiword direct", "t(msg.sender_role_key)", true],
