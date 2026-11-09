@@ -1,7 +1,7 @@
 import french from "../i18n/locales/fr.json";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { invoke } from "@tauri-apps/api/core";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { useState } from "react";
 import EndOfSeasonScreen, { type SeasonTransition } from "./EndOfSeasonScreen";
@@ -78,6 +78,7 @@ vi.mock("../store/gameStore", async () => {
 });
 
 describe("EndOfSeasonScreen", () => {
+  beforeEach(() => vi.mocked(invoke).mockReset());
   /** Given a failed division read, when retried, then the followed division is shown. */
   it("reports and retries a failed division read", async () => {
     const game = createEndOfSeasonGame();
@@ -116,6 +117,7 @@ describe("EndOfSeasonScreen", () => {
         careerToken: game.career_token ?? 0,
       }),
     );
+    await waitFor(() => expect(screen.queryByRole("status")).not.toBeInTheDocument());
     expect(screen.queryByText(/Premier League/)).not.toBeInTheDocument();
     expect(screen.queryByText("Final standings")).not.toBeInTheDocument();
     expect(screen.queryByText("Alpha FC")).not.toBeInTheDocument();
