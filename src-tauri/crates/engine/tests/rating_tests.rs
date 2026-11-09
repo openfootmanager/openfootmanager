@@ -322,3 +322,41 @@ fn an_outfielder_in_goal_for_most_of_a_clean_sheet_keeps_it() {
     assert!(report.player_stats[&in_goal].clean_sheet);
     assert!(!report.player_stats["home_Goalkeeper_0"].clean_sheet);
 }
+
+/// A live match from `seed` between two equal sides, played to the end.
+fn plain_match(seed: u64) -> MatchReport {
+    let mut live = LiveMatchState::new(
+        team("home", 70),
+        team("away", 70),
+        MatchConfig::default(),
+        vec![],
+        vec![],
+        false,
+    );
+    let mut rng = StdRng::seed_from_u64(seed);
+    while !live.is_finished() {
+        live.step_minute(&mut rng);
+    }
+    live.into_report()
+}
+
+/// Given matches in which one side scores and the other does not,
+/// When the reports are drawn up,
+/// Then the keeper of the side that conceded none has the clean sheet and the other keeper does
+/// not, whichever side that is: each side's flag follows the goals against it.
+#[test]
+fn only_the_keeper_of_the_side_that_conceded_none_keeps_a_clean_sheet() {
+    let home_kept = (1..=300)
+        .map(plain_match)
+        .find(|report| report.away_goals == 0 && report.home_goals > 0)
+        .expect("in 300 seeds the home side wins a match to nil");
+    assert!(home_kept.player_stats["home_Goalkeeper_0"].clean_sheet);
+    assert!(!home_kept.player_stats["away_Goalkeeper_0"].clean_sheet);
+
+    let away_kept = (1..=300)
+        .map(plain_match)
+        .find(|report| report.home_goals == 0 && report.away_goals > 0)
+        .expect("in 300 seeds the away side wins a match to nil");
+    assert!(away_kept.player_stats["away_Goalkeeper_0"].clean_sheet);
+    assert!(!away_kept.player_stats["home_Goalkeeper_0"].clean_sheet);
+}
