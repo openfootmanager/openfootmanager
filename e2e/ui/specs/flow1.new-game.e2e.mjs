@@ -46,6 +46,8 @@ describe("flow 1: a new game, to the first match day", () => {
     await $("//*[normalize-space(.)='Selected Club']").waitForDisplayed({ timeout: 60_000 });
     await clickWhenReady(buttonStartingWith("Manage "));
     await waitForRoute("/dashboard");
+    // The career is the one the player asked for: the sidebar names the manager just created.
+    await $('//*[normalize-space(.)="Ada Tester"]').waitForDisplayed({ timeout: 30_000 });
   });
 
   it("skips to the first match day and reaches the pre-match lineup", async () => {

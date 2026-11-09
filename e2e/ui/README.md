@@ -26,10 +26,15 @@ OFM_E2E_APP=../../src-tauri/target/debug/openfootmanager bash run.sh
 `run.sh` is the only entry point. It makes a scratch `HOME` with private `XDG_*` directories, forces
 `GDK_BACKEND=x11`, starts an Xvfb of its own on a free display number (100 or above, never your
 session's), and deletes the scratch directory afterwards. The suite refuses to start otherwise
-(`helpers/isolation.mjs`, tested by `npm run test:guard`): the scratch paths are resolved through
-symlinks, and the display must be served by the Xvfb `run.sh` started (its process id is checked),
-so setting variables by hand does not get past it. A flow that starts a new game must never touch
-a real career. **Do not launch the app any other way against your own home.**
+(`helpers/isolation.mjs`, tested by `npm run test:guard`). It checks that the setup is isolated,
+not that `run.sh` made it: the scratch `HOME` and every `XDG_*` directory must lead, through
+symlinks, into the temporary directory, and `DISPLAY` must be served by a live Xvfb whose process id
+is given. Your own home, your own X display and a Wayland session all fail those checks; a
+scratch home and an Xvfb you prepared by hand would pass them, and that is as isolated as `run.sh`'s.
+The WebDriver server is the same: the suite starts its own `tauri-driver` on ports it picks, and
+goes on only once that process is the one listening (`helpers/driver.mjs`), so a driver left
+running on the default port is never used. A flow that starts a new game must never touch a real
+career. **Do not launch the app any other way against your own home.**
 
 ## Writing a step
 

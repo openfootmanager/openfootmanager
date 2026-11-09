@@ -19,7 +19,8 @@ app="$(realpath -m "${OFM_E2E_APP:-$here/../../src-tauri/target/debug/openfootma
 command -v Xvfb >/dev/null || { echo "run.sh: Xvfb is required (the xvfb package)" >&2; exit 2; }
 
 # Never the real home: everything the app writes lands in this directory, which is removed after.
-scratch="$(mktemp -d "${TMPDIR:-/tmp}/ofm-ui-e2e.XXXXXX")"
+# Always under /tmp, never TMPDIR: the guard accepts only /tmp and /dev/shm as scratch roots.
+scratch="$(mktemp -d /tmp/ofm-ui-e2e.XXXXXX)"
 xvfb_pid=""
 cleanup() {
   if [ -n "$xvfb_pid" ]; then kill "$xvfb_pid" 2>/dev/null || true; fi
@@ -43,11 +44,16 @@ for number in $(seq 100 199); do
     display=":$number"
     break
   fi
+  # This one never came up (or came up without its socket): stop it before trying another number,
+  # or nothing would be left holding its pid to stop it at the end.
+  kill "$xvfb_pid" 2>/dev/null || true
+  wait "$xvfb_pid" 2>/dev/null || true
   xvfb_pid=""
 done
 [ -n "$display" ] || { echo "run.sh: could not start an Xvfb" >&2; cat "$scratch/xvfb.log" >&2; exit 2; }
 
-artifacts="${OFM_E2E_ARTIFACTS:-$here/artifacts}"
+# Resolved here, before the cd below: a relative path means relative to where the caller stood.
+artifacts="$(realpath -m "${OFM_E2E_ARTIFACTS:-$here/artifacts}")"
 mkdir -p "$artifacts"
 
 cd "$here"
