@@ -2041,13 +2041,49 @@ mod tests {
             crate::turn::cup_renewal::renew_finished_cups(&mut game, "2034-07-01"),
             1
         );
-        let renewed = serde_json::to_string(&game.competitions[0]).unwrap();
+        let renewed = game.competitions[0].clone();
+        assert_eq!(
+            renewed.fixtures.len(),
+            4,
+            "the hook drew four quarterfinals"
+        );
 
         regenerate_competitions_for_new_season(&mut game, season + 1, at(2034, 7, 1));
 
+        let blackout = crate::national_team::international_blackout_around(
+            &game.competitions,
+            game.clock.current_date.date_naive(),
+        );
+        let mut after = game.competitions[0].clone();
+        assert_eq!(after.fixtures.len(), renewed.fixtures.len());
+        for (fixture, original) in after.fixtures.iter_mut().zip(&renewed.fixtures) {
+            assert_eq!(fixture.id, original.id, "the hook's fixture survives");
+            let old_date = chrono::NaiveDate::parse_from_str(&original.date, "%Y-%m-%d").unwrap();
+            let new_date = chrono::NaiveDate::parse_from_str(&fixture.date, "%Y-%m-%d").unwrap();
+            assert!(
+                blackout.contains(&old_date),
+                "the published date clashes with the finals"
+            );
+            assert!(
+                !blackout.contains(&new_date),
+                "the moved date avoids the finals"
+            );
+            let postponement = fixture
+                .postponement
+                .as_ref()
+                .expect("the published date was moved");
+            assert_eq!(postponement.original_date, original.date);
+            assert_eq!(
+                postponement.reason,
+                domain::league::RescheduleReason::InternationalWindow
+            );
+            fixture.date = original.date.clone();
+            fixture.postponement = original.postponement.clone();
+        }
         assert_eq!(
-            serde_json::to_string(&game.competitions[0]).unwrap(),
-            renewed
+            serde_json::to_value(&after).unwrap(),
+            serde_json::to_value(&renewed).unwrap(),
+            "apart from justified postponements the hook's edition is unchanged"
         );
         assert_eq!(game.edition_archive.len(), 1);
     }
