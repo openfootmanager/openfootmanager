@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 // Vite's raw import: the file's text, resolved the same way any other import in
 // this directory is. Interfaces are erased before the test runs, so reading the
 // source is the only way to see them.
-import typesSource from "./types.ts?raw";
+import typesSource from "../../../store/packageEditorTypes.ts?raw";
 import schemaFields from "./schemaFields.generated.json";
 
 /**
@@ -53,7 +53,7 @@ function declaredFields(interfaceName: string): string[] {
   const body = new RegExp(`export interface ${interfaceName}\\s*\\{([\\s\\S]*?)\\n\\}`).exec(
     typesSource,
   );
-  if (!body) throw new Error(`interface ${interfaceName} not found in types.ts`);
+  if (!body) throw new Error(`interface ${interfaceName} not found in packageEditorTypes.ts`);
   return [...body[1].matchAll(/^ {2}([A-Za-z][A-Za-z0-9]*)\??\s*:/gm)].map((m) => m[1]);
 }
 
@@ -68,7 +68,7 @@ describe("package schema parity with the Rust definitions", () => {
       missing,
       `${INTERFACE_FOR[schema]} does not declare ${JSON.stringify(missing)}, which the ` +
         `package format defines. The editor cannot show or edit what it cannot name. ` +
-        `Add them to types.ts.`,
+        `Add them to src/store/packageEditorTypes.ts.`,
     ).toEqual([]);
   });
 

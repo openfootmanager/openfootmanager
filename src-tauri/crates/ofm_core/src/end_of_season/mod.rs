@@ -1473,6 +1473,7 @@ fn convert_retired_players_to_candidates(game: &mut Game, season: u32) {
                 },
             );
             scout.nationality = r.nationality.clone();
+            crate::football_identity::initialize_unattached_staff_identity(&mut scout);
             // team_id stays None (unattached market candidate)
             new_scouts.push(scout);
         }
