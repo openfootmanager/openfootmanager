@@ -72,11 +72,10 @@ pub struct Player {
 
     // Season stats: every competitive match (`ofm_core::turn::post_match`).
     pub stats: PlayerSeasonStats,
-    /// This season's league matches alone, which the division's awards rank by, so they agree
-    /// with the league's own tables. A save from before it loads its season so far here
-    /// (`db::repositories::player_repo`).
+    /// This season's league matches, keyed by the competition where they were played.
+    /// Transfers preserve the entries; each division ranks only its own matches.
     #[serde(default)]
-    pub league_stats: PlayerSeasonStats,
+    pub league_stats_by_competition: std::collections::BTreeMap<String, PlayerSeasonStats>,
 
     // Career history
     pub career: Vec<CareerEntry>,
@@ -993,7 +992,7 @@ impl Player {
             potential: 0,
             market_value: 0,
             stats: PlayerSeasonStats::default(),
-            league_stats: PlayerSeasonStats::default(),
+            league_stats_by_competition: Default::default(),
             career: Vec::new(),
             movement_history: Default::default(),
             training_focus: None,

@@ -83,6 +83,7 @@ impl GameDatabase {
             GAME_DATABASE_MIGRATION_FAILED.to_string()
         })?;
 
+        crate::league_stats_upgrade::backfill(&conn)?;
         info!("[game_db] database ready at {:?}", path);
         Ok(Self {
             conn,
@@ -126,6 +127,7 @@ impl GameDatabase {
             SaveLoadError::Corrupted
         })?;
 
+        crate::league_stats_upgrade::backfill(&conn).map_err(|_| SaveLoadError::Corrupted)?;
         info!("[game_db] save ready at {:?}", path);
         Ok(Self {
             conn,
@@ -147,6 +149,7 @@ impl GameDatabase {
             GAME_DATABASE_MIGRATION_FAILED.to_string()
         })?;
 
+        crate::league_stats_upgrade::backfill(&conn)?;
         Ok(Self { conn, path: None })
     }
 

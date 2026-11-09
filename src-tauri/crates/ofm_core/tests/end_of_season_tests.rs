@@ -1,3 +1,5 @@
+#[path = "end_of_season_tests/player_statistics.rs"]
+mod player_statistics;
 #[path = "end_of_season_tests/season_story.rs"]
 mod season_story;
 
@@ -142,7 +144,8 @@ fn make_completed_season_game() -> Game {
         red_cards: 0,
         ..PlayerSeasonStats::default()
     };
-    p1.league_stats = p1.stats.clone();
+    p1.league_stats_by_competition
+        .insert("league1".into(), p1.stats.clone());
 
     let mut p2 = make_player("p2", "Rival", "team2", Position::Forward);
     p2.stats = PlayerSeasonStats {
@@ -157,7 +160,8 @@ fn make_completed_season_game() -> Game {
         red_cards: 0,
         ..PlayerSeasonStats::default()
     };
-    p2.league_stats = p2.stats.clone();
+    p2.league_stats_by_competition
+        .insert("league1".into(), p2.stats.clone());
 
     let fixtures = vec![
         make_completed_fixture("f1", "team1", "team2", 2, 1),
@@ -846,14 +850,16 @@ fn rollover_passes_continental_qualifiers_into_the_next_season() {
         goals: 20,
         ..PlayerSeasonStats::default()
     };
-    p1.league_stats = p1.stats.clone();
+    p1.league_stats_by_competition
+        .insert("eng-1".into(), p1.stats.clone());
     let mut p2 = make_player("p2", "Rival", "eng-b", Position::Forward);
     p2.stats = PlayerSeasonStats {
         appearances: 28,
         goals: 8,
         ..PlayerSeasonStats::default()
     };
-    p2.league_stats = p2.stats.clone();
+    p2.league_stats_by_competition
+        .insert("eng-1".into(), p2.stats.clone());
 
     let league = League {
         id: "eng-1".to_string(),
@@ -1028,6 +1034,15 @@ fn process_end_of_season_records_history_and_prizes_for_every_division() {
 /// div2 = team3 (promoted), team4. The manager runs `user_team`.
 fn make_two_division_game(user_team: &str) -> Game {
     let mut game = make_completed_season_game();
+    for player in &mut game.players {
+        let stats = player
+            .league_stats_by_competition
+            .remove("league1")
+            .unwrap();
+        player
+            .league_stats_by_competition
+            .insert("eng-1".into(), stats);
+    }
     game.teams.push(make_team("team3", "Third FC"));
     game.teams.push(make_team("team4", "Fourth FC"));
     game.manager.team_id = Some(user_team.to_string());
@@ -1315,7 +1330,9 @@ fn a_sacked_managers_awards_are_his_last_clubs_league() {
         minutes_played: 900,
         ..PlayerSeasonStats::default()
     };
-    lower.league_stats = lower.stats.clone();
+    lower
+        .league_stats_by_competition
+        .insert("eng-2".into(), lower.stats.clone());
     game.players.push(lower);
 
     let awards = ofm_core::season_awards::user_division_season_awards(&game);
@@ -1499,7 +1516,9 @@ fn season_awards_are_scoped_to_the_users_division() {
         minutes_played: 1800,
         ..PlayerSeasonStats::default()
     };
-    lower_star.league_stats = lower_star.stats.clone();
+    lower_star
+        .league_stats_by_competition
+        .insert("eng-2".into(), lower_star.stats.clone());
     game.players.push(lower_star);
 
     let summary = process_end_of_season(&mut game);
@@ -2720,21 +2739,6 @@ fn player_career_entry_added() {
 }
 
 #[test]
-fn player_stats_reset() {
-    let mut game = make_completed_season_game();
-    process_end_of_season(&mut game);
-
-    let p1 = game.players.iter().find(|p| p.id == "p1").unwrap();
-    assert_eq!(p1.stats.appearances, 0);
-    assert_eq!(p1.stats.goals, 0);
-    assert_eq!(
-        p1.league_stats,
-        domain::player::PlayerSeasonStats::default()
-    );
-    assert_eq!(p1.stats.assists, 0);
-}
-
-#[test]
 fn season_end_ages_players_and_retires_out_of_contract_veterans() {
     let mut game = make_completed_season_game();
     let veteran = game
@@ -3081,7 +3085,9 @@ fn season_awards_article_not_added_when_no_marquee_winners() {
         player.stats.goals = 0;
         player.stats.assists = 0;
         player.stats.avg_rating = 0.0;
-        player.league_stats = player.stats.clone();
+        player
+            .league_stats_by_competition
+            .insert("league1".into(), player.stats.clone());
     }
     process_end_of_season(&mut game);
 

@@ -834,9 +834,33 @@ mod tests {
     use crate::transfers::tests::{make_game, sample_attributes};
     use chrono::{TimeZone, Utc};
     use domain::message::InboxMessage;
+    use domain::player::PlayerSeasonStats;
 
     fn pending_transfer_game(user_is_seller: bool) -> Game {
         pending_transfer_game_with(user_is_seller, None, "2026-01-12")
+    }
+
+    /// Given an agreed sale with two distinct league stints, when registration completes,
+    /// then the transfer preserves both competitions' statistics unchanged.
+    #[test]
+    fn registering_a_transfer_preserves_both_league_stints() {
+        let mut game = pending_transfer_game(true);
+        game.clock.current_date = Utc.with_ymd_and_hms(2026, 1, 12, 12, 0, 0).unwrap();
+        let expected = serde_json::json!({
+            "division-a": PlayerSeasonStats { goals: 10, clean_sheets: 2, appearances: 12, ..Default::default() },
+            "division-b": PlayerSeasonStats { goals: 2, appearances: 4, ..Default::default() }
+        });
+        let mut value = serde_json::to_value(&game.players[0]).unwrap();
+        value["league_stats_by_competition"] = expected.clone();
+        game.players[0] = serde_json::from_value(value).unwrap();
+
+        process_pending_transfer_registrations(&mut game);
+
+        assert_eq!(game.players[0].team_id.as_deref(), Some("team2"));
+        assert_eq!(
+            serde_json::to_value(&game.players[0]).unwrap()["league_stats_by_competition"],
+            expected
+        );
     }
 
     /// An agreed transfer of `game.players[0]` awaiting registration on `registration_date`,
