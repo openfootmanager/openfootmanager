@@ -1,14 +1,14 @@
 import { useState } from "react";
-import { formatOrdinal } from "../lib/ordinal";
 import { useTranslation } from "react-i18next";
 import type { GameStateData, SeasonAwardsData } from "../store/gameStore";
 import { useGameStore } from "../store/gameStore";
 import { invokeForCareer } from "../services/careerInvoke";
 import { useReviewDivision } from "./season/useReviewDivision";
-import { Card, CardBody } from "./ui";
+import { Button } from "./ui";
 import { competitionDisplayName } from "../lib/competitionName";
 import AwardsCeremonyScreen from "./season/AwardsCeremonyScreen";
 import SeasonReviewTables from "./season/SeasonReviewTables";
+import SeasonReviewClub from "./season/SeasonReviewClub";
 import { Trophy, Star, ArrowRight, Crown } from "lucide-react";
 
 export interface EndOfSeasonSummary {
@@ -56,7 +56,7 @@ export default function EndOfSeasonScreen({
   transition,
   onTransitionChange,
 }: EndOfSeasonScreenProps) {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const setShowFiredModal = useGameStore((s) => s.setShowFiredModal);
   const [loading, setLoading] = useState(false);
   const summary = transition?.summary ?? null;
@@ -65,7 +65,6 @@ export default function EndOfSeasonScreen({
   const review = useReviewDivision(gameState, step === "review");
   const league = review.league;
   const userTeamId = gameState.manager.team_id;
-  const userTeam = gameState.teams.find((t) => t.id === userTeamId);
 
   // Compute standings for display
   const standings = league
@@ -77,11 +76,6 @@ export default function EndOfSeasonScreen({
       )
     : [];
 
-  const userStandingIdx = standings.findIndex((s) => s.team_id === userTeamId);
-  const userStanding = standings[userStandingIdx];
-  // A manager with no club has no place in the table: nothing of a club summary is drawn for them.
-  const userHasStanding = userStandingIdx >= 0;
-  const userPosition = userStandingIdx + 1;
   const champion = standings[0];
   const isChampion = champion?.team_id === userTeamId;
 
@@ -112,9 +106,6 @@ export default function EndOfSeasonScreen({
     }
   };
 
-  const posLabel = (pos: number) =>
-    formatOrdinal(pos, i18n.language, (key, options) => t(key, options), "place");
-
   return (
     <div className="py-8 px-4">
       {step === "review" && (
@@ -123,9 +114,9 @@ export default function EndOfSeasonScreen({
           {review.failed && (
             <div>
               <p role="alert">{t("errors.title")}</p>
-              <button type="button" onClick={review.retry}>
+              <Button size="sm" variant="outline" onClick={review.retry}>
                 {t("common.retry")}
-              </button>
+              </Button>
             </div>
           )}
           {/* Hero */}
@@ -161,55 +152,7 @@ export default function EndOfSeasonScreen({
             )}
           </div>
 
-          {/* User team summary */}
-          {userHasStanding && (
-            <Card accent={isChampion ? "accent" : "primary"} className="mb-6">
-              <CardBody>
-                <div className="text-center">
-                  <p className="text-xs font-heading font-bold uppercase tracking-widest text-gray-400 dark:text-gray-500 mb-1">
-                    {userTeam?.name}
-                  </p>
-                  <div className="flex items-center justify-center gap-6 mb-4">
-                    <div>
-                      <p className="text-4xl font-heading font-bold text-gray-900 dark:text-gray-100">
-                        {posLabel(userPosition)}
-                      </p>
-                      <p className="text-xs text-gray-400 dark:text-gray-500 font-heading uppercase">
-                        {t("endOfSeason.position")}
-                      </p>
-                    </div>
-                    <div className="w-px h-12 bg-gray-200 dark:bg-navy-600" />
-                    <div>
-                      <p className="text-4xl font-heading font-bold text-primary-500">
-                        {userStanding?.points || 0}
-                      </p>
-                      <p className="text-xs text-gray-400 dark:text-gray-500 font-heading uppercase">
-                        {t("endOfSeason.points")}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-center justify-center gap-8 text-sm">
-                    <span className="text-green-500 font-heading font-bold">
-                      {userStanding?.won || 0}
-                      {t("common.won")}
-                    </span>
-                    <span className="text-gray-500 font-heading font-bold">
-                      {userStanding?.drawn || 0}
-                      {t("common.drawn")}
-                    </span>
-                    <span className="text-red-500 font-heading font-bold">
-                      {userStanding?.lost || 0}
-                      {t("common.lost")}
-                    </span>
-                    <span className="text-gray-400">
-                      {userStanding?.goals_for || 0} {t("common.gf")} —{" "}
-                      {userStanding?.goals_against || 0} {t("common.ga")}
-                    </span>
-                  </div>
-                </div>
-              </CardBody>
-            </Card>
-          )}
+          <SeasonReviewClub gameState={gameState} standings={standings} isChampion={isChampion} />
 
           <SeasonReviewTables
             gameState={gameState}
