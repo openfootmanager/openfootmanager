@@ -2311,14 +2311,9 @@ mod tests {
         );
     }
 
-    /// Given a match waiting at kick-off where a substitute forward was swapped into a
-    /// defender's slot on the pre-match screen (the saved team still has him on the bench),
-    /// When the user saves him as a Poacher,
-    /// Then the save succeeds and he plays the defender's slot on the Standard role: the slot he
-    /// fills in the match does not admit a Poacher.
-    #[test]
-    fn a_saved_role_his_slot_in_the_match_refuses_is_left_out() {
-        let state = StateManager::new();
+    /// A live match waiting at kick-off in which a spare forward, benched in the saved team, has
+    /// been swapped into the left-back slot on the pre-match screen. Returns his id.
+    fn forward_swapped_into_left_back(state: &StateManager) -> String {
         let mut game = make_round_summary_game();
         game.players.push(make_player(
             "a-fwd-spare",
@@ -2327,9 +2322,9 @@ mod tests {
             Position::Forward,
         ));
         state.set_game(game);
-        advance_time_with_mode_internal(&state, ofm_core::state::Career::Active, "live")
+        advance_time_with_mode_internal(state, ofm_core::state::Career::Active, "live")
             .expect("live advance response");
-        let (forward_on_bench, defender_starting) = state
+        let (forward_on_bench, left_back) = state
             .with_live_match(|session| {
                 let snapshot = session.snapshot();
                 let bench_forward = snapshot
@@ -2338,42 +2333,601 @@ mod tests {
                     .find(|player| player.position == engine::Position::Forward)
                     .map(|player| player.id.clone())
                     .expect("a forward waits on the bench");
-                let starting_defender = snapshot
-                    .home_team
-                    .players
-                    .iter()
-                    .find(|player| player.position == engine::Position::Defender)
-                    .map(|player| player.id.clone())
-                    .expect("a defender starts");
-                (bench_forward, starting_defender)
+                // 4-4-2: the goalkeeper, then the left-back.
+                (bench_forward, snapshot.home_team.players[1].id.clone())
             })
             .expect("a live match session exists");
         crate::application::live_match::apply_match_command(
-            &state,
+            state,
             ofm_core::state::Career::Active,
             engine::MatchCommand::PreMatchSwap {
                 side: engine::Side::Home,
-                player_off_id: defender_starting,
+                player_off_id: left_back,
                 player_on_id: forward_on_bench.clone(),
             },
         )
         .expect("the swap is made before kick-off");
+        forward_on_bench
+    }
+
+    fn role_in_the_waiting_match(state: &StateManager, player_id: &str) -> engine::PlayerRole {
+        user_side_before_kick_off(state)
+            .players
+            .iter()
+            .find(|player| player.id == player_id)
+            .expect("he starts")
+            .role
+    }
+
+    /// Given a match waiting at kick-off where a spare forward, benched in the saved team, has
+    /// been swapped into the left-back slot on the pre-match screen (his live picker offers him
+    /// the full-back roles),
+    /// When the user saves him as an Attacking Full-Back,
+    /// Then the save succeeds and he plays the left-back slot as one: the role is judged by the
+    /// slot he fills in the match, not by the saved team's bench.
+    #[test]
+    fn a_role_his_new_slot_admits_is_saved_after_a_swap() {
+        let state = StateManager::new();
+        let swapped_in = forward_swapped_into_left_back(&state);
 
         crate::commands::squad::set_player_role_internal(
             &state,
             ofm_core::state::Career::Active,
-            forward_on_bench.clone(),
-            Some("Poacher".to_string()),
+            swapped_in.clone(),
+            Some("AttackingFB".to_string()),
         )
-        .expect("the saved team still has him on the bench, as a forward who may be a Poacher");
+        .expect("the left-back slot admits an Attacking Full-Back");
 
-        let side = user_side_before_kick_off(&state);
-        let swapped_in = side
-            .players
-            .iter()
-            .find(|player| player.id == forward_on_bench)
-            .expect("the forward now starts");
-        assert_eq!(swapped_in.position, engine::Position::Defender);
-        assert_eq!(swapped_in.role, engine::PlayerRole::Standard);
+        assert_eq!(
+            role_in_the_waiting_match(&state, &swapped_in),
+            engine::PlayerRole::AttackingFB
+        );
+    }
+
+    /// Given the same swapped-in forward,
+    /// When the user saves him as a Poacher, which a left-back slot does not admit,
+    /// Then the save is refused: the picker for the slot he fills would not have offered it,
+    /// and he plays on the Standard role.
+    #[test]
+    fn a_role_his_new_slot_refuses_is_refused_after_a_swap() {
+        let state = StateManager::new();
+        let swapped_in = forward_swapped_into_left_back(&state);
+
+        let refused = crate::commands::squad::set_player_role_internal(
+            &state,
+            ofm_core::state::Career::Active,
+            swapped_in.clone(),
+            Some("Poacher".to_string()),
+        );
+
+        assert_eq!(
+            refused.err().as_deref(),
+            Some("be.error.roleNotValidForPosition")
+        );
+        assert_eq!(
+            role_in_the_waiting_match(&state, &swapped_in),
+            engine::PlayerRole::Standard
+        );
+    }
+
+    /// Given the same swapped-in forward, in a match that belongs to another career than the
+    /// game now open (the game was swapped for another while the match waited),
+    /// When the user saves him as an Attacking Full-Back,
+    /// Then the role is judged by the saved team, where he is a benched forward, and refused:
+    /// another career's match says nothing about this game's slots.
+    #[test]
+    fn a_role_is_judged_by_the_saved_team_when_the_waiting_match_is_another_careers() {
+        let state = StateManager::new();
+        let swapped_in = forward_swapped_into_left_back(&state);
+        state
+            .update_game(|game| game.career_token += 1)
+            .expect("a game is open");
+
+        let refused = crate::commands::squad::set_player_role_internal(
+            &state,
+            ofm_core::state::Career::Active,
+            swapped_in,
+            Some("AttackingFB".to_string()),
+        );
+
+        assert_eq!(
+            refused.err().as_deref(),
+            Some("be.error.roleNotValidForPosition")
+        );
+    }
+
+    // -----------------------------------------------------------------------
+    // A saved role the team drops, and the gate a role save and a swap pass through
+    // -----------------------------------------------------------------------
+
+    /// A live match waiting at kick-off whose team holds an Attacking Full-Back for a benched
+    /// forward whose natural position, made centre-back in the game, refuses it (as a
+    /// stale save can carry), and that the match has been told about. Returns his id.
+    fn benched_centre_back_holding_a_role_his_position_refuses(state: &StateManager) -> String {
+        // The spare forward is how `forward_swapped_into_left_back` gets a player onto the bench.
+        let mut game = make_round_summary_game();
+        game.players.push(make_player(
+            "a-fwd-spare",
+            "a Fwd Spare",
+            "team1",
+            Position::Forward,
+        ));
+        state.set_game(game);
+        advance_time_with_mode_internal(state, ofm_core::state::Career::Active, "live")
+            .expect("live advance response");
+        let benched_forward = state
+            .with_live_match(|session| {
+                session
+                    .snapshot()
+                    .home_bench
+                    .iter()
+                    .find(|player| player.position == engine::Position::Forward)
+                    .map(|player| player.id.clone())
+            })
+            .flatten()
+            .expect("a forward waits on the bench");
+        let game = state
+            .update_game(|game| {
+                game.players
+                    .iter_mut()
+                    .find(|player| player.id == benched_forward)
+                    .expect("he is on the user's team")
+                    .natural_position = Position::CenterBack;
+                game.teams
+                    .iter_mut()
+                    .find(|team| team.id == "team1")
+                    .expect("the user's team")
+                    .player_roles
+                    .insert(
+                        benched_forward.clone(),
+                        domain::team::PlayerRole::AttackingFB,
+                    );
+                game.clone()
+            })
+            .expect("a game is open");
+        crate::application::live_match::follow_saved_role_before_kick_off(
+            state,
+            &game,
+            &benched_forward,
+        )
+        .expect("the match is told");
+        benched_forward
+    }
+
+    fn swap_into_left_back(state: &StateManager, player_on_id: &str) {
+        let left_back = state
+            .with_live_match(|session| session.snapshot().home_team.players[1].id.clone())
+            .expect("a live match session exists");
+        crate::application::live_match::apply_match_command(
+            state,
+            ofm_core::state::Career::Active,
+            engine::MatchCommand::PreMatchSwap {
+                side: engine::Side::Home,
+                player_off_id: left_back,
+                player_on_id: player_on_id.to_string(),
+            },
+        )
+        .expect("the swap is made before kick-off");
+    }
+
+    /// Given a team that holds a role for a benched centre-back his position refuses,
+    /// When `change` rewrites the team's roles (it reconciles them and drops that one) and the
+    /// manager then swaps him into the left-back slot,
+    /// Then he plays the slot on Standard: the match was told the role is gone, not left holding it.
+    fn assert_a_dropped_role_is_not_restored_by_a_swap(change: impl FnOnce(&StateManager)) {
+        let state = StateManager::new();
+        let spare = benched_centre_back_holding_a_role_his_position_refuses(&state);
+        change(&state);
+
+        swap_into_left_back(&state, &spare);
+
+        assert_eq!(
+            role_in_the_waiting_match(&state, &spare),
+            engine::PlayerRole::Standard
+        );
+    }
+
+    /// The eleven the waiting match starts, which is a valid eleven to save.
+    fn current_eleven(state: &StateManager) -> Vec<String> {
+        state
+            .with_live_match(|session| {
+                session
+                    .snapshot()
+                    .home_team
+                    .players
+                    .iter()
+                    .map(|player| player.id.clone())
+                    .collect()
+            })
+            .expect("a live match session exists")
+    }
+
+    /// Given the scenario above, changed by saving the same starting eleven.
+    #[test]
+    fn a_role_the_starting_eleven_save_drops_is_not_restored_by_a_swap() {
+        assert_a_dropped_role_is_not_restored_by_a_swap(|state| {
+            let eleven = current_eleven(state);
+            crate::commands::squad::set_starting_xi_internal(
+                state,
+                ofm_core::state::Career::Active,
+                eleven,
+            )
+            .expect("the eleven is saved");
+        });
+    }
+
+    /// Given the scenario above, changed by saving a formation.
+    #[test]
+    fn a_role_the_formation_save_drops_is_not_restored_by_a_swap() {
+        assert_a_dropped_role_is_not_restored_by_a_swap(|state| {
+            crate::commands::squad::set_formation_internal(
+                state,
+                ofm_core::state::Career::Active,
+                "4-4-2",
+            )
+            .expect("the formation is saved");
+        });
+    }
+
+    /// Given the scenario above, changed by applying a tactic preset.
+    #[test]
+    fn a_role_the_tactic_preset_drops_is_not_restored_by_a_swap() {
+        assert_a_dropped_role_is_not_restored_by_a_swap(|state| {
+            crate::commands::squad::apply_tactic_preset_internal(
+                state,
+                ofm_core::state::Career::Active,
+                "4-4-2",
+                "Balanced",
+            )
+            .expect("the preset is applied");
+        });
+    }
+
+    /// Given the scenario above, changed by applying a saved custom tactic.
+    #[test]
+    fn a_role_the_custom_tactic_drops_is_not_restored_by_a_swap() {
+        assert_a_dropped_role_is_not_restored_by_a_swap(|state| {
+            let tactic = domain::custom_tactic::CustomTactic {
+                id: "mine".to_string(),
+                name: "Mine".to_string(),
+                description: String::new(),
+                formation: "4-4-2".to_string(),
+                play_style: "Balanced".to_string(),
+                source_preset_name: None,
+                contents: None,
+            };
+            crate::commands::custom_tactics::save_current_tactic_internal(
+                state,
+                &tactic,
+                ofm_core::state::Career::Active,
+            )
+            .expect("the tactic is saved");
+            crate::commands::custom_tactics::apply_custom_tactic_internal(
+                state,
+                "mine",
+                ofm_core::state::Career::Active,
+            )
+            .expect("the tactic is applied");
+        });
+    }
+
+    /// Runs `call` on another thread while this one holds the lifecycle gate, and reports whether
+    /// it finished before and after the gate was released.
+    fn finishes_only_after_the_gate_is_released<F>(
+        state: std::sync::Arc<StateManager>,
+        call: F,
+    ) -> (bool, bool)
+    where
+        F: FnOnce(&StateManager) + Send + 'static,
+    {
+        let operation = crate::application::live_session::operation();
+        let (done_tx, done_rx) = std::sync::mpsc::channel();
+        let handle = std::thread::spawn(move || {
+            call(&state);
+            done_tx.send(()).unwrap();
+        });
+        let finished_while_held = done_rx
+            .recv_timeout(std::time::Duration::from_millis(300))
+            .is_ok();
+        drop(operation);
+        let finished_after_release = done_rx
+            .recv_timeout(std::time::Duration::from_secs(30))
+            .is_ok();
+        handle.join().unwrap();
+        (finished_while_held, finished_after_release)
+    }
+
+    /// Given a lifecycle operation in flight,
+    /// When a role is saved for a player of the waiting match,
+    /// Then the save queues behind the operation, and completes once it is released: the read of
+    /// his slot, the save and the hand-off to the match are one step against a kick-off or a swap.
+    #[test]
+    fn a_role_save_waits_for_a_lifecycle_operation_in_flight() {
+        let state = std::sync::Arc::new(StateManager::new());
+        let swapped_in = forward_swapped_into_left_back(&state);
+
+        let (while_held, after_release) =
+            finishes_only_after_the_gate_is_released(state, move |state| {
+                crate::commands::squad::set_player_role_internal(
+                    state,
+                    ofm_core::state::Career::Active,
+                    swapped_in,
+                    Some("AttackingFB".to_string()),
+                )
+                .expect("the role is saved");
+            });
+
+        assert!(!while_held, "the save ran inside a held operation");
+        assert!(after_release, "the save never completed once released");
+    }
+
+    /// Given a lifecycle operation in flight,
+    /// When a pre-match swap is made,
+    /// Then the swap queues behind the operation and completes once it is released.
+    #[test]
+    fn a_pre_match_swap_waits_for_a_lifecycle_operation_in_flight() {
+        let state = std::sync::Arc::new(StateManager::new());
+        let spare = benched_centre_back_holding_a_role_his_position_refuses(&state);
+
+        let (while_held, after_release) =
+            finishes_only_after_the_gate_is_released(state, move |state| {
+                swap_into_left_back(state, &spare);
+            });
+
+        assert!(!while_held, "the swap ran inside a held operation");
+        assert!(after_release, "the swap never completed once released");
+    }
+
+    /// Runs `call` against a game at rest (after `setup`) while a lifecycle operation is held.
+    /// It must not have finished, nor changed what `observe` reads, while the gate is held; once
+    /// the gate is released it completes and `observe` reads something different.
+    fn assert_a_bulk_role_write_waits_for_the_gate<F>(
+        setup: fn(&StateManager),
+        call: F,
+        observe: fn(&StateManager) -> String,
+    ) where
+        F: FnOnce(&StateManager) + Send + 'static,
+    {
+        let state = std::sync::Arc::new(StateManager::new());
+        state.set_game(make_round_summary_game());
+        setup(&state);
+        let before = observe(&state);
+        let worker_state = state.clone();
+        let operation = crate::application::live_session::operation();
+        let (done_tx, done_rx) = std::sync::mpsc::channel();
+        let handle = std::thread::spawn(move || {
+            call(&worker_state);
+            done_tx.send(()).unwrap();
+        });
+
+        let finished_while_held = done_rx
+            .recv_timeout(std::time::Duration::from_millis(300))
+            .is_ok();
+        let seen_while_held = observe(&state);
+        drop(operation);
+        let finished_after_release = done_rx
+            .recv_timeout(std::time::Duration::from_secs(30))
+            .is_ok();
+        handle.join().unwrap();
+
+        assert!(
+            !finished_while_held,
+            "the write ran inside a held operation"
+        );
+        assert_eq!(seen_while_held, before, "the write landed before the gate");
+        assert!(
+            finished_after_release,
+            "the write never completed once released"
+        );
+        assert_ne!(observe(&state), before, "the write changed nothing");
+    }
+
+    fn no_setup(_: &StateManager) {}
+
+    fn formation_of_the_user_team(state: &StateManager) -> String {
+        state
+            .get_game(|game| {
+                game.teams
+                    .iter()
+                    .find(|team| team.id == "team1")
+                    .map(|team| format!("{}/{:?}", team.formation, team.play_style))
+                    .unwrap_or_default()
+            })
+            .unwrap_or_default()
+    }
+
+    fn starting_eleven_of_the_user_team(state: &StateManager) -> String {
+        state
+            .get_game(|game| {
+                game.teams
+                    .iter()
+                    .find(|team| team.id == "team1")
+                    .map(|team| team.starting_xi_ids.join(","))
+                    .unwrap_or_default()
+            })
+            .unwrap_or_default()
+    }
+
+    /// Given a lifecycle operation in flight, when the formation is saved,
+    /// then the save queues behind it: commit and hand-off to the waiting match are one step
+    /// against a role save.
+    #[test]
+    fn a_formation_save_waits_for_a_lifecycle_operation_in_flight() {
+        assert_a_bulk_role_write_waits_for_the_gate(
+            no_setup,
+            |state| {
+                crate::commands::squad::set_formation_internal(
+                    state,
+                    ofm_core::state::Career::Active,
+                    "3-5-2",
+                )
+                .expect("the formation is saved");
+            },
+            formation_of_the_user_team,
+        );
+    }
+
+    /// The same for a tactic preset.
+    #[test]
+    fn a_tactic_preset_waits_for_a_lifecycle_operation_in_flight() {
+        assert_a_bulk_role_write_waits_for_the_gate(
+            no_setup,
+            |state| {
+                crate::commands::squad::apply_tactic_preset_internal(
+                    state,
+                    ofm_core::state::Career::Active,
+                    "3-5-2",
+                    "Defensive",
+                )
+                .expect("the preset is applied");
+            },
+            formation_of_the_user_team,
+        );
+    }
+
+    /// The same for a starting eleven.
+    #[test]
+    fn a_starting_eleven_save_waits_for_a_lifecycle_operation_in_flight() {
+        // The club's eleven healthy seniors, in an order no fixture starts from.
+        assert_a_bulk_role_write_waits_for_the_gate(
+            no_setup,
+            |state| {
+                let eleven = [
+                    "a-gk", "a-fwd1", "a-fwd0", "a-mid3", "a-mid2", "a-mid1", "a-mid0", "a-def3",
+                    "a-def2", "a-def1", "a-def0",
+                ]
+                .map(String::from)
+                .to_vec();
+                crate::commands::squad::set_starting_xi_internal(
+                    state,
+                    ofm_core::state::Career::Active,
+                    eleven,
+                )
+                .expect("the eleven is saved");
+            },
+            starting_eleven_of_the_user_team,
+        );
+    }
+
+    /// The same for applying a saved custom tactic.
+    #[test]
+    fn a_custom_tactic_applied_waits_for_a_lifecycle_operation_in_flight() {
+        // A tactic saved with a 3-5-2 team, then the team put back to 4-4-2: applying it changes
+        // the formation again.
+        fn save_a_three_five_two_tactic(state: &StateManager) {
+            let career = ofm_core::state::Career::Active;
+            crate::commands::squad::set_formation_internal(state, career, "3-5-2")
+                .expect("the formation is saved");
+            let tactic = domain::custom_tactic::CustomTactic {
+                id: "mine".to_string(),
+                name: "Mine".to_string(),
+                description: String::new(),
+                formation: "3-5-2".to_string(),
+                play_style: "Balanced".to_string(),
+                source_preset_name: None,
+                contents: None,
+            };
+            crate::commands::custom_tactics::save_current_tactic_internal(state, &tactic, career)
+                .expect("the tactic is saved");
+            crate::commands::squad::set_formation_internal(state, career, "4-4-2")
+                .expect("the formation is put back");
+        }
+        assert_a_bulk_role_write_waits_for_the_gate(
+            save_a_three_five_two_tactic,
+            |state| {
+                crate::commands::custom_tactics::apply_custom_tactic_internal(
+                    state,
+                    "mine",
+                    ofm_core::state::Career::Active,
+                )
+                .expect("the tactic is applied");
+            },
+            formation_of_the_user_team,
+        );
+    }
+
+    fn waiting_match_state() -> std::sync::Arc<StateManager> {
+        let state = std::sync::Arc::new(StateManager::new());
+        state.set_game(make_round_summary_game());
+        advance_time_with_mode_internal(&state, ofm_core::state::Career::Active, "live")
+            .expect("live advance response");
+        state
+    }
+
+    /// Given a live match waiting at kick-off and a lifecycle operation in flight,
+    /// When the match is stepped (the kick-off),
+    /// Then the step queues behind the operation and the match kicks off once it is released: a
+    /// role saved while the gate was held is in the match when it starts.
+    #[test]
+    fn the_kick_off_waits_for_a_lifecycle_operation_in_flight() {
+        let state = waiting_match_state();
+        let watcher = state.clone();
+
+        let (while_held, after_release) =
+            finishes_only_after_the_gate_is_released(state, |state| {
+                crate::application::live_match::step_live_match(
+                    state,
+                    ofm_core::state::Career::Active,
+                    1,
+                )
+                .expect("the match kicks off");
+            });
+
+        assert!(!while_held, "the kick-off ran inside a held operation");
+        assert!(after_release, "the kick-off never completed once released");
+        let (phase, _) = user_side_and_phase(&watcher);
+        assert_ne!(
+            phase,
+            engine::MatchPhase::PreKickOff,
+            "the match kicked off"
+        );
+    }
+
+    /// Given a live match waiting at kick-off and a lifecycle operation in flight,
+    /// When the formation is changed on the pre-match screen,
+    /// Then the change queues behind the operation and completes once it is released.
+    #[test]
+    fn a_pre_match_formation_change_waits_for_a_lifecycle_operation_in_flight() {
+        let state = waiting_match_state();
+
+        let (while_held, after_release) =
+            finishes_only_after_the_gate_is_released(state, |state| {
+                crate::application::live_match::apply_match_command(
+                    state,
+                    ofm_core::state::Career::Active,
+                    engine::MatchCommand::ChangeFormation {
+                        side: engine::Side::Home,
+                        formation: "3-5-2".to_string(),
+                    },
+                )
+                .expect("the shape is changed before kick-off");
+            });
+
+        assert!(!while_held, "the change ran inside a held operation");
+        assert!(after_release, "the change never completed once released");
+    }
+
+    /// Given a match already under way and a lifecycle operation in flight,
+    /// When the match is stepped,
+    /// Then the step does not wait: only the kick-off needs the gate, and a step in play is
+    /// neither a role save's nor a swap's concern.
+    #[test]
+    fn a_step_in_play_does_not_wait_for_a_lifecycle_operation() {
+        let state = waiting_match_state();
+        crate::application::live_match::step_live_match(&state, ofm_core::state::Career::Active, 1)
+            .expect("the match kicks off");
+
+        // The helper reads the completion once while the gate is held, so a call that finishes
+        // then has nothing left to report after the release: only the first figure counts here.
+        let (while_held, _) = finishes_only_after_the_gate_is_released(state, |state| {
+            crate::application::live_match::step_live_match(
+                state,
+                ofm_core::state::Career::Active,
+                1,
+            )
+            .expect("the match plays a minute");
+        });
+
+        assert!(while_held, "a step in play was held up by the operation");
     }
 }

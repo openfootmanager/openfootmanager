@@ -1,5 +1,5 @@
 use crate::event::{EventType, MatchEvent};
-use crate::types::{PlayerData, Position, Side, Zone};
+use crate::types::{PlayerData, PlayerRole, Position, Side, Zone};
 
 use super::{LiveMatchState, MatchPhase, SubstitutionRecord};
 
@@ -87,6 +87,12 @@ impl LiveMatchState {
         if !goes_in_goal {
             player_on.position = player_off.position;
         }
+        // His role comes with him from the bench, where it was judged for the line he played
+        // there; in the slot he takes it counts only if that line admits it (the rule the live
+        // role command asks), else he plays it as Standard, as the match was built to.
+        if !player_on.role.suits(player_on.position) {
+            player_on.role = PlayerRole::Standard;
+        }
 
         // Initialize condition for incoming player
         self.player_conditions
@@ -148,6 +154,24 @@ impl LiveMatchState {
         {
             Some(player) => {
                 player.line_familiarity = line_familiarity;
+                true
+            }
+            None => false,
+        }
+    }
+
+    /// Give `player_id`, on `side`'s bench, `role`: the role he plays if he comes on. For a
+    /// caller that knows a role the bench copy was built without (a role saved after the match
+    /// was built). It is the caller's to check the role against the line he will enter, as
+    /// `PlayerRole::suits` does. Whether he was found on the bench.
+    pub fn set_bench_role(&mut self, side: Side, player_id: &str, role: PlayerRole) -> bool {
+        let bench = match side {
+            Side::Home => &mut self.home_bench,
+            Side::Away => &mut self.away_bench,
+        };
+        match bench.iter_mut().find(|player| player.id == player_id) {
+            Some(player) => {
+                player.role = role;
                 true
             }
             None => false,
@@ -324,7 +348,7 @@ mod line_familiarity_tests {
         MatchConfig, PlayStyle, PlayerData, PlayerRole, Position, Side, TacticsConfig, TeamData,
     };
 
-    fn player(id: &str, position: Position) -> PlayerData {
+    pub(super) fn player(id: &str, position: Position) -> PlayerData {
         PlayerData {
             id: id.to_string(),
             name: id.to_string(),
@@ -358,7 +382,7 @@ mod line_familiarity_tests {
         }
     }
 
-    fn side(prefix: &str) -> TeamData {
+    pub(super) fn side(prefix: &str) -> TeamData {
         TeamData {
             id: prefix.to_string(),
             name: prefix.to_string(),
@@ -410,6 +434,32 @@ mod line_familiarity_tests {
         assert_eq!(state.bench(Side::Home)[0].line_familiarity, REFIT);
     }
 
+    /// Given a home substitute on the bench,
+    /// When he is given a role,
+    /// Then he carries it, and nobody in the eleven or on the other bench does.
+    #[test]
+    fn a_player_on_the_bench_takes_the_role_he_is_given() {
+        let mut state = state();
+
+        assert!(state.set_bench_role(Side::Home, "h_sub", PlayerRole::Stopper));
+
+        assert_eq!(state.bench(Side::Home)[0].role, PlayerRole::Stopper);
+        assert_eq!(state.bench(Side::Away)[0].role, PlayerRole::Standard);
+        assert_eq!(state.team(Side::Home).players[1].role, PlayerRole::Standard);
+    }
+
+    /// Given a home player in the eleven,
+    /// When a bench role is asked for him,
+    /// Then he is not found there and keeps his role.
+    #[test]
+    fn a_player_in_the_eleven_is_not_on_the_bench() {
+        let mut state = state();
+
+        assert!(!state.set_bench_role(Side::Home, "h_d", PlayerRole::Stopper));
+
+        assert_eq!(state.team(Side::Home).players[1].role, PlayerRole::Standard);
+    }
+
     /// Given the away side's substitute,
     /// When the home side's familiarity is set for him,
     /// Then nobody is found and nothing changes.
@@ -420,5 +470,67 @@ mod line_familiarity_tests {
         assert!(!state.set_line_familiarity(Side::Home, "a_sub", REFIT));
 
         assert_eq!(state.bench(Side::Away)[0].line_familiarity, [1.0; 4]);
+    }
+}
+
+#[cfg(test)]
+mod substituted_role_tests {
+    use super::line_familiarity_tests::{player, side};
+    use crate::live_match::{LiveMatchState, MatchCommand};
+    use crate::types::{MatchConfig, PlayerRole, Position, Side};
+    use rand::SeedableRng;
+    use rand::rngs::StdRng;
+
+    /// The role of the player who comes on for the home defender, `bench` waiting on the home
+    /// bench with `role`.
+    fn role_after_coming_on(bench: Position, role: PlayerRole) -> PlayerRole {
+        let mut substitute = player("h_sub", bench);
+        substitute.role = role;
+        let mut state = LiveMatchState::new(
+            side("h"),
+            side("a"),
+            MatchConfig::default(),
+            vec![substitute],
+            vec![player("a_sub", Position::Defender)],
+            false,
+        );
+        state.step_minute(&mut StdRng::seed_from_u64(1));
+        state
+            .apply_command(MatchCommand::Substitute {
+                side: Side::Home,
+                player_off_id: "h_d".to_string(),
+                player_on_id: "h_sub".to_string(),
+            })
+            .expect("the substitution is legal");
+        state
+            .team(Side::Home)
+            .players
+            .iter()
+            .find(|player| player.id == "h_sub")
+            .map(|player| player.role)
+            .expect("he is on the pitch")
+    }
+
+    /// Given a Poacher on the bench,
+    /// When he comes on for a defender and takes his slot in the back line,
+    /// Then he plays the slot on Standard: a Poacher is not a defender's role, and carrying it
+    /// there would put the Poacher's defensive penalty on a defence.
+    #[test]
+    fn a_role_the_slot_does_not_admit_is_dropped_by_a_substitution() {
+        assert_eq!(
+            role_after_coming_on(Position::Forward, PlayerRole::Poacher),
+            PlayerRole::Standard
+        );
+    }
+
+    /// Given an Attacking Full-Back on the bench,
+    /// When he comes on for a defender,
+    /// Then he keeps the role: the slot he takes admits it.
+    #[test]
+    fn a_role_the_slot_admits_is_kept_by_a_substitution() {
+        assert_eq!(
+            role_after_coming_on(Position::Defender, PlayerRole::AttackingFB),
+            PlayerRole::AttackingFB
+        );
     }
 }
