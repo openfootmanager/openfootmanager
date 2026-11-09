@@ -2763,6 +2763,7 @@
       "critical": "Crítico"
     },
     "error": {
+      "taskJoinFailed": "La simulación se ha detenido inesperadamente. Carga tu última partida guardada y vuelve a intentarlo.",
       "autoSave": {
         "failed": "El guardado automático no pudo guardar la partida. Tu progreso desde el último guardado aún no está guardado: guárdala tú mismo y comprueba que haya espacio libre en el disco."
       },
@@ -3660,6 +3661,10 @@
         "body": "La cesión acordada de {{player}} de {{parent}} a {{borrower}}, prevista para el {{start}}, no puede llevarse a cabo: el jugador ya no tiene contrato con {{parent}}.",
         "bodyRequirementNotMet": "La cesión acordada de {{player}} de {{parent}} a {{borrower}} no pudo comenzar el {{start}}: una de las condiciones con las que se acordó, como el margen en el presupuesto salarial de {{borrower}} o la duración del contrato del jugador, ya no se cumple."
       },
+      "talksClosedBySale": {
+        "subject": "Fichado por otro club: {{player}}",
+        "body": "{{buyer}} ha fichado a {{player}} por {{fee}}. Tus negociaciones abiertas por él se han retirado."
+      },
       "loanOffer": {
         "subject": "Oferta de cesión por {{player}}",
         "body": "{{team}} quiere llevarse cedido a {{player}} hasta {{endDate}} y cubrir el {{wageContribution}}% del salario. Opción de compra: {{buyOption}}. Revisa la propuesta en la pestaña de Fichajes.",
@@ -3870,7 +3875,8 @@
       "package": {
         "countryWithoutRegion": "Este paquete define el país «{{name}}» ({{code}}) fuera de la lista de países del juego y no lo sitúa en ninguna confederación, así que sus clubes se archivan en Europa. Asígnale una confederación.",
         "freeAgentFieldIgnored": "El jugador «{{id}}» no tiene club, así que es agente libre y no tiene contrato: «{{field}}» se ignora. Asígnale un club para usarlo, o quita el campo.",
-        "repeatedNamePool": "El grupo de nombres de {{country}} ya se dio en {{first}}; el de este archivo lo sustituye. Deja solo uno, o asígnalos a países distintos."
+        "repeatedNamePool": "El grupo de nombres de {{country}} ya se dio en {{first}}; el de este archivo lo sustituye. Deja solo uno, o asígnalos a países distintos.",
+        "namePoolIncomplete": "El grupo de nombres de {{country}} tiene nombres pero no apellidos, o apellidos pero no nombres, así que no se usa: los jugadores de {{country}} reciben los nombres del juego. Dale ambos."
       }
     }
   },
@@ -4092,6 +4098,12 @@
     "winRate": "Porcentaje de victorias"
   },
   "worldEditor": {
+    "previewPlaceholder": {
+      "team": "Nuevo equipo",
+      "player": "Nuevo jugador",
+      "competition": "Nueva competición"
+    },
+    "estimatedRating": "est.",
     "positionGroupFilter": {
       "Goalkeeper": "Todos los porteros",
       "Defender": "Todos los defensas",

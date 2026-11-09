@@ -36,6 +36,10 @@ interface InboxMessageDetailPaneProps {
   /** The game's knowledge revision (`gameKnowledgeRevision`): the scout's opinions are asked again when it moves. */
   knowledgeRevision: string;
   selectedMessage: MessageData | null;
+  /** A response is on its way to the backend: no other one is sent until it answers. */
+  isActionInFlight: boolean;
+  /** Why the backend refused the last response, already in the player's language. */
+  actionError: string | null;
   onAction: (messageId: string, actionId: string, optionId?: string) => void;
   onCloseSelectedMessage: () => void;
   onRequestDelete: () => void;
@@ -49,6 +53,8 @@ export default function InboxMessageDetailPane({
   language,
   knowledgeRevision,
   selectedMessage,
+  isActionInFlight,
+  actionError,
   onAction,
   onCloseSelectedMessage,
   onRequestDelete,
@@ -238,6 +244,7 @@ export default function InboxMessageDetailPane({
                       currentTeamId={currentTeamId}
                       language={language}
                       t={t}
+                      isActionInFlight={isActionInFlight}
                       onAction={onAction}
                       onScoutPlayerClick={onScoutPlayerClick}
                     />
@@ -262,6 +269,15 @@ export default function InboxMessageDetailPane({
                   selectedMessage.context.match_result.away_team_id}
               </span>
             </div>
+          ) : null}
+
+          {actionError ? (
+            <p
+              role="alert"
+              className="mt-4 rounded-lg border border-line bg-danger-tint px-4 py-2 text-body font-medium text-danger"
+            >
+              {actionError}
+            </p>
           ) : null}
 
           {effectFeedback ? (
@@ -305,10 +321,11 @@ export default function InboxMessageDetailPane({
                         <button
                           type="button"
                           key={option.id}
+                          disabled={isActionInFlight}
                           onClick={() =>
                             handleOptionClick(selectedMessage.id, action.id, option.id)
                           }
-                          className="w-full text-left p-4 rounded-xl border border-gray-200 dark:border-navy-600 hover:border-primary-400 dark:hover:border-primary-500 hover:bg-primary-50/50 dark:hover:bg-primary-500/5 transition-all group"
+                          className="w-full text-left p-4 rounded-xl border border-gray-200 dark:border-navy-600 hover:border-primary-400 dark:hover:border-primary-500 hover:bg-primary-50/50 dark:hover:bg-primary-500/5 transition-all group disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                           <p className="text-sm font-heading font-bold text-gray-800 dark:text-gray-200 group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors">
                             {option.label}
@@ -326,7 +343,7 @@ export default function InboxMessageDetailPane({
                   <button
                     type="button"
                     key={action.id}
-                    disabled={action.resolved}
+                    disabled={action.resolved || isActionInFlight}
                     onClick={() => onAction(selectedMessage.id, action.id)}
                     className={getActionButtonClassName(action)}
                   >

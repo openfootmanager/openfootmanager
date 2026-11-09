@@ -1,3 +1,5 @@
+import type { ComponentProps } from "react";
+import type { MessageData } from "../../store/gameStore";
 import { render, screen, within } from "@testing-library/react";
 import { createInstance } from "i18next";
 import { describe, expect, it, vi } from "vitest";
@@ -42,7 +44,11 @@ const scoutsOpinion = (wonderkid: boolean): PotentialOpinion => ({
   wonderkid,
 });
 
-const renderCard = (opinion: PotentialOpinion | null, traits: string[] = []) =>
+const renderCard = (
+  opinion: PotentialOpinion | null,
+  traits: string[] = [],
+  extra: Partial<ComponentProps<typeof InboxYouthProspectCard>> = {},
+) =>
   render(
     <InboxYouthProspectCard
       prospect={{ ...prospect, traits }}
@@ -53,7 +59,9 @@ const renderCard = (opinion: PotentialOpinion | null, traits: string[] = []) =>
       language="en"
       t={t}
       onAction={vi.fn()}
+      isActionInFlight={false}
       onScoutPlayerClick={vi.fn()}
+      {...extra}
     />,
   );
 
@@ -132,5 +140,35 @@ describe("InboxYouthProspectCard", () => {
     renderCard(scoutsOpinion(false), ["Wonderkid"]);
 
     expect(screen.queryByText("Wonderkid")).not.toBeInTheDocument();
+  });
+
+  /**
+   * Given a report's open choice about the prospect (sign, shortlist, discard)
+   * When a response is already on its way to the backend
+   * Then the choices are disabled, so a second click cannot reach it; they are enabled otherwise.
+   */
+  it.each([
+    [true, false],
+    [false, true],
+  ])("with a response in flight %s its choices are enabled: %s", (inFlight, enabled) => {
+    const action = {
+      id: `prospect:${prospect.id}`,
+      label: "Choose",
+      action_type: {
+        ChooseOption: {
+          options: [
+            { id: "sign", label: "Sign to academy", description: "" },
+            { id: "discard", label: "Discard", description: "" },
+          ],
+        },
+      },
+      resolved: false,
+    } as MessageData["actions"][number];
+    renderCard(null, [], { action, isActionInFlight: inFlight });
+
+    const sign = screen.getByRole("button", { name: "Sign to academy" });
+    if (enabled) expect(sign).toBeEnabled();
+    else expect(sign).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Discard" }).hasAttribute("disabled")).toBe(!enabled);
   });
 });

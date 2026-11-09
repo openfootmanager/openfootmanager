@@ -7,10 +7,19 @@ const IMAGE_FILTERS = [
   { name: "Images", extensions: ["png", "jpg", "jpeg", "gif", "webp", "svg"] },
 ];
 
+/** The entity kinds an asset is picked for; the backend refuses any other. */
+type AssetEntityKind = "package" | "team" | "player" | "competition";
+
 interface UseAssetPickerOptions {
   /** The entity's current asset path, relative to the package root, or null. */
   relPath: string | null | undefined;
   projectDir: string | undefined;
+  /**
+   * The kind of entity the asset is for. The copied file is named for the kind
+   * as well as the id, because an id is unique only within its kind: a package
+   * and its competition, or a club and a player, may share one (#1201).
+   */
+  entityKind: AssetEntityKind;
   /**
    * Namespaces the copied file so two entities picking sources with the same
    * name can't overwrite each other. Read lazily at pick time so a not-yet-named
@@ -34,7 +43,7 @@ interface UseAssetPickerOptions {
  * error-surfacing behaviour can't drift or regress per form.
  */
 export function useAssetPicker(options: UseAssetPickerOptions) {
-  const { relPath, projectDir, entityId, commit, onError } = options;
+  const { relPath, projectDir, entityKind, entityId, commit, onError } = options;
   const [refresh, setRefresh] = useState(0);
   const dataUrl = useAssetDataUrl(relPath, projectDir, refresh);
 
@@ -48,6 +57,7 @@ export function useAssetPicker(options: UseAssetPickerOptions) {
       if (!selected || Array.isArray(selected)) return;
       const copied = await invoke<string>("copy_package_asset", {
         dir: projectDir,
+        entityKind,
         entityId: entityId(),
         srcPath: selected,
       });

@@ -470,7 +470,8 @@ fn default_attr() -> u8 {
 pub const WEAK_FOOT_MIN: u8 = 1;
 pub const WEAK_FOOT_MAX: u8 = 5;
 
-fn default_weak_foot() -> u8 {
+/// Default used when a save predates weak-foot ratings.
+pub fn default_weak_foot() -> u8 {
     2
 }
 
@@ -803,6 +804,14 @@ pub struct LoanOffer {
     pub closed_on: Option<String>,
 }
 
+impl LoanOffer {
+    /// Whether `team_id` is a party to this loan: the club borrowing the player
+    /// (`from_team_id`) or the club lending him (`parent_team_id`).
+    pub fn involves(&self, team_id: &str) -> bool {
+        self.from_team_id == team_id || self.parent_team_id == team_id
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, TS)]
 pub enum LoanOfferStatus {
     Pending,
@@ -996,6 +1005,22 @@ impl Player {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Given a loan from "lender" to "borrower"
+    /// When each club, and a third, is asked whether it is a party to it
+    /// Then the borrower and the lender are, and the third club is not
+    #[test]
+    fn a_loan_involves_its_borrower_and_its_lender_only() {
+        let loan: LoanOffer = serde_json::from_value(serde_json::json!({
+            "id": "loan", "from_team_id": "borrower", "parent_team_id": "lender",
+            "start_date": "2026-01-12", "end_date": "2026-06-30", "wage_contribution_pct": 50
+        }))
+        .unwrap();
+
+        assert!(loan.involves("borrower"));
+        assert!(loan.involves("lender"));
+        assert!(!loan.involves("third"));
+    }
 
     /// Given an attribute block whose nineteen values all differ
     /// When each attribute name is written and read from it

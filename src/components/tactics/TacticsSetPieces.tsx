@@ -21,6 +21,8 @@ interface TacticsSetPiecesProps {
   autoSetPieces: AutoSetPieces | null;
   matchRoles?: TeamMatchRolesData;
   onGameUpdate: (g: GameStateData) => void;
+  /** A write the backend refused: the screen tells the manager it did not save. */
+  onWriteError: (error: unknown) => void;
   startingPlayers: PlayerData[];
 }
 
@@ -30,6 +32,7 @@ export default function TacticsSetPieces({
   autoSetPieces,
   matchRoles,
   onGameUpdate,
+  onWriteError,
   startingPlayers,
 }: TacticsSetPiecesProps): JSX.Element {
   const { t } = useTranslation();
@@ -56,6 +59,7 @@ export default function TacticsSetPieces({
       onGameUpdate(updated);
     } catch (error) {
       console.error("Failed to set team match roles:", error);
+      onWriteError(error);
     }
   }
 
@@ -82,6 +86,7 @@ export default function TacticsSetPieces({
       await persistMatchRoles(resolveEffectiveMatchRoles(startingPlayers, matchRoles, picks));
     } catch (error) {
       console.error("Failed to read the automatic set-piece takers:", error);
+      onWriteError(error);
     }
   }
 
