@@ -875,7 +875,7 @@ mod tests {
                 PlayerMatchStats {
                     clean_sheet: true,
                     minutes_played: 90,
-                    minutes_in_goal: 90,
+                    minutes_in_goal: Some(90),
                     rating: 7.0,
                     ..Default::default()
                 },
@@ -908,7 +908,7 @@ mod tests {
                 "home-0".into(),
                 PlayerMatchStats {
                     minutes_played: 90,
-                    minutes_in_goal: 90,
+                    minutes_in_goal: Some(90),
                     rating: 6.0,
                     ..Default::default()
                 },
