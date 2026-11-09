@@ -104,7 +104,7 @@ describe("flow 2: a tactics edit, then the match", () => {
       ).getProperty("textContent"),
     ).trim();
     const opponentLine = $(
-      `//header//div[p[2] and not(p[1][normalize-space(.)=${xpathLiteral(ownClub)}])]/p[2]`,
+      `//header//div[p[2][contains(., "·")] and not(p[1][normalize-space(.)=${xpathLiteral(ownClub)}])]/p[2]`,
     );
     const [opponentFormation, opponentStyle] = (await textOf(opponentLine))
       .split("·")
