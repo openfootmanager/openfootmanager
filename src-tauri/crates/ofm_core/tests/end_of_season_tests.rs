@@ -1032,6 +1032,15 @@ fn process_end_of_season_records_history_and_prizes_for_every_division() {
 /// div2 = team3 (promoted), team4. The manager runs `user_team`.
 fn make_two_division_game(user_team: &str) -> Game {
     let mut game = make_completed_season_game();
+    for player in &mut game.players {
+        let stats = player
+            .league_stats_by_competition
+            .remove("league1")
+            .unwrap();
+        player
+            .league_stats_by_competition
+            .insert("eng-1".into(), stats);
+    }
     game.teams.push(make_team("team3", "Third FC"));
     game.teams.push(make_team("team4", "Fourth FC"));
     game.manager.team_id = Some(user_team.to_string());
@@ -2507,6 +2516,8 @@ fn player_career_entry_added() {
     assert_eq!(entry.assists, 10);
 }
 
+/// Given a completed season with nonempty competitive and league statistics, when the season
+/// rolls over, then the totals reset and every competition entry is cleared.
 #[test]
 fn player_stats_reset() {
     let mut game = make_completed_season_game();

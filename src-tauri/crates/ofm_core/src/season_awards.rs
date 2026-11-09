@@ -484,6 +484,8 @@ mod tests {
         manager
     }
 
+    /// Given players with matches in different divisions, when one division ranks awards,
+    /// then only its own match records count and its participating managers are eligible.
     #[test]
     fn division_awards_only_consider_matches_played_in_the_division() {
         let team1 = make_team("team1", "Alpha FC");
