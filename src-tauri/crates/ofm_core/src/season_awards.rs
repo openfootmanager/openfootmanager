@@ -1485,7 +1485,7 @@ mod tests {
     #[test]
     fn a_departed_players_rating_eligibility_uses_his_former_clubs_matches() {
         use domain::player::{PlayerMovementEntry, PlayerMovementKind};
-        let mut player = rated_player("departed", "2006-01-01", 9, 7.5);
+        let player = rated_player("departed", "2006-01-01", 9, 7.5);
         let mut game = make_game(
             vec![],
             vec![
@@ -1511,15 +1511,21 @@ mod tests {
             PlayerMovementKind::LoanReturn,
             PlayerMovementKind::Released,
         ] {
-            player.team_id = Some("outside".into());
-            player
+            let mut departed = player.clone();
+            let destination = if kind == PlayerMovementKind::Released {
+                None
+            } else {
+                Some("outside".into())
+            };
+            departed.team_id = destination.clone();
+            departed
                 .record_movement(PlayerMovementEntry {
                     from_team_id: Some("team1".into()),
-                    to_team_id: Some("outside".into()),
+                    to_team_id: destination,
                     ..PlayerMovementEntry::new("2025-06-01", kind)
                 })
                 .unwrap();
-            game.players = vec![player.clone()];
+            game.players = vec![departed];
             let awards = compute_division_season_awards(&game, &division);
             assert_eq!(
                 awards.player_of_year.len(),

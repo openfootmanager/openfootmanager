@@ -1223,7 +1223,7 @@ mod tests {
     fn an_imported_fixture_credits_its_owning_leagues_awards() {
         let mut game = match_game();
         game.league.as_mut().unwrap().fixtures[0].competition_id = "old-import-id".into();
-        let report = report(HashMap::from([(
+        let mut report = report(HashMap::from([(
             "home-9".into(),
             PlayerMatchStats {
                 goals: 2,
@@ -1232,6 +1232,8 @@ mod tests {
                 ..Default::default()
             },
         )]));
+        report.home_goals = 2;
+        report.away_goals = 0;
         apply_match_report(&mut game, 0, "home", "away", &report);
         let division = game.league.as_ref().unwrap();
         let awards = crate::season_awards::compute_division_season_awards(&game, division);

@@ -1759,6 +1759,15 @@ mod tests {
             &["club".into()],
         );
         let world = WorldData {
+            teams: vec![domain::team::Team::new(
+                "club".into(),
+                "Club FC".into(),
+                "CFC".into(),
+                "ENG".into(),
+                "City".into(),
+                "Ground".into(),
+                10_000,
+            )],
             players: vec![player],
             competitions: vec![league],
             metadata: super::super::definitions::WorldDataMetadata {
