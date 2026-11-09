@@ -1176,6 +1176,19 @@ mod tests {
                 team.player_roles
                     .insert(reserve.id.clone(), PlayerRole::AttackingFB);
                 players.push(reserve);
+                let mut reserve_keeper = Player::new(
+                    "away-keeper-reserve".into(),
+                    "Keeper".into(),
+                    "Keeper".into(),
+                    "1995-01-01".into(),
+                    "GB".into(),
+                    Position::Goalkeeper,
+                    attrs.clone(),
+                );
+                reserve_keeper.team_id = Some(id.into());
+                team.player_roles
+                    .insert(reserve_keeper.id.clone(), PlayerRole::SweeperKeeper);
+                players.push(reserve_keeper);
             }
             teams.push(team);
         }
@@ -1208,6 +1221,73 @@ mod tests {
         let mut session = create_live_match(&game, 0, MatchMode::Live, false).unwrap();
         session.user_side = Some(engine::Side::Home);
         session
+    }
+
+    fn sent_off_keeper_substitution_fixture() -> (super::LiveMatchSession, String) {
+        let mut session = formation_role_fixture();
+        assert_eq!(
+            session
+                .match_state
+                .bench(engine::Side::Away)
+                .iter()
+                .find(|p| p.id == "away-keeper-reserve")
+                .unwrap()
+                .role,
+            engine::PlayerRole::SweeperKeeper
+        );
+        session.step();
+        let keeper = session.match_state.team(engine::Side::Away).players[0]
+            .id
+            .clone();
+        let left_back = session.match_state.team(engine::Side::Away).players[1]
+            .id
+            .clone();
+        session.match_state.test_send_off(&keeper);
+        (session, left_back)
+    }
+
+    fn assert_substitute_keeper_role(session: &super::LiveMatchSession) {
+        let keeper = session
+            .match_state
+            .team(engine::Side::Away)
+            .players
+            .iter()
+            .find(|p| p.id == "away-keeper-reserve")
+            .unwrap();
+        assert_eq!(keeper.position, engine::Position::Goalkeeper);
+        assert_eq!(keeper.role, engine::PlayerRole::SweeperKeeper);
+    }
+
+    /// Given a sent-off keeper, when the user substitutes a reserve keeper for a left-back,
+    /// then the substitute keeps his saved goalkeeper role.
+    #[test]
+    fn a_user_substitute_keeper_keeps_his_role_after_a_sending_off() {
+        let (mut session, left_back) = sent_off_keeper_substitution_fixture();
+        session.user_side = Some(engine::Side::Away);
+        session
+            .apply_command(engine::MatchCommand::Substitute {
+                side: engine::Side::Away,
+                player_off_id: left_back,
+                player_on_id: "away-keeper-reserve".into(),
+            })
+            .unwrap();
+        assert_substitute_keeper_role(&session);
+    }
+
+    /// Given a sent-off keeper, when the AI substitutes a reserve keeper for a left-back,
+    /// then the substitute keeps his saved goalkeeper role.
+    #[test]
+    fn an_ai_substitute_keeper_keeps_his_role_after_a_sending_off() {
+        let (mut session, left_back) = sent_off_keeper_substitution_fixture();
+        session.apply_ai_command(
+            engine::Side::Away,
+            engine::MatchCommand::Substitute {
+                side: engine::Side::Away,
+                player_off_id: left_back,
+                player_on_id: "away-keeper-reserve".into(),
+            },
+        );
+        assert_substitute_keeper_role(&session);
     }
 
     /// Given an AI reserve whose full-back role is suppressed on the bench, when the AI brings
