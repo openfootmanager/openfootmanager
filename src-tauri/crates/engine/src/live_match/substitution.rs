@@ -93,6 +93,7 @@ impl LiveMatchState {
             .insert(player_on.id.clone(), player_on.condition as f64);
 
         self.team_mut(side).players.insert(off_idx, player_on);
+        self.clear_formation_slots(side);
 
         // Move subbed-off player to bench (they can't come back, but we keep them)
         match side {
@@ -193,6 +194,7 @@ impl LiveMatchState {
             .insert(player_on.id.clone(), player_on.condition as f64);
 
         self.team_mut(side).players.insert(off_idx, player_on);
+        self.clear_formation_slots(side);
 
         // Move swapped-out player to bench
         match side {
@@ -206,6 +208,13 @@ impl LiveMatchState {
     // -----------------------------------------------------------------------
     // Formation mechanics
     // -----------------------------------------------------------------------
+
+    fn clear_formation_slots(&mut self, side: Side) {
+        match side {
+            Side::Home => self.home_formation_slots.clear(),
+            Side::Away => self.away_formation_slots.clear(),
+        }
+    }
 
     /// Parse a formation string like "4-4-2" into (defenders, midfielders, forwards).
     pub(super) fn parse_formation(formation: &str) -> (usize, usize, usize) {
@@ -235,8 +244,40 @@ impl LiveMatchState {
             .iter()
             .map(|player| self.is_on_the_pitch(side, &player.id))
             .collect();
+        let team = self.team_ref(side);
+        let old_formation = team.formation.clone();
+        let slots: Vec<_> = team
+            .players
+            .iter()
+            .zip(&on_the_pitch)
+            .map(|(player, &playing)| (player.id.clone(), player.position, playing))
+            .collect();
+        let history = match side {
+            Side::Home => &mut self.home_formation_slots,
+            Side::Away => &mut self.away_formation_slots,
+        };
+        history.insert(old_formation, slots.clone());
+        let previous = history
+            .get(formation)
+            .filter(|previous| {
+                previous.len() == slots.len()
+                    && previous.iter().all(|(id, _, playing)| {
+                        slots
+                            .iter()
+                            .any(|(current, _, active)| current == id && active == playing)
+                    })
+            })
+            .cloned();
         let team = self.team_mut(side);
         team.formation = formation.to_string();
+        if let Some(previous) = previous {
+            team.players
+                .sort_by_key(|player| previous.iter().position(|(id, _, _)| id == &player.id));
+            for (player, (_, position, _)) in team.players.iter_mut().zip(previous) {
+                player.position = position;
+            }
+            return;
+        }
         rebalance_lines(
             &mut team.players,
             &on_the_pitch,
