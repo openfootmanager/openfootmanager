@@ -27,8 +27,8 @@ describe("flow 1: a new game, to the first match day", () => {
     await typeInto(dob.$('[aria-label="Year"]'), "1985");
 
     await clickWhenReady($("#create-manager-field-nationality button"));
-    await typeInto($('[role="combobox"]'), "Brazil");
-    await clickWhenReady($('//*[@role="option"][contains(normalize-space(.), "Brazil")]'));
+    await typeInto($('input[placeholder="Search nationalities..."]'), "Brazil");
+    await clickWhenReady($('//button[.//span[@title="Brazil"]]'));
   });
 
   it("goes on to the world, and starts a career in it", async () => {
