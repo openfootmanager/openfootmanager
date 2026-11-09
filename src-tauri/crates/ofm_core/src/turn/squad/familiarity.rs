@@ -29,6 +29,12 @@ fn factor(familiarity: Familiarity) -> f64 {
     }
 }
 
+/// The share of his rating `player` plays at in `slot`: the match's own figure for a starter of
+/// that slot, and the one entry of `line_familiarity` a slot's line reads.
+pub(crate) fn slot_factor(player: &Player, slot: &Position) -> f64 {
+    factor(familiarity(player, slot))
+}
+
 /// The factor `player` carries in each engine line. In the line of his kickoff slot it is that
 /// slot's familiarity, so a right-back at left-back pays from the first minute. In any other line
 /// it is his best familiarity over the line's positions: the engine moves players only between
@@ -37,7 +43,7 @@ fn factor(familiarity: Familiarity) -> f64 {
 pub(crate) fn line_familiarity(player: &Player, kickoff_slot: Option<&Position>) -> [f64; 4] {
     LINES.map(|line| {
         if let Some(slot) = kickoff_slot.filter(|slot| slot.to_group_position() == line) {
-            return factor(familiarity(player, slot));
+            return slot_factor(player, slot);
         }
         Position::ALL
             .iter()

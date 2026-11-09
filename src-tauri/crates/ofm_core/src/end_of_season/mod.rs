@@ -197,16 +197,7 @@ const PRIZE_MONEY_BY_POSITION: [i64; 10] = [
 
 const SEASON_PAYOUT_LEDGER_DESCRIPTION_KEY: &str = "be.msg.seasonPayout.ledgerDescription";
 
-fn position_suffix(position: u32) -> &'static str {
-    match position {
-        1 => "st",
-        2 => "nd",
-        3 => "rd",
-        _ => "th",
-    }
-}
-
-fn backend_text_with_params(key: &str, params: [(&str, String); 3]) -> String {
+fn backend_text_with_params(key: &str, params: [(&str, String); 2]) -> String {
     let mut text = String::from(key);
 
     for (index, (param_name, param_value)) in params.into_iter().enumerate() {
@@ -219,13 +210,14 @@ fn backend_text_with_params(key: &str, params: [(&str, String); 3]) -> String {
     text
 }
 
-fn prize_money_ledger_description(season: u32, position: u32, suffix: &str) -> String {
+// The finishing place goes as a bare number: the frontend writes it as an ordinal in the player's
+// language (`ordinal` in `resolveParamValues`), never an English suffix from here.
+fn prize_money_ledger_description(season: u32, position: u32) -> String {
     backend_text_with_params(
         SEASON_PAYOUT_LEDGER_DESCRIPTION_KEY,
         [
             ("season", season.to_string()),
             ("position", position.to_string()),
-            ("suffix", suffix.to_string()),
         ],
     )
 }
@@ -1026,6 +1018,7 @@ pub fn process_end_of_season(game: &mut Game) -> EndOfSeasonSummary {
     let summary = EndOfSeasonSummary {
         season,
         league_name: league_name.clone(),
+        competition_id: league.id.clone(),
         champion_id: champion_id.clone(),
         champion_name,
         user_position,
@@ -1124,11 +1117,7 @@ pub fn process_end_of_season(game: &mut Game) -> EndOfSeasonSummary {
                 if prize_posted {
                     team.financial_ledger.push(FinancialTransaction {
                         date: last_fixture_date.clone(),
-                        description: prize_money_ledger_description(
-                            season,
-                            position,
-                            position_suffix(position),
-                        ),
+                        description: prize_money_ledger_description(season, position),
                         amount: prize_money,
                         kind: FinancialTransactionKind::PrizeMoney,
                     });
@@ -1267,8 +1256,6 @@ pub fn process_end_of_season(game: &mut Game) -> EndOfSeasonSummary {
     }
 
     // 8. Send end-of-season messages
-    let pos_suffix = position_suffix(user_position);
-
     let user_team_name = game
         .teams
         .iter()
@@ -1316,21 +1303,18 @@ pub fn process_end_of_season(game: &mut Game) -> EndOfSeasonSummary {
             let mut p = std::collections::HashMap::new();
             p.insert("team".to_string(), user_team_name.clone());
             p.insert("position".to_string(), user_position.to_string());
-            p.insert("suffix".to_string(), pos_suffix.to_string());
             p.insert("points".to_string(), summary.user_points.to_string());
             ("be.msg.seasonReview.body.topFour", p)
         } else if user_position <= summary.total_teams / 2 {
             let mut p = std::collections::HashMap::new();
             p.insert("team".to_string(), user_team_name.clone());
             p.insert("position".to_string(), user_position.to_string());
-            p.insert("suffix".to_string(), pos_suffix.to_string());
             p.insert("points".to_string(), summary.user_points.to_string());
             ("be.msg.seasonReview.body.midTable", p)
         } else {
             let mut p = std::collections::HashMap::new();
             p.insert("team".to_string(), user_team_name.clone());
             p.insert("position".to_string(), user_position.to_string());
-            p.insert("suffix".to_string(), pos_suffix.to_string());
             p.insert("points".to_string(), summary.user_points.to_string());
             ("be.msg.seasonReview.body.lowerHalf", p)
         };
@@ -1524,6 +1508,7 @@ fn convert_retired_players_to_candidates(game: &mut Game, season: u32) {
                 },
             );
             scout.nationality = r.nationality.clone();
+            crate::football_identity::initialize_unattached_staff_identity(&mut scout);
             // team_id stays None (unattached market candidate)
             new_scouts.push(scout);
         }
@@ -1537,6 +1522,8 @@ fn convert_retired_players_to_candidates(game: &mut Game, season: u32) {
 pub struct EndOfSeasonSummary {
     pub season: u32,
     pub league_name: String,
+    #[serde(default)]
+    pub competition_id: String,
     pub champion_id: String,
     pub champion_name: String,
     pub user_position: u32,

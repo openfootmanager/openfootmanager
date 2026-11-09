@@ -15,7 +15,7 @@ pub(crate) use observation::AiObservation;
 use crate::event::MatchEvent;
 use crate::report::MatchReport;
 use crate::types::{
-    MatchConfig, PlayStyle, PlayerData, PlayerRole, Side, TacticalDial, TeamData, Zone,
+    MatchConfig, PlayStyle, PlayerData, PlayerRole, Position, Side, TacticalDial, TeamData, Zone,
 };
 
 // ---------------------------------------------------------------------------
@@ -250,6 +250,8 @@ pub struct LiveMatchState {
     home: TeamData,
     away: TeamData,
     config: MatchConfig,
+    home_formation_slots: HashMap<String, Vec<(String, Position, bool)>>,
+    away_formation_slots: HashMap<String, Vec<(String, Position, bool)>>,
 
     // Match progress
     phase: MatchPhase,
@@ -276,6 +278,9 @@ pub struct LiveMatchState {
     // Discipline
     yellows: HashMap<String, u8>,
     sent_off: HashSet<String>,
+
+    /// The minutes each player has stood in goal (`goalkeeper_in_goal`), for the clean sheet.
+    minutes_in_goal: HashMap<String, u8>,
 
     // Substitutions
     home_subs_made: u8,
@@ -335,6 +340,8 @@ impl LiveMatchState {
             home,
             away,
             config,
+            home_formation_slots: HashMap::new(),
+            away_formation_slots: HashMap::new(),
             phase: MatchPhase::PreKickOff,
             current_minute: 0,
             home_score: 0,
@@ -347,6 +354,7 @@ impl LiveMatchState {
             away_possession_ticks: 0,
             yellows: HashMap::new(),
             sent_off: HashSet::new(),
+            minutes_in_goal: HashMap::new(),
             home_subs_made: 0,
             away_subs_made: 0,
             max_subs: 5,
@@ -497,6 +505,9 @@ impl LiveMatchState {
             self.home.players.iter().chain(&self.home_bench).collect();
         let away_squad: Vec<&PlayerData> =
             self.away.players.iter().chain(&self.away_bench).collect();
+        for (id, stats) in report.player_stats.iter_mut() {
+            stats.minutes_in_goal = Some(self.minutes_in_goal.get(id).copied().unwrap_or(0));
+        }
         report.assign_ratings(&home_squad, &away_squad);
         report
     }

@@ -404,6 +404,12 @@
       "B": "B"
     },
     "ordinal": {
+      "place": {
+        "one": "{{n}}.ª",
+        "two": "{{n}}.ª",
+        "few": "{{n}}.ª",
+        "other": "{{n}}.ª"
+      },
       "one": "{{n}}.º",
       "two": "{{n}}.º",
       "few": "{{n}}.º",
@@ -421,12 +427,6 @@
     "listViewTable": "Tabla",
     "listViewCards": "Tarjetas",
     "noResults": "No se encontraron resultados.",
-    "place": {
-      "1": "1º",
-      "2": "2º",
-      "3": "3º",
-      "other": "{{n}}º"
-    },
     "pts": "Pts",
     "playedFull": "Jugados",
     "wonFull": "Ganados",
@@ -3187,7 +3187,7 @@
       "seasonPayout": {
         "subject": "Temporada {{season}} — Premio económico concedido",
         "body": "La directiva ha confirmado un pago de {{amount}} por tu {{position}}.º puesto en la liga. La cantidad ya se ha añadido al balance del club.",
-        "ledgerDescription": "Premio de la temporada {{season}} por el {{position}}{{suffix}} puesto"
+        "ledgerDescription": "Premio de la temporada {{season}} por el {{ordinal}} puesto"
       },
       "seasonReview": {
         "subject": "Revisión de la Temporada {{season}}",
@@ -4098,6 +4098,12 @@
     "winRate": "Porcentaje de victorias"
   },
   "worldEditor": {
+    "previewPlaceholder": {
+      "team": "Nuevo equipo",
+      "player": "Nuevo jugador",
+      "competition": "Nueva competición"
+    },
+    "estimatedRating": "est.",
     "positionGroupFilter": {
       "Goalkeeper": "Todos los porteros",
       "Defender": "Todos los defensas",

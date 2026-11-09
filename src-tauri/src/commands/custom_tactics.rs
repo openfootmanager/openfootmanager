@@ -64,13 +64,17 @@ pub fn apply_custom_tactic_internal(
     id: &str,
     career: Career,
 ) -> Result<Game, String> {
-    mutate_active_game_for(state, career, |game| {
+    // One step against a role save, a swap or a kick-off: the commit and the hand-off to the match.
+    let _operation = crate::application::live_session::operation();
+    let game = mutate_active_game_for(state, career, |game| {
         ofm_core::custom_tactics::apply_custom_tactic(game, id)?;
         // Players the tactic benches may hold a role their natural position doesn't admit.
         let team_id = user_team_id(game)?;
         reconcile_player_roles(game, &team_id);
         Ok(())
-    })
+    })?;
+    crate::commands::squad::follow_saved_roles_into_the_waiting_match(state, &game);
+    Ok(game)
 }
 
 /// Renames the saved tactic, keeping all it holds; returns the whole list.

@@ -404,6 +404,12 @@
       "B": "B"
     },
     "ordinal": {
+      "place": {
+        "one": "{{n}}.",
+        "two": "{{n}}.",
+        "few": "{{n}}.",
+        "other": "{{n}}."
+      },
       "one": "{{n}}.",
       "two": "{{n}}.",
       "few": "{{n}}.",
@@ -421,12 +427,6 @@
     "listViewTable": "Tabulka",
     "listViewCards": "Karty",
     "noResults": "Výsledky nenalezeny.",
-    "place": {
-      "1": "1.",
-      "2": "2.",
-      "3": "3.",
-      "other": "{{n}}."
-    },
     "pts": "Bod",
     "playedFull": "Zápasy",
     "wonFull": "Výhry",
@@ -3187,7 +3187,7 @@
       "seasonPayout": {
         "subject": "Finanční odměna za sezónu {{season}} udělena",
         "body": "Představenstvo potvrdilo vyplacení odměny ve výši {{amount}} za vaše {{position}}. místo v lize. Částka byla připsána k zůstatku klubu.",
-        "ledgerDescription": "Finanční odměna za sezónu {{season}} za {{position}}{{suffix}} místo"
+        "ledgerDescription": "Finanční odměna za sezónu {{season}} za {{ordinal}} místo"
       },
       "seasonReview": {
         "subject": "Ohlédnutí za sezónou {{season}}",
@@ -4098,6 +4098,12 @@
     "winRate": "Úspěšnost"
   },
   "worldEditor": {
+    "previewPlaceholder": {
+      "team": "Nový tým",
+      "player": "Nový hráč",
+      "competition": "Nová soutěž"
+    },
+    "estimatedRating": "odh.",
     "positionGroupFilter": {
       "Goalkeeper": "Všichni brankáři",
       "Defender": "Všichni obránci",

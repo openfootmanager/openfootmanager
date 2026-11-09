@@ -404,6 +404,12 @@
       "B": "B"
     },
     "ordinal": {
+      "place": {
+        "one": "{{n}}st",
+        "two": "{{n}}nd",
+        "few": "{{n}}rd",
+        "other": "{{n}}th"
+      },
       "one": "{{n}}st",
       "two": "{{n}}nd",
       "few": "{{n}}rd",
@@ -421,12 +427,6 @@
     "listViewTable": "Table",
     "listViewCards": "Cards",
     "noResults": "No results found.",
-    "place": {
-      "1": "1st",
-      "2": "2nd",
-      "3": "3rd",
-      "other": "{{n}}th"
-    },
     "pts": "Pts",
     "playedFull": "Played",
     "wonFull": "Won",
@@ -3186,16 +3186,16 @@
       },
       "seasonPayout": {
         "subject": "Season {{season}} Prize Money Awarded",
-        "body": "The board has confirmed a prize payout of {{amount}} for your {{position}}-place league finish. The amount has been added to the club balance.",
-        "ledgerDescription": "Season {{season}} prize money for {{position}}{{suffix}} place"
+        "body": "The board has confirmed a prize payout of {{amount}} for your {{ordinal}}-place league finish. The amount has been added to the club balance.",
+        "ledgerDescription": "Season {{season}} prize money for {{ordinal}} place"
       },
       "seasonReview": {
         "subject": "Season {{season}} Review",
         "body": {
           "champion": "Congratulations! {{team}} are league champions! What an incredible achievement.\n\nThe board is absolutely delighted with your performance. You finished on {{points}} points.\n\nWe look forward to defending the title next season.",
-          "topFour": "A solid season for {{team}}. You finished in {{position}}{{suffix}} place with {{points}} points.\n\nThe board is satisfied with the campaign. Let's push for the title next season.",
-          "midTable": "{{team}} finished the season in {{position}}{{suffix}} place with {{points}} points.\n\nA mid-table finish. The board expects improvement next season. We need to be more competitive.",
-          "lowerHalf": "A disappointing season for {{team}}. Finishing {{position}}{{suffix}} with only {{points}} points is below expectations.\n\nThe board is concerned. Significant improvement will be needed next season, or your position may come under review."
+          "topFour": "A solid season for {{team}}. You finished in {{ordinal}} place with {{points}} points.\n\nThe board is satisfied with the campaign. Let's push for the title next season.",
+          "midTable": "{{team}} finished the season in {{ordinal}} place with {{points}} points.\n\nA mid-table finish. The board expects improvement next season. We need to be more competitive.",
+          "lowerHalf": "A disappointing season for {{team}}. Finishing {{ordinal}} with only {{points}} points is below expectations.\n\nThe board is concerned. Significant improvement will be needed next season, or your position may come under review."
         }
       },
       "promotion": {
@@ -4098,6 +4098,12 @@
     "winRate": "Win rate"
   },
   "worldEditor": {
+    "previewPlaceholder": {
+      "team": "New Team",
+      "player": "New Player",
+      "competition": "New Competition"
+    },
+    "estimatedRating": "est.",
     "positionGroupFilter": {
       "Goalkeeper": "All goalkeepers",
       "Defender": "All defenders",
