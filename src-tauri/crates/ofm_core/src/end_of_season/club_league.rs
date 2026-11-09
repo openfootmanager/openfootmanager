@@ -1,6 +1,6 @@
 use super::division_finished_on;
 use crate::game::Game;
-use domain::league::{CompetitionFormat, League};
+use domain::league::League;
 
 /// The league table a club contests, for any club. `None` when no league table lists it (a cup
 /// has no table).
@@ -15,7 +15,7 @@ pub fn club_league_table<'a>(game: &'a Game, club_id: &str) -> Option<&'a League
 /// The same league selection for save upgrades, before a whole game has been loaded.
 pub fn club_league_table_in<'a>(competitions: &'a [League], club_id: &str) -> Option<&'a League> {
     let contains_club = |competition: &League| {
-        competition.rules.format == CompetitionFormat::LeagueTable
+        crate::world::ladder::is_ladder_table(competition)
             && (competition.participant_ids.iter().any(|id| id == club_id)
                 || competition
                     .standings
