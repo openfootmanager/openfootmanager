@@ -4098,6 +4098,12 @@
     "winRate": "Taux de victoire"
   },
   "worldEditor": {
+    "previewPlaceholder": {
+      "team": "Nouvelle équipe",
+      "player": "Nouveau joueur",
+      "competition": "Nouvelle compétition"
+    },
+    "estimatedRating": "est.",
     "positionGroupFilter": {
       "Goalkeeper": "Tous les gardiens",
       "Defender": "Tous les défenseurs",
