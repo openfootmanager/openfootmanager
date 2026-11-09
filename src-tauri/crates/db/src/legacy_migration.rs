@@ -139,11 +139,24 @@ fn migrate_single_save(
     row: &LegacySaveRow,
     save_manager: &mut SaveManager,
 ) -> Result<String, String> {
-    let mut game: Game = serde_json::from_str(&row.game_data)
+    let mut json: serde_json::Value = serde_json::from_str(&row.game_data)
         .map_err(|_| LEGACY_MIGRATION_FAILED_ERROR.to_string())?;
+    if let Some(players) = json
+        .get_mut("players")
+        .and_then(serde_json::Value::as_array_mut)
+    {
+        for player in players {
+            if let Some(fields) = player.as_object_mut() {
+                // The identity upgrade uses zero to distinguish an absent field from a saved 2.
+                fields.entry("weak_foot").or_insert(serde_json::json!(0));
+            }
+        }
+    }
+    let mut game: Game =
+        serde_json::from_value(json).map_err(|_| LEGACY_MIGRATION_FAILED_ERROR.to_string())?;
 
     canonicalize_game_starting_xi_ids(&mut game);
-    player_identity::upgrade_game_player_identities(&mut game);
+    player_identity::upgrade_loaded_player_identities(&mut game);
     ofm_core::football_identity::upgrade_game_football_identities(&mut game);
 
     save_manager.create_save(&game, &row.name)
@@ -881,6 +894,45 @@ mod tests {
                 .alternate_positions
                 .contains(&domain::player::Position::LeftWingBack)
         );
+    }
+
+    /// Given legacy JSON with an explicit weak foot, when migrated, then it stays unchanged.
+    #[test]
+    fn legacy_json_preserves_an_explicit_weak_foot() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut json: serde_json::Value = serde_json::from_str(&minimal_game_json()).unwrap();
+        json["players"][0]["weak_foot"] = serde_json::json!(1);
+        let json = serde_json::to_string(&json).unwrap();
+        create_legacy_db(
+            &dir.path().join("saves.db"),
+            &[("old", "Career", "Manager", &json)],
+        );
+        let mut manager = SaveManager::init(&dir.path().join("saves")).unwrap();
+        migrate_legacy_saves(dir.path(), &mut manager).unwrap();
+        let id = manager.list_saves()[0].id.clone();
+        let loaded = manager.load_game(&id).unwrap();
+        assert_eq!(loaded.players[0].weak_foot, 1);
+    }
+
+    /// Given legacy JSON without weak-foot data, when migrated, then identity inference fills it.
+    #[test]
+    fn legacy_json_backfills_an_absent_weak_foot() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut json: serde_json::Value = serde_json::from_str(&minimal_game_json()).unwrap();
+        json["players"][0]
+            .as_object_mut()
+            .unwrap()
+            .remove("weak_foot");
+        let json = serde_json::to_string(&json).unwrap();
+        create_legacy_db(
+            &dir.path().join("saves.db"),
+            &[("old", "Career", "Manager", &json)],
+        );
+        let mut manager = SaveManager::init(&dir.path().join("saves")).unwrap();
+        migrate_legacy_saves(dir.path(), &mut manager).unwrap();
+        let id = manager.list_saves()[0].id.clone();
+        let loaded = manager.load_game(&id).unwrap();
+        assert_eq!(loaded.players[0].weak_foot, 4);
     }
 
     /// Given a save from before `natural_position` existed: an outfielder and a keeper, neither
