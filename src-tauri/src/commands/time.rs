@@ -2743,4 +2743,89 @@ mod tests {
             );
         });
     }
+
+    fn waiting_match_state() -> std::sync::Arc<StateManager> {
+        let state = std::sync::Arc::new(StateManager::new());
+        state.set_game(make_round_summary_game());
+        advance_time_with_mode_internal(&state, ofm_core::state::Career::Active, "live")
+            .expect("live advance response");
+        state
+    }
+
+    /// Given a live match waiting at kick-off and a lifecycle operation in flight,
+    /// When the match is stepped (the kick-off),
+    /// Then the step queues behind the operation and the match kicks off once it is released: a
+    /// role saved while the gate was held is in the match when it starts.
+    #[test]
+    fn the_kick_off_waits_for_a_lifecycle_operation_in_flight() {
+        let state = waiting_match_state();
+        let watcher = state.clone();
+
+        let (while_held, after_release) =
+            finishes_only_after_the_gate_is_released(state, |state| {
+                crate::application::live_match::step_live_match(
+                    state,
+                    ofm_core::state::Career::Active,
+                    1,
+                )
+                .expect("the match kicks off");
+            });
+
+        assert!(!while_held, "the kick-off ran inside a held operation");
+        assert!(after_release, "the kick-off never completed once released");
+        let (phase, _) = user_side_and_phase(&watcher);
+        assert_ne!(
+            phase,
+            engine::MatchPhase::PreKickOff,
+            "the match kicked off"
+        );
+    }
+
+    /// Given a live match waiting at kick-off and a lifecycle operation in flight,
+    /// When the formation is changed on the pre-match screen,
+    /// Then the change queues behind the operation and completes once it is released.
+    #[test]
+    fn a_pre_match_formation_change_waits_for_a_lifecycle_operation_in_flight() {
+        let state = waiting_match_state();
+
+        let (while_held, after_release) =
+            finishes_only_after_the_gate_is_released(state, |state| {
+                crate::application::live_match::apply_match_command(
+                    state,
+                    ofm_core::state::Career::Active,
+                    engine::MatchCommand::ChangeFormation {
+                        side: engine::Side::Home,
+                        formation: "3-5-2".to_string(),
+                    },
+                )
+                .expect("the shape is changed before kick-off");
+            });
+
+        assert!(!while_held, "the change ran inside a held operation");
+        assert!(after_release, "the change never completed once released");
+    }
+
+    /// Given a match already under way and a lifecycle operation in flight,
+    /// When the match is stepped,
+    /// Then the step does not wait: only the kick-off needs the gate, and a step in play is
+    /// neither a role save's nor a swap's concern.
+    #[test]
+    fn a_step_in_play_does_not_wait_for_a_lifecycle_operation() {
+        let state = waiting_match_state();
+        crate::application::live_match::step_live_match(&state, ofm_core::state::Career::Active, 1)
+            .expect("the match kicks off");
+
+        let (while_held, after_release) =
+            finishes_only_after_the_gate_is_released(state, |state| {
+                crate::application::live_match::step_live_match(
+                    state,
+                    ofm_core::state::Career::Active,
+                    1,
+                )
+                .expect("the match plays a minute");
+            });
+
+        assert!(while_held, "a step in play was held up by the operation");
+        assert!(after_release);
+    }
 }
