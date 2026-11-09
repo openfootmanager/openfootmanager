@@ -152,19 +152,64 @@ fn migrate_single_save(
             }
         }
     }
+    let old_league_stats = legacy_league_stats(&json)?;
     let mut game: Game =
         serde_json::from_value(json).map_err(|_| LEGACY_MIGRATION_FAILED_ERROR.to_string())?;
 
     canonicalize_game_starting_xi_ids(&mut game);
     player_identity::upgrade_loaded_player_identities(&mut game);
     ofm_core::football_identity::upgrade_game_football_identities(&mut game);
-    // A legacy save has no league-only stats: read its season so far as the league season, as
-    // the player repository does for a row saved before the column.
+    game.promote_legacy_league();
+    let competitions: std::collections::HashMap<_, _> = game
+        .players
+        .iter()
+        .filter_map(|player| {
+            let club = player.team_id.as_deref()?;
+            let league = ofm_core::end_of_season::club_league_table(&game, club)?;
+            Some((player.id.clone(), league.id.clone()))
+        })
+        .collect();
     for player in &mut game.players {
-        player.league_stats = player.stats.clone();
+        if let Some(stats) = old_league_stats.get(&player.id)
+            && let Some(competition) = competitions.get(&player.id)
+        {
+            player
+                .league_stats_by_competition
+                .insert(competition.clone(), stats.clone());
+        }
     }
 
     save_manager.create_save(&game, &row.name)
+}
+
+/// Only old JSON needs a backfill: an explicitly saved empty map means no league appearances.
+fn legacy_league_stats(
+    json: &serde_json::Value,
+) -> Result<std::collections::HashMap<String, domain::player::PlayerSeasonStats>, String> {
+    let mut stats = std::collections::HashMap::new();
+    for player in json
+        .get("players")
+        .and_then(serde_json::Value::as_array)
+        .into_iter()
+        .flatten()
+    {
+        if player.get("league_stats_by_competition").is_some() {
+            continue;
+        }
+        if let Some(id) = player.get("id").and_then(serde_json::Value::as_str)
+            && let Some(season) = player
+                .get("league_stats")
+                .filter(|value| !value.is_null())
+                .or_else(|| player.get("stats"))
+        {
+            stats.insert(
+                id.to_string(),
+                serde_json::from_value(season.clone())
+                    .map_err(|_| LEGACY_MIGRATION_FAILED_ERROR.to_string())?,
+            );
+        }
+    }
+    Ok(stats)
 }
 
 #[cfg(test)]
@@ -322,7 +367,16 @@ mod tests {
         json["players"][0]["stats"] = serde_json::json!({ "appearances": 9, "goals": 7 });
         if let Some(player) = json["players"][0].as_object_mut() {
             player.remove("league_stats");
+            player.remove("league_stats_by_competition");
         }
+        json["players"][0]["team_id"] = serde_json::json!("team-001");
+        json["league"] = serde_json::to_value(domain::league::League::new(
+            "legacy-league".into(),
+            "League".into(),
+            2026,
+            &["team-001".into()],
+        ))
+        .unwrap();
         serde_json::to_string(&json).expect("legacy game json should serialize")
     }
 
@@ -705,7 +759,10 @@ mod tests {
         let loaded = sm.load_game(&save_id).unwrap();
         let player = loaded.players.iter().find(|p| p.id == "p-001").unwrap();
         assert_eq!(
-            (player.league_stats.appearances, player.league_stats.goals),
+            (
+                player.league_stats_by_competition["legacy-league"].appearances,
+                player.league_stats_by_competition["legacy-league"].goals
+            ),
             (9, 7)
         );
     }

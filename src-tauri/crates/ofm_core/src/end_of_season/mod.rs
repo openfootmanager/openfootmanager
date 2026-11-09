@@ -1,6 +1,8 @@
+mod club_league;
 use crate::game::Game;
 use crate::season_awards::compute_division_season_awards;
 use chrono::{DateTime, Datelike, Duration, Utc};
+pub use club_league::{club_league_table, club_league_table_in};
 use domain::league::{
     CompetitionFormat, CompetitionScope, CompetitionType, FixtureStatus, League, StandingEntry,
 };
@@ -768,32 +770,6 @@ pub fn user_division<'a>(game: &'a Game, user_team_id: &str) -> Option<&'a Leagu
     club_league_table(game, user_team_id).or(game.league.as_ref())
 }
 
-/// The league table a club contests, for any club. `None` when no league table lists it (a cup
-/// has no table).
-///
-/// A split-season country runs a club through more than one table. Take the one the year
-/// ended on — the same one the payout and the club's record are taken from — or the summary
-/// crowns them from one half while they are paid for the other.
-pub fn club_league_table<'a>(game: &'a Game, club_id: &str) -> Option<&'a League> {
-    let contains_club = |competition: &League| {
-        competition.rules.format == CompetitionFormat::LeagueTable
-            && (competition.participant_ids.iter().any(|id| id == club_id)
-                || competition
-                    .standings
-                    .iter()
-                    .any(|standing| standing.team_id == club_id))
-    };
-
-    game.competitions
-        .iter()
-        .filter(|competition| contains_club(competition))
-        .max_by(|left, right| {
-            division_finished_on(left)
-                .cmp(&division_finished_on(right))
-                .then_with(|| right.priority.cmp(&left.priority))
-        })
-}
-
 /// Send a board message when the user's club starts the new season in a
 /// different division of its pyramid (promoted when the new division ranks
 /// higher, relegated when it ranks lower).
@@ -1127,7 +1103,7 @@ pub fn process_end_of_season(game: &mut Game) -> EndOfSeasonSummary {
     for player in game.players.iter_mut() {
         // Reset stats for next season
         player.stats = PlayerSeasonStats::default();
-        player.league_stats = PlayerSeasonStats::default();
+        player.league_stats_by_competition.clear();
     }
 
     // 5b. Convert retired players to unemployed manager/scout candidates, then

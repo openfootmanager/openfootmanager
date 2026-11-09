@@ -618,10 +618,7 @@ fn a_cup_tie_is_not_part_of_a_players_league_season() {
     );
 
     let scorer = game.players.iter().find(|p| p.id == "t1_fwd0").unwrap();
-    assert_eq!(
-        (scorer.league_stats.appearances, scorer.league_stats.goals),
-        (0, 0)
-    );
+    assert!(scorer.league_stats_by_competition.is_empty());
 }
 
 /// Given a league match in which a forward scores twice,
@@ -640,11 +637,9 @@ fn a_league_match_is_part_of_a_players_season_and_league_season() {
     );
 
     let scorer = game.players.iter().find(|p| p.id == "t1_fwd0").unwrap();
-    assert_eq!(
-        (scorer.league_stats.appearances, scorer.league_stats.goals),
-        (1, 2)
-    );
-    assert_eq!(scorer.league_stats, scorer.stats);
+    let league_stats = &scorer.league_stats_by_competition["league1"];
+    assert_eq!((league_stats.appearances, league_stats.goals), (1, 2));
+    assert_eq!(*league_stats, scorer.stats);
 }
 
 /// Given a cup tie in which a forward scores twice,
@@ -729,7 +724,7 @@ fn a_matchs_assists_are_added_to_a_players_season_and_league_season() {
 
     let assister = game.players.iter().find(|p| p.id == "t1_mid0").unwrap();
     assert_eq!(assister.stats.assists, 2);
-    assert_eq!(assister.league_stats.assists, 2);
+    assert_eq!(assister.league_stats_by_competition["league1"].assists, 2);
 }
 
 #[test]

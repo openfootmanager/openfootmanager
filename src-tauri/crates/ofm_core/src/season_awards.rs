@@ -123,7 +123,6 @@ fn matches_played_by_club<'a>(
 
 fn build_player_award_contexts<'a>(
     game: &'a Game,
-    scope: Option<&HashSet<String>>,
     division: Option<&League>,
 ) -> Vec<PlayerAwardContext<'a>> {
     let today = game.clock.current_date.date_naive();
@@ -131,39 +130,33 @@ fn build_player_award_contexts<'a>(
 
     // A division's awards count its own matches, as its tables do; the world's count every
     // competitive match (#1212).
-    let season = |player: &'a Player| {
-        if division.is_some() {
-            &player.league_stats
-        } else {
-            &player.stats
-        }
-    };
-
     game.players
         .iter()
-        .filter(|player| season(player).appearances > 0)
-        .filter(|player| match scope {
-            Some(team_ids) => player
-                .team_id
-                .as_ref()
-                .is_some_and(|team_id| team_ids.contains(team_id)),
-            None => true,
-        })
-        .map(|player| {
+        .filter_map(|player| {
+            let stats = match division {
+                Some(division) => player.league_stats_by_competition.get(&division.id)?,
+                None => &player.stats,
+            };
+            if stats.appearances == 0 {
+                return None;
+            }
             let (team_id, team_name) = resolve_team_info(game, player);
             let club_matches_played = matches_played_by_club
                 .get(team_id.as_str())
                 .copied()
+                // A departed player's new club is outside this table. He still needs a
+                // season's share of this division's matches, rather than only the floor.
+                .or_else(|| division.and_then(|_| matches_played_by_club.values().copied().max()))
                 .unwrap_or(0);
 
-            PlayerAwardContext {
+            Some(PlayerAwardContext {
                 player,
-                stats: season(player),
+                stats,
                 team_id,
                 team_name,
                 age: domain::age::age_on_or_unknown(today, &player.date_of_birth),
                 club_matches_played,
-            }
+            })
         })
         .collect()
 }
@@ -318,16 +311,14 @@ pub fn compute_season_awards(game: &Game) -> SeasonAwards {
     compute_awards(game, None)
 }
 
-/// Compute award standings within a single division: only its participating
-/// clubs' players and managers are eligible, and the manager award ranks by
-/// that division's table.
+/// Compute award standings from a division's league matches, including players who have
+/// since left it. Its manager award ranks the participating clubs by that division's table.
 pub fn compute_division_season_awards(game: &Game, division: &League) -> SeasonAwards {
     compute_awards(game, Some(division))
 }
 
 fn compute_awards(game: &Game, division: Option<&League>) -> SeasonAwards {
-    let player_scope = division.map(division_team_ids);
-    let contexts = build_player_award_contexts(game, player_scope.as_ref(), division);
+    let contexts = build_player_award_contexts(game, division);
     let manager_contexts = build_manager_award_contexts(game, division);
 
     // Golden Boot — top scorers
@@ -452,8 +443,10 @@ mod tests {
             default_attrs(),
         );
         player.team_id = team_id.map(str::to_string);
-        // A test season of league matches alone: the division awards read league_stats.
-        player.league_stats = stats.clone();
+        // The default test division has an empty id.
+        player
+            .league_stats_by_competition
+            .insert(String::new(), stats.clone());
         player.stats = stats;
         player
     }
@@ -492,10 +485,10 @@ mod tests {
     }
 
     #[test]
-    fn division_awards_only_consider_participating_clubs() {
+    fn division_awards_only_consider_matches_played_in_the_division() {
         let team1 = make_team("team1", "Alpha FC");
         let team2 = make_team("team2", "Beta FC");
-        let players = vec![
+        let mut players = vec![
             make_player(
                 "p1",
                 "Division Scorer",
@@ -521,6 +514,10 @@ mod tests {
                 },
             ),
         ];
+        for (player, competition_id) in players.iter_mut().zip(["div1", "div2"]) {
+            player.league_stats_by_competition =
+                [(competition_id.to_string(), player.stats.clone())].into();
+        }
         let mut game = make_game(players, vec![team1, team2]);
         game.managers
             .push(make_manager("m1", "Division", "Boss", Some("team1")));
@@ -999,7 +996,11 @@ mod tests {
     fn unrated_appearances_do_not_count_towards_the_threshold() {
         let mut mostly_unrated = rated_player("mostly-unrated", "1998-01-01", 3, 8.9);
         mostly_unrated.stats.appearances = 30;
-        mostly_unrated.league_stats.appearances = 30;
+        mostly_unrated
+            .league_stats_by_competition
+            .get_mut("")
+            .unwrap()
+            .appearances = 30;
 
         let awards = division_awards(vec![mostly_unrated], 38);
 

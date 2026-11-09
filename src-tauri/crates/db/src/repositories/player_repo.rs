@@ -21,7 +21,7 @@ pub fn upsert_player(conn: &Connection, p: &Player) -> Result<(), String> {
         serde_json::to_string(&p.traits).map_err(|_| GAME_PERSISTENCE_WRITE_ERROR.to_string())?;
     let stats_json =
         serde_json::to_string(&p.stats).map_err(|_| GAME_PERSISTENCE_WRITE_ERROR.to_string())?;
-    let league_stats_json = serde_json::to_string(&p.league_stats)
+    let league_stats_by_competition_json = serde_json::to_string(&p.league_stats_by_competition)
         .map_err(|_| GAME_PERSISTENCE_WRITE_ERROR.to_string())?;
     let career_json =
         serde_json::to_string(&p.career).map_err(|_| GAME_PERSISTENCE_WRITE_ERROR.to_string())?;
@@ -54,7 +54,7 @@ pub fn upsert_player(conn: &Connection, p: &Player) -> Result<(), String> {
           transfer_listed, loan_listed, transfer_offers, alternate_positions,
           natural_position, training_focus, morale_core, footedness, weak_foot, fitness, squad_role,
           ovr, potential, media_json, jersey_number, loan_offers, active_loan, movement_history,
-          contract_start, league_stats)
+          contract_start, league_stats_by_competition)
          VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23, ?24, ?25, ?26, ?27, ?28, ?29, ?30, ?31, ?32, ?33, ?34, ?35, ?36, ?37, ?38, ?39, ?40)
          ON CONFLICT(id) DO UPDATE SET
            match_name = excluded.match_name,
@@ -95,7 +95,7 @@ pub fn upsert_player(conn: &Connection, p: &Player) -> Result<(), String> {
            loan_offers = excluded.loan_offers,
            active_loan = excluded.active_loan,
            movement_history = excluded.movement_history,
-           league_stats = excluded.league_stats",
+           league_stats_by_competition = excluded.league_stats_by_competition",
         params![
             p.id,
             p.match_name,
@@ -136,7 +136,7 @@ pub fn upsert_player(conn: &Connection, p: &Player) -> Result<(), String> {
             active_loan_json,
             movement_history_json,
             p.contract_start(),
-            league_stats_json,
+            league_stats_by_competition_json,
         ],
     )
     .map_err(|error| {
@@ -273,7 +273,7 @@ pub fn load_all_players(conn: &Connection) -> Result<Vec<Player>, String> {
                     ovr, potential, COALESCE(media_json, '{}'), jersey_number,
                     COALESCE(loan_offers, '[]'), active_loan,
                     COALESCE(movement_history, '[]'),
-                    contract_start, league_stats
+                    contract_start, COALESCE(league_stats_by_competition, '{}')
              FROM players",
         )
         .map_err(|_| GAME_PERSISTENCE_LOAD_ERROR.to_string())?;
@@ -301,7 +301,7 @@ pub fn load_players_by_team(conn: &Connection, team_id: &str) -> Result<Vec<Play
                     ovr, potential, COALESCE(media_json, '{}'), jersey_number,
                     COALESCE(loan_offers, '[]'), active_loan,
                     COALESCE(movement_history, '[]'),
-                    contract_start, league_stats
+                    contract_start, COALESCE(league_stats_by_competition, '{}')
              FROM players WHERE team_id = ?1",
         )
         .map_err(|_| GAME_PERSISTENCE_LOAD_ERROR.to_string())?;
@@ -328,7 +328,7 @@ fn row_to_player(conn: &Connection, row: &rusqlite::Row) -> rusqlite::Result<Pla
     let retired: i32 = row.get(13).unwrap_or(0);
     let traits_json: String = row.get(14)?;
     let stats_json: String = row.get(18)?;
-    let league_stats_json: Option<String> = row.get(39)?;
+    let league_stats_by_competition_json: String = row.get(39)?;
     let stats: domain::player::PlayerSeasonStats =
         json_column::read(conn, cell("stats"), &stats_json);
     let career_json: String = row.get(19)?;
@@ -429,15 +429,12 @@ fn row_to_player(conn: &Connection, row: &rusqlite::Row) -> rusqlite::Result<Pla
         ovr,
         potential,
         market_value: market_value_i64 as u64,
-        stats: stats.clone(),
-        // NULL is a row saved before the column existed: his season so far is read as his league
-        // season, so an upgraded save keeps its award standings until the season ends.
-        league_stats: json_column::read_optional(
+        stats,
+        league_stats_by_competition: json_column::read(
             conn,
-            cell("league_stats"),
-            league_stats_json.as_deref(),
-        )
-        .unwrap_or(stats),
+            cell("league_stats_by_competition"),
+            &league_stats_by_competition_json,
+        ),
         career: json_column::read(conn, cell("career"), &career_json),
         // The contract columns are read only as a legacy input: they describe a contract
         // for a save from before the ledger, and are ignored once the entries hold one.
@@ -1526,31 +1523,6 @@ mod tests {
         assert_eq!(loaded[0].stats.rated_appearances, 17);
     }
 
-    /// Given a player whose league season is set, saved, changed and saved again,
-    /// When he is loaded,
-    /// Then his league season is the second one, field for field: the column is written,
-    /// read and rewritten by an upsert.
-    #[test]
-    fn test_player_league_stats_roundtrip() {
-        let db = test_db();
-        let mut player = sample_player("p-league", None);
-        player.stats.appearances = 12;
-        player.league_stats.appearances = 10;
-        player.league_stats.goals = 4;
-        player.league_stats.assists = 2;
-        player.league_stats.clean_sheets = 3;
-        player.league_stats.avg_rating = 7.1;
-        player.league_stats.rated_appearances = 9;
-        upsert_player(db.conn(), &player).unwrap();
-        player.league_stats.goals = 6;
-        upsert_player(db.conn(), &player).unwrap();
-
-        let loaded = load_all_players(db.conn()).unwrap();
-
-        assert_eq!(loaded[0].league_stats, player.league_stats);
-        assert_eq!(loaded[0].stats.appearances, 12);
-    }
-
     /// Given distinct league stints, when a player is saved twice and read through a fresh
     /// database connection, then both competitions retain all of their non-default statistics.
     #[test]
@@ -1602,6 +1574,33 @@ mod tests {
         );
     }
 
+    /// Given an explicitly saved empty map and stale pre-v066 totals, when a fresh reader
+    /// reopens the save, then old totals are not resurrected after a season reset.
+    #[test]
+    fn an_empty_competition_map_stays_empty_after_reopening() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("empty-map.db");
+        let db = GameDatabase::open(&path).unwrap();
+        let mut player = sample_player("reset", Some("club"));
+        player.stats.goals = 3;
+        upsert_player(db.conn(), &player).unwrap();
+        db.conn()
+            .execute(
+                "UPDATE players SET league_stats = '{\"goals\":99}' WHERE id = 'reset'",
+                [],
+            )
+            .unwrap();
+        drop(db);
+
+        let reader = GameDatabase::open_save(&path).unwrap();
+        let loaded = load_all_players(reader.conn()).unwrap();
+        assert_eq!(
+            serde_json::to_value(&loaded[0]).unwrap()["league_stats_by_competition"],
+            serde_json::json!({})
+        );
+        assert_eq!(loaded[0].stats.goals, 3);
+    }
+
     /// Given a v065 save with a league and a cup, when it upgrades and a fresh reader loads
     /// the player, then his old league totals belong only to his current club's league.
     #[test]
@@ -1617,10 +1616,22 @@ mod tests {
         let mut cup = league.clone();
         cup.id = "cup".into();
         cup.kind = CompetitionType::Cup;
+        // The closing table must win over a same-priority opening table that sorts first.
+        let fixture = |date: &str| domain::league::Fixture {
+            date: date.into(),
+            competition: domain::league::FixtureCompetition::League,
+            status: domain::league::FixtureStatus::Completed,
+            ..Default::default()
+        };
+        let mut opening = league.clone();
+        opening.id = "a-opening".into();
+        opening.fixtures = vec![fixture("2025-01-20")];
+        league.fixtures = vec![fixture("2025-06-20")];
         // Legacy competitions without participants still identify their clubs in the table.
         league.participant_ids.clear();
-        super::super::competition_repo::replace_competitions(&conn, &[cup, league]).unwrap();
-        let league_stats = domain::player::PlayerSeasonStats {
+        super::super::competition_repo::replace_competitions(&conn, &[cup, opening, league])
+            .unwrap();
+        let legacy_league_stats = domain::player::PlayerSeasonStats {
             appearances: 12,
             goals: 9,
             clean_sheets: 4,
@@ -1630,10 +1641,13 @@ mod tests {
         };
         let total_stats = domain::player::PlayerSeasonStats {
             goals: 20,
-            ..league_stats.clone()
+            ..legacy_league_stats.clone()
         };
         for (id, old_league_stats) in [
-            ("v065", Some(serde_json::to_string(&league_stats).unwrap())),
+            (
+                "v065",
+                Some(serde_json::to_string(&legacy_league_stats).unwrap()),
+            ),
             ("pre-v065", None),
         ] {
             conn.execute(
@@ -1648,7 +1662,7 @@ mod tests {
 
         let reader = GameDatabase::open(&path).unwrap();
         let players = load_all_players(reader.conn()).unwrap();
-        for (id, expected) in [("v065", league_stats), ("pre-v065", total_stats)] {
+        for (id, expected) in [("v065", legacy_league_stats), ("pre-v065", total_stats)] {
             let player = players.iter().find(|p| p.id == id).unwrap();
             assert_eq!(
                 serde_json::to_value(player).unwrap()["league_stats_by_competition"],
@@ -1672,30 +1686,6 @@ mod tests {
             serde_json::to_value(player).unwrap()["league_stats_by_competition"],
             serde_json::json!({})
         );
-    }
-
-    /// Given a player row saved before league stats existed (the column NULL),
-    /// When it is loaded,
-    /// Then his season so far reads as his league season, so an upgraded save keeps its award
-    /// standings until the season ends.
-    #[test]
-    fn test_a_player_saved_before_league_stats_reads_his_season_as_his_league_season() {
-        let db = test_db();
-        let mut player = sample_player("p-old", None);
-        player.stats.appearances = 15;
-        player.stats.goals = 9;
-        upsert_player(db.conn(), &player).unwrap();
-        db.conn()
-            .execute(
-                "UPDATE players SET league_stats = NULL WHERE id = 'p-old'",
-                [],
-            )
-            .unwrap();
-
-        let loaded = load_all_players(db.conn()).unwrap();
-
-        assert_eq!(loaded[0].league_stats, loaded[0].stats);
-        assert_eq!(loaded[0].league_stats.goals, 9);
     }
 
     #[test]

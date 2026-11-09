@@ -194,7 +194,7 @@ pub(super) fn apply_match_report_in<F>(
     // A player's season stats count the matches played for something: a friendly feeds
     // neither the awards nor his development nor his valuation (#1212).
     if is_competitive {
-        apply_player_stats(game, report, &both_clubs, counts_for_standings);
+        apply_player_stats(game, report, &both_clubs, fixture_index);
     }
     resolve_post_match_promises(game, report, &both_clubs);
 
@@ -482,14 +482,34 @@ fn apply_player_stats(
     game: &mut Game,
     report: &engine::MatchReport,
     both_clubs: &[usize],
-    counts_for_league: bool,
+    fixture_index: usize,
 ) {
+    let league_competition_id = game.league.as_ref().and_then(|league| {
+        league
+            .fixtures
+            .get(fixture_index)
+            .filter(|fixture| fixture.counts_for_league_standings())
+            .map(|fixture| {
+                // Old single-league fixtures did not name their competition.
+                if fixture.competition_id.is_empty() {
+                    league.id.clone()
+                } else {
+                    fixture.competition_id.clone()
+                }
+            })
+    });
     for position in report_players(game, report, both_clubs) {
         let player = &mut game.players[position];
         if let Some(ps) = report.player_stats.get(&player.id) {
             add_match(&mut player.stats, ps);
-            if counts_for_league {
-                add_match(&mut player.league_stats, ps);
+            if let Some(competition_id) = league_competition_id.as_deref() {
+                add_match(
+                    player
+                        .league_stats_by_competition
+                        .entry(competition_id.to_string())
+                        .or_default(),
+                    ps,
+                );
             }
         }
     }

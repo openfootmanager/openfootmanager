@@ -373,7 +373,7 @@ export interface PlayerData {
   market_value: number;
   stats: PlayerSeasonStats;
   /** This season's league matches alone; the division's awards rank by it. */
-  league_stats?: PlayerSeasonStats;
+  league_stats_by_competition?: Record<string, PlayerSeasonStats>;
   career: CareerEntry[];
   movement_history?: PlayerMovementEntry[];
   transfer_listed: boolean;
