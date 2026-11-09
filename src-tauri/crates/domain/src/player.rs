@@ -470,7 +470,8 @@ fn default_attr() -> u8 {
 pub const WEAK_FOOT_MIN: u8 = 1;
 pub const WEAK_FOOT_MAX: u8 = 5;
 
-fn default_weak_foot() -> u8 {
+/// Default used when a save predates weak-foot ratings.
+pub fn default_weak_foot() -> u8 {
     2
 }
 
