@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 import PlayerCard from "./PlayerCard";
 
 vi.mock("react-i18next", () => ({
+  initReactI18next: { type: "3rdParty", init: () => undefined },
   useTranslation: () => ({
     t: (key: string, params?: Record<string, string | number>) =>
       params ? `${key}:${Object.values(params).join(",")}` : key,

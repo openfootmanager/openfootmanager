@@ -12,6 +12,7 @@ vi.mock("../../services/positionService", () => ({
 }));
 
 vi.mock("react-i18next", () => ({
+  initReactI18next: { type: "3rdParty", init: () => undefined },
   useTranslation: () => ({
     // Honours defaultValue, as the real t does. translatePositionAbbreviation
     // relies on it to fall back to the position code, so a mock that ignored

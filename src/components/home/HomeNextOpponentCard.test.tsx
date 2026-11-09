@@ -5,6 +5,7 @@ import type { NextOpponentWidgetData } from "./HomeTab.helpers";
 import HomeNextOpponentCard from "./HomeNextOpponentCard";
 
 vi.mock("react-i18next", () => ({
+  initReactI18next: { type: "3rdParty", init: () => undefined },
   useTranslation: () => ({
     t: (key: string, params?: Record<string, string | number>) => {
       if (key === "dashboard.schedule") return "Schedule";

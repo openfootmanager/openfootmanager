@@ -1,4 +1,5 @@
 import { useTranslation } from "react-i18next";
+import { resolveBackendText } from "../utils/backendI18n";
 import { User, Calendar, Shield, Eye, EyeOff, TrendingUp, BarChart3 } from "lucide-react";
 import { ProgressBar, CountryFlag } from "./ui";
 import { countryName } from "../lib/countries";
@@ -145,20 +146,20 @@ export default function ScoutPlayerCard({ report, onPlayerClick }: ScoutPlayerCa
               className={`inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-bold bg-gray-100 dark:bg-navy-600 ${ratingColor(report.rating_key)}`}
             >
               <BarChart3 className="w-3 h-3" />
-              {t(report.rating_key)} (~{report.avg_rating})
+              {resolveBackendText(report.rating_key, "")} (~{report.avg_rating})
             </span>
           )}
           <span
             className={`inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-bold bg-gray-100 dark:bg-navy-600 ${ratingColor(report.potential_key)}`}
           >
             <TrendingUp className="w-3 h-3" />
-            {t(report.potential_key)}
+            {resolveBackendText(report.potential_key, "")}
           </span>
           <span
             className={`inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-bold bg-gray-100 dark:bg-navy-600 ${confidenceColor(report.confidence_key)}`}
           >
             <Eye className="w-3 h-3" />
-            {t("scouting.confidence")}: {t(report.confidence_key)}
+            {t("scouting.confidence")}: {resolveBackendText(report.confidence_key, "")}
           </span>
         </div>
       </div>

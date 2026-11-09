@@ -158,6 +158,11 @@ fn migrate_single_save(
     canonicalize_game_starting_xi_ids(&mut game);
     player_identity::upgrade_loaded_player_identities(&mut game);
     ofm_core::football_identity::upgrade_game_football_identities(&mut game);
+    // A legacy save has no league-only stats: read its season so far as the league season, as
+    // the player repository does for a row saved before the column.
+    for player in &mut game.players {
+        player.league_stats = player.stats.clone();
+    }
 
     save_manager.create_save(&game, &row.name)
 }
@@ -308,6 +313,16 @@ mod tests {
             "recent_treatment": null
         });
 
+        serde_json::to_string(&json).expect("legacy game json should serialize")
+    }
+
+    fn legacy_game_json_with_season_stats() -> String {
+        let mut json: serde_json::Value =
+            serde_json::from_str(&minimal_game_json()).expect("minimal game json should parse");
+        json["players"][0]["stats"] = serde_json::json!({ "appearances": 9, "goals": 7 });
+        if let Some(player) = json["players"][0].as_object_mut() {
+            player.remove("league_stats");
+        }
         serde_json::to_string(&json).expect("legacy game json should serialize")
     }
 
@@ -667,6 +682,32 @@ mod tests {
         assert_eq!(player.morale_core.pending_promise, None);
         assert_eq!(player.morale_core.talk_cooldown_until, None);
         assert_eq!(player.morale_core.renewal_state, None);
+    }
+
+    /// Given a legacy save whose player has season stats and no league stats (the field is newer),
+    /// When it is migrated and loaded,
+    /// Then his season so far is his league season.
+    #[test]
+    fn test_migrate_legacy_save_reads_its_season_as_the_league_season() {
+        let dir = tempfile::tempdir().unwrap();
+        let legacy_path = dir.path().join("saves.db");
+        let saves_dir = dir.path().join("saves");
+        let json = legacy_game_json_with_season_stats();
+        create_legacy_db(
+            &legacy_path,
+            &[("old-save-1", "Legacy Stats Save", "Test Manager", &json)],
+        );
+        let mut sm = SaveManager::init(&saves_dir).unwrap();
+
+        migrate_legacy_saves(dir.path(), &mut sm).unwrap();
+
+        let save_id = sm.list_saves()[0].id.clone();
+        let loaded = sm.load_game(&save_id).unwrap();
+        let player = loaded.players.iter().find(|p| p.id == "p-001").unwrap();
+        assert_eq!(
+            (player.league_stats.appearances, player.league_stats.goals),
+            (9, 7)
+        );
     }
 
     #[test]

@@ -142,6 +142,7 @@ fn make_completed_season_game() -> Game {
         red_cards: 0,
         ..PlayerSeasonStats::default()
     };
+    p1.league_stats = p1.stats.clone();
 
     let mut p2 = make_player("p2", "Rival", "team2", Position::Forward);
     p2.stats = PlayerSeasonStats {
@@ -156,6 +157,7 @@ fn make_completed_season_game() -> Game {
         red_cards: 0,
         ..PlayerSeasonStats::default()
     };
+    p2.league_stats = p2.stats.clone();
 
     let fixtures = vec![
         make_completed_fixture("f1", "team1", "team2", 2, 1),
@@ -844,12 +846,14 @@ fn rollover_passes_continental_qualifiers_into_the_next_season() {
         goals: 20,
         ..PlayerSeasonStats::default()
     };
+    p1.league_stats = p1.stats.clone();
     let mut p2 = make_player("p2", "Rival", "eng-b", Position::Forward);
     p2.stats = PlayerSeasonStats {
         appearances: 28,
         goals: 8,
         ..PlayerSeasonStats::default()
     };
+    p2.league_stats = p2.stats.clone();
 
     let league = League {
         id: "eng-1".to_string(),
@@ -1277,6 +1281,7 @@ fn season_awards_are_scoped_to_the_users_division() {
         minutes_played: 1800,
         ..PlayerSeasonStats::default()
     };
+    lower_star.league_stats = lower_star.stats.clone();
     game.players.push(lower_star);
 
     let summary = process_end_of_season(&mut game);
@@ -2504,6 +2509,10 @@ fn player_stats_reset() {
     let p1 = game.players.iter().find(|p| p.id == "p1").unwrap();
     assert_eq!(p1.stats.appearances, 0);
     assert_eq!(p1.stats.goals, 0);
+    assert_eq!(
+        p1.league_stats,
+        domain::player::PlayerSeasonStats::default()
+    );
     assert_eq!(p1.stats.assists, 0);
 }
 
@@ -2854,6 +2863,7 @@ fn season_awards_article_not_added_when_no_marquee_winners() {
         player.stats.goals = 0;
         player.stats.assists = 0;
         player.stats.avg_rating = 0.0;
+        player.league_stats = player.stats.clone();
     }
     process_end_of_season(&mut game);
 
@@ -2892,7 +2902,7 @@ fn champion_receives_prize_money_and_ledger_entry() {
     assert_eq!(team1.financial_ledger[0].amount, 5_000_000);
     assert_eq!(
         team1.financial_ledger[0].description,
-        "be.msg.seasonPayout.ledgerDescription?season=1&position=1&suffix=st"
+        "be.msg.seasonPayout.ledgerDescription?season=1&position=1"
     );
 }
 
@@ -4066,12 +4076,14 @@ fn season_end_board_message_top_four_uses_correct_body_key() {
         "2nd-place finish should use topFour body key"
     );
     assert!(
-        msg.i18n_params.contains_key("position"),
-        "topFour key must include position param"
+        msg.i18n_params.get("position") == Some(&"2".to_string()),
+        "topFour position must be the bare number 2"
     );
+    // The place is a bare number: the frontend writes it as an ordinal in the player's language, so
+    // no English suffix ("2nd", "21th") is sent from here.
     assert!(
-        msg.i18n_params.contains_key("suffix"),
-        "topFour key must include suffix param"
+        !msg.i18n_params.contains_key("suffix"),
+        "topFour must not carry an English ordinal suffix"
     );
 }
 

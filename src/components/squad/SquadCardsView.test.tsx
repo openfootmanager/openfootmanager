@@ -1,6 +1,6 @@
 import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import { invoke } from "@tauri-apps/api/core";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { formatDate } from "../../lib/dateFormatting";
 import { formatWeeklyWage } from "../../lib/helpers";
@@ -8,6 +8,11 @@ import type { PlayerData } from "../../store/gameStore";
 import { useSettingsStore } from "../../store/settingsStore";
 import { createPlayer, createTeam } from "../../test-utils/factories";
 import SquadRosterView from "./SquadRosterView";
+import { i18nReady } from "../../i18n";
+
+beforeAll(async () => {
+  await i18nReady;
+});
 
 // What the backend's contract warning stages read as on a badge, by player id; a test says which
 // players are at risk.
@@ -226,7 +231,7 @@ describe("SquadRosterView cards", () => {
 
     const card = screen.getByRole("article", { name: "GK1" });
     expect(within(card).getByText("74")).toBeInTheDocument();
-    expect(within(card).getByText("be.condition.fresh")).toBeInTheDocument();
+    expect(within(card).getByText("Fresh")).toBeInTheDocument();
     expect(within(card).getByText("finances.contractRiskCritical")).toBeInTheDocument();
     expect(within(card).getByText(formatWeeklyWage(4200, "compact"))).toBeInTheDocument();
     expect(

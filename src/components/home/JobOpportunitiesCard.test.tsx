@@ -5,6 +5,7 @@ import type { GameStateData } from "../../store/gameStore";
 import JobOpportunitiesCard from "./JobOpportunitiesCard";
 
 vi.mock("react-i18next", () => ({
+  initReactI18next: { type: "3rdParty", init: () => undefined },
   useTranslation: () => ({
     t: (
       key: string,

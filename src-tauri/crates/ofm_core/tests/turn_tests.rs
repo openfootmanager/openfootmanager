@@ -569,6 +569,169 @@ fn apply_match_report_updates_player_stats() {
     assert!(scorer.stats.avg_rating > 0.0);
 }
 
+/// team1's fixture, played as `competition`, with t1_fwd0 scoring twice in a 2-0.
+fn scorer_after(competition: FixtureCompetition) -> domain::player::PlayerSeasonStats {
+    let mut game = make_game_with_match();
+    game.league.as_mut().unwrap().fixtures[0].competition = competition;
+    let report = report_with_scorer(2, 0, "t1_fwd0", Side::Home);
+
+    turn::apply_match_report(&mut game, 0, "team1", "team2", &report);
+
+    let scorer = game.players.iter().find(|p| p.id == "t1_fwd0").unwrap();
+    scorer.stats.clone()
+}
+
+/// Given a pre-season friendly in which a forward scores twice,
+/// When the report is applied,
+/// Then his season stats do not move: a friendly is played for nothing, and the Golden Boot,
+/// his development and his valuation read these stats.
+#[test]
+fn a_friendly_is_not_part_of_a_players_season_stats() {
+    for competition in [
+        FixtureCompetition::Friendly,
+        FixtureCompetition::FriendlyCup,
+        FixtureCompetition::PreseasonTournament,
+    ] {
+        let stats = scorer_after(competition.clone());
+        assert_eq!(
+            (stats.appearances, stats.goals),
+            (0, 0),
+            "{competition:?} counts for nothing"
+        );
+    }
+}
+
+/// Given a cup tie in which a forward scores twice,
+/// When the report is applied,
+/// Then it is not part of his league season: the division's awards rank by league matches.
+#[test]
+fn a_cup_tie_is_not_part_of_a_players_league_season() {
+    let mut game = make_game_with_match();
+    game.league.as_mut().unwrap().fixtures[0].competition = FixtureCompetition::Cup;
+
+    turn::apply_match_report(
+        &mut game,
+        0,
+        "team1",
+        "team2",
+        &report_with_scorer(2, 0, "t1_fwd0", Side::Home),
+    );
+
+    let scorer = game.players.iter().find(|p| p.id == "t1_fwd0").unwrap();
+    assert_eq!(
+        (scorer.league_stats.appearances, scorer.league_stats.goals),
+        (0, 0)
+    );
+}
+
+/// Given a league match in which a forward scores twice,
+/// When the report is applied,
+/// Then it is part of both his season and his league season, rating included.
+#[test]
+fn a_league_match_is_part_of_a_players_season_and_league_season() {
+    let mut game = make_game_with_match();
+
+    turn::apply_match_report(
+        &mut game,
+        0,
+        "team1",
+        "team2",
+        &report_with_scorer(2, 0, "t1_fwd0", Side::Home),
+    );
+
+    let scorer = game.players.iter().find(|p| p.id == "t1_fwd0").unwrap();
+    assert_eq!(
+        (scorer.league_stats.appearances, scorer.league_stats.goals),
+        (1, 2)
+    );
+    assert_eq!(scorer.league_stats, scorer.stats);
+}
+
+/// Given a cup tie in which a forward scores twice,
+/// When the report is applied,
+/// Then his season stats count it: a cup match is played for something.
+#[test]
+fn a_cup_tie_is_part_of_a_players_season_stats() {
+    let stats = scorer_after(FixtureCompetition::Cup);
+    assert_eq!((stats.appearances, stats.goals), (1, 2));
+}
+
+/// Given a division whose fixture list holds two league matches and a cup tie for team1, in
+/// which t1_fwd0 scores 1 league goal and 3 cup goals and t1_fwd1 scores 2 league goals,
+/// When the three reports are applied and the division's awards are read,
+/// Then its Golden Boot goes to t1_fwd1 with 2: a division award counts the division's own
+/// matches, as its Top Scorers list does, not a cup run.
+#[test]
+fn a_divisions_golden_boot_counts_its_league_goals_alone() {
+    let mut game = make_game_with_match();
+    let league = game.league.as_mut().unwrap();
+    let first = league.fixtures[0].clone();
+    league.fixtures.push(Fixture {
+        id: "cup1".to_string(),
+        competition: FixtureCompetition::Cup,
+        ..first.clone()
+    });
+    league.fixtures.push(Fixture {
+        id: "fix2".to_string(),
+        ..first
+    });
+    turn::apply_match_report(
+        &mut game,
+        0,
+        "team1",
+        "team2",
+        &report_with_scorer(1, 0, "t1_fwd0", Side::Home),
+    );
+    turn::apply_match_report(
+        &mut game,
+        1,
+        "team1",
+        "team2",
+        &report_with_scorer(3, 0, "t1_fwd0", Side::Home),
+    );
+    turn::apply_match_report(
+        &mut game,
+        2,
+        "team1",
+        "team2",
+        &report_with_scorer(2, 0, "t1_fwd1", Side::Home),
+    );
+
+    let division = game.league.clone().unwrap();
+    let awards = ofm_core::season_awards::compute_division_season_awards(&game, &division);
+
+    let leader = awards.golden_boot.first().expect("someone scored");
+    assert_eq!((leader.player_id.as_str(), leader.value), ("t1_fwd1", 2.0));
+}
+
+/// Given a league match in which a midfielder makes two assists,
+/// When the report is applied,
+/// Then both his season and his league season carry the two: assists are added, not combined.
+#[test]
+fn a_matchs_assists_are_added_to_a_players_season_and_league_season() {
+    let mut game = make_game_with_match();
+    let mut player_stats = HashMap::new();
+    player_stats.insert(
+        "t1_mid0".to_string(),
+        PlayerMatchStats {
+            minutes_played: 90,
+            assists: 2,
+            rating: 7.0,
+            ..Default::default()
+        },
+    );
+    let report = MatchReport {
+        player_stats,
+        ..empty_report(1, 0)
+    };
+
+    turn::apply_match_report(&mut game, 0, "team1", "team2", &report);
+
+    let assister = game.players.iter().find(|p| p.id == "t1_mid0").unwrap();
+    assert_eq!(assister.stats.assists, 2);
+    assert_eq!(assister.league_stats.assists, 2);
+}
+
 #[test]
 fn apply_match_report_gk_clean_sheet() {
     let mut game = make_game_with_match();
