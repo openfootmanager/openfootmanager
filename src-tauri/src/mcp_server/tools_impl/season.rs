@@ -98,7 +98,9 @@ fn season_advance_for_state(
 
 pub fn season_get_awards(ctx: Arc<McpContext>) -> Result<SeasonAwards, String> {
     let game = require_game(&ctx.state_manager)?;
-    let awards = ofm_core::season_awards::compute_season_awards(&game);
+    // The screen's awards: the user's league (`end_of_season::user_division`), so an agent and the
+    // player read the same race.
+    let awards = ofm_core::season_awards::user_division_season_awards(&game);
 
     let winners = |entries: &[ofm_core::season_awards::AwardEntry]| -> Vec<AwardWinner> {
         entries

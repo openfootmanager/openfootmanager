@@ -1,9 +1,10 @@
 import { describe, expect, it } from "vitest";
 
 import { SCREEN_WRITE_COMMANDS } from "./careerInvoke";
+import { CAREER_SCOPED_READ_COMMANDS } from "./seasonReviewService";
 
 /**
- * The screen-write contract has two halves that must not drift: the Rust commands that check the
+ * The career-scoped contract has two halves that must not drift: Rust commands that check the
  * career token, and the TypeScript services that send it. These read both from source.
  */
 const rustSources = import.meta.glob("../../src-tauri/src/commands/**/*.rs", {
@@ -43,11 +44,12 @@ describe("screen-write commands", () => {
   /**
    * Given the Rust commands that take a career token
    * When they are compared with the TypeScript list
-   * Then the two are the same set: a command that checks the token is sent it, and a listed
-   *      command checks it.
+   * Then they match the declared writes and reads that send the token.
    */
   it("are the same commands in Rust and in the TypeScript list", () => {
-    expect([...SCREEN_WRITE_COMMANDS].sort()).toEqual(rustCommandsTakingACareerToken());
+    expect([...SCREEN_WRITE_COMMANDS, ...CAREER_SCOPED_READ_COMMANDS].sort()).toEqual(
+      rustCommandsTakingACareerToken(),
+    );
   });
 
   /**
