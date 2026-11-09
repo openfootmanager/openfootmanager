@@ -252,6 +252,15 @@ impl LiveMatchState {
         // last one — the lineup visibly "reorganized" after a swap. Keep the
         // vacated index and adopt the slot's position instead.
         player_on.position = player_off.position;
+        let has_slot_roles = match side {
+            Side::Home => self.home_slot_roles.is_some(),
+            Side::Away => self.away_slot_roles.is_some(),
+        };
+        if has_slot_roles
+            && !self.slot_admits_role(side, off_idx, player_on.position, player_on.role)
+        {
+            player_on.role = PlayerRole::Standard;
+        }
 
         // Initialize condition for incoming player
         self.player_conditions
@@ -519,6 +528,37 @@ mod line_familiarity_tests {
             })
             .unwrap();
         assert_eq!(state.team(Side::Home).players[1].role, PlayerRole::Standard);
+    }
+
+    /// Given a bench Stopper and a centre-back slot that admits him, when an engine host swaps
+    /// him in, then his role is retained.
+    #[test]
+    fn a_pre_match_swap_keeps_a_role_admitted_by_the_destination() {
+        let mut newcomer = player("stopper", Position::Defender);
+        newcomer.role = PlayerRole::Stopper;
+        let mut state = LiveMatchState::new(
+            side("h"),
+            side("a"),
+            MatchConfig::default(),
+            vec![newcomer],
+            vec![],
+            false,
+        );
+        state.set_slot_roles(
+            Side::Home,
+            vec![
+                vec![PlayerRole::Standard],
+                vec![PlayerRole::Standard, PlayerRole::Stopper],
+            ],
+        );
+        state
+            .apply_command(crate::live_match::MatchCommand::PreMatchSwap {
+                side: Side::Home,
+                player_off_id: "h_d".into(),
+                player_on_id: "stopper".into(),
+            })
+            .unwrap();
+        assert_eq!(state.team(Side::Home).players[1].role, PlayerRole::Stopper);
     }
 
     const REFIT: [f64; 4] = [0.9, 0.95, 1.0, 0.9];

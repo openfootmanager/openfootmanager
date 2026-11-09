@@ -1987,13 +1987,74 @@ mod issue_1319 {
             );
             let refused = session.apply_command(engine::MatchCommand::ChangePlayerRole {
                 side: engine::Side::Home,
-                player_id: defender,
+                player_id: defender.clone(),
                 role: engine::PlayerRole::AnchorMan,
             });
             assert_eq!(
                 refused.err().as_deref(),
                 Some("be.error.roleNotValidForPosition")
             );
+            session
+                .apply_command(engine::MatchCommand::ChangePlayerRole {
+                    side: engine::Side::Home,
+                    player_id: defender.clone(),
+                    role: engine::PlayerRole::Stopper,
+                })
+                .unwrap();
+            assert_eq!(
+                home_role_of(&session, &defender),
+                engine::PlayerRole::Stopper
+            );
+        }
+        /// Given a midfielder suited to defence with a midfield-only role, when a dismissal
+        /// moves him into the defensive line, then that role is normalized to Standard.
+        #[test]
+        fn a_midfielder_moved_into_defence_after_a_sending_off_loses_an_incompatible_role() {
+            let mut game = make_game_with_fixture();
+            game.teams[0].formation = "4-1-4-1".into();
+            let probe = waiting_session(&game);
+            let promoted = probe.match_state.team(engine::Side::Home).players[5]
+                .id
+                .clone();
+            game.teams[0].starting_xi_ids = probe
+                .match_state
+                .team(engine::Side::Home)
+                .players
+                .iter()
+                .map(|p| p.id.clone())
+                .collect();
+            let player = game.players.iter_mut().find(|p| p.id == promoted).unwrap();
+            player.attributes.defending = 99;
+            player.attributes.tackling = 99;
+            player.attributes.strength = 99;
+            game.teams[0]
+                .player_roles
+                .insert(promoted.clone(), domain::team::PlayerRole::AnchorMan);
+            let mut session = waiting_session(&game);
+            assert_eq!(
+                home_role_of(&session, &promoted),
+                engine::PlayerRole::AnchorMan
+            );
+            session.step();
+            let sent_off = session.match_state.team(engine::Side::Home).players[1]
+                .id
+                .clone();
+            session.match_state.test_send_off(&sent_off);
+            session
+                .apply_command(engine::MatchCommand::ChangeFormation {
+                    side: engine::Side::Home,
+                    formation: "4-3-3".into(),
+                })
+                .unwrap();
+            let player = session
+                .match_state
+                .team(engine::Side::Home)
+                .players
+                .iter()
+                .find(|p| p.id == promoted)
+                .unwrap();
+            assert_eq!(player.position, engine::Position::Defender);
+            assert_eq!(player.role, engine::PlayerRole::Standard);
         }
     }
 }

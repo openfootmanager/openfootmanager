@@ -854,10 +854,28 @@ pub(crate) fn slot_admits_engine_role(position: &DomainPosition, role: EnginePla
     admitted_engine_roles(position).any(|candidate| candidate == role)
 }
 
-pub(crate) fn admitted_roles_for_formation(formation: &str) -> Vec<Vec<EnginePlayerRole>> {
+/// When a short-handed lineup no longer matches a granular slot's line, use the simulated
+/// line's domain position rather than admitting roles for a line the player does not occupy.
+pub(crate) fn slot_at_simulated_line(slot: &DomainPosition, line: Position) -> DomainPosition {
+    if engine_line(slot) == line {
+        return slot.clone();
+    }
+    match line {
+        Position::Goalkeeper => DomainPosition::Goalkeeper,
+        Position::Defender => DomainPosition::Defender,
+        Position::Midfielder => DomainPosition::Midfielder,
+        Position::Forward => DomainPosition::Forward,
+    }
+}
+
+pub(crate) fn admitted_roles_for_formation(
+    formation: &str,
+    lines: &[Position],
+) -> Vec<Vec<EnginePlayerRole>> {
     formation_slots(formation)
         .iter()
-        .map(|slot| admitted_engine_roles(slot).collect())
+        .zip(lines)
+        .map(|(slot, line)| admitted_engine_roles(&slot_at_simulated_line(slot, *line)).collect())
         .collect()
 }
 

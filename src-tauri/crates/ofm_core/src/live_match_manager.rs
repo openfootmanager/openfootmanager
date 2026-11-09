@@ -10,7 +10,7 @@ pub use crate::turn::squad::auto_select_set_pieces;
 use crate::turn::squad::{
     admitted_roles_for_formation, build_team_with_bench_from, domain_to_engine_role,
     domain_to_engine_tactics, engine_line, line_familiarity, set_piece_takers_among,
-    slot_admits_engine_role,
+    slot_admits_engine_role, slot_at_simulated_line,
 };
 
 use rand_chacha::ChaCha12Rng;
@@ -316,7 +316,8 @@ impl LiveMatchSession {
     fn slot_of(&self, side: Side, player_id: &str) -> Option<DomainPosition> {
         let team = self.match_state.team(side);
         let index = team.players.iter().position(|p| p.id == player_id)?;
-        formation_slots(&team.formation).get(index).cloned()
+        let slot = formation_slots(&team.formation).get(index)?.clone();
+        Some(slot_at_simulated_line(&slot, team.players[index].position))
     }
 
     /// After a swap before kick-off, the newcomer plays at the familiarity of the slot he took,
@@ -347,6 +348,15 @@ impl LiveMatchSession {
                 .set_bench_position(side, off, engine_line(&player.natural_position));
         }
         self.follow_saved_role_on_the_bench(side, off);
+        if let Some(role) = self
+            .match_state
+            .bench(side)
+            .iter()
+            .find(|p| p.id == off)
+            .map(|p| p.role)
+        {
+            self.intended_roles.insert(off.to_string(), role);
+        }
         if let Some(slot) = slot {
             self.refit_swapped_in_role(side, on, slot);
         }
@@ -365,6 +375,7 @@ impl LiveMatchSession {
             return;
         };
         let role = role_at(self.saved_roles.get(on), slot);
+        self.intended_roles.insert(on.to_string(), role);
         if role == newcomer.role {
             return;
         }
@@ -418,11 +429,7 @@ impl LiveMatchSession {
             .iter()
             .zip(formation_slots(&team.formation))
             .map(|(player, slot)| {
-                let slot = if player.position == engine::Position::Goalkeeper {
-                    DomainPosition::Goalkeeper
-                } else {
-                    slot
-                };
+                let slot = slot_at_simulated_line(&slot, player.position);
                 let intended = self
                     .intended_roles
                     .get(&player.id)
@@ -630,7 +637,9 @@ impl LiveMatchSession {
     }
 
     fn sync_slot_roles(&mut self, side: Side) {
-        let roles = admitted_roles_for_formation(&self.match_state.team(side).formation);
+        let team = self.match_state.team(side);
+        let lines: Vec<_> = team.players.iter().map(|p| p.position).collect();
+        let roles = admitted_roles_for_formation(&team.formation, &lines);
         self.match_state.set_slot_roles(side, roles);
     }
 }
@@ -878,7 +887,9 @@ fn create_live_match_with(
         allows_extra_time,
     );
     for side in [Side::Home, Side::Away] {
-        let roles = admitted_roles_for_formation(&match_state.team(side).formation);
+        let team = match_state.team(side);
+        let lines: Vec<_> = team.players.iter().map(|p| p.position).collect();
+        let roles = admitted_roles_for_formation(&team.formation, &lines);
         match_state.set_slot_roles(side, roles);
     }
     apply_saved_match_roles(
