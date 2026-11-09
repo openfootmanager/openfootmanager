@@ -1086,14 +1086,21 @@ fn regions_from_package<'a>(
 }
 
 /// What competition selectors would see in the world [`build_world_data_from_package`] makes of
-/// `package`, without making it: one club per authored team, in the nation it declares and ranked by
-/// the middle of its reputation range (the authored basis a package is validated and resolved on),
-/// and the same regions. Meaningful for a package that declares competitions: with none, the
-/// builder pads and invents clubs that this does not.
+/// `package`, without making it: one club per authored team, in the football nation the builder
+/// gives it, ranked by the middle of its reputation range (the authored basis a package is validated
+/// and resolved on), and the same regions. Meaningful for a package that declares competitions: with
+/// none, the builder pads and invents clubs that this does not.
 ///
-/// A club with no id is given one no authored id can equal, as the builder gives it a generated
-/// one, so it still counts as an entrant without ever matching a name in a participant list.
+/// A club with no id is an anonymous entrant: the builder gives it a generated id nothing can name,
+/// so here it carries a placeholder that equals no authored id (it is lengthened until it does not)
+/// and is kept out of the ids a definition may reference.
 pub(super) fn competition_field_of_package(package: &package::WorldPackage) -> CompetitionField {
+    let authored_ids: HashSet<&str> = package.teams.iter().map(|team| team.id.as_str()).collect();
+    let nations: Vec<String> = package
+        .teams
+        .iter()
+        .map(|team| package_club_nation(&team.country))
+        .collect();
     let clubs = package
         .teams
         .iter()
@@ -1102,22 +1109,36 @@ pub(super) fn competition_field_of_package(package: &package::WorldPackage) -> C
             let [min, max] = team
                 .reputation_range
                 .unwrap_or(DEFAULT_TEAM_REPUTATION_RANGE);
+            let anonymous = team.id.is_empty();
+            let mut id = team.id.clone();
+            if anonymous {
+                id = format!("club-without-id-{index}");
+                while authored_ids.contains(id.as_str()) {
+                    id.push('_');
+                }
+            }
             competition_def::FieldClub {
-                id: if team.id.is_empty() {
-                    format!("\u{0}club-without-id-{index}")
-                } else {
-                    team.id.clone()
-                },
-                nation: team.country.clone(),
+                id,
+                nation: nations[index].clone(),
                 reputation: min.midpoint(max),
+                anonymous,
             }
         })
         .collect();
-    let regions = regions_from_package(
-        package,
-        package.teams.iter().map(|team| team.country.as_str()),
-    );
+    let regions = regions_from_package(package, nations.iter().map(String::as_str));
     CompetitionField::new(clubs, regions)
+}
+
+/// The football nation the builder gives a club declared in `country`: `Team::new` normalises the
+/// country through `domain::identity`, and the competition resolver reads that, falling back to the
+/// country as written when it normalises to nothing. One decision, the domain's, not a second one.
+fn package_club_nation(country: &str) -> String {
+    let nation = domain::identity::normalize_football_nation_code(country);
+    if nation.is_empty() {
+        country.to_string()
+    } else {
+        nation
+    }
 }
 
 /// Generate procedural filler club definitions for a given country code. Used

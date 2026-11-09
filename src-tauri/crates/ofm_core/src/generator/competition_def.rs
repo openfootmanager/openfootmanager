@@ -211,9 +211,13 @@ impl DefinitionError {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(super) struct FieldClub {
     pub(super) id: String,
-    /// The football nation: [`team_country`] of the built club, the declared country of an authored one.
+    /// The football nation: [`team_country`] of the built club, and for an authored one the same
+    /// decision taken on its declared country (see `competition_field_of_package`).
     pub(super) nation: String,
     pub(super) reputation: u32,
+    /// A club the package gave no id: it is an entrant and has a nation, but no id an author could
+    /// write in a participant list names it, so it is not among the ids a definition may reference.
+    pub(super) anonymous: bool,
 }
 
 /// Everything competition selectors read from a world, and nothing else: its clubs and its region
@@ -241,6 +245,7 @@ impl CompetitionField {
                     id: team.id.clone(),
                     nation: team_country(team).to_string(),
                     reputation: team.reputation,
+                    anonymous: false,
                 })
                 .collect(),
             world.regions.clone(),
@@ -261,30 +266,32 @@ impl<'a> WorldValidationContext<'a> {
             world
                 .teams
                 .iter()
-                .map(|team| (team.id.as_str(), team_country(team))),
+                .map(|team| (Some(team.id.as_str()), team_country(team))),
             &world.regions,
         )
     }
 
     pub(super) fn from_field(field: &'a CompetitionField) -> Self {
         Self::from_parts(
-            field
-                .clubs
-                .iter()
-                .map(|club| (club.id.as_str(), club.nation.as_str())),
+            field.clubs.iter().map(|club| {
+                (
+                    (!club.anonymous).then_some(club.id.as_str()),
+                    club.nation.as_str(),
+                )
+            }),
             &field.regions,
         )
     }
 
-    /// `clubs` as (id, football nation).
+    /// `clubs` as (the id a definition may reference, if any, and the football nation).
     fn from_parts(
-        clubs: impl Iterator<Item = (&'a str, &'a str)>,
+        clubs: impl Iterator<Item = (Option<&'a str>, &'a str)>,
         regions: &'a [super::WorldRegionDefinition],
     ) -> Self {
         let mut team_ids = HashSet::new();
         let mut country_codes: HashSet<&'a str> = HashSet::new();
         for (id, nation) in clubs {
-            team_ids.insert(id);
+            team_ids.extend(id);
             country_codes.insert(nation);
         }
         country_codes.extend(
