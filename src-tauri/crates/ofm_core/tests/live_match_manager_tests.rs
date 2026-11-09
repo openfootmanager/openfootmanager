@@ -1697,6 +1697,7 @@ mod issue_1319 {
                 engine::PlayerRole::AttackingFB
             );
             session.step();
+            assert_ne!(session.match_state.phase(), MatchPhase::PreKickOff);
             session
                 .apply_command(engine::MatchCommand::ChangeFormation {
                     side: engine::Side::Home,
@@ -1789,6 +1790,96 @@ mod issue_1319 {
                 engine::PlayerRole::AttackingFB
             );
             assert!(!game.teams[0].player_roles.contains_key(&right_back));
+        }
+        /// Given a saved defensive full-back, when a different session role is chosen and the
+        /// formation moves away and back, then the session choice wins and the saved role remains.
+        #[test]
+        fn a_session_choice_overrides_a_different_saved_role_through_a_formation_round_trip() {
+            let mut game = make_game_with_fixture();
+            let probe = waiting_session(&game);
+            let right_back = probe.match_state.team(engine::Side::Home).players[4]
+                .id
+                .clone();
+            game.teams[0]
+                .player_roles
+                .insert(right_back.clone(), domain::team::PlayerRole::DefensiveFB);
+            let mut session = waiting_session(&game);
+            session
+                .apply_command(engine::MatchCommand::ChangePlayerRole {
+                    side: engine::Side::Home,
+                    player_id: right_back.clone(),
+                    role: engine::PlayerRole::AttackingFB,
+                })
+                .unwrap();
+            session
+                .apply_command(engine::MatchCommand::ChangeFormation {
+                    side: engine::Side::Home,
+                    formation: "5-3-2".into(),
+                })
+                .unwrap();
+            assert_eq!(
+                home_role_of(&session, &right_back),
+                engine::PlayerRole::Standard
+            );
+            session
+                .apply_command(engine::MatchCommand::ChangeFormation {
+                    side: engine::Side::Home,
+                    formation: "4-4-2".into(),
+                })
+                .unwrap();
+            assert_eq!(
+                home_role_of(&session, &right_back),
+                engine::PlayerRole::AttackingFB
+            );
+            assert_eq!(
+                game.teams[0].player_roles.get(&right_back),
+                Some(&domain::team::PlayerRole::DefensiveFB)
+            );
+        }
+
+        /// Given a suppressed full-back role, when a new centre-back role is selected before
+        /// returning to right-back, then the old role is not restored.
+        #[test]
+        fn a_new_session_choice_replaces_the_suppressed_intended_role() {
+            let game = make_game_with_fixture();
+            let mut session = waiting_session(&game);
+            let right_back = session.match_state.team(engine::Side::Home).players[4]
+                .id
+                .clone();
+            session
+                .apply_command(engine::MatchCommand::ChangePlayerRole {
+                    side: engine::Side::Home,
+                    player_id: right_back.clone(),
+                    role: engine::PlayerRole::AttackingFB,
+                })
+                .unwrap();
+            session
+                .apply_command(engine::MatchCommand::ChangeFormation {
+                    side: engine::Side::Home,
+                    formation: "5-3-2".into(),
+                })
+                .unwrap();
+            assert_eq!(
+                home_role_of(&session, &right_back),
+                engine::PlayerRole::Standard
+            );
+            session
+                .apply_command(engine::MatchCommand::ChangePlayerRole {
+                    side: engine::Side::Home,
+                    player_id: right_back.clone(),
+                    role: engine::PlayerRole::Stopper,
+                })
+                .unwrap();
+            session
+                .apply_command(engine::MatchCommand::ChangeFormation {
+                    side: engine::Side::Home,
+                    formation: "4-4-2".into(),
+                })
+                .unwrap();
+            assert_eq!(
+                home_role_of(&session, &right_back),
+                engine::PlayerRole::Standard
+            );
         }
     }
 }

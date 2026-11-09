@@ -178,6 +178,8 @@ pub struct LiveMatchSession {
     /// roles are not at hand there, and taking the game lock under the live-match lock is the
     /// nesting this codebase avoids.
     saved_roles: HashMap<String, DomainPlayerRole>,
+    /// The role intended for each player, including a session choice temporarily suppressed by a slot.
+    intended_roles: HashMap<String, engine::PlayerRole>,
 }
 
 impl LiveMatchSession {
@@ -293,10 +295,21 @@ impl LiveMatchSession {
             }
             self.match_state.apply_command(cmd)?;
             self.sync_slot_roles(side);
+            self.normalize_formation_roles(side);
             self.refit_formation_change(side);
             return Ok(());
         }
-        self.match_state.apply_command(cmd)
+        let role_change = match &cmd {
+            MatchCommand::ChangePlayerRole {
+                player_id, role, ..
+            } => Some((player_id.clone(), *role)),
+            _ => None,
+        };
+        self.match_state.apply_command(cmd)?;
+        if let Some((player_id, role)) = role_change {
+            self.intended_roles.insert(player_id, role);
+        }
+        Ok(())
     }
 
     /// The formation slot `player_id` fills in `side`'s eleven: entry i plays slot i.
@@ -394,25 +407,46 @@ impl LiveMatchSession {
             {
                 log::warn!("[live_match] change of shape: {player_id} is not in the match");
             }
-            let role = self
-                .match_state
-                .team(side)
-                .players
-                .iter()
-                .find(|p| p.id == player_id)
-                .map(|p| p.role);
-            if role.is_some_and(|role| !slot_admits_engine_role(&slot, role))
+        }
+    }
+
+    /// Apply the intended role only while the player's current slot admits it.
+    fn normalize_formation_roles(&mut self, side: Side) {
+        let team = self.match_state.team(side);
+        let roles: Vec<_> = team
+            .players
+            .iter()
+            .zip(formation_slots(&team.formation))
+            .map(|(player, slot)| {
+                let slot = if player.position == engine::Position::Goalkeeper {
+                    DomainPosition::Goalkeeper
+                } else {
+                    slot
+                };
+                let intended = self
+                    .intended_roles
+                    .get(&player.id)
+                    .copied()
+                    .unwrap_or(player.role);
+                let effective = if slot_admits_engine_role(&slot, intended) {
+                    intended
+                } else {
+                    engine::PlayerRole::Standard
+                };
+                (player.id.clone(), player.role, effective)
+            })
+            .collect();
+        for (player_id, current, effective) in roles {
+            if current != effective
                 && let Err(error) = self
                     .match_state
                     .apply_command(MatchCommand::ChangePlayerRole {
                         side,
                         player_id: player_id.clone(),
-                        role: engine::PlayerRole::Standard,
+                        role: effective,
                     })
             {
-                log::warn!(
-                    "[live_match] change of shape: {player_id} did not take Standard: {error}"
-                );
+                log::warn!("[live_match] formation role for {player_id} was refused: {error}");
             }
         }
     }
@@ -480,9 +514,13 @@ impl LiveMatchSession {
         match team.player_roles.get(player_id) {
             Some(role) => {
                 self.saved_roles.insert(player_id.to_string(), role.clone());
+                self.intended_roles
+                    .insert(player_id.to_string(), domain_to_engine_role(role));
             }
             None => {
                 self.saved_roles.remove(player_id);
+                self.intended_roles
+                    .insert(player_id.to_string(), engine::PlayerRole::Standard);
             }
         }
         let Some(slot) = self.slot_of(side, player_id) else {
@@ -582,7 +620,10 @@ impl LiveMatchSession {
     fn apply_ai_command(&mut self, side: Side, cmd: MatchCommand) {
         let formation_changed = matches!(cmd, MatchCommand::ChangeFormation { .. });
         match self.match_state.apply_command(cmd) {
-            Ok(()) if formation_changed => self.sync_slot_roles(side),
+            Ok(()) if formation_changed => {
+                self.sync_slot_roles(side);
+                self.normalize_formation_roles(side);
+            }
             Ok(()) => {}
             Err(error) => log::warn!("[live_match] AI command failed: {error}"),
         }
@@ -866,6 +907,13 @@ fn create_live_match_with(
     );
 
     let saved_roles = saved_roles_of(game, user_side, &home_team_id, &away_team_id);
+    let intended_roles = game
+        .teams
+        .iter()
+        .filter(|team| team.id == home_team_id || team.id == away_team_id)
+        .flat_map(|team| team.player_roles.iter())
+        .map(|(id, role)| (id.clone(), domain_to_engine_role(role)))
+        .collect();
 
     Ok(LiveMatchSession {
         match_state,
@@ -886,6 +934,7 @@ fn create_live_match_with(
         career_token: game.career_token,
         squad_players,
         saved_roles,
+        intended_roles,
     })
 }
 
@@ -1115,6 +1164,7 @@ mod tests {
         };
         assert_eq!(role(&session), engine::PlayerRole::AttackingFB);
         session.step();
+        assert_ne!(session.match_state.phase(), engine::MatchPhase::PreKickOff);
         session.apply_ai_command(
             Side::Away,
             MatchCommand::ChangeFormation {
@@ -1123,5 +1173,13 @@ mod tests {
             },
         );
         assert_eq!(role(&session), engine::PlayerRole::Standard);
+        session.apply_ai_command(
+            Side::Away,
+            MatchCommand::ChangeFormation {
+                side: Side::Away,
+                formation: "4-4-2".into(),
+            },
+        );
+        assert_eq!(role(&session), engine::PlayerRole::AttackingFB);
     }
 }
