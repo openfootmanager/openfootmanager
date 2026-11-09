@@ -17,6 +17,8 @@ const SOURCES = import.meta.glob(
  * dynamic property names, object mutation and indirect or external calls are not followed.
  * Direct parameter returns are call-sensitive; other helper returns are context-insensitive,
  * so a safe call may inherit taint from another call.
+ * Array destructuring, quoted destructuring properties, JSX props spreads and backend keys in
+ * resolver fallbacks are not tracked.
  * The two named adapters below are trusted to keep their separately tested fallback checks.
  */
 function scanSource(path: string, source: string): string[] {
@@ -89,6 +91,7 @@ function scanSource(path: string, source: string): string[] {
     if (
       ts.isParenthesizedExpression(node) ||
       ts.isAsExpression(node) ||
+      ts.isSatisfiesExpression(node) ||
       ts.isTypeAssertionExpression(node) ||
       ts.isNonNullExpression(node) ||
       ts.isJsxExpression(node)
@@ -142,6 +145,13 @@ function scanSource(path: string, source: string): string[] {
   while (previous !== tainted.size + returnsKey.size) {
     previous = tainted.size + returnsKey.size;
     walk(file, (node) => {
+      if (
+        ts.isParameter(node) &&
+        ts.isIdentifier(node.name) &&
+        node.initializer &&
+        containsKey(node.initializer)
+      )
+        mark(node.name);
       if (ts.isVariableDeclaration(node)) {
         if (ts.isIdentifier(node.name) && node.initializer && containsKey(node.initializer))
           mark(node.name);
@@ -244,6 +254,10 @@ function scanSource(path: string, source: string): string[] {
       containsKey(node.initializer)
     )
       results.push(node.getStart(file).toString());
+    if (ts.isShorthandPropertyAssignment(node) && node.name.text === "defaultValue") {
+      const symbol = checker.getShorthandAssignmentValueSymbol(node);
+      if (symbol && tainted.has(symbol)) results.push(node.getStart(file).toString());
+    }
     if (
       ts.isJsxAttribute(node) &&
       node.name.getText(file) === "i18nKey" &&
@@ -285,6 +299,28 @@ describe("backend key fields reach the player through the resolver", () => {
     ["template literal", "t(`" + "${" + "feedback.headline_key}`)", true],
     ["generic arrow before sink", "const id = <T>(x: T) => x; t(feedback.headline_key)", true],
     ["element access", "t(feedback['headline_key'])", true],
+    ["satisfies expression", "t(feedback.headline_key satisfies string)", true],
+    [
+      "shorthand default",
+      "const defaultValue = feedback.headline_key; t('label', { defaultValue })",
+      true,
+    ],
+    [
+      "helper parameter initializer",
+      "function render(key = feedback.headline_key) { return t(key); } render()",
+      true,
+    ],
+    ["literal satisfies expression", "t('common.cancel' satisfies string)", false],
+    [
+      "shorthand literal default",
+      "const defaultValue = 'Cancel'; t('label', { defaultValue })",
+      false,
+    ],
+    [
+      "literal parameter initializer",
+      "function render(key = 'common.cancel') { return t(key); } render()",
+      false,
+    ],
     ["indexed key array", "t([feedback.headline_key][0], feedback.params)", true],
     ["string indexed key array", "t([feedback.headline_key]['0'], feedback.params)", true],
     ["optional call", "t?.(feedback.headline_key)", true],
