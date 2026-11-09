@@ -2410,6 +2410,114 @@ mod tests {
         );
     }
 
+    fn forward_waiting_on_bench_but_saved_at_left_back() -> (StateManager, String) {
+        let state = StateManager::new();
+        let forward = forward_swapped_into_left_back(&state);
+        let left_back = state
+            .with_live_match(|session| {
+                session
+                    .snapshot()
+                    .home_bench
+                    .iter()
+                    .find(|p| p.position == engine::Position::Defender)
+                    .unwrap()
+                    .id
+                    .clone()
+            })
+            .unwrap();
+        state
+            .update_game(|game| {
+                game.teams[0].starting_xi_ids.resize(11, String::new());
+                game.teams[0].starting_xi_ids[1] = forward.clone();
+            })
+            .unwrap();
+        crate::application::live_match::apply_match_command(
+            &state,
+            ofm_core::state::Career::Active,
+            engine::MatchCommand::PreMatchSwap {
+                side: engine::Side::Home,
+                player_off_id: forward.clone(),
+                player_on_id: left_back,
+            },
+        )
+        .unwrap();
+        (state, forward)
+    }
+
+    /// Given a forward saved at left-back but on the waiting bench, when Poacher is saved,
+    /// then his natural position admits it and the saved and waiting roles both change.
+    #[test]
+    fn a_waiting_bench_players_natural_role_can_be_saved() {
+        let (state, forward) = forward_waiting_on_bench_but_saved_at_left_back();
+        crate::commands::squad::set_player_role_internal(
+            &state,
+            ofm_core::state::Career::Active,
+            forward.clone(),
+            Some("Poacher".into()),
+        )
+        .unwrap();
+        assert_eq!(
+            state
+                .get_game(|game| game.teams[0].player_roles.get(&forward).cloned())
+                .unwrap(),
+            Some(domain::team::PlayerRole::Poacher)
+        );
+        assert_eq!(
+            state
+                .with_live_match(|session| session
+                    .snapshot()
+                    .home_bench
+                    .iter()
+                    .find(|p| p.id == forward)
+                    .unwrap()
+                    .role)
+                .unwrap(),
+            engine::PlayerRole::Poacher
+        );
+    }
+
+    /// Given a benched forward who is saved at left-back and plays Poacher, when AttackingFB is
+    /// saved, then it is refused and both the saved and waiting roles remain Poacher.
+    #[test]
+    fn a_waiting_bench_player_refuses_a_role_his_natural_position_rejects() {
+        let (state, forward) = forward_waiting_on_bench_but_saved_at_left_back();
+        crate::commands::squad::set_player_role_internal(
+            &state,
+            ofm_core::state::Career::Active,
+            forward.clone(),
+            Some("Poacher".into()),
+        )
+        .unwrap();
+        let refused = crate::commands::squad::set_player_role_internal(
+            &state,
+            ofm_core::state::Career::Active,
+            forward.clone(),
+            Some("AttackingFB".into()),
+        );
+        assert_eq!(
+            refused.err().as_deref(),
+            Some("be.error.roleNotValidForPosition")
+        );
+        assert_eq!(
+            state
+                .get_game(|game| game.teams[0].player_roles.get(&forward).cloned())
+                .unwrap(),
+            Some(domain::team::PlayerRole::Poacher)
+        );
+        assert_eq!(
+            state
+                .with_live_match(|session| session
+                    .snapshot()
+                    .home_bench
+                    .iter()
+                    .find(|p| p.id == forward)
+                    .unwrap()
+                    .role)
+                .unwrap(),
+            engine::PlayerRole::Poacher
+        );
+    }
+
     /// Given the same swapped-in forward, in a match that belongs to another career than the
     /// game now open (the game was swapped for another while the match waited),
     /// When the user saves him as an Attacking Full-Back,

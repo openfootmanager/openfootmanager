@@ -527,6 +527,56 @@ mod emergency_keeper_tests {
         }
     }
 
+    /// Given a replacement keeper standing in an outfield index, when another keeper replaces
+    /// him, then the destination admits goalkeeper roles rather than defender roles.
+    #[test]
+    fn a_second_replacement_goalkeeper_keeps_his_goalkeeper_role() {
+        let first = player("h_sub_gk1", Position::Goalkeeper);
+        let mut second = player("h_sub_gk2", Position::Goalkeeper);
+        second.role = PlayerRole::SweeperKeeper;
+        let mut state = LiveMatchState::new(
+            side("h"),
+            side("a"),
+            MatchConfig::default(),
+            vec![first, second],
+            vec![],
+            false,
+        );
+        state.set_slot_roles(
+            Side::Home,
+            vec![
+                vec![PlayerRole::Standard, PlayerRole::SweeperKeeper],
+                vec![PlayerRole::Standard],
+                vec![PlayerRole::Standard],
+            ],
+        );
+        state.test_send_off("h_gk");
+        state
+            .apply_command(crate::live_match::MatchCommand::Substitute {
+                side: Side::Home,
+                player_off_id: "h_d1".into(),
+                player_on_id: "h_sub_gk1".into(),
+            })
+            .unwrap();
+        state
+            .apply_command(crate::live_match::MatchCommand::Substitute {
+                side: Side::Home,
+                player_off_id: "h_sub_gk1".into(),
+                player_on_id: "h_sub_gk2".into(),
+            })
+            .unwrap();
+        assert_eq!(
+            state
+                .team(Side::Home)
+                .players
+                .iter()
+                .find(|p| p.id == "h_sub_gk2")
+                .unwrap()
+                .role,
+            PlayerRole::SweeperKeeper
+        );
+    }
+
     /// Given a live match whose home goalkeeper has been sent off, the rest of the side
     /// defenders who are half the player in goal,
     /// When a shot or a penalty asks for the home goalkeeper,

@@ -845,6 +845,22 @@ pub(crate) fn domain_to_engine_tactics(t: &domain::team::TacticsPhaseSettings) -
 /// moves players' fitness (training, condition, recovery) changes.
 const CLUB_MATCH_MEAN_INJURY_MULTIPLIER: f64 = 1.1384;
 
+fn admitted_engine_roles(position: &DomainPosition) -> impl Iterator<Item = EnginePlayerRole> + '_ {
+    position.valid_roles().iter().map(domain_to_engine_role)
+}
+
+/// Check an engine role against the domain position at the bridge.
+pub(crate) fn slot_admits_engine_role(position: &DomainPosition, role: EnginePlayerRole) -> bool {
+    admitted_engine_roles(position).any(|candidate| candidate == role)
+}
+
+pub(crate) fn admitted_roles_for_formation(formation: &str) -> Vec<Vec<EnginePlayerRole>> {
+    formation_slots(formation)
+        .iter()
+        .map(|slot| admitted_engine_roles(slot).collect())
+        .collect()
+}
+
 /// The engine line a position plays in.
 pub(crate) fn engine_line(position: &DomainPosition) -> Position {
     match position.to_group_position() {
