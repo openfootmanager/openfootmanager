@@ -529,3 +529,25 @@ fn known_bug_the_live_game_leaves_fixtures_scheduled_in_the_past() {
         "a reload played out {stranded} fixtures left scheduled in the past"
     );
 }
+
+/// Given the archived editions of a season,
+/// When one edition's final table is reversed,
+/// Then the comparison sees it: the order of `standings` is the table, and the archives are only
+///      sorted at the level of their records. (A mutant of the comparison, not of the game.)
+#[test]
+fn a_reversed_archived_table_is_a_difference() {
+    let archive = &rolled_over().edition_archive;
+    let mut changed = archive.clone();
+    let edition = changed
+        .iter_mut()
+        .find(|edition| edition.standings.len() > 1)
+        .expect("an archived edition has a table");
+    edition.standings.reverse();
+
+    let found = differences(
+        &records_in_a_fixed_order(&serde_json::to_value(archive).unwrap()),
+        &records_in_a_fixed_order(&serde_json::to_value(&changed).unwrap()),
+    );
+
+    assert!(!found.is_empty(), "a reversed final table compared equal");
+}
