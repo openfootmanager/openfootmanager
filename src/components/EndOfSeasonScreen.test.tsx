@@ -20,7 +20,7 @@ vi.mock("react-i18next", () => ({
     t: (key: string, params?: Record<string, string | number>) => {
       if (locale.language === "fr" && key.startsWith("common.ordinal.place.")) {
         const forms: Record<string, string> = french.common.ordinal.place;
-        return (forms[key.split(".").at(-1) ?? ""] ?? key).replace("{{n}}", String(params?.n));
+        return (forms[key.slice(key.lastIndexOf(".") + 1)] ?? key).replace("{{n}}", String(params?.n));
       }
       if (locale.language === "ru" && key.startsWith("common.ordinal.")) {
         return `${params?.n}-${key.includes(".place.") ? "е" : "й"}`;
