@@ -102,22 +102,24 @@ describe("flow 2: a tactics edit, then the match", () => {
     const line = await ownSideLine();
     await line.waitForDisplayed({ timeout: 30_000 });
     let shown = "";
-    await browser.waitUntil(
-      async () => {
-        shown = await textOf(line);
-        const lower = shown.toLowerCase();
-        return (
-          lower.includes(edit.formation.toLowerCase()) &&
-          lower.includes(edit.playStyle.toLowerCase())
-        );
-      },
-      {
-        timeout: 10_000,
-        timeoutMsg: `the player's side never showed ${edit.formation} and ${edit.playStyle}`,
-      },
-    ).catch((error) => {
-      throw new Error(`${error.message}; it shows "${shown}"`);
-    });
+    await browser
+      .waitUntil(
+        async () => {
+          shown = await textOf(line);
+          const lower = shown.toLowerCase();
+          return (
+            lower.includes(edit.formation.toLowerCase()) &&
+            lower.includes(edit.playStyle.toLowerCase())
+          );
+        },
+        {
+          timeout: 10_000,
+          timeoutMsg: `the player's side never showed ${edit.formation} and ${edit.playStyle}`,
+        },
+      )
+      .catch((error) => {
+        throw new Error(`${error.message}; it shows "${shown}"`);
+      });
   });
 
   it("starts the match, and it goes live", async () => {
