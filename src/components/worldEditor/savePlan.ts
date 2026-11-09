@@ -1,25 +1,7 @@
-import type {
-  CompetitionDef,
-  ConfederationDef,
-  CountryDef,
-  NamesDefinition,
-  PlayerDef,
-  StaffDef,
-  TeamDef,
-  WorldMetaDef,
-} from "../menu/PackageEditor/types";
+import type { PackageCollections } from "../../store/packageEditorTypes";
 
 /** The eight collections of an open project, as the editor holds them. */
-export interface EditorCollections {
-  meta: WorldMetaDef;
-  confederations: ConfederationDef[];
-  countries: CountryDef[];
-  teams: TeamDef[];
-  players: PlayerDef[];
-  staff: StaffDef[];
-  names: NamesDefinition;
-  competitions: CompetitionDef[];
-}
+export type EditorCollections = PackageCollections;
 
 export type CollectionKey = keyof EditorCollections;
 

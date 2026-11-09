@@ -69,27 +69,17 @@ describe("validatePackageProject", () => {
   });
 
   /**
-   * Given a save request typed against the caller's collections
+   * Given the save request is typed against the package's real collections
    * When a collection has the wrong type or a key does not exist
-   * Then it does not compile: the request is a typed DTO, not a bag of unknowns
+   * Then it does not compile: the request is a typed DTO, whatever the caller names
    */
   it("rejects a collection of the wrong type and an unknown collection at compile time", () => {
-    interface Shape {
-      meta: { id: string };
-      confederations: string[];
-      countries: string[];
-      teams: { id: string }[];
-      players: string[];
-      staff: string[];
-      names: string[];
-      competitions: string[];
-    }
     const neverCalled = () => {
       // @ts-expect-error teams is a list of clubs, not a number
-      void savePackageProject<Shape>({ dir: "/p", collections: { teams: 42 } });
+      void savePackageProject({ dir: "/p", collections: { teams: 42 } });
       // @ts-expect-error there is no `team` collection
-      void savePackageProject<Shape>({ dir: "/p", collections: { team: [] } });
-      void savePackageProject<Shape>({ dir: "/p", collections: { teams: [{ id: "fc-a" }] } });
+      void savePackageProject({ dir: "/p", collections: { team: [] } });
+      void savePackageProject({ dir: "/p", collections: { teams: [] } });
     };
     expect(typeof neverCalled).toBe("function");
   });

@@ -157,7 +157,7 @@ export default function WorldEditor() {
   if (saveSessionRef.current === null) {
     saveSessionRef.current = createSaveSession({
       current: () => stateRef.current,
-      send: (dir, collections) => savePackageProject<EditorCollections>({ dir, collections }),
+      send: (dir, collections) => savePackageProject({ dir, collections }),
       onChange: setAcknowledged,
     });
   }
@@ -342,7 +342,7 @@ export default function WorldEditor() {
     try {
       const dir = await invoke<string>("create_world_project", { slug: newMeta.id, meta: newMeta });
       if (sample) {
-        await savePackageProject<EditorCollections>({
+        await savePackageProject({
           dir,
           collections: {
             meta: newMeta,
