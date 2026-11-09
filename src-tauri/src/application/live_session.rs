@@ -16,6 +16,7 @@ use std::sync::{Mutex, MutexGuard};
 
 #[cfg(test)]
 thread_local! {
+    pub(crate) static ROLE_INITIAL_SNAPSHOTS: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
     pub(crate) static ROLE_HANDOFF_PROJECTIONS: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
 }
 
@@ -52,26 +53,52 @@ pub(crate) fn player_role_operation<T>(
         return write();
     }
     let before = state.get_game(|game| {
-        game.teams
+        #[cfg(test)]
+        ROLE_INITIAL_SNAPSHOTS.with(|count| count.set(count.get() + 1));
+        let team_id = game
+            .players
+            .iter()
+            .find(|player| player.id == player_id)
+            .and_then(|player| player.team_id.clone());
+        let roles = game
+            .teams
             .iter()
             .filter_map(|team| {
                 team.player_roles
                     .get(player_id)
                     .map(|role| (team.id.clone(), role.clone()))
             })
-            .collect::<std::collections::HashMap<_, _>>()
+            .collect::<std::collections::HashMap<_, _>>();
+        (team_id, roles)
     });
     let result = write()?;
     let projection = state.get_game(|game| {
-        let changed = game
+        let mut changed = game
             .teams
             .iter()
             .filter(|team| {
-                before.as_ref().and_then(|roles| roles.get(&team.id))
+                before.as_ref().and_then(|(_, roles)| roles.get(&team.id))
                     != team.player_roles.get(player_id)
             })
             .map(|team| (team.id.clone(), team.player_roles.get(player_id).cloned()))
             .collect::<Vec<_>>();
+        let current_team = game
+            .players
+            .iter()
+            .find(|player| player.id == player_id)
+            .and_then(|player| player.team_id.as_ref());
+        if let Some(old_team) = before
+            .as_ref()
+            .and_then(|(team, _)| team.as_ref())
+            .filter(|team| {
+                current_team != Some(*team)
+                    && !changed
+                        .iter()
+                        .any(|(changed_team, _)| changed_team == *team)
+            })
+        {
+            changed.push((old_team.clone(), None));
+        }
         #[cfg(test)]
         ROLE_HANDOFF_PROJECTIONS.with(|count| count.set(count.get() + 1));
         (game.career_token, changed)
