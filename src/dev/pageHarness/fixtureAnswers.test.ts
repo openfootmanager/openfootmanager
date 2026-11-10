@@ -239,4 +239,15 @@ describe("fixture answers: the profile's knowledge of players", () => {
     const { playerId } = profileCase("retired");
     expect(profileHandlers("retired").get_player_knowledge({ playerIds: [playerId] })).toEqual({});
   });
+
+  /**
+   * Given the own player's profile asking for his last three matches
+   * When the match history is answered
+   * Then it is the three most recent of the five he has, as the page's `limit` asks for
+   */
+  it("answers the match history up to the limit the page asked for", () => {
+    const { playerId, recentMatches } = profileCase("own");
+    const answer = profileHandlers("own").get_player_match_history({ playerId, limit: 3 });
+    expect(answer).toEqual(recentMatches.slice(0, 3));
+  });
 });

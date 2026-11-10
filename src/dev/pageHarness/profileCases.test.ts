@@ -38,6 +38,24 @@ describe("the player profile's cases", () => {
   });
 
   /**
+   * Given the club's own player, and each other state
+   * When their cases are built
+   * Then only the own player has played: five matches (a trend needs two) against rival clubs and
+   *      season totals above zero, so the layout check measures the populated sections; the others
+   *      show the empty ones
+   */
+  it("gives the own player a season to measure, and the others none", () => {
+    const own = profileCase("own");
+    expect(own.recentMatches).toHaveLength(5);
+    expect(own.recentMatches.every((match) => match.opponent_team_id !== USER_CLUB)).toBe(true);
+    expect(own.seasonStats.metrics.shots.total).toBeGreaterThan(0);
+    for (const variant of HARNESS_PROFILES.filter((variant) => variant !== "own")) {
+      expect(profileCase(variant).recentMatches).toEqual([]);
+      expect(profileCase(variant).seasonStats.metrics.shots.total).toBe(0);
+    }
+  });
+
+  /**
    * Given a player at another club of the user's division
    * When his case is built
    * Then he is known (live), his wage is hidden ("a known rival's wage is his club's business"),

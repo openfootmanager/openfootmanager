@@ -118,6 +118,8 @@ const KNOWLEDGE_SHOWS: Record<HarnessProfile, (view: ReturnType<typeof within>) 
     }
     for (const row of rowsLabelled(view, "Weekly Wage")) expect(row).toMatch(/€[\d,]+\/wk/);
     expect(view.queryByText("Attributes Hidden")).toBeNull();
+    // He has played: his matches are listed (the others' lists are empty).
+    expect(view.getAllByText(profileCase("own").recentMatches[0].opponent_name).length).toBeGreaterThan(0);
   },
   // A division rival: his attributes are known, his condition, morale and wage are not.
   rival: (view) => {
@@ -166,8 +168,11 @@ describe("the player profile's states", () => {
 
       const { playerId, retiredPlayer } = profileCase(variant);
       const player = retiredPlayer ?? gameState.players.find((p) => p.id === playerId);
+      // A case whose player is nowhere would fall back to the Players tab and match any text.
+      const fullName = player?.full_name ?? "";
+      expect(fullName).not.toBe("");
       expect(root.querySelector('[role="alert"]')).toBeNull();
-      expect(within(root).getAllByText(player?.full_name ?? "").length).toBeGreaterThan(0);
+      expect(within(root).getAllByText(fullName).length).toBeGreaterThan(0);
       expect(window.__pageHarness?.unanswered).toEqual([]);
       KNOWLEDGE_SHOWS[variant](within(root));
     },
