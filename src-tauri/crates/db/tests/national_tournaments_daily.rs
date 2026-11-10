@@ -140,7 +140,36 @@ fn play_tournament_on_its_days(active: bool, live_day: bool) {
         } else {
             ofm_core::turn::process_day(&mut game);
         }
+        let completed_day = snapshot(&game);
+        let player_and_world_state =
+            serde_json::to_value((&game.players, &game.world_history)).unwrap();
+        assert_eq!(
+            ofm_core::national_tournament::process_fixtures_due(&mut game, &today),
+            0,
+            "repeating a processed date must not play a completed fixture"
+        );
+        assert_eq!(snapshot(&game), completed_day);
+        assert_eq!(
+            serde_json::to_value((&game.players, &game.world_history)).unwrap(),
+            player_and_world_state,
+            "a repeated date must apply no second wear or ranking change"
+        );
         let cup = &game.competitions[0];
+        for fixture in &cup.fixtures {
+            if fixture.date > today {
+                assert_eq!(
+                    fixture.status,
+                    FixtureStatus::Scheduled,
+                    "future matches must wait for their date"
+                );
+            }
+            if fixture.status == FixtureStatus::Completed {
+                assert!(
+                    fixture.date <= today,
+                    "a completed match cannot be dated in the future"
+                );
+            }
+        }
         for id in due {
             let fixture = cup.fixtures.iter().find(|f| f.id == id).unwrap();
             assert_eq!(
@@ -214,6 +243,16 @@ fn play_tournament_on_its_days(active: bool, live_day: bool) {
             .sum::<u32>(),
         24,
         "every group result is recorded once"
+    );
+    let group_rows: Vec<_> = cup
+        .groups
+        .iter()
+        .flat_map(|group| &group.standings)
+        .collect();
+    assert_eq!(group_rows.len(), 8);
+    assert!(
+        group_rows.iter().all(|row| row.played == 3),
+        "each nation must receive its three group results exactly once"
     );
     assert_eq!(cup.knockout_rounds.len(), 2);
     assert!(cup.knockout_rounds.iter().all(|round| round.completed));
@@ -298,4 +337,27 @@ fn a_legacy_continental_save_is_repaired_with_national_carry_back() {
         "continental load repair must apply national-player wear"
     );
     assert_fresh_load_keeps_tournament(&loaded);
+}
+
+/// Given an authored continental national tournament using a plain league table,
+/// When its match plays, then the same national match path records the result in both table rows.
+#[test]
+fn a_continental_national_league_table_records_each_result() {
+    use domain::league::{Fixture, FixtureCompetition, League};
+    let mut game = tournament_game(false);
+    let ids: Vec<_> = game.national_teams.iter().take(2).map(|team| team.id.clone()).collect();
+    let mut table = League::new("continental-table".into(), "Continental table".into(), 2033, &ids);
+    table.kind = CompetitionType::InternationalNation;
+    table.scope = CompetitionScope::Continental;
+    table.fixtures.push(Fixture {
+        id: "continental-table-match".into(), competition_id: table.id.clone(),
+        date: "2033-02-01".into(), home_team_id: ids[0].clone(), away_team_id: ids[1].clone(),
+        competition: FixtureCompetition::InternationalNation, ..Default::default()
+    });
+    game.competitions = vec![table];
+    assert_eq!(ofm_core::national_tournament::process_fixtures_due(&mut game, "2033-02-01"), 1);
+    let table = &game.competitions[0];
+    assert_eq!(table.fixtures[0].status, FixtureStatus::Completed);
+    assert_eq!(table.standings.len(), 2);
+    assert!(table.standings.iter().all(|row| row.played == 1), "both nations must receive their league-table result");
 }
