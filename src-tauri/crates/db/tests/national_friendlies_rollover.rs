@@ -242,22 +242,42 @@ fn a_postponed_friendly_still_fills_its_original_window() {
     assert_eq!(friendlies(&game)[0].id, identity);
 }
 
-/// Given a legacy past friendly at the end of a live match day,
-/// When the remaining calendar is settled, then it moves to a day still playable rather than today.
+/// Given a June 9 friendly overdue after its called-up players finished a June 10 club match,
+/// When the live day finishes, then the friendly waits until June 13 or later and plays once.
 #[test]
 fn an_overdue_friendly_moves_to_a_day_the_live_loop_can_still_play() {
     let mut game = spring_career();
-    game.competitions.clear();
-    game.league = None;
+    game.competitions[0].fixtures = vec![Fixture {
+        id: "completed-club-match".into(),
+        competition_id: game.competitions[0].id.clone(),
+        date: "2031-06-10".into(),
+        home_team_id: "club-a".into(),
+        away_team_id: "club-b".into(),
+        status: FixtureStatus::Completed,
+        result: Some(MatchResult {
+            home_goals: 3,
+            away_goals: 1,
+            ..Default::default()
+        }),
+        ..Default::default()
+    }];
+    game.sync_legacy_league();
     game.clock.current_date = Utc.with_ymd_and_hms(2031, 6, 10, 12, 0, 0).unwrap();
     ofm_core::turn::finish_live_match_day(&mut game);
     assert_eq!(friendlies(&game).len(), 1);
-    let today = game.clock.current_date.format("%Y-%m-%d").to_string();
+    let friendly_day = friendlies(&game)[0].date.clone();
     assert!(
-        friendlies(&game)[0].date >= today,
-        "the re-dated friendly must remain playable after the clock advances"
+        friendly_day.as_str() >= "2031-06-13",
+        "called-up players need three days after their completed club match, got {friendly_day}"
     );
-    ofm_core::turn::process_day(&mut game);
+    assert_eq!(game.competitions[0].fixtures[0].date, "2031-06-10");
+    assert_eq!(
+        game.competitions[0].fixtures[0].status,
+        FixtureStatus::Completed
+    );
+    while game.clock.current_date.format("%Y-%m-%d").to_string() <= friendly_day {
+        ofm_core::turn::process_day(&mut game);
+    }
     assert_eq!(friendlies(&game)[0].status, FixtureStatus::Completed);
     assert_eq!(ofm_core::catchup::repair_stranded_fixtures(&mut game), 0);
 }
