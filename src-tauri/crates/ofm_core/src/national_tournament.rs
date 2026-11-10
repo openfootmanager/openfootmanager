@@ -1,7 +1,7 @@
 //! The match-day path for every national tournament, independent of scope and region.
 
 use crate::{game::Game, national_team, world_cup};
-use domain::league::{CompetitionType, FixtureStatus, League, MatchResult};
+use domain::league::{CompetitionFormat, CompetitionType, FixtureStatus, League, MatchResult};
 
 /// Play national tournaments due today, including those outside the user's active simulation scope.
 pub fn process_fixtures_due(game: &mut Game, today: &str) -> usize {
@@ -76,6 +76,18 @@ fn play_fixture(game: &mut Game, competition_index: usize, fixture_index: usize,
     let fixture = &mut competition.fixtures[fixture_index];
     fixture.status = FixtureStatus::Completed;
     fixture.result = Some(result);
+    if !is_knockout
+        && competition.groups.is_empty()
+        && competition.rules.format == CompetitionFormat::LeagueTable
+    {
+        crate::competition_results::record_result(
+            &mut competition.standings,
+            &home,
+            &away,
+            home_goals,
+            away_goals,
+        );
+    }
     crate::group_stage::process_completed_fixture(competition, fixture_index);
     if !world_cup::advance_special_round(competition) {
         crate::schedule::advance_knockout_competition_round(competition);

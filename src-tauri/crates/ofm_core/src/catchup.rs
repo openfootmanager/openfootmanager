@@ -1029,8 +1029,7 @@ mod tests {
     /// Given a national-team competition a package authored at continental scope, with one tie
     ///       stranded in June while the clock reads December
     /// When stranded fixtures are repaired
-    /// Then the tie is resolved: the World Cup's processors serve international scope only, so
-    ///      this one is the fallback sweep's to settle, or nobody's
+    /// Then the shared national-tournament processor resolves the tie regardless of scope
     #[test]
     fn repairs_a_stranded_fixture_in_a_continental_national_team_competition() {
         let mut game = game_with_two_national_squads("2030-12-01");

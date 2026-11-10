@@ -345,19 +345,39 @@ fn a_legacy_continental_save_is_repaired_with_national_carry_back() {
 fn a_continental_national_league_table_records_each_result() {
     use domain::league::{Fixture, FixtureCompetition, League};
     let mut game = tournament_game(false);
-    let ids: Vec<_> = game.national_teams.iter().take(2).map(|team| team.id.clone()).collect();
-    let mut table = League::new("continental-table".into(), "Continental table".into(), 2033, &ids);
+    let ids: Vec<_> = game
+        .national_teams
+        .iter()
+        .take(2)
+        .map(|team| team.id.clone())
+        .collect();
+    let mut table = League::new(
+        "continental-table".into(),
+        "Continental table".into(),
+        2033,
+        &ids,
+    );
     table.kind = CompetitionType::InternationalNation;
     table.scope = CompetitionScope::Continental;
     table.fixtures.push(Fixture {
-        id: "continental-table-match".into(), competition_id: table.id.clone(),
-        date: "2033-02-01".into(), home_team_id: ids[0].clone(), away_team_id: ids[1].clone(),
-        competition: FixtureCompetition::InternationalNation, ..Default::default()
+        id: "continental-table-match".into(),
+        competition_id: table.id.clone(),
+        date: "2033-02-01".into(),
+        home_team_id: ids[0].clone(),
+        away_team_id: ids[1].clone(),
+        competition: FixtureCompetition::InternationalNation,
+        ..Default::default()
     });
     game.competitions = vec![table];
-    assert_eq!(ofm_core::national_tournament::process_fixtures_due(&mut game, "2033-02-01"), 1);
+    assert_eq!(
+        ofm_core::national_tournament::process_fixtures_due(&mut game, "2033-02-01"),
+        1
+    );
     let table = &game.competitions[0];
     assert_eq!(table.fixtures[0].status, FixtureStatus::Completed);
     assert_eq!(table.standings.len(), 2);
-    assert!(table.standings.iter().all(|row| row.played == 1), "both nations must receive their league-table result");
+    assert!(
+        table.standings.iter().all(|row| row.played == 1),
+        "both nations must receive their league-table result"
+    );
 }
