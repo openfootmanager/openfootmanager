@@ -299,11 +299,20 @@ fn a_notable_player_hurt_in_training_in_another_league_stays_out_of_the_news() {
 /// records it, the world's competitions as listed, and the `game.league` mirror synced as the game
 /// syncs it (with no club, it falls back to the first competition listed).
 fn sacked_manager(seed: u64, last_club: Option<&str>) -> Game {
+    sacked_manager_in(
+        seed,
+        last_club,
+        vec![
+            division("first", &["team0"]),
+            division("second", &["team1"]),
+        ],
+    )
+}
+
+/// [`sacked_manager`] with the world's competitions as given.
+fn sacked_manager_in(seed: u64, last_club: Option<&str>, divisions: Vec<League>) -> Game {
     let mut game = two_clubs_of_unfit_players(seed);
-    game.competitions = vec![
-        division("first", &["team0"]),
-        division("second", &["team1"]),
-    ];
+    game.competitions = divisions;
     if let Some(club) = last_club {
         game.manager
             .career_history
@@ -348,6 +357,35 @@ fn a_sacked_manager_gets_news_from_his_last_clubs_league() {
         assert!(
             injury_story(game, "q1").is_some(),
             "seed {}: his last club's league injury was left out",
+            game.seed
+        );
+    }
+}
+
+/// Given a manager sacked from Test FC (team1), whose league is listed second and also holds Other
+///      Town (team0), a club he never managed; the first listed league belongs to a third club
+/// When q1, at Other Town, is hurt in training
+/// Then the news reports it: he follows the league of his last club, which Other Town is in. The
+///      injury is at a different club from his last, so the story depends on the league lookup
+///      (the game.league mirror falls back to the first competition listed)
+#[test]
+fn a_sacked_manager_gets_news_from_another_club_in_his_last_clubs_league() {
+    let days = days_q1_was_hurt(|seed| {
+        sacked_manager_in(
+            seed,
+            Some("team1"),
+            vec![
+                division("first", &["team9"]),
+                division("second", &["team1", "team0"]),
+            ],
+        )
+    });
+
+    assert!(!days.is_empty(), "q1 never hurt in {SEEDS} seeds");
+    for game in &days {
+        assert!(
+            injury_story(game, "q1").is_some(),
+            "seed {}: another club of his last club's league was left out",
             game.seed
         );
     }
