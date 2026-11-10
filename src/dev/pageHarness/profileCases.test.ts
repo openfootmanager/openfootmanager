@@ -65,9 +65,10 @@ describe("the player profile's cases", () => {
     const scouted = profileCase("scouted");
     const player = playerOf(scouted.playerId);
 
-    expect(scouted.knowledge.kind).toBe("scouted");
-    const scoutedOn = scouted.knowledge.kind === "scouted" ? scouted.knowledge.scouted_on : "";
-    expect(scouted.scoutedReport).toMatchObject({ player_id: scouted.playerId, scouted_on: scoutedOn });
+    const scoutedOn = scouted.scoutedReport?.scouted_on;
+    expect(scoutedOn).toBeDefined();
+    expect(scouted.knowledge).toMatchObject({ kind: "scouted", scouted_on: scoutedOn });
+    expect(scouted.scoutedReport).toMatchObject({ player_id: scouted.playerId });
     expect(scouted.opinion?.source).toMatchObject({ kind: "scout", scouted_on: scoutedOn });
     expect(scouted.wage).toEqual({
       kind: "approximate",

@@ -118,7 +118,7 @@ describe("the player profile's states", () => {
       const { playerId, retiredPlayer } = profileCase(variant);
       const player = retiredPlayer ?? gameState.players.find((p) => p.id === playerId);
       expect(root.querySelector('[role="alert"]')).toBeNull();
-      expect(within(root).getAllByText(player?.match_name ?? "").length).toBeGreaterThan(0);
+      expect(within(root).getAllByText(player?.full_name ?? "").length).toBeGreaterThan(0);
       expect(window.__pageHarness?.unanswered).toEqual([]);
     },
     15_000,

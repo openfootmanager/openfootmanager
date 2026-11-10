@@ -2,7 +2,9 @@ import type { SupportedLanguageCode } from "../../i18n";
 import type { SettingsResponse } from "../../store/settingsStore";
 import type { StyleGuideOptions } from "../styleGuide/styleGuideOptions";
 import * as fixture from "./fixture.generated";
+import type { HarnessProfile } from "./harnessPage";
 import { type CommandHandlers, UNANSWERED } from "./harnessIpc";
+import { profileCase } from "./profileCases";
 
 /** The fixture holds one club, the user's: anything asked about another club is declined. */
 const USER_CLUB = fixture.gameState.manager.team_id;
@@ -47,6 +49,45 @@ export function harnessSettings(
   };
 }
 
+/** The shape of a player's season totals before he has played a minute. */
+const NO_SEASON_YET = {
+  percentileEligible: false,
+  peerGroup: null,
+  seasonRatingRated: false,
+  metrics: {
+    shots: { total: 0, per90: null, percentile: null },
+    shotsOnTarget: { total: 0, per90: null, percentile: null },
+    passes: { completed: 0, attempted: 0, accuracy: null, percentile: null },
+    tacklesWon: { total: 0, per90: null, percentile: null },
+    interceptions: { total: 0, per90: null, percentile: null },
+    foulsCommitted: { total: 0, per90: null, percentile: null },
+  },
+};
+
+/**
+ * What a player's profile asks the backend about him, answered for the one player the harness opened
+ * it on and only for him: the knowledge rule's answers (`profileCase`), and an empty season.
+ */
+function profileHandlers(profile: HarnessProfile): CommandHandlers {
+  const answer = profileCase(profile);
+  const about = (playerId: unknown, value: unknown) =>
+    playerId === answer.playerId ? value : UNANSWERED;
+  return {
+    // An id no player has is left out of the answer, as in Rust.
+    get_player_knowledge: ({ playerIds }) =>
+      Array.isArray(playerIds) && playerIds.includes(answer.playerId) && answer.knowledge
+        ? { [answer.playerId]: answer.knowledge }
+        : {},
+    get_visible_wage: ({ playerId }) => about(playerId, answer.wage),
+    get_potential_opinion: ({ playerId }) => about(playerId, answer.opinion),
+    get_position_ratings: ({ playerId }) => about(playerId, answer.positionRatings),
+    get_scouted_report: ({ playerId }) => about(playerId, answer.scoutedReport),
+    get_retired_player: ({ playerId }) => about(playerId, answer.retiredPlayer),
+    get_player_stats_overview: ({ playerId }) => about(playerId, NO_SEASON_YET),
+    get_player_match_history: ({ playerId }) => about(playerId, []),
+  };
+}
+
 /**
  * The answers to every command the dashboard shell and each harness page ask for on mount, from
  * the generated career. A page that needs another one shows it in the harness's unanswered list.
@@ -54,8 +95,10 @@ export function harnessSettings(
 export function fixtureHandlers(
   options: StyleGuideOptions,
   language: SupportedLanguageCode,
+  profile: HarnessProfile | null = null,
 ): CommandHandlers {
   return {
+    ...(profile ? profileHandlers(profile) : {}),
     get_settings: () => harnessSettings(options, language),
     get_active_game: () => fixture.gameState,
     get_active_save_id: () => "page-harness",

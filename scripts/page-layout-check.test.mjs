@@ -264,7 +264,11 @@ describe("page layout check", () => {
     );
     const profiles = HARNESS_PROFILES.map(() => "profile");
     expect(worst.map((c) => c.page ?? "style guide").sort()).toEqual(
-      [...Object.keys(HARNESS_PAGES).filter((page) => page !== "profile"), ...profiles, "style guide"].sort(),
+      [
+        ...Object.keys(HARNESS_PAGES).filter((page) => page !== "profile"),
+        ...profiles,
+        "style guide",
+      ].sort(),
     );
   });
 
