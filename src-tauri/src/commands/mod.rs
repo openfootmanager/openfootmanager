@@ -25,6 +25,7 @@ pub mod time;
 pub mod transfers;
 pub mod util;
 pub mod world;
+pub mod world_library;
 
 pub use club::*;
 pub use contracts::*;
