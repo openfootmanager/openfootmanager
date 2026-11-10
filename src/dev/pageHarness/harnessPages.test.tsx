@@ -5,7 +5,9 @@ import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { i18nReady } from "../../i18n";
 import { useGameStore } from "../../store/gameStore";
 import { readStyleGuideOptions } from "../styleGuide/styleGuideOptions";
-import { HARNESS_PAGES, type HarnessPage } from "./harnessPage";
+import { gameState } from "./fixture.generated";
+import { HARNESS_PAGES, HARNESS_PROFILES, type HarnessPage } from "./harnessPage";
+import { profileCase } from "./profileCases";
 import { mountPageHarness } from "./mount";
 
 /** Long enough for the dashboard and the page to ask for everything they ask for on mount. */
@@ -43,6 +45,8 @@ const PAGE_CONTENT: Record<HarnessPage, (view: ReturnType<typeof within>) => voi
   // so counting them would pass on the wrong page.
   staff: (view) =>
     expect(view.getByRole("table", { name: /^My Staff \(\d+\)$/ })).toBeInTheDocument(),
+  // The profile of the club's own player: his name is the page's heading.
+  profile: (view) => expect(view.getAllByRole("heading", { level: 1 }).length).toBeGreaterThan(0),
 };
 
 afterEach(async () => {
@@ -84,6 +88,37 @@ describe("the page harness's pages", () => {
       expect(useGameStore.getState().hasActiveGame).toBe(true);
       expect(root.querySelector('[role="alert"]')).toBeNull();
       PAGE_CONTENT[page](within(root));
+      expect(window.__pageHarness?.unanswered).toEqual([]);
+    },
+    15_000,
+  );
+});
+
+describe("the player profile's states", () => {
+  /**
+   * Given each state of the club's knowledge of a player (own, rival, scouted, unknown, retired)
+   * When the profile is mounted on it and has settled
+   * Then it drew that player (his name is on the page), did not fall back to the "left the
+   *      dashboard" alert, and the fixture answered every command it asked for: a state a command
+   *      has no answer for fails here, in the required job
+   */
+  it.each(HARNESS_PROFILES)(
+    "shows the %s player and asks for no command the fixture cannot answer",
+    async (variant) => {
+      const root = document.createElement("div");
+      document.body.append(root);
+
+      await act(async () => {
+        mounted = await mountPageHarness(root, "profile", readStyleGuideOptions(""), "en", variant);
+      });
+      await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, SETTLE_MS));
+      });
+
+      const { playerId, retiredPlayer } = profileCase(variant);
+      const player = retiredPlayer ?? gameState.players.find((p) => p.id === playerId);
+      expect(root.querySelector('[role="alert"]')).toBeNull();
+      expect(within(root).getAllByText(player?.match_name ?? "").length).toBeGreaterThan(0);
       expect(window.__pageHarness?.unanswered).toEqual([]);
     },
     15_000,
