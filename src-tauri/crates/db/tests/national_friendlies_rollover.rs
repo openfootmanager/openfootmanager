@@ -336,3 +336,38 @@ fn friendly_pairings_never_double_book_a_shared_player() {
         }
     }
 }
+
+/// Given an overdue friendly and an unplayed club fixture on its next playable day,
+/// When the live day finishes, then the club fixture yields while the friendly keeps that day.
+#[test]
+fn an_upcoming_club_fixture_yields_to_a_kept_national_friendly() {
+    let mut game = spring_career();
+    game.clock.current_date = Utc.with_ymd_and_hms(2031, 6, 10, 12, 0, 0).unwrap();
+    game.competitions[0].fixtures = vec![Fixture {
+        id: "future-club-match".into(),
+        competition_id: game.competitions[0].id.clone(),
+        date: "2031-06-11".into(),
+        home_team_id: "club-a".into(),
+        away_team_id: "club-b".into(),
+        ..Default::default()
+    }];
+    game.sync_legacy_league();
+    ofm_core::turn::finish_live_match_day(&mut game);
+    assert_eq!(friendlies(&game).len(), 1);
+    assert_eq!(friendlies(&game)[0].date, "2031-06-11");
+    let club_match = game
+        .competitions
+        .iter()
+        .flat_map(|c| &c.fixtures)
+        .find(|f| f.id == "future-club-match")
+        .unwrap();
+    assert!(
+        club_match.date.as_str() >= "2031-06-14",
+        "the unplayed club fixture yields and keeps minimum rest"
+    );
+    assert_eq!(club_match.status, FixtureStatus::Scheduled);
+    assert_eq!(
+        ofm_core::calendar_repair::repair_loaded_calendar(&mut game),
+        0
+    );
+}
