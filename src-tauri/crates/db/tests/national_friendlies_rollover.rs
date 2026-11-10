@@ -171,3 +171,51 @@ fn a_june_friendly_survives_spring_rollover_and_plays_exactly_once() {
     assert_eq!(serde_json::to_value(friendlies(&game)).unwrap(), results);
     assert_reload_changes_nothing(&game);
 }
+
+/// Given a friendly postponed away from its original window,
+/// When that window is filled again, then the kept match still fills it and its ID is not reused.
+#[test]
+fn a_postponed_friendly_still_fills_its_original_window() {
+    let mut game = spring_career();
+    let windows = vec!["2031-09-09".to_string()];
+    game.national_teams[0].fixtures.clear();
+    let mut rng = game.rng_for("test-friendly", "2031-09-09");
+    ofm_core::national_team::schedule_national_team_friendlies(&mut game.national_teams, &windows, &mut rng);
+    assert_eq!(friendlies(&game).len(), 1);
+    let fixture = game.national_teams.iter_mut().flat_map(|t| &mut t.fixtures).next().unwrap();
+    fixture.postponement = Some(domain::league::Postponement { original_date: fixture.date.clone(), reason: domain::league::RescheduleReason::InternationalWindow });
+    fixture.date = "2031-09-12".into();
+    let identity = fixture.id.clone();
+    let mut rng = game.rng_for("test-friendly", "2031-09-09");
+    ofm_core::national_team::schedule_national_team_friendlies(&mut game.national_teams, &windows, &mut rng);
+    assert_eq!(friendlies(&game).len(), 1, "a postponed match still fills its original window");
+    assert_eq!(friendlies(&game)[0].id, identity);
+}
+
+/// Given a legacy past friendly at the end of a live match day,
+/// When the remaining calendar is settled, then it moves to a day still playable rather than today.
+#[test]
+fn an_overdue_friendly_moves_to_a_day_the_live_loop_can_still_play() {
+    let mut game = spring_career();
+    game.competitions.clear();
+    game.league = None;
+    game.clock.current_date = Utc.with_ymd_and_hms(2031, 6, 10, 12, 0, 0).unwrap();
+    ofm_core::turn::finish_live_match_day(&mut game);
+    assert_eq!(friendlies(&game).len(), 1);
+    let today = game.clock.current_date.format("%Y-%m-%d").to_string();
+    assert!(friendlies(&game)[0].date >= today, "the re-dated friendly must remain playable after the clock advances");
+    ofm_core::turn::process_day(&mut game);
+    assert_eq!(friendlies(&game)[0].status, FixtureStatus::Completed);
+    assert_eq!(ofm_core::catchup::repair_stranded_fixtures(&mut game), 0);
+}
+
+/// Given an authored friendly in a snapshot that opens in a World Cup summer,
+/// When world foundations stage the tournament, then the published friendly keeps its identity.
+#[test]
+fn staging_world_cup_foundations_keeps_a_published_friendly() {
+    let mut game = spring_career();
+    game.clock.current_date = Utc.with_ymd_and_hms(2030, 6, 1, 12, 0, 0).unwrap();
+    game.national_teams[0].fixtures[0].date = "2030-06-09".into();
+    ofm_core::world::ensure_multi_competition_foundations(&mut game);
+    assert_eq!(friendlies(&game).iter().filter(|f| f.id == "published-june-friendly").count(), 1, "World Cup foundation staging must retain authored friendlies");
+}
