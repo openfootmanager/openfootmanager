@@ -218,6 +218,7 @@ mod tests {
         let mut continental = cup.clone();
         continental.id = "continental".into();
         continental.kind = CompetitionType::ContinentalClub;
+        continental.scope = domain::league::CompetitionScope::Continental;
         let mut unrelated = cup.clone();
         unrelated.id = "other".into();
         unrelated.participant_ids = vec!["south".into()];
@@ -233,7 +234,10 @@ mod tests {
         assert_eq!(entries[0]["name"], "Northern League");
         assert_eq!(entries[0]["name_key"], "custom.league");
         assert_eq!(entries[0]["season"], 2026);
+        assert_eq!(entries[0]["kind"], "League");
         assert_eq!(entries[1]["kind"], "Cup");
+        assert_eq!(entries[2]["kind"], "ContinentalClub");
+        assert_eq!(entries[2]["scope"], "Continental");
     }
 
     /// Given a legacy league with no modern competition list, when selection is queried,
