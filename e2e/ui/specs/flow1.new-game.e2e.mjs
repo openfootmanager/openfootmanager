@@ -46,7 +46,10 @@ describe("flow 1: a new game, to the first match day", () => {
     await $('//aside[@aria-label="Chosen club"]').waitForDisplayed({ timeout: 60_000 });
     await expect(buttonNamed("Manage")).toBeDisabled();
     // A club is chosen by pressing its name in the table; the card then shows it.
-    await clickWhenReady($('//table[@aria-label="Clubs"]//button[@aria-pressed="false"]'));
+    // Several clubs are listed and the suite's selectors are strict (one element), so the first
+    // is taken by position.
+    const [firstClub] = await $$('//table[@aria-label="Clubs"]//button[@aria-pressed="false"]');
+    await clickWhenReady(firstClub);
     await $('//table[@aria-label="Clubs"]//button[@aria-pressed="true"]').waitForDisplayed({
       timeout: 30_000,
     });
