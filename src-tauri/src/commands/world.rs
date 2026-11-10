@@ -181,7 +181,7 @@ pub fn package_assets_dir(app_handle: &tauri::AppHandle) -> Result<std::path::Pa
     Ok(app_data_dir.join("package-assets"))
 }
 
-fn packages_dir(app_handle: &tauri::AppHandle) -> Result<std::path::PathBuf, String> {
+pub(crate) fn packages_dir(app_handle: &tauri::AppHandle) -> Result<std::path::PathBuf, String> {
     let app_data_dir = app_handle
         .path()
         .app_data_dir()
@@ -331,12 +331,18 @@ pub fn list_installed_packages(
 ) -> Result<Vec<ofm_core::generator::PackageInfo>, String> {
     info!("[cmd] list_installed_packages");
     let packages_dir = packages_dir(&app_handle)?;
+    Ok(list_installed_packages_in(&packages_dir))
+}
+
+pub(crate) fn list_installed_packages_in(
+    packages_dir: &std::path::Path,
+) -> Vec<ofm_core::generator::PackageInfo> {
     if !packages_dir.exists() {
-        return Ok(Vec::new());
+        return Vec::new();
     }
     let mut result = Vec::new();
-    let Ok(entries) = std::fs::read_dir(&packages_dir) else {
-        return Ok(result);
+    let Ok(entries) = std::fs::read_dir(packages_dir) else {
+        return result;
     };
     for entry in entries.flatten() {
         let path = entry.path();
@@ -347,7 +353,7 @@ pub fn list_installed_packages(
         }
     }
     result.sort_by(|a, b| a.name.cmp(&b.name));
-    Ok(result)
+    result
 }
 
 /// Reject any package id that contains path separators or traversal tokens.

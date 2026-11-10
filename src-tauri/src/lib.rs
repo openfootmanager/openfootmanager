@@ -370,6 +370,7 @@ pub fn run() {
             create_package_project,
             create_world_project,
             read_package_project,
+            get_worlds_library,
             validate_package_project,
             save_package_project,
             build_ofm,

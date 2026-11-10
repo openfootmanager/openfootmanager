@@ -19,22 +19,71 @@ pub struct WorldsLibrary {
     pub installed: Vec<WorldLibraryRow>,
 }
 
-pub fn worlds_library_internal(paths: &[String], _packages_dir: &Path) -> WorldsLibrary {
-    WorldsLibrary {
-        projects: paths
-            .iter()
-            .map(|path| WorldLibraryRow {
-                path: path.clone(),
-                name: String::new(),
-                version: None,
-                clubs: 0,
-                players: 0,
-                countries: 0,
-                error: None,
-            })
-            .collect(),
-        installed: Vec::new(),
+fn project_row(path: &str) -> WorldLibraryRow {
+    let mut row = WorldLibraryRow {
+        path: path.to_string(),
+        name: String::new(),
+        version: None,
+        clubs: 0,
+        players: 0,
+        countries: 0,
+        error: None,
+    };
+    let dir = Path::new(path);
+    if !dir.is_dir() {
+        row.error = Some("be.error.package.notAProjectDirectory".to_string());
+        return row;
     }
+    if std::fs::read_dir(dir).is_err() {
+        row.error = Some("be.error.package.readFailed".to_string());
+        return row;
+    }
+    let (package, errors) = ofm_core::generator::package::load_world_package_files(dir);
+    if let Some(error) = errors
+        .iter()
+        .find(|error| error.code == "be.error.package.readFailed")
+    {
+        row.error = Some(error.code.clone());
+        return row;
+    }
+    let Some(meta) = package.meta else {
+        row.error = Some("be.error.package.noManifest".to_string());
+        return row;
+    };
+    row.name = meta.name;
+    row.clubs = package.teams.len();
+    row.players = package.players.len();
+    row.countries = package.countries.len();
+    row
+}
+
+pub fn worlds_library_internal(paths: &[String], packages_dir: &Path) -> WorldsLibrary {
+    let installed = super::world::list_installed_packages_in(packages_dir)
+        .into_iter()
+        .map(|package| WorldLibraryRow {
+            path: package.installed_path,
+            name: package.name,
+            version: Some(package.version),
+            clubs: package.team_count,
+            players: package.player_count,
+            countries: package.country_count,
+            error: None,
+        })
+        .collect();
+    WorldsLibrary {
+        projects: paths.iter().map(|path| project_row(path)).collect(),
+        installed,
+    }
+}
+
+#[tauri::command]
+pub fn get_worlds_library(
+    app_handle: tauri::AppHandle,
+    paths: Vec<String>,
+) -> Result<WorldsLibrary, String> {
+    let packages =
+        super::world::packages_dir(&app_handle).map_err(|_| "be.error.invalidPath".to_string())?;
+    Ok(worlds_library_internal(&paths, &packages))
 }
 
 #[cfg(test)]
