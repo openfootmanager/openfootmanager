@@ -261,7 +261,8 @@ export default function WorldEditor() {
   function addRecentProject(path: string, name: string) {
     setRecentProjects((prev) => {
       const filtered = prev.filter((p) => p.path !== path);
-      const updated = [{ path, name, openedAt: new Date().toISOString() }, ...filtered].slice(
+      const previous = prev.find((p) => p.path === path);
+      const updated = [{ ...previous, path, name, openedAt: new Date().toISOString() }, ...filtered].slice(
         0,
         MAX_RECENT,
       );
@@ -435,6 +436,7 @@ export default function WorldEditor() {
     try {
       await persist();
       const data = await validatePackageProject(projectDir);
+      setRecentProjects(readRecentProjects());
       setIssues(data.issues);
       setWarnings(data.warnings ?? []);
       // An explicit Validate shows what it found, warnings included.
