@@ -76,6 +76,13 @@ describe("validatePackageProject", () => {
     }
   });
 
+  /** Given stored JSON is not a list, when Validate succeeds, then its findings still reach the editor. */
+  it("returns findings when recent-project storage is not a list", async () => {
+    localStorage.setItem("worldEditor.recentProjects", "{}");
+    invokeMock.mockResolvedValue({ issues: [], warnings: [] });
+    await expect(validatePackageProject("/p")).resolves.toEqual({ issues: [], warnings: [] });
+  });
+
   /**
    * Given a project folder
    * When the editor validates it
