@@ -94,7 +94,18 @@ function renderProfile(overrides: Partial<PlayerData> = {}) {
 
 async function answer(command: string) {
   if (command === "get_player_stats_overview") {
-    return { percentileEligible: false, metrics: {} };
+    const none = { total: 0, per90: null, percentile: null };
+    return {
+      percentileEligible: false,
+      metrics: {
+        shots: none,
+        shotsOnTarget: none,
+        passes: { completed: 0, attempted: 0, accuracy: null, percentile: null },
+        tacklesWon: none,
+        interceptions: none,
+        foulsCommitted: none,
+      },
+    };
   }
   if (command === "get_player_match_history") return [];
   return null;
@@ -180,7 +191,10 @@ describe("PlayerProfile shell", () => {
     fireEvent.click(screen.getByRole("button", { name: /actions/i }));
     fireEvent.click(await screen.findByRole("menuitem", { name: "Let Expire" }));
 
-    expect(await screen.findByText("This player does not have an active contract.")).toBeVisible();
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Player does not have an active contract",
+    );
+    expect(screen.getByRole("alert")).toBeVisible();
     expect(screen.getByRole("tab", { name: "Overview" })).toHaveAttribute("aria-selected", "true");
   });
 

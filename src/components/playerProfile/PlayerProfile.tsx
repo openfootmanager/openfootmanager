@@ -81,12 +81,14 @@ export default function PlayerProfile({
 }: PlayerProfileProps) {
   const { t, i18n } = useTranslation();
   const tabsId = useId();
-  // The tab is the page's, per player: opening another player's profile starts on its Overview.
-  const [chosenTab, setChosenTab] = useState<{ playerId: string; tab: ProfileTab }>({
-    playerId: player.id,
-    tab: "overview",
-  });
-  const tab = chosenTab.playerId === player.id ? chosenTab.tab : "overview";
+  // The page reuses this instance when another player is opened, so the tab is reset on every
+  // change of player (A to B and back to A included), not remembered per player.
+  const [tab, setTab] = useState<ProfileTab>("overview");
+  const [shownPlayerId, setShownPlayerId] = useState(player.id);
+  if (shownPlayerId !== player.id) {
+    setShownPlayerId(player.id);
+    setTab("overview");
+  }
   const primaryPosition = naturalPositionOf(player);
   const footednessLabel = t(`common.footedness.${player.footedness || "Right"}`);
   const weakFootValue = player.weak_foot ?? 2;
@@ -325,6 +327,16 @@ export default function PlayerProfile({
         />
       ) : null}
 
+      {/* Outside the tab panels: the Actions menu in the name card starts these, from any tab. */}
+      {contractActionError ? (
+        <div
+          role="alert"
+          className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-300"
+        >
+          {contractActionError}
+        </div>
+      ) : null}
+
       {/* Injury banner */}
       {player.injury ? <PlayerProfileInjuryBanner injury={player.injury} t={t} /> : null}
 
@@ -334,7 +346,7 @@ export default function PlayerProfile({
           label={t("playerProfile.sections")}
           tabs={tabItems}
           selectedId={tab}
-          onSelect={(id) => setChosenTab({ playerId: player.id, tab: id as ProfileTab })}
+          onSelect={(id) => setTab(id as ProfileTab)}
         />
       </div>
 
@@ -450,12 +462,6 @@ export default function PlayerProfile({
         hidden={hidden("contract")}
         className="flex flex-col gap-5"
       >
-        {contractActionError ? (
-          <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-300">
-            {contractActionError}
-          </div>
-        ) : null}
-
         <PlayerProfileContractCard
           dateOfBirth={player.date_of_birth}
           contractEnd={player.contract_end}
