@@ -1688,6 +1688,83 @@ mod tests {
         );
     }
 
+    /// Given a published friendly on a tournament date and a club fixture nearby,
+    /// when the World Cup rollover branch settles the calendar,
+    /// then the friendly is retained and moved, and the club calendar clears the call-up.
+    #[test]
+    fn a_kept_friendly_moves_around_a_tournament_without_double_booking_players() {
+        use domain::league::{Fixture, Postponement, RescheduleReason};
+        use domain::national_team::NationalTeam;
+        let mut game = calendar_game(at(2030, 5, 1));
+        for id in ["nt-eng", "nt-fr"] {
+            let mut team = NationalTeam::new(id.into(), id.into(), id.into(), None);
+            team.squad_player_ids.push(format!("player-{id}"));
+            game.national_teams.push(team);
+        }
+        game.national_teams[0].fixtures.push(Fixture {
+            id: "published".into(),
+            competition_id: "international-friendlies".into(),
+            date: "2030-06-09".into(),
+            home_team_id: "nt-eng".into(),
+            away_team_id: "nt-fr".into(),
+            competition: FixtureCompetition::InternationalNation,
+            ..Default::default()
+        });
+        let mut tournament = League::new(
+            "nation-cup".into(),
+            "Nations".into(),
+            2030,
+            &["nt-eng".into(), "nt-fr".into()],
+        );
+        tournament.kind = CompetitionType::InternationalNation;
+        tournament.scope = CompetitionScope::International;
+        tournament.fixtures.push(Fixture {
+            id: "cup-match".into(),
+            competition_id: tournament.id.clone(),
+            date: "2030-06-09".into(),
+            home_team_id: "nt-eng".into(),
+            away_team_id: "nt-fr".into(),
+            competition: FixtureCompetition::InternationalNation,
+            ..Default::default()
+        });
+        game.competitions.push(tournament);
+        add_division(&mut game, "league", "europe", at(2030, 6, 12));
+        game.competitions[1].fixtures.truncate(1);
+        manage_international_calendar(
+            &mut game,
+            at(2030, 7, 1),
+            at(2030, 6, 1),
+            true,
+            None,
+            &Default::default(),
+        );
+        let fixtures: Vec<_> = game
+            .national_teams
+            .iter()
+            .flat_map(|team| &team.fixtures)
+            .collect();
+        assert_eq!(
+            fixtures.len(),
+            1,
+            "a tournament must not erase the published friendly"
+        );
+        assert_eq!(fixtures[0].id, "published");
+        assert_eq!(fixtures[0].date, "2030-06-12");
+        assert_eq!(
+            fixtures[0].postponement,
+            Some(Postponement {
+                original_date: "2030-06-09".into(),
+                reason: RescheduleReason::InternationalWindow,
+            })
+        );
+        let club_match = &game.competitions[1].fixtures[0];
+        let national_day =
+            chrono::NaiveDate::parse_from_str(&fixtures[0].date, "%Y-%m-%d").unwrap();
+        let club_day = chrono::NaiveDate::parse_from_str(&club_match.date, "%Y-%m-%d").unwrap();
+        assert!(!crate::calendar_booking::too_close(national_day, club_day));
+        assert_eq!(crate::calendar_repair::repair_loaded_calendar(&mut game), 0);
+    }
+
     /// Given a rollover during an active qualifying campaign and a club match on a qualifying
     /// window, when the campaign continues, then placement moves the match and load repair is idle.
     #[test]

@@ -785,6 +785,63 @@ mod tests {
         assert_eq!(pairings(teams(&ids)), pairings(teams(&reversed)));
     }
 
+    /// Given a published friendly and four available nations, when the same windows are
+    /// scheduled twice, then only the missing pair is added and every identity stays unique.
+    #[test]
+    fn friendlies_fill_only_missing_nations_in_each_window() {
+        let mut teams = vec![
+            make_national_team("nt-eng", "ENG", &["p1"]),
+            make_national_team("nt-fra", "FR", &["p2"]),
+            make_national_team("nt-br", "BR", &["p3"]),
+            make_national_team("nt-ar", "AR", &["p4"]),
+        ];
+        teams[0].fixtures.push(Fixture {
+            id: "published".into(),
+            competition_id: INTERNATIONAL_FRIENDLY_COMPETITION_ID.into(),
+            date: "2031-06-09".into(),
+            home_team_id: "nt-eng".into(),
+            away_team_id: "nt-fra".into(),
+            competition: FixtureCompetition::InternationalNation,
+            ..Default::default()
+        });
+        let windows = vec!["2031-06-09".into()];
+        for _ in 0..2 {
+            schedule_national_team_friendlies(&mut teams, &windows, &mut StdRng::seed_from_u64(7));
+        }
+        let fixtures: Vec<_> = teams.iter().flat_map(|team| &team.fixtures).collect();
+        assert_eq!(
+            fixtures.len(),
+            2,
+            "one existing pairing and one missing pairing"
+        );
+        assert!(fixtures.iter().any(|f| f.id == "published"));
+        let participants: std::collections::HashSet<_> = fixtures
+            .iter()
+            .flat_map(|f| [&f.home_team_id, &f.away_team_id])
+            .collect();
+        assert_eq!(participants.len(), 4);
+    }
+
+    /// Given the same two nations playing the same window in consecutive years,
+    /// when the friendlies are scheduled, then both fixtures have durable distinct IDs.
+    #[test]
+    fn national_friendly_ids_are_unique_across_seasons() {
+        let mut teams = vec![
+            make_national_team("nt-eng", "ENG", &["p1"]),
+            make_national_team("nt-fr", "FR", &["p2"]),
+        ];
+        for year in [2031, 2032] {
+            schedule_national_team_friendlies(
+                &mut teams,
+                &[format!("{year}-09-09")],
+                &mut StdRng::seed_from_u64(7),
+            );
+        }
+        let fixtures: Vec<_> = teams.iter().flat_map(|t| &t.fixtures).collect();
+        assert_eq!(fixtures.len(), 2);
+        assert_ne!(fixtures[0].id, fixtures[1].id);
+    }
+
     #[test]
     fn schedule_skips_teams_without_a_squad() {
         let mut teams = vec![
