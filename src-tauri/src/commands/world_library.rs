@@ -138,6 +138,45 @@ mod tests {
         std::fs::remove_dir_all(dir).unwrap();
     }
 
+    /// Given a malformed entity file, when the library reads it, then it reports an error instead of partial counts.
+    #[test]
+    fn library_reports_a_malformed_entity() {
+        let dir = std::env::temp_dir().join(format!("ofm-library-invalid-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(dir.join("package.json"), r#"{"schema":"world","id":"test","name":"Test world","version":"1.0.0","license":"CC0-1.0"}"#).unwrap();
+        std::fs::write(
+            dir.join("teams.json"),
+            r#"{"schema":"team","items":[{"id":"broken","name":5}]}"#,
+        )
+        .unwrap();
+        let answer = worlds_library_internal(
+            &[dir.to_string_lossy().into_owned()],
+            Path::new("/nonexistent"),
+        );
+        assert!(answer.projects[0].error.is_some());
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    /// Given an unreadable entity directory, when the library reads it, then it reports a path error.
+    #[cfg(unix)]
+    #[test]
+    fn library_reports_an_unreadable_subdirectory() {
+        use std::os::unix::fs::PermissionsExt;
+        let dir =
+            std::env::temp_dir().join(format!("ofm-library-unreadable-{}", std::process::id()));
+        let nested = dir.join("players");
+        std::fs::create_dir_all(&nested).unwrap();
+        std::fs::write(dir.join("package.json"), r#"{"schema":"world","id":"test","name":"Test world","version":"1.0.0","license":"CC0-1.0"}"#).unwrap();
+        std::fs::set_permissions(&nested, std::fs::Permissions::from_mode(0)).unwrap();
+        let answer = worlds_library_internal(
+            &[dir.to_string_lossy().into_owned()],
+            Path::new("/nonexistent"),
+        );
+        std::fs::set_permissions(&nested, std::fs::Permissions::from_mode(0o700)).unwrap();
+        std::fs::remove_dir_all(dir).unwrap();
+        assert!(answer.projects[0].error.is_some());
+    }
+
     /// Given an installed archive, when the library reads it, then its manifest and counts are reported.
     #[test]
     fn library_counts_entities_from_installed_archives() {
@@ -152,6 +191,8 @@ mod tests {
             r#"{"schema":"country","items":[{"id":"QQ","name":"Qland"}]}"#,
         )
         .unwrap();
+        std::fs::write(project.join("teams.json"), r##"{"schema":"team","items":[{"id":"a","name":"A","city":"C","country":"QQ","colors":{"primary":"#000000","secondary":"#ffffff"}}]}"##).unwrap();
+        std::fs::write(project.join("players.json"), r#"{"schema":"player","items":[{"id":"p1","name":"P One","club":"a","nationality":"QQ","position":"Striker","overall":70},{"id":"p2","name":"P Two","club":"a","nationality":"QQ","position":"Striker","overall":70}]}"#).unwrap();
         let archive = installed.join("test.ofm");
         ofm_core::generator::export_directory_to_ofm(&project, &archive).unwrap();
         let answer = worlds_library_internal(&[], &installed);
@@ -161,6 +202,7 @@ mod tests {
             (&*row.name, row.version.as_deref(), row.countries),
             ("Archive world", Some("2.3.4"), 1)
         );
+        assert_eq!((row.clubs, row.players), (1, 2));
         assert_eq!(row.path, archive.to_string_lossy());
         std::fs::remove_dir_all(root).unwrap();
     }
