@@ -255,7 +255,7 @@ mod tests {
         assert_eq!(wire["clubs"][1]["competitions"], serde_json::json!([]));
     }
 
-    /// Given clubs of every reputation in a different division from the legacy mirror,
+    /// Given clubs of every reputation, an unrelated mirror and a smaller later split table,
     /// when each club is hired and objectives generated, then its preview has that exact target.
     #[test]
     fn opening_expectations_match_the_board_after_hiring() {
@@ -279,8 +279,10 @@ mod tests {
                 2026,
                 &["south".into(), "rival".into()],
             );
+            let later_split =
+                League::new("later-split".into(), "Later split".into(), 2026, &ids[..4]);
             game.league = Some(other.clone());
-            game.competitions = vec![other, league];
+            game.competitions = vec![other, league, later_split];
             let wire = serde_json::to_value(query_team_selection(&game)).unwrap();
             let preview = &wire["clubs"][0]["opening_expectation"];
             crate::job_offers::hire_manager(&mut game, "north", "2026-07-01").unwrap();
