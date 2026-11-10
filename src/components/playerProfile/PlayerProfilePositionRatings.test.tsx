@@ -25,6 +25,7 @@ const ownPlayer: PositionRatings = {
       rating: 77,
       familiarity: "natural",
       deployed: false,
+      weights: [],
       key_attributes: [
         { attribute: "passing", value: 72 },
         { attribute: "vision", value: 68 },
@@ -36,6 +37,7 @@ const ownPlayer: PositionRatings = {
       rating: 74,
       familiarity: "can_play",
       deployed: false,
+      weights: [],
       key_attributes: [
         { attribute: "tackling", value: 66 },
         { attribute: "positioning", value: 71 },
@@ -47,6 +49,7 @@ const ownPlayer: PositionRatings = {
       rating: 61,
       familiarity: "out_of_position",
       deployed: true,
+      weights: [],
       key_attributes: [
         { attribute: "tackling", value: 66 },
         { attribute: "defending", value: 58 },

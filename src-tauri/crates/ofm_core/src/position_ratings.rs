@@ -21,6 +21,14 @@ pub struct KeyAttribute {
     pub value: u8,
 }
 
+/// How much of a position's rating one attribute is worth, in percent: the game's own table
+/// (`player_rating::position_weights`), the same for every player at the position.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, TS)]
+pub struct AttributeWeight {
+    pub attribute: AttributeKey,
+    pub weight: u8,
+}
+
 /// The player at one position.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, TS)]
 pub struct PositionRating {
@@ -31,6 +39,9 @@ pub struct PositionRating {
     /// The slot the manager plays him in: only ever for the club's own player.
     pub deployed: bool,
     pub key_attributes: Vec<KeyAttribute>,
+    /// What the game weighs at this position, attribute by attribute: the table his rating there
+    /// is built from. About the position, not the player, so it reveals nothing of his attributes.
+    pub weights: Vec<AttributeWeight>,
 }
 
 /// Whose attributes the ratings are read from.
@@ -85,6 +96,7 @@ pub fn position_ratings(game: &Game, player: &Player) -> Option<PositionRatings>
             familiarity: familiarity(player, &position),
             deployed: deployed.as_ref() == Some(&position),
             key_attributes: key_attributes_of(attributes, &position),
+            weights: weights_of(&position),
             position,
         })
         .collect();
@@ -114,6 +126,16 @@ fn positions_he_plays(player: &Player, deployed: Option<&Position>) -> Vec<Posit
         }
     }
     positions
+}
+
+fn weights_of(position: &Position) -> Vec<AttributeWeight> {
+    position_weights(position)
+        .iter()
+        .map(|(attribute, weight)| AttributeWeight {
+            attribute: *attribute,
+            weight: *weight,
+        })
+        .collect()
 }
 
 fn key_attributes_of(attributes: &PlayerAttributes, position: &Position) -> Vec<KeyAttribute> {
