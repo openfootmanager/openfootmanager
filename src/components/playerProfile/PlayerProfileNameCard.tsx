@@ -146,7 +146,8 @@ export default function PlayerProfileNameCard({
               title={t("playerProfile.ratingUnknown")}
               className="inline-flex h-16 min-w-18 items-center justify-center rounded-xl bg-sunken px-3 font-heading text-display font-bold text-fg-subtle"
             >
-              {visibleRatingText(ovr)}
+              <span aria-hidden="true">{visibleRatingText(ovr)}</span>
+              <span className="sr-only">{t("playerProfile.ratingUnknown")}</span>
             </span>
           ) : (
             <RatingChip value={ovr} tier={tierOf(ovr)} size="display" />
