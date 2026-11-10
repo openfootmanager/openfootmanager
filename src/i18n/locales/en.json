@@ -312,6 +312,13 @@
     "repStrong": "Strong",
     "repAverage": "Average",
     "repDeveloping": "Developing",
+    "expectations": {
+      "title": "Challenge for the title",
+      "continental": "Push for continental football",
+      "topHalf": "Top half",
+      "midTable": "Mid-table",
+      "survival": "Avoid relegation"
+    },
     "failedToSelectTeam": "Failed to select team: {{error}}",
     "homeRegion": "Home Region",
     "homeCountry": "Home Country",

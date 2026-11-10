@@ -312,6 +312,13 @@
     "repStrong": "Silná",
     "repAverage": "Průměrná",
     "repDeveloping": "Rozvíjející se",
+    "expectations": {
+      "title": "Boj o titul",
+      "continental": "Boj o kontinentální poháry",
+      "topHalf": "Horní polovina tabulky",
+      "midTable": "Střed tabulky",
+      "survival": "Záchrana v soutěži"
+    },
     "failedToSelectTeam": "Nepodařilo se vybrat tým: {{error}}",
     "homeRegion": "Domovský region",
     "homeCountry": "Domovská země",

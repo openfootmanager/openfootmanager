@@ -312,6 +312,13 @@
     "repStrong": "Сильный",
     "repAverage": "Средний",
     "repDeveloping": "Развивающийся",
+    "expectations": {
+      "title": "Борьба за титул",
+      "continental": "Борьба за континентальные турниры",
+      "topHalf": "Верхняя половина таблицы",
+      "midTable": "Середина таблицы",
+      "survival": "Избежать вылета"
+    },
     "failedToSelectTeam": "Не удалось выбрать команду: {{error}}.",
     "homeRegion": "Домашний регион",
     "homeCountry": "Домашняя страна",

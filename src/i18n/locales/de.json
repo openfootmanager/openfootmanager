@@ -312,6 +312,13 @@
     "repStrong": "Stark",
     "repAverage": "Durchschnittlich",
     "repDeveloping": "In Entwicklung",
+    "expectations": {
+      "title": "Um den Titel kämpfen",
+      "continental": "Um die Kontinentalpokale kämpfen",
+      "topHalf": "Obere Tabellenhälfte",
+      "midTable": "Tabellenmittelfeld",
+      "survival": "Klassenerhalt"
+    },
     "failedToSelectTeam": "Teamauswahl fehlgeschlagen: {{error}}",
     "homeRegion": "Heimatregion",
     "homeCountry": "Heimatland",

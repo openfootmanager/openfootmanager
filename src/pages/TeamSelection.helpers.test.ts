@@ -93,6 +93,17 @@ describe("likelyXi", () => {
     return {
       team_id: "t1",
       average_rating: 70,
+      stadium_name: "Ground",
+      stadium_capacity: 20_000,
+      transfer_budget: 5_000_000,
+      wage_budget: 100_000,
+      balance: 1_000_000,
+      colors: { primary: "red", secondary: "white" },
+      founded_year: 1900,
+      competitions: [],
+      key_players: [],
+      reputation_key: "teamSelect.repAverage",
+      opening_expectation: { target_position: 10, label_key: "teamSelect.expectations.midTable" },
       players: ids.map((id, index) => ({ player_id: id, ovr: 90 - index })),
     };
   }

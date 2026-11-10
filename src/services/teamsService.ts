@@ -1,3 +1,7 @@
+import type { TeamSelectionRatings } from "../store/generated/TeamSelectionRatings";
+export type { TeamSelectionRatings } from "../store/generated/TeamSelectionRatings";
+export type { ClubSquadRatings } from "../store/generated/ClubSquadRatings";
+export type { RatedPlayer } from "../store/generated/RatedPlayer";
 import { invoke } from "@tauri-apps/api/core";
 
 export const UNGROUPED_LEAGUE_ID = "__ungrouped";
@@ -79,25 +83,6 @@ export interface TeamsDirectory {
 
 export function fetchTeamsDirectory(query: TeamsDirectoryQuery): Promise<TeamsDirectory> {
   return invoke<TeamsDirectory>("get_teams_directory", { query });
-}
-
-/** One player of a club's squad on the team-selection screen. */
-export interface RatedPlayer {
-  player_id: string;
-  ovr: number;
-}
-
-/** A club's squad as team selection rates it: its average (the club card's rule) and its players,
- * best rated first. */
-export interface ClubSquadRatings {
-  team_id: string;
-  average_rating: number;
-  players: RatedPlayer[];
-}
-
-/** Every club's squad before a career begins; no club once one has (`slices::team_selection`). */
-export interface TeamSelectionRatings {
-  clubs: ClubSquadRatings[];
 }
 
 export function fetchTeamSelectionRatings(): Promise<TeamSelectionRatings> {

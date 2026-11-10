@@ -1,5 +1,5 @@
 //! What the team-selection screen shows of every club's squad before a career begins: each
-//! player's rating and the squad's average.
+//! player's rating, the squad's average, club facts and the board's opening expectation.
 //!
 //! The knowledge rule (`player_knowledge`) decides what a manager sees of other clubs' players
 //! once he has one; before a career there is no club whose knowledge could apply, and choosing a
@@ -8,6 +8,13 @@
 //! players through the knowledge rule, not through this.
 
 use serde::Serialize;
+use ts_rs::TS;
+
+use crate::board_objectives::{OpeningExpectation, opening_expectation};
+use crate::slices::teams::TeamCardColors;
+use domain::league::{CompetitionScope, CompetitionType};
+use domain::player::Position;
+use domain::team::Team;
 
 use crate::game::Game;
 use crate::slices::teams::{average_rating, players_by_club};
@@ -15,24 +22,141 @@ use domain::player::Player;
 
 /// Every club's squad as the team-selection screen rates it; no club at all once a career has
 /// begun.
-#[derive(Debug, Serialize, PartialEq, Eq)]
+#[derive(Debug, Serialize, PartialEq, Eq, TS)]
 pub struct TeamSelectionRatings {
     pub clubs: Vec<ClubSquadRatings>,
 }
 
 /// One club's squad: its average rating (the club card's rule) and its players, best rated
 /// first, so the first eleven are its likely starting side.
-#[derive(Debug, Serialize, PartialEq, Eq)]
+#[derive(Debug, Serialize, PartialEq, Eq, TS)]
 pub struct ClubSquadRatings {
     pub team_id: String,
     pub average_rating: u8,
     pub players: Vec<RatedPlayer>,
+    #[serde(default)]
+    pub stadium_name: String,
+    #[serde(default)]
+    pub stadium_capacity: u32,
+    /// Integer euros, as held by the club.
+    #[serde(default)]
+    pub transfer_budget: i64,
+    /// Integer euros per week, as held by the club.
+    #[serde(default)]
+    pub wage_budget: i64,
+    /// Cash on hand in integer euros; may be negative.
+    #[serde(default)]
+    pub balance: i64,
+    #[serde(default)]
+    pub colors: TeamCardColors,
+    #[serde(default)]
+    pub founded_year: u32,
+    #[serde(default)]
+    pub competitions: Vec<ClubCompetition>,
+    #[serde(default)]
+    pub key_players: Vec<KeyPlayer>,
+    #[serde(default)]
+    pub reputation_key: String,
+    #[serde(default)]
+    pub opening_expectation: OpeningExpectation,
 }
 
-#[derive(Debug, Serialize, PartialEq, Eq)]
+#[derive(Debug, Serialize, PartialEq, Eq, TS)]
 pub struct RatedPlayer {
     pub player_id: String,
     pub ovr: u8,
+}
+
+/// Public identity of a competition the club actually contests.
+#[derive(Debug, Serialize, PartialEq, Eq, TS)]
+pub struct ClubCompetition {
+    #[serde(default)]
+    pub id: String,
+    #[serde(default)]
+    pub name: String,
+    #[serde(default)]
+    pub name_key: Option<String>,
+    #[serde(default)]
+    pub season: u32,
+    #[serde(default)]
+    pub kind: CompetitionType,
+    #[serde(default)]
+    pub scope: CompetitionScope,
+}
+
+#[derive(Debug, Serialize, PartialEq, Eq, TS)]
+pub struct KeyPlayer {
+    #[serde(default)]
+    pub player_id: String,
+    #[serde(default)]
+    pub name: String,
+    /// Natural position, independent of the slot the club currently deploys the player in.
+    #[serde(default)]
+    pub position: Position,
+    #[serde(default)]
+    pub ovr: u8,
+}
+
+/// The existing club-selection reputation words, now decided alongside the club's facts.
+fn reputation_key(reputation: u32) -> &'static str {
+    match reputation {
+        750.. => "teamSelect.repWorldClass",
+        600.. => "teamSelect.repStrong",
+        400.. => "teamSelect.repAverage",
+        _ => "teamSelect.repDeveloping",
+    }
+}
+
+fn club_competitions(game: &Game, club_id: &str) -> Vec<ClubCompetition> {
+    game.competitions_in_play()
+        .iter()
+        .filter(|competition| Game::club_takes_part_in(competition, club_id))
+        .map(|competition| ClubCompetition {
+            id: competition.id.clone(),
+            name: competition.name.clone(),
+            name_key: competition.name_key.clone(),
+            season: competition.season,
+            kind: competition.kind.clone(),
+            scope: competition.scope.clone(),
+        })
+        .collect()
+}
+
+fn project_club(game: &Game, team: &Team, squad: &[&Player]) -> ClubSquadRatings {
+    ClubSquadRatings {
+        team_id: team.id.clone(),
+        average_rating: average_rating(squad),
+        players: squad
+            .iter()
+            .map(|player| RatedPlayer {
+                player_id: player.id.clone(),
+                ovr: player.ovr,
+            })
+            .collect(),
+        stadium_name: team.stadium_name.clone(),
+        stadium_capacity: team.stadium_capacity,
+        transfer_budget: team.transfer_budget,
+        wage_budget: team.wage_budget,
+        balance: team.finance,
+        colors: TeamCardColors {
+            primary: team.colors.primary.clone(),
+            secondary: team.colors.secondary.clone(),
+        },
+        founded_year: team.founded_year,
+        competitions: club_competitions(game, &team.id),
+        key_players: squad
+            .iter()
+            .take(5)
+            .map(|player| KeyPlayer {
+                player_id: player.id.clone(),
+                name: player.match_name.clone(),
+                position: player.natural_position.clone(),
+                ovr: player.ovr,
+            })
+            .collect(),
+        reputation_key: reputation_key(team.reputation).into(),
+        opening_expectation: opening_expectation(game, team),
+    }
 }
 
 /// Before a career has begun: the manager has no club and has never had one.
@@ -55,17 +179,7 @@ pub fn query_team_selection(game: &Game) -> TeamSelectionRatings {
             let mut squad: Vec<&Player> =
                 by_club.get(team.id.as_str()).cloned().unwrap_or_default();
             squad.sort_by(|left, right| right.ovr.cmp(&left.ovr).then(left.id.cmp(&right.id)));
-            ClubSquadRatings {
-                team_id: team.id.clone(),
-                average_rating: average_rating(&squad),
-                players: squad
-                    .iter()
-                    .map(|player| RatedPlayer {
-                        player_id: player.id.clone(),
-                        ovr: player.ovr,
-                    })
-                    .collect(),
-            }
+            project_club(game, team, &squad)
         })
         .collect();
     TeamSelectionRatings { clubs }
