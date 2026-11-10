@@ -1881,10 +1881,51 @@ mod issue_1319 {
                 engine::PlayerRole::Standard
             );
         }
-        /// Given a session-only role, when the player is swapped out and back and the same
-        /// formation is selected, then the swap's Standard role stays in effect.
+        /// Given a session role suppressed on the bench, when he substitutes into its compatible
+        /// slot after kick-off, then the intended role is restored.
         #[test]
-        fn a_swap_reset_does_not_restore_a_cleared_session_role() {
+        fn a_substitute_recovers_his_session_role_at_a_compatible_slot() {
+            let game = make_game_with_fixture();
+            let mut session = waiting_session(&game);
+            let (left_back, forward) =
+                home_starter_and_bench_player(&session, 1, engine::Position::Forward);
+            swap_in(&mut session, &left_back, &forward);
+            session
+                .apply_command(engine::MatchCommand::ChangePlayerRole {
+                    side: engine::Side::Home,
+                    player_id: forward.clone(),
+                    role: engine::PlayerRole::AttackingFB,
+                })
+                .unwrap();
+            swap_in(&mut session, &forward, &left_back);
+            assert_eq!(
+                session
+                    .match_state
+                    .bench(engine::Side::Home)
+                    .iter()
+                    .find(|player| player.id == forward)
+                    .unwrap()
+                    .role,
+                engine::PlayerRole::Standard
+            );
+            session.step();
+            session
+                .apply_command(engine::MatchCommand::Substitute {
+                    side: engine::Side::Home,
+                    player_off_id: left_back,
+                    player_on_id: forward.clone(),
+                })
+                .unwrap();
+            assert_eq!(
+                home_role_of(&session, &forward),
+                engine::PlayerRole::AttackingFB
+            );
+        }
+
+        /// Given a session-only role, when the player is swapped out and back and the same
+        /// formation is selected, then his intended role remains in effect.
+        #[test]
+        fn a_session_role_survives_a_swap_into_its_compatible_slot() {
             let game = make_game_with_fixture();
             let mut session = waiting_session(&game);
             let (right_back, reserve) =
@@ -1900,7 +1941,7 @@ mod issue_1319 {
             swap_in(&mut session, &reserve, &right_back);
             assert_eq!(
                 home_role_of(&session, &right_back),
-                engine::PlayerRole::Standard
+                engine::PlayerRole::AttackingFB
             );
             session
                 .apply_command(engine::MatchCommand::ChangeFormation {
@@ -1910,7 +1951,7 @@ mod issue_1319 {
                 .unwrap();
             assert_eq!(
                 home_role_of(&session, &right_back),
-                engine::PlayerRole::Standard
+                engine::PlayerRole::AttackingFB
             );
         }
 

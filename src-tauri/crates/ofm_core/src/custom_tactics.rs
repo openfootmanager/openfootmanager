@@ -141,7 +141,7 @@ pub fn save_current_tactic(game: &mut Game, draft: &CustomTactic) -> Result<(), 
 /// slot best; the eleven never closes up), and a taker who has left leaves the team's
 /// current taker in place: a tactic made last season still applies after a sale. Nothing is
 /// written if the tactic is missing or its formation or style are not ones the game has.
-pub fn apply_custom_tactic(game: &mut Game, id: &str) -> Result<(), String> {
+pub fn apply_custom_tactic(game: &mut Game, id: &str) -> Result<Vec<String>, String> {
     let id = id.trim();
     let tactic = game
         .custom_tactics
@@ -191,14 +191,16 @@ pub fn apply_custom_tactic(game: &mut Game, id: &str) -> Result<(), String> {
     team.formation = tactic.formation.clone();
     team.play_style = play_style;
     let Some(contents) = tactic.contents else {
-        return Ok(());
+        return Ok(Vec::new());
     };
     team.tactics_phase = contents.instructions;
-    if let Some(lineup) = lineup {
-        restore_eleven_and_roles(team, &contents.slots, lineup, &positions);
-    }
+    let restored_roles = if let Some(lineup) = lineup {
+        restore_eleven_and_roles(team, &contents.slots, lineup, &positions)
+    } else {
+        Vec::new()
+    };
     team.match_roles = restored_takers(&contents.match_roles, &team.match_roles, &at_the_club);
-    Ok(())
+    Ok(restored_roles)
 }
 
 /// Writes the restored eleven, and each saved role onto the player who kept his saved slot. A role
@@ -209,11 +211,13 @@ fn restore_eleven_and_roles(
     saved_slots: &[SavedSlot],
     lineup: Vec<String>,
     positions: &[domain::player::Position],
-) {
+) -> Vec<String> {
+    let mut restored_roles = Vec::new();
     for (slot, saved) in saved_slots.iter().enumerate() {
         if lineup.get(slot) != Some(&saved.player_id) {
             continue;
         }
+        restored_roles.push(saved.player_id.clone());
         let admitted = saved.role.as_ref().filter(|role| {
             positions
                 .get(slot)
@@ -227,6 +231,7 @@ fn restore_eleven_and_roles(
         };
     }
     team.starting_xi_ids = lineup;
+    restored_roles
 }
 
 /// Renames the saved tactic `id`, keeping everything else it holds.
