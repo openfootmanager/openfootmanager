@@ -70,10 +70,13 @@ describe("the player profile's cases", () => {
     expect(scouted.knowledge).toMatchObject({ kind: "scouted", scouted_on: scoutedOn });
     expect(scouted.scoutedReport).toMatchObject({ player_id: scouted.playerId });
     expect(scouted.opinion?.source).toMatchObject({ kind: "scout", scouted_on: scoutedOn });
+    // A free agent has no contract, so no wage in the fixture: the figure is a stand-in, one
+    // 220th of his market value, rounded to two significant figures, and not zero.
     expect(scouted.wage).toEqual({
       kind: "approximate",
-      weekly: Number((player?.wage ?? 0).toPrecision(2)),
+      weekly: Number(Math.round((player?.market_value ?? 0) / 220).toPrecision(2)),
     });
+    expect(scouted.wage).not.toEqual({ kind: "approximate", weekly: 0 });
   });
 
   /**
