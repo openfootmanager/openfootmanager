@@ -332,7 +332,6 @@
       "boardExpects": "董事会期望",
       "transferBudget": "转会预算",
       "wageBudget": "薪资预算",
-      "perWeek": "{{amount}} / 周",
       "balance": "余额",
       "stadium": "球场",
       "founded": "创立于{{year}}年"

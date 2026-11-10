@@ -332,7 +332,6 @@
       "boardExpects": "Vorstand erwartet",
       "transferBudget": "Transferbudget",
       "wageBudget": "Gehaltsbudget",
-      "perWeek": "{{amount}} / Woche",
       "balance": "Kontostand",
       "stadium": "Stadion",
       "founded": "gegründet {{year}}"

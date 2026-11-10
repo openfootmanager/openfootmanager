@@ -332,7 +332,6 @@
       "boardExpects": "Target manajemen",
       "transferBudget": "Anggaran transfer",
       "wageBudget": "Anggaran gaji",
-      "perWeek": "{{amount}} / minggu",
       "balance": "Saldo",
       "stadium": "Stadion",
       "founded": "didirikan {{year}}"

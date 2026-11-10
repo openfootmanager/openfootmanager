@@ -15,6 +15,7 @@ import TeamSelectionScopePanel from "./TeamSelectionScopePanel";
 import { useTeamSelection } from "./useTeamSelection";
 
 const SCOPE_BAND_ID = "team-selection-scope";
+const MANAGE_HINT_ID = "team-selection-manage-hint";
 
 export default function TeamSelection() {
   const { t } = useTranslation();
@@ -68,7 +69,7 @@ export default function TeamSelection() {
 
   return (
     <div className="flex min-h-screen flex-col bg-page text-fg lg:h-screen lg:overflow-hidden">
-      <header className="flex min-h-16 shrink-0 flex-wrap items-center gap-3.5 border-b border-line bg-panel px-5 py-2">
+      <header className="sticky top-0 z-10 flex min-h-16 shrink-0 flex-wrap items-center gap-3.5 border-b border-line bg-panel px-5 py-2">
         <Button
           variant="ghost"
           size="sm"
@@ -96,8 +97,14 @@ export default function TeamSelection() {
           >
             {t("teamSelect.simulation")}
           </Button>
+          {selectedTeam ? null : (
+            <span id={MANAGE_HINT_ID} className="sr-only">
+              {t("teamSelect.card.emptyTitle")}
+            </span>
+          )}
           <Button
             disabled={!selectedTeam || isConfirming}
+            aria-describedby={selectedTeam ? undefined : MANAGE_HINT_ID}
             onClick={handleConfirm}
             iconRight={
               isConfirming ? (

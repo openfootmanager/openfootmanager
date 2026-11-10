@@ -332,7 +332,6 @@
       "boardExpects": "Board expects",
       "transferBudget": "Transfer budget",
       "wageBudget": "Wage budget",
-      "perWeek": "{{amount}} / week",
       "balance": "Balance",
       "stadium": "Stadium",
       "founded": "founded {{year}}"

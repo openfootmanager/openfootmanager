@@ -4,7 +4,11 @@ import { describe, expect, it, vi } from "vitest";
 import CountryLeagueRail from "./CountryLeagueRail";
 
 vi.mock("react-i18next", () => ({
-  useTranslation: () => ({ t: (key: string) => key, i18n: { language: "en" } }),
+  useTranslation: () => ({
+    t: (key: string, params?: Record<string, unknown>) =>
+      params?.n !== undefined ? `${key}:${params.n}` : key,
+    i18n: { language: "en" },
+  }),
 }));
 
 const LEAGUES = [
@@ -39,18 +43,18 @@ describe("CountryLeagueRail", () => {
 
     const nav = screen.getByRole("navigation", { name: "teamSelect.rail.label" });
     expect(within(nav).getByRole("button", { name: /Sweden/ })).toHaveAttribute(
-      "aria-expanded",
+      "aria-current",
       "true",
     );
-    expect(within(nav).getByRole("button", { name: /Norway/ })).toHaveAttribute(
-      "aria-expanded",
-      "false",
-    );
+    expect(within(nav).getByRole("button", { name: /Norway/ })).not.toHaveAttribute("aria-current");
     expect(within(nav).getByRole("button", { name: /First Division/ })).toHaveAttribute(
       "aria-current",
       "true",
     );
-    expect(within(nav).getByRole("button", { name: /Second Division/ })).toHaveTextContent("16");
+    // The count is a number for the eye and a clubs count in words for a screen reader.
+    expect(within(nav).getByRole("button", { name: /Second Division/ })).toHaveTextContent(
+      "teamSelect.clubCount",
+    );
     expect(within(nav).getByRole("button", { name: /Second Division/ })).not.toHaveAttribute(
       "aria-current",
     );

@@ -332,7 +332,6 @@
       "boardExpects": "Руководство ожидает",
       "transferBudget": "Трансферный бюджет",
       "wageBudget": "Бюджет зарплат",
-      "perWeek": "{{amount}} / неделя",
       "balance": "Баланс",
       "stadium": "Стадион",
       "founded": "основан в {{year}}"

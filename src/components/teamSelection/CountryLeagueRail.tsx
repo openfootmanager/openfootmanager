@@ -29,6 +29,7 @@ function LeagueList({
   activeLeagueId,
   onSelectLeague,
 }: Pick<CountryLeagueRailProps, "leagues" | "activeLeagueId" | "onSelectLeague">) {
+  const { t } = useTranslation();
   return (
     <ul className="flex flex-col gap-px">
       {leagues.map((league) => {
@@ -46,7 +47,10 @@ function LeagueList({
               }`}
             >
               <span className="min-w-0 [overflow-wrap:anywhere]">{league.name}</span>
-              <span className="tabular-nums">{league.clubCount}</span>
+              <span className="tabular-nums" aria-hidden="true">
+                {league.clubCount}
+              </span>
+              <span className="sr-only">{t("teamSelect.clubCount", { n: league.clubCount })}</span>
             </button>
           </li>
         );
@@ -57,7 +61,7 @@ function LeagueList({
 
 /**
  * The first two steps of choosing a club: a country, then one of its leagues. The picked country
- * opens to its leagues, each with its clubs counted; with no country to pick (a world whose
+ * (`aria-current`) opens to its leagues, each with its clubs counted; with no country to pick (a world whose
  * competitions place none) the leagues stand alone.
  */
 export default function CountryLeagueRail({
@@ -78,7 +82,9 @@ export default function CountryLeagueRail({
         <h2 className="font-heading text-lead font-semibold uppercase tracking-label text-fg-muted">
           {t("teamSelect.rail.countries")}
         </h2>
-        <span className="text-caption text-fg-subtle">{countryCodes.length}</span>
+        <span aria-hidden="true" className="text-caption text-fg-subtle">
+          {countryCodes.length}
+        </span>
       </div>
       <ul className="flex min-h-0 flex-col gap-px overflow-auto p-2">
         {countryCodes.length === 0 ? (
@@ -96,7 +102,7 @@ export default function CountryLeagueRail({
             <li key={code}>
               <button
                 type="button"
-                aria-expanded={open}
+                aria-current={open ? "true" : undefined}
                 onClick={() => onSelectCountry(code)}
                 className={`flex min-h-9 w-full items-center gap-2 rounded-lg px-2.5 py-1 text-left text-body font-semibold text-fg hover:bg-hover ${ROW_FOCUS}`}
               >

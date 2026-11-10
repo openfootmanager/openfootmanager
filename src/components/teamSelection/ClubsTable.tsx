@@ -4,7 +4,13 @@ import { useTranslation } from "react-i18next";
 import { useRatingTiers } from "../../hooks/useRatingTiers";
 import { weeklyWageAmount } from "../../lib/finance";
 import { formatVal, formatWeeklyWage } from "../../lib/helpers";
-import { type SortDirection, type SortState, type SortValue, sortRows } from "../../lib/sortRows";
+import {
+  nextSort,
+  type SortDirection,
+  type SortState,
+  type SortValue,
+  sortRows,
+} from "../../lib/sortRows";
 import type { TeamData } from "../../store/gameStore";
 import { DataTable, type DataTableColumn, RatingChip, TeamLogo } from "../ui";
 
@@ -73,11 +79,7 @@ export default function ClubsTable({
 
   function onSortChange(key: string) {
     const next = key as ClubSortKey;
-    setSort((current) =>
-      current.key === next
-        ? { key: next, direction: current.direction === "asc" ? "desc" : "asc" }
-        : { key: next, direction: firstDirection(next) },
-    );
+    setSort((current) => nextSort(current, next, firstDirection(next)));
   }
 
   const columns: DataTableColumn<TeamData>[] = [
@@ -152,6 +154,10 @@ export default function ClubsTable({
             {t("teamSelect.clubCount", { n: clubCount })}
           </span>
         </h2>
+        {/* Said aloud as the search narrows the list: the table changes under the typing. */}
+        <p role="status" className="sr-only">
+          {t("teamSelect.clubCount", { n: clubs.length })}
+        </p>
         <input
           type="search"
           value={search}

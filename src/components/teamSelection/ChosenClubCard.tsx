@@ -1,4 +1,5 @@
 import { Shield } from "lucide-react";
+import { useId } from "react";
 import { useTranslation } from "react-i18next";
 
 import { useRatingTiers } from "../../hooks/useRatingTiers";
@@ -11,6 +12,16 @@ import { EntityCard, PositionBadge, RatingChip, TeamLocation, TeamLogo } from ".
 
 /** What a figure the backend has not given yet reads as. */
 const NOT_YET = "\u2014";
+
+/** A dash read aloud as what it stands for: a figure the backend has not given yet. */
+function NotYet({ unknownLabel }: { unknownLabel: string }) {
+  return (
+    <>
+      <span aria-hidden="true">{NOT_YET}</span>
+      <span className="sr-only">{unknownLabel}</span>
+    </>
+  );
+}
 
 interface ChosenClubCardProps {
   /** The club chosen, or null while none is. */
@@ -45,6 +56,7 @@ export default function ChosenClubCard({
 }: ChosenClubCardProps) {
   const { t, i18n } = useTranslation();
   const tierOf = useRatingTiers();
+  const keyPlayersId = useId();
 
   if (!team) {
     return (
@@ -89,11 +101,15 @@ export default function ChosenClubCard({
           <dl className="grid grid-cols-2 gap-3">
             <div className="flex flex-col gap-0.5">
               <dt className="text-caption text-fg-muted">{t("teamSelect.card.boardExpects")}</dt>
-              <dd className="font-semibold">{NOT_YET}</dd>
+              <dd className="font-semibold">
+                <NotYet unknownLabel={t("common.unknown")} />
+              </dd>
             </div>
             <div className="flex flex-col gap-0.5">
               <dt className="text-caption text-fg-muted">{t("teamSelect.reputation")}</dt>
-              <dd className="font-semibold">{NOT_YET}</dd>
+              <dd className="font-semibold">
+                <NotYet unknownLabel={t("common.unknown")} />
+              </dd>
             </div>
           </dl>
           <dl>
@@ -103,9 +119,7 @@ export default function ChosenClubCard({
             />
             <Fact
               label={t("teamSelect.card.wageBudget")}
-              value={t("teamSelect.card.perWeek", {
-                amount: formatWeeklyWage(weeklyWageAmount(team.wage_budget), "compact"),
-              })}
+              value={formatWeeklyWage(weeklyWageAmount(team.wage_budget), "compact")}
             />
             <Fact label={t("teamSelect.card.balance")} value={formatVal(team.finance)} />
             <Fact
@@ -113,8 +127,11 @@ export default function ChosenClubCard({
               value={`${team.stadium_name} \u00b7 ${team.stadium_capacity.toLocaleString(i18n.language)}`}
             />
           </dl>
-          <section aria-label={t("teamSelect.keyPlayers")}>
-            <h3 className="mb-1 font-heading text-lead font-semibold uppercase tracking-label text-fg-muted">
+          <section aria-labelledby={keyPlayersId}>
+            <h3
+              id={keyPlayersId}
+              className="mb-1 font-heading text-lead font-semibold uppercase tracking-label text-fg-muted"
+            >
               {t("teamSelect.keyPlayers")}
             </h3>
             <ul>
@@ -129,7 +146,10 @@ export default function ChosenClubCard({
                     name={translatePositionLabel(t, player.position)}
                   />
                   <span className="min-w-0 flex-1 [overflow-wrap:anywhere]">{player.name}</span>
-                  <span className="text-caption tabular-nums text-fg-muted">{player.age}</span>
+                  <span className="text-caption tabular-nums text-fg-muted">
+                    <span className="sr-only">{t("common.age")} </span>
+                    {player.age}
+                  </span>
                   <RatingChip value={player.ovr} tier={tierOf(player.ovr)} />
                 </li>
               ))}

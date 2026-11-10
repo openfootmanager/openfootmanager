@@ -332,7 +332,6 @@
       "boardExpects": "Yönetim bekliyor",
       "transferBudget": "Transfer bütçesi",
       "wageBudget": "Maaş bütçesi",
-      "perWeek": "{{amount}} / hafta",
       "balance": "Bakiye",
       "stadium": "Stadyum",
       "founded": "{{year}} yılında kuruldu"

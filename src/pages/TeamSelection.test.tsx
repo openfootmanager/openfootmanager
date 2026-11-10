@@ -124,6 +124,10 @@ describe("TeamSelection", () => {
     expect(screen.getByRole("button", { name: "Bravo Town" })).toBeInTheDocument();
 
     expect(screen.getByRole("button", { name: "teamSelect.manageNone" })).toBeDisabled();
+    // A disabled button says why: no club is chosen yet.
+    expect(
+      screen.getByRole("button", { name: "teamSelect.manageNone" }),
+    ).toHaveAccessibleDescription("teamSelect.card.emptyTitle");
     const card = screen.getByRole("complementary", { name: "teamSelect.card.label" });
     expect(within(card).getByText("teamSelect.card.emptyTitle")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "teamSelect.simulation" })).toHaveAttribute(

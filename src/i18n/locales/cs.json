@@ -332,7 +332,6 @@
       "boardExpects": "Vedení očekává",
       "transferBudget": "Přestupový rozpočet",
       "wageBudget": "Mzdový rozpočet",
-      "perWeek": "{{amount}} / týden",
       "balance": "Zůstatek",
       "stadium": "Stadion",
       "founded": "založen {{year}}"

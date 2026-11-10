@@ -67,6 +67,10 @@ describe("ChosenClubCard", () => {
     expect(screen.getAllByTitle(/common\.overallRating/).length).toBeGreaterThan(0);
     expect(screen.getByText("teamSelect.card.founded")).toBeInTheDocument();
     expect(screen.getByText("North Road · 18,400")).toBeInTheDocument();
+    // The wage budget states its weekly unit once, as the formatter writes it.
+    const wage = screen.getByText("teamSelect.card.wageBudget").nextSibling;
+    expect(wage?.textContent).toMatch(/\/wk$/);
+    expect(wage?.textContent).not.toMatch(/week/i);
     expect(screen.getByText("E. Sandvall")).toBeInTheDocument();
     expect(screen.getByRole("list", { name: "teamSelect.competitions" })).toHaveTextContent(
       "First DivisionSwedish Cup",

@@ -134,6 +134,17 @@ describe("ClubsTable", () => {
     expect(handlers.onSearchChange).toHaveBeenCalledWith("bex");
   });
 
+  /**
+   * Given a search that leaves two of the league's three clubs
+   * When the table is drawn
+   * Then a polite status says how many clubs are listed, so the change is heard as it is typed.
+   */
+  it("says aloud how many clubs the search leaves", () => {
+    renderTable({ clubs: CLUBS.slice(0, 2), search: "a" });
+
+    expect(screen.getByRole("status")).toHaveTextContent("teamSelect.clubCount:2");
+  });
+
   it("says no club matches when the search leaves none", () => {
     renderTable({ clubs: [], search: "zzz" });
 

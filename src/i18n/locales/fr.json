@@ -332,7 +332,6 @@
       "boardExpects": "La direction attend",
       "transferBudget": "Budget transferts",
       "wageBudget": "Budget salaires",
-      "perWeek": "{{amount}} / semaine",
       "balance": "Solde",
       "stadium": "Stade",
       "founded": "fondé en {{year}}"
