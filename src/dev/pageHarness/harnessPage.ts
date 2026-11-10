@@ -14,6 +14,8 @@ export const HARNESS_PAGES = {
   teams: "Teams",
   managers: "Managers",
   staff: "Staff",
+  // A player's profile opens over the Players tab, as it does from a list.
+  profile: "Players",
 } as const;
 export type HarnessPage = keyof typeof HARNESS_PAGES;
 
@@ -25,4 +27,18 @@ function isHarnessPage(page: string | null): page is HarnessPage {
 export function readHarnessPage(search: string): HarnessPage | null {
   const page = new URLSearchParams(search).get("page");
   return isHarnessPage(page) ? page : null;
+}
+
+/**
+ * The states a player's profile is in, by how the club knows him (`ofm_core::player_knowledge`):
+ * its own player, a rival in its division, one a scout reported on, one it knows nothing of, and one
+ * who has retired. Each shows different facts, so each is a case of the layout check.
+ */
+export const HARNESS_PROFILES = ["own", "rival", "scouted", "unknown", "retired"] as const;
+export type HarnessProfile = (typeof HARNESS_PROFILES)[number];
+
+/** `?page=profile&player=rival` and the like; the club's own player when it names none. */
+export function readHarnessProfile(search: string): HarnessProfile {
+  const player = new URLSearchParams(search).get("player");
+  return HARNESS_PROFILES.find((profile) => profile === player) ?? "own";
 }
