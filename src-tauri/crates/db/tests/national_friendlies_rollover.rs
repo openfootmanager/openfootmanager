@@ -371,3 +371,77 @@ fn an_upcoming_club_fixture_yields_to_a_kept_national_friendly() {
         0
     );
 }
+
+fn assert_recent_former_club_rest(destination: Option<&str>) {
+    use domain::{
+        contract_ledger::{ContractRecord, ContractSource, ReleaseReason},
+        player::{PlayerMovementEntry, PlayerMovementKind},
+    };
+    let mut game = spring_career();
+    game.teams.push(Team::new(
+        "club-c".into(),
+        "Rival".into(),
+        "RIV".into(),
+        "England".into(),
+        "City".into(),
+        "Stadium".into(),
+        1000,
+    ));
+    game.clock.current_date = Utc.with_ymd_and_hms(2031, 6, 10, 12, 0, 0).unwrap();
+    game.competitions[0].fixtures = vec![Fixture {
+        id: "former-club-match".into(),
+        competition_id: "league".into(),
+        date: "2031-06-10".into(),
+        home_team_id: "club-a".into(),
+        away_team_id: "club-c".into(),
+        status: FixtureStatus::Completed,
+        result: Some(MatchResult::default()),
+        ..Default::default()
+    }];
+    let player = game
+        .players
+        .iter_mut()
+        .find(|p| p.id == "player-nt-eng")
+        .unwrap();
+    let kind = if destination.is_some() {
+        PlayerMovementKind::PermanentTransfer
+    } else {
+        PlayerMovementKind::Released
+    };
+    let mut entry = PlayerMovementEntry::new("2031-06-10", kind);
+    entry.from_team_id = Some("club-a".into());
+    entry.to_team_id = destination.map(str::to_string);
+    if destination.is_some() {
+        entry.contract = Some(ContractRecord {
+            start: Some("2031-06-10".into()),
+            end: Some("2033-06-30".into()),
+            weekly_wage: 100,
+            source: ContractSource::Transfer,
+        });
+    } else {
+        entry.release_reason = Some(ReleaseReason::Terminated);
+    }
+    player.record_movement(entry).unwrap();
+    player.team_id = destination.map(str::to_string);
+    game.sync_legacy_league();
+    ofm_core::turn::finish_live_match_day(&mut game);
+    assert!(
+        friendlies(&game)[0].date.as_str() >= "2031-06-13",
+        "a recent move must not erase the player's completed-club rest, got {}",
+        friendlies(&game)[0].date
+    );
+}
+
+/// Given a call-up transferred after a completed club match, when the overdue friendly is settled,
+/// then his recorded former club still reserves the minimum rest.
+#[test]
+fn a_transferred_call_up_keeps_rest_from_his_former_club() {
+    assert_recent_former_club_rest(Some("club-b"));
+}
+
+/// Given a call-up released after a completed club match, when the overdue friendly is settled,
+/// then his recorded former club still reserves the minimum rest.
+#[test]
+fn a_released_call_up_keeps_rest_from_his_former_club() {
+    assert_recent_former_club_rest(None);
+}
