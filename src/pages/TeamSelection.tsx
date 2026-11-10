@@ -27,12 +27,12 @@ export default function TeamSelection() {
     setClubSearch,
     scopeExpanded,
     setScopeExpanded,
-    setSelectedHomeRegionId,
     selectedHomeRegionId,
     selectedCountryCode,
     setSelectedCountryCode,
     allCountryCodes,
     handleSelectCountry,
+    changeHomeRegion,
     activeLeagueId,
     setSelectedLeagueId,
     regionSelection,
@@ -138,7 +138,7 @@ export default function TeamSelection() {
               regions={regions}
               selectedHomeRegionId={selectedHomeRegionId}
               onSelectHomeRegion={(regionId) => {
-                setSelectedHomeRegionId(regionId);
+                changeHomeRegion(regionId);
                 setScopeMessage(null);
               }}
               selectedCountryCode={selectedCountryCode}

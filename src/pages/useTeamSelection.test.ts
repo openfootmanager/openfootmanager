@@ -306,6 +306,42 @@ describe("useTeamSelection countries", () => {
     expect(result.current.selectedCountryCode).toBe("BR");
     expect(result.current.visibleClubs.map((team) => team.id)).toEqual(["br-a"]);
   });
+
+  /**
+   * Given a player who only browsed from the European home region to a South American country
+   * When the South American country is picked
+   * Then the European region is no longer simulated: the home region follows the country, and a
+   *      region merely browsed through does not slow every day down.
+   */
+  it("stops simulating the region it leaves when the player only browsed", () => {
+    const gameState = buildTwoRegionGameState();
+    const externals = { setGameState: vi.fn(), setGameActive: vi.fn(), navigate: vi.fn() };
+    const { result } = renderHook(() => useTeamSelection({ gameState, ...externals }));
+    expect(result.current.activeRegionIds).toEqual(["europe"]);
+
+    act(() => result.current.handleSelectCountry("BR"));
+
+    expect(result.current.activeRegionIds).toEqual(["south_america"]);
+  });
+
+  /**
+   * Given a player who switched the South American region on in the simulation settings, and then
+   *       picked a South American country and went back to a European one
+   * When the home region moves away from South America
+   * Then South America stays simulated: the player asked for it, and only a region they did not
+   *      ask for is dropped.
+   */
+  it("keeps simulating a region the player switched on themselves", () => {
+    const gameState = buildTwoRegionGameState();
+    const externals = { setGameState: vi.fn(), setGameActive: vi.fn(), navigate: vi.fn() };
+    const { result } = renderHook(() => useTeamSelection({ gameState, ...externals }));
+
+    act(() => result.current.handleRegionToggle("south_america"));
+    act(() => result.current.handleSelectCountry("BR"));
+    act(() => result.current.handleSelectCountry("GB"));
+
+    expect([...result.current.activeRegionIds].sort()).toEqual(["europe", "south_america"]);
+  });
 });
 
 describe("useTeamSelection club table", () => {

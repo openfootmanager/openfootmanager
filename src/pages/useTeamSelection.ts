@@ -48,6 +48,9 @@ export function useTeamSelection({
   const [selectedCountryCode, setSelectedCountryCode] = useState<string | null>(null);
   const [selectedLeagueId, setSelectedLeagueId] = useState<string | null>(null);
   const [regionSelection, setRegionSelection] = useState<RegionSelection>({});
+  // The regions the player switched on in the simulation settings, as against the home region the
+  // country they browsed made current: only the second is dropped when another country is picked.
+  const [playerRegionIds, setPlayerRegionIds] = useState<ReadonlySet<string>>(new Set());
   const [competitionSelection, setCompetitionSelection] = useState<CompetitionSelection>({});
   const [scopeMessage, setScopeMessage] = useState<ScopeMessage | null>(null);
   const [isConfirming, setIsConfirming] = useState(false);
@@ -90,10 +93,21 @@ export function useTeamSelection({
     [regions],
   );
 
+  // The home region moves. The one it leaves is simulated no longer, unless the player switched it
+  // on themselves: browsing from Sweden to Brazil must not quietly simulate both regions and slow
+  // every day down.
+  const changeHomeRegion = (regionId: string | null) => {
+    const previous = selectedHomeRegionId;
+    if (previous && previous !== regionId && !playerRegionIds.has(previous)) {
+      setRegionSelection((current) => ({ ...current, [previous]: false }));
+    }
+    setSelectedHomeRegionId(regionId);
+  };
+
   // Choosing a country in another region makes that region the home one: the career starts there.
   const handleSelectCountry = (countryCode: string) => {
     const region = regions.find((candidate) => candidate.country_codes.includes(countryCode));
-    if (region) setSelectedHomeRegionId(region.id);
+    if (region) changeHomeRegion(region.id);
     setSelectedCountryCode(countryCode);
   };
 
@@ -286,6 +300,7 @@ export function useTeamSelection({
         ...current,
         [regionId]: true,
       }));
+      setPlayerRegionIds((current) => new Set(current).add(regionId));
       setScopeMessage(null);
       return;
     }
@@ -304,6 +319,12 @@ export function useTeamSelection({
       });
       return;
     }
+
+    setPlayerRegionIds((current) => {
+      const next = new Set(current);
+      next.delete(regionId);
+      return next;
+    });
 
     const nextActiveRegions = new Set(
       activeRegionIds.filter((activeRegionId) => activeRegionId !== regionId),
@@ -372,6 +393,7 @@ export function useTeamSelection({
     );
 
     if (missingRegions.length > 0) {
+      setPlayerRegionIds((current) => new Set([...current, ...missingRegions]));
       setRegionSelection((current) => {
         const next = { ...current };
         for (const regionId of missingRegions) {
@@ -439,6 +461,7 @@ export function useTeamSelection({
     setSelectedCountryCode,
     allCountryCodes,
     handleSelectCountry,
+    changeHomeRegion,
     activeLeagueId,
     setSelectedLeagueId,
     regionSelection,
