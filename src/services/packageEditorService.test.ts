@@ -34,6 +34,8 @@ describe("validatePackageProject", () => {
 
   /** Given an old recent record, when Validate reports findings, then the stored record is updated. */
   it("saves validation findings on an old recent project", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-11-10T12:00:00.000Z"));
     localStorage.setItem(
       "worldEditor.recentProjects",
       JSON.stringify([
@@ -46,15 +48,19 @@ describe("validatePackageProject", () => {
       warnings: [{ code: "y" }, { code: "z" }],
     });
 
-    await validatePackageProject("/p");
+    try {
+      await validatePackageProject("/p");
 
-    const records = JSON.parse(localStorage.getItem("worldEditor.recentProjects") ?? "[]");
-    expect(records[0].lastValidation).toEqual({
-      errors: 1,
-      warnings: 2,
-      checkedAt: expect.any(String),
-    });
-    expect(records[1]).toEqual({ path: "/other", name: "Other", openedAt: "2026-01-02" });
+      const records = JSON.parse(localStorage.getItem("worldEditor.recentProjects") ?? "[]");
+      expect(records[0].lastValidation).toEqual({
+        errors: 1,
+        warnings: 2,
+        checkedAt: "2026-11-10T12:00:00.000Z",
+      });
+      expect(records[1]).toEqual({ path: "/other", name: "Other", openedAt: "2026-01-02" });
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   /** Given storage cannot be read, when Validate succeeds, then its findings still reach the editor. */

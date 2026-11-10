@@ -36,6 +36,7 @@ import { WorldEditorLayout } from "../components/worldEditor/WorldEditorLayout";
 import { WorldEditorTopBar, type SaveState } from "../components/worldEditor/WorldEditorTopBar";
 import { findingsToShow } from "../components/worldEditor/validationOutcome";
 import { savePackageProject, validatePackageProject } from "../services/packageEditorService";
+import { readRecentProjects, rememberRecentProject } from "../services/recentProjects";
 import {
   hasUnsavedChanges,
   type Acknowledged,
@@ -50,17 +51,6 @@ import {
 import { WorldEditorListContent } from "../components/worldEditor/WorldEditorListContent";
 
 const AUTO_SAVE_KEY = "worldEditor.autoSave";
-const RECENT_PROJECTS_KEY = "worldEditor.recentProjects";
-const MAX_RECENT = 8;
-
-function readRecentProjects(fallback: RecentProject[] = []): RecentProject[] {
-  try {
-    const raw = localStorage.getItem(RECENT_PROJECTS_KEY);
-    return raw ? (JSON.parse(raw) as RecentProject[]) : fallback;
-  } catch {
-    return fallback;
-  }
-}
 
 interface EntitySnapshot {
   meta: WorldMetaDef;
@@ -259,20 +249,7 @@ export default function WorldEditor() {
   }
 
   function addRecentProject(path: string, name: string) {
-    setRecentProjects((prev) => {
-      const filtered = prev.filter((p) => p.path !== path);
-      const previous = prev.find((p) => p.path === path);
-      const updated = [
-        { ...previous, path, name, openedAt: new Date().toISOString() },
-        ...filtered,
-      ].slice(0, MAX_RECENT);
-      try {
-        localStorage.setItem(RECENT_PROJECTS_KEY, JSON.stringify(updated));
-      } catch {
-        /* ignore */
-      }
-      return updated;
-    });
+    setRecentProjects((prev) => rememberRecentProject(prev, path, name));
   }
 
   const persist = useCallback(

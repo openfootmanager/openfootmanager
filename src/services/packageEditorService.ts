@@ -1,6 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 
-import type { PackageCollections, RecentProject } from "../store/packageEditorTypes";
+import type { PackageCollections } from "../store/packageEditorTypes";
+import { recordValidation } from "./recentProjects";
 
 export interface WorldLibraryRow {
   path: string;
@@ -41,25 +42,7 @@ export interface PackageDiagnostics {
  */
 export async function validatePackageProject(dir: string): Promise<PackageDiagnostics> {
   const result = await invoke<PackageDiagnostics>("validate_package_project", { dir });
-  try {
-    const key = "worldEditor.recentProjects";
-    const records = JSON.parse(localStorage.getItem(key) ?? "[]") as RecentProject[];
-    const updated = records.map((record) =>
-      record.path === dir
-        ? {
-            ...record,
-            lastValidation: {
-              errors: result.issues.length,
-              warnings: result.warnings.length,
-              checkedAt: new Date().toISOString(),
-            },
-          }
-        : record,
-    );
-    localStorage.setItem(key, JSON.stringify(updated));
-  } catch {
-    // Storage may be unavailable; validation findings still reach the editor.
-  }
+  recordValidation(dir, result.issues.length, result.warnings.length);
   return result;
 }
 
