@@ -584,7 +584,7 @@ impl SaveManager {
 
         let missing_weak_foot = db.needs_weak_foot_backfill()?;
         let identity_changed = if missing_weak_foot {
-            player_identity::upgrade_game_player_identities(&mut game)
+            player_identity::backfill_game_player_weak_feet(&mut game)
         } else {
             player_identity::upgrade_loaded_player_identities(&mut game)
         };
