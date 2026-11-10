@@ -753,9 +753,14 @@ fn manage_international_calendar(
         // Keyed by the year the windows belong to, so a replay draws the same fixtures.
         let mut friendlies_rng =
             game.rng_for("national-team-friendlies", &next_start.year().to_string());
+        let today = game.clock.current_date.format("%Y-%m-%d").to_string();
+        let future_windows: Vec<_> = window_dates
+            .into_iter()
+            .filter(|date| date >= &today)
+            .collect();
         crate::national_team::schedule_national_team_friendlies(
             &mut game.national_teams,
-            &window_dates,
+            &future_windows,
             &mut friendlies_rng,
         );
     }
