@@ -54,6 +54,7 @@ pub mod matchday;
 pub mod messages;
 pub mod morale;
 pub mod national_team;
+pub mod national_tournament;
 pub mod nations;
 pub mod news;
 pub mod player_events;
