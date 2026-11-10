@@ -2720,6 +2720,423 @@ mod tests {
         );
     }
 
+    /// Given a saved role on a waiting bench player, when his contract is terminated and he is
+    /// swapped into a compatible slot, then the removed role is not restored in the session.
+    #[test]
+    fn a_terminated_players_saved_role_is_removed_from_the_waiting_match() {
+        let mut game = make_round_summary_game();
+        game.teams[0].starting_xi_ids = game
+            .players
+            .iter()
+            .filter(|p| p.team_id.as_deref() == Some("team1"))
+            .map(|p| p.id.clone())
+            .collect();
+        for (id, position) in [
+            ("spare-gk", Position::Goalkeeper),
+            ("spare-def", Position::Defender),
+            ("spare-def2", Position::Defender),
+            ("spare-mid", Position::Midfielder),
+            ("spare-mid2", Position::Midfielder),
+            ("spare-fwd", Position::Forward),
+        ] {
+            game.players.push(make_player(id, id, "team1", position));
+        }
+        let target = game
+            .players
+            .iter_mut()
+            .find(|p| p.id == "spare-def")
+            .unwrap();
+        target.stage_contract_end(Some("2027-06-15".into()));
+        target.stage_wage(1000);
+        game.teams[0]
+            .player_roles
+            .insert("spare-def".into(), domain::team::PlayerRole::AttackingFB);
+        let state = StateManager::new();
+        state.set_game(game);
+        advance_time_with_mode_internal(&state, ofm_core::state::Career::Active, "live").unwrap();
+        let bench_role = state
+            .with_live_match(|session| {
+                session
+                    .snapshot()
+                    .home_bench
+                    .iter()
+                    .find(|p| p.id == "spare-def")
+                    .unwrap()
+                    .role
+            })
+            .unwrap();
+        assert_eq!(bench_role, engine::PlayerRole::AttackingFB);
+        crate::commands::contracts::terminate_contract_now_internal(
+            &state,
+            ofm_core::state::Career::Active,
+            "spare-def",
+        )
+        .unwrap();
+        assert!(!state
+            .get_game(|game| game.teams[0].player_roles.contains_key("spare-def"))
+            .unwrap());
+        assert_eq!(
+            waiting_bench_role(&state, "spare-def", engine::Side::Home),
+            engine::PlayerRole::Standard
+        );
+        swap_into_left_back(&state, "spare-def");
+        assert_eq!(
+            role_in_the_waiting_match(&state, "spare-def"),
+            engine::PlayerRole::Standard
+        );
+    }
+
+    fn waiting_match_with_transfer_targets() -> StateManager {
+        let mut game = make_round_summary_game();
+        for team_id in ["team1", "team2"] {
+            let team = game.teams.iter_mut().find(|t| t.id == team_id).unwrap();
+            team.starting_xi_ids = game
+                .players
+                .iter()
+                .filter(|p| p.team_id.as_deref() == Some(team_id))
+                .map(|p| p.id.clone())
+                .collect();
+            team.finance = 20_000_000;
+            team.transfer_budget = 20_000_000;
+            team.reputation = if team_id == "team1" { 700 } else { 350 };
+            for (suffix, position) in [
+                ("gk", Position::Goalkeeper),
+                ("def", Position::Defender),
+                ("def2", Position::Defender),
+                ("mid", Position::Midfielder),
+                ("mid2", Position::Midfielder),
+                ("fwd", Position::Forward),
+            ] {
+                let id = format!("spare-{team_id}-{suffix}");
+                let mut player = make_player(&id, &id, team_id, position);
+                player.stage_contract_end(Some("2028-06-30".into()));
+                player.stage_wage(1_000);
+                player.market_value = 1_000_000;
+                player.morale = 35;
+                player.stats.appearances = 1;
+                if suffix == "def" {
+                    team.player_roles
+                        .insert(id.clone(), domain::team::PlayerRole::AttackingFB);
+                    if team_id == "team1" {
+                        player.transfer_offers.push(domain::player::TransferOffer {
+                            id: "offer-1".into(),
+                            from_team_id: "team2".into(),
+                            fee: 1_050_000,
+                            wage_offered: 0,
+                            last_manager_fee: None,
+                            negotiation_round: 1,
+                            suggested_counter_fee: None,
+                            status: domain::player::TransferOfferStatus::Pending,
+                            date: "2025-06-15".into(),
+                            registration_date: None,
+                            closed_on: None,
+                            registration_failure_reason: None,
+                        });
+                    }
+                }
+                game.players.push(player);
+            }
+        }
+        let state = StateManager::new();
+        state.set_game(game);
+        advance_time_with_mode_internal(&state, ofm_core::state::Career::Active, "live").unwrap();
+        state
+            .update_game(|game| {
+                game.season_context.transfer_window.status =
+                    domain::season::TransferWindowStatus::Open
+            })
+            .unwrap();
+        state
+    }
+
+    fn waiting_bench_role(
+        state: &StateManager,
+        player_id: &str,
+        side: engine::Side,
+    ) -> engine::PlayerRole {
+        state
+            .with_live_match(|session| {
+                let snapshot = session.snapshot();
+                let bench = if side == engine::Side::Home {
+                    snapshot.home_bench
+                } else {
+                    snapshot.away_bench
+                };
+                bench
+                    .iter()
+                    .find(|player| player.id == player_id)
+                    .unwrap()
+                    .role
+            })
+            .unwrap()
+    }
+
+    /// Given an opponent's saved bench role, when the player is bought immediately, then both copies are cleared.
+    #[test]
+    fn purchasing_an_opponents_bench_player_clears_his_waiting_role() {
+        let state = waiting_match_with_transfer_targets();
+        let id = "spare-team2-def";
+        assert_eq!(
+            waiting_bench_role(&state, id, engine::Side::Away),
+            engine::PlayerRole::AttackingFB
+        );
+        crate::application::live_session::ROLE_INITIAL_SNAPSHOTS.with(|count| count.set(0));
+        crate::application::live_session::ROLE_HANDOFF_PROJECTIONS.with(|count| count.set(0));
+        let result = crate::commands::transfers::make_transfer_bid_internal(
+            &state,
+            ofm_core::state::Career::Active,
+            id,
+            1_050_000,
+        )
+        .unwrap();
+        crate::application::live_session::ROLE_INITIAL_SNAPSHOTS
+            .with(|count| assert_eq!(count.get(), 1));
+        crate::application::live_session::ROLE_HANDOFF_PROJECTIONS
+            .with(|count| assert_eq!(count.get(), 1));
+        assert_eq!(
+            result.decision,
+            ofm_core::transfers::TransferNegotiationDecision::Accepted
+        );
+        assert!(!result.game.teams[1].player_roles.contains_key(id));
+        assert_eq!(
+            waiting_bench_role(&state, id, engine::Side::Away),
+            engine::PlayerRole::Standard
+        );
+    }
+
+    /// Given the user's saved bench role, when his sale is accepted, then both copies are cleared.
+    #[test]
+    fn selling_a_user_bench_player_clears_his_waiting_role() {
+        let state = waiting_match_with_transfer_targets();
+        let id = "spare-team1-def";
+        assert_eq!(
+            waiting_bench_role(&state, id, engine::Side::Home),
+            engine::PlayerRole::AttackingFB
+        );
+        let game = crate::commands::transfers::respond_to_offer_internal(
+            &state,
+            ofm_core::state::Career::Active,
+            id,
+            "offer-1",
+            true,
+        )
+        .unwrap();
+        assert!(!game.teams[0].player_roles.contains_key(id));
+        assert_eq!(
+            waiting_bench_role(&state, id, engine::Side::Home),
+            engine::PlayerRole::Standard
+        );
+    }
+
+    /// Given a session-only role, when another player is sold, then the session choice survives.
+    #[test]
+    fn selling_a_bench_player_preserves_an_unrelated_session_choice() {
+        let state = waiting_match_with_transfer_targets();
+        let id = state
+            .with_live_match(|session| {
+                session
+                    .snapshot()
+                    .home_team
+                    .players
+                    .last()
+                    .unwrap()
+                    .id
+                    .clone()
+            })
+            .unwrap();
+        crate::application::live_match::apply_match_command(
+            &state,
+            ofm_core::state::Career::Active,
+            engine::MatchCommand::ChangePlayerRole {
+                side: engine::Side::Home,
+                player_id: id.clone(),
+                role: engine::PlayerRole::Poacher,
+            },
+        )
+        .unwrap();
+        crate::commands::transfers::respond_to_offer_internal(
+            &state,
+            ofm_core::state::Career::Active,
+            "spare-team1-def",
+            "offer-1",
+            true,
+        )
+        .unwrap();
+        assert_eq!(
+            role_in_the_waiting_match(&state, &id),
+            engine::PlayerRole::Poacher
+        );
+    }
+
+    /// Given a session-only role on a bench player, when his contract ends, then the waiting
+    /// session drops the role immediately and does not restore it on a later swap.
+    #[test]
+    fn terminating_a_player_clears_his_session_only_role() {
+        let state = waiting_match_with_transfer_targets();
+        let target = "spare-team1-def2";
+        let left_back = state
+            .with_live_match(|session| session.snapshot().home_team.players[1].id.clone())
+            .unwrap();
+        swap_into_left_back(&state, target);
+        crate::application::live_match::apply_match_command(
+            &state,
+            ofm_core::state::Career::Active,
+            engine::MatchCommand::ChangePlayerRole {
+                side: engine::Side::Home,
+                player_id: target.into(),
+                role: engine::PlayerRole::AttackingFB,
+            },
+        )
+        .unwrap();
+        swap_into_left_back(&state, &left_back);
+        assert_eq!(
+            waiting_bench_role(&state, target, engine::Side::Home),
+            engine::PlayerRole::AttackingFB
+        );
+        assert!(!state
+            .get_game(|game| game.teams[0].player_roles.contains_key(target))
+            .unwrap());
+        crate::commands::contracts::terminate_contract_now_internal(
+            &state,
+            ofm_core::state::Career::Active,
+            target,
+        )
+        .unwrap();
+        assert_eq!(
+            waiting_bench_role(&state, target, engine::Side::Home),
+            engine::PlayerRole::Standard
+        );
+        swap_into_left_back(&state, target);
+        assert_eq!(
+            role_in_the_waiting_match(&state, target),
+            engine::PlayerRole::Standard
+        );
+    }
+
+    /// Given a saved tactic with a Standard role, when a session-only role is chosen and the
+    /// tactic is applied, then the tactic restores Standard for that player.
+    #[test]
+    fn a_saved_tactics_standard_role_replaces_a_session_only_choice() {
+        let state = waiting_match_with_transfer_targets();
+        let target = state
+            .with_live_match(|session| session.snapshot().home_team.players[1].id.clone())
+            .unwrap();
+        let tactic = domain::custom_tactic::CustomTactic {
+            id: "standard".into(),
+            name: "Standard".into(),
+            description: String::new(),
+            formation: "4-4-2".into(),
+            play_style: "Balanced".into(),
+            source_preset_name: None,
+            contents: None,
+        };
+        crate::commands::custom_tactics::save_current_tactic_internal(
+            &state,
+            &tactic,
+            ofm_core::state::Career::Active,
+        )
+        .unwrap();
+        crate::application::live_match::apply_match_command(
+            &state,
+            ofm_core::state::Career::Active,
+            engine::MatchCommand::ChangePlayerRole {
+                side: engine::Side::Home,
+                player_id: target.clone(),
+                role: engine::PlayerRole::AttackingFB,
+            },
+        )
+        .unwrap();
+        crate::commands::custom_tactics::apply_custom_tactic_internal(
+            &state,
+            "standard",
+            ofm_core::state::Career::Active,
+        )
+        .unwrap();
+        assert_eq!(
+            role_in_the_waiting_match(&state, &target),
+            engine::PlayerRole::Standard
+        );
+        swap_into_left_back(&state, "spare-team1-def2");
+        swap_into_left_back(&state, &target);
+        assert_eq!(
+            role_in_the_waiting_match(&state, &target),
+            engine::PlayerRole::Standard
+        );
+    }
+
+    fn save_standard_tactic_with_session_role() -> (StateManager, String) {
+        let state = waiting_match_with_transfer_targets();
+        let target = state
+            .with_live_match(|session| session.snapshot().home_team.players[1].id.clone())
+            .unwrap();
+        let tactic = domain::custom_tactic::CustomTactic {
+            id: "standard".into(),
+            name: "Standard".into(),
+            description: String::new(),
+            formation: "4-4-2".into(),
+            play_style: "Balanced".into(),
+            source_preset_name: None,
+            contents: None,
+        };
+        crate::commands::custom_tactics::save_current_tactic_internal(
+            &state,
+            &tactic,
+            ofm_core::state::Career::Active,
+        )
+        .unwrap();
+        crate::application::live_match::apply_match_command(
+            &state,
+            ofm_core::state::Career::Active,
+            engine::MatchCommand::ChangePlayerRole {
+                side: engine::Side::Home,
+                player_id: target.clone(),
+                role: engine::PlayerRole::AttackingFB,
+            },
+        )
+        .unwrap();
+        (state, target)
+    }
+
+    /// Given a Standard saved tactic and a session role, when its id has spaces, then the
+    /// hand-off finds the same tactic that the save applies.
+    #[test]
+    fn a_tactic_id_with_spaces_still_hands_off_its_standard_role() {
+        let (state, target) = save_standard_tactic_with_session_role();
+        crate::commands::custom_tactics::apply_custom_tactic_internal(
+            &state,
+            " standard ",
+            ofm_core::state::Career::Active,
+        )
+        .unwrap();
+        assert_eq!(
+            role_in_the_waiting_match(&state, &target),
+            engine::PlayerRole::Standard
+        );
+    }
+
+    /// Given a tactic with an invalid duplicate lineup, when it is applied, then a session role
+    /// on the unchanged lineup is not overwritten by the rejected saved slots.
+    #[test]
+    fn a_rejected_saved_lineup_does_not_overwrite_a_session_role() {
+        let (state, target) = save_standard_tactic_with_session_role();
+        state
+            .update_game(|game| {
+                let slots = &mut game.custom_tactics[0].contents.as_mut().unwrap().slots;
+                slots[2].player_id = slots[1].player_id.clone();
+            })
+            .unwrap();
+        crate::commands::custom_tactics::apply_custom_tactic_internal(
+            &state,
+            "standard",
+            ofm_core::state::Career::Active,
+        )
+        .unwrap();
+        assert_eq!(
+            role_in_the_waiting_match(&state, &target),
+            engine::PlayerRole::AttackingFB
+        );
+    }
+
     /// The eleven the waiting match starts, which is a valid eleven to save.
     fn current_eleven(state: &StateManager) -> Vec<String> {
         state
