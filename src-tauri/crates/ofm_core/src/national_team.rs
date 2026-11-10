@@ -6,10 +6,13 @@
 //! injury risk back to their clubs (full carry-back over the shared
 //! [`Player`](domain::player::Player) records).
 
+mod calendar;
+pub(crate) use calendar::settle_friendlies;
+
 use std::collections::HashMap;
 
 use chrono::{DateTime, Datelike, Utc};
-use domain::league::{Fixture, FixtureCompetition, FixtureStatus, GoalEvent, MatchResult};
+use domain::league::{FixtureStatus, GoalEvent, MatchResult};
 use domain::national_team::NationalTeam;
 use domain::player::Player;
 use rand::{Rng, RngExt};
@@ -96,9 +99,10 @@ pub fn international_blackout_dates(
 /// has its windows kept clear as much as this season's. National-team qualifying widens each
 /// window to its whole block.
 pub fn international_blackout_around(
-    competitions: &[domain::league::League],
+    game: &Game,
     today: chrono::NaiveDate,
 ) -> std::collections::BTreeSet<chrono::NaiveDate> {
+    let competitions = &game.competitions;
     let qualifying = competitions
         .iter()
         .any(crate::world_cup::is_world_cup_qualifying);
@@ -129,6 +133,26 @@ pub fn international_blackout_around(
             }
         }
     }
+    let rest = crate::calendar_booking::MIN_GAP_DAYS - 1;
+    for fixture in game
+        .national_teams
+        .iter()
+        .flat_map(|team| &team.fixtures)
+        .chain(
+            competitions
+                .iter()
+                .filter(|c| c.kind == domain::league::CompetitionType::InternationalNation)
+                .flat_map(|c| &c.fixtures),
+        )
+    {
+        if let Ok(date) = chrono::NaiveDate::parse_from_str(&fixture.date, "%Y-%m-%d") {
+            for offset in -rest..=rest {
+                if let Some(day) = date.checked_add_signed(chrono::Duration::days(offset)) {
+                    blackout.insert(day);
+                }
+            }
+        }
+    }
     blackout
 }
 
@@ -140,41 +164,8 @@ pub fn schedule_national_team_friendlies(
     window_dates: &[String],
     rng: &mut impl Rng,
 ) {
-    let mut eligible: Vec<usize> = national_teams
-        .iter()
-        .enumerate()
-        .filter(|(_, team)| !team.squad_player_ids.is_empty())
-        .map(|(index, _)| index)
-        .collect();
-    if eligible.len() < 2 {
-        return;
-    }
-    // In id order, not vector order: a save reloads national teams by name, so the order they
-    // are held in is not the order they were made in, and the shuffle below must not depend on it.
-    eligible.sort_by(|a, b| national_teams[*a].id.cmp(&national_teams[*b].id));
-
-    for (window_index, date) in window_dates.iter().enumerate() {
-        shuffle(&mut eligible, rng);
-        for pair in eligible.chunks(2) {
-            let [home_idx, away_idx] = pair else {
-                continue; // Odd team out sits this window.
-            };
-            let home_id = national_teams[*home_idx].id.clone();
-            let away_id = national_teams[*away_idx].id.clone();
-            let fixture = Fixture {
-                postponement: None,
-                id: format!("ntf-{window_index}-{home_id}-{away_id}"),
-                competition_id: INTERNATIONAL_FRIENDLY_COMPETITION_ID.to_string(),
-                matchday: window_index as u32 + 1,
-                date: date.clone(),
-                home_team_id: home_id,
-                away_team_id: away_id,
-                competition: FixtureCompetition::InternationalNation,
-                status: FixtureStatus::Scheduled,
-                result: None,
-            };
-            national_teams[*home_idx].fixtures.push(fixture);
-        }
+    for (home, fixture) in calendar::draw_friendlies(national_teams, window_dates, rng) {
+        national_teams[home].fixtures.push(fixture);
     }
 }
 
@@ -520,6 +511,7 @@ mod tests {
     use super::*;
     use crate::clock::GameClock;
     use chrono::TimeZone;
+    use domain::league::{Fixture, FixtureCompetition};
     use domain::manager::Manager;
     use domain::player::{Player, PlayerAttributes, Position};
     use rand::SeedableRng;
@@ -546,7 +538,7 @@ mod tests {
         let first = *dates.first().expect("the finals have fixtures");
         let last = *dates.last().unwrap();
         assert!(last > first);
-        let blackout = international_blackout_around(&game.competitions, kickoff.date_naive());
+        let blackout = international_blackout_around(&game, kickoff.date_naive());
         // A 48-team finals has five knockout rounds; with the configured gaps and
         // four ties per day, the final lands 19 days after the last group game.
         let final_day = last + chrono::Duration::days(19);
@@ -761,7 +753,7 @@ mod tests {
     fn friendlies_do_not_depend_on_the_order_the_teams_are_held_in() {
         let teams = |ids: &[&str]| -> Vec<NationalTeam> {
             ids.iter()
-                .map(|id| make_national_team(id, &id.to_uppercase(), &["p1"]))
+                .map(|id| make_national_team(id, &id.to_uppercase(), &[id]))
                 .collect()
         };
         let ids = [

@@ -677,6 +677,7 @@ fn manage_international_calendar(
     qualified_field: Option<Vec<String>>,
     retained: &std::collections::HashSet<String>,
 ) {
+    let first_day = game.clock.current_date.date_naive();
     if world_cup_due {
         if !game
             .competitions
@@ -690,14 +691,11 @@ fn manage_international_calendar(
                 qualified_field,
             );
         }
-        // The tournament fills the break; clear any stale window friendlies.
-        for national_team in game.national_teams.iter_mut() {
-            national_team.fixtures.clear();
-        }
+        crate::national_team::settle_friendlies(game, first_day);
         // The tournament fills the break, but future club fixtures must still avoid
         // international windows and each other.
         let blackout = crate::national_team::international_blackout_around(
-            &game.competitions,
+            game,
             game.clock.current_date.date_naive(),
         );
         crate::world::foundations::settle_club_calendar(game, &blackout, retained);
@@ -714,10 +712,6 @@ fn manage_international_calendar(
         .competitions
         .iter()
         .any(crate::world_cup::is_world_cup_qualifying);
-    for national_team in game.national_teams.iter_mut() {
-        national_team.fixtures.clear();
-    }
-
     if leads_into_world_cup {
         // The windows host the qualifying campaign instead of friendlies: the
         // second half of a two-season campaign continues on this season's
@@ -759,8 +753,9 @@ fn manage_international_calendar(
             &mut friendlies_rng,
         );
     }
+    crate::national_team::settle_friendlies(game, first_day);
     let blackout = crate::national_team::international_blackout_around(
-        &game.competitions,
+        game,
         game.clock.current_date.date_naive(),
     );
     crate::world::foundations::place_club_calendar(game, &blackout, retained);
@@ -1928,7 +1923,7 @@ mod tests {
             (game.clock.current_date + Duration::days(2)).year()
         ));
         let blackout = crate::national_team::international_blackout_around(
-            &game.competitions,
+            &game,
             game.clock.current_date.date_naive(),
         );
         assert!(blackout.contains(&chrono::NaiveDate::from_ymd_opt(2034, 9, 9).unwrap()));
@@ -1946,7 +1941,7 @@ mod tests {
             "the rollover must move the window fixture"
         );
         let blackout = crate::national_team::international_blackout_around(
-            &game.competitions,
+            &game,
             game.clock.current_date.date_naive(),
         );
         for fixture in game
@@ -2106,7 +2101,7 @@ mod tests {
         regenerate_competitions_for_new_season(&mut game, season + 1, at(2034, 7, 1));
 
         let blackout = crate::national_team::international_blackout_around(
-            &game.competitions,
+            &game,
             game.clock.current_date.date_naive(),
         );
         let mut after = game.competitions[0].clone();
