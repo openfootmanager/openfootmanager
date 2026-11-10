@@ -1,7 +1,11 @@
 //! National fixtures share nations and called-up players; club calendars reserve their dates too.
 
 use super::INTERNATIONAL_FRIENDLY_COMPETITION_ID;
-use crate::{calendar_booking::too_close, game::Game, knockout_dates::knockout_round_date};
+use crate::{
+    calendar_booking::{MIN_GAP_DAYS, too_close},
+    game::Game,
+    knockout_dates::knockout_round_date,
+};
 use chrono::NaiveDate;
 use domain::{
     league::{
@@ -64,6 +68,17 @@ impl<'a> Bookings<'a> {
         {
             self.dates.entry(participant).or_default().insert(date);
         }
+    }
+
+    fn book_player(&mut self, player_id: &str, date: NaiveDate) {
+        #[cfg(test)]
+        BOOKED_DATES.with(|dates| {
+            dates.borrow_mut().insert(date);
+        });
+        self.dates
+            .entry(Participant::Player(player_id.to_string()))
+            .or_default()
+            .insert(date);
     }
 
     fn blocked(&self, home: &str, away: &str) -> BTreeSet<NaiveDate> {
@@ -187,6 +202,73 @@ fn tournament_bookings<'a>(game: &'a Game) -> Bookings<'a> {
     bookings
 }
 
+/// Club fixtures are immutable once played. Without full XI snapshots here, reserve the
+/// called-up clubmates conservatively, including clubs from recent recorded moves. Unplayed
+/// club fixtures still yield to international duty.
+fn book_completed_club_appearances(game: &Game, first_day: NaiveDate, bookings: &mut Bookings<'_>) {
+    let horizon = first_day
+        .checked_sub_days(chrono::Days::new(MIN_GAP_DAYS as u64))
+        .unwrap_or(first_day);
+    let since = horizon.to_string();
+    let through = first_day.to_string();
+    let called_up: BTreeSet<_> = game
+        .national_teams
+        .iter()
+        .flat_map(|nation| nation.squad_player_ids.iter().map(String::as_str))
+        .collect();
+    let mut players_by_club: BTreeMap<&str, Vec<&str>> = BTreeMap::new();
+    for player in game
+        .players
+        .iter()
+        .filter(|player| called_up.contains(player.id.as_str()))
+    {
+        let clubs: BTreeSet<_> = player
+            .team_id
+            .as_deref()
+            .into_iter()
+            .chain(
+                player
+                    .movement_history
+                    .iter()
+                    .filter(|movement| {
+                        movement.date.as_str() >= since.as_str()
+                            && movement.date.as_str() <= through.as_str()
+                    })
+                    .flat_map(|movement| {
+                        [
+                            movement.from_team_id.as_deref(),
+                            movement.to_team_id.as_deref(),
+                        ]
+                        .into_iter()
+                        .flatten()
+                    }),
+            )
+            .collect();
+        for club in clubs {
+            players_by_club.entry(club).or_default().push(&player.id);
+        }
+    }
+    for fixture in game
+        .competitions
+        .iter()
+        .filter(|competition| competition.kind != CompetitionType::InternationalNation)
+        .flat_map(|competition| &competition.fixtures)
+        .filter(|fixture| fixture.status == FixtureStatus::Completed)
+    {
+        let Ok(date) = NaiveDate::parse_from_str(&fixture.date, "%Y-%m-%d") else {
+            continue;
+        };
+        if date < horizon {
+            continue;
+        }
+        for club in [&fixture.home_team_id, &fixture.away_team_id] {
+            for player in players_by_club.get(club.as_str()).into_iter().flatten() {
+                bookings.book_player(player, date);
+            }
+        }
+    }
+}
+
 /// A friendly gives way to a tournament or an earlier published friendly, retaining its identity.
 /// Planning is read-only; applying it afterwards avoids invalidating the bookings while settling.
 pub(crate) fn settle_friendlies(game: &mut Game, first_day: NaiveDate) {
@@ -205,6 +287,7 @@ pub(crate) fn settle_friendlies(game: &mut Game, first_day: NaiveDate) {
 
 fn friendly_moves(game: &Game, first_day: NaiveDate) -> Vec<(usize, usize, NaiveDate)> {
     let mut bookings = tournament_bookings(game);
+    book_completed_club_appearances(game, first_day, &mut bookings);
     let mut scheduled: Vec<_> = game
         .national_teams
         .iter()
