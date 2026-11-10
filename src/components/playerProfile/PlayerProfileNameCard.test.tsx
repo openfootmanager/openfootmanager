@@ -82,6 +82,20 @@ describe("PlayerProfileNameCard", () => {
   });
 
   /**
+   * Given a player whose rating the club does not know
+   * When a screen reader reads the name card
+   * Then it is told why there is no number, as text and not only as a tooltip, and the dash alone
+   *      is not read out
+   */
+  it("says in words, not only in a tooltip, that the club does not know the rating", () => {
+    renderCard({ ovr: null });
+
+    const explanation = screen.getByText("playerProfile.ratingUnknown");
+    expect(explanation).toHaveClass("sr-only");
+    expect(screen.getByText("–")).toHaveAttribute("aria-hidden", "true");
+  });
+
+  /**
    * Given a player with a face picture, and one without
    * When the name card is drawn for each
    * Then his rating is on screen once, labelled "Overall", beside the picture or the initials
