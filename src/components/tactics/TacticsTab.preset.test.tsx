@@ -173,6 +173,8 @@ const makeGame = (): GameStateData => ({
 let backend: GameStateData;
 /** The backend's verdict on whether the phase dials still equal the style's blueprint. */
 let blueprintModified = false;
+/** Commands the faked backend refuses with the career-changed error. */
+let refused = new Set<string>();
 /** The tactics the faked save holds, in the order made. */
 let savedTactics: CustomTactic[] = [];
 
@@ -192,9 +194,13 @@ function seedSavedTactics(
 function fakeBackend(failPreset = false) {
   mockedInvoke.mockImplementation(async (command: string, args?: unknown) => {
     const params = (args ?? {}) as Record<string, string>;
+    if (refused.has(command)) throw "be.error.careerChanged";
     if (command === "get_squad") return backend.players;
+    if (command === "auto_select_set_pieces") {
+      return { captain: "m1", penalty_taker: "f1", free_kick_taker: "m1", corner_taker: "d1" };
+    }
     if (command === "list_custom_tactics") return structuredClone(savedTactics);
-    if (command === "save_custom_tactic") {
+    if (command === "save_custom_tactic" || command === "save_current_tactic") {
       const tactic = (args as { tactic: CustomTactic }).tactic;
       const at = savedTactics.findIndex((saved) => saved.id === tactic.id);
       if (at === -1) savedTactics.push(tactic);
@@ -237,9 +243,9 @@ function ControlledTacticsTab() {
   return <TacticsTab gameState={game} onSelectPlayer={vi.fn()} onGameUpdate={setGame} />;
 }
 
-/** The phase dials sit in a collapsible section; open it when it is closed. */
+/** The with-the-ball dials sit in a section of the instructions panel; open it when it is closed. */
 function openPhaseBlueprint() {
-  const toggle = screen.getByRole("button", { name: /Phase Blueprint/i });
+  const toggle = screen.getByRole("button", { name: /With Ball/i });
   if (toggle.getAttribute("aria-expanded") !== "true") fireEvent.click(toggle);
 }
 
@@ -262,6 +268,7 @@ describe("TacticsTab preset selection", { timeout: TACTICS_TAB_CASE_TIMEOUT_MS }
     mockedInvoke.mockReset();
     blueprintModified = false;
     savedTactics = [];
+    refused = new Set();
     backend = makeGame();
   });
 
@@ -290,6 +297,146 @@ describe("TacticsTab preset selection", { timeout: TACTICS_TAB_CASE_TIMEOUT_MS }
     await waitFor(() => {
       expect(screen.getByRole("button", { name: "Choose tactic" })).toHaveTextContent("High Press");
     });
+  });
+
+  /**
+   * Given a backend that refuses a tactic write (the career changed under the screen)
+   * When the manager picks a preset, a saved tactic, a formation, a play style, a phase dial,
+   *      swaps two starters, sets a player role or auto-selects the set-piece takers
+   * Then a translated alert says it did not save (and the write was really asked for, so the
+   *      refusal was reached).
+   */
+  it.each([
+    [
+      "a preset",
+      "apply_tactic_preset",
+      async () => {
+        fireEvent.click(screen.getByRole("button", { name: "Choose tactic" }));
+        fireEvent.click(screen.getByRole("option", { name: /High Press/ }));
+      },
+    ],
+    [
+      "a saved tactic",
+      "apply_custom_tactic",
+      async () => {
+        fireEvent.click(screen.getByRole("button", { name: "Choose tactic" }));
+        fireEvent.click(await screen.findByRole("option", { name: /Saved custom/ }));
+      },
+    ],
+    [
+      "a formation",
+      "set_formation",
+      async () => {
+        fireEvent.click(screen.getByRole("combobox", { name: "Formation" }));
+        fireEvent.click(screen.getByRole("option", { name: "3-4-3" }));
+      },
+    ],
+    [
+      "a play style",
+      "set_play_style",
+      async () => {
+        fireEvent.click(screen.getByRole("combobox", { name: "Play Style" }));
+        fireEvent.click(screen.getByRole("option", { name: "Counter" }));
+      },
+    ],
+    [
+      "a phase dial",
+      "set_tactics_phase",
+      async () => {
+        openPhaseBlueprint();
+        const widthRow = screen.getByText("Width").parentElement as HTMLElement;
+        fireEvent.click(within(widthRow).getByRole("combobox"));
+        fireEvent.click(screen.getByRole("option", { name: "Wide" }));
+      },
+    ],
+    [
+      "a swap of two starters",
+      "set_starting_xi",
+      async () => {
+        fireEvent.click(await screen.findByTestId("pitch-player-d1"));
+        fireEvent.click(screen.getByTestId("pitch-player-d2"));
+        fireEvent.click(await screen.findByRole("button", { name: "Confirm swap" }));
+      },
+    ],
+    [
+      "a player role",
+      "set_player_role",
+      async () => {
+        const token = await screen.findByTestId("pitch-player-d1");
+        fireEvent.click(within(token).getByRole("combobox"));
+        fireEvent.click(screen.getAllByRole("option")[1]);
+      },
+    ],
+    [
+      "the auto-selected set-piece takers",
+      "set_team_match_roles",
+      async () => {
+        fireEvent.click(await screen.findByRole("button", { name: "Auto-select defaults" }));
+      },
+    ],
+  ])("tells the manager that %s did not save", async (_name, command, pick) => {
+    seedSavedTactics([
+      {
+        id: "custom:saved",
+        name: "Saved custom",
+        description: "Custom setup",
+        formation: "3-4-3",
+        playStyle: "HighPress",
+      },
+    ]);
+    refused = new Set([command]);
+    fakeBackend();
+    render(<ControlledTacticsTab />);
+
+    await pick();
+
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent("The career changed before this could be saved.");
+    expect(commandsCalled()).toContain(command);
+    // The refused write changed nothing on screen: the setup is the one the backend still holds.
+    expect(screen.getByRole("button", { name: "Choose tactic" })).toHaveTextContent(
+      "Balanced Control",
+    );
+  });
+
+  /**
+   * Given an alert for a refused preset
+   * When the backend accepts the next write
+   * Then the alert is gone and the screen shows what the backend holds.
+   */
+  it("clears the alert once a later write saves", async () => {
+    refused = new Set(["apply_tactic_preset"]);
+    fakeBackend();
+    render(<ControlledTacticsTab />);
+    fireEvent.click(screen.getByRole("button", { name: "Choose tactic" }));
+    fireEvent.click(screen.getByRole("option", { name: /High Press/ }));
+    await screen.findByRole("alert");
+
+    refused.clear();
+    fireEvent.click(screen.getByRole("button", { name: "Choose tactic" }));
+    fireEvent.click(screen.getByRole("option", { name: /High Press/ }));
+
+    await waitFor(() => expect(screen.queryByRole("alert")).toBeNull());
+    expect(screen.getByRole("button", { name: "Choose tactic" })).toHaveTextContent("High Press");
+  });
+
+  /**
+   * Given an alert for a refused preset
+   * When the manager saves the setup as a tactic and the save accepts it
+   * Then the alert is gone: a write that saved, from the tactic library too, clears it.
+   */
+  it("clears the alert once a custom tactic save is accepted", async () => {
+    refused = new Set(["apply_tactic_preset"]);
+    fakeBackend();
+    render(<ControlledTacticsTab />);
+    fireEvent.click(screen.getByRole("button", { name: "Choose tactic" }));
+    fireEvent.click(screen.getByRole("option", { name: /High Press/ }));
+    await screen.findByRole("alert");
+
+    fireEvent.click(screen.getByRole("button", { name: "Save as tactic" }));
+
+    await waitFor(() => expect(screen.queryByRole("alert")).toBeNull());
+    expect(commandsCalled()).toContain("save_current_tactic");
   });
 
   /** Given the active Balanced preset, when it is picked again from the list,

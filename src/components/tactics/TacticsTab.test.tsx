@@ -40,6 +40,8 @@ vi.mock("../../hooks/usePositionGroups", async () => {
 });
 
 vi.mock("react-i18next", () => ({
+  // The error banner pulls in utils/backendI18n -> i18n/index, which registers this plugin.
+  initReactI18next: { type: "3rdParty", init: () => undefined },
   useTranslation: () => ({
     t: (key: string, fallback?: string | Record<string, unknown>) => {
       if (key === "playerProfile.daysRemaining") {
@@ -1639,10 +1641,12 @@ describe("TacticsTab", () => {
       expect(mockedInvoke).toHaveBeenCalledWith("auto_select_set_pieces", expect.anything());
     });
 
-    fireEvent.click(screen.getByRole("button", { name: /preMatch\.cornerTaker/ }));
-    // The right panel comes last in the page, so its list is the last match.
-    const options = await screen.findAllByRole("button", { name: /D3/ });
-    fireEvent.click(options[options.length - 1]);
+    // The takers sit in the team instructions panel; the pitch and the list name D3 too.
+    const instructions = within(
+      screen.getByRole("region", { name: "tactics.instructionsPanel.title" }),
+    );
+    fireEvent.click(instructions.getByRole("button", { name: /preMatch\.cornerTaker/ }));
+    fireEvent.click(await instructions.findByRole("button", { name: /D3/ }));
 
     await waitFor(() => {
       expect(mockedInvoke).toHaveBeenCalledWith("set_team_match_roles", expect.anything());

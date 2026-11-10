@@ -42,6 +42,7 @@ pub mod inbox;
 pub mod inbox_archive;
 pub mod job_offers;
 pub mod knockout_dates;
+pub mod league_stats_compat;
 pub mod live_match_manager;
 pub mod manager_records;
 mod manager_reputation;
@@ -83,6 +84,7 @@ pub(crate) mod stable_hash;
 pub mod staff_rating;
 pub mod staff_tier;
 pub mod state;
+pub mod tactics_effects;
 pub mod tactics_lineup;
 #[cfg(test)]
 mod test_support;

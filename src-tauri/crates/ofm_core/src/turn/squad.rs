@@ -845,6 +845,51 @@ pub(crate) fn domain_to_engine_tactics(t: &domain::team::TacticsPhaseSettings) -
 /// moves players' fitness (training, condition, recovery) changes.
 const CLUB_MATCH_MEAN_INJURY_MULTIPLIER: f64 = 1.1384;
 
+fn admitted_engine_roles(position: &DomainPosition) -> impl Iterator<Item = EnginePlayerRole> + '_ {
+    position.valid_roles().iter().map(domain_to_engine_role)
+}
+
+/// Check an engine role against the domain position at the bridge.
+pub(crate) fn slot_admits_engine_role(position: &DomainPosition, role: EnginePlayerRole) -> bool {
+    admitted_engine_roles(position).any(|candidate| candidate == role)
+}
+
+/// When a short-handed lineup no longer matches a granular slot's line, use the simulated
+/// line's domain position rather than admitting roles for a line the player does not occupy.
+pub(crate) fn slot_at_simulated_line(slot: &DomainPosition, line: Position) -> DomainPosition {
+    if engine_line(slot) == line {
+        return slot.clone();
+    }
+    match line {
+        Position::Goalkeeper => DomainPosition::Goalkeeper,
+        Position::Defender => DomainPosition::Defender,
+        Position::Midfielder => DomainPosition::Midfielder,
+        Position::Forward => DomainPosition::Forward,
+    }
+}
+
+pub(crate) fn admitted_roles_for_formation(
+    formation: &str,
+    lines: &[Position],
+) -> Vec<Vec<EnginePlayerRole>> {
+    formation_slots(formation)
+        .iter()
+        .zip(lines)
+        .map(|(slot, line)| admitted_engine_roles(&slot_at_simulated_line(slot, *line)).collect())
+        .collect()
+}
+
+/// The engine line a position plays in.
+pub(crate) fn engine_line(position: &DomainPosition) -> Position {
+    match position.to_group_position() {
+        DomainPosition::Goalkeeper => Position::Goalkeeper,
+        DomainPosition::Defender => Position::Defender,
+        DomainPosition::Midfielder => Position::Midfielder,
+        DomainPosition::Forward => Position::Forward,
+        _ => Position::Midfielder,
+    }
+}
+
 fn to_engine_player(
     p: &domain::player::Player,
     role: EnginePlayerRole,
@@ -853,17 +898,7 @@ fn to_engine_player(
     // Fall back to the player's natural position (not `p.position`, which on
     // legacy saves can still hold a stale coarse bucket written by the old
     // set_formation stat-ranking).
-    let group = deployed
-        .cloned()
-        .unwrap_or_else(|| p.natural_position.clone())
-        .to_group_position();
-    let pos = match group {
-        DomainPosition::Goalkeeper => Position::Goalkeeper,
-        DomainPosition::Defender => Position::Defender,
-        DomainPosition::Midfielder => Position::Midfielder,
-        DomainPosition::Forward => Position::Forward,
-        _ => Position::Midfielder,
-    };
+    let pos = engine_line(deployed.unwrap_or(&p.natural_position));
 
     PlayerData {
         id: p.id.clone(),
@@ -974,7 +1009,7 @@ pub(crate) fn set_piece_takers_among(
 }
 
 mod familiarity;
-pub(crate) use familiarity::line_familiarity;
+pub(crate) use familiarity::{line_familiarity, slot_factor};
 
 #[cfg(test)]
 mod tests;

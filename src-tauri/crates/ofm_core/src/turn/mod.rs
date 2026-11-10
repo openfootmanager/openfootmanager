@@ -242,13 +242,21 @@ where
     // scoreline only, keeping the dormant world moving without the full engine.
     let dormant_competitions = dormant_competition_indices_due_today(game, today);
     if !dormant_competitions.is_empty() {
-        // Found once for the whole dormant tier: a scoreline moves no player.
-        let players_by_club = crate::match_day_eligibility::players_by_club(&game.players);
+        // Found once for the whole dormant tier, for every club playing in it today: a scoreline
+        // moves no player.
+        let clubs_playing: Vec<String> = dormant_competitions
+            .iter()
+            .flat_map(|&index| game.competitions[index].fixtures.iter())
+            .filter(|fixture| fixture.date == today && fixture.status == FixtureStatus::Scheduled)
+            .flat_map(|fixture| [fixture.home_team_id.clone(), fixture.away_team_id.clone()])
+            .collect();
+        let strengths =
+            crate::catchup::club_strengths(game, clubs_playing.iter().map(String::as_str));
         for competition_index in dormant_competitions {
             dormant::simulate_dormant_competition_day(
                 &mut game.competitions[competition_index],
                 game.seed,
-                &players_by_club,
+                &strengths,
                 today,
             );
         }
@@ -550,23 +558,26 @@ fn simulate_single_match_with_capture<F>(
             // gets here. Were it ever missing there would be no fixture to
             // settle either, so the day goes on without it rather than
             // panicking on the one path that exists so a day always finishes.
-            let clubs = game
+            let sides = game
                 .league
                 .as_ref()
                 .and_then(|league| league.fixtures.get(idx))
-                .map(|fixture| format!("{}/{}", fixture.home_team_id, fixture.away_team_id))
+                .map(|fixture| (fixture.home_team_id.clone(), fixture.away_team_id.clone()))
                 .unwrap_or_default();
+            let clubs = format!("{}/{}", sides.0, sides.1);
             let mut fallback_rng = game.rng_today(&format!("match/{clubs}"));
+            let strengths =
+                crate::catchup::club_strengths(game, [sides.0.as_str(), sides.1.as_str()]);
             let Some(league) = game.league.as_mut() else {
                 log::error!(
                     "[turn] fixture {idx} has no competition in the legacy slot to settle it in"
                 );
                 return;
             };
-            crate::catchup::resolve_fixture_by_scoreline(
-                &game.players,
+            crate::catchup::resolve_fixture_with_strengths(
                 league,
                 idx,
+                |team_id| crate::catchup::strength_in(&strengths, team_id),
                 &mut fallback_rng,
             );
         }

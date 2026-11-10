@@ -103,6 +103,12 @@ impl PlayerRole {
         Self::CompleteForward,
     ];
 
+    /// Whether a player in `position`'s group may be given this role: the one rule, which the
+    /// live role command asks.
+    pub fn suits(self, position: Position) -> bool {
+        self == Self::Standard || self.position_groups().contains(&position)
+    }
+
     /// The position groups whose players may be given this role. The wide roles
     /// are open to wide midfielders and to wingers; `Standard` suits everyone
     /// and is left out.
@@ -416,6 +422,13 @@ impl TacticsConfig {
 }
 
 impl TacticalDial {
+    /// Whether this setting plays differently from the dial's others. Slow break speed plays as
+    /// Medium does. Every other setting changes the match, Long build-up and non-zonal marking
+    /// included, though today they only cost.
+    pub fn has_match_effect(self) -> bool {
+        !matches!(self, TacticalDial::BreakSpeed(BreakSpeed::Slow))
+    }
+
     /// Turn this one dial, leaving the other eight where they are.
     pub fn set_on(self, tactics: &mut TacticsConfig) {
         match self {

@@ -1,5 +1,6 @@
+import { i18nReady } from "../../i18n";
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { invoke } from "@tauri-apps/api/core";
 
 import type { GameStateData, PlayerData, StaffData, TeamData } from "../../store/gameStore";
@@ -10,6 +11,10 @@ import PlayersListTab from "./PlayersListTab";
 import { ratingTierClass } from "../../lib/ratingTier";
 import { createSeasonContext } from "../../test-utils/factories";
 import { useSettingsStore } from "../../store/settingsStore";
+
+beforeAll(async () => {
+  await i18nReady;
+});
 
 vi.mock("../../hooks/usePositionGroups", async () => {
   const { cannedPositionsModule } = await import("../../test-utils/positionTable");
@@ -34,11 +39,13 @@ vi.mock("@tauri-apps/api/path", () => ({
   appDataDir: vi.fn(async () => "/home/u/.local/share/ofm"),
 }));
 
-vi.mock("../../utils/backendI18n", () => ({
+vi.mock("../../utils/backendI18n", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../../utils/backendI18n")>()),
   resolveBackendError: (error: unknown) => (error instanceof Error ? error.message : String(error)),
 }));
 
 vi.mock("react-i18next", () => ({
+  initReactI18next: { type: "3rdParty", init: () => undefined },
   useTranslation: () => ({
     t: (key: string, params?: Record<string, string | number>) => {
       if (key === "players.searchPlaceholder") return "Search players";

@@ -1,4 +1,5 @@
 import { Trophy } from "lucide-react";
+import { formatOrdinal } from "../../lib/ordinal";
 import { useTranslation } from "react-i18next";
 
 import { Badge, Card, CardBody, CardHeader, FormDots } from "../ui";
@@ -33,7 +34,7 @@ export default function HomeLeaguePositionCard({
   teamForm,
   onNavigate,
 }: HomeLeaguePositionCardProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
 
   const lastThreeResults = teamForm.slice(-3);
   const winStreak =
@@ -82,13 +83,12 @@ export default function HomeLeaguePositionCard({
               </div>
               <div>
                 <p className="text-xs text-gray-500 dark:text-gray-400 font-heading uppercase tracking-wider">
-                  {myStanding === 1
-                    ? t("common.place.1")
-                    : myStanding === 2
-                      ? t("common.place.2")
-                      : myStanding === 3
-                        ? t("common.place.3")
-                        : t("common.place.other", { n: myStanding })}
+                  {formatOrdinal(
+                    myStanding,
+                    i18n.language,
+                    (key, options) => t(key, options),
+                    "place",
+                  )}
                 </p>
                 <p className="text-lg font-heading font-bold text-gray-800 dark:text-gray-100">
                   {myStandingData.points} {t("common.pts")}

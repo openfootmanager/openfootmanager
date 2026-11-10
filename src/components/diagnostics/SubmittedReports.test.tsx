@@ -11,6 +11,7 @@ vi.mock("../../lib/logger", () => ({
   logError: (message: string) => logError(message),
 }));
 vi.mock("react-i18next", () => ({
+  initReactI18next: { type: "3rdParty", init: () => undefined },
   useTranslation: () => ({ t: (key: string) => key, i18n: { language: "en" } }),
 }));
 

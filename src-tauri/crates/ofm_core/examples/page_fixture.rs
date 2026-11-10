@@ -41,7 +41,13 @@ fn main() -> Result<(), String> {
         .ok_or("usage: page_fixture <output .ts path>")?;
     let game = build_career()?;
     let module = render_module(&game)?;
-    std::fs::write(&out_path, &module).map_err(|error| format!("{out_path}: {error}"))?;
+    // Written beside the target and renamed into place, so an interrupted run never leaves a
+    // partial file: scripts/ensure-page-fixture.mjs only checks that the file exists. The name
+    // carries the process id because two npm hooks can generate at once (`npm run dev` and
+    // `npm test` in a fresh clone); with one shared name, the second rename finds nothing.
+    let partial = format!("{out_path}.{}.partial", std::process::id());
+    std::fs::write(&partial, &module).map_err(|error| format!("{partial}: {error}"))?;
+    std::fs::rename(&partial, &out_path).map_err(|error| format!("{out_path}: {error}"))?;
     println!("wrote {out_path} ({} KB)", module.len() / 1024);
     Ok(())
 }

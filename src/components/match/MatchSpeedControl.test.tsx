@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 import { MatchSpeedControl } from "./MatchSpeedControl";
 
 vi.mock("react-i18next", () => ({
+  initReactI18next: { type: "3rdParty", init: () => undefined },
   useTranslation: () => ({
     t: (key: string, options?: Record<string, string>) =>
       options?.speed ? `${key}(${options.speed})` : key,

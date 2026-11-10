@@ -1,5 +1,5 @@
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { invoke } from "@tauri-apps/api/core";
 import type {
   GameStateData,
@@ -10,7 +10,12 @@ import type {
 import { createPlayer } from "../../test-utils/factories";
 import { ratingTierClass } from "../../lib/ratingTier";
 import SquadTab from "./SquadTab";
+import { i18nReady } from "../../i18n";
 import { createSeasonContext } from "../../test-utils/factories";
+
+beforeAll(async () => {
+  await i18nReady;
+});
 
 // What the backend's contract warning stages read as on a badge, by player id; a test says which
 // players are at risk. The hook that asks for them has its own test.
@@ -279,7 +284,7 @@ describe("SquadTab", () => {
     renderSquadTab(state);
 
     const row = await screen.findByRole("row", { name: /Tiring Forward/ });
-    expect(within(row).getByText("be.condition.tiring")).toHaveClass("text-tone-fair");
+    expect(within(row).getByText("Tiring")).toHaveClass("text-tone-fair");
   });
 
   /**

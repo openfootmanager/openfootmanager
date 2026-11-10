@@ -1,14 +1,20 @@
 import { render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { beforeAll, describe, expect, it, vi } from "vitest";
+import { i18nReady } from "../../i18n";
 
 import { ConditionMeter } from "./ConditionMeter";
 
 vi.mock("react-i18next", () => ({
+  initReactI18next: { type: "3rdParty", init: () => undefined },
   useTranslation: () => ({
-    t: (key: string) =>
-      ({ "be.condition.tiring": "Tiring", "common.condition": "Condition" })[key] ?? key,
+    t: (key: string) => ({ "common.condition": "Condition" })[key] ?? key,
   }),
 }));
+
+// The band's word is the backend's key, resolved through the real locale.
+beforeAll(async () => {
+  await i18nReady;
+});
 
 describe("ConditionMeter", () => {
   /**

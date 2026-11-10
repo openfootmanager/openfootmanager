@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 import DashboardSidebar from "./DashboardSidebar";
 
 vi.mock("react-i18next", () => ({
+  initReactI18next: { type: "3rdParty", init: () => undefined },
   useTranslation: () => ({ t: (key: string) => key, i18n: { language: "en" } }),
 }));
 

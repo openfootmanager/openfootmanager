@@ -140,13 +140,13 @@ describe("PlayerPreviewCard rating tiers", () => {
     const { unmount } = render(
       <PlayerPreviewCard editing={makePlayer({ overall: 76 })} photoDataUrl={null} />,
     );
-    expect(screen.getByText("OVR").nextElementSibling).toHaveClass(
+    expect(screen.getByText("common.ovr").nextElementSibling).toHaveClass(
       ...ratingTierClass("B", "text").split(" "),
     );
     unmount();
 
     render(<PlayerPreviewCard editing={makePlayer({ overall: 77 })} photoDataUrl={null} />);
-    expect(screen.getByText("OVR").nextElementSibling).toHaveClass(
+    expect(screen.getByText("common.ovr").nextElementSibling).toHaveClass(
       ...ratingTierClass("A", "text").split(" "),
     );
   });

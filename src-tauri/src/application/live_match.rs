@@ -359,16 +359,32 @@ pub fn step_live_match(
     minutes: u16,
 ) -> Result<Vec<engine::MinuteResult>, String> {
     log::debug!("[cmd] step_live_match: minutes={}", minutes);
-    let results = state
-        .with_live_match(|session| {
-            career.check_token(session.career_token)?;
-            Ok::<_, String>(if minutes <= 1 {
-                vec![session.step()]
-            } else {
-                session.step_many(minutes)
+    // The step that kicks the match off takes the lifecycle gate, so a role save or a swap is
+    // wholly before or wholly after it. The phase is read and the step taken in one look at the
+    // session: a match already under way is stepped without the gate (it cannot un-start), and a
+    // match still waiting at kick-off is left alone, the gate is taken and the step retried under
+    // it, where nothing can replace the session (finishing and starting both hold the gate).
+    let mut gate = None;
+    let results = loop {
+        let stepped = state
+            .with_live_match(|session| {
+                career.check_token(session.career_token)?;
+                let waiting = session.match_state.phase() == engine::MatchPhase::PreKickOff;
+                if waiting && gate.is_none() {
+                    return Ok::<_, String>(None);
+                }
+                Ok(Some(if minutes <= 1 {
+                    vec![session.step()]
+                } else {
+                    session.step_many(minutes)
+                }))
             })
-        })
-        .ok_or_else(|| "be.error.noActiveLiveMatch".to_string())??;
+            .ok_or_else(|| "be.error.noActiveLiveMatch".to_string())??;
+        match stepped {
+            Some(results) => break results,
+            None => gate = Some(super::live_session::operation()),
+        }
+    };
 
     if let Some(last) = results.last() {
         info!(
@@ -390,6 +406,14 @@ pub fn apply_match_command(
     command: engine::MatchCommand,
 ) -> Result<engine::MatchSnapshot, String> {
     info!("[cmd] apply_match_command: {:?}", command);
+    // A swap or a change of shape moves players in the waiting match, and a role save reads the
+    // slots they fill: the lifecycle gate makes each a whole step against the other. The data
+    // locks stay one at a time.
+    let _operation = matches!(
+        command,
+        engine::MatchCommand::PreMatchSwap { .. } | engine::MatchCommand::ChangeFormation { .. }
+    )
+    .then(super::live_session::operation);
     let snapshot = state
         .with_live_match(|session| {
             career.check_token(session.career_token)?;
@@ -427,5 +451,35 @@ pub fn get_match_snapshot(state: &StateManager) -> Result<engine::MatchSnapshot,
 pub fn follow_saved_dials_before_kick_off(state: &StateManager, game: &Game) -> Result<(), String> {
     state
         .with_live_match(|session| session.follow_saved_dials_before_kick_off(game))
+        .unwrap_or(Ok(()))
+}
+
+/// A save that rewrites the team's roles (a formation, an eleven, a tactic) also reaches the
+/// match waiting to be played: a role it drops is dropped there.
+pub fn follow_saved_roles_before_kick_off(state: &StateManager, game: &Game) -> Result<(), String> {
+    state
+        .with_live_match(|session| session.follow_saved_roles_before_kick_off(game))
+        .unwrap_or(Ok(()))
+}
+
+/// The slot the user's player fills in the match waiting at kick-off, with that match's career.
+/// Read before the game lock is taken, never inside it.
+pub fn user_slot_before_kick_off(
+    state: &StateManager,
+    player_id: &str,
+) -> Option<(u64, domain::player::Position)> {
+    state
+        .with_live_match(|session| session.user_slot_before_kick_off(player_id))
+        .flatten()
+}
+
+/// A starter's role saved before kick-off also reaches the match waiting to be played.
+pub fn follow_saved_role_before_kick_off(
+    state: &StateManager,
+    game: &Game,
+    player_id: &str,
+) -> Result<(), String> {
+    state
+        .with_live_match(|session| session.follow_saved_role_before_kick_off(game, player_id))
         .unwrap_or(Ok(()))
 }

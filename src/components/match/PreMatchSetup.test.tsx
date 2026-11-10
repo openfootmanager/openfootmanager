@@ -21,6 +21,7 @@ vi.mock("../../hooks/useRatingTiers", async () => {
 });
 vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
 vi.mock("react-i18next", () => ({
+  initReactI18next: { type: "3rdParty", init: () => undefined },
   useTranslation: () => ({
     t: (key: string, opts?: unknown) => {
       if (key === "tournaments.competitions.nationalCup") return "Copa Nacional";

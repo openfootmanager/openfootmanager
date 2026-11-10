@@ -13,6 +13,8 @@ pub struct NewsFeed {
     pub team_names: BTreeMap<String, String>,
     /// Name of the manager's primary competition, used by AwardsCeremonyScreen.
     pub league_name: Option<String>,
+    #[serde(default)]
+    pub competition_id: Option<String>,
 }
 
 /// The `YYYY-MM-DD` day an article is dated on. Article dates come in two
@@ -60,21 +62,17 @@ pub fn query_news_feed(game: &Game, _query: &NewsFeedQuery) -> NewsFeed {
         .map(|t| (t.id.clone(), t.name.clone()))
         .collect();
 
-    let league_name = game
-        .manager
-        .team_id
-        .as_deref()
-        .and_then(|team_id| {
-            game.competitions
-                .iter()
-                .find(|c| c.participant_ids.iter().any(|id| id == team_id))
-        })
-        .map(|c| c.name.clone());
+    let league = game.manager.team_id.as_deref().and_then(|team_id| {
+        game.competitions
+            .iter()
+            .find(|c| c.participant_ids.iter().any(|id| id == team_id))
+    });
 
     NewsFeed {
         articles,
         team_names,
-        league_name,
+        league_name: league.map(|c| c.name.clone()),
+        competition_id: league.map(|c| c.id.clone()),
     }
 }
 

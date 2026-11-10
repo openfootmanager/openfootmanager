@@ -352,6 +352,8 @@ pub(crate) fn report_with_scorer(
             yellow_cards: 0,
             red_cards: 0,
             rating: 7.5,
+            clean_sheet: false,
+            minutes_in_goal: None,
         },
     );
     let goals = (0..home_goals)
@@ -607,6 +609,10 @@ pub(crate) fn set_player_overall(player: &mut Player, overall: u8) {
     player.attributes.positioning = overall;
     player.attributes.vision = overall;
     player.attributes.decisions = overall;
+    // The stored rating follows the attributes, by the game's own refresh: the club strength
+    // rule reads it for a club with no saved XI. The date is the round-summary game's.
+    let on = chrono::NaiveDate::from_ymd_opt(2025, 6, 15).expect("a calendar date");
+    ofm_core::player_rating::refresh_player_derived(player, on);
 }
 
 /// The round context of the summary game: every fixture of it is dated on the game's first day.

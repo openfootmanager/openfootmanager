@@ -214,7 +214,7 @@ All frontend↔backend communication goes through Tauri's `invoke()` mechanism. 
 | `get_career_stage` | — | `awaitingClub` \| `unemployed` \| `employed` | Decided in Rust (`career_stage`): a manager with no club who has never held one is awaiting a club, so the menu and dashboard send them to team selection; a sacked manager stays on the dashboard |
 | `advance_time` | — | `Game` | Advance one day |
 | `advance_time_with_mode` | mode | `{action, game?, snapshot?}` | Advance with match mode preference |
-| `skip_to_match_day` | — | `Game` | Fast-forward to next fixture |
+| `skip_to_match_day` | — | `{ action, game, days_skipped, results }`, plus `blockers` when `action` is `blocked`, and `reached_match_day` and `date` when it is `arrived` | Fast-forward day by day until a day the user's club has a match in any competition, stopping before it; `fired` if the board sacks him on the way, `blocked` after a day that brings a blocker, `arrived` on the match day or after 60 days without one (`reached_match_day` says which). The MCP `time_skip_to_match_day` runs this same skip |
 | `save_game` | — | — | Persist current game |
 | `load_game` | save_id | — | Load a saved game |
 | `exit_to_menu` | — | — | Save and clear active game |
@@ -516,7 +516,8 @@ Four commands in `src-tauri/src/commands/package_editor.rs` expose package autho
 |---------|-------------|
 | `create_package_project` | `mkdir` + write `package.json` manifest + empty stub files for each entity type |
 | `read_package_project` | `load_world_package(dir)` → return `PackageProjectData` (meta, confederations, countries, teams, players, names, competitions, issues) |
-| `save_package_project` | Atomically overwrite all entity files: `package.json`, `confederations/`, `countries/`, `teams/`, `players/`, `names/`, `competitions/` (write to temp → rename) |
+| `validate_package_project` | same loading and refusals as `read_package_project`, returns only `issues` and `warnings` (no entities); the editor's Validate button |
+| `save_package_project` | Takes one `SavePackageRequest` (`dir` plus each collection as optional): a collection left out is untouched on disk, one sent empty is written empty. Writes only what was sent (write to temp → rename, as a set) and returns a receipt of the collections written, which the editor marks clean |
 | `build_ofm` | Save → validate → `export_directory_to_ofm(dir, output)` |
 
 All entity types (`WorldMetaDef`, `ConfederationDef`, `CountryDef`, `TeamDef`, `PlayerDef`, `NamesDefinition`, `CompetitionDefinition`) are passed directly through Tauri's invoke boundary — they are the same types `ofm_core` uses internally, so no translation layer is needed.

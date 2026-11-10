@@ -23,10 +23,25 @@ fi
 
 status=0
 for path in "$@"; do
-    if git -C "$repo" ls-files --error-unmatch -- "$path" >/dev/null 2>&1; then
-        echo "check-untracked-generated: $path is tracked by git. It is generated at build time" >&2
-        echo "  (npm run fixture:pages); remove it from the index with: git rm --cached $path" >&2
-        status=1
-    fi
+    # `ls-files --error-unmatch` exits 0 for a tracked path and 1 for an untracked one. Anything
+    # else is git failing (not a repository, an unreadable index), and must not read as "untracked",
+    # or the check would pass on exactly the checkout it cannot inspect.
+    # Git's own message is kept for that case only: on exit 1 it is the pathspec error every
+    # untracked pass produces.
+    rc=0
+    git_error="$(git -C "$repo" ls-files --error-unmatch -- "$path" 2>&1 >/dev/null)" || rc=$?
+    case "$rc" in
+        0)
+            echo "check-untracked-generated: $path is tracked by git. It is generated at build time" >&2
+            echo "  (npm run fixture:pages); remove it from the index with: git rm --cached $path" >&2
+            status=1
+            ;;
+        1) ;;
+        *)
+            echo "check-untracked-generated: git could not inspect $repo (exit $rc):" >&2
+            printf '  %s\n' "$git_error" >&2
+            status=1
+            ;;
+    esac
 done
 exit "$status"

@@ -1,12 +1,14 @@
+mod club_league;
+mod player_statistics;
 use crate::game::Game;
 use crate::season_awards::compute_division_season_awards;
 use chrono::{DateTime, Datelike, Duration, Utc};
+pub use club_league::{club_league_table, club_league_table_in, followed_club, user_division};
 use domain::league::{
     CompetitionFormat, CompetitionScope, CompetitionType, FixtureStatus, League, StandingEntry,
 };
 use domain::manager::Manager;
 use domain::message::*;
-use domain::player::PlayerSeasonStats;
 use domain::staff::{Staff, StaffAttributes, StaffRole};
 use domain::team::{FinancialTransaction, FinancialTransactionKind, TeamSeasonRecord};
 
@@ -197,16 +199,7 @@ const PRIZE_MONEY_BY_POSITION: [i64; 10] = [
 
 const SEASON_PAYOUT_LEDGER_DESCRIPTION_KEY: &str = "be.msg.seasonPayout.ledgerDescription";
 
-fn position_suffix(position: u32) -> &'static str {
-    match position {
-        1 => "st",
-        2 => "nd",
-        3 => "rd",
-        _ => "th",
-    }
-}
-
-fn backend_text_with_params(key: &str, params: [(&str, String); 3]) -> String {
+fn backend_text_with_params(key: &str, params: [(&str, String); 2]) -> String {
     let mut text = String::from(key);
 
     for (index, (param_name, param_value)) in params.into_iter().enumerate() {
@@ -219,13 +212,14 @@ fn backend_text_with_params(key: &str, params: [(&str, String); 3]) -> String {
     text
 }
 
-fn prize_money_ledger_description(season: u32, position: u32, suffix: &str) -> String {
+// The finishing place goes as a bare number: the frontend writes it as an ordinal in the player's
+// language (`ordinal` in `resolveParamValues`), never an English suffix from here.
+fn prize_money_ledger_description(season: u32, position: u32) -> String {
     backend_text_with_params(
         SEASON_PAYOUT_LEDGER_DESCRIPTION_KEY,
         [
             ("season", season.to_string()),
             ("position", position.to_string()),
-            ("suffix", suffix.to_string()),
         ],
     )
 }
@@ -477,8 +471,15 @@ fn regenerate_competitions_for_new_season(
 
     // Read the World Cup field from this cycle's qualifying before competitions
     // are retired below.
-    let kickoff = game.clock.current_date + Duration::days(2);
-    let world_cup_due = crate::world_cup::is_world_cup_summer(kickoff.year());
+    let earliest_kickoff = game.clock.current_date + Duration::days(2);
+    let world_cup_due = crate::world_cup::is_world_cup_summer(earliest_kickoff.year());
+    // A club season can finish in spring; the finals still begin in the summer break.
+    let kickoff = if world_cup_due {
+        crate::world::start_date_for_year(earliest_kickoff.year())
+            .map_or(earliest_kickoff, |summer| earliest_kickoff.max(summer))
+    } else {
+        earliest_kickoff
+    };
     let qualified_field = if world_cup_due {
         // The club season can finish before the campaign's June dates play
         // out; settle whatever remains (the last matchday, the playoff) so the
@@ -693,9 +694,13 @@ fn manage_international_calendar(
         for national_team in game.national_teams.iter_mut() {
             national_team.fixtures.clear();
         }
-        // No windows to keep clear of and no preseason friendlies, but the regenerated club
-        // competitions still have to share the calendar with each other.
-        crate::world::foundations::settle_club_calendar(game, &Default::default(), retained);
+        // The tournament fills the break, but future club fixtures must still avoid
+        // international windows and each other.
+        let blackout = crate::national_team::international_blackout_around(
+            &game.competitions,
+            game.clock.current_date.date_naive(),
+        );
+        crate::world::foundations::settle_club_calendar(game, &blackout, retained);
         return;
     }
 
@@ -709,14 +714,9 @@ fn manage_international_calendar(
         .competitions
         .iter()
         .any(crate::world_cup::is_world_cup_qualifying);
-    // Qualifying spreads each window's matches across a multi-day block, so club
-    // fixtures must keep clear of the whole span rather than just the openers.
-    let blackout =
-        crate::national_team::international_blackout_dates(next_start, qualifying_in_progress);
     for national_team in game.national_teams.iter_mut() {
         national_team.fixtures.clear();
     }
-    crate::world::foundations::place_club_calendar(game, &blackout, retained);
 
     if leads_into_world_cup {
         // The windows host the qualifying campaign instead of friendlies: the
@@ -732,10 +732,7 @@ fn manage_international_calendar(
                 &window_dates,
             );
         }
-        return;
-    }
-
-    if starts_qualifying {
+    } else if starts_qualifying {
         // Two summers out: the full home-and-away campaign gets under way.
         // The in-progress guard mirrors the branch above — under the four-year
         // cadence a campaign can't still be running here, but scheduling must
@@ -747,59 +744,44 @@ fn manage_international_calendar(
                 &window_dates,
             );
         }
-        return;
-    }
-
-    if qualifying_in_progress {
+    } else if qualifying_in_progress {
         // Unreachable under the four-year cadence, but if a campaign ever
         // survives into a neutral season, keep it anchored to this season's
         // windows rather than stacking friendlies on top of stale fixtures.
         crate::world_cup::continue_world_cup_qualifying(game, &window_dates);
-        return;
+    } else {
+        // Keyed by the year the windows belong to, so a replay draws the same fixtures.
+        let mut friendlies_rng =
+            game.rng_for("national-team-friendlies", &next_start.year().to_string());
+        let today = game.clock.current_date.format("%Y-%m-%d").to_string();
+        let future_windows: Vec<_> = window_dates
+            .into_iter()
+            .filter(|date| date >= &today)
+            .collect();
+        crate::national_team::schedule_national_team_friendlies(
+            &mut game.national_teams,
+            &future_windows,
+            &mut friendlies_rng,
+        );
     }
-
-    // Which nations meet in which window. Keyed by the year the windows belong to, so a
-    // replay of this rollover draws the same fixtures.
-    let mut friendlies_rng =
-        game.rng_for("national-team-friendlies", &next_start.year().to_string());
-    crate::national_team::schedule_national_team_friendlies(
-        &mut game.national_teams,
-        &window_dates,
-        &mut friendlies_rng,
+    let blackout = crate::national_team::international_blackout_around(
+        &game.competitions,
+        game.clock.current_date.date_naive(),
     );
+    crate::world::foundations::place_club_calendar(game, &blackout, retained);
 }
 
-/// The league-table competition the user's club contests. Falls back to the
-/// primary competition when the user has no club in any division (e.g. an
-/// unemployed manager) or for legacy single-league saves.
-pub fn user_division<'a>(game: &'a Game, user_team_id: &str) -> Option<&'a League> {
-    club_league_table(game, user_team_id).or(game.league.as_ref())
-}
-
-/// The league table a club contests, for any club. `None` when no league table lists it (a cup
-/// has no table).
-///
-/// A split-season country runs a club through more than one table. Take the one the year
-/// ended on — the same one the payout and the club's record are taken from — or the summary
-/// crowns them from one half while they are paid for the other.
-pub fn club_league_table<'a>(game: &'a Game, club_id: &str) -> Option<&'a League> {
-    let contains_club = |competition: &League| {
-        competition.rules.format == CompetitionFormat::LeagueTable
-            && (competition.participant_ids.iter().any(|id| id == club_id)
-                || competition
-                    .standings
-                    .iter()
-                    .any(|standing| standing.team_id == club_id))
-    };
-
-    game.competitions
-        .iter()
-        .filter(|competition| contains_club(competition))
-        .max_by(|left, right| {
-            division_finished_on(left)
-                .cmp(&division_finished_on(right))
-                .then_with(|| right.priority.cmp(&left.priority))
+/// The division the season's rollover finishes on: the user's, else a world league, or the legacy
+/// mirror. A manager with no followed league still needs the world season to roll over; the mirror
+/// alone may point at a cup in a modern world.
+fn rollover_division(game: &Game) -> Option<&League> {
+    user_division(game)
+        .or_else(|| {
+            game.competitions
+                .iter()
+                .find(|competition| competition.rules.format == CompetitionFormat::LeagueTable)
         })
+        .or(game.league.as_ref())
 }
 
 /// Send a board message when the user's club starts the new season in a
@@ -808,13 +790,17 @@ pub fn club_league_table<'a>(game: &'a Game, club_id: &str) -> Option<&'a League
 fn notify_user_division_change(
     game: &mut Game,
     division_before: Option<(String, u32)>,
-    user_team_id: &str,
     date: &str,
 ) {
+    // A manager out of work follows his last club's league, but its promotion is not his to hear
+    // about from the board.
+    if game.manager.team_id.is_none() {
+        return;
+    }
     let Some((old_division_id, old_priority)) = division_before else {
         return;
     };
-    let Some(new_division) = user_division(game, user_team_id) else {
+    let Some(new_division) = user_division(game) else {
         return;
     };
     if new_division.id == old_division_id {
@@ -838,6 +824,10 @@ fn notify_user_division_change(
         });
     let promoted = new_division.priority < old_priority || promoted_by_berth;
     let division_name = new_division.name.clone();
+    // A generated division's stored name is an English template; its key, country and edition let
+    // the frontend name it in the player's language (a hand-made division has no key).
+    let division_key = new_division.name_key.clone();
+    let division_country = new_division.country_id.clone();
     // The renewed edition's own label: a delayed edition renews to the calendar year, which is not
     // always last season plus one.
     let renewed_season = new_division.season;
@@ -850,6 +840,13 @@ fn notify_user_division_change(
     let mut params = std::collections::HashMap::new();
     params.insert("division".to_string(), division_name);
     params.insert("season".to_string(), renewed_season.to_string());
+    if let Some(key) = division_key {
+        params.insert("divisionKey".to_string(), key);
+        params.insert("divisionSeason".to_string(), renewed_season.to_string());
+        if let Some(country) = division_country {
+            params.insert("divisionCountry".to_string(), country);
+        }
+    }
 
     let message = InboxMessage::new(
         msg_id,
@@ -923,7 +920,9 @@ pub fn process_end_of_season(game: &mut Game) -> EndOfSeasonSummary {
     // the user's club actually contests — not whichever competition happens to
     // be first in the list.
     let user_team_id = game.manager.team_id.clone().unwrap_or_default();
-    let league = match user_division(game, &user_team_id) {
+    // Whether the screens have a league of his to show; the rollover below runs either way.
+    let shows_a_league = user_division(game).is_some();
+    let league = match rollover_division(game) {
         Some(l) => l,
         None => return EndOfSeasonSummary::default(),
     };
@@ -973,6 +972,7 @@ pub fn process_end_of_season(game: &mut Game) -> EndOfSeasonSummary {
     let summary = EndOfSeasonSummary {
         season,
         league_name: league_name.clone(),
+        competition_id: league.id.clone(),
         champion_id: champion_id.clone(),
         champion_name,
         user_position,
@@ -1071,11 +1071,7 @@ pub fn process_end_of_season(game: &mut Game) -> EndOfSeasonSummary {
                 if prize_posted {
                     team.financial_ledger.push(FinancialTransaction {
                         date: last_fixture_date.clone(),
-                        description: prize_money_ledger_description(
-                            season,
-                            position,
-                            position_suffix(position),
-                        ),
+                        description: prize_money_ledger_description(season, position),
                         amount: prize_money,
                         kind: FinancialTransactionKind::PrizeMoney,
                     });
@@ -1124,10 +1120,7 @@ pub fn process_end_of_season(game: &mut Game) -> EndOfSeasonSummary {
 
     apply_season_end_squad_turnover(game, game.clock.current_date.date_naive(), season);
 
-    for player in game.players.iter_mut() {
-        // Reset stats for next season
-        player.stats = PlayerSeasonStats::default();
-    }
+    player_statistics::reset_for_new_season(game);
 
     // 5b. Convert retired players to unemployed manager/scout candidates, then
     //     ensure the unemployed pools meet the season-end floor.
@@ -1174,7 +1167,11 @@ pub fn process_end_of_season(game: &mut Game) -> EndOfSeasonSummary {
     game.news.clear();
 
     // 6d. Publish the season awards ceremony article (skipped when no marquee winners)
-    if let Some(article) = crate::news::season_awards_article(&awards, season, &last_fixture_date) {
+    // The ceremony is of the user's league, so a manager who follows none has none to read.
+    if shows_a_league
+        && let Some(article) =
+            crate::news::season_awards_article(&awards, season, &last_fixture_date)
+    {
         game.news.push(article);
     }
 
@@ -1185,36 +1182,31 @@ pub fn process_end_of_season(game: &mut Game) -> EndOfSeasonSummary {
     let next_season = season + 1;
     let rollover_anchor = game.clock.current_date + Duration::days(28);
     let user_division_before =
-        user_division(game, &user_team_id).map(|division| (division.id.clone(), division.priority));
+        rollover_division(game).map(|division| (division.id.clone(), division.priority));
     regenerate_competitions_for_new_season(game, next_season, rollover_anchor);
-    notify_user_division_change(
-        game,
-        user_division_before,
-        &user_team_id,
-        &last_fixture_date,
-    );
+    notify_user_division_change(game, user_division_before, &last_fixture_date);
 
     // The preview is of the user's division as the new season has it, after promotion and
     // relegation; the world's other clubs are not in the race it previews (#1179).
     let preview_date = game.clock.current_date.to_rfc3339();
-    let division_club_names: Vec<String> = user_division(game, &user_team_id)
-        .map(|division| {
-            division
-                .participant_ids
-                .iter()
-                .filter_map(|club_id| game.teams.iter().find(|team| &team.id == club_id))
-                .map(|team| team.name.clone())
-                .collect()
-        })
-        .unwrap_or_default();
-    game.news.push(crate::news::season_preview_article(
-        &division_club_names,
-        &preview_date,
-    ));
+    if shows_a_league {
+        let division_club_names: Vec<String> = user_division(game)
+            .map(|division| {
+                division
+                    .participant_ids
+                    .iter()
+                    .filter_map(|club_id| game.teams.iter().find(|team| &team.id == club_id))
+                    .map(|team| team.name.clone())
+                    .collect()
+            })
+            .unwrap_or_default();
+        game.news.push(crate::news::season_preview_article(
+            &division_club_names,
+            &preview_date,
+        ));
+    }
 
     // 8. Send end-of-season messages
-    let pos_suffix = position_suffix(user_position);
-
     let user_team_name = game
         .teams
         .iter()
@@ -1226,7 +1218,10 @@ pub fn process_end_of_season(game: &mut Game) -> EndOfSeasonSummary {
     // below are interleaved with the checks, so a snapshot would go stale.
     let payout_msg_id = format!("season_payout_{}", season);
     let user_prize_money = division_prize_money(user_position, user_division_tier);
-    if user_prize_posted && !crate::inbox::already_emitted(game, &payout_msg_id) {
+    // The board writes to a manager it employs: with no club there is no finish to review or prize
+    // to pay (the review would read "0th" for a club called nothing).
+    let employed = game.manager.team_id.is_some();
+    if employed && user_prize_posted && !crate::inbox::already_emitted(game, &payout_msg_id) {
         let payout_message = InboxMessage::new(
             payout_msg_id,
             String::new(),
@@ -1249,7 +1244,7 @@ pub fn process_end_of_season(game: &mut Game) -> EndOfSeasonSummary {
     }
 
     let msg_id = format!("season_end_{}", season);
-    if !crate::inbox::already_emitted(game, &msg_id) {
+    if employed && !crate::inbox::already_emitted(game, &msg_id) {
         let (body_key, mut i18n_params) = if user_position == 1 {
             let mut p = std::collections::HashMap::new();
             p.insert("team".to_string(), user_team_name.clone());
@@ -1259,21 +1254,18 @@ pub fn process_end_of_season(game: &mut Game) -> EndOfSeasonSummary {
             let mut p = std::collections::HashMap::new();
             p.insert("team".to_string(), user_team_name.clone());
             p.insert("position".to_string(), user_position.to_string());
-            p.insert("suffix".to_string(), pos_suffix.to_string());
             p.insert("points".to_string(), summary.user_points.to_string());
             ("be.msg.seasonReview.body.topFour", p)
         } else if user_position <= summary.total_teams / 2 {
             let mut p = std::collections::HashMap::new();
             p.insert("team".to_string(), user_team_name.clone());
             p.insert("position".to_string(), user_position.to_string());
-            p.insert("suffix".to_string(), pos_suffix.to_string());
             p.insert("points".to_string(), summary.user_points.to_string());
             ("be.msg.seasonReview.body.midTable", p)
         } else {
             let mut p = std::collections::HashMap::new();
             p.insert("team".to_string(), user_team_name.clone());
             p.insert("position".to_string(), user_position.to_string());
-            p.insert("suffix".to_string(), pos_suffix.to_string());
             p.insert("points".to_string(), summary.user_points.to_string());
             ("be.msg.seasonReview.body.lowerHalf", p)
         };
@@ -1295,7 +1287,7 @@ pub fn process_end_of_season(game: &mut Game) -> EndOfSeasonSummary {
     }
 
     let sched_msg_id = format!("new_season_{}", next_season);
-    if !crate::inbox::already_emitted(game, &sched_msg_id) {
+    if shows_a_league && !crate::inbox::already_emitted(game, &sched_msg_id) {
         let mut sched_params = std::collections::HashMap::new();
         sched_params.insert("season".to_string(), next_season.to_string());
         let sched_msg = InboxMessage::new(
@@ -1319,7 +1311,15 @@ pub fn process_end_of_season(game: &mut Game) -> EndOfSeasonSummary {
 
     crate::season_context::refresh_game_context(game);
 
-    summary
+    // A manager with no league of his own is shown no summary of the one the rollover finished on.
+    if shows_a_league {
+        summary
+    } else {
+        EndOfSeasonSummary {
+            season,
+            ..EndOfSeasonSummary::default()
+        }
+    }
 }
 
 /// Roll a finished season over: the one sequence behind the player's "advance
@@ -1459,6 +1459,7 @@ fn convert_retired_players_to_candidates(game: &mut Game, season: u32) {
                 },
             );
             scout.nationality = r.nationality.clone();
+            crate::football_identity::initialize_unattached_staff_identity(&mut scout);
             // team_id stays None (unattached market candidate)
             new_scouts.push(scout);
         }
@@ -1472,6 +1473,8 @@ fn convert_retired_players_to_candidates(game: &mut Game, season: u32) {
 pub struct EndOfSeasonSummary {
     pub season: u32,
     pub league_name: String,
+    #[serde(default)]
+    pub competition_id: String,
     pub champion_id: String,
     pub champion_name: String,
     pub user_position: u32,
@@ -1690,6 +1693,81 @@ mod tests {
         );
     }
 
+    /// Given a rollover during an active qualifying campaign and a club match on a qualifying
+    /// window, when the campaign continues, then placement moves the match and load repair is idle.
+    #[test]
+    fn continuing_qualifying_settles_club_matches_before_reload() {
+        let mut game = calendar_game(at(2033, 6, 20));
+        let first_windows = crate::national_team::international_window_dates(at(2032, 7, 1));
+        crate::world_cup::schedule_world_cup_qualifying(&mut game, 2034, &first_windows);
+        let qualifier = game
+            .competitions
+            .iter()
+            .find(|c| crate::world_cup::is_world_cup_qualifying(c))
+            .expect("a qualifying campaign exists");
+        assert!(
+            qualifier
+                .fixtures
+                .iter()
+                .any(|f| f.status == FixtureStatus::Scheduled)
+        );
+        add_division(&mut game, "league", "europe", at(2033, 9, 11));
+        let club_match = game.competitions.last().unwrap().fixtures[0].id.clone();
+        assert_eq!(
+            game.competitions.last().unwrap().fixtures[0].date,
+            "2033-09-11"
+        );
+        game.competitions.last_mut().unwrap().fixtures.truncate(1);
+        manage_international_calendar(
+            &mut game,
+            at(2033, 7, 18),
+            at(2033, 6, 22),
+            false,
+            None,
+            &Default::default(),
+        );
+        let fixture = game
+            .competitions
+            .iter()
+            .flat_map(|c| &c.fixtures)
+            .find(|f| f.id == club_match)
+            .unwrap();
+        assert_ne!(
+            fixture.date, "2033-09-11",
+            "the qualifying window must be cleared"
+        );
+        let before = serde_json::to_value(&game.competitions).unwrap();
+        let notices = game.messages.len();
+        assert_eq!(crate::calendar_repair::repair_loaded_calendar(&mut game), 0);
+        assert_eq!(serde_json::to_value(&game.competitions).unwrap(), before);
+        assert_eq!(game.messages.len(), notices);
+    }
+
+    /// Given a competition with a match on an international window, when rollover settles the
+    /// calendar, then every competitive fixture survives even if its date moves.
+    #[test]
+    fn rollover_settlement_keeps_every_competitive_fixture() {
+        let mut game = calendar_game(at(2033, 6, 20));
+        add_division(&mut game, "league", "europe", at(2033, 9, 9));
+        let ids = |game: &Game| -> std::collections::BTreeSet<String> {
+            game.competitions
+                .iter()
+                .filter(|c| c.id == "league")
+                .flat_map(|c| &c.fixtures)
+                .filter(|f| f.competition != FixtureCompetition::Friendly)
+                .map(|f| f.id.clone())
+                .collect()
+        };
+        let before = ids(&game);
+        assert!(!before.is_empty());
+        initialize_rollover_calendar(&mut game);
+        assert_eq!(
+            ids(&game),
+            before,
+            "rollover settlement must not lose competitive fixtures"
+        );
+    }
+
     /// Given a World Cup year, where the rollover returns before the windows and friendlies, and
     /// two regenerated competitions whose dates clash for one club,
     /// When the rollover builds the international calendar,
@@ -1752,6 +1830,74 @@ mod tests {
                 .flat_map(|c| &c.fixtures)
                 .all(|f| f.competition != FixtureCompetition::Friendly)
         );
+    }
+
+    /// Given a retained club fixture on an international window when a career rolls into a
+    /// World Cup year, when the rollover settles its calendar, then the fixture avoids the window
+    /// and a subsequent load repair changes nothing or announces another postponement.
+    #[test]
+    fn world_cup_rollover_settles_international_windows_before_reload() {
+        let start = crate::world::start_date_for_year(2030).unwrap();
+        assert_eq!(
+            start.date_naive(),
+            chrono::NaiveDate::from_ymd_opt(2030, 6, 1).unwrap()
+        );
+        let mut game = calendar_game(start);
+        game.clock.current_date = at(2034, 6, 1);
+        add_division(&mut game, "retained", "south-america", at(2034, 9, 9));
+        game.competitions[0].fixtures.truncate(1);
+        let fixture = &game.competitions[0].fixtures[0];
+        assert_eq!(fixture.date, "2034-09-09", "the premise: a window fixture");
+        assert_eq!(fixture.status, FixtureStatus::Scheduled);
+        let fixture_id = fixture.id.clone();
+        game.manager.hire(fixture.home_team_id.clone());
+        assert!(!is_regenerated_at_rollover(&game.competitions[0]));
+        assert!(crate::world_cup::is_world_cup_summer(
+            (game.clock.current_date + Duration::days(2)).year()
+        ));
+        let blackout = crate::national_team::international_blackout_around(
+            &game.competitions,
+            game.clock.current_date.date_naive(),
+        );
+        assert!(blackout.contains(&chrono::NaiveDate::from_ymd_opt(2034, 9, 9).unwrap()));
+
+        regenerate_competitions_for_new_season(&mut game, 2035, at(2034, 6, 29));
+
+        let fixture = game
+            .competitions
+            .iter()
+            .flat_map(|c| &c.fixtures)
+            .find(|f| f.id == fixture_id)
+            .expect("the retained fixture survives");
+        assert_ne!(
+            fixture.date, "2034-09-09",
+            "the rollover must move the window fixture"
+        );
+        let blackout = crate::national_team::international_blackout_around(
+            &game.competitions,
+            game.clock.current_date.date_naive(),
+        );
+        for fixture in game
+            .competitions
+            .iter()
+            .flat_map(|c| &c.fixtures)
+            .filter(|f| {
+                f.competition != FixtureCompetition::InternationalNation
+                    && f.status == FixtureStatus::Scheduled
+            })
+        {
+            let date = chrono::NaiveDate::parse_from_str(&fixture.date, "%Y-%m-%d").unwrap();
+            assert!(
+                !blackout.contains(&date),
+                "{} remains on a window",
+                fixture.id
+            );
+        }
+        let before = serde_json::to_value(&game.competitions).unwrap();
+        let messages = game.messages.len();
+        assert_eq!(crate::calendar_repair::repair_loaded_calendar(&mut game), 0);
+        assert_eq!(serde_json::to_value(&game.competitions).unwrap(), before);
+        assert_eq!(game.messages.len(), messages);
     }
 
     /// Given a cup whose final was postponed past the rollover, so its edition is not finished,
@@ -1821,12 +1967,7 @@ mod tests {
         game.competitions[0].season = 2036;
         game.manager.hire("eng-d2-0".to_string());
 
-        notify_user_division_change(
-            &mut game,
-            Some(("eng-d3".to_string(), 2)),
-            "eng-d2-0",
-            "2035-07-01",
-        );
+        notify_user_division_change(&mut game, Some(("eng-d3".to_string(), 2)), "2035-07-01");
 
         let message = game
             .messages
@@ -1883,13 +2024,49 @@ mod tests {
             crate::turn::cup_renewal::renew_finished_cups(&mut game, "2034-07-01"),
             1
         );
-        let renewed = serde_json::to_string(&game.competitions[0]).unwrap();
+        let renewed = game.competitions[0].clone();
+        assert_eq!(
+            renewed.fixtures.len(),
+            4,
+            "the hook drew four quarterfinals"
+        );
 
         regenerate_competitions_for_new_season(&mut game, season + 1, at(2034, 7, 1));
 
+        let blackout = crate::national_team::international_blackout_around(
+            &game.competitions,
+            game.clock.current_date.date_naive(),
+        );
+        let mut after = game.competitions[0].clone();
+        assert_eq!(after.fixtures.len(), renewed.fixtures.len());
+        for (fixture, original) in after.fixtures.iter_mut().zip(&renewed.fixtures) {
+            assert_eq!(fixture.id, original.id, "the hook's fixture survives");
+            let old_date = chrono::NaiveDate::parse_from_str(&original.date, "%Y-%m-%d").unwrap();
+            let new_date = chrono::NaiveDate::parse_from_str(&fixture.date, "%Y-%m-%d").unwrap();
+            assert!(
+                blackout.contains(&old_date),
+                "the published date clashes with the finals"
+            );
+            assert!(
+                !blackout.contains(&new_date),
+                "the moved date avoids the finals"
+            );
+            let postponement = fixture
+                .postponement
+                .as_ref()
+                .expect("the published date was moved");
+            assert_eq!(postponement.original_date, original.date);
+            assert_eq!(
+                postponement.reason,
+                domain::league::RescheduleReason::InternationalWindow
+            );
+            fixture.date = original.date.clone();
+            fixture.postponement = original.postponement.clone();
+        }
         assert_eq!(
-            serde_json::to_string(&game.competitions[0]).unwrap(),
-            renewed
+            serde_json::to_value(&after).unwrap(),
+            serde_json::to_value(&renewed).unwrap(),
+            "apart from justified postponements the hook's edition is unchanged"
         );
         assert_eq!(game.edition_archive.len(), 1);
     }

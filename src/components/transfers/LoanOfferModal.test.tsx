@@ -8,6 +8,7 @@ import LoanOfferModal from "./LoanOfferModal";
 
 // Writes a key with the wage it was given, so a test can read which wage reached the sentence.
 vi.mock("react-i18next", () => ({
+  initReactI18next: { type: "3rdParty", init: () => undefined },
   useTranslation: () => ({
     t: (key: string, options?: { wage?: string }) =>
       options?.wage === undefined ? key : `${key}(${options.wage})`,

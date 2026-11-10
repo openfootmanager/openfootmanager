@@ -1,15 +1,51 @@
 use crate::game::Game;
 use crate::player_rating::{formation_slots, natural_ovr};
-use domain::player::{Footedness, Player, Position};
+use domain::player::{Footedness, Player, Position, default_weak_foot};
 use std::collections::HashMap;
 
 pub fn upgrade_game_player_identities(game: &mut Game) -> bool {
+    upgrade_game_identities(game, false)
+}
+
+/// Backfills weak foot for saves created before the field existed.
+pub fn backfill_game_player_weak_feet(game: &mut Game) -> bool {
+    let mut changed = upgrade_game_player_identities(game);
+    for player in &mut game.players {
+        let weak_foot = infer_weak_foot(player, &player.alternate_positions, player.footedness);
+        if player.weak_foot != weak_foot {
+            player.weak_foot = weak_foot;
+            changed = true;
+        }
+    }
+    changed
+}
+
+/// A saved weak foot is authoritative, even when other identity fields need upgrading.
+pub fn upgrade_loaded_player_identities(game: &mut Game) -> bool {
+    upgrade_game_identities(game, true)
+}
+
+fn upgrade_game_identities(game: &mut Game, preserve_weak_foot: bool) -> bool {
     let slot_map = build_assigned_slot_map(game);
     let mut changed = false;
 
+    let on = game.clock.current_date.date_naive();
+
     for player in &mut game.players {
-        if upgrade_player_identity(player, slot_map.get(&player.id)) {
+        // Zero marks a field absent from an old save, not a playable weak-foot rating.
+        let missing_weak_foot = preserve_weak_foot && player.weak_foot == 0;
+        if missing_weak_foot {
+            player.weak_foot = default_weak_foot();
             changed = true;
+        }
+        if upgrade_identity(
+            player,
+            slot_map.get(&player.id),
+            preserve_weak_foot && !missing_weak_foot,
+        ) {
+            changed = true;
+            // The upgrade re-rated him, and the wonderkid tag is a function of his rating.
+            crate::player_rating::reconcile_wonderkid_trait(player, on);
         }
     }
 
@@ -17,6 +53,14 @@ pub fn upgrade_game_player_identities(game: &mut Game) -> bool {
 }
 
 pub fn upgrade_player_identity(player: &mut Player, assigned_slot: Option<&Position>) -> bool {
+    upgrade_identity(player, assigned_slot, false)
+}
+
+fn upgrade_identity(
+    player: &mut Player,
+    assigned_slot: Option<&Position>,
+    preserve_weak_foot: bool,
+) -> bool {
     if !needs_identity_upgrade(player) {
         return false;
     }
@@ -24,7 +68,11 @@ pub fn upgrade_player_identity(player: &mut Player, assigned_slot: Option<&Posit
     let natural_position = infer_natural_position(player, assigned_slot);
     let alternate_positions = infer_alternate_positions(player, &natural_position, assigned_slot);
     let footedness = infer_footedness(player, &natural_position, assigned_slot);
-    let weak_foot = infer_weak_foot(player, &alternate_positions, footedness);
+    let weak_foot = if preserve_weak_foot {
+        player.weak_foot
+    } else {
+        infer_weak_foot(player, &alternate_positions, footedness)
+    };
 
     let changed = player.natural_position != natural_position
         || player.alternate_positions != alternate_positions
@@ -799,6 +847,72 @@ mod tests {
                 .iter()
                 .all(|position| !position.is_legacy_bucket()),
             "alternates should be fully granular after upgrade",
+        );
+    }
+
+    /// Given a 19-year-old with an S-tier ceiling whose stored overall was stale-high (so he did
+    ///       not qualify as a wonderkid), and whose rating at his natural position is much lower,
+    /// When the game's players are given their identities,
+    /// Then his wonderkid tag follows his new rating: he is tagged, as the rule says.
+    #[test]
+    fn re_rating_a_player_at_career_open_reconciles_his_wonderkid_tag() {
+        let start = Utc.with_ymd_and_hms(2026, 7, 1, 0, 0, 0).unwrap();
+        let attrs = PlayerAttributes {
+            pace: 62,
+            stamina: 62,
+            strength: 62,
+            agility: 62,
+            passing: 62,
+            shooting: 62,
+            tackling: 62,
+            dribbling: 62,
+            defending: 62,
+            positioning: 62,
+            vision: 62,
+            decisions: 62,
+            composure: 62,
+            aggression: 62,
+            teamwork: 62,
+            leadership: 62,
+            handling: 20,
+            reflexes: 20,
+            aerial: 62,
+        };
+        let mut prospect = make_player("prospect", Position::Midfielder, attrs);
+        prospect.date_of_birth = "2007-03-01".to_string();
+        prospect.team_id = Some("team-1".to_string());
+        prospect.ovr = 80;
+        prospect.potential = 85;
+        prospect
+            .traits
+            .retain(|t| *t != domain::player::PlayerTrait::Wonderkid);
+        let mut game = Game::new(
+            GameClock::new(start),
+            make_manager(),
+            vec![make_team()],
+            vec![prospect],
+            vec![],
+            vec![],
+        );
+
+        upgrade_game_player_identities(&mut game);
+
+        let player = &game.players[0];
+        let age = domain::age::playing_age(start.date_naive(), &player.date_of_birth);
+        assert!(
+            player.ovr < 71,
+            "the fixture must re-rate him well below his ceiling"
+        );
+        assert!(crate::player_rating::qualifies_for_wonderkid(
+            age,
+            player.potential,
+            player.ovr
+        ));
+        assert!(
+            player
+                .traits
+                .contains(&domain::player::PlayerTrait::Wonderkid),
+            "his tag must follow his new rating"
         );
     }
 

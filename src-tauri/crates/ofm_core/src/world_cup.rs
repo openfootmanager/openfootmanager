@@ -73,6 +73,36 @@ pub fn is_world_cup_competition(competition: &League) -> bool {
         && competition.scope == CompetitionScope::International
 }
 
+/// The finals' planned last day, including knockout rounds not yet drawn. Actual round dates
+/// take precedence as they appear, so postponements update the reservation.
+pub(crate) fn finals_period(cup: &League) -> Option<(chrono::NaiveDate, chrono::NaiveDate)> {
+    if !is_world_cup_competition(cup) || is_world_cup_qualifying(cup) || is_world_cup_playoff(cup) {
+        return None;
+    }
+    let dates: Vec<_> = cup
+        .fixtures
+        .iter()
+        .filter_map(|f| chrono::NaiveDate::parse_from_str(&f.date, "%Y-%m-%d").ok())
+        .collect();
+    let first = *dates.iter().min()?;
+    let mut last = *dates.iter().max()?;
+    let mut entrants = match cup.knockout_rounds.last() {
+        Some(round) => round.fixture_ids.len() + round.bye_team_ids.len(),
+        None => crate::group_stage::knockout_qualifiers(cup).len(),
+    };
+    while entrants >= 2 {
+        let (byes, ties, days) =
+            crate::schedule::knockout_round_shape(entrants, cup.rules.knockout_matches_per_day)?;
+        if ties == 0 || days == 0 {
+            break;
+        }
+        let offset = i64::from(cup.rules.knockout_round_gap_days) + i64::try_from(days - 1).ok()?;
+        last = last.checked_add_signed(chrono::Duration::days(offset))?;
+        entrants = byes + ties;
+    }
+    Some((first, last))
+}
+
 /// Player OVRs per nation, strongest first.
 fn national_pools(game: &Game) -> BTreeMap<String, Vec<u8>> {
     let mut pools: BTreeMap<String, Vec<u8>> = BTreeMap::new();
@@ -2049,6 +2079,92 @@ mod tests {
             "England".to_string(),
         );
         Game::new(clock, manager, vec![], vec![], vec![], vec![])
+    }
+
+    /// Given a World Cup group stage, when its first knockout round is drawn at the normal gap,
+    /// then the projected final day is unchanged for each supported finals format.
+    #[test]
+    fn finals_reservation_is_stable_when_the_bracket_is_drawn() {
+        for format in [&FORMAT_16, &FORMAT_32, &FORMAT_48] {
+            let mut game = empty_game();
+            schedule_world_cup(&mut game, kickoff(2030), format);
+            let cup = game
+                .competitions
+                .iter_mut()
+                .find(|c| is_world_cup_competition(c))
+                .unwrap();
+            let before = finals_period(cup).expect("the finals have dates");
+            let participants = crate::group_stage::knockout_qualifiers(cup);
+            assert!(participants.len() >= 2);
+            let last_group = cup.fixtures.iter().map(|f| f.date.as_str()).max().unwrap();
+            let next = crate::schedule::date_str_to_utc(last_group).unwrap()
+                + chrono::Duration::days(i64::from(cup.rules.knockout_round_gap_days));
+            crate::schedule::seed_knockout_round(
+                cup,
+                &participants,
+                next,
+                FixtureCompetition::InternationalNation,
+            );
+            assert_eq!(
+                finals_period(cup),
+                Some(before),
+                "field size {}",
+                format.field
+            );
+        }
+    }
+
+    /// Given a drawn first knockout round, when its latest tie is postponed, then the projected
+    /// final and the shared blackout both extend by the same delay.
+    #[test]
+    fn a_postponed_knockout_tie_extends_the_finals_blackout() {
+        let mut game = empty_game();
+        schedule_world_cup(&mut game, kickoff(2030), &FORMAT_48);
+        let cup = game
+            .competitions
+            .iter_mut()
+            .find(|c| is_world_cup_competition(c))
+            .unwrap();
+        let entrants = crate::group_stage::knockout_qualifiers(cup);
+        let last_group = cup.fixtures.iter().map(|f| f.date.as_str()).max().unwrap();
+        let first_round = crate::schedule::date_str_to_utc(last_group).unwrap()
+            + chrono::Duration::days(i64::from(cup.rules.knockout_round_gap_days));
+        crate::schedule::seed_knockout_round(
+            cup,
+            &entrants,
+            first_round,
+            FixtureCompetition::InternationalNation,
+        );
+        let initial = finals_period(cup).unwrap();
+        let last_id = cup
+            .knockout_rounds
+            .last()
+            .unwrap()
+            .fixture_ids
+            .iter()
+            .max_by_key(|id| {
+                cup.fixtures
+                    .iter()
+                    .find(|f| &f.id == *id)
+                    .unwrap()
+                    .date
+                    .clone()
+            })
+            .unwrap()
+            .clone();
+        let fixture = cup.fixtures.iter_mut().find(|f| f.id == last_id).unwrap();
+        let old_date = chrono::NaiveDate::parse_from_str(&fixture.date, "%Y-%m-%d").unwrap();
+        fixture.date = (old_date + chrono::Duration::days(5)).to_string();
+        let revised = finals_period(cup).unwrap();
+        assert_eq!(revised.0, initial.0);
+        assert_eq!(revised.1, initial.1 + chrono::Duration::days(5));
+        let blackout = crate::national_team::international_blackout_around(
+            &game.competitions,
+            kickoff(2030).date_naive(),
+        );
+        for offset in 1..=5 {
+            assert!(blackout.contains(&(initial.1 + chrono::Duration::days(offset))));
+        }
     }
 
     /// Every World Cup competition in the live game must already hold exactly what the
