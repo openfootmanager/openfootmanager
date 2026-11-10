@@ -1,7 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { invoke } from "@tauri-apps/api/core";
 
-import { getWorldsLibrary, savePackageProject, validatePackageProject } from "./packageEditorService";
+import {
+  getWorldsLibrary,
+  savePackageProject,
+  validatePackageProject,
+} from "./packageEditorService";
 
 vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
 
@@ -15,6 +19,13 @@ it("passes recent paths to the worlds library command", async () => {
   expect(invokeMock).toHaveBeenCalledWith("get_worlds_library", { paths: ["/a", "/b"] });
 });
 
+/** Given the library command fails, when it is requested, then the error reaches the caller. */
+it("propagates a worlds library error", async () => {
+  invokeMock.mockReset();
+  invokeMock.mockRejectedValue("be.error.invalidPath");
+  await expect(getWorldsLibrary(["/a"])).rejects.toBe("be.error.invalidPath");
+});
+
 describe("validatePackageProject", () => {
   beforeEach(() => {
     invokeMock.mockReset();
@@ -23,16 +34,26 @@ describe("validatePackageProject", () => {
 
   /** Given an old recent record, when Validate reports findings, then the stored record is updated. */
   it("saves validation findings on an old recent project", async () => {
-    localStorage.setItem("worldEditor.recentProjects", JSON.stringify([
-      { path: "/p", name: "Old world", openedAt: "2026-01-01" },
-      { path: "/other", name: "Other", openedAt: "2026-01-02" },
-    ]));
-    invokeMock.mockResolvedValue({ issues: [{ code: "x" }], warnings: [{ code: "y" }, { code: "z" }] });
+    localStorage.setItem(
+      "worldEditor.recentProjects",
+      JSON.stringify([
+        { path: "/p", name: "Old world", openedAt: "2026-01-01" },
+        { path: "/other", name: "Other", openedAt: "2026-01-02" },
+      ]),
+    );
+    invokeMock.mockResolvedValue({
+      issues: [{ code: "x" }],
+      warnings: [{ code: "y" }, { code: "z" }],
+    });
 
     await validatePackageProject("/p");
 
     const records = JSON.parse(localStorage.getItem("worldEditor.recentProjects") ?? "[]");
-    expect(records[0].lastValidation).toEqual({ errors: 1, warnings: 2, checkedAt: expect.any(String) });
+    expect(records[0].lastValidation).toEqual({
+      errors: 1,
+      warnings: 2,
+      checkedAt: expect.any(String),
+    });
     expect(records[1]).toEqual({ path: "/other", name: "Other", openedAt: "2026-01-02" });
   });
 

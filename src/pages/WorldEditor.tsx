@@ -53,12 +53,12 @@ const AUTO_SAVE_KEY = "worldEditor.autoSave";
 const RECENT_PROJECTS_KEY = "worldEditor.recentProjects";
 const MAX_RECENT = 8;
 
-function readRecentProjects(): RecentProject[] {
+function readRecentProjects(fallback: RecentProject[] = []): RecentProject[] {
   try {
     const raw = localStorage.getItem(RECENT_PROJECTS_KEY);
-    return raw ? (JSON.parse(raw) as RecentProject[]) : [];
+    return raw ? (JSON.parse(raw) as RecentProject[]) : fallback;
   } catch {
-    return [];
+    return fallback;
   }
 }
 
@@ -119,7 +119,7 @@ export default function WorldEditor() {
   const [autoSave, setAutoSave] = useState<boolean>(readAutoSave);
 
   // Recent projects
-  const [recentProjects, setRecentProjects] = useState<RecentProject[]>(readRecentProjects);
+  const [recentProjects, setRecentProjects] = useState<RecentProject[]>(() => readRecentProjects());
 
   // The sidebar badge. Every keystroke anywhere in the editor re-renders this
   // page, and counting the youth players is a pass over the whole squad list.
@@ -262,10 +262,10 @@ export default function WorldEditor() {
     setRecentProjects((prev) => {
       const filtered = prev.filter((p) => p.path !== path);
       const previous = prev.find((p) => p.path === path);
-      const updated = [{ ...previous, path, name, openedAt: new Date().toISOString() }, ...filtered].slice(
-        0,
-        MAX_RECENT,
-      );
+      const updated = [
+        { ...previous, path, name, openedAt: new Date().toISOString() },
+        ...filtered,
+      ].slice(0, MAX_RECENT);
       try {
         localStorage.setItem(RECENT_PROJECTS_KEY, JSON.stringify(updated));
       } catch {
@@ -436,7 +436,7 @@ export default function WorldEditor() {
     try {
       await persist();
       const data = await validatePackageProject(projectDir);
-      setRecentProjects(readRecentProjects());
+      setRecentProjects((previous) => readRecentProjects(previous));
       setIssues(data.issues);
       setWarnings(data.warnings ?? []);
       // An explicit Validate shows what it found, warnings included.

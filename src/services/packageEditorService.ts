@@ -2,8 +2,23 @@ import { invoke } from "@tauri-apps/api/core";
 
 import type { PackageCollections, RecentProject } from "../store/packageEditorTypes";
 
-export async function getWorldsLibrary(_paths: string[]): Promise<void> {
-  return undefined;
+export interface WorldLibraryRow {
+  path: string;
+  name: string;
+  version: string | null;
+  clubs: number;
+  players: number;
+  countries: number;
+  error: string | null;
+}
+
+export interface WorldsLibrary {
+  projects: WorldLibraryRow[];
+  installed: WorldLibraryRow[];
+}
+
+export function getWorldsLibrary(paths: string[]): Promise<WorldsLibrary> {
+  return invoke<WorldsLibrary>("get_worlds_library", { paths });
 }
 
 /** One finding about a package project. Mirrors the backend's `PackageIssue`. */
@@ -29,10 +44,18 @@ export async function validatePackageProject(dir: string): Promise<PackageDiagno
   try {
     const key = "worldEditor.recentProjects";
     const records = JSON.parse(localStorage.getItem(key) ?? "[]") as RecentProject[];
-    const updated = records.map((record) => record.path === dir ? {
-      ...record,
-      lastValidation: { errors: result.issues.length, warnings: result.warnings.length, checkedAt: new Date().toISOString() },
-    } : record);
+    const updated = records.map((record) =>
+      record.path === dir
+        ? {
+            ...record,
+            lastValidation: {
+              errors: result.issues.length,
+              warnings: result.warnings.length,
+              checkedAt: new Date().toISOString(),
+            },
+          }
+        : record,
+    );
     localStorage.setItem(key, JSON.stringify(updated));
   } catch {
     // Storage may be unavailable; validation findings still reach the editor.
