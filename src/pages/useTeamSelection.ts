@@ -5,25 +5,24 @@ import { useTranslation } from "react-i18next";
 import type { GameStateData, LeagueData, TeamData } from "../store/gameStore";
 import { getActiveCompetitions } from "../lib/helpers";
 import { useTeamSelectionRatings } from "./useTeamSelectionRatings";
-import { buildRegionLabel } from "../lib/teamRegions";
 import { competitionDisplayName } from "../lib/competitionName";
 import { resolveBackendError } from "../utils/backendI18n";
 import { prewarmManagerSquadPortraits } from "../services/portraitService";
 import { showError } from "../lib/errorDialog";
 import {
+  activeRegionIds as scopeActiveRegionIds,
+  enabledCompetitionIds as scopeEnabledCompetitionIds,
+  lockedRegions,
+  type ScopeDraft,
+} from "../components/teamSelection/simulationScope";
+import {
   regionsFromCompetitions,
-  competitionRequiredRegions,
   likelyXi,
   sortCompetitions,
   teamCompetitions,
 } from "./TeamSelection.helpers";
 
 type CompetitionSelection = Record<string, boolean>;
-type RegionSelection = Record<string, boolean>;
-export type ScopeMessage = {
-  key: string;
-  values?: Record<string, string | number>;
-};
 
 interface UseTeamSelectionArgs {
   gameState: GameStateData | null;
@@ -39,20 +38,17 @@ export function useTeamSelection({
   navigate,
 }: UseTeamSelectionArgs) {
   const { t } = useTranslation();
-  const compName = (c: LeagueData) => competitionDisplayName(c, t);
 
   const [selectedTeamId, setSelectedTeamId] = useState<string | null>(null);
   const [clubSearch, setClubSearch] = useState("");
-  const [scopeExpanded, setScopeExpanded] = useState(false);
   const [selectedHomeRegionId, setSelectedHomeRegionId] = useState<string | null>(null);
   const [selectedCountryCode, setSelectedCountryCode] = useState<string | null>(null);
   const [selectedLeagueId, setSelectedLeagueId] = useState<string | null>(null);
-  const [regionSelection, setRegionSelection] = useState<RegionSelection>({});
   // The regions the player switched on in the simulation settings, as against the home region the
-  // country they browsed made current: only the second is dropped when another country is picked.
+  // country they browsed made current: only the second is dropped when another country is picked
+  // (the home region is simulated because it is home, not because it is in this set).
   const [playerRegionIds, setPlayerRegionIds] = useState<ReadonlySet<string>>(new Set());
   const [competitionSelection, setCompetitionSelection] = useState<CompetitionSelection>({});
-  const [scopeMessage, setScopeMessage] = useState<ScopeMessage | null>(null);
   const [isConfirming, setIsConfirming] = useState(false);
   const { clubRatings, getTeamAvgOvr, getPlayerRating } = useTeamSelectionRatings(gameState);
   const playersById = useMemo(
@@ -93,21 +89,10 @@ export function useTeamSelection({
     [regions],
   );
 
-  // The home region moves. The one it leaves is simulated no longer, unless the player switched it
-  // on themselves: browsing from Sweden to Brazil must not quietly simulate both regions and slow
-  // every day down.
-  const changeHomeRegion = (regionId: string | null) => {
-    const previous = selectedHomeRegionId;
-    if (previous && previous !== regionId && !playerRegionIds.has(previous)) {
-      setRegionSelection((current) => ({ ...current, [previous]: false }));
-    }
-    setSelectedHomeRegionId(regionId);
-  };
-
   // Choosing a country in another region makes that region the home one: the career starts there.
   const handleSelectCountry = (countryCode: string) => {
     const region = regions.find((candidate) => candidate.country_codes.includes(countryCode));
-    if (region) changeHomeRegion(region.id);
+    if (region) setSelectedHomeRegionId(region.id);
     setSelectedCountryCode(countryCode);
   };
 
@@ -130,22 +115,6 @@ export function useTeamSelection({
   }, [regionCountries, selectedCountryCode]);
 
   useEffect(() => {
-    if (regions.length === 0) {
-      return;
-    }
-
-    setRegionSelection((current) => {
-      const next = Object.fromEntries(
-        regions.map((region) => [region.id, current[region.id] ?? false]),
-      );
-      if (selectedHomeRegionId) {
-        next[selectedHomeRegionId] = true;
-      }
-      return next;
-    });
-  }, [regions, selectedHomeRegionId]);
-
-  useEffect(() => {
     if (competitions.length === 0) {
       return;
     }
@@ -156,32 +125,6 @@ export function useTeamSelection({
       ),
     );
   }, [competitions]);
-
-  const activeRegionIds = regions
-    .filter((region) => region.id === selectedHomeRegionId || Boolean(regionSelection[region.id]))
-    .map((region) => region.id);
-
-  const homeRegionTeamIds = new Set(
-    (gameState?.teams ?? [])
-      .filter((team) => regionCountries.includes(team.country))
-      .map((team) => team.id),
-  );
-
-  const availableCompetitions = competitions.filter((competition) => {
-    if (!selectedHomeRegionId) {
-      return true;
-    }
-
-    const requiredRegions = competitionRequiredRegions(competition);
-    return (
-      requiredRegions.includes(selectedHomeRegionId) ||
-      competition.region_id === selectedHomeRegionId ||
-      (competition.country_id ? regionCountries.includes(competition.country_id) : false) ||
-      competition.participant_ids?.some((teamId) => homeRegionTeamIds.has(teamId)) ||
-      competition.scope === "Continental" ||
-      competition.scope === "International"
-    );
-  });
 
   const teams = (gameState?.teams ?? []).filter((team) => {
     if (selectedCountryCode) {
@@ -279,146 +222,39 @@ export function useTeamSelection({
   const mandatoryCompetitionIds = new Set(
     selectedTeamCompetitions.map((competition) => competition.id),
   );
-  const enabledCompetitionIds = Array.from(
-    new Set(
-      Object.entries(competitionSelection)
-        .filter(([, enabled]) => enabled)
-        .map(([competitionId]) => competitionId)
-        .concat(Array.from(mandatoryCompetitionIds)),
-    ),
+  // What the simulation runs. The regions are the home one, the ones the chosen club's competitions
+  // need, and the ones the player switched on; a competition is simulated when its regions are all
+  // on and it is the club's or the player's choice. A blocked competition (a region off) is not sent
+  // on to the game.
+  const scopeDraft: ScopeDraft = {
+    homeRegionId: selectedHomeRegionId,
+    homeCountryCode: selectedCountryCode,
+    regions: Object.fromEntries(Array.from(playerRegionIds, (id) => [id, true])),
+    competitions: competitionSelection,
+  };
+  const activeRegionIds = scopeActiveRegionIds(
+    scopeDraft,
+    lockedRegions(selectedHomeRegionId, selectedTeamCompetitions),
+  );
+  const enabledCompetitionIds = scopeEnabledCompetitionIds(
+    competitions,
+    scopeDraft,
+    mandatoryCompetitionIds,
+    new Set(activeRegionIds),
   );
 
-  const handleRegionToggle = (regionId: string) => {
-    if (regionId === selectedHomeRegionId) {
-      setScopeMessage({ key: "teamSelect.scopeMessages.homeRegionAlwaysActive" });
-      return;
-    }
-
-    const nextEnabled = !regionSelection[regionId];
-    if (nextEnabled) {
-      setRegionSelection((current) => ({
-        ...current,
-        [regionId]: true,
-      }));
-      setPlayerRegionIds((current) => new Set(current).add(regionId));
-      setScopeMessage(null);
-      return;
-    }
-
-    const blockedMandatoryCompetition = selectedTeamCompetitions.find((competition) =>
-      competitionRequiredRegions(competition).includes(regionId),
+  /** Apply the simulation dialog's draft: where the career starts, the regions and the competitions. */
+  const applyScope = (draft: ScopeDraft) => {
+    setSelectedHomeRegionId(draft.homeRegionId);
+    setSelectedCountryCode(draft.homeCountryCode);
+    setPlayerRegionIds(
+      new Set(
+        Object.entries(draft.regions)
+          .filter(([, on]) => on)
+          .map(([regionId]) => regionId),
+      ),
     );
-    if (blockedMandatoryCompetition) {
-      setScopeMessage({
-        key: "teamSelect.scopeMessages.regionRequiredByCompetition",
-        values: {
-          competition: compName(blockedMandatoryCompetition),
-          club: selectedTeam?.short_name ?? t("teamSelect.yourClub"),
-          region: buildRegionLabel(t, regionId),
-        },
-      });
-      return;
-    }
-
-    setPlayerRegionIds((current) => {
-      const next = new Set(current);
-      next.delete(regionId);
-      return next;
-    });
-
-    const nextActiveRegions = new Set(
-      activeRegionIds.filter((activeRegionId) => activeRegionId !== regionId),
-    );
-    const blockedCompetitionIds = competitions
-      .filter((competition) => {
-        if (!competitionSelection[competition.id]) {
-          return false;
-        }
-        return competitionRequiredRegions(competition).some(
-          (requiredRegionId) => !nextActiveRegions.has(requiredRegionId),
-        );
-      })
-      .map((competition) => competition.id);
-
-    setRegionSelection((current) => ({
-      ...current,
-      [regionId]: false,
-    }));
-    if (blockedCompetitionIds.length > 0) {
-      setCompetitionSelection((current) => {
-        const next = { ...current };
-        for (const competitionId of blockedCompetitionIds) {
-          next[competitionId] = false;
-        }
-        return next;
-      });
-      setScopeMessage({
-        key: "teamSelect.scopeMessages.regionRemovedDisablesCompetitions",
-        values: {
-          region: buildRegionLabel(t, regionId),
-        },
-      });
-    } else {
-      setScopeMessage(null);
-    }
-  };
-
-  const handleCompetitionToggle = (competition: LeagueData) => {
-    const currentlyEnabled = Boolean(competitionSelection[competition.id]);
-    const isLocked = mandatoryCompetitionIds.has(competition.id);
-
-    if (currentlyEnabled) {
-      if (isLocked) {
-        setScopeMessage({
-          key: "teamSelect.scopeMessages.clubCompetitionLocked",
-          values: {
-            competition: compName(competition),
-            club: selectedTeam?.short_name ?? t("teamSelect.yourClub"),
-          },
-        });
-        return;
-      }
-
-      setCompetitionSelection((current) => ({
-        ...current,
-        [competition.id]: false,
-      }));
-      setScopeMessage(null);
-      return;
-    }
-
-    const requiredRegions = competitionRequiredRegions(competition);
-    const missingRegions = requiredRegions.filter(
-      (requiredRegionId) => !activeRegionIds.includes(requiredRegionId),
-    );
-
-    if (missingRegions.length > 0) {
-      setPlayerRegionIds((current) => new Set([...current, ...missingRegions]));
-      setRegionSelection((current) => {
-        const next = { ...current };
-        for (const regionId of missingRegions) {
-          next[regionId] = true;
-        }
-        if (selectedHomeRegionId) {
-          next[selectedHomeRegionId] = true;
-        }
-        return next;
-      });
-      setScopeMessage({
-        key: "teamSelect.scopeMessages.autoEnabledRegions",
-        values: {
-          competition: compName(competition),
-          regions: missingRegions.map((regionId) => buildRegionLabel(t, regionId)).join(", "),
-        },
-      });
-    } else {
-      setScopeMessage(null);
-    }
-
-    setCompetitionSelection((current) => ({
-      ...current,
-      [competition.id]: true,
-    }));
+    setCompetitionSelection(draft.competitions);
   };
 
   const handleConfirm = async () => {
@@ -453,27 +289,17 @@ export function useTeamSelection({
   return {
     clubSearch,
     setClubSearch,
-    scopeExpanded,
-    setScopeExpanded,
     selectedHomeRegionId,
-    setSelectedHomeRegionId,
     selectedCountryCode,
-    setSelectedCountryCode,
     allCountryCodes,
     handleSelectCountry,
-    changeHomeRegion,
     activeLeagueId,
     setSelectedLeagueId,
-    regionSelection,
     setSelectedTeamId,
-    scopeMessage,
-    setScopeMessage,
     isConfirming,
     competitions,
     regions,
-    regionCountries,
     activeRegionIds,
-    availableCompetitions,
     leagueGroups,
     visibleClubs,
     getTeamAvgOvr,
@@ -481,11 +307,9 @@ export function useTeamSelection({
     selectedTeam,
     selectedTeamXi,
     selectedTeamCompetitions,
-    mandatoryCompetitionIds,
-    competitionSelection,
+    scopeDraft,
+    applyScope,
     enabledCompetitionIds,
-    handleRegionToggle,
-    handleCompetitionToggle,
     handleConfirm,
   };
 }

@@ -314,6 +314,21 @@
     "back": "Voltar à geração do mundo",
     "simulation": "Simulação",
     "manageNone": "Treinar",
+    "scope": {
+      "title": "O que o mundo simula",
+      "subtitle": "Escolhe que regiões e competições o jogo simula por completo. Quantas mais houver, mais demora cada dia.",
+      "sectionStart": "1 · Onde começas",
+      "sectionRegions": "2 · Regiões simuladas",
+      "sectionCompetitions": "3 · Competições",
+      "regionMeta": "{{countries}} · {{clubs}} clubes",
+      "simulate": "Simular {{name}}",
+      "needs": "Precisa de {{regions}}",
+      "add": "Adicionar {{regions}}",
+      "groupCount": "{{on}} de {{total}}",
+      "summary": "{{regions}} regiões · {{competitions}} competições simuladas",
+      "clubs": "{{clubs}} clubes nas regiões simuladas",
+      "apply": "Aplicar"
+    },
     "rail": {
       "label": "Países e ligas",
       "countries": "Países"
@@ -348,18 +363,12 @@
     "failedToSelectTeam": "Falha ao selecionar a equipa: {{error}}",
     "homeRegion": "Região de origem",
     "homeCountry": "País de origem",
-    "allCountries": "Todos os países",
-    "simulationScope": "Âmbito de simulação",
     "otherClubs": "Outros clubes",
     "searchClubs": "Procurar clubes…",
     "clubCount": "{{n}} clubes",
     "noClubsMatch": "Nenhum clube corresponde à pesquisa.",
-    "simulatedRegions": "Regiões simuladas",
-    "simulatedCompetitions": "Competições simuladas",
     "homeBadge": "Origem",
-    "yourClub": "o teu clube",
     "yourClubBadge": "Teu clube",
-    "requiresRegions": "Requer {{regions}}",
     "selectedClub": "Clube selecionado",
     "formation": "Formação",
     "overall": "Geral",
@@ -370,7 +379,6 @@
     "clubCompetitionsAlwaysSimulated": "As competições do teu clube são sempre simuladas, mesmo que desatives outras regiões ou torneios.",
     "selectClubPrompt": "Seleciona um clube para veres o plantel e as competições.",
     "playersCount": "{{count}} jogadores",
-    "scopeSummary": "{{regionsCount}} regiões simuladas e {{competitionsCount}} competições simuladas serão carregadas.",
     "regionLabels": {
       "north-america": "América do Norte",
       "central-america": "América Central",
@@ -393,13 +401,6 @@
       "InternationalClub": "Competição internacional de clubes",
       "InternationalNation": "Competição internacional de seleções",
       "FriendlyCup": "Taça amigável"
-    },
-    "scopeMessages": {
-      "homeRegionAlwaysActive": "A tua região jogável mantém-se sempre ativa.",
-      "regionRequiredByCompetition": "{{competition}} faz parte do calendário de {{club}}, por isso {{region}} tem de se manter ativa.",
-      "regionRemovedDisablesCompetitions": "{{region}} foi removida do escopo de simulação, por isso as competições dependentes também foram desativadas.",
-      "clubCompetitionLocked": "{{competition}} está no calendário de {{club}} e será sempre simulada.",
-      "autoEnabledRegions": "{{competition}} precisa de {{regions}}, por isso essas regiões foram ativadas automaticamente."
     }
   },
   "youthAcademy": {
