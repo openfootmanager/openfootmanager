@@ -5,6 +5,7 @@ import { createTeam } from "../../test-utils/factories";
 import ClubsTable from "./ClubsTable";
 
 vi.mock("react-i18next", () => ({
+  initReactI18next: { type: "3rdParty", init: () => {} },
   useTranslation: () => ({
     t: (key: string, params?: Record<string, unknown>) =>
       params?.n !== undefined ? `${key}:${params.n}` : key,

@@ -5,6 +5,7 @@ import { createTeam } from "../../test-utils/factories";
 import ChosenClubCard from "./ChosenClubCard";
 
 vi.mock("react-i18next", () => ({
+  initReactI18next: { type: "3rdParty", init: () => {} },
   useTranslation: () => ({
     t: (key: string, params?: Record<string, unknown>) =>
       params?.amount !== undefined ? `${key}:${params.amount}` : key,
