@@ -83,6 +83,20 @@ export function useTeamSelection({
     }
   }, [regions, selectedHomeRegionId]);
 
+  // Every country a club can be chosen in, region by region: the rail lists them all, so a club in
+  // another region is one pick away, not behind the simulation settings.
+  const allCountryCodes = useMemo(
+    () => Array.from(new Set(regions.flatMap((region) => region.country_codes))),
+    [regions],
+  );
+
+  // Choosing a country in another region makes that region the home one: the career starts there.
+  const handleSelectCountry = (countryCode: string) => {
+    const region = regions.find((candidate) => candidate.country_codes.includes(countryCode));
+    if (region) setSelectedHomeRegionId(region.id);
+    setSelectedCountryCode(countryCode);
+  };
+
   const regionCountries = useMemo(() => {
     const region = regions.find((candidate) => candidate.id === selectedHomeRegionId);
     return region?.country_codes ?? [];
@@ -423,6 +437,8 @@ export function useTeamSelection({
     setSelectedHomeRegionId,
     selectedCountryCode,
     setSelectedCountryCode,
+    allCountryCodes,
+    handleSelectCountry,
     activeLeagueId,
     setSelectedLeagueId,
     regionSelection,

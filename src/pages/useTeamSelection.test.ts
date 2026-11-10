@@ -250,6 +250,64 @@ function renderTwoLeagues() {
   return renderHook(() => useTeamSelection({ gameState, ...externals }));
 }
 
+// A club in each of two regions: a European one and a South American one.
+function buildTwoRegionGameState(): GameStateData {
+  return {
+    teams: [
+      createTeam({ id: "gb-a", name: "Alpha FC", country: "GB" }),
+      createTeam({ id: "br-a", name: "Brasa SC", country: "BR" }),
+    ],
+    players: [],
+    competitions: [
+      league({
+        id: "gb1",
+        scope: "Domestic",
+        kind: "League",
+        region_id: "europe",
+        country_id: "GB",
+        participant_ids: ["gb-a"],
+        priority: 1,
+      }),
+      league({
+        id: "br1",
+        scope: "Domestic",
+        kind: "League",
+        region_id: "south_america",
+        country_id: "BR",
+        participant_ids: ["br-a"],
+        priority: 1,
+      }),
+    ],
+    league: null,
+    manager: { first_name: "Sam", last_name: "Boss" },
+  } as unknown as GameStateData;
+}
+
+describe("useTeamSelection countries", () => {
+  /**
+   * Given clubs in two regions, with the European one the home region on arrival
+   * When the rail's countries are listed, and the South American country is picked
+   * Then every country is listed, not only the home region's; and picking one makes its region the
+   *      home region and shows its clubs, so a club anywhere is a pick away, not behind the
+   *      simulation settings.
+   */
+  it("lists every country, and picking one makes its region the home one", () => {
+    const gameState = buildTwoRegionGameState();
+    const externals = { setGameState: vi.fn(), setGameActive: vi.fn(), navigate: vi.fn() };
+    const { result } = renderHook(() => useTeamSelection({ gameState, ...externals }));
+
+    expect([...result.current.allCountryCodes].sort()).toEqual(["BR", "GB"]);
+    const homeBefore = result.current.selectedHomeRegionId;
+
+    act(() => result.current.handleSelectCountry("BR"));
+
+    expect(result.current.selectedHomeRegionId).toBe("south_america");
+    expect(result.current.selectedHomeRegionId).not.toBe(homeBefore);
+    expect(result.current.selectedCountryCode).toBe("BR");
+    expect(result.current.visibleClubs.map((team) => team.id)).toEqual(["br-a"]);
+  });
+});
+
 describe("useTeamSelection club table", () => {
   /**
    * Given a game with clubs and a league to show

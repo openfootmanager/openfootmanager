@@ -31,6 +31,8 @@ export default function TeamSelection() {
     selectedHomeRegionId,
     selectedCountryCode,
     setSelectedCountryCode,
+    allCountryCodes,
+    handleSelectCountry,
     activeLeagueId,
     setSelectedLeagueId,
     regionSelection,
@@ -156,9 +158,9 @@ export default function TeamSelection() {
 
       <div className="grid min-h-0 flex-1 grid-cols-1 gap-3.5 px-5 pb-4 pt-4 lg:grid-cols-[14.5rem_minmax(0,1fr)_20rem]">
         <CountryLeagueRail
-          countryCodes={regionCountries}
+          countryCodes={allCountryCodes}
           selectedCountryCode={selectedCountryCode}
-          onSelectCountry={setSelectedCountryCode}
+          onSelectCountry={handleSelectCountry}
           leagues={leagueGroups.map((group) => ({
             id: group.id,
             name: group.name,
