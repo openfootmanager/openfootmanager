@@ -295,6 +295,57 @@ mod tests {
                 preview["target_position"], target,
                 "reputation {reputation}"
             );
+            let (expected_target, word) = match reputation {
+                800.. => (1, "title"),
+                650.. => (5, "topHalf"),
+                400.. => (10, "midTable"),
+                _ => (15, "survival"),
+            };
+            assert_eq!(target, expected_target);
+            assert_eq!(
+                preview["label_key"],
+                format!("teamSelect.expectations.{word}")
+            );
+        }
+    }
+
+    /// Given a top-quarter target that earns a continental berth, when selection is queried,
+    /// then its label names continental qualification without changing the board target.
+    #[test]
+    fn a_continental_expectation_requires_a_berth_at_the_target_position() {
+        use domain::league::{Berth, BerthRule, CompetitionType, League};
+        for (last_qualifying_position, word) in [(4, "topHalf"), (5, "continental")] {
+            let mut game = world();
+            game.teams[0].reputation = 650;
+            let ids: Vec<_> = (0..20)
+                .map(|i| {
+                    if i == 0 {
+                        "north".into()
+                    } else {
+                        format!("club{i}")
+                    }
+                })
+                .collect();
+            let mut league = League::new("league".into(), "League".into(), 2026, &ids);
+            league.berths.push(Berth {
+                target: "continental".into(),
+                rule: BerthRule::PositionRange {
+                    from: 1,
+                    to: last_qualifying_position,
+                },
+                fallback_to: None,
+            });
+            let mut continental =
+                League::new("continental".into(), "Champions Cup".into(), 2026, &[]);
+            continental.kind = CompetitionType::ContinentalClub;
+            game.competitions = vec![league, continental];
+            let wire = serde_json::to_value(query_team_selection(&game)).unwrap();
+            let preview = &wire["clubs"][0]["opening_expectation"];
+            assert_eq!(preview["target_position"], 5);
+            assert_eq!(
+                preview["label_key"],
+                format!("teamSelect.expectations.{word}")
+            );
         }
     }
 
