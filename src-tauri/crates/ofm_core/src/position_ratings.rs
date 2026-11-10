@@ -11,7 +11,7 @@ use crate::game::Game;
 use crate::player_knowledge::{PlayerKnowledge, player_knowledge};
 use crate::player_rating::{
     Familiarity, canonical_position, deployed_position, familiarity, key_attributes,
-    ovr_from_attributes, primary_position,
+    ovr_from_attributes, position_weights, primary_position,
 };
 
 /// One attribute a position cannot do without, and the player's value in it.
@@ -416,5 +416,49 @@ mod tests {
         let game = world(vec![far], vec![]);
 
         assert_eq!(ratings_of(&game, "far"), None);
+    }
+
+    /// Given the club's own central midfielder, who can also play defensive midfield
+    /// When his position ratings are read
+    /// Then each row carries what the game weighs at that row's position (`position_weights`),
+    ///      the natural row's at central midfield and the alternate's at defensive midfield
+    #[test]
+    fn each_row_carries_what_the_game_weighs_at_its_position() {
+        let game = world(vec![midfielder("own", MY_CLUB, 70)], vec![team(MY_CLUB, &[])]);
+
+        let ratings = ratings_of(&game, "own").unwrap();
+
+        for position in [Position::CentralMidfielder, Position::DefensiveMidfielder] {
+            let expected: Vec<_> = position_weights(&position)
+                .iter()
+                .map(|(attribute, weight)| AttributeWeight {
+                    attribute: *attribute,
+                    weight: *weight,
+                })
+                .collect();
+            assert_eq!(row(&ratings, position.clone()).weights, expected, "{position:?}");
+        }
+        assert_ne!(
+            row(&ratings, Position::CentralMidfielder).weights,
+            row(&ratings, Position::DefensiveMidfielder).weights
+        );
+    }
+
+    /// Given two central midfielders of the same club, one of level 30 and one of level 90
+    /// When their natural rows are read
+    /// Then the weights are the same: they are the game's, not the player's, so they say nothing
+    ///      about his attributes
+    #[test]
+    fn the_weights_do_not_depend_on_the_player() {
+        let game = world(
+            vec![midfielder("weak", MY_CLUB, 30), midfielder("strong", MY_CLUB, 90)],
+            vec![team(MY_CLUB, &[])],
+        );
+
+        let weak = ratings_of(&game, "weak").unwrap();
+        let strong = ratings_of(&game, "strong").unwrap();
+
+        assert_eq!(weak.rows[0].weights, strong.rows[0].weights);
+        assert!(!weak.rows[0].weights.is_empty());
     }
 }
