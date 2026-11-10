@@ -256,7 +256,7 @@ struct LoadRepairs {
 /// - the cash journal: `backfill_opening_balances` gives every club the opening balance post a
 ///   journal that was never posted to does not have yet (the live game writes it with a club's
 ///   first post);
-/// - stranded fixtures, as in [`LoadRepairs`] (the remaining #1321 known bug). The calendar
+/// - stranded fixtures, as in [`LoadRepairs`]. The calendar
 ///   repair is measured on a separate clone: the actual round trip must detect any load-time move.
 fn settled_as_a_load_settles_it(game: &Game) -> (Game, LoadRepairs) {
     let mut settled = game.clone();
@@ -607,18 +607,16 @@ fn a_career_after_two_seasons_has_no_calendar_repairs() {
     );
 }
 
-/// KNOWN BUG #1321 (stranded fixtures). "No fixture stays Scheduled in the past" is an
-/// invariant the load enforces (`repair_stranded_fixtures`), but the live game does not keep it: after
-/// two seasons national-team fixtures are still Scheduled with a date behind the clock, and a reload
-/// plays them out (status Completed, a result, an advancing team). The counts are measured; delete
-/// this test with the fix.
+/// Given a career played through two seasons,
+/// When the load repair checks for fixtures scheduled before the current date,
+/// Then it finds none to play out.
 #[test]
-fn known_bug_the_live_game_leaves_fixtures_scheduled_in_the_past() {
+fn the_live_game_leaves_no_fixtures_scheduled_in_the_past() {
     let stranded = rolled_over().repairs.stranded;
 
-    assert!(
-        stranded > 0,
-        "#1321: a reload played out {stranded} fixtures left scheduled in the past"
+    assert_eq!(
+        stranded, 0,
+        "a reload played out fixtures left scheduled in the past"
     );
 }
 
