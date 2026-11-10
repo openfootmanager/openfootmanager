@@ -711,6 +711,44 @@ mod tests {
         assert_eq!(dates, sorted, "windows should already be chronological");
     }
 
+    /// Given old national history and a fixture on the oldest relevant rest date,
+    /// When the club blackout is built, then old dates are skipped and the boundary still blocks today.
+    #[test]
+    fn national_blackouts_skip_history_before_the_rest_horizon() {
+        let mut game = empty_game();
+        game.clock.current_date = Utc.with_ymd_and_hms(2031, 6, 11, 12, 0, 0).unwrap();
+        let mut team = make_national_team("nt-eng", "ENG", &["p1"]);
+        for (id, date) in [
+            ("old", "2020-01-01"),
+            ("outside-rest", "2031-06-08"),
+            ("boundary", "2031-06-09"),
+        ] {
+            team.fixtures.push(Fixture {
+                id: id.into(),
+                date: date.into(),
+                status: FixtureStatus::Completed,
+                competition_id: INTERNATIONAL_FRIENDLY_COMPETITION_ID.into(),
+                home_team_id: "nt-eng".into(),
+                away_team_id: "nt-fr".into(),
+                competition: FixtureCompetition::InternationalNation,
+                result: Some(MatchResult::default()),
+                ..Default::default()
+            });
+        }
+        game.national_teams.push(team);
+        let blackout = international_blackout_around(&game, game.clock.current_date.date_naive());
+        assert!(blackout.contains(&chrono::NaiveDate::from_ymd_opt(2031, 6, 11).unwrap()));
+        assert!(
+            !blackout.contains(&chrono::NaiveDate::from_ymd_opt(2020, 1, 1).unwrap()),
+            "old history must not enlarge the blackout"
+        );
+        assert!(
+            !blackout.contains(&chrono::NaiveDate::from_ymd_opt(2031, 6, 6).unwrap()),
+            "a fixture before the cutoff contributes no blackout dates"
+        );
+        assert_eq!(game.national_teams[0].fixtures.len(), 3);
+    }
+
     #[test]
     fn schedule_assigns_one_friendly_per_team_per_window() {
         let mut teams = vec![

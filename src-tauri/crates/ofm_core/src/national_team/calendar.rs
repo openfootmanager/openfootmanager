@@ -12,6 +12,12 @@ use domain::{
 use rand::Rng;
 use std::collections::{BTreeMap, BTreeSet};
 
+#[cfg(test)]
+std::thread_local! {
+    static BOOKINGS_BUILT: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
+    static BOOKED_DATES: std::cell::RefCell<BTreeSet<NaiveDate>> = const { std::cell::RefCell::new(BTreeSet::new()) };
+}
+
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord)]
 enum Participant {
     Nation(String),
@@ -25,6 +31,8 @@ struct Bookings<'a> {
 
 impl<'a> Bookings<'a> {
     fn new(teams: &'a [NationalTeam]) -> Self {
+        #[cfg(test)]
+        BOOKINGS_BUILT.with(|count| count.set(count.get() + 1));
         Self {
             teams,
             dates: BTreeMap::new(),
@@ -45,6 +53,10 @@ impl<'a> Bookings<'a> {
     }
 
     fn book(&mut self, home: &str, away: &str, date: NaiveDate) {
+        #[cfg(test)]
+        BOOKED_DATES.with(|dates| {
+            dates.borrow_mut().insert(date);
+        });
         for participant in self
             .participants(home)
             .into_iter()
@@ -228,4 +240,120 @@ fn friendly_moves(game: &Game, first_day: NaiveDate) -> Vec<(usize, usize, Naive
         }
     }
     moves
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::clock::GameClock;
+    use chrono::{TimeZone, Utc};
+    use domain::league::{CompetitionScope, League, MatchResult};
+    use domain::manager::Manager;
+
+    fn day(day: u32) -> NaiveDate {
+        NaiveDate::from_ymd_opt(2031, 6, day).unwrap()
+    }
+
+    fn fixture(id: &str, date: &str, status: FixtureStatus) -> Fixture {
+        let result = (status == FixtureStatus::Completed).then(MatchResult::default);
+        Fixture {
+            id: id.into(),
+            date: date.into(),
+            home_team_id: "nt-a".into(),
+            away_team_id: "nt-b".into(),
+            competition_id: INTERNATIONAL_FRIENDLY_COMPETITION_ID.into(),
+            competition: FixtureCompetition::InternationalNation,
+            status,
+            result,
+            ..Default::default()
+        }
+    }
+
+    fn game() -> Game {
+        let clock = GameClock::new(Utc.with_ymd_and_hms(2031, 6, 10, 12, 0, 0).unwrap());
+        let manager = Manager::new(
+            "manager".into(),
+            "A".into(),
+            "B".into(),
+            "1980-01-01".into(),
+            "ENG".into(),
+        );
+        let mut game = Game::new(clock, manager, vec![], vec![], vec![], vec![]);
+        for id in ["nt-a", "nt-b"] {
+            let mut nation = NationalTeam::new(id.into(), id.into(), id.into(), None);
+            nation.squad_player_ids.push(format!("player-{id}"));
+            game.national_teams.push(nation);
+        }
+        game.national_teams[0].fixtures.push(fixture(
+            "historical",
+            "2020-01-01",
+            FixtureStatus::Completed,
+        ));
+        game
+    }
+
+    /// Given retained historical friendlies and no Scheduled friendly,
+    /// When a live match day finishes, then no national booking map is constructed.
+    #[test]
+    fn a_day_without_scheduled_friendlies_builds_no_bookings() {
+        let mut game = game();
+        BOOKINGS_BUILT.with(|count| count.set(0));
+        drop(Bookings::new(&game.national_teams));
+        assert_eq!(
+            BOOKINGS_BUILT.with(|count| count.get()),
+            1,
+            "the counter observes a real booking construction"
+        );
+        BOOKINGS_BUILT.with(|count| count.set(0));
+        crate::turn::finish_live_match_day(&mut game);
+        assert_eq!(
+            BOOKINGS_BUILT.with(|count| count.get()),
+            0,
+            "no Scheduled friendly needs bookings"
+        );
+        assert_eq!(game.national_teams[0].fixtures.len(), 1);
+    }
+
+    /// Given an upcoming friendly and historical national fixtures before and at the rest horizon,
+    /// When it is settled, then only horizon-or-newer dates are booked and all history is retained.
+    #[test]
+    fn settlement_books_only_history_that_can_still_affect_rest() {
+        let mut game = game();
+        game.national_teams[0].fixtures.extend([
+            fixture("horizon", "2031-06-08", FixtureStatus::Completed),
+            fixture("recent", "2031-06-10", FixtureStatus::Completed),
+            fixture("future", "2031-06-20", FixtureStatus::Scheduled),
+        ]);
+        let mut cup = League::new("continental".into(), "Continental".into(), 2019, &[]);
+        cup.kind = CompetitionType::InternationalNation;
+        cup.scope = CompetitionScope::Continental;
+        cup.fixtures.push(fixture(
+            "old-tournament",
+            "2019-06-01",
+            FixtureStatus::Completed,
+        ));
+        game.competitions.push(cup);
+        BOOKED_DATES.with(|dates| dates.borrow_mut().clear());
+        settle_friendlies(&mut game, day(11));
+        let dates = BOOKED_DATES.with(|dates| dates.borrow().clone());
+        assert!(dates.contains(&day(8)), "the horizon boundary is retained");
+        assert!(
+            dates.contains(&day(10)),
+            "recent history still reserves rest"
+        );
+        assert!(
+            dates.contains(&day(20)),
+            "the upcoming friendly is actually settled"
+        );
+        assert!(
+            !dates.contains(&NaiveDate::from_ymd_opt(2020, 1, 1).unwrap()),
+            "old friendly history must not build bookings"
+        );
+        assert!(
+            !dates.contains(&NaiveDate::from_ymd_opt(2019, 6, 1).unwrap()),
+            "old tournament history must not build bookings"
+        );
+        assert_eq!(game.national_teams[0].fixtures.len(), 4);
+        assert_eq!(game.competitions[0].fixtures.len(), 1);
+    }
 }
