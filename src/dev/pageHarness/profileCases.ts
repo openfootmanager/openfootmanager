@@ -1,3 +1,5 @@
+import type { PlayerAdvancedStatsSummary } from "../../components/playerProfile/PlayerProfile.helpers";
+import type { PlayerRecentMatchEntry } from "../../components/playerProfile/PlayerProfileRecentMatchesCard";
 import type { PlayerKnowledge, VisibleWage } from "../../services/scoutingService";
 import type { PositionRatings } from "../../store/generated/PositionRatings";
 import type { PotentialOpinion } from "../../store/generated/PotentialOpinion";
@@ -17,6 +19,9 @@ export interface ProfileCase {
   scoutedReport: ScoutedPlayerView | null;
   /** Set for a player no longer in the world's players: the profile fetches him on his own. */
   retiredPlayer: PlayerData | null;
+  /** Latest first, as the backend returns them. Only the club's own player has played. */
+  recentMatches: PlayerRecentMatchEntry[];
+  seasonStats: PlayerAdvancedStatsSummary;
 }
 
 const USER_CLUB = gameState.manager.team_id;
@@ -44,6 +49,60 @@ function pickPlayers(players: PlayerData[]) {
     unknown,
     retiree,
   };
+}
+
+const metric = (total: number) => ({ total, per90: null, percentile: null });
+
+/** A season before a minute is played: what every state but the own player's shows. */
+const NO_SEASON_YET: PlayerAdvancedStatsSummary = {
+  percentileEligible: false,
+  peerGroup: null,
+  seasonRatingRated: false,
+  metrics: {
+    shots: metric(0),
+    shotsOnTarget: metric(0),
+    passes: { completed: 0, attempted: 0, accuracy: null, percentile: null },
+    tacklesWon: metric(0),
+    interceptions: metric(0),
+    foulsCommitted: metric(0),
+  },
+};
+
+/** The same season with something in every cell, so the layout sees populated stats. */
+const A_SEASON: PlayerAdvancedStatsSummary = {
+  percentileEligible: false,
+  peerGroup: null,
+  seasonRatingRated: true,
+  metrics: {
+    shots: { total: 14, per90: 2.1, percentile: null },
+    shotsOnTarget: { total: 7, per90: 1.1, percentile: null },
+    passes: { completed: 212, attempted: 251, accuracy: 84.5, percentile: null },
+    tacklesWon: { total: 18, per90: 2.7, percentile: null },
+    interceptions: { total: 11, per90: 1.6, percentile: null },
+    foulsCommitted: { total: 6, per90: 0.9, percentile: null },
+  },
+};
+
+/** Five matches against the rivals, latest first, with ratings enough for a trend line. */
+function fiveMatches(): PlayerRecentMatchEntry[] {
+  const clubs = gameState.teams.filter((team) => team.id !== USER_CLUB).slice(0, 5);
+  return clubs.map((club, index) => ({
+    fixture_id: `harness-match-${index + 1}`,
+    date: `2031-06-${String(28 - index * 7).padStart(2, "0")}`,
+    competition: "League",
+    matchday: 5 - index,
+    opponent_team_id: club.id,
+    opponent_name: club.name,
+    team_goals: index % 3,
+    opponent_goals: (index + 1) % 3,
+    minutes_played: 90,
+    goals: index === 0 ? 1 : 0,
+    assists: index === 2 ? 1 : 0,
+    shots: 3,
+    shots_on_target: 1 + (index % 2),
+    rating: 7.4 - index * 0.3,
+    rated: true,
+  }));
 }
 
 /**
@@ -94,7 +153,14 @@ function opinionOf(player: PlayerData, source: PotentialOpinion["source"]): Pote
  */
 export function profileCase(variant: HarnessProfile): ProfileCase {
   const { own, rival, scouted, unknown, retiree } = pickPlayers(gameState.players);
-  const none = { opinion: null, positionRatings: null, scoutedReport: null, retiredPlayer: null };
+  const none = {
+    opinion: null,
+    positionRatings: null,
+    scoutedReport: null,
+    retiredPlayer: null,
+    recentMatches: [],
+    seasonStats: NO_SEASON_YET,
+  };
   switch (variant) {
     case "own":
       return {
@@ -104,6 +170,8 @@ export function profileCase(variant: HarnessProfile): ProfileCase {
         wage: { kind: "exact", weekly: own.wage },
         opinion: opinionOf(own, { kind: "coaches" }),
         positionRatings: positionRatingsOf(own, { kind: "live" }),
+        recentMatches: fiveMatches(),
+        seasonStats: A_SEASON,
       };
     case "rival":
       return {

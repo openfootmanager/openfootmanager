@@ -49,24 +49,9 @@ export function harnessSettings(
   };
 }
 
-/** The shape of a player's season totals before he has played a minute. */
-const NO_SEASON_YET = {
-  percentileEligible: false,
-  peerGroup: null,
-  seasonRatingRated: false,
-  metrics: {
-    shots: { total: 0, per90: null, percentile: null },
-    shotsOnTarget: { total: 0, per90: null, percentile: null },
-    passes: { completed: 0, attempted: 0, accuracy: null, percentile: null },
-    tacklesWon: { total: 0, per90: null, percentile: null },
-    interceptions: { total: 0, per90: null, percentile: null },
-    foulsCommitted: { total: 0, per90: null, percentile: null },
-  },
-};
-
 /**
  * What a player's profile asks the backend about him, answered for the one player the harness opened
- * it on and only for him: the knowledge rule's answers (`profileCase`), and an empty season.
+ * it on and only for him: the knowledge rule's answers (`profileCase`), and his season.
  */
 function profileHandlers(profile: HarnessProfile): CommandHandlers {
   const answer = profileCase(profile);
@@ -89,8 +74,13 @@ function profileHandlers(profile: HarnessProfile): CommandHandlers {
     get_position_ratings: ({ playerId }) => about(playerId, answer.positionRatings),
     get_scouted_report: ({ playerId }) => about(playerId, answer.scoutedReport),
     get_retired_player: ({ playerId }) => about(playerId, answer.retiredPlayer),
-    get_player_stats_overview: ({ playerId }) => about(playerId, NO_SEASON_YET),
-    get_player_match_history: ({ playerId }) => about(playerId, []),
+    get_player_stats_overview: ({ playerId }) => about(playerId, answer.seasonStats),
+    // The page asks for its last `limit` matches, latest first.
+    get_player_match_history: ({ playerId, limit }) =>
+      about(
+        playerId,
+        typeof limit === "number" ? answer.recentMatches.slice(0, limit) : answer.recentMatches,
+      ),
   };
 }
 
