@@ -1571,10 +1571,8 @@ mod tests {
         let revised = finals_period(cup).unwrap();
         assert_eq!(revised.0, initial.0);
         assert_eq!(revised.1, initial.1 + chrono::Duration::days(5));
-        let blackout = crate::national_team::international_blackout_around(
-            &game.competitions,
-            kickoff(2030).date_naive(),
-        );
+        let blackout =
+            crate::national_team::international_blackout_around(&game, kickoff(2030).date_naive());
         for offset in 1..=5 {
             assert!(blackout.contains(&(initial.1 + chrono::Duration::days(offset))));
         }
