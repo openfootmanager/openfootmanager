@@ -1659,6 +1659,15 @@
     }
   },
   "playerProfile": {
+    "sections": "Profil bölümleri",
+    "overall": "Genel",
+    "ratingUnknown": "Kulübünüz onun reytingini bilmiyor",
+    "tabs": {
+      "overview": "Genel bakış",
+      "attributes": "Özellikler",
+      "career": "Kariyer",
+      "contract": "Sözleşme"
+    },
     "contractInfo": "Sözleşme ve Bilgi",
     "dateOfBirth": "Doğum Tarihi",
     "noContract": "Sözleşme yok",

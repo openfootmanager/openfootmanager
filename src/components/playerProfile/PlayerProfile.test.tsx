@@ -6,6 +6,7 @@ import { invoke } from "@tauri-apps/api/core";
 import type { InvokeArgs } from "@tauri-apps/api/core";
 import type { GameStateData, PlayerData, StaffData, TeamData } from "../../store/gameStore";
 import type { PlayerKnowledge, VisibleWage } from "../../services/scoutingService";
+import type { ReactElement } from "react";
 import PlayerProfile from "./PlayerProfile";
 import { i18nReady } from "../../i18n";
 import { createSeasonContext } from "../../test-utils/factories";
@@ -24,6 +25,13 @@ type MockInvokePayload = {
   fee?: number;
   weeklyWage?: number;
 };
+
+/** Renders the profile and opens one of its tabs, as a player would to reach what it holds. */
+function renderOnTab(tab: string, ui: ReactElement) {
+  const result = render(ui);
+  fireEvent.click(screen.getByRole("tab", { name: tab }));
+  return result;
+}
 
 function hasWeeklyWage(text: string, amount: string): boolean {
   return text.replace(/\s+/g, "").includes(`€${amount}/wk`);
@@ -97,6 +105,10 @@ vi.mock("react-i18next", () => ({
   useTranslation: () => ({
     t: (key: string, params?: Record<string, string | number>) => {
       if (key === "common.back") return "Back";
+      if (key === "playerProfile.tabs.overview") return "Overview tab";
+      if (key === "playerProfile.tabs.attributes") return "Attributes tab";
+      if (key === "playerProfile.tabs.career") return "Career tab";
+      if (key === "playerProfile.tabs.contract") return "Contract tab";
       if (key === "common.contract") return "Contract";
       if (key === "common.renewContract") return "Renew Contract";
       if (key === "common.cancel") return "Cancel";
@@ -692,7 +704,8 @@ describe("PlayerProfile contract surfaces", () => {
     expect(screen.getByText("Critical")).toBeInTheDocument();
     expect(screen.getByText("Weekly Wage")).toBeInTheDocument();
     expect(
-      screen.getAllByText((_, element) => hasWeeklyWage(element?.textContent ?? "", "12K")).length,
+      screen.getAllByText((_, element) => hasWeeklyWage(element?.textContent ?? "", "12,000"))
+        .length,
     ).toBeGreaterThan(0);
   });
 
@@ -761,7 +774,8 @@ describe("PlayerProfile contract surfaces", () => {
       }),
     );
 
-    render(
+    renderOnTab(
+      "Contract tab",
       <PlayerProfile
         player={player}
         gameState={gameState}
@@ -1062,7 +1076,7 @@ describe("PlayerProfile contract surfaces", () => {
       return defaultInvokeResponse(command);
     });
 
-    render(<RenewalHarness />);
+    renderOnTab("Contract tab", <RenewalHarness />);
 
     fireEvent.click(screen.getByRole("button", { name: "Renew Contract" }));
 
@@ -1105,7 +1119,7 @@ describe("PlayerProfile contract surfaces", () => {
       return defaultInvokeResponse(command);
     });
 
-    render(<RenewalHarness />);
+    renderOnTab("Contract tab", <RenewalHarness />);
 
     fireEvent.click(screen.getByRole("button", { name: "Renew Contract" }));
     fireEvent.change(screen.getByLabelText("Offered Wage"), {
@@ -1129,7 +1143,7 @@ describe("PlayerProfile contract surfaces", () => {
       expect(screen.getByText("Offer accepted")).toBeInTheDocument();
       expect(screen.getByText("Expires August 1, 2029")).toBeInTheDocument();
       expect(
-        screen.getAllByText((_, element) => hasWeeklyWage(element?.textContent ?? "", "15K"))
+        screen.getAllByText((_, element) => hasWeeklyWage(element?.textContent ?? "", "15,000"))
           .length,
       ).toBeGreaterThan(0);
       expect(screen.getByText("Stable")).toBeInTheDocument();
@@ -1154,7 +1168,7 @@ describe("PlayerProfile contract surfaces", () => {
       return defaultInvokeResponse(command);
     });
 
-    render(<RenewalHarness />);
+    renderOnTab("Contract tab", <RenewalHarness />);
 
     fireEvent.click(screen.getByRole("button", { name: "Renew Contract" }));
     fireEvent.change(screen.getByLabelText("Offered Wage"), {
@@ -1195,7 +1209,7 @@ describe("PlayerProfile contract surfaces", () => {
       return defaultInvokeResponse(command);
     });
 
-    render(<RenewalHarness />);
+    renderOnTab("Contract tab", <RenewalHarness />);
 
     fireEvent.click(screen.getByRole("button", { name: "Renew Contract" }));
     fireEvent.change(screen.getByLabelText("Offered Wage"), {
@@ -1242,7 +1256,7 @@ describe("PlayerProfile contract surfaces", () => {
       return defaultInvokeResponse(command);
     });
 
-    render(<RenewalHarness />);
+    renderOnTab("Contract tab", <RenewalHarness />);
 
     fireEvent.click(screen.getByRole("button", { name: "Renew Contract" }));
     fireEvent.change(screen.getByLabelText("Offered Wage"), {
@@ -1293,7 +1307,8 @@ describe("PlayerProfile contract surfaces", () => {
       return defaultInvokeResponse(command);
     });
 
-    render(
+    renderOnTab(
+      "Contract tab",
       <PlayerProfile
         player={createPlayer()}
         gameState={createGameState(createPlayer(), [createStaff()])}
@@ -1337,7 +1352,8 @@ describe("PlayerProfile contract surfaces", () => {
       return defaultInvokeResponse(command);
     });
 
-    render(
+    renderOnTab(
+      "Contract tab",
       <PlayerProfile
         player={createPlayer()}
         gameState={createGameState(createPlayer(), [createStaff()])}
@@ -1382,7 +1398,8 @@ describe("PlayerProfile contract surfaces", () => {
       return defaultInvokeResponse(command);
     });
 
-    render(
+    renderOnTab(
+      "Contract tab",
       <PlayerProfile
         player={createPlayer()}
         gameState={createGameState(createPlayer(), [createStaff()])}
@@ -1427,7 +1444,8 @@ describe("PlayerProfile contract surfaces", () => {
       return defaultInvokeResponse(command);
     });
 
-    render(
+    renderOnTab(
+      "Contract tab",
       <PlayerProfile
         player={createPlayer()}
         gameState={createGameState(createPlayer(), [createStaff()])}
@@ -1448,7 +1466,7 @@ describe("PlayerProfile contract surfaces", () => {
   });
 
   it("disables renewal delegation when no assistant manager is assigned", async () => {
-    render(<RenewalHarness />);
+    renderOnTab("Contract tab", <RenewalHarness />);
 
     fireEvent.click(screen.getByRole("button", { name: "Renew Contract" }));
 
@@ -1466,7 +1484,8 @@ describe("PlayerProfile contract surfaces", () => {
       return defaultInvokeResponse(command);
     });
 
-    render(
+    renderOnTab(
+      "Contract tab",
       <PlayerProfile
         player={createPlayer()}
         gameState={createGameState(createPlayer(), [createStaff()])}
@@ -1517,7 +1536,7 @@ describe("PlayerProfile contract surfaces", () => {
       return defaultInvokeResponse(command);
     });
 
-    render(<RenewalHarness />);
+    renderOnTab("Contract tab", <RenewalHarness />);
 
     fireEvent.click(screen.getByRole("button", { name: "Let Expire" }));
 
@@ -1566,7 +1585,7 @@ describe("PlayerProfile contract surfaces", () => {
       },
     });
 
-    render(<RenewalHarness initialPlayer={blockedPlayer} />);
+    renderOnTab("Contract tab", <RenewalHarness initialPlayer={blockedPlayer} />);
 
     fireEvent.click(screen.getByRole("button", { name: "Renew Contract" }));
 
@@ -1585,7 +1604,7 @@ describe("PlayerProfile contract surfaces", () => {
       return defaultInvokeResponse(command);
     });
 
-    render(<RenewalHarness />);
+    renderOnTab("Contract tab", <RenewalHarness />);
 
     fireEvent.click(screen.getByRole("button", { name: "Let Expire" }));
 
@@ -1612,7 +1631,7 @@ describe("PlayerProfile contract surfaces", () => {
       return defaultInvokeResponse(command);
     });
 
-    render(<RenewalHarness />);
+    renderOnTab("Contract tab", <RenewalHarness />);
 
     fireEvent.click(screen.getByRole("button", { name: "Let Expire" }));
     await waitFor(() => {
@@ -1681,7 +1700,7 @@ describe("PlayerProfile contract surfaces", () => {
       return defaultInvokeResponse(command);
     });
 
-    render(<RenewalHarness />);
+    renderOnTab("Contract tab", <RenewalHarness />);
 
     fireEvent.click(screen.getByRole("button", { name: "Terminate Now" }));
 
@@ -1838,7 +1857,8 @@ describe("PlayerProfile free agent signing", () => {
     });
     const gameState = createGameState(freeAgent);
 
-    render(
+    renderOnTab(
+      "Contract tab",
       <PlayerProfile
         player={freeAgent}
         gameState={gameState}
@@ -1880,7 +1900,8 @@ describe("PlayerProfile free agent signing", () => {
     });
     const gameState = createGameState(freeAgent);
 
-    render(
+    renderOnTab(
+      "Contract tab",
       <PlayerProfile
         player={freeAgent}
         gameState={gameState}
@@ -1929,7 +1950,8 @@ describe("PlayerProfile free agent signing", () => {
       return defaultInvokeResponse(command);
     });
 
-    render(
+    renderOnTab(
+      "Contract tab",
       <PlayerProfile
         player={freeAgent}
         gameState={createGameState(freeAgent)}
@@ -2073,8 +2095,8 @@ describe("PlayerProfile shows only what the club knows", () => {
     screen.getByText("Weekly Wage").parentElement?.textContent?.replace("Weekly Wage", "").trim();
 
   const showsWage = () =>
-    screen.queryAllByText((_, element) => hasWeeklyWage(element?.textContent ?? "", "12K")).length >
-    0;
+    screen.queryAllByText((_, element) => hasWeeklyWage(element?.textContent ?? "", "12,000"))
+      .length > 0;
 
   /**
    * Given a player at a club in another division, never scouted
@@ -2157,7 +2179,6 @@ describe("PlayerProfile shows only what the club knows", () => {
     expect(screen.queryByText("80%")).not.toBeInTheDocument();
     expect(screen.queryByText("77")).not.toBeInTheDocument();
     expect(contractWageValue()).toBe("about €16,000/wk");
-    expect(screen.getAllByText("about €16K/wk").length).toBeGreaterThan(0);
     expect(showsMovementWage()).toBe(false);
   });
 

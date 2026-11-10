@@ -4,7 +4,6 @@ import type { PlayerData, TeamData } from "../../store/gameStore";
 import { useSettingsStore } from "../../store/settingsStore";
 import {
   buildPlayerAdvancedStats,
-  formatPlayerWageCompact,
   formatPlayerMarketValue,
   formatPlayerWage,
   getAttributeColorClass,
@@ -165,10 +164,6 @@ describe("PlayerProfile.helpers", (): void => {
 
   it("formats stored wages as weekly display values", (): void => {
     expect(formatPlayerWage(1000)).toMatch(/^€1[.,]000\/wk$/);
-  });
-
-  it("formats current player wages as weekly display values", (): void => {
-    expect(formatPlayerWageCompact(52000)).toBe("€52K/wk");
   });
 
   it("respects the selected settings currency for market values and wages", (): void => {

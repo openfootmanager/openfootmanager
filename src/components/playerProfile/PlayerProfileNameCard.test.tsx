@@ -1,0 +1,162 @@
+import { fireEvent, render, screen, within } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
+
+import { ratingTierClass } from "../../lib/ratingTier";
+import { createPlayer, createTeam } from "../../test-utils/factories";
+import PlayerProfileNameCard from "./PlayerProfileNameCard";
+
+vi.mock("../../hooks/useRatingTiers", async () => {
+  const { cannedRatingTiersModule } = await import("../../test-utils/ratingTiers");
+  return cannedRatingTiersModule();
+});
+
+function t(key: string, options?: Record<string, string | number>): string {
+  if (key === "playerProfile.overall") return "Overall";
+  if (key === "common.age") return "Age";
+  return options ? `${key}:${JSON.stringify(options)}` : key;
+}
+
+const NO_SCOUT = {
+  scouts: [],
+  availableScout: null,
+  alreadyScouting: false,
+  allBusy: false,
+  canScout: false,
+};
+
+function renderCard(
+  overrides: {
+    ovr?: number | null;
+    face?: string;
+    isOwnClub?: boolean;
+    alternates?: string[];
+    onSelectTeam?: (id: string) => void;
+  } = {},
+) {
+  const { ovr = 77, face, isOwnClub = true, alternates = [], onSelectTeam = () => {} } = overrides;
+  const player = createPlayer({
+    ovr: 77,
+    media: face ? { face } : undefined,
+    alternate_positions: alternates,
+    team_id: "team-1",
+  });
+  return render(
+    <PlayerProfileNameCard
+      player={player}
+      ovr={ovr}
+      primaryPosition="Midfielder"
+      age={22}
+      teamName="Brussels FC"
+      footednessLabel="Right"
+      weakFootValue={4}
+      language="en"
+      isOwnClub={isOwnClub}
+      scoutAvailability={NO_SCOUT}
+      scoutStatus="idle"
+      scoutError={null}
+      onScout={() => {}}
+      onSelectTeam={onSelectTeam}
+      team={createTeam({ id: "team-1", colors: { primary: "#991b1b", secondary: "#ffffff" } })}
+      actions={<button type="button">Actions</button>}
+      t={t}
+    />,
+  );
+}
+
+describe("PlayerProfileNameCard", () => {
+  /**
+   * Given a player whose rating the club does not know
+   * When the name card is drawn
+   * Then the rating reads "–" with no tier tone, and no number of his appears
+   */
+  it("shows a dash for a rating the club does not know", () => {
+    renderCard({ ovr: null });
+
+    expect(screen.getByText("–")).toBeInTheDocument();
+    expect(screen.queryByText("77")).not.toBeInTheDocument();
+  });
+
+  /**
+   * Given a player with a face picture, and one without
+   * When the name card is drawn for each
+   * Then his rating is on screen once, labelled "Overall", beside the picture or the initials
+   */
+  it("shows the rating once, labelled, with or without a face picture", () => {
+    const { unmount } = renderCard({ face: "assets/faces/fraser.png" });
+    expect(screen.getByRole("img", { name: "John Smith" })).toBeInTheDocument();
+    expect(screen.getAllByText("77")).toHaveLength(1);
+    expect(screen.getByText("Overall")).toBeInTheDocument();
+    unmount();
+
+    renderCard();
+    expect(screen.getAllByText("77")).toHaveLength(1);
+  });
+
+  /**
+   * Given a player rated 76 and another rated 77, either side of the A-tier cut-off
+   * When the name card shows the rating
+   * Then the chip takes the tone of the backend's tier (B, then A)
+   */
+  it("tints the rating chip by its backend tier", () => {
+    const chipOf = (ovr: string) => screen.getByText(ovr).closest("span[title]");
+
+    const { unmount } = renderCard({ ovr: 76 });
+    expect(chipOf("76")).toHaveClass(...ratingTierClass("B", "badge").split(" "));
+    unmount();
+
+    renderCard({ ovr: 77 });
+    expect(chipOf("77")).toHaveClass(...ratingTierClass("A", "badge").split(" "));
+  });
+
+  /**
+   * Given a midfielder who can also play wide and up front
+   * When the name card is drawn
+   * Then his natural position is a badge and each alternate is another, outlined, beside the name
+   */
+  it("shows the natural position and each alternate as badges", () => {
+    renderCard({ alternates: ["Forward", "Defender"] });
+
+    const card = screen.getByRole("region", { name: "John Smith" });
+    expect(within(card).getAllByTitle(/./).length).toBeGreaterThanOrEqual(3);
+  });
+
+  /**
+   * Given a player at a club the manager can open
+   * When his club's name is pressed
+   * Then the club opens
+   */
+  it("opens the player's club from the meta line", () => {
+    const onSelectTeam = vi.fn();
+    renderCard({ onSelectTeam });
+
+    fireEvent.click(screen.getByRole("button", { name: "Brussels FC" }));
+
+    expect(onSelectTeam).toHaveBeenCalledWith("team-1");
+  });
+
+  /**
+   * Given a player of the manager's own club, and one of a rival's whom he cannot yet scout
+   * When the name card is drawn
+   * Then no band of his condition, morale, value or wage is under it
+   */
+  it("carries no status band of condition, morale, value or wage", () => {
+    renderCard();
+
+    for (const key of ["common.condition", "common.morale", "common.value", "common.wage"]) {
+      expect(screen.queryByText(key)).not.toBeInTheDocument();
+    }
+  });
+
+  /**
+   * Given the club's kit colours
+   * When the name card is drawn
+   * Then the kit is the card's stripe and wash, through its variables
+   */
+  it("takes its stripe and wash from the club's kit", () => {
+    renderCard();
+
+    const card = screen.getByRole("region", { name: "John Smith" });
+    expect(card.style.getPropertyValue("--kit")).toBe("#991b1b");
+    expect(card).toHaveClass("border-l-kit");
+  });
+});

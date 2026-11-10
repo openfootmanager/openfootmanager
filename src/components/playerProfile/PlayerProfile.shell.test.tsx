@@ -50,7 +50,14 @@ function gameWith(player: PlayerData): GameStateData {
       satisfaction: 50,
       fan_approval: 50,
       team_id: "team-1",
-      career_stats: { matches_managed: 0, wins: 0, draws: 0, losses: 0, trophies: 0, best_finish: null },
+      career_stats: {
+        matches_managed: 0,
+        wins: 0,
+        draws: 0,
+        losses: 0,
+        trophies: 0,
+        best_finish: null,
+      },
       career_history: [],
     },
     teams: [createTeam({ id: "team-1", name: "Alpha FC" })],
@@ -166,7 +173,7 @@ describe("PlayerProfile shell", () => {
     const card = screen.getByRole("region", { name: "John Smith" });
     expect(within(card).getByRole("heading", { name: "John Smith" })).toBeInTheDocument();
     expect(within(card).getByRole("button", { name: "Alpha FC" })).toBeInTheDocument();
-    expect(within(card).getByRole("button", { name: /Actions/ })).toBeInTheDocument();
+    expect(within(card).getByRole("button", { name: /actions/i })).toBeInTheDocument();
     expect(within(card).getByText("Overall")).toBeInTheDocument();
   });
 });
