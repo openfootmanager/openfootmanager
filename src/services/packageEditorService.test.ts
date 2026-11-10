@@ -1,11 +1,19 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { invoke } from "@tauri-apps/api/core";
 
-import { savePackageProject, validatePackageProject } from "./packageEditorService";
+import { getWorldsLibrary, savePackageProject, validatePackageProject } from "./packageEditorService";
 
 vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
 
 const invokeMock = vi.mocked(invoke);
+
+/** Given recent paths, when the library is requested, then the IPC receives every path. */
+it("passes recent paths to the worlds library command", async () => {
+  invokeMock.mockReset();
+  invokeMock.mockResolvedValue({ projects: [], installed: [] });
+  await getWorldsLibrary(["/a", "/b"]);
+  expect(invokeMock).toHaveBeenCalledWith("get_worlds_library", { paths: ["/a", "/b"] });
+});
 
 describe("validatePackageProject", () => {
   beforeEach(() => {

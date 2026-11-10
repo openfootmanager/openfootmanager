@@ -2,6 +2,10 @@ import { invoke } from "@tauri-apps/api/core";
 
 import type { PackageCollections, RecentProject } from "../store/packageEditorTypes";
 
+export async function getWorldsLibrary(_paths: string[]): Promise<void> {
+  return undefined;
+}
+
 /** One finding about a package project. Mirrors the backend's `PackageIssue`. */
 export interface PackageDiagnostic {
   code: string;
