@@ -2468,6 +2468,14 @@ mod tests {
         let mut game = sample_game();
         let player = make_lineup_player("legacy-keeper", Position::Goalkeeper, Footedness::Right);
         game.players.push(player);
+        let mut granular =
+            make_lineup_player("granular-player", Position::RightBack, Footedness::Right);
+        granular.attributes.passing = 80;
+        granular.attributes.dribbling = 80;
+        granular.attributes.decisions = 80;
+        granular.attributes.composure = 80;
+        granular.attributes.teamwork = 80;
+        game.players.push(granular);
         let id = manager.create_save(&game, "Career").unwrap();
         let path = saves_dir.join(format!("{id}.db"));
         let old_path = dir.path().join("old.db");
@@ -2508,8 +2516,27 @@ mod tests {
             .find(|p| p.id == "legacy-keeper")
             .unwrap();
         assert_eq!(player.weak_foot, 3);
+        assert_eq!(
+            loaded
+                .players
+                .iter()
+                .find(|p| p.id == "granular-player")
+                .unwrap()
+                .weak_foot,
+            4
+        );
         let db = GameDatabase::open(&path).unwrap();
         assert!(!db.needs_weak_foot_backfill().unwrap());
+        assert_eq!(
+            GamePersistenceReader::read_game(&db)
+                .unwrap()
+                .players
+                .iter()
+                .find(|p| p.id == "granular-player")
+                .unwrap()
+                .weak_foot,
+            4
+        );
         assert_eq!(
             GamePersistenceReader::read_game(&db)
                 .unwrap()
