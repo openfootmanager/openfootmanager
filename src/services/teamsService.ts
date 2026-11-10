@@ -1,7 +1,6 @@
 import type { TeamSelectionRatings } from "../store/generated/TeamSelectionRatings";
 export type { TeamSelectionRatings } from "../store/generated/TeamSelectionRatings";
 export type { ClubSquadRatings } from "../store/generated/ClubSquadRatings";
-export type { RatedPlayer } from "../store/generated/RatedPlayer";
 import { invoke } from "@tauri-apps/api/core";
 
 export const UNGROUPED_LEAGUE_ID = "__ungrouped";
