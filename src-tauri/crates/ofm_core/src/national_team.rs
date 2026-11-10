@@ -134,6 +134,9 @@ pub fn international_blackout_around(
         }
     }
     let rest = crate::calendar_booking::MIN_GAP_DAYS - 1;
+    let horizon = today
+        .checked_sub_days(chrono::Days::new(rest as u64))
+        .unwrap_or(today);
     for fixture in game
         .national_teams
         .iter()
@@ -145,7 +148,9 @@ pub fn international_blackout_around(
                 .flat_map(|c| &c.fixtures),
         )
     {
-        if let Ok(date) = chrono::NaiveDate::parse_from_str(&fixture.date, "%Y-%m-%d") {
+        if let Ok(date) = chrono::NaiveDate::parse_from_str(&fixture.date, "%Y-%m-%d")
+            && date >= horizon
+        {
             for offset in -rest..=rest {
                 if let Some(day) = date.checked_add_signed(chrono::Duration::days(offset)) {
                     blackout.insert(day);

@@ -168,7 +168,10 @@ pub(super) fn draw_friendlies(
     drawn
 }
 
-fn tournament_bookings<'a>(game: &'a Game) -> Bookings<'a> {
+fn tournament_bookings(game: &Game, first_day: NaiveDate) -> Bookings<'_> {
+    let horizon = first_day
+        .checked_sub_days(chrono::Days::new(MIN_GAP_DAYS as u64))
+        .unwrap_or(first_day);
     let mut bookings = Bookings::new(&game.national_teams);
     for competition in game
         .competitions
@@ -176,12 +179,15 @@ fn tournament_bookings<'a>(game: &'a Game) -> Bookings<'a> {
         .filter(|c| c.kind == CompetitionType::InternationalNation)
     {
         for fixture in &competition.fixtures {
-            if let Ok(date) = NaiveDate::parse_from_str(&fixture.date, "%Y-%m-%d") {
+            if let Ok(date) = NaiveDate::parse_from_str(&fixture.date, "%Y-%m-%d")
+                && date >= horizon
+            {
                 bookings.book(&fixture.home_team_id, &fixture.away_team_id, date);
             }
         }
         // Reserve the finals' undrawn rounds too; a friendly must not claim their future dates.
         if let Some((first, last)) = crate::world_cup::finals_period(competition) {
+            let first = first.max(horizon);
             for offset in 0..=(last - first).num_days() {
                 for nation in &competition.participant_ids {
                     bookings.book(nation, nation, first + chrono::Duration::days(offset));
@@ -195,7 +201,9 @@ fn tournament_bookings<'a>(game: &'a Game) -> Bookings<'a> {
         .flat_map(|team| &team.fixtures)
         .filter(|fixture| fixture.status != FixtureStatus::Scheduled)
     {
-        if let Ok(date) = NaiveDate::parse_from_str(&fixture.date, "%Y-%m-%d") {
+        if let Ok(date) = NaiveDate::parse_from_str(&fixture.date, "%Y-%m-%d")
+            && date >= horizon
+        {
             bookings.book(&fixture.home_team_id, &fixture.away_team_id, date);
         }
     }
@@ -286,8 +294,6 @@ pub(crate) fn settle_friendlies(game: &mut Game, first_day: NaiveDate) {
 }
 
 fn friendly_moves(game: &Game, first_day: NaiveDate) -> Vec<(usize, usize, NaiveDate)> {
-    let mut bookings = tournament_bookings(game);
-    book_completed_club_appearances(game, first_day, &mut bookings);
     let mut scheduled: Vec<_> = game
         .national_teams
         .iter()
@@ -301,6 +307,11 @@ fn friendly_moves(game: &Game, first_day: NaiveDate) -> Vec<(usize, usize, Naive
                 .map(move |(index, fixture)| (team, index, fixture))
         })
         .collect();
+    if scheduled.is_empty() {
+        return Vec::new();
+    }
+    let mut bookings = tournament_bookings(game, first_day);
+    book_completed_club_appearances(game, first_day, &mut bookings);
     scheduled.sort_by_key(|(_, _, fixture)| (&fixture.date, &fixture.id));
     let mut moves = Vec::new();
     for (team, index, fixture) in scheduled {
