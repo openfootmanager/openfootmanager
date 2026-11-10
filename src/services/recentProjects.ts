@@ -5,7 +5,22 @@ const KEY = "worldEditor.recentProjects";
 function readStoredProjects(): RecentProject[] | null {
   try {
     const raw = localStorage.getItem(KEY);
-    return raw ? (JSON.parse(raw) as RecentProject[]) : [];
+    if (!raw) return [];
+    const parsed: unknown = JSON.parse(raw);
+    return Array.isArray(parsed) &&
+      parsed.every(
+        (record: unknown) =>
+          typeof record === "object" &&
+          record !== null &&
+          "path" in record &&
+          typeof record.path === "string" &&
+          "name" in record &&
+          typeof record.name === "string" &&
+          "openedAt" in record &&
+          typeof record.openedAt === "string",
+      )
+      ? (parsed as RecentProject[])
+      : null;
   } catch {
     return null;
   }
