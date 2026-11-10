@@ -185,20 +185,13 @@ fn apply_simulated_result(
         away_penalties: penalties.map(|(_, away)| away),
     });
     if counts {
-        if let Some(entry) = competition
-            .standings
-            .iter_mut()
-            .find(|e| e.team_id == home_team_id)
-        {
-            entry.record_result(home_goals, away_goals);
-        }
-        if let Some(entry) = competition
-            .standings
-            .iter_mut()
-            .find(|e| e.team_id == away_team_id)
-        {
-            entry.record_result(away_goals, home_goals);
-        }
+        crate::competition_results::record_result(
+            &mut competition.standings,
+            home_team_id,
+            away_team_id,
+            home_goals,
+            away_goals,
+        );
     }
     crate::group_stage::process_completed_fixture(competition, fixture_index);
     crate::schedule::advance_knockout_competition_round(competition);

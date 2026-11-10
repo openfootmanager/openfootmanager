@@ -19,6 +19,7 @@ pub mod catchup;
 pub mod clock;
 pub mod club;
 pub mod competition_completion;
+mod competition_results;
 #[cfg(test)]
 pub(crate) mod competition_test_support;
 pub mod contract_wage_policy;

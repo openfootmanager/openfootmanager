@@ -152,20 +152,13 @@ pub(super) fn apply_match_report_in<F>(
         is_competitive = fixture.is_competitive();
 
         if counts_for_standings {
-            if let Some(entry) = league
-                .standings
-                .iter_mut()
-                .find(|e| e.team_id == home_team_id)
-            {
-                entry.record_result(result.home_goals, result.away_goals);
-            }
-            if let Some(entry) = league
-                .standings
-                .iter_mut()
-                .find(|e| e.team_id == away_team_id)
-            {
-                entry.record_result(result.away_goals, result.home_goals);
-            }
+            crate::competition_results::record_result(
+                &mut league.standings,
+                home_team_id,
+                away_team_id,
+                result.home_goals,
+                result.away_goals,
+            );
         }
 
         fixture.result = Some(result);
