@@ -7,6 +7,19 @@ pub fn upgrade_game_player_identities(game: &mut Game) -> bool {
     upgrade_game_identities(game, false)
 }
 
+/// Backfills weak foot for saves created before the field existed.
+pub fn backfill_game_player_weak_feet(game: &mut Game) -> bool {
+    let mut changed = upgrade_game_player_identities(game);
+    for player in &mut game.players {
+        let weak_foot = infer_weak_foot(player, &player.alternate_positions, player.footedness);
+        if player.weak_foot != weak_foot {
+            player.weak_foot = weak_foot;
+            changed = true;
+        }
+    }
+    changed
+}
+
 /// A saved weak foot is authoritative, even when other identity fields need upgrading.
 pub fn upgrade_loaded_player_identities(game: &mut Game) -> bool {
     upgrade_game_identities(game, true)
