@@ -295,30 +295,76 @@ fn a_notable_player_hurt_in_training_in_another_league_stays_out_of_the_news() {
     }
 }
 
-/// Given a manager out of work, Other Town's division listed first among the world's
-///      competitions, and the `game.league` mirror synced as the game syncs it (with no club, it
-///      falls back to that first competition), q1 notable there, over a thousand seeds
+/// The user's manager sacked from `last_club`, with a stint there opened and closed as the game
+/// records it, the world's competitions as listed, and the `game.league` mirror synced as the game
+/// syncs it (with no club, it falls back to the first competition listed).
+fn sacked_manager(seed: u64, last_club: Option<&str>) -> Game {
+    let mut game = two_clubs_of_unfit_players(seed);
+    game.competitions = vec![
+        division("first", &["team0"]),
+        division("second", &["team1"]),
+    ];
+    if let Some(club) = last_club {
+        game.manager
+            .career_history
+            .push(domain::manager::ManagerCareerEntry::open(
+                club.to_string(),
+                club.to_string(),
+                "2024-07-01".to_string(),
+            ));
+    }
+    game.manager.fire("2025-03-01");
+    game.sync_legacy_league();
+    game
+}
+
+/// Given a manager sacked from Test FC (team1), whose league is the second listed, and Other Town
+///      (team0) in the first, q1 notable there, over a thousand seeds
 /// When q1 is hurt in training
-/// Then the news leaves it out: a manager out of work follows no league, not whichever happens to
-///      be listed first (#1270 asks which he should)
+/// Then the news leaves it out: he follows his last club's league, not whichever is listed first
 #[test]
-fn a_manager_out_of_work_gets_no_training_injury_news() {
-    let days = days_q1_was_hurt(|seed| {
-        let mut game = two_clubs_of_unfit_players(seed);
-        game.manager.team_id = None;
-        game.competitions = vec![
-            division("first", &["team0"]),
-            division("second", &["team1"]),
-        ];
-        game.sync_legacy_league();
-        game
-    });
+fn a_sacked_manager_gets_no_news_from_the_first_listed_league() {
+    let days = days_q1_was_hurt(|seed| sacked_manager(seed, Some("team1")));
 
     assert!(!days.is_empty(), "q1 never hurt in {SEEDS} seeds");
     for game in &days {
         assert!(
             injury_story(game, "q1").is_none(),
             "seed {}: the first-listed league's injury made the news",
+            game.seed
+        );
+    }
+}
+
+/// Given a manager sacked from Other Town (team0), in the first listed league, q1 notable there
+/// When q1 is hurt in training
+/// Then the news reports it: a sacked manager follows the league of the last club he managed
+#[test]
+fn a_sacked_manager_gets_news_from_his_last_clubs_league() {
+    let days = days_q1_was_hurt(|seed| sacked_manager(seed, Some("team0")));
+
+    assert!(!days.is_empty(), "q1 never hurt in {SEEDS} seeds");
+    for game in &days {
+        assert!(
+            injury_story(game, "q1").is_some(),
+            "seed {}: his last club's league injury was left out",
+            game.seed
+        );
+    }
+}
+
+/// Given a manager who has never had a club, the first listed league Other Town's
+/// When q1 is hurt in training
+/// Then the news leaves it out: he follows no league
+#[test]
+fn a_manager_who_never_had_a_club_gets_no_training_injury_news() {
+    let days = days_q1_was_hurt(|seed| sacked_manager(seed, None));
+
+    assert!(!days.is_empty(), "q1 never hurt in {SEEDS} seeds");
+    for game in &days {
+        assert!(
+            injury_story(game, "q1").is_none(),
+            "seed {}: a manager with no club read the news",
             game.seed
         );
     }
