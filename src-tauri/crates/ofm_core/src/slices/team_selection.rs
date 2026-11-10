@@ -133,6 +133,227 @@ mod tests {
         )
     }
 
+    /// Given distinctive club finances, colours and ground details, when selection is queried,
+    /// then every fact comes from that club rather than a default or its neighbour.
+    #[test]
+    fn club_facts_come_from_the_selected_club() {
+        let mut game = world();
+        let club = &mut game.teams[0];
+        club.stadium_name = "North End".into();
+        club.stadium_capacity = 18_432;
+        club.transfer_budget = 8_765_432;
+        club.wage_budget = 123_456;
+        club.finance = -654_321;
+        club.colors.primary = "#123456".into();
+        club.colors.secondary = "#abcdef".into();
+        club.founded_year = 1897;
+        let wire = serde_json::to_value(query_team_selection(&game)).unwrap();
+        let facts = &wire["clubs"][0];
+        assert_eq!(facts["stadium_name"], "North End");
+        assert_eq!(facts["stadium_capacity"], 18_432);
+        assert_eq!(facts["transfer_budget"], 8_765_432);
+        assert_eq!(facts["wage_budget"], 123_456);
+        assert_eq!(facts["balance"], -654_321);
+        assert_eq!(facts["colors"]["primary"], "#123456");
+        assert_eq!(facts["colors"]["secondary"], "#abcdef");
+        assert_eq!(facts["founded_year"], 1897);
+    }
+
+    /// Given more than five players, a tie, and a better rival, when selection is queried,
+    /// then the five strongest own players carry their real position, name and OVR in stable order.
+    #[test]
+    fn key_players_are_the_best_five_of_the_clubs_own_squad() {
+        let mut game = world();
+        game.players.extend([
+            rated("n5", "north", 81),
+            rated("n6", "north", 69),
+            rated("n7", "north", 72),
+            rated("rival", "south", 99),
+        ]);
+        game.players[1].position = Position::Defender;
+        game.players[1].natural_position = Position::Striker;
+        game.players[1].match_name = "Ada North".into();
+        game.players[1].full_name = "Ada Maria North".into();
+        let wire = serde_json::to_value(query_team_selection(&game)).unwrap();
+        let keys = wire["clubs"][0]["key_players"]
+            .as_array()
+            .expect("key players");
+        assert_eq!(keys.len(), 5);
+        let ids: Vec<_> = keys
+            .iter()
+            .map(|p| p["player_id"].as_str().unwrap())
+            .collect();
+        assert_eq!(ids, ["n2", "n5", "n3", "n4", "n7"]);
+        assert_eq!(keys[0]["name"], "Ada North");
+        assert_eq!(keys[0]["position"], "Striker");
+        assert_eq!(keys[0]["ovr"], 81);
+    }
+
+    /// Given empty and short squads, when selection is queried, then key players are not padded.
+    #[test]
+    fn short_and_empty_squads_only_return_existing_key_players() {
+        let mut game = world();
+        game.players
+            .retain(|player| player.team_id.as_deref() == Some("south"));
+        let wire = serde_json::to_value(query_team_selection(&game)).unwrap();
+        assert_eq!(wire["clubs"][0]["key_players"], serde_json::json!([]));
+        assert_eq!(wire["clubs"][1]["key_players"].as_array().unwrap().len(), 1);
+    }
+
+    /// Given league, cup and continental entries plus an unrelated cup and a legacy mirror,
+    /// when selection is queried, then membership and translated competition metadata are preserved.
+    #[test]
+    fn competitions_are_only_the_clubs_actual_entries() {
+        use domain::league::{CompetitionType, League};
+        let mut game = world();
+        let mut league = League::new(
+            "league".into(),
+            "Northern League".into(),
+            2026,
+            &["north".into()],
+        );
+        league.name_key = Some("custom.league".into());
+        let mut cup = League::new("cup".into(), "Northern Cup".into(), 2026, &["north".into()]);
+        cup.kind = CompetitionType::Cup;
+        let mut continental = cup.clone();
+        continental.id = "continental".into();
+        continental.kind = CompetitionType::ContinentalClub;
+        let mut unrelated = cup.clone();
+        unrelated.id = "other".into();
+        unrelated.participant_ids = vec!["south".into()];
+        unrelated.standings.clear();
+        game.league = Some(league.clone());
+        game.competitions = vec![league, cup, continental, unrelated];
+        let wire = serde_json::to_value(query_team_selection(&game)).unwrap();
+        let entries = wire["clubs"][0]["competitions"]
+            .as_array()
+            .expect("competitions");
+        let ids: Vec<_> = entries.iter().map(|c| c["id"].as_str().unwrap()).collect();
+        assert_eq!(ids, ["league", "cup", "continental"]);
+        assert_eq!(entries[0]["name"], "Northern League");
+        assert_eq!(entries[0]["name_key"], "custom.league");
+        assert_eq!(entries[0]["season"], 2026);
+        assert_eq!(entries[1]["kind"], "Cup");
+    }
+
+    /// Given a legacy league with no modern competition list, when selection is queried,
+    /// then its standings still identify the club's competition without inventing any entries.
+    #[test]
+    fn legacy_competitions_use_standings_when_participants_are_absent() {
+        use domain::league::League;
+        let mut game = world();
+        let mut league = League::new(
+            "legacy".into(),
+            "Legacy League".into(),
+            2026,
+            &["north".into()],
+        );
+        league.participant_ids.clear();
+        game.league = Some(league);
+        let wire = serde_json::to_value(query_team_selection(&game)).unwrap();
+        assert_eq!(wire["clubs"][0]["competitions"][0]["id"], "legacy");
+        assert_eq!(wire["clubs"][1]["competitions"], serde_json::json!([]));
+    }
+
+    /// Given clubs of every reputation in a different division from the legacy mirror,
+    /// when each club is hired and objectives generated, then its preview has that exact target.
+    #[test]
+    fn opening_expectations_match_the_board_after_hiring() {
+        use domain::league::League;
+        for reputation in [0, 399, 400, 499, 500, 649, 650, 799, 800, 1000] {
+            let mut game = world();
+            game.teams[0].reputation = reputation;
+            let ids: Vec<_> = (0..20)
+                .map(|i| {
+                    if i == 0 {
+                        "north".into()
+                    } else {
+                        format!("club{i}")
+                    }
+                })
+                .collect();
+            let league = League::new("north-league".into(), "League".into(), 2026, &ids);
+            let other = League::new(
+                "other-league".into(),
+                "Other".into(),
+                2026,
+                &["south".into(), "rival".into()],
+            );
+            game.league = Some(other.clone());
+            game.competitions = vec![other, league];
+            let wire = serde_json::to_value(query_team_selection(&game)).unwrap();
+            let preview = &wire["clubs"][0]["opening_expectation"];
+            crate::job_offers::hire_manager(&mut game, "north", "2026-07-01").unwrap();
+            crate::board_objectives::generate_objectives(&mut game);
+            let target = game
+                .board_objectives
+                .iter()
+                .find(|o| o.objective_type == crate::game::ObjectiveType::LeaguePosition)
+                .unwrap()
+                .target;
+            assert_eq!(
+                preview["target_position"], target,
+                "reputation {reputation}"
+            );
+        }
+    }
+
+    /// Given a generated two-country world, when a career starts through its real bootstrap,
+    /// then the opening preview and the first board objective name the same league target.
+    #[test]
+    fn opening_expectation_survives_the_real_career_bootstrap() {
+        let mut game = world();
+        game.teams[0].reputation = 650;
+        for id in ["brazil-a", "brazil-b"] {
+            let mut club = team(id);
+            club.country = "BR".into();
+            club.football_nation = "BR".into();
+            game.teams.push(club);
+        }
+        crate::world::ensure_multi_competition_foundations(&mut game);
+        let wire = serde_json::to_value(query_team_selection(&game)).unwrap();
+        let preview = &wire["clubs"][0]["opening_expectation"]["target_position"];
+        crate::career::begin_career(
+            &mut game,
+            "north",
+            crate::career::CareerScope::default(),
+            domain::stats::StatsState::default(),
+        )
+        .unwrap();
+        crate::board_objectives::generate_objectives(&mut game);
+        let target = game
+            .board_objectives
+            .iter()
+            .find(|o| o.objective_type == crate::game::ObjectiveType::LeaguePosition)
+            .unwrap()
+            .target;
+        assert_eq!(*preview, target);
+    }
+
+    /// Given the existing reputation boundaries, when selection is queried,
+    /// then the backend selects the same translated reputation word the screen already uses.
+    #[test]
+    fn reputation_words_follow_the_existing_boundaries() {
+        for (reputation, key) in [
+            (0, "repDeveloping"),
+            (399, "repDeveloping"),
+            (400, "repAverage"),
+            (599, "repAverage"),
+            (600, "repStrong"),
+            (749, "repStrong"),
+            (750, "repWorldClass"),
+            (1000, "repWorldClass"),
+        ] {
+            let mut game = world();
+            game.teams[0].reputation = reputation;
+            let wire = serde_json::to_value(query_team_selection(&game)).unwrap();
+            assert_eq!(
+                wire["clubs"][0]["reputation_key"],
+                format!("teamSelect.{key}")
+            );
+        }
+    }
+
     /// Given a world before any career
     /// When the team-selection screen asks for the squads
     /// Then every club comes with its players best rated first and its average by the club card's
