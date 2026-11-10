@@ -305,7 +305,7 @@
     "manage": "管理 {{name}}",
     "steps": {
       "label": "新生涯步骤",
-      "manager": "教练",
+      "manager": "经理",
       "world": "世界",
       "generation": "生成",
       "club": "俱乐部",
@@ -313,7 +313,7 @@
     },
     "back": "返回世界生成",
     "simulation": "模拟",
-    "manageNone": "执教",
+    "manageNone": "管理",
     "rail": {
       "label": "国家和联赛",
       "countries": "国家"
