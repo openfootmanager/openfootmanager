@@ -527,14 +527,12 @@ impl PackageError {
 // ---------------------------------------------------------------------------
 
 /// Recursively collect every JSON/YAML file under `dir`.
-pub(super) fn collect_data_files(dir: &Path, out: &mut Vec<PathBuf>) {
-    let Ok(entries) = std::fs::read_dir(dir) else {
-        return;
-    };
-    for entry in entries.flatten() {
+pub(super) fn collect_data_files(dir: &Path, out: &mut Vec<PathBuf>) -> std::io::Result<()> {
+    for entry in std::fs::read_dir(dir)? {
+        let entry = entry?;
         let path = entry.path();
         if path.is_dir() {
-            collect_data_files(&path, out);
+            collect_data_files(&path, out)?;
         } else if matches!(
             path.extension()
                 .and_then(|ext| ext.to_str())
@@ -545,6 +543,7 @@ pub(super) fn collect_data_files(dir: &Path, out: &mut Vec<PathBuf>) {
             out.push(path);
         }
     }
+    Ok(())
 }
 
 fn parse_entity<T: serde::de::DeserializeOwned>(
@@ -744,11 +743,14 @@ fn translation_locale_from_filename(name: &str) -> Option<&str> {
 /// multiple packages before running references (which may span packages).
 pub fn load_world_package_files(dir: &Path) -> (WorldPackage, Vec<PackageError>) {
     let mut files = Vec::new();
-    collect_data_files(dir, &mut files);
+    let read_error = collect_data_files(dir, &mut files).is_err();
     files.sort();
 
     let mut package = WorldPackage::default();
     let mut errors = Vec::new();
+    if read_error {
+        errors.push(PackageError::new(READ_FAILED, ""));
+    }
 
     for path in &files {
         let file = path

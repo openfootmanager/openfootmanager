@@ -39,11 +39,8 @@ fn project_row(path: &str) -> WorldLibraryRow {
         return row;
     }
     let (package, errors) = ofm_core::generator::package::load_world_package_files(dir);
-    if let Some(error) = errors
-        .iter()
-        .find(|error| error.code == "be.error.package.readFailed")
-    {
-        row.error = Some(error.code.clone());
+    if !errors.is_empty() {
+        row.error = Some(super::game::first_package_error_message(&errors));
         return row;
     }
     let Some(meta) = package.meta else {
