@@ -446,7 +446,10 @@ mod tests {
     ///      the natural row's at central midfield and the alternate's at defensive midfield
     #[test]
     fn each_row_carries_what_the_game_weighs_at_its_position() {
-        let game = world(vec![midfielder("own", MY_CLUB, 70)], vec![team(MY_CLUB, &[])]);
+        let game = world(
+            vec![midfielder("own", MY_CLUB, 70)],
+            vec![team(MY_CLUB, &[])],
+        );
 
         let ratings = ratings_of(&game, "own").unwrap();
 
@@ -458,7 +461,11 @@ mod tests {
                     weight: *weight,
                 })
                 .collect();
-            assert_eq!(row(&ratings, position.clone()).weights, expected, "{position:?}");
+            assert_eq!(
+                row(&ratings, position.clone()).weights,
+                expected,
+                "{position:?}"
+            );
         }
         assert_ne!(
             row(&ratings, Position::CentralMidfielder).weights,
@@ -473,7 +480,10 @@ mod tests {
     #[test]
     fn the_weights_do_not_depend_on_the_player() {
         let game = world(
-            vec![midfielder("weak", MY_CLUB, 30), midfielder("strong", MY_CLUB, 90)],
+            vec![
+                midfielder("weak", MY_CLUB, 30),
+                midfielder("strong", MY_CLUB, 90),
+            ],
             vec![team(MY_CLUB, &[])],
         );
 

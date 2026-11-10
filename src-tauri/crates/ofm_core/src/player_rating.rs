@@ -961,10 +961,20 @@ mod tests {
             let mut keys: Vec<_> = weights.iter().map(|(key, _)| *key).collect();
             keys.sort_by_key(|key| format!("{key:?}"));
             keys.dedup();
-            assert_eq!(keys.len(), weights.len(), "{position:?} repeats an attribute");
-            assert!(weights.iter().all(|(_, weight)| *weight > 0), "{position:?}");
             assert_eq!(
-                weights.iter().map(|(_, weight)| u32::from(*weight)).sum::<u32>(),
+                keys.len(),
+                weights.len(),
+                "{position:?} repeats an attribute"
+            );
+            assert!(
+                weights.iter().all(|(_, weight)| *weight > 0),
+                "{position:?}"
+            );
+            assert_eq!(
+                weights
+                    .iter()
+                    .map(|(_, weight)| u32::from(*weight))
+                    .sum::<u32>(),
                 100,
                 "{position:?}"
             );
@@ -978,9 +988,15 @@ mod tests {
     #[test]
     fn a_positions_key_attributes_are_among_the_attributes_it_weighs() {
         for position in Position::ALL {
-            let weighed: Vec<_> = position_weights(&position).iter().map(|(key, _)| *key).collect();
+            let weighed: Vec<_> = position_weights(&position)
+                .iter()
+                .map(|(key, _)| *key)
+                .collect();
             for key in key_attributes(&position) {
-                assert!(weighed.contains(&key), "{position:?} does not weigh its key {key:?}");
+                assert!(
+                    weighed.contains(&key),
+                    "{position:?} does not weigh its key {key:?}"
+                );
             }
         }
     }
