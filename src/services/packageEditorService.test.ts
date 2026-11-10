@@ -57,6 +57,19 @@ describe("validatePackageProject", () => {
     expect(records[1]).toEqual({ path: "/other", name: "Other", openedAt: "2026-01-02" });
   });
 
+  /** Given storage cannot be read, when Validate succeeds, then its findings still reach the editor. */
+  it("returns findings when recent-project storage is unavailable", async () => {
+    const read = vi.spyOn(Storage.prototype, "getItem").mockImplementation(() => {
+      throw new Error("storage unavailable");
+    });
+    invokeMock.mockResolvedValue({ issues: [], warnings: [] });
+    try {
+      await expect(validatePackageProject("/p")).resolves.toEqual({ issues: [], warnings: [] });
+    } finally {
+      read.mockRestore();
+    }
+  });
+
   /**
    * Given a project folder
    * When the editor validates it
