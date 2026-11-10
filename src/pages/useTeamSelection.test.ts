@@ -74,7 +74,7 @@ function buildGameState(): GameStateData {
   } as unknown as GameStateData;
 }
 
-function renderController() {
+function renderController({ pick = true } = {}) {
   // Build the game state once so the hook receives a stable reference across
   // re-renders (the real store does the same); a fresh object each render would
   // retrigger the region/competition memos and loop the sync effects.
@@ -84,7 +84,10 @@ function renderController() {
     setGameActive: vi.fn(),
     navigate: vi.fn(),
   };
-  return renderHook(() => useTeamSelection({ gameState, ...externals }));
+  const controller = renderHook(() => useTeamSelection({ gameState, ...externals }));
+  // Nothing is chosen on arrival; the scope tests are about the club the player picks.
+  if (pick) act(() => controller.result.current.setSelectedTeamId("team-1"));
+  return controller;
 }
 
 describe("useTeamSelection scope toggles", () => {
@@ -199,7 +202,116 @@ describe("useTeamSelection home-region club filter", () => {
     const { result } = renderHook(() => useTeamSelection({ gameState, ...externals }));
 
     expect(result.current.selectedHomeRegionId).toBeNull();
-    expect(result.current.filteredTeams.map((team) => team.id)).toEqual(["team-gb"]);
+    expect(result.current.visibleClubs.map((team) => team.id)).toEqual(["team-gb"]);
+  });
+});
+
+// Two domestic leagues in one country, and a club in each: the rail lists the leagues, the table
+// shows one of them.
+function buildTwoLeagueGameState(): GameStateData {
+  const clubs = [
+    createTeam({ id: "top-a", name: "Alpha FC", city: "Alton", country: "GB" }),
+    createTeam({ id: "top-b", name: "Bravo Town", city: "Bexley", country: "GB" }),
+    createTeam({ id: "low-c", name: "Charlie Rovers", city: "Carlow", country: "GB" }),
+  ];
+  return {
+    teams: clubs,
+    players: [],
+    competitions: [
+      league({
+        id: "top",
+        name: "Top Division",
+        scope: "Domestic",
+        kind: "League",
+        region_id: "europe",
+        country_id: "GB",
+        participant_ids: ["top-a", "top-b"],
+        priority: 1,
+      }),
+      league({
+        id: "low",
+        name: "Lower Division",
+        scope: "Domestic",
+        kind: "League",
+        region_id: "europe",
+        country_id: "GB",
+        participant_ids: ["low-c"],
+        priority: 2,
+      }),
+    ],
+    league: null,
+    manager: { first_name: "Sam", last_name: "Boss" },
+  } as unknown as GameStateData;
+}
+
+function renderTwoLeagues() {
+  const gameState = buildTwoLeagueGameState();
+  const externals = { setGameState: vi.fn(), setGameActive: vi.fn(), navigate: vi.fn() };
+  return renderHook(() => useTeamSelection({ gameState, ...externals }));
+}
+
+describe("useTeamSelection club table", () => {
+  /**
+   * Given a game with clubs and a league to show
+   * When the screen opens
+   * Then no club is chosen: the player picks one, and the first of the list is not picked for them.
+   */
+  it("chooses no club on arrival", () => {
+    const { result } = renderTwoLeagues();
+
+    expect(result.current.visibleClubs.length).toBeGreaterThan(0);
+    expect(result.current.selectedTeam).toBeNull();
+  });
+
+  /**
+   * Given two leagues in the home country, the stronger first
+   * When the screen opens, and then the lower league is picked in the rail
+   * Then the rail lists both with their clubs counted, and the table shows the stronger league's
+   *      clubs until the lower is picked, and that league's after.
+   */
+  it("lists the country's leagues and shows the picked league's clubs", () => {
+    const { result } = renderTwoLeagues();
+
+    expect(result.current.leagueGroups.map((group) => [group.id, group.teams.length])).toEqual([
+      ["top", 2],
+      ["low", 1],
+    ]);
+    expect(result.current.activeLeagueId).toBe("top");
+    expect(result.current.visibleClubs.map((team) => team.id)).toEqual(["top-a", "top-b"]);
+
+    act(() => result.current.setSelectedLeagueId("low"));
+
+    expect(result.current.activeLeagueId).toBe("low");
+    expect(result.current.visibleClubs.map((team) => team.id)).toEqual(["low-c"]);
+  });
+
+  /**
+   * Given a club chosen in the top league
+   * When the lower league is picked in the rail
+   * Then the choice is dropped: Manage would otherwise name a club that is no longer in view.
+   */
+  it("drops the chosen club when its league leaves the table", () => {
+    const { result } = renderTwoLeagues();
+    act(() => result.current.setSelectedTeamId("top-a"));
+    expect(result.current.selectedTeam?.id).toBe("top-a");
+
+    act(() => result.current.setSelectedLeagueId("low"));
+
+    expect(result.current.selectedTeam).toBeNull();
+  });
+
+  /**
+   * Given a search typed over the top league
+   * When it matches a club's city and not the others
+   * Then only that club is in the table, while the rail still counts the whole league.
+   */
+  it("narrows the table by name or city, and leaves the rail's counts alone", () => {
+    const { result } = renderTwoLeagues();
+
+    act(() => result.current.setClubSearch("bexley"));
+
+    expect(result.current.visibleClubs.map((team) => team.id)).toEqual(["top-b"]);
+    expect(result.current.leagueGroups[0].teams).toHaveLength(2);
   });
 });
 

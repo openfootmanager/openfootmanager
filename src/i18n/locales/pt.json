@@ -303,6 +303,40 @@
     "subtitle": "Seleciona a equipa que queres treinar",
     "confirming": "A confirmar...",
     "manage": "Treinar {{name}}",
+    "steps": {
+      "label": "Passos da nova carreira",
+      "manager": "Treinador",
+      "world": "Mundo",
+      "generation": "Geração",
+      "club": "Clube",
+      "done": "concluído"
+    },
+    "back": "Voltar à geração do mundo",
+    "simulation": "Simulação",
+    "manageNone": "Gerir",
+    "rail": {
+      "label": "Países e ligas",
+      "countries": "Países"
+    },
+    "table": {
+      "label": "Clubes",
+      "club": "Clube",
+      "transfers": "Transferências",
+      "wages": "Salários / sem.",
+      "stadium": "Estádio"
+    },
+    "card": {
+      "label": "Clube escolhido",
+      "emptyTitle": "Ainda não escolheste um clube",
+      "emptyHint": "Escolhe um clube da lista para veres o plantel, os orçamentos e o que a direção espera.",
+      "boardExpects": "A direção espera",
+      "transferBudget": "Orçamento de transferências",
+      "wageBudget": "Orçamento salarial",
+      "perWeek": "{{amount}} / semana",
+      "balance": "Saldo",
+      "stadium": "Estádio",
+      "founded": "fundado em {{year}}"
+    },
     "reputation": "Reputação",
     "squad": "Plantel",
     "finances": "Finanças",

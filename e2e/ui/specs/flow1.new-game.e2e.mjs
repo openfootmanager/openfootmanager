@@ -41,9 +41,15 @@ describe("flow 1: a new game, to the first match day", () => {
   });
 
   it("lets the player choose a club, and manage it", async () => {
-    await $("//*[normalize-space(.)='Choose Your Club']").waitForDisplayed({ timeout: 60_000 });
-    // A club is selected on arrival; the panel naming it is what the player confirms.
-    await $("//*[normalize-space(.)='Selected Club']").waitForDisplayed({ timeout: 60_000 });
+    await $('//h1[normalize-space(.)="Choose your club"]').waitForDisplayed({ timeout: 60_000 });
+    // Nothing is chosen on arrival: the card says so, and Manage waits for a club.
+    await $('//aside[@aria-label="Chosen club"]').waitForDisplayed({ timeout: 60_000 });
+    await expect(buttonNamed("Manage")).toBeDisabled();
+    // A club is chosen by pressing its name in the table; the card then shows it.
+    await clickWhenReady($('//table[@aria-label="Clubs"]//button[@aria-pressed="false"]'));
+    await $('//table[@aria-label="Clubs"]//button[@aria-pressed="true"]').waitForDisplayed({
+      timeout: 30_000,
+    });
     await clickWhenReady(buttonStartingWith("Manage "));
     await waitForRoute("/dashboard");
     // The career is the one the player asked for: the sidebar names the manager just created.

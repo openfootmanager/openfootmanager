@@ -303,6 +303,40 @@
     "subtitle": "Wähle das Team, das du trainieren möchtest",
     "confirming": "Bestätige...",
     "manage": "{{name}} trainieren",
+    "steps": {
+      "label": "Schritte der neuen Karriere",
+      "manager": "Trainer",
+      "world": "Welt",
+      "generation": "Erstellung",
+      "club": "Verein",
+      "done": "abgeschlossen"
+    },
+    "back": "Zurück zur Welterstellung",
+    "simulation": "Simulation",
+    "manageNone": "Übernehmen",
+    "rail": {
+      "label": "Länder und Ligen",
+      "countries": "Länder"
+    },
+    "table": {
+      "label": "Vereine",
+      "club": "Verein",
+      "transfers": "Transfers",
+      "wages": "Gehälter / Wo.",
+      "stadium": "Stadion"
+    },
+    "card": {
+      "label": "Gewählter Verein",
+      "emptyTitle": "Noch kein Verein gewählt",
+      "emptyHint": "Wähle einen Verein aus der Liste, um Kader, Budgets und die Erwartung des Vorstands zu sehen.",
+      "boardExpects": "Vorstand erwartet",
+      "transferBudget": "Transferbudget",
+      "wageBudget": "Gehaltsbudget",
+      "perWeek": "{{amount}} / Woche",
+      "balance": "Kontostand",
+      "stadium": "Stadion",
+      "founded": "gegründet {{year}}"
+    },
     "reputation": "Ruf",
     "squad": "Kader",
     "finances": "Finanzen",
