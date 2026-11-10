@@ -1,6 +1,7 @@
 import { fireEvent, render, screen, within } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { beforeAll, describe, expect, it, vi } from "vitest";
 
+import { i18nReady } from "../../i18n";
 import { ratingTierClass } from "../../lib/ratingTier";
 import { createPlayer, createTeam } from "../../test-utils/factories";
 import PlayerProfileNameCard from "./PlayerProfileNameCard";
@@ -8,6 +9,10 @@ import PlayerProfileNameCard from "./PlayerProfileNameCard";
 vi.mock("../../hooks/useRatingTiers", async () => {
   const { cannedRatingTiersModule } = await import("../../test-utils/ratingTiers");
   return cannedRatingTiersModule();
+});
+
+beforeAll(async () => {
+  await i18nReady;
 });
 
 function t(key: string, options?: Record<string, string | number>): string {
@@ -117,7 +122,13 @@ describe("PlayerProfileNameCard", () => {
     renderCard({ alternates: ["Forward", "Defender"] });
 
     const card = screen.getByRole("region", { name: "John Smith" });
-    expect(within(card).getAllByTitle(/./).length).toBeGreaterThanOrEqual(3);
+    // The badge inside each titled wrapper: the natural one is filled with its group's colour, an
+    // alternate is the outlined variant.
+    const badgeOf = (name: string) => within(card).getByTitle(name).firstElementChild;
+    expect(badgeOf("Midfielder")).not.toHaveClass("bg-transparent");
+    expect(badgeOf("Forward")).toHaveClass("bg-transparent");
+    expect(badgeOf("Defender")).toHaveClass("bg-transparent");
+    expect(within(card).queryByTitle("Goalkeeper")).not.toBeInTheDocument();
   });
 
   /**

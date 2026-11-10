@@ -92,15 +92,16 @@ function renderProfile(overrides: Partial<PlayerData> = {}) {
   );
 }
 
+async function answer(command: string) {
+  if (command === "get_player_stats_overview") {
+    return { percentileEligible: false, metrics: {} };
+  }
+  if (command === "get_player_match_history") return [];
+  return null;
+}
+
 beforeEach(() => {
-  vi.mocked(invoke).mockImplementation(async (command: string) => {
-    if (command === "get_player_stats_overview") {
-      return { percentileEligible: false, metrics: {} };
-    }
-    if (command === "get_player_match_history") return [];
-    if (command === "get_scouted_report") return null;
-    return null;
-  });
+  vi.mocked(invoke).mockImplementation(answer);
 });
 
 describe("PlayerProfile shell", () => {
@@ -159,6 +160,56 @@ describe("PlayerProfile shell", () => {
     expect(screen.getAllByText("Morale")).toHaveLength(1);
     expect(screen.getAllByText(/^(Value|Market Value)$/)).toHaveLength(1);
     expect(screen.getAllByText(/^(Wage|Weekly Wage)$/)).toHaveLength(1);
+  });
+
+  /**
+   * Given the profile open on its Overview tab, and the backend refusing a Let Expire
+   * When Let Expire is chosen from the name card's Actions menu
+   * Then the refusal is on the page, visible on the Overview: the error does not wait for the
+   *      Contract tab, which is hidden
+   */
+  it("shows a failed Actions-menu action on whichever tab is open", async () => {
+    vi.mocked(invoke).mockImplementation(async (command: string) => {
+      if (command === "set_contract_exit_intent") {
+        throw "be.error.contracts.playerHasNoActiveContract";
+      }
+      return answer(command);
+    });
+    renderProfile();
+
+    fireEvent.click(screen.getByRole("button", { name: /actions/i }));
+    fireEvent.click(await screen.findByRole("menuitem", { name: "Let Expire" }));
+
+    expect(await screen.findByText("This player does not have an active contract.")).toBeVisible();
+    expect(screen.getByRole("tab", { name: "Overview" })).toHaveAttribute("aria-selected", "true");
+  });
+
+  /**
+   * Given the profile of player A open on his Career tab
+   * When the page is given player B, and then player A again, with no tab chosen for B
+   * Then each starts on its Overview: A does not get his Career back
+   */
+  it("starts every player on the Overview, A to B and back to A included", () => {
+    const a = createPlayer({ id: "player-a", team_id: "team-1", match_name: "A. Player" });
+    const b = createPlayer({ id: "player-b", team_id: "team-1", match_name: "B. Player" });
+    const profileOf = (player: PlayerData) => (
+      <PlayerProfile
+        player={player}
+        gameState={gameWith(player)}
+        isOwnClub
+        onGameUpdate={() => {}}
+        onSelectTeam={() => {}}
+      />
+    );
+    const { rerender } = render(profileOf(a));
+    fireEvent.click(screen.getByRole("tab", { name: "Career" }));
+    expect(screen.getByRole("tab", { name: "Career" })).toHaveAttribute("aria-selected", "true");
+
+    rerender(profileOf(b));
+    expect(screen.getByRole("tab", { name: "Overview" })).toHaveAttribute("aria-selected", "true");
+
+    rerender(profileOf(a));
+    expect(screen.getByRole("tab", { name: "Overview" })).toHaveAttribute("aria-selected", "true");
   });
 
   /**
