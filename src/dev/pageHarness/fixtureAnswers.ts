@@ -73,11 +73,17 @@ function profileHandlers(profile: HarnessProfile): CommandHandlers {
   const about = (playerId: unknown, value: unknown) =>
     playerId === answer.playerId ? value : UNANSWERED;
   return {
-    // An id no player has is left out of the answer, as in Rust.
-    get_player_knowledge: ({ playerIds }) =>
-      Array.isArray(playerIds) && playerIds.includes(answer.playerId) && answer.knowledge
+    // Rust answers every requested player in the world and leaves out an id no player has (the
+    // retiree's). The fixture knows one player: a request for another active one is declined, not
+    // answered with a gap the page would read as "unknown".
+    get_player_knowledge: ({ playerIds }) => {
+      const asked = Array.isArray(playerIds) ? playerIds : [];
+      const activeIds = new Set(fixture.gameState.players.map((player) => player.id));
+      if (asked.some((id) => activeIds.has(id) && id !== answer.playerId)) return UNANSWERED;
+      return answer.knowledge && asked.includes(answer.playerId)
         ? { [answer.playerId]: answer.knowledge }
-        : {},
+        : {};
+    },
     get_visible_wage: ({ playerId }) => about(playerId, answer.wage),
     get_potential_opinion: ({ playerId }) => about(playerId, answer.opinion),
     get_position_ratings: ({ playerId }) => about(playerId, answer.positionRatings),

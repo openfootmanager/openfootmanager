@@ -101,7 +101,7 @@ describe("the page harness's pages", () => {
 
 /** The text of every row labelled `label`: the label's parent holds the label and its value. */
 const rowsLabelled = (view: ReturnType<typeof within>, label: string) =>
-  view.getAllByText(label).map((element) => element.parentElement?.textContent ?? "");
+  view.getAllByText(label).map((element: HTMLElement) => element.parentElement?.textContent ?? "");
 
 const NO_VALUE = /–$/;
 

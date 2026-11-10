@@ -26,11 +26,12 @@ const SCOUTED_ON = "2031-05-12";
 const ofClub = (players: PlayerData[]) => players.filter((player) => player.team_id === USER_CLUB);
 const rivals = (players: PlayerData[]) =>
   players.filter((player) => player.team_id !== null && player.team_id !== USER_CLUB);
-const freeAgents = (players: PlayerData[]) => players.filter((player) => player.team_id === null);
+const freeAgents = (players: PlayerData[]) =>
+  players.filter((player) => player.team_id === null && player.position !== "Goalkeeper");
 
 /**
  * The players the cases use, by their place in the generated career (fixed by its seed): an
- * outfield player of the club's own and of a rival, and three free agents, who are the players
+ * outfield player of the club's own and of a rival, and three outfield free agents, who are the players
  * outside the club's division.
  */
 function pickPlayers(players: PlayerData[]) {
@@ -45,8 +46,13 @@ function pickPlayers(players: PlayerData[]) {
   };
 }
 
-/** The wage a scout reports: two significant figures, as `player_knowledge::VisibleWage` rounds it. */
-const roundedWage = (weekly: number) => Number(weekly.toPrecision(2));
+/**
+ * The wage a scout reports: two significant figures, as `player_knowledge::VisibleWage` rounds it.
+ * A free agent has no contract and so no wage in the fixture; the figure is a stand-in, one 220th of
+ * his market value, so the layout sees a real number.
+ */
+const scoutedWage = (player: PlayerData) =>
+  Number(Math.round(player.market_value / 220).toPrecision(2));
 
 /**
  * His ratings at his natural position and at each alternate. The numbers are the fixture's own
@@ -112,7 +118,7 @@ export function profileCase(variant: HarnessProfile): ProfileCase {
         ...none,
         playerId: scouted.id,
         knowledge: { kind: "scouted", scouted_on: SCOUTED_ON, current: true },
-        wage: { kind: "approximate", weekly: roundedWage(scouted.wage) },
+        wage: { kind: "approximate", weekly: scoutedWage(scouted) },
         opinion: opinionOf(scouted, {
           kind: "scout",
           scout_name: null,
