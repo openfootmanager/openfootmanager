@@ -928,3 +928,96 @@ fn a_club_on_two_tables_only_leaves_the_feeder_that_promoted_it() {
         ]
     );
 }
+
+/// A country's four finished tables: `top` (priority 0), `a-target` (1, the target of `feeder`'s
+/// berth, so off the ladder), `b-peer` (1, an ordinary tier that shares the target's priority) and
+/// `feeder` (2, its first place going to the target), in the given listing order.
+fn tied_with_a_berth_target(listing_order: [&str; 4]) -> Game {
+    let table = |id: &str, priority: u32, club: &str| {
+        let standings: Vec<(String, u32)> = (1..=4)
+            .map(|place| (format!("{club}{place}"), 50 - place * 10))
+            .collect();
+        let standings: Vec<(&str, u32)> = standings
+            .iter()
+            .map(|(club, points)| (club.as_str(), *points))
+            .collect();
+        division(id, priority, "XX", &standings)
+    };
+    let mut game = empty_game();
+    game.competitions = listing_order
+        .iter()
+        .map(|id| match *id {
+            "top" => table("top", 0, "a"),
+            "a-target" => table("a-target", 1, "t"),
+            "b-peer" => table("b-peer", 1, "p"),
+            _ => {
+                let mut feeder = table("feeder", 2, "f");
+                feeder.berths = vec![position_berth("a-target", 1, 1)];
+                feeder
+            }
+        })
+        .collect();
+    game
+}
+
+/// The season's rollover for `game`, in the order `end_of_season::mod` runs it: the berth fields
+/// are resolved first, then the linear pass, then the berth pass.
+fn roll_over_pyramid(game: &mut Game) {
+    let fields = resolve_domestic_berth_fields(game);
+    apply_pyramid_promotion_relegation(&mut game.competitions);
+    apply_domestic_berth_promotion_relegation(game, &fields);
+}
+
+fn sorted_roster_of(game: &Game, id: &str) -> Vec<String> {
+    let mut roster = roster(game, id);
+    roster.sort();
+    roster
+}
+
+fn assert_the_berth_winner_reaches_the_tied_target(listing_order: [&str; 4]) {
+    let mut game = tied_with_a_berth_target(listing_order);
+
+    roll_over_pyramid(&mut game);
+
+    let clubs = |ids: [&str; 4]| ids.map(String::from).to_vec();
+    assert_eq!(
+        sorted_roster_of(&game, "a-target"),
+        clubs(["f1", "t1", "t2", "t3"]),
+        "the feeder's first place takes the target's bottom place"
+    );
+    assert_eq!(
+        sorted_roster_of(&game, "feeder"),
+        clubs(["f2", "f3", "f4", "t4"]),
+        "the target's bottom club goes down to the feeder"
+    );
+    assert_eq!(
+        sorted_roster_of(&game, "top"),
+        clubs(["a1", "a2", "a3", "a4"]),
+        "the rung the tie occupies is a gap, so the top flight has no neighbour to exchange with"
+    );
+    assert_eq!(
+        sorted_roster_of(&game, "b-peer"),
+        clubs(["p1", "p2", "p3", "p4"]),
+        "a tier tied with a berth target has no automatic promotion or relegation"
+    );
+}
+
+/// Given a country whose berth-target table (priority 1) is tied with an ordinary tier (priority
+///       1), the target listed first, and a feeder below them whose first place is berthed into it
+/// When the season rolls over: the linear pass, then the berth pass
+/// Then the feeder's first place reaches the target and the clubs of the tied tier and the top
+///      flight stay where they are: the linear pass used to promote him into the tied tier, and
+///      the berth pass then dropped him for no longer being registered with the feeder (#1381)
+#[test]
+fn a_berth_winner_reaches_a_target_tied_with_a_tier_listed_after_it() {
+    assert_the_berth_winner_reaches_the_tied_target(["top", "a-target", "b-peer", "feeder"]);
+}
+
+/// Given the same country with the tied tier listed before the berth target
+/// When the season rolls over
+/// Then the outcome is the same: the ladder used to be cut on the other side, so the top flight
+///      exchanged clubs with the tied tier instead (#1381)
+#[test]
+fn a_berth_winner_reaches_a_target_tied_with_a_tier_listed_before_it() {
+    assert_the_berth_winner_reaches_the_tied_target(["top", "b-peer", "a-target", "feeder"]);
+}
