@@ -13,8 +13,15 @@ use rand::SeedableRng;
 use rand::rngs::StdRng;
 
 /// Matches per arm. The effect of a few percent of every duel is small against a match's own
-/// spread, so the arms are long, as the tempo test's are.
-const MATCHES: u64 = 4_000;
+/// spread, so the arms are long, as the tempo test's are. The live engine applies the mood to every
+/// duel as well as to the line averages, so its effect is about three times the instant engine's
+/// (+0.83 against +0.28 shots a match at +3%, measured), and its arms are shorter.
+fn matches(engine: Engine) -> u64 {
+    match engine {
+        Engine::Instant => 20_000,
+        Engine::Live => 4_000,
+    }
+}
 
 /// How many standard errors of the difference a lift or a drop must clear.
 const STANDARD_ERRORS: f64 = 4.0;
@@ -77,10 +84,10 @@ fn shot_difference(engine: Engine, home: &TeamData, seed: u64) -> f64 {
     }
 }
 
-/// The mean and the standard error of the mean of the shot difference over MATCHES matches.
+/// The mean and the standard error of the mean of the shot difference over `matches(engine)` matches.
 fn shot_difference_over_matches(engine: Engine, morale_factor: f64) -> (f64, f64) {
     let home = home_with_mood(morale_factor);
-    let differences: Vec<f64> = (0..MATCHES)
+    let differences: Vec<f64> = (0..matches(engine))
         .map(|seed| shot_difference(engine, &home, seed))
         .collect();
     let n = differences.len() as f64;
@@ -124,7 +131,7 @@ fn assert_drop(engine: Engine) {
 }
 
 /// Given a home side whose players are all at +3% and a neutral side, equal otherwise,
-/// When each engine plays MATCHES matches against the same seeds as a neutral home side,
+/// When each engine plays its arm of matches against the same seeds as a neutral home side,
 /// Then the lifted side's shot difference rises by more than STANDARD_ERRORS standard errors.
 #[test]
 fn a_lifted_mood_helps_in_the_instant_engine() {
