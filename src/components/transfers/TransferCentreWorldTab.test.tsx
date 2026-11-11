@@ -297,4 +297,38 @@ describe("TransferCentreWorldTab", () => {
     expect(onSelectTeam).toHaveBeenNthCalledWith(1, "team-1");
     expect(onSelectTeam).toHaveBeenNthCalledWith(2, "team-3");
   });
+
+  /**
+   * Given a manager who has never had a club, and a mirror on the world's first competition
+   * When the Transfer Centre's world tab opens
+   * Then it shows none of that league's rumours or deals
+   */
+  it("shows a manager who never had a club no rumours or deals", () => {
+    const state = createGameState();
+    state.manager = { ...state.manager, team_id: null, career_history: [] };
+
+    render(<TransferCentreWorldTab gameState={state} />);
+
+    expect(screen.queryByText("Alex Star")).not.toBeInTheDocument();
+    expect(screen.getByText("No active rumours.")).toBeInTheDocument();
+    expect(screen.getByText("No completed deals recorded.")).toBeInTheDocument();
+  });
+
+  /**
+   * Given a sacked manager, whose mirror follows the league he left
+   * When the world tab opens
+   * Then it shows that league's rumours
+   */
+  it("shows a sacked manager the rumours of the league he left", () => {
+    const state = createGameState();
+    state.manager = {
+      ...state.manager,
+      team_id: null,
+      career_history: [{ team_id: "team-1", team_name: "Alpha FC" }] as never,
+    };
+
+    render(<TransferCentreWorldTab gameState={state} />);
+
+    expect(screen.getByText("Alex Star")).toBeInTheDocument();
+  });
 });
