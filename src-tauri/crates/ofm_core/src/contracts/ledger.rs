@@ -216,4 +216,49 @@ mod tests {
             standard_contract_terms(&player("2000-01-01"), &club(), day(2026, 1, 1), 0).unwrap();
         assert_eq!(end, day(2029, 6, 30));
     }
+    /// Given a June 2027 contract in August 2026
+    /// When a caller tries to apply a one-year renewal directly
+    /// Then the writer refuses before changing any player state.
+    #[test]
+    fn the_renewal_writer_refuses_an_unchanged_end_without_mutation() {
+        let mut player = player("1990-01-01");
+        player.stage_contract_end(Some("2027-06-30".to_string()));
+        let before = serde_json::to_value(&player).unwrap();
+        let result = crate::contracts::apply_agreed_renewal(
+            &mut player,
+            &club(),
+            20_000,
+            1,
+            day(2026, 8, 1),
+            crate::contracts::RenewalAgreedBy::Assistant,
+        );
+        assert_eq!(
+            result,
+            Err("be.error.contracts.renewalDoesNotExtend".to_string())
+        );
+        assert_eq!(serde_json::to_value(&player).unwrap(), before);
+    }
+
+    /// Given a June 2030 contract in August 2026
+    /// When a caller tries to apply a two-year renewal directly
+    /// Then the writer refuses a shortened deal without changing player state.
+    #[test]
+    fn the_renewal_writer_refuses_an_earlier_end_without_mutation() {
+        let mut player = player("1990-01-01");
+        player.stage_contract_end(Some("2030-06-30".to_string()));
+        let before = serde_json::to_value(&player).unwrap();
+        let result = crate::contracts::apply_agreed_renewal(
+            &mut player,
+            &club(),
+            20_000,
+            2,
+            day(2026, 8, 1),
+            crate::contracts::RenewalAgreedBy::Manager { round: 1 },
+        );
+        assert_eq!(
+            result,
+            Err("be.error.contracts.renewalDoesNotExtend".to_string())
+        );
+        assert_eq!(serde_json::to_value(&player).unwrap(), before);
+    }
 }

@@ -1,3 +1,5 @@
+#[path = "contracts_tests/extension_terms.rs"]
+mod extension_terms;
 #[path = "contracts_tests/renewal_feedback.rs"]
 mod renewal_feedback;
 #[path = "contracts_tests/renewal_terms.rs"]

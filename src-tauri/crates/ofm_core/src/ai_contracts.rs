@@ -1110,4 +1110,18 @@ mod tests {
 
         assert_eq!(contract_end(&game, "old_keeper"), before);
     }
+    /// Given a needed veteran keeper contracted until June 2027 in December 2026
+    /// When his AI club reviews renewals within its normal renewal horizon
+    /// Then it chooses two years and records June 2028, rather than the same end.
+    #[test]
+    fn an_ai_renewal_chooses_the_shortest_length_that_extends() {
+        let mut game = world();
+        game.clock.current_date = Utc.with_ymd_and_hms(2026, 12, 31, 12, 0, 0).unwrap();
+        game.players.retain(|p| p.id != "ai_Goalkeeper2");
+        let mut keeper = player("old_keeper", "ai", Position::Goalkeeper, 50, 36, 90);
+        keeper.stage_contract_end(Some("2027-06-30".to_string()));
+        game.players.push(keeper);
+        apply_ai_contract_decisions(&mut game, review_day());
+        assert_eq!(contract_end(&game, "old_keeper"), "2028-06-30");
+    }
 }
