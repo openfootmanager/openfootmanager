@@ -96,13 +96,15 @@ function props(overrides: Partial<PlayerProfileOverviewProps> = {}): PlayerProfi
     language: "en",
     showsPrivateState: true,
     recentMatches: THREE,
+    recentMatchesStatus: "answered",
+    retryRecentMatches: () => {},
     seasonRatingRated: true,
     tacticalRole: null,
     contractRiskLevel: "stable",
     contractRiskLabel: "Stable",
     wageText: "€23k/wk",
     potentialOpinion: <p>Potential opinion block</p>,
-    positionRatings: striker,
+    ratings: { status: "answered", value: striker },
     attributes: player.attributes,
     traits: ["Finisher"],
     onOpenTab: () => {},
@@ -375,7 +377,7 @@ describe("PlayerProfileOverview", () => {
    * Then there is no radar and it says the attributes are hidden
    */
   it("hides the radar for a player whose attributes the club cannot read", () => {
-    render(<PlayerProfileOverview {...props({ positionRatings: null, attributes: null })} />);
+    render(<PlayerProfileOverview {...props({ ratings: { status: "answered", value: null }, attributes: null })} />);
     const attributes = within(screen.getByRole("region", { name: "Attributes" }));
 
     expect(attributes.queryByRole("img")).toBeNull();
@@ -383,19 +385,149 @@ describe("PlayerProfileOverview", () => {
   });
 
   /**
-   * Given the Overview's links to his matches and his career
-   * When "All matches" or "Career" is pressed
-   * Then the Career tab is asked for
+   * Given the Overview
+   * When its links are read
+   * Then there is no "All matches" link (no view holds older matches yet), and the season's
+   *      "Career" link opens the Career tab
    */
-  it("opens the Career tab from the matches and season links", () => {
+  it("links the season to Career and offers no all-matches link", () => {
     const onOpenTab = vi.fn();
     render(<PlayerProfileOverview {...props({ onOpenTab })} />);
 
-    fireEvent.click(screen.getByRole("button", { name: "All matches" }));
+    expect(screen.queryByRole("button", { name: "All matches" })).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "Career" }));
 
-    expect(onOpenTab).toHaveBeenNthCalledWith(1, "career");
-    expect(onOpenTab).toHaveBeenNthCalledWith(2, "career");
+    expect(onOpenTab).toHaveBeenCalledWith("career");
+  });
+
+  /**
+   * Given a match in which he scored and set up a goal
+   * When Previous matches is read
+   * Then both show, and the date of the match is a caption on the row
+   */
+  it("shows a goal and an assist from one match, and the match's date", () => {
+    const both = { ...match(0, 3, 0), goals: 1, assists: 2 };
+    render(<PlayerProfileOverview {...props({ recentMatches: [both] })} />);
+    const row = within(
+      screen.getByRole("region", { name: "Previous matches" }),
+    ).getAllByRole("listitem")[0];
+
+    expect(row).toHaveTextContent("1 goals");
+    expect(row).toHaveTextContent("2 assists");
+    expect(row).toHaveTextContent(/Jun/);
+  });
+
+  /**
+   * Given a match history that has not answered, and one that failed
+   * When Previous matches is read
+   * Then neither says "No recent match data": the first says it is loading, the second says it
+   *      could not load and offers a retry; only an answered empty list says there are none
+   */
+  it("tells loading and failed apart from no matches", () => {
+    const retry = vi.fn();
+    const { rerender } = render(
+      <PlayerProfileOverview {...props({ recentMatches: [], recentMatchesStatus: "loading" })} />,
+    );
+    const card = () => within(screen.getByRole("region", { name: "Previous matches" }));
+    expect(card().queryByText("No recent match data")).toBeNull();
+    expect(card().getByText("Loading...")).toBeInTheDocument();
+
+    rerender(
+      <PlayerProfileOverview
+        {...props({
+          recentMatches: [],
+          recentMatchesStatus: "failed",
+          retryRecentMatches: retry,
+        })}
+      />,
+    );
+    expect(card().queryByText("No recent match data")).toBeNull();
+    expect(card().getByText("Couldn't load")).toBeInTheDocument();
+    fireEvent.click(card().getByRole("button", { name: "Retry" }));
+    expect(retry).toHaveBeenCalledTimes(1);
+
+    rerender(<PlayerProfileOverview {...props({ recentMatches: [] })} />);
+    expect(card().getByText("No recent match data")).toBeInTheDocument();
+  });
+
+  /**
+   * Given a season with 4 clean sheets, 6 yellow cards and 1 red card
+   * When Season statistics is read
+   * Then a compact line under the tiles shows all three; and with none, it shows the zeros
+   */
+  it("keeps clean sheets, yellow and red cards on a line under the season tiles", () => {
+    const base = props();
+    const player = {
+      ...base.player,
+      stats: { ...base.player.stats, clean_sheets: 4, yellow_cards: 6, red_cards: 1 },
+    };
+    const { unmount } = render(<PlayerProfileOverview {...props({ player })} />);
+    const line = within(screen.getByRole("region", { name: "Season Statistics" })).getByRole(
+      "list",
+      { name: "Discipline and clean sheets" },
+    );
+    expect(line).toHaveTextContent("Clean Sh");
+    expect(line).toHaveTextContent("4");
+    expect(line).toHaveTextContent("Yellows");
+    expect(line).toHaveTextContent("6");
+    expect(line).toHaveTextContent("Reds");
+    expect(line).toHaveTextContent("1");
+    unmount();
+
+    render(<PlayerProfileOverview {...props()} />);
+    const zeros = within(screen.getByRole("region", { name: "Season Statistics" })).getByRole(
+      "list",
+      { name: "Discipline and clean sheets" },
+    );
+    expect(zeros.textContent?.match(/0/g)).toHaveLength(3);
+  });
+
+  /**
+   * Given the position ratings still loading, then failed, then answered with nothing for an
+   *       unknown player
+   * When the attributes card is read
+   * Then loading shows a loading state, failure shows "Couldn't load" with a retry, and only the
+   *      answered-unknown player reads "Attributes Hidden"
+   */
+  it("tells a loading or failed ratings request apart from an unknown player", () => {
+    const retry = vi.fn();
+    const card = () => within(screen.getByRole("region", { name: "Attributes" }));
+    const { rerender } = render(
+      <PlayerProfileOverview {...props({ ratings: { status: "loading" } })} />,
+    );
+    expect(card().getByText("Loading...")).toBeInTheDocument();
+    expect(card().queryByText("Attributes Hidden")).toBeNull();
+
+    rerender(<PlayerProfileOverview {...props({ ratings: { status: "failed", retry } })} />);
+    expect(card().getByText("Couldn't load")).toBeInTheDocument();
+    expect(card().queryByText("Attributes Hidden")).toBeNull();
+    fireEvent.click(card().getByRole("button", { name: "Retry" }));
+    expect(retry).toHaveBeenCalledTimes(1);
+
+    rerender(
+      <PlayerProfileOverview
+        {...props({ ratings: { status: "answered", value: null }, attributes: null })}
+      />,
+    );
+    expect(card().getByText("Attributes Hidden")).toBeInTheDocument();
+  });
+
+  /**
+   * Given the radar in a narrow column
+   * When its labels are read
+   * Then they are text on the page at the caption size, not text inside the scaled picture (which
+   *      shrinks below 12px when the chart is narrower than its drawing), and the picture names
+   *      every value in full
+   */
+  it("draws the axis labels outside the scaled picture", () => {
+    render(<PlayerProfileOverview {...props()} />);
+    const card = within(screen.getByRole("region", { name: "Attributes" }));
+    const radar = card.getByRole("img");
+
+    expect(radar.querySelectorAll("text")).toHaveLength(0);
+    const labels = card.getAllByText(/^(PAC|SHO|DRI|PAS|VIS|COM|STR|AER) \d+$/);
+    expect(labels).toHaveLength(8);
+    for (const label of labels) expect(label).toHaveClass("text-caption");
   });
 
   /**
