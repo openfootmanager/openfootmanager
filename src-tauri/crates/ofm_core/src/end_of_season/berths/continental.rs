@@ -7,6 +7,7 @@
 //! The tests for this module live in `crates/ofm_core/tests/end_of_season_tests.rs`, because they
 //! exercise it through the public re-exports rather than against its internals.
 
+use super::tier_rank;
 use crate::game::Game;
 use domain::league::{Berth, BerthRule, CompetitionScope, CompetitionType, League};
 
@@ -65,7 +66,9 @@ pub fn continental_qualified_entrants(game: &Game, competition: &League) -> Vec<
         first_division
             .entry(country)
             .and_modify(|best| {
-                if competition.priority < best.priority {
+                if tier_rank(competition.priority, &competition.id)
+                    < tier_rank(best.priority, &best.id)
+                {
                     *best = competition;
                 }
             })
@@ -144,7 +147,7 @@ fn top_division_season(game: &Game, cup: &League) -> Option<u32> {
                 && competition.scope == CompetitionScope::Domestic
                 && competition.country_id.as_deref() == Some(country)
         })
-        .min_by_key(|competition| competition.priority)
+        .min_by_key(|competition| tier_rank(competition.priority, &competition.id))
         .map(|competition| competition.season)
 }
 
@@ -237,7 +240,7 @@ where
                 && competition_has_incoming_berths(game, &competition.id)
         })
         .collect();
-    targets.sort_by(|a, b| a.priority.cmp(&b.priority).then_with(|| a.id.cmp(&b.id)));
+    targets.sort_by_key(|competition| tier_rank(competition.priority, &competition.id));
     let priority_of: HashMap<&str, u32> = targets
         .iter()
         .map(|c| (c.id.as_str(), c.priority))
@@ -254,7 +257,7 @@ where
             // Equal priority is a real case (two competitions at one tier). A
             // strict `<` kept whichever target the competition vector listed
             // first, and a save reloads that vector in a different order.
-            if (prio, target) < (slot.0, slot.1.as_str()) {
+            if tier_rank(prio, target) < tier_rank(slot.0, slot.1.as_str()) {
                 *slot = (prio, target.to_string());
             }
         }

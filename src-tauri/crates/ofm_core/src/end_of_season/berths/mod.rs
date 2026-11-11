@@ -12,6 +12,13 @@ mod pyramid;
 #[cfg(test)]
 mod test_support;
 
+/// Which of two tiers ranks first: the lower `priority` number, and on a tie the lower id. Never the
+/// order the competitions happen to be listed in, which a save does not preserve (#635, #1381): this
+/// is the one rule every "most prestigious tier" choice in the berth code goes through.
+fn tier_rank(priority: u32, id: &str) -> (u32, &str) {
+    (priority, id)
+}
+
 pub(super) use domestic::{
     apply_domestic_berth_promotion_relegation, resolve_domestic_berth_fields,
 };
