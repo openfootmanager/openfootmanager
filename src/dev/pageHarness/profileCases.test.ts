@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { gameState } from "./fixture.generated";
+import { gameState, positionWeights } from "./fixture.generated";
 import { HARNESS_PROFILES } from "./harnessPage";
 import { profileCase } from "./profileCases";
 
@@ -52,6 +52,25 @@ describe("the player profile's cases", () => {
     for (const variant of HARNESS_PROFILES.filter((variant) => variant !== "own")) {
       expect(profileCase(variant).recentMatches).toEqual([]);
       expect(profileCase(variant).seasonStats.metrics.shots.total).toBe(0);
+    }
+  });
+
+  /**
+   * Given each state that shows position ratings (own, rival, scouted)
+   * When their rows are built
+   * Then each row carries what the game weighs at its position, taken from the generated fixture
+   *      (which Rust writes from `position_weights`), and the weights add up to 100: the harness
+   *      holds no table of its own
+   */
+  it("gives each rating row the game's weights for its position", () => {
+    const table: Record<string, unknown> = positionWeights;
+    for (const variant of ["own", "rival", "scouted"] as const) {
+      const ratings = profileCase(variant).positionRatings;
+      expect(ratings?.rows.length).toBeGreaterThan(0);
+      for (const row of ratings?.rows ?? []) {
+        expect(row.weights).toEqual(table[row.position]);
+        expect(row.weights.reduce((sum, entry) => sum + entry.weight, 0)).toBe(100);
+      }
     }
   });
 
