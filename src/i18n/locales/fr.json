@@ -1888,12 +1888,12 @@
       "leavesOn": "Il part le",
       "severance": "Indemnité de départ",
       "healthyAfter": "Joueurs aptes après le départ",
-      "healthyValue": "{{healthy}} (un onze de départ en demande {{needed}})",
+      "healthyValue": "{{healthy}} (occupe {{filled}} postes du onze de départ)",
       "source": {
         "renewal": "une prolongation",
         "transfer": "un transfert",
         "free_agent": "une signature libre",
-        "initial": "son premier contrat"
+        "initial": "son contrat de départ"
       },
       "timeLeft": "Temps restant",
       "wage": "Salaire",
@@ -1906,7 +1906,7 @@
         "transfer": "Transféré depuis {{club}}",
         "transferNoClub": "Un transfert",
         "free_agent": "Signé libre",
-        "initial": "Son premier contrat"
+        "initial": "Son contrat de départ"
       },
       "renewClosedWhat": "Les négociations de contrat sont closes. Rouvrez-les pour le prolonger.",
       "letExpireSetButton": "Fin de contrat prévue",

@@ -1888,12 +1888,12 @@
       "leavesOn": "他离队于",
       "severance": "遣散费",
       "healthyAfter": "解约后可出战的球员",
-      "healthyValue": "{{healthy}}（首发需要 {{needed}} 名）",
+      "healthyValue": "{{healthy}}（可填补首发阵容中的 {{filled}} 个位置）",
       "source": {
         "renewal": "续约",
         "transfer": "转会",
         "free_agent": "自由球员签约",
-        "initial": "他的首份合同"
+        "initial": "他的初始合同"
       },
       "timeLeft": "剩余时间",
       "wage": "周薪",
@@ -1906,7 +1906,7 @@
         "transfer": "从 {{club}} 转会",
         "transferNoClub": "转会",
         "free_agent": "以自由球员身份签约",
-        "initial": "他的首份合同"
+        "initial": "他的初始合同"
       },
       "renewClosedWhat": "合同谈判已关闭。重新开启后才能续约。",
       "letExpireSetButton": "已设为到期",

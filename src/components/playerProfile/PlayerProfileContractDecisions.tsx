@@ -177,7 +177,7 @@ function Terminate({
           <span className="font-semibold text-fg">
             {t(`${SECTION}.healthyValue`, {
               healthy: termination.squad_safety.healthy_players,
-              needed: termination.squad_safety.effective_xi_size,
+              filled: termination.squad_safety.effective_xi_size,
             })}
           </span>
         </p>

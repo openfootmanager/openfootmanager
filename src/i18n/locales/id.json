@@ -1889,12 +1889,12 @@
       "leavesOn": "Ia pergi pada",
       "severance": "Pesangon",
       "healthyAfter": "Pemain bugar setelah dilepas",
-      "healthyValue": "{{healthy}} (susunan pemain utama butuh {{needed}})",
+      "healthyValue": "{{healthy}} (mengisi {{filled}} posisi di susunan pemain utama)",
       "source": {
         "renewal": "perpanjangan",
         "transfer": "transfer",
         "free_agent": "perekrutan bebas transfer",
-        "initial": "kontrak pertamanya"
+        "initial": "kontrak awalnya"
       },
       "timeLeft": "Sisa waktu",
       "wage": "Gaji",
@@ -1907,7 +1907,7 @@
         "transfer": "Pindah dari {{club}}",
         "transferNoClub": "Sebuah transfer",
         "free_agent": "Direkrut sebagai pemain bebas transfer",
-        "initial": "Kontrak pertamanya"
+        "initial": "Kontrak awalnya"
       },
       "renewClosedWhat": "Negosiasi kontrak ditutup. Buka kembali untuk memperpanjangnya.",
       "letExpireSetButton": "Dibiarkan habis",

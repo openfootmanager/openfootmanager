@@ -1889,12 +1889,12 @@
       "leavesOn": "Odejde dne",
       "severance": "Odstupné",
       "healthyAfter": "Zdraví hráči po propuštění",
-      "healthyValue": "{{healthy}} (zápasová jedenáctka potřebuje {{needed}})",
+      "healthyValue": "{{healthy}} (obsadí {{filled}} míst v zápasové jedenáctce)",
       "source": {
         "renewal": "prodloužení",
         "transfer": "přestup",
         "free_agent": "příchod jako volný hráč",
-        "initial": "jeho první smlouva"
+        "initial": "jeho výchozí smlouva"
       },
       "timeLeft": "Zbývá",
       "wage": "Plat",
@@ -1907,7 +1907,7 @@
         "transfer": "Přestup z klubu {{club}}",
         "transferNoClub": "Přestup",
         "free_agent": "Příchod jako volný hráč",
-        "initial": "Jeho první smlouva"
+        "initial": "Jeho výchozí smlouva"
       },
       "renewClosedWhat": "Jednání o smlouvě jsou uzavřena. Znovu je otevřete, abyste ho mohli prodloužit.",
       "letExpireSetButton": "Nastaveno na vypršení",

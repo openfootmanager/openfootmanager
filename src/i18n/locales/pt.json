@@ -1888,12 +1888,12 @@
       "leavesOn": "Sai a",
       "severance": "Indemnização",
       "healthyAfter": "Jogadores aptos após a dispensa",
-      "healthyValue": "{{healthy}} (um onze inicial precisa de {{needed}})",
+      "healthyValue": "{{healthy}} (preenche {{filled}} lugares do onze inicial)",
       "source": {
         "renewal": "uma renovação",
         "transfer": "uma transferência",
         "free_agent": "uma contratação como jogador livre",
-        "initial": "o primeiro contrato dele"
+        "initial": "o contrato de partida dele"
       },
       "timeLeft": "Tempo restante",
       "wage": "Salário",
@@ -1906,7 +1906,7 @@
         "transfer": "Transferido de {{club}}",
         "transferNoClub": "Uma transferência",
         "free_agent": "Contratado como jogador livre",
-        "initial": "O primeiro contrato dele"
+        "initial": "O contrato de partida dele"
       },
       "renewClosedWhat": "As negociações do contrato estão encerradas. Reabre-as para o renovar.",
       "letExpireSetButton": "Definido para expirar",

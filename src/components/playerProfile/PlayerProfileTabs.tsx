@@ -45,6 +45,8 @@ interface PlayerProfileTabsProps {
   onSelectTeam?: (id: string) => void;
   /** The game's clubs: a ledger entry that names its club by id alone is named from them. */
   teams: Pick<TeamData, "id" | "name">[];
+  /** Changes when the manager's squad does (`squadStateKey`): the club-wide previews ask again. */
+  squadKey: string;
 }
 
 /** The four tabs of the profile and what each holds. */
@@ -61,6 +63,7 @@ export default function PlayerProfileTabs({
   contractRisk,
   onSelectTeam,
   teams,
+  squadKey,
 }: PlayerProfileTabsProps) {
   const { t, i18n } = useTranslation();
   const tabsId = useId();
@@ -73,13 +76,15 @@ export default function PlayerProfileTabs({
   const exactWeeklyWage =
     knowledge.visibleWage.kind === "exact" ? knowledge.visibleWage.weekly : null;
   // Asked for only while this tab is the open one: hidden tabs stay mounted, and the previews are
-  // the backend's work. They are asked again when the contract, the wage or the day changes under
-  // the sheet.
+  // the backend's work. They are asked again when the contract, the wage, the day or the club's squad
+  // changes under the sheet.
   const contractSheet = useContractSheetData({
     player,
     active: tab === "contract",
     ownsContract: isManagerOwnedProfile,
-    refreshKey: [currentDate, player.contract_end, player.wage, hasLetExpireIntent].join("|"),
+    refreshKey: [currentDate, player.contract_end, player.wage, hasLetExpireIntent, squadKey].join(
+      "|",
+    ),
   });
   const opinion =
     opinionAnswer.status === "failed" ? (

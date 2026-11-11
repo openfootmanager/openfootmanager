@@ -15,8 +15,24 @@ export function terminationBlockedBy(player: PlayerData): TerminationBlock | nul
 }
 
 /**
- * What the club-wide previews depend on, as one string. Scaffold: the real key replaces it.
+ * What the club-wide previews depend on, as one string: the club's own squad (who is in it, their
+ * wages, contract ends, injuries and loans). A signing, a release or a renewal made while the sheet
+ * is open (by the manager elsewhere, or an agent over MCP) changes it, so the wage bill and the
+ * squad-safety verdict are asked again; players at other clubs and the order of the list do not.
  */
-export function squadStateKey(_players: PlayerData[], _teamId: string | null): string {
-  return "";
+export function squadStateKey(players: PlayerData[], teamId: string | null): string {
+  if (!teamId) return "";
+  return players
+    .filter((player) => player.team_id === teamId)
+    .map((player) =>
+      [
+        player.id,
+        player.wage,
+        player.contract_end ?? "",
+        player.injury ? "injured" : "",
+        player.active_loan ? "loan" : "",
+      ].join(":"),
+    )
+    .sort()
+    .join("|");
 }

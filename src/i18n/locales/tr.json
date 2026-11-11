@@ -1889,12 +1889,12 @@
       "leavesOn": "Ayrıldığı tarih",
       "severance": "Tazminat",
       "healthyAfter": "Ayrılıştan sonra formda oyuncular",
-      "healthyValue": "{{healthy}} (ilk 11 için {{needed}} gerekir)",
+      "healthyValue": "{{healthy}} (ilk 11'de {{filled}} mevkiyi doldurur)",
       "source": {
         "renewal": "bir uzatma",
         "transfer": "bir transfer",
         "free_agent": "serbest oyuncu olarak imza",
-        "initial": "ilk sözleşmesi"
+        "initial": "başlangıç sözleşmesi"
       },
       "timeLeft": "Kalan süre",
       "wage": "Maaş",
@@ -1907,7 +1907,7 @@
         "transfer": "{{club}} kulübünden transfer",
         "transferNoClub": "Bir transfer",
         "free_agent": "Serbest oyuncu olarak imzalandı",
-        "initial": "İlk sözleşmesi"
+        "initial": "Başlangıç sözleşmesi"
       },
       "renewClosedWhat": "Sözleşme görüşmeleri kapatıldı. Uzatmak için yeniden açın.",
       "letExpireSetButton": "Bitmesi için ayarlandı",

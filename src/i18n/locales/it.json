@@ -1907,12 +1907,12 @@
       "leavesOn": "Se ne va il",
       "severance": "Buonuscita",
       "healthyAfter": "Giocatori in forma dopo la risoluzione",
-      "healthyValue": "{{healthy}} (una formazione ne richiede {{needed}})",
+      "healthyValue": "{{healthy}} (copre {{filled}} ruoli della formazione titolare)",
       "source": {
         "renewal": "un rinnovo",
         "transfer": "un trasferimento",
         "free_agent": "un ingaggio da svincolato",
-        "initial": "il suo primo contratto"
+        "initial": "il suo contratto di partenza"
       },
       "timeLeft": "Tempo rimasto",
       "wage": "Stipendio",
@@ -1925,7 +1925,7 @@
         "transfer": "Trasferito da {{club}}",
         "transferNoClub": "Un trasferimento",
         "free_agent": "Ingaggiato da svincolato",
-        "initial": "Il suo primo contratto"
+        "initial": "Il suo contratto di partenza"
       },
       "renewClosedWhat": "Le trattative per il contratto sono chiuse. Riaprile per rinnovarlo.",
       "letExpireSetButton": "Lasciato scadere",
