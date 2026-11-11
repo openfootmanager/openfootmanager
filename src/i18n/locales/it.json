@@ -333,6 +333,23 @@
     "back": "Torna alla generazione del mondo",
     "simulation": "Simulazione",
     "manageNone": "Allena",
+    "scope": {
+      "title": "Cosa simula il mondo",
+      "subtitle": "Scegli quali regioni e competizioni il gioco simula per intero. Più ce ne sono, più ogni giorno richiede tempo.",
+      "sectionStart": "1 · Da dove parti",
+      "sectionRegions": "2 · Regioni simulate",
+      "sectionCompetitions": "3 · Competizioni",
+      "regionMeta": "{{countries}} · {{clubs}} club",
+      "simulate": "Simula {{name}}",
+      "needs": "Richiede {{regions}}",
+      "add": "Aggiungi {{regions}}",
+      "groupCount": "{{on}} di {{total}}",
+      "groupSimulated": "{{on}} di {{total}} simulate",
+      "needOne": "Attiva almeno una competizione.",
+      "summary": "{{regions}} regioni · {{competitions}} competizioni simulate",
+      "clubs": "{{clubs}} club nelle regioni simulate",
+      "apply": "Applica"
+    },
     "rail": {
       "label": "Paesi e campionati",
       "countries": "Paesi"
@@ -367,18 +384,12 @@
     "failedToSelectTeam": "Selezione della squadra non riuscita: {{error}}",
     "homeRegion": "Regione di origine",
     "homeCountry": "Paese di origine",
-    "allCountries": "Tutti i paesi",
-    "simulationScope": "Ambito di simulazione",
     "otherClubs": "Altri club",
     "searchClubs": "Cerca club…",
     "clubCount": "{{n}} club",
     "noClubsMatch": "Nessun club corrisponde alla ricerca.",
-    "simulatedRegions": "Regioni simulate",
-    "simulatedCompetitions": "Competizioni simulate",
     "homeBadge": "Origine",
-    "yourClub": "il tuo club",
     "yourClubBadge": "Il tuo club",
-    "requiresRegions": "Richiede {{regions}}",
     "selectedClub": "Club selezionato",
     "formation": "Formazione",
     "overall": "Valutazione generale",
@@ -389,7 +400,6 @@
     "clubCompetitionsAlwaysSimulated": "Le competizioni del tuo club vengono sempre simulate, anche se disattivi altre regioni o tornei.",
     "selectClubPrompt": "Seleziona un club per vedere rosa e competizioni.",
     "playersCount": "{{count}} giocatori",
-    "scopeSummary": "Verranno caricate {{regionsCount}} regioni simulate e {{competitionsCount}} competizioni simulate.",
     "regionLabels": {
       "north-america": "Nord America",
       "central-america": "America Centrale",
@@ -412,13 +422,6 @@
       "InternationalClub": "Competizione internazionale per club",
       "InternationalNation": "Competizione internazionale per nazionali",
       "FriendlyCup": "Coppa amichevole"
-    },
-    "scopeMessages": {
-      "homeRegionAlwaysActive": "La tua regione giocabile resta sempre attiva.",
-      "regionRequiredByCompetition": "{{competition}} fa parte del calendario di {{club}}, quindi {{region}} deve restare attiva.",
-      "regionRemovedDisablesCompetitions": "{{region}} è stata rimossa dall'ambito di simulazione, quindi anche le competizioni dipendenti sono state disattivate.",
-      "clubCompetitionLocked": "{{competition}} è nel calendario di {{club}} e verrà sempre simulata.",
-      "autoEnabledRegions": "{{competition}} richiede {{regions}}, quindi quelle regioni sono state attivate automaticamente."
     }
   },
   "youthAcademy": {

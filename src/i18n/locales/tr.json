@@ -314,6 +314,23 @@
     "back": "Dünya oluşturmaya dön",
     "simulation": "Simülasyon",
     "manageNone": "Yönet",
+    "scope": {
+      "title": "Dünyanın simüle ettikleri",
+      "subtitle": "Oyunun hangi bölgeleri ve organizasyonları tam olarak simüle edeceğini seçin. Ne kadar çoksa her gün o kadar uzun sürer.",
+      "sectionStart": "1 · Nereden başlıyorsunuz",
+      "sectionRegions": "2 · Simüle edilen bölgeler",
+      "sectionCompetitions": "3 · Turnuvalar",
+      "regionMeta": "{{countries}} · {{clubs}} kulüp",
+      "simulate": "{{name}} simüle edilsin",
+      "needs": "{{regions}} gerekli",
+      "add": "{{regions}} ekle",
+      "groupCount": "{{on}} / {{total}}",
+      "groupSimulated": "{{total}} içinden {{on}} simüle ediliyor",
+      "needOne": "En az bir turnuvayı açın.",
+      "summary": "{{regions}} bölge · {{competitions}} turnuva simüle ediliyor",
+      "clubs": "Simüle edilen bölgelerde {{clubs}} kulüp",
+      "apply": "Uygula"
+    },
     "rail": {
       "label": "Ülkeler ve ligler",
       "countries": "Ülkeler"
@@ -348,18 +365,12 @@
     "failedToSelectTeam": "Takım seçilemedi: {{error}}",
     "homeRegion": "Ana Bölge",
     "homeCountry": "Ana Ülke",
-    "allCountries": "Tüm ülkeler",
-    "simulationScope": "Simülasyon Kapsamı",
     "otherClubs": "Diğer kulüpler",
     "searchClubs": "Kulüp ara…",
     "clubCount": "{{n}} kulüp",
     "noClubsMatch": "Aramanızla eşleşen kulüp yok.",
-    "simulatedRegions": "Simüle Edilen Bölgeler",
-    "simulatedCompetitions": "Simüle Edilen Turnuvalar",
     "homeBadge": "Ana",
-    "yourClub": "kulübünüz",
     "yourClubBadge": "Kulübünüz",
-    "requiresRegions": "{{regions}} gerektirir",
     "selectedClub": "Seçilen Kulüp",
     "formation": "Diziliş",
     "overall": "Genel",
@@ -370,7 +381,6 @@
     "clubCompetitionsAlwaysSimulated": "Diğer bölgeleri veya turnuvaları kapatsanız bile kulübünüzün turnuvaları her zaman simüle edilir.",
     "selectClubPrompt": "Kadrosunu ve turnuvalarını incelemek için bir kulüp seçin.",
     "playersCount": "{{count}} oyuncu",
-    "scopeSummary": "{{regionsCount}} simüle edilen bölge ve {{competitionsCount}} simüle edilen turnuva yüklenecek.",
     "regionLabels": {
       "north-america": "Kuzey Amerika",
       "central-america": "Orta Amerika",
@@ -393,13 +403,6 @@
       "InternationalClub": "Uluslararası Kulüp",
       "InternationalNation": "Uluslararası Millî",
       "FriendlyCup": "Hazırlık Kupası"
-    },
-    "scopeMessages": {
-      "homeRegionAlwaysActive": "Oynanabilir bölgeniz her zaman aktif kalır.",
-      "regionRequiredByCompetition": "{{competition}}, {{club}} kulübünün programında olduğu için {{region}} aktif kalmalıdır.",
-      "regionRemovedDisablesCompetitions": "{{region}} simülasyon kapsamından çıkarıldığı için ona bağlı turnuvalar da kapatıldı.",
-      "clubCompetitionLocked": "{{competition}}, {{club}} kulübünün programında yer alıyor ve her zaman simüle edilecek.",
-      "autoEnabledRegions": "{{competition}} için {{regions}} gerekli olduğundan bu bölgeler otomatik olarak etkinleştirildi."
     }
   },
   "youthAcademy": {
