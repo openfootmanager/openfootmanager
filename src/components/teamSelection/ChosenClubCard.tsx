@@ -7,6 +7,7 @@ import { competitionDisplayName } from "../../lib/competitionName";
 import { formatVal, formatWeeklyWage } from "../../lib/helpers";
 import type { ClubSquadRatings } from "../../services/teamsService";
 import type { TeamData } from "../../store/gameStore";
+import { resolveBackendText } from "../../utils/backendI18n";
 import { translatePositionAbbreviation, translatePositionLabel } from "../squad/SquadTab.helpers";
 import { EntityCard, PositionBadge, RatingChip, TeamLocation, TeamLogo } from "../ui";
 
@@ -99,7 +100,7 @@ export default function ChosenClubCard({ team, average, facts, ageOf }: ChosenCl
               <dt className="text-caption text-fg-muted">{t("teamSelect.card.boardExpects")}</dt>
               <dd className="font-semibold">
                 {facts ? (
-                  t(facts.opening_expectation.label_key)
+                  resolveBackendText(facts.opening_expectation.label_key, NOT_YET)
                 ) : (
                   <NotYet unknownLabel={t("common.unknown")} />
                 )}
@@ -108,7 +109,11 @@ export default function ChosenClubCard({ team, average, facts, ageOf }: ChosenCl
             <div className="flex flex-col gap-0.5">
               <dt className="text-caption text-fg-muted">{t("teamSelect.reputation")}</dt>
               <dd className="font-semibold">
-                {facts ? t(facts.reputation_key) : <NotYet unknownLabel={t("common.unknown")} />}
+                {facts ? (
+                  resolveBackendText(facts.reputation_key, NOT_YET)
+                ) : (
+                  <NotYet unknownLabel={t("common.unknown")} />
+                )}
               </dd>
             </div>
           </dl>

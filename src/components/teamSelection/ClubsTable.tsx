@@ -12,6 +12,7 @@ import {
 } from "../../lib/sortRows";
 import type { ClubSquadRatings } from "../../services/teamsService";
 import type { TeamData } from "../../store/gameStore";
+import { resolveBackendText } from "../../utils/backendI18n";
 import { DataTable, type DataTableColumn, RatingChip, TeamLogo } from "../ui";
 
 type ClubSortKey = "name" | "squad" | "transfers" | "wages" | "stadium";
@@ -112,7 +113,7 @@ export default function ClubsTable({
       // The word is the backend's, a translation key: no number here is judged.
       cell: (team) => {
         const key = getClubFacts(team.id)?.reputation_key;
-        return key ? t(key) : "\u2014";
+        return key ? resolveBackendText(key, "\u2014") : "\u2014";
       },
     },
     {
@@ -132,7 +133,7 @@ export default function ClubsTable({
       wrap: true,
       cell: (team) => {
         const key = getClubFacts(team.id)?.opening_expectation.label_key;
-        return key ? t(key) : "\u2014";
+        return key ? resolveBackendText(key, "\u2014") : "\u2014";
       },
     },
     {

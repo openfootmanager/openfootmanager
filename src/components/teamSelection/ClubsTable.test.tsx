@@ -5,6 +5,11 @@ import { createTeam } from "../../test-utils/factories";
 import type { ClubSquadRatings } from "../../services/teamsService";
 import ClubsTable from "./ClubsTable";
 
+// The backend's keys are resolved by `resolveBackendText`; here a key reads as itself.
+vi.mock("../../utils/backendI18n", () => ({
+  resolveBackendText: (key: string | undefined, fallback: string) => key ?? fallback,
+}));
+
 vi.mock("react-i18next", () => ({
   initReactI18next: { type: "3rdParty", init: () => {} },
   useTranslation: () => ({
@@ -114,11 +119,12 @@ describe("ClubsTable", () => {
       "Alpha FC",
       "Charlie Rovers",
     ]);
-    expect(
-      within(
-        screen.getByRole("button", { name: "Charlie Rovers" }).closest("tr") as HTMLElement,
-      ).getByText("—"),
-    ).toBeInTheDocument();
+    // His row has no rating chip and reads dashes (his facts have not come either), not a zero.
+    const charlie = within(
+      screen.getByRole("button", { name: "Charlie Rovers" }).closest("tr") as HTMLElement,
+    );
+    expect(charlie.queryByTitle(/common\.overallRating/)).toBeNull();
+    expect(charlie.getAllByText("—").length).toBeGreaterThan(0);
   });
 
   /**
@@ -157,7 +163,7 @@ describe("ClubsTable", () => {
       screen.getByRole("button", { name }).closest("tr") as HTMLElement;
     expect(rowOf("Alpha FC")).toHaveTextContent("teamSelect.repAverage");
     expect(rowOf("Alpha FC")).toHaveTextContent("teamSelect.expectations.midTable");
-    expect(rowOf("Alpha FC")).toHaveTextContent(/150K\/wk$|\/wk/);
+    expect(rowOf("Alpha FC")).toHaveTextContent("150K/wk");
     expect(rowOf("Alpha FC")).not.toHaveTextContent(/week/i);
     expect(rowOf("Northbridge Athletic Football and Athletics Club")).toHaveTextContent(
       "teamSelect.repStrong",
