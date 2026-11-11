@@ -32,6 +32,8 @@
     "common.ratingTier.B"
   ],
   "de": [
+    "teamSelect.simulation",
+    "teamSelect.table.transfers",
     "settings.sidebarBehaviourOptions.normal",
     "settings.sidebarWidthOptions.standard",
     "match.formationFit",
@@ -144,6 +146,10 @@
     "packageBuild.patches"
   ],
   "fr": [
+    "teamSelect.steps.club",
+    "teamSelect.simulation",
+    "teamSelect.table.label",
+    "teamSelect.table.club",
     "settings.sidebarBehaviourOptions.normal",
     "settings.sidebarWidthOptions.standard",
     "match.formationFit",
@@ -270,6 +276,8 @@
     "worldEditor.estimatedRating"
   ],
   "it": [
+    "teamSelect.steps.club",
+    "teamSelect.table.club",
     "settings.sidebarWidthOptions.standard",
     "nations.ru",
     "nations.sn",
@@ -340,6 +348,8 @@
     "teamSelect.regionLabels.africa"
   ],
   "es": [
+    "teamSelect.steps.club",
+    "teamSelect.table.club",
     "settings.sidebarBehaviourOptions.normal",
     "nations.pt",
     "nations.cn",

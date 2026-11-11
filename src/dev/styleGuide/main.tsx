@@ -4,7 +4,11 @@ import ReactDOM from "react-dom/client";
 import "../../App.css";
 import { ThemeProvider } from "../../context/ThemeContext";
 import { i18nReady } from "../../i18n";
-import { readHarnessLanguage, readHarnessPage } from "../pageHarness/harnessPage";
+import {
+  readHarnessLanguage,
+  readHarnessPage,
+  readHarnessProfile,
+} from "../pageHarness/harnessPage";
 import { StyleGuide } from "./StyleGuide";
 import {
   applyStyleGuideOptions,
@@ -22,7 +26,13 @@ if (rootElement && page) {
   void i18nReady
     .then(() => import("../pageHarness/mount"))
     .then(({ mountPageHarness }) =>
-      mountPageHarness(rootElement, page, options, readHarnessLanguage(window.location.search)),
+      mountPageHarness(
+        rootElement,
+        page,
+        options,
+        readHarnessLanguage(window.location.search),
+        readHarnessProfile(window.location.search),
+      ),
     );
 } else if (rootElement) {
   void i18nReady.then(() => {

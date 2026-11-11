@@ -29,6 +29,12 @@ const WINDOWS = [
 const PAGES = ["home", "squad", "players", "teams", "managers", "staff"];
 
 /**
+ * The player profile, which looks different for each way the club can know a player (HARNESS_PROFILES
+ * in the same file; a test holds them equal): measured in each, at every window.
+ */
+const PROFILES = ["own", "rival", "scouted", "unknown", "retired"];
+
+/**
  * The lists whose cards draw on the shared card shell, measured in their cards view too: a card that
  * lets its contents out stretches the page, as the cards' screen-reader text did before the card
  * was positioned.
@@ -39,6 +45,9 @@ const CARD_WINDOWS = WINDOWS.filter((window) => window.scale === "normal" && win
 /** Every page at every window; `page: undefined` is the style guide itself. */
 export const CASES = [
   ...[undefined, ...PAGES].flatMap((page) => WINDOWS.map((window) => ({ page, ...window }))),
+  ...PROFILES.flatMap((player) =>
+    WINDOWS.map((window) => ({ page: "profile", player, ...window })),
+  ),
   ...CARD_VIEWS.flatMap((page) =>
     CARD_WINDOWS.map((window) => ({ page, view: "cards", ...window })),
   ),
@@ -181,9 +190,10 @@ const MEASURE = `(async () => {
   });
 })()`;
 
-function caseUrl(base, { page, view, scale, lang }) {
+function caseUrl(base, { page, player, view, scale, lang }) {
   const query = new URLSearchParams({ theme: "light", scale, lang });
   if (page) query.set("page", page);
+  if (player) query.set("player", player);
   if (view) query.set("view", view);
   return `${base}/style-guide.html?${query}`;
 }
@@ -293,7 +303,7 @@ async function main(base) {
         console.log(`fonts loaded: ${measured.loadedFaces.join(", ")}`);
       }
       const problems = judge({ ...measured, page: testCase.page });
-      const label = `${testCase.page ?? "style guide"}${testCase.view ? ` (${testCase.view})` : ""} ${testCase.width}×${testCase.height} ${testCase.scale} ${testCase.lang}`;
+      const label = `${testCase.page ?? "style guide"}${testCase.player ? ` (${testCase.player})` : ""}${testCase.view ? ` (${testCase.view})` : ""} ${testCase.width}×${testCase.height} ${testCase.scale} ${testCase.lang}`;
       console.log(
         `${problems.length === 0 ? "ok  " : "FAIL"} ${label}${problems.length ? `: ${problems.join("; ")}` : ""}`,
       );

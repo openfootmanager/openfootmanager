@@ -299,10 +299,43 @@
     }
   },
   "teamSelect": {
-    "title": "Choose Your Club",
+    "title": "Choose your club",
     "subtitle": "Select the team you want to manage",
     "confirming": "Confirming...",
     "manage": "Manage {{name}}",
+    "steps": {
+      "label": "New career steps",
+      "manager": "Manager",
+      "world": "World",
+      "generation": "Generation",
+      "club": "Club",
+      "done": "completed"
+    },
+    "back": "Back to world generation",
+    "simulation": "Simulation",
+    "manageNone": "Manage",
+    "rail": {
+      "label": "Countries and leagues",
+      "countries": "Countries"
+    },
+    "table": {
+      "label": "Clubs",
+      "club": "Club",
+      "transfers": "Transfers",
+      "wages": "Wages / wk",
+      "stadium": "Stadium"
+    },
+    "card": {
+      "label": "Chosen club",
+      "emptyTitle": "No club chosen yet",
+      "emptyHint": "Pick a club from the list to see its squad, budgets and what the board expects.",
+      "boardExpects": "Board expects",
+      "transferBudget": "Transfer budget",
+      "wageBudget": "Wage budget",
+      "balance": "Balance",
+      "stadium": "Stadium",
+      "founded": "founded {{year}}"
+    },
     "reputation": "Reputation",
     "squad": "Squad",
     "finances": "Finances",
