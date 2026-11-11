@@ -317,7 +317,7 @@
     "scope": {
       "title": "Apa yang disimulasikan dunia",
       "subtitle": "Pilih wilayah dan kompetisi yang disimulasikan penuh oleh game. Semakin banyak, semakin lama setiap harinya.",
-      "sectionStart": "1 · Tempat Anda mulai",
+      "sectionStart": "1 · Tempat kamu mulai",
       "sectionRegions": "2 · Wilayah yang disimulasikan",
       "sectionCompetitions": "3 · Kompetisi",
       "regionMeta": "{{countries}} · {{clubs}} klub",
@@ -325,6 +325,7 @@
       "needs": "Butuh {{regions}}",
       "add": "Tambah {{regions}}",
       "groupCount": "{{on}} dari {{total}}",
+      "groupSimulated": "{{on}} dari {{total}} disimulasikan",
       "summary": "{{regions}} wilayah · {{competitions}} kompetisi disimulasikan",
       "clubs": "{{clubs}} klub di wilayah yang disimulasikan",
       "apply": "Terapkan"

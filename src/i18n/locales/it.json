@@ -344,6 +344,7 @@
       "needs": "Richiede {{regions}}",
       "add": "Aggiungi {{regions}}",
       "groupCount": "{{on}} di {{total}}",
+      "groupSimulated": "{{on}} di {{total}} simulate",
       "summary": "{{regions}} regioni · {{competitions}} competizioni simulate",
       "clubs": "{{clubs}} club nelle regioni simulate",
       "apply": "Applica"

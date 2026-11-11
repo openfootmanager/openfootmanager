@@ -1,4 +1,5 @@
 import type { LeagueData, TeamData, WorldRegionData } from "../../store/gameStore";
+import { SCOPE_ORDER } from "../tournaments/CompetitionsOverview";
 
 /**
  * The regions a competition needs simulated: those it names, and its own region for a domestic or
@@ -104,9 +105,6 @@ export function enabledCompetitionIds(
     .map((competition) => competition.id);
 }
 
-/** The order the dialog lists competitions in; a scope it does not know follows them. */
-const SCOPE_ORDER = ["Domestic", "Regional", "Continental", "International"];
-
 export interface CompetitionGroup {
   scope: string;
   competitions: LeagueData[];
@@ -120,7 +118,7 @@ export function groupCompetitions(competitions: readonly LeagueData[]): Competit
     byScope.set(scope, [...(byScope.get(scope) ?? []), competition]);
   }
   const rank = (scope: string) => {
-    const index = SCOPE_ORDER.indexOf(scope);
+    const index = (SCOPE_ORDER as readonly string[]).indexOf(scope);
     return index === -1 ? SCOPE_ORDER.length : index;
   };
   return Array.from(byScope.entries())

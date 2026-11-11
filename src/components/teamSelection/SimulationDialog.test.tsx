@@ -116,6 +116,8 @@ describe("SimulationDialog", () => {
     expect(home).toBeChecked();
     expect(home).toBeDisabled();
     expect(screen.getByText("teamSelect.homeBadge")).toBeInTheDocument();
+    // The lock's reason is the switch's description, not a chip beside it.
+    expect(home).toHaveAccessibleDescription("teamSelect.homeBadge");
     const western = screen.getByRole("switch", { name: "Western Europe" });
     expect(western).not.toBeChecked();
     expect(western).toBeEnabled();
@@ -137,6 +139,12 @@ describe("SimulationDialog", () => {
     });
     expect(german).toBeDisabled();
     expect(german).not.toBeChecked();
+    // What it needs is its description, so a screen reader hears why it is unavailable.
+    expect(german).toHaveAccessibleDescription(/teamSelect.scope.needs/);
+    // Each "Add" says which competition it unblocks.
+    expect(
+      screen.getAllByRole("button", { name: /teamSelect.scope.add/ })[0],
+    ).toHaveAccessibleDescription(/German First Division|Continental Cup/);
     expect(screen.getAllByText(/teamSelect.scope.needs/).length).toBeGreaterThan(0);
 
     fireEvent.click(screen.getAllByRole("button", { name: /teamSelect.scope.add/ })[0]);
@@ -166,6 +174,7 @@ describe("SimulationDialog", () => {
     });
     expect(league).toBeChecked();
     expect(league).toBeDisabled();
+    expect(league).toHaveAccessibleDescription("teamSelect.yourClubBadge");
     expect(screen.getAllByText("teamSelect.yourClubBadge").length).toBeGreaterThanOrEqual(3);
   });
 
@@ -239,7 +248,8 @@ describe("SimulationDialog", () => {
     // Scandinavia only: SE1 and SE3 are simulated; DE1 and the cup (needing Western Europe) are not.
     expect(screen.getByText("teamSelect.scope.summary:1/2")).toBeInTheDocument();
     expect(screen.getByText("teamSelect.scope.clubs:2")).toBeInTheDocument();
-    const domestic = screen.getByRole("region", { name: "teamSelect.scopes.Domestic" });
+    expect(screen.getByRole("heading", { name: "Domestic" })).toBeInTheDocument();
+    const domestic = screen.getByRole("region", { name: "Domestic" });
     expect(within(domestic).getByText("teamSelect.scope.groupCount:2/3")).toBeInTheDocument();
   });
 });

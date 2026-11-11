@@ -325,6 +325,7 @@
       "needs": "Necesita {{regions}}",
       "add": "Añadir {{regions}}",
       "groupCount": "{{on}} de {{total}}",
+      "groupSimulated": "{{on}} de {{total}} simuladas",
       "summary": "{{regions}} regiones · {{competitions}} competiciones simuladas",
       "clubs": "{{clubs}} clubes en las regiones simuladas",
       "apply": "Aplicar"

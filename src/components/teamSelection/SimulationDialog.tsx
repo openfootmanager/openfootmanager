@@ -33,10 +33,13 @@ interface SimulationDialogProps {
 
 const SECTION_TITLE = "font-heading text-lead font-semibold uppercase tracking-label text-fg-muted";
 
-function LockChip({ lock }: { lock: RegionLock }) {
+function LockChip({ lock, id }: { lock: RegionLock; id: string }) {
   const { t } = useTranslation();
   return (
-    <span className="inline-flex h-5 items-center gap-1 rounded-md bg-info-tint px-2 text-caption font-semibold text-info">
+    <span
+      id={id}
+      className="inline-flex h-5 items-center gap-1 rounded-md bg-info-tint px-2 text-caption font-semibold text-info"
+    >
       <Lock aria-hidden="true" className="size-3" />
       {lock === "home" ? t("teamSelect.homeBadge") : t("teamSelect.yourClubBadge")}
     </span>
@@ -82,7 +85,7 @@ export default function SimulationDialog({
     if (!focusCompetitionId) return;
     document.getElementById(checkboxId(focusCompetitionId))?.focus();
     setFocusCompetitionId(null);
-  });
+  }, [focusCompetitionId]);
 
   function setHomeRegion(regionId: string) {
     const region = regions.find((candidate) => candidate.id === regionId);
@@ -135,7 +138,7 @@ export default function SimulationDialog({
         <DialogCloseButton onClose={onCancel} />
       </div>
 
-      <div className="grid min-h-0 flex-1 grid-cols-1 overflow-auto md:grid-cols-[21rem_minmax(0,1fr)] md:overflow-hidden">
+      <div className="grid min-h-0 flex-1 grid-cols-1 overflow-auto md:grid-cols-[21rem_minmax(0,1fr)] md:grid-rows-[minmax(0,1fr)] md:overflow-hidden">
         <div className="flex flex-col gap-5 border-b border-line p-5 md:overflow-auto md:border-b-0 md:border-r">
           <section className="flex flex-col gap-2.5">
             <h3 className={SECTION_TITLE}>{t("teamSelect.scope.sectionStart")}</h3>
@@ -186,6 +189,7 @@ export default function SimulationDialog({
                   >
                     <Switch
                       labelledBy={nameId}
+                      describedBy={lock ? `${nameId}-lock` : undefined}
                       checked={active.has(region.id)}
                       disabled={lock !== undefined}
                       onChange={(on) => setRegionOn(region.id, on)}
@@ -203,7 +207,7 @@ export default function SimulationDialog({
                         })}
                       </span>
                     </span>
-                    {lock ? <LockChip lock={lock} /> : null}
+                    {lock ? <LockChip lock={lock} id={`${nameId}-lock`} /> : null}
                   </li>
                 );
               })}
@@ -220,24 +224,33 @@ export default function SimulationDialog({
               const states = group.competitions.map((competition) =>
                 competitionState(competition, draft, yourIds, active),
               );
+              const groupId = `${idBase}-group-${group.scope}`;
+              const groupName = t(`teamSelect.scopes.${group.scope}`, {
+                defaultValue: group.scope,
+              });
+              const counts = {
+                on: states.filter((state) => state.on).length,
+                total: states.length,
+              };
               return (
-                <section key={group.scope} aria-label={t(`teamSelect.scopes.${group.scope}`)}>
+                <section key={group.scope} aria-labelledby={groupId}>
                   <div className="flex h-8 items-center justify-between border-y border-line bg-sunken px-3 text-caption font-bold uppercase tracking-label text-fg-muted">
-                    <span>
-                      {t(`teamSelect.scopes.${group.scope}`, { defaultValue: group.scope })}
+                    <h4 id={groupId}>{groupName}</h4>
+                    <span
+                      aria-hidden="true"
+                      className="font-semibold normal-case tracking-normal tabular-nums"
+                    >
+                      {t("teamSelect.scope.groupCount", counts)}
                     </span>
-                    <span className="font-semibold normal-case tracking-normal tabular-nums">
-                      {t("teamSelect.scope.groupCount", {
-                        on: states.filter((state) => state.on).length,
-                        total: states.length,
-                      })}
-                    </span>
+                    <span className="sr-only">{t("teamSelect.scope.groupSimulated", counts)}</span>
                   </div>
                   <ul>
                     {group.competitions.map((competition, index) => {
                       const state = states[index];
                       const name = competitionDisplayName(competition, t);
                       const missing = state.missingRegionIds.map(regionLabel).join(", ");
+                      const nameId = `${checkboxId(competition.id)}-name`;
+                      const reasonId = `${checkboxId(competition.id)}-reason`;
                       return (
                         <li
                           key={competition.id}
@@ -248,6 +261,7 @@ export default function SimulationDialog({
                             checked={state.on}
                             disabled={state.yours || state.blocked}
                             aria-label={t("teamSelect.scope.simulate", { name })}
+                            aria-describedby={state.yours || state.blocked ? reasonId : undefined}
                             onChange={() =>
                               setDraft((current) => ({
                                 ...current,
@@ -260,18 +274,28 @@ export default function SimulationDialog({
                           />
                           <span className="flex min-w-0 flex-1 flex-col gap-0.5">
                             <span className="flex flex-wrap items-center gap-2">
-                              <span className="font-semibold">{name}</span>
+                              {/* The name toggles the box too, as a label does. */}
+                              <label
+                                id={nameId}
+                                htmlFor={checkboxId(competition.id)}
+                                className="font-semibold"
+                              >
+                                {name}
+                              </label>
                               <span className="inline-flex h-5 items-center rounded-md border border-line bg-sunken px-2 text-caption font-semibold text-fg-muted">
                                 {whereOf(competition)}
                               </span>
-                              {state.yours ? <LockChip lock="yourClub" /> : null}
+                              {state.yours ? <LockChip lock="yourClub" id={reasonId} /> : null}
                             </span>
                             {state.blocked ? (
                               <span className="flex flex-wrap items-center gap-1.5 text-caption text-warning">
                                 <AlertTriangle aria-hidden="true" className="size-3.5" />
-                                {t("teamSelect.scope.needs", { regions: missing })}
+                                <span id={reasonId}>
+                                  {t("teamSelect.scope.needs", { regions: missing })}
+                                </span>
                                 <button
                                   type="button"
+                                  aria-describedby={nameId}
                                   onClick={() =>
                                     addMissingRegions(competition, state.missingRegionIds)
                                   }

@@ -5,6 +5,22 @@ import { Switch } from "./Switch";
 
 describe("Switch", () => {
   /**
+   * Given a switch that cannot be changed, with the text that says why beside it
+   * When a screen reader reaches it
+   * Then the reason is its description, read after its name.
+   */
+  it("is described by the text that says why it is locked", () => {
+    render(
+      <>
+        <p id="home">Europe</p>
+        <p id="why">Home</p>
+        <Switch labelledBy="home" describedBy="why" checked disabled onChange={vi.fn()} />
+      </>,
+    );
+    expect(screen.getByRole("switch", { name: "Europe" })).toHaveAccessibleDescription("Home");
+  });
+
+  /**
    * Given a setting that is on, named by its visible label
    * When a screen reader reaches it
    * Then it is a switch with that name, announced as on.

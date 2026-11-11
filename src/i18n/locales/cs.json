@@ -325,6 +325,7 @@
       "needs": "Potřebuje: {{regions}}",
       "add": "Přidat: {{regions}}",
       "groupCount": "{{on}} z {{total}}",
+      "groupSimulated": "Simulováno {{on}} z {{total}}",
       "summary": "Regionů: {{regions}} · simulovaných soutěží: {{competitions}}",
       "clubs": "Klubů v simulovaných regionech: {{clubs}}",
       "apply": "Použít"

@@ -325,6 +325,7 @@
       "needs": "需要{{regions}}",
       "add": "添加{{regions}}",
       "groupCount": "{{on}} / {{total}}",
+      "groupSimulated": "已模拟 {{on}} / {{total}}",
       "summary": "模拟 {{regions}} 个地区 · {{competitions}} 项赛事",
       "clubs": "模拟地区内共有 {{clubs}} 家俱乐部",
       "apply": "应用"
