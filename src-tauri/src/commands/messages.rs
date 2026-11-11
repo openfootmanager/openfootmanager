@@ -224,16 +224,19 @@ pub fn resolve_message_action_internal(
                 Some(action) if action.resolved => {
                     return Err("be.error.actionAlreadyResolved".to_string());
                 }
-                // A choice is answered by one of its options: resolving it with none would close it
-                // without signing, declining or applying anything, and a later valid answer would
-                // find it resolved.
-                Some(action)
-                    if option_id.is_none()
-                        && matches!(action.action_type, ActionType::ChooseOption { .. }) =>
-                {
-                    return Err("be.error.actionOptionRequired".to_string());
+                // A choice is answered by one of its own options. With none, the plain branch would close
+                // it without signing, declining or applying anything and a later valid answer would
+                // find it resolved; with an option it does not offer, every handler would ignore it and
+                // the call would succeed having done nothing.
+                Some(action) => {
+                    if let ActionType::ChooseOption { options } = &action.action_type {
+                        let offered = option_id
+                            .is_some_and(|id| options.iter().any(|option| option.id == id));
+                        if !offered {
+                            return Err("be.error.actionOptionRequired".to_string());
+                        }
+                    }
                 }
-                Some(_) => {}
             }
             // Try to apply player conversation or random event response
             let (effect, effect_i18n_key, effect_i18n_params) = if let Some(opt) = option_id {
@@ -1245,5 +1248,41 @@ mod tests {
             .expect("game");
         assert!(still_open, "the offer is still pending");
         assert_eq!(resolve(Some("accept")), Ok(()));
+    }
+
+    /// Given a sponsor offer, a choice between "accept" and "decline"
+    /// When an agent answers with an option the action does not offer ("typo")
+    /// Then it is refused, rather than succeeding with no effect, and the offer stays pending so a
+    ///      later valid answer works: every handler would ignore an unknown option.
+    #[test]
+    fn a_choice_resolved_with_an_option_it_does_not_offer_is_refused_and_stays_open() {
+        let state = StateManager::new();
+        let mut game = make_game();
+        game.messages = vec![choice_message("sponsor_2026-08-20", &["accept", "decline"])];
+        state.set_game(game);
+        let resolve = |option: &str| {
+            resolve_message_action_internal(
+                &state,
+                Career::Active,
+                "sponsor_2026-08-20",
+                "action-sponsor_2026-08-20",
+                Some(option),
+            )
+            .map(|_| ())
+        };
+
+        let typo = resolve("typo");
+
+        assert_eq!(typo, Err("be.error.actionOptionRequired".to_string()));
+        let still_open = state
+            .get_game(|game| {
+                (
+                    !game.messages[0].actions[0].resolved,
+                    game.teams[0].sponsorship.is_none(),
+                )
+            })
+            .expect("game");
+        assert_eq!(still_open, (true, true), "pending, and no deal signed");
+        assert_eq!(resolve("accept"), Ok(()));
     }
 }
