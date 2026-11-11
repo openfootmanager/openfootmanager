@@ -4,6 +4,13 @@ import { describe, expect, it, vi } from "vitest";
 import WorldsTable from "./WorldsTable";
 import type { WorldRow } from "./worldRows";
 
+// The backend's reason is resolved by `resolveBackendText`; here it is named by its key, so the test
+// sees which reason the table asked for.
+vi.mock("../../../utils/backendI18n", () => ({
+  resolveBackendText: (key: string | undefined, fallback: string) =>
+    key ? `reason:${key}` : fallback,
+}));
+
 vi.mock("react-i18next", () => ({
   initReactI18next: { type: "3rdParty", init: () => {} },
   useTranslation: () => ({
@@ -109,9 +116,10 @@ describe("WorldsTable", () => {
       "/w/nordic",
       "/p/nordic.ofm",
     ]);
-    // The chip says it, and a line under the folder says why (here the resolver has no catalogue, so
-    // the reason is its fallback): visible whatever the table's width, not a tooltip.
-    expect(screen.getAllByText("worldEditor.home.unreadable")).toHaveLength(2);
+    // The chip says it, and a line under the folder says why: visible whatever the table's width,
+    // not a tooltip.
+    expect(screen.getByText("worldEditor.home.unreadable")).toBeInTheDocument();
+    expect(screen.getByText("reason:be.error.package.notAProjectDirectory")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "worldEditor.home.openNamed:gone" })).toBeEnabled();
   });
 
