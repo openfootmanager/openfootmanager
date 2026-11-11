@@ -140,7 +140,7 @@ describe("PlayerProfileTerminationModal", () => {
    *      its own text colour, which would otherwise win over one set on the button
    */
   it("keeps the confirm label in the danger colour, enabled or disabled", () => {
-    const { unmount } = (renderModal(), { unmount: () => undefined });
+    renderModal();
     const enabled = screen.getByText("Terminate Contract", { selector: "span" });
     expect(enabled).toHaveClass("text-danger");
     expect(enabled.closest("button")).toBeEnabled();
@@ -150,6 +150,5 @@ describe("PlayerProfileTerminationModal", () => {
     const disabled = screen.getByText("Terminate Contract", { selector: "span" });
     expect(disabled).toHaveClass("text-danger");
     expect(disabled.closest("button")).toBeDisabled();
-    unmount();
   });
 });

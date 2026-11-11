@@ -220,6 +220,9 @@ export function profileCase(variant: HarnessProfile): ProfileCase {
     case "loaned":
       return {
         ...ownCase(loaned),
+        // The coaches watch a player the club has loaned out no longer, so no opinion of him
+        // (`player_knowledge::trains_with_club_since`).
+        opinion: null,
         // On loan from the user's club to a rival: the profile's loan banner.
         playerPatch: {
           team_id: rival.team_id,

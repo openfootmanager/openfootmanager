@@ -248,8 +248,8 @@ window the game opens at) and 960×640 (its minimum).
   - `?page=profile` opens a player's profile, and `&player=` picks how the club knows him: `own`
     (default), `keeper` (the club's own goalkeeper, for the Goalkeeping column), `rival` (a division rival), `scouted` (a scout's report), `injured` or `loaned` (the club's own players with an injury, or on loan to a rival, for the banners), `unknown` or `retired`
     (`HARNESS_PROFILES`). The answers follow `ofm_core::player_knowledge` (`profileCases.ts`): a
-    rival's wage is hidden, a scouted player's rounded, a stranger's public facts only. Only the own
-    players (`own`, `keeper`) have a season (five matches, stats in every cell); the others show the empty sections, so
+    rival's wage is hidden, a scouted player's rounded, a stranger's public facts only. Only the club's own
+    players (`own`, `keeper`, `injured`, `loaned`) have a season (five matches, stats in every cell); the others show the empty sections, so
     the check has not measured them populated. The layout check measures each profile case.
   - The career is `src/dev/pageHarness/fixture.generated.ts`: one eight-club league from a fixed
     seed, begun the way the app begins one, plus each command's answer for it. A command that

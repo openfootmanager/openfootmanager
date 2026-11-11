@@ -115,7 +115,7 @@ export function getRenewalStatusClassName(renewalStatus: RenewalStatus): string 
   }
 
   if (renewalStatus === "counter_offer") {
-    return "text-accent-600 dark:text-accent-400";
+    return "text-warning";
   }
 
   return "text-fg-muted";
