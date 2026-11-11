@@ -190,6 +190,39 @@ describe("TeamCombobox", () => {
   });
 });
 
+describe("TeamCombobox: composition and empty results", () => {
+  /**
+   * Given an IME composition in progress in the search field (Enter confirms the composed text)
+   * When Enter arrives with isComposing set, or the legacy keyCode 229
+   * Then it does not pick the active club
+   */
+  it("ignores Enter while a composition is in progress", () => {
+    const { onChange } = renderCombobox();
+    openIt();
+
+    fireEvent.keyDown(search(), { key: "Enter", isComposing: true });
+    fireEvent.keyDown(search(), { key: "Enter", keyCode: 229 });
+
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
+  /**
+   * Given a search that matches nothing
+   * When the search field is read
+   * Then the listbox it controls is still in the page (empty), and "no results" is announced as status
+   */
+  it("keeps the listbox its aria-controls names when nothing matches", () => {
+    renderCombobox();
+    openIt();
+
+    fireEvent.change(search(), { target: { value: "zzz" } });
+
+    const listbox = screen.getByRole("listbox");
+    expect(search().getAttribute("aria-controls")).toBe(listbox.id);
+    expect(screen.getByRole("status")).toHaveTextContent("teams.noResults");
+  });
+});
+
 describe("TeamCombobox with a very long list", () => {
   // jsdom lays nothing out: the fixture gives the listbox's scroller its 12rem (192 px) height.
   let restoreGeometry: () => void;
@@ -289,5 +322,26 @@ describe("TeamCombobox with a very long list", () => {
       expect(screen.getByRole("option", { name: "No club" })).toBeInTheDocument(),
     );
     expect(scroller.scrollTop).toBe(0);
+  });
+
+  /**
+   * Given option 0 active (the search field's aria-activedescendant names it)
+   * When the list is scrolled by hand far away from it
+   * Then option 0 is still in the page: the id the field names always names an element
+   */
+  it("keeps the active option mounted while the list is scrolled by hand", async () => {
+    renderCombobox(many());
+    openIt();
+    const scroller = screen.getByRole("listbox").parentElement as HTMLElement;
+    const activeId = search().getAttribute("aria-activedescendant") as string;
+    expect(document.getElementById(activeId)).not.toBeNull();
+
+    scroller.scrollTop = 300 * 36;
+    fireEvent.scroll(scroller);
+    await waitFor(() =>
+      expect(screen.getByRole("option", { name: "Team 300" })).toBeInTheDocument(),
+    );
+
+    expect(document.getElementById(activeId)).not.toBeNull();
   });
 });

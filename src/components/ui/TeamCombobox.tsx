@@ -142,33 +142,35 @@ export function TeamCombobox({ label, value, options, onChange, placeholder }: T
                 className="w-full rounded-md border border-line bg-sunken px-3 py-1.5 text-body text-fg outline-none placeholder:text-fg-subtle focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 focus-visible:ring-offset-page"
               />
             </div>
-            {rows.length === 0 ? (
-              <p className="px-3 py-2 text-caption text-fg-subtle">{t("teams.noResults")}</p>
-            ) : (
-              <VirtualListbox
-                id={listboxId}
-                aria-label={label}
-                items={rows}
-                rowHeightRem={OPTION_HEIGHT_REM}
-                maxHeight="12rem"
-                activeIndex={active}
-                resetKey={search}
-                itemKey={(row) => row.id}
-                isSelected={(row) => value === row.id}
-                onPick={(row) => select(row.id)}
-                optionClassName={({ active: isActive, selected: isSelected }) =>
-                  `flex items-center justify-between px-3 text-body transition-colors ${isSelected ? "bg-selected-tint text-selected" : "text-fg hover:bg-hover"} ${isActive ? "ring-2 ring-inset ring-focus" : ""}`
-                }
-                renderOption={(row) => (
-                  <>
-                    <span className="truncate" title={row.label}>
-                      {row.label}
-                    </span>
-                    {value === row.id && <Check className="h-4 w-4 flex-shrink-0 text-selected" />}
-                  </>
-                )}
-              />
+            {rows.length === 0 && (
+              <p role="status" className="px-3 py-2 text-caption text-fg-subtle">
+                {t("teams.noResults")}
+              </p>
             )}
+            {/* Mounted even when empty: the search field's aria-controls names it. */}
+            <VirtualListbox
+              id={listboxId}
+              aria-label={label}
+              items={rows}
+              rowHeightRem={OPTION_HEIGHT_REM}
+              maxHeight="12rem"
+              activeIndex={active}
+              resetKey={search}
+              itemKey={(row) => row.id}
+              isSelected={(row) => value === row.id}
+              onPick={(row) => select(row.id)}
+              optionClassName={({ active: isActive, selected: isSelected }) =>
+                `flex items-center justify-between px-3 text-body transition-colors ${isSelected ? "bg-selected-tint text-selected" : "text-fg hover:bg-hover"} ${isActive ? "ring-2 ring-inset ring-focus" : ""}`
+              }
+              renderOption={(row) => (
+                <>
+                  <span className="truncate" title={row.label}>
+                    {row.label}
+                  </span>
+                  {value === row.id && <Check className="h-4 w-4 flex-shrink-0 text-selected" />}
+                </>
+              )}
+            />
           </div>
         )}
       </div>

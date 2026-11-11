@@ -61,6 +61,7 @@ export function VirtualListbox<T>({
   const rowHeight = rowHeightRem * useRootFontPx();
   const listRef = useRef<HTMLDivElement>(null);
   const scrollerRef = useRef<HTMLDivElement>(null);
+  const active = count > 0 ? Math.min(activeIndex, count - 1) : -1;
   const { range } = useVirtualWindow({
     count,
     step: rowHeight,
@@ -68,10 +69,12 @@ export function VirtualListbox<T>({
     overscan: 4,
     listRef,
     ownScrollerRef: scrollerRef,
-    revealIndex: count > 0 ? Math.min(activeIndex, count - 1) : null,
+    revealIndex: active >= 0 ? active : null,
     resetKey,
   });
-  const indexes = renderedIndexes(range, count, -1);
+  // The active option stays in the page even when the user scrolls away from it by hand: the search
+  // field's aria-activedescendant names it, and that id must always name an element.
+  const indexes = renderedIndexes(range, count, active);
 
   return (
     <div

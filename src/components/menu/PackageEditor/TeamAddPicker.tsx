@@ -25,6 +25,7 @@ export function TeamAddPicker({ teams, taken, onAdd }: TeamAddPickerProps) {
   const { t } = useTranslation();
   const listboxId = useId();
   const rootRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
   const [isOpen, setIsOpen] = useState(false);
   const [search, setSearch] = useState("");
 
@@ -49,20 +50,27 @@ export function TeamAddPicker({ teams, taken, onAdd }: TeamAddPickerProps) {
     return () => document.removeEventListener("mousedown", handleClick);
   }, [isOpen]);
 
+  // The search field is gone once the list closes: focus goes back to the button that opened it.
+  function close() {
+    setIsOpen(false);
+    triggerRef.current?.focus();
+  }
+
   function add(teamId: string) {
     onAdd(teamId);
-    setIsOpen(false);
+    close();
   }
 
   const { active, setActive, onKeyDown } = useListboxKeys({
     count: available.length,
     onPick: (index) => add(available[index].id),
-    onEscape: () => setIsOpen(false),
+    onEscape: close,
   });
 
   return (
     <div className="relative" ref={rootRef}>
       <button
+        ref={triggerRef}
         type="button"
         disabled={!anyLeft && !isOpen}
         onClick={() => {
@@ -101,39 +109,41 @@ export function TeamAddPicker({ teams, taken, onAdd }: TeamAddPickerProps) {
               className="w-full rounded-md border border-gray-200 dark:border-navy-600 bg-gray-50 dark:bg-navy-800 px-3 py-1.5 text-sm text-gray-900 dark:text-white outline-none focus:border-primary-500 placeholder:text-gray-400 dark:placeholder:text-gray-500"
             />
           </div>
-          {available.length === 0 ? (
-            <p className="px-3 py-2 text-caption text-gray-400 dark:text-gray-500 italic">
+          {available.length === 0 && (
+            <p
+              role="status"
+              className="px-3 py-2 text-caption text-gray-400 dark:text-gray-500 italic"
+            >
               {t("menu.noResults")}
             </p>
-          ) : (
-            <VirtualListbox
-              id={listboxId}
-              aria-label={t("worldEditor.searchTeams")}
-              items={available}
-              rowHeightRem={OPTION_HEIGHT_REM}
-              maxHeight="12rem"
-              activeIndex={active}
-              resetKey={search}
-              itemKey={(team) => team.id}
-              isSelected={() => false}
-              onPick={(team) => add(team.id)}
-              optionClassName={({ active: isActive }) =>
-                `flex items-center gap-2 px-3 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-navy-600 text-left ${isActive ? "bg-gray-50 dark:bg-navy-600 ring-2 ring-inset ring-focus" : ""}`
-              }
-              renderOption={(team) => (
-                <>
-                  <span className="flex-1 truncate" title={team.name || team.id}>
-                    {team.name || team.id}
-                  </span>
-                  {team.country && (
-                    <span className="text-caption px-1.5 rounded bg-gray-100 dark:bg-navy-700 text-gray-500 dark:text-gray-400 flex-shrink-0">
-                      {team.country}
-                    </span>
-                  )}
-                </>
-              )}
-            />
           )}
+          <VirtualListbox
+            id={listboxId}
+            aria-label={t("worldEditor.searchTeams")}
+            items={available}
+            rowHeightRem={OPTION_HEIGHT_REM}
+            maxHeight="12rem"
+            activeIndex={active}
+            resetKey={search}
+            itemKey={(team) => team.id}
+            isSelected={() => false}
+            onPick={(team) => add(team.id)}
+            optionClassName={({ active: isActive }) =>
+              `flex items-center gap-2 px-3 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-navy-600 text-left ${isActive ? "bg-gray-50 dark:bg-navy-600 ring-2 ring-inset ring-focus" : ""}`
+            }
+            renderOption={(team) => (
+              <>
+                <span className="flex-1 truncate" title={team.name || team.id}>
+                  {team.name || team.id}
+                </span>
+                {team.country && (
+                  <span className="text-caption px-1.5 rounded bg-gray-100 dark:bg-navy-700 text-gray-500 dark:text-gray-400 flex-shrink-0">
+                    {team.country}
+                  </span>
+                )}
+              </>
+            )}
+          />
         </div>
       )}
     </div>

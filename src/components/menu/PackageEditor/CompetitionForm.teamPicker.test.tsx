@@ -156,6 +156,67 @@ describe("CompetitionForm: the explicit participants picker", () => {
   });
 });
 
+describe("CompetitionForm: the participants picker's focus, composition and empty results", () => {
+  /**
+   * Given the picker open with focus in its search field
+   * When Escape closes it
+   * Then focus returns to the Add team button (the search field is gone; focus must not fall to the page)
+   */
+  it("returns focus to Add team after Escape", () => {
+    renderForm();
+    fireEvent.click(addButton());
+
+    fireEvent.keyDown(searchBox(), { key: "Escape" });
+
+    expect(addButton()).toHaveFocus();
+  });
+
+  /**
+   * Given the picker open
+   * When Enter picks the active team
+   * Then focus returns to the Add team button
+   */
+  it("returns focus to Add team after a pick with Enter", () => {
+    renderForm();
+    fireEvent.click(addButton());
+
+    fireEvent.keyDown(searchBox(), { key: "Enter" });
+
+    expect(addButton()).toHaveFocus();
+  });
+
+  /**
+   * Given an IME composition in progress
+   * When Enter arrives with isComposing set, or keyCode 229
+   * Then no team is added
+   */
+  it("ignores Enter while a composition is in progress", () => {
+    const { updateField } = renderForm();
+    fireEvent.click(addButton());
+
+    fireEvent.keyDown(searchBox(), { key: "Enter", isComposing: true });
+    fireEvent.keyDown(searchBox(), { key: "Enter", keyCode: 229 });
+
+    expect(updateField).not.toHaveBeenCalled();
+  });
+
+  /**
+   * Given a search that matches nothing
+   * When the search field is read
+   * Then the listbox it controls is still in the page (empty), and "no results" is announced as status
+   */
+  it("keeps the listbox its aria-controls names when nothing matches", () => {
+    renderForm();
+    fireEvent.click(addButton());
+
+    fireEvent.change(searchBox(), { target: { value: "zzz" } });
+
+    const listbox = screen.getByRole("listbox");
+    expect(searchBox().getAttribute("aria-controls")).toBe(listbox.id);
+    expect(screen.getByRole("status")).toHaveTextContent("menu.noResults");
+  });
+});
+
 describe("CompetitionForm: the participants picker on a very large package", () => {
   // jsdom lays nothing out: the fixture gives the listbox's scroller its 12rem (192 px) height.
   let restoreGeometry: () => void;

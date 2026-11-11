@@ -20,6 +20,9 @@ export function useListboxKeys({ count, onPick, onEscape }: Options) {
   const active = Math.min(requested, Math.max(0, count - 1));
 
   function onKeyDown(event: KeyboardEvent<HTMLInputElement>) {
+    // While an IME composes (Enter confirms the composed text, Escape cancels it) the keys are the IME's;
+    // keyCode 229 is how browsers that report no isComposing mark them.
+    if (event.nativeEvent.isComposing || event.keyCode === 229) return;
     if (event.key === "Escape") {
       event.preventDefault();
       onEscape();
