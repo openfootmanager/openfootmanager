@@ -1045,9 +1045,21 @@ describe("Dashboard", () => {
   /**
    * Given the dashboard on Home
    * When the profile of a player who is not in the world (a retired player) opens
-   * Then the header says it is a player's profile, not the tab it was opened from
+   * Then the header says it is a player's profile, not the tab it was opened from, until the
+   *      archive answers, and then names him
    */
-  it("calls a retired player's profile a player's in the header", async () => {
+  it("names a retired player in the header once the archive has answered", async () => {
+    const retiree = {
+      ...gameState.players[0],
+      id: "retired-9",
+      match_name: "O. Timer",
+      retired: true,
+    };
+    invokeMock.mockImplementation(async (command: string) => {
+      if (command === "get_active_game") return gameState;
+      if (command === "get_retired_player") return retiree;
+      return null;
+    });
     render(<Dashboard />);
     await waitFor(() => {
       expect(screen.getByText("Tab Content Home")).toBeInTheDocument();
@@ -1056,6 +1068,24 @@ describe("Dashboard", () => {
     fireEvent.click(screen.getByText("search-retired-player"));
 
     expect(screen.getByText("Header Player")).toBeInTheDocument();
+    expect(await screen.findByText("Header O. Timer")).toBeInTheDocument();
+    expect(invokeMock).toHaveBeenCalledWith("get_retired_player", { playerId: "retired-9" });
+  });
+
+  /**
+   * Given the dashboard on a player who is in the world
+   * When his profile opens
+   * Then the archive is not asked for him
+   */
+  it("does not ask the archive for a player who is in the world", async () => {
+    render(<Dashboard />);
+    await waitFor(() => {
+      expect(screen.getByText("Tab Content Home")).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByText("search-player"));
+
+    expect(invokeMock).not.toHaveBeenCalledWith("get_retired_player", expect.anything());
   });
 
   it("loads game state when the active save id fetch fails", async () => {
