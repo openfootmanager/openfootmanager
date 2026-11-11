@@ -2028,12 +2028,12 @@ pub fn extract_package_assets(
 /// Whether an archive entry belongs to the package's asset tree.
 fn is_package_asset_entry(entry_name: &str) -> bool {
     let normalised = entry_name.replace('\\', "/");
-    normalised.starts_with(ASSET_DIR_PREFIX)
+    let mut components = Path::new(&normalised)
+        .components()
+        .filter(|component| !matches!(component, std::path::Component::CurDir));
+    matches!(components.next(), Some(std::path::Component::Normal(name)) if name == "assets")
+        && components.next().is_some()
 }
-
-/// Directory inside a package that holds artwork, as established by the World
-/// Editor's `copy_package_asset`.
-const ASSET_DIR_PREFIX: &str = "assets/";
 
 /// Whether a manifest-authored asset reference stays inside its own package.
 ///
@@ -2501,7 +2501,9 @@ mod tests {
         let mut writer = zip::ZipWriter::new(std::io::Cursor::new(Vec::new()));
         let options = zip::write::SimpleFileOptions::default()
             .compression_method(zip::CompressionMethod::Stored);
-        writer.start_file("./assets/portrait.json", options).unwrap();
+        writer
+            .start_file("./assets/portrait.json", options)
+            .unwrap();
         writer.write_all(&vec![b'X'; 1024 * 1024]).unwrap();
         writer.start_file("package.json", options).unwrap();
         writer
