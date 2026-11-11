@@ -5,6 +5,28 @@ import { attributeColumns } from "./attributesTabModel";
 
 const names = (key: string) => key;
 
+/** Attributes that differ, so an average cannot be right by accident. */
+const DISTINCT = {
+  ...createPlayer().attributes,
+  passing: 50,
+  shooting: 60,
+  tackling: 65,
+  dribbling: 70,
+  defending: 80,
+  positioning: 50,
+  vision: 60,
+  decisions: 60,
+  composure: 60,
+  aggression: 60,
+  teamwork: 60,
+  leadership: 61,
+  pace: 40,
+  stamina: 50,
+  strength: 55,
+  agility: 60,
+  aerial: 70,
+};
+
 describe("attributeColumns", () => {
   /**
    * Given an outfield player
@@ -13,7 +35,7 @@ describe("attributeColumns", () => {
    *      column's average
    */
   it("has Technical, Mental and Physical for an outfield player", () => {
-    const columns = attributeColumns(createPlayer().attributes, false, names);
+    const columns = attributeColumns(DISTINCT, false, names);
 
     expect(columns.map((column) => column.label)).toEqual([
       "common.attrGroups.technical",
@@ -23,10 +45,9 @@ describe("attributeColumns", () => {
     const keys = columns.flatMap((column) => column.attrs.map((attr) => attr.key));
     expect(new Set(keys).size).toBe(keys.length);
     expect(keys).not.toContain("handling");
-    for (const column of columns) {
-      const mean = column.attrs.reduce((sum, attr) => sum + attr.value, 0) / column.attrs.length;
-      expect(column.average).toBe(Math.round(mean));
-    }
+    // Literal averages from distinct inputs: Technical (50+60+65+70+80)/5 = 65, Mental
+    // (50+60+60+60+60+60+61)/7 = 58.71..., Physical (40+50+55+60+70)/5 = 55.
+    expect(columns.map((column) => column.average)).toEqual([65, 59, 55]);
   });
 
   /**

@@ -615,7 +615,7 @@ pub fn position_weights(position: &Position) -> &'static [(AttributeKey, u8)] {
 /// and more, 2 for 8 to 15, 1 for anything else the position weighs, 0 for an attribute it does not
 /// weigh. The one place the steps are cut: the profile's weight dots read this and never cut the
 /// percentages themselves.
-pub fn weight_importance(weight: u8) -> u8 {
+pub(crate) fn weight_importance(weight: u8) -> u8 {
     match weight {
         0 => 0,
         1..=7 => 1,

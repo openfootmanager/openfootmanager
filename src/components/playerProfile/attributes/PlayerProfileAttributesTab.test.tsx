@@ -83,7 +83,14 @@ describe("PlayerProfileAttributesTab", () => {
       .getAllByRole("heading", { level: 4 })
       .map((heading) => heading.textContent);
     expect(headings).toEqual(["Technical", "Mental", "Physical"]);
-    expect(card().getAllByText(/^average \d+$/)).toHaveLength(3);
+    // The attributes are 60 everywhere but shooting 84, pace 55 and stamina 30: Technical
+    // (60+84+60+60+60)/5 = 64.8, Mental 60, Physical (55+30+60+60+60)/5 = 53.
+    const averageOf = (column: string) =>
+      (card().getByRole("heading", { level: 4, name: column }).parentElement as HTMLElement)
+        .textContent;
+    expect(averageOf("Technical")).toContain("average 65");
+    expect(averageOf("Mental")).toContain("average 60");
+    expect(averageOf("Physical")).toContain("average 53");
   });
 
   /**
@@ -110,10 +117,19 @@ describe("PlayerProfileAttributesTab", () => {
   it("shows how much each attribute counts at his natural position", () => {
     render(<PlayerProfileAttributesTab {...props()} />);
 
-    expect(within(rowOf("Shooting") as HTMLElement).getByLabelText("weight 3 of 3")).toBeVisible();
-    expect(within(rowOf("Pace") as HTMLElement).getByLabelText("weight 2 of 3")).toBeVisible();
-    expect(within(rowOf("Aerial") as HTMLElement).getByLabelText("weight 1 of 3")).toBeVisible();
-    expect(within(rowOf("Stamina") as HTMLElement).getByLabelText("weight 0 of 3")).toBeVisible();
+    const dots = (name: string, spoken: string) => {
+      const group = within(rowOf(name) as HTMLElement).getByLabelText(spoken);
+      return {
+        total: group.children.length,
+        filled: [...group.children].filter((dot) => dot.classList.contains("bg-fg-muted")).length,
+        empty: [...group.children].filter((dot) => dot.classList.contains("bg-line")).length,
+      };
+    };
+    // What is painted, not only what is said: filled dots of three.
+    expect(dots("Shooting", "weight 3 of 3")).toEqual({ total: 3, filled: 3, empty: 0 });
+    expect(dots("Pace", "weight 2 of 3")).toEqual({ total: 3, filled: 2, empty: 1 });
+    expect(dots("Aerial", "weight 1 of 3")).toEqual({ total: 3, filled: 1, empty: 2 });
+    expect(dots("Stamina", "weight 0 of 3")).toEqual({ total: 3, filled: 0, empty: 3 });
   });
 
   /**
@@ -159,6 +175,12 @@ describe("PlayerProfileAttributesTab", () => {
     }
     expect(rowOf("Pace")).not.toHaveAttribute("data-key", "true");
     expect(within(rowOf("Pace") as HTMLElement).queryByText("Key attribute")).toBeNull();
+    // The visible cue: a tinted, semibold row for each key attribute, and neither on the others.
+    for (const name of ["Shooting", "Positioning", "Decisions"]) {
+      expect(rowOf(name)).toHaveClass("bg-selected-tint", "font-semibold");
+    }
+    expect(rowOf("Pace")).not.toHaveClass("bg-selected-tint");
+    expect(rowOf("Pace")).not.toHaveClass("font-semibold");
     expect(card().queryByText(/what the game weighs most/)).toBeNull();
     expect(card().queryByText(/dots = how much/)).toBeNull();
   });
