@@ -260,6 +260,16 @@ describe("page layout check", () => {
     ]);
   });
 
+  /**
+   * Given a table cell whose text was squeezed into a sliver (a name drawn one letter to a line),
+   * then it is named: the page does not scroll sideways, so nothing else would show it.
+   */
+  it("names a table cell squeezed into a sliver", () => {
+    expect(judge({ ...clean, squeezed: ["Nordic Leagues 2027 (18px wide)"] })).toEqual([
+      "text squeezed into a sliver: Nordic Leagues 2027 (18px wide)",
+    ]);
+  });
+
   /** Given a command the fixture didn't answer, or a page that never rendered, then it fails. */
   it("fails an unanswered command or a blank page", () => {
     expect(judge({ ...clean, unanswered: ["get_inbox"], rendered: false })).toEqual([

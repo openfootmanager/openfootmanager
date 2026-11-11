@@ -111,6 +111,7 @@ export function judge({
   unanswered,
   pastEdge,
   belowTheFold = [],
+  squeezed = [],
   rendered,
   faces,
 }) {
@@ -134,6 +135,7 @@ export function judge({
   if (belowTheFold.length > 0) {
     problems.push(`below the bottom edge of the window: ${belowTheFold.join(", ")}`);
   }
+  if (squeezed.length > 0) problems.push(`text squeezed into a sliver: ${squeezed.join(", ")}`);
   if (unanswered.length > 0) problems.push(`unanswered commands: ${unanswered.join(", ")}`);
   if (!rendered) problems.push("nothing rendered");
   return problems;
@@ -202,6 +204,10 @@ const MEASURE = `(async () => {
     belowTheFold: [...document.querySelectorAll("[data-keep-in-window]")]
       .filter((element) => element.getBoundingClientRect().bottom > window.innerHeight)
       .map((element) => (element.textContent ?? "").trim()),
+    squeezed: [...document.querySelectorAll("td")]
+      .map((cell) => ({ cell, box: cell.getBoundingClientRect(), text: (cell.textContent ?? "").trim() }))
+      .filter(({ box, text }) => box.width > 0 && text.length > 8 && box.height > 3 * box.width)
+      .map(({ box, text }) => text.slice(0, 24) + " (" + Math.round(box.width) + "px wide)"),
     rendered: (document.getElementById("root")?.childElementCount ?? 0) > 0,
   });
 })()`;

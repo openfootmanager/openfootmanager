@@ -88,7 +88,7 @@ export default function WorldsTable({ rows, busy, loading, empty, onOpen }: Worl
       primary: true,
       wrap: true,
       cell: (row) => (
-        <span className="flex min-w-0 flex-col">
+        <span className="flex min-w-40 flex-col">
           <span className="font-semibold leading-tight">{row.name}</span>
           <span className="font-mono text-caption text-fg-subtle">
             {row.kind === "installed" && row.version
@@ -107,6 +107,7 @@ export default function WorldsTable({ rows, busy, loading, empty, onOpen }: Worl
     {
       key: "kind",
       header: t("worldEditor.home.colKind"),
+      drawer: true,
       cell: (row) => <KindChip kind={row.kind} />,
     },
     {
