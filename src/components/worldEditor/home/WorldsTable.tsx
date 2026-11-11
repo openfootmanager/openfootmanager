@@ -1,4 +1,8 @@
+import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
+
+import { getLocale } from "../../../lib/dateFormatting";
+import { resolveBackendText } from "../../../utils/backendI18n";
 
 import { Button, DataTable, type DataTableColumn } from "../../ui";
 import type { WorldCheck, WorldRow } from "./worldRows";
@@ -28,15 +32,12 @@ function CheckChip({ check }: { check: WorldCheck }) {
     case "issues":
       return (
         <span className={`${CHIP} bg-warning-tint text-warning`}>
-          {t("worldEditor.home.issues", { count: check.count })}
+          {t("worldEditor.issuesBadge", { count: check.count })}
         </span>
       );
     case "unreadable":
       return (
-        <span
-          className={`${CHIP} bg-danger-tint text-danger`}
-          title={t(check.errorKey, { defaultValue: t("worldEditor.home.unreadable") })}
-        >
+        <span className={`${CHIP} bg-danger-tint text-danger`}>
           {t("worldEditor.home.unreadable")}
         </span>
       );
@@ -67,11 +68,17 @@ interface WorldsTableProps {
  */
 export default function WorldsTable({ rows, busy, loading, empty, onOpen }: WorldsTableProps) {
   const { t, i18n } = useTranslation();
-  const date = new Intl.DateTimeFormat(i18n.language, {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  });
+  // The time a project was opened is an instant, shown as the player's own day: `formatDate` reads
+  // the date part of its text (the UTC day), which would be a day off near midnight.
+  const date = useMemo(
+    () =>
+      new Intl.DateTimeFormat(getLocale(i18n.language), {
+        day: "numeric",
+        month: "short",
+        year: "numeric",
+      }),
+    [i18n.language],
+  );
   const dash = "—";
 
   const columns: DataTableColumn<WorldRow>[] = [
@@ -88,6 +95,12 @@ export default function WorldsTable({ rows, busy, loading, empty, onOpen }: Worl
               ? t("worldEditor.home.installedVersion", { version: row.version })
               : row.path}
           </span>
+          {row.check.kind === "unreadable" ? (
+            // Why it cannot be read, in words and always visible: the check column may be folded away.
+            <span className="text-caption text-danger">
+              {resolveBackendText(row.check.errorKey, t("worldEditor.home.unreadable"))}
+            </span>
+          ) : null}
         </span>
       ),
     },
@@ -115,12 +128,15 @@ export default function WorldsTable({ rows, busy, loading, empty, onOpen }: Worl
       key: "opened",
       header: t("worldEditor.home.colOpened"),
       drawer: true,
-      cell: (row) => (row.openedAt ? date.format(new Date(row.openedAt)) : dash),
+      cell: (row) => {
+        // A record the editor wrote is trusted for its shape only: one that is not a date reads a dash.
+        const opened = row.openedAt ? new Date(row.openedAt) : null;
+        return opened && !Number.isNaN(opened.getTime()) ? date.format(opened) : dash;
+      },
     },
     {
       key: "check",
       header: t("worldEditor.home.colCheck"),
-      drawer: true,
       cell: (row) => <CheckChip check={row.check} />,
     },
   ];
@@ -140,7 +156,7 @@ export default function WorldsTable({ rows, busy, loading, empty, onOpen }: Worl
           <Button
             size="sm"
             variant="outline"
-            disabled={busy || row.check.kind === "unreadable"}
+            disabled={busy}
             aria-label={t(
               row.kind === "installed"
                 ? "worldEditor.home.editCopyNamed"

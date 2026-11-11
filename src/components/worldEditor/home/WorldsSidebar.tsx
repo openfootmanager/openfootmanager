@@ -1,4 +1,5 @@
 import { ArrowLeft, FileArchive, FolderOpen, Plus } from "lucide-react";
+import { useId } from "react";
 import { useTranslation } from "react-i18next";
 
 import type { SamplePackage } from "../../menu/PackageEditor/sampleData";
@@ -29,10 +30,11 @@ export default function WorldsSidebar({
   onBack,
 }: WorldsSidebarProps) {
   const { t } = useTranslation();
+  const examplesId = useId();
   return (
-    <nav
+    <aside
       aria-label={t("worldEditor.title")}
-      className="dark flex w-full shrink-0 flex-col gap-5 border-b border-line bg-chrome p-5 text-fg md:w-64 md:border-b-0 md:border-r"
+      className="dark flex w-full shrink-0 flex-col gap-5 border-b border-line bg-chrome p-5 text-fg md:sticky md:top-0 md:h-screen md:w-64 md:overflow-y-auto md:border-b-0 md:border-r"
     >
       <div className="flex flex-col gap-1">
         <p className="font-heading text-title font-bold uppercase leading-none tracking-label">
@@ -70,13 +72,13 @@ export default function WorldsSidebar({
         </Button>
       </div>
 
-      <section aria-labelledby="worlds-examples" className="flex flex-col gap-1">
-        <h2
-          id="worlds-examples"
+      <section aria-labelledby={examplesId} className="flex flex-col gap-1">
+        <p
+          id={examplesId}
           className="px-2.5 text-caption font-bold uppercase tracking-label text-fg-subtle"
         >
           {t("worldEditor.home.examples")}
-        </h2>
+        </p>
         <ul className="flex flex-col gap-0.5">
           {samples.map((sample) => (
             <li key={sample.meta.id}>
@@ -102,6 +104,6 @@ export default function WorldsSidebar({
         <ArrowLeft aria-hidden="true" className="size-4" />
         {t("worldEditor.home.backToMenu")}
       </button>
-    </nav>
+    </aside>
   );
 }

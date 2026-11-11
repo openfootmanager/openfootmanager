@@ -108,10 +108,11 @@ export default function WorldsHome({
           </p>
         ) : null}
 
-        <section
-          aria-label={t("worldEditor.home.tableLabel")}
-          className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-line bg-panel shadow-card"
-        >
+        {/* Said aloud as the filter and the search change what the table lists. */}
+        <p role="status" className="sr-only">
+          {t("worldEditor.home.resultCount", { count: shown.length })}
+        </p>
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-line bg-panel shadow-card">
           <div className="min-h-0 flex-1 overflow-auto">
             <WorldsTable
               rows={shown}
@@ -124,7 +125,7 @@ export default function WorldsHome({
           <p className="shrink-0 border-t border-line bg-sunken px-4 py-2.5 text-caption text-fg-subtle">
             {t("worldEditor.home.installedNote")}
           </p>
-        </section>
+        </div>
       </main>
     </div>
   );

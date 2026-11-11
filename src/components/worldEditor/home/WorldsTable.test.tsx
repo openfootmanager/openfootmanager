@@ -92,9 +92,10 @@ describe("WorldsTable", () => {
    * Given a project, an installed package, and a folder that can't be read
    * When their buttons are pressed
    * Then a project opens, an installed package opens as an editable copy ("Edit a copy"), and the
-   *      unreadable one's button is disabled, its chip saying it can't be read.
+   *      unreadable one's button stays enabled (a project with a broken file is what the editor is
+   *      for), its chip saying it can't be read.
    */
-  it("opens a project, edits a copy of an installed package, and refuses an unreadable folder", () => {
+  it("opens a project, edits a copy of an installed package, and keeps an unreadable folder openable", () => {
     const onOpen = renderTable([PROJECT, INSTALLED, BROKEN]);
 
     fireEvent.click(
@@ -108,15 +109,28 @@ describe("WorldsTable", () => {
       "/w/nordic",
       "/p/nordic.ofm",
     ]);
-    // The check also sits in the row's folded details, so it is found more than once.
-    expect(screen.getAllByText("worldEditor.home.unreadable").length).toBeGreaterThan(0);
-    expect(screen.getByRole("button", { name: "worldEditor.home.openNamed:gone" })).toBeDisabled();
+    expect(screen.getByText("worldEditor.home.unreadable")).toBeInTheDocument();
+    // Why it cannot be read is written under its folder, visible whatever the table's width.
+    expect(screen.getByText("be.error.package.notAProjectDirectory")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "worldEditor.home.openNamed:gone" })).toBeEnabled();
+  });
+
+  /**
+   * Given a project whose recorded open time is not a date
+   * When the table is drawn
+   * Then the last-opened cell reads a dash and the table still draws: one corrupt record never takes
+   *      the screen down.
+   */
+  it("reads a dash for an open time that is not a date", () => {
+    renderTable([{ ...PROJECT, openedAt: "not a date" }]);
+
+    expect(within(screen.getAllByRole("row")[1]).getByText("\u2014")).toBeInTheDocument();
   });
 
   it("issues a count in its chip, and waits while a world is being opened", () => {
     renderTable([{ ...PROJECT, check: { kind: "issues", count: 2 } }], { busy: true });
 
-    expect(screen.getAllByText("worldEditor.home.issues:2").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("worldEditor.issuesBadge:2").length).toBeGreaterThan(0);
     expect(
       screen.getByRole("button", { name: "worldEditor.home.openNamed:Nordic Leagues 2027" }),
     ).toBeDisabled();

@@ -30,7 +30,8 @@ import type {
   TeamDef,
   WorldMetaDef,
 } from "../components/menu/PackageEditor/types";
-import { WorldEditorHome, type RecentProject } from "../components/worldEditor/WorldEditorHome";
+import { WorldEditorHome } from "../components/worldEditor/WorldEditorHome";
+import type { RecentProject } from "../store/packageEditorTypes";
 import type { SamplePackage } from "../components/menu/PackageEditor/sampleData";
 import { WorldEditorLayout } from "../components/worldEditor/WorldEditorLayout";
 import { WorldEditorTopBar, type SaveState } from "../components/worldEditor/WorldEditorTopBar";

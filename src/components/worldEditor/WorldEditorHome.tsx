@@ -7,7 +7,6 @@ import { SAMPLE_PACKAGES, type SamplePackage } from "../menu/PackageEditor/sampl
 import WorldsHome from "./home/WorldsHome";
 
 import type { RecentProject } from "../../store/packageEditorTypes";
-export type { RecentProject } from "../../store/packageEditorTypes";
 
 type HomeView = "home" | "new-form";
 

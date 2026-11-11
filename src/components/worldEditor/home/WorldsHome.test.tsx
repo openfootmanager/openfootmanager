@@ -102,6 +102,8 @@ describe("WorldsHome", () => {
 
     fireEvent.click(screen.getByRole("radio", { name: "worldEditor.home.filterProjects" }));
     expect(screen.getAllByRole("row")).toHaveLength(3);
+    // The new count is said aloud.
+    expect(screen.getByRole("status")).toHaveTextContent("worldEditor.home.resultCount");
     expect(screen.queryByRole("button", { name: /editCopyNamed/ })).toBeNull();
 
     fireEvent.click(screen.getByRole("radio", { name: "worldEditor.home.filterAll" }));
@@ -144,7 +146,7 @@ describe("WorldsHome", () => {
   it("starts, opens and goes back from the sidebar", async () => {
     const handlers = renderHome();
     await screen.findByRole("button", { name: "worldEditor.home.editCopyNamed:Brazil 1962" });
-    const nav = screen.getByRole("navigation", { name: "worldEditor.title" });
+    const nav = screen.getByRole("complementary", { name: "worldEditor.title" });
 
     fireEvent.click(within(nav).getByRole("button", { name: "worldEditor.home.newWorld" }));
     fireEvent.click(within(nav).getByRole("button", { name: "worldEditor.home.openFile" }));
