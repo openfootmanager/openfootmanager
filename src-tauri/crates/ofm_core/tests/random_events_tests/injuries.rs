@@ -296,8 +296,9 @@ fn a_notable_player_hurt_in_training_in_another_league_stays_out_of_the_news() {
 }
 
 /// The user's manager sacked from `last_club`, with a stint there opened and closed as the game
-/// records it, the world's competitions as listed, and the `game.league` mirror synced as the game
-/// syncs it (with no club, it falls back to the first competition listed).
+/// records it, the world's competitions as listed, and the `game.league` mirror put back on the first
+/// competition listed. The game now mirrors a sacked manager's last club's league (#1296), but the
+/// news must follow that club by itself, not through the mirror.
 fn sacked_manager(seed: u64, last_club: Option<&str>) -> Game {
     sacked_manager_in(
         seed,
@@ -324,6 +325,7 @@ fn sacked_manager_in(seed: u64, last_club: Option<&str>, divisions: Vec<League>)
     }
     game.manager.fire("2025-03-01");
     game.sync_legacy_league();
+    game.league = game.competitions.first().cloned();
     game
 }
 
@@ -367,7 +369,7 @@ fn a_sacked_manager_gets_news_from_his_last_clubs_league() {
 /// When q1, at Other Town, is hurt in training
 /// Then the news reports it: he follows the league of his last club, which Other Town is in. The
 ///      injury is at a different club from his last, so the story depends on the league lookup
-///      (the game.league mirror falls back to the first competition listed)
+///      (the game.league mirror is on the first competition listed)
 #[test]
 fn a_sacked_manager_gets_news_from_another_club_in_his_last_clubs_league() {
     let days = days_q1_was_hurt(|seed| {
