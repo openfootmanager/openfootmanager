@@ -156,7 +156,7 @@ fn build_player_award_contexts<'a>(
         .iter()
         .filter_map(|player| {
             let stats = match division {
-                Some(division) => player.league_stats_by_competition.get(&division.id)?,
+                Some(division) => player.division_stats(&division.id)?,
                 None => &player.stats,
             };
             if stats.appearances == 0 {
