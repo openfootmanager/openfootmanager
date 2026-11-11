@@ -6,9 +6,6 @@ import type { GameStateData } from "../store/gameStore";
 import { createPlayer, createTeam } from "../test-utils/factories";
 import {
   regionsFromCompetitions,
-  competitionKindLabel,
-  competitionRequiredRegions,
-  competitionScopeLabel,
   likelyXi,
   sortCompetitions,
   teamCompetitions,
@@ -28,47 +25,6 @@ function league(overrides: Partial<LeagueData> = {}): LeagueData {
     ...overrides,
   };
 }
-
-describe("competitionScopeLabel / competitionKindLabel", () => {
-  it("returns null when no scope/kind is provided", () => {
-    expect(competitionScopeLabel(t, undefined)).toBeNull();
-    expect(competitionKindLabel(t, undefined)).toBeNull();
-  });
-
-  it("resolves the scope/kind translation with a defaultValue fallback", () => {
-    expect(competitionScopeLabel(t, "Domestic")).toBe("Domestic");
-    expect(competitionKindLabel(t, "Cup")).toBe("Cup");
-  });
-});
-
-describe("competitionRequiredRegions", () => {
-  it("adds the region_id for Domestic and Regional scopes", () => {
-    expect(competitionRequiredRegions(league({ scope: "Domestic", region_id: "europe" }))).toEqual([
-      "europe",
-    ]);
-    expect(competitionRequiredRegions(league({ scope: "Regional", region_id: "asia" }))).toEqual([
-      "asia",
-    ]);
-  });
-
-  it("does not add the region_id for Continental/International scopes", () => {
-    expect(
-      competitionRequiredRegions(league({ scope: "Continental", region_id: "europe" })),
-    ).toEqual([]);
-  });
-
-  it("merges and de-duplicates explicit required_region_ids with the scope region, sorted", () => {
-    expect(
-      competitionRequiredRegions(
-        league({
-          scope: "Domestic",
-          region_id: "europe",
-          required_region_ids: ["south_america", "europe"],
-        }),
-      ),
-    ).toEqual(["europe", "south_america"]);
-  });
-});
 
 describe("teamCompetitions", () => {
   it("matches competitions by participant_ids", () => {

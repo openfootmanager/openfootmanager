@@ -281,8 +281,8 @@ fn book_completed_club_appearances(game: &Game, first_day: NaiveDate, bookings: 
 /// Planning is read-only; applying it afterwards avoids invalidating the bookings while settling.
 pub(crate) fn settle_friendlies(game: &mut Game, first_day: NaiveDate) {
     let moves = friendly_moves(game, first_day);
-    for (team, fixture, date) in moves {
-        let fixture = &mut game.national_teams[team].fixtures[fixture];
+    for (team_index, fixture_index, date) in moves {
+        let fixture = &mut game.national_teams[team_index].fixtures[fixture_index];
         if fixture.postponement.is_none() {
             fixture.postponement = Some(Postponement {
                 original_date: fixture.date.clone(),
@@ -298,13 +298,13 @@ fn friendly_moves(game: &Game, first_day: NaiveDate) -> Vec<(usize, usize, Naive
         .national_teams
         .iter()
         .enumerate()
-        .flat_map(|(team, nation)| {
+        .flat_map(|(team_index, nation)| {
             nation
                 .fixtures
                 .iter()
                 .enumerate()
                 .filter(|(_, fixture)| fixture.status == FixtureStatus::Scheduled)
-                .map(move |(index, fixture)| (team, index, fixture))
+                .map(move |(fixture_index, fixture)| (team_index, fixture_index, fixture))
         })
         .collect();
     if scheduled.is_empty() {
@@ -314,7 +314,7 @@ fn friendly_moves(game: &Game, first_day: NaiveDate) -> Vec<(usize, usize, Naive
     book_completed_club_appearances(game, first_day, &mut bookings);
     scheduled.sort_by_key(|(_, _, fixture)| (&fixture.date, &fixture.id));
     let mut moves = Vec::new();
-    for (team, index, fixture) in scheduled {
+    for (team_index, fixture_index, fixture) in scheduled {
         let Ok(original) = NaiveDate::parse_from_str(&fixture.date, "%Y-%m-%d") else {
             continue;
         };
@@ -330,7 +330,7 @@ fn friendly_moves(game: &Game, first_day: NaiveDate) -> Vec<(usize, usize, Naive
         };
         bookings.book(&fixture.home_team_id, &fixture.away_team_id, date);
         if date != original {
-            moves.push((team, index, date));
+            moves.push((team_index, fixture_index, date));
         }
     }
     moves

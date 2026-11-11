@@ -8,8 +8,8 @@ interface RatingChipProps {
   value: number;
   /** The backend's tier for it (`useRatingTiers`): the chip paints it, and never picks it. */
   tier: RatingTier;
-  /** `sm` fits a table row (the default); `md` a card or a profile line. */
-  size?: "sm" | "md";
+  /** `sm` fits a table row (the default); `md` a card or a profile line; `display` a profile's name card. */
+  size?: "sm" | "md" | "display";
   /**
    * The translated name of what is rated, when it is not the overall rating ("Shooting"): the
    * chip then reads "Shooting 74, tier A" rather than calling it the overall.
@@ -20,6 +20,7 @@ interface RatingChipProps {
 const SIZE = {
   sm: "h-5 min-w-7 px-1.5 text-caption",
   md: "h-6 min-w-8 px-2 text-body",
+  display: "h-16 min-w-18 rounded-xl px-3 text-display",
 };
 
 /**

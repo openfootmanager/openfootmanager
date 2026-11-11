@@ -41,7 +41,19 @@ export function useContractActionsFlow({
   onGameUpdate,
 }: UseContractActionsFlowArgs): UseContractActionsFlowResult {
   const [contractActionSubmitting, setContractActionSubmitting] = useState(false);
-  const [contractActionError, setContractActionError] = useState<string | null>(null);
+  // The error belongs to the player the action failed for. The page reuses this instance when
+  // another player is opened, so it is cleared on every change of player, and a failure that
+  // arrives later (its closure holds the old player) is tagged with that player and not shown for
+  // this one.
+  const [failure, setFailure] = useState<{ playerId: string; message: string } | null>(null);
+  const [shownPlayerId, setShownPlayerId] = useState(player.id);
+  if (shownPlayerId !== player.id) {
+    setShownPlayerId(player.id);
+    setFailure(null);
+  }
+  const contractActionError = failure?.playerId === player.id ? failure.message : null;
+  const setContractActionError = (message: string | null) =>
+    setFailure(message === null ? null : { playerId: player.id, message });
   const [terminationPreview, setTerminationPreview] =
     useState<ContractTerminationPreviewData | null>(null);
   const [showTerminationModal, setShowTerminationModal] = useState(false);

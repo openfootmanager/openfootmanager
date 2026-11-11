@@ -1,4 +1,5 @@
 import { ArrowLeft, ChevronRight, Loader2, SlidersHorizontal } from "lucide-react";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 
@@ -6,44 +7,34 @@ import ChosenClubCard from "../components/teamSelection/ChosenClubCard";
 import ClubsTable from "../components/teamSelection/ClubsTable";
 import CountryLeagueRail from "../components/teamSelection/CountryLeagueRail";
 import { keyPlayers } from "../components/teamSelection/keyPlayers";
+import SimulationDialog from "../components/teamSelection/SimulationDialog";
 import TeamSelectionStepper from "../components/teamSelection/TeamSelectionStepper";
-import { Button, Card, CardBody, ThemeToggle } from "../components/ui";
+import { Button, ThemeToggle } from "../components/ui";
 import { competitionDisplayName } from "../lib/competitionName";
 import { calcAgeOnDate } from "../lib/valueFormatting";
 import { useGameStore } from "../store/gameStore";
-import TeamSelectionScopePanel from "./TeamSelectionScopePanel";
 import { useTeamSelection } from "./useTeamSelection";
 
-const SCOPE_BAND_ID = "team-selection-scope";
 const MANAGE_HINT_ID = "team-selection-manage-hint";
 
 export default function TeamSelection() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { gameState, setGameState, setGameActive } = useGameStore();
+  const [scopeOpen, setScopeOpen] = useState(false);
 
   const {
     clubSearch,
     setClubSearch,
-    scopeExpanded,
-    setScopeExpanded,
-    selectedHomeRegionId,
     selectedCountryCode,
-    setSelectedCountryCode,
     allCountryCodes,
     handleSelectCountry,
-    changeHomeRegion,
     activeLeagueId,
     setSelectedLeagueId,
-    regionSelection,
     setSelectedTeamId,
-    scopeMessage,
-    setScopeMessage,
     isConfirming,
+    competitions,
     regions,
-    regionCountries,
-    activeRegionIds,
-    availableCompetitions,
     leagueGroups,
     visibleClubs,
     getTeamAvgOvr,
@@ -51,10 +42,8 @@ export default function TeamSelection() {
     selectedTeam,
     selectedTeamXi,
     selectedTeamCompetitions,
-    mandatoryCompetitionIds,
-    competitionSelection,
-    handleRegionToggle,
-    handleCompetitionToggle,
+    scopeDraft,
+    applyScope,
     handleConfirm,
   } = useTeamSelection({ gameState, setGameState, setGameActive, navigate });
 
@@ -92,9 +81,8 @@ export default function TeamSelection() {
           <Button
             variant="outline"
             size="sm"
-            aria-expanded={scopeExpanded}
-            aria-controls={SCOPE_BAND_ID}
-            onClick={() => setScopeExpanded((value) => !value)}
+            aria-haspopup="dialog"
+            onClick={() => setScopeOpen(true)}
             icon={<SlidersHorizontal aria-hidden="true" />}
           >
             {t("teamSelect.simulation")}
@@ -120,41 +108,6 @@ export default function TeamSelection() {
           </Button>
         </div>
       </header>
-
-      {/* The simulation's settings, until they move into a dialog of their own. */}
-      <div id={SCOPE_BAND_ID} className="shrink-0 overflow-auto lg:max-h-[45vh]">
-        {scopeExpanded ? (
-          <div className="space-y-3 px-5 pt-3">
-            {scopeMessage && (
-              <Card accent="accent">
-                <CardBody className="py-3">
-                  <p className="text-body text-fg">{t(scopeMessage.key, scopeMessage.values)}</p>
-                </CardBody>
-              </Card>
-            )}
-            <TeamSelectionScopePanel
-              scopeExpanded={scopeExpanded}
-              onToggleScopeExpanded={() => setScopeExpanded((value) => !value)}
-              regions={regions}
-              selectedHomeRegionId={selectedHomeRegionId}
-              onSelectHomeRegion={(regionId) => {
-                changeHomeRegion(regionId);
-                setScopeMessage(null);
-              }}
-              selectedCountryCode={selectedCountryCode}
-              onSelectCountry={setSelectedCountryCode}
-              regionCountries={regionCountries}
-              regionSelection={regionSelection}
-              onRegionToggle={handleRegionToggle}
-              availableCompetitions={availableCompetitions}
-              competitionSelection={competitionSelection}
-              mandatoryCompetitionIds={mandatoryCompetitionIds}
-              activeRegionIds={activeRegionIds}
-              onCompetitionToggle={handleCompetitionToggle}
-            />
-          </div>
-        ) : null}
-      </div>
 
       <div className="grid min-h-0 flex-1 grid-cols-1 gap-3.5 px-5 pb-4 pt-4 lg:grid-cols-[14.5rem_minmax(0,1fr)_20rem]">
         <CountryLeagueRail
@@ -197,6 +150,21 @@ export default function TeamSelection() {
           />
         </aside>
       </div>
+
+      {scopeOpen ? (
+        <SimulationDialog
+          regions={regions}
+          competitions={competitions}
+          teams={gameState.teams}
+          yourCompetitions={selectedTeamCompetitions}
+          initial={scopeDraft}
+          onApply={(draft) => {
+            applyScope(draft);
+            setScopeOpen(false);
+          }}
+          onCancel={() => setScopeOpen(false)}
+        />
+      ) : null}
     </div>
   );
 }

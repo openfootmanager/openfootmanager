@@ -262,10 +262,10 @@ where
         }
     }
 
-    // National-team football: window friendlies and any running World Cup.
+    // National-team football: window friendlies and every national tournament.
     // Both self-filter by date, so they are no-ops on other days.
     crate::national_team::process_national_team_fixtures_due(game, today);
-    crate::world_cup::process_world_cup_fixtures_due(game, today);
+    crate::national_tournament::process_fixtures_due(game, today);
     if let Some(tomorrow) = game.clock.current_date.date_naive().succ_opt() {
         crate::national_team::settle_friendlies(game, tomorrow);
     }

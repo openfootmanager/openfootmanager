@@ -109,7 +109,7 @@ describe("TeamSelection", () => {
    * Given a world with two clubs in one league
    * When the screen opens
    * Then the steps, the country and league rail and the clubs' table are drawn; no club is chosen,
-   *      so the card says so and Manage is disabled; and the simulation settings are closed.
+   *      so the card says so and Manage is disabled; and the simulation dialog is closed.
    */
   it("opens with no club chosen and Manage disabled", () => {
     renderPage();
@@ -130,10 +130,7 @@ describe("TeamSelection", () => {
     ).toHaveAccessibleDescription("teamSelect.card.emptyTitle");
     const card = screen.getByRole("complementary", { name: "teamSelect.card.label" });
     expect(within(card).getByText("teamSelect.card.emptyTitle")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "teamSelect.simulation" })).toHaveAttribute(
-      "aria-expanded",
-      "false",
-    );
+    expect(screen.queryByRole("dialog")).toBeNull();
   });
 
   /**
@@ -159,18 +156,63 @@ describe("TeamSelection", () => {
   /**
    * Given the simulation settings closed
    * When the header's Simulation button is pressed
-   * Then the scope panel opens, so the regions and competitions stay reachable until they move
-   *      into a dialog.
+   * Then the simulation dialog opens, naming the home region and the regions and competitions to
+   *      simulate; Cancel closes it, and the settings are as they were.
    */
-  it("opens the simulation settings from the header", () => {
+  it("opens the simulation dialog from the header, and Cancel closes it", () => {
     renderPage();
 
     fireEvent.click(screen.getByRole("button", { name: "teamSelect.simulation" }));
 
-    expect(screen.getByRole("button", { name: "teamSelect.simulation" })).toHaveAttribute(
-      "aria-expanded",
-      "true",
-    );
-    expect(screen.getByText("teamSelect.simulationScope")).toBeInTheDocument();
+    const dialog = screen.getByRole("dialog", { name: "teamSelect.scope.title" });
+    expect(within(dialog).getByRole("switch", { name: "Europe" })).toBeChecked();
+
+    fireEvent.click(within(dialog).getByRole("button", { name: "common.cancel" }));
+    expect(screen.queryByRole("dialog")).toBeNull();
+  });
+
+  /**
+   * Given the simulation dialog open, with a setting changed (the only competition unchecked)
+   * When it is dismissed, by Cancel, by the close button, or by Escape, and then reopened
+   * Then the setting is as it was (the competition is checked again), and each time focus returned
+   *      to the Simulation button that opened it: a dismissal discards the draft, however it is made.
+   */
+  it.each([
+    ["Cancel", () => fireEvent.click(screen.getByRole("button", { name: "common.cancel" }))],
+    [
+      "the close button",
+      () => fireEvent.click(screen.getByRole("button", { name: "common.close" })),
+    ],
+    ["Escape", () => fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape" })],
+  ])("discards the draft and returns focus when dismissed by %s", (_name, dismiss) => {
+    renderPage();
+    const opener = screen.getByRole("button", { name: "teamSelect.simulation" });
+    opener.focus();
+    fireEvent.click(opener);
+    const competition = () => screen.getByRole("checkbox", { name: "teamSelect.scope.simulate" });
+    expect(competition()).toBeChecked();
+    fireEvent.click(competition());
+    expect(competition()).not.toBeChecked();
+
+    dismiss();
+
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(opener).toHaveFocus();
+    fireEvent.click(opener);
+    expect(competition()).toBeChecked();
+  });
+
+  /**
+   * Given the dialog open
+   * When Apply is pressed
+   * Then the dialog closes and the screen goes on with the settings applied.
+   */
+  it("closes the dialog when Apply is pressed", () => {
+    renderPage();
+    fireEvent.click(screen.getByRole("button", { name: "teamSelect.simulation" }));
+
+    fireEvent.click(screen.getByRole("button", { name: "teamSelect.scope.apply" }));
+
+    expect(screen.queryByRole("dialog")).toBeNull();
   });
 });

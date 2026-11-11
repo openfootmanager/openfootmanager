@@ -1,4 +1,4 @@
-import { act, render, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { createInstance } from "i18next";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { invoke } from "@tauri-apps/api/core";
@@ -95,9 +95,11 @@ function backendWith(opinion: PotentialOpinion | null) {
   });
 }
 
+// The club's opinion of his potential and his positions are on the Attributes tab.
 const renderProfile = (traits: string[] = []) => {
   const player = createPlayer({ id: "player-1", team_id: "team-1", traits });
   render(<PlayerProfile player={player} gameState={gameWith(player)} isOwnClub />);
+  fireEvent.click(screen.getByRole("tab", { name: "Attributes" }));
 };
 
 /** The coaches' elite opinion of him, 80-82, and whether it calls him a wonderkid. */
@@ -324,6 +326,7 @@ describe("the player profile's ratings at his positions", () => {
     const { rerender } = render(
       <PlayerProfile player={player} gameState={stateWith(startingXi)} isOwnClub />,
     );
+    fireEvent.click(screen.getByRole("tab", { name: "Attributes" }));
     expect(await screen.findByText(wherePlayed)).toBeInTheDocument();
 
     startingXi = ["gk", "lb", "cb1", "cb2", "rb"];
