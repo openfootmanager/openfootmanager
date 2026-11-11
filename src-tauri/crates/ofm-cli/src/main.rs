@@ -2,9 +2,9 @@ use clap::{Parser, Subcommand, ValueEnum};
 use colored::Colorize;
 use comfy_table::{presets::UTF8_FULL, Table};
 use ofm_core::generator::{
-    check_world_package_on_bases, entity_template, export_directory_to_ofm, is_valid_package_id,
-    load_world_package, load_world_package_from_ofm, new_package_meta, package_warnings,
-    read_package_manifest_from_ofm, scaffold_package, slugify, stack_checked_warnings,
+    entity_template, export_directory_to_ofm, is_valid_package_id, load_world_package,
+    load_world_package_from_ofm, new_package_meta, package_warnings,
+    read_package_manifest_from_ofm, scaffold_package, slugify, stack_check, stack_checked_warnings,
     EntityKind as CoreEntityKind,
 };
 use serde_json::{json, Value};
@@ -617,13 +617,18 @@ fn cmd_validate(path: &Path, bases: &[PathBuf]) -> i32 {
     // A directory and a `.ofm` are read and checked in one place, and both are checked on `bases`
     // when given. A patch alone has its club references left to the stack; given its base, they
     // are checked as the game checks a stack.
-    let (pkg, errors) = check_world_package_on_bases(path, bases);
+    let ofm_core::generator::StackCheck {
+        package: pkg,
+        errors,
+        merged,
+    } = stack_check(path, bases);
 
-    // With a base the references were checked, so "not checked here" would be false.
-    let warnings = if bases.is_empty() {
-        package_warnings(&pkg)
-    } else {
+    // Once the merge ran the references were checked, so "not checked here" would be false. When it
+    // did not (no base, or one that could not be read), they were not.
+    let warnings = if merged {
         stack_checked_warnings(&pkg)
+    } else {
+        package_warnings(&pkg)
     };
     let code = if errors.is_empty() {
         println!(

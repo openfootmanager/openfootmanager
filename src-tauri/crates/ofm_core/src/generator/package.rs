@@ -2390,7 +2390,7 @@ pub fn read_logo_from_ofm(archive_path: &Path, logo_path: &str) -> Option<String
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::generator::check_world_package_on_bases;
+    use crate::generator::{check_world_package_on_bases, stack_check};
 
     /// Given a safe path alias, when the shared archive pass validates it, then it exposes the normalized path.
     #[test]
@@ -2820,6 +2820,27 @@ mod tests {
         std::fs::remove_dir_all(&out).ok();
 
         assert!(errors.iter().any(|e| e.code == UNKNOWN_TEAM), "{errors:?}");
+    }
+
+    /// Given a patch checked on a base that reads, and on one that does not
+    /// When each check reports
+    /// Then the merge ran only for the base that reads: otherwise the club references were never
+    ///      checked, and the caller must not say they were.
+    #[test]
+    fn the_stack_check_says_whether_the_merge_ran() {
+        let (base, patch) = (base_with_one_club(), patch_with_player_at("base-fc"));
+        let missing = std::env::temp_dir().join("ofm-no-such-base.ofm");
+
+        let readable = stack_check(&patch, std::slice::from_ref(&base));
+        let unreadable = stack_check(&patch, &[missing]);
+        let alone = stack_check(&patch, &[]);
+        for dir in [&base, &patch] {
+            std::fs::remove_dir_all(dir).ok();
+        }
+
+        assert!(readable.merged);
+        assert!(!unreadable.merged && !unreadable.errors.is_empty());
+        assert!(!alone.merged);
     }
 
     /// Given a patch with no base given
