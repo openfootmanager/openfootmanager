@@ -1660,6 +1660,20 @@
   },
   "playerProfile": {
     "sections": "个人资料分区",
+    "overview": {
+      "now": "当前",
+      "details": "详情",
+      "previousMatches": "近期比赛",
+      "allMatches": "全部比赛",
+      "traits": "特质",
+      "born": "出生日期",
+      "squadRole": "阵容角色",
+      "squadSenior": "一线队",
+      "squadYouth": "青训",
+      "contractUntil": "至 {{date}}",
+      "keyFor": "{{position}}的关键属性",
+      "radarLabel": "属性雷达图：{{values}}"
+    },
     "overall": "综合",
     "ratingUnknown": "你的俱乐部不了解他的评分",
     "tabs": {

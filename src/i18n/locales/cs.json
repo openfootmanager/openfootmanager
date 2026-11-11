@@ -1660,6 +1660,20 @@
   },
   "playerProfile": {
     "sections": "Sekce profilu",
+    "overview": {
+      "now": "Teď",
+      "details": "Podrobnosti",
+      "previousMatches": "Předchozí zápasy",
+      "allMatches": "Všechny zápasy",
+      "traits": "Vlastnosti",
+      "born": "Narozen",
+      "squadRole": "Role v kádru",
+      "squadSenior": "A-tým",
+      "squadYouth": "Akademie",
+      "contractUntil": "do {{date}}",
+      "keyFor": "Klíčové pro pozici {{position}}",
+      "radarLabel": "Radar atributů: {{values}}"
+    },
     "overall": "Celkově",
     "ratingUnknown": "Váš klub jeho hodnocení nezná",
     "tabs": {

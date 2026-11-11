@@ -1660,6 +1660,20 @@
   },
   "playerProfile": {
     "sections": "Bagian profil",
+    "overview": {
+      "now": "Sekarang",
+      "details": "Detail",
+      "previousMatches": "Pertandingan sebelumnya",
+      "allMatches": "Semua pertandingan",
+      "traits": "Sifat",
+      "born": "Lahir",
+      "squadRole": "Peran di skuad",
+      "squadSenior": "Tim utama",
+      "squadYouth": "Akademi",
+      "contractUntil": "hingga {{date}}",
+      "keyFor": "Kunci untuk posisi {{position}}",
+      "radarLabel": "Radar atribut: {{values}}"
+    },
     "overall": "Keseluruhan",
     "ratingUnknown": "Klubmu tidak mengetahui peringkatnya",
     "tabs": {

@@ -1679,6 +1679,20 @@
   },
   "playerProfile": {
     "sections": "Sezioni del profilo",
+    "overview": {
+      "now": "Adesso",
+      "details": "Dettagli",
+      "previousMatches": "Partite precedenti",
+      "allMatches": "Tutte le partite",
+      "traits": "Caratteristiche",
+      "born": "Nascita",
+      "squadRole": "Ruolo in rosa",
+      "squadSenior": "Prima squadra",
+      "squadYouth": "Settore giovanile",
+      "contractUntil": "fino al {{date}}",
+      "keyFor": "Fondamentale per un {{position}}",
+      "radarLabel": "Radar degli attributi: {{values}}"
+    },
     "overall": "Complessivo",
     "ratingUnknown": "Il tuo club non conosce la sua valutazione",
     "tabs": {

@@ -1660,6 +1660,20 @@
   },
   "playerProfile": {
     "sections": "Разделы профиля",
+    "overview": {
+      "now": "Сейчас",
+      "details": "Подробности",
+      "previousMatches": "Прошлые матчи",
+      "allMatches": "Все матчи",
+      "traits": "Черты",
+      "born": "Родился",
+      "squadRole": "Роль в составе",
+      "squadSenior": "Основной состав",
+      "squadYouth": "Академия",
+      "contractUntil": "до {{date}}",
+      "keyFor": "Ключевое для позиции «{{position}}»",
+      "radarLabel": "Радар атрибутов: {{values}}"
+    },
     "overall": "Общий",
     "ratingUnknown": "Ваш клуб не знает его рейтинг",
     "tabs": {

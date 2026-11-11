@@ -148,11 +148,11 @@ describe("PlayerProfileOverview", () => {
     expect(now.getByText("92")).toBeInTheDocument();
     expect(now.getByText("75%")).toBeInTheDocument();
     const form = now.getByRole("list", { name: "common.recentForm" });
-    expect(within(form).getAllByRole("listitem").map((item) => item.textContent)).toEqual([
-      "common.formResult.D",
-      "common.formResult.L",
-      "common.formResult.W",
-    ]);
+    expect(
+      within(form)
+        .getAllByRole("listitem")
+        .map((item) => item.textContent),
+    ).toEqual(["common.formResult.D", "common.formResult.L", "common.formResult.W"]);
   });
 
   /**
@@ -256,9 +256,9 @@ describe("PlayerProfileOverview", () => {
     render(<PlayerProfileOverview {...props({ recentMatches: [] })} />);
 
     expect(
-      within(screen.getByRole("region", { name: "playerProfile.overview.previousMatches" })).getByText(
-        "playerProfile.noRecentMatches",
-      ),
+      within(
+        screen.getByRole("region", { name: "playerProfile.overview.previousMatches" }),
+      ).getByText("playerProfile.noRecentMatches"),
     ).toBeInTheDocument();
     expect(screen.queryByRole("list", { name: "common.recentForm" })).toBeNull();
   });
@@ -305,7 +305,9 @@ describe("PlayerProfileOverview", () => {
     expect(radar.getAttribute("aria-label")).toContain("common.attributes.shooting");
     expect(radar.querySelectorAll("text")).toHaveLength(8);
     expect(attributes.getByText(/playerProfile.overview.keyFor/)).toBeInTheDocument();
-    expect(attributes.getByText(/common.attributes.shooting/, { selector: "span" })).toBeInTheDocument();
+    expect(
+      attributes.getByText(/common.attributes.shooting/, { selector: "span" }),
+    ).toBeInTheDocument();
     expect(attributes.getByText("84")).toBeInTheDocument();
   });
 

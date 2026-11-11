@@ -1660,6 +1660,20 @@
   },
   "playerProfile": {
     "sections": "Profil bölümleri",
+    "overview": {
+      "now": "Şu an",
+      "details": "Ayrıntılar",
+      "previousMatches": "Önceki maçlar",
+      "allMatches": "Tüm maçlar",
+      "traits": "Özellikler",
+      "born": "Doğum",
+      "squadRole": "Kadro rolü",
+      "squadSenior": "A takım",
+      "squadYouth": "Altyapı",
+      "contractUntil": "{{date}} tarihine kadar",
+      "keyFor": "{{position}} için anahtar",
+      "radarLabel": "Nitelik radarı: {{values}}"
+    },
     "overall": "Genel",
     "ratingUnknown": "Kulübünüz onun reytingini bilmiyor",
     "tabs": {

@@ -1660,6 +1660,20 @@
   },
   "playerProfile": {
     "sections": "Profilbereiche",
+    "overview": {
+      "now": "Jetzt",
+      "details": "Details",
+      "previousMatches": "Letzte Spiele",
+      "allMatches": "Alle Spiele",
+      "traits": "Eigenschaften",
+      "born": "Geboren",
+      "squadRole": "Rolle im Kader",
+      "squadSenior": "Profikader",
+      "squadYouth": "Jugendakademie",
+      "contractUntil": "bis {{date}}",
+      "keyFor": "Entscheidend für {{position}}",
+      "radarLabel": "Attributradar: {{values}}"
+    },
     "overall": "Gesamt",
     "ratingUnknown": "Dein Verein kennt seine Bewertung nicht",
     "tabs": {

@@ -1660,6 +1660,20 @@
   },
   "playerProfile": {
     "sections": "Profile sections",
+    "overview": {
+      "now": "Now",
+      "details": "Details",
+      "previousMatches": "Previous matches",
+      "allMatches": "All matches",
+      "traits": "Traits",
+      "born": "Born",
+      "squadRole": "Squad role",
+      "squadSenior": "Senior squad",
+      "squadYouth": "Youth academy",
+      "contractUntil": "until {{date}}",
+      "keyFor": "Key for a {{position}}",
+      "radarLabel": "Attribute radar: {{values}}"
+    },
     "overall": "Overall",
     "ratingUnknown": "Your club does not know his rating",
     "tabs": {

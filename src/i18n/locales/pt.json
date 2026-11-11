@@ -1660,6 +1660,20 @@
   },
   "playerProfile": {
     "sections": "Secções do perfil",
+    "overview": {
+      "now": "Agora",
+      "details": "Detalhes",
+      "previousMatches": "Jogos anteriores",
+      "allMatches": "Todos os jogos",
+      "traits": "Traços",
+      "born": "Nascimento",
+      "squadRole": "Papel no plantel",
+      "squadSenior": "Plantel principal",
+      "squadYouth": "Academia",
+      "contractUntil": "até {{date}}",
+      "keyFor": "Chave para um {{position}}",
+      "radarLabel": "Radar de atributos: {{values}}"
+    },
     "overall": "Geral",
     "ratingUnknown": "O teu clube não conhece a sua avaliação",
     "tabs": {
