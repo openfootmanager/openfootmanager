@@ -58,6 +58,7 @@ pub mod national_team;
 pub mod national_tournament;
 pub mod nations;
 pub mod news;
+pub mod player_career;
 pub mod player_events;
 pub mod player_identity;
 pub mod player_knowledge;
