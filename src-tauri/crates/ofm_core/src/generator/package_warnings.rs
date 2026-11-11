@@ -97,6 +97,93 @@ fn patch_club_warnings(package: &WorldPackage) -> Vec<PackageError> {
         .collect()
 }
 
+/// A name pool missing its first names or its surnames. Building a world uses a package's pool
+/// only when it has both, and drops one that does not without a word, so the players of that
+/// country get the built-in pool's names, or generic ones (#1200).
+fn incomplete_name_pool_warnings(package: &WorldPackage) -> Vec<PackageError> {
+    let Some(names) = &package.names else {
+        return Vec::new();
+    };
+    let mut countries: Vec<&String> = names
+        .pools
+        .iter()
+        .filter(|(_, pool)| !pool.is_usable())
+        .map(|(country, _)| country)
+        .collect();
+    countries.sort();
+    countries
+        .into_iter()
+        .map(|country| {
+            PackageError::new(NAME_POOL_INCOMPLETE, package.name_pool_file(country))
+                .with("country", country.clone())
+        })
+        .collect()
+}
+
+/// A country given a name pool by two files of one package: the later file replaces the earlier
+/// pool. (Stacked packages overriding each other is the point of stacking and is not reported.)
+fn repeated_name_pool_warnings(package: &WorldPackage) -> Vec<PackageError> {
+    let mut repeats: Vec<&RepeatedNamePool> = package.repeated_name_pools.iter().collect();
+    repeats.sort_by(|a, b| (&a.later_file, &a.country).cmp(&(&b.later_file, &b.country)));
+    repeats
+        .into_iter()
+        .map(|repeat| {
+            PackageError::new(REPEATED_NAME_POOL, &repeat.later_file)
+                .with("country", repeat.country.clone())
+                .with("first", repeat.first_file.clone())
+        })
+        .collect()
+}
+
+fn country_warnings(package: &WorldPackage) -> Vec<PackageError> {
+    package
+        .countries
+        .iter()
+        .enumerate()
+        .filter(|(_, country)| {
+            !country.id.trim().is_empty()
+                && country.confederation.trim().is_empty()
+                && nation_by_code(&country.id).is_none()
+        })
+        .map(|(index, country)| {
+            PackageError::new(COUNTRY_WITHOUT_REGION, &package.source_at("country", index))
+                .with("name", country.name.clone())
+                .with("code", country.id.clone())
+        })
+        .collect()
+}
+
+/// A player with no club is a free agent: no contract, no wage, not in any squad. A field that
+/// only a club can give is reported rather than quietly dropped.
+fn free_agent_warnings(package: &WorldPackage) -> Vec<PackageError> {
+    let mut warnings = Vec::new();
+    for (index, player) in package.players.iter().enumerate() {
+        if !player.club.is_empty() {
+            continue;
+        }
+        let given = [
+            ("wage", player.wage.is_some()),
+            ("contractStart", player.contract_start.is_some()),
+            ("contractEnd", player.contract_end.is_some()),
+            ("contractLength", player.contract_length.is_some()),
+            ("youth", player.youth),
+        ];
+        for (field, present) in given {
+            if present {
+                warnings.push(
+                    PackageError::new(
+                        FREE_AGENT_FIELD_IGNORED,
+                        &package.source_at("player", index),
+                    )
+                    .with("id", player.id.clone())
+                    .with("field", field),
+                );
+            }
+        }
+    }
+    warnings
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
