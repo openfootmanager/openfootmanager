@@ -63,6 +63,9 @@ export function usePlayerProfileData({
     useState<UsePlayerProfileDataResult["recentMatchesStatus"]>("loading");
   const [historyAttempt, setHistoryAttempt] = useState(0);
   const listedPlayerId = useRef<string | null>(null);
+  // Whether the list on screen holds any match: a refresh that fails keeps one that does, and
+  // reports the failure when the only answer so far was an empty list.
+  const listHoldsMatches = useRef(false);
 
   const fallbackAdvancedStats = buildPlayerAdvancedStats(player);
 
@@ -117,6 +120,7 @@ export function usePlayerProfileData({
     if (listedPlayerId.current !== player.id) {
       listedPlayerId.current = player.id;
       setRecentMatches((current) => (current.length === 0 ? current : []));
+      listHoldsMatches.current = false;
       setRecentMatchesStatus("loading");
     }
 
@@ -131,14 +135,17 @@ export function usePlayerProfileData({
 
         if (!cancelled) {
           setRecentMatches((current) => (haveSameFixtures(current, result) ? current : result));
+          listHoldsMatches.current = result.length > 0;
           setRecentMatchesStatus("answered");
         }
       } catch {
         // The list already on screen is this player's (a change of player cleared it above), and
-        // a failed refresh is not an empty history: leave it, answered. A history that never
-        // answered is failed, never "no matches".
+        // a failed refresh is not an empty history: leave it, answered, when it holds matches.
+        // A history that never answered, or answered with none, is failed, never "no matches".
         if (!cancelled) {
-          setRecentMatchesStatus((current) => (current === "answered" ? current : "failed"));
+          setRecentMatchesStatus((current) =>
+            current === "answered" && listHoldsMatches.current ? current : "failed",
+          );
         }
       }
     };
