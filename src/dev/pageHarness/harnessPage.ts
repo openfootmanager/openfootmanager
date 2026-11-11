@@ -37,6 +37,8 @@ export function readHarnessPage(search: string): HarnessPage | null {
 export const HARNESS_PROFILES = [
   "own",
   "keeper",
+  "injured",
+  "loaned",
   "rival",
   "scouted",
   "unknown",
