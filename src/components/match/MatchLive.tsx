@@ -84,7 +84,8 @@ export default function MatchLive({
   );
   const [showSubPanel, setShowSubPanel] = useState(false);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const eventFeedRef = useRef<HTMLDivElement>(null);
+  const matchPanelRef = useRef<HTMLElement>(null);
+  const isFollowingCommentaryRef = useRef(true);
   // Track phases we've already signaled to avoid double-firing
   const signaledRef = useRef<Set<string>>(new Set());
   // Set when a step reaches half time, extra-time half time, the shootout or the end: the screen
@@ -219,12 +220,19 @@ export default function MatchLive({
     showSubPanel,
   ]);
 
-  // Auto-scroll event feed
   useEffect(() => {
-    if (eventFeedRef.current) {
-      eventFeedRef.current.scrollTop = eventFeedRef.current.scrollHeight;
+    isFollowingCommentaryRef.current = activePanel === "events";
+    if (activePanel !== "events" && matchPanelRef.current) {
+      matchPanelRef.current.scrollTop = 0;
     }
-  }, [importantEvents.length]);
+  }, [activePanel]);
+
+  // Only follow new plays while the reader is at the bottom of the history.
+  useEffect(() => {
+    if (matchPanelRef.current && isFollowingCommentaryRef.current) {
+      matchPanelRef.current.scrollTop = matchPanelRef.current.scrollHeight;
+    }
+  }, [importantEvents.length, activePanel]);
 
   // Apply the queued substitutions; the screen closes only when every one went through.
   const handleSubstitutions = async (swaps: SubstitutionSwap[]): Promise<SubstitutionOutcome> => {
@@ -381,10 +389,10 @@ export default function MatchLive({
       }
     >
       {/* Main Content */}
-      <div className="flex-1 flex overflow-hidden">
+      <div className="min-h-0 flex-1 flex overflow-hidden">
         {/* Left Panel: Event Feed + Stats */}
-        <div className="flex-1 flex flex-col">
-          <div className="flex bg-white dark:bg-navy-800 border-b border-gray-200 dark:border-navy-700 transition-colors duration-300">
+        <div className="min-h-0 min-w-0 flex-1 flex flex-col">
+          <div className="shrink-0 flex bg-white dark:bg-navy-800 border-b border-gray-200 dark:border-navy-700 transition-colors duration-300">
             {[
               {
                 id: "events" as ActivePanel,
@@ -418,24 +426,37 @@ export default function MatchLive({
             ))}
           </div>
 
-          <div className="flex-1 overflow-auto p-4">
+          <section
+            ref={matchPanelRef}
+            onScroll={(event) => {
+              if (activePanel !== "events") return;
+              const panel = event.currentTarget;
+              // scrollTop can be fractional while the height measurements are rounded.
+              const bottomTolerancePx = 1;
+              isFollowingCommentaryRef.current =
+                panel.scrollHeight - panel.clientHeight - panel.scrollTop <= bottomTolerancePx;
+            }}
+            aria-label={t(`match.${activePanel}`)}
+            // biome-ignore lint/a11y/noNoninteractiveTabindex: the scrollable history needs a tab stop for keyboard scrolling in WebKit
+            tabIndex={0}
+            className="min-h-0 flex-1 overflow-auto overscroll-contain p-4 focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-focus"
+          >
             {activePanel === "events" && (
               <EventFeed
                 events={importantEvents}
                 snapshot={snapshot}
-                feedRef={eventFeedRef}
                 playerJerseyMap={playerJerseyMap}
               />
             )}
             {activePanel === "stats" && <MatchStats snapshot={snapshot} />}
             {activePanel === "lineups" && <Lineups snapshot={snapshot} />}
-          </div>
+          </section>
         </div>
 
         {/* Right Panel: Controls */}
-        <aside className="w-72 bg-panel border-l border-line flex flex-col transition-colors duration-300">
+        <aside className="w-72 shrink-0 overflow-y-auto overscroll-contain bg-panel border-l border-line flex flex-col transition-colors duration-300">
           {/* Speed Controls */}
-          <div className="p-4 border-b border-line">
+          <div className="shrink-0 p-4 border-b border-line">
             <MatchSpeedControl
               paused={!isRunning}
               pace={pace}
@@ -449,7 +470,7 @@ export default function MatchLive({
 
           {/* User Controls */}
           {!isSpectator && userSide && (
-            <div className="p-4 border-b border-gray-200 dark:border-navy-700 flex flex-col gap-2">
+            <div className="shrink-0 p-4 border-b border-gray-200 dark:border-navy-700 flex flex-col gap-2">
               <h3 className="text-xs font-heading font-bold uppercase tracking-widest text-gray-500 dark:text-gray-400 mb-1">
                 {t("match.teamControls")}
               </h3>
@@ -527,50 +548,59 @@ export default function MatchLive({
             </div>
           )}
 
-          {/* Key Events sidebar */}
-          <div className="p-4 flex-1 overflow-auto">
-            <h3 className="text-xs font-heading font-bold uppercase tracking-widest text-gray-500 dark:text-gray-400 mb-3">
+          {/* Keep the list usable when the controls force the sidebar to scroll. */}
+          <div className="min-h-40 flex-1 flex flex-col p-4">
+            <h3 className="shrink-0 text-xs font-heading font-bold uppercase tracking-widest text-gray-500 dark:text-gray-400 mb-3">
               {t("match.keyEvents")}
             </h3>
-            <div className="flex flex-col gap-1.5">
-              {importantEvents
-                .filter((e) =>
-                  [
-                    "Goal",
-                    "PenaltyGoal",
-                    "YellowCard",
-                    "RedCard",
-                    "SecondYellow",
-                    "Substitution",
-                    "PenaltyMiss",
-                    "Injury",
-                  ].includes(e.event_type),
-                )
-                .slice(-12)
-                .reverse()
-                .map((evt, i) => {
-                  const display = getEventDisplay(evt);
-                  return (
-                    <div key={i} className="flex items-center gap-2 text-xs">
-                      <span className="text-gray-600 dark:text-gray-500 tabular-nums w-6 text-right font-heading">
-                        {evt.minute}'
-                      </span>
-                      <span>{display.icon}</span>
-                      <span className={`${display.color} font-medium truncate`}>
-                        {getPlayerName(snapshot, evt.player_id)}
-                      </span>
-                      <MatchEventSideBadge
-                        side={evt.side}
-                        homeTeam={homeTeam}
-                        awayTeam={awayTeam}
-                      />
-                    </div>
-                  );
-                })}
-              {importantEvents.length === 0 && (
-                <p className="text-gray-600 dark:text-gray-500 text-xs">{t("match.noEventsYet")}</p>
-              )}
-            </div>
+            <section
+              aria-label={t("match.keyEvents")}
+              // biome-ignore lint/a11y/noNoninteractiveTabindex: the scrollable key events need a tab stop for keyboard scrolling in WebKit
+              tabIndex={0}
+              className="min-h-0 flex-1 overflow-auto overscroll-contain focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-focus"
+            >
+              <div className="flex flex-col gap-1.5">
+                {importantEvents
+                  .filter((e) =>
+                    [
+                      "Goal",
+                      "PenaltyGoal",
+                      "YellowCard",
+                      "RedCard",
+                      "SecondYellow",
+                      "Substitution",
+                      "PenaltyMiss",
+                      "Injury",
+                    ].includes(e.event_type),
+                  )
+                  .slice(-12)
+                  .reverse()
+                  .map((evt, i) => {
+                    const display = getEventDisplay(evt);
+                    return (
+                      <div key={i} className="flex items-center gap-2 text-xs">
+                        <span className="text-gray-600 dark:text-gray-500 tabular-nums w-6 text-right font-heading">
+                          {evt.minute}'
+                        </span>
+                        <span>{display.icon}</span>
+                        <span className={`${display.color} font-medium truncate`}>
+                          {getPlayerName(snapshot, evt.player_id)}
+                        </span>
+                        <MatchEventSideBadge
+                          side={evt.side}
+                          homeTeam={homeTeam}
+                          awayTeam={awayTeam}
+                        />
+                      </div>
+                    );
+                  })}
+                {importantEvents.length === 0 && (
+                  <p className="text-gray-600 dark:text-gray-500 text-xs">
+                    {t("match.noEventsYet")}
+                  </p>
+                )}
+              </div>
+            </section>
           </div>
         </aside>
       </div>

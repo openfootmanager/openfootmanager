@@ -429,6 +429,33 @@ fn terminate_contract_now_releases_player_and_charges_severance() {
     );
 }
 
+/// Given a player with 9 appearances, 2 goals and 1 assist released by his club mid-season
+/// When the release is made
+/// Then the releasing club's stint holds those 9, 2 and 1.
+#[test]
+fn terminate_contract_now_closes_the_stint_at_the_releasing_club() {
+    let mut game = make_squad_game();
+    give_squad_depth(&mut game);
+    let club = game.teams[0].id.clone();
+    let player = game
+        .players
+        .iter_mut()
+        .find(|p| p.id == "player-1")
+        .unwrap();
+    player.stats.appearances = 9;
+    player.stats.goals = 2;
+    player.stats.assists = 1;
+
+    terminate_contract_now(&mut game, "player-1").expect("termination succeeds");
+
+    let player = game.players.iter().find(|p| p.id == "player-1").unwrap();
+    assert_eq!(player.season_stints.closed.len(), 1);
+    assert_eq!(player.season_stints.closed[0].team_id, club);
+    assert_eq!(player.season_stints.closed[0].tally.appearances, 9);
+    assert_eq!(player.season_stints.closed[0].tally.goals, 2);
+    assert_eq!(player.season_stints.closed[0].tally.assists, 1);
+}
+
 #[test]
 fn terminate_contract_now_blocks_when_goalkeeper_would_be_lost() {
     let mut game = make_squad_game();

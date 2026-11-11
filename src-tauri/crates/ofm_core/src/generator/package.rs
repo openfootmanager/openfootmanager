@@ -1453,7 +1453,7 @@ pub fn authored_reputations(package: &WorldPackage) -> std::collections::HashMap
 
 /// Validate the package's constructed world with the same competition rules as
 /// the game loader. Preserve source locations when surfacing definition errors.
-fn validate_competition_references(package: &WorldPackage) -> Vec<PackageError> {
+pub(super) fn validate_competition_references(package: &WorldPackage) -> Vec<PackageError> {
     if package.competitions.is_empty() {
         return Vec::new();
     }
@@ -2390,6 +2390,7 @@ pub fn read_logo_from_ofm(archive_path: &Path, logo_path: &str) -> Option<String
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::generator::{check_world_package_on_bases, stack_check};
 
     /// Given a safe path alias, when the shared archive pass validates it, then it exposes the normalized path.
     #[test]
@@ -2659,6 +2660,223 @@ mod tests {
 
         std::fs::remove_dir_all(&dir).ok();
         std::fs::remove_dir_all(&data_dir).ok();
+    }
+
+    /// A database package defining one club, "base-fc".
+    fn base_with_one_club() -> PathBuf {
+        let dir = temp_package();
+        write(
+            &dir,
+            "package.json",
+            r#"{"schema":"world","id":"base","name":"Base","version":"1.0.0","license":"CC0-1.0"}"#,
+        );
+        write(
+            &dir,
+            "countries/eng.json",
+            r#"{"schema":"country","id":"ENG","name":"England"}"#,
+        );
+        write(
+            &dir,
+            "teams/teams.json",
+            r##"{"schema":"team","items":[{"id":"base-fc","name":"Base FC","city":"Base","country":"ENG","colors":{"primary":"#000000","secondary":"#ffffff"}}]}"##,
+        );
+        dir
+    }
+
+    fn patch_with_player_at(club: &str) -> PathBuf {
+        let dir = temp_package();
+        write(
+            &dir,
+            "package.json",
+            r#"{"schema":"world","id":"patchy","name":"Patchy","version":"1.0.0","license":"CC0-1.0","packageType":"patch"}"#,
+        );
+        write(
+            &dir,
+            "players/players.json",
+            &format!(
+                r#"{{"schema":"player","items":[{{"id":"p1","name":"P One","club":"{club}","nationality":"ENG","position":"Striker","overall":70}}]}}"#
+            ),
+        );
+        dir
+    }
+
+    /// Given a patch naming a club its base defines
+    /// When it is checked on that base
+    /// Then it passes.
+    #[test]
+    fn a_patch_checked_on_its_base_passes() {
+        let (base, legit) = (base_with_one_club(), patch_with_player_at("base-fc"));
+
+        let (_, errors) = check_world_package_on_bases(&legit, std::slice::from_ref(&base));
+        for dir in [&base, &legit] {
+            std::fs::remove_dir_all(dir).ok();
+        }
+
+        assert!(errors.is_empty(), "{errors:?}");
+    }
+
+    /// Given a patch naming a club nothing defines
+    /// When it is checked on its base
+    /// Then it is refused with the unknown team, the finding the game's stack merge gives.
+    #[test]
+    fn a_patch_naming_a_club_no_package_defines_is_refused_on_its_base() {
+        let (base, ghost) = (base_with_one_club(), patch_with_player_at("ghost-fc"));
+
+        let (_, errors) = check_world_package_on_bases(&ghost, std::slice::from_ref(&base));
+        for dir in [&base, &ghost] {
+            std::fs::remove_dir_all(dir).ok();
+        }
+
+        assert!(errors.iter().any(|e| e.code == UNKNOWN_TEAM), "{errors:?}");
+    }
+
+    /// Given a base DIRECTORY with a player at a club only the patch defines (a dangling reference
+    ///       the stack repairs), and the same base packed as a `.ofm`
+    /// When the patch is checked on each
+    /// Then both pass: a base is read the way the game reads an installed one, its references left
+    ///      to the merge, whatever its format.
+    #[test]
+    fn a_base_directory_is_read_like_an_archive_its_references_left_to_the_merge() {
+        let base = base_with_one_club();
+        write(
+            &base,
+            "players/players.json",
+            r#"{"schema":"player","items":[{"id":"bp","name":"B Player","club":"patch-fc","nationality":"ENG","position":"Striker","overall":70}]}"#,
+        );
+        let patch = temp_package();
+        write(
+            &patch,
+            "package.json",
+            r#"{"schema":"world","id":"patchy","name":"Patchy","version":"1.0.0","license":"CC0-1.0","packageType":"patch"}"#,
+        );
+        write(
+            &patch,
+            "teams/teams.json",
+            r##"{"schema":"team","items":[{"id":"patch-fc","name":"Patch FC","city":"Patch","country":"ENG","colors":{"primary":"#000000","secondary":"#ffffff"}}]}"##,
+        );
+        let out = temp_package();
+        let base_ofm = out.join("base.ofm");
+        super::super::world_io::export_directory_to_ofm(&base, &base_ofm).expect("packed");
+
+        let (_, on_directory) = check_world_package_on_bases(&patch, std::slice::from_ref(&base));
+        let (_, on_archive) = check_world_package_on_bases(&patch, &[base_ofm]);
+        for dir in [&base, &patch, &out] {
+            std::fs::remove_dir_all(dir).ok();
+        }
+
+        assert!(on_archive.is_empty(), "the archive base: {on_archive:?}");
+        assert!(
+            on_directory.is_empty(),
+            "the directory base: {on_directory:?}"
+        );
+    }
+
+    /// Both archives of a patch (`legit` names the base's club, `ghost` one nothing defines) and of
+    /// the base, in a scratch directory that is returned too.
+    fn archived_patches_and_base() -> (PathBuf, PathBuf, PathBuf, PathBuf) {
+        let (base, legit, ghost) = (
+            base_with_one_club(),
+            patch_with_player_at("base-fc"),
+            patch_with_player_at("ghost-fc"),
+        );
+        let out = temp_package();
+        let (base_ofm, legit_ofm, ghost_ofm) = (
+            out.join("base.ofm"),
+            out.join("legit.ofm"),
+            out.join("ghost.ofm"),
+        );
+        for (dir, archive) in [
+            (&base, &base_ofm),
+            (&legit, &legit_ofm),
+            (&ghost, &ghost_ofm),
+        ] {
+            super::super::world_io::export_directory_to_ofm(dir, archive).expect("packed");
+            std::fs::remove_dir_all(dir).ok();
+        }
+        (base_ofm, legit_ofm, ghost_ofm, out)
+    }
+
+    /// Given a patch archive naming a club its base archive defines
+    /// When it is checked on that base
+    /// Then it passes: an archive is checked on its base as a directory is.
+    #[test]
+    fn a_patch_archive_checked_on_its_base_passes() {
+        let (base, legit, _ghost, out) = archived_patches_and_base();
+
+        let (_, errors) = check_world_package_on_bases(&legit, &[base]);
+        std::fs::remove_dir_all(&out).ok();
+
+        assert!(errors.is_empty(), "{errors:?}");
+    }
+
+    /// Given a patch archive naming a club nothing defines
+    /// When it is checked on its base archive
+    /// Then it is refused with the unknown team.
+    #[test]
+    fn a_ghost_club_patch_archive_is_refused_on_its_base() {
+        let (base, _legit, ghost, out) = archived_patches_and_base();
+
+        let (_, errors) = check_world_package_on_bases(&ghost, &[base]);
+        std::fs::remove_dir_all(&out).ok();
+
+        assert!(errors.iter().any(|e| e.code == UNKNOWN_TEAM), "{errors:?}");
+    }
+
+    /// Given a patch naming a club its base defines, and a base that reads
+    /// When it is checked on that base
+    /// Then the stack merge ran: the club references were checked.
+    #[test]
+    fn the_stack_check_reports_the_merge_ran_for_a_readable_base() {
+        let (base, patch) = (base_with_one_club(), patch_with_player_at("base-fc"));
+
+        let check = stack_check(&patch, std::slice::from_ref(&base));
+        for dir in [&base, &patch] {
+            std::fs::remove_dir_all(dir).ok();
+        }
+
+        assert!(check.merged);
+    }
+
+    /// Given a patch and a base that cannot be read
+    /// When it is checked on that base
+    /// Then the merge did not run, and the base's read problem is reported: the club references
+    ///      were never checked, and the caller must not say they were.
+    #[test]
+    fn the_stack_check_reports_no_merge_for_an_unreadable_base() {
+        let patch = patch_with_player_at("base-fc");
+        let missing = std::env::temp_dir().join("ofm-no-such-base.ofm");
+
+        let check = stack_check(&patch, &[missing]);
+        std::fs::remove_dir_all(&patch).ok();
+
+        assert!(!check.merged);
+        assert!(!check.errors.is_empty());
+    }
+
+    /// Given a patch and no base
+    /// When it is checked
+    /// Then the merge did not run: alone, a patch's club references are the stack's to decide.
+    #[test]
+    fn the_stack_check_reports_no_merge_without_a_base() {
+        let patch = patch_with_player_at("base-fc");
+
+        let check = stack_check(&patch, &[]);
+        std::fs::remove_dir_all(&patch).ok();
+
+        assert!(!check.merged);
+    }
+
+    /// Given a patch with no base given
+    /// When it is checked
+    /// Then it is checked as it is read alone: its club references are deferred, as #1271 made them.
+    #[test]
+    fn a_patch_checked_on_no_base_defers_its_club_references() {
+        let ghost = patch_with_player_at("ghost-fc");
+
+        let (_, errors) = check_world_package_on_bases(&ghost, &[]);
+        std::fs::remove_dir_all(&ghost).ok();
+
+        assert!(errors.is_empty(), "{errors:?}");
     }
 
     fn temp_package() -> PathBuf {

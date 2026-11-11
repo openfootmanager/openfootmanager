@@ -7,6 +7,14 @@ export interface NamedCompetition {
   name_key?: string | null;
   season?: number;
   country_id?: string | null;
+  division_tier?: number | null;
+  calendar?: {
+    season?: {
+      division?: {
+        tier?: number | null;
+      } | null;
+    } | null;
+  } | null;
 }
 
 /**
@@ -24,6 +32,11 @@ export function competitionDisplayName(comp: NamedCompetition, t: TranslateFn): 
         defaultValue: comp.country_id,
       })
     : "";
+  const division = comp.calendar?.season?.division;
+  const tier = comp.division_tier ?? division?.tier;
+  if (comp.name_key.endsWith(".tierDivision") && (!tier || tier < 1)) {
+    return comp.name ?? "";
+  }
   // Keep using name_key even without a country (e.g. the World Cup, which has a
   // key but no country_id) so its localized name still resolves. A missing key
   // or an absent `{{country}}` value falls back to the stored name and trims the
@@ -31,6 +44,7 @@ export function competitionDisplayName(comp: NamedCompetition, t: TranslateFn): 
   return t(comp.name_key, {
     year: comp.season,
     country,
+    tier,
     defaultValue: comp.name ?? "",
   }).trim();
 }

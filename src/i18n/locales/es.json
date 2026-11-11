@@ -1680,6 +1680,7 @@
       "league": "Liga de {{country}}",
       "firstDivision": "Primera División de {{country}}",
       "secondDivision": "Segunda División de {{country}}",
+      "tierDivision": "División {{tier}} de {{country}}",
       "nationalCup": "Copa de {{country}}",
       "continentalChampionsCup": "Copa Continental de Campeones",
       "premierDivision": "Primera División"
@@ -3970,6 +3971,7 @@
         "countryWithoutRegion": "Este paquete define el país «{{name}}» ({{code}}) fuera de la lista de países del juego y no lo sitúa en ninguna confederación, así que sus clubes se archivan en Europa. Asígnale una confederación.",
         "freeAgentFieldIgnored": "El jugador «{{id}}» no tiene club, así que es agente libre y no tiene contrato: «{{field}}» se ignora. Asígnale un club para usarlo, o quita el campo.",
         "repeatedNamePool": "El grupo de nombres de {{country}} ya se dio en {{first}}; el de este archivo lo sustituye. Deja solo uno, o asígnalos a países distintos.",
+        "patchClubRefsUnverified": "Este parche nombra clubes que no define. Solo, no puede distinguir los clubes de su base de datos de los errores, así que no se comprobaron aquí. El juego los comprueba cuando el parche se apila sobre su base.",
         "namePoolIncomplete": "El grupo de nombres de {{country}} tiene nombres pero no apellidos, o apellidos pero no nombres, así que no se usa: los jugadores de {{country}} reciben los nombres del juego. Dale ambos."
       }
     }

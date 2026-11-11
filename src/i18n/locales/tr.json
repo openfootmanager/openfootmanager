@@ -1680,6 +1680,7 @@
       "league": "{{country}} Ligi",
       "firstDivision": "{{country}} 1. Ligi",
       "secondDivision": "{{country}} 2. Ligi",
+      "tierDivision": "{{country}} {{tier}}. Ligi",
       "nationalCup": "{{country}} Kupası",
       "continentalChampionsCup": "Kıtasal Şampiyonlar Kupası",
       "premierDivision": "Premier Lig"
@@ -3970,6 +3971,7 @@
         "countryWithoutRegion": "Bu paket, oyunun ülke listesinde olmayan \"{{name}}\" ({{code}}) ülkesini tanımlıyor ve hiçbir konfederasyona yerleştirmiyor; bu yüzden kulüpleri Avrupa altında toplanıyor. Ona bir konfederasyon verin.",
         "freeAgentFieldIgnored": "\"{{id}}\" oyuncusunun kulübü yok, bu yüzden sözleşmesiz bir serbest oyuncu: \"{{field}}\" yok sayılıyor. Kullanılması için ona bir kulüp verin ya da alanı kaldırın.",
         "repeatedNamePool": "{{country}} için isim havuzu daha önce {{first}} dosyasında verilmişti; bu dosyadaki havuz onun yerine geçer. Yalnızca birini bırakın ya da farklı ülkelere atayın.",
+        "patchClubRefsUnverified": "Bu yama, kendisinin tanımlamadığı kulüplerden söz ediyor. Tek başına, temel veri tabanındaki kulüpleri hatalardan ayıramaz; bu yüzden burada denetlenmediler. Oyun, yama temeline yığıldığında bunları denetler.",
         "namePoolIncomplete": "{{country}} için isim havuzunda ad var ama soyadı yok ya da soyadı var ama ad yok, bu yüzden kullanılmıyor: {{country}} oyuncuları oyunun kendi isimlerini alır. İkisini de girin."
       }
     }

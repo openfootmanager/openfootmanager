@@ -140,15 +140,6 @@ pub(super) fn build_foundation_competition_plan(
             if country == "BR" { 28 } else { 1 },
         );
 
-        // Caller-chosen sizes must stay within the two tiers that
-        // `division_tier_name` can name. Keep the default size's original
-        // chunking, including imported worlds with more than 40 clubs.
-        // Remove this clamp when the tier names go beyond two.
-        let division_size = if division_size == TOP_DIVISION_SIZE {
-            division_size
-        } else {
-            division_size.max(team_ids.len().div_ceil(2))
-        };
         let divisions = split_into_divisions(&team_ids, division_size);
         let division_count = divisions.len();
 
@@ -519,6 +510,170 @@ mod tests {
     fn default_size_keeps_the_original_fifty_club_layout() {
         assert_eq!(league_sizes(50, TOP_DIVISION_SIZE), vec![20, 20, 10]);
     }
+
+    /// Given 60 clubs that form three default-size divisions, when the plan is built, then every
+    /// division has its own display name and localization key.
+    #[test]
+    fn a_three_tier_country_has_distinct_names_and_translation_keys() {
+        let teams = (0..60)
+            .map(|index| nation_team(&format!("eng-{index:02}"), "ENG", 1000 - index))
+            .collect();
+        let start = start_date_for_year(2032).expect("valid start year");
+        let game = Game::new(
+            GameClock::new(start),
+            manager_for("eng-00"),
+            teams,
+            vec![],
+            vec![],
+            vec![],
+        );
+
+        let leagues: Vec<_> = build_foundation_competition_plan(&game, start, TOP_DIVISION_SIZE)
+            .into_iter()
+            .filter(|(definition, _)| {
+                definition.country_id.as_deref() == Some("ENG")
+                    && definition.r#type == CompetitionType::League
+            })
+            .map(|(definition, _)| definition)
+            .collect();
+
+        assert_eq!(leagues.len(), 3);
+        assert_eq!(
+            leagues
+                .iter()
+                .map(|league| league.name.as_str())
+                .collect::<std::collections::BTreeSet<_>>()
+                .len(),
+            3,
+            "each tier needs a distinct display name"
+        );
+        assert_eq!(
+            leagues
+                .iter()
+                .map(|league| league.name_key.as_deref().expect("league name key"))
+                .collect::<std::collections::BTreeSet<_>>()
+                .len(),
+            3,
+            "each tier needs a distinct localization key"
+        );
+        assert_eq!(
+            leagues
+                .iter()
+                .map(|league| league.name_key.as_deref().expect("league name key"))
+                .collect::<Vec<_>>(),
+            vec![
+                "tournaments.competitions.firstDivision",
+                "tournaments.competitions.secondDivision",
+                "tournaments.competitions.tierDivision"
+            ]
+        );
+        assert_eq!(
+            leagues
+                .iter()
+                .map(|league| league.name.as_str())
+                .collect::<Vec<_>>(),
+            vec![
+                "England First Division",
+                "England Second Division",
+                "England Division 3"
+            ]
+        );
+    }
+
+    /// Given 80 clubs that form four divisions, when the plan is built, then the fourth tier gets
+    /// its ordinal display name and the generic tier localization key.
+    #[test]
+    fn a_deeper_tier_keeps_its_ordinal_name_and_generic_key() {
+        let teams = (0..80)
+            .map(|index| nation_team(&format!("eng-{index:02}"), "ENG", 1000 - index))
+            .collect();
+        let start = start_date_for_year(2032).expect("valid start year");
+        let game = Game::new(
+            GameClock::new(start),
+            manager_for("eng-00"),
+            teams,
+            vec![],
+            vec![],
+            vec![],
+        );
+
+        let leagues: Vec<_> = build_foundation_competition_plan(&game, start, TOP_DIVISION_SIZE)
+            .into_iter()
+            .filter(|(definition, _)| {
+                definition.country_id.as_deref() == Some("ENG")
+                    && definition.r#type == CompetitionType::League
+            })
+            .map(|(definition, _)| definition)
+            .collect();
+
+        assert_eq!(leagues.len(), 4);
+        assert_eq!(leagues[3].name, "England Division 4");
+        assert_eq!(
+            leagues[3].name_key.as_deref(),
+            Some("tournaments.competitions.tierDivision")
+        );
+    }
+
+    /// Given 18 clubs and a caller-selected size of six, when the plan is built, then it keeps
+    /// all three requested tiers instead of widening them into two.
+    #[test]
+    fn custom_three_tier_pyramid_has_distinct_names_and_translation_keys() {
+        let teams = (0..18)
+            .map(|index| nation_team(&format!("eng-{index:02}"), "ENG", 1000 - index))
+            .collect();
+        let start = start_date_for_year(2032).expect("valid start year");
+        let game = Game::new(
+            GameClock::new(start),
+            manager_for("eng-00"),
+            teams,
+            vec![],
+            vec![],
+            vec![],
+        );
+
+        let leagues: Vec<_> = build_foundation_competition_plan(&game, start, 6)
+            .into_iter()
+            .filter(|(definition, _)| {
+                definition.country_id.as_deref() == Some("ENG")
+                    && definition.r#type == CompetitionType::League
+            })
+            .map(|(definition, _)| definition)
+            .collect();
+
+        assert_eq!(leagues.len(), 3);
+        assert_eq!(
+            leagues
+                .iter()
+                .map(|league| league.name.as_str())
+                .collect::<std::collections::BTreeSet<_>>()
+                .len(),
+            3,
+            "each tier needs a distinct display name"
+        );
+        assert_eq!(
+            leagues
+                .iter()
+                .map(|league| league.name_key.as_deref().expect("league name key"))
+                .collect::<std::collections::BTreeSet<_>>()
+                .len(),
+            3,
+            "each tier needs a distinct localization key"
+        );
+        assert_eq!(
+            leagues
+                .iter()
+                .map(|league| league.name.as_str())
+                .collect::<Vec<_>>(),
+            vec![
+                "England First Division",
+                "England Second Division",
+                "England Division 3"
+            ]
+        );
+    }
+
+    /// Given a split-season country with two tiers, when both calendar halves are planned, then
+    /// each half keeps its phase in the stored name and has the correct tier identity.
     #[test]
     fn generated_calendar_halves_declare_shared_family_and_distinct_windows() {
         let teams = (0..40)
@@ -541,6 +696,8 @@ mod tests {
                 .count(),
             4
         );
+        let mut phase_names_by_tier =
+            std::collections::BTreeMap::<usize, std::collections::BTreeMap<&str, &str>>::new();
         for (definition, _) in plan.iter().filter(|(d, _)| {
             d.country_id.as_deref() == Some("AR") && d.r#type == CompetitionType::League
         }) {
@@ -550,12 +707,18 @@ mod tests {
             } else {
                 "closing"
             };
+            assert_eq!(definition.name_key, None);
+            let tier = if definition.id.contains("d1") { 1 } else { 2 };
+            assert!(
+                phase_names_by_tier
+                    .entry(tier)
+                    .or_default()
+                    .insert(phase, &definition.name)
+                    .is_none()
+            );
             assert_eq!(value["calendar"]["division"]["familyId"], "ar-league");
             assert_eq!(value["calendar"]["division"]["phase"], phase);
-            assert_eq!(
-                value["calendar"]["division"]["tier"],
-                if definition.id.contains("d1") { 1 } else { 2 }
-            );
+            assert_eq!(value["calendar"]["division"]["tier"], tier);
             assert_eq!(
                 value["calendar"]["windowEnd"],
                 if phase == "opening" {
@@ -568,6 +731,15 @@ mod tests {
             assert_eq!(
                 definition.season_start_month,
                 Some(if phase == "opening" { 2 } else { 7 })
+            );
+        }
+        assert_eq!(phase_names_by_tier.len(), 2);
+        for (tier, phase_names) in phase_names_by_tier {
+            let opening = phase_names.get("opening").expect("opening half");
+            let closing = phase_names.get("closing").expect("closing half");
+            assert_ne!(
+                opening, closing,
+                "tier {tier} must keep its phase in the name"
             );
         }
     }
