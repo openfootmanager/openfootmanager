@@ -1124,14 +1124,21 @@ mod tests {
         let validated = validate_package_project(dir.to_string_lossy().to_string()).expect("ok");
         std::fs::remove_dir_all(&dir).ok();
 
-        assert!(validated.issues.is_empty(), "{:?}", validated.issues);
+        let codes = |issues: &[PackageIssue]| -> Vec<String> {
+            issues.iter().map(|issue| issue.code.clone()).collect()
+        };
+        assert!(
+            validated.issues.is_empty(),
+            "{:?}",
+            codes(&validated.issues)
+        );
         assert!(
             validated
                 .warnings
                 .iter()
                 .any(|w| w.code == "be.warning.package.patchClubRefsUnverified"),
             "{:?}",
-            validated.warnings
+            codes(&validated.warnings)
         );
     }
 
