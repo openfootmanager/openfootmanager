@@ -66,8 +66,12 @@ export function buildContractHistory(
     rows.push({
       key: `${entry.date}-${entry.kind}-${position}`,
       clubName: entry.to_team_name || entry.to_team_id || "",
-      clubId: null,
-      fromClubName: null,
+      clubId: entry.to_team_id ?? null,
+      // Only a transfer comes from another club; a renewal or a first contract does not.
+      fromClubName:
+        entry.contract.source === "transfer"
+          ? (entry.from_team_name ?? entry.from_team_id ?? null)
+          : null,
       start: entry.contract.start ?? null,
       end: entry.contract.end ?? null,
       weeklyWage: entry.contract.weekly_wage,

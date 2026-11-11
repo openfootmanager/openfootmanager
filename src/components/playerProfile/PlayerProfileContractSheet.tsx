@@ -45,7 +45,7 @@ const SECTION = "playerProfile.contractSheet";
 /** A figure and the words for it. */
 function Row({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <div className="flex items-baseline justify-between gap-4">
+    <div className="flex items-baseline justify-between gap-4 py-2 first:pt-0 last:pb-0">
       <dt className="shrink-0 text-body text-fg-muted">{label}</dt>
       <dd className="text-right text-body font-semibold text-fg tabular-nums">{children}</dd>
     </div>
@@ -76,13 +76,15 @@ function Decision({
 }) {
   return (
     // biome-ignore lint/a11y/useSemanticElements: a group of related controls under one heading, named by its title
-    <div role="group" aria-label={title} className="flex min-w-0 flex-col gap-2">
+    <div
+      role="group"
+      aria-label={title}
+      className="grid min-w-0 gap-2 @[34rem]:row-span-4 @[34rem]:grid-rows-subgrid @[34rem]:border-l @[34rem]:border-line @[34rem]:pl-4 @[34rem]:first:border-l-0 @[34rem]:first:pl-0"
+    >
       <h4 className="font-heading text-lead font-bold uppercase tracking-label text-fg">{title}</h4>
       <p className="text-body text-fg-muted">{what}</p>
-      <div className="mt-auto flex flex-col gap-2">
-        {panel}
-        <div>{children}</div>
-      </div>
+      <div className="flex flex-col justify-end gap-2">{panel}</div>
+      <div>{children}</div>
     </div>
   );
 }
@@ -170,9 +172,9 @@ export default function PlayerProfileContractSheet({
       <CardHeader>{t(`${SECTION}.his`)}</CardHeader>
       <CardBody>
         {contractEnd ? (
-          <dl className="flex flex-col gap-2">
+          <dl className="flex flex-col divide-y divide-line">
             <Row label={t(`${SECTION}.ends`)}>{endText}</Row>
-            <Row label={t("playerProfile.yearsRemaining")}>
+            <Row label={t(`${SECTION}.timeLeft`)}>
               <span className="inline-flex items-center gap-2">
                 {getContractYearsRemaining(contractEnd, currentDate)}
                 <Badge variant={getContractRiskBadgeVariant(contractRisk.level)}>
@@ -181,22 +183,22 @@ export default function PlayerProfileContractSheet({
               </span>
             </Row>
             {isOwnContract && exactWeeklyWage !== null ? (
-              <Row label={t(`${SECTION}.weeklyWage`)}>{formatPlayerWage(exactWeeklyWage)}</Row>
+              <Row label={t(`${SECTION}.wage`)}>{formatPlayerWage(exactWeeklyWage)}</Row>
+            ) : null}
+            {lastSigned ? (
+              <Row label={t(`${SECTION}.lastSigned`)}>
+                {lastSigned.source === "legacy_migrated" || !lastSigned.start
+                  ? t("playerProfile.movementLegacyContract")
+                  : t(`${SECTION}.lastSignedValue`, {
+                      date: formatProfileDay(lastSigned.start, language),
+                      source: t(`${SECTION}.source.${lastSigned.source}`),
+                    })}
+              </Row>
             ) : null}
           </dl>
         ) : (
           <p className="text-body text-fg-muted">{t(`${SECTION}.noContract`)}</p>
         )}
-        {lastSigned ? (
-          <p className="mt-3 text-caption text-fg-muted">
-            {lastSigned.source === "legacy_migrated" || !lastSigned.start
-              ? t("playerProfile.movementLegacyContract")
-              : t(`${SECTION}.lastSigned`, {
-                  date: formatProfileDay(lastSigned.start, language),
-                  source: t(`${SECTION}.source.${lastSigned.source}`),
-                })}
-          </p>
-        ) : null}
       </CardBody>
     </Card>
   );
@@ -260,7 +262,7 @@ export default function PlayerProfileContractSheet({
         </Panel>
       }
     >
-      <Button size="sm" disabled={!contractEnd} onClick={onOpenRenewal}>
+      <Button size="sm" className="w-full" disabled={!contractEnd} onClick={onOpenRenewal}>
         {t("common.renewContract")}
       </Button>
     </Decision>
@@ -272,7 +274,13 @@ export default function PlayerProfileContractSheet({
       what={t(`${SECTION}.letExpireSetWhat`)}
       panel={<Panel label={t(`${SECTION}.leavesOn`)}>{endText}</Panel>}
     >
-      <Button variant="outline" size="sm" disabled={actionSubmitting} onClick={onClearLetExpire}>
+      <Button
+        variant="outline"
+        size="sm"
+        className="w-full"
+        disabled={actionSubmitting}
+        onClick={onClearLetExpire}
+      >
         {t("playerProfile.reopenContractTalks")}
       </Button>
     </Decision>
@@ -285,6 +293,7 @@ export default function PlayerProfileContractSheet({
       <Button
         variant="outline"
         size="sm"
+        className="w-full"
         disabled={actionSubmitting || !contractEnd}
         onClick={onMarkLetExpire}
       >
@@ -330,7 +339,7 @@ export default function PlayerProfileContractSheet({
       <Button
         variant="outline"
         size="sm"
-        className="border-danger hover:bg-danger-tint hover:border-danger"
+        className="w-full border-danger hover:bg-danger-tint hover:border-danger"
         disabled={actionSubmitting || blocked !== null || squadUnsafe}
         onClick={onOpenTermination}
       >
@@ -345,7 +354,7 @@ export default function PlayerProfileContractSheet({
         <CardHeader>{t(`${SECTION}.decide`)}</CardHeader>
         <CardBody>
           <div className="@container">
-            <div className="grid grid-cols-1 gap-4 @[34rem]:grid-cols-3">
+            <div className="grid grid-cols-1 gap-x-4 gap-y-6 @[34rem]:grid-cols-3 @[34rem]:grid-rows-[auto_1fr_auto_auto] @[34rem]:gap-y-2">
               {hasLetExpireIntent ? null : renew}
               {letExpire}
               {terminate}

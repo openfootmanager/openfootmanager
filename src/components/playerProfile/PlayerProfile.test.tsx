@@ -705,7 +705,7 @@ describe("PlayerProfile contract surfaces", () => {
     // The Contract tab holds the years left and the actions; the date and its risk are in Details.
     expect(screen.getByText("playerProfile.contractSheet.his")).toBeInTheDocument();
     expect(screen.getByText(/until .*October 15, 2026/)).toBeInTheDocument();
-    expect(screen.getByText("Years Remaining")).toBeInTheDocument();
+    expect(screen.getByText("playerProfile.contractSheet.timeLeft")).toBeInTheDocument();
     expect(screen.queryByText("Contract Risk")).toBeNull();
     expect(screen.getAllByText("Critical").length).toBeGreaterThan(0);
     expect(screen.queryByText("Weekly Wage")).toBeNull();

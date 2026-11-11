@@ -40,6 +40,8 @@ interface PlayerProfileTabsProps {
   knowledge: PlayerProfileKnowledge;
   actions: PlayerProfileActions;
   contractRisk: { level: "critical" | "warning" | "stable"; label: string };
+  /** Opens a club (the contracts he has had link to theirs). */
+  onSelectTeam?: (id: string) => void;
 }
 
 /** The four tabs of the profile and what each holds. */
@@ -54,6 +56,7 @@ export default function PlayerProfileTabs({
   knowledge,
   actions,
   contractRisk,
+  onSelectTeam,
 }: PlayerProfileTabsProps) {
   const { t, i18n } = useTranslation();
   const tabsId = useId();
@@ -175,6 +178,7 @@ export default function PlayerProfileTabs({
               rows={contractHistory}
               showsWages={exactWeeklyWage !== null}
               language={i18n.language}
+              onOpenTeam={onSelectTeam}
               t={t}
             />
           }

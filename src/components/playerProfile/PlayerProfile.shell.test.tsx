@@ -163,16 +163,18 @@ describe("PlayerProfile shell", () => {
   /**
    * Given the profile of a player of the manager's own club
    * When it opens
-   * Then condition, morale, value and wage are each on the page once: the name card carries no
-   *      band of them, and the Contract tab holds them (the Overview takes them in a later slice)
+   * Then condition, morale and value are each on the page once (the name card carries no band of
+   *      them), and the wage twice: on the Overview's details, and in the Contract tab's contract
+   *      card, where the decision sheet (board "Contract A") puts it beside the contract it is paid
+   *      under
    */
-  it("shows condition, morale, value and wage once each", () => {
+  it("shows condition, morale and value once each, and the wage on the Overview and the contract card", () => {
     renderProfile();
 
     expect(screen.getAllByText("Condition")).toHaveLength(1);
     expect(screen.getAllByText("Morale")).toHaveLength(1);
     expect(screen.getAllByText(/^(Value|Market Value)$/)).toHaveLength(1);
-    expect(screen.getAllByText(/^(Wage|Weekly Wage)$/)).toHaveLength(1);
+    expect(screen.getAllByText(/^(Wage|Weekly Wage)$/)).toHaveLength(2);
   });
 
   /**

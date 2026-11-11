@@ -161,6 +161,7 @@ export default function PlayerProfile({
         knowledge={knowledge}
         actions={actions}
         contractRisk={{ level: contractRiskLevel, label: contractRiskLabel }}
+        onSelectTeam={onSelectTeam}
       />
 
       <PlayerProfileModals

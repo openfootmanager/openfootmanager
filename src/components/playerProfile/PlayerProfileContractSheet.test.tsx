@@ -142,8 +142,9 @@ describe("PlayerProfileContractSheet: his own player", () => {
       lastSigned: { ...LAST_SIGNED, start: null, source: "legacy_migrated" },
     });
 
-    expect(screen.getByText("playerProfile.movementLegacyContract")).toBeInTheDocument();
-    expect(screen.queryByText("playerProfile.contractSheet.lastSigned")).toBeNull();
+    const lastSigned = screen.getByText("playerProfile.contractSheet.lastSigned").closest("div");
+    expect(lastSigned).toHaveTextContent("playerProfile.movementLegacyContract");
+    expect(lastSigned).not.toHaveTextContent("lastSignedValue");
   });
 
   /**
@@ -258,9 +259,11 @@ describe("PlayerProfileContractSheet: his own player", () => {
       expect(group.className).toContain("grid-rows-subgrid");
       expect(within(group).getByRole("button").className).toContain("w-full");
     }
-    expect(groups[0].className).not.toContain("border-l");
-    expect(groups[1].className).toContain("border-l");
-    expect(groups[2].className).toContain("border-l");
+    // Each carries the divider; the first drops it, so only the columns after the first have one.
+    for (const group of groups) {
+      expect(group.className).toContain("@[34rem]:border-l");
+      expect(group.className).toContain("first:border-l-0");
+    }
   });
 
   /**

@@ -1,4 +1,4 @@
-import { Badge, Card, CardBody, CardHeader } from "../ui";
+import { Card, CardBody, CardHeader } from "../ui";
 import type { ReleaseReason } from "../../store/types";
 import { formatPlayerWage, formatProfileDay } from "./PlayerProfile.helpers";
 import type { ContractHistoryRow } from "./PlayerProfile.contractHistory";
@@ -16,6 +16,8 @@ interface PlayerProfileContractHistoryCardProps {
   t: TranslateFn;
 }
 
+const SECTION = "playerProfile.contractSheet";
+
 const RELEASE_REASON_KEYS: Record<ReleaseReason, string> = {
   expired: "playerProfile.movementReleasedExpired",
   terminated: "playerProfile.movementReleasedTerminated",
@@ -25,18 +27,33 @@ const RELEASE_REASON_KEYS: Record<ReleaseReason, string> = {
 function spanText(row: ContractHistoryRow, language: string, t: TranslateFn): string {
   const start = row.start ? formatProfileDay(row.start, language) : null;
   const end = row.end ? formatProfileDay(row.end, language) : null;
-  if (start && end) return t("playerProfile.movementContractRange", { start, end });
-  if (end) return t("playerProfile.movementContractUntil", { end });
-  if (start) return t("playerProfile.movementContractFrom", { start });
+  if (start && end) return t(`${SECTION}.range`, { start, end });
+  if (end) return t(`${SECTION}.until`, { end });
+  if (start) return t(`${SECTION}.from`, { start });
   return t("playerProfile.movementDateUnknown");
 }
 
-/** The contracts he has had, newest first, from his movement ledger. */
+/** How he came to the club: a transfer names the club he came from; a legacy contract says it is one. */
+function howText(row: ContractHistoryRow, t: TranslateFn): string {
+  if (row.source === "legacy_migrated") return t("playerProfile.movementLegacyContract");
+  if (row.source === "transfer") {
+    return row.fromClubName
+      ? t(`${SECTION}.how.transfer`, { club: row.fromClubName })
+      : t(`${SECTION}.how.transferNoClub`);
+  }
+  return t(`${SECTION}.how.${row.source}`);
+}
+
+/**
+ * The contracts he has had, newest first, from his movement ledger: each row leads with its date
+ * range, then the club (a link) with how he joined it, then the wage; the contract he is on now is
+ * tinted, and one that ended says how.
+ */
 export default function PlayerProfileContractHistoryCard({
   rows,
   showsWages,
   language,
-  onOpenTeam: _onOpenTeam,
+  onOpenTeam,
   t,
 }: PlayerProfileContractHistoryCardProps) {
   return (
@@ -45,50 +62,49 @@ export default function PlayerProfileContractHistoryCard({
       <CardBody>
         {rows.length > 0 ? (
           <table className="w-full text-body">
-            <thead>
-              <tr className="border-b border-line text-left text-caption text-fg-muted">
-                <th scope="col" className="pb-2 pr-3 font-semibold">
-                  {t("common.team")}
-                </th>
-                <th scope="col" className="pb-2 pr-3 font-semibold">
-                  {t("playerProfile.contractSpanHeading")}
-                </th>
-                {showsWages ? (
-                  <th scope="col" className="pb-2 pr-3 text-right font-semibold">
-                    {t("playerProfile.contractSheet.weeklyWage")}
-                  </th>
-                ) : null}
-                <th scope="col" className="pb-2 font-semibold">
-                  {t("playerProfile.contractEnded")}
-                </th>
+            <thead className="sr-only">
+              <tr>
+                <th scope="col">{t("playerProfile.contractSpanHeading")}</th>
+                <th scope="col">{t("common.team")}</th>
+                {showsWages ? <th scope="col">{t(`${SECTION}.weeklyWage`)}</th> : null}
               </tr>
             </thead>
             <tbody className="divide-y divide-line">
-              {rows.map((row) => (
-                <tr key={row.key}>
-                  <td className="py-2 pr-3 font-semibold text-fg">{row.clubName}</td>
-                  <td className="py-2 pr-3 text-fg-muted">
-                    <span>{spanText(row, language, t)}</span>
-                    {row.source === "legacy_migrated" ? (
-                      <span className="block text-caption text-fg-subtle">
-                        {t("playerProfile.movementLegacyContract")}
-                      </span>
-                    ) : null}
-                  </td>
-                  {showsWages ? (
-                    <td className="py-2 pr-3 text-right tabular-nums text-fg">
-                      {formatPlayerWage(row.weeklyWage)}
+              {rows.map((row) => {
+                return (
+                  <tr key={row.key} className={row.inForce ? "bg-positive-tint" : undefined}>
+                    <td className="py-2 pr-3 align-top font-semibold tabular-nums text-fg">
+                      {spanText(row, language, t)}
                     </td>
-                  ) : null}
-                  <td className="py-2 text-fg-muted">
-                    {row.inForce ? (
-                      <Badge variant="success">{t("playerProfile.contractCurrent")}</Badge>
-                    ) : row.endedBy ? (
-                      t(RELEASE_REASON_KEYS[row.endedBy])
+                    <td className="min-w-0 py-2 pr-3 align-top">
+                      {onOpenTeam && row.clubId ? (
+                        <button
+                          type="button"
+                          onClick={() => onOpenTeam(row.clubId ?? "")}
+                          className="rounded font-semibold text-positive underline underline-offset-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 focus-visible:ring-offset-panel"
+                        >
+                          {row.clubName}
+                        </button>
+                      ) : (
+                        <span className="font-semibold text-fg">{row.clubName}</span>
+                      )}
+                      <span className="text-caption text-fg-muted"> · </span>
+                      <span className="text-caption text-fg-muted">{howText(row, t)}</span>
+                      {!row.inForce && row.endedBy ? (
+                        <span className="text-caption text-fg-muted">
+                          {" · "}
+                          {t(RELEASE_REASON_KEYS[row.endedBy])}
+                        </span>
+                      ) : null}
+                    </td>
+                    {showsWages ? (
+                      <td className="py-2 text-right align-top font-semibold tabular-nums text-fg">
+                        {formatPlayerWage(row.weeklyWage)}
+                      </td>
                     ) : null}
-                  </td>
-                </tr>
-              ))}
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         ) : (
