@@ -284,19 +284,37 @@ describe("the player profile's cases", () => {
   });
 
   /**
-   * Given the own player's current contract and his history
-   * When both are read
-   * Then the last contract in his history is the one he has now (same end, same wage): the history
-   *      and the profile never disagree about the contract in force
+   * Given the own, the loaned-out and the rival player, each with a history of his own
+   * When both the player and his history are read
+   * Then the last contract in the history is the one he has now: the same end, the same wage and
+   *      the same start (the game derives a player's contract dates from the ledger's current
+   *      record), so the history and the profile never disagree about the contract in force
    */
-  it("ends the own player's history with the contract he has now", () => {
-    const player = shown("own");
-    const current = [...(player.movement_history ?? [])]
-      .reverse()
-      .find((entry) => entry.contract)?.contract;
+  it("ends each player's history with the contract he has now", () => {
+    for (const variant of ["own", "loaned", "rival"] as const) {
+      const player = shown(variant);
+      const current = [...(player.movement_history ?? [])]
+        .reverse()
+        .find((entry) => entry.contract)?.contract;
 
-    expect(current?.end).toBe(player.contract_end);
-    expect(current?.weekly_wage).toBe(player.wage);
+      expect(current?.end, variant).toBe(player.contract_end);
+      expect(current?.weekly_wage, variant).toBe(player.wage);
+      expect(current?.start ?? null, variant).toBe(player.contract_start ?? null);
+    }
+  });
+
+  /**
+   * Given the loaned-out player, whose contract comes from a save made before starts were recorded
+   * When his history is read
+   * Then the opening entry has no date, as the game records an unknown start ("an unknown, not a
+   *      made-up day"), and the contract's start is null with it
+   */
+  it("keeps the unknown start of a legacy contract unknown in the movement date too", () => {
+    const history = shown("loaned").movement_history ?? [];
+    const legacy = history.find((entry) => entry.contract?.source === "legacy_migrated");
+
+    expect(legacy?.contract?.start).toBeNull();
+    expect(legacy?.date).toBe("");
   });
 
   /**
