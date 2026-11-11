@@ -1916,7 +1916,12 @@
       "overTimeNote": "Týdenní plat u každé smlouvy. Přerušovaný okraj je plánovaný konec, který ještě nenastal.",
       "overTimeNoteNoWage": "Přerušovaný okraj je plánovaný konec, který ještě nenastal.",
       "overTimeLabel": "Časová osa jeho smluv s vyznačeným dneškem",
-      "today": "Dnes"
+      "today": "Dnes",
+      "yearsLeft": {
+        "one": "{{years}} roku",
+        "many": "{{years}} roku",
+        "other": "{{years}} roku"
+      }
     },
     "movementRenewedWith": "Prodloužení v klubu {{club}}",
     "movementAtClub": "V klubu {{club}}",

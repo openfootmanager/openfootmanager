@@ -1916,7 +1916,12 @@
       "overTimeNote": "Weekly wage on each contract. A dashed edge is a planned end that has not come yet.",
       "overTimeNoteNoWage": "A dashed edge is a planned end that has not come yet.",
       "overTimeLabel": "A timeline of his contracts, with today marked",
-      "today": "Today"
+      "today": "Today",
+      "yearsLeft": {
+        "one": "{{years}} year",
+        "many": "{{years}} years",
+        "other": "{{years}} years"
+      }
     },
     "movementRenewedWith": "Renewed with {{club}}",
     "movementAtClub": "At {{club}}",

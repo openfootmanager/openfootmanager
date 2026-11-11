@@ -1916,7 +1916,12 @@
       "overTimeNote": "Her sözleşmedeki haftalık maaş. Kesik çizgili kenar, henüz gelmemiş planlı bir bitiştir.",
       "overTimeNoteNoWage": "Kesik çizgili kenar, henüz gelmemiş planlı bir bitiştir.",
       "overTimeLabel": "Sözleşmelerinin zaman çizelgesi, bugün işaretli",
-      "today": "Bugün"
+      "today": "Bugün",
+      "yearsLeft": {
+        "one": "{{years}} yıl",
+        "many": "{{years}} yıl",
+        "other": "{{years}} yıl"
+      }
     },
     "movementRenewedWith": "{{club}} ile yenilendi",
     "movementAtClub": "{{club}} kulübünde",

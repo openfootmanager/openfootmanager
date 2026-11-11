@@ -1916,7 +1916,12 @@
       "overTimeNote": "Gaji mingguan pada setiap kontrak. Tepi putus-putus adalah akhir yang direncanakan dan belum tiba.",
       "overTimeNoteNoWage": "Tepi putus-putus adalah akhir yang direncanakan dan belum tiba.",
       "overTimeLabel": "Garis waktu kontraknya, dengan hari ini ditandai",
-      "today": "Hari ini"
+      "today": "Hari ini",
+      "yearsLeft": {
+        "one": "{{years}} tahun",
+        "many": "{{years}} tahun",
+        "other": "{{years}} tahun"
+      }
     },
     "movementRenewedWith": "Diperpanjang bersama {{club}}",
     "movementAtClub": "Di {{club}}",

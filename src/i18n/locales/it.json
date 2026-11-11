@@ -1934,7 +1934,12 @@
       "overTimeNote": "Stipendio settimanale di ogni contratto. Un bordo tratteggiato è una scadenza prevista che non è ancora arrivata.",
       "overTimeNoteNoWage": "Un bordo tratteggiato è una scadenza prevista che non è ancora arrivata.",
       "overTimeLabel": "Cronologia dei suoi contratti, con la data di oggi indicata",
-      "today": "Oggi"
+      "today": "Oggi",
+      "yearsLeft": {
+        "one": "{{years}} anno",
+        "many": "{{years}} anni",
+        "other": "{{years}} anni"
+      }
     },
     "movementRenewedWith": "Rinnovato con {{club}}",
     "movementAtClub": "Presso {{club}}",

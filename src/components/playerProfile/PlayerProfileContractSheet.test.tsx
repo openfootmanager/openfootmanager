@@ -122,14 +122,17 @@ describe("PlayerProfileContractSheet: his own player", () => {
    * Given his own player with a contract to 30 June 2034, on 10,000 a week, last signed as a renewal
    *       on 1 July 2031, and a contract risk the backend rates stable
    * When the sheet is drawn
-   * Then his contract card shows the end as a date in the player's language, the years left with
-   *      the risk beside them, his exact wage, and when and how he last signed
+   * Then his contract card shows the end as a date in the player's language, the years left (with
+   *      their unit) and the risk beside them, his exact wage, and when and how he last signed
    */
   it("shows his contract: the end, the years left and their risk, his wage, when he last signed", () => {
     renderSheet();
 
     const row = (label: string) => screen.getByText(label).closest("div");
     expect(row("playerProfile.contractSheet.ends")).toHaveTextContent("Jun 30, 2034");
+    expect(row("playerProfile.contractSheet.timeLeft")).toHaveTextContent(
+      'playerProfile.contractSheet.yearsLeft.other {"years":"3.0"}',
+    );
     expect(row("playerProfile.contractSheet.timeLeft")).toHaveTextContent("Stable");
     expect(row("playerProfile.contractSheet.wage")).toHaveTextContent("€10,000");
     const lastSigned = row("playerProfile.contractSheet.lastSigned");

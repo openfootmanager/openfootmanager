@@ -1915,7 +1915,12 @@
       "overTimeNote": "Salario semanal de cada contrato. Un borde discontinuo es un final previsto que aún no ha llegado.",
       "overTimeNoteNoWage": "Un borde discontinuo es un final previsto que aún no ha llegado.",
       "overTimeLabel": "Cronología de sus contratos, con hoy señalado",
-      "today": "Hoy"
+      "today": "Hoy",
+      "yearsLeft": {
+        "one": "{{years}} año",
+        "many": "{{years}} años",
+        "other": "{{years}} años"
+      }
     },
     "movementRenewedWith": "Renovó con {{club}}",
     "movementAtClub": "En {{club}}",

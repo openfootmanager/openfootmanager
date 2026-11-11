@@ -1915,7 +1915,12 @@
       "overTimeNote": "Salário semanal de cada contrato. Um limite tracejado é um fim previsto que ainda não chegou.",
       "overTimeNoteNoWage": "Um limite tracejado é um fim previsto que ainda não chegou.",
       "overTimeLabel": "Cronologia dos seus contratos, com o dia de hoje assinalado",
-      "today": "Hoje"
+      "today": "Hoje",
+      "yearsLeft": {
+        "one": "{{years}} ano",
+        "many": "{{years}} anos",
+        "other": "{{years}} anos"
+      }
     },
     "movementRenewedWith": "Renovou com {{club}}",
     "movementAtClub": "Em {{club}}",

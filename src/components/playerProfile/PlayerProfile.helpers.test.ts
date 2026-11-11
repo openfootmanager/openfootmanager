@@ -7,6 +7,7 @@ import {
   formatPlayerMarketValue,
   formatPlayerWage,
   formatProfileDay,
+  formatYearsLeft,
   getAttributeColorClass,
   getPlayerTeamName,
   resolvePlayerInjuryName,
@@ -258,5 +259,55 @@ describe("formatProfileDay", () => {
   it("returns what is not a day unchanged", () => {
     expect(formatProfileDay("", "en")).toBe("");
     expect(formatProfileDay("unknown", "en")).toBe("unknown");
+  });
+});
+
+describe("formatYearsLeft", () => {
+  const key = (k: string, o?: Record<string, string | number>) => `${k}|${o?.years}`;
+  const END = "2034-06-30";
+  const TODAY = "2031-07-10";
+
+  /**
+   * Given a contract with 2.97 years left, in English
+   * When the years left are written
+   * Then the number carries one decimal and the plural-form key a fraction takes in English
+   */
+  it("writes one decimal and the English plural form for a fraction", () => {
+    expect(formatYearsLeft(END, TODAY, "en", key)).toBe(
+      "playerProfile.contractSheet.yearsLeft.other|3.0",
+    );
+  });
+
+  /**
+   * Given 1.3 years left in four languages whose nouns decline differently for a fraction
+   * When the years left are written
+   * Then each takes its own CLDR form: French and Portuguese the singular, Czech the "many" form,
+   *      Russian the "other" form; and the number follows the language's decimal separator
+   */
+  it("picks each language's plural form for a fraction and its decimal separator", () => {
+    const end = "2032-11-01";
+    expect(formatYearsLeft(end, TODAY, "fr", key)).toBe(
+      "playerProfile.contractSheet.yearsLeft.one|1,3",
+    );
+    expect(formatYearsLeft(end, TODAY, "pt-BR", key)).toBe(
+      "playerProfile.contractSheet.yearsLeft.one|1,3",
+    );
+    expect(formatYearsLeft(end, TODAY, "cs", key)).toBe(
+      "playerProfile.contractSheet.yearsLeft.many|1,3",
+    );
+    expect(formatYearsLeft(end, TODAY, "ru", key)).toBe(
+      "playerProfile.contractSheet.yearsLeft.other|1,3",
+    );
+  });
+
+  /**
+   * Given a contract that has already ended
+   * When the years left are written
+   * Then it reads zero, never a negative number
+   */
+  it("reads zero for a contract that has ended", () => {
+    expect(formatYearsLeft("2031-01-01", TODAY, "en", key)).toBe(
+      "playerProfile.contractSheet.yearsLeft.other|0.0",
+    );
   });
 });
