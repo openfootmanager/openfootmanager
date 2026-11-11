@@ -1,7 +1,112 @@
 {
   "schemaVersion": 1,
-  "updatedAt": "2026-11-11T18:15:44.794Z",
+  "updatedAt": "2026-11-11T19:10:04.611Z",
   "builds": [
+    {
+      "schemaVersion": 1,
+      "product": "Openfoot Manager",
+      "repository": "openfootmanager/openfootmanager",
+      "tag": "nightly-20261111-659d768",
+      "version": "0.3.0-nightly.20261111+659d768",
+      "commit": "659d7681850764411ac3cebbe226f77f6b260fed",
+      "prerelease": true,
+      "publishedAt": "2026-11-11T19:09:10Z",
+      "releaseName": "Openfoot Manager Nightly 0.3.0-nightly.20261111+659d768",
+      "releaseUrl": "https://github.com/openfootmanager/openfootmanager/releases/tag/nightly-20261111-659d768",
+      "assets": [
+        {
+          "id": 736606658,
+          "name": "Openfoot.Manager_0.3.0_amd64.AppImage",
+          "label": "Openfoot Manager_0.3.0_amd64.AppImage",
+          "size": 92359160,
+          "contentType": "application/zip",
+          "downloadUrl": "https://github.com/openfootmanager/openfootmanager/releases/download/nightly-20261111-659d768/Openfoot.Manager_0.3.0_amd64.AppImage",
+          "sha256": "b53cca12fe564f11c5a9d1e8217d033b68f026c5909b623f8fc9cfab35453944",
+          "platform": "linux",
+          "arch": "x64",
+          "kind": "portable",
+          "extension": ".appimage"
+        },
+        {
+          "id": 736606533,
+          "name": "Openfoot.Manager_0.3.0_amd64.deb",
+          "label": "Openfoot Manager_0.3.0_amd64.deb",
+          "size": 14924442,
+          "contentType": "application/zip",
+          "downloadUrl": "https://github.com/openfootmanager/openfootmanager/releases/download/nightly-20261111-659d768/Openfoot.Manager_0.3.0_amd64.deb",
+          "sha256": "4294c2febeefeacdcfbe018bcb479a1e7335c9cd81fefa5045c09aab84de704d",
+          "platform": "linux",
+          "arch": "x64",
+          "kind": "package",
+          "extension": ".deb"
+        },
+        {
+          "id": 736606609,
+          "name": "Openfoot.Manager-0.3.0-1.x86_64.rpm",
+          "label": "Openfoot Manager-0.3.0-1.x86_64.rpm",
+          "size": 14927253,
+          "contentType": "application/zip",
+          "downloadUrl": "https://github.com/openfootmanager/openfootmanager/releases/download/nightly-20261111-659d768/Openfoot.Manager-0.3.0-1.x86_64.rpm",
+          "sha256": "df942ed7d1c2184e39bae44138e939d58da7a0a19257094324c5d952a1e657a7",
+          "platform": "linux",
+          "arch": "x64",
+          "kind": "package",
+          "extension": ".rpm"
+        },
+        {
+          "id": 736634497,
+          "name": "Openfoot.Manager_0.3.0_x64_en-US.msi",
+          "label": "Openfoot Manager_0.3.0_x64_en-US.msi",
+          "size": 14000128,
+          "contentType": "application/zip",
+          "downloadUrl": "https://github.com/openfootmanager/openfootmanager/releases/download/nightly-20261111-659d768/Openfoot.Manager_0.3.0_x64_en-US.msi",
+          "sha256": "eafe0ef77c341b2f47643a61b6bb3d09f2c1f4105aa685877ddc293921044304",
+          "platform": "windows",
+          "arch": "x64",
+          "kind": "installer",
+          "extension": ".msi"
+        },
+        {
+          "id": 736634575,
+          "name": "Openfoot.Manager_0.3.0_x64-setup.exe",
+          "label": "Openfoot Manager_0.3.0_x64-setup.exe",
+          "size": 10537697,
+          "contentType": "application/zip",
+          "downloadUrl": "https://github.com/openfootmanager/openfootmanager/releases/download/nightly-20261111-659d768/Openfoot.Manager_0.3.0_x64-setup.exe",
+          "sha256": "0c72d581d5adf263407c44583c11f8f3d08e7adbcbd3128851ccabd620a3d436",
+          "platform": "windows",
+          "arch": "x64",
+          "kind": "installer",
+          "extension": ".exe"
+        }
+      ],
+      "previousTag": "nightly-20261111-f47523f",
+      "compareUrl": "https://github.com/openfootmanager/openfootmanager/compare/nightly-20261111-f47523f...nightly-20261111-659d768",
+      "checksumsUrl": "https://github.com/openfootmanager/openfootmanager/releases/download/nightly-20261111-659d768/nightly-checksums.txt",
+      "commitCount": 5,
+      "commits": [
+        {
+          "sha": "7c345751f",
+          "subject": "fix(harness): the rival's and the loaned player's contract start follow their history; a legacy contract's movement date is unknown (#1368)"
+        },
+        {
+          "sha": "8c4598c73",
+          "subject": "test(harness): the rival's and the loaned player's contract start follow their history; a legacy contract's movement date is unknown (red)"
+        },
+        {
+          "sha": "095631152",
+          "subject": "chore(dev): the layout check measures the free-agent profile state too"
+        },
+        {
+          "sha": "7ba669e13",
+          "subject": "feat(dev): the profile harness gets a free agent and the contracts each player has had (#1368, slice 0)"
+        },
+        {
+          "sha": "fa146e896",
+          "subject": "test(harness): a free-agent profile case and the contracts each player has had (red)"
+        }
+      ]
+    },
     {
       "schemaVersion": 1,
       "product": "Openfoot Manager",
@@ -7969,172 +8074,6 @@
         {
           "sha": "7aa57a20",
           "subject": "ci(build): every build-check job has a timeout"
-        }
-      ]
-    },
-    {
-      "schemaVersion": 1,
-      "product": "Openfoot Manager",
-      "repository": "openfootmanager/openfootmanager",
-      "tag": "nightly-20261102-70b391f",
-      "version": "0.3.0-nightly.20261102+70b391f",
-      "commit": "70b391f11128d7815998a549f699425a56a5b1df",
-      "prerelease": true,
-      "publishedAt": "2026-11-03T00:09:38Z",
-      "releaseName": "Openfoot Manager Nightly 0.3.0-nightly.20261102+70b391f",
-      "releaseUrl": "https://github.com/openfootmanager/openfootmanager/releases/tag/nightly-20261102-70b391f",
-      "assets": [
-        {
-          "id": 703626173,
-          "name": "Openfoot.Manager_0.3.0_aarch64.AppImage",
-          "label": "",
-          "size": 89147912,
-          "contentType": "application/zip",
-          "downloadUrl": "https://github.com/openfootmanager/openfootmanager/releases/download/nightly-20261102-70b391f/Openfoot.Manager_0.3.0_aarch64.AppImage",
-          "sha256": "5530a4661779ac12de7cb4e0fb5f84f35149b9dd14ecbd4a5aa5146e836f98b2",
-          "platform": "linux",
-          "arch": "arm64",
-          "kind": "portable",
-          "extension": ".appimage"
-        },
-        {
-          "id": 703626092,
-          "name": "Openfoot.Manager_0.3.0_arm64.deb",
-          "label": "",
-          "size": 13582722,
-          "contentType": "application/zip",
-          "downloadUrl": "https://github.com/openfootmanager/openfootmanager/releases/download/nightly-20261102-70b391f/Openfoot.Manager_0.3.0_arm64.deb",
-          "sha256": "b3b362181bc93dc51825ba9db46c672f208d85de14a502769f39a08f0c4cb960",
-          "platform": "linux",
-          "arch": "arm64",
-          "kind": "package",
-          "extension": ".deb"
-        },
-        {
-          "id": 703626144,
-          "name": "Openfoot.Manager-0.3.0-1.aarch64.rpm",
-          "label": "",
-          "size": 13584033,
-          "contentType": "application/zip",
-          "downloadUrl": "https://github.com/openfootmanager/openfootmanager/releases/download/nightly-20261102-70b391f/Openfoot.Manager-0.3.0-1.aarch64.rpm",
-          "sha256": "c476eee1b2d34ec0b69646c24962279706cf3be5968b3fefedad7f3ebcc39367",
-          "platform": "linux",
-          "arch": "arm64",
-          "kind": "package",
-          "extension": ".rpm"
-        },
-        {
-          "id": 703625629,
-          "name": "Openfoot.Manager_0.3.0_amd64.AppImage",
-          "label": "",
-          "size": 91638264,
-          "contentType": "application/zip",
-          "downloadUrl": "https://github.com/openfootmanager/openfootmanager/releases/download/nightly-20261102-70b391f/Openfoot.Manager_0.3.0_amd64.AppImage",
-          "sha256": "89dd501c8a434998e79b746c8104909aa09894146fc41d463f18e63ec3fa558f",
-          "platform": "linux",
-          "arch": "x64",
-          "kind": "portable",
-          "extension": ".appimage"
-        },
-        {
-          "id": 703625538,
-          "name": "Openfoot.Manager_0.3.0_amd64.deb",
-          "label": "",
-          "size": 14132764,
-          "contentType": "application/zip",
-          "downloadUrl": "https://github.com/openfootmanager/openfootmanager/releases/download/nightly-20261102-70b391f/Openfoot.Manager_0.3.0_amd64.deb",
-          "sha256": "422f6c338242ac993cbc9af7e4154e8103251853dd307897cd4a0e2dde350dc7",
-          "platform": "linux",
-          "arch": "x64",
-          "kind": "package",
-          "extension": ".deb"
-        },
-        {
-          "id": 703625569,
-          "name": "Openfoot.Manager-0.3.0-1.x86_64.rpm",
-          "label": "",
-          "size": 14132072,
-          "contentType": "application/zip",
-          "downloadUrl": "https://github.com/openfootmanager/openfootmanager/releases/download/nightly-20261102-70b391f/Openfoot.Manager-0.3.0-1.x86_64.rpm",
-          "sha256": "fdc15e690bbad9d30f51bd4b1148cbc9acba15c120a3eb03be0a05278bbf6a07",
-          "platform": "linux",
-          "arch": "x64",
-          "kind": "package",
-          "extension": ".rpm"
-        },
-        {
-          "id": 703639091,
-          "name": "Openfoot.Manager_0.3.0_aarch64.dmg",
-          "label": "",
-          "size": 12437809,
-          "contentType": "application/zip",
-          "downloadUrl": "https://github.com/openfootmanager/openfootmanager/releases/download/nightly-20261102-70b391f/Openfoot.Manager_0.3.0_aarch64.dmg",
-          "sha256": "57337d8e998ff61b8fa2e74b25e7d21fdde157e13b3a0615807cefc7fe56665c",
-          "platform": "macos",
-          "arch": "arm64",
-          "kind": "installer",
-          "extension": ".dmg"
-        },
-        {
-          "id": 703623451,
-          "name": "Openfoot.Manager_0.3.0_x64.dmg",
-          "label": "",
-          "size": 13557045,
-          "contentType": "application/zip",
-          "downloadUrl": "https://github.com/openfootmanager/openfootmanager/releases/download/nightly-20261102-70b391f/Openfoot.Manager_0.3.0_x64.dmg",
-          "sha256": "16f33e71954556b98b72ded7d1f7bc3492c9a0e57cd604e8388b3b4a20264cea",
-          "platform": "macos",
-          "arch": "x64",
-          "kind": "installer",
-          "extension": ".dmg"
-        },
-        {
-          "id": 703632760,
-          "name": "Openfoot.Manager_0.3.0_x64_en-US.msi",
-          "label": "",
-          "size": 13164544,
-          "contentType": "application/zip",
-          "downloadUrl": "https://github.com/openfootmanager/openfootmanager/releases/download/nightly-20261102-70b391f/Openfoot.Manager_0.3.0_x64_en-US.msi",
-          "sha256": "1f094022775f82089faf492fef08d5fb1f4752f084c06855af12c10769bffcd6",
-          "platform": "windows",
-          "arch": "x64",
-          "kind": "installer",
-          "extension": ".msi"
-        },
-        {
-          "id": 703632827,
-          "name": "Openfoot.Manager_0.3.0_x64-setup.exe",
-          "label": "",
-          "size": 10005255,
-          "contentType": "application/zip",
-          "downloadUrl": "https://github.com/openfootmanager/openfootmanager/releases/download/nightly-20261102-70b391f/Openfoot.Manager_0.3.0_x64-setup.exe",
-          "sha256": "4b6de22af21984d1a93d14e3bf60b93712916c8ce92fdb442314107d9f0214ff",
-          "platform": "windows",
-          "arch": "x64",
-          "kind": "installer",
-          "extension": ".exe"
-        }
-      ],
-      "previousTag": "nightly-20261102-a4c69c3",
-      "compareUrl": "https://github.com/openfootmanager/openfootmanager/compare/nightly-20261102-a4c69c3...nightly-20261102-70b391f",
-      "checksumsUrl": "https://github.com/openfootmanager/openfootmanager/releases/download/nightly-20261102-70b391f/nightly-checksums.txt",
-      "commitCount": 4,
-      "commits": [
-        {
-          "sha": "2b5aaf34",
-          "subject": "test(dashboard): spy on the localStorage the dashboard reads, not Storage.prototype"
-        },
-        {
-          "sha": "b76b9fab",
-          "subject": "test(dashboard): refresh the dashboard inside act before checking the cleared save id"
-        },
-        {
-          "sha": "d460a175",
-          "subject": "test(ai-hiring): a step that panics under the five-second guard keeps its own message"
-        },
-        {
-          "sha": "4f141c80",
-          "subject": "test(ai-hiring): an id search that stops advancing fails in seconds, by name"
         }
       ]
     }
