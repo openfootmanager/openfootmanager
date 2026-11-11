@@ -1822,6 +1822,8 @@
     "interceptions": "Intersepsi",
     "foulsCommitted": "Pelanggaran",
     "per90": "Per 90 menit",
+    "per90Value": "{{value}} per 90 menit",
+    "accurateValue": "akurasi {{value}}",
     "passAccuracy": "Akurasi Umpan",
     "percentile": "Persentil",
     "percentileUnavailable": "Persentil tidak tersedia",

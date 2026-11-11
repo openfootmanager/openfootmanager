@@ -1822,6 +1822,8 @@
     "interceptions": "Pas Arası Kesmeler",
     "foulsCommitted": "Yapılan Fauller",
     "per90": "90 dakika başına",
+    "per90Value": "90 dakikada {{value}}",
+    "accurateValue": "isabet {{value}}",
     "passAccuracy": "Pas İsabeti",
     "percentile": "Yüzdelik Dilim",
     "percentileUnavailable": "Yüzdelik dilim mevcut değil",

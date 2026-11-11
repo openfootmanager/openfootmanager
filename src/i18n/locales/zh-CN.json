@@ -1822,6 +1822,8 @@
     "interceptions": "拦截",
     "foulsCommitted": "犯规",
     "per90": "每 90 分钟",
+    "per90Value": "每 90 分钟 {{value}}",
+    "accurateValue": "准确率 {{value}}",
     "passAccuracy": "传球成功率",
     "percentile": "百分位",
     "percentileUnavailable": "百分位不可用",

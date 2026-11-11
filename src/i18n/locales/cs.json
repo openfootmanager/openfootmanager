@@ -1822,6 +1822,8 @@
     "interceptions": "Zachycené míče",
     "foulsCommitted": "Fauly",
     "per90": "Na 90 minut",
+    "per90Value": "{{value}} na 90 minut",
+    "accurateValue": "přesnost {{value}}",
     "passAccuracy": "Úspěšnost přihrávek",
     "percentile": "Percentil",
     "percentileUnavailable": "Percentil není k dispozici",

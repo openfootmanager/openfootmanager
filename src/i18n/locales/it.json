@@ -1841,6 +1841,8 @@
     "interceptions": "Intercetti",
     "foulsCommitted": "Falli commessi",
     "per90": "Per 90 min",
+    "per90Value": "{{value}} ogni 90 min",
+    "accurateValue": "{{value}} di precisione",
     "passAccuracy": "Precisione passaggi",
     "percentile": "Percentile",
     "percentileUnavailable": "Percentile non disponibile",

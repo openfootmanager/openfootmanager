@@ -2,7 +2,6 @@ import { useTranslation } from "react-i18next";
 import { competitionDisplayName } from "../../lib/competitionName";
 import { formatOrdinal } from "../../lib/ordinal";
 import { Card, CardBody, CardHeader } from "../ui";
-import PlayerProfileStatCard from "./PlayerProfileStatCard";
 import type { PlayerAdvancedStatsSummary } from "./PlayerProfile.helpers";
 
 type TranslateFn = (key: string, options?: Record<string, unknown>) => string;
@@ -33,50 +32,39 @@ function formatPercentage(value: number | null): string {
   return Number.isInteger(value) ? `${value}%` : `${value.toFixed(1)}%`;
 }
 
-function AdvancedStatCard({
+/** One stat: its name with its rate in words under it, its total, and the backend's ordinal. */
+function AdvancedStatRow({
   label,
-  primaryValue,
-  secondaryLabel,
-  secondaryValue,
+  rate,
+  total,
   percentile,
   percentileLabel,
   percentileUnavailableLabel,
 }: {
   label: string;
-  primaryValue: string;
-  secondaryLabel: string;
-  secondaryValue: string;
+  rate: string;
+  total: string;
   percentile: number | null;
   percentileLabel: string;
   percentileUnavailableLabel: string;
 }) {
   const { t, i18n } = useTranslation();
   return (
-    <PlayerProfileStatCard
-      label={label}
-      headerRight={
-        <span
+    <li className="flex items-start justify-between gap-3 py-3 first:pt-0 last:pb-0">
+      <div className="min-w-0">
+        <p className="text-body font-semibold text-fg">{label}</p>
+        <p className="text-caption tabular-nums text-fg-muted">{rate}</p>
+      </div>
+      <div className="shrink-0 text-right">
+        <p className="font-heading text-lead font-bold tabular-nums text-fg">{total}</p>
+        <p
           title={percentile === null ? percentileUnavailableLabel : percentileLabel}
-          className="font-heading font-bold text-sm tabular-nums text-gray-700 dark:text-gray-200"
+          className="text-caption tabular-nums text-fg-muted"
         >
           {percentile === null ? "-" : formatOrdinal(percentile, i18n.language, t)}
-        </span>
-      }
-    >
-      <div className="mt-auto flex items-baseline justify-between gap-3">
-        <span className="font-heading font-bold text-2xl text-gray-800 dark:text-gray-100 tabular-nums">
-          {primaryValue}
-        </span>
-        <span className="text-right">
-          <span className="block text-[11px] uppercase tracking-wider text-gray-400 dark:text-gray-500">
-            {secondaryLabel}
-          </span>
-          <span className="block font-heading font-bold text-sm text-gray-700 dark:text-gray-200 tabular-nums">
-            {secondaryValue}
-          </span>
-        </span>
+        </p>
       </div>
-    </PlayerProfileStatCard>
+    </li>
   );
 }
 
@@ -92,8 +80,6 @@ export default function PlayerProfileAdvancedStatsCard({
     tacklesWon: resolveLabel(t, "playerProfile.tacklesWon", "Tackles Won"),
     interceptions: resolveLabel(t, "playerProfile.interceptions", "Interceptions"),
     foulsCommitted: resolveLabel(t, "playerProfile.foulsCommitted", "Fouls Committed"),
-    per90: resolveLabel(t, "playerProfile.per90", "Per 90"),
-    passAccuracy: resolveLabel(t, "playerProfile.passAccuracy", "Pass Accuracy"),
     percentile: resolveLabel(t, "playerProfile.percentile", "Percentile"),
     percentileUnavailable: resolveLabel(
       t,
@@ -102,53 +88,56 @@ export default function PlayerProfileAdvancedStatsCard({
     ),
   };
 
+  // A rate that does not exist (no minutes yet) is a dash, never "0.00 per 90".
+  const perNinety = (value: number | null) =>
+    value === null ? "-" : t("playerProfile.per90Value", { value: formatRate(value) });
+
   const rows = [
     {
       id: "shots",
       label: labels.shots,
       primaryValue: String(summary.metrics.shots.total),
-      secondaryLabel: labels.per90,
-      secondaryValue: formatRate(summary.metrics.shots.per90),
+      rate: perNinety(summary.metrics.shots.per90),
       percentile: summary.metrics.shots.percentile,
     },
     {
       id: "shotsOnTarget",
       label: labels.shotsOnTarget,
       primaryValue: String(summary.metrics.shotsOnTarget.total),
-      secondaryLabel: labels.per90,
-      secondaryValue: formatRate(summary.metrics.shotsOnTarget.per90),
+      rate: perNinety(summary.metrics.shotsOnTarget.per90),
       percentile: summary.metrics.shotsOnTarget.percentile,
     },
     {
       id: "passes",
       label: labels.passes,
       primaryValue: `${summary.metrics.passes.completed} / ${summary.metrics.passes.attempted}`,
-      secondaryLabel: labels.passAccuracy,
-      secondaryValue: formatPercentage(summary.metrics.passes.accuracy),
+      rate:
+        summary.metrics.passes.accuracy === null
+          ? "-"
+          : t("playerProfile.accurateValue", {
+              value: formatPercentage(summary.metrics.passes.accuracy),
+            }),
       percentile: summary.metrics.passes.percentile,
     },
     {
       id: "tacklesWon",
       label: labels.tacklesWon,
       primaryValue: String(summary.metrics.tacklesWon.total),
-      secondaryLabel: labels.per90,
-      secondaryValue: formatRate(summary.metrics.tacklesWon.per90),
+      rate: perNinety(summary.metrics.tacklesWon.per90),
       percentile: summary.metrics.tacklesWon.percentile,
     },
     {
       id: "interceptions",
       label: labels.interceptions,
       primaryValue: String(summary.metrics.interceptions.total),
-      secondaryLabel: labels.per90,
-      secondaryValue: formatRate(summary.metrics.interceptions.per90),
+      rate: perNinety(summary.metrics.interceptions.per90),
       percentile: summary.metrics.interceptions.percentile,
     },
     {
       id: "foulsCommitted",
       label: labels.foulsCommitted,
       primaryValue: String(summary.metrics.foulsCommitted.total),
-      secondaryLabel: labels.per90,
-      secondaryValue: formatRate(summary.metrics.foulsCommitted.per90),
+      rate: perNinety(summary.metrics.foulsCommitted.per90),
       percentile: summary.metrics.foulsCommitted.percentile,
     },
   ];
@@ -158,7 +147,7 @@ export default function PlayerProfileAdvancedStatsCard({
       <CardHeader>{labels.title}</CardHeader>
       <CardBody>
         {summary.peerGroup && (
-          <p className="mb-3 text-xs text-gray-500 dark:text-gray-400">
+          <p className="mb-3 text-caption text-fg-muted">
             {t("playerProfile.percentileGroup", {
               position: t(`common.positions.${summary.peerGroup.position}`),
               league: competitionDisplayName(
@@ -173,20 +162,19 @@ export default function PlayerProfileAdvancedStatsCard({
             })}
           </p>
         )}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:auto-rows-fr">
+        <ul className="flex flex-col divide-y divide-line">
           {rows.map((row) => (
-            <AdvancedStatCard
+            <AdvancedStatRow
               key={row.id}
               label={row.label}
-              primaryValue={row.primaryValue}
-              secondaryLabel={row.secondaryLabel}
-              secondaryValue={row.secondaryValue}
+              rate={row.rate}
+              total={row.primaryValue}
               percentile={row.percentile}
               percentileLabel={labels.percentile}
               percentileUnavailableLabel={labels.percentileUnavailable}
             />
           ))}
-        </div>
+        </ul>
       </CardBody>
     </Card>
   );

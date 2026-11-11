@@ -1822,6 +1822,8 @@
     "interceptions": "Abgefangene Bälle",
     "foulsCommitted": "Begangene Fouls",
     "per90": "Pro 90 Min.",
+    "per90Value": "{{value}} pro 90 Min.",
+    "accurateValue": "{{value}} Genauigkeit",
     "passAccuracy": "Passgenauigkeit",
     "percentile": "Perzentil",
     "percentileUnavailable": "Perzentil nicht verfügbar",

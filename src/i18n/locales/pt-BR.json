@@ -1822,6 +1822,8 @@
     "interceptions": "Interceptações",
     "foulsCommitted": "Faltas cometidas",
     "per90": "Por 90 min",
+    "per90Value": "{{value}} por 90 min",
+    "accurateValue": "{{value}} de precisão",
     "passAccuracy": "Precisão de passe",
     "percentile": "Percentil",
     "percentileUnavailable": "Percentil indisponível",

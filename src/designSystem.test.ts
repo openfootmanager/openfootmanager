@@ -16,7 +16,7 @@ const FINISHED_FOLDERS = [
   "./components/playerProfile/PlayerProfileLoanStatusBanner.tsx",
   "./components/playerProfile/PlayerProfileInjuryBanner.tsx",
   "./components/playerProfile/PlayerProfileScoutAction.tsx",
-  "./components/playerProfile/PlayerProfileStatCard.tsx",
+  "./components/playerProfile/PlayerProfileAdvancedStatsCard.tsx",
   "./components/playerProfile/PlayerProfile.renewal.ts",
   // The dashboard shell. The rest of components/dashboard (its modals) joins with them, and these
   // four entries become the one folder.
