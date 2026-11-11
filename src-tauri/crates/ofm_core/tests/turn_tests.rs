@@ -1795,6 +1795,34 @@ fn round_summary_distinguishes_scorers_with_the_same_surname() {
     assert_eq!(names, ["B. Pereira", "A. Pereira"]);
 }
 
+/// Given two division scorers whose match name is part of a longer full surname
+/// When the round summary is built
+/// Then their displayed names include their different first initials.
+#[test]
+fn round_summary_distinguishes_scorers_with_compound_surnames() {
+    let mut game = make_round_summary_game();
+    for (id, full_name) in [
+        ("t1_fwd0", "Iker Casillas Fernández"),
+        ("t3_fwd0", "José Casillas López"),
+    ] {
+        let player = game
+            .players
+            .iter_mut()
+            .find(|player| player.id == id)
+            .unwrap();
+        player.full_name = full_name.to_string();
+        player.match_name = "Casillas".to_string();
+    }
+    let summary = turn::build_round_summary(&game, &round_context(7)).unwrap();
+    let names: Vec<&str> = summary
+        .top_scorer_delta
+        .iter()
+        .filter(|entry| entry.player_id == "t1_fwd0" || entry.player_id == "t3_fwd0")
+        .map(|entry| entry.player_name.as_str())
+        .collect();
+    assert_eq!(names, ["J. Casillas", "I. Casillas"]);
+}
+
 #[test]
 fn build_round_summary_picks_biggest_overall_gap_upset() {
     let game = make_round_summary_game();
