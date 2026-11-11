@@ -1879,7 +1879,7 @@
       "renewNoteShort": "Abre a negociação do contrato.",
       "letExpireNote": "Ele fica até {{date}} e depois sai como agente livre. Nenhuma taxa é paga.",
       "letExpireSetNote": "As negociações do contrato estão encerradas. Ele sai como agente livre em {{date}}.",
-      "terminateNote": "Dispensa agora. Multa rescisória {{severance}}; depois sobram {{healthy}} de {{needed}} jogadores aptos.",
+      "terminateNote": "Dispensa agora. Multa rescisória {{severance}}; sobrariam {{healthy}} jogadores aptos (um time titular precisa de {{needed}}).",
       "terminateNoContract": "Ele não tem contrato para encerrar.",
       "terminateOnLoan": "Ele está emprestado: o contrato só pode ser encerrado quando ele voltar.",
       "noContract": "Ele não tem contrato."

@@ -1898,7 +1898,7 @@
       "renewNoteShort": "Apre le trattative per il contratto.",
       "letExpireNote": "Resta fino al {{date}}, poi se ne va da svincolato. Non si paga alcuna cifra.",
       "letExpireSetNote": "Le trattative per il contratto sono chiuse. Se ne va da svincolato il {{date}}.",
-      "terminateNote": "Lo libera subito. Buonuscita {{severance}}; dopo restano {{healthy}} giocatori su {{needed}} in forma.",
+      "terminateNote": "Lo libera subito. Buonuscita {{severance}}; resterebbero {{healthy}} giocatori in forma (una formazione ne richiede {{needed}}).",
       "terminateNoContract": "Non ha un contratto da risolvere.",
       "terminateOnLoan": "È in prestito: il suo contratto non può essere risolto finché non torna.",
       "noContract": "Non è sotto contratto."

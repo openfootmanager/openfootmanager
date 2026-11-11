@@ -1879,7 +1879,7 @@
       "renewNoteShort": "Abre la negociación del contrato.",
       "letExpireNote": "Se queda hasta el {{date}} y luego se marcha como agente libre. No se paga traspaso.",
       "letExpireSetNote": "Las negociaciones del contrato están cerradas. Se marcha como agente libre el {{date}}.",
-      "terminateNote": "Lo rescinde ahora. Indemnización {{severance}}; después quedan {{healthy}} de {{needed}} jugadores aptos.",
+      "terminateNote": "Lo rescinde ahora. Indemnización {{severance}}; quedarían {{healthy}} jugadores aptos (un once inicial necesita {{needed}}).",
       "terminateNoContract": "No tiene contrato que rescindir.",
       "terminateOnLoan": "Está cedido: su contrato no se puede rescindir hasta que vuelva.",
       "noContract": "No tiene contrato."

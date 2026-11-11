@@ -1879,7 +1879,7 @@
       "renewNoteShort": "Abre a negociação do contrato.",
       "letExpireNote": "Fica até {{date}} e depois sai como jogador livre. Não é paga nenhuma verba.",
       "letExpireSetNote": "As negociações do contrato estão encerradas. Sai como jogador livre em {{date}}.",
-      "terminateNote": "Dispensa-o agora. Indemnização {{severance}}; depois ficam {{healthy}} de {{needed}} jogadores aptos.",
+      "terminateNote": "Dispensa-o agora. Indemnização {{severance}}; ficariam {{healthy}} jogadores aptos (um onze inicial precisa de {{needed}}).",
       "terminateNoContract": "Não tem contrato para terminar.",
       "terminateOnLoan": "Está emprestado: o contrato só pode ser terminado quando regressar.",
       "noContract": "Não tem contrato."

@@ -1880,7 +1880,7 @@
       "renewNoteShort": "Opens contract talks.",
       "letExpireNote": "He stays until {{date}}, then leaves as a free agent. No fee is paid.",
       "letExpireSetNote": "Contract talks are closed. He leaves as a free agent on {{date}}.",
-      "terminateNote": "Releases him now. Severance {{severance}}; {{healthy}} of {{needed}} players fit afterwards.",
+      "terminateNote": "Releases him now. Severance {{severance}}; {{healthy}} fit players would be left (a matchday XI needs {{needed}}).",
       "terminateNoContract": "He has no contract to end.",
       "terminateOnLoan": "He is on loan: his contract cannot be ended until he returns.",
       "noContract": "He is not under contract."

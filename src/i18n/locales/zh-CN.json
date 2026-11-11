@@ -1879,7 +1879,7 @@
       "renewNoteShort": "开启合同谈判。",
       "letExpireNote": "他将留到 {{date}}，然后以自由球员身份离队，无需支付转会费。",
       "letExpireSetNote": "合同谈判已关闭。他将在 {{date}} 以自由球员身份离队。",
-      "terminateNote": "立即解约。遣散费 {{severance}}；之后 {{needed}} 名球员中有 {{healthy}} 名可出战。",
+      "terminateNote": "立即解约。遣散费 {{severance}}；之后将剩 {{healthy}} 名可出战球员（首发需要 {{needed}} 名）。",
       "terminateNoContract": "他没有可终止的合同。",
       "terminateOnLoan": "他正在租借中：回归之前无法终止合同。",
       "noContract": "他没有合同。"

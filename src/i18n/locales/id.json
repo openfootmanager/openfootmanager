@@ -1880,7 +1880,7 @@
       "renewNoteShort": "Membuka negosiasi kontrak.",
       "letExpireNote": "Ia bertahan sampai {{date}}, lalu pergi sebagai pemain bebas transfer. Tidak ada biaya yang dibayar.",
       "letExpireSetNote": "Negosiasi kontrak ditutup. Ia pergi sebagai pemain bebas transfer pada {{date}}.",
-      "terminateNote": "Melepasnya sekarang. Pesangon {{severance}}; setelahnya {{healthy}} dari {{needed}} pemain bugar.",
+      "terminateNote": "Melepasnya sekarang. Pesangon {{severance}}; akan tersisa {{healthy}} pemain bugar (susunan pemain utama butuh {{needed}}).",
       "terminateNoContract": "Ia tidak punya kontrak untuk diakhiri.",
       "terminateOnLoan": "Ia sedang dipinjamkan: kontraknya tidak bisa diakhiri sampai ia kembali.",
       "noContract": "Ia tidak terikat kontrak."

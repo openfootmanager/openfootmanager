@@ -1879,7 +1879,7 @@
       "renewNoteShort": "Eröffnet Vertragsgespräche.",
       "letExpireNote": "Er bleibt bis {{date}} und geht dann ablösefrei. Es wird keine Ablöse gezahlt.",
       "letExpireSetNote": "Die Vertragsgespräche sind beendet. Er verlässt den Verein am {{date}} ablösefrei.",
-      "terminateNote": "Entlässt ihn sofort. Abfindung {{severance}}; danach sind {{healthy}} von {{needed}} Spielern fit.",
+      "terminateNote": "Entlässt ihn sofort. Abfindung {{severance}}; es blieben {{healthy}} fitte Spieler (eine Startelf braucht {{needed}}).",
       "terminateNoContract": "Er hat keinen Vertrag, der beendet werden könnte.",
       "terminateOnLoan": "Er ist verliehen: Sein Vertrag kann erst nach seiner Rückkehr beendet werden.",
       "noContract": "Er steht nicht unter Vertrag."

@@ -1880,7 +1880,7 @@
       "renewNoteShort": "Sözleşme görüşmelerini açar.",
       "letExpireNote": "{{date}} tarihine kadar kalır, sonra serbest oyuncu olarak ayrılır. Bonservis ödenmez.",
       "letExpireSetNote": "Sözleşme görüşmeleri kapatıldı. {{date}} tarihinde serbest oyuncu olarak ayrılır.",
-      "terminateNote": "Onu hemen serbest bırakır. Tazminat {{severance}}; sonrasında {{needed}} oyuncunun {{healthy}} tanesi formda olur.",
+      "terminateNote": "Onu hemen serbest bırakır. Tazminat {{severance}}; {{healthy}} formda oyuncu kalır (ilk 11 için {{needed}} gerekir).",
       "terminateNoContract": "Sona erdirilecek bir sözleşmesi yok.",
       "terminateOnLoan": "Kiralık: dönene kadar sözleşmesi sona erdirilemez.",
       "noContract": "Sözleşmesi yok."
