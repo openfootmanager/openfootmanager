@@ -164,3 +164,22 @@ fn validate_fails_a_ghost_club_patch_archive_on_its_base() {
 
     assert_eq!(output.status.code(), Some(1), "{}", stdout(&output));
 }
+
+/// Given a patch naming a club only its base could define, and a `--base` that cannot be read
+/// When `validate` runs
+/// Then it fails on the base AND still warns that the club references were not checked: the stack
+///      check never ran, so "checked" would be false.
+#[test]
+fn an_unreadable_base_leaves_the_unchecked_warning_in_place() {
+    let patch = patch_signing_for("unreadable-base-patch", "base-fc");
+    let missing = std::env::temp_dir().join("ofm-cli-output-no-such-base.ofm");
+
+    let output = validate(&patch, &[&missing]);
+
+    assert_eq!(output.status.code(), Some(1), "{}", stdout(&output));
+    assert!(
+        stdout(&output).contains("patchClubRefsUnverified"),
+        "{}",
+        stdout(&output)
+    );
+}
