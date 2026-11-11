@@ -3971,6 +3971,7 @@
         "countryWithoutRegion": "This package defines the country \"{{name}}\" ({{code}}) outside the game's nation list and puts it in no confederation, so its clubs are filed under Europe. Give it a confederation to place it.",
         "freeAgentFieldIgnored": "Player \"{{id}}\" has no club, so is a free agent with no contract: \"{{field}}\" is ignored. Give the player a club to use it, or remove the field.",
         "repeatedNamePool": "The name pool for {{country}} was already given in {{first}}; this file's pool replaces it. Keep one of them, or give them different countries.",
+        "patchClubRefsUnverified": "This patch names clubs it does not define. Alone, it cannot tell the clubs of its base database from mistakes, so they were not checked here. The game checks them when the patch is stacked on its base.",
         "namePoolIncomplete": "The name pool for {{country}} has first names but no surnames, or surnames but no first names, so it is not used: players from {{country}} get the game's own names. Give it both."
       }
     }

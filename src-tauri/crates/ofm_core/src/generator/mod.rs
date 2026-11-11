@@ -6,6 +6,7 @@ pub mod file_format;
 mod generation;
 pub mod package;
 mod package_save;
+mod package_stack;
 mod package_warnings;
 pub mod scaffold;
 mod staff_bell;
@@ -28,7 +29,8 @@ pub use package::{
     validate_references,
 };
 pub use package_save::{EditedPackage, save_package_files};
-pub use package_warnings::package_warnings;
+pub use package_stack::{StackCheck, check_world_package_on_bases, stack_check};
+pub use package_warnings::{package_warnings, stack_checked_warnings};
 pub use scaffold::{
     EntityKind, entity_template, manifest_json, names_json, new_package_meta, scaffold_package,
     slugify,
