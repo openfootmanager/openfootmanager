@@ -2,7 +2,6 @@ import { invoke } from "@tauri-apps/api/core";
 
 import type { PackageCollections } from "../store/packageEditorTypes";
 import type { WorldsLibrary } from "../store/generated/WorldsLibrary";
-import { recordValidation } from "./recentProjects";
 
 export function getWorldsLibrary(paths: string[]): Promise<WorldsLibrary> {
   return invoke<WorldsLibrary>("get_worlds_library", { paths });
@@ -28,8 +27,7 @@ export interface PackageDiagnostics {
  */
 export async function validatePackageProject(dir: string): Promise<PackageDiagnostics> {
   const result = await invoke<PackageDiagnostics>("validate_package_project", { dir });
-  recordValidation(dir, result.issues.length, result.warnings.length);
-  return result;
+  return { ...result, warnings: result.warnings ?? [] };
 }
 
 /**
