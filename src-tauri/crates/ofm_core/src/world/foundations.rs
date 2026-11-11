@@ -352,12 +352,15 @@ pub fn resolve_simulation_scope(
         })
         .collect();
 
-    for competition in game.competitions.iter().filter(|competition| {
-        competition
-            .participant_ids
-            .iter()
-            .any(|participant_id| participant_id == team_id)
-    }) {
+    // The club's own competitions are always simulated. Membership is `Game::club_takes_part_in`, the
+    // rule the team-selection screen's facts list them by: a club in a competition's standings but
+    // not in its participants is the club's too, or the screen would show a competition the career
+    // then left out.
+    for competition in game
+        .competitions
+        .iter()
+        .filter(|competition| Game::club_takes_part_in(competition, team_id))
+    {
         active_competition_ids.insert(competition.id.clone());
     }
 
@@ -1021,6 +1024,64 @@ mod tests {
         );
     }
 
+    /// Given a competition whose standings list the club but whose participants do not (the rule the
+    ///       facts projection lists a club's competitions by), and a request that names another one
+    /// When the scope is resolved
+    /// Then the club's competition is simulated, and the region it needs is switched on: both
+    ///      definitions of "the club's competitions" are one.
+    #[test]
+    fn resolve_simulation_scope_keeps_a_competition_the_club_is_only_in_the_standings_of() {
+        let mut game = scope_test_game();
+        game.teams[0].football_nation = "BR".to_string();
+
+        let mut home = League::new(
+            "home-league".to_string(),
+            "Brazil League".to_string(),
+            2032,
+            &["team1".to_string()],
+        );
+        home.region_id = Some("south-america".to_string());
+        home.required_region_ids = vec!["south-america".to_string()];
+        home.priority = 0;
+
+        let mut standings_only = League::new(
+            "standings-only".to_string(),
+            "Legacy Cup".to_string(),
+            2032,
+            &["team1".to_string()],
+        );
+        standings_only.scope = CompetitionScope::Continental;
+        standings_only.required_region_ids = vec!["europe".to_string()];
+        standings_only.priority = 1;
+        // The club is in the standings only: no participant list names it.
+        standings_only.participant_ids.clear();
+        assert!(
+            standings_only
+                .standings
+                .iter()
+                .any(|entry| entry.team_id == "team1")
+        );
+
+        game.competitions = vec![home.clone(), standings_only.clone()];
+
+        let (active_regions, active_competitions) = resolve_simulation_scope(
+            &game,
+            "team1",
+            Some(vec!["south-america".to_string()]),
+            Some(vec![home.id.clone()]),
+        )
+        .unwrap();
+
+        assert_eq!(
+            active_competitions,
+            vec![home.id.clone(), standings_only.id.clone()]
+        );
+        assert_eq!(
+            active_regions,
+            vec!["europe".to_string(), "south-america".to_string()]
+        );
+    }
+
     #[test]
     fn resolve_simulation_scope_defaults_to_team_region_when_no_scope_is_provided() {
         let mut game = scope_test_game();
@@ -1304,14 +1365,11 @@ mod tests {
         assert_eq!(tiers, 1);
     }
 
-    /// `division_tier_name` names a first and a second division and nothing
-    /// else, so a third tier would share both its display name and its
-    /// translation key with the second. The shipped world never reaches that —
-    /// the largest nation has 40 clubs and the default size is 20 — but a
-    /// caller-chosen size could, so the plan builder widens the divisions
-    /// rather than adding a tier nothing can name.
+    /// Given eighteen clubs and a requested division size of six, when the
+    /// foundations are built, then all three divisions retain distinct names
+    /// and localization keys.
     #[test]
-    fn a_division_size_that_would_need_a_third_tier_widens_the_two_instead() {
+    fn a_custom_division_size_keeps_three_distinct_tiers() {
         let teams: Vec<_> = (0..18)
             .map(|index| nation_team(&format!("eng-{index:02}"), "ENG", 1000 - index))
             .collect();
@@ -1330,13 +1388,13 @@ mod tests {
             .collect();
         assert_eq!(
             tiers.len(),
-            2,
-            "eighteen clubs at a size of six must not become three tiers"
+            3,
+            "a requested three-tier pyramid must be kept"
         );
         for tier in &tiers {
             assert_eq!(
                 tier.participant_ids.len(),
-                9,
+                6,
                 "{} is the wrong size",
                 tier.id
             );
@@ -1346,8 +1404,17 @@ mod tests {
             tiers.iter().map(|tier| tier.name.as_str()).collect();
         assert_eq!(
             names.len(),
-            2,
-            "two divisions must not share a name: {names:?}"
+            3,
+            "three divisions must not share a name: {names:?}"
+        );
+        let keys: std::collections::BTreeSet<_> = tiers
+            .iter()
+            .map(|tier| tier.name_key.as_deref().expect("generated league key"))
+            .collect();
+        assert_eq!(
+            keys.len(),
+            3,
+            "three divisions must not share a translation key: {keys:?}"
         );
     }
 }

@@ -105,9 +105,9 @@ pub struct PlayerDef {
     /// any era wants `contractLength` instead. Give one or the other, not both.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub contract_end: Option<String>,
-    /// How long the contract runs, in whole years, as an alternative to
-    /// `contractEnd`. Counted from `contractStart` when there is one, otherwise from
-    /// the year the career opens in, so the same package works in any era.
+    /// How long the contract runs, in years, as an alternative to `contractEnd`.
+    /// Ends on 30 June of the start year plus this length, or the career opening
+    /// year plus this length when no start is given.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub contract_length: Option<u32>,
     /// Weekly wage, in the game's money. Sized from the player's value when omitted.
@@ -527,14 +527,12 @@ impl PackageError {
 // ---------------------------------------------------------------------------
 
 /// Recursively collect every JSON/YAML file under `dir`.
-pub(super) fn collect_data_files(dir: &Path, out: &mut Vec<PathBuf>) {
-    let Ok(entries) = std::fs::read_dir(dir) else {
-        return;
-    };
-    for entry in entries.flatten() {
+pub(super) fn collect_data_files(dir: &Path, out: &mut Vec<PathBuf>) -> std::io::Result<()> {
+    for entry in std::fs::read_dir(dir)? {
+        let entry = entry?;
         let path = entry.path();
         if path.is_dir() {
-            collect_data_files(&path, out);
+            collect_data_files(&path, out)?;
         } else if matches!(
             path.extension()
                 .and_then(|ext| ext.to_str())
@@ -545,6 +543,7 @@ pub(super) fn collect_data_files(dir: &Path, out: &mut Vec<PathBuf>) {
             out.push(path);
         }
     }
+    Ok(())
 }
 
 fn parse_entity<T: serde::de::DeserializeOwned>(
@@ -744,11 +743,14 @@ fn translation_locale_from_filename(name: &str) -> Option<&str> {
 /// multiple packages before running references (which may span packages).
 pub fn load_world_package_files(dir: &Path) -> (WorldPackage, Vec<PackageError>) {
     let mut files = Vec::new();
-    collect_data_files(dir, &mut files);
+    let read_error = collect_data_files(dir, &mut files).is_err();
     files.sort();
 
     let mut package = WorldPackage::default();
     let mut errors = Vec::new();
+    if read_error {
+        errors.push(PackageError::new(READ_FAILED, ""));
+    }
 
     for path in &files {
         let file = path
@@ -1451,7 +1453,7 @@ pub fn authored_reputations(package: &WorldPackage) -> std::collections::HashMap
 
 /// Validate the package's constructed world with the same competition rules as
 /// the game loader. Preserve source locations when surfacing definition errors.
-fn validate_competition_references(package: &WorldPackage) -> Vec<PackageError> {
+pub(super) fn validate_competition_references(package: &WorldPackage) -> Vec<PackageError> {
     if package.competitions.is_empty() {
         return Vec::new();
     }
@@ -1954,23 +1956,25 @@ const SYMLINK_ERROR: &str = "be.error.package.symlinkDetected";
 const TOO_MANY_FILES_ERROR: &str = "be.error.package.tooManyFiles";
 const ARCHIVE_TOO_LARGE_ERROR: &str = "be.error.package.archiveTooLarge";
 
-/// Return the destination path for a zip entry, or `None` if the entry name
-/// is unsafe (zip-slip attempt: absolute path, `..` component, etc.).
-fn safe_entry_path(base: &Path, entry_name: &str) -> Option<PathBuf> {
-    if entry_name.starts_with('/') || entry_name.starts_with('\\') {
+/// Normalize a safe archive-relative path without resolving filesystem links.
+fn normalize_archive_path(entry_name: &str, is_dir: bool) -> Option<PathBuf> {
+    if entry_name.is_empty() || entry_name.starts_with('/') || entry_name.starts_with('\\') {
         return None;
-    }
-    let entry_path = Path::new(entry_name);
-    for component in entry_path.components() {
-        match component {
-            std::path::Component::Normal(_) | std::path::Component::CurDir => {}
-            _ => return None,
-        }
     }
     if entry_name.ends_with('/') || entry_name.ends_with('\\') {
         return None;
     }
-    Some(base.join(entry_name))
+    let portable_name = entry_name.replace('\\', "/");
+    let entry_path = Path::new(&portable_name);
+    let mut normalized = PathBuf::new();
+    for component in entry_path.components() {
+        match component {
+            std::path::Component::Normal(part) => normalized.push(part),
+            std::path::Component::CurDir => {}
+            _ => return None,
+        }
+    }
+    (is_dir || !normalized.as_os_str().is_empty()).then_some(normalized)
 }
 
 /// Hardened extraction of a `.ofm` zip archive into `dest_dir`. Enforces the
@@ -1990,6 +1994,24 @@ pub fn extract_archive_safely(
     extract_archive_entries(ofm_path, dest_dir, |_| true)
 }
 
+fn extract_package_definitions(
+    ofm_path: &Path,
+    dest_dir: &Path,
+) -> Result<Vec<PackageError>, String> {
+    extract_archive_entries(ofm_path, dest_dir, is_package_definition_entry)
+}
+
+fn is_package_definition_entry(name: &Path) -> bool {
+    !is_package_asset_entry(name)
+        && matches!(
+            name.extension()
+                .and_then(|ext| ext.to_str())
+                .map(str::to_ascii_lowercase)
+                .as_deref(),
+            Some("json" | "yaml" | "yml")
+        )
+}
+
 /// Extract only the package's `assets/` tree.
 ///
 /// Asset files are carried into the archive by `pack` but are never read by the
@@ -2005,18 +2027,15 @@ pub fn extract_package_assets(
 }
 
 /// Whether an archive entry belongs to the package's asset tree.
-fn is_package_asset_entry(entry_name: &str) -> bool {
-    let normalised = entry_name.replace('\\', "/");
-    normalised.starts_with(ASSET_DIR_PREFIX)
+fn is_package_asset_entry(entry_name: &Path) -> bool {
+    let mut components = entry_name.components();
+    matches!(components.next(), Some(std::path::Component::Normal(name)) if name == "assets")
+        && components.next().is_some()
 }
-
-/// Directory inside a package that holds artwork, as established by the World
-/// Editor's `copy_package_asset`.
-const ASSET_DIR_PREFIX: &str = "assets/";
 
 /// Whether a manifest-authored asset reference stays inside its own package.
 ///
-/// Mirrors [`safe_entry_path`]'s rules for archive entries: a manifest carries
+/// Mirrors [`normalize_archive_path`]'s rules for archive entries: a manifest carries
 /// exactly as much trust as the archive it came in, and these values are joined
 /// to the extracted asset root by the frontend and handed to Tauri's asset
 /// protocol. Backslashes are refused outright rather than normalised, because
@@ -2093,52 +2112,111 @@ fn entry_name_for_report<R: std::io::Read + std::io::Seek>(
     }
 }
 
-/// Shared, hardened extraction. `keep` selects which entries are written; every
-/// entry is still checked for symlinks, zip-slip and decompressed size first, so
-/// a filtered extraction is no less safe than a full one.
+struct ValidatedArchiveEntry {
+    index: usize,
+    name: String,
+    destination: PathBuf,
+    normalized_path: PathBuf,
+}
+
+struct ValidatedArchive {
+    entries: Vec<ValidatedArchiveEntry>,
+    errors: Vec<PackageError>,
+}
+
+/// Validate metadata for every entry before selecting which entries to read.
+fn validate_archive_entries<R: std::io::Read + std::io::Seek>(
+    archive: &mut zip::ZipArchive<R>,
+    dest_dir: &Path,
+) -> Result<ValidatedArchive, String> {
+    if archive.len() > MAX_FILE_COUNT {
+        return Err(TOO_MANY_FILES_ERROR.to_string());
+    }
+    let mut entries = Vec::new();
+    let mut errors = Vec::new();
+    let mut declared_size = 0u64;
+    for i in 0..archive.len() {
+        let Ok(entry) = archive.by_index_data(i) else {
+            errors.push(PackageError::new(
+                READ_FAILED,
+                &entry_name_for_report(archive, i),
+            ));
+            continue;
+        };
+        let Ok(name) = entry.name().map(std::borrow::Cow::into_owned) else {
+            errors.push(PackageError::new(READ_FAILED, &format!("#{i}")));
+            continue;
+        };
+        declared_size = declared_size.saturating_add(entry.size());
+        if declared_size > MAX_UNCOMPRESSED_BYTES {
+            return Err(ARCHIVE_TOO_LARGE_ERROR.to_string());
+        }
+        let is_symlink = entry.is_symlink();
+        if is_symlink {
+            errors.push(PackageError::new(SYMLINK_ERROR, &name));
+        }
+        let is_dir = entry.is_dir();
+        let path_name = if is_dir {
+            name.trim_end_matches(['/', '\\'])
+        } else {
+            &name
+        };
+        let normalized_path = normalize_archive_path(path_name, is_dir);
+        if normalized_path.is_none() {
+            errors.push(PackageError::new(ZIPSLIP_ERROR, &name));
+        }
+        let can_open = archive.by_index(i).is_ok();
+        if !can_open {
+            errors.push(PackageError::new(READ_FAILED, &name));
+        }
+        if !is_dir
+            && !is_symlink
+            && can_open
+            && let Some(normalized_path) = normalized_path
+        {
+            entries.push(ValidatedArchiveEntry {
+                index: i,
+                name,
+                destination: dest_dir.join(&normalized_path),
+                normalized_path,
+            });
+        }
+    }
+    Ok(ValidatedArchive { entries, errors })
+}
+
+/// Shared hardened extraction; selected entries are bounded by actual bytes read.
 fn extract_archive_entries(
     ofm_path: &Path,
     dest_dir: &Path,
-    keep: impl Fn(&str) -> bool,
+    keep: impl Fn(&Path) -> bool,
 ) -> Result<Vec<PackageError>, String> {
     use std::io::Read;
 
     let file = std::fs::File::open(ofm_path).map_err(|_| READ_FAILED.to_string())?;
+    if file.metadata().map_err(|_| READ_FAILED.to_string())?.len() > MAX_ARCHIVE_BYTES {
+        return Err(ARCHIVE_TOO_LARGE_ERROR.to_string());
+    }
     let mut archive = zip::ZipArchive::new(file).map_err(|_| READ_FAILED.to_string())?;
     std::fs::create_dir_all(dest_dir).map_err(|_| READ_FAILED.to_string())?;
 
-    if archive.len() > MAX_FILE_COUNT {
-        return Err(TOO_MANY_FILES_ERROR.to_string());
-    }
-
-    let mut errors = Vec::new();
+    let ValidatedArchive {
+        entries,
+        mut errors,
+    } = validate_archive_entries(&mut archive, dest_dir)?;
     let mut total_uncompressed: u64 = 0;
-    for i in 0..archive.len() {
-        // An entry zip cannot open, such as one compressed with a codec we do not build, is
-        // reported: skipping it would install the package as if that file had never existed.
-        let Ok(mut entry) = archive.by_index(i) else {
-            let entry_name = entry_name_for_report(&archive, i);
-            if keep(&entry_name) {
-                errors.push(PackageError::new(READ_FAILED, &entry_name));
-            }
-            continue;
-        };
-        let Ok(entry_name) = entry.name().map(std::borrow::Cow::into_owned) else {
-            errors.push(PackageError::new(READ_FAILED, &format!("#{i}")));
-            continue;
-        };
-        if entry.is_dir() {
+    for ValidatedArchiveEntry {
+        index,
+        name: entry_name,
+        destination: dest,
+        normalized_path,
+    } in entries
+    {
+        if !keep(&normalized_path) {
             continue;
         }
-        if entry.is_symlink() {
-            errors.push(PackageError::new(SYMLINK_ERROR, &entry_name));
-            continue;
-        }
-        let Some(dest) = safe_entry_path(dest_dir, &entry_name) else {
-            errors.push(PackageError::new(ZIPSLIP_ERROR, &entry_name));
-            continue;
-        };
-        if !keep(&entry_name) {
+        let Ok(mut entry) = archive.by_index(index) else {
+            errors.push(PackageError::new(READ_FAILED, &entry_name));
             continue;
         };
         if let Some(parent) = dest.parent()
@@ -2184,8 +2262,20 @@ fn extract_archive_entries(
 /// Extract a `.ofm` zip archive to a temp directory, load the package from it,
 /// clean up, and return. Zip-slip/symlink paths are silently skipped.
 pub fn load_world_package_from_ofm(path: &Path) -> (WorldPackage, Vec<PackageError>) {
+    load_world_package_with_extractor(path, extract_archive_safely)
+}
+
+/// Read the definitions needed for a package library without extracting artwork.
+pub fn load_world_package_definitions_from_ofm(path: &Path) -> (WorldPackage, Vec<PackageError>) {
+    load_world_package_with_extractor(path, extract_package_definitions)
+}
+
+fn load_world_package_with_extractor(
+    path: &Path,
+    extract: impl FnOnce(&Path, &Path) -> Result<Vec<PackageError>, String>,
+) -> (WorldPackage, Vec<PackageError>) {
     let temp_dir = std::env::temp_dir().join(format!("ofm-extract-{}", uuid::Uuid::new_v4()));
-    let extract_errors = match extract_archive_safely(path, &temp_dir) {
+    let extract_errors = match extract(path, &temp_dir) {
         Ok(errors) => errors,
         Err(code) => {
             let _ = std::fs::remove_dir_all(&temp_dir);
@@ -2216,22 +2306,21 @@ pub fn load_world_package_from_ofm(path: &Path) -> (WorldPackage, Vec<PackageErr
 pub fn read_package_manifest_from_ofm(path: &Path) -> Option<WorldMetaDef> {
     let file = std::fs::File::open(path).ok()?;
     let mut archive = zip::ZipArchive::new(file).ok()?;
-    let count = archive.len();
+    read_manifest_from_archive(&mut archive)
+}
 
-    for i in 0..count {
-        let Ok(mut entry) = archive.by_index(i) else {
-            continue;
-        };
-        if entry.is_dir() {
-            continue;
-        }
-        let Ok(name) = entry.name() else {
-            continue;
-        };
-        let lower = name.to_ascii_lowercase();
-        if !lower.ends_with(".json") && !lower.ends_with(".yaml") && !lower.ends_with(".yml") {
+fn read_manifest_from_archive<R: std::io::Read + std::io::Seek>(
+    archive: &mut zip::ZipArchive<R>,
+) -> Option<WorldMetaDef> {
+    // Invalid entries are excluded; the package loader reports their diagnostics separately.
+    let validated = validate_archive_entries(archive, Path::new("")).ok()?;
+    for entry in validated.entries {
+        if !is_package_definition_entry(&entry.normalized_path) {
             continue;
         }
+        let Ok(mut entry) = archive.by_index(entry.index) else {
+            continue;
+        };
         let Some(bytes) = read_entry_capped(&mut entry, MAX_SINGLE_ENTRY_BYTES) else {
             continue;
         };
@@ -2301,6 +2390,177 @@ pub fn read_logo_from_ofm(archive_path: &Path, logo_path: &str) -> Option<String
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::generator::{check_world_package_on_bases, stack_check};
+
+    /// Given a safe path alias, when the shared archive pass validates it, then it exposes the normalized path.
+    #[test]
+    fn archive_validation_normalizes_safe_path_components() {
+        let archive_path = build_zip(&[("./assets/portrait.json", b"art")]);
+        let file = std::fs::File::open(&archive_path).unwrap();
+        let mut archive = zip::ZipArchive::new(file).unwrap();
+        let result = validate_archive_entries(&mut archive, Path::new("/tmp/base")).unwrap();
+        assert!(result.errors.is_empty());
+        assert_eq!(result.entries.len(), 1);
+        assert_eq!(
+            result.entries[0].normalized_path,
+            Path::new("assets/portrait.json")
+        );
+        std::fs::remove_file(archive_path).unwrap();
+    }
+
+    /// Given a harmless root directory entry, when the archive is validated, then the entry is accepted.
+    #[test]
+    fn archive_validation_accepts_dot_directory() {
+        let archive_path = build_zip(&[("./", b"")]);
+        let file = std::fs::File::open(&archive_path).unwrap();
+        let mut archive = zip::ZipArchive::new(file).unwrap();
+        let result = validate_archive_entries(&mut archive, Path::new("/tmp/base")).unwrap();
+        assert!(result.errors.is_empty());
+        std::fs::remove_file(archive_path).unwrap();
+    }
+
+    /// Given an unsafe world definition before a valid manifest, when metadata is read, then only the safe path is considered.
+    #[test]
+    fn manifest_scan_ignores_unsafe_world_paths() {
+        let archive_path = build_zip(&[
+            (
+                "../unsafe.json",
+                br#"{"schema":"world","id":"wrong","name":"Wrong"}"#,
+            ),
+            (
+                "package.json",
+                br#"{"schema":"world","id":"real","name":"Real"}"#,
+            ),
+        ]);
+        let meta = read_package_manifest_from_ofm(&archive_path).unwrap();
+        assert_eq!(meta.name, "Real");
+        std::fs::remove_file(archive_path).unwrap();
+    }
+
+    /// Given a package with artwork, when definitions are extracted, then artwork is not written.
+    #[test]
+    fn extracting_package_definitions_does_not_write_artwork() {
+        use std::io::Write;
+        let temp = temp_package();
+        let archive = temp.join("world.ofm");
+        let mut zip = zip::ZipWriter::new(std::fs::File::create(&archive).unwrap());
+        let options = zip::write::SimpleFileOptions::default();
+        zip.start_file("package.json", options).unwrap();
+        zip.write_all(br#"{"schema":"world","id":"a","name":"A"}"#)
+            .unwrap();
+        zip.start_file("assets/portrait.png", options).unwrap();
+        zip.write_all(b"artwork").unwrap();
+        zip.start_file("assets/portrait.json", options).unwrap();
+        zip.write_all(b"artwork").unwrap();
+        zip.start_file("./assets/alias.json", options).unwrap();
+        zip.write_all(b"artwork").unwrap();
+        zip.finish().unwrap();
+        let dest = temp.join("out");
+        extract_package_definitions(&archive, &dest).unwrap();
+        assert!(dest.join("package.json").exists());
+        assert!(!dest.join("assets/portrait.png").exists());
+        assert!(!dest.join("assets/portrait.json").exists());
+        assert!(!dest.join("assets/alias.json").exists());
+        std::fs::remove_dir_all(temp).unwrap();
+    }
+
+    /// Given an artwork entry with an unsupported codec, when both readers inspect it, then both report it.
+    #[test]
+    fn filtered_extraction_reports_an_unopenable_artwork_entry() {
+        use std::io::Write;
+        let dir = temp_package();
+        let archive = dir.join("world.ofm");
+        let mut zip = zip::ZipWriter::new(std::fs::File::create(&archive).unwrap());
+        zip.start_file(
+            "assets/portrait.json",
+            zip::write::SimpleFileOptions::default(),
+        )
+        .unwrap();
+        zip.write_all(b"artwork").unwrap();
+        zip.finish().unwrap();
+        let mut bytes = std::fs::read(&archive).unwrap();
+        let central = bytes.windows(4).position(|s| s == b"PK\x01\x02").unwrap();
+        bytes[8..10].copy_from_slice(&99u16.to_le_bytes());
+        bytes[central + 10..central + 12].copy_from_slice(&99u16.to_le_bytes());
+        std::fs::write(&archive, bytes).unwrap();
+        let full = extract_archive_safely(&archive, &dir.join("full")).unwrap();
+        let filtered = extract_package_definitions(&archive, &dir.join("filtered")).unwrap();
+        assert!(full.iter().any(|e| e.code == READ_FAILED));
+        assert!(filtered.iter().any(|e| e.code == READ_FAILED));
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    /// Given an absolute directory entry, when filtered extraction checks metadata, then it rejects the path.
+    #[test]
+    fn filtered_extraction_reports_an_absolute_directory() {
+        let archive = build_zip(&[("/", b"")]);
+        let dest = temp_package();
+        let errors = extract_package_definitions(&archive, &dest).unwrap();
+        assert!(errors.iter().any(|error| error.code == ZIPSLIP_ERROR));
+        std::fs::remove_dir_all(dest).unwrap();
+        std::fs::remove_file(archive).unwrap();
+    }
+
+    /// Given JSON artwork before the manifest, when the manifest is read, then its payload is not read.
+    #[test]
+    fn manifest_scan_does_not_read_json_artwork() {
+        use std::cell::Cell;
+        use std::io::{Read, Seek, SeekFrom, Write};
+        use std::rc::Rc;
+
+        struct CountingReader {
+            data: std::io::Cursor<Vec<u8>>,
+            watched: std::ops::Range<u64>,
+            bytes_read: Rc<Cell<u64>>,
+        }
+        impl Read for CountingReader {
+            fn read(&mut self, buffer: &mut [u8]) -> std::io::Result<usize> {
+                let start = self.data.position();
+                let count = self.data.read(buffer)?;
+                let end = start + count as u64;
+                let overlap = end
+                    .min(self.watched.end)
+                    .saturating_sub(start.max(self.watched.start));
+                self.bytes_read.set(self.bytes_read.get() + overlap);
+                Ok(count)
+            }
+        }
+        impl Seek for CountingReader {
+            fn seek(&mut self, position: SeekFrom) -> std::io::Result<u64> {
+                self.data.seek(position)
+            }
+        }
+
+        let mut writer = zip::ZipWriter::new(std::io::Cursor::new(Vec::new()));
+        let options = zip::write::SimpleFileOptions::default()
+            .compression_method(zip::CompressionMethod::Stored);
+        writer
+            .start_file("./assets/portrait.json", options)
+            .unwrap();
+        writer.write_all(&vec![b'X'; 1024 * 1024]).unwrap();
+        writer.start_file("package.json", options).unwrap();
+        writer
+            .write_all(br#"{"schema":"world","id":"a","name":"Real"}"#)
+            .unwrap();
+        let data = writer.finish().unwrap().into_inner();
+        let start = data
+            .windows(1024)
+            .position(|bytes| bytes.iter().all(|&byte| byte == b'X'))
+            .unwrap() as u64;
+        let bytes_read = Rc::new(Cell::new(0));
+        let reader = CountingReader {
+            data: std::io::Cursor::new(data),
+            watched: start..start + 1024 * 1024,
+            bytes_read: bytes_read.clone(),
+        };
+        let mut archive = zip::ZipArchive::new(reader).unwrap();
+        bytes_read.set(0);
+        assert_eq!(
+            read_manifest_from_archive(&mut archive).unwrap().name,
+            "Real"
+        );
+        assert_eq!(bytes_read.get(), 0, "artwork payload must not be read");
+    }
 
     #[test]
     fn world_meta_def_round_trips_fallback_league_config() {
@@ -2400,6 +2660,223 @@ mod tests {
 
         std::fs::remove_dir_all(&dir).ok();
         std::fs::remove_dir_all(&data_dir).ok();
+    }
+
+    /// A database package defining one club, "base-fc".
+    fn base_with_one_club() -> PathBuf {
+        let dir = temp_package();
+        write(
+            &dir,
+            "package.json",
+            r#"{"schema":"world","id":"base","name":"Base","version":"1.0.0","license":"CC0-1.0"}"#,
+        );
+        write(
+            &dir,
+            "countries/eng.json",
+            r#"{"schema":"country","id":"ENG","name":"England"}"#,
+        );
+        write(
+            &dir,
+            "teams/teams.json",
+            r##"{"schema":"team","items":[{"id":"base-fc","name":"Base FC","city":"Base","country":"ENG","colors":{"primary":"#000000","secondary":"#ffffff"}}]}"##,
+        );
+        dir
+    }
+
+    fn patch_with_player_at(club: &str) -> PathBuf {
+        let dir = temp_package();
+        write(
+            &dir,
+            "package.json",
+            r#"{"schema":"world","id":"patchy","name":"Patchy","version":"1.0.0","license":"CC0-1.0","packageType":"patch"}"#,
+        );
+        write(
+            &dir,
+            "players/players.json",
+            &format!(
+                r#"{{"schema":"player","items":[{{"id":"p1","name":"P One","club":"{club}","nationality":"ENG","position":"Striker","overall":70}}]}}"#
+            ),
+        );
+        dir
+    }
+
+    /// Given a patch naming a club its base defines
+    /// When it is checked on that base
+    /// Then it passes.
+    #[test]
+    fn a_patch_checked_on_its_base_passes() {
+        let (base, legit) = (base_with_one_club(), patch_with_player_at("base-fc"));
+
+        let (_, errors) = check_world_package_on_bases(&legit, std::slice::from_ref(&base));
+        for dir in [&base, &legit] {
+            std::fs::remove_dir_all(dir).ok();
+        }
+
+        assert!(errors.is_empty(), "{errors:?}");
+    }
+
+    /// Given a patch naming a club nothing defines
+    /// When it is checked on its base
+    /// Then it is refused with the unknown team, the finding the game's stack merge gives.
+    #[test]
+    fn a_patch_naming_a_club_no_package_defines_is_refused_on_its_base() {
+        let (base, ghost) = (base_with_one_club(), patch_with_player_at("ghost-fc"));
+
+        let (_, errors) = check_world_package_on_bases(&ghost, std::slice::from_ref(&base));
+        for dir in [&base, &ghost] {
+            std::fs::remove_dir_all(dir).ok();
+        }
+
+        assert!(errors.iter().any(|e| e.code == UNKNOWN_TEAM), "{errors:?}");
+    }
+
+    /// Given a base DIRECTORY with a player at a club only the patch defines (a dangling reference
+    ///       the stack repairs), and the same base packed as a `.ofm`
+    /// When the patch is checked on each
+    /// Then both pass: a base is read the way the game reads an installed one, its references left
+    ///      to the merge, whatever its format.
+    #[test]
+    fn a_base_directory_is_read_like_an_archive_its_references_left_to_the_merge() {
+        let base = base_with_one_club();
+        write(
+            &base,
+            "players/players.json",
+            r#"{"schema":"player","items":[{"id":"bp","name":"B Player","club":"patch-fc","nationality":"ENG","position":"Striker","overall":70}]}"#,
+        );
+        let patch = temp_package();
+        write(
+            &patch,
+            "package.json",
+            r#"{"schema":"world","id":"patchy","name":"Patchy","version":"1.0.0","license":"CC0-1.0","packageType":"patch"}"#,
+        );
+        write(
+            &patch,
+            "teams/teams.json",
+            r##"{"schema":"team","items":[{"id":"patch-fc","name":"Patch FC","city":"Patch","country":"ENG","colors":{"primary":"#000000","secondary":"#ffffff"}}]}"##,
+        );
+        let out = temp_package();
+        let base_ofm = out.join("base.ofm");
+        super::super::world_io::export_directory_to_ofm(&base, &base_ofm).expect("packed");
+
+        let (_, on_directory) = check_world_package_on_bases(&patch, std::slice::from_ref(&base));
+        let (_, on_archive) = check_world_package_on_bases(&patch, &[base_ofm]);
+        for dir in [&base, &patch, &out] {
+            std::fs::remove_dir_all(dir).ok();
+        }
+
+        assert!(on_archive.is_empty(), "the archive base: {on_archive:?}");
+        assert!(
+            on_directory.is_empty(),
+            "the directory base: {on_directory:?}"
+        );
+    }
+
+    /// Both archives of a patch (`legit` names the base's club, `ghost` one nothing defines) and of
+    /// the base, in a scratch directory that is returned too.
+    fn archived_patches_and_base() -> (PathBuf, PathBuf, PathBuf, PathBuf) {
+        let (base, legit, ghost) = (
+            base_with_one_club(),
+            patch_with_player_at("base-fc"),
+            patch_with_player_at("ghost-fc"),
+        );
+        let out = temp_package();
+        let (base_ofm, legit_ofm, ghost_ofm) = (
+            out.join("base.ofm"),
+            out.join("legit.ofm"),
+            out.join("ghost.ofm"),
+        );
+        for (dir, archive) in [
+            (&base, &base_ofm),
+            (&legit, &legit_ofm),
+            (&ghost, &ghost_ofm),
+        ] {
+            super::super::world_io::export_directory_to_ofm(dir, archive).expect("packed");
+            std::fs::remove_dir_all(dir).ok();
+        }
+        (base_ofm, legit_ofm, ghost_ofm, out)
+    }
+
+    /// Given a patch archive naming a club its base archive defines
+    /// When it is checked on that base
+    /// Then it passes: an archive is checked on its base as a directory is.
+    #[test]
+    fn a_patch_archive_checked_on_its_base_passes() {
+        let (base, legit, _ghost, out) = archived_patches_and_base();
+
+        let (_, errors) = check_world_package_on_bases(&legit, &[base]);
+        std::fs::remove_dir_all(&out).ok();
+
+        assert!(errors.is_empty(), "{errors:?}");
+    }
+
+    /// Given a patch archive naming a club nothing defines
+    /// When it is checked on its base archive
+    /// Then it is refused with the unknown team.
+    #[test]
+    fn a_ghost_club_patch_archive_is_refused_on_its_base() {
+        let (base, _legit, ghost, out) = archived_patches_and_base();
+
+        let (_, errors) = check_world_package_on_bases(&ghost, &[base]);
+        std::fs::remove_dir_all(&out).ok();
+
+        assert!(errors.iter().any(|e| e.code == UNKNOWN_TEAM), "{errors:?}");
+    }
+
+    /// Given a patch naming a club its base defines, and a base that reads
+    /// When it is checked on that base
+    /// Then the stack merge ran: the club references were checked.
+    #[test]
+    fn the_stack_check_reports_the_merge_ran_for_a_readable_base() {
+        let (base, patch) = (base_with_one_club(), patch_with_player_at("base-fc"));
+
+        let check = stack_check(&patch, std::slice::from_ref(&base));
+        for dir in [&base, &patch] {
+            std::fs::remove_dir_all(dir).ok();
+        }
+
+        assert!(check.merged);
+    }
+
+    /// Given a patch and a base that cannot be read
+    /// When it is checked on that base
+    /// Then the merge did not run, and the base's read problem is reported: the club references
+    ///      were never checked, and the caller must not say they were.
+    #[test]
+    fn the_stack_check_reports_no_merge_for_an_unreadable_base() {
+        let patch = patch_with_player_at("base-fc");
+        let missing = std::env::temp_dir().join("ofm-no-such-base.ofm");
+
+        let check = stack_check(&patch, &[missing]);
+        std::fs::remove_dir_all(&patch).ok();
+
+        assert!(!check.merged);
+        assert!(!check.errors.is_empty());
+    }
+
+    /// Given a patch and no base
+    /// When it is checked
+    /// Then the merge did not run: alone, a patch's club references are the stack's to decide.
+    #[test]
+    fn the_stack_check_reports_no_merge_without_a_base() {
+        let patch = patch_with_player_at("base-fc");
+
+        let check = stack_check(&patch, &[]);
+        std::fs::remove_dir_all(&patch).ok();
+
+        assert!(!check.merged);
+    }
+
+    /// Given a patch with no base given
+    /// When it is checked
+    /// Then it is checked as it is read alone: its club references are deferred, as #1271 made them.
+    #[test]
+    fn a_patch_checked_on_no_base_defers_its_club_references() {
+        let ghost = patch_with_player_at("ghost-fc");
+
+        let (_, errors) = check_world_package_on_bases(&ghost, &[]);
+        std::fs::remove_dir_all(&ghost).ok();
+
+        assert!(errors.is_empty(), "{errors:?}");
     }
 
     fn temp_package() -> PathBuf {

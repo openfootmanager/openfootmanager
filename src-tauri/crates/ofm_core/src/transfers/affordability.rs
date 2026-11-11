@@ -4,6 +4,8 @@
 //! answered four times, with a slightly different shape each time (two errors, a bool, a cap);
 //! they all derive from [`fee_block`] now.
 
+use crate::game::Game;
+use domain::player::TransferOfferStatus;
 use domain::team::Team;
 
 use super::consts::{ERR_INSUFFICIENT_FUNDS, ERR_TRANSFER_BUDGET_TOO_LOW};
@@ -13,6 +15,7 @@ use super::consts::{ERR_INSUFFICIENT_FUNDS, ERR_TRANSFER_BUDGET_TOO_LOW};
 pub(crate) enum FeeBlock {
     InsufficientFunds,
     TransferBudgetTooLow,
+    TransferBudgetCommitted,
 }
 
 impl FeeBlock {
@@ -21,13 +24,14 @@ impl FeeBlock {
         match self {
             Self::InsufficientFunds => ERR_INSUFFICIENT_FUNDS,
             Self::TransferBudgetTooLow => ERR_TRANSFER_BUDGET_TOO_LOW,
+            Self::TransferBudgetCommitted => "be.error.transfers.transferBudgetCommitted",
         }
     }
 }
 
 /// `Ok` when `team` can pay `fee` out of both its cash and its transfer budget. No clamping: a
 /// club with a negative budget cannot pay even a zero fee, as registration has always decided.
-pub(crate) fn fee_block(team: &Team, fee: u64) -> Result<(), FeeBlock> {
+pub(crate) fn fee_block(team: &Team, fee: u64, committed: i64) -> Result<(), FeeBlock> {
     // A fee beyond i64 is beyond any club's cash.
     let Ok(fee) = i64::try_from(fee) else {
         return Err(FeeBlock::InsufficientFunds);
@@ -38,18 +42,53 @@ pub(crate) fn fee_block(team: &Team, fee: u64) -> Result<(), FeeBlock> {
     if team.transfer_budget < fee {
         return Err(FeeBlock::TransferBudgetTooLow);
     }
+    if team.transfer_budget.saturating_sub(committed) < fee {
+        return Err(FeeBlock::TransferBudgetCommitted);
+    }
     Ok(())
 }
 
 /// Whether `team` can pay `fee` out of cash and transfer budget: [`fee_block`] finds nothing in the way.
-pub(crate) fn can_afford_fee(team: &Team, fee: u64) -> bool {
-    fee_block(team, fee).is_ok()
+pub(crate) fn can_afford_fee(team: &Team, fee: u64, committed: i64) -> bool {
+    fee_block(team, fee, committed).is_ok()
 }
 
 /// The largest fee `team` could pay, for capping what a buyer will offer. Negative cash or budget
 /// count as nothing to spend, so it agrees with [`fee_block`] for every fee above zero.
-pub(crate) fn transfer_fee_ceiling(team: &Team) -> u64 {
-    (team.transfer_budget.max(0) as u64).min(team.finance.max(0) as u64)
+pub(crate) fn transfer_fee_ceiling(team: &Team, committed: i64) -> u64 {
+    (team.transfer_budget.saturating_sub(committed).max(0) as u64).min(team.finance.max(0) as u64)
+}
+
+/// Saved agreed offers are the reservation ledger, including those in older saves. Computing
+/// from their status releases a cancelled or failed deal without a second mutable balance.
+pub(crate) fn committed_transfer_fees(game: &Game, team_id: &str) -> i64 {
+    committed_transfer_fees_by_club(game)
+        .get(team_id)
+        .copied()
+        .unwrap_or(0)
+}
+
+/// The market reads this once: its pending approaches and immediate moves never alter reservations.
+pub(super) fn committed_transfer_fees_by_club(
+    game: &Game,
+) -> std::collections::HashMap<String, i64> {
+    let mut totals = std::collections::HashMap::new();
+    for offer in game
+        .players
+        .iter()
+        .flat_map(|player| &player.transfer_offers)
+    {
+        if offer.status == TransferOfferStatus::PendingRegistration {
+            let total = totals.entry(offer.from_team_id.clone()).or_insert(0i64);
+            *total = total.saturating_add(i64::try_from(offer.fee).unwrap_or(i64::MAX));
+        }
+    }
+    totals
+}
+
+pub(crate) fn available_transfer_budget(game: &Game, team: &Team) -> i64 {
+    team.transfer_budget
+        .saturating_sub(committed_transfer_fees(game, &team.id))
 }
 
 #[cfg(test)]
@@ -74,14 +113,14 @@ mod tests {
     /// Given cash and budget that both cover a fee, when it is checked, then nothing blocks it.
     #[test]
     fn a_fee_within_cash_and_budget_is_not_blocked() {
-        assert_eq!(fee_block(&club(1_000, 800), 800), Ok(()));
+        assert_eq!(fee_block(&club(1_000, 800), 800, 0), Ok(()));
     }
 
     /// Given less cash than the fee, when it is checked, then cash is what blocks it.
     #[test]
     fn a_fee_beyond_cash_is_blocked_by_cash() {
         assert_eq!(
-            fee_block(&club(500, 10_000), 800),
+            fee_block(&club(500, 10_000), 800, 0),
             Err(FeeBlock::InsufficientFunds)
         );
     }
@@ -90,7 +129,7 @@ mod tests {
     #[test]
     fn a_fee_beyond_the_budget_is_blocked_by_the_budget() {
         assert_eq!(
-            fee_block(&club(10_000, 500), 800),
+            fee_block(&club(10_000, 500), 800, 0),
             Err(FeeBlock::TransferBudgetTooLow)
         );
     }
@@ -99,7 +138,7 @@ mod tests {
     #[test]
     fn a_club_short_of_both_reports_cash() {
         assert_eq!(
-            fee_block(&club(100, 100), 800),
+            fee_block(&club(100, 100), 800, 0),
             Err(FeeBlock::InsufficientFunds)
         );
     }
@@ -109,7 +148,7 @@ mod tests {
     #[test]
     fn a_fee_beyond_i64_is_insufficient_funds() {
         assert_eq!(
-            fee_block(&club(i64::MAX, i64::MAX), u64::MAX),
+            fee_block(&club(i64::MAX, i64::MAX), u64::MAX, 0),
             Err(FeeBlock::InsufficientFunds)
         );
     }
@@ -119,10 +158,10 @@ mod tests {
     #[test]
     fn a_negative_budget_blocks_even_a_zero_fee() {
         assert_eq!(
-            fee_block(&club(1_000, -1), 0),
+            fee_block(&club(1_000, -1), 0, 0),
             Err(FeeBlock::TransferBudgetTooLow)
         );
-        assert!(!can_afford_fee(&club(1_000, -1), 0));
+        assert!(!can_afford_fee(&club(1_000, -1), 0, 0));
     }
 
     /// Given each block, when its error key is read, then it is the key the bid screen has always
@@ -137,9 +176,13 @@ mod tests {
             FeeBlock::TransferBudgetTooLow.error_key(),
             "be.error.transfers.transferBudgetTooLow"
         );
+        assert_eq!(
+            FeeBlock::TransferBudgetCommitted.error_key(),
+            "be.error.transfers.transferBudgetCommitted"
+        );
     }
 
-    /// Given a grid of cash, budget (including negatives) and fees, when the ceiling and the block
+    /// Given a grid of cash, budget (including negatives), commitments and fees, when the ceiling and the block
     /// are compared, then for every fee above zero `fee <= ceiling` exactly when nothing blocks it.
     #[test]
     fn the_ceiling_agrees_with_the_block_for_every_positive_fee() {
@@ -147,13 +190,15 @@ mod tests {
         for finance in amounts {
             for budget in amounts {
                 let team = club(finance, budget);
-                let ceiling = transfer_fee_ceiling(&team);
-                for fee in [1u64, 2, 799, 800, 801, 5_000, 999_999, 1_000_000, 2_000_000] {
-                    assert_eq!(
-                        fee <= ceiling,
-                        fee_block(&team, fee).is_ok(),
-                        "finance {finance}, budget {budget}, fee {fee}"
-                    );
+                for committed in [0, 1, 799, 5_000, 1_000_000] {
+                    let ceiling = transfer_fee_ceiling(&team, committed);
+                    for fee in [1u64, 2, 799, 800, 801, 5_000, 999_999, 1_000_000, 2_000_000] {
+                        assert_eq!(
+                            fee <= ceiling,
+                            fee_block(&team, fee, committed).is_ok(),
+                            "finance {finance}, budget {budget}, committed {committed}, fee {fee}"
+                        );
+                    }
                 }
             }
         }

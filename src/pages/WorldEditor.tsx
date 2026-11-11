@@ -30,12 +30,18 @@ import type {
   TeamDef,
   WorldMetaDef,
 } from "../components/menu/PackageEditor/types";
-import { WorldEditorHome, type RecentProject } from "../components/worldEditor/WorldEditorHome";
+import { WorldEditorHome } from "../components/worldEditor/WorldEditorHome";
+import type { RecentProject } from "../store/packageEditorTypes";
 import type { SamplePackage } from "../components/menu/PackageEditor/sampleData";
 import { WorldEditorLayout } from "../components/worldEditor/WorldEditorLayout";
 import { WorldEditorTopBar, type SaveState } from "../components/worldEditor/WorldEditorTopBar";
 import { findingsToShow } from "../components/worldEditor/validationOutcome";
 import { savePackageProject, validatePackageProject } from "../services/packageEditorService";
+import {
+  readRecentProjects,
+  rememberRecentProject,
+  updateRecentValidation,
+} from "../services/recentProjects";
 import {
   hasUnsavedChanges,
   type Acknowledged,
@@ -50,17 +56,6 @@ import {
 import { WorldEditorListContent } from "../components/worldEditor/WorldEditorListContent";
 
 const AUTO_SAVE_KEY = "worldEditor.autoSave";
-const RECENT_PROJECTS_KEY = "worldEditor.recentProjects";
-const MAX_RECENT = 8;
-
-function readRecentProjects(): RecentProject[] {
-  try {
-    const raw = localStorage.getItem(RECENT_PROJECTS_KEY);
-    return raw ? (JSON.parse(raw) as RecentProject[]) : [];
-  } catch {
-    return [];
-  }
-}
 
 interface EntitySnapshot {
   meta: WorldMetaDef;
@@ -119,7 +114,7 @@ export default function WorldEditor() {
   const [autoSave, setAutoSave] = useState<boolean>(readAutoSave);
 
   // Recent projects
-  const [recentProjects, setRecentProjects] = useState<RecentProject[]>(readRecentProjects);
+  const [recentProjects, setRecentProjects] = useState<RecentProject[]>(() => readRecentProjects());
 
   // The sidebar badge. Every keystroke anywhere in the editor re-renders this
   // page, and counting the youth players is a pass over the whole squad list.
@@ -259,19 +254,7 @@ export default function WorldEditor() {
   }
 
   function addRecentProject(path: string, name: string) {
-    setRecentProjects((prev) => {
-      const filtered = prev.filter((p) => p.path !== path);
-      const updated = [{ path, name, openedAt: new Date().toISOString() }, ...filtered].slice(
-        0,
-        MAX_RECENT,
-      );
-      try {
-        localStorage.setItem(RECENT_PROJECTS_KEY, JSON.stringify(updated));
-      } catch {
-        /* ignore */
-      }
-      return updated;
-    });
+    setRecentProjects((prev) => rememberRecentProject(prev, path, name));
   }
 
   const persist = useCallback(
@@ -435,6 +418,12 @@ export default function WorldEditor() {
     try {
       await persist();
       const data = await validatePackageProject(projectDir);
+      const validation = {
+        errors: data.issues.length,
+        warnings: data.warnings.length,
+        checkedAt: new Date().toISOString(),
+      };
+      setRecentProjects((previous) => updateRecentValidation(previous, projectDir, validation));
       setIssues(data.issues);
       setWarnings(data.warnings ?? []);
       // An explicit Validate shows what it found, warnings included.

@@ -135,7 +135,7 @@ The `initialize` result's `serverInfo.version` is the package version plus the s
 | `info_team_match_history` | Match-by-match results for a team |
 | `info_finances` | Financial overview: wage spend, budget, projected net, debt status |
 | `info_finance_snapshot` | Detailed financial snapshot with all health metrics, for the manager's own club only (`team_id` may be left out or name the own club; another club's finances are refused) |
-| `info_news` | Recent news articles |
+| `info_news` | Recent news articles: headline, body and source, in English. A roundup's structured results come in `details` |
 
 ### Time (3 tools)
 
@@ -197,13 +197,13 @@ The `initialize` result's `serverInfo.version` is the package version plus the s
 
 | Tool | Description |
 |------|-------------|
-| `inbox_get_messages` | List messages with optional category and read-status filters |
+| `inbox_get_messages` | List messages with optional category and read-status filters: subject, body and sender in English, and each message's actions with the action and option ids `inbox_resolve_action` takes |
 | `inbox_get_archived` | Read mail older than 180 days, newest first, a page at a time (`before_date`/`before_id` continue) |
 | `inbox_mark_read` | Mark a message as read |
 | `inbox_mark_all_read` | Mark all messages as read |
 | `inbox_delete` | Delete a message |
 | `inbox_clear_old` | Clear old/processed messages |
-| `inbox_resolve_action` | Resolve a message action (job offers, scout reports, events); an action answers once, a second answer is refused with `be.error.actionAlreadyResolved`, and a message that is not there (or not visible yet, answered the same way so an agent learns nothing of future mail) or an action it lacks with `be.error.actionNotFound`; a choice resolved without one of its options is refused with `be.error.actionOptionRequired` and stays pending |
+| `inbox_resolve_action` | Resolve a message action (job offers, scout reports, events); `message_id`, `action_id` and `option_id` are the ids `inbox_get_messages` lists; an action answers once, a second answer is refused with `be.error.actionAlreadyResolved`, and a message that is not there (or not visible yet, answered the same way so an agent learns nothing of future mail) or an action it lacks with `be.error.actionNotFound`; a choice resolved without one of its options is refused with `be.error.actionOptionRequired` and stays pending |
 
 ### Club & Staff (7 tools)
 

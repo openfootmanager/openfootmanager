@@ -1,3 +1,4 @@
+import { storedTeamLabel } from "../../lib/team";
 import type { CareerEntry } from "../../store/gameStore";
 import { Card, CardBody, CardHeader } from "../ui";
 
@@ -28,28 +29,31 @@ export default function PlayerProfileCareerHistoryCard({
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100 dark:divide-navy-600">
-              {career.map((entry, index) => (
-                <tr key={`${entry.team_id}-${entry.season}-${index}`}>
-                  <td
-                    className="py-2 pr-4 font-semibold text-gray-800 dark:text-gray-200 truncate"
-                    title={entry.team_name}
-                  >
-                    {entry.team_name}
-                  </td>
-                  <td className="py-2 text-right text-gray-400 dark:text-gray-500 tabular-nums">
-                    {entry.season}/{entry.season + 1}
-                  </td>
-                  <td className="py-2 text-right text-gray-500 dark:text-gray-400 tabular-nums">
-                    {entry.appearances}
-                  </td>
-                  <td className="py-2 text-right text-gray-500 dark:text-gray-400 tabular-nums">
-                    {entry.goals}
-                  </td>
-                  <td className="py-2 text-right text-gray-500 dark:text-gray-400 tabular-nums">
-                    {entry.assists}
-                  </td>
-                </tr>
-              ))}
+              {career.map((entry, index) => {
+                const teamName = storedTeamLabel(entry.team_name, t);
+                return (
+                  <tr key={`${entry.team_id}-${entry.season}-${index}`}>
+                    <td
+                      className="py-2 pr-4 font-semibold text-gray-800 dark:text-gray-200 truncate"
+                      title={teamName}
+                    >
+                      {teamName}
+                    </td>
+                    <td className="py-2 text-right text-gray-400 dark:text-gray-500 tabular-nums">
+                      {entry.season}/{entry.season + 1}
+                    </td>
+                    <td className="py-2 text-right text-gray-500 dark:text-gray-400 tabular-nums">
+                      {entry.appearances}
+                    </td>
+                    <td className="py-2 text-right text-gray-500 dark:text-gray-400 tabular-nums">
+                      {entry.goals}
+                    </td>
+                    <td className="py-2 text-right text-gray-500 dark:text-gray-400 tabular-nums">
+                      {entry.assists}
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         ) : (

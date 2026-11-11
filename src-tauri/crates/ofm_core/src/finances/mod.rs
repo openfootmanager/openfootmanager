@@ -1,6 +1,8 @@
 pub mod cash_flow;
 pub mod gate;
 pub mod journal;
+mod league_position;
+mod weekly;
 
 pub use domain::finance::{CashJournal, CashKind};
 pub use journal::{
@@ -11,6 +13,7 @@ pub use journal::{
 /// Weeks of committed wages a club must be able to cover after the weekly unit lock.
 pub const MIN_OPENING_RUNWAY_WEEKS: i64 = 16;
 
+use self::league_position::league_position;
 use crate::game::Game;
 use chrono::{Datelike, NaiveDate};
 use domain::message::*;
@@ -62,6 +65,10 @@ pub enum FinanceHealthLevel {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct TeamFinanceSnapshot {
+    #[serde(default)]
+    pub committed_transfer_fees: i64,
+    #[serde(default)]
+    pub available_transfer_budget: i64,
     pub annual_wage_bill: i64,
     pub weekly_wage_spend: i64,
     pub weekly_wage_budget: i64,
@@ -385,7 +392,7 @@ pub fn team_finance_snapshot(game: &Game, team_id: &str) -> Option<TeamFinanceSn
     let weekly_wage_spend = calc_wages(game, team_id);
     let annual_wage_bill = weekly_wage_spend;
     let weekly_wage_budget = team.wage_budget;
-    let current_position = current_league_position(game, team_id);
+    let current_position = league_position(game, team_id);
     let weekly_sponsor_income = team
         .sponsorship
         .as_ref()
@@ -410,6 +417,8 @@ pub fn team_finance_snapshot(game: &Game, team_id: &str) -> Option<TeamFinanceSn
     let runway_status = runway_status(team.finance, cash_runway_weeks);
 
     Some(TeamFinanceSnapshot {
+        committed_transfer_fees: crate::transfers::committed_transfer_fees(game, team_id),
+        available_transfer_budget: crate::transfers::available_transfer_budget(game, team),
         annual_wage_bill,
         weekly_wage_spend,
         weekly_wage_budget,
@@ -872,7 +881,7 @@ pub fn preview_sponsor_pitch(game: &Game, team_id: &str) -> Result<SponsorPitchP
         return Err("be.error.finance.sponsorPitchActiveSponsor".to_string());
     }
 
-    let current_position = current_league_position(game, team_id);
+    let current_position = league_position(game, team_id);
 
     Ok(SponsorPitchPreview {
         sponsor_name: sponsor_pitch_partner(team_id, game.clock.current_date),
@@ -1116,23 +1125,6 @@ pub fn evaluate_sponsorship_bonus(
         .sum()
 }
 
-fn current_league_position(game: &Game, team_id: &str) -> Option<u32> {
-    let league = game.league.as_ref()?;
-
-    league
-        .sorted_standings()
-        .iter()
-        .position(|standing| standing.team_id == team_id)
-        .map(|index| index as u32 + 1)
-}
-
-fn add_weekly_wage(map: &mut std::collections::HashMap<String, i64>, team_id: &str, amount: i64) {
-    if amount == 0 {
-        return;
-    }
-    *map.entry(team_id.to_string()).or_default() += amount;
-}
-
 fn commit_weekly_posts(game: &mut Game, reqs: &[PostRequest]) -> bool {
     if reqs.is_empty() {
         return true;
@@ -1159,102 +1151,8 @@ pub fn process_weekly_finances(game: &mut Game) {
 
     let today = game.clock.current_date.format("%Y-%m-%d").to_string();
 
-    // Sum each member's weekly wage into its team in a single pass, instead of
-    // rescanning every player and staff member once per team
-    // (O(teams * (players + staff)) -> O(teams + players + staff)).
-    let mut player_wages_by_team: std::collections::HashMap<String, i64> =
-        std::collections::HashMap::new();
-    let mut staff_wages_by_team: std::collections::HashMap<String, i64> =
-        std::collections::HashMap::new();
-    for player in &game.players {
-        if let Some(loan) = &player.active_loan {
-            add_weekly_wage(
-                &mut player_wages_by_team,
-                &loan.loan_team_id,
-                player_weekly_wage_for_team(player, &loan.loan_team_id),
-            );
-            add_weekly_wage(
-                &mut player_wages_by_team,
-                &loan.parent_team_id,
-                player_weekly_wage_for_team(player, &loan.parent_team_id),
-            );
-        } else if let Some(team_id) = &player.team_id {
-            add_weekly_wage(&mut player_wages_by_team, team_id, i64::from(player.wage()));
-        }
-    }
-    for staff_member in &game.staff {
-        if let Some(team_id) = &staff_member.team_id {
-            add_weekly_wage(
-                &mut staff_wages_by_team,
-                team_id,
-                i64::from(staff_member.wage),
-            );
-        }
-    }
-
-    let position_by_team: std::collections::HashMap<String, u32> = game
-        .league
-        .as_ref()
-        .map(|league| {
-            league
-                .sorted_standings()
-                .iter()
-                .enumerate()
-                .map(|(index, standing)| (standing.team_id.clone(), index as u32 + 1))
-                .collect()
-        })
-        .unwrap_or_default();
-
     let post_date = game.clock.current_date.date_naive();
-    let mut weekly_by_club: Vec<(String, Vec<PostRequest>)> = Vec::new();
-    for team in &game.teams {
-        let mut reqs = Vec::new();
-        let player_wages = player_wages_by_team.get(&team.id).copied().unwrap_or(0);
-        let staff_wages = staff_wages_by_team.get(&team.id).copied().unwrap_or(0);
-        let upkeep = calc_upkeep(team);
-        if player_wages != 0 {
-            reqs.push(PostRequest::new(
-                &team.id,
-                -player_wages,
-                CashKind::PlayerWages,
-                post_date,
-            ));
-        }
-        if staff_wages != 0 {
-            reqs.push(PostRequest::new(
-                &team.id,
-                -staff_wages,
-                CashKind::StaffWages,
-                post_date,
-            ));
-        }
-        if upkeep != 0 {
-            reqs.push(PostRequest::new(
-                &team.id,
-                -upkeep,
-                CashKind::Upkeep,
-                post_date,
-            ));
-        }
-        let current_position = position_by_team.get(&team.id).copied();
-        let sponsorship_income = team
-            .sponsorship
-            .as_ref()
-            .map(|sponsorship| {
-                sponsorship.base_value
-                    + evaluate_sponsorship_bonus(current_position, &team.form, sponsorship)
-            })
-            .unwrap_or(0);
-        if sponsorship_income > 0 {
-            reqs.push(PostRequest::new(
-                &team.id,
-                sponsorship_income,
-                CashKind::Sponsorship,
-                post_date,
-            ));
-        }
-        weekly_by_club.push((team.id.clone(), reqs));
-    }
+    let weekly_by_club = weekly::weekly_posts_by_club(game, post_date);
 
     // One `post_all` per club on purpose: a single overflow must not skip the
     // rest of the league (`post_all` is all-or-nothing). `posted_clubs` below

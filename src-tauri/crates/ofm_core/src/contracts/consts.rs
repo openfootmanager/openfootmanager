@@ -20,3 +20,5 @@ pub(crate) const ERR_PLAYER_HAS_NO_ACTIVE_CONTRACT: &str =
 pub(crate) const ERR_PLAYER_ON_ACTIVE_LOAN: &str = "be.error.contracts.playerOnActiveLoan";
 pub(crate) const ERR_TERMINATION_WOULD_LEAVE_MATCHDAY_SQUAD_SHORT: &str =
     "be.error.contracts.terminationWouldLeaveMatchdaySquadShort";
+pub(crate) const ERR_RENEWAL_DOES_NOT_EXTEND: &str = "be.error.contracts.renewalDoesNotExtend";
+pub(crate) const RENEWAL_MINIMUM_YEARS_KEY: &str = "playerProfile.renewalMinimumYears";

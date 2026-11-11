@@ -1822,6 +1822,9 @@ fn a_loan_out_and_back_writes_movements_but_no_contract() {
     assert_eq!(player.contract_start(), Some("2019-07-01"));
 }
 
+/// Given an accepted purchase
+/// When the player registers with the buyer through the public entry point
+/// Then the new employment contract ends on 30 June of the agreed year.
 #[test]
 fn a_loan_to_buy_creates_a_new_contract_with_the_buyers_terms() {
     let mut player = make_player("player-buy-terms");
@@ -1855,27 +1858,19 @@ fn a_loan_to_buy_creates_a_new_contract_with_the_buyers_terms() {
         .as_ref()
         .expect("buying the player makes a contract with the buyer");
     let today = game.clock.current_date.format("%Y-%m-%d").to_string();
-    let three_years_on = game
-        .clock
-        .current_date
-        .date_naive()
-        .checked_add_months(chrono::Months::new(36))
-        .expect("three years on exists")
-        .format("%Y-%m-%d")
-        .to_string();
     assert_eq!(record.source, ContractSource::Transfer);
     assert_eq!(record.start.as_deref(), Some(today.as_str()));
     assert_eq!(
         record.end.as_deref(),
-        Some(three_years_on.as_str()),
-        "three years from the purchase, not the seller's 2028-06-30"
+        Some("2029-06-30"),
+        "30 June in the third year after purchase"
     );
     assert!(
         record.weekly_wage > 520_000,
         "the buyer's standard wage, not the parent's 520,000 carried across: {}",
         record.weekly_wage
     );
-    assert_eq!(player.contract_end(), Some(three_years_on.as_str()));
+    assert_eq!(player.contract_end(), Some("2029-06-30"));
 }
 
 #[test]

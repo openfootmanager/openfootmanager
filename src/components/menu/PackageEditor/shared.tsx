@@ -1,4 +1,4 @@
-import { useId, useState } from "react";
+import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   Plus,
@@ -11,8 +11,8 @@ import {
   Loader2,
   X,
 } from "lucide-react";
-import { Button } from "../../ui/Button";
-import { ENTITY_LIST_PAGE_SIZE } from "./entityList.helpers";
+import { useRootFontPx } from "../../../hooks/useRootFontPx";
+import { VirtualList } from "../../ui/VirtualList";
 
 // ---------------------------------------------------------------------------
 // EntityListShell
@@ -67,77 +67,94 @@ export function EntityListShell({
 // ---------------------------------------------------------------------------
 
 interface EntityListFooterProps {
-  /** Rows currently rendered. */
-  shown: number;
-  /** Rows the search and filters left, rendered or not. */
+  /** Rows the search and filters left. */
   matches: number;
   /** Whether this section holds any records at all. */
   hasRecords: boolean;
-  onLoadMore: () => void;
 }
 
 /**
- * The line under an entity list: how much of it you are looking at, and the
- * button that shows more. Also the place a fruitless search is reported —
- * without it the panel just went blank, since the shell's empty message only
- * covers a section with no records in it at all.
+ * The line under an entity list: how many rows it holds, and the place a fruitless search is
+ * reported: without it the panel just went blank, since the shell's empty message only covers a
+ * section with no records in it at all. A live region, so a search into nothing is announced.
  */
-export function EntityListFooter({
-  shown,
-  matches,
-  hasRecords,
-  onLoadMore,
-}: EntityListFooterProps) {
+export function EntityListFooter({ matches, hasRecords }: EntityListFooterProps) {
   const { t } = useTranslation();
-  const countId = useId();
 
   if (!hasRecords) {
     return null;
   }
 
-  const everythingShown = shown >= matches;
+  return (
+    <p
+      role="status"
+      className={`text-xs text-gray-500 dark:text-gray-400 ${matches === 0 ? "text-center py-4" : "text-right"}`}
+    >
+      {matches === 0 ? t("common.noResults") : t("common.nResults", { count: matches })}
+    </p>
+  );
+}
 
-  // Kept mounted, disabled, once the list has run out: revealing the last
-  // page from the keyboard would otherwise unmount the focused button and
-  // drop focus to the top of the document, hundreds of rows above.
-  const wasCapped = matches > ENTITY_LIST_PAGE_SIZE;
+// ---------------------------------------------------------------------------
+// EntityRowList
+// ---------------------------------------------------------------------------
+
+/**
+ * One entity row's height and the gap below it, in rem so the UI text scale moves them with the text
+ * inside (see [`VirtualList`], which positions rows by arithmetic and needs every row to have it).
+ */
+const ENTITY_ROW_HEIGHT_REM = 4;
+const ENTITY_ROW_GAP_REM = 0.5;
+
+interface EntityRowListProps<R extends { i: number }> {
+  /** The rows the search and filters left, each carrying its index in the whole list. */
+  rows: readonly R[];
+  itemKey: (row: R) => string | number;
+  renderRow: (row: R) => React.ReactNode;
+  /** Names the list for assistive technology. */
+  label: string;
+  /** The selected record's index in the whole list: the list scrolls it into view when it changes. */
+  selectedIndex?: number | null;
+  /** What the rows are filtered by: the list goes back to its first row when it changes. */
+  resetKey?: unknown;
+  /** Enter or Space on a focused row: select that record. */
+  onSelect?: (index: number) => void;
+}
+
+/**
+ * The rows of an entity list, rendered a window at a time however long the list is. The editor
+ * appended fifty rows per "Load more" and never removed any, which put 394,000 elements and a 5 GB
+ * web view behind the full 17,098-player list.
+ */
+export function EntityRowList<R extends { i: number }>({
+  rows,
+  itemKey,
+  renderRow,
+  label,
+  selectedIndex,
+  resetKey,
+  onSelect,
+}: EntityRowListProps<R>) {
+  const revealIndex = useMemo(() => {
+    if (selectedIndex === null || selectedIndex === undefined) return null;
+    const at = rows.findIndex((row) => row.i === selectedIndex);
+    return at < 0 ? null : at;
+  }, [rows, selectedIndex]);
+
+  const rootPx = useRootFontPx();
 
   return (
-    <div className="flex flex-col gap-2 pt-1">
-      {wasCapped && (
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          // `aria-disabled`, not `disabled`: a disabled element is not
-          // focusable, so disabling the button the user just pressed hands
-          // focus back to the document — the same problem as unmounting it.
-          // This keeps it in the tab order and announced as unavailable.
-          className={`w-full ${everythingShown ? "opacity-50 cursor-not-allowed" : ""}`}
-          onClick={everythingShown ? undefined : onLoadMore}
-          aria-disabled={everythingShown}
-          aria-describedby={countId}
-        >
-          {t("common.loadMore")}
-        </Button>
-      )}
-      {/*
-        One live region for all three messages, so revealing a page or
-        searching into nothing is announced rather than silently changing
-        the rows underneath.
-      */}
-      <p
-        id={countId}
-        role="status"
-        className={`text-xs text-gray-500 dark:text-gray-400 ${matches === 0 ? "text-center py-4" : "text-right"}`}
-      >
-        {matches === 0
-          ? t("common.noResults")
-          : everythingShown
-            ? t("common.nResults", { count: matches })
-            : t("worldEditor.showingEntries", { shown, total: matches })}
-      </p>
-    </div>
+    <VirtualList
+      items={rows}
+      rowHeight={ENTITY_ROW_HEIGHT_REM * rootPx}
+      gap={ENTITY_ROW_GAP_REM * rootPx}
+      itemKey={itemKey}
+      renderItem={renderRow}
+      aria-label={label}
+      revealIndex={revealIndex}
+      resetKey={resetKey}
+      onActivate={onSelect ? (at) => onSelect(rows[at].i) : undefined}
+    />
   );
 }
 
@@ -214,7 +231,7 @@ export function EntityRow({
 
   return (
     <div
-      className={`flex items-center gap-3 p-3 rounded-xl border transition-colors ${
+      className={`group relative flex items-center gap-3 p-3 rounded-xl border transition-colors ${
         isSelected
           ? "border-primary-400 dark:border-primary-500 bg-primary-50 dark:bg-primary-500/10"
           : "border-gray-200 dark:border-navy-600 bg-white dark:bg-navy-700 hover:border-gray-300 dark:hover:border-navy-500"
@@ -226,7 +243,21 @@ export function EntityRow({
         <p className="font-heading font-bold text-sm uppercase tracking-wide text-gray-800 dark:text-gray-200 truncate">
           {title}
         </p>
-        {subtitle && <p className="text-[10px] text-gray-400 dark:text-gray-500">{subtitle}</p>}
+        {subtitle && (
+          // One line at every text scale: a wrapped subtitle would be taller than the row a virtual
+          // list gives it (4rem = 1.5rem padding + 1.25rem title + 1rem caption + borders, so it fits
+          // at any scale). The whole text is the title for a pointer, and a panel drawn from
+          // `data-full` shows it while the row or a control in it has keyboard focus. The panel is a
+          // pseudo-element so the text is in the page once: a screen reader reads the paragraph.
+          <div
+            data-full={subtitle}
+            className="after:hidden group-focus-within:after:block after:content-[attr(data-full)] after:absolute after:left-3 after:right-3 after:top-full after:z-20 after:mt-1 after:rounded-lg after:border after:border-gray-200 dark:after:border-navy-600 after:bg-white dark:after:bg-navy-700 after:px-3 after:py-2 after:text-caption after:text-gray-700 dark:after:text-gray-200 after:shadow-lg"
+          >
+            <p className="text-caption text-gray-400 dark:text-gray-500 truncate" title={subtitle}>
+              {subtitle}
+            </p>
+          </div>
+        )}
       </div>
       {confirming ? (
         <div className="flex items-center gap-1 flex-shrink-0">

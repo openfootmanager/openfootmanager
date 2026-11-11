@@ -783,6 +783,44 @@ describe("resolveMessage", () => {
 // ---------------------------------------------------------------------------
 
 describe("resolveNewsArticle", () => {
+  /**
+   * Given a season-awards article whose Golden Boot winner was at no club, written as the
+   *      free-agent key (new) or as the English literal an older save stored
+   * When it is resolved in Spanish
+   * Then its body names "Agente Libre", never the English literal or an empty pair of brackets.
+   */
+  it.each([
+    ["the free-agent key", "common.freeAgent"],
+    ["the legacy English literal", "Free Agent"],
+    ["an empty name", ""],
+  ])(
+    "words a season-awards winner at no club in the player's language: %s",
+    async (_case, team) => {
+      const previousLanguage = i18n.language;
+      await i18n.changeLanguage("es");
+
+      try {
+        const article = makeNewsArticle({
+          body_key: "be.news.seasonAwards.bodyGoldenBootOnly",
+          i18n_params: {
+            season: "6",
+            goldenBootWinner: "Victor Vale",
+            goldenBootTeam: team,
+            goldenBootGoals: "24",
+          },
+        });
+
+        const result = resolveNewsArticle(article);
+
+        expect(result.body).toContain("Agente Libre");
+        expect(result.body).not.toContain("Free Agent");
+        expect(result.i18n_params?.goldenBootTeam).toBe("Agente Libre");
+      } finally {
+        await i18n.changeLanguage(previousLanguage);
+      }
+    },
+  );
+
   it("resolves all translatable fields with params", () => {
     const article = makeNewsArticle({
       headline: "raw",

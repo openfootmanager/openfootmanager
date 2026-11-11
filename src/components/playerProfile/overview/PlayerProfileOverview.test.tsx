@@ -65,7 +65,11 @@ const striker: PositionRatings = {
         { attribute: "positioning", value: 81 },
         { attribute: "decisions", value: 70 },
       ],
-      weights: STRIKER_WEIGHTS.map(([attribute, weight]) => ({ attribute, weight })),
+      weights: STRIKER_WEIGHTS.map(([attribute, weight]) => ({
+        attribute,
+        weight,
+        importance: weight >= 16 ? 3 : weight >= 8 ? 2 : 1,
+      })),
     },
   ],
 };

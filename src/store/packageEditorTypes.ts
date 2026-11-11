@@ -321,3 +321,9 @@ export interface PackageCollections {
   names: NamesDefinition;
   competitions: CompetitionDef[];
 }
+export interface RecentProject {
+  path: string;
+  name: string;
+  openedAt: string;
+  lastValidation?: { errors: number; warnings: number; checkedAt: string };
+}

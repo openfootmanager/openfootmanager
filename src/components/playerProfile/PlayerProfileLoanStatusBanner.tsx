@@ -45,19 +45,17 @@ export default function PlayerProfileLoanStatusBanner({
       <CardBody>
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary-500/10">
-              <ArrowRightLeft className="h-5 w-5 text-primary-500" />
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-positive-tint">
+              <ArrowRightLeft className="h-5 w-5 text-positive" />
             </div>
             <div>
-              <p className="font-heading text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+              <p className="font-heading text-caption font-bold uppercase tracking-wider text-fg-muted">
                 {t("playerProfile.loanStatus")}
               </p>
-              <p className="text-sm font-semibold text-gray-800 dark:text-gray-100">
-                {relationship}
-              </p>
+              <p className="text-body font-semibold text-fg">{relationship}</p>
             </div>
           </div>
-          <div className="grid gap-2 text-xs text-gray-500 dark:text-gray-400 sm:grid-cols-3 sm:text-right">
+          <div className="grid gap-2 text-caption text-fg-muted sm:grid-cols-3 sm:text-right">
             <span className="inline-flex items-center gap-1 sm:justify-end">
               <CalendarDays className="h-3.5 w-3.5" />
               {t("playerProfile.loanUntil", {

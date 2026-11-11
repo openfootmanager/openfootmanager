@@ -434,6 +434,16 @@ pub fn transfer_roundup_article(
     )
 }
 
+/// The club an awards article names for a winner. A winner at no club has no name, and travels as
+/// the free-agent translation key, which the reader resolves in the player's language.
+fn award_team_param(team_name: &str) -> String {
+    if team_name.is_empty() {
+        "common.freeAgent".to_string()
+    } else {
+        team_name.to_string()
+    }
+}
+
 /// Generate the end-of-season awards ceremony news article.
 ///
 /// Returns `None` when neither marquee award (Golden Boot, Player of the Year) has a winner —
@@ -454,12 +464,15 @@ pub fn season_awards_article(
     i18n_params.insert("season".to_string(), season.to_string());
     if let Some(gb) = golden_boot {
         i18n_params.insert("goldenBootWinner".to_string(), gb.player_name.clone());
-        i18n_params.insert("goldenBootTeam".to_string(), gb.team_name.clone());
+        i18n_params.insert(
+            "goldenBootTeam".to_string(),
+            award_team_param(&gb.team_name),
+        );
         i18n_params.insert("goldenBootGoals".to_string(), (gb.value as u32).to_string());
     }
     if let Some(p) = poty {
         i18n_params.insert("potyWinner".to_string(), p.player_name.clone());
-        i18n_params.insert("potyTeam".to_string(), p.team_name.clone());
+        i18n_params.insert("potyTeam".to_string(), award_team_param(&p.team_name));
         i18n_params.insert("potyRating".to_string(), format!("{:.1}", p.value));
     }
     if let Some(manager) = manager {
@@ -1155,6 +1168,28 @@ mod tests {
         );
         assert!(article.player_ids.contains(&"p1".to_string()));
         assert!(article.team_ids.contains(&"team1".to_string()));
+    }
+
+    /// Given a Golden Boot won by a player at no club (no team id, no team name)
+    /// When the awards article is written
+    /// Then its team parameter is the free-agent translation key, not an empty string: the reader
+    ///      resolves it in the player's language (an empty name reads as nothing).
+    #[test]
+    fn season_awards_article_names_a_free_agent_winners_club_by_key() {
+        let mut awards = empty_awards();
+        awards.golden_boot = vec![award_entry("p1", "Star Striker", "", "", 22.0)];
+        awards.player_of_year = vec![award_entry("p1", "Star Striker", "", "", 7.9)];
+
+        let article = season_awards_article(&awards, 3, "2026-05-20").expect("an article");
+
+        assert_eq!(
+            article.i18n_params.get("goldenBootTeam"),
+            Some(&"common.freeAgent".to_string())
+        );
+        assert_eq!(
+            article.i18n_params.get("potyTeam"),
+            Some(&"common.freeAgent".to_string())
+        );
     }
 
     #[test]

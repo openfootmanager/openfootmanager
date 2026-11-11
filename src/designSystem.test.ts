@@ -9,6 +9,15 @@ import { describe, expect, it } from "vitest";
  */
 const FINISHED_FOLDERS = [
   "./components/ui/",
+  // The profile's dialogs, banners, scout button and stat tile. Its Career and Contract cards join
+  // after their mockup round, and then these become the one folder.
+  "./components/playerProfile/PlayerProfileRenewalModal.tsx",
+  "./components/playerProfile/PlayerProfileTerminationModal.tsx",
+  "./components/playerProfile/PlayerProfileLoanStatusBanner.tsx",
+  "./components/playerProfile/PlayerProfileInjuryBanner.tsx",
+  "./components/playerProfile/PlayerProfileScoutAction.tsx",
+  "./components/playerProfile/PlayerProfileStatCard.tsx",
+  "./components/playerProfile/PlayerProfile.renewal.ts",
   // The dashboard shell. The rest of components/dashboard (its modals) joins with them, and these
   // four entries become the one folder.
   "./components/dashboard/DashboardAlerts.tsx",
@@ -34,6 +43,9 @@ const FINISHED_FOLDERS = [
   // are redrawn.
   "./components/squad/SquadCardsView.tsx",
   "./components/squad/SquadCardGrid.tsx",
+  // The World Editor's home (the approved sidebar and library, 10 Nov 2026). The editor's own screens
+  // and the new-world form join with their redesign.
+  "./components/worldEditor/home/",
   // Choose your club (team selection A, approved 10 Nov 2026): the page and its stepper, rail,
   // table and chosen-club card. The simulation settings it opens are the dialog's slice, T3.
   "./pages/TeamSelection.tsx",

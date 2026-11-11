@@ -5,6 +5,7 @@ import { formatExactMoney, formatPreciseCompact } from "../lib/helpers";
 import { formatDate } from "../lib/dateFormatting";
 import { formatOrdinal } from "../lib/ordinal";
 import { countryName } from "../lib/countries";
+import { storedTeamLabel } from "../lib/team";
 import { competitionDisplayName } from "../lib/competitionName";
 import { useSettingsStore } from "../store/settingsStore";
 import type {
@@ -744,7 +745,29 @@ type ArticleParamNormalizer = (
 
 // Each normalizer reads only from the original i18n_params keys — none consumes
 // output written by another normalizer — so array order is currently inconsequential.
+/**
+ * A season-awards article names its winners' clubs by param. A winner at no club carries the
+ * free-agent key (resolved with the other params); an older article carries the English literal, or
+ * nothing, so those become the key too.
+ */
+function normalizeSeasonAwardsParams(
+  article: NewsArticle,
+  params?: Record<string, string>,
+): Record<string, string> | undefined {
+  if (!article.body_key?.startsWith("be.news.seasonAwards.") || !params) {
+    return params;
+  }
+  const normalized = { ...params };
+  for (const key of ["goldenBootTeam", "potyTeam"]) {
+    if (key in normalized) {
+      normalized[key] = storedTeamLabel(normalized[key], (teamKey) => teamKey);
+    }
+  }
+  return normalized;
+}
+
 const ARTICLE_PARAM_NORMALIZERS: ArticleParamNormalizer[] = [
+  normalizeSeasonAwardsParams,
   normalizePreseasonDigestParams,
   normalizeRoundupParams,
   normalizeStandingsParams,

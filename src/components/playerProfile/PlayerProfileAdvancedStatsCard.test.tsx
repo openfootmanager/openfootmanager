@@ -81,6 +81,35 @@ describe("PlayerProfileAdvancedStatsCard percentiles", () => {
   });
 
   /**
+   * Given a German third-tier peer group with a localized competition key
+   * When the card renders in German
+   * Then its group label interpolates the tier instead of using the stored English name
+   */
+  it("localizes the peer group's division tier", async () => {
+    await changeAppLanguage("de");
+
+    render(
+      <PlayerProfileAdvancedStatsCard
+        summary={{
+          ...SUMMARY,
+          peerGroup: {
+            competitionId: "de-tier-3",
+            competitionName: "Germany Division 3",
+            competitionNameKey: "tournaments.competitions.tierDivision",
+            countryId: "DE",
+            divisionTier: 3,
+            position: "Striker",
+          },
+        }}
+        t={i18n.t}
+      />,
+    );
+
+    expect(screen.getByText(/Deutschland 3\. Liga/)).toBeInTheDocument();
+    expect(screen.queryByText(/Germany Division 3/)).not.toBeInTheDocument();
+  });
+
+  /**
    * Given the backend gives no peer group (a player with no league)
    * When the card renders
    * Then no group line is shown

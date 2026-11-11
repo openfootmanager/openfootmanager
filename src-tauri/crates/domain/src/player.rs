@@ -1,3 +1,4 @@
+use crate::career_stints::SeasonStints;
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
@@ -79,6 +80,13 @@ pub struct Player {
 
     // Career history
     pub career: Vec<CareerEntry>,
+    /// The season in progress split by club, closed at every move and resolved into `career` rows
+    /// at the rollover. It is saved in its own SQLite column (`player_repo`), not through this
+    /// serializer, and no screen reads it: like the archives on `Game`, the wire never carries it,
+    /// so the TypeScript type and the JSON agree. A JSON player (a legacy save) has none.
+    #[serde(skip)]
+    #[ts(skip)]
+    pub season_stints: SeasonStints,
     /// Every move and every contract. Flattened so the wire and the saves keep their
     /// keys: it reads and writes `movement_history`, `wage`, `contract_start` and
     /// `contract_end` itself.
@@ -685,6 +693,22 @@ pub enum PlayerMovementKind {
     InitialContract,
 }
 
+impl PlayerMovementKind {
+    /// Whether the club he plays for changes with this movement. A loan's purchase makes the
+    /// borrower his owner without moving him, and a renewal, a retirement and an opening
+    /// contract do not move him either.
+    pub(crate) fn changes_where_he_plays(&self) -> bool {
+        matches!(
+            self,
+            Self::PermanentTransfer
+                | Self::LoanStart
+                | Self::LoanReturn
+                | Self::FreeAgentSigning
+                | Self::Released
+        )
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, TS)]
 pub struct PlayerMovementEntry {
     pub date: String,
@@ -953,6 +977,13 @@ pub fn compute_traits(attrs: &PlayerAttributes, _position: &Position) -> Vec<Pla
 }
 
 impl Player {
+    /// Starts his season totals over: the totals, and the split of them by club, which means
+    /// nothing against fresh totals. The one place both are cleared together.
+    pub fn reset_season_totals(&mut self) {
+        self.stats = PlayerSeasonStats::default();
+        self.season_stints = SeasonStints::default();
+    }
+
     pub fn new(
         id: String,
         match_name: String,
@@ -994,6 +1025,7 @@ impl Player {
             stats: PlayerSeasonStats::default(),
             league_stats_by_competition: Default::default(),
             career: Vec::new(),
+            season_stints: Default::default(),
             movement_history: Default::default(),
             training_focus: None,
             transfer_listed: false,

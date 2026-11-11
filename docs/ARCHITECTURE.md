@@ -510,12 +510,13 @@ This means CLI validation results are guaranteed to match in-game validation res
 
 ### Package Editor Tauri Commands
 
-Four commands in `src-tauri/src/commands/package_editor.rs` expose package authoring to the React frontend:
+Package authoring commands expose the editor to the React frontend:
 
 | Command | What it does |
 |---------|-------------|
 | `create_package_project` | `mkdir` + write `package.json` manifest + empty stub files for each entity type |
 | `read_package_project` | `load_world_package(dir)` → return `PackageProjectData` (meta, confederations, countries, teams, players, names, competitions, issues) |
+| `get_worlds_library` | Read project counts by path with per-project errors and list installed packages with their counts |
 | `validate_package_project` | same loading and refusals as `read_package_project`, returns only `issues` and `warnings` (no entities); the editor's Validate button |
 | `save_package_project` | Takes one `SavePackageRequest` (`dir` plus each collection as optional): a collection left out is untouched on disk, one sent empty is written empty. Writes only what was sent (write to temp → rename, as a set) and returns a receipt of the collections written, which the editor marks clean |
 | `build_ofm` | Save → validate → `export_directory_to_ofm(dir, output)` |

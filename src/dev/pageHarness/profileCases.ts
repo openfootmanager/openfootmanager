@@ -5,8 +5,9 @@ import type { PositionRatings } from "../../store/generated/PositionRatings";
 import type { PotentialOpinion } from "../../store/generated/PotentialOpinion";
 import type { Position } from "../../store/generated/Position";
 import type { PlayerData, ScoutedPlayerView } from "../../store/types";
+import type { AttributeKey } from "../../store/generated/AttributeKey";
 import type { AttributeWeight } from "../../store/generated/AttributeWeight";
-import { gameState, positionWeights } from "./fixture.generated";
+import { gameState, positionKeyAttributes, positionWeights } from "./fixture.generated";
 import type { HarnessProfile } from "./harnessPage";
 
 /** What the backend answers about the one player a profile page is open on. */
@@ -23,6 +24,8 @@ export interface ProfileCase {
   /** Latest first, as the backend returns them. Only the club's own player has played. */
   recentMatches: PlayerRecentMatchEntry[];
   seasonStats: PlayerAdvancedStatsSummary;
+  /** Laid over the world's player of this id, to show a state the generated career has none of. */
+  playerPatch?: Partial<PlayerData>;
 }
 
 const USER_CLUB = gameState.manager.team_id;
@@ -43,8 +46,17 @@ const freeAgents = (players: PlayerData[]) =>
 function pickPlayers(players: PlayerData[]) {
   const outfield = (list: PlayerData[]) => list.filter((p) => p.position !== "Goalkeeper");
   const [scouted, unknown, retiree] = freeAgents(players);
+  const club = outfield(ofClub(players));
+  if (club.length < 3) {
+    throw new Error(
+      `the generated career's club has ${club.length} outfield players; the own, injured and loaned cases need three`,
+    );
+  }
   return {
-    own: outfield(ofClub(players))[0],
+    own: club[0],
+    injured: club[1],
+    loaned: club[2],
+    keeper: ofClub(players).find((p) => p.position === "Goalkeeper") ?? ofClub(players)[0],
     rival: outfield(rivals(players))[0],
     scouted,
     unknown,
@@ -119,16 +131,16 @@ const scoutedWage = (player: PlayerData) =>
  * rating and a step below it: enough rows for the layout, not the backend's `ovr_from_attributes`.
  */
 function positionRatingsOf(player: PlayerData, source: PositionRatings["source"]): PositionRatings {
-  const top = Object.entries(player.attributes)
-    .sort(([, a], [, b]) => b - a)
-    .slice(0, 3)
-    .map(([attribute, value]) => ({ attribute, value }));
   const rows = [player.natural_position, ...player.alternate_positions].map((position, index) => ({
     position: position as Position,
     rating: (player.ovr ?? 60) - index * 3,
     familiarity: index === 0 ? ("natural" as const) : ("can_play" as const),
     deployed: false,
-    key_attributes: top as PositionRatings["rows"][number]["key_attributes"],
+    // Rust writes the game's three key attributes per position into the fixture
+    // (`key_attributes`); each carries this player's own value.
+    key_attributes: ((positionKeyAttributes as Record<string, AttributeKey[]>)[position] ?? []).map(
+      (attribute) => ({ attribute, value: player.attributes[attribute] }),
+    ),
     // Rust writes the table into the fixture (`position_weights`): the harness holds no copy.
     weights: (positionWeights as Record<string, AttributeWeight[]>)[position] ?? [],
   }));
@@ -148,6 +160,21 @@ function opinionOf(player: PlayerData, source: PotentialOpinion["source"]): Pote
   };
 }
 
+/** The club's own player as the club sees him: known, his wage exact, with ratings and a season. */
+function ownCase(player: PlayerData): ProfileCase {
+  return {
+    playerId: player.id,
+    knowledge: { kind: "own" },
+    wage: { kind: "exact", weekly: player.wage },
+    opinion: opinionOf(player, { kind: "coaches" }),
+    positionRatings: positionRatingsOf(player, { kind: "live" }),
+    scoutedReport: null,
+    retiredPlayer: null,
+    recentMatches: fiveMatches(),
+    seasonStats: A_SEASON,
+  };
+}
+
 /**
  * The backend's answers about the player a profile is open on, in the state `variant` names, as
  * `ofm_core::player_knowledge` decides them: its own player in full; a division rival's rating but
@@ -155,7 +182,9 @@ function opinionOf(player: PlayerData, source: PotentialOpinion["source"]): Pote
  * facts only; a retiree fetched on his own.
  */
 export function profileCase(variant: HarnessProfile): ProfileCase {
-  const { own, rival, scouted, unknown, retiree } = pickPlayers(gameState.players);
+  const { own, keeper, injured, loaned, rival, scouted, unknown, retiree } = pickPlayers(
+    gameState.players,
+  );
   const none = {
     opinion: null,
     positionRatings: null,
@@ -175,6 +204,42 @@ export function profileCase(variant: HarnessProfile): ProfileCase {
         positionRatings: positionRatingsOf(own, { kind: "live" }),
         recentMatches: fiveMatches(),
         seasonStats: A_SEASON,
+      };
+    case "keeper":
+      return {
+        ...none,
+        playerId: keeper.id,
+        knowledge: { kind: "own" },
+        wage: { kind: "exact", weekly: keeper.wage },
+        opinion: opinionOf(keeper, { kind: "coaches" }),
+        positionRatings: positionRatingsOf(keeper, { kind: "live" }),
+        recentMatches: fiveMatches(),
+        seasonStats: A_SEASON,
+      };
+    case "injured":
+      return {
+        ...ownCase(injured),
+        // A knee injury with twelve days to go: the profile's injury banner.
+        playerPatch: { injury: { name: "common.injuries.kneeBruise", days_remaining: 12 } },
+      };
+    case "loaned":
+      return {
+        ...ownCase(loaned),
+        // The coaches watch a player the club has loaned out no longer, so no opinion of him
+        // (`player_knowledge::trains_with_club_since`).
+        opinion: null,
+        // On loan from the user's club to a rival: the profile's loan banner.
+        playerPatch: {
+          team_id: rival.team_id,
+          active_loan: {
+            parent_team_id: USER_CLUB,
+            loan_team_id: rival.team_id ?? "",
+            start_date: "2031-07-01",
+            end_date: "2032-06-30",
+            wage_contribution_pct: 50,
+            buy_option_fee: null,
+          },
+        },
       };
     case "rival":
       return {
