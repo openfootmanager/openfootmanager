@@ -184,7 +184,7 @@ describe("PlayersTab", () => {
     });
 
     await waitFor(() => expect(screen.getByText("Player 0")).toBeInTheDocument());
-    expect(screen.getByTestId("scroller").scrollTop).toBe(0);
+    expect(screen.getByTestId("scroller").scrollTop).toBe(LIST_OFFSET);
   });
 
   it("says so when a search matches nothing, instead of going blank", () => {
@@ -323,7 +323,7 @@ describe("PlayersTab position filter", () => {
     choosePosition("common.positions.Striker");
 
     await waitFor(() => expect(screen.getByText("Player 0")).toBeInTheDocument());
-    expect(screen.getByTestId("scroller").scrollTop).toBe(0);
+    expect(screen.getByTestId("scroller").scrollTop).toBe(LIST_OFFSET);
   });
 
   it("goes back to the whole list when the filter is cleared", () => {

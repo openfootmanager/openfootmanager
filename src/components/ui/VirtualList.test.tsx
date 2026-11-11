@@ -225,7 +225,7 @@ describe("VirtualList", () => {
     rerender(<Harness resetKey="b" />);
 
     await waitFor(() => expect(item(0)).not.toBeNull());
-    expect(scroller().scrollTop).toBe(0);
+    expect(scroller().scrollTop).toBe(LIST_OFFSET);
   });
 
   /**
