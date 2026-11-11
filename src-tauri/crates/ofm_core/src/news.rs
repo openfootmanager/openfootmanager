@@ -434,6 +434,16 @@ pub fn transfer_roundup_article(
     )
 }
 
+/// The club an awards article names for a winner. A winner at no club has no name, and travels as
+/// the free-agent translation key, which the reader resolves in the player's language.
+fn award_team_param(team_name: &str) -> String {
+    if team_name.is_empty() {
+        "common.freeAgent".to_string()
+    } else {
+        team_name.to_string()
+    }
+}
+
 /// Generate the end-of-season awards ceremony news article.
 ///
 /// Returns `None` when neither marquee award (Golden Boot, Player of the Year) has a winner —
@@ -454,12 +464,15 @@ pub fn season_awards_article(
     i18n_params.insert("season".to_string(), season.to_string());
     if let Some(gb) = golden_boot {
         i18n_params.insert("goldenBootWinner".to_string(), gb.player_name.clone());
-        i18n_params.insert("goldenBootTeam".to_string(), gb.team_name.clone());
+        i18n_params.insert(
+            "goldenBootTeam".to_string(),
+            award_team_param(&gb.team_name),
+        );
         i18n_params.insert("goldenBootGoals".to_string(), (gb.value as u32).to_string());
     }
     if let Some(p) = poty {
         i18n_params.insert("potyWinner".to_string(), p.player_name.clone());
-        i18n_params.insert("potyTeam".to_string(), p.team_name.clone());
+        i18n_params.insert("potyTeam".to_string(), award_team_param(&p.team_name));
         i18n_params.insert("potyRating".to_string(), format!("{:.1}", p.value));
     }
     if let Some(manager) = manager {

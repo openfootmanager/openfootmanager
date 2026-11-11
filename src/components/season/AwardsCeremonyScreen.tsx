@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { localizeCompetitionName } from "../../lib/competitionName";
+import { storedTeamLabel } from "../../lib/team";
 import { Briefcase, Star, Trophy } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
@@ -60,14 +61,14 @@ export default function AwardsCeremonyScreen({
     article,
     gameState,
     "goldenBoot",
-    t("common.freeAgent"),
+    t,
   );
   const playerOfYear = resolvePlayerWinner(
     awards?.player_of_year[0] ?? null,
     article,
     gameState,
     "poty",
-    t("common.freeAgent"),
+    t,
   );
   const hasPlayerOfYear = awards
     ? awards.player_of_year.length > 0
@@ -200,14 +201,13 @@ function resolvePlayerWinner(
   article: NewsArticle | undefined,
   gameState: GameStateData,
   prefix: "goldenBoot" | "poty",
-  freeAgentLabel: string,
+  t: (key: string) => string,
 ): ResolvedPlayerWinner {
   if (entry) {
     return {
       entry,
       playerName: entry.player_name,
-      // A winner at no club has an empty team id, whatever name an older save stored.
-      teamName: entry.team_id ? entry.team_name : freeAgentLabel,
+      teamName: storedTeamLabel(entry.team_name, t),
       value: prefix === "goldenBoot" ? entry.value.toFixed(0) : entry.value.toFixed(1),
       playerId: entry.player_id || null,
       teamId: entry.team_id || null,
@@ -216,7 +216,10 @@ function resolvePlayerWinner(
 
   const params = article?.i18n_params ?? {};
   const playerName = params[`${prefix}Winner`] ?? "-";
-  const teamName = params[`${prefix}Team`] ?? "-";
+  // An article has no entry to read the club from: its param is the name, the free-agent key, or
+  // (an older article) the English literal. A missing param stays "-".
+  const teamParam = params[`${prefix}Team`];
+  const teamName = teamParam === undefined ? "-" : storedTeamLabel(teamParam, t);
   const playerId =
     gameState.players.find((player) => {
       return player.full_name === playerName || player.match_name === playerName;

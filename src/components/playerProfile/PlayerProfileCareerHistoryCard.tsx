@@ -1,3 +1,4 @@
+import { storedTeamLabel } from "../../lib/team";
 import type { CareerEntry } from "../../store/gameStore";
 import { Card, CardBody, CardHeader } from "../ui";
 
@@ -29,8 +30,7 @@ export default function PlayerProfileCareerHistoryCard({
             </thead>
             <tbody className="divide-y divide-gray-100 dark:divide-navy-600">
               {career.map((entry, index) => {
-                // A season at no club has an empty team id, whatever name an older save stored.
-                const teamName = entry.team_id ? entry.team_name : t("common.freeAgent");
+                const teamName = storedTeamLabel(entry.team_name, t);
                 return (
                   <tr key={`${entry.team_id}-${entry.season}-${index}`}>
                     <td
