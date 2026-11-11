@@ -1823,6 +1823,29 @@ fn round_summary_distinguishes_scorers_with_compound_surnames() {
     assert_eq!(names, ["J. Casillas", "I. Casillas"]);
 }
 
+/// Given a division scorer whose match name already includes his initial
+/// When the round summary is built
+/// Then the existing match name is displayed without a second initial.
+#[test]
+fn round_summary_keeps_a_scorers_existing_initial() {
+    let mut game = make_round_summary_game();
+    let player = game
+        .players
+        .iter_mut()
+        .find(|player| player.id == "t1_fwd0")
+        .unwrap();
+    player.full_name = "John Doe".to_string();
+    player.match_name = "J. Doe".to_string();
+
+    let summary = turn::build_round_summary(&game, &round_context(7)).unwrap();
+    let scorer = summary
+        .top_scorer_delta
+        .iter()
+        .find(|entry| entry.player_id == "t1_fwd0")
+        .unwrap();
+    assert_eq!(scorer.player_name, "J. Doe");
+}
+
 #[test]
 fn build_round_summary_picks_biggest_overall_gap_upset() {
     let game = make_round_summary_game();
