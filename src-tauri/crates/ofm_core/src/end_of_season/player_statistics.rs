@@ -14,6 +14,8 @@ pub(super) fn reset_for_new_season(game: &mut Game) {
         .collect();
     for player in &mut game.players {
         player.stats = PlayerSeasonStats::default();
+        // The stints split the season just ended: they start again with the stats.
+        player.season_stints = Default::default();
         player
             .league_stats_by_competition
             .retain(|id, _| retained.contains(id));

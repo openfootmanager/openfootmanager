@@ -25,6 +25,8 @@ pub fn upsert_player(conn: &Connection, p: &Player) -> Result<(), String> {
         .map_err(|_| GAME_PERSISTENCE_WRITE_ERROR.to_string())?;
     let career_json =
         serde_json::to_string(&p.career).map_err(|_| GAME_PERSISTENCE_WRITE_ERROR.to_string())?;
+    let season_stints_json = serde_json::to_string(&p.season_stints)
+        .map_err(|_| GAME_PERSISTENCE_WRITE_ERROR.to_string())?;
     let movement_history_json = serde_json::to_string(&p.movement_history[..])
         .map_err(|_| GAME_PERSISTENCE_WRITE_ERROR.to_string())?;
     let offers_json = serde_json::to_string(&p.transfer_offers)
@@ -54,8 +56,8 @@ pub fn upsert_player(conn: &Connection, p: &Player) -> Result<(), String> {
           transfer_listed, loan_listed, transfer_offers, alternate_positions,
           natural_position, training_focus, morale_core, footedness, weak_foot, fitness, squad_role,
           ovr, potential, media_json, jersey_number, loan_offers, active_loan, movement_history,
-          contract_start, league_stats_by_competition)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23, ?24, ?25, ?26, ?27, ?28, ?29, ?30, ?31, ?32, ?33, ?34, ?35, ?36, ?37, ?38, ?39, ?40)
+          contract_start, league_stats_by_competition, season_stints)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23, ?24, ?25, ?26, ?27, ?28, ?29, ?30, ?31, ?32, ?33, ?34, ?35, ?36, ?37, ?38, ?39, ?40, ?41)
          ON CONFLICT(id) DO UPDATE SET
            match_name = excluded.match_name,
            full_name = excluded.full_name,
@@ -95,7 +97,8 @@ pub fn upsert_player(conn: &Connection, p: &Player) -> Result<(), String> {
            loan_offers = excluded.loan_offers,
            active_loan = excluded.active_loan,
            movement_history = excluded.movement_history,
-           league_stats_by_competition = excluded.league_stats_by_competition",
+           league_stats_by_competition = excluded.league_stats_by_competition,
+           season_stints = excluded.season_stints",
         params![
             p.id,
             p.match_name,
@@ -137,6 +140,7 @@ pub fn upsert_player(conn: &Connection, p: &Player) -> Result<(), String> {
             movement_history_json,
             p.contract_start(),
             league_stats_by_competition_json,
+            season_stints_json,
         ],
     )
     .map_err(|error| {
@@ -273,7 +277,8 @@ pub fn load_all_players(conn: &Connection) -> Result<Vec<Player>, String> {
                     ovr, potential, COALESCE(media_json, '{}'), jersey_number,
                     COALESCE(loan_offers, '[]'), active_loan,
                     COALESCE(movement_history, '[]'),
-                    contract_start, COALESCE(league_stats_by_competition, '{}')
+                    contract_start, COALESCE(league_stats_by_competition, '{}'),
+                    COALESCE(season_stints, '{}')
              FROM players",
         )
         .map_err(|_| GAME_PERSISTENCE_LOAD_ERROR.to_string())?;
@@ -301,7 +306,8 @@ pub fn load_players_by_team(conn: &Connection, team_id: &str) -> Result<Vec<Play
                     ovr, potential, COALESCE(media_json, '{}'), jersey_number,
                     COALESCE(loan_offers, '[]'), active_loan,
                     COALESCE(movement_history, '[]'),
-                    contract_start, COALESCE(league_stats_by_competition, '{}')
+                    contract_start, COALESCE(league_stats_by_competition, '{}'),
+                    COALESCE(season_stints, '{}')
              FROM players WHERE team_id = ?1",
         )
         .map_err(|_| GAME_PERSISTENCE_LOAD_ERROR.to_string())?;
@@ -329,6 +335,7 @@ fn row_to_player(conn: &Connection, row: &rusqlite::Row) -> rusqlite::Result<Pla
     let traits_json: String = row.get(14)?;
     let stats_json: String = row.get(18)?;
     let league_stats_by_competition_json: String = row.get(39)?;
+    let season_stints_json: String = row.get(40)?;
     let stats: domain::player::PlayerSeasonStats =
         json_column::read(conn, cell("stats"), &stats_json);
     let career_json: String = row.get(19)?;
@@ -436,7 +443,7 @@ fn row_to_player(conn: &Connection, row: &rusqlite::Row) -> rusqlite::Result<Pla
             &league_stats_by_competition_json,
         ),
         career: json_column::read(conn, cell("career"), &career_json),
-        season_stints: Default::default(),
+        season_stints: json_column::read(conn, cell("season_stints"), &season_stints_json),
         // The contract columns are read only as a legacy input: they describe a contract
         // for a save from before the ledger, and are ignored once the entries hold one.
         movement_history: domain::contract_ledger::MovementLedger::restore(
@@ -1241,6 +1248,30 @@ mod tests {
         assert_eq!(stored.season_stints.closed[0].team_id, "team-a");
     }
 
+    /// Given a player row written before the `season_stints` column held anything (NULL)
+    /// When it is loaded
+    /// Then he has no stints, so his season goes whole to the club that holds him, as it did.
+    #[test]
+    fn a_row_written_before_season_stints_loads_with_none() {
+        let db = test_db();
+        let player = sample_player("p-old-row", Some("team-a"));
+        upsert_player(db.conn(), &player).unwrap();
+        db.conn()
+            .execute(
+                "UPDATE players SET season_stints = NULL WHERE id = 'p-old-row'",
+                [],
+            )
+            .unwrap();
+
+        let loaded = load_all_players(db.conn()).unwrap();
+        let stored = loaded.iter().find(|stored| stored.id == player.id).unwrap();
+
+        assert_eq!(
+            stored.season_stints,
+            domain::career_stints::SeasonStints::default()
+        );
+    }
+
     #[test]
     fn test_player_movement_history_roundtrip() {
         let db = test_db();
@@ -1717,7 +1748,10 @@ mod tests {
                 serde_json::json!({"division-b": expected})
             );
         }
-        assert_eq!(reader.schema_version().unwrap(), 66);
+        assert_eq!(
+            reader.schema_version().unwrap(),
+            crate::migrations::MIGRATION_COUNT as i64
+        );
     }
 
     /// Given a player's JSON from before competition stats existed, when it loads,

@@ -261,6 +261,15 @@ impl Player {
             // `YYYY-MM-DD` orders the same as a date does, so no parse is needed.
             return Err(LedgerError::EndNotAfterStart);
         }
+        // The club he plays for changes: what he did there this season is the club's, whatever he
+        // does next. A loan's purchase and a renewal leave him where he plays, so close nothing.
+        if entry.kind.changes_where_he_plays() {
+            self.season_stints.close(
+                &self.stats,
+                entry.from_team_id.as_deref().unwrap_or_default(),
+                entry.from_team_name.as_deref().unwrap_or_default(),
+            );
+        }
         let changes_contract = entry.contract.is_some()
             || matches!(
                 entry.kind,

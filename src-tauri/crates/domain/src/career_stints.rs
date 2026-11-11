@@ -40,11 +40,40 @@ pub struct SeasonStints {
     pub closed: Vec<ClosedStint>,
 }
 
+impl StintTally {
+    fn of(stats: &PlayerSeasonStats) -> Self {
+        Self {
+            appearances: stats.appearances,
+            goals: stats.goals,
+            assists: stats.assists,
+        }
+    }
+
+    /// What `self` adds to `earlier`; a total that fell below it (the stats were reset some other
+    /// way) counts as nothing, never wraps.
+    fn since(self, earlier: Self) -> Self {
+        Self {
+            appearances: self.appearances.saturating_sub(earlier.appearances),
+            goals: self.goals.saturating_sub(earlier.goals),
+            assists: self.assists.saturating_sub(earlier.assists),
+        }
+    }
+}
+
 impl SeasonStints {
     /// He leaves `team_id`: what he did there since he arrived is kept, and the next club's
     /// stint starts from his totals now. A spell with no appearance is not kept.
     pub fn close(&mut self, stats: &PlayerSeasonStats, team_id: &str, team_name: &str) {
-        let _ = (stats, team_id, team_name);
+        let now = StintTally::of(stats);
+        let tally = now.since(self.stats_at_arrival);
+        if tally.appearances > 0 {
+            self.closed.push(ClosedStint {
+                team_id: team_id.to_string(),
+                team_name: team_name.to_string(),
+                tally,
+            });
+        }
+        self.stats_at_arrival = now;
     }
 
     /// The season's career rows: the clubs he left, then the club he is with now for what he did
@@ -56,8 +85,25 @@ impl SeasonStints {
         current_team_id: &str,
         current_team_name: &str,
     ) -> Vec<CareerEntry> {
-        let _ = (season, stats, current_team_id, current_team_name);
-        Vec::new()
+        let current = StintTally::of(stats).since(self.stats_at_arrival);
+        let current_stint = (current.appearances > 0).then(|| ClosedStint {
+            team_id: current_team_id.to_string(),
+            team_name: current_team_name.to_string(),
+            tally: current,
+        });
+        self.closed
+            .iter()
+            .cloned()
+            .chain(current_stint)
+            .map(|stint| CareerEntry {
+                season,
+                team_id: stint.team_id,
+                team_name: stint.team_name,
+                appearances: stint.tally.appearances,
+                goals: stint.tally.goals,
+                assists: stint.tally.assists,
+            })
+            .collect()
     }
 }
 

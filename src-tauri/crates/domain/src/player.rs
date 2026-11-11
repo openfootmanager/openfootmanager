@@ -690,6 +690,22 @@ pub enum PlayerMovementKind {
     InitialContract,
 }
 
+impl PlayerMovementKind {
+    /// Whether the club he plays for changes with this movement. A loan's purchase makes the
+    /// borrower his owner without moving him, and a renewal, a retirement and an opening
+    /// contract do not move him either.
+    pub fn changes_where_he_plays(&self) -> bool {
+        matches!(
+            self,
+            Self::PermanentTransfer
+                | Self::LoanStart
+                | Self::LoanReturn
+                | Self::FreeAgentSigning
+                | Self::Released
+        )
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, TS)]
 pub struct PlayerMovementEntry {
     pub date: String,
