@@ -52,9 +52,6 @@ pub(crate) fn process_selected_fixtures_due(
             }
             if play_fixture(game, competition_index, fixture_index, today) {
                 national_team::settle_for_replay(game, day);
-                if let Some(tomorrow) = day.succ_opt() {
-                    national_team::settle_friendlies(game, tomorrow);
-                }
             }
             simulated += 1;
             played = true;

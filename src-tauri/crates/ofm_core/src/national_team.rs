@@ -179,7 +179,6 @@ pub fn schedule_national_team_friendlies(
 pub fn process_national_team_fixtures_due(game: &mut Game, today: &str) -> usize {
     if let Ok(day) = chrono::NaiveDate::parse_from_str(today, "%Y-%m-%d") {
         settle_for_replay(game, day);
-        settle_friendlies(game, day);
     }
     let due: Vec<(usize, usize)> = game
         .national_teams

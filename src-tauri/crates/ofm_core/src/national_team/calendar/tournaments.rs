@@ -18,7 +18,7 @@ pub(crate) fn settle_for_replay(game: &mut Game, day: NaiveDate) -> usize {
         .filter(|f| f.status == FixtureStatus::Scheduled)
         .filter_map(|f| NaiveDate::parse_from_str(&f.date, "%Y-%m-%d").ok())
         .fold(day, NaiveDate::min);
-    settle_tournaments(game, first)
+    settle_tournaments(game, first) + super::settle_friendlies(game, first)
 }
 
 /// Immutable matches keep their dates. Scheduled tournaments settle by the same numeric priority
