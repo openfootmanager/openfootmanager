@@ -210,7 +210,6 @@ pub fn apply_team_talk_on(
     // The lifecycle lock a career install holds, across reading the moment, claiming it and
     // writing the morale: an install clears the claimed moments, so one that landed between two
     // talks would let both give the old career's half-time talk.
-    let _operation = crate::application::live_session::operation();
     let (moment, career) = team_talk_moment_of(state, career)?;
     give_team_talk_at(state, career, &moment, tone)
 }
@@ -2381,6 +2380,7 @@ mod live_session_tests {
             .unwrap();
         let before = squad_morale(&state);
 
+        let expected_context = context_for_the_score(&state);
         let talk =
             super::apply_team_talk_on(&state, ofm_core::state::Career::Active, "motivational")
                 .unwrap();
@@ -2393,6 +2393,25 @@ mod live_session_tests {
             let now = after.iter().find(|(player, _)| player == id).unwrap().1;
             assert_eq!(change["new_morale"].as_u64(), Some(u64::from(now)));
         }
+        // Each squad member remembers the talk under the context the score gave, so a wrong
+        // context argument would be remembered as another talk.
+        let remembered: Vec<String> = state
+            .get_game(|game| {
+                game.players
+                    .iter()
+                    .filter(|player| player.team_id.as_deref() == Some("team1"))
+                    .filter_map(|player| player.morale_core.recent_treatment.clone())
+                    .map(|memory| memory.action_key)
+                    .collect()
+            })
+            .unwrap();
+        assert!(!remembered.is_empty(), "no squad member remembers the talk");
+        assert!(
+            remembered
+                .iter()
+                .all(|key| *key == format!("team_talk:motivational:{expected_context}")),
+            "{remembered:?} does not match the context {expected_context}"
+        );
     }
 
     /// Given the moment read for one career, and another career installed before the talk is
@@ -2437,13 +2456,10 @@ mod live_session_tests {
         assert_eq!(squad_morale(&state), after_first);
     }
 
-    /// Given a match at half-time, with whatever score it has
-    /// When a team talk is given
-    /// Then its context is the user's side's view of that score: the caller no longer chooses it
-    #[test]
-    fn the_team_talk_context_comes_from_the_score() {
-        let state = state_at_half_time();
-        let snapshot = live_match::get_match_snapshot(&state).unwrap();
+    /// How the half-time score stands for the user's side, worked out here and not by the code
+    /// under test.
+    fn context_for_the_score(state: &StateManager) -> &'static str {
+        let snapshot = live_match::get_match_snapshot(state).unwrap();
         let side = state
             .with_live_match(|session| session.user_side)
             .unwrap()
@@ -2453,11 +2469,20 @@ mod live_session_tests {
         } else {
             (snapshot.away_score, snapshot.home_score)
         };
-        let expected = match mine.cmp(&theirs) {
+        match mine.cmp(&theirs) {
             std::cmp::Ordering::Greater => "winning",
             std::cmp::Ordering::Less => "losing",
             std::cmp::Ordering::Equal => "drawing",
-        };
+        }
+    }
+
+    /// Given a match at half-time, with whatever score it has
+    /// When a team talk is given
+    /// Then its context is the user's side's view of that score: the caller no longer chooses it
+    #[test]
+    fn the_team_talk_context_comes_from_the_score() {
+        let state = state_at_half_time();
+        let expected = context_for_the_score(&state);
 
         let talk =
             super::apply_team_talk_on(&state, ofm_core::state::Career::Active, "calm").unwrap();
@@ -2800,22 +2825,30 @@ mod live_session_tests {
     /// Given a career install in progress (it holds the lifecycle lock, and has replaced the game
     ///       by the time it lets go)
     /// When a team talk is asked for at the old career's half-time meanwhile
-    /// Then the talk waits for the install and then reads the new career, so it can neither give
-    ///      the old career's moment nor move any morale: the moment, its claim and the morale write
-    ///      are one step under the lock, not interleaved with a replacement
+    /// Then the talk is seen reaching the lock and does not return while it is held, and once the
+    ///      install lands it reads the new career, so it can neither give the old career's moment
+    ///      nor move any morale: the moment, its claim and the morale write are one step under the
+    ///      lock, not interleaved with a replacement
     #[test]
     fn a_team_talk_waits_for_a_career_install_in_progress() {
         let state = std::sync::Arc::new(state_at_half_time());
         let install = crate::application::live_session::operation();
+        let (attempt_tx, attempt_rx) = std::sync::mpsc::channel();
         let (done_tx, done_rx) = std::sync::mpsc::channel();
         let asker = state.clone();
         let handle = std::thread::spawn(move || {
+            crate::application::live_session::GATE_ATTEMPT
+                .with(|hook| *hook.borrow_mut() = Some(attempt_tx));
             let result =
                 super::apply_team_talk_on(&asker, ofm_core::state::Career::Active, "motivational");
             done_tx.send(result.map(|_| ())).unwrap();
         });
-        let first = done_rx.recv_timeout(std::time::Duration::from_secs(1));
-        let queued = matches!(first, Err(std::sync::mpsc::RecvTimeoutError::Timeout));
+        let reached_the_lock = attempt_rx
+            .recv_timeout(std::time::Duration::from_secs(5))
+            .is_ok();
+        let returned_while_held = done_rx
+            .recv_timeout(std::time::Duration::from_millis(300))
+            .is_ok();
         // The install lands: the live match goes, the new career is set.
         drop(state.take_live_match());
         let mut other = make_game_with_matchday();
@@ -2823,12 +2856,16 @@ mod live_session_tests {
         state.set_game(other);
         let new_career_morale = squad_morale(&state);
         drop(install);
-        let result = first.unwrap_or_else(|_| done_rx.recv().unwrap());
+        let result = done_rx.recv_timeout(std::time::Duration::from_secs(5));
         handle.join().unwrap();
 
-        assert!(queued, "the talk did not wait for the install in progress");
+        assert!(reached_the_lock, "the talk never took the lifecycle lock");
+        assert!(
+            !returned_while_held,
+            "the talk returned while an install held the lock"
+        );
         assert_eq!(
-            result.err().as_deref(),
+            result.unwrap().err().as_deref(),
             Some("be.error.teamTalk.notAtABreak")
         );
         assert_eq!(squad_morale(&state), new_career_morale);
