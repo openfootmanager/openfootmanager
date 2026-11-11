@@ -49,3 +49,22 @@ export function readHarnessProfile(search: string): HarnessProfile {
   const player = new URLSearchParams(search).get("player");
   return HARNESS_PROFILES.find((profile) => profile === player) ?? "own";
 }
+
+/**
+ * The two states of the World Editor's library the harness mounts: a library with worlds in it, and a
+ * new editor with none (which says how to start).
+ */
+export const HARNESS_WORLD_LIBRARIES = ["populated", "empty"] as const;
+export type HarnessWorldLibrary = (typeof HARNESS_WORLD_LIBRARIES)[number];
+
+/**
+ * `?page=worlds&library=empty` and the like: the World Editor's home, which is a route of its own and
+ * not a dashboard tab. Null for any other page; `populated` when it names no library.
+ */
+export function readHarnessWorlds(search: string): HarnessWorldLibrary | null {
+  const params = new URLSearchParams(search);
+  if (params.get("page") !== "worlds") return null;
+  return (
+    HARNESS_WORLD_LIBRARIES.find((library) => library === params.get("library")) ?? "populated"
+  );
+}

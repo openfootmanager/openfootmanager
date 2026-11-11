@@ -151,6 +151,8 @@
     "playerProfile.overview.axes.agility"
   ],
   "fr": [
+    "worldEditor.home.colClubs",
+    "worldEditor.home.colAction",
     "teamSelect.scope.regionMeta",
     "teamSelect.steps.club",
     "teamSelect.simulation",

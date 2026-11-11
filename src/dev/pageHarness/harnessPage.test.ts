@@ -6,7 +6,25 @@ import {
   readHarnessLanguage,
   readHarnessPage,
   readHarnessProfile,
+  readHarnessWorlds,
 } from "./harnessPage";
+
+describe("readHarnessWorlds", () => {
+  /**
+   * Given ?page=worlds with a library, or without one
+   * When it is read
+   * Then the World Editor's home is mounted with that library, a populated one by default; any other
+   *      page is not the worlds page.
+   */
+  it("reads the World Editor's home and the library it opens on", () => {
+    expect(readHarnessWorlds("?page=worlds")).toBe("populated");
+    expect(readHarnessWorlds("?theme=dark&page=worlds&library=empty")).toBe("empty");
+    expect(readHarnessWorlds("?page=worlds&library=nonsense")).toBe("populated");
+    expect(readHarnessWorlds("?page=squad")).toBeNull();
+    expect(readHarnessWorlds("?theme=dark")).toBeNull();
+    expect(readHarnessPage("?page=worlds")).toBeNull();
+  });
+});
 
 describe("readHarnessLanguage", () => {
   /** Given ?lang=de, then the page renders in German, the longest labels the layout check measures. */
