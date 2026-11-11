@@ -681,7 +681,7 @@ mod tests {
 
     /// Given an active career in August 2026
     /// When a three-year renewal is accepted through the command service
-    /// Then live state, the response and an explicit save end the contract on 30 June 2029.
+    /// Then live state and the response end the contract on 30 June 2029.
     #[test]
     fn propose_renewal_internal_returns_response_and_updates_state() {
         let state = StateManager::new();
@@ -713,7 +713,7 @@ mod tests {
 
     /// Given an assistant and an active career in August 2026
     /// When the command service delegates a three-year renewal
-    /// Then the response, live state and an explicit save retain the 30 June 2029 end.
+    /// Then the response and live state retain the 30 June 2029 end.
     #[test]
     fn delegate_renewals_internal_returns_report_and_updates_state() {
         let state = StateManager::new();
