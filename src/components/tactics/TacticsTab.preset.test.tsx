@@ -249,6 +249,11 @@ function openPhaseBlueprint() {
   if (toggle.getAttribute("aria-expanded") !== "true") fireEvent.click(toggle);
 }
 
+/** Opens the tactic bar's one actions menu (New, Duplicate, Reset to defaults, Delete). */
+function openActionsMenu() {
+  fireEvent.click(screen.getByRole("button", { name: "Tactic actions" }));
+}
+
 const commandsCalled = () => mockedInvoke.mock.calls.map(([command]) => command);
 
 // Every case mounts the whole TacticsTab with the real i18n and then drives several controls; that
@@ -569,7 +574,8 @@ describe("TacticsTab preset selection", { timeout: TACTICS_TAB_CASE_TIMEOUT_MS }
     );
     mockedInvoke.mockClear();
 
-    fireEvent.click(screen.getByRole("button", { name: "Reset to defaults" }));
+    openActionsMenu();
+    fireEvent.click(screen.getByRole("menuitem", { name: "Reset to defaults" }));
 
     await waitFor(() =>
       expect(mockedInvoke).toHaveBeenCalledWith("apply_tactic_preset", {
@@ -593,7 +599,8 @@ describe("TacticsTab preset selection", { timeout: TACTICS_TAB_CASE_TIMEOUT_MS }
     render(<ControlledTacticsTab />);
 
     expect(screen.getByText("Synced")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Reset to defaults" })).toBeDisabled();
+    openActionsMenu();
+    expect(screen.getByRole("menuitem", { name: "Reset to defaults" })).toBeDisabled();
   });
 
   /**
@@ -610,7 +617,8 @@ describe("TacticsTab preset selection", { timeout: TACTICS_TAB_CASE_TIMEOUT_MS }
     fireEvent.click(within(widthRow).getByRole("combobox"));
     fireEvent.click(screen.getByRole("option", { name: "Wide" }));
     await waitFor(() => expect(screen.getByText("Unsaved changes")).toBeInTheDocument());
-    const reset = screen.getByRole("button", { name: "Reset to defaults" });
+    openActionsMenu();
+    const reset = screen.getByRole("menuitem", { name: "Reset to defaults" });
     expect(reset).toBeEnabled();
 
     fireEvent.click(reset);
@@ -623,7 +631,8 @@ describe("TacticsTab preset selection", { timeout: TACTICS_TAB_CASE_TIMEOUT_MS }
       }),
     );
     await waitFor(() => expect(screen.getByText("Synced")).toBeInTheDocument());
-    expect(screen.getByRole("button", { name: "Reset to defaults" })).toBeDisabled();
+    openActionsMenu();
+    expect(screen.getByRole("menuitem", { name: "Reset to defaults" })).toBeDisabled();
   });
 
   /**
@@ -660,7 +669,8 @@ describe("TacticsTab preset selection", { timeout: TACTICS_TAB_CASE_TIMEOUT_MS }
     );
     mockedInvoke.mockClear();
 
-    fireEvent.click(screen.getByRole("button", { name: "Reset to defaults" }));
+    openActionsMenu();
+    fireEvent.click(screen.getByRole("menuitem", { name: "Reset to defaults" }));
 
     // Reset puts the saved tactic back, through the backend, as it was saved.
     await waitFor(() =>
