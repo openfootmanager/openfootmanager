@@ -2,8 +2,8 @@ use clap::{Parser, Subcommand, ValueEnum};
 use colored::Colorize;
 use comfy_table::{presets::UTF8_FULL, Table};
 use ofm_core::generator::{
-    entity_template, export_directory_to_ofm, is_valid_package_id, load_world_package,
-    load_world_package_from_ofm, new_package_meta, package_warnings,
+    check_world_package, entity_template, export_directory_to_ofm, is_valid_package_id,
+    load_world_package, load_world_package_from_ofm, new_package_meta, package_warnings,
     read_package_manifest_from_ofm, scaffold_package, slugify, validate_package,
     EntityKind as CoreEntityKind,
 };
@@ -585,8 +585,16 @@ fn cmd_add(
 
 /// What `pack` tells the author of a patch package: it is packed without the check against the base
 /// that a database package gets from its own contents.
-fn patch_pack_note(_pkg: &ofm_core::generator::WorldPackage) -> Option<&'static str> {
-    None
+fn patch_pack_note(pkg: &ofm_core::generator::WorldPackage) -> Option<&'static str> {
+    let is_patch = pkg
+        .meta
+        .as_ref()
+        .is_some_and(|meta| meta.package_type == "patch");
+    is_patch.then_some(
+        "this is a patch package: pack does not check its references to clubs and other entities, \
+         which resolve against the base database when it is installed. `ofm-cli validate` checks \
+         the package as a world on its own, as the game does when it is started alone.",
+    )
 }
 
 fn cmd_validate(path: &Path) -> i32 {
@@ -604,7 +612,9 @@ fn cmd_validate(path: &Path) -> i32 {
     let (pkg, mut errors) = if is_ofm {
         load_world_package_from_ofm(path)
     } else {
-        load_world_package(path)
+        // The one entry the editor and the game share, so a package this passes is one the game
+        // starts (#1364).
+        check_world_package(path)
     };
     if is_ofm {
         // The archive load is the runtime read path and stays permissive on
@@ -694,6 +704,9 @@ fn cmd_pack(dir: &Path, output: Option<&Path>) -> i32 {
 
     println!("Validating {}...", dir.display());
     let (pkg, errors) = load_world_package(dir);
+    if let Some(note) = patch_pack_note(&pkg) {
+        println!("{} {}", "note:".yellow().bold(), note);
+    }
     if !errors.is_empty() {
         println!(
             "{} Validation failed — fix these errors before packing:",

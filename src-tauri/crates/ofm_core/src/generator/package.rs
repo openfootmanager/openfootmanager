@@ -863,6 +863,15 @@ pub fn load_world_package(dir: &Path) -> (WorldPackage, Vec<PackageError>) {
 /// its own, so no problem is reported twice.
 pub fn load_world_package_as_world(dir: &Path) -> (WorldPackage, Vec<PackageError>) {
     let (package, errors) = load_world_package(dir);
+    world_check(package, errors)
+}
+
+/// The complete-world check on a package already loaded with `errors`: those errors if it has any,
+/// otherwise the merged world and what merging it reports. The one place that rule is written.
+fn world_check(
+    package: WorldPackage,
+    errors: Vec<PackageError>,
+) -> (WorldPackage, Vec<PackageError>) {
     if !errors.is_empty() {
         return (package, errors);
     }
@@ -873,7 +882,15 @@ pub fn load_world_package_as_world(dir: &Path) -> (WorldPackage, Vec<PackageErro
 /// editor's Validate and the game's import and career start. Returns the package as read (the editor
 /// edits it, the CLI warns on it) and the findings of [`load_world_package_as_world`].
 pub fn check_world_package(dir: &Path) -> (WorldPackage, Vec<PackageError>) {
-    load_world_package(dir)
+    let (package, errors) = load_world_package(dir);
+    // The merge consumes the package it checks, and the caller wants it back as read, so a package
+    // with no errors of its own is checked on a copy.
+    let findings = if errors.is_empty() {
+        world_check(package.clone(), errors).1
+    } else {
+        errors
+    };
+    (package, findings)
 }
 
 /// The filename of the world-save manifest in `dir`, if `dir` holds an exported

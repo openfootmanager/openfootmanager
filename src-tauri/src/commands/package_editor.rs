@@ -112,7 +112,8 @@ fn load_project(dir: &str) -> Result<(WorldPackage, Vec<PackageIssue>, Vec<Packa
         return Err("be.error.package.notAProjectDirectory".to_string());
     }
 
-    let (pkg, errors) = load_world_package(path);
+    // The one validation entry the CLI and the game share: what Validate says is what the game says.
+    let (pkg, errors) = ofm_core::generator::check_world_package(path);
 
     // A package that resolved to nothing must not open as a blank project.
     // Every field would read empty, Save would write that emptiness back over
