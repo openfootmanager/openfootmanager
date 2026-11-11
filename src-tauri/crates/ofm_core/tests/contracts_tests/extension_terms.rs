@@ -156,3 +156,62 @@ fn a_contract_at_the_maximum_end_cannot_be_renewed_without_extension() {
     assert_eq!(outcome.suggested_years, None);
     assert_eq!(game.players[0].movement_history, before);
 }
+
+/// Given a legacy contract ending on 1 August 2027 in August 2026
+/// When the manager offers one year, which would end on 30 June 2027
+/// Then the shorter deal is refused and the minimum is two years.
+#[test]
+fn a_legacy_non_june_end_requires_a_genuinely_later_date() {
+    let mut game = veteran_with_a_june_contract("2027-08-01");
+    let before = game.players[0].movement_history.clone();
+    let outcome = propose_renewal(
+        &mut game,
+        "player-1",
+        RenewalOffer {
+            weekly_wage: 30_000,
+            contract_years: 1,
+        },
+    )
+    .expect("the negotiation refuses the shortened deal");
+    assert_eq!(outcome.decision, RenewalDecision::Rejected);
+    assert_eq!(outcome.suggested_years, Some(2));
+    assert_eq!(game.players[0].contract_end(), Some("2027-08-01"));
+    assert_eq!(game.players[0].movement_history, before);
+}
+
+/// Given one selected contract at the maximum June 2031 end and one ending in June 2027
+/// When the assistant handles both cases with a five-year limit
+/// Then the impossible case stalls without preventing the other contract from extending.
+#[test]
+fn an_impossible_delegated_extension_does_not_abort_the_other_cases() {
+    let mut game = veteran_with_a_june_contract("2031-06-30");
+    game.staff.push(make_assistant_manager());
+    let before = game.players[0].movement_history.clone();
+    let mut eligible = game.players[0].clone();
+    eligible.id = "eligible".to_string();
+    eligible.stage_contract_end(Some("2027-06-30".to_string()));
+    game.players.push(eligible);
+    let report = delegate_renewals(
+        &mut game,
+        DelegatedRenewalOptions {
+            player_ids: Some(vec!["player-1".to_string(), "eligible".to_string()]),
+            max_wage_increase_pct: 200,
+            max_contract_years: 5,
+        },
+    )
+    .expect("an impossible case must not abort the batch");
+    assert_eq!(report.stalled_count, 1);
+    assert_eq!(report.success_count, 1);
+    let impossible = report
+        .cases
+        .iter()
+        .find(|case| case.player_id == "player-1")
+        .unwrap();
+    assert_eq!(
+        impossible.note_key.as_deref(),
+        Some("be.error.contracts.renewalDoesNotExtend")
+    );
+    assert_eq!(game.players[0].contract_end(), Some("2031-06-30"));
+    assert_eq!(game.players[0].movement_history, before);
+    assert_eq!(game.players[1].contract_end(), Some("2028-06-30"));
+}
