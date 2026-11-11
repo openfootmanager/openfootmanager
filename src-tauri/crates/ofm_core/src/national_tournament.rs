@@ -19,7 +19,6 @@ pub(crate) fn process_selected_fixtures_due(
     let Ok(day) = chrono::NaiveDate::parse_from_str(today, "%Y-%m-%d") else {
         return 0;
     };
-    national_team::settle_for_replay(game, day);
     let indices: Vec<_> = game
         .competitions
         .iter()
@@ -29,6 +28,16 @@ pub(crate) fn process_selected_fixtures_due(
         })
         .map(|(index, _)| index)
         .collect();
+    let due_today = |fixture: &domain::league::Fixture| {
+        fixture.date == today && fixture.status == FixtureStatus::Scheduled
+    };
+    if !indices
+        .iter()
+        .any(|&index| game.competitions[index].fixtures.iter().any(due_today))
+    {
+        return 0;
+    }
+    national_team::settle_for_replay(game, day);
     let published = national_team::published_tournament_fixtures(game);
     let mut simulated = 0;
     let mut played_world_cup = false;
@@ -37,9 +46,7 @@ pub(crate) fn process_selected_fixtures_due(
             .fixtures
             .iter()
             .enumerate()
-            .filter(|(_, fixture)| {
-                fixture.date == today && fixture.status == FixtureStatus::Scheduled
-            })
+            .filter(|(_, fixture)| due_today(fixture))
             .map(|(index, _)| index)
             .collect();
         if due.is_empty() {
@@ -48,7 +55,7 @@ pub(crate) fn process_selected_fixtures_due(
         let mut played = false;
         for fixture_index in due {
             let fixture = &game.competitions[competition_index].fixtures[fixture_index];
-            if fixture.status != FixtureStatus::Scheduled || fixture.date != today {
+            if !due_today(fixture) {
                 continue;
             }
             if play_fixture(game, competition_index, fixture_index, today) {
