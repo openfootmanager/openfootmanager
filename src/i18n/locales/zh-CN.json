@@ -1910,7 +1910,12 @@
       },
       "renewClosedWhat": "合同谈判已关闭。重新开启后才能续约。",
       "letExpireSetButton": "已设为到期",
-      "replacedOn": "于 {{date}} 被取代"
+      "replacedOn": "于 {{date}} 被取代",
+      "yearsLeft": {
+        "one": "{{years}} 年",
+        "many": "{{years}} 年",
+        "other": "{{years}} 年"
+      }
     },
     "movementRenewedWith": "与{{club}}续约",
     "movementAtClub": "效力于{{club}}",

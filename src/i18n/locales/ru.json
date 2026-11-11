@@ -1910,7 +1910,12 @@
       },
       "renewClosedWhat": "Переговоры о контракте закрыты. Откройте их снова, чтобы продлить его.",
       "letExpireSetButton": "Не будет продлён",
-      "replacedOn": "Заменён {{date}}"
+      "replacedOn": "Заменён {{date}}",
+      "yearsLeft": {
+        "one": "{{years}} года",
+        "many": "{{years}} года",
+        "other": "{{years}} года"
+      }
     },
     "movementRenewedWith": "Продлил контракт с {{club}}",
     "movementAtClub": "В клубе {{club}}",

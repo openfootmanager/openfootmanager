@@ -1910,7 +1910,12 @@
       },
       "renewClosedWhat": "Die Vertragsgespräche sind beendet. Öffne sie wieder, um ihn zu verlängern.",
       "letExpireSetButton": "Läuft aus",
-      "replacedOn": "Ersetzt am {{date}}"
+      "replacedOn": "Ersetzt am {{date}}",
+      "yearsLeft": {
+        "one": "{{years}} Jahr",
+        "many": "{{years}} Jahre",
+        "other": "{{years}} Jahre"
+      }
     },
     "movementRenewedWith": "Verlängert bei {{club}}",
     "movementAtClub": "Bei {{club}}",

@@ -185,13 +185,27 @@ export function formatProfileDay(day: string, language: string): string {
 type YearsLeftTranslate = (key: string, options?: Record<string, string | number>) => string;
 
 /**
- * The years left on a contract as the sheet writes them, scaffold: the real wording replaces it.
+ * The years left on a contract as the sheet writes them: "1.3 years", one decimal, the number in
+ * the language's own decimal separator and the noun in the form that language gives a fraction.
+ *
+ * The form comes from CLDR through `Intl.PluralRules`, asked about the number as it is shown (one
+ * decimal), because that is what decides it: French and Brazilian Portuguese keep the singular for
+ * 1.3, Czech has its own form for a fraction, English and Russian use the plural. The repo has no
+ * i18next plural machinery yet (#467), so the three forms a language can need here are three
+ * plain keys; the number goes in as `years`, never `count`, so i18next does not go looking for
+ * `_one`/`_other` variants.
  */
 export function formatYearsLeft(
   contractEnd: string,
   currentDate: string,
-  _language: string,
-  _t: YearsLeftTranslate,
+  language: string,
+  t: YearsLeftTranslate,
 ): string {
-  return getContractYearsRemaining(contractEnd, currentDate);
+  const years = Number(getContractYearsRemaining(contractEnd, currentDate));
+  const oneDecimal = { minimumFractionDigits: 1, maximumFractionDigits: 1 };
+  const category = new Intl.PluralRules(language, oneDecimal).select(years);
+  const form = category === "one" || category === "many" ? category : "other";
+  return t(`playerProfile.contractSheet.yearsLeft.${form}`, {
+    years: new Intl.NumberFormat(language, oneDecimal).format(years),
+  });
 }

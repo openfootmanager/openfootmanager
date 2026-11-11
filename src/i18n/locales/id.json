@@ -1911,7 +1911,12 @@
       },
       "renewClosedWhat": "Negosiasi kontrak ditutup. Buka kembali untuk memperpanjangnya.",
       "letExpireSetButton": "Dibiarkan habis",
-      "replacedOn": "Digantikan pada {{date}}"
+      "replacedOn": "Digantikan pada {{date}}",
+      "yearsLeft": {
+        "one": "{{years}} tahun",
+        "many": "{{years}} tahun",
+        "other": "{{years}} tahun"
+      }
     },
     "movementRenewedWith": "Diperpanjang bersama {{club}}",
     "movementAtClub": "Di {{club}}",

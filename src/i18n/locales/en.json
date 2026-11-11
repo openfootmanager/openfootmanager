@@ -1911,7 +1911,12 @@
       },
       "renewClosedWhat": "Contract talks are closed. Reopen them to renew him.",
       "letExpireSetButton": "Set to expire",
-      "replacedOn": "Replaced on {{date}}"
+      "replacedOn": "Replaced on {{date}}",
+      "yearsLeft": {
+        "one": "{{years}} year",
+        "many": "{{years}} years",
+        "other": "{{years}} years"
+      }
     },
     "movementRenewedWith": "Renewed with {{club}}",
     "movementAtClub": "At {{club}}",

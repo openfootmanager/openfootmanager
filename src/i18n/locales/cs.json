@@ -1911,7 +1911,12 @@
       },
       "renewClosedWhat": "Jednání o smlouvě jsou uzavřena. Znovu je otevřete, abyste ho mohli prodloužit.",
       "letExpireSetButton": "Nastaveno na vypršení",
-      "replacedOn": "Nahrazena {{date}}"
+      "replacedOn": "Nahrazena {{date}}",
+      "yearsLeft": {
+        "one": "{{years}} roku",
+        "many": "{{years}} roku",
+        "other": "{{years}} roku"
+      }
     },
     "movementRenewedWith": "Prodloužení v klubu {{club}}",
     "movementAtClub": "V klubu {{club}}",

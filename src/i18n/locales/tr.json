@@ -1911,7 +1911,12 @@
       },
       "renewClosedWhat": "Sözleşme görüşmeleri kapatıldı. Uzatmak için yeniden açın.",
       "letExpireSetButton": "Bitmesi için ayarlandı",
-      "replacedOn": "{{date}} tarihinde değiştirildi"
+      "replacedOn": "{{date}} tarihinde değiştirildi",
+      "yearsLeft": {
+        "one": "{{years}} yıl",
+        "many": "{{years}} yıl",
+        "other": "{{years}} yıl"
+      }
     },
     "movementRenewedWith": "{{club}} ile yenilendi",
     "movementAtClub": "{{club}} kulübünde",

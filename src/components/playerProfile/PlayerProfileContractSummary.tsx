@@ -1,9 +1,8 @@
 import { getContractRiskBadgeVariant } from "../../lib/contractUtils";
-import { getContractYearsRemaining } from "../../lib/helpers";
 import type { PlayerData } from "../../store/gameStore";
 import { Badge, Card, CardBody, CardHeader } from "../ui";
 import type { ContractHistoryRow } from "./PlayerProfile.contractHistory";
-import { formatPlayerWage, formatProfileDay } from "./PlayerProfile.helpers";
+import { formatPlayerWage, formatProfileDay, formatYearsLeft } from "./PlayerProfile.helpers";
 import { Row, SECTION, type TranslateFn } from "./contractSheetParts";
 
 interface PlayerProfileContractSummaryProps {
@@ -42,7 +41,7 @@ export default function PlayerProfileContractSummary({
             <Row label={t(`${SECTION}.ends`)}>{formatProfileDay(contractEnd, language)}</Row>
             <Row label={t(`${SECTION}.timeLeft`)}>
               <span className="inline-flex items-center gap-2">
-                {getContractYearsRemaining(contractEnd, currentDate)}
+                {formatYearsLeft(contractEnd, currentDate, language, t)}
                 <Badge variant={getContractRiskBadgeVariant(contractRisk.level)}>
                   {contractRisk.label}
                 </Badge>

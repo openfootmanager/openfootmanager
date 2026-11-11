@@ -1910,7 +1910,12 @@
       },
       "renewClosedWhat": "As negociações do contrato estão encerradas. Reabra para renová-lo.",
       "letExpireSetButton": "Definido para expirar",
-      "replacedOn": "Substituído em {{date}}"
+      "replacedOn": "Substituído em {{date}}",
+      "yearsLeft": {
+        "one": "{{years}} ano",
+        "many": "{{years}} anos",
+        "other": "{{years}} anos"
+      }
     },
     "movementRenewedWith": "Renovou com {{club}}",
     "movementAtClub": "Em {{club}}",

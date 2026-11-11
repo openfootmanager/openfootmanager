@@ -1929,7 +1929,12 @@
       },
       "renewClosedWhat": "Le trattative per il contratto sono chiuse. Riaprile per rinnovarlo.",
       "letExpireSetButton": "Lasciato scadere",
-      "replacedOn": "Sostituito il {{date}}"
+      "replacedOn": "Sostituito il {{date}}",
+      "yearsLeft": {
+        "one": "{{years}} anno",
+        "many": "{{years}} anni",
+        "other": "{{years}} anni"
+      }
     },
     "movementRenewedWith": "Rinnovato con {{club}}",
     "movementAtClub": "Presso {{club}}",
