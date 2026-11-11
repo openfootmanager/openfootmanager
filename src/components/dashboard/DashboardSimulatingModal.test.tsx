@@ -1,5 +1,5 @@
 import { render, screen, fireEvent } from "@testing-library/react";
-import { beforeAll, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 
 import { i18nReady } from "../../i18n";
 import type { GameStateData, MessageData } from "../../store/gameStore";
@@ -78,6 +78,32 @@ describe("DashboardSimulatingModal penalty shootouts", () => {
     );
 
     expect(screen.queryByText(/Penalties:/)).not.toBeInTheDocument();
+  });
+});
+
+describe("DashboardSimulatingModal digest date", () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  /**
+   * Given an English game on a host whose own locale is American (an Intl formatter asked for the
+   *       "default" locale answers en-US)
+   * When the digest of a day, 10 July 2026, is drawn
+   * Then the day reads day-month ("10 Jul"), because the date is written in the game's language
+   *      and never in the host's
+   */
+  it("writes the digest day in the game's language, not the host's", () => {
+    const Real = Intl.DateTimeFormat;
+    vi.spyOn(Intl, "DateTimeFormat").mockImplementation(function (
+      locales?: string | string[],
+      options?: Intl.DateTimeFormatOptions,
+    ) {
+      return new Real(locales ?? "en-US", options);
+    } as unknown as typeof Intl.DateTimeFormat);
+
+    render(<DashboardSimulatingModal digestEntries={[entryWith([match()])]} />);
+
+    expect(screen.getByText("10 Jul")).toBeInTheDocument();
+    expect(screen.queryByText("Jul 10")).not.toBeInTheDocument();
   });
 });
 
