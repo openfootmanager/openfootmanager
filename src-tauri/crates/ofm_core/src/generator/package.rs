@@ -905,7 +905,10 @@ pub fn check_world_package_on_bases(
         }
         stack.push(loaded);
     }
-    stack.push(package.clone());
+    // The merge consumes what it is given and a package is not `Clone`, so the patch is read a second
+    // time (its own problems were already ruled out above).
+    let (for_the_stack, _) = load_world_package(dir);
+    stack.push(for_the_stack);
     let (_merged, findings) = merge_world_packages(stack);
     (package, findings)
 }
