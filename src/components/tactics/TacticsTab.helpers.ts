@@ -4,6 +4,7 @@ import type { FamiliarityTable } from "../../hooks/useFamiliarity";
 import type { PositionTable } from "../../lib/positionTable";
 import type { PlayerData } from "../../store/gameStore";
 import type { TacticsLineup } from "../../store/generated/TacticsLineup";
+import type { PlayerRole } from "../../store/types";
 import { type PitchSlotRow, isPlayerOutOfPosition } from "../squad/SquadTab.helpers";
 export { FORMATIONS } from "../match/types";
 
@@ -163,10 +164,10 @@ export function findTacticsPresetBySetup(
  */
 export function effectivePlayerRoles(
   lineup: TacticsLineup | null,
-  playerRoles: Record<string, string> | undefined,
-): Record<string, string> | undefined {
+  playerRoles: Record<string, PlayerRole> | undefined,
+): Record<string, PlayerRole> | undefined {
   if (!lineup) return playerRoles;
-  const roles: Record<string, string> = { ...playerRoles };
+  const roles: Record<string, PlayerRole> = { ...playerRoles };
   for (const slot of lineup.eleven) roles[slot.player_id] = slot.role;
   return roles;
 }
