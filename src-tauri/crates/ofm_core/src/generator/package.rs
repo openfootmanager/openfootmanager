@@ -1956,23 +1956,25 @@ const SYMLINK_ERROR: &str = "be.error.package.symlinkDetected";
 const TOO_MANY_FILES_ERROR: &str = "be.error.package.tooManyFiles";
 const ARCHIVE_TOO_LARGE_ERROR: &str = "be.error.package.archiveTooLarge";
 
-/// Return the destination path for a zip entry, or `None` if the entry name
-/// is unsafe (zip-slip attempt: absolute path, `..` component, etc.).
-fn safe_entry_path(base: &Path, entry_name: &str) -> Option<PathBuf> {
-    if entry_name.starts_with('/') || entry_name.starts_with('\\') {
+/// Normalize a safe archive-relative path without resolving filesystem links.
+fn normalize_archive_path(entry_name: &str, is_dir: bool) -> Option<PathBuf> {
+    if entry_name.is_empty() || entry_name.starts_with('/') || entry_name.starts_with('\\') {
         return None;
-    }
-    let entry_path = Path::new(entry_name);
-    for component in entry_path.components() {
-        match component {
-            std::path::Component::Normal(_) | std::path::Component::CurDir => {}
-            _ => return None,
-        }
     }
     if entry_name.ends_with('/') || entry_name.ends_with('\\') {
         return None;
     }
-    Some(base.join(entry_name))
+    let portable_name = entry_name.replace('\\', "/");
+    let entry_path = Path::new(&portable_name);
+    let mut normalized = PathBuf::new();
+    for component in entry_path.components() {
+        match component {
+            std::path::Component::Normal(part) => normalized.push(part),
+            std::path::Component::CurDir => {}
+            _ => return None,
+        }
+    }
+    (is_dir || !normalized.as_os_str().is_empty()).then_some(normalized)
 }
 
 /// Hardened extraction of a `.ofm` zip archive into `dest_dir`. Enforces the
@@ -1999,11 +2001,10 @@ fn extract_package_definitions(
     extract_archive_entries(ofm_path, dest_dir, is_package_definition_entry)
 }
 
-fn is_package_definition_entry(name: &str) -> bool {
+fn is_package_definition_entry(name: &Path) -> bool {
     !is_package_asset_entry(name)
         && matches!(
-            Path::new(name)
-                .extension()
+            name.extension()
                 .and_then(|ext| ext.to_str())
                 .map(str::to_ascii_lowercase)
                 .as_deref(),
@@ -2026,18 +2027,15 @@ pub fn extract_package_assets(
 }
 
 /// Whether an archive entry belongs to the package's asset tree.
-fn is_package_asset_entry(entry_name: &str) -> bool {
-    let normalised = entry_name.replace('\\', "/");
-    let mut components = Path::new(&normalised)
-        .components()
-        .filter(|component| !matches!(component, std::path::Component::CurDir));
+fn is_package_asset_entry(entry_name: &Path) -> bool {
+    let mut components = entry_name.components();
     matches!(components.next(), Some(std::path::Component::Normal(name)) if name == "assets")
         && components.next().is_some()
 }
 
 /// Whether a manifest-authored asset reference stays inside its own package.
 ///
-/// Mirrors [`safe_entry_path`]'s rules for archive entries: a manifest carries
+/// Mirrors [`normalize_archive_path`]'s rules for archive entries: a manifest carries
 /// exactly as much trust as the archive it came in, and these values are joined
 /// to the extracted asset root by the frontend and handed to Tauri's asset
 /// protocol. Backslashes are refused outright rather than normalised, because
@@ -2131,6 +2129,9 @@ fn validate_archive_entries<R: std::io::Read + std::io::Seek>(
     archive: &mut zip::ZipArchive<R>,
     dest_dir: &Path,
 ) -> Result<ValidatedArchive, String> {
+    if archive.len() > MAX_FILE_COUNT {
+        return Err(TOO_MANY_FILES_ERROR.to_string());
+    }
     let mut entries = Vec::new();
     let mut errors = Vec::new();
     let mut declared_size = 0u64;
@@ -2160,12 +2161,8 @@ fn validate_archive_entries<R: std::io::Read + std::io::Seek>(
         } else {
             &name
         };
-        let dest = if path_name.is_empty() {
-            None
-        } else {
-            safe_entry_path(dest_dir, path_name)
-        };
-        if dest.is_none() {
+        let normalized_path = normalize_archive_path(path_name, is_dir);
+        if normalized_path.is_none() {
             errors.push(PackageError::new(ZIPSLIP_ERROR, &name));
         }
         let can_open = archive.by_index(i).is_ok();
@@ -2175,13 +2172,13 @@ fn validate_archive_entries<R: std::io::Read + std::io::Seek>(
         if !is_dir
             && !is_symlink
             && can_open
-            && let Some(dest) = dest
+            && let Some(normalized_path) = normalized_path
         {
             entries.push(ValidatedArchiveEntry {
                 index: i,
                 name,
-                destination: dest,
-                normalized_path: PathBuf::new(),
+                destination: dest_dir.join(&normalized_path),
+                normalized_path,
             });
         }
     }
@@ -2192,7 +2189,7 @@ fn validate_archive_entries<R: std::io::Read + std::io::Seek>(
 fn extract_archive_entries(
     ofm_path: &Path,
     dest_dir: &Path,
-    keep: impl Fn(&str) -> bool,
+    keep: impl Fn(&Path) -> bool,
 ) -> Result<Vec<PackageError>, String> {
     use std::io::Read;
 
@@ -2203,10 +2200,6 @@ fn extract_archive_entries(
     let mut archive = zip::ZipArchive::new(file).map_err(|_| READ_FAILED.to_string())?;
     std::fs::create_dir_all(dest_dir).map_err(|_| READ_FAILED.to_string())?;
 
-    if archive.len() > MAX_FILE_COUNT {
-        return Err(TOO_MANY_FILES_ERROR.to_string());
-    }
-
     let ValidatedArchive {
         entries,
         mut errors,
@@ -2216,10 +2209,10 @@ fn extract_archive_entries(
         index,
         name: entry_name,
         destination: dest,
-        normalized_path: _,
+        normalized_path,
     } in entries
     {
-        if !keep(&entry_name) {
+        if !keep(&normalized_path) {
             continue;
         }
         let Ok(mut entry) = archive.by_index(index) else {
@@ -2319,22 +2312,13 @@ pub fn read_package_manifest_from_ofm(path: &Path) -> Option<WorldMetaDef> {
 fn read_manifest_from_archive<R: std::io::Read + std::io::Seek>(
     archive: &mut zip::ZipArchive<R>,
 ) -> Option<WorldMetaDef> {
-    let count = archive.len();
-
-    for i in 0..count {
-        let Ok(metadata) = archive.by_index_data(i) else {
-            continue;
-        };
-        if metadata.is_dir() {
+    // Invalid entries are excluded; the package loader reports their diagnostics separately.
+    let validated = validate_archive_entries(archive, Path::new("")).ok()?;
+    for entry in validated.entries {
+        if !is_package_definition_entry(&entry.normalized_path) {
             continue;
         }
-        let Ok(name) = metadata.name() else {
-            continue;
-        };
-        if !is_package_definition_entry(&name) {
-            continue;
-        }
-        let Ok(mut entry) = archive.by_index(i) else {
+        let Ok(mut entry) = archive.by_index(entry.index) else {
             continue;
         };
         let Some(bytes) = read_entry_capped(&mut entry, MAX_SINGLE_ENTRY_BYTES) else {
