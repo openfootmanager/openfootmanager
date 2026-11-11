@@ -27,12 +27,9 @@ export function useFinanceActions(onGameUpdate?: (state: GameStateData) => void)
   // another action starts. The ref guards a second press before the state has rendered.
   const [answeringOfferId, setAnsweringOfferId] = useState<string | null>(null);
   const answeringOfferRef = useRef<string | null>(null);
-  // Why the backend refused the last answer to a sponsor offer, and which offer's it was; null once
-  // an answer is accepted.
-  const [sponsorOfferError, setSponsorOfferError] = useState<{
-    messageId: string;
-    text: string;
-  } | null>(null);
+  // Why the backend refused the last answer to each sponsor offer, by the offer's message id: answering
+  // one offer clears only its own entry.
+  const [sponsorOfferErrors, setSponsorOfferErrors] = useState<Record<string, string>>({});
   const [delegatedRenewalsSummary, setDelegatedRenewalsSummary] = useState<string | null>(null);
   const [facilityUpgradeError, setFacilityUpgradeError] =
     useState<FacilityUpgradeErrorState | null>(null);
@@ -190,7 +187,9 @@ export function useFinanceActions(onGameUpdate?: (state: GameStateData) => void)
     if (answeringOfferRef.current !== null) return;
     answeringOfferRef.current = messageId;
     setAnsweringOfferId(messageId);
-    setSponsorOfferError(null);
+    setSponsorOfferErrors((errors) =>
+      Object.fromEntries(Object.entries(errors).filter(([id]) => id !== messageId)),
+    );
     try {
       const result = await invokeForCareer<ResolveMessageActionResult>("resolve_message_action", {
         messageId,
@@ -200,7 +199,8 @@ export function useFinanceActions(onGameUpdate?: (state: GameStateData) => void)
       onGameUpdate?.(result.game);
     } catch (error) {
       console.error("Failed to resolve sponsor offer:", error);
-      setSponsorOfferError({ messageId, text: resolveTranslatedErrorMessage(error) });
+      const text = resolveTranslatedErrorMessage(error);
+      setSponsorOfferErrors((errors) => ({ ...errors, [messageId]: text }));
     } finally {
       answeringOfferRef.current = null;
       setAnsweringOfferId(null);
@@ -209,7 +209,7 @@ export function useFinanceActions(onGameUpdate?: (state: GameStateData) => void)
   return {
     actionLoading,
     answeringOfferId,
-    sponsorOfferError,
+    sponsorOfferErrors,
     facilityUpgradeError,
     boardSupportFeedback,
     sponsorPitchFeedback,

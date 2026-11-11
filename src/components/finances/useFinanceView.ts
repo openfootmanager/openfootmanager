@@ -35,7 +35,7 @@ export function useFinanceView({
   const {
     actionLoading,
     answeringOfferId,
-    sponsorOfferError,
+    sponsorOfferErrors,
     facilityUpgradeError,
     boardSupportFeedback,
     sponsorPitchFeedback,
@@ -196,7 +196,7 @@ export function useFinanceView({
     sponsorOffers,
     handleSponsorOption,
     answeringOfferId,
-    sponsorOfferError,
+    sponsorOfferErrors,
     facilities,
     financeData,
     facilityUpgradeError,

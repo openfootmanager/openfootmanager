@@ -27,7 +27,7 @@ export function FinanceSponsorsCard({
     | "sponsorOffers"
     | "handleSponsorOption"
     | "answeringOfferId"
-    | "sponsorOfferError"
+    | "sponsorOfferErrors"
   >;
 }) {
   const {
@@ -167,9 +167,9 @@ function FinanceSponsorOffer({
   state,
 }: {
   message: ReturnType<typeof resolveMessage>;
-  state: Pick<FinanceViewState, "answeringOfferId" | "sponsorOfferError" | "handleSponsorOption">;
+  state: Pick<FinanceViewState, "answeringOfferId" | "sponsorOfferErrors" | "handleSponsorOption">;
 }) {
-  const { answeringOfferId, sponsorOfferError, handleSponsorOption } = state;
+  const { answeringOfferId, sponsorOfferErrors, handleSponsorOption } = state;
 
   const sponsorAction = message.actions.find(
     (action) => !action.resolved && isChooseOptionAction(action.action_type),
@@ -185,9 +185,9 @@ function FinanceSponsorOffer({
         <h3 className="font-semibold text-body text-fg">{message.subject}</h3>
         <p className="text-body text-fg-muted">{message.body}</p>
       </div>
-      {sponsorOfferError?.messageId === message.id ? (
+      {sponsorOfferErrors[message.id] ? (
         <p role="alert" className="text-body text-danger">
-          {sponsorOfferError.text}
+          {sponsorOfferErrors[message.id]}
         </p>
       ) : null}
       <div className="flex flex-wrap gap-2">

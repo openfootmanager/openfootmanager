@@ -279,6 +279,43 @@ describe("FinancesTab facilities", () => {
     expect(screen.getAllByRole("alert")).toHaveLength(1);
   });
 
+  // Given two pending sponsor offers, the answer to the first refused
+  // When the second offer is answered
+  // Then the first offer's reason is still shown: answering one offer clears only its own error.
+  it("keeps one offer's refusal when another offer is answered", async () => {
+    const first = createSponsorOfferMessage({ subject: "Sponsorship Offer — First Co" });
+    const second = createSponsorOfferMessage({
+      id: "sponsor_2025-06-22",
+      subject: "Sponsorship Offer — Second Co",
+    });
+    mockedInvoke.mockImplementation((command, args) => {
+      if (command === "get_finance_snapshot") return Promise.resolve(wireSnapshot());
+      if (command === "resolve_message_action") {
+        return (args as { messageId: string }).messageId === first.id
+          ? Promise.reject("be.error.actionAlreadyResolved")
+          : Promise.resolve({ game: createGameState({}, [first, second]), effect: "Accepted" });
+      }
+      return Promise.reject(new Error(`Unexpected command: ${command}`));
+    });
+    await renderFinances(
+      <FinancesTab gameState={createGameState({}, [first, second])} onGameUpdate={vi.fn()} />,
+    );
+    fireEvent.click(screen.getAllByRole("button", { name: "Accept the deal" })[0]);
+    await screen.findByRole("alert");
+
+    fireEvent.click(screen.getAllByRole("button", { name: "Accept the deal" })[1]);
+
+    await waitFor(() =>
+      expect(
+        mockedInvoke.mock.calls.filter(([command]) => command === "resolve_message_action"),
+      ).toHaveLength(2),
+    );
+    const cardOf = (subject: string) =>
+      screen.getByRole("heading", { name: subject }).parentElement?.parentElement as HTMLElement;
+    expect(cardOf("Sponsorship Offer — First Co")).toContainElement(screen.getByRole("alert"));
+    expect(screen.getAllByRole("alert")).toHaveLength(1);
+  });
+
   // Given a sponsor offer being answered (the backend has not replied)
   // When the offer's buttons are read
   // Then both answers wait, not only the one pressed: a second, opposite answer must not be sent
