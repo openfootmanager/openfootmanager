@@ -2857,6 +2857,7 @@
       },
       "noActiveGameSession": "Nenhuma sessão de jogo ativa",
       "careerChanged": "A carreira mudou antes de isto poder ser salvo.",
+      "actionAlreadyResolved": "Isso já foi respondido, então nada mudou.",
       "noActiveSaveSession": "Nenhuma sessão de salvamento ativa",
       "saveNotFound": "Save '{{saveId}}' não encontrado.",
       "teamNotFound": "Time não encontrado",

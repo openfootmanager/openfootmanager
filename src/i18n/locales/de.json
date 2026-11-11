@@ -2857,6 +2857,7 @@
       },
       "noActiveGameSession": "Keine aktive Spielsitzung",
       "careerChanged": "Die Karriere hat gewechselt, bevor dies gespeichert werden konnte.",
+      "actionAlreadyResolved": "Darauf wurde bereits geantwortet, daher hat sich nichts geändert.",
       "noActiveSaveSession": "Keine aktive Speicherstandsitzung",
       "saveNotFound": "Speicherstand '{{saveId}}' wurde nicht gefunden.",
       "teamNotFound": "Team nicht gefunden",

@@ -2857,6 +2857,7 @@
       },
       "noActiveGameSession": "No active game session",
       "careerChanged": "The career changed before this could be saved.",
+      "actionAlreadyResolved": "That was already answered, so nothing changed.",
       "noActiveSaveSession": "No active save session",
       "saveNotFound": "Save '{{saveId}}' not found.",
       "saveManagerUnavailable": "Save data is temporarily unavailable.",

@@ -2857,6 +2857,7 @@
       },
       "noActiveGameSession": "Aucune partie active",
       "careerChanged": "La carrière a changé avant que cela puisse être enregistré.",
+      "actionAlreadyResolved": "Cela a déjà reçu une réponse, donc rien n'a changé.",
       "noActiveSaveSession": "Aucune session de sauvegarde active",
       "saveNotFound": "Sauvegarde '{{saveId}}' introuvable.",
       "teamNotFound": "Équipe introuvable",

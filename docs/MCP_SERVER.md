@@ -203,7 +203,7 @@ The `initialize` result's `serverInfo.version` is the package version plus the s
 | `inbox_mark_all_read` | Mark all messages as read |
 | `inbox_delete` | Delete a message |
 | `inbox_clear_old` | Clear old/processed messages |
-| `inbox_resolve_action` | Resolve a message action (job offers, scout reports, events) |
+| `inbox_resolve_action` | Resolve a message action (job offers, scout reports, events); an action answers once, a second answer is refused with `be.error.actionAlreadyResolved` |
 
 ### Club & Staff (7 tools)
 

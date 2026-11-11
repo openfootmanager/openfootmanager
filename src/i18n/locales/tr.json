@@ -2857,6 +2857,7 @@
       },
       "noActiveGameSession": "Aktif oyun oturumu yok",
       "careerChanged": "Bu kaydedilemeden önce kariyer değişti.",
+      "actionAlreadyResolved": "Buna zaten yanıt verildi, bu yüzden hiçbir şey değişmedi.",
       "noActiveSaveSession": "Aktif kayıt oturumu yok",
       "saveNotFound": "'{{saveId}}' kaydı bulunamadı.",
       "saveManagerUnavailable": "Kayıt verileri geçici olarak kullanılamıyor.",

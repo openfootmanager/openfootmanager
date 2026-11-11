@@ -2857,6 +2857,7 @@
       },
       "noActiveGameSession": "Нет активной игровой сессии",
       "careerChanged": "Карьера сменилась до того, как это удалось сохранить.",
+      "actionAlreadyResolved": "На это уже ответили, поэтому ничего не изменилось.",
       "noActiveSaveSession": "Нет активной сессии сохранения",
       "saveNotFound": "Сохранение «{{saveId}}» не найдено.",
       "saveManagerUnavailable": "Менеджер сохранений временно недоступен.",
