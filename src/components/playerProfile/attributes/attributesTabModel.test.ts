@@ -67,4 +67,28 @@ describe("attributeColumns", () => {
     expect(keys).not.toContain("shooting");
     expect(keys).not.toContain("passing");
   });
+
+  /**
+   * Given an outfield player and a goalkeeper
+   * When their columns are laid out
+   * Then aerial is in Physical, and every attribute the engine has is in exactly one column for the
+   *      outfield player and in one column of the goalkeeper's unless it is Technical-only (which a
+   *      keeper's profile leaves out)
+   */
+  it("puts aerial in Physical and every attribute in exactly one column", () => {
+    const player = createPlayer();
+    const outfield = attributeColumns(player.attributes, false, names);
+    const keeper = attributeColumns(player.attributes, true, names);
+
+    const physical = outfield.find((column) => column.label === "common.attrGroups.physical");
+    expect(physical?.attrs.map((attr) => attr.key)).toContain("aerial");
+    const outfieldKeys = outfield.flatMap((column) => column.attrs.map((attr) => attr.key)).sort();
+    expect(outfieldKeys).toEqual(
+      Object.keys(player.attributes)
+        .filter((key) => key !== "handling" && key !== "reflexes")
+        .sort(),
+    );
+    const keeperKeys = keeper.flatMap((column) => column.attrs.map((attr) => attr.key));
+    expect(new Set(keeperKeys).size).toBe(keeperKeys.length);
+  });
 });

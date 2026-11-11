@@ -190,9 +190,9 @@ describe("a profile answer that fails to load", () => {
   /**
    * Given the request for his position ratings fails once
    * When his profile opens, and the manager retries
-   * Then it reads "Couldn't load" with a retry; after the retry his positions show
+   * Then it reads "Couldn't load" with a retry; after the retry the tab's dots and highlight show
    */
-  it("offers a retry for failed position ratings, then shows them", async () => {
+  it("offers a retry for failed position ratings, then uses them", async () => {
     backendWhere("get_position_ratings", { get_position_ratings: ratings });
 
     renderProfile();
@@ -201,7 +201,7 @@ describe("a profile answer that fails to load", () => {
     expect(await screen.findAllByText("Couldn't load")).toHaveLength(2);
     fireEvent.click(screen.getByRole("button", { name: "Retry" }));
 
-    expect(await screen.findByRole("region", { name: "Positions" })).toBeInTheDocument();
+    expect(await screen.findByText(/what the game weighs most for a/)).toBeInTheDocument();
     expect(calls("get_position_ratings")).toBe(2);
   });
 

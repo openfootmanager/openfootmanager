@@ -20,10 +20,9 @@ import { answeredOr } from "../../hooks/useKnowledgeAnswer";
 import ProfileLoadFailed from "./ProfileLoadFailed";
 import { buildPlayerProfileRelationship } from "./PlayerProfile.viewModel";
 import PlayerProfileAdvancedStatsCard from "./PlayerProfileAdvancedStatsCard";
-import { buildPlayerAttributeGroups, isGoalkeeper } from "./PlayerProfile.attributes";
+import { isGoalkeeper } from "./PlayerProfile.attributes";
 import { calcAgeOnDate } from "../../lib/valueFormatting";
-import { formatDate } from "../../lib/dateFormatting";
-import PlayerProfileAttributesCard from "./PlayerProfileAttributesCard";
+import PlayerProfileAttributesTab from "./attributes/PlayerProfileAttributesTab";
 import PlayerProfileCareerHistoryCard from "./PlayerProfileCareerHistoryCard";
 import PlayerProfileContractCard from "./PlayerProfileContractCard";
 import PlayerProfileNameCard from "./PlayerProfileNameCard";
@@ -35,7 +34,6 @@ import PlayerProfileRenewalModal from "./PlayerProfileRenewalModal";
 import PlayerProfileTerminationModal from "./PlayerProfileTerminationModal";
 import { useScoutedReport } from "./useScoutedReport";
 import PlayerProfilePotentialOpinion from "./PlayerProfilePotentialOpinion";
-import PlayerProfilePositionRatings from "./PlayerProfilePositionRatings";
 import { usePositionRatings } from "../../hooks/usePositionRatings";
 import { usePotentialOpinion } from "../../hooks/usePotentialOpinion";
 import { useContractActionsFlow } from "./useContractActionsFlow";
@@ -49,7 +47,6 @@ import {
   HIDDEN_WAGE,
   knowsPlayerRating,
   knowsPrivateState,
-  ownLineupRevision,
   visibleTraits,
   visibleWageText,
 } from "../../lib/playerKnowledge";
@@ -117,12 +114,9 @@ export default function PlayerProfile({
   // The club's opinion of his potential: a range from his scout or his coaches, never the number.
   const opinionAnswer = usePotentialOpinion(player.id, revision);
   const potentialOpinion = answeredOr(opinionAnswer, null);
-  // The slot he is played in moves with the lineup, which the knowledge revision does not follow.
-  const ratingsAnswer = usePositionRatings(
-    player.id,
-    `${revision}|${ownLineupRevision(gameState)}`,
-  );
-  const positionRatings = answeredOr(ratingsAnswer, null);
+  // His natural position's weights and key attributes: neither follows the lineup, so the
+  // knowledge revision is all the request needs.
+  const ratingsAnswer = usePositionRatings(player.id, revision);
   const showsPrivateState = knowsPrivateState(knowledge);
   const playerTeam = gameState.teams.find((team) => team.id === player.team_id);
   const currentTacticalRole: PlayerRole = playerTeam?.player_roles?.[player.id] ?? "Standard";
@@ -227,7 +221,6 @@ export default function PlayerProfile({
   const attributesPlayer = scoutedReport
     ? { ...player, attributes: scoutedReport.attributes }
     : player;
-  const attrGroups = buildPlayerAttributeGroups(attributesPlayer, t);
 
   const {
     contractActionSubmitting,
@@ -398,45 +391,23 @@ export default function PlayerProfile({
       </TabPanel>
 
       <TabPanel idPrefix={tabsId} tabId="attributes" hidden={hidden("attributes")}>
-        <PlayerProfileAttributesCard
-          attrGroups={attrGroups}
-          player={attributesPlayer}
-          attributesVisible={knowsPlayerRating(knowledge) || scoutedReport !== null}
-          scoutNote={
-            scoutedReport
-              ? {
-                  scoutedLabel: t("playerProfile.scoutedOn", {
-                    date: formatDate(scoutedReport.scouted_on, i18n.language),
-                  }),
-                  outOfDate: scoutedReport.out_of_date,
-                  outOfDateLabel: t("playerProfile.scoutReportOutOfDate"),
-                }
-              : undefined
+        <PlayerProfileAttributesTab
+          attributes={
+            knowsPlayerRating(knowledge) || scoutedReport !== null
+              ? attributesPlayer.attributes
+              : null
           }
-          isGk={isGoalkeeper(player)}
-          title={t("playerProfile.attributes")}
-          averageLabel={t("common.average")}
-          hiddenTitle={t("playerProfile.attributesHidden")}
-          hiddenBody={t("playerProfile.scoutToView")}
-          listLabel={t("common.listView")}
-          radarLabel={t("common.radarView")}
+          isGoalkeeper={isGoalkeeper(player)}
+          ratings={ratingsAnswer}
+          scoutedOn={scoutedReport?.scouted_on ?? null}
+          scoutOutOfDate={scoutedReport?.out_of_date ?? false}
+          language={i18n.language}
           potentialOpinion={
             opinionAnswer.status === "failed" ? (
               <ProfileLoadFailed t={t} onRetry={opinionAnswer.retry} />
             ) : potentialOpinion ? (
               <PlayerProfilePotentialOpinion
                 opinion={potentialOpinion}
-                locale={i18n.language}
-                t={t}
-              />
-            ) : null
-          }
-          positionRatings={
-            ratingsAnswer.status === "failed" ? (
-              <ProfileLoadFailed t={t} onRetry={ratingsAnswer.retry} />
-            ) : positionRatings ? (
-              <PlayerProfilePositionRatings
-                ratings={positionRatings}
                 locale={i18n.language}
                 t={t}
               />
