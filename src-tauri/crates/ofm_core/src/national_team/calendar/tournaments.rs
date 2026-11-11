@@ -59,6 +59,10 @@ fn tournament_plan(game: &Game, first_day: NaiveDate) -> calendar_reconcile::Pla
     });
     let mut bookings = immutable_bookings(game, first_day);
     let mut settled = settled_history(game);
+    let mut per_day = BTreeMap::new();
+    for ((competition_id, _), date) in &settled {
+        *per_day.entry((*competition_id, *date)).or_insert(0usize) += 1;
+    }
     let mut plan = calendar_reconcile::Plan::default();
     for (competition, fixture) in fixtures {
         let Ok(from) = NaiveDate::parse_from_str(&fixture.date, "%Y-%m-%d") else {
@@ -69,8 +73,8 @@ fn tournament_plan(game: &Game, first_day: NaiveDate) -> calendar_reconcile::Pla
                 settled.get(&(competition.id.as_str(), id)).copied()
             });
         let blocked = bookings.blocked(&fixture.home_team_id, &fixture.away_team_id);
-        let Some(to) =
-            knockout_dates::knockout_round_date(earliest, None, 0, &BTreeSet::new(), &blocked)
+        let full_days = full_calendar_days(competition, &fixture.id, &per_day);
+        let Some(to) = knockout_dates::knockout_round_date(earliest, None, 0, &full_days, &blocked)
         else {
             log::error!(
                 "national tournament fixture {} has no legal calendar date",
@@ -81,6 +85,7 @@ fn tournament_plan(game: &Game, first_day: NaiveDate) -> calendar_reconcile::Pla
         };
         bookings.book(&fixture.home_team_id, &fixture.away_team_id, to);
         settled.insert((competition.id.as_str(), fixture.id.as_str()), to);
+        *per_day.entry((competition.id.as_str(), to)).or_insert(0) += 1;
         if from != to {
             plan.moves.push(calendar_reconcile::Move {
                 competition_id: competition.id.clone(),
@@ -111,5 +116,27 @@ fn settled_history(game: &Game) -> BTreeMap<(&str, &str), NaiveDate> {
                         .map(|date| ((c.id.as_str(), f.id.as_str()), date))
                 })
         })
+        .collect()
+}
+
+// Keep the existing draw's daily limits when an individual match moves, including World Cup TV days.
+fn full_calendar_days(
+    competition: &domain::league::League,
+    fixture_id: &str,
+    per_day: &BTreeMap<(&str, NaiveDate), usize>,
+) -> BTreeSet<NaiveDate> {
+    let limit = if competition.is_knockout_fixture(fixture_id) {
+        Some(competition.rules.knockout_matches_per_day.max(1))
+    } else if crate::world_cup::is_world_cup_finals(competition) {
+        Some(crate::world_cup::FINALS_MATCHES_PER_DAY)
+    } else {
+        None
+    };
+    per_day
+        .iter()
+        .filter(|((id, _), count)| {
+            *id == competition.id && limit.is_some_and(|limit| **count >= limit as usize)
+        })
+        .map(|((_, date), _)| *date)
         .collect()
 }

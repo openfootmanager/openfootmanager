@@ -72,6 +72,7 @@ const GROUP_MATCHDAY_GAP_DAYS: i64 = 2;
 /// Days between knockout rounds, kept tight so the finals fit a real ~5-week
 /// World Cup window.
 const KNOCKOUT_GAP_DAYS: u32 = 3;
+pub(crate) const FINALS_MATCHES_PER_DAY: u32 = 4;
 
 /// World Cups take place in the summers of 2022, 2026, 2030, …
 pub fn is_world_cup_summer(year: i32) -> bool {
@@ -84,10 +85,14 @@ pub fn is_world_cup_competition(competition: &League) -> bool {
         && competition.scope == CompetitionScope::International
 }
 
+pub(crate) fn is_world_cup_finals(cup: &League) -> bool {
+    is_world_cup_competition(cup) && !is_world_cup_qualifying(cup) && !is_world_cup_playoff(cup)
+}
+
 /// The finals' planned last day, including knockout rounds not yet drawn. Actual round dates
 /// take precedence as they appear, so postponements update the reservation.
 pub(crate) fn finals_period(cup: &League) -> Option<(chrono::NaiveDate, chrono::NaiveDate)> {
-    if !is_world_cup_competition(cup) || is_world_cup_qualifying(cup) || is_world_cup_playoff(cup) {
+    if !is_world_cup_finals(cup) {
         return None;
     }
     let dates: Vec<_> = cup
@@ -627,8 +632,8 @@ pub fn schedule_world_cup_with_field(
             qualifiers_per_group: format.qualifiers_per_group,
             best_third_qualifiers: format.best_third_qualifiers,
             knockout_round_gap_days: KNOCKOUT_GAP_DAYS,
-            max_concurrent_matches_per_day: Some(4),
-            knockout_matches_per_day: 4,
+            max_concurrent_matches_per_day: Some(FINALS_MATCHES_PER_DAY as usize),
+            knockout_matches_per_day: FINALS_MATCHES_PER_DAY,
         },
     );
     // Sort after every club competition in browsing lists.
