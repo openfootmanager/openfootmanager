@@ -216,7 +216,8 @@ function loanedHistory(player: PlayerData, loanClub: string | null): PlayerMovem
   const borrower = clubRef(loanClub);
   return [
     {
-      date: "2029-07-01",
+      // The game records an unknown start with an empty date: an unknown, not a made-up day.
+      date: "",
       kind: "initial_contract",
       to_team_id: parent.id,
       to_team_name: parent.name,
@@ -384,6 +385,9 @@ export function profileCase(variant: HarnessProfile): ProfileCase {
         // On loan from the user's club to a rival: the profile's loan banner.
         playerPatch: {
           movement_history: loanedHistory(loaned, rival.team_id),
+          // The game derives a player's contract dates from the ledger's current record, whose
+          // start here is unknown.
+          contract_start: null,
           team_id: rival.team_id,
           active_loan: {
             parent_team_id: USER_CLUB,
@@ -402,7 +406,11 @@ export function profileCase(variant: HarnessProfile): ProfileCase {
         knowledge: { kind: "known" },
         wage: { kind: "hidden" },
         positionRatings: positionRatingsOf(rival, { kind: "live" }),
-        playerPatch: { movement_history: rivalHistory(rival, own.team_id) },
+        // The current record is the renewal, which started on 1 July 2030.
+        playerPatch: {
+          movement_history: rivalHistory(rival, own.team_id),
+          contract_start: "2030-07-01",
+        },
       };
     case "scouted":
       return {
