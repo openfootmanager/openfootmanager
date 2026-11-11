@@ -63,10 +63,14 @@ pub struct ResolvedArticle {
 pub fn resolve_message(message: &InboxMessage) -> ResolvedMessage {
     let params = resolve_params(&message.i18n_params);
     let details = structured_details(&message.i18n_params);
-    let body = resolve(message.body_key.as_deref(), &message.body, &params);
     ResolvedMessage {
         subject: resolve(message.subject_key.as_deref(), &message.subject, &params),
-        body: without_unfilled_placeholders_if(&details, body),
+        body: resolve_body(
+            message.body_key.as_deref(),
+            &message.body,
+            &params,
+            &details,
+        ),
         sender: resolve(message.sender_key.as_deref(), &message.sender, &params),
         sender_role: resolve(
             message.sender_role_key.as_deref(),
@@ -85,10 +89,14 @@ pub fn resolve_message(message: &InboxMessage) -> ResolvedMessage {
 pub fn resolve_article(article: &NewsArticle) -> ResolvedArticle {
     let params = resolve_params(&article.i18n_params);
     let details = structured_details(&article.i18n_params);
-    let body = resolve(article.body_key.as_deref(), &article.body, &params);
     ResolvedArticle {
         headline: resolve(article.headline_key.as_deref(), &article.headline, &params),
-        body: without_unfilled_placeholders_if(&details, body),
+        body: resolve_body(
+            article.body_key.as_deref(),
+            &article.body,
+            &params,
+            &details,
+        ),
         source: resolve(article.source_key.as_deref(), &article.source, &params),
         details,
     }
@@ -213,17 +221,36 @@ fn flatten(prefix: &str, node: &Value, table: &mut HashMap<String, String>) {
 /// The text of `key` with `params` filled in, or `fallback` when there is no key or no text for
 /// it. A placeholder the params do not supply is left as written, as i18next leaves it.
 fn resolve(key: Option<&str>, fallback: &str, params: &Params) -> String {
-    match key
-        .filter(|key| !key.is_empty())
-        .and_then(|key| english().get(key))
-    {
-        Some(template) => interpolate(template, params),
+    match template_of(key) {
+        Some(template) => interpolate(template, params, false),
         None => fallback.to_string(),
     }
 }
 
-/// `{{name}}` replaced by its param. One pass: a param's own text is never read as a template.
-fn interpolate(template: &str, params: &Params) -> String {
+/// A body: as [`resolve`], except that when the message or article carries structured `details`
+/// (the lists the screen would lay out itself), the template's own slots the params do not fill
+/// are dropped, since the details hold what they stood for. Only the template's: what a value
+/// contains, braces included, is never read.
+fn resolve_body(
+    key: Option<&str>,
+    fallback: &str,
+    params: &Params,
+    details: &BTreeMap<String, Value>,
+) -> String {
+    match template_of(key) {
+        Some(template) => interpolate(template, params, !details.is_empty()),
+        None => fallback.to_string(),
+    }
+}
+
+fn template_of(key: Option<&str>) -> Option<&'static String> {
+    key.filter(|key| !key.is_empty())
+        .and_then(|key| english().get(key))
+}
+
+/// `{{name}}` replaced by its param. One pass: a param's own text is never read as a template. A
+/// slot no param fills stays as written, or is dropped when `drop_unfilled`.
+fn interpolate(template: &str, params: &Params, drop_unfilled: bool) -> String {
     let mut out = String::with_capacity(template.len());
     let mut rest = template;
     while let Some(open) = rest.find("{{") {
@@ -235,6 +262,7 @@ fn interpolate(template: &str, params: &Params) -> String {
         };
         match params.get(after[..close].trim()) {
             Some(value) => out.push_str(value),
+            None if drop_unfilled => {}
             None => out.push_str(&rest[open..open + 2 + close + 2]),
         }
         rest = &after[close + 2..];
@@ -461,25 +489,6 @@ fn structured_details(params: &Params) -> BTreeMap<String, Value> {
             (name.clone(), value)
         })
         .collect()
-}
-
-/// A body that has structured details has gaps where the screen would have laid them out; the
-/// details hold them, so the gap is dropped rather than left as a placeholder.
-fn without_unfilled_placeholders_if(details: &BTreeMap<String, Value>, text: String) -> String {
-    if details.is_empty() {
-        return text;
-    }
-    let mut out = String::with_capacity(text.len());
-    let mut rest = text.as_str();
-    while let Some(open) = rest.find("{{") {
-        out.push_str(&rest[..open]);
-        match rest[open..].find("}}") {
-            Some(close) => rest = &rest[open + close + 2..],
-            None => return out,
-        }
-    }
-    out.push_str(rest);
-    out
 }
 
 #[cfg(test)]
