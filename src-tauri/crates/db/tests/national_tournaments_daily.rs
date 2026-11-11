@@ -465,6 +465,10 @@ fn a_drawn_continental_round_yields_to_world_cup_qualifying() {
             "draw must keep three days from the qualifier: {}",
             tie.date
         );
+        assert!(
+            tie.postponement.is_none(),
+            "a newly drawn date was never published"
+        );
     }
     assert_eq!(game.competitions[1].fixtures[0].date, "2033-02-04");
 }
@@ -878,5 +882,21 @@ fn a_world_cup_replay_draw_keeps_an_unrelated_friendly_on_its_date() {
     assert_eq!(
         serde_json::to_value(&game.national_teams[4].fixtures[0]).unwrap(),
         expected
+    );
+}
+
+/// Given a World Cup being generated for the first time, When its dates are settled before
+/// publication, Then its real fixtures have legal dates without false postponement badges.
+#[test]
+fn a_new_world_cup_publishes_dates_without_false_postponements() {
+    let mut game = tournament_game(false);
+    game.competitions.clear();
+    let kickoff = game.clock.current_date;
+    ofm_core::world_cup::schedule_world_cup(&mut game, kickoff, &ofm_core::world_cup::FORMAT_16);
+    let fixtures = &game.competitions[0].fixtures;
+    assert_eq!(fixtures.len(), 24);
+    assert!(
+        fixtures.iter().all(|f| f.postponement.is_none()),
+        "new World Cup dates have never been shown before publication"
     );
 }
