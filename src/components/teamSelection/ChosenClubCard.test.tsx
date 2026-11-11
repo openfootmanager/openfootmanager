@@ -6,6 +6,11 @@ import type { ClubSquadRatings } from "../../services/teamsService";
 import type { LeagueData } from "../../store/gameStore";
 import ChosenClubCard from "./ChosenClubCard";
 
+// The backend's keys are resolved by `resolveBackendText`; here a key reads as itself.
+vi.mock("../../utils/backendI18n", () => ({
+  resolveBackendText: (key: string | undefined, fallback: string) => key ?? fallback,
+}));
+
 vi.mock("react-i18next", () => ({
   initReactI18next: { type: "3rdParty", init: () => {} },
   useTranslation: () => ({
