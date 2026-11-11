@@ -274,21 +274,23 @@ describe("page layout check", () => {
   });
 
   /**
-   * Given a page that must not scroll (a case that asks its regions to fit: the Tactics screen), whose
-   *       document does not scroll because the dashboard's main region scrolls inside itself
+   * Given a case that asks its regions to fit, and the measurement's verdict on its region
    * When the case is judged
-   * Then the region is named with its scroll height against its visible height: the document's own
-   *      height (equal to the window's) hides it, which is how a page that "never scrolls" scrolled.
-   *      A case that does not ask (a list that scrolls in its panel) is not judged by it.
+   * Then an overflowing region is named, a region the page did not draw fails the case, and a case
+   *      that does not ask is not judged by either. (How the verdict is measured is tested through
+   *      the collector, in page-layout-check.regions.test.mjs.)
    */
-  it("names a region that scrolls inside a page that must not scroll", () => {
-    const scrolling = ["div.overflow-y-auto (1180 > 640)"];
-
-    expect(judge({ ...clean, regionsFit: true, regionsScroll: scrolling })).toEqual([
-      "a region scrolls down inside the page: div.overflow-y-auto (1180 > 640)",
+  it("judges a case that asks its region to fit by the measured verdict", () => {
+    expect(judge({ ...clean, regionsFit: true, regionsOverflow: ["div (1180 > 640)"] })).toEqual([
+      "a region scrolls down inside the page: div (1180 > 640)",
     ]);
-    expect(judge({ ...clean, regionsScroll: scrolling })).toEqual([]);
-    expect(judge({ ...clean, regionsFit: true, regionsScroll: [] })).toEqual([]);
+    expect(judge({ ...clean, regionsFit: true, regionsMissing: true })).toEqual([
+      "no region on the page matches the case's fit selector",
+    ]);
+    expect(
+      judge({ ...clean, regionsOverflow: ["div (1180 > 640)"], regionsMissing: true }),
+    ).toEqual([]);
+    expect(judge({ ...clean, regionsFit: true, regionsOverflow: [] })).toEqual([]);
   });
 
   /** Given a command the fixture didn't answer, or a page that never rendered, then it fails. */

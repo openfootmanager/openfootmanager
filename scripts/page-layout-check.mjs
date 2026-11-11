@@ -124,7 +124,8 @@ export function judge({
   tablesFit = false,
   tablesScroll = [],
   regionsFit = false,
-  regionsScroll = [],
+  regionsOverflow = [],
+  regionsMissing = false,
   rendered,
   faces,
 }) {
@@ -148,8 +149,11 @@ export function judge({
   if (belowTheFold.length > 0) {
     problems.push(`below the bottom edge of the window: ${belowTheFold.join(", ")}`);
   }
-  if (regionsFit && regionsScroll.length > 0) {
-    problems.push(`a region scrolls down inside the page: ${regionsScroll.join(", ")}`);
+  if (regionsFit && regionsOverflow.length > 0) {
+    problems.push(`a region scrolls down inside the page: ${regionsOverflow.join(", ")}`);
+  }
+  if (regionsFit && regionsMissing) {
+    problems.push("no region on the page matches the case's fit selector");
   }
   if (tablesFit && tablesScroll.length > 0) {
     problems.push(`table scrolls sideways inside its container: ${tablesScroll.join(", ")}`);
@@ -202,12 +206,44 @@ export async function loadFaces(fonts, faces) {
   );
 }
 
-// The first wait lets the harness mount and its answers land; the fonts are waited for after.
-const MEASURE = `(async () => {
+/**
+ * The regions of the page that scroll down, and the verdict on the ones a case asks to fit. Runs in
+ * the page (its source is sent there), so it reaches nothing but its arguments.
+ *
+ * `all` lists every scrolling descendant of `<main>`, for diagnostics: a component may scroll (a
+ * roster in its own box). `overflow` lists only the regions matching `fitSelector` that hold more
+ * than they show: the page's workspace, which the document's own height never reveals (the
+ * dashboard keeps the document the window's height and scrolls inside). `missing` is a selector that
+ * matches nothing on the page. Each is named by its tag, its aria-label or its first classes, with
+ * its scroll height against its visible height.
+ */
+export function collectRegions(doc, styleOf, fitSelector) {
+  const describe = (element) => {
+    const name = element.getAttribute("aria-label") ?? [...element.classList].slice(0, 2).join(".");
+    return `${element.tagName.toLowerCase()}${name ? `.${name}` : ""} (${element.scrollHeight} > ${element.clientHeight})`;
+  };
+  const holdsMore = (element) => element.scrollHeight > element.clientHeight + 1;
+  const all = [...doc.querySelectorAll("main *")]
+    .filter((element) => {
+      const overflowY = styleOf(element).overflowY;
+      return (overflowY === "auto" || overflowY === "scroll") && holdsMore(element);
+    })
+    .map(describe);
+  const targets = fitSelector ? [...doc.querySelectorAll(fitSelector)] : [];
+  return {
+    all,
+    overflow: targets.filter(holdsMore).map(describe),
+    missing: Boolean(fitSelector) && targets.length === 0,
+  };
+}
+
+/** The measurement the page runs for a case; `fitSelector` is the region the case asks to fit. */
+const measureExpression = (fitSelector) => `(async () => {
   await new Promise((resolve) => setTimeout(resolve, 2500));
   const faces = await (${loadFaces.toString()})(document.fonts, ${JSON.stringify(REQUIRED_FACES)});
   await document.fonts.ready;
   const harness = window.__pageHarness;
+  const regions = (${collectRegions.toString()})(document, getComputedStyle, ${JSON.stringify(fitSelector ?? null)});
   return JSON.stringify({
     faces,
     loadedFaces: [...new Set([...document.fonts].filter((face) => face.status === "loaded").map((face) => face.family + " " + face.weight))],
@@ -222,18 +258,9 @@ const MEASURE = `(async () => {
     belowTheFold: [...document.querySelectorAll("[data-keep-in-window]")]
       .filter((element) => element.getBoundingClientRect().bottom > window.innerHeight)
       .map((element) => (element.textContent ?? "").trim()),
-    // A region that scrolls down inside the page (the dashboard's main region keeps the document the
-    // window's height, so the document's own height never shows it): named by its tag, its aria-label
-    // or its first classes, with its scroll height against its visible height.
-    regionsScroll: [...document.querySelectorAll("main *")]
-      .filter((element) => {
-        const overflowY = getComputedStyle(element).overflowY;
-        return (overflowY === "auto" || overflowY === "scroll") && element.scrollHeight > element.clientHeight + 1;
-      })
-      .map((element) => {
-        const name = element.getAttribute("aria-label") ?? [...element.classList].slice(0, 2).join(".");
-        return element.tagName.toLowerCase() + (name ? "." + name : "") + " (" + element.scrollHeight + " > " + element.clientHeight + ")";
-      }),
+    regionsScroll: regions.all,
+    regionsOverflow: regions.overflow,
+    regionsMissing: regions.missing,
     // A table whose container scrolls sideways: the page's own width never shows it.
     tablesScroll: [...document.querySelectorAll("table")]
       .filter((table) => {
@@ -307,6 +334,15 @@ function connect(url) {
   return new Promise((resolve) => socket.addEventListener("open", () => resolve({ socket, call })));
 }
 
+/**
+ * The region a case asks to fit: `regionsFit: true` is the dashboard's workspace (the element marked
+ * `data-workspace`); a string is a CSS selector for the case's own region (a tab's main surface).
+ */
+function fitSelectorOf(testCase) {
+  if (testCase.regionsFit === true) return "[data-workspace]";
+  return testCase.regionsFit || null;
+}
+
 async function measure(call, base, testCase) {
   await call("Emulation.setDeviceMetricsOverride", {
     width: testCase.width,
@@ -317,7 +353,7 @@ async function measure(call, base, testCase) {
   await call("Page.navigate", { url: caseUrl(base, testCase) });
   await new Promise((resolve) => setTimeout(resolve, 3000));
   const reply = await call("Runtime.evaluate", {
-    expression: MEASURE,
+    expression: measureExpression(fitSelectorOf(testCase)),
     awaitPromise: true,
     returnByValue: true,
   });
@@ -363,7 +399,7 @@ async function main(base) {
         ...measured,
         page: testCase.page,
         tablesFit: testCase.tablesFit,
-        regionsFit: testCase.regionsFit,
+        regionsFit: Boolean(testCase.regionsFit),
       });
       const label = `${testCase.page ?? "style guide"}${testCase.player ? ` (${testCase.player})` : ""}${testCase.view ? ` (${testCase.view})` : ""} ${testCase.width}×${testCase.height} ${testCase.scale} ${testCase.lang}`;
       console.log(
