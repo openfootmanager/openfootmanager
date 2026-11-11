@@ -86,7 +86,7 @@ export default function PlayerProfileRenewalModal({
               value={renewalWage}
               onChange={(event) => onWageChange(event.target.value)}
               disabled={renewalIsTerminal}
-              className="w-full px-3 py-2 rounded-lg bg-sunken border border-line text-body text-fg focus:outline-none focus-visible:ring-2 focus-visible:ring-focus"
+              className="w-full px-3 py-2 rounded-lg bg-sunken border border-line text-body text-fg focus:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 focus-visible:ring-offset-panel"
             />
           </div>
 
@@ -106,7 +106,7 @@ export default function PlayerProfileRenewalModal({
               value={renewalLength}
               onChange={(event) => onLengthChange(event.target.value)}
               disabled={renewalIsTerminal}
-              className="w-full px-3 py-2 rounded-lg bg-sunken border border-line text-body text-fg focus:outline-none focus-visible:ring-2 focus-visible:ring-focus"
+              className="w-full px-3 py-2 rounded-lg bg-sunken border border-line text-body text-fg focus:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 focus-visible:ring-offset-panel"
             />
           </div>
         </div>

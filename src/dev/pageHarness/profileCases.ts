@@ -47,6 +47,11 @@ function pickPlayers(players: PlayerData[]) {
   const outfield = (list: PlayerData[]) => list.filter((p) => p.position !== "Goalkeeper");
   const [scouted, unknown, retiree] = freeAgents(players);
   const club = outfield(ofClub(players));
+  if (club.length < 3) {
+    throw new Error(
+      `the generated career's club has ${club.length} outfield players; the own, injured and loaned cases need three`,
+    );
+  }
   return {
     own: club[0],
     injured: club[1],
