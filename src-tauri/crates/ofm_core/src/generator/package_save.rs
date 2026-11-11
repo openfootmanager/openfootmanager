@@ -649,7 +649,7 @@ mod tests {
             package.meta.as_mut().unwrap().name = "Renamed".to_string();
         });
         let nested = dir.join("players");
-        std::fs::set_permissions(&nested, std::fs::Permissions::from_mode(0)).unwrap();
+        std::fs::set_permissions(&nested, std::fs::Permissions::from_mode(0o0)).unwrap();
         let result = save_package_files(&dir, &package);
         std::fs::set_permissions(&nested, std::fs::Permissions::from_mode(0o700)).unwrap();
         let manifest = std::fs::read_to_string(dir.join("package.json")).unwrap();

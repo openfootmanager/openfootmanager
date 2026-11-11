@@ -164,7 +164,7 @@ mod tests {
         let nested = dir.join("players");
         std::fs::create_dir_all(&nested).unwrap();
         std::fs::write(dir.join("package.json"), r#"{"schema":"world","id":"test","name":"Test world","version":"1.0.0","license":"CC0-1.0"}"#).unwrap();
-        std::fs::set_permissions(&nested, std::fs::Permissions::from_mode(0)).unwrap();
+        std::fs::set_permissions(&nested, std::fs::Permissions::from_mode(0o0)).unwrap();
         let answer = worlds_library_internal(
             &[dir.to_string_lossy().into_owned()],
             Path::new("/nonexistent"),
