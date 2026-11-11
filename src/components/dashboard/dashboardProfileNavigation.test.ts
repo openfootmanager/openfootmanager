@@ -13,6 +13,16 @@ import {
 } from "./dashboardProfileNavigation";
 
 describe("dashboardProfileNavigation", () => {
+  /** Given a player to open on, when the state is created, then that profile is the one selected. */
+  it("can start on a player's profile", () => {
+    expect(createDashboardProfileNavigationState("Players", "player-9")).toMatchObject({
+      activeTab: "Players",
+      selectedPlayerId: "player-9",
+      navHistory: [],
+    });
+    expect(createDashboardProfileNavigationState("Players").selectedPlayerId).toBeNull();
+  });
+
   it("resets to a tab and clears selected profiles and history", () => {
     const state = {
       ...createDashboardProfileNavigationState("Inbox"),

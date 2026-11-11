@@ -19,12 +19,14 @@ export interface DashboardProfileNavigationState {
   navHistory: DashboardProfileHistoryEntry[];
 }
 
+/** `selectedPlayerId` opens that player's profile at once: the dev page harness starts on one. */
 export function createDashboardProfileNavigationState(
   activeTab: string,
+  selectedPlayerId: string | null = null,
 ): DashboardProfileNavigationState {
   return {
     activeTab,
-    selectedPlayerId: null,
+    selectedPlayerId,
     selectedPlayerOptions: null,
     selectedTeamId: null,
     initialMessageId: null,
