@@ -2704,6 +2704,9 @@ mod tests {
         }
     }
 
+    /// Given a player whose new contract length is agreed
+    /// When the real signing or generation entry point completes
+    /// Then the calculated employment contract ends on 30 June.
     #[test]
     fn a_contract_length_counts_from_an_authored_start() {
         let player = generate_from_json(
@@ -2715,12 +2718,15 @@ mod tests {
         );
 
         assert_eq!(player.contract_start(), Some("2024-01-15"));
-        assert_eq!(player.contract_end(), Some("2026-01-15"));
+        assert_eq!(player.contract_end(), Some("2026-06-30"));
     }
 
     /// A start alone is half an interval. Rather than invent an end date, the engine
     /// rolls a length the way it always has, counted from the author's start, so the
     /// interval is whole and the start is the author's.
+    /// Given a player whose new contract length is agreed
+    /// When the real signing or generation entry point completes
+    /// Then the calculated employment contract ends on 30 June.
     #[test]
     fn a_start_with_no_end_keeps_the_start_and_rolls_a_length_from_it() {
         let player = generate_from_json(
@@ -2732,12 +2738,12 @@ mod tests {
         let end = player.contract_end().expect("an end was rolled");
         assert!(end > "2024-01-15", "ended {end}, not after the start");
         assert!(
-            end <= "2029-01-15",
+            end <= "2029-06-30",
             "{end} is more than five years from the start"
         );
         assert!(
-            end.ends_with("-01-15"),
-            "{end}: the length should count in whole years from the start"
+            end.ends_with("-06-30"),
+            "{end}: the calculated contract should end on 30 June"
         );
     }
 

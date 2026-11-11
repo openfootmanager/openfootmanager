@@ -156,12 +156,61 @@ mod tests {
     fn the_length_follows_the_age_the_renewal_model_uses() {
         let today = day(2026, 8, 1);
         for (born, end) in [
-            ("2000-01-01", day(2029, 8, 1)), // 26: three years
-            ("1996-01-01", day(2028, 8, 1)), // 30: two years
-            ("1990-01-01", day(2027, 8, 1)), // 36: one year
+            ("2000-01-01", day(2029, 6, 30)), // 26: three years
+            ("1996-01-01", day(2028, 6, 30)), // 30: two years
+            ("1990-01-01", day(2027, 6, 30)), // 36: one year
         ] {
             let (_, got) = standard_contract_terms(&player(born), &club(), today, 0).unwrap();
             assert_eq!(got, end, "born {born}");
         }
+    }
+    /// Given a three-year signing on 29 june 2026
+    /// When the buying club offers standard terms
+    /// Then the deal ends on 30 June 2029, regardless of the signing month.
+    #[test]
+    fn a_contract_signed_on_29_june_ends_on_30_june() {
+        let (_, end) =
+            standard_contract_terms(&player("2000-01-01"), &club(), day(2026, 6, 29), 0).unwrap();
+        assert_eq!(end, day(2029, 6, 30));
+    }
+
+    /// Given a three-year signing on 30 june 2026
+    /// When the buying club offers standard terms
+    /// Then the deal ends on 30 June 2029, regardless of the signing month.
+    #[test]
+    fn a_contract_signed_on_30_june_ends_on_30_june() {
+        let (_, end) =
+            standard_contract_terms(&player("2000-01-01"), &club(), day(2026, 6, 30), 0).unwrap();
+        assert_eq!(end, day(2029, 6, 30));
+    }
+
+    /// Given a three-year signing on 1 july 2026
+    /// When the buying club offers standard terms
+    /// Then the deal ends on 30 June 2029, regardless of the signing month.
+    #[test]
+    fn a_contract_signed_on_1_july_ends_on_30_june() {
+        let (_, end) =
+            standard_contract_terms(&player("2000-01-01"), &club(), day(2026, 7, 1), 0).unwrap();
+        assert_eq!(end, day(2029, 6, 30));
+    }
+
+    /// Given a three-year signing on 31 december 2026
+    /// When the buying club offers standard terms
+    /// Then the deal ends on 30 June 2029, regardless of the signing month.
+    #[test]
+    fn a_contract_signed_on_31_december_ends_on_30_june() {
+        let (_, end) =
+            standard_contract_terms(&player("2000-01-01"), &club(), day(2026, 12, 31), 0).unwrap();
+        assert_eq!(end, day(2029, 6, 30));
+    }
+
+    /// Given a three-year signing on 1 january 2026
+    /// When the buying club offers standard terms
+    /// Then the deal ends on 30 June 2029, regardless of the signing month.
+    #[test]
+    fn a_contract_signed_on_1_january_ends_on_30_june() {
+        let (_, end) =
+            standard_contract_terms(&player("2000-01-01"), &club(), day(2026, 1, 1), 0).unwrap();
+        assert_eq!(end, day(2029, 6, 30));
     }
 }

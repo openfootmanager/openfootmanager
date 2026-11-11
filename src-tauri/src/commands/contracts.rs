@@ -696,7 +696,7 @@ mod tests {
             .find(|player| player.id == "player-1")
             .expect("player should exist");
         assert_eq!(player.wage(), 15_000);
-        assert_eq!(player.contract_end(), Some("2029-08-01"));
+        assert_eq!(player.contract_end(), Some("2029-06-30"));
 
         let stored_game = state.get_game(|game| game.clone()).expect("stored game");
         let stored_player = stored_game
@@ -705,7 +705,7 @@ mod tests {
             .find(|player| player.id == "player-1")
             .expect("stored player should exist");
         assert_eq!(stored_player.wage(), 15_000);
-        assert_eq!(stored_player.contract_end(), Some("2029-08-01"));
+        assert_eq!(stored_player.contract_end(), Some("2029-06-30"));
     }
 
     #[test]
@@ -731,7 +731,7 @@ mod tests {
             .iter()
             .find(|player| player.id == "player-1")
             .expect("player should exist");
-        assert_eq!(player.contract_end(), Some("2029-08-01"));
+        assert_eq!(player.contract_end(), Some("2029-06-30"));
         assert!(response
             .game
             .messages
@@ -744,7 +744,7 @@ mod tests {
             .iter()
             .find(|player| player.id == "player-1")
             .expect("stored player should exist");
-        assert_eq!(stored_player.contract_end(), Some("2029-08-01"));
+        assert_eq!(stored_player.contract_end(), Some("2029-06-30"));
     }
 
     #[test]
@@ -795,7 +795,7 @@ mod tests {
             .find(|player| player.id == "player-1")
             .expect("saved player should exist");
         assert_eq!(saved_player.wage(), 15_000);
-        assert_eq!(saved_player.contract_end(), Some("2029-08-01"));
+        assert_eq!(saved_player.contract_end(), Some("2029-06-30"));
     }
 
     #[test]
@@ -854,7 +854,7 @@ mod tests {
             .iter()
             .find(|player| player.id == "player-1")
             .expect("saved player should exist");
-        assert_eq!(saved_player.contract_end(), Some("2029-08-01"));
+        assert_eq!(saved_player.contract_end(), Some("2029-06-30"));
         assert!(persisted_after_manual_save
             .messages
             .iter()
@@ -915,7 +915,7 @@ mod tests {
         assert!(matches!(response.outcome, RenewalDecision::Accepted));
         assert_eq!(response.session_status, "agreed");
         assert_eq!(response.game.players[0].team_id.as_deref(), Some("team-1"));
-        assert_eq!(response.game.players[0].contract_end(), Some("2029-08-01"));
+        assert_eq!(response.game.players[0].contract_end(), Some("2029-06-30"));
         assert!(response.game.players[0]
             .movement_history
             .iter()

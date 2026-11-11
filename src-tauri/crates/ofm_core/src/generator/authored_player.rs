@@ -350,31 +350,38 @@ mod tests {
         assert_eq!(resolved.start, None);
     }
 
+    /// Given a player whose new contract length is agreed
+    /// When the real signing or generation entry point completes
+    /// Then the calculated employment contract ends on 30 June.
     #[test]
-    fn a_length_with_a_start_counts_whole_years_from_it() {
+    fn a_length_with_a_start_ends_on_30_june() {
         let resolved =
             resolve(serde_json::json!({ "contractStart": "2024-01-15", "contractLength": 2 }))
                 .unwrap();
         assert_eq!(resolved.start, Some(day(2024, 1, 15)));
-        assert_eq!(resolved.end, Some(day(2026, 1, 15)));
+        assert_eq!(resolved.end, Some(day(2026, 6, 30)));
     }
 
-    /// 29 February plus a year has no 29 February to land on. chrono clamps to the
-    /// 28th, which is the only sensible answer and worth pinning.
+    /// Given a one-year deal signed on leap day
+    /// When the authored length is resolved
+    /// Then it ends on 30 June of the following year.
     #[test]
-    fn a_leap_day_start_lands_on_the_28th_a_year_later() {
+    fn a_leap_day_start_ends_on_30_june_next_year() {
         let resolved =
             resolve(serde_json::json!({ "contractStart": "2024-02-29", "contractLength": 1 }))
                 .unwrap();
-        assert_eq!(resolved.end, Some(day(2025, 2, 28)));
+        assert_eq!(resolved.end, Some(day(2025, 6, 30)));
     }
 
+    /// Given a player whose new contract length is agreed
+    /// When the real signing or generation entry point completes
+    /// Then the calculated employment contract ends on 30 June.
     #[test]
     fn a_start_alone_rolls_the_generated_length_from_it() {
         // `resolve` passes a rolled length of 3.
         let resolved = resolve(serde_json::json!({ "contractStart": "2024-01-15" })).unwrap();
         assert_eq!(resolved.start, Some(day(2024, 1, 15)));
-        assert_eq!(resolved.end, Some(day(2027, 1, 15)));
+        assert_eq!(resolved.end, Some(day(2027, 6, 30)));
     }
 
     #[test]

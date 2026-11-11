@@ -88,7 +88,7 @@ fn a_second_offer_on_the_day_a_renewal_was_agreed_is_refused() {
     assert!(again.is_terminal);
     assert_eq!(
         (game.players[0].wage(), game.players[0].contract_end()),
-        (14_000, Some("2029-08-01"))
+        (14_000, Some("2029-06-30"))
     );
 }
 

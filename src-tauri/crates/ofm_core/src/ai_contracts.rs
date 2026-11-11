@@ -452,6 +452,9 @@ mod tests {
             .to_string()
     }
 
+    /// Given a 27-year-old key AI player approaching expiry in August 2026
+    /// When the club renews him on its review day
+    /// Then his three-year contract ends on 30 June 2029.
     #[test]
     fn a_good_player_running_down_his_contract_is_renewed_on_the_review_day() {
         let mut game = world();
@@ -467,6 +470,7 @@ mod tests {
         );
         // An AI renewal goes through the one renewal writer, so it is in his history.
         let star = game.players.iter().find(|p| p.id == "star").unwrap();
+        assert_eq!(star.contract_end(), Some("2029-06-30"));
         let entry = star
             .movement_history
             .last()
@@ -850,7 +854,9 @@ mod tests {
     }
 
     /// Given an AI club with exactly two senior keepers, no academy keeper, and
-    /// a free-agent keeper within its wage policy, he is signed.
+    /// a free-agent keeper within its wage policy
+    /// When the club plans its squad
+    /// Then he is signed until 30 June 2029.
     #[test]
     fn an_ai_club_at_the_floor_signs_a_free_agent_it_can_afford() {
         let mut game = world();
@@ -862,6 +868,7 @@ mod tests {
 
         assert_eq!(club_of(&game, "free_keeper"), Some("ai"));
         let keeper = game.players.iter().find(|p| p.id == "free_keeper").unwrap();
+        assert_eq!(keeper.contract_end(), Some("2029-06-30"));
         let entry = keeper
             .movement_history
             .last()
