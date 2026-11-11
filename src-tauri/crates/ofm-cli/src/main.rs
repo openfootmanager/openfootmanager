@@ -4,7 +4,7 @@ use comfy_table::{presets::UTF8_FULL, Table};
 use ofm_core::generator::{
     check_world_package_on_bases, entity_template, export_directory_to_ofm, is_valid_package_id,
     load_world_package, load_world_package_from_ofm, new_package_meta, package_warnings,
-    read_package_manifest_from_ofm, scaffold_package, slugify, validate_package,
+    read_package_manifest_from_ofm, scaffold_package, slugify, stack_checked_warnings,
     EntityKind as CoreEntityKind,
 };
 use serde_json::{json, Value};
@@ -614,25 +614,17 @@ fn cmd_validate(path: &Path, bases: &[PathBuf]) -> i32 {
     }
     println!("Validating {}...", path.display());
 
-    let is_ofm = path.extension().and_then(|e| e.to_str()) == Some("ofm");
-    let (pkg, mut errors) = if is_ofm {
-        load_world_package_from_ofm(path)
-    } else {
-        // A patch alone has its club references left to the stack; given a base, they are checked
-        // as the game checks a stack.
-        check_world_package_on_bases(path, bases)
-    };
-    if is_ofm {
-        // The archive load is the runtime read path and stays permissive on
-        // purpose, so that an already-installed package keeps working. Validating
-        // is this command's whole job, though, and a `.ofm` is the shape a
-        // package is actually shared in — so ask for the full set explicitly.
-        // Same set the directory branch gets, from the same place, so the two
-        // answers cannot diverge for the same package.
-        errors.extend(validate_package(&pkg));
-    }
+    // A directory and a `.ofm` are read and checked in one place, and both are checked on `bases`
+    // when given. A patch alone has its club references left to the stack; given its base, they
+    // are checked as the game checks a stack.
+    let (pkg, errors) = check_world_package_on_bases(path, bases);
 
-    let warnings = package_warnings(&pkg);
+    // With a base the references were checked, so "not checked here" would be false.
+    let warnings = if bases.is_empty() {
+        package_warnings(&pkg)
+    } else {
+        stack_checked_warnings(&pkg)
+    };
     let code = if errors.is_empty() {
         println!(
             "{} Valid — {} teams, {} players, {} competitions, {} countries, {} confederations",

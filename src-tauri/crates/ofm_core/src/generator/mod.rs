@@ -28,7 +28,7 @@ pub use package::{
     validate_package_stack, validate_references,
 };
 pub use package_save::{EditedPackage, save_package_files};
-pub use package_warnings::package_warnings;
+pub use package_warnings::{package_warnings, stack_checked_warnings};
 pub use scaffold::{
     EntityKind, entity_template, manifest_json, names_json, new_package_meta, scaffold_package,
     slugify,

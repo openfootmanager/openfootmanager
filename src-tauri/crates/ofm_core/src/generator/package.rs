@@ -902,7 +902,7 @@ pub fn check_world_package_on_bases(
     bases: &[PathBuf],
 ) -> (WorldPackage, Vec<PackageError>) {
     let (package, errors) = read_for_validation(dir);
-    if !errors.is_empty() || bases.is_empty() || !dir.is_dir() {
+    if !errors.is_empty() || bases.is_empty() {
         return (package, errors);
     }
     let mut stack = Vec::with_capacity(bases.len() + 1);
@@ -919,7 +919,11 @@ pub fn check_world_package_on_bases(
     }
     // The merge consumes what it is given and a package is not `Clone`, so the patch is read a second
     // time (its own problems were already ruled out above).
-    let (for_the_stack, _) = load_world_package(dir);
+    let for_the_stack = if dir.is_dir() {
+        load_world_package(dir).0
+    } else {
+        load_world_package_from_ofm(dir).0
+    };
     stack.push(for_the_stack);
     let (_merged, findings) = merge_world_packages(stack);
     (package, findings)
@@ -1509,7 +1513,7 @@ pub fn authored_reputations(package: &WorldPackage) -> std::collections::HashMap
 
 /// Validate the package's constructed world with the same competition rules as
 /// the game loader. Preserve source locations when surfacing definition errors.
-fn validate_competition_references(package: &WorldPackage) -> Vec<PackageError> {
+pub(super) fn validate_competition_references(package: &WorldPackage) -> Vec<PackageError> {
     if package.competitions.is_empty() {
         return Vec::new();
     }
