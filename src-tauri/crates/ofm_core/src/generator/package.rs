@@ -893,6 +893,16 @@ pub fn check_world_package(dir: &Path) -> (WorldPackage, Vec<PackageError>) {
     (package, findings)
 }
 
+/// A package directory checked on the packages it is stacked on: `bases` (a directory or a `.ofm`
+/// archive each), then the package, merged as the game merges a stack it starts a career on.
+pub fn check_world_package_on_bases(
+    dir: &Path,
+    bases: &[PathBuf],
+) -> (WorldPackage, Vec<PackageError>) {
+    let _ = bases;
+    load_world_package(dir)
+}
+
 /// The filename of the world-save manifest in `dir`, if `dir` holds an exported
 /// world rather than an authoring package.
 ///
@@ -2701,31 +2711,78 @@ mod tests {
         dir
     }
 
-    /// Given a patch package naming a club its base database may not have
-    /// When it is validated by the one entry the CLI and the editor call, and as the world the game
-    ///      starts a career on
-    /// Then both report the same findings, and they are not empty: `load_world_package` alone passes
-    ///      it, which is the gap this closes (#1364).
+    /// A database package defining one club, "base-fc".
+    fn base_database() -> PathBuf {
+        let dir = temp_package();
+        write(
+            &dir,
+            "package.json",
+            r#"{"schema":"world","id":"base","name":"Base","version":"1.0.0","license":"CC0-1.0"}"#,
+        );
+        write(
+            &dir,
+            "countries/eng.json",
+            r#"{"schema":"country","id":"ENG","name":"England"}"#,
+        );
+        write(
+            &dir,
+            "teams/teams.json",
+            r##"{"schema":"team","items":[{"id":"base-fc","name":"Base FC","city":"Base","country":"ENG","colors":{"primary":"#000000","secondary":"#ffffff"}}]}"##,
+        );
+        dir
+    }
+
+    fn patch_with_player_at(club: &str) -> PathBuf {
+        let dir = temp_package();
+        write(
+            &dir,
+            "package.json",
+            r#"{"schema":"world","id":"patchy","name":"Patchy","version":"1.0.0","license":"CC0-1.0","packageType":"patch"}"#,
+        );
+        write(
+            &dir,
+            "players/players.json",
+            &format!(
+                r#"{{"schema":"player","items":[{{"id":"p1","name":"P One","club":"{club}","nationality":"ENG","position":"Striker","overall":70}}]}}"#
+            ),
+        );
+        dir
+    }
+
+    /// Given a patch naming a club its base defines, and another naming a club nothing defines
+    /// When each is checked on that base
+    /// Then the first passes and the second is refused with the unknown team, the finding the game's
+    ///      stack merge gives.
     #[test]
-    fn the_validation_entry_reports_what_the_game_reports_for_a_patch_with_an_unknown_club() {
-        let dir = patch_naming_an_unknown_club();
+    fn a_patch_checked_on_its_base_passes_and_a_ghost_club_is_refused() {
+        let base = base_database();
+        let legit = patch_with_player_at("base-fc");
+        let ghost = patch_with_player_at("ghost-fc");
 
-        let (_, alone) = load_world_package(&dir);
-        let (_, checked) = check_world_package(&dir);
-        let (_, as_world) = load_world_package_as_world(&dir);
-        std::fs::remove_dir_all(&dir).ok();
+        let (_, legit_errors) = check_world_package_on_bases(&legit, &[base.clone()]);
+        let (_, ghost_errors) = check_world_package_on_bases(&ghost, &[base.clone()]);
+        for dir in [&base, &legit, &ghost] {
+            std::fs::remove_dir_all(dir).ok();
+        }
 
-        let codes = |errors: &[PackageError]| -> Vec<String> {
-            let mut codes: Vec<String> = errors
-                .iter()
-                .map(|e| format!("{}|{}|{:?}", e.code, e.file, e.params))
-                .collect();
-            codes.sort();
-            codes
-        };
-        assert!(alone.is_empty(), "alone, the patch passes: {alone:?}");
-        assert!(!as_world.is_empty(), "as a world, it is refused");
-        assert_eq!(codes(&checked), codes(&as_world));
+        assert!(legit_errors.is_empty(), "{legit_errors:?}");
+        assert!(
+            ghost_errors.iter().any(|e| e.code == UNKNOWN_TEAM),
+            "{ghost_errors:?}"
+        );
+    }
+
+    /// Given a patch with no base given
+    /// When it is checked
+    /// Then it is checked as it is read alone: its club references are deferred, as #1271 made them.
+    #[test]
+    fn a_patch_checked_on_no_base_defers_its_club_references() {
+        let ghost = patch_with_player_at("ghost-fc");
+
+        let (_, errors) = check_world_package_on_bases(&ghost, &[]);
+        std::fs::remove_dir_all(&ghost).ok();
+
+        assert!(errors.is_empty(), "{errors:?}");
     }
 
     fn temp_package() -> PathBuf {

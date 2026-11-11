@@ -239,6 +239,101 @@ mod tests {
         dir
     }
 
+    /// A database package directory of two English clubs, "base-fc" and "other-fc".
+    fn base_database_dir(tag: &str) -> std::path::PathBuf {
+        let dir = temp_pkg_dir(tag);
+        std::fs::write(
+            dir.join("world.yaml"),
+            "schema: world\nid: base\nname: Base\nversion: 1.0.0\nlicense: CC0-1.0\n",
+        )
+        .unwrap();
+        std::fs::write(
+            dir.join("country.yaml"),
+            "schema: country\nid: ENG\nname: England\n",
+        )
+        .unwrap();
+        let team = |id: &str, name: &str| {
+            format!(
+                "schema: team\nid: {id}\nname: {name}\ncity: Town\ncountry: ENG\ncolors:\n  primary: \"#000000\"\n  secondary: \"#ffffff\"\n"
+            )
+        };
+        std::fs::write(dir.join("base-fc.yaml"), team("base-fc", "Base FC")).unwrap();
+        std::fs::write(dir.join("other-fc.yaml"), team("other-fc", "Other FC")).unwrap();
+        dir
+    }
+
+    /// A patch directory signing a player for `club`.
+    fn patch_signing_for(tag: &str, club: &str) -> std::path::PathBuf {
+        let dir = temp_pkg_dir(tag);
+        std::fs::write(
+            dir.join("world.yaml"),
+            "schema: world\nid: roster\nname: Roster\nversion: 1.0.0\nlicense: CC0-1.0\npackageType: patch\n",
+        )
+        .unwrap();
+        std::fs::write(
+            dir.join("player.yaml"),
+            format!("schema: player\nid: new-signing\nclub: {club}\n"),
+        )
+        .unwrap();
+        dir
+    }
+
+    /// The game's stack loader on `base` then `patch`, installed as `.ofm` packages, beside what
+    /// `ofm-cli validate --base` (`check_world_package_on_bases`) says of the same directories.
+    fn game_and_cli_on_a_stack(
+        tag: &str,
+        patch_club: &str,
+    ) -> (Result<(), String>, Vec<ofm_core::generator::PackageError>) {
+        let base = base_database_dir(&format!("{tag}-base"));
+        let patch = patch_signing_for(&format!("{tag}-patch"), patch_club);
+        let packages = temp_pkg_dir(&format!("{tag}-installed"));
+        ofm_core::generator::export_directory_to_ofm(&base, &packages.join("base.ofm"))
+            .expect("the base is packed");
+        ofm_core::generator::export_directory_to_ofm(&patch, &packages.join("roster.ofm"))
+            .expect("the patch is packed");
+
+        let game = super::load_world_data_from_package_ids(
+            &packages,
+            &["base".to_string(), "roster".to_string()],
+            None,
+            None,
+            &ofm_core::generator::DefinitionSources::embedded_only(),
+        )
+        .map(|_| ());
+        let (_, cli) = ofm_core::generator::check_world_package_on_bases(&patch, &[base.clone()]);
+        for dir in [&base, &patch, &packages] {
+            std::fs::remove_dir_all(dir).ok();
+        }
+        (game, cli)
+    }
+
+    /// Given a patch naming a club its base defines, stacked on that base
+    /// When the game starts a career on the stack, and the CLI validates the patch `--base` it
+    /// Then the game starts and the CLI reports nothing: the two agree (#1364).
+    #[test]
+    fn a_patch_on_its_base_passes_the_game_and_the_cli_alike() {
+        let (game, cli) = game_and_cli_on_a_stack("parity-legit", "base-fc");
+
+        assert_eq!(game, Ok(()));
+        assert!(cli.is_empty(), "{cli:?}");
+    }
+
+    /// Given a patch naming a club neither it nor its base defines, stacked on that base
+    /// When the game starts a career on the stack, and the CLI validates the patch `--base` it
+    /// Then both refuse it with the same finding.
+    #[test]
+    fn a_ghost_club_patch_on_its_base_fails_the_game_and_the_cli_alike() {
+        let (game, cli) = game_and_cli_on_a_stack("parity-ghost", "ghost-club");
+
+        let key = game.expect_err("the game refuses the stack");
+        assert!(!cli.is_empty(), "the CLI refuses it too");
+        assert!(
+            key.starts_with(&cli[0].code),
+            "game {key} vs CLI {:?}",
+            cli[0]
+        );
+    }
+
     /// Given a patch package directory whose player joins a club no package defines
     /// When a career is started on that directory
     /// Then the start is refused with the unknown team: the player is not silently left out

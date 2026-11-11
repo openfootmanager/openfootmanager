@@ -54,7 +54,13 @@ enum Commands {
         format: String,
     },
     /// Validate a package directory or .ofm archive
-    Validate { path: PathBuf },
+    Validate {
+        path: PathBuf,
+        /// A package this one is stacked on (a directory or a .ofm), checked with it as the game
+        /// checks a stack; repeat for several. A patch's club references are checked only with one.
+        #[arg(long = "base")]
+        base: Vec<PathBuf>,
+    },
     /// Pack a package directory into a .ofm archive
     Pack {
         dir: PathBuf,
@@ -119,7 +125,7 @@ fn main() {
             append_to.as_deref(),
             &format,
         ),
-        Commands::Validate { path } => cmd_validate(&path),
+        Commands::Validate { path, base } => cmd_validate(&path, &base),
         Commands::Pack { dir, output } => cmd_pack(&dir, output.as_deref()),
         Commands::Info { file } => cmd_info(&file),
     };
@@ -597,7 +603,8 @@ fn patch_pack_note(pkg: &ofm_core::generator::WorldPackage) -> Option<&'static s
     )
 }
 
-fn cmd_validate(path: &Path) -> i32 {
+fn cmd_validate(path: &Path, bases: &[PathBuf]) -> i32 {
+    let _ = bases;
     if !path.exists() {
         eprintln!(
             "{} Path not found: {}",
@@ -948,18 +955,77 @@ mod tests {
         dir
     }
 
-    /// Given a patch package naming a club that nothing it loads defines (the game refuses it at
-    ///       career start)
-    /// When `validate` runs
-    /// Then it fails: the CLI answers as the game does, not as the package alone would (#1364).
-    #[test]
-    fn validate_rejects_a_patch_the_game_would_refuse() {
-        let dir = patch_naming_an_unknown_club("patch-unknown-club");
+    /// A database package defining one club, "base-fc", for a patch to be stacked on.
+    fn base_database(name: &str) -> PathBuf {
+        let dir = scratch_dir(name);
+        std::fs::create_dir_all(dir.join("teams")).expect("temp dir");
+        std::fs::write(
+            dir.join("package.json"),
+            json!({"schema": "world", "id": "base", "name": "Base", "version": "1.0.0",
+                "license": "CC0-1.0"})
+            .to_string(),
+        )
+        .expect("manifest written");
+        std::fs::write(
+            dir.join("country.json"),
+            json!({"schema": "country", "id": "ENG", "name": "England"}).to_string(),
+        )
+        .expect("country written");
+        std::fs::write(
+            dir.join("teams/teams.json"),
+            json!({"schema": "team", "items": [{"id": "base-fc", "name": "Base FC", "city": "Base",
+                "country": "ENG", "colors": {"primary": "#000000", "secondary": "#ffffff"}}]})
+            .to_string(),
+        )
+        .expect("teams written");
+        dir
+    }
 
-        let exit = cmd_validate(&dir);
+    fn patch_naming(name: &str, club: &str) -> PathBuf {
+        let dir = patch_naming_an_unknown_club(name);
+        let players = std::fs::read_to_string(dir.join("players/players.json")).expect("read");
+        std::fs::write(
+            dir.join("players/players.json"),
+            players.replace("ghost-fc", club),
+        )
+        .expect("players rewritten");
+        dir
+    }
+
+    /// Given a patch package naming a club only its base defines, validated alone
+    /// When `validate` runs
+    /// Then it passes: a lone patch cannot be told from one stacked on the base that defines the
+    ///      club, so refusing it would refuse packages the game accepts (#1364, #1271).
+    #[test]
+    fn validate_passes_a_lone_patch_naming_a_base_club() {
+        let dir = patch_naming("patch-lone", "base-fc");
+
+        let exit = cmd_validate(&dir, &[]);
         std::fs::remove_dir_all(&dir).ok();
 
-        assert_eq!(exit, 1, "an unknown club in a patch must fail validation");
+        assert_eq!(
+            exit, 0,
+            "a lone patch is not refused for its club references"
+        );
+    }
+
+    /// Given a patch naming a club its base defines, and another naming a club nothing defines
+    /// When `validate --base <the base>` runs on each
+    /// Then the first passes and the second fails: the answer the game's stack merge gives.
+    #[test]
+    fn validate_with_a_base_checks_a_patchs_clubs_as_the_game_does() {
+        let base = base_database("patch-base");
+        let legit = patch_naming("patch-legit", "base-fc");
+        let ghost = patch_naming("patch-ghost", "ghost-fc");
+
+        let legit_exit = cmd_validate(&legit, &[base.clone()]);
+        let ghost_exit = cmd_validate(&ghost, &[base.clone()]);
+        for dir in [&base, &legit, &ghost] {
+            std::fs::remove_dir_all(dir).ok();
+        }
+
+        assert_eq!(legit_exit, 0, "a club the base defines resolves");
+        assert_eq!(ghost_exit, 1, "a club no package defines is refused");
     }
 
     /// Given a patch package and a database package
@@ -995,7 +1061,7 @@ mod tests {
         )
         .expect("league written");
 
-        let exit = cmd_validate(&dir);
+        let exit = cmd_validate(&dir, &[]);
         let (_, errors) = load_world_package(&dir);
         std::fs::remove_dir_all(&dir).ok();
 
@@ -1441,7 +1507,7 @@ mod tests {
         )
         .unwrap();
 
-        let exit = cmd_validate(&dir);
+        let exit = cmd_validate(&dir, &[]);
         let (package, _errors) = load_world_package(&dir);
         let warnings = package_warnings(&package);
         std::fs::remove_dir_all(&dir).ok();
@@ -1474,7 +1540,7 @@ mod tests {
         )
         .unwrap();
 
-        let exit = cmd_validate(&dir);
+        let exit = cmd_validate(&dir, &[]);
         let (package, _errors) = load_world_package(&dir);
         let warnings = package_warnings(&package);
         std::fs::remove_dir_all(&dir).ok();

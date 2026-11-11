@@ -14,6 +14,7 @@ use crate::nations::nation_by_code;
 pub(super) const COUNTRY_WITHOUT_REGION: &str = "be.warning.package.countryWithoutRegion";
 pub(super) const FREE_AGENT_FIELD_IGNORED: &str = "be.warning.package.freeAgentFieldIgnored";
 pub(super) const REPEATED_NAME_POOL: &str = "be.warning.package.repeatedNamePool";
+pub(super) const PATCH_CLUB_REFS_UNVERIFIED: &str = "be.warning.package.patchClubRefsUnverified";
 // One code for either half missing, rather than one carrying which half as a parameter: the
 // message is rendered with `t(code, params)`, so a parameter would put an English word into a
 // translated sentence.
@@ -120,6 +121,55 @@ fn free_agent_warnings(package: &WorldPackage) -> Vec<PackageError> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Given a patch package whose player is at a club the patch does not define (its base would)
+    /// When its warnings are listed
+    /// Then there is one saying the club references were not checked, naming how many: the package
+    ///      alone cannot tell a club its base defines from a ghost, so it is not an error (#1364).
+    #[test]
+    fn a_patch_naming_clubs_it_does_not_define_gets_an_unverified_warning() {
+        let dir = std::env::temp_dir().join(format!("ofm-warn-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(dir.join("players")).unwrap();
+        std::fs::write(
+            dir.join("package.json"),
+            r#"{"schema":"world","id":"patchy","name":"Patchy","version":"1.0.0","license":"CC0-1.0","packageType":"patch"}"#,
+        )
+        .unwrap();
+        std::fs::write(
+            dir.join("players/players.json"),
+            r#"{"schema":"player","items":[{"id":"p1","name":"P One","club":"base-fc","nationality":"ENG","position":"Striker","overall":70},{"id":"p2","name":"P Two","club":"base-fc","nationality":"ENG","position":"Striker","overall":70}]}"#,
+        )
+        .unwrap();
+        let (package, errors) = crate::generator::load_world_package(&dir);
+        std::fs::remove_dir_all(&dir).ok();
+
+        let warnings = package_warnings(&package);
+
+        assert!(
+            errors.is_empty(),
+            "alone, the patch has no error: {errors:?}"
+        );
+        let unverified: Vec<_> = warnings
+            .iter()
+            .filter(|w| w.code == PATCH_CLUB_REFS_UNVERIFIED)
+            .collect();
+        assert_eq!(unverified.len(), 1, "{warnings:?}");
+        assert!(unverified[0].params.contains(&("count".into(), "1".into())));
+    }
+
+    /// Given a database package whose players name only clubs it defines
+    /// When its warnings are listed
+    /// Then there is no unverified-references warning: only a patch defers its references.
+    #[test]
+    fn a_database_package_gets_no_unverified_warning() {
+        let warnings = package_warnings(&WorldPackage::default());
+
+        assert!(
+            warnings
+                .iter()
+                .all(|w| w.code != PATCH_CLUB_REFS_UNVERIFIED)
+        );
+    }
     use crate::generator::load_world_package;
     use std::path::{Path, PathBuf};
 

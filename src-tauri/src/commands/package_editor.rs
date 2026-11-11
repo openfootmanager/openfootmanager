@@ -990,7 +990,7 @@ mod tests {
         );
 
         let validated = validate_package_project(dir.to_string_lossy().to_string()).expect("ok");
-        let (pkg, errors) = ofm_core::generator::check_world_package(&dir);
+        let (pkg, errors) = load_world_package(&dir);
         let cli_warnings = ofm_core::generator::package_warnings(&pkg);
         let [editor_keys, cli_keys, game_keys] = editor_cli_and_game_findings(&dir);
         std::fs::remove_dir_all(&dir).ok();
@@ -1072,7 +1072,7 @@ mod tests {
     fn editor_cli_and_game_findings(dir: &std::path::Path) -> [Vec<String>; 3] {
         let path = dir.to_string_lossy().to_string();
         let editor = validate_package_project(path.clone()).expect("the editor validates");
-        let (_, cli) = ofm_core::generator::check_world_package(dir);
+        let (_, cli) = load_world_package(dir);
         let game = crate::commands::game::validate_world_package(path).expect("the game validates");
         [
             finding_keys(editor.issues.iter().map(|i| {
@@ -1102,15 +1102,14 @@ mod tests {
         ]
     }
 
-    /// Given a patch package naming a club that neither it nor its base defines
-    /// When the editor's Validate, the CLI's validate and the game's validation each check it
-    /// Then all three report the same, non-empty, findings: the game refuses it at career start, so
-    ///      neither tool may pass it (#1364; the parity test above compared only the editor and the
-    ///      CLI, which shared a loader, so it could not see this).
+    /// Given a patch package naming a club only its base can define, opened and validated alone
+    /// When the editor lists what is wrong with it
+    /// Then there is no issue (the CLI passes it alone too), and a warning says its club references
+    ///      were not checked: the stack, not the package, decides them (#1364).
     #[test]
-    fn editor_cli_and_game_report_the_same_findings_for_a_patch_naming_an_unknown_club() {
+    fn a_lone_patch_naming_a_club_gets_a_warning_and_no_issue() {
         let dir = temp_project(
-            "diag-three-way-patch",
+            "diag-lone-patch",
             &[
                 (
                     "package.json",
@@ -1118,17 +1117,23 @@ mod tests {
                 ),
                 (
                     "players/players.json",
-                    r#"{"schema":"player","items":[{"id":"p1","name":"P One","club":"ghost-fc","nationality":"ENG","position":"Striker","overall":70}]}"#,
+                    r#"{"schema":"player","items":[{"id":"p1","name":"P One","club":"base-fc","nationality":"ENG","position":"Striker","overall":70}]}"#,
                 ),
             ],
         );
 
-        let [editor, cli, game] = editor_cli_and_game_findings(&dir);
+        let validated = validate_package_project(dir.to_string_lossy().to_string()).expect("ok");
         std::fs::remove_dir_all(&dir).ok();
 
-        assert!(!game.is_empty(), "the game refuses the patch: {game:?}");
-        assert_eq!(editor, game);
-        assert_eq!(cli, game);
+        assert!(validated.issues.is_empty(), "{:?}", validated.issues);
+        assert!(
+            validated
+                .warnings
+                .iter()
+                .any(|w| w.code == "be.warning.package.patchClubRefsUnverified"),
+            "{:?}",
+            validated.warnings
+        );
     }
 
     /// Given a project with thousands of entities' worth of data
