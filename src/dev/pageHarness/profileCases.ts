@@ -5,7 +5,8 @@ import type { PositionRatings } from "../../store/generated/PositionRatings";
 import type { PotentialOpinion } from "../../store/generated/PotentialOpinion";
 import type { Position } from "../../store/generated/Position";
 import type { PlayerData, ScoutedPlayerView } from "../../store/types";
-import { gameState } from "./fixture.generated";
+import type { AttributeWeight } from "../../store/generated/AttributeWeight";
+import { gameState, positionWeights } from "./fixture.generated";
 import type { HarnessProfile } from "./harnessPage";
 
 /** What the backend answers about the one player a profile page is open on. */
@@ -128,6 +129,8 @@ function positionRatingsOf(player: PlayerData, source: PositionRatings["source"]
     familiarity: index === 0 ? ("natural" as const) : ("can_play" as const),
     deployed: false,
     key_attributes: top as PositionRatings["rows"][number]["key_attributes"],
+    // Rust writes the table into the fixture (`position_weights`): the harness holds no copy.
+    weights: (positionWeights as Record<string, AttributeWeight[]>)[position] ?? [],
   }));
   return { source, rows };
 }
