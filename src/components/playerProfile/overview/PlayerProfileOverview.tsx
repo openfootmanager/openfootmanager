@@ -277,20 +277,30 @@ function SeasonCard({
           </div>
         ))}
       </div>
-      {/* Always drawn, zeros included: a keeper's clean sheets and a player's cards are part of his season. */}
-      {/* biome-ignore lint/a11y/noRedundantRoles: WebKit drops a list's semantics under list-style: none, so the role is restated. */}
-      <ul
-        role="list"
-        aria-label={t("playerProfile.overview.seasonExtras")}
-        className="m-0 flex list-none flex-wrap gap-x-4 gap-y-1 border-t border-line p-0 px-4 py-2 text-caption text-fg-muted"
-      >
-        {extras.map(([label, value]) => (
-          <li key={label}>
-            {label} <span className="font-semibold tabular-nums text-fg">{value}</span>
-          </li>
-        ))}
-      </ul>
+      <SeasonExtras extras={extras} />
     </OverviewCard>
+  );
+}
+
+/**
+ * Clean sheets and cards, always drawn and zeros included: a keeper's clean sheets and a player's
+ * bookings are part of his season, which the tiles above leave out.
+ */
+const SEASON_EXTRAS_CLASS =
+  "m-0 flex list-none flex-wrap gap-x-4 gap-y-1 border-t border-line px-4 py-2 text-caption text-fg-muted";
+
+function SeasonExtras({ extras }: { extras: [string, number][] }) {
+  const { t } = useTranslation();
+  const label = t("playerProfile.overview.seasonExtras");
+  return (
+    // biome-ignore lint/a11y/noRedundantRoles: WebKit drops a list's semantics under list-style: none, so the role is restated.
+    <ul role="list" aria-label={label} className={SEASON_EXTRAS_CLASS}>
+      {extras.map(([name, value]) => (
+        <li key={name}>
+          {name} <span className="font-semibold tabular-nums text-fg">{value}</span>
+        </li>
+      ))}
+    </ul>
   );
 }
 
