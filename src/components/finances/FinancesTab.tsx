@@ -903,7 +903,8 @@ function FinancesTabLoaded({
                       </div>
                       <div className="flex flex-wrap gap-2">
                         {sponsorAction.action_type.ChooseOption.options.map((option) => {
-                          const optionLoadingKey = `sponsor:${message.id}:${option.id}`;
+                          // Either answer in flight holds both: the opposite one must not be sent too.
+                          const answering = actionLoading?.startsWith(`sponsor:${message.id}:`);
                           return (
                             <div
                               key={option.id}
@@ -913,7 +914,7 @@ function FinancesTabLoaded({
                                 {option.description}
                               </p>
                               <Button
-                                disabled={actionLoading === optionLoadingKey}
+                                disabled={answering}
                                 onClick={() =>
                                   void handleSponsorOption(message.id, sponsorAction.id, option.id)
                                 }

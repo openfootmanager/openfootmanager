@@ -205,29 +205,35 @@ pub fn resolve_message_action_internal(
             // guard belongs here rather than in the MCP tool so the GUI obeys the
             // same rule through the same door.
             let today = game.clock.current_date.format("%Y-%m-%d").to_string();
-            let visible = game
+            // A message that is not in the inbox is refused: no handler runs for it. (A sponsor
+            // handler, say, needs neither the message nor the action, and would sign a deal from its
+            // fallback amount for a message that was deleted.)
+            let Some(message) = game
                 .messages
                 .iter()
                 .find(|message| message.id == message_id)
-                .is_none_or(|message| {
-                    ofm_core::slices::inbox::message_is_visible(&message.date, &today)
-                });
-            // An action answers once. Every handler below applies its effect (a morale hit, a signed
-            // sponsor) before it marks the action resolved, so a second answer would apply it again;
-            // the refusal here covers all of them, for the GUI and for an MCP agent alike.
-            let already_resolved = game
-                .messages
-                .iter()
-                .find(|message| message.id == message_id)
-                .and_then(|message| message.actions.iter().find(|action| action.id == action_id))
-                .is_some_and(|action| action.resolved);
-            if visible && already_resolved {
-                return Err("be.error.actionAlreadyResolved".to_string());
+            else {
+                return Err("be.error.actionNotFound".to_string());
+            };
+            let visible = ofm_core::slices::inbox::message_is_visible(&message.date, &today);
+            // An action answers once, and only an action the message has. Every handler below applies
+            // its effect (a morale hit, a signed sponsor) before it marks the action resolved, so a
+            // second answer would apply it again; the refusals here cover all of them, for the GUI and
+            // for an MCP agent alike. Visibility comes first: a message the player cannot see yet is
+            // ignored whatever its actions say.
+            if visible {
+                match message.actions.iter().find(|action| action.id == action_id) {
+                    None => return Err("be.error.actionNotFound".to_string()),
+                    Some(action) if action.resolved => {
+                        return Err("be.error.actionAlreadyResolved".to_string());
+                    }
+                    Some(_) => {}
+                }
             }
             // Try to apply player conversation or random event response
             let (effect, effect_i18n_key, effect_i18n_params) = if !visible {
-                // Treated exactly like an id that is not in the inbox, because
-                // from the player's side it is not: no effect, nothing resolved.
+                // From the player's side the message is not there yet: no effect,
+                // nothing resolved.
                 (None, None, None)
             } else if let Some(opt) = option_id {
                 // Try player events first, then random events
@@ -1026,5 +1032,138 @@ mod tests {
             resolve_message_action_internal(&state, Career::Active, "msg-1", "second", None);
 
         assert!(resolved.is_ok());
+    }
+
+    /// Given a sponsor offer accepted, its message since deleted and the deal since ended
+    /// When the same resolve is replayed (an MCP agent holding the old ids)
+    /// Then it is refused as not found and no fresh deal is signed from the handler's fallback
+    ///      amount and name: the handler never runs for a message that is not there.
+    #[test]
+    fn a_sponsor_offer_replayed_after_its_message_was_deleted_signs_nothing() {
+        let state = StateManager::new();
+        let mut game = make_game();
+        let mut offer = choice_message("sponsor_2026-08-20", &["accept", "decline"]);
+        offer
+            .i18n_params
+            .insert("amount".to_string(), "400000".to_string());
+        game.messages = vec![offer];
+        state.set_game(game);
+        resolve_message_action_internal(
+            &state,
+            Career::Active,
+            "sponsor_2026-08-20",
+            "action-sponsor_2026-08-20",
+            Some("accept"),
+        )
+        .expect("the first accept signs the deal");
+        delete_message_internal(&state, Career::Active, "sponsor_2026-08-20").expect("deleted");
+        state
+            .update_game(|game| game.teams[0].sponsorship = None)
+            .expect("game");
+
+        let replay = resolve_message_action_internal(
+            &state,
+            Career::Active,
+            "sponsor_2026-08-20",
+            "action-sponsor_2026-08-20",
+            Some("accept"),
+        );
+
+        assert_eq!(
+            replay.map(|_| ()),
+            Err("be.error.actionNotFound".to_string())
+        );
+        let sponsorship = state
+            .get_game(|game| game.teams[0].sponsorship.clone())
+            .expect("game");
+        assert!(
+            sponsorship.is_none(),
+            "no deal is signed for a deleted offer"
+        );
+    }
+
+    /// Given a player event whose action was answered
+    /// When an answer arrives naming an action id the message does not have
+    /// Then it is refused as not found before any effect: morale is as the first answer left it.
+    #[test]
+    fn an_unknown_action_on_an_answered_player_event_is_refused_and_applies_nothing() {
+        let state = state_with_a_contract_concern();
+        resolve_message_action_internal(
+            &state,
+            Career::Active,
+            CONCERN,
+            CONCERN_ACTION,
+            Some("reassure"),
+        )
+        .expect("the first answer applies");
+        let after_first = morales(&state);
+
+        let replay = resolve_message_action_internal(
+            &state,
+            Career::Active,
+            CONCERN,
+            "no-such-action",
+            Some("no_renewal"),
+        );
+
+        assert_eq!(
+            replay.map(|_| ()),
+            Err("be.error.actionNotFound".to_string())
+        );
+        assert_eq!(morales(&state), after_first);
+    }
+
+    /// Given an id that is in no message of the inbox
+    /// When it is resolved
+    /// Then the caller is told it was not found, rather than the call succeeding on nothing.
+    #[test]
+    fn resolving_a_message_that_is_not_in_the_inbox_is_refused() {
+        let state = StateManager::new();
+        state.set_game(make_game());
+
+        let refused = resolve_message_action_internal(
+            &state,
+            Career::Active,
+            "no-such-message",
+            "action-no-such-message",
+            None,
+        );
+
+        assert_eq!(
+            refused.map(|_| ()),
+            Err("be.error.actionNotFound".to_string())
+        );
+    }
+
+    /// Given a message dated ahead of the clock, whose action is already resolved
+    /// When it is resolved again
+    /// Then the call succeeds with no effect and the game is exactly as it was: the player cannot
+    ///      see the message yet, so visibility is judged before the action is looked at.
+    #[test]
+    fn a_not_yet_visible_message_with_a_resolved_action_is_ignored_not_refused() {
+        let state = StateManager::new();
+        let mut game = make_game();
+        let mut future = unresolved_action_message("future", "2026-09-01");
+        future.actions[0].resolved = true;
+        game.messages = vec![future];
+        state.set_game(game);
+        let before = state
+            .get_game(|game| serde_json::to_value(game).expect("serialises"))
+            .expect("game");
+
+        let response = resolve_message_action_internal(
+            &state,
+            Career::Active,
+            "future",
+            "action-future",
+            None,
+        )
+        .expect("the call itself succeeds");
+
+        assert!(response["effect"].is_null());
+        let after = state
+            .get_game(|game| serde_json::to_value(game).expect("serialises"))
+            .expect("game");
+        assert_eq!(after, before);
     }
 }

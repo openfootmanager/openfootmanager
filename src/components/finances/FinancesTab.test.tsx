@@ -571,6 +571,31 @@ describe("FinancesTab facilities", () => {
     await waitFor(() => expect(screen.queryByRole("alert")).toBeNull());
   });
 
+  // Given a sponsor offer being answered (the backend has not replied)
+  // When the offer's buttons are read
+  // Then both answers wait, not only the one pressed: a second, opposite answer must not be sent
+  //      while the first is on its way.
+  it("disables both answers to a sponsor offer while either is on its way", async () => {
+    const initialState = createGameState({}, [createSponsorOfferMessage()]);
+    mockedInvoke.mockImplementation((command) => {
+      if (command === "get_finance_snapshot") return Promise.resolve(wireSnapshot());
+      if (command === "resolve_message_action") return new Promise(() => {});
+      return Promise.reject(new Error(`Unexpected command: ${command}`));
+    });
+    await renderFinances(<FinancesTab gameState={initialState} onGameUpdate={vi.fn()} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Accept the deal" }));
+
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Accept the deal" })).toBeDisabled(),
+    );
+    expect(screen.getByRole("button", { name: "Decline politely" })).toBeDisabled();
+    fireEvent.click(screen.getByRole("button", { name: "Decline politely" }));
+    expect(
+      mockedInvoke.mock.calls.filter(([command]) => command === "resolve_message_action"),
+    ).toHaveLength(1);
+  });
+
   it("requests a sponsor pitch for a pressured club and publishes the updated state", async () => {
     const initialState = createGameState(
       { wage_budget: 50000 },

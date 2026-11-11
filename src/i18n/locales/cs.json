@@ -2858,6 +2858,7 @@
       "noActiveGameSession": "Žádná aktivní herní relace",
       "careerChanged": "Kariéra se změnila dříve, než to bylo možné uložit.",
       "actionAlreadyResolved": "Na to už bylo odpovězeno, takže se nic nezměnilo.",
+      "actionNotFound": "Tato konverzace nebo nabídka už neexistuje.",
       "noActiveSaveSession": "Žádná aktivní relace ukládání",
       "saveNotFound": "Uložená pozice '{{saveId}}' nebyla nalezena.",
       "saveManagerUnavailable": "Uložená data jsou dočasně nedostupná.",

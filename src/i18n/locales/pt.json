@@ -2858,6 +2858,7 @@
       "noActiveGameSession": "Sem sessão de jogo ativa",
       "careerChanged": "A carreira mudou antes de isto poder ser guardado.",
       "actionAlreadyResolved": "Isso já foi respondido, por isso nada mudou.",
+      "actionNotFound": "Essa conversa ou oferta já não existe.",
       "noActiveSaveSession": "Sem sessão de gravação ativa",
       "saveNotFound": "Gravação '{{saveId}}' não encontrada.",
       "teamNotFound": "Equipa não encontrada",

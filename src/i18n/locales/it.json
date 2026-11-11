@@ -2858,6 +2858,7 @@
       "noActiveGameSession": "Nessuna partita attiva",
       "careerChanged": "La carriera è cambiata prima che fosse possibile salvare.",
       "actionAlreadyResolved": "Ha già ricevuto una risposta, quindi non è cambiato nulla.",
+      "actionNotFound": "Quella conversazione o offerta non esiste più.",
       "noActiveSaveSession": "Nessuna sessione di salvataggio attiva",
       "saveNotFound": "Salvataggio '{{saveId}}' non trovato.",
       "teamNotFound": "Squadra non trovata",

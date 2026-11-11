@@ -2858,6 +2858,7 @@
       "noActiveGameSession": "当前没有活动中的游戏会话",
       "careerChanged": "在保存之前，生涯已经切换。",
       "actionAlreadyResolved": "这已经回复过了，所以没有任何变化。",
+      "actionNotFound": "该对话或报价已不存在。",
       "noActiveSaveSession": "当前没有活动中的存档会话",
       "saveNotFound": "未找到存档“{{saveId}}”。",
       "teamNotFound": "未找到球队",
