@@ -247,30 +247,65 @@ mod tests {
         )
     }
 
-    /// Given distinctive club finances, colours and ground details, when selection is queried,
-    /// then every fact comes from that club rather than a default or its neighbour.
+    /// Given two clubs with distinct non-default facts, when selection is queried by team ID,
+    /// then each club carries its own stadium, finances, colours and founding year.
     #[test]
     fn club_facts_come_from_the_selected_club() {
         let mut game = world();
-        let club = &mut game.teams[0];
-        club.stadium_name = "North End".into();
-        club.stadium_capacity = 18_432;
-        club.transfer_budget = 8_765_432;
-        club.wage_budget = 123_456;
-        club.finance = -654_321;
-        club.colors.primary = "#123456".into();
-        club.colors.secondary = "#abcdef".into();
-        club.founded_year = 1897;
+        let north = &mut game.teams[0];
+        north.stadium_name = "North End".into();
+        north.stadium_capacity = 18_432;
+        north.transfer_budget = 8_765_432;
+        north.wage_budget = 123_456;
+        north.finance = -654_321;
+        north.colors.primary = "#123456".into();
+        north.colors.secondary = "#abcdef".into();
+        north.founded_year = 1897;
+        let south = &mut game.teams[1];
+        south.stadium_name = "South Park".into();
+        south.stadium_capacity = 31_678;
+        south.transfer_budget = 2_345_678;
+        south.wage_budget = 98_765;
+        south.finance = 543_210;
+        south.colors.primary = "#654321".into();
+        south.colors.secondary = "#fedcba".into();
+        south.founded_year = 1923;
+
         let wire = serde_json::to_value(query_team_selection(&game)).unwrap();
-        let facts = &wire["clubs"][0];
-        assert_eq!(facts["stadium_name"], "North End");
-        assert_eq!(facts["stadium_capacity"], 18_432);
-        assert_eq!(facts["transfer_budget"], 8_765_432);
-        assert_eq!(facts["wage_budget"], 123_456);
-        assert_eq!(facts["balance"], -654_321);
-        assert_eq!(facts["colors"]["primary"], "#123456");
-        assert_eq!(facts["colors"]["secondary"], "#abcdef");
-        assert_eq!(facts["founded_year"], 1897);
+        let clubs = wire["clubs"].as_array().unwrap();
+        assert_eq!(clubs.len(), 2);
+        let expected_clubs = [
+            serde_json::json!({
+                "team_id": "north",
+                "stadium_name": "North End",
+                "stadium_capacity": 18_432,
+                "transfer_budget": 8_765_432,
+                "wage_budget": 123_456,
+                "balance": -654_321,
+                "colors": { "primary": "#123456", "secondary": "#abcdef" },
+                "founded_year": 1897,
+            }),
+            serde_json::json!({
+                "team_id": "south",
+                "stadium_name": "South Park",
+                "stadium_capacity": 31_678,
+                "transfer_budget": 2_345_678,
+                "wage_budget": 98_765,
+                "balance": 543_210,
+                "colors": { "primary": "#654321", "secondary": "#fedcba" },
+                "founded_year": 1923,
+            }),
+        ];
+        for expected in expected_clubs {
+            let team_id = expected["team_id"].as_str().unwrap();
+            let facts = clubs
+                .iter()
+                .find(|club| club["team_id"] == team_id)
+                .unwrap();
+            for (field, value) in expected.as_object().unwrap() {
+                assert_eq!(&facts[field], value, "{team_id}.{field}");
+            }
+        }
     }
 
     /// Given more than five players, a tie, and a better rival, when selection is queried,
