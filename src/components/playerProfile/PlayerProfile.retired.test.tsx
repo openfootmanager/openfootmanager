@@ -319,4 +319,24 @@ describe("the profile of a retired player", () => {
     expect(within(card).getByText("Retired")).toBeInTheDocument();
     expect(within(card).queryByText(/Last club/)).toBeNull();
   });
+
+  /**
+   * Given a retirement from a club his career has no row for (he left it before a season there was
+   *       recorded), and an earlier club in his career
+   * When his profile opens
+   * Then there is no last club to show: the card must not name the earlier club as if he retired
+   *      from it
+   */
+  it("does not name an earlier club when his last club has no season in his career", () => {
+    renderRetiree({
+      ...retiree,
+      movement_history: [
+        { date: "2031-06-30", kind: "retired", from_team_id: "team-3", from_team_name: null },
+      ],
+    });
+
+    const card = screen.getByRole("region", { name: "Oscar Timer" });
+    expect(within(card).getByText("Retired")).toBeInTheDocument();
+    expect(within(card).queryByText(/Last club/)).toBeNull();
+  });
 });
