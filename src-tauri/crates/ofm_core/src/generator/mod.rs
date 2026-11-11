@@ -3423,7 +3423,8 @@ mod tests {
 
     /// Given a market that held five scouts (the floor, less one hired since) when it rotates
     /// When the rotation replaces the unemployed staff
-    /// Then it never leaves fewer than the five it held: a rotation does not shrink the pool.
+    /// Then it leaves exactly the five it held: a rotation neither shrinks the pool nor refills it
+    ///      to the floor of six.
     #[test]
     fn a_rotation_does_not_shrink_the_scout_pool_below_the_floor() {
         let mut game = market_of_three_clubs_with_scouts(5);
