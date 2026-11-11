@@ -393,41 +393,42 @@ fn populate_minutes_played(
     tracked_player_ids: &[String],
     player_stats: &mut HashMap<String, PlayerMatchStats>,
 ) {
-    let mut minutes_by_player: HashMap<String, u8> = tracked_player_ids
+    let mut intervals: HashMap<String, (u8, u8)> = tracked_player_ids
         .iter()
         .cloned()
-        .map(|player_id| (player_id, total_minutes))
+        .map(|player_id| (player_id, (0, total_minutes)))
         .collect();
 
     for event in events {
         match event.event_type {
             EventType::Substitution => {
                 if let Some(ref player_off_id) = event.secondary_player_id {
-                    minutes_by_player
-                        .insert(player_off_id.clone(), event.minute.min(total_minutes));
+                    let interval = intervals
+                        .entry(player_off_id.clone())
+                        .or_insert((0, total_minutes));
+                    interval.1 = interval.1.min(event.minute.min(total_minutes));
                 }
                 if let Some(ref player_on_id) = event.player_id {
-                    minutes_by_player.insert(
+                    intervals.insert(
                         player_on_id.clone(),
-                        total_minutes.saturating_sub(event.minute),
+                        (event.minute.min(total_minutes), total_minutes),
                     );
                 }
             }
             EventType::RedCard | EventType::SecondYellow => {
                 if let Some(ref player_id) = event.player_id {
-                    let dismissed_at = event.minute.min(total_minutes);
-                    minutes_by_player
+                    intervals
                         .entry(player_id.clone())
-                        .and_modify(|minutes| *minutes = (*minutes).min(dismissed_at))
-                        .or_insert(dismissed_at);
+                        .and_modify(|interval| interval.1 = interval.1.min(event.minute))
+                        .or_insert((0, event.minute.min(total_minutes)));
                 }
             }
             _ => {}
         }
     }
 
-    for (player_id, minutes_played) in minutes_by_player {
-        player_stats.entry(player_id).or_default().minutes_played = minutes_played;
+    for (player_id, (entry, exit)) in intervals {
+        player_stats.entry(player_id).or_default().minutes_played = exit.saturating_sub(entry);
     }
 }
 
