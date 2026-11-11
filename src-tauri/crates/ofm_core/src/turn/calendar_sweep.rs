@@ -82,45 +82,64 @@ pub(super) fn reconcile_calendar(game: &mut Game, today: &str, shown: &ShownFixt
     let Ok(day) = NaiveDate::parse_from_str(today, "%Y-%m-%d") else {
         return false;
     };
+    let Some(tomorrow) = day.succ_opt() else {
+        return false;
+    };
+    reconcile_from(game, today, day, tomorrow, shown)
+}
+
+/// Before simulation, today's unplayed club fixtures may still yield to national duty.
+pub(super) fn prepare_calendar(game: &mut Game, today: &str, shown: &ShownFixtures) -> bool {
+    let Ok(day) = NaiveDate::parse_from_str(today, "%Y-%m-%d") else {
+        return false;
+    };
+    reconcile_from(game, today, day, day, shown)
+}
+
+fn reconcile_from(
+    game: &mut Game,
+    today: &str,
+    day: NaiveDate,
+    first_day: NaiveDate,
+    shown: &ShownFixtures,
+) -> bool {
     let blackout = crate::national_team::international_blackout_around(game, day);
     let before = calendar_fingerprint(game, &blackout);
     if game.calendar_fingerprint == Some(before) {
         return false;
     }
-    let moved_after_being_shown = settle_calendar_today(game, day, &blackout, shown);
+    let moved_after_being_shown = settle_calendar_today(game, first_day, &blackout, shown);
     let after = calendar_fingerprint(game, &blackout);
     if after != before {
         // Something moved or was dropped, announced or not: the mirror the dashboard reads has to
         // follow. A sweep that changed nothing leaves it alone.
         game.sync_legacy_league();
     }
-    calendar_notice::announce_moved_matches(
-        game,
-        &format!("postponed_{today}"),
-        &moved_after_being_shown,
-    );
+    // A later draw is a separate event: the pre-day notice must not consume its sent-ledger key.
+    let event_key = if first_day == day {
+        format!("postponed_before_{today}")
+    } else {
+        format!("postponed_{today}")
+    };
+    calendar_notice::announce_moved_matches(game, &event_key, &moved_after_being_shown);
     game.calendar_fingerprint = Some(after);
     true
 }
 
-/// Settles the calendar for the days from tomorrow on; returns the moves of fixtures the player
-/// had been shown.
+/// Settles from the first still-playable day and returns moves of fixtures already shown.
 fn settle_calendar_today(
     game: &mut Game,
-    day: NaiveDate,
+    first_day: NaiveDate,
     blackout: &BTreeSet<NaiveDate>,
     shown: &ShownFixtures,
 ) -> Vec<calendar_reconcile::Move> {
-    let Some(tomorrow) = day.succ_opt() else {
-        return Vec::new();
-    };
     let bracket_competitions: HashSet<String> = game
         .competitions
         .iter()
         .filter(|competition| has_bracket(competition))
         .map(|competition| competition.id.clone())
         .collect();
-    calendar_reconcile::settle_calendar(&mut game.competitions, blackout, tomorrow, |planned| {
+    calendar_reconcile::settle_calendar(&mut game.competitions, blackout, first_day, |planned| {
         !bracket_competitions.contains(&planned.competition_id)
             || shown.contains(&(planned.competition_id.clone(), planned.fixture_id.clone()))
     })
@@ -579,5 +598,38 @@ mod tests {
         assert_ne!(final_tie.date, "2033-09-09", "the sweep moved it");
         assert!(final_tie.postponement.is_none(), "it was never shown");
         assert_eq!(moved_message_count(&game), 0);
+    }
+    /// Given an old clash settled before play and another caused by today's draw, When both
+    /// sweeps announce their distinct events, Then neither of the user's moved matches is omitted.
+    #[test]
+    fn before_and_after_day_moves_are_both_announced() {
+        let mut game = game_on(2033, 3, 1, "a");
+        game.competitions = vec![
+            league(vec![
+                fixture("league", "l1", "2033-03-10", "a", "z"),
+                fixture("league", "l2", "2033-03-17", "a", "y"),
+            ]),
+            cup(vec![vec![fixture("cup", "t1", "2033-03-10", "a", "b")]]),
+        ];
+        let shown = shown_bracket_fixtures(&game);
+        prepare_calendar(&mut game, "2033-03-01", &shown);
+        assert_ne!(date_of(&game, "league", "l1"), "2033-03-10");
+        game.competitions[1]
+            .fixtures
+            .push(fixture("cup", "t2", "2033-03-17", "a", "c"));
+        reconcile_calendar(&mut game, "2033-03-01", &shown);
+        assert_ne!(date_of(&game, "league", "l2"), "2033-03-17");
+        let notices = game
+            .messages
+            .iter()
+            .filter_map(|m| m.i18n_params.get("matches"))
+            .cloned()
+            .collect::<Vec<_>>()
+            .join("\n");
+        assert!(notices.contains("a – z:"));
+        assert!(
+            notices.contains("a – y:"),
+            "the later draw must announce the other moved match too"
+        );
     }
 }

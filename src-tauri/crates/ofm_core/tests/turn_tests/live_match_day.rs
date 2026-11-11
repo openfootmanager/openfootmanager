@@ -78,13 +78,31 @@ fn finishing_a_live_match_plays_the_other_competitions_due_today() {
     );
 }
 
+fn add_idle_call_up_clubs(game: &mut Game) {
+    for (id, name, prefix) in [("team5", "Idle Home", "t5"), ("team6", "Idle Away", "t6")] {
+        game.teams.push(make_team(id, name));
+        game.players.extend(make_squad(id, prefix));
+    }
+}
+
+fn national_squads(home_prefix: &str, away_prefix: &str) -> Vec<NationalTeam> {
+    let mut england = NationalTeam::new("nt-eng".into(), "England".into(), "ENG".into(), None);
+    england.squad_player_ids = vec![format!("{home_prefix}_fwd0"), format!("{home_prefix}_mid0")];
+    let mut brazil = NationalTeam::new("nt-bra".into(), "Brazil".into(), "BRA".into(), None);
+    brazil.squad_player_ids = vec![format!("{away_prefix}_fwd0"), format!("{away_prefix}_mid0")];
+    vec![england, brazil]
+}
+
+/// Given a completed watched match and call-ups at idle clubs, When its live day ends,
+/// Then the due national friendly still plays through the shared daily tail.
 #[test]
 fn finishing_a_live_match_plays_a_national_team_fixture_due_today() {
     let mut game = game_with_a_second_competition();
     let today = game.clock.current_date.format("%Y-%m-%d").to_string();
 
-    let mut england = NationalTeam::new("nt-eng".into(), "England".into(), "ENG".into(), None);
-    england.squad_player_ids = vec!["t1_fwd0".into(), "t1_mid0".into(), "t1_def0".into()];
+    add_idle_call_up_clubs(&mut game);
+    game.national_teams = national_squads("t5", "t6");
+    let england = &mut game.national_teams[0];
     england.fixtures.push(Fixture {
         postponement: None,
         id: "ntf-1".into(),
@@ -97,9 +115,6 @@ fn finishing_a_live_match_plays_a_national_team_fixture_due_today() {
         status: FixtureStatus::Scheduled,
         result: None,
     });
-    let mut brazil = NationalTeam::new("nt-bra".into(), "Brazil".into(), "BRA".into(), None);
-    brazil.squad_player_ids = vec!["t2_fwd0".into(), "t2_mid0".into()];
-    game.national_teams = vec![england, brazil];
 
     turn::finish_live_match_day(&mut game);
 
@@ -112,17 +127,7 @@ fn finishing_a_live_match_plays_a_national_team_fixture_due_today() {
     assert!(fixture.result.is_some());
 }
 
-#[test]
-fn finishing_a_live_match_plays_a_world_cup_fixture_due_today() {
-    let mut game = game_with_a_second_competition();
-    let today = game.clock.current_date.format("%Y-%m-%d").to_string();
-
-    let mut england = NationalTeam::new("nt-eng".into(), "England".into(), "ENG".into(), None);
-    england.squad_player_ids = vec!["t1_fwd0".into(), "t1_mid0".into()];
-    let mut brazil = NationalTeam::new("nt-bra".into(), "Brazil".into(), "BR".into(), None);
-    brazil.squad_player_ids = vec!["t2_fwd0".into()];
-    game.national_teams = vec![england, brazil];
-
+fn add_world_cup_final(game: &mut Game, today: &str) {
     let mut cup = League::new(
         "wc".to_string(),
         "World Cup".to_string(),
@@ -138,7 +143,7 @@ fn finishing_a_live_match_plays_a_world_cup_fixture_due_today() {
         id: "wc-final".to_string(),
         competition_id: "wc".to_string(),
         matchday: 1,
-        date: today,
+        date: today.to_string(),
         home_team_id: "nt-eng".to_string(),
         away_team_id: "nt-bra".to_string(),
         competition: FixtureCompetition::InternationalNation,
@@ -152,19 +157,76 @@ fn finishing_a_live_match_plays_a_world_cup_fixture_due_today() {
         ..Default::default()
     });
     game.competitions.push(cup);
+}
 
+/// Given a completed watched match and call-ups at idle clubs, When its live day ends,
+/// Then a due World Cup tie still plays and records its result.
+#[test]
+fn finishing_a_live_match_plays_a_world_cup_fixture_due_today() {
+    let mut game = game_with_a_second_competition();
+    let today = game.clock.current_date.format("%Y-%m-%d").to_string();
+    add_idle_call_up_clubs(&mut game);
+    game.national_teams = national_squads("t5", "t6");
+    add_world_cup_final(&mut game, &today);
     turn::finish_live_match_day(&mut game);
-
     let cup = game
         .competitions
         .iter()
         .find(|competition| competition.id == "wc")
-        .expect("the tournament survives the day");
+        .unwrap();
     assert_eq!(
         cup.fixtures[0].status,
         FixtureStatus::Completed,
         "a World Cup tie due today must be played on a live-match day too"
     );
+    assert!(cup.fixtures[0].result.is_some());
+}
+
+/// Given call-ups whose clubs already played the watched match, When the live day ends,
+/// Then their World Cup tie waits for rest, retains its identity and plays exactly once later.
+#[test]
+fn a_watched_club_match_defers_its_players_world_cup_tie() {
+    let mut game = game_with_a_second_competition();
+    let day = game.clock.current_date.date_naive();
+    game.national_teams = national_squads("t1", "t2");
+    add_world_cup_final(&mut game, &day.to_string());
+    turn::finish_live_match_day(&mut game);
+    let fixture = &game
+        .competitions
+        .iter()
+        .find(|c| c.id == "wc")
+        .unwrap()
+        .fixtures[0];
+    assert_eq!(fixture.status, FixtureStatus::Scheduled);
+    assert!(fixture.result.is_none());
+    let moved = chrono::NaiveDate::parse_from_str(&fixture.date, "%Y-%m-%d").unwrap();
+    assert!((moved - day).num_days() >= 3);
+    assert_eq!(
+        fixture.postponement.as_ref().unwrap().original_date,
+        day.to_string()
+    );
+    assert_eq!(game.competitions[0].fixtures[0].date, day.to_string());
+    assert_eq!(
+        game.competitions[0].fixtures[0].status,
+        FixtureStatus::Completed
+    );
+    game.clock.current_date = chrono::DateTime::from_naive_utc_and_offset(
+        moved.and_hms_opt(12, 0, 0).unwrap(),
+        chrono::Utc,
+    );
+    turn::finish_live_match_day(&mut game);
+    let cup = game.competitions.iter().find(|c| c.id == "wc").unwrap();
+    assert_eq!(cup.fixtures.len(), 1);
+    assert_eq!(cup.fixtures[0].id, "wc-final");
+    assert_eq!(cup.fixtures[0].date, moved.to_string());
+    assert_eq!(cup.fixtures[0].status, FixtureStatus::Completed);
+    assert!(cup.fixtures[0].result.is_some());
+    let players = serde_json::to_value(&game.players).unwrap();
+    assert_eq!(
+        ofm_core::national_tournament::process_fixtures_due(&mut game, &moved.to_string()),
+        0
+    );
+    assert_eq!(serde_json::to_value(&game.players).unwrap(), players);
 }
 
 #[test]

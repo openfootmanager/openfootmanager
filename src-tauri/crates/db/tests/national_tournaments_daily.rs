@@ -10,7 +10,7 @@ use ofm_core::{
     game::Game,
     group_stage::{GroupStageConfig, generate_group_knockout_cup_with},
 };
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 fn tournament_game(active: bool) -> Game {
     let start = Utc.with_ymd_and_hms(2033, 2, 1, 12, 0, 0).unwrap();
@@ -84,7 +84,11 @@ fn tournament_game(active: bool) -> Game {
 }
 
 fn snapshot(game: &Game) -> (BTreeMap<String, serde_json::Value>, serde_json::Value) {
-    let cup = &game.competitions[0];
+    let cup = game
+        .competitions
+        .iter()
+        .find(|c| c.scope == CompetitionScope::Continental)
+        .unwrap();
     (
         cup.fixtures
             .iter()
@@ -379,5 +383,542 @@ fn a_continental_national_league_table_records_each_result() {
     assert!(
         table.standings.iter().all(|row| row.played == 1),
         "both nations must receive their league-table result"
+    );
+}
+
+fn competing_tournaments() -> Game {
+    use domain::league::{Fixture, FixtureCompetition, League};
+    let mut game = tournament_game(false);
+    let nations: Vec<_> = game.national_teams.iter().map(|n| n.id.clone()).collect();
+    game.competitions[0] = generate_group_knockout_cup_with(
+        "Continental nations",
+        2033,
+        &nations,
+        game.clock.current_date,
+        CompetitionType::InternationalNation,
+        CompetitionScope::Continental,
+        &GroupStageConfig {
+            group_size: 2,
+            legs: 1,
+            qualifiers_per_group: 2,
+            matchday_gap_days: 3,
+            knockout_round_gap_days: 3,
+            knockout_matches_per_day: 4,
+            ..Default::default()
+        },
+    );
+    game.competitions[0].priority = 9500;
+    let mut qualifier = League::new(
+        "world-cup-qualifying-2034-europe".into(),
+        "World Cup qualifying".into(),
+        2034,
+        &nations[..2],
+    );
+    qualifier.kind = CompetitionType::InternationalNation;
+    qualifier.scope = CompetitionScope::International;
+    qualifier.priority = 9000;
+    qualifier.fixtures = vec![Fixture {
+        id: "qualifier-eng-fr".into(),
+        competition_id: qualifier.id.clone(),
+        home_team_id: nations[0].clone(),
+        away_team_id: nations[1].clone(),
+        date: "2033-02-04".into(),
+        competition: FixtureCompetition::InternationalNation,
+        ..Default::default()
+    }];
+    assert!(ofm_core::world_cup::is_world_cup_qualifying(&qualifier));
+    game.competitions.push(qualifier);
+    game
+}
+
+fn overlaps_qualifier(fixture: &domain::league::Fixture) -> bool {
+    [&fixture.home_team_id, &fixture.away_team_id]
+        .iter()
+        .any(|id| ["nt-ENG", "nt-FR"].contains(&id.as_str()))
+}
+
+fn draw_competing_round() -> Game {
+    let mut game = competing_tournaments();
+    assert_eq!(
+        ofm_core::national_tournament::process_fixtures_due(&mut game, "2033-02-01"),
+        4
+    );
+    assert_eq!(game.competitions[0].knockout_rounds.len(), 1);
+    assert_eq!(game.competitions[0].knockout_rounds[0].fixture_ids.len(), 4);
+    game
+}
+
+/// Given a continental round whose authored date clashes with World Cup qualifying,
+/// When its last group game draws that round, Then the lower-priority ties already have legal dates.
+#[test]
+fn a_drawn_continental_round_yields_to_world_cup_qualifying() {
+    let game = draw_competing_round();
+    let ties: Vec<_> = game.competitions[0]
+        .fixtures
+        .iter()
+        .filter(|f| f.status == FixtureStatus::Scheduled && overlaps_qualifier(f))
+        .collect();
+    assert!(!ties.is_empty());
+    for tie in ties {
+        assert!(
+            tie.date.as_str() >= "2033-02-07",
+            "draw must keep three days from the qualifier: {}",
+            tie.date
+        );
+        assert!(
+            tie.postponement.is_none(),
+            "a newly drawn date was never published"
+        );
+    }
+    assert_eq!(game.competitions[1].fixtures[0].date, "2033-02-04");
+}
+
+fn finish_collision_day(live: bool) {
+    let mut game = draw_competing_round();
+    let published = national_fixture_ids(&game);
+    for fixture in &mut game.competitions[0].fixtures {
+        if fixture.status == FixtureStatus::Scheduled && overlaps_qualifier(fixture) {
+            fixture.date = "2033-02-04".into();
+            fixture.postponement = None;
+        }
+    }
+    game.clock.current_date = Utc.with_ymd_and_hms(2033, 2, 4, 12, 0, 0).unwrap();
+    let mut legal = game.clone();
+    for fixture in &mut legal.competitions[0].fixtures {
+        if fixture.status == FixtureStatus::Scheduled && overlaps_qualifier(fixture) {
+            fixture.date = "2033-02-07".into();
+        }
+    }
+    let play = |game: &mut Game| {
+        if live {
+            ofm_core::turn::finish_live_match_day(game);
+        } else {
+            ofm_core::turn::process_day(game);
+        }
+    };
+    let before: BTreeMap<_, _> = game
+        .players
+        .iter()
+        .filter(|p| {
+            game.national_teams[..2]
+                .iter()
+                .any(|n| n.squad_player_ids.contains(&p.id))
+        })
+        .map(|p| (p.id.clone(), p.condition))
+        .collect();
+    assert_eq!(before.len(), 2);
+    play(&mut legal);
+    play(&mut game);
+    assert!(
+        published.is_subset(&national_fixture_ids(&game)),
+        "every published fixture keeps its identity"
+    );
+    let qualifier = &game.competitions[1].fixtures[0];
+    assert_eq!(qualifier.status, FixtureStatus::Completed);
+    assert_eq!(qualifier.date, "2033-02-04");
+    let national_games_today = game
+        .competitions
+        .iter()
+        .flat_map(|c| &c.fixtures)
+        .filter(|f| {
+            f.status == FixtureStatus::Completed && f.date == "2033-02-04" && overlaps_qualifier(f)
+        })
+        .count();
+    assert_eq!(
+        national_games_today, 1,
+        "qualifying nations must play only their qualifier today"
+    );
+    for (id, condition) in before {
+        assert!(
+            game.players.iter().find(|p| p.id == id).unwrap().condition < condition,
+            "qualifier player {id} must receive one match of wear"
+        );
+    }
+    assert_eq!(
+        serde_json::to_value(&game.players).unwrap(),
+        serde_json::to_value(&legal.players).unwrap(),
+        "the collision must apply exactly the wear of the legal one-match calendar"
+    );
+    complete_competing_tournaments(game, live);
+}
+
+fn assert_national_rest(game: &Game) {
+    let mut bookings: BTreeMap<String, Vec<String>> = BTreeMap::new();
+    for fixture in game
+        .competitions
+        .iter()
+        .flat_map(|c| &c.fixtures)
+        .filter(|f| f.status == FixtureStatus::Completed)
+    {
+        for nation in [&fixture.home_team_id, &fixture.away_team_id] {
+            bookings
+                .entry(nation.clone())
+                .or_default()
+                .push(fixture.date.clone());
+        }
+    }
+    assert!(!bookings.is_empty());
+    for dates in bookings.values_mut() {
+        dates.sort();
+        for pair in dates.windows(2) {
+            let date = |s: &str| chrono::NaiveDate::parse_from_str(s, "%Y-%m-%d").unwrap();
+            assert!(
+                (date(&pair[1]) - date(&pair[0])).num_days() >= 3,
+                "national rest violated: {pair:?}"
+            );
+        }
+    }
+}
+
+fn national_fixture_ids(game: &Game) -> BTreeSet<String> {
+    game.competitions
+        .iter()
+        .flat_map(|c| &c.fixtures)
+        .map(|f| f.id.clone())
+        .collect()
+}
+
+fn complete_competing_tournaments(mut game: Game, live: bool) {
+    let mut results = BTreeMap::new();
+    let mut published = national_fixture_ids(&game);
+    for _ in 0..30 {
+        let date = game.clock.current_date.format("%Y-%m-%d").to_string();
+        if live {
+            ofm_core::turn::finish_live_match_day(&mut game);
+        } else {
+            ofm_core::turn::process_day(&mut game);
+        }
+        let current = national_fixture_ids(&game);
+        assert!(
+            published.is_subset(&current),
+            "a postponed fixture must never disappear or be replaced"
+        );
+        published = current;
+        for fixture in game.competitions.iter().flat_map(|c| &c.fixtures) {
+            if let Some(previous) = results.get(&fixture.id) {
+                assert_eq!(
+                    previous,
+                    &serde_json::to_value(&fixture.result).unwrap(),
+                    "a played fixture must retain its result"
+                );
+            }
+            if fixture.date > date {
+                assert_eq!(
+                    fixture.status,
+                    FixtureStatus::Scheduled,
+                    "future matches must wait"
+                );
+            }
+            if fixture.status == FixtureStatus::Completed {
+                assert!(fixture.result.is_some());
+                assert!(fixture.date <= date);
+                results.insert(
+                    fixture.id.clone(),
+                    serde_json::to_value(&fixture.result).unwrap(),
+                );
+            }
+        }
+        let wear = serde_json::to_value(&game.players).unwrap();
+        assert_eq!(
+            ofm_core::national_tournament::process_fixtures_due(&mut game, &date),
+            0
+        );
+        assert_eq!(
+            serde_json::to_value(&game.players).unwrap(),
+            wear,
+            "repeated dates apply no wear"
+        );
+        assert_national_rest(&game);
+        if results.len() == 12 {
+            break;
+        }
+    }
+    assert_eq!(
+        results.len(),
+        12,
+        "all four group matches, seven knockout ties and the qualifier must play"
+    );
+    assert_eq!(
+        game.competitions
+            .iter()
+            .map(|c| c.fixtures.len())
+            .sum::<usize>(),
+        12
+    );
+    let competitions: BTreeMap<_, _> = game
+        .competitions
+        .iter()
+        .map(|c| {
+            (
+                c.id.clone(),
+                serde_json::to_value((
+                    &c.fixtures,
+                    &c.standings,
+                    &c.groups,
+                    &c.knockout_rounds,
+                    c.priority,
+                ))
+                .unwrap(),
+            )
+        })
+        .collect();
+    let players: BTreeMap<_, _> = game
+        .players
+        .iter()
+        .map(|p| (p.id.clone(), serde_json::to_value(p).unwrap()))
+        .collect();
+    let loaded = assert_fresh_load_keeps_tournament(&game);
+    assert_eq!(
+        loaded
+            .competitions
+            .iter()
+            .map(|c| (
+                c.id.clone(),
+                serde_json::to_value((
+                    &c.fixtures,
+                    &c.standings,
+                    &c.groups,
+                    &c.knockout_rounds,
+                    c.priority
+                ))
+                .unwrap()
+            ))
+            .collect::<BTreeMap<_, _>>(),
+        competitions
+    );
+    assert_eq!(
+        loaded
+            .players
+            .iter()
+            .map(|p| (p.id.clone(), serde_json::to_value(p).unwrap()))
+            .collect::<BTreeMap<_, _>>(),
+        players
+    );
+}
+
+/// Given an existing same-day continental/qualifying collision, When a normal day runs,
+/// Then one match per nation plays, wear occurs once and all postponed ties eventually play and persist.
+#[test]
+fn a_normal_day_settles_competing_national_tournaments() {
+    finish_collision_day(false);
+}
+
+/// Given the same collision outside active scope, When a live club match day finishes,
+/// Then the national fixture and wear invariants match the normal day and survive reload.
+#[test]
+fn a_live_day_settles_competing_national_tournaments() {
+    finish_collision_day(true);
+}
+
+/// Given disjoint nations whose squads share a player, When a tournament day runs,
+/// Then that player's lower-priority match moves even without a nation-id clash.
+#[test]
+fn competing_national_squads_do_not_double_book_a_shared_player() {
+    let mut game = draw_competing_round();
+    let tie = game.competitions[0]
+        .fixtures
+        .iter()
+        .find(|f| f.status == FixtureStatus::Scheduled && !overlaps_qualifier(f))
+        .unwrap()
+        .clone();
+    let player = game.national_teams[0].squad_player_ids[0].clone();
+    game.national_teams
+        .iter_mut()
+        .find(|n| n.id == tie.home_team_id)
+        .unwrap()
+        .squad_player_ids = vec![player];
+    game.clock.current_date = Utc.with_ymd_and_hms(2033, 2, 4, 12, 0, 0).unwrap();
+    ofm_core::turn::process_day(&mut game);
+    let moved = game.competitions[0]
+        .fixtures
+        .iter()
+        .find(|f| f.id == tie.id)
+        .unwrap();
+    assert_eq!(
+        moved.status,
+        FixtureStatus::Scheduled,
+        "shared-player tie must wait"
+    );
+    assert!(moved.date.as_str() >= "2033-02-07");
+    assert_eq!(
+        game.competitions[1].fixtures[0].status,
+        FixtureStatus::Completed
+    );
+    for _ in 0..7 {
+        let today = game.clock.current_date.format("%Y-%m-%d").to_string();
+        ofm_core::turn::process_day(&mut game);
+        let moved = game.competitions[0]
+            .fixtures
+            .iter()
+            .find(|f| f.id == tie.id)
+            .unwrap();
+        if moved.status == FixtureStatus::Completed {
+            assert!(moved.result.is_some());
+            assert_eq!(moved.date, today);
+            let player_id = &game.national_teams[0].squad_player_ids[0];
+            let mut appearances: Vec<_> = game
+                .competitions
+                .iter()
+                .flat_map(|c| &c.fixtures)
+                .filter(|f| f.status == FixtureStatus::Completed && f.date.as_str() >= "2033-02-04")
+                .filter(|f| {
+                    game.national_teams.iter().any(|n| {
+                        n.squad_player_ids.contains(player_id)
+                            && (n.id == f.home_team_id || n.id == f.away_team_id)
+                    })
+                })
+                .map(|f| chrono::NaiveDate::parse_from_str(&f.date, "%Y-%m-%d").unwrap())
+                .collect();
+            appearances.sort();
+            assert_eq!(
+                appearances.len(),
+                2,
+                "qualifier and deferred tie must both apply one appearance"
+            );
+            assert!((appearances[1] - appearances[0]).num_days() >= 3);
+            let players = serde_json::to_value(&game.players).unwrap();
+            assert_eq!(
+                ofm_core::national_tournament::process_fixtures_due(&mut game, &today),
+                0
+            );
+            assert_eq!(serde_json::to_value(&game.players).unwrap(), players);
+            assert_fresh_load_keeps_tournament(&game);
+            return;
+        }
+    }
+    panic!("the shared-player tie must eventually play");
+}
+
+/// Given a legacy save with both tournament fixtures still due yesterday, When load repair replays it,
+/// Then qualifying keeps its historical date, the other tie moves, and a later fresh load repairs nothing.
+#[test]
+fn a_legacy_tournament_collision_is_repaired_without_replaying_wear() {
+    let mut game = draw_competing_round();
+    for fixture in &mut game.competitions[0].fixtures {
+        if fixture.status == FixtureStatus::Scheduled && overlaps_qualifier(fixture) {
+            fixture.date = "2033-02-04".into();
+        }
+    }
+    game.clock.current_date = Utc.with_ymd_and_hms(2033, 2, 5, 12, 0, 0).unwrap();
+    let saves = tempfile::tempdir().unwrap();
+    let mut writer = SaveManager::init(saves.path()).unwrap();
+    let save_id = writer
+        .create_save(&game, "Legacy tournament collision")
+        .unwrap();
+    let mut reader = SaveManager::init(saves.path()).unwrap();
+    let mut game = reader.load_game(&save_id).unwrap();
+    let qualifier = game
+        .competitions
+        .iter()
+        .flat_map(|c| &c.fixtures)
+        .find(|f| f.id == "qualifier-eng-fr")
+        .unwrap();
+    assert_eq!(qualifier.date, "2033-02-04");
+    assert_eq!(qualifier.status, FixtureStatus::Completed);
+    assert_national_rest(&game);
+    let wear_and_ranking = serde_json::to_value((&game.players, &game.world_history)).unwrap();
+    assert_eq!(ofm_core::catchup::repair_stranded_fixtures(&mut game), 0);
+    assert_eq!(
+        serde_json::to_value((&game.players, &game.world_history)).unwrap(),
+        wear_and_ranking
+    );
+    complete_competing_tournaments(game, false);
+}
+
+/// Given unrelated continental group games earlier than a World Cup replay date,
+/// When the scoped World Cup adapter runs, Then it does not advance that continental calendar.
+#[test]
+fn a_world_cup_replay_keeps_unrelated_continental_dates() {
+    use domain::league::{Fixture, FixtureCompetition, League};
+    let mut game = competing_tournaments();
+    let nations = vec!["nt-DE".into(), "nt-ES".into()];
+    let mut continental = League::new(
+        "earlier-nations".into(),
+        "Earlier continental".into(),
+        2033,
+        &nations,
+    );
+    continental.kind = CompetitionType::InternationalNation;
+    continental.scope = CompetitionScope::Continental;
+    continental.fixtures.push(Fixture {
+        id: "earlier-de-es".into(),
+        competition_id: continental.id.clone(),
+        date: "2033-02-01".into(),
+        home_team_id: nations[0].clone(),
+        away_team_id: nations[1].clone(),
+        competition: FixtureCompetition::InternationalNation,
+        ..Default::default()
+    });
+    game.competitions[0] = continental;
+    game.competitions[1].fixtures[0].date = "2033-03-01".into();
+    let fixtures = serde_json::to_value(&game.competitions[0].fixtures).unwrap();
+    assert_eq!(
+        ofm_core::world_cup::process_world_cup_fixtures_due(&mut game, "2033-03-01"),
+        1,
+        "a real due qualifier must reach replay settlement"
+    );
+    assert_eq!(
+        serde_json::to_value(&game.competitions[0].fixtures).unwrap(),
+        fixtures
+    );
+}
+
+/// Given an unrelated friendly still ahead of the live clock, When a later World Cup replay
+/// draws its final, Then replay settlement preserves the friendly's earlier playable date.
+#[test]
+fn a_world_cup_replay_draw_keeps_an_unrelated_friendly_on_its_date() {
+    use domain::league::{Fixture, FixtureCompetition};
+    let mut game = tournament_game(false);
+    let entrants: Vec<_> = game.national_teams[..4]
+        .iter()
+        .map(|n| n.id.clone())
+        .collect();
+    game.competitions = vec![ofm_core::schedule::generate_knockout_cup(
+        "World Cup replay",
+        2034,
+        &entrants,
+        Utc.with_ymd_and_hms(2033, 2, 4, 12, 0, 0).unwrap(),
+        CompetitionType::InternationalNation,
+        CompetitionScope::International,
+    )];
+    let friendly = Fixture {
+        id: "unrelated-february-friendly".into(),
+        competition_id: "international-friendlies".into(),
+        home_team_id: game.national_teams[4].id.clone(),
+        away_team_id: game.national_teams[5].id.clone(),
+        date: "2033-02-02".into(),
+        competition: FixtureCompetition::InternationalNation,
+        ..Default::default()
+    };
+    let expected = serde_json::to_value(&friendly).unwrap();
+    game.national_teams[4].fixtures.push(friendly);
+    assert_eq!(
+        ofm_core::world_cup::process_world_cup_fixtures_due(&mut game, "2033-02-04"),
+        1
+    );
+    assert_eq!(
+        ofm_core::world_cup::process_world_cup_fixtures_due(&mut game, "2033-02-05"),
+        1
+    );
+    assert_eq!(game.competitions[0].knockout_rounds.len(), 2);
+    assert_eq!(
+        serde_json::to_value(&game.national_teams[4].fixtures[0]).unwrap(),
+        expected
+    );
+}
+
+/// Given a World Cup being generated for the first time, When its dates are settled before
+/// publication, Then its real fixtures have legal dates without false postponement badges.
+#[test]
+fn a_new_world_cup_publishes_dates_without_false_postponements() {
+    let mut game = tournament_game(false);
+    game.competitions.clear();
+    let kickoff = game.clock.current_date;
+    ofm_core::world_cup::schedule_world_cup(&mut game, kickoff, &ofm_core::world_cup::FORMAT_16);
+    let fixtures = &game.competitions[0].fixtures;
+    assert_eq!(fixtures.len(), 24);
+    assert!(
+        fixtures.iter().all(|f| f.postponement.is_none()),
+        "new World Cup dates have never been shown before publication"
     );
 }

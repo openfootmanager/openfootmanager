@@ -5,6 +5,7 @@
 
 mod daily_policy;
 mod playoffs;
+mod publication;
 pub(crate) use daily_policy::after_matches as apply_world_cup_match_policies;
 pub use daily_policy::world_cup_champion;
 #[cfg(test)]
@@ -72,6 +73,7 @@ const GROUP_MATCHDAY_GAP_DAYS: i64 = 2;
 /// Days between knockout rounds, kept tight so the finals fit a real ~5-week
 /// World Cup window.
 const KNOCKOUT_GAP_DAYS: u32 = 3;
+pub(crate) const FINALS_MATCHES_PER_DAY: u32 = 4;
 
 /// World Cups take place in the summers of 2022, 2026, 2030, …
 pub fn is_world_cup_summer(year: i32) -> bool {
@@ -84,10 +86,14 @@ pub fn is_world_cup_competition(competition: &League) -> bool {
         && competition.scope == CompetitionScope::International
 }
 
+pub(crate) fn is_world_cup_finals(cup: &League) -> bool {
+    is_world_cup_competition(cup) && !is_world_cup_qualifying(cup) && !is_world_cup_playoff(cup)
+}
+
 /// The finals' planned last day, including knockout rounds not yet drawn. Actual round dates
 /// take precedence as they appear, so postponements update the reservation.
 pub(crate) fn finals_period(cup: &League) -> Option<(chrono::NaiveDate, chrono::NaiveDate)> {
-    if !is_world_cup_competition(cup) || is_world_cup_qualifying(cup) || is_world_cup_playoff(cup) {
+    if !is_world_cup_finals(cup) {
         return None;
     }
     let dates: Vec<_> = cup
@@ -573,6 +579,17 @@ pub fn schedule_world_cup_with_field(
     format: &WorldCupFormat,
     predetermined_field: Option<Vec<String>>,
 ) {
+    let published = crate::national_team::published_tournament_fixtures(game);
+    schedule_world_cup_with_history(game, kickoff, format, predetermined_field, &published);
+}
+
+pub(crate) fn schedule_world_cup_with_history(
+    game: &mut Game,
+    kickoff: DateTime<Utc>,
+    format: &WorldCupFormat,
+    predetermined_field: Option<Vec<String>>,
+    published: &std::collections::BTreeSet<(String, String)>,
+) {
     let year = kickoff.year();
     let host_code = host_for_year(game, year);
     let mut field = predetermined_field.unwrap_or_else(|| select_field(game, format));
@@ -627,47 +644,16 @@ pub fn schedule_world_cup_with_field(
             qualifiers_per_group: format.qualifiers_per_group,
             best_third_qualifiers: format.best_third_qualifiers,
             knockout_round_gap_days: KNOCKOUT_GAP_DAYS,
-            max_concurrent_matches_per_day: Some(4),
-            knockout_matches_per_day: 4,
+            max_concurrent_matches_per_day: Some(FINALS_MATCHES_PER_DAY as usize),
+            knockout_matches_per_day: FINALS_MATCHES_PER_DAY,
         },
     );
     // Sort after every club competition in browsing lists.
     cup.priority = 10_000;
     cup.name_key = Some("tournaments.competitions.worldCup".to_string());
-    let cup_id = cup.id.clone();
-    crate::calendar_identity::ensure_competition_calendar(&mut cup);
-    game.competitions.push(cup);
-    if !game.active_competition_ids.is_empty() {
-        game.active_competition_ids.push(cup_id);
-    }
+    publication::publish_with_history(game, cup, published);
 
-    // The whole world hears about a World Cup, participant or not.
-    let kickoff_news_id = format!("world_cup_kickoff_{year}");
-    if !game
-        .news
-        .iter()
-        .any(|article| article.id == kickoff_news_id)
-    {
-        let mut params = std::collections::HashMap::new();
-        params.insert("year".to_string(), year.to_string());
-        params.insert("nations".to_string(), field.len().to_string());
-        game.news.push(
-            NewsArticle::new(
-                kickoff_news_id,
-                String::new(),
-                String::new(),
-                String::new(),
-                kickoff.format("%Y-%m-%d").to_string(),
-                NewsCategory::Editorial,
-            )
-            .with_i18n(
-                "be.news.worldCupKickoff.headline",
-                "be.news.worldCupKickoff.body",
-                "be.source.footballHerald",
-                params,
-            ),
-        );
-    }
+    publication::announce_finals(game, year, field.len(), kickoff);
 }
 
 // ---------------------------------------------------------------------------
@@ -973,6 +959,16 @@ fn standing_order(a: &StandingEntry, b: &StandingEntry) -> std::cmp::Ordering {
 /// [`QUALIFYING_GROUP_SIZE`], one matchday per window, as before. National
 /// squads are prepared for every candidate nation.
 pub fn schedule_world_cup_qualifying(game: &mut Game, wc_year: i32, window_dates: &[String]) {
+    let published = crate::national_team::published_tournament_fixtures(game);
+    schedule_world_cup_qualifying_with_history(game, wc_year, window_dates, &published);
+}
+
+pub(crate) fn schedule_world_cup_qualifying_with_history(
+    game: &mut Game,
+    wc_year: i32,
+    window_dates: &[String],
+    published: &std::collections::BTreeSet<(String, String)>,
+) {
     if window_dates.is_empty() {
         return;
     }
@@ -983,48 +979,17 @@ pub fn schedule_world_cup_qualifying(game: &mut Game, wc_year: i32, window_dates
     }
     prepare_national_squads(game, &all_codes);
 
-    // The span is inferred from the windows: windows opening two years before
-    // the cup mean the campaign has both seasons to play with.
-    let first_window_year = chrono::NaiveDate::parse_from_str(&window_dates[0], "%Y-%m-%d")
-        .map(|date| date.year())
-        .unwrap_or(wc_year - 1);
-    let full_campaign = wc_year - first_window_year >= 2;
-    let (campaign_windows, matchdays_per_window, campaign_slots, group_size, legs) =
-        if full_campaign {
-            let mut windows = window_dates.to_vec();
-            windows.extend(season_window_dates(first_window_year + 1));
-            let slots = full_campaign_slots(windows.len());
-            (
-                windows,
-                MATCHDAYS_PER_WINDOW,
-                slots,
-                FULL_CAMPAIGN_GROUP_SIZE,
-                2u8,
-            )
-        } else {
-            let slots = window_dates.len();
-            (
-                window_dates.to_vec(),
-                1usize,
-                slots,
-                QUALIFYING_GROUP_SIZE,
-                1u8,
-            )
-        };
+    let publication::QualifyingWindows {
+        full_campaign,
+        dates: campaign_windows,
+        matches_per_window: matchdays_per_window,
+        slots: campaign_slots,
+        group_size,
+        legs,
+    } = publication::qualifying_windows(wc_year, window_dates);
 
-    let competition_id = format!("{QUALIFYING_COMPETITION_PREFIX}{wc_year}");
-    let mut competition = League::new(
-        competition_id.clone(),
-        format!("World Cup Qualifying {wc_year}"),
-        wc_year as u32,
-        &[],
-    );
-    competition.kind = CompetitionType::InternationalNation;
-    competition.scope = CompetitionScope::International;
-    competition.rules.format = CompetitionFormat::LeagueTable;
-    competition.standings.clear();
-    competition.priority = 9_000;
-    competition.name_key = Some("tournaments.competitions.worldCupQualifying".to_string());
+    let mut competition = publication::qualifying_competition(wc_year);
+    let competition_id = competition.id.clone();
 
     let base_date = crate::schedule::date_str_to_utc(&window_dates[0]).unwrap_or_else(Utc::now);
 
@@ -1092,36 +1057,8 @@ pub fn schedule_world_cup_qualifying(game: &mut Game, wc_year: i32, window_dates
         .map(|(_, fixture)| fixture)
         .collect();
     competition.participant_ids = participant_ids;
-    let competition_id = competition.id.clone();
-    crate::calendar_identity::ensure_competition_calendar(&mut competition);
-    game.competitions.push(competition);
-    if !game.active_competition_ids.is_empty() {
-        game.active_competition_ids.push(competition_id);
-    }
-
-    // News: the qualifying campaign gets under way.
-    let news_id = format!("world_cup_qualifying_{wc_year}");
-    if !game.news.iter().any(|article| article.id == news_id) {
-        let mut params = std::collections::HashMap::new();
-        params.insert("year".to_string(), wc_year.to_string());
-        params.insert("nations".to_string(), all_codes.len().to_string());
-        game.news.push(
-            NewsArticle::new(
-                news_id,
-                String::new(),
-                String::new(),
-                String::new(),
-                window_dates[0].clone(),
-                NewsCategory::Editorial,
-            )
-            .with_i18n(
-                "be.news.worldCupQualifying.headline",
-                "be.news.worldCupQualifying.body",
-                "be.source.footballHerald",
-                params,
-            ),
-        );
-    }
+    publication::publish_with_history(game, competition, published);
+    publication::announce_qualifying(game, wc_year, all_codes.len(), &window_dates[0]);
 }
 
 /// Carry an in-progress two-season qualifying campaign across the intermediate
@@ -1132,6 +1069,15 @@ pub fn schedule_world_cup_qualifying(game: &mut Game, wc_year: i32, window_dates
 /// squads after a summer of transfers and retirements. Fixtures already
 /// played keep their dates and results untouched.
 pub fn continue_world_cup_qualifying(game: &mut Game, window_dates: &[String]) {
+    let published = crate::national_team::published_tournament_fixtures(game);
+    continue_world_cup_qualifying_with_history(game, window_dates, &published);
+}
+
+pub(crate) fn continue_world_cup_qualifying_with_history(
+    game: &mut Game,
+    window_dates: &[String],
+    published: &std::collections::BTreeSet<(String, String)>,
+) {
     if window_dates.is_empty() {
         return;
     }
@@ -1164,7 +1110,7 @@ pub fn continue_world_cup_qualifying(game: &mut Game, window_dates: &[String]) {
     stranded.sort();
     stranded.dedup();
     for date in stranded {
-        process_world_cup_fixtures_due(game, &date);
+        process_world_cup_fixtures_due_with_history(game, &date, Some(published));
     }
 
     // Squads next: the campaign's second half should field current players.
@@ -1457,7 +1403,20 @@ pub fn qualified_field_from_game(
 /// Play only World Cup fixtures. Qualifying catch-up uses this scoped adapter; the daily
 /// world and load repair use the shared processor for every national tournament instead.
 pub fn process_world_cup_fixtures_due(game: &mut Game, today: &str) -> usize {
-    crate::national_tournament::process_selected_fixtures_due(game, today, is_world_cup_competition)
+    process_world_cup_fixtures_due_with_history(game, today, None)
+}
+
+fn process_world_cup_fixtures_due_with_history(
+    game: &mut Game,
+    today: &str,
+    published: Option<&std::collections::BTreeSet<(String, String)>>,
+) -> usize {
+    crate::national_tournament::process_selected_fixtures_due(
+        game,
+        today,
+        is_world_cup_competition,
+        published,
+    )
 }
 
 /// The inter-confederation playoff has two parallel finals, rather than a single champion.
@@ -1635,15 +1594,21 @@ mod tests {
     fn newly_staged_world_cup_playoff_has_its_calendar() {
         let mut game = empty_game();
         schedule_world_cup_qualifying(&mut game, 2026, &season_windows(2024));
-        let mut campaign_days: Vec<String> = game
-            .competitions
-            .iter()
-            .flat_map(|c| c.fixtures.iter().map(|f| f.date.clone()))
-            .collect();
-        campaign_days.sort();
-        campaign_days.dedup();
-        for date in &campaign_days {
-            process_world_cup_fixtures_due(&mut game, date);
+        // Settlement can postpone individual qualifiers: follow their actual dates, as a live
+        // campaign does, instead of retaining a list captured before any match was played.
+        for _ in 0..400 {
+            let next = game
+                .competitions
+                .iter()
+                .filter(|c| is_world_cup_qualifying(c))
+                .flat_map(|c| &c.fixtures)
+                .filter(|f| f.status == FixtureStatus::Scheduled)
+                .map(|f| f.date.clone())
+                .min();
+            let Some(date) = next else {
+                break;
+            };
+            process_world_cup_fixtures_due(&mut game, &date);
         }
         assert!(
             game.competitions.iter().any(is_world_cup_playoff),
@@ -3007,6 +2972,109 @@ mod tests {
             groups
                 .iter()
                 .all(|group| group.iter().filter(|code| regions[*code] == "asia").count() <= 1)
+        );
+    }
+    /// Given continental progression and qualifying completion in one processor call, When
+    /// a new playoff displaces that freshly drawn final, Then its date was never shown as postponed.
+    #[test]
+    fn a_playoff_draw_keeps_a_fresh_continental_final_unmarked() {
+        let mut game = empty_game();
+        schedule_world_cup_qualifying(&mut game, 2026, &season_windows(2024));
+        let mut last_day = None;
+        for _ in 0..400 {
+            let dates: std::collections::BTreeSet<_> = game
+                .competitions
+                .iter()
+                .filter(|c| is_world_cup_qualifying(c))
+                .flat_map(|c| &c.fixtures)
+                .filter(|f| f.status == FixtureStatus::Scheduled)
+                .map(|f| f.date.clone())
+                .collect();
+            if dates.len() == 1 {
+                last_day = dates.into_iter().next();
+                break;
+            }
+            let date = dates
+                .into_iter()
+                .next()
+                .expect("qualifying still has matches");
+            process_world_cup_fixtures_due(&mut game, &date);
+        }
+        let day = last_day.expect("one final qualifying date");
+        let date = |s: &str| chrono::NaiveDate::parse_from_str(s, "%Y-%m-%d").unwrap();
+        let mut oracle = game.clone();
+        process_world_cup_fixtures_due(&mut oracle, &day);
+        let playoff = oracle
+            .competitions
+            .iter()
+            .find(|c| is_world_cup_playoff(c))
+            .expect("the campaign stages its playoff");
+        let prelim = playoff.fixtures.first().unwrap();
+        let entrant = prelim.home_team_id.clone();
+        let busy: std::collections::BTreeSet<_> = game
+            .competitions
+            .iter()
+            .flat_map(|c| &c.fixtures)
+            .filter(|f| (date(&f.date) - date(&day)).num_days().abs() < 3)
+            .flat_map(|f| [&f.home_team_id, &f.away_team_id])
+            .cloned()
+            .collect();
+        let others: Vec<_> = game
+            .national_teams
+            .iter()
+            .filter(|n| !busy.contains(&n.id) && !playoff.participant_ids.contains(&n.id))
+            .take(3)
+            .map(|n| n.id.clone())
+            .collect();
+        assert_eq!(others.len(), 3);
+        let entrants = vec![
+            entrant.clone(),
+            others[0].clone(),
+            others[1].clone(),
+            others[2].clone(),
+        ];
+        let start = crate::schedule::date_str_to_utc(&day).unwrap();
+        let mut continental = crate::schedule::generate_knockout_cup(
+            "Delayed continental cup",
+            2026,
+            &entrants,
+            start,
+            CompetitionType::InternationalNation,
+            CompetitionScope::Continental,
+        );
+        continental.priority = 10_000;
+        let final_day = season_window_dates(2025).pop().unwrap();
+
+        continental.rules.knockout_round_gap_days =
+            (date(&final_day) - date(&day)).num_days() as u32;
+        for fixture in &mut continental.fixtures {
+            if fixture.home_team_id == entrant || fixture.away_team_id == entrant {
+                fixture.date = "2023-01-01".into();
+                fixture.status = FixtureStatus::Completed;
+                fixture.result = Some(domain::league::MatchResult {
+                    home_goals: u8::from(fixture.home_team_id == entrant),
+                    away_goals: u8::from(fixture.away_team_id == entrant),
+                    ..Default::default()
+                });
+            } else {
+                fixture.date = day.clone();
+            }
+        }
+        let cup_id = continental.id.clone();
+        game.competitions.push(continental);
+        assert!(crate::national_tournament::process_fixtures_due(&mut game, &day) > 1);
+        assert!(game.competitions.iter().any(is_world_cup_playoff));
+        let cup = game.competitions.iter().find(|c| c.id == cup_id).unwrap();
+        assert_eq!(cup.knockout_rounds.len(), 2);
+        let final_id = &cup.knockout_rounds[1].fixture_ids[0];
+        let final_tie = cup.fixtures.iter().find(|f| &f.id == final_id).unwrap();
+        assert!(
+            final_tie.date > final_day,
+            "the higher-priority playoff must actually displace the final"
+        );
+        assert!(
+            final_tie.postponement.is_none(),
+            "the final was drawn during this call, never shown on its original date"
         );
     }
 }
