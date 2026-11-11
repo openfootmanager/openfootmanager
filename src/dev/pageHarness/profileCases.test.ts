@@ -121,6 +121,23 @@ describe("the player profile's cases", () => {
   });
 
   /**
+   * Given the club's own injured player and its own loaned-out player
+   * When their cases are built
+   * Then the first carries an injury and the second a loan from the user's club to a rival, in the
+   *      patch the harness lays over the world's player, so the profile's banners can be shown
+   */
+  it("gives the injured and the loaned-out player the state their banners show", () => {
+    const injured = profileCase("injured");
+    const loaned = profileCase("loaned");
+
+    expect(playerOf(injured.playerId)?.team_id).toBe(USER_CLUB);
+    expect(injured.playerPatch?.injury).toMatchObject({ days_remaining: 12 });
+    expect(loaned.playerPatch?.active_loan).toMatchObject({ parent_team_id: USER_CLUB });
+    expect(loaned.playerPatch?.active_loan?.loan_team_id).not.toBe(USER_CLUB);
+    expect(profileCase("own").playerPatch).toBeUndefined();
+  });
+
+  /**
    * Given a player at another club of the user's division
    * When his case is built
    * Then he is known (live), his wage is hidden ("a known rival's wage is his club's business"),
