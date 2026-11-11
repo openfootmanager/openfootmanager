@@ -23,7 +23,7 @@ use domain::team::Team;
 use crate::contract_wage_policy::wage_policy_verdict;
 use crate::contracts::{
     RenewalDecision, RenewalOffer, apply_agreed_renewal, evaluate_renewal_offer,
-    expected_contract_years, expected_wage, next_renewal_round, remaining_contract_days,
+    expected_renewal_years, expected_wage, next_renewal_round, remaining_contract_days,
 };
 use crate::game::Game;
 use crate::squad_floor::{
@@ -252,9 +252,12 @@ fn squad_median_ovr(game: &Game, team_id: &str) -> u8 {
 /// takes it put it into effect.
 fn renew(game: &mut Game, team: &Team, player_index: usize, current_date: NaiveDate) {
     let player = &game.players[player_index];
+    let Some(contract_years) = expected_renewal_years(player, current_date) else {
+        return;
+    };
     let offer = RenewalOffer {
         weekly_wage: expected_wage(player, team, current_date),
-        contract_years: expected_contract_years(player, current_date),
+        contract_years,
     };
     if !wage_policy_verdict(game, team, player, offer.weekly_wage).permits() {
         return;

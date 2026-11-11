@@ -42,7 +42,7 @@ pub fn evaluate_renewal_offer(
 ) -> RenewalOutcome {
     let round = next_renewal_round(player, None);
     let expected_wage = expected_wage(player, team, current_date);
-    let expected_years = expected_contract_years(player, current_date);
+    let expected_years = expected_renewal_years(player, current_date).unwrap_or(MAX_CONTRACT_YEARS);
     let minimum_wage = minimum_acceptable_wage(player.wage());
 
     if offer.contract_years == 0 || offer.contract_years > MAX_CONTRACT_YEARS {
@@ -64,6 +64,10 @@ pub fn evaluate_renewal_offer(
             false,
             Some(feedback),
         );
+    }
+
+    if let Some(outcome) = non_extending_renewal_outcome(player, team, current_date, offer) {
+        return outcome;
     }
 
     if is_insulting_wage_offer(player.wage(), expected_wage, offer.weekly_wage) {
@@ -150,6 +154,97 @@ pub fn evaluate_renewal_offer(
     )
 }
 
+/// Invalid lengths do not consume a negotiation round or alter the contract.
+fn non_extending_renewal_outcome(
+    player: &Player,
+    team: &Team,
+    current_date: NaiveDate,
+    offer: &RenewalOffer,
+) -> Option<RenewalOutcome> {
+    let minimum = minimum_renewal_years(current_date, player.contract_end());
+    if minimum.is_some_and(|years| offer.contract_years >= years) {
+        return None;
+    }
+    let round = next_renewal_round(player, None);
+    let mut feedback = build_renewal_feedback(
+        player,
+        current_date,
+        RenewalDecision::Rejected,
+        RenewalSessionStatus::Stalled,
+        round,
+        expected_wage(player, team, current_date),
+        false,
+    );
+    feedback.mood = NegotiationMood::Firm;
+    feedback.headline_key = ERR_RENEWAL_DOES_NOT_EXTEND.to_string();
+    feedback.detail_key = minimum.map(|_| RENEWAL_MINIMUM_YEARS_KEY.to_string());
+    if let Some(years) = minimum {
+        feedback
+            .params
+            .insert("years".to_string(), years.to_string());
+    }
+    Some(renewal_outcome(
+        RenewalDecision::Rejected,
+        None,
+        minimum,
+        RenewalSessionStatus::Stalled,
+        false,
+        false,
+        Some(feedback),
+    ))
+}
+
+/// Blocked talks and a deal already agreed today retain their existing response
+/// before validation of a new offer, without cooling or recording an attempt.
+fn settled_renewal_outcome(player: &Player, current_date: NaiveDate) -> Option<RenewalOutcome> {
+    let today = current_date.format("%Y-%m-%d").to_string();
+    let round = next_renewal_round(player, Some(today.as_str()));
+    if has_active_manager_block(player, current_date) {
+        return Some(renewal_outcome(
+            RenewalDecision::Rejected,
+            None,
+            None,
+            RenewalSessionStatus::Blocked,
+            true,
+            false,
+            Some(build_renewal_feedback(
+                player,
+                current_date,
+                RenewalDecision::Rejected,
+                RenewalSessionStatus::Blocked,
+                round,
+                0,
+                false,
+            )),
+        ));
+    }
+
+    if let Some(state) = player.morale_core.renewal_state.as_ref()
+        && state.status == RenewalSessionStatus::Agreed
+        && state.last_attempt_date.as_deref() == Some(today.as_str())
+    {
+        return Some(renewal_outcome(
+            RenewalDecision::Rejected,
+            None,
+            None,
+            RenewalSessionStatus::Agreed,
+            true,
+            false,
+            Some(build_renewal_feedback(
+                player,
+                current_date,
+                RenewalDecision::Accepted,
+                RenewalSessionStatus::Agreed,
+                round,
+                player.wage(),
+                false,
+            )),
+        ));
+    }
+
+    None
+}
+
 pub fn propose_renewal(
     game: &mut Game,
     player_id: &str,
@@ -191,55 +286,17 @@ pub fn propose_renewal(
     }
 
     let current_date = game.clock.current_date.date_naive();
+    if let Some(outcome) = settled_renewal_outcome(&game.players[player_index], current_date) {
+        return Ok(outcome);
+    }
+    if let Some(outcome) =
+        non_extending_renewal_outcome(&game.players[player_index], &team, current_date, &offer)
+    {
+        return Ok(outcome);
+    }
     let cooled_off = cool_stale_renewal_session(&mut game.players[player_index], current_date);
     let today = current_date.format("%Y-%m-%d").to_string();
     let round = next_renewal_round(&game.players[player_index], Some(today.as_str()));
-
-    if has_active_manager_block(&game.players[player_index], current_date) {
-        return Ok(renewal_outcome(
-            RenewalDecision::Rejected,
-            None,
-            None,
-            RenewalSessionStatus::Blocked,
-            true,
-            cooled_off,
-            Some(build_renewal_feedback(
-                &game.players[player_index],
-                current_date,
-                RenewalDecision::Rejected,
-                RenewalSessionStatus::Blocked,
-                round,
-                0,
-                false,
-            )),
-        ));
-    }
-
-    if let Some(state) = game.players[player_index]
-        .morale_core
-        .renewal_state
-        .as_ref()
-        && state.status == RenewalSessionStatus::Agreed
-        && state.last_attempt_date.as_deref() == Some(today.as_str())
-    {
-        return Ok(renewal_outcome(
-            RenewalDecision::Rejected,
-            None,
-            None,
-            RenewalSessionStatus::Agreed,
-            true,
-            cooled_off,
-            Some(build_renewal_feedback(
-                &game.players[player_index],
-                current_date,
-                RenewalDecision::Accepted,
-                RenewalSessionStatus::Agreed,
-                round,
-                game.players[player_index].wage(),
-                false,
-            )),
-        ));
-    }
 
     let expected_wage = expected_wage(&game.players[player_index], &team, current_date);
     let mut outcome =
@@ -576,6 +633,9 @@ pub(crate) fn apply_agreed_renewal(
 ) -> Result<(), String> {
     let new_contract_end = contract_end_after(current_date, contract_years)
         .ok_or(ERR_UNABLE_TO_CALCULATE_CONTRACT_END_DATE.to_string())?;
+    if !extends_contract(player.contract_end(), new_contract_end) {
+        return Err(ERR_RENEWAL_DOES_NOT_EXTEND.to_string());
+    }
     let today = current_date.format("%Y-%m-%d").to_string();
 
     record_movement(

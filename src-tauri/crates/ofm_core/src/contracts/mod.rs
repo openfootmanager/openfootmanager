@@ -29,7 +29,7 @@ mod renewals;
 mod termination;
 
 pub(crate) use self::consts::*;
-pub(crate) use self::dates::contract_end_after;
+pub(crate) use self::dates::{contract_end_after, extends_contract, minimum_renewal_years};
 pub(crate) use self::helpers::*;
 pub(crate) use self::ledger::*;
 // `pub` so the public entry points stay resolvable as `ofm_core::contracts::*`.

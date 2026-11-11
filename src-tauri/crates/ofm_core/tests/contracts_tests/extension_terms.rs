@@ -1,6 +1,6 @@
 use super::*;
 
-fn veteran_with_a_june_contract(end: &str) -> Game {
+fn veteran_with_contract_end(end: &str) -> Game {
     let mut game = make_game();
     game.players[0].date_of_birth = "1990-01-01".to_string();
     game.players[0].stage_contract_end(Some(end.to_string()));
@@ -14,7 +14,7 @@ fn veteran_with_a_june_contract(end: &str) -> Game {
 /// Then the deal is refused without a contract record and asks for at least two years.
 #[test]
 fn a_one_year_renewal_that_keeps_the_same_end_is_refused() {
-    let mut game = veteran_with_a_june_contract("2027-06-30");
+    let mut game = veteran_with_contract_end("2027-06-30");
     let before = game.players[0].movement_history.clone();
     let wage = game.players[0].wage();
     let outcome = propose_renewal(
@@ -50,7 +50,7 @@ fn a_one_year_renewal_that_keeps_the_same_end_is_refused() {
 /// Then the accepted agreement ends on 30 June 2028.
 #[test]
 fn a_two_year_renewal_extends_the_june_contract() {
-    let mut game = veteran_with_a_june_contract("2027-06-30");
+    let mut game = veteran_with_contract_end("2027-06-30");
     let before = game.players[0].movement_history.len();
     let outcome = propose_renewal(
         &mut game,
@@ -71,7 +71,7 @@ fn a_two_year_renewal_extends_the_june_contract() {
 /// Then it refuses the non-extending terms before any caller can apply them.
 #[test]
 fn the_shared_evaluator_refuses_non_extending_terms() {
-    let game = veteran_with_a_june_contract("2027-06-30");
+    let game = veteran_with_contract_end("2027-06-30");
     let outcome = evaluate_renewal_offer(
         &game.players[0],
         &game.teams[0],
@@ -90,7 +90,7 @@ fn the_shared_evaluator_refuses_non_extending_terms() {
 /// Then the shortest extending agreement is two years, ending in June 2028.
 #[test]
 fn delegated_renewal_chooses_the_shortest_extending_length() {
-    let mut game = veteran_with_a_june_contract("2027-06-30");
+    let mut game = veteran_with_contract_end("2027-06-30");
     game.staff.push(make_assistant_manager());
     let report = delegate_renewals(
         &mut game,
@@ -111,7 +111,7 @@ fn delegated_renewal_chooses_the_shortest_extending_length() {
 /// Then the case stalls with the minimum length and no agreement is recorded.
 #[test]
 fn delegated_renewal_respects_a_limit_that_cannot_extend() {
-    let mut game = veteran_with_a_june_contract("2027-06-30");
+    let mut game = veteran_with_contract_end("2027-06-30");
     game.staff.push(make_assistant_manager());
     let before = game.players[0].movement_history.clone();
     let report = delegate_renewals(
@@ -141,7 +141,7 @@ fn delegated_renewal_respects_a_limit_that_cannot_extend() {
 /// Then the offer is refused without recording another contract.
 #[test]
 fn a_contract_at_the_maximum_end_cannot_be_renewed_without_extension() {
-    let mut game = veteran_with_a_june_contract("2031-06-30");
+    let mut game = veteran_with_contract_end("2031-06-30");
     let before = game.players[0].movement_history.clone();
     let outcome = propose_renewal(
         &mut game,
@@ -162,7 +162,7 @@ fn a_contract_at_the_maximum_end_cannot_be_renewed_without_extension() {
 /// Then the shorter deal is refused and the minimum is two years.
 #[test]
 fn a_legacy_non_june_end_requires_a_genuinely_later_date() {
-    let mut game = veteran_with_a_june_contract("2027-08-01");
+    let mut game = veteran_with_contract_end("2027-08-01");
     let before = game.players[0].movement_history.clone();
     let outcome = propose_renewal(
         &mut game,
@@ -184,7 +184,7 @@ fn a_legacy_non_june_end_requires_a_genuinely_later_date() {
 /// Then the impossible case stalls without preventing the other contract from extending.
 #[test]
 fn an_impossible_delegated_extension_does_not_abort_the_other_cases() {
-    let mut game = veteran_with_a_june_contract("2031-06-30");
+    let mut game = veteran_with_contract_end("2031-06-30");
     game.staff.push(make_assistant_manager());
     let before = game.players[0].movement_history.clone();
     let mut eligible = game.players[0].clone();
