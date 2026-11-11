@@ -2779,12 +2779,7 @@ fn a_free_agent_career_entry_names_no_club() {
 
     process_end_of_season(&mut game);
 
-    let entry = &game
-        .players
-        .iter()
-        .find(|p| p.id == "p1")
-        .unwrap()
-        .career[0];
+    let entry = &game.players.iter().find(|p| p.id == "p1").unwrap().career[0];
     assert_eq!(
         (entry.team_id.as_str(), entry.team_name.as_str()),
         ("", ""),

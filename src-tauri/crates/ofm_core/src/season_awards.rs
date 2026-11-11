@@ -72,17 +72,13 @@ struct ManagerAwardContext<'a> {
     win_rate: f64,
 }
 
-fn free_agent_team_name() -> String {
-    ["Free", "Agent"].join(" ")
-}
-
 fn resolve_team_info(game: &Game, player: &Player) -> (String, String) {
     let team_name = player
         .team_id
         .as_ref()
         .and_then(|team_id| game.teams.iter().find(|team| &team.id == team_id))
         .map(|team| team.name.clone())
-        .unwrap_or_else(free_agent_team_name);
+        .unwrap_or_default();
     let team_id = player.team_id.clone().unwrap_or_default();
 
     (team_id, team_name)

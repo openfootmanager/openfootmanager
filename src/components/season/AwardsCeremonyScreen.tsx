@@ -60,12 +60,14 @@ export default function AwardsCeremonyScreen({
     article,
     gameState,
     "goldenBoot",
+    t("common.freeAgent"),
   );
   const playerOfYear = resolvePlayerWinner(
     awards?.player_of_year[0] ?? null,
     article,
     gameState,
     "poty",
+    t("common.freeAgent"),
   );
   const hasPlayerOfYear = awards
     ? awards.player_of_year.length > 0
@@ -198,12 +200,14 @@ function resolvePlayerWinner(
   article: NewsArticle | undefined,
   gameState: GameStateData,
   prefix: "goldenBoot" | "poty",
+  freeAgentLabel: string,
 ): ResolvedPlayerWinner {
   if (entry) {
     return {
       entry,
       playerName: entry.player_name,
-      teamName: entry.team_name,
+      // A winner at no club has an empty team id, whatever name an older save stored.
+      teamName: entry.team_id ? entry.team_name : freeAgentLabel,
       value: prefix === "goldenBoot" ? entry.value.toFixed(0) : entry.value.toFixed(1),
       playerId: entry.player_id || null,
       teamId: entry.team_id || null,
