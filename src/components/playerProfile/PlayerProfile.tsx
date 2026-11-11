@@ -4,7 +4,6 @@ import { useContractRiskLevels } from "../../hooks/useContractWarningStages";
 import type { PlayerData, GameStateData } from "../../store/gameStore";
 import { useTranslation } from "react-i18next";
 import { Select, TabPanel, Tabs } from "../ui";
-import { TraitList } from "../TraitBadge";
 import { getRoleOptions } from "../../lib/playerRoles";
 import { getDeployedPosition } from "../squad/SquadTab.helpers";
 import { setPlayerRole as setPlayerRoleService } from "../../services/squadService";
@@ -27,12 +26,11 @@ import PlayerProfileAttributesCard from "./PlayerProfileAttributesCard";
 import PlayerProfileCareerHistoryCard from "./PlayerProfileCareerHistoryCard";
 import PlayerProfileContractCard from "./PlayerProfileContractCard";
 import PlayerProfileNameCard from "./PlayerProfileNameCard";
+import PlayerProfileOverview from "./overview/PlayerProfileOverview";
 import PlayerProfileInjuryBanner from "./PlayerProfileInjuryBanner";
 import PlayerProfileLoanStatusBanner from "./PlayerProfileLoanStatusBanner";
 import PlayerProfileMovementHistoryCard from "./PlayerProfileMovementHistoryCard";
-import PlayerProfileRecentMatchesCard from "./PlayerProfileRecentMatchesCard";
 import PlayerProfileRenewalModal from "./PlayerProfileRenewalModal";
-import PlayerProfileSeasonStatsCard from "./PlayerProfileSeasonStatsCard";
 import PlayerProfileTerminationModal from "./PlayerProfileTerminationModal";
 import { useScoutedReport } from "./useScoutedReport";
 import PlayerProfilePotentialOpinion from "./PlayerProfilePotentialOpinion";
@@ -350,45 +348,46 @@ export default function PlayerProfile({
         />
       </div>
 
-      {/* The existing cards, moved into their tabs unchanged: the Overview, Attributes, Career
-          and Contract slices that follow redraw them one by one. */}
-      <TabPanel
-        idPrefix={tabsId}
-        tabId="overview"
-        hidden={hidden("overview")}
-        className="flex flex-col gap-5"
-      >
-        {traits.length > 0 ? <TraitList traits={traits} size="sm" /> : null}
-
-        {isOwnClub && onGameUpdate && (
-          <div className="flex items-center gap-3 rounded-xl border border-gray-200 bg-white px-4 py-3 dark:border-navy-600 dark:bg-navy-800">
-            <span className="shrink-0 text-sm font-medium text-gray-600 dark:text-gray-300">
-              {t("tactics.playerRoleLabel")}
-            </span>
-            <Select
-              selectSize="sm"
-              value={currentTacticalRole}
-              onChange={(e) => {
-                void handleTacticalRoleChange(e.target.value as PlayerRole);
-              }}
-              aria-label={t("tactics.playerRoleLabel")}
-            >
-              {tacticalRoleOptions.map((role) => (
-                <option key={role} value={role}>
-                  {t(`tactics.playerRoles.${role}`, role)}
-                </option>
-              ))}
-            </Select>
-          </div>
-        )}
-
-        <PlayerProfileSeasonStatsCard
-          stats={player.stats}
+      <TabPanel idPrefix={tabsId} tabId="overview" hidden={hidden("overview")}>
+        <PlayerProfileOverview
+          player={player}
+          language={i18n.language}
+          showsPrivateState={showsPrivateState}
+          recentMatches={recentMatches}
           seasonRatingRated={advancedStats.seasonRatingRated}
-          t={t}
+          tacticalRole={
+            isOwnClub && onGameUpdate
+              ? {
+                  value: currentTacticalRole,
+                  options: tacticalRoleOptions,
+                  onChange: (role) => void handleTacticalRoleChange(role as PlayerRole),
+                }
+              : null
+          }
+          contractRiskLevel={contractRiskLevel}
+          contractRiskLabel={contractRiskLabel}
+          wageText={visibleWageText(visibleWage, formatPlayerWage, t)}
+          wageRetry={wageRetry}
+          potentialOpinion={
+            opinionAnswer.status === "failed" ? (
+              <ProfileLoadFailed t={t} onRetry={opinionAnswer.retry} />
+            ) : potentialOpinion ? (
+              <PlayerProfilePotentialOpinion
+                opinion={potentialOpinion}
+                locale={i18n.language}
+                t={t}
+              />
+            ) : null
+          }
+          positionRatings={positionRatings}
+          attributes={
+            knowsPlayerRating(knowledge) || scoutedReport !== null
+              ? attributesPlayer.attributes
+              : null
+          }
+          traits={traits}
+          onOpenTab={setTab}
         />
-
-        <PlayerProfileRecentMatchesCard matches={recentMatches} t={t} />
       </TabPanel>
 
       <TabPanel idPrefix={tabsId} tabId="attributes" hidden={hidden("attributes")}>
