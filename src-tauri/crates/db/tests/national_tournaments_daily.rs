@@ -816,3 +816,47 @@ fn a_world_cup_replay_keeps_unrelated_continental_dates() {
         fixtures
     );
 }
+
+/// Given an unrelated friendly still ahead of the live clock, When a later World Cup replay
+/// draws its final, Then replay settlement preserves the friendly's earlier playable date.
+#[test]
+fn a_world_cup_replay_draw_keeps_an_unrelated_friendly_on_its_date() {
+    use domain::league::{Fixture, FixtureCompetition};
+    let mut game = tournament_game(false);
+    let entrants: Vec<_> = game.national_teams[..4]
+        .iter()
+        .map(|n| n.id.clone())
+        .collect();
+    game.competitions = vec![ofm_core::schedule::generate_knockout_cup(
+        "World Cup replay",
+        2034,
+        &entrants,
+        Utc.with_ymd_and_hms(2033, 2, 4, 12, 0, 0).unwrap(),
+        CompetitionType::InternationalNation,
+        CompetitionScope::International,
+    )];
+    let friendly = Fixture {
+        id: "unrelated-february-friendly".into(),
+        competition_id: "international-friendlies".into(),
+        home_team_id: game.national_teams[4].id.clone(),
+        away_team_id: game.national_teams[5].id.clone(),
+        date: "2033-02-02".into(),
+        competition: FixtureCompetition::InternationalNation,
+        ..Default::default()
+    };
+    let expected = serde_json::to_value(&friendly).unwrap();
+    game.national_teams[4].fixtures.push(friendly);
+    assert_eq!(
+        ofm_core::world_cup::process_world_cup_fixtures_due(&mut game, "2033-02-04"),
+        1
+    );
+    assert_eq!(
+        ofm_core::world_cup::process_world_cup_fixtures_due(&mut game, "2033-02-05"),
+        1
+    );
+    assert_eq!(game.competitions[0].knockout_rounds.len(), 2);
+    assert_eq!(
+        serde_json::to_value(&game.national_teams[4].fixtures[0]).unwrap(),
+        expected
+    );
+}
