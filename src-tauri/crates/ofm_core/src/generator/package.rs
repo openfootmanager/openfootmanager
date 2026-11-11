@@ -2354,12 +2354,41 @@ mod tests {
             .unwrap();
         zip.start_file("assets/portrait.png", options).unwrap();
         zip.write_all(b"artwork").unwrap();
+        zip.start_file("assets/portrait.json", options).unwrap();
+        zip.write_all(b"artwork").unwrap();
         zip.finish().unwrap();
         let dest = temp.join("out");
         extract_package_definitions(&archive, &dest).unwrap();
         assert!(dest.join("package.json").exists());
         assert!(!dest.join("assets/portrait.png").exists());
+        assert!(!dest.join("assets/portrait.json").exists());
         std::fs::remove_dir_all(temp).unwrap();
+    }
+
+    /// Given an artwork entry with an unsupported codec, when both readers inspect it, then both report it.
+    #[test]
+    fn filtered_extraction_reports_an_unopenable_artwork_entry() {
+        use std::io::Write;
+        let dir = temp_package();
+        let archive = dir.join("world.ofm");
+        let mut zip = zip::ZipWriter::new(std::fs::File::create(&archive).unwrap());
+        zip.start_file(
+            "assets/portrait.json",
+            zip::write::SimpleFileOptions::default(),
+        )
+        .unwrap();
+        zip.write_all(b"artwork").unwrap();
+        zip.finish().unwrap();
+        let mut bytes = std::fs::read(&archive).unwrap();
+        let central = bytes.windows(4).position(|s| s == b"PK\x01\x02").unwrap();
+        bytes[8..10].copy_from_slice(&99u16.to_le_bytes());
+        bytes[central + 10..central + 12].copy_from_slice(&99u16.to_le_bytes());
+        std::fs::write(&archive, bytes).unwrap();
+        let full = extract_archive_safely(&archive, &dir.join("full")).unwrap();
+        let filtered = extract_package_definitions(&archive, &dir.join("filtered")).unwrap();
+        assert!(full.iter().any(|e| e.code == READ_FAILED));
+        assert!(filtered.iter().any(|e| e.code == READ_FAILED));
+        std::fs::remove_dir_all(dir).unwrap();
     }
 
     #[test]

@@ -87,6 +87,27 @@ pub fn get_worlds_library(
 mod tests {
     use super::*;
 
+    /// Given JSON artwork before the manifest, when the library lists it, then the real manifest supplies the name.
+    #[test]
+    fn library_ignores_json_artwork_when_finding_the_manifest() {
+        use std::io::Write;
+        let root =
+            std::env::temp_dir().join(format!("ofm-library-manifest-{}", std::process::id()));
+        std::fs::create_dir_all(&root).unwrap();
+        let mut zip = zip::ZipWriter::new(std::fs::File::create(root.join("world.ofm")).unwrap());
+        let options = zip::write::SimpleFileOptions::default();
+        zip.start_file("assets/portrait.json", options).unwrap();
+        zip.write_all(br#"{"schema":"world","id":"wrong","name":"Artwork"}"#)
+            .unwrap();
+        zip.start_file("package.json", options).unwrap();
+        zip.write_all(br#"{"schema":"world","id":"real","name":"Real world","version":"1.0.0","license":"CC0-1.0"}"#).unwrap();
+        zip.finish().unwrap();
+        let answer = worlds_library_internal(&[], &root);
+        assert_eq!(answer.installed.len(), 1);
+        assert_eq!(answer.installed[0].name, "Real world");
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
     /// Given authored entity files, when the library reads them, then it reports their counts.
     #[test]
     fn library_counts_entities_from_project_files() {
