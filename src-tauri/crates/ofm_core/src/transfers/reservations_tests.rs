@@ -254,3 +254,56 @@ fn the_ai_market_does_not_offer_reserved_money() {
     assert!(game.players[0].transfer_offers.is_empty());
     assert_eq!(game.teams[1].finance, 5_000_000);
 }
+
+fn missed_window_notice_game(user_is_seller: bool) -> Game {
+    let mut game = acceptance_game(if user_is_seller { "team1" } else { "team2" }, true);
+    if user_is_seller {
+        let offer = incoming_transfer(&mut game);
+        respond_to_offer(&mut game, "player-award", &offer, true).unwrap();
+    } else {
+        make_transfer_bid(&mut game, "player-award", 2_000_001).unwrap();
+    }
+    game.clock.current_date = chrono::DateTime::parse_from_rfc3339("2026-09-02T12:00:00Z")
+        .unwrap()
+        .into();
+    process_pending_transfer_registrations(&mut game);
+    game
+}
+
+/// Given the user's agreed purchase and a missed registration window, when the agreement lapses, then the buyer receives a cancellation reason and notice.
+#[test]
+fn a_missed_window_explains_the_cancellation_to_the_buyer() {
+    let game = missed_window_notice_game(false);
+    assert_eq!(
+        serde_json::to_value(&game.players[0].transfer_offers[0]).unwrap()["registration_failure_reason"],
+        "RegistrationBlocked"
+    );
+    assert_eq!(
+        game.messages
+            .iter()
+            .filter(
+                |m| m.subject_key.as_deref() == Some("be.msg.transferRegistrationFailed.subject")
+            )
+            .count(),
+        1
+    );
+    assert_eq!(game.teams[0].finance, 5_000_000);
+    assert_eq!(committed_transfer_fees(&game, "team1"), 0);
+}
+
+/// Given the user's agreed sale and a missed registration window, when the agreement lapses, then the seller also receives a cancellation notice.
+#[test]
+fn a_missed_window_explains_the_cancellation_to_the_seller() {
+    let game = missed_window_notice_game(true);
+    assert_eq!(
+        game.messages
+            .iter()
+            .filter(
+                |m| m.subject_key.as_deref() == Some("be.msg.transferRegistrationFailed.subject")
+            )
+            .count(),
+        1
+    );
+    assert_eq!(game.teams[1].finance, 5_000_000);
+    assert_eq!(committed_transfer_fees(&game, "team2"), 0);
+}
