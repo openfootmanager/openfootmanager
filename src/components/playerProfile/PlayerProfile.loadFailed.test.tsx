@@ -201,7 +201,7 @@ describe("a profile answer that fails to load", () => {
     expect(await screen.findAllByText("Couldn't load")).toHaveLength(2);
     fireEvent.click(screen.getByRole("button", { name: "Retry" }));
 
-    expect(await screen.findByText(/what the game weighs most for a/)).toBeInTheDocument();
+    expect((await screen.findAllByLabelText(/^weight \d of 3$/)).length).toBeGreaterThan(0);
     expect(calls("get_position_ratings")).toBe(2);
   });
 

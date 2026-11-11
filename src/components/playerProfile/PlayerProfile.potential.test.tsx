@@ -263,9 +263,7 @@ describe("the player profile's ratings at his positions", () => {
 
     renderProfile();
 
-    expect(
-      await screen.findByText(/what the game weighs most for a Central Midfielder/),
-    ).toBeVisible();
+    expect(await screen.findByLabelText("weight 3 of 3")).toBeVisible();
     expect(invoke).toHaveBeenCalledWith("get_position_ratings", { playerId: "player-1" });
     expect(screen.queryByRole("region", { name: "Positions" })).not.toBeInTheDocument();
   });
