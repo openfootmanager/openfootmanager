@@ -81,7 +81,7 @@ export function TeamAddPicker({ teams, taken, onAdd }: TeamAddPickerProps) {
           setActive(0);
           setIsOpen((open) => !open);
         }}
-        className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-dashed border-gray-300 dark:border-navy-500 text-sm text-gray-500 dark:text-gray-400 hover:border-primary-400 hover:text-primary-500 dark:hover:border-primary-500 dark:hover:text-primary-400 transition-all aria-disabled:opacity-40 aria-disabled:cursor-not-allowed"
+        className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-dashed border-gray-300 dark:border-navy-500 text-sm text-gray-500 dark:text-gray-400 hover:border-primary-400 hover:text-primary-500 dark:hover:border-primary-500 dark:hover:text-primary-400 transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 focus-visible:ring-offset-page aria-disabled:opacity-40 aria-disabled:cursor-not-allowed"
       >
         <Plus className="w-4 h-4" />
         {t("worldEditor.addTeam")}
@@ -109,7 +109,7 @@ export function TeamAddPicker({ teams, taken, onAdd }: TeamAddPickerProps) {
                 setActive(0);
               }}
               onKeyDown={onKeyDown}
-              className="w-full rounded-md border border-gray-200 dark:border-navy-600 bg-gray-50 dark:bg-navy-800 px-3 py-1.5 text-sm text-gray-900 dark:text-white outline-none focus:border-primary-500 placeholder:text-gray-400 dark:placeholder:text-gray-500"
+              className="w-full rounded-md border border-gray-200 dark:border-navy-600 bg-gray-50 dark:bg-navy-800 px-3 py-1.5 text-sm text-gray-900 dark:text-white outline-none focus:border-primary-500 focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 focus-visible:ring-offset-page placeholder:text-gray-400 dark:placeholder:text-gray-500"
             />
           </div>
           {available.length === 0 && (
@@ -132,7 +132,7 @@ export function TeamAddPicker({ teams, taken, onAdd }: TeamAddPickerProps) {
             isSelected={() => false}
             onPick={(team) => add(team.id)}
             optionClassName={({ active: isActive }) =>
-              `flex items-center gap-2 px-3 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-navy-600 text-left ${isActive ? "bg-gray-50 dark:bg-navy-600 ring-2 ring-inset ring-focus" : ""}`
+              `flex items-center gap-2 px-3 text-body text-fg hover:bg-hover text-left ${isActive ? "bg-hover ring-2 ring-inset ring-focus" : ""}`
             }
             renderOption={(team) => (
               <>

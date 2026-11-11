@@ -1,4 +1,4 @@
-import { useRef, type ReactNode } from "react";
+import { useLayoutEffect, useRef, type ReactNode } from "react";
 
 import { useRootFontPx } from "../../hooks/useRootFontPx";
 import { useVirtualWindow } from "./useVirtualWindow";
@@ -75,6 +75,15 @@ export function VirtualListbox<T>({
   // The active option stays in the page even when the user scrolls away from it by hand: the search
   // field's aria-activedescendant names it, and that id must always name an element.
   const indexes = renderedIndexes(range, count, active);
+
+  // useVirtualWindow reveals the active option inside this list's own scroller; the list may itself sit
+  // in a pane that scrolls (the editor's form column), which can clip it. The active option is always in
+  // the page (above), so ask the browser to bring it into view in every scrolling ancestor, by the least
+  // movement.
+  useLayoutEffect(() => {
+    if (active < 0) return;
+    document.getElementById(listboxOptionId(id, active))?.scrollIntoView?.({ block: "nearest" });
+  }, [id, active]);
 
   return (
     <div

@@ -50,7 +50,7 @@ function renderForm(options: { teams?: TeamDef[]; explicit?: string[] } = {}) {
 }
 
 const addButton = () => screen.getByRole("button", { name: "worldEditor.addTeam" });
-const searchBox = () => screen.getByPlaceholderText("worldEditor.searchTeams");
+const searchBox = () => screen.getByRole("combobox", { name: "worldEditor.searchTeams" });
 
 describe("CompetitionForm: the explicit participants picker", () => {
   /**
@@ -80,7 +80,9 @@ describe("CompetitionForm: the explicit participants picker", () => {
     fireEvent.mouseDown(screen.getByRole("option", { name: /Team 3/ }));
 
     expect(updateField).toHaveBeenCalledWith("participants", { explicit: ["t3"] });
-    expect(screen.queryByPlaceholderText("worldEditor.searchTeams")).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("combobox", { name: "worldEditor.searchTeams" }),
+    ).not.toBeInTheDocument();
   });
 
   /**
@@ -124,7 +126,9 @@ describe("CompetitionForm: the explicit participants picker", () => {
 
     expect(addButton()).toHaveAttribute("aria-disabled", "true");
     fireEvent.click(addButton());
-    expect(screen.queryByPlaceholderText("worldEditor.searchTeams")).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("combobox", { name: "worldEditor.searchTeams" }),
+    ).not.toBeInTheDocument();
   });
 
   /**
@@ -169,8 +173,31 @@ describe("CompetitionForm: the explicit participants picker", () => {
 
     fireEvent.keyDown(searchBox(), { key: "Escape" });
 
-    expect(screen.queryByPlaceholderText("worldEditor.searchTeams")).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("combobox", { name: "worldEditor.searchTeams" }),
+    ).not.toBeInTheDocument();
     expect(updateField).not.toHaveBeenCalled();
+  });
+});
+
+describe("CompetitionForm: the participants picker's design tokens", () => {
+  /**
+   * Given the picker open
+   * When its controls and the active option are read
+   * Then the Add team button and the search field carry the standard focus-visible ring, and the active
+   *   option uses the interaction-surface role token (not a raw palette colour)
+   */
+  it("uses the focus ring and the role token for the active option", () => {
+    renderForm();
+    expect(addButton().className).toContain("focus-visible:ring-focus");
+    fireEvent.click(addButton());
+
+    expect(searchBox().className).toContain("focus-visible:ring-focus");
+    const active = document.getElementById(
+      searchBox().getAttribute("aria-activedescendant") as string,
+    );
+    expect(active?.className).toContain("bg-hover");
+    expect(active?.className).not.toContain("bg-gray-50");
   });
 });
 

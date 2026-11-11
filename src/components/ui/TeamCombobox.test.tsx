@@ -223,6 +223,36 @@ describe("TeamCombobox: composition and empty results", () => {
   });
 });
 
+describe("TeamCombobox inside a scrolling pane", () => {
+  /**
+   * Given the picker open inside a pane that scrolls on its own (the editor's form column) so the 12rem
+   *   list can be clipped by it
+   * When the popover opens and the active option moves
+   * Then the active option itself is scrolled into view with block "nearest", reaching the outer pane
+   *   as well as the inner list
+   */
+  it("scrolls the active option into view in every scrolling ancestor", () => {
+    const seen: string[] = [];
+    const original = Element.prototype.scrollIntoView;
+    Element.prototype.scrollIntoView = function (
+      this: Element,
+      arg?: boolean | ScrollIntoViewOptions,
+    ) {
+      seen.push(`${this.textContent}|${JSON.stringify(arg)}`);
+    };
+    try {
+      renderCombobox();
+      openIt();
+      fireEvent.keyDown(search(), { key: "ArrowDown" });
+    } finally {
+      Element.prototype.scrollIntoView = original;
+    }
+
+    expect(seen).toContain('No club|{"block":"nearest"}');
+    expect(seen).toContain('Team 0|{"block":"nearest"}');
+  });
+});
+
 describe("TeamCombobox with a very long list", () => {
   // jsdom lays nothing out: the fixture gives the listbox's scroller its 12rem (192 px) height.
   let restoreGeometry: () => void;
