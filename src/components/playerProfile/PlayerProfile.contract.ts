@@ -13,3 +13,10 @@ export function terminationBlockedBy(player: PlayerData): TerminationBlock | nul
   if (player.active_loan) return "on_loan";
   return null;
 }
+
+/**
+ * What the club-wide previews depend on, as one string. Scaffold: the real key replaces it.
+ */
+export function squadStateKey(_players: PlayerData[], _teamId: string | null): string {
+  return "";
+}
