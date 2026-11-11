@@ -304,8 +304,8 @@ fn build_top_scorer_delta(
 
 fn scorer_display_name(full_name: &str, match_name: &str) -> String {
     let mut characters = match_name.chars();
-    let starts_with_initial = characters.next().is_some_and(char::is_alphabetic)
-        && characters.next() == Some('.');
+    let starts_with_initial =
+        characters.next().is_some_and(char::is_alphabetic) && characters.next() == Some('.');
     if match_name.chars().any(char::is_whitespace) || starts_with_initial {
         return match_name.to_string();
     }
