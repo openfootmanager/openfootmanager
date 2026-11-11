@@ -26,6 +26,8 @@ export function FinanceSponsorsCard({
     | "marketingCampaignFeedback"
     | "sponsorOffers"
     | "handleSponsorOption"
+    | "answeringOfferId"
+    | "sponsorOfferError"
   >;
 }) {
   const {
