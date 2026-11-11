@@ -1,6 +1,7 @@
-import { fireEvent, render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { installScrollGeometry } from "../../test-utils/scrollGeometry";
 import { TeamCombobox } from "./TeamCombobox";
 
 vi.mock("react-i18next", () => ({
@@ -186,5 +187,107 @@ describe("TeamCombobox", () => {
       .getAllByRole("option")
       .filter((o) => o.getAttribute("aria-selected") === "true");
     expect(selected.map((o) => o.textContent)).toEqual(["Team 2"]);
+  });
+});
+
+describe("TeamCombobox with a very long list", () => {
+  // jsdom lays nothing out: the fixture gives the listbox's scroller its 12rem (192 px) height.
+  let restoreGeometry: () => void;
+  beforeEach(() => {
+    restoreGeometry = installScrollGeometry({ viewportHeight: 192 });
+  });
+  afterEach(() => restoreGeometry());
+
+  const many = () => teamOptions(582);
+
+  /**
+   * Given a club picker over 582 clubs (the mega-sized package)
+   * When it is opened
+   * Then it renders a window of options, not 583 of them, and each says its place in the whole list
+   */
+  it("renders a window of the options, not every club", () => {
+    renderCombobox(many());
+    openIt();
+
+    const rendered = screen.getAllByRole("option");
+    expect(rendered.length).toBeGreaterThan(5);
+    expect(rendered.length).toBeLessThan(30);
+    expect(rendered[0]).toHaveAttribute("aria-setsize", "583");
+    expect(rendered[0]).toHaveAttribute("aria-posinset", "1");
+  });
+
+  /**
+   * Given the popover open on the first option of 583
+   * When End is pressed
+   * Then the last club is active AND in the page, so aria-activedescendant names a real element, and
+   *      Enter picks it
+   */
+  it("brings the last option into the page for End, and picks it", async () => {
+    const { onChange } = renderCombobox(many());
+    openIt();
+
+    fireEvent.keyDown(search(), { key: "End" });
+
+    await waitFor(() => expect(activeOption()).toHaveTextContent("Team 581"));
+    fireEvent.keyDown(search(), { key: "Enter" });
+    expect(onChange).toHaveBeenCalledWith("t581");
+  });
+
+  /**
+   * Given the first option active
+   * When ArrowUp wraps to the end
+   * Then the last club is in the page and active
+   */
+  it("keeps the active option in the page when ArrowUp wraps to the last", async () => {
+    renderCombobox(many());
+    openIt();
+
+    fireEvent.keyDown(search(), { key: "ArrowUp" });
+
+    await waitFor(() => expect(activeOption()).toHaveTextContent("Team 581"));
+    expect(screen.getAllByRole("option").length).toBeLessThan(30);
+  });
+
+  /**
+   * Given a long list scrolled down
+   * When an option that scrolled into the window is clicked
+   * Then that club is picked
+   */
+  it("picks an option that was scrolled to", async () => {
+    const { onChange } = renderCombobox(many());
+    openIt();
+    const scroller = screen.getByRole("listbox").parentElement as HTMLElement;
+
+    scroller.scrollTop = 100 * 36;
+    fireEvent.scroll(scroller);
+    await waitFor(() =>
+      expect(screen.getByRole("option", { name: "Team 100" })).toBeInTheDocument(),
+    );
+    fireEvent.mouseDown(screen.getByRole("option", { name: "Team 100" }));
+
+    expect(onChange).toHaveBeenCalledWith("t100");
+  });
+
+  /**
+   * Given a long list scrolled far down
+   * When the search narrows it
+   * Then the list is back at its first option, not left among rows that are gone
+   */
+  it("returns to the top when the search changes", async () => {
+    renderCombobox(many());
+    openIt();
+    const scroller = screen.getByRole("listbox").parentElement as HTMLElement;
+    scroller.scrollTop = 300 * 36;
+    fireEvent.scroll(scroller);
+    await waitFor(() =>
+      expect(screen.getByRole("option", { name: "Team 300" })).toBeInTheDocument(),
+    );
+
+    fireEvent.change(search(), { target: { value: "Team 5" } });
+
+    await waitFor(() =>
+      expect(screen.getByRole("option", { name: "No club" })).toBeInTheDocument(),
+    );
+    expect(scroller.scrollTop).toBe(0);
   });
 });
