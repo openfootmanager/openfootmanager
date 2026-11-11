@@ -76,83 +76,89 @@ export default function PlayerProfileNameCard({
       className="mb-4 overflow-hidden rounded-xl border border-l-4 border-line border-l-kit bg-panel text-fg shadow-card"
     >
       <div className="flex flex-wrap items-center gap-4 bg-kit-wash px-4 py-4">
-        <PlayerAvatar
-          player={player}
-          className="flex size-16 shrink-0 items-center justify-center overflow-hidden rounded-full border border-line bg-sunken font-heading text-lead font-bold text-fg-muted"
-        />
-        <div className="flex min-w-0 flex-1 basis-64 flex-col gap-1.5">
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-            <h2
-              id={nameId}
-              className="font-heading text-title font-bold uppercase tracking-label break-words"
-            >
-              {player.full_name}
-            </h2>
-            <PlayerPositionBadge position={primaryPosition} />
-            {player.alternate_positions?.map((alternate) => (
-              <PlayerPositionBadge key={alternate} position={alternate} kind="alternate" />
-            ))}
-          </div>
-          <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-body text-fg-muted">
-            <span className="whitespace-nowrap">
-              <CountryFlag
-                code={player.nationality}
-                locale={language}
-                className="mr-1 text-body leading-none"
-              />
-              {countryName(player.nationality, language)}
-            </span>
-            <span aria-hidden="true">·</span>
-            {openClub ? (
-              <ContextMenu items={teamContextItems}>
-                <button
-                  type="button"
-                  data-testid="player-profile-team-link"
-                  onClick={openClub}
-                  className="rounded-sm text-selected underline underline-offset-2 hover:text-fg focus:outline-none focus-visible:ring-2 focus-visible:ring-focus"
-                >
-                  {teamName}
-                </button>
-              </ContextMenu>
-            ) : (
-              <span>{teamName}</span>
-            )}
-            <span aria-hidden="true">·</span>
-            <span className="whitespace-nowrap">
-              {t("common.age")} {age}
-            </span>
-            <span aria-hidden="true">·</span>
-            <span className="whitespace-nowrap">
-              {t("common.footednessLabel")}: {footednessLabel}
-            </span>
-            <span aria-hidden="true">·</span>
-            <span className="whitespace-nowrap">
-              {t("common.weakFoot")}: {weakFootValue}/5
-            </span>
-          </p>
-        </div>
-        {!isOwnClub ? (
-          <PlayerProfileScoutAction
-            availability={scoutAvailability}
-            scoutStatus={scoutStatus}
-            scoutError={scoutError}
-            onScout={onScout}
+        <div className="flex min-w-0 flex-1 basis-80 items-center gap-4">
+          <PlayerAvatar
+            player={player}
+            className="flex size-16 shrink-0 items-center justify-center overflow-hidden rounded-full border border-line bg-sunken font-heading text-lead font-bold text-fg-muted"
           />
-        ) : null}
-        {actions}
-        <div className="flex flex-col items-center gap-0.5">
-          {ovr === null ? (
-            <span
-              title={t("playerProfile.ratingUnknown")}
-              className="inline-flex h-16 min-w-18 items-center justify-center rounded-xl bg-sunken px-3 font-heading text-display font-bold text-fg-subtle"
-            >
-              <span aria-hidden="true">{visibleRatingText(ovr)}</span>
-              <span className="sr-only">{t("playerProfile.ratingUnknown")}</span>
-            </span>
-          ) : (
-            <RatingChip value={ovr} tier={tierOf(ovr)} size="display" />
-          )}
-          <span className="text-caption text-fg-subtle">{t("playerProfile.overall")}</span>
+          <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+              <h2
+                id={nameId}
+                className="font-heading text-title font-bold uppercase tracking-label break-words"
+              >
+                {player.full_name}
+              </h2>
+              <PlayerPositionBadge position={primaryPosition} />
+              {player.alternate_positions?.map((alternate) => (
+                <PlayerPositionBadge key={alternate} position={alternate} kind="alternate" />
+              ))}
+            </div>
+            <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-body text-fg-muted">
+              <span className="whitespace-nowrap">
+                <CountryFlag
+                  code={player.nationality}
+                  locale={language}
+                  className="mr-1 text-body leading-none"
+                />
+                {countryName(player.nationality, language)}
+              </span>
+              <span aria-hidden="true">·</span>
+              {openClub ? (
+                <ContextMenu items={teamContextItems}>
+                  <button
+                    type="button"
+                    data-testid="player-profile-team-link"
+                    onClick={openClub}
+                    className="rounded-sm text-selected underline underline-offset-2 hover:text-fg focus:outline-none focus-visible:ring-2 focus-visible:ring-focus"
+                  >
+                    {teamName}
+                  </button>
+                </ContextMenu>
+              ) : (
+                <span>{teamName}</span>
+              )}
+              <span aria-hidden="true">·</span>
+              <span className="whitespace-nowrap">
+                {t("common.age")} {age}
+              </span>
+              <span aria-hidden="true">·</span>
+              <span className="whitespace-nowrap">
+                {t("common.footednessLabel")}: {footednessLabel}
+              </span>
+              <span aria-hidden="true">·</span>
+              <span className="whitespace-nowrap">
+                {t("common.weakFoot")}: {weakFootValue}/5
+              </span>
+            </p>
+          </div>
+        </div>
+        {/* One group, so when the card is too narrow for a single row the rating wraps with the
+            buttons, on the right, rather than dropping alone under the avatar. */}
+        <div className="ml-auto flex items-center gap-3">
+          {!isOwnClub ? (
+            <PlayerProfileScoutAction
+              availability={scoutAvailability}
+              scoutStatus={scoutStatus}
+              scoutError={scoutError}
+              onScout={onScout}
+            />
+          ) : null}
+          {actions}
+          <div className="flex flex-col items-center gap-0.5">
+            {ovr === null ? (
+              <span
+                title={t("playerProfile.ratingUnknown")}
+                className="inline-flex h-16 min-w-18 items-center justify-center rounded-xl bg-sunken px-3 font-heading text-display font-bold text-fg-subtle"
+              >
+                <span aria-hidden="true">{visibleRatingText(ovr)}</span>
+                <span className="sr-only">{t("playerProfile.ratingUnknown")}</span>
+              </span>
+            ) : (
+              <RatingChip value={ovr} tier={tierOf(ovr)} size="display" />
+            )}
+            <span className="text-caption text-fg-subtle">{t("playerProfile.overall")}</span>
+          </div>
         </div>
       </div>
     </section>
