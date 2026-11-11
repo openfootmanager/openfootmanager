@@ -34,6 +34,9 @@ const FINISHED_FOLDERS = [
   // are redrawn.
   "./components/squad/SquadCardsView.tsx",
   "./components/squad/SquadCardGrid.tsx",
+  // The World Editor's home (the approved sidebar and library, 10 Nov 2026). The editor's own screens
+  // and the new-world form join with their redesign.
+  "./components/worldEditor/home/",
   // Choose your club (team selection A, approved 10 Nov 2026): the page and its stepper, rail,
   // table and chosen-club card. The simulation settings it opens are the dialog's slice, T3.
   "./pages/TeamSelection.tsx",

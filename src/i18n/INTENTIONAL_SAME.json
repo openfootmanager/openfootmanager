@@ -146,6 +146,8 @@
     "packageBuild.patches"
   ],
   "fr": [
+    "worldEditor.home.colClubs",
+    "worldEditor.home.colAction",
     "teamSelect.steps.club",
     "teamSelect.simulation",
     "teamSelect.table.label",

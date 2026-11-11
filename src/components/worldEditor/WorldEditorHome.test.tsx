@@ -11,7 +11,8 @@ vi.mock("@tauri-apps/api/core", () => ({
 
 vi.mock("react-i18next", () => ({
   useTranslation: () => ({
-    t: (key: string) => key,
+    t: (key: string, params?: Record<string, unknown>) =>
+      params?.name !== undefined ? `${key}:${params.name}` : key,
     i18n: { language: "en" },
   }),
 }));
@@ -38,7 +39,20 @@ const INSTALLED = [
 beforeEach(() => {
   invoke.mockReset();
   invoke.mockImplementation((cmd: string) =>
-    cmd === "list_installed_packages" ? Promise.resolve(INSTALLED) : Promise.reject(new Error(cmd)),
+    cmd === "get_worlds_library"
+      ? Promise.resolve({
+          projects: [],
+          installed: INSTALLED.map((pkg) => ({
+            path: pkg.installedPath,
+            name: pkg.name,
+            version: pkg.version,
+            clubs: pkg.teamCount,
+            players: pkg.playerCount,
+            countries: pkg.countryCount,
+            error: null,
+          })),
+        })
+      : Promise.reject(new Error(cmd)),
   );
 });
 
@@ -66,7 +80,7 @@ function renderHome(handlers: {
 }
 
 describe("opening an installed package from the editor home", () => {
-  it("opens it as an archive, not as a project directory", async () => {
+  it("opens it as an archive, not as a project directory (Edit a copy)", async () => {
     // Reported from real use: "Open in Editor" on an installed package showed
     // an empty editor for a package that loads fine in the game. Installed
     // packages are `.ofm` archives and were being handed to the callback that
@@ -74,7 +88,9 @@ describe("opening an installed package from the editor home", () => {
     // nothing is not an error — opened a blank project instead of failing.
     const { onOpenRecent, onOpenInstalled } = renderHome({});
 
-    fireEvent.click(await screen.findByRole("button", { name: "worldEditor.openInEditor" }));
+    fireEvent.click(
+      await screen.findByRole("button", { name: "worldEditor.home.editCopyNamed:Brazil 1962" }),
+    );
 
     expect(onOpenInstalled).toHaveBeenCalledWith(
       "/home/user/.local/share/openfootmanager/packages/brazil-1962.ofm",
