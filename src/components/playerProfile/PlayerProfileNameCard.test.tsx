@@ -3,6 +3,7 @@ import { beforeAll, describe, expect, it, vi } from "vitest";
 
 import { i18nReady } from "../../i18n";
 import { ratingTierClass } from "../../lib/ratingTier";
+import type { StaffData } from "../../store/gameStore";
 import { createPlayer, createTeam } from "../../test-utils/factories";
 import PlayerProfileNameCard from "./PlayerProfileNameCard";
 
@@ -34,11 +35,30 @@ function renderCard(
     ovr?: number | null;
     face?: string;
     isOwnClub?: boolean;
+    /** A scout is free to be sent: the Scout button shows, not the "no scouts" hint. */
+    scoutFree?: boolean;
     alternates?: string[];
     onSelectTeam?: (id: string) => void;
   } = {},
 ) {
-  const { ovr = 77, face, isOwnClub = true, alternates = [], onSelectTeam = () => {} } = overrides;
+  const {
+    ovr = 77,
+    face,
+    isOwnClub = true,
+    scoutFree = false,
+    alternates = [],
+    onSelectTeam = () => {},
+  } = overrides;
+  const scout = { id: "scout-1" } as StaffData;
+  const availability = scoutFree
+    ? {
+        scouts: [scout],
+        availableScout: scout,
+        alreadyScouting: false,
+        allBusy: false,
+        canScout: true,
+      }
+    : NO_SCOUT;
   const player = createPlayer({
     ovr: 77,
     media: face ? { face } : undefined,
@@ -56,7 +76,7 @@ function renderCard(
       weakFootValue={4}
       language="en"
       isOwnClub={isOwnClub}
-      scoutAvailability={NO_SCOUT}
+      scoutAvailability={availability}
       scoutStatus="idle"
       scoutError={null}
       onScout={() => {}}
@@ -153,9 +173,10 @@ describe("PlayerProfileNameCard", () => {
    *      (the 960×640 shot of a rival's profile)
    */
   it("keeps the scouting button, the Actions menu and the rating in one group", () => {
-    renderCard({ isOwnClub: false });
+    renderCard({ isOwnClub: false, scoutFree: true });
 
     const group = screen.getByRole("button", { name: "Actions" }).parentElement;
+    expect(group).toContainElement(screen.getByRole("button", { name: "Scout" }));
     expect(group).toContainElement(screen.getByText("Overall"));
     expect(group).not.toContainElement(screen.getByRole("heading", { name: "John Smith" }));
   });
@@ -169,7 +190,10 @@ describe("PlayerProfileNameCard", () => {
     const onSelectTeam = vi.fn();
     renderCard({ onSelectTeam });
 
-    fireEvent.click(screen.getByRole("button", { name: "Brussels FC" }));
+    const club = screen.getByRole("button", { name: "Brussels FC" });
+    // Its ring is offset from the kit wash, so it shows on any club's colours.
+    expect(club).toHaveClass("focus-visible:ring-offset-2", "focus-visible:ring-offset-page");
+    fireEvent.click(club);
 
     expect(onSelectTeam).toHaveBeenCalledWith("team-1");
   });

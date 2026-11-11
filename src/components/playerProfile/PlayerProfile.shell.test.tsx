@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { invoke } from "@tauri-apps/api/core";
 
@@ -195,7 +195,81 @@ describe("PlayerProfile shell", () => {
       "Player does not have an active contract",
     );
     expect(screen.getByRole("alert")).toBeVisible();
+    // On the role tokens, which need no dark: partner.
+    expect(screen.getByRole("alert")).toHaveClass("bg-danger-tint", "text-danger");
     expect(screen.getByRole("tab", { name: "Overview" })).toHaveAttribute("aria-selected", "true");
+  });
+
+  /**
+   * Given a failed Let Expire for player A, shown under his name card
+   * When the page is given player B, and then player A again
+   * Then neither shows A's error: it belongs to the player it failed for
+   */
+  it("does not carry a failed action's error to another player", async () => {
+    vi.mocked(invoke).mockImplementation(async (command: string) => {
+      if (command === "set_contract_exit_intent") {
+        throw "be.error.contracts.playerHasNoActiveContract";
+      }
+      return answer(command);
+    });
+    const a = createPlayer({ id: "player-a", team_id: "team-1", match_name: "A. Player" });
+    const b = createPlayer({ id: "player-b", team_id: "team-1", match_name: "B. Player" });
+    const profileOf = (player: PlayerData) => (
+      <PlayerProfile
+        player={player}
+        gameState={gameWith(player)}
+        isOwnClub
+        onGameUpdate={() => {}}
+        onSelectTeam={() => {}}
+      />
+    );
+    const { rerender } = render(profileOf(a));
+    fireEvent.click(screen.getByRole("button", { name: /actions/i }));
+    fireEvent.click(await screen.findByRole("menuitem", { name: "Let Expire" }));
+    expect(await screen.findByRole("alert")).toBeInTheDocument();
+
+    rerender(profileOf(b));
+    expect(screen.queryByRole("alert")).toBeNull();
+    rerender(profileOf(a));
+    expect(screen.queryByRole("alert")).toBeNull();
+  });
+
+  /**
+   * Given Let Expire started for player A, still waiting for the backend
+   * When the page is given player B and then A's request fails
+   * Then B's profile shows no error: a failure answers for the player it was started for
+   */
+  it("ignores a failure that arrives after the player changed", async () => {
+    let refuse: (reason: string) => void = () => {};
+    vi.mocked(invoke).mockImplementation(async (command: string) => {
+      if (command === "set_contract_exit_intent") {
+        return new Promise((_resolve, reject) => {
+          refuse = reject;
+        });
+      }
+      return answer(command);
+    });
+    const a = createPlayer({ id: "player-a", team_id: "team-1", match_name: "A. Player" });
+    const b = createPlayer({ id: "player-b", team_id: "team-1", match_name: "B. Player" });
+    const profileOf = (player: PlayerData) => (
+      <PlayerProfile
+        player={player}
+        gameState={gameWith(player)}
+        isOwnClub
+        onGameUpdate={() => {}}
+        onSelectTeam={() => {}}
+      />
+    );
+    const { rerender } = render(profileOf(a));
+    fireEvent.click(screen.getByRole("button", { name: /actions/i }));
+    fireEvent.click(await screen.findByRole("menuitem", { name: "Let Expire" }));
+    rerender(profileOf(b));
+
+    await act(async () => {
+      refuse("be.error.contracts.playerHasNoActiveContract");
+    });
+
+    expect(screen.queryByRole("alert")).toBeNull();
   });
 
   /**
