@@ -246,8 +246,10 @@ describe("the player profile's cases", () => {
     expect(free.knowledge).toEqual({ kind: "unknown" });
     expect(free.wage).toEqual({ kind: "hidden" });
     expect(last).toMatchObject({ kind: "released", release_reason: "expired" });
-    expect(last?.contract?.end).toBeTruthy();
-    expect(last?.contract?.weekly_wage).toBeGreaterThan(0);
+    // The contract he had is the last one on the ledger, and it ran out on the day he was released.
+    const lastContract = [...history].reverse().find((entry) => entry.contract)?.contract;
+    expect(lastContract?.end).toBe(last?.date);
+    expect(lastContract?.weekly_wage).toBeGreaterThan(0);
   });
 
   /**

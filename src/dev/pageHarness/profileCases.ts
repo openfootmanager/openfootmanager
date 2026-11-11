@@ -4,7 +4,7 @@ import type { PlayerKnowledge, VisibleWage } from "../../services/scoutingServic
 import type { PositionRatings } from "../../store/generated/PositionRatings";
 import type { PotentialOpinion } from "../../store/generated/PotentialOpinion";
 import type { Position } from "../../store/generated/Position";
-import type { PlayerData, ScoutedPlayerView } from "../../store/types";
+import type { PlayerData, PlayerMovementEntry, ScoutedPlayerView } from "../../store/types";
 import type { AttributeKey } from "../../store/generated/AttributeKey";
 import type { AttributeWeight } from "../../store/generated/AttributeWeight";
 import { gameState, positionKeyAttributes, positionWeights } from "./fixture.generated";
@@ -161,8 +161,155 @@ function opinionOf(player: PlayerData, source: PotentialOpinion["source"]): Pote
   };
 }
 
+/** A club as a movement entry names it: its id and its name, as the ledger stores both. */
+function clubRef(teamId: string | null | undefined) {
+  return {
+    id: teamId ?? null,
+    name: gameState.teams.find((team) => team.id === teamId)?.name ?? null,
+  };
+}
+
+/**
+ * The own player's contracts: signed from a rival for a fee, then renewed into the one he has now
+ * (its end and wage are his own, so the history and the profile agree about the contract in force).
+ */
+function ownHistory(player: PlayerData, fromClub: string | null): PlayerMovementEntry[] {
+  const from = clubRef(fromClub);
+  const club = clubRef(USER_CLUB);
+  return [
+    {
+      date: "2029-07-01",
+      kind: "permanent_transfer",
+      from_team_id: from.id,
+      from_team_name: from.name,
+      to_team_id: club.id,
+      to_team_name: club.name,
+      fee: 1_250_000,
+      contract: {
+        start: "2029-07-01",
+        end: "2031-06-30",
+        weekly_wage: Math.round(player.wage * 0.7),
+        source: "transfer",
+      },
+    },
+    {
+      date: "2031-07-01",
+      kind: "renewal",
+      to_team_id: club.id,
+      to_team_name: club.name,
+      contract: {
+        start: player.contract_start ?? "2031-07-01",
+        end: player.contract_end,
+        weekly_wage: player.wage,
+        source: "renewal",
+      },
+    },
+  ];
+}
+
+/**
+ * A player loaned out: a contract from a save made before starts were recorded (so its start is an
+ * honest unknown), and the loan that began this season.
+ */
+function loanedHistory(player: PlayerData, loanClub: string | null): PlayerMovementEntry[] {
+  const parent = clubRef(USER_CLUB);
+  const borrower = clubRef(loanClub);
+  return [
+    {
+      date: "2029-07-01",
+      kind: "initial_contract",
+      to_team_id: parent.id,
+      to_team_name: parent.name,
+      contract: {
+        start: null,
+        end: player.contract_end,
+        weekly_wage: player.wage,
+        source: "legacy_migrated",
+      },
+    },
+    {
+      date: "2031-07-01",
+      kind: "loan_start",
+      from_team_id: parent.id,
+      from_team_name: parent.name,
+      to_team_id: borrower.id,
+      to_team_name: borrower.name,
+      loan_end_date: "2032-06-30",
+    },
+  ];
+}
+
+/**
+ * A rival's player: signed for a fee and renewed. His dates and fee are public; his wage is in the
+ * ledger too, and stays hidden because the knowledge answer says so, not because it is left out.
+ */
+function rivalHistory(player: PlayerData, fromClub: string | null): PlayerMovementEntry[] {
+  const from = clubRef(fromClub);
+  const club = clubRef(player.team_id);
+  return [
+    {
+      date: "2028-07-01",
+      kind: "permanent_transfer",
+      from_team_id: from.id,
+      from_team_name: from.name,
+      to_team_id: club.id,
+      to_team_name: club.name,
+      fee: 800_001,
+      contract: {
+        start: "2028-07-01",
+        end: "2030-06-30",
+        weekly_wage: Math.round(player.wage * 0.8),
+        source: "transfer",
+      },
+    },
+    {
+      date: "2030-07-01",
+      kind: "renewal",
+      to_team_id: club.id,
+      to_team_name: club.name,
+      contract: {
+        start: "2030-07-01",
+        end: player.contract_end,
+        weekly_wage: player.wage,
+        source: "renewal",
+      },
+    },
+  ];
+}
+
+/** A free agent whose last contract ran out on its end date: he was released when it did. */
+function freeAgentHistory(player: PlayerData, lastClub: string | null): PlayerMovementEntry[] {
+  const from = clubRef(lastClub);
+  return [
+    {
+      date: "2028-07-01",
+      kind: "permanent_transfer",
+      from_team_id: null,
+      from_team_name: null,
+      to_team_id: from.id,
+      to_team_name: from.name,
+      fee: 500_000,
+      contract: {
+        start: "2028-07-01",
+        end: "2031-06-30",
+        weekly_wage: Math.max(1, Math.round(player.market_value / 220)),
+        source: "transfer",
+      },
+    },
+    {
+      date: "2031-06-30",
+      kind: "released",
+      from_team_id: from.id,
+      from_team_name: from.name,
+      to_team_id: null,
+      to_team_name: null,
+      release_reason: "expired",
+    },
+  ];
+}
+
 /** The club's own player as the club sees him: known, his wage exact, with ratings and a season. */
-function ownCase(player: PlayerData): ProfileCase {
+function ownCase(player: PlayerData, signedFrom: string | null): ProfileCase {
   return {
     playerId: player.id,
     knowledge: { kind: "own" },
@@ -173,6 +320,7 @@ function ownCase(player: PlayerData): ProfileCase {
     retiredPlayer: null,
     recentMatches: fiveMatches(),
     seasonStats: A_SEASON,
+    playerPatch: { movement_history: ownHistory(player, signedFrom) },
   };
 }
 
@@ -205,6 +353,7 @@ export function profileCase(variant: HarnessProfile): ProfileCase {
         positionRatings: positionRatingsOf(own, { kind: "live" }),
         recentMatches: fiveMatches(),
         seasonStats: A_SEASON,
+        playerPatch: { movement_history: ownHistory(own, rival.team_id) },
       };
     case "keeper":
       return {
@@ -219,18 +368,22 @@ export function profileCase(variant: HarnessProfile): ProfileCase {
       };
     case "injured":
       return {
-        ...ownCase(injured),
+        ...ownCase(injured, rival.team_id),
         // A knee injury with twelve days to go: the profile's injury banner.
-        playerPatch: { injury: { name: "common.injuries.kneeBruise", days_remaining: 12 } },
+        playerPatch: {
+          movement_history: ownHistory(injured, rival.team_id),
+          injury: { name: "common.injuries.kneeBruise", days_remaining: 12 },
+        },
       };
     case "loaned":
       return {
-        ...ownCase(loaned),
+        ...ownCase(loaned, rival.team_id),
         // The coaches watch a player the club has loaned out no longer, so no opinion of him
         // (`player_knowledge::trains_with_club_since`).
         opinion: null,
         // On loan from the user's club to a rival: the profile's loan banner.
         playerPatch: {
+          movement_history: loanedHistory(loaned, rival.team_id),
           team_id: rival.team_id,
           active_loan: {
             parent_team_id: USER_CLUB,
@@ -249,6 +402,7 @@ export function profileCase(variant: HarnessProfile): ProfileCase {
         knowledge: { kind: "known" },
         wage: { kind: "hidden" },
         positionRatings: positionRatingsOf(rival, { kind: "live" }),
+        playerPatch: { movement_history: rivalHistory(rival, own.team_id) },
       };
     case "scouted":
       return {
@@ -287,6 +441,7 @@ export function profileCase(variant: HarnessProfile): ProfileCase {
         playerId: freeAgent.id,
         knowledge: { kind: "unknown" },
         wage: { kind: "hidden" },
+        playerPatch: { movement_history: freeAgentHistory(freeAgent, rival.team_id) },
       };
     case "retired":
       // Not among the world's players: an id of its own, so the dashboard has to fetch him.

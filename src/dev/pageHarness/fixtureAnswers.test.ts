@@ -252,10 +252,11 @@ describe("fixture answers: the profile's knowledge of players", () => {
   });
 
   /**
-   * Given the profile open on the injured player, and on the club's own player
+   * Given the profile open on the injured player, on the club's own player, and on a stranger
    * When the active game is asked for
-   * Then the injured case's game holds his injury (the patch laid over him) and the other case's is
-   *      the fixture's game itself
+   * Then the injured case's game holds his injury (the patch laid over him), the own player's holds
+   *      the contracts he has had, and the stranger's, which has no patch, is the fixture's game
+   *      itself
    */
   it("lays the case's patch over the player in the active game", () => {
     const injured = profileCase("injured");
@@ -268,7 +269,16 @@ describe("fixture answers: the profile's knowledge of players", () => {
     expect(patched.players.find((player) => player.id === injured.playerId)?.injury).toMatchObject({
       days_remaining: 12,
     });
-    expect(fixtureHandlers(readStyleGuideOptions(""), "en", "own").get_active_game({})).toBe(
+    const own = profileCase("own");
+    const ownGame = fixtureHandlers(readStyleGuideOptions(""), "en", "own").get_active_game({}) as {
+      players: { id: string; movement_history: { kind: string }[] }[];
+    };
+    expect(
+      ownGame.players
+        .find((player) => player.id === own.playerId)
+        ?.movement_history.map((entry) => entry.kind),
+    ).toEqual(["permanent_transfer", "renewal"]);
+    expect(fixtureHandlers(readStyleGuideOptions(""), "en", "unknown").get_active_game({})).toBe(
       gameState,
     );
   });
