@@ -27,6 +27,23 @@ it("remembers validation findings when an old recent project is reopened", async
   localStorage.setItem(recentKey, JSON.stringify([{ path, name: "Old world", openedAt: "old" }]));
   vi.mocked(invoke).mockImplementation(async (command) => {
     if (command === "list_installed_packages") return [];
+    // The home lists the recent project from the backend's reading of its folder.
+    if (command === "get_worlds_library") {
+      return {
+        projects: [
+          {
+            path,
+            name: "Old world",
+            version: null,
+            clubs: 1,
+            players: 1,
+            countries: 1,
+            error: null,
+          },
+        ],
+        installed: [],
+      };
+    }
     if (command === "read_package_project") {
       return {
         meta: { ...emptyMeta(), name: "Old world" },
@@ -56,7 +73,9 @@ it("remembers validation findings when an old recent project is reopened", async
     </ThemeContext.Provider>
   );
   const first = render(page());
-  fireEvent.click(screen.getByRole("button", { name: /Old world/ }));
+  // The home's rows come once the library has answered; the row's button is named for its world
+  // (the test's `t` returns the key alone).
+  fireEvent.click(await screen.findByRole("button", { name: /worldEditor.home.openNamed/ }));
   const validate = await screen.findByRole("button", { name: /worldEditor.validate/ });
   const before = Date.now();
   fireEvent.click(validate);
@@ -68,7 +87,7 @@ it("remembers validation findings when an old recent project is reopened", async
   first.unmount();
 
   const reopened = render(page());
-  fireEvent.click(screen.getByRole("button", { name: /Old world/ }));
+  fireEvent.click(await screen.findByRole("button", { name: /worldEditor.home.openNamed/ }));
   await screen.findByRole("button", { name: /worldEditor.validate/ });
   const records = JSON.parse(localStorage.getItem(recentKey) ?? "[]");
   expect(records).toHaveLength(1);

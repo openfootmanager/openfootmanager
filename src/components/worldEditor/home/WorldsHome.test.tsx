@@ -221,6 +221,27 @@ describe("WorldsHome", () => {
   });
 
   /**
+   * Given the library request is refused, the editor has no recent projects, and Retry is pressed
+   *       but its request stays pending
+   * When the table is read while it waits
+   * Then it still says the library could not be read (not "loading", and not that it is empty).
+   */
+  it("keeps saying the library could not be read while a retry with no recent projects is pending", async () => {
+    invoke.mockImplementation(() => Promise.reject(new Error("no app data folder")));
+    renderHome({ recentProjects: [] });
+    await screen.findByText("worldEditor.home.libraryFailedEmpty");
+
+    invoke.mockImplementation(() => new Promise(() => {}));
+    fireEvent.click(screen.getByRole("button", { name: "common.retry" }));
+
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "common.retry" })).toBeDisabled(),
+    );
+    expect(screen.getByText("worldEditor.home.libraryFailedEmpty")).toBeInTheDocument();
+    expect(screen.queryByText("common.loading")).toBeNull();
+  });
+
+  /**
    * Given the library request is refused and the editor has no recent projects
    * When the home opens
    * Then the table says the library could not be read, not that it is empty (the library is unknown),
