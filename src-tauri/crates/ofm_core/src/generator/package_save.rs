@@ -650,6 +650,12 @@ mod tests {
         });
         let nested = dir.join("players");
         std::fs::set_permissions(&nested, std::fs::Permissions::from_mode(0o0)).unwrap();
+        if std::fs::read_dir(&nested).is_ok() {
+            std::fs::set_permissions(&nested, std::fs::Permissions::from_mode(0o700)).unwrap();
+            std::fs::remove_dir_all(dir).unwrap();
+            eprintln!("Skipping permission assertion: directory remains readable");
+            return;
+        }
         let result = save_package_files(&dir, &package);
         std::fs::set_permissions(&nested, std::fs::Permissions::from_mode(0o700)).unwrap();
         let manifest = std::fs::read_to_string(dir.join("package.json")).unwrap();

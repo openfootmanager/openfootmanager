@@ -37,7 +37,11 @@ import { WorldEditorLayout } from "../components/worldEditor/WorldEditorLayout";
 import { WorldEditorTopBar, type SaveState } from "../components/worldEditor/WorldEditorTopBar";
 import { findingsToShow } from "../components/worldEditor/validationOutcome";
 import { savePackageProject, validatePackageProject } from "../services/packageEditorService";
-import { readRecentProjects, rememberRecentProject } from "../services/recentProjects";
+import {
+  readRecentProjects,
+  rememberRecentProject,
+  updateRecentValidation,
+} from "../services/recentProjects";
 import {
   hasUnsavedChanges,
   type Acknowledged,
@@ -414,7 +418,12 @@ export default function WorldEditor() {
     try {
       await persist();
       const data = await validatePackageProject(projectDir);
-      setRecentProjects((previous) => readRecentProjects(previous));
+      const validation = {
+        errors: data.issues.length,
+        warnings: data.warnings.length,
+        checkedAt: new Date().toISOString(),
+      };
+      setRecentProjects((previous) => updateRecentValidation(previous, projectDir, validation));
       setIssues(data.issues);
       setWarnings(data.warnings ?? []);
       // An explicit Validate shows what it found, warnings included.
