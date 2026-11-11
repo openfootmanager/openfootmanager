@@ -41,6 +41,8 @@ pub struct InboxMessage {
     pub body: String,
     #[serde(default)]
     pub sender: String,
+    #[serde(default)]
+    pub sender_role: String,
     pub category: String,
     pub read: bool,
     pub date: String,
@@ -75,6 +77,9 @@ impl fmt::Display for InboxMessages {
                 message.id, message.subject, message.category, read_marker, message.date
             )?;
         }
+        for message in self.messages.iter().take(LISTED_IN_TEXT) {
+            write_message(f, message)?;
+        }
         if self.messages.len() > LISTED_IN_TEXT {
             write!(
                 f,
@@ -84,6 +89,42 @@ impl fmt::Display for InboxMessages {
         }
         Ok(())
     }
+}
+
+/// One message in full: who wrote it, what it says, and what it asks the manager to do.
+fn write_message(f: &mut fmt::Formatter<'_>, message: &InboxMessage) -> fmt::Result {
+    write!(f, "\n### {} ({})\n", message.subject, message.id)?;
+    if !message.sender.is_empty() {
+        write!(f, "\nFrom {}", message.sender)?;
+        if !message.sender_role.is_empty() {
+            write!(f, ", {}", message.sender_role)?;
+        }
+        writeln!(f)?;
+    }
+    write!(f, "\n{}\n", message.body)?;
+    for (name, value) in &message.details {
+        write!(f, "\nDetails `{name}`: {value}\n")?;
+    }
+    for action in &message.actions {
+        let answered = if action.resolved {
+            " (already answered)"
+        } else {
+            ""
+        };
+        write!(
+            f,
+            "\nAction `{}` [{}]{}: {}\n",
+            action.id, action.kind, answered, action.label
+        )?;
+        for option in &action.options {
+            writeln!(
+                f,
+                "  - option `{}`: {} — {}",
+                option.id, option.label, option.description
+            )?;
+        }
+    }
+    Ok(())
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -203,3 +244,50 @@ tool_results!(
     OldMessagesCleared,
     ActionResolved,
 );
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Given a listed message with a choice that is still open
+    /// When the inbox is rendered as text
+    /// Then the text carries the message id, the action id and each option id an agent passes to
+    ///      `inbox_resolve_action`, and the message's own words
+    #[test]
+    fn the_text_names_every_id_inbox_resolve_action_takes() {
+        let inbox = InboxMessages {
+            messages: vec![InboxMessage {
+                id: "sponsor_1".to_string(),
+                subject: "Sponsor offer".to_string(),
+                body: "Acme wants to sponsor the club.".to_string(),
+                sender: "Commercial Director".to_string(),
+                sender_role: "Commercial Director".to_string(),
+                category: "Finance".to_string(),
+                read: false,
+                date: "2026-07-30".to_string(),
+                actions: vec![InboxAction {
+                    id: "respond".to_string(),
+                    label: "Respond".to_string(),
+                    kind: "choose_option".to_string(),
+                    resolved: false,
+                    options: vec![InboxActionOption {
+                        id: "accept".to_string(),
+                        label: "Accept".to_string(),
+                        description: "Sign the deal.".to_string(),
+                    }],
+                }],
+                details: BTreeMap::new(),
+            }],
+        };
+
+        let text = inbox.to_string();
+
+        assert!(text.contains("Acme wants to sponsor the club."), "{text}");
+        assert!(text.contains("sponsor_1"), "{text}");
+        assert!(text.contains("Action `respond` [choose_option]"), "{text}");
+        assert!(
+            text.contains("option `accept`: Accept — Sign the deal."),
+            "{text}"
+        );
+    }
+}

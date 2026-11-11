@@ -549,6 +549,7 @@ fn recent_news(news: &[domain::news::NewsArticle], today: &str) -> RecentNews {
                 NewsItem {
                     headline: text.headline,
                     body: text.body,
+                    source: text.source,
                     date: n.date.clone(),
                     details: text.details,
                 }

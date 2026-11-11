@@ -1,12 +1,9 @@
-import { writeFileSync } from "node:fs";
-import { join } from "node:path";
 import { beforeAll, beforeEach, describe, expect, it } from "vitest";
 
 import { i18nReady } from "../i18n";
 import { takeMissingKeys } from "../i18n/missingKeys";
 import { useSettingsStore } from "../store/settingsStore";
 import type { MessageAction, MessageData, NewsArticle } from "../store/types";
-import golden from "./backendTextGolden.json";
 import { resolveMessage, resolveNewsArticle } from "./backendI18n";
 
 /**
@@ -22,7 +19,9 @@ import { resolveMessage, resolveNewsArticle } from "./backendI18n";
  * To change a case, or after changing how a key or a param is resolved, regenerate the file from
  * the frontend and commit it:
  *
- *   OFM_UPDATE_BACKEND_TEXT_GOLDEN=1 npm exec --no -- vitest run src/utils/backendTextGolden.test.ts
+ *   rm src/utils/backendTextGolden.json && npm exec --no -- vitest run src/utils/backendTextGolden.test.ts
+ *
+ * (A run with the file missing writes it; under CI a missing or different file fails.)
  *
  * Not covered, on purpose: the params the frontend expands from structured JSON (roundups,
  * standings, scorers, press quotes), a division's or competition's display name, and country names.
@@ -400,31 +399,18 @@ beforeEach(() => {
 });
 
 describe("the backend text golden file", () => {
-  if (process.env.OFM_UPDATE_BACKEND_TEXT_GOLDEN === "1") {
-    it("is rewritten from the frontend resolver", () => {
-      const cases = CASES.map((testCase) => ({ ...testCase, expected: expectedOf(testCase) }));
-      writeFileSync(
-        join(process.cwd(), "src/utils/backendTextGolden.json"),
-        `${JSON.stringify({ cases }, null, 2)}\n`,
-      );
-    });
-    return;
-  }
-
   /**
    * Given the cases this file lists
    * When `backendI18n.ts` resolves each in English
-   * Then the text is the text written in `backendTextGolden.json`, which the Rust resolver the MCP
-   *      server uses is held to as well
+   * Then `backendTextGolden.json` is the cases and that text, exactly: the Rust resolver the MCP
+   *      server uses is held to the same file, so neither side can change without the other.
+   *      deleting the file and running this test rewrites it after a change both resolvers have been taught.
    */
-  it("lists exactly the cases this file defines", () => {
-    expect(
-      golden.cases.map((entry) => ({ name: entry.name, kind: entry.kind, input: entry.input })),
-    ).toEqual(CASES.map(({ name, kind, input }) => ({ name, kind, input })));
-  });
+  it("is what the frontend resolver writes for the cases it lists", async () => {
+    const cases = CASES.map((testCase) => ({ ...testCase, expected: expectedOf(testCase) }));
 
-  it.each(CASES.map((testCase) => [testCase.name, testCase] as const))("%s", (_name, testCase) => {
-    const written = golden.cases.find((entry) => entry.name === testCase.name);
-    expect(written?.expected).toEqual(expectedOf(testCase));
+    await expect(`${JSON.stringify({ cases }, null, 2)}\n`).toMatchFileSnapshot(
+      "./backendTextGolden.json",
+    );
   });
 });

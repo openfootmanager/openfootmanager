@@ -62,6 +62,7 @@ fn inbox_message_result(message: &domain::message::InboxMessage) -> InboxMessage
         subject: text.subject,
         body: text.body,
         sender: text.sender,
+        sender_role: text.sender_role,
         // Spelled as the `category` filter accepts it.
         category: format!("{:?}", message.category),
         read: message.read,
