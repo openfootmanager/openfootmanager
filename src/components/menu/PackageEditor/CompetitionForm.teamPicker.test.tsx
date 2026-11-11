@@ -201,6 +201,28 @@ describe("CompetitionForm: the participants picker's design tokens", () => {
   });
 });
 
+describe("CompetitionForm: the participants picker's colours and sizes", () => {
+  /**
+   * Given the picker open
+   * When every element of it is read
+   * Then none uses a raw palette colour (gray-, navy-, primary-), a dark: partner or a px type size:
+   *   they are role tokens and role sizes, which high-contrast mode and the UI scale can adjust
+   */
+  it("uses only role tokens and role sizes", () => {
+    renderForm();
+    fireEvent.click(addButton());
+
+    const root = addButton().parentElement as HTMLElement;
+    const classes = [root, ...root.querySelectorAll("*")]
+      .map((el) => el.getAttribute("class") ?? "")
+      .join(" ");
+
+    expect(classes).not.toMatch(/\b(gray|navy|primary)-\d+/);
+    expect(classes).not.toMatch(/\bdark:/);
+    expect(classes).not.toMatch(/\btext-(xs|sm)\b/);
+  });
+});
+
 describe("CompetitionForm: the participants picker's focus, composition and empty results", () => {
   /**
    * Given the picker open with focus in its search field

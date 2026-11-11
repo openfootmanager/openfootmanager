@@ -81,15 +81,15 @@ export function TeamAddPicker({ teams, taken, onAdd }: TeamAddPickerProps) {
           setActive(0);
           setIsOpen((open) => !open);
         }}
-        className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-dashed border-gray-300 dark:border-navy-500 text-sm text-gray-500 dark:text-gray-400 hover:border-primary-400 hover:text-primary-500 dark:hover:border-primary-500 dark:hover:text-primary-400 transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 focus-visible:ring-offset-page aria-disabled:opacity-40 aria-disabled:cursor-not-allowed"
+        className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-dashed border-line-strong text-body text-fg-muted hover:border-selected hover:text-selected transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 focus-visible:ring-offset-page aria-disabled:opacity-40 aria-disabled:cursor-not-allowed"
       >
         <Plus className="w-4 h-4" />
         {t("worldEditor.addTeam")}
       </button>
 
       {isOpen && (
-        <div className="absolute top-full left-0 z-50 mt-1 min-w-56 rounded-xl border border-gray-200 dark:border-navy-600 bg-white dark:bg-navy-700 shadow-xl">
-          <div className="p-2 border-b border-gray-100 dark:border-navy-600">
+        <div className="absolute top-full left-0 z-50 mt-1 min-w-56 rounded-lg border border-line bg-panel shadow-xl">
+          <div className="border-b border-line p-2">
             <input
               type="text"
               // biome-ignore lint/a11y/noAutofocus: the search field only exists while the team picker is open.
@@ -109,14 +109,11 @@ export function TeamAddPicker({ teams, taken, onAdd }: TeamAddPickerProps) {
                 setActive(0);
               }}
               onKeyDown={onKeyDown}
-              className="w-full rounded-md border border-gray-200 dark:border-navy-600 bg-gray-50 dark:bg-navy-800 px-3 py-1.5 text-sm text-gray-900 dark:text-white outline-none focus:border-primary-500 focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 focus-visible:ring-offset-page placeholder:text-gray-400 dark:placeholder:text-gray-500"
+              className="w-full rounded-md border border-line bg-sunken px-3 py-1.5 text-body text-fg outline-none placeholder:text-fg-subtle focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 focus-visible:ring-offset-page"
             />
           </div>
           {available.length === 0 && (
-            <p
-              role="status"
-              className="px-3 py-2 text-caption text-gray-400 dark:text-gray-500 italic"
-            >
+            <p role="status" className="px-3 py-2 text-caption text-fg-subtle italic">
               {t("menu.noResults")}
             </p>
           )}
@@ -140,7 +137,7 @@ export function TeamAddPicker({ teams, taken, onAdd }: TeamAddPickerProps) {
                   {team.name || team.id}
                 </span>
                 {team.country && (
-                  <span className="text-caption px-1.5 rounded bg-gray-100 dark:bg-navy-700 text-gray-500 dark:text-gray-400 flex-shrink-0">
+                  <span className="text-caption px-1.5 rounded bg-sunken text-fg-muted flex-shrink-0">
                     {team.country}
                   </span>
                 )}
