@@ -57,7 +57,7 @@ pub(crate) fn sponsor_offer_message(
     .with_sender_i18n("be.sender.commercialDirector", "be.role.commercialDirector")
 }
 
-pub(super) fn training_injury_message(
+pub(crate) fn training_injury_message(
     msg_id: &str,
     player_id: &str,
     player_name: &str,

@@ -32,6 +32,8 @@ mod post_match_reactions;
 mod squad_floor;
 #[path = "turn_tests/training_ground.rs"]
 mod training_ground;
+#[path = "turn_tests/training_injuries.rs"]
+mod training_injuries;
 #[path = "turn_tests/unwatched.rs"]
 mod unwatched;
 #[path = "turn_tests/user_matchday.rs"]

@@ -303,6 +303,39 @@
     "subtitle": "Selecione o time que você quer comandar",
     "confirming": "Confirmando...",
     "manage": "Comandar {{name}}",
+    "steps": {
+      "label": "Etapas da nova carreira",
+      "manager": "Treinador",
+      "world": "Mundo",
+      "generation": "Geração",
+      "club": "Clube",
+      "done": "concluído"
+    },
+    "back": "Voltar para a geração do mundo",
+    "simulation": "Simulação",
+    "manageNone": "Comandar",
+    "rail": {
+      "label": "Países e ligas",
+      "countries": "Países"
+    },
+    "table": {
+      "label": "Clubes",
+      "club": "Clube",
+      "transfers": "Transferências",
+      "wages": "Salários / sem.",
+      "stadium": "Estádio"
+    },
+    "card": {
+      "label": "Clube escolhido",
+      "emptyTitle": "Nenhum clube escolhido ainda",
+      "emptyHint": "Escolha um clube na lista para ver o elenco, os orçamentos e o que a diretoria espera.",
+      "boardExpects": "A diretoria espera",
+      "transferBudget": "Orçamento de transferências",
+      "wageBudget": "Orçamento salarial",
+      "balance": "Saldo",
+      "stadium": "Estádio",
+      "founded": "fundado em {{year}}"
+    },
     "reputation": "Reputação",
     "squad": "Elenco",
     "finances": "Finanças",

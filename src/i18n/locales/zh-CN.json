@@ -303,6 +303,39 @@
     "subtitle": "选择您想管理的球队",
     "confirming": "确认中...",
     "manage": "管理 {{name}}",
+    "steps": {
+      "label": "新生涯步骤",
+      "manager": "经理",
+      "world": "世界",
+      "generation": "生成",
+      "club": "俱乐部",
+      "done": "已完成"
+    },
+    "back": "返回世界生成",
+    "simulation": "模拟",
+    "manageNone": "管理",
+    "rail": {
+      "label": "国家和联赛",
+      "countries": "国家"
+    },
+    "table": {
+      "label": "俱乐部",
+      "club": "俱乐部",
+      "transfers": "转会",
+      "wages": "周薪总额",
+      "stadium": "球场"
+    },
+    "card": {
+      "label": "已选俱乐部",
+      "emptyTitle": "尚未选择俱乐部",
+      "emptyHint": "从列表中选择一家俱乐部，查看其阵容、预算和董事会的期望。",
+      "boardExpects": "董事会期望",
+      "transferBudget": "转会预算",
+      "wageBudget": "薪资预算",
+      "balance": "余额",
+      "stadium": "球场",
+      "founded": "创立于{{year}}年"
+    },
     "reputation": "声望",
     "squad": "阵容",
     "finances": "财务",

@@ -82,7 +82,7 @@ pub(super) fn reconcile_calendar(game: &mut Game, today: &str, shown: &ShownFixt
     let Ok(day) = NaiveDate::parse_from_str(today, "%Y-%m-%d") else {
         return false;
     };
-    let blackout = crate::national_team::international_blackout_around(&game.competitions, day);
+    let blackout = crate::national_team::international_blackout_around(game, day);
     let before = calendar_fingerprint(game, &blackout);
     if game.calendar_fingerprint == Some(before) {
         return false;
