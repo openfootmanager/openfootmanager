@@ -65,7 +65,7 @@ pub(crate) fn process_selected_fixtures_due(
     }
     if played_world_cup {
         let before = game.competitions.len();
-        world_cup::stage_world_cup_playoff_if_ready(game, today);
+        world_cup::stage_world_cup_playoff_if_ready(game, today, &published);
         if game.competitions.len() != before {
             national_team::settle_for_replay(game, day);
         }

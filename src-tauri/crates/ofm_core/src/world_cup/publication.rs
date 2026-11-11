@@ -2,15 +2,23 @@
 
 use super::*;
 
-pub(super) fn publish(game: &mut Game, mut competition: League) {
+pub(super) fn publish(game: &mut Game, competition: League) {
     let published = crate::national_team::published_tournament_fixtures(game);
+    publish_with_history(game, competition, &published);
+}
+
+pub(super) fn publish_with_history(
+    game: &mut Game,
+    mut competition: League,
+    published: &std::collections::BTreeSet<(String, String)>,
+) {
     crate::calendar_identity::ensure_competition_calendar(&mut competition);
     let id = competition.id.clone();
     game.competitions.push(competition);
     crate::national_team::settle_drawn_tournaments(
         game,
         game.clock.current_date.date_naive(),
-        &published,
+        published,
     );
     if !game.active_competition_ids.is_empty() {
         game.active_competition_ids.push(id);
