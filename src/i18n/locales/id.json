@@ -3970,6 +3970,7 @@
         "countryWithoutRegion": "Paket ini mendefinisikan negara \"{{name}}\" ({{code}}) di luar daftar negara permainan dan tidak menempatkannya di konfederasi mana pun, sehingga klubnya dikelompokkan di Eropa. Berikan konfederasi untuknya.",
         "freeAgentFieldIgnored": "Pemain \"{{id}}\" tidak punya klub, sehingga menjadi pemain bebas tanpa kontrak: \"{{field}}\" diabaikan. Berikan klub untuknya agar dipakai, atau hapus kolom itu.",
         "repeatedNamePool": "Kumpulan nama untuk {{country}} sudah diberikan di {{first}}; kumpulan di berkas ini menggantikannya. Simpan salah satu saja, atau berikan ke negara yang berbeda.",
+        "patchClubRefsUnverified": "Patch ini menyebut klub yang tidak didefinisikannya. Sendirian, patch tidak bisa membedakan klub basis datanya dari kesalahan, jadi klub itu tidak diperiksa di sini. Game memeriksanya saat patch ditumpuk di atas basisnya.",
         "namePoolIncomplete": "Kumpulan nama untuk {{country}} punya nama depan tetapi tanpa nama keluarga, atau sebaliknya, sehingga tidak dipakai: pemain dari {{country}} mendapat nama bawaan game. Isi keduanya."
       }
     }

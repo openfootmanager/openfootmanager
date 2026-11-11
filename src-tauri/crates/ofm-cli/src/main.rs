@@ -2,7 +2,7 @@ use clap::{Parser, Subcommand, ValueEnum};
 use colored::Colorize;
 use comfy_table::{presets::UTF8_FULL, Table};
 use ofm_core::generator::{
-    check_world_package, entity_template, export_directory_to_ofm, is_valid_package_id,
+    check_world_package_on_bases, entity_template, export_directory_to_ofm, is_valid_package_id,
     load_world_package, load_world_package_from_ofm, new_package_meta, package_warnings,
     read_package_manifest_from_ofm, scaffold_package, slugify, validate_package,
     EntityKind as CoreEntityKind,
@@ -598,13 +598,12 @@ fn patch_pack_note(pkg: &ofm_core::generator::WorldPackage) -> Option<&'static s
         .is_some_and(|meta| meta.package_type == "patch");
     is_patch.then_some(
         "this is a patch package: pack does not check its references to clubs and other entities, \
-         which resolve against the base database when it is installed. `ofm-cli validate` checks \
-         the package as a world on its own, as the game does when it is started alone.",
+         which resolve against the base database it is stacked on. Check them with \
+         `ofm-cli validate <patch> --base <base>`.",
     )
 }
 
 fn cmd_validate(path: &Path, bases: &[PathBuf]) -> i32 {
-    let _ = bases;
     if !path.exists() {
         eprintln!(
             "{} Path not found: {}",
@@ -619,9 +618,9 @@ fn cmd_validate(path: &Path, bases: &[PathBuf]) -> i32 {
     let (pkg, mut errors) = if is_ofm {
         load_world_package_from_ofm(path)
     } else {
-        // The one entry the editor and the game share, so a package this passes is one the game
-        // starts (#1364).
-        check_world_package(path)
+        // A patch alone has its club references left to the stack; given a base, they are checked
+        // as the game checks a stack.
+        check_world_package_on_bases(path, bases)
     };
     if is_ofm {
         // The archive load is the runtime read path and stays permissive on

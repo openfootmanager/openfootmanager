@@ -112,8 +112,7 @@ fn load_project(dir: &str) -> Result<(WorldPackage, Vec<PackageIssue>, Vec<Packa
         return Err("be.error.package.notAProjectDirectory".to_string());
     }
 
-    // The one validation entry the CLI and the game share: what Validate says is what the game says.
-    let (pkg, errors) = ofm_core::generator::check_world_package(path);
+    let (pkg, errors) = load_world_package(path);
 
     // A package that resolved to nothing must not open as a blank project.
     // Every field would read empty, Save would write that emptiness back over
@@ -1067,7 +1066,7 @@ mod tests {
     }
 
     /// The same package, asked of its three entry points: the package editor's Validate, the one
-    /// entry `ofm-cli validate` calls (`check_world_package`), and the game's validation on import
+    /// loader `ofm-cli validate` calls (`load_world_package`), and the game's validation on import
     /// and career start.
     fn editor_cli_and_game_findings(dir: &std::path::Path) -> [Vec<String>; 3] {
         let path = dir.to_string_lossy().to_string();

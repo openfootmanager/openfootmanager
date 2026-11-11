@@ -878,29 +878,36 @@ fn world_check(
     merge_world_packages(vec![package])
 }
 
-/// The one validation answer for a package directory, whoever asks: `ofm-cli validate`, the package
-/// editor's Validate and the game's import and career start. Returns the package as read (the editor
-/// edits it, the CLI warns on it) and the findings of [`load_world_package_as_world`].
-pub fn check_world_package(dir: &Path) -> (WorldPackage, Vec<PackageError>) {
-    let (package, errors) = load_world_package(dir);
-    // The merge consumes the package it checks, and the caller wants it back as read, so a package
-    // with no errors of its own is checked on a copy.
-    let findings = if errors.is_empty() {
-        world_check(package.clone(), errors).1
-    } else {
-        errors
-    };
-    (package, findings)
-}
-
 /// A package directory checked on the packages it is stacked on: `bases` (a directory or a `.ofm`
 /// archive each), then the package, merged as the game merges a stack it starts a career on.
+///
+/// Returns the package as read, with its own problems; with no base it stops there, since alone a
+/// patch's club references are the stack's to decide (#1271). With bases it adds what the merge
+/// reports (the one call `load_world_data_from_package_ids` makes on an installed stack), unless a
+/// base or the package already has problems of its own, so none is reported twice.
 pub fn check_world_package_on_bases(
     dir: &Path,
     bases: &[PathBuf],
 ) -> (WorldPackage, Vec<PackageError>) {
-    let _ = bases;
-    load_world_package(dir)
+    let (package, errors) = load_world_package(dir);
+    if !errors.is_empty() || bases.is_empty() {
+        return (package, errors);
+    }
+    let mut stack = Vec::with_capacity(bases.len() + 1);
+    for base in bases {
+        let (loaded, base_errors) = if base.is_dir() {
+            load_world_package(base)
+        } else {
+            load_world_package_from_ofm(base)
+        };
+        if !base_errors.is_empty() {
+            return (package, base_errors);
+        }
+        stack.push(loaded);
+    }
+    stack.push(package.clone());
+    let (_merged, findings) = merge_world_packages(stack);
+    (package, findings)
 }
 
 /// The filename of the world-save manifest in `dir`, if `dir` holds an exported

@@ -3970,6 +3970,7 @@
         "countryWithoutRegion": "Dieses Paket definiert das Land „{{name}}“ ({{code}}) außerhalb der Länderliste des Spiels und ordnet es keinem Verband zu, daher werden seine Vereine unter Europa geführt. Weise ihm einen Verband zu.",
         "freeAgentFieldIgnored": "Der Spieler „{{id}}“ hat keinen Verein und ist daher ein Free Agent ohne Vertrag: „{{field}}“ wird ignoriert. Gib ihm einen Verein, um das Feld zu nutzen, oder entferne es.",
         "repeatedNamePool": "Der Namenspool für {{country}} wurde bereits in {{first}} angegeben; der Pool dieser Datei ersetzt ihn. Behalte nur einen oder ordne sie verschiedenen Ländern zu.",
+        "patchClubRefsUnverified": "Dieser Patch nennt Vereine, die er nicht definiert. Allein kann er die Vereine seiner Basisdatenbank nicht von Fehlern unterscheiden, daher wurden sie hier nicht geprüft. Das Spiel prüft sie, wenn der Patch auf seine Basis gestapelt wird.",
         "namePoolIncomplete": "Der Namenspool für {{country}} hat Vornamen, aber keine Nachnamen, oder Nachnamen, aber keine Vornamen, und wird daher nicht verwendet: Spieler aus {{country}} erhalten die Namen des Spiels. Gib ihm beides."
       }
     }

@@ -28,7 +28,49 @@ pub fn package_warnings(package: &WorldPackage) -> Vec<PackageError> {
     warnings.extend(free_agent_warnings(package));
     warnings.extend(repeated_name_pool_warnings(package));
     warnings.extend(incomplete_name_pool_warnings(package));
+    warnings.extend(patch_club_warnings(package));
     warnings
+}
+
+/// A patch naming clubs it does not define. Alone it cannot tell a club its base database defines
+/// from one nothing defines, so this is not an error (#1271); the game checks it when the patch is
+/// stacked, and `ofm-cli validate --base` checks it the same way. One warning, however many
+/// references, naming how many distinct clubs went unchecked.
+fn patch_club_warnings(package: &WorldPackage) -> Vec<PackageError> {
+    let is_patch = package
+        .meta
+        .as_ref()
+        .is_some_and(|meta| meta.package_type == "patch");
+    if !is_patch {
+        return Vec::new();
+    }
+    let defined: std::collections::HashSet<&str> =
+        package.teams.iter().map(|team| team.id.as_str()).collect();
+    let mut unchecked: std::collections::BTreeSet<&str> = std::collections::BTreeSet::new();
+    let mut first_file: Option<String> = None;
+    let player_clubs = package
+        .players
+        .iter()
+        .enumerate()
+        .map(|(index, player)| (player.club.as_str(), package.source_at("player", index)));
+    let staff_clubs = package
+        .staff
+        .iter()
+        .enumerate()
+        .map(|(index, staff)| (staff.club.as_str(), package.source_at("staff", index)));
+    for (club, file) in player_clubs.chain(staff_clubs) {
+        if !club.is_empty() && !defined.contains(club) {
+            unchecked.insert(club);
+            first_file.get_or_insert(file);
+        }
+    }
+    match first_file {
+        Some(file) => vec![
+            PackageError::new(PATCH_CLUB_REFS_UNVERIFIED, &file)
+                .with("clubs", unchecked.len().to_string()),
+        ],
+        None => Vec::new(),
+    }
 }
 
 /// A name pool missing its first names or its surnames. Building a world uses a package's pool
@@ -154,7 +196,7 @@ mod tests {
             .filter(|w| w.code == PATCH_CLUB_REFS_UNVERIFIED)
             .collect();
         assert_eq!(unverified.len(), 1, "{warnings:?}");
-        assert!(unverified[0].params.contains(&("count".into(), "1".into())));
+        assert!(unverified[0].params.contains(&("clubs".into(), "1".into())));
     }
 
     /// Given a database package whose players name only clubs it defines
