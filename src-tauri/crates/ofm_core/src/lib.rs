@@ -88,6 +88,7 @@ pub mod staff_tier;
 pub mod state;
 pub mod tactics_effects;
 pub mod tactics_lineup;
+pub mod team_talk_moment;
 #[cfg(test)]
 mod test_support;
 pub mod training;

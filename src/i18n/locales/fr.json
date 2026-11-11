@@ -2914,6 +2914,10 @@
         "pressConferenceAlreadyHeld": "Vous avez déjà tenu une conférence de presse aujourd'hui",
         "noCompletedMatch": "Aucun match terminé n'a été trouvé pour votre équipe"
       },
+      "teamTalk": {
+        "notAtABreak": "Une causerie n'est possible qu'à la mi-temps ou après le match.",
+        "alreadyGiven": "Vous avez déjà fait la causerie pour ce moment."
+      },
       "csv": {
         "writeFailed": "Échec de l'écriture du fichier CSV."
       },

@@ -264,7 +264,7 @@ These tools allow agents to play matches interactively instead of delegating the
 | `match_snapshot` | Get current match state without advancing time; during a shootout, your own side's kicking order (never the opponent's) |
 | `match_set_shootout_order` | Set your side's penalty shootout order: all your eligible players, reordered, once the shootout has started and before its first kick. A multi-minute `match_step` stops when the shootout starts, so there is always a chance to set it |
 | `match_finish` | Finish the match, apply results, and clean up. A match not yet over is simulated to the end, with the AI managing your side too |
-| `match_team_talk` | Apply a team talk (half-time or full-time) affecting player morale |
+| `match_team_talk` | Give a team talk (`tone` only) at half-time, half-time of extra time or right after the match, once per moment: the game reads the score for your side and reports the context it used. Refused at any other time, and for a second talk in the same moment |
 | `match_press_conference` | Submit press conference answers affecting squad morale |
 
 ### Jobs (2 tools)

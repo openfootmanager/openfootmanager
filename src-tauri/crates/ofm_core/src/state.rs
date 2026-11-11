@@ -1,6 +1,7 @@
 use crate::game::Game;
 use crate::live_match_manager::LiveMatchSession;
 use domain::stats::StatsState;
+use std::collections::HashSet;
 use std::sync::Mutex;
 use std::sync::atomic::{AtomicU64, Ordering};
 
@@ -42,7 +43,7 @@ fn cloned_option<T: Clone>(mutex: &Mutex<Option<T>>) -> Option<T> {
 
 /// Key returned when a write was meant for another career than the one that is active.
 pub const CAREER_CHANGED_ERROR: &str = "be.error.careerChanged";
-const NO_ACTIVE_GAME_ERROR: &str = "be.error.noActiveGameSession";
+pub const NO_ACTIVE_GAME_ERROR: &str = "be.error.noActiveGameSession";
 
 /// Which career a write is for.
 ///
@@ -94,6 +95,9 @@ pub struct StateManager {
     active_save_id: Mutex<Option<String>>,
     /// Last career token handed out (`next_career_token`); 0 is never issued.
     last_career_token: AtomicU64,
+    /// The team-talk moments already used in this session (`crate::team_talk_moment`), so each is
+    /// offered once however the talk arrives. Not saved: a loaded game starts with none used.
+    team_talks_given: Mutex<HashSet<String>>,
 }
 
 impl Default for StateManager {
@@ -110,10 +114,35 @@ impl StateManager {
             live_match: Mutex::new(None),
             active_save_id: Mutex::new(None),
             last_career_token: AtomicU64::new(0),
+            team_talks_given: Mutex::new(HashSet::new()),
         }
     }
 
+    /// Uses up the team talk of `moment`: `true` the first time, `false` when it was used already.
+    pub fn claim_team_talk_moment(&self, moment: &str) -> bool {
+        self.team_talks_given
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .insert(moment.to_string())
+    }
+
+    /// Gives back a moment [`Self::claim_team_talk_moment`] took, for a talk that then failed.
+    pub fn release_team_talk_moment(&self, moment: &str) {
+        self.team_talks_given
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .remove(moment);
+    }
+
+    fn forget_team_talks(&self) {
+        self.team_talks_given
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .clear();
+    }
+
     pub fn set_game(&self, game: Game) {
+        self.forget_team_talks();
         set_option(&self.active_game, game);
     }
 
@@ -147,6 +176,7 @@ impl StateManager {
     }
 
     pub fn clear_game(&self) {
+        self.forget_team_talks();
         clear_option(&self.active_game);
         clear_option(&self.active_stats);
         clear_option(&self.live_match);
@@ -523,5 +553,49 @@ mod tests {
         state.clear_game();
         assert!(state.with_live_match(|_| ()).is_none());
         assert!(state.get_game(|_| ()).is_none());
+    }
+
+    fn game_for_moments() -> Game {
+        let clock = GameClock::new(Utc.with_ymd_and_hms(2026, 5, 20, 12, 0, 0).unwrap());
+        let manager = Manager::new(
+            "mgr".to_string(),
+            "Test".to_string(),
+            "Manager".to_string(),
+            "1980-01-01".to_string(),
+            "England".to_string(),
+        );
+        Game::new(clock, manager, vec![], vec![], vec![], vec![])
+    }
+
+    /// Given a team-talk moment
+    /// When it is claimed twice, given back, and claimed again
+    /// Then the second claim is refused, and a moment given back can be claimed anew
+    #[test]
+    fn a_team_talk_moment_is_claimed_once_until_it_is_given_back() {
+        let state = StateManager::new();
+
+        assert!(state.claim_team_talk_moment("f1/HalfTime"));
+        assert!(!state.claim_team_talk_moment("f1/HalfTime"));
+        assert!(
+            state.claim_team_talk_moment("f1/ExtraTimeHalfTime"),
+            "another moment is its own"
+        );
+        state.release_team_talk_moment("f1/HalfTime");
+        assert!(state.claim_team_talk_moment("f1/HalfTime"));
+    }
+
+    /// Given a moment claimed in one game
+    /// When another game is set, or the game is cleared
+    /// Then the moments start afresh: a new career is not refused for the last one's talks
+    #[test]
+    fn the_claimed_moments_do_not_outlive_the_game() {
+        let state = StateManager::new();
+        state.set_game(game_for_moments());
+        assert!(state.claim_team_talk_moment("f1/HalfTime"));
+
+        state.set_game(game_for_moments());
+        assert!(state.claim_team_talk_moment("f1/HalfTime"));
+        state.clear_game();
+        assert!(state.claim_team_talk_moment("f1/HalfTime"));
     }
 }

@@ -179,7 +179,6 @@ export default function PostMatchScreen({
 
   const handleDeliverTalk = async () => {
     if (!selectedTalk || talkPending) return;
-    const context = resultType === "win" ? "winning" : resultType === "loss" ? "losing" : "drawing";
     setTalkPending(true);
     setTalkError(null);
     try {
@@ -191,7 +190,7 @@ export default function PostMatchScreen({
           new_morale: number;
           delta: number;
         }[]
-      >("apply_team_talk", { tone: selectedTalk, context });
+      >("apply_team_talk", { tone: selectedTalk });
       setTalkResults(results);
       setTalkDelivered(true);
     } catch (err) {

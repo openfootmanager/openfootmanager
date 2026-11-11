@@ -2914,6 +2914,10 @@
         "pressConferenceAlreadyHeld": "Hai già tenuto una conferenza stampa oggi",
         "noCompletedMatch": "Nessuna partita disputata trovata per la tua squadra"
       },
+      "teamTalk": {
+        "notAtABreak": "Il discorso alla squadra si può fare solo all'intervallo o dopo la partita.",
+        "alreadyGiven": "Hai già tenuto il discorso alla squadra per questo momento."
+      },
       "csv": {
         "writeFailed": "Impossibile scrivere il file CSV."
       },

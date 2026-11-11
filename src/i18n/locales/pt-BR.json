@@ -2914,6 +2914,10 @@
         "pressConferenceAlreadyHeld": "Você já deu uma coletiva de imprensa hoje",
         "noCompletedMatch": "Nenhuma partida disputada foi encontrada para o seu time"
       },
+      "teamTalk": {
+        "notAtABreak": "A preleção só pode ser feita no intervalo ou depois do jogo.",
+        "alreadyGiven": "Você já fez a preleção para este momento."
+      },
       "csv": {
         "writeFailed": "Falha ao gravar o arquivo CSV."
       },

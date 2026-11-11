@@ -2949,6 +2949,10 @@
         "pressConferenceAlreadyHeld": "You have already held a press conference today",
         "noCompletedMatch": "No completed match found for your team"
       },
+      "teamTalk": {
+        "notAtABreak": "A team talk can only be given at half-time or after the match.",
+        "alreadyGiven": "You have already given the team talk for this moment."
+      },
       "csv": {
         "writeFailed": "Failed to write the CSV file."
       },

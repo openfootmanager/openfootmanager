@@ -2914,6 +2914,10 @@
         "pressConferenceAlreadyHeld": "Ya has ofrecido una rueda de prensa hoy",
         "noCompletedMatch": "No se ha encontrado ningún partido disputado por tu equipo"
       },
+      "teamTalk": {
+        "notAtABreak": "Solo se puede dar una charla al equipo en el descanso o después del partido.",
+        "alreadyGiven": "Ya has dado la charla al equipo para este momento."
+      },
       "csv": {
         "writeFailed": "No se pudo escribir el archivo CSV."
       },
