@@ -67,9 +67,19 @@ describe("the player profile's cases", () => {
   it("gives each rating row the game's key attributes for its position", () => {
     const table: Record<string, string[]> = positionKeyAttributes;
     for (const variant of ["own", "keeper", "rival", "scouted"] as const) {
-      const ratings = profileCase(variant).positionRatings;
-      for (const row of ratings?.rows ?? []) {
-        expect(row.key_attributes.map((key) => key.attribute)).toEqual(table[row.position]);
+      const { playerId, positionRatings } = profileCase(variant);
+      const player = playerOf(playerId);
+      // A case with no ratings fails here rather than being skipped.
+      expect(positionRatings, variant).not.toBeNull();
+      expect(positionRatings?.rows.length, variant).toBeGreaterThan(0);
+      for (const row of positionRatings?.rows ?? []) {
+        const attributes = player?.attributes as unknown as Record<string, number>;
+        const expected = table[row.position].map((attribute) => ({
+          attribute,
+          value: attributes[attribute],
+        }));
+        expect(row.key_attributes, `${variant} ${row.position}`).toEqual(expected);
+        expect(row.key_attributes.some((key) => key.value > 0)).toBe(true);
       }
     }
   });
