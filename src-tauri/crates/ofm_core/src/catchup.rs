@@ -348,6 +348,7 @@ fn stranded_international_dates(game: &Game, today: NaiveDate) -> Vec<String> {
 /// One repair pass. Returns how many fixtures it resolved; zero means nothing moved.
 fn repair_one_pass(game: &mut Game, today: NaiveDate, pass: usize) -> usize {
     let mut resolved = 0;
+    let before = scheduled_national_dates(game);
 
     // Club football: a scoreline sweep per competition, skipping the ones with nothing stranded so
     // an ordinary load does not pay to rank every squad in the world.
@@ -391,7 +392,25 @@ fn repair_one_pass(game: &mut Game, today: NaiveDate, pass: usize) -> usize {
         resolved += crate::national_tournament::process_fixtures_due(game, &date);
     }
 
+    // Moving the only stranded match into the future is also a persistent repair, even though
+    // it must not be simulated yet. Count it once; matches played in this pass are counted above.
+    resolved += scheduled_national_dates(game)
+        .into_iter()
+        .filter(|(id, date)| before.get(id).is_some_and(|original| original != date))
+        .count();
+
     resolved
+}
+
+fn scheduled_national_dates(game: &Game) -> HashMap<(String, String), String> {
+    game.competitions
+        .iter()
+        .filter(|c| is_national_team_competition(c))
+        .flat_map(|c| &c.fixtures)
+        .chain(game.national_teams.iter().flat_map(|n| &n.fixtures))
+        .filter(|f| f.status == FixtureStatus::Scheduled)
+        .map(|f| ((f.competition_id.clone(), f.id.clone()), f.date.clone()))
+        .collect()
 }
 
 /// Returns how many fixtures were repaired, for the caller to log and to decide whether to resave.

@@ -82,12 +82,33 @@ pub(super) fn reconcile_calendar(game: &mut Game, today: &str, shown: &ShownFixt
     let Ok(day) = NaiveDate::parse_from_str(today, "%Y-%m-%d") else {
         return false;
     };
+    let Some(tomorrow) = day.succ_opt() else {
+        return false;
+    };
+    reconcile_from(game, today, day, tomorrow, shown)
+}
+
+/// Before simulation, today's unplayed club fixtures may still yield to national duty.
+pub(super) fn prepare_calendar(game: &mut Game, today: &str, shown: &ShownFixtures) -> bool {
+    let Ok(day) = NaiveDate::parse_from_str(today, "%Y-%m-%d") else {
+        return false;
+    };
+    reconcile_from(game, today, day, day, shown)
+}
+
+fn reconcile_from(
+    game: &mut Game,
+    today: &str,
+    day: NaiveDate,
+    first_day: NaiveDate,
+    shown: &ShownFixtures,
+) -> bool {
     let blackout = crate::national_team::international_blackout_around(game, day);
     let before = calendar_fingerprint(game, &blackout);
     if game.calendar_fingerprint == Some(before) {
         return false;
     }
-    let moved_after_being_shown = settle_calendar_today(game, day, &blackout, shown);
+    let moved_after_being_shown = settle_calendar_today(game, first_day, &blackout, shown);
     let after = calendar_fingerprint(game, &blackout);
     if after != before {
         // Something moved or was dropped, announced or not: the mirror the dashboard reads has to
@@ -103,24 +124,20 @@ pub(super) fn reconcile_calendar(game: &mut Game, today: &str, shown: &ShownFixt
     true
 }
 
-/// Settles the calendar for the days from tomorrow on; returns the moves of fixtures the player
-/// had been shown.
+/// Settles from the first still-playable day and returns moves of fixtures already shown.
 fn settle_calendar_today(
     game: &mut Game,
-    day: NaiveDate,
+    first_day: NaiveDate,
     blackout: &BTreeSet<NaiveDate>,
     shown: &ShownFixtures,
 ) -> Vec<calendar_reconcile::Move> {
-    let Some(tomorrow) = day.succ_opt() else {
-        return Vec::new();
-    };
     let bracket_competitions: HashSet<String> = game
         .competitions
         .iter()
         .filter(|competition| has_bracket(competition))
         .map(|competition| competition.id.clone())
         .collect();
-    calendar_reconcile::settle_calendar(&mut game.competitions, blackout, tomorrow, |planned| {
+    calendar_reconcile::settle_calendar(&mut game.competitions, blackout, first_day, |planned| {
         !bracket_competitions.contains(&planned.competition_id)
             || shown.contains(&(planned.competition_id.clone(), planned.fixture_id.clone()))
     })
