@@ -162,6 +162,12 @@ fn render_module(game: &Game) -> Result<String, String> {
     )?;
     export(
         &mut module,
+        "positionKeyAttributes",
+        "Record<string, AttributeKey[]>",
+        &position_key_attributes()?,
+    )?;
+    export(
+        &mut module,
         "careerStage",
         "CareerStage",
         &ofm_core::career_stage::career_stage(game),
@@ -185,6 +191,24 @@ fn position_weights() -> Result<
                 .map(str::to_string)
                 .ok_or_else(|| "a position serialises as a string".to_string())?;
             Ok((name, ofm_core::position_ratings::weights_of(position)))
+        })
+        .collect()
+}
+
+/// The three attributes the game cannot do without at every position, by the position's name
+/// (`player_rating::key_attributes`): what the profile marks as key, so the harness's ratings name the
+/// game's three and not whichever of the fixture player's attributes are highest.
+fn position_key_attributes()
+-> Result<std::collections::BTreeMap<String, [domain::player::AttributeKey; 3]>, String> {
+    domain::player::Position::ALL
+        .iter()
+        .map(|position| {
+            let name = serde_json::to_value(position)
+                .map_err(|error| error.to_string())?
+                .as_str()
+                .map(str::to_string)
+                .ok_or_else(|| "a position serialises as a string".to_string())?;
+            Ok((name, ofm_core::player_rating::key_attributes(position)))
         })
         .collect()
 }
@@ -239,6 +263,7 @@ import type { PositionGroupEntry } from \"../../services/positionService\";
 import type { RatingTier, SquadFitness } from \"../../services/squadService\";
 import type { StaffSlice } from \"../../services/staffService\";
 import type { TeamsDirectory } from \"../../services/teamsService\";
+import type { AttributeKey } from \"../../store/generated/AttributeKey\";
 import type { AttributeWeight } from \"../../store/generated/AttributeWeight\";
 import type { FamiliarityProjection } from \"../../store/generated/FamiliarityProjection\";
 import type { GameStateData, PlayerData } from \"../../store/types\";

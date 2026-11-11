@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { gameState, positionWeights } from "./fixture.generated";
+import { gameState, positionKeyAttributes, positionWeights } from "./fixture.generated";
 import { HARNESS_PROFILES } from "./harnessPage";
 import { profileCase } from "./profileCases";
 
@@ -54,6 +54,23 @@ describe("the player profile's cases", () => {
     )) {
       expect(profileCase(variant).recentMatches).toEqual([]);
       expect(profileCase(variant).seasonStats.metrics.shots.total).toBe(0);
+    }
+  });
+
+  /**
+   * Given each state that shows position ratings
+   * When their rows are built
+   * Then each row's key attributes are the game's three for that position (from the generated
+   *      fixture, written by Rust from `key_attributes`), not whichever attributes happen to be the
+   *      player's best, each with the player's own value
+   */
+  it("gives each rating row the game's key attributes for its position", () => {
+    const table: Record<string, string[]> = positionKeyAttributes;
+    for (const variant of ["own", "keeper", "rival", "scouted"] as const) {
+      const ratings = profileCase(variant).positionRatings;
+      for (const row of ratings?.rows ?? []) {
+        expect(row.key_attributes.map((key) => key.attribute)).toEqual(table[row.position]);
+      }
     }
   });
 
