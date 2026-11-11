@@ -55,8 +55,7 @@ fn career() -> (Game, StatsState) {
 fn assert_calendar_is_legal(game: &Game) {
     use std::collections::BTreeMap;
     let today = game.clock.current_date.date_naive();
-    let blackout =
-        ofm_core::national_team::international_blackout_around(&game.competitions, today);
+    let blackout = ofm_core::national_team::international_blackout_around(game, today);
     let plan = ofm_core::calendar_reconcile::plan(
         &game.competitions,
         &blackout,

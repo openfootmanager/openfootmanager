@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { HARNESS_PAGES } from "../src/dev/pageHarness/harnessPage";
+import { HARNESS_PAGES, HARNESS_PROFILES } from "../src/dev/pageHarness/harnessPage";
 import { CASES, judge, loadFaces, nodeProblem, REQUIRED_FACES } from "./page-layout-check.mjs";
 
 describe("the Node check", () => {
@@ -262,8 +262,31 @@ describe("page layout check", () => {
     const worst = CASES.filter(
       (c) => c.lang === "de" && c.scale === "xlarge" && c.width === 960 && c.height === 640,
     );
+    const profiles = HARNESS_PROFILES.map(() => "profile");
     expect(worst.map((c) => c.page ?? "style guide").sort()).toEqual(
-      [...Object.keys(HARNESS_PAGES), "style guide"].sort(),
+      [
+        ...Object.keys(HARNESS_PAGES).filter((page) => page !== "profile"),
+        ...profiles,
+        "style guide",
+      ].sort(),
+    );
+  });
+
+  /**
+   * Given the player profile, which looks different for each state the club's knowledge of a player
+   * can be in (its own, a rival, a scouted player, an unknown one, a retired one)
+   * When the cases are listed
+   * Then each state is measured at every window, so a state with a longer layout cannot hide
+   */
+  it("measures each state of the player profile at every window", () => {
+    const profile = CASES.filter((c) => c.page === "profile").map(
+      (c) => `${c.player} ${c.width}×${c.height} ${c.scale} ${c.lang}`,
+    );
+    const windows = CASES.filter((c) => c.page === "home").map(
+      (c) => `${c.width}×${c.height} ${c.scale} ${c.lang}`,
+    );
+    expect(profile.sort()).toEqual(
+      HARNESS_PROFILES.flatMap((player) => windows.map((window) => `${player} ${window}`)).sort(),
     );
   });
 });

@@ -3,7 +3,8 @@ import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
 
 import Dashboard from "../../pages/Dashboard";
 import { useGameStore } from "../../store/gameStore";
-import { HARNESS_PAGES, type HarnessPage } from "./harnessPage";
+import { HARNESS_PAGES, type HarnessPage, type HarnessProfile } from "./harnessPage";
+import { profileCase } from "./profileCases";
 
 /** Shown when the page navigates away, which a failed load does, so a capture can't pass blank. */
 function LeftTheDashboard() {
@@ -20,7 +21,16 @@ function LeftTheDashboard() {
  * Mounts the real dashboard on the fixture career. The career is marked active the way loading a
  * save marks it, and every backend call goes to the mocked IPC installed before this rendered.
  */
-export function PageHarness({ page, managerName }: { page: HarnessPage; managerName: string }) {
+export function PageHarness({
+  page,
+  managerName,
+  profile,
+}: {
+  page: HarnessPage;
+  managerName: string;
+  /** For the `profile` page: the state of the player it opens on. */
+  profile: HarnessProfile;
+}) {
   const hasActiveGame = useGameStore((state) => state.hasActiveGame);
   useEffect(() => {
     useGameStore.getState().setGameActive(true, managerName);
@@ -30,7 +40,15 @@ export function PageHarness({ page, managerName }: { page: HarnessPage; managerN
   return (
     <MemoryRouter initialEntries={["/dashboard"]}>
       <Routes>
-        <Route path="/dashboard" element={<Dashboard initialTab={HARNESS_PAGES[page]} />} />
+        <Route
+          path="/dashboard"
+          element={
+            <Dashboard
+              initialTab={HARNESS_PAGES[page]}
+              initialPlayerId={page === "profile" ? profileCase(profile).playerId : undefined}
+            />
+          }
+        />
         <Route path="*" element={<LeftTheDashboard />} />
       </Routes>
     </MemoryRouter>
