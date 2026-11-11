@@ -2822,25 +2822,48 @@ mod tests {
         assert!(errors.iter().any(|e| e.code == UNKNOWN_TEAM), "{errors:?}");
     }
 
-    /// Given a patch checked on a base that reads, and on one that does not
-    /// When each check reports
-    /// Then the merge ran only for the base that reads: otherwise the club references were never
-    ///      checked, and the caller must not say they were.
+    /// Given a patch naming a club its base defines, and a base that reads
+    /// When it is checked on that base
+    /// Then the stack merge ran: the club references were checked.
     #[test]
-    fn the_stack_check_says_whether_the_merge_ran() {
+    fn the_stack_check_reports_the_merge_ran_for_a_readable_base() {
         let (base, patch) = (base_with_one_club(), patch_with_player_at("base-fc"));
-        let missing = std::env::temp_dir().join("ofm-no-such-base.ofm");
 
-        let readable = stack_check(&patch, std::slice::from_ref(&base));
-        let unreadable = stack_check(&patch, &[missing]);
-        let alone = stack_check(&patch, &[]);
+        let check = stack_check(&patch, std::slice::from_ref(&base));
         for dir in [&base, &patch] {
             std::fs::remove_dir_all(dir).ok();
         }
 
-        assert!(readable.merged);
-        assert!(!unreadable.merged && !unreadable.errors.is_empty());
-        assert!(!alone.merged);
+        assert!(check.merged);
+    }
+
+    /// Given a patch and a base that cannot be read
+    /// When it is checked on that base
+    /// Then the merge did not run, and the base's read problem is reported: the club references
+    ///      were never checked, and the caller must not say they were.
+    #[test]
+    fn the_stack_check_reports_no_merge_for_an_unreadable_base() {
+        let patch = patch_with_player_at("base-fc");
+        let missing = std::env::temp_dir().join("ofm-no-such-base.ofm");
+
+        let check = stack_check(&patch, &[missing]);
+        std::fs::remove_dir_all(&patch).ok();
+
+        assert!(!check.merged);
+        assert!(!check.errors.is_empty());
+    }
+
+    /// Given a patch and no base
+    /// When it is checked
+    /// Then the merge did not run: alone, a patch's club references are the stack's to decide.
+    #[test]
+    fn the_stack_check_reports_no_merge_without_a_base() {
+        let patch = patch_with_player_at("base-fc");
+
+        let check = stack_check(&patch, &[]);
+        std::fs::remove_dir_all(&patch).ok();
+
+        assert!(!check.merged);
     }
 
     /// Given a patch with no base given
