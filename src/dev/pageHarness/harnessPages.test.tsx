@@ -135,6 +135,20 @@ const KNOWLEDGE_SHOWS: Record<HarnessProfile, (view: ReturnType<typeof within>) 
     }
     expect(view.queryByText("Technical", { selector: "h4" })).toBeNull();
   },
+  // The own injured player: the injury banner. The own loaned-out player: the loan banner.
+  injured: (view) => {
+    expect(view.getByText(/12 days remaining/)).toBeInTheDocument();
+    // The control for the loaned case below: a player the club still has shows its opinion by now,
+    // so an absence there is not a profile that has not finished loading.
+    expect(view.getAllByText("Coaches' opinion").length).toBeGreaterThan(0);
+  },
+  loaned: (view) => {
+    expect(view.getByText(/^On loan at /)).toBeInTheDocument();
+    // No opinion of his potential while he is away (the coaches see him no more).
+    // Not a failed load either: a failure shows a retry where the opinion would be.
+    expect(view.queryByRole("button", { name: "Retry" })).toBeNull();
+    expect(view.queryByText("Coaches' opinion")).toBeNull();
+  },
   // A division rival: his attributes are known, his condition, morale and wage are not.
   rival: (view) => {
     for (const label of ["Condition", "Morale", "Wage"]) {

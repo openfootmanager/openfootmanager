@@ -30,6 +30,17 @@ function forQuery(query: unknown, generatedFor: unknown, answer: () => unknown):
   return canonicalJson(query) === canonicalJson(generatedFor) ? answer() : UNANSWERED;
 }
 
+/** The game with the case's patch laid over its player: a state the generated career has none of. */
+function withPlayerPatch(game: typeof fixture.gameState, patch: ReturnType<typeof profileCase>) {
+  if (!patch.playerPatch) return game;
+  return {
+    ...game,
+    players: game.players.map((player) =>
+      player.id === patch.playerId ? { ...player, ...patch.playerPatch } : player,
+    ),
+  };
+}
+
 /** The settings the page sees, matching what the URL put on the document. */
 export function harnessSettings(
   options: StyleGuideOptions,
@@ -93,10 +104,11 @@ export function fixtureHandlers(
   language: SupportedLanguageCode,
   profile: HarnessProfile | null = null,
 ): CommandHandlers {
+  const patch = profile ? profileCase(profile) : null;
   return {
     ...(profile ? profileHandlers(profile) : {}),
     get_settings: () => harnessSettings(options, language),
-    get_active_game: () => fixture.gameState,
+    get_active_game: () => (patch ? withPlayerPatch(fixture.gameState, patch) : fixture.gameState),
     get_active_save_id: () => "page-harness",
     get_career_stage: () => fixture.careerStage,
     // No team id means the manager's club, as in the Rust command.
