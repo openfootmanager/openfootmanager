@@ -977,8 +977,6 @@ pub fn compute_traits(attrs: &PlayerAttributes, _position: &Position) -> Vec<Pla
 }
 
 impl Player {
-    /// Starts his season totals over: the totals, and the split of them by club, which means
-    /// nothing against fresh totals. The one place both are cleared together.
     /// This season's totals in the division `division_id` alone, as that division's tables and
     /// awards count them: its own matches, not a cup run or another competition. `None` when he has
     /// played none of its matches.
@@ -986,6 +984,8 @@ impl Player {
         self.league_stats_by_competition.get(division_id)
     }
 
+    /// Starts his season totals over: the totals, and the split of them by club, which means
+    /// nothing against fresh totals. The one place both are cleared together.
     pub fn reset_season_totals(&mut self) {
         self.stats = PlayerSeasonStats::default();
         self.season_stints = SeasonStints::default();

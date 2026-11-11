@@ -304,8 +304,10 @@ fn build_top_scorer_delta(
 
 fn scorer_display_name(full_name: &str, match_name: &str) -> String {
     let initial = full_name
-        .strip_suffix(match_name)
-        .and_then(|prefix| prefix.trim().chars().next());
+        .split_whitespace()
+        .next()
+        .filter(|first_name| *first_name != match_name)
+        .and_then(|first_name| first_name.chars().next());
     match initial {
         Some(initial) => format!("{initial}. {match_name}"),
         None => match_name.to_string(),
