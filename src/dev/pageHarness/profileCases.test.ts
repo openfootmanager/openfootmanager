@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 
+import type { PlayerData } from "../../store/types";
+
 import { gameState, positionKeyAttributes, positionWeights } from "./fixture.generated";
 import { HARNESS_PROFILES } from "./harnessPage";
 import { profileCase } from "./profileCases";
@@ -134,7 +136,9 @@ describe("the player profile's cases", () => {
     expect(injured.playerPatch?.injury).toMatchObject({ days_remaining: 12 });
     expect(loaned.playerPatch?.active_loan).toMatchObject({ parent_team_id: USER_CLUB });
     expect(loaned.playerPatch?.active_loan?.loan_team_id).not.toBe(USER_CLUB);
-    expect(profileCase("own").playerPatch).toBeUndefined();
+    // The own player is neither injured nor loaned: his patch, if any, carries only a history.
+    expect(profileCase("own").playerPatch?.injury).toBeUndefined();
+    expect(profileCase("own").playerPatch?.active_loan).toBeUndefined();
     // The club's coaches watch a player they have loaned out no longer, so there is no opinion of
     // his potential for the loaned player (`player_knowledge`); the injured one keeps his.
     expect(loaned.opinion).toBeNull();
@@ -216,5 +220,115 @@ describe("the player profile's cases", () => {
     expect(retired.knowledge).toBeNull();
     expect(retired.wage).toBeNull();
     expect(retired.opinion).toBeNull();
+  });
+
+  /** The player as the profile page shows him: the world's player with the case's patch laid over. */
+  const shown = (variant: (typeof HARNESS_PROFILES)[number]): PlayerData => {
+    const { playerId, playerPatch } = profileCase(variant);
+    return { ...(playerOf(playerId) as PlayerData), ...playerPatch };
+  };
+
+  /**
+   * Given the free-agent state (a player in no club whose last contract has run out)
+   * When his case is built
+   * Then he is in no club, has no contract end, is known by his public facts only, and his last
+   *      movement is the release at the end of that contract (a free agent's profile shows what he
+   *      had, and offers a new one)
+   */
+  it("shows a free agent whose last contract ran out", () => {
+    const free = profileCase("freeAgent");
+    const player = shown("freeAgent");
+    const history = player.movement_history ?? [];
+    const last = history[history.length - 1];
+
+    expect(player.team_id).toBeNull();
+    expect(player.contract_end).toBeNull();
+    expect(free.knowledge).toEqual({ kind: "unknown" });
+    expect(free.wage).toEqual({ kind: "hidden" });
+    expect(last).toMatchObject({ kind: "released", release_reason: "expired" });
+    // The contract he had is the last one on the ledger, and it ran out on the day he was released.
+    const lastContract = [...history].reverse().find((entry) => entry.contract)?.contract;
+    expect(lastContract?.end).toBe(last?.date);
+    expect(lastContract?.weekly_wage).toBeGreaterThan(0);
+  });
+
+  /**
+   * Given the own, the loaned-out, the rival and the free-agent players
+   * When their cases are built
+   * Then each has the contracts he has had, dated and in order, so the Contract and Career tabs
+   *      have a history to draw: at least two for the own player (a signing and a renewal), with
+   *      a fee on his transfer
+   */
+  it("gives the players the contracts they have had, in order", () => {
+    for (const variant of ["own", "loaned", "rival", "freeAgent"] as const) {
+      const history = shown(variant).movement_history ?? [];
+      const contracts = history.filter((entry) => entry.contract);
+      expect(contracts.length, variant).toBeGreaterThanOrEqual(1);
+      const dates = history.map((entry) => entry.date);
+      expect(dates, variant).toEqual([...dates].sort());
+      for (const { contract } of contracts) {
+        if (contract?.start && contract.end) {
+          expect(
+            contract.start < contract.end,
+            `${variant}: ${contract.start} < ${contract.end}`,
+          ).toBe(true);
+        }
+      }
+    }
+    const own = shown("own").movement_history ?? [];
+    expect(own.filter((entry) => entry.contract).length).toBeGreaterThanOrEqual(2);
+    expect(own.some((entry) => entry.kind === "permanent_transfer" && (entry.fee ?? 0) > 0)).toBe(
+      true,
+    );
+    expect(own.some((entry) => entry.kind === "renewal")).toBe(true);
+  });
+
+  /**
+   * Given the own, the loaned-out and the rival player, each with a history of his own
+   * When both the player and his history are read
+   * Then the last contract in the history is the one he has now: the same end, the same wage and
+   *      the same start (the game derives a player's contract dates from the ledger's current
+   *      record), so the history and the profile never disagree about the contract in force
+   */
+  it("ends each player's history with the contract he has now", () => {
+    for (const variant of ["own", "loaned", "rival"] as const) {
+      const player = shown(variant);
+      const current = [...(player.movement_history ?? [])]
+        .reverse()
+        .find((entry) => entry.contract)?.contract;
+
+      expect(current?.end, variant).toBe(player.contract_end);
+      expect(current?.weekly_wage, variant).toBe(player.wage);
+      expect(current?.start ?? null, variant).toBe(player.contract_start ?? null);
+    }
+  });
+
+  /**
+   * Given the loaned-out player, whose contract comes from a save made before starts were recorded
+   * When his history is read
+   * Then the opening entry has no date, as the game records an unknown start ("an unknown, not a
+   *      made-up day"), and the contract's start is null with it
+   */
+  it("keeps the unknown start of a legacy contract unknown in the movement date too", () => {
+    const history = shown("loaned").movement_history ?? [];
+    const legacy = history.find((entry) => entry.contract?.source === "legacy_migrated");
+
+    expect(legacy?.contract?.start).toBeNull();
+    expect(legacy?.date).toBe("");
+  });
+
+  /**
+   * Given a rival's player, whose contract dates and fees are public (his wage is not)
+   * When his case is built
+   * Then his history carries dates and a fee, and the wage is hidden by the knowledge answer, not
+   *      by leaving it out of the history
+   */
+  it("gives the rival a public history and a hidden wage", () => {
+    const rival = profileCase("rival");
+    const history = shown("rival").movement_history ?? [];
+
+    expect(rival.wage).toEqual({ kind: "hidden" });
+    expect(history.some((entry) => (entry.fee ?? 0) > 0)).toBe(true);
+    expect(history.every((entry) => entry.date)).toBe(true);
   });
 });

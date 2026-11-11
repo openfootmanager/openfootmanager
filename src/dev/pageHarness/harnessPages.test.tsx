@@ -164,6 +164,11 @@ const KNOWLEDGE_SHOWS: Record<HarnessProfile, (view: ReturnType<typeof within>) 
   },
   // A stranger and a retiree: public facts only.
   unknown: (view) => expectHidden(view),
+  // A free agent the club has never scouted: public facts only, and no club to be loaned from.
+  freeAgent: (view) => {
+    expectHidden(view);
+    expect(view.queryByText(/^On loan at /)).toBeNull();
+  },
   retired: (view) => {
     expectHidden(view);
     // The card says he has retired, when, and from which club.

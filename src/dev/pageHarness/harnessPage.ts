@@ -31,8 +31,8 @@ export function readHarnessPage(search: string): HarnessPage | null {
 
 /**
  * The states a player's profile is in, by how the club knows him (`ofm_core::player_knowledge`):
- * its own player, a rival in its division, one a scout reported on, one it knows nothing of, and one
- * who has retired. Each shows different facts, so each is a case of the layout check.
+ * its own player, a rival in its division, one a scout reported on, one it knows nothing of, a free
+ * agent whose last contract ran out, and one who has retired. Each shows different facts, so each is a case of the layout check.
  */
 export const HARNESS_PROFILES = [
   "own",
@@ -42,6 +42,7 @@ export const HARNESS_PROFILES = [
   "rival",
   "scouted",
   "unknown",
+  "freeAgent",
   "retired",
 ] as const;
 export type HarnessProfile = (typeof HARNESS_PROFILES)[number];
