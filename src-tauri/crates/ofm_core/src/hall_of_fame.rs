@@ -127,6 +127,8 @@ fn legend_of(
     championships: &HashMap<&str, HashSet<u32>>,
 ) -> HallOfFameLegend {
     let latest = retiree.career.iter().max_by_key(|entry| entry.season);
+    // A season can be several rows (a loan splits it around the borrower's), so a title is a
+    // (club, season) pair, counted once.
     let titles = retiree
         .career
         .iter()
@@ -135,7 +137,9 @@ fn legend_of(
                 .get(entry.team_id.as_str())
                 .is_some_and(|seasons| seasons.contains(&entry.season))
         })
-        .count() as u32;
+        .map(|entry| (entry.team_id.as_str(), entry.season))
+        .collect::<HashSet<_>>()
+        .len() as u32;
     HallOfFameLegend {
         player_id: retiree.id.clone(),
         full_name: retiree.full_name.clone(),
@@ -326,6 +330,30 @@ mod tests {
         let game = game_with(vec![vale], teams);
 
         assert_eq!(hall_of_fame_legends(&game)[0].titles, 2);
+    }
+
+    /// Given a season he spent at his club, out on loan, and back (three career rows: his club
+    ///      twice around the borrower's), and his club won the league that season
+    /// When legends are listed
+    /// Then the season is one title, not two: titles count (club, season) pairs, not rows.
+    #[test]
+    fn a_title_season_split_by_a_loan_counts_once() {
+        let vale = veteran(
+            "p-vale",
+            "Victor Vale",
+            vec![
+                career(1, "t-a", "Alpha FC", 10, 3),
+                career(1, "t-b", "Beta United", 12, 4),
+                career(1, "t-a", "Alpha FC", 8, 3),
+            ],
+        );
+        let teams = vec![
+            champion_team("t-a", "Alpha FC", &[1]),
+            champion_team("t-b", "Beta United", &[9]),
+        ];
+        let game = game_with(vec![vale], teams);
+
+        assert_eq!(hall_of_fame_legends(&game)[0].titles, 1);
     }
 
     /// Given three legends, when listed, then more titles come first, then appearances, goals,

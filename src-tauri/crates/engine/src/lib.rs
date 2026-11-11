@@ -5,6 +5,8 @@ pub mod live_match;
 pub mod rating;
 pub mod report;
 pub(crate) mod shared;
+#[cfg(test)]
+pub(crate) mod test_support;
 pub mod types;
 
 // Re-export key types for convenience
@@ -16,6 +18,7 @@ pub use live_match::{
     SetPieceTakers, ShootoutOrderSnapshot, SubstitutionRecord,
 };
 pub use report::{GoalDetail, GoalSource, MatchReport, PlayerMatchStats, TeamStats};
+pub use shared::role_has_match_effect;
 pub use types::{
     BreakSpeed, CounterPressDuration, DefensiveLine, DefensiveShape, MarkingStyle, MatchConfig,
     PlayStyle, PlayerData, PlayerRole, Position, PressingIntensity, Side, TacticalDial,

@@ -1,27 +1,12 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { invoke } from "@tauri-apps/api/core";
-import {
-  ArrowLeft,
-  Package,
-  FolderOpen,
-  Folder,
-  Loader2,
-  Zap,
-  Clock,
-  ChevronRight,
-  Package2,
-} from "lucide-react";
+import { ArrowLeft, ChevronRight, Loader2 } from "lucide-react";
 import type { WorldMetaDef } from "../menu/PackageEditor/types";
 import { SAMPLE_PACKAGES, type SamplePackage } from "../menu/PackageEditor/sampleData";
-import type { PackageInfo } from "../menu/WorldSelect";
+import WorldsHome from "./home/WorldsHome";
 
-export interface RecentProject {
-  path: string;
-  name: string;
-  openedAt: string;
-}
+import type { RecentProject } from "../../store/packageEditorTypes";
 
 type HomeView = "home" | "new-form";
 
@@ -71,14 +56,6 @@ export function WorldEditorHome({
   const [formAuthor, setFormAuthor] = useState("");
   const [formDesc, setFormDesc] = useState("");
   const [pendingSample, setPendingSample] = useState<SamplePackage | null>(null);
-  const [installedPackages, setInstalledPackages] = useState<PackageInfo[]>([]);
-
-  useEffect(() => {
-    invoke<PackageInfo[]>("list_installed_packages")
-      .then(setInstalledPackages)
-      .catch(() => {});
-  }, []);
-
   const derivedSlug = toSlug(formName);
 
   function openNewForm(sample?: SamplePackage) {
@@ -235,181 +212,20 @@ export function WorldEditorHome({
     );
   }
 
-  // ──────────────────────────────────────────────────────────────────────────
-  // Home view
-  // ──────────────────────────────────────────────────────────────────────────
+  // The home: the sidebar and the library of worlds.
   return (
-    <div className="min-h-screen flex flex-col bg-gray-50 dark:bg-navy-900">
-      {topBar}
-
-      <div className="flex-1 overflow-y-auto">
-        <div className="max-w-lg mx-auto px-6 py-10 flex flex-col gap-8">
-          {/* Hero */}
-          <div className="text-center">
-            <Package className="w-12 h-12 text-primary-500 mx-auto mb-3" />
-            <h1 className="text-2xl font-heading font-bold uppercase tracking-wide text-gray-900 dark:text-white">
-              {t("worldEditor.title")}
-            </h1>
-            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-              {t("worldEditor.homeSubtitle")}
-            </p>
-          </div>
-
-          {errorMsg && (
-            <div className="text-sm text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/30 rounded-xl px-4 py-3">
-              {errorMsg}
-            </div>
-          )}
-
-          {/* Primary actions */}
-          <div className="flex flex-col gap-3">
-            <button
-              type="button"
-              onClick={() => openNewForm()}
-              disabled={isBusy}
-              className="flex items-center gap-4 w-full p-5 bg-gradient-to-r from-primary-500 to-primary-600 hover:from-primary-600 hover:to-primary-700 text-white rounded-2xl transition-all duration-200 shadow-md hover:shadow-lg disabled:opacity-60 disabled:cursor-not-allowed"
-            >
-              <Package className="w-7 h-7 flex-shrink-0" />
-              <div className="text-left">
-                <p className="font-heading font-bold text-lg uppercase tracking-wide">
-                  {t("worldEditor.newPackage")}
-                </p>
-                <p className="text-sm text-primary-100 mt-0.5">{t("worldEditor.newPackageDesc")}</p>
-              </div>
-            </button>
-
-            <button
-              type="button"
-              onClick={onOpenPackageFile}
-              disabled={isBusy}
-              className="flex items-center gap-4 w-full p-5 bg-white dark:bg-navy-800 hover:bg-gray-50 dark:hover:bg-navy-700 text-gray-800 dark:text-gray-200 rounded-2xl transition-all duration-200 border border-gray-200 dark:border-navy-600 hover:border-accent-400 dark:hover:border-accent-400 shadow-sm disabled:opacity-60 disabled:cursor-not-allowed"
-            >
-              <FolderOpen className="w-7 h-7 text-accent-500 dark:text-accent-400 flex-shrink-0" />
-              <div className="text-left">
-                <p className="font-heading font-bold text-lg uppercase tracking-wide">
-                  {t("worldEditor.openPackageFile")}
-                </p>
-                <p className="text-sm text-gray-400 dark:text-gray-500 mt-0.5">
-                  {t("worldEditor.openPackageFileDesc")}
-                </p>
-              </div>
-            </button>
-
-            <button
-              type="button"
-              onClick={onOpenPackageFolder}
-              disabled={isBusy}
-              className="flex items-center gap-4 w-full p-5 bg-white dark:bg-navy-800 hover:bg-gray-50 dark:hover:bg-navy-700 text-gray-800 dark:text-gray-200 rounded-2xl transition-all duration-200 border border-gray-200 dark:border-navy-600 hover:border-accent-400 dark:hover:border-accent-400 shadow-sm disabled:opacity-60 disabled:cursor-not-allowed"
-            >
-              <Folder className="w-7 h-7 text-accent-500 dark:text-accent-400 flex-shrink-0" />
-              <div className="text-left">
-                <p className="font-heading font-bold text-lg uppercase tracking-wide">
-                  {t("worldEditor.openPackageFolder")}
-                </p>
-                <p className="text-sm text-gray-400 dark:text-gray-500 mt-0.5">
-                  {t("worldEditor.openPackageFolderDesc")}
-                </p>
-              </div>
-            </button>
-
-            <div className="flex flex-col gap-2">
-              <p className="text-[10px] font-heading font-bold uppercase tracking-[0.18em] text-gray-400 dark:text-gray-500 flex items-center gap-1.5">
-                <Zap className="w-3.5 h-3.5 text-amber-500" />
-                {t("worldEditor.startFromExample")}
-              </p>
-              {SAMPLE_PACKAGES.map((sample) => (
-                <button
-                  type="button"
-                  key={sample.meta.id}
-                  onClick={() => openNewForm(sample)}
-                  disabled={isBusy}
-                  className="flex items-start gap-3 w-full px-4 py-3 bg-white dark:bg-navy-800 hover:bg-amber-50 dark:hover:bg-navy-700 text-gray-800 dark:text-gray-200 rounded-xl transition-all duration-200 border border-gray-200 dark:border-navy-600 hover:border-amber-400 dark:hover:border-amber-500 shadow-sm disabled:opacity-60 disabled:cursor-not-allowed text-left"
-                >
-                  <div className="flex-1 min-w-0">
-                    <p className="font-heading font-bold uppercase tracking-wide text-sm truncate">
-                      {sample.meta.name}
-                    </p>
-                    <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5 line-clamp-1">
-                      {sample.meta.description}
-                    </p>
-                  </div>
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Recent projects */}
-          {recentProjects.length > 0 && (
-            <div>
-              <h3 className="flex items-center gap-2 text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wide mb-2">
-                <Clock className="w-3.5 h-3.5" />
-                {t("worldEditor.recentProjects")}
-              </h3>
-              <div className="flex flex-col gap-1">
-                {recentProjects.map((proj) => (
-                  <button
-                    type="button"
-                    key={proj.path}
-                    onClick={() => onOpenRecent(proj.path)}
-                    disabled={isBusy}
-                    className="flex items-center gap-3 w-full px-4 py-3 bg-white dark:bg-navy-800 hover:bg-gray-50 dark:hover:bg-navy-700 rounded-xl border border-gray-100 dark:border-navy-700 transition-colors text-left disabled:opacity-60"
-                  >
-                    <Package2 className="w-4 h-4 text-gray-400 dark:text-gray-500 flex-shrink-0" />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-gray-800 dark:text-gray-200 truncate">
-                        {proj.name}
-                      </p>
-                      <p className="text-xs text-gray-400 dark:text-gray-500 truncate font-mono">
-                        {proj.path}
-                      </p>
-                    </div>
-                    <ChevronRight className="w-4 h-4 text-gray-300 dark:text-gray-600 flex-shrink-0" />
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Installed packages */}
-          {installedPackages.length > 0 && (
-            <div>
-              <h3 className="flex items-center gap-2 text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wide mb-2">
-                <Package2 className="w-3.5 h-3.5" />
-                {t("worldSelect.installedPackages")}
-              </h3>
-              <div className="flex flex-col gap-1">
-                {installedPackages.map((pkg) => (
-                  <div
-                    key={pkg.id}
-                    className="flex items-center gap-3 px-4 py-3 bg-white dark:bg-navy-800 rounded-xl border border-gray-100 dark:border-navy-700"
-                  >
-                    <Package2 className="w-4 h-4 text-gray-400 dark:text-gray-500 flex-shrink-0" />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-gray-800 dark:text-gray-200 truncate">
-                        {pkg.name}
-                      </p>
-                      <p className="text-xs text-gray-400 dark:text-gray-500">
-                        v{pkg.version}
-                        {pkg.author ? ` · ${pkg.author}` : ""}
-                        {" · "}
-                        {pkg.teamCount} teams
-                      </p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => onOpenInstalled(pkg.installedPath)}
-                      disabled={isBusy}
-                      className="text-xs font-semibold text-primary-500 hover:text-primary-700 dark:hover:text-primary-300 transition-colors disabled:opacity-60 flex-shrink-0"
-                    >
-                      {t("worldEditor.openInEditor")}
-                    </button>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
+    <WorldsHome
+      isBusy={isBusy}
+      errorMsg={errorMsg}
+      recentProjects={recentProjects}
+      samples={SAMPLE_PACKAGES}
+      onNewWorld={() => openNewForm()}
+      onOpenFile={onOpenPackageFile}
+      onOpenFolder={onOpenPackageFolder}
+      onStartFromSample={openNewForm}
+      onOpenProject={onOpenRecent}
+      onOpenInstalled={onOpenInstalled}
+      onBack={() => navigate("/")}
+    />
   );
 }

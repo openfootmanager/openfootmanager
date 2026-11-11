@@ -30,6 +30,11 @@ export interface DataTableColumn<Row> {
    * the first column, which carries the row's accent: there it is ignored.
    */
   drawer?: boolean;
+  /**
+   * The cell's text wraps onto further lines and is never cut off or truncated (a club's name); the
+   * row then grows past the row height. Every other cell stays on one line.
+   */
+  wrap?: boolean;
 }
 
 interface DataTableProps<Row> {
@@ -52,6 +57,11 @@ interface DataTableProps<Row> {
    */
   primaryAside?: (row: Row) => ReactNode;
   rowAccent?: (row: Row) => RowAccent | null;
+  /**
+   * Whether the row is the one chosen, for a table that is a list to choose from: its open button
+   * then says so (`aria-pressed`), so a screen reader hears the choice and not only a colour.
+   */
+  rowPressed?: (row: Row) => boolean;
   /**
    * A right-click on the row, for its menu: the row and the pointer's place. The browser's own menu
    * stays shut. The keyboard reaches the same menu through `rowAction`.
@@ -173,6 +183,7 @@ export function DataTable<Row>({
   onOpen,
   rowAction,
   rowAccent,
+  rowPressed,
   onRowContextMenu,
   primaryAside,
   loading = false,
@@ -208,6 +219,9 @@ export function DataTable<Row>({
   }
 
   const cellClass = "h-row whitespace-nowrap border-b border-line px-2 align-middle first:pl-3.5";
+  // A wrapping cell keeps the row height as its least, and breaks a long unbroken word rather than
+  // push the table wider.
+  const wrappingCellClass = `${cellClass.replace("whitespace-nowrap", "whitespace-normal")} py-1 [overflow-wrap:anywhere]`;
 
   return (
     <div
@@ -317,7 +331,7 @@ export function DataTable<Row>({
                   {columns.map((column, index) => (
                     <td
                       key={column.key}
-                      className={`${cellClass} ${column.numeric ? "text-right tabular-nums" : ""} ${
+                      className={`${column.wrap ? wrappingCellClass : cellClass} ${column.numeric ? "text-right tabular-nums" : ""} ${
                         column.drawer ? FOLDED : ""
                       } ${index === 0 ? `${ACCENT_EDGE} ${ACCENT[accent ?? "none"]}` : ""}`}
                     >
@@ -327,6 +341,7 @@ export function DataTable<Row>({
                             <button
                               type="button"
                               aria-label={name}
+                              aria-pressed={rowPressed ? rowPressed(row) : undefined}
                               onClick={() => onOpen(row)}
                               className={`min-w-0 text-left ${CONTROL_FOCUS}`}
                             >

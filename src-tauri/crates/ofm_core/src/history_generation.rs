@@ -569,7 +569,8 @@ fn upsert_player_career(game: &mut Game, season: u32, standings: &[StandingEntry
         if crate::generator::opening_player_age(&player.date_of_birth, season as i32)
             .is_some_and(|age| age < MIN_SENIOR_CAREER_AGE)
         {
-            player.stats = PlayerSeasonStats::default();
+            player.reset_season_totals();
+            player.league_stats_by_competition.clear();
             continue;
         }
 
@@ -668,7 +669,8 @@ fn update_historical_rivalries(game: &mut Game, season: u32, standings: &[Standi
 
 fn reset_player_stats(game: &mut Game) {
     for player in &mut game.players {
-        player.stats = PlayerSeasonStats::default();
+        player.reset_season_totals();
+        player.league_stats_by_competition.clear();
     }
 }
 

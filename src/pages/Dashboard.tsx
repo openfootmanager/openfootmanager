@@ -20,6 +20,7 @@ import DashboardOverlays from "../components/dashboard/DashboardOverlays";
 import FiredModal from "../components/dashboard/FiredModal";
 import DashboardSidebar from "../components/dashboard/DashboardSidebar";
 import DashboardWorkspaceContent from "../components/dashboard/DashboardWorkspaceContent";
+import { useRetiredPlayer } from "../components/playerProfile/useRetiredPlayer";
 import {
   createDashboardProfileNavigationState,
   goBackDashboardProfile,
@@ -99,9 +100,14 @@ const TAB_TRANSLATION_KEYS: Record<string, string> = {
 interface DashboardProps {
   /** The tab it opens on. The app always opens on Home; the dev page harness mounts other pages. */
   initialTab?: string;
+  /** A player whose profile it opens on; the dev page harness mounts one. */
+  initialPlayerId?: string;
 }
 
-export default function Dashboard({ initialTab = "Home" }: DashboardProps): JSX.Element {
+export default function Dashboard({
+  initialTab = "Home",
+  initialPlayerId,
+}: DashboardProps): JSX.Element {
   const navigate = useNavigate();
   const {
     hasActiveGame,
@@ -135,7 +141,7 @@ export default function Dashboard({ initialTab = "Home" }: DashboardProps): JSX.
   // navigation that didn't come from the drawer.
   const [drawerChoices, setDrawerChoices] = useState(0);
   const [profileNavigation, setProfileNavigation] = useState(() =>
-    createDashboardProfileNavigationState(initialTab),
+    createDashboardProfileNavigationState(initialTab, initialPlayerId ?? null),
   );
   const [showExitConfirm, setShowExitConfirm] = useState(false);
   const [isExitingToMenu, setIsExitingToMenu] = useState(false);
@@ -517,6 +523,14 @@ export default function Dashboard({ initialTab = "Home" }: DashboardProps): JSX.
     gameState?.manager.team_id ?? "",
     gameState?.clock.current_date ?? "",
   );
+  // A profile opened on a player who is in no roster is a retired one: fetched once here, for the
+  // page and for the top bar's title.
+  const openPlayerId = profileNavigation.selectedPlayerId;
+  const retiredPlayer = useRetiredPlayer(
+    openPlayerId !== null && !gameState?.players.some((player) => player.id === openPlayerId)
+      ? openPlayerId
+      : null,
+  );
 
   if (!gameState) {
     return (
@@ -553,7 +567,7 @@ export default function Dashboard({ initialTab = "Home" }: DashboardProps): JSX.
     ? t(TAB_TRANSLATION_KEYS[profileNavigation.activeTab])
     : profileNavigation.activeTab;
   const headerTitle =
-    openProfileTitle(profileNavigation, gameState) ??
+    openProfileTitle(profileNavigation, gameState, retiredPlayer) ??
     (profileNavigation.selectedPlayerId !== null ? t("common.player") : activeTabLabel);
   const dashboardTabContentModel = createDashboardTabContentModel({
     activeTab: profileNavigation.activeTab,
@@ -675,6 +689,7 @@ export default function Dashboard({ initialTab = "Home" }: DashboardProps): JSX.
           dashboardAlerts={dashboardAlerts}
           gameState={gameState}
           profileNavigation={profileNavigation}
+          retiredPlayer={retiredPlayer}
           dashboardTabContentModel={dashboardTabContentModel}
           onNavigate={handleNavigate}
           onSelectPlayer={selectPlayer}

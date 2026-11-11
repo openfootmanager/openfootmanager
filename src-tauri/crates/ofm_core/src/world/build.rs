@@ -80,6 +80,7 @@ pub fn build_game_from_world_data(
                         &format!("catchup/definitions/{}", comp.id),
                         &game_start.format("%Y-%m-%d").to_string(),
                     );
+                    // No game yet to pick a side in: each club is rated on its best eleven.
                     crate::catchup::simulate_past_fixtures(
                         comp,
                         &world.players,
@@ -162,7 +163,7 @@ pub fn build_game_from_world_data(
             game.news = news;
             game.world_history = world_history;
             game.extra_translations = extra_translations;
-            crate::world::ensure_multi_competition_foundations(&mut game);
+            crate::world::foundations::ensure_snapshot_foundations(&mut game);
             crate::season_context::refresh_game_context(&mut game);
             (game, stats)
         }
@@ -229,6 +230,62 @@ mod tests {
         assert!(game.players.len() >= players);
         assert!(!game.competitions.is_empty());
         assert!(game.teams.iter().all(|team| team.history.len() == 2));
+    }
+
+    /// Given a resumed World Cup summer snapshot whose published club match clashes with a
+    /// window, when the world is built, then its move is marked and the manager is informed.
+    #[test]
+    fn a_resumed_snapshot_marks_a_match_moved_by_world_cup_setup() {
+        let sources = DefinitionSources::embedded_only();
+        let mut world = generate_world_data_seeded_with(5, &WorldGenConfig::compact(), &sources);
+        world.metadata.kind = crate::generator::WorldDataKind::HistoricalSnapshot;
+        world.competition_definitions = None;
+        let home = world.teams[0].id.clone();
+        let away = world.teams[1].id.clone();
+        let mut league =
+            domain::league::League::new("published".into(), "Published".into(), 2026, &[]);
+        league.fixtures.push(domain::league::Fixture {
+            id: "published-match".into(),
+            competition_id: league.id.clone(),
+            date: "2026-09-09".into(),
+            home_team_id: home.clone(),
+            away_team_id: away,
+            competition: domain::league::FixtureCompetition::League,
+            ..Default::default()
+        });
+        world.competitions = vec![league];
+        let mut manager = manager();
+        manager.hire(home);
+        let clock = GameClock::new(start_date_for_year(2026).unwrap());
+        let history = PastHistory {
+            start_year: 2026,
+            depth_years: 0,
+        };
+
+        let (game, _) =
+            build_game_from_world_data(clock, manager, history, world, ReputationBasis::Stored);
+
+        let fixture = game
+            .competitions
+            .iter()
+            .flat_map(|c| &c.fixtures)
+            .find(|f| f.id == "published-match")
+            .expect("the published match survives");
+        assert_ne!(fixture.date, "2026-09-09");
+        assert_eq!(
+            fixture
+                .postponement
+                .as_ref()
+                .map(|p| p.original_date.as_str()),
+            Some("2026-09-09")
+        );
+        assert_eq!(
+            game.messages
+                .iter()
+                .filter(|m| m.subject_key.as_deref() == Some("be.msg.matchesMoved.subject"))
+                .count(),
+            1
+        );
     }
 
     /// Given a saved world that already carries its past seasons (a historical snapshot),

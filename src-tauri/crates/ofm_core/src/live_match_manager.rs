@@ -3,11 +3,14 @@
 // of `domain`, and `ofm_core/turn/` is the single bridge between the two. The
 // live path and the instant path both build their sides from there, so there is
 // one answer to "who is playing" rather than one per code path.
-use crate::player_rating::formation_slots;
+use crate::custom_tactics::INVALID_FORMATION_ERROR;
+use crate::player_rating::{formation_slots, parse_formation};
 use crate::turn::matchday_lookups::MatchdayLookups;
 pub use crate::turn::squad::auto_select_set_pieces;
 use crate::turn::squad::{
-    build_team_with_bench_from, domain_to_engine_tactics, line_familiarity, set_piece_takers_among,
+    admitted_roles_for_formation, build_team_with_bench_from, domain_to_engine_role,
+    domain_to_engine_tactics, engine_line, line_familiarity, set_piece_takers_among,
+    slot_admits_engine_role, slot_at_simulated_line,
 };
 
 use rand_chacha::ChaCha12Rng;
@@ -19,7 +22,7 @@ use crate::game::Game;
 use domain::league::{FixtureStatus, StandingEntry};
 use domain::manager::Manager;
 use domain::player::{Player, Position as DomainPosition};
-use domain::team::MatchRoles;
+use domain::team::{MatchRoles, PlayerRole as DomainPlayerRole};
 use engine::ai::{self, AiPersonality, AiProfile};
 use engine::{
     LiveMatchState, MatchCommand, MatchConfig, MatchPhase, MatchReport, MatchSnapshot,
@@ -167,6 +170,13 @@ pub struct LiveMatchSession {
     /// Both clubs' players as the game knows them, by id, so a swap before kick-off can work
     /// out what the newcomer's slot asks of him (`refit_pre_match_swap`).
     squad_players: HashMap<String, Player>,
+    /// The roles the user's team has saved, by player, as the session last saw them: seeded when
+    /// the match is built and kept current by `follow_saved_role_before_kick_off` (a role saved
+    /// for one player) and `follow_saved_roles_before_kick_off` (a save that rewrites them all:
+    /// a formation, an eleven, a tactic), so bulk hand-offs can find roles that were removed.
+    saved_roles: HashMap<String, DomainPlayerRole>,
+    /// The role intended for each player, including a session choice temporarily suppressed by a slot.
+    intended_roles: HashMap<String, engine::PlayerRole>,
 }
 
 impl LiveMatchSession {
@@ -273,20 +283,47 @@ impl LiveMatchSession {
             self.refit_pre_match_swap(side, &off, &on, slot.as_ref());
             return Ok(());
         }
-        self.match_state.apply_command(cmd)
+        if matches!(cmd, MatchCommand::Substitute { .. }) {
+            return self.apply_substitution(cmd);
+        }
+        if let MatchCommand::ChangeFormation { side, formation } = &cmd {
+            let side = *side;
+            // The engine reads any string leniently ("4-5-1-x" plays 4, 5 and 1) while the
+            // slots are laid out by `parse_formation`; only an agent can send such a shape.
+            if parse_formation(formation).is_none() {
+                return Err(INVALID_FORMATION_ERROR.to_string());
+            }
+            self.match_state.apply_command(cmd)?;
+            self.sync_slot_roles(side);
+            self.normalize_formation_roles(side);
+            self.refit_formation_change(side);
+            return Ok(());
+        }
+        let role_change = match &cmd {
+            MatchCommand::ChangePlayerRole {
+                player_id, role, ..
+            } => Some((player_id.clone(), *role)),
+            _ => None,
+        };
+        self.match_state.apply_command(cmd)?;
+        if let Some((player_id, role)) = role_change {
+            self.intended_roles.insert(player_id, role);
+        }
+        Ok(())
     }
 
     /// The formation slot `player_id` fills in `side`'s eleven: entry i plays slot i.
     fn slot_of(&self, side: Side, player_id: &str) -> Option<DomainPosition> {
         let team = self.match_state.team(side);
         let index = team.players.iter().position(|p| p.id == player_id)?;
-        formation_slots(&team.formation).get(index).cloned()
+        let slot = formation_slots(&team.formation).get(index)?.clone();
+        Some(slot_at_simulated_line(&slot, team.players[index].position))
     }
 
     /// After a swap before kick-off, the newcomer plays at the familiarity of the slot he took,
     /// and the player he replaced, now on the bench, at his best in each line, as any bench
-    /// player does. The engine cannot work either out: it knows lines, not slots. A pre-kick-off
-    /// change of formation moves starters between slots too and is not refitted here.
+    /// player does. The engine cannot work either out: it knows lines, not slots. A change of
+    /// formation moves starters between slots too: `refit_formation_change`.
     fn refit_pre_match_swap(
         &mut self,
         side: Side,
@@ -304,6 +341,108 @@ impl LiveMatchSession {
                 .set_line_familiarity(side, player_id, familiarity)
             {
                 log::warn!("[live_match] pre-match swap: {player_id} is not in the match");
+            }
+        }
+        if let Some(player) = self.squad_players.get(off) {
+            self.match_state
+                .set_bench_position(side, off, engine_line(&player.natural_position));
+        }
+        self.refit_intended_role_on_the_bench(side, off);
+        if let Some(slot) = slot {
+            self.refit_swapped_in_role(side, on, slot);
+        }
+    }
+
+    /// The newcomer plays his intended role when the new slot admits it.
+    fn refit_swapped_in_role(&mut self, side: Side, on: &str, slot: &DomainPosition) {
+        let Some(newcomer) = self
+            .match_state
+            .team(side)
+            .players
+            .iter()
+            .find(|player| player.id == on)
+        else {
+            return;
+        };
+        let role = self.intended_role_at(on, slot);
+        if role == newcomer.role {
+            return;
+        }
+        if let Err(error) = self
+            .match_state
+            .apply_command(MatchCommand::ChangePlayerRole {
+                side,
+                player_id: on.to_string(),
+                role,
+            })
+        {
+            log::warn!("[live_match] pre-match swap: {on} did not take his role: {error}");
+        }
+    }
+
+    /// After a change of shape before kick-off, every starter plays at the familiarity of the
+    /// slot he now stands in: the engine regroups the eleven so that entry i plays slot i of the
+    /// new formation, and cannot tell which slot within a line that is. A match in play keeps
+    /// the familiarity each starter kicked off with (`PlayerData::line_familiarity` is his
+    /// kick-off slot's), as a substitute keeps the line he came on in.
+    fn refit_formation_change(&mut self, side: Side) {
+        if self.match_state.phase() != MatchPhase::PreKickOff {
+            return;
+        }
+        let team = self.match_state.team(side);
+        let starters: Vec<(String, DomainPosition)> = team
+            .players
+            .iter()
+            .zip(formation_slots(&team.formation))
+            .map(|(player, slot)| (player.id.clone(), slot))
+            .collect();
+        for (player_id, slot) in starters {
+            let Some(player) = self.squad_players.get(&player_id) else {
+                continue;
+            };
+            let familiarity = line_familiarity(player, Some(&slot));
+            if !self
+                .match_state
+                .set_line_familiarity(side, &player_id, familiarity)
+            {
+                log::warn!("[live_match] change of shape: {player_id} is not in the match");
+            }
+        }
+    }
+
+    /// Apply the intended role only while the player's current slot admits it.
+    fn normalize_formation_roles(&mut self, side: Side) {
+        let team = self.match_state.team(side);
+        let roles: Vec<_> = team
+            .players
+            .iter()
+            .zip(formation_slots(&team.formation))
+            .map(|(player, slot)| {
+                let slot = slot_at_simulated_line(&slot, player.position);
+                let intended = self
+                    .intended_roles
+                    .get(&player.id)
+                    .copied()
+                    .unwrap_or(player.role);
+                let effective = if slot_admits_engine_role(&slot, intended) {
+                    intended
+                } else {
+                    engine::PlayerRole::Standard
+                };
+                (player.id.clone(), player.role, effective)
+            })
+            .collect();
+        for (player_id, current, effective) in roles {
+            if current != effective
+                && let Err(error) = self
+                    .match_state
+                    .apply_command(MatchCommand::ChangePlayerRole {
+                        side,
+                        player_id: player_id.clone(),
+                        role: effective,
+                    })
+            {
+                log::warn!("[live_match] formation role for {player_id} was refused: {error}");
             }
         }
     }
@@ -334,6 +473,134 @@ impl LiveMatchSession {
         Ok(())
     }
 
+    /// Every role the user's team has saved, handed to the match as a whole: for a save that
+    /// rewrites them (a formation, a starting eleven or a tactic reconciles them and can drop a
+    /// role). A player whose role is gone returns to `Standard`, and the session stops
+    /// remembering it, so a later swap does not bring it back. The same rule as for one player.
+    pub fn follow_saved_roles_before_kick_off(&mut self, game: &Game) -> Result<(), String> {
+        let Some((_, team)) = self.user_team_before_kick_off(game) else {
+            return Ok(());
+        };
+        let players: HashSet<String> = self
+            .saved_roles
+            .keys()
+            .chain(team.player_roles.keys())
+            .cloned()
+            .collect();
+        for player_id in players {
+            self.follow_saved_role_before_kick_off(game, &player_id)?;
+        }
+        Ok(())
+    }
+
+    /// The role saved for one player before kick-off, handed to the match if he starts. It
+    /// counts only where the slot he fills in the match admits it, the rule the match was built
+    /// by (`turn::squad`): a swap or a change of shape before kick-off moves players in the
+    /// session alone, so the saved team's slots no longer describe it. A role either refuses
+    /// leaves him on `Standard`. The engine refuses nothing that passed those checks; if it ever
+    /// did, the caller logs the error and does not report the save as failed.
+    pub fn follow_saved_role_before_kick_off(
+        &mut self,
+        game: &Game,
+        player_id: &str,
+    ) -> Result<(), String> {
+        let Some((_, team)) = self.user_team_before_kick_off(game) else {
+            return Ok(());
+        };
+        self.follow_team_role_before_kick_off(
+            game.career_token,
+            &team.id,
+            player_id,
+            team.player_roles.get(player_id),
+        )
+    }
+
+    fn intended_role_at(&self, player_id: &str, slot: &DomainPosition) -> engine::PlayerRole {
+        let intended = self
+            .intended_roles
+            .get(player_id)
+            .copied()
+            .unwrap_or(engine::PlayerRole::Standard);
+        if slot_admits_engine_role(slot, intended) {
+            intended
+        } else {
+            engine::PlayerRole::Standard
+        }
+    }
+
+    fn refit_intended_role_on_the_bench(&mut self, side: Side, player_id: &str) {
+        let Some(player) = self.squad_players.get(player_id) else {
+            return;
+        };
+        let role = self.intended_role_at(player_id, &player.natural_position);
+        self.match_state.set_bench_role(side, player_id, role);
+    }
+
+    /// Hand off a role changed by a transfer, loan or contract termination on either side.
+    pub fn follow_team_role_before_kick_off(
+        &mut self,
+        career_token: u64,
+        team_id: &str,
+        player_id: &str,
+        saved: Option<&DomainPlayerRole>,
+    ) -> Result<(), String> {
+        if self.match_state.phase() != MatchPhase::PreKickOff || self.career_token != career_token {
+            return Ok(());
+        }
+        let side = if self.home_team_id == team_id {
+            Side::Home
+        } else if self.away_team_id == team_id {
+            Side::Away
+        } else {
+            return Ok(());
+        };
+        if self.user_side == Some(side) {
+            match saved {
+                Some(role) => {
+                    self.saved_roles.insert(player_id.to_string(), role.clone());
+                }
+                None => {
+                    self.saved_roles.remove(player_id);
+                }
+            }
+        }
+        let intended = saved
+            .map(domain_to_engine_role)
+            .unwrap_or(engine::PlayerRole::Standard);
+        self.intended_roles.insert(player_id.to_string(), intended);
+        let Some(slot) = self.slot_of(side, player_id) else {
+            self.refit_intended_role_on_the_bench(side, player_id);
+            return Ok(());
+        };
+        let role = self.intended_role_at(player_id, &slot);
+        self.match_state
+            .apply_command(MatchCommand::ChangePlayerRole {
+                side,
+                player_id: player_id.to_string(),
+                role,
+            })
+    }
+
+    /// The slot the user's `player_id` fills in the match still waiting at kick-off, with the
+    /// career the match belongs to: the position a role saved for him is judged at, which a
+    /// pre-match swap can have changed from the saved team's. A bench player is judged at his
+    /// natural position. `None` if absent, in play, or not the user's match. The caller reads this
+    /// before it takes the game lock, never inside it.
+    pub fn user_slot_before_kick_off(&self, player_id: &str) -> Option<(u64, DomainPosition)> {
+        if self.match_state.phase() != MatchPhase::PreKickOff {
+            return None;
+        }
+        let side = self.user_side?;
+        let position = self.slot_of(side, player_id).or_else(|| {
+            self.match_state
+                .bench(side)
+                .iter()
+                .find(|p| p.id == player_id)?;
+            Some(self.squad_players.get(player_id)?.natural_position.clone())
+        })?;
+        Some((self.career_token, position))
+    }
+
     /// The user's side and saved team, while this career's match still waits at kick-off.
     fn user_team_before_kick_off<'g>(
         &self,
@@ -360,7 +627,7 @@ impl LiveMatchSession {
         if self.user_side != Some(Side::Home) {
             let cmds = ai::ai_decide(&self.match_state, Side::Home, &self.ai_home, &mut self.rng);
             for cmd in cmds {
-                let _ = self.match_state.apply_command(cmd);
+                self.apply_ai_command(Side::Home, cmd);
             }
         }
 
@@ -368,9 +635,43 @@ impl LiveMatchSession {
         if self.user_side != Some(Side::Away) {
             let cmds = ai::ai_decide(&self.match_state, Side::Away, &self.ai_away, &mut self.rng);
             for cmd in cmds {
-                let _ = self.match_state.apply_command(cmd);
+                self.apply_ai_command(Side::Away, cmd);
             }
         }
+    }
+
+    fn apply_substitution(&mut self, cmd: MatchCommand) -> Result<(), String> {
+        let MatchCommand::Substitute {
+            side, player_on_id, ..
+        } = &cmd
+        else {
+            return self.match_state.apply_command(cmd);
+        };
+        let (side, on) = (*side, player_on_id.clone());
+        self.match_state.apply_command(cmd)?;
+        if let Some(slot) = self.slot_of(side, &on).as_ref() {
+            self.refit_swapped_in_role(side, &on, slot);
+        }
+        Ok(())
+    }
+
+    fn apply_ai_command(&mut self, side: Side, cmd: MatchCommand) {
+        let formation_changed = matches!(cmd, MatchCommand::ChangeFormation { .. });
+        match self.apply_substitution(cmd) {
+            Ok(()) if formation_changed => {
+                self.sync_slot_roles(side);
+                self.normalize_formation_roles(side);
+            }
+            Ok(()) => {}
+            Err(error) => log::warn!("[live_match] AI command failed: {error}"),
+        }
+    }
+
+    fn sync_slot_roles(&mut self, side: Side) {
+        let team = self.match_state.team(side);
+        let lines: Vec<_> = team.players.iter().map(|p| p.position).collect();
+        let roles = admitted_roles_for_formation(&team.formation, &lines);
+        self.match_state.set_slot_roles(side, roles);
     }
 }
 
@@ -481,6 +782,89 @@ pub fn create_live_match(
     create_live_match_with(game, fixture_index, mode, allows_extra_time, None)
 }
 
+/// The roles the user's team has saved, for the session to remember (`LiveMatchSession::saved_roles`).
+fn saved_roles_of(
+    game: &Game,
+    user_side: Option<Side>,
+    home_team_id: &str,
+    away_team_id: &str,
+) -> HashMap<String, DomainPlayerRole> {
+    let Some(side) = user_side else {
+        return HashMap::new();
+    };
+    let team_id = match side {
+        Side::Home => home_team_id,
+        Side::Away => away_team_id,
+    };
+    game.teams
+        .iter()
+        .find(|team| team.id == team_id)
+        .map(|team| team.player_roles.clone())
+        .unwrap_or_default()
+}
+
+/// A club's players, found through the matchday lookups when the caller has them.
+fn club_players_of<'g>(
+    game: &'g Game,
+    lookups: Option<&MatchdayLookups>,
+    team_id: &str,
+) -> Vec<&'g Player> {
+    match lookups {
+        Some(lookups) => lookups
+            .club(game, team_id)
+            .iter()
+            .map(|&position| &game.players[position])
+            .collect(),
+        None => crate::match_day_eligibility::club_players(&game.players, team_id),
+    }
+}
+
+/// The captain and set-piece takers the club has saved.
+fn match_roles_of(game: &Game, team_id: &str) -> MatchRoles {
+    game.teams
+        .iter()
+        .find(|team| team.id == team_id)
+        .map(|team| team.match_roles.clone())
+        .unwrap_or_default()
+}
+
+/// The side the user manages. Only in a live match: watched as a spectator, or played instantly,
+/// nobody would manage it, the screen turns the user's controls off and the AI skips the user's
+/// side, so the AI manages both dugouts, as it does for a delegated match (#1211).
+fn user_side_of(
+    game: &Game,
+    mode: MatchMode,
+    home_team_id: &str,
+    away_team_id: &str,
+) -> Option<Side> {
+    if mode != MatchMode::Live {
+        return None;
+    }
+    let managed = game.manager.team_id.as_deref()?;
+    if managed == home_team_id {
+        Some(Side::Home)
+    } else if managed == away_team_id {
+        Some(Side::Away)
+    } else {
+        None
+    }
+}
+
+/// The AI's profile of a club, from its reputation.
+fn ai_profile_of(game: &Game, team_id: &str) -> AiProfile {
+    let reputation = game
+        .teams
+        .iter()
+        .find(|team| team.id == team_id)
+        .map(|team| team.reputation)
+        .unwrap_or(500);
+    AiProfile {
+        reputation,
+        experience: (reputation / 10).min(100) as u8,
+        personality: derive_personality(reputation, game.manager_of_club(team_id)),
+    }
+}
+
 /// [`create_live_match`] for a matchday that has already found the clubs with a match soon
 /// (`lookups`: where each club's players stand, and who plays again soon).
 fn create_live_match_with(
@@ -503,17 +887,10 @@ fn create_live_match_with(
     let away_team_id = fixture.away_team_id.clone();
 
     // Each club's players are found once and serve its team, its bench and its set-piece takers.
-    let club_of = |team_id: &str| -> Vec<&Player> {
-        match lookups {
-            Some(lookups) => lookups
-                .club(game, team_id)
-                .iter()
-                .map(|&position| &game.players[position])
-                .collect(),
-            None => crate::match_day_eligibility::club_players(&game.players, team_id),
-        }
-    };
-    let (home_club, away_club) = (club_of(&home_team_id), club_of(&away_team_id));
+    let (home_club, away_club) = (
+        club_players_of(game, lookups, &home_team_id),
+        club_players_of(game, lookups, &away_team_id),
+    );
     let squad_players = home_club
         .iter()
         .chain(&away_club)
@@ -525,18 +902,6 @@ fn create_live_match_with(
         build_team_with_bench_from(game, &away_team_id, &away_club, lookups);
     let home_starter_ids = starter_ids(&home_xi);
     let away_starter_ids = starter_ids(&away_xi);
-    let home_match_roles = game
-        .teams
-        .iter()
-        .find(|team| team.id == home_team_id)
-        .map(|team| team.match_roles.clone())
-        .unwrap_or_default();
-    let away_match_roles = game
-        .teams
-        .iter()
-        .find(|team| team.id == away_team_id)
-        .map(|team| team.match_roles.clone())
-        .unwrap_or_default();
     let home_auto_selection = set_piece_takers_among(&starters_among(&home_xi, &home_club));
     let away_auto_selection = set_piece_takers_among(&starters_among(&away_xi, &away_club));
 
@@ -544,27 +909,31 @@ fn create_live_match_with(
         return Err(LIVE_MATCH_EMPTY_SQUAD_ERROR.to_string());
     }
 
-    let config = MatchConfig::default();
-
     let mut match_state = LiveMatchState::new(
         home_xi,
         away_xi,
-        config,
+        MatchConfig::default(),
         home_bench,
         away_bench,
         allows_extra_time,
     );
+    for side in [Side::Home, Side::Away] {
+        let team = match_state.team(side);
+        let lines: Vec<_> = team.players.iter().map(|p| p.position).collect();
+        let roles = admitted_roles_for_formation(&team.formation, &lines);
+        match_state.set_slot_roles(side, roles);
+    }
     apply_saved_match_roles(
         &mut match_state,
         Side::Home,
-        &home_match_roles,
+        &match_roles_of(game, &home_team_id),
         &home_starter_ids,
         home_auto_selection,
     );
     apply_saved_match_roles(
         &mut match_state,
         Side::Away,
-        &away_match_roles,
+        &match_roles_of(game, &away_team_id),
         &away_starter_ids,
         away_auto_selection,
     );
@@ -572,44 +941,21 @@ fn create_live_match_with(
     // The user manages their side only in a live match. Watched as a spectator, or played
     // instantly, nobody else would: the screen turns the user's controls off and the AI skips
     // the user's side, so the AI manages both dugouts, as it does for a delegated match (#1211).
-    let user_side = if mode == MatchMode::Live {
-        game.manager.team_id.as_ref().and_then(|tid| {
-            if *tid == home_team_id {
-                Some(Side::Home)
-            } else if *tid == away_team_id {
-                Some(Side::Away)
-            } else {
-                None
-            }
-        })
-    } else {
-        None
-    };
+    let user_side = user_side_of(game, mode, &home_team_id, &away_team_id);
 
-    // Build AI profiles from team reputation
-    let home_rep = game
+    let (ai_home, ai_away) = (
+        ai_profile_of(game, &home_team_id),
+        ai_profile_of(game, &away_team_id),
+    );
+
+    let saved_roles = saved_roles_of(game, user_side, &home_team_id, &away_team_id);
+    let intended_roles = game
         .teams
         .iter()
-        .find(|t| t.id == home_team_id)
-        .map(|t| t.reputation)
-        .unwrap_or(500);
-    let away_rep = game
-        .teams
-        .iter()
-        .find(|t| t.id == away_team_id)
-        .map(|t| t.reputation)
-        .unwrap_or(500);
-
-    let ai_home = AiProfile {
-        reputation: home_rep,
-        experience: (home_rep / 10).min(100) as u8,
-        personality: derive_personality(home_rep, game.manager_of_club(&home_team_id)),
-    };
-    let ai_away = AiProfile {
-        reputation: away_rep,
-        experience: (away_rep / 10).min(100) as u8,
-        personality: derive_personality(away_rep, game.manager_of_club(&away_team_id)),
-    };
+        .filter(|team| team.id == home_team_id || team.id == away_team_id)
+        .flat_map(|team| team.player_roles.iter())
+        .map(|(id, role)| (id.clone(), domain_to_engine_role(role)))
+        .collect();
 
     Ok(LiveMatchSession {
         match_state,
@@ -629,6 +975,8 @@ fn create_live_match_with(
         ai_away,
         career_token: game.career_token,
         squad_players,
+        saved_roles,
+        intended_roles,
     })
 }
 
@@ -754,5 +1102,301 @@ mod tests {
             .err()
             .expect("the core entry point must reject a completed fixture");
         assert_eq!(error, "be.error.liveMatch.fixtureNotScheduled");
+    }
+    fn formation_role_fixture() -> super::LiveMatchSession {
+        use domain::player::{Player, PlayerAttributes, Position};
+        use domain::team::{PlayerRole, Team};
+        let attrs: PlayerAttributes = serde_json::from_value(serde_json::json!({
+            "pace": 65, "stamina": 65, "strength": 65, "agility": 65, "passing": 65,
+            "shooting": 65, "tackling": 65, "dribbling": 65, "defending": 65,
+            "positioning": 65, "vision": 65, "decisions": 65, "composure": 65,
+            "aggression": 65, "teamwork": 65, "leadership": 65, "handling": 65,
+            "reflexes": 65, "aerial": 65
+        }))
+        .unwrap();
+        let positions = [
+            Position::Goalkeeper,
+            Position::Defender,
+            Position::Defender,
+            Position::Defender,
+            Position::Defender,
+            Position::Midfielder,
+            Position::Midfielder,
+            Position::Midfielder,
+            Position::Midfielder,
+            Position::Forward,
+            Position::Forward,
+        ];
+        let mut teams = Vec::new();
+        let mut players = Vec::new();
+        for id in ["home", "away"] {
+            let mut team = Team::new(
+                id.into(),
+                id.into(),
+                id.into(),
+                "GB".into(),
+                "City".into(),
+                "Ground".into(),
+                10000,
+            );
+            for (index, position) in positions.iter().enumerate() {
+                let player_id = format!("{id}-{index}");
+                let mut player = Player::new(
+                    player_id.clone(),
+                    player_id.clone(),
+                    player_id.clone(),
+                    "1995-01-01".into(),
+                    "GB".into(),
+                    position.clone(),
+                    attrs.clone(),
+                );
+                player.team_id = Some(id.into());
+                if id == "away" && index == 6 {
+                    player.attributes.pace = 99;
+                    player.attributes.dribbling = 99;
+                    player.attributes.shooting = 99;
+                }
+                team.starting_xi_ids.push(player_id);
+                players.push(player);
+            }
+            if id == "away" {
+                let mut reserve = Player::new(
+                    "away-reserve".into(),
+                    "Reserve".into(),
+                    "Reserve".into(),
+                    "1995-01-01".into(),
+                    "GB".into(),
+                    Position::Forward,
+                    attrs.clone(),
+                );
+                reserve.team_id = Some(id.into());
+                team.player_roles
+                    .insert(reserve.id.clone(), PlayerRole::AttackingFB);
+                players.push(reserve);
+                let mut reserve_keeper = Player::new(
+                    "away-keeper-reserve".into(),
+                    "Keeper".into(),
+                    "Keeper".into(),
+                    "1995-01-01".into(),
+                    "GB".into(),
+                    Position::Goalkeeper,
+                    attrs.clone(),
+                );
+                reserve_keeper.team_id = Some(id.into());
+                team.player_roles
+                    .insert(reserve_keeper.id.clone(), PlayerRole::SweeperKeeper);
+                players.push(reserve_keeper);
+            }
+            teams.push(team);
+        }
+        teams[1]
+            .player_roles
+            .insert("away-4".into(), PlayerRole::AttackingFB);
+        teams[1]
+            .player_roles
+            .insert("away-6".into(), PlayerRole::BoxToBox);
+        let clock = GameClock::new(Utc.with_ymd_and_hms(2025, 6, 15, 12, 0, 0).unwrap());
+        let mut manager = Manager::new(
+            "mgr".into(),
+            "Test".into(),
+            "Manager".into(),
+            "1980-01-01".into(),
+            "GB".into(),
+        );
+        manager.hire("away".into());
+        let mut game = Game::new(clock, manager, teams, players, vec![], vec![]);
+        game.league = Some(League {
+            fixtures: vec![Fixture {
+                id: "fixture".into(),
+                home_team_id: "home".into(),
+                away_team_id: "away".into(),
+                status: FixtureStatus::Scheduled,
+                ..Default::default()
+            }],
+            ..Default::default()
+        });
+        let mut session = create_live_match(&game, 0, MatchMode::Live, false).unwrap();
+        session.user_side = Some(engine::Side::Home);
+        session
+    }
+
+    fn sent_off_keeper_substitution_fixture() -> (super::LiveMatchSession, String) {
+        let mut session = formation_role_fixture();
+        assert_eq!(
+            session
+                .match_state
+                .bench(engine::Side::Away)
+                .iter()
+                .find(|p| p.id == "away-keeper-reserve")
+                .unwrap()
+                .role,
+            engine::PlayerRole::SweeperKeeper
+        );
+        session.step();
+        let keeper = session.match_state.team(engine::Side::Away).players[0]
+            .id
+            .clone();
+        let left_back = session.match_state.team(engine::Side::Away).players[1]
+            .id
+            .clone();
+        session.match_state.test_send_off(&keeper);
+        (session, left_back)
+    }
+
+    fn assert_substitute_keeper_role(session: &super::LiveMatchSession) {
+        let keeper = session
+            .match_state
+            .team(engine::Side::Away)
+            .players
+            .iter()
+            .find(|p| p.id == "away-keeper-reserve")
+            .unwrap();
+        assert_eq!(keeper.position, engine::Position::Goalkeeper);
+        assert_eq!(keeper.role, engine::PlayerRole::SweeperKeeper);
+    }
+
+    /// Given a sent-off keeper, when the user substitutes a reserve keeper for a left-back,
+    /// then the substitute keeps his saved goalkeeper role.
+    #[test]
+    fn a_user_substitute_keeper_keeps_his_role_after_a_sending_off() {
+        let (mut session, left_back) = sent_off_keeper_substitution_fixture();
+        session.user_side = Some(engine::Side::Away);
+        session
+            .apply_command(engine::MatchCommand::Substitute {
+                side: engine::Side::Away,
+                player_off_id: left_back,
+                player_on_id: "away-keeper-reserve".into(),
+            })
+            .unwrap();
+        assert_substitute_keeper_role(&session);
+    }
+
+    /// Given a sent-off keeper, when the AI substitutes a reserve keeper for a left-back,
+    /// then the substitute keeps his saved goalkeeper role.
+    #[test]
+    fn an_ai_substitute_keeper_keeps_his_role_after_a_sending_off() {
+        let (mut session, left_back) = sent_off_keeper_substitution_fixture();
+        session.apply_ai_command(
+            engine::Side::Away,
+            engine::MatchCommand::Substitute {
+                side: engine::Side::Away,
+                player_off_id: left_back,
+                player_on_id: "away-keeper-reserve".into(),
+            },
+        );
+        assert_substitute_keeper_role(&session);
+    }
+
+    /// Given an AI reserve whose full-back role is suppressed on the bench, when the AI brings
+    /// him into a compatible slot, then he plays his intended role.
+    #[test]
+    fn an_ai_substitute_recovers_his_admitted_intended_role() {
+        let mut session = formation_role_fixture();
+        assert_eq!(
+            session
+                .match_state
+                .bench(engine::Side::Away)
+                .iter()
+                .find(|p| p.id == "away-reserve")
+                .unwrap()
+                .role,
+            engine::PlayerRole::Standard
+        );
+        let off = session.match_state.team(engine::Side::Away).players[4]
+            .id
+            .clone();
+        session.step();
+        session.apply_ai_command(
+            engine::Side::Away,
+            engine::MatchCommand::Substitute {
+                side: engine::Side::Away,
+                player_off_id: off,
+                player_on_id: "away-reserve".into(),
+            },
+        );
+        assert_eq!(
+            session
+                .match_state
+                .team(engine::Side::Away)
+                .players
+                .iter()
+                .find(|p| p.id == "away-reserve")
+                .unwrap()
+                .role,
+            engine::PlayerRole::AttackingFB
+        );
+    }
+
+    /// Given an AI full-back after kick-off, when the AI changes to a back five, then his
+    /// centre-back slot suppresses his full-back role.
+    #[test]
+    fn an_ai_formation_change_during_play_normalises_a_starters_role() {
+        use engine::{MatchCommand, Side};
+        let mut session = formation_role_fixture();
+        let role = |session: &super::LiveMatchSession| {
+            session
+                .match_state
+                .team(Side::Away)
+                .players
+                .iter()
+                .find(|p| p.id == "away-4")
+                .unwrap()
+                .role
+        };
+        assert_eq!(role(&session), engine::PlayerRole::AttackingFB);
+        session.step();
+        assert_ne!(session.match_state.phase(), engine::MatchPhase::PreKickOff);
+        session.apply_ai_command(
+            Side::Away,
+            MatchCommand::ChangeFormation {
+                side: Side::Away,
+                formation: "5-3-2".into(),
+            },
+        );
+        assert_eq!(role(&session), engine::PlayerRole::Standard);
+        session.apply_ai_command(
+            Side::Away,
+            MatchCommand::ChangeFormation {
+                side: Side::Away,
+                formation: "4-4-2".into(),
+            },
+        );
+        assert_eq!(role(&session), engine::PlayerRole::AttackingFB);
+    }
+    /// Given an AI midfielder with a role invalid in the forward slot, when its real decision
+    /// loop changes shape at the hour, then the new slot admits his effective role.
+    #[test]
+    fn an_ai_decision_loop_normalises_the_role_after_a_formation_change() {
+        use engine::ai::AiPersonality;
+        use engine::{PlayerRole, Position, Side};
+        let mut session = formation_role_fixture();
+        session.ai_away.personality = AiPersonality::Visionary;
+        session.ai_away.experience = 100;
+        for _ in 0..130 {
+            if session.match_state.minute() >= 60 {
+                break;
+            }
+            session.match_state.step_minute(&mut session.rng);
+        }
+        assert_eq!(session.match_state.minute(), 60);
+        session.match_state.test_set_score(1, 0);
+        let before = session
+            .match_state
+            .team(Side::Away)
+            .players
+            .iter()
+            .find(|p| p.id == "away-6")
+            .unwrap();
+        assert_eq!(before.role, PlayerRole::BoxToBox);
+        assert_eq!(before.position, Position::Midfielder);
+        session.apply_ai_decisions();
+        let team = session.match_state.team(Side::Away);
+        assert_eq!(team.formation, "4-3-3");
+        let index = team.players.iter().position(|p| p.id == "away-6").unwrap();
+        assert_eq!(team.players[index].position, Position::Forward);
+        let slot = crate::player_rating::formation_slots(&team.formation)[index].clone();
+        assert!(!slot.admits_role(&domain::team::PlayerRole::BoxToBox));
+        assert_eq!(team.players[index].role, PlayerRole::Standard);
+        assert!(slot.admits_role(&domain::team::PlayerRole::Standard));
     }
 }

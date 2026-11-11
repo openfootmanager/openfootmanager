@@ -1,5 +1,5 @@
 use crate::event::{EventType, MatchEvent};
-use crate::types::{PlayerData, Position, Side, Zone};
+use crate::types::{PlayerData, PlayerRole, Position, Side, Zone};
 
 use super::{LiveMatchState, MatchPhase, SubstitutionRecord};
 
@@ -87,12 +87,16 @@ impl LiveMatchState {
         if !goes_in_goal {
             player_on.position = player_off.position;
         }
+        if !self.slot_admits_role(side, off_idx, player_on.position, player_on.role) {
+            player_on.role = PlayerRole::Standard;
+        }
 
         // Initialize condition for incoming player
         self.player_conditions
             .insert(player_on.id.clone(), player_on.condition as f64);
 
         self.team_mut(side).players.insert(off_idx, player_on);
+        self.clear_formation_slots(side);
 
         // Move subbed-off player to bench (they can't come back, but we keep them)
         match side {
@@ -105,7 +109,11 @@ impl LiveMatchState {
             Side::Away => &mut self.away_subs_made,
         } += 1;
 
-        // Record the substitution
+        self.record_substitution(side, player_off_id, player_on_id);
+        Ok(())
+    }
+
+    fn record_substitution(&mut self, side: Side, player_off_id: &str, player_on_id: &str) {
         let evt = MatchEvent::new(
             self.current_minute,
             EventType::Substitution,
@@ -116,15 +124,54 @@ impl LiveMatchState {
         .with_secondary(player_off_id);
         self.unreported_events.push(evt.clone());
         self.events.push(evt);
-
         self.substitutions.push(SubstitutionRecord {
             minute: self.current_minute,
             side,
             player_off_id: player_off_id.to_string(),
             player_on_id: player_on_id.to_string(),
         });
+    }
 
-        Ok(())
+    pub(super) fn slot_admits_role(
+        &self,
+        side: Side,
+        index: usize,
+        position: Position,
+        role: PlayerRole,
+    ) -> bool {
+        let slots = match side {
+            Side::Home => &self.home_slot_roles,
+            Side::Away => &self.away_slot_roles,
+        };
+        let slot_index = if position == Position::Goalkeeper {
+            0
+        } else {
+            index
+        };
+        slots
+            .as_ref()
+            .and_then(|roles| roles.get(slot_index))
+            .map_or_else(|| role.suits(position), |roles| roles.contains(&role))
+    }
+
+    /// Set the admitted roles for each formation slot, supplied by the host's formation rules.
+    /// The host must replace these after changing the formation.
+    pub fn set_slot_roles(&mut self, side: Side, roles: Vec<Vec<PlayerRole>>) {
+        match side {
+            Side::Home => self.home_slot_roles = Some(roles),
+            Side::Away => self.away_slot_roles = Some(roles),
+        }
+    }
+
+    /// Restore the bench line of a player who left a pre-match slot.
+    pub fn set_bench_position(&mut self, side: Side, player_id: &str, position: Position) {
+        let bench = match side {
+            Side::Home => &mut self.home_bench,
+            Side::Away => &mut self.away_bench,
+        };
+        if let Some(player) = bench.iter_mut().find(|player| player.id == player_id) {
+            player.position = position;
+        }
     }
 
     /// Give `player_id`, in `side`'s eleven or on its bench, `line_familiarity`. For a caller that
@@ -148,6 +195,24 @@ impl LiveMatchState {
         {
             Some(player) => {
                 player.line_familiarity = line_familiarity;
+                true
+            }
+            None => false,
+        }
+    }
+
+    /// Give `player_id`, on `side`'s bench, `role`: the role he plays if he comes on. For a
+    /// caller that knows a role the bench copy was built without (a role saved after the match
+    /// was built). The caller checks the role at the bench position; substitution checks the
+    /// destination slot. Whether he was found on the bench.
+    pub fn set_bench_role(&mut self, side: Side, player_id: &str, role: PlayerRole) -> bool {
+        let bench = match side {
+            Side::Home => &mut self.home_bench,
+            Side::Away => &mut self.away_bench,
+        };
+        match bench.iter_mut().find(|player| player.id == player_id) {
+            Some(player) => {
+                player.role = role;
                 true
             }
             None => false,
@@ -187,12 +252,22 @@ impl LiveMatchState {
         // last one — the lineup visibly "reorganized" after a swap. Keep the
         // vacated index and adopt the slot's position instead.
         player_on.position = player_off.position;
+        let has_slot_roles = match side {
+            Side::Home => self.home_slot_roles.is_some(),
+            Side::Away => self.away_slot_roles.is_some(),
+        };
+        if has_slot_roles
+            && !self.slot_admits_role(side, off_idx, player_on.position, player_on.role)
+        {
+            player_on.role = PlayerRole::Standard;
+        }
 
         // Initialize condition for incoming player
         self.player_conditions
             .insert(player_on.id.clone(), player_on.condition as f64);
 
         self.team_mut(side).players.insert(off_idx, player_on);
+        self.clear_formation_slots(side);
 
         // Move swapped-out player to bench
         match side {
@@ -206,6 +281,13 @@ impl LiveMatchState {
     // -----------------------------------------------------------------------
     // Formation mechanics
     // -----------------------------------------------------------------------
+
+    fn clear_formation_slots(&mut self, side: Side) {
+        match side {
+            Side::Home => self.home_formation_slots.clear(),
+            Side::Away => self.away_formation_slots.clear(),
+        }
+    }
 
     /// Parse a formation string like "4-4-2" into (defenders, midfielders, forwards).
     pub(super) fn parse_formation(formation: &str) -> (usize, usize, usize) {
@@ -235,8 +317,42 @@ impl LiveMatchState {
             .iter()
             .map(|player| self.is_on_the_pitch(side, &player.id))
             .collect();
+        let team = self.team_ref(side);
+        let old_formation = team.formation.clone();
+        let changing_shape = old_formation != formation;
+        let slots: Vec<_> = team
+            .players
+            .iter()
+            .zip(&on_the_pitch)
+            .map(|(player, &playing)| (player.id.clone(), player.position, playing))
+            .collect();
+        let history = match side {
+            Side::Home => &mut self.home_formation_slots,
+            Side::Away => &mut self.away_formation_slots,
+        };
+        history.insert(old_formation, slots.clone());
+        let previous = history
+            .get(formation)
+            .filter(|previous| {
+                changing_shape
+                    && previous.len() == slots.len()
+                    && previous.iter().all(|(id, _, playing)| {
+                        slots
+                            .iter()
+                            .any(|(current, _, active)| current == id && active == playing)
+                    })
+            })
+            .cloned();
         let team = self.team_mut(side);
         team.formation = formation.to_string();
+        if let Some(previous) = previous {
+            team.players
+                .sort_by_key(|player| previous.iter().position(|(id, _, _)| id == &player.id));
+            for (player, (_, position, _)) in team.players.iter_mut().zip(previous) {
+                player.position = position;
+            }
+            return;
+        }
         rebalance_lines(
             &mut team.players,
             &on_the_pitch,
@@ -324,7 +440,7 @@ mod line_familiarity_tests {
         MatchConfig, PlayStyle, PlayerData, PlayerRole, Position, Side, TacticsConfig, TeamData,
     };
 
-    fn player(id: &str, position: Position) -> PlayerData {
+    pub(super) fn player(id: &str, position: Position) -> PlayerData {
         PlayerData {
             id: id.to_string(),
             name: id.to_string(),
@@ -358,7 +474,7 @@ mod line_familiarity_tests {
         }
     }
 
-    fn side(prefix: &str) -> TeamData {
+    pub(super) fn side(prefix: &str) -> TeamData {
         TeamData {
             id: prefix.to_string(),
             name: prefix.to_string(),
@@ -383,7 +499,192 @@ mod line_familiarity_tests {
         )
     }
 
+    /// Given a bench Poacher and a centre-back slot with explicit admitted roles, when an
+    /// engine host swaps him in, then his incompatible role becomes Standard.
+    #[test]
+    fn a_pre_match_swap_checks_the_destination_slot_role() {
+        let mut newcomer = player("poacher", Position::Forward);
+        newcomer.role = PlayerRole::Poacher;
+        let mut state = LiveMatchState::new(
+            side("h"),
+            side("a"),
+            MatchConfig::default(),
+            vec![newcomer],
+            vec![],
+            false,
+        );
+        state.set_slot_roles(
+            Side::Home,
+            vec![
+                vec![PlayerRole::Standard],
+                vec![PlayerRole::Standard, PlayerRole::Stopper],
+            ],
+        );
+        state
+            .apply_command(crate::live_match::MatchCommand::PreMatchSwap {
+                side: Side::Home,
+                player_off_id: "h_d".into(),
+                player_on_id: "poacher".into(),
+            })
+            .unwrap();
+        assert_eq!(state.team(Side::Home).players[1].role, PlayerRole::Standard);
+    }
+
+    /// Given a bench Stopper and a centre-back slot that admits him, when an engine host swaps
+    /// him in, then his role is retained.
+    #[test]
+    fn a_pre_match_swap_keeps_a_role_admitted_by_the_destination() {
+        let mut newcomer = player("stopper", Position::Defender);
+        newcomer.role = PlayerRole::Stopper;
+        let mut state = LiveMatchState::new(
+            side("h"),
+            side("a"),
+            MatchConfig::default(),
+            vec![newcomer],
+            vec![],
+            false,
+        );
+        state.set_slot_roles(
+            Side::Home,
+            vec![
+                vec![PlayerRole::Standard],
+                vec![PlayerRole::Standard, PlayerRole::Stopper],
+            ],
+        );
+        state
+            .apply_command(crate::live_match::MatchCommand::PreMatchSwap {
+                side: Side::Home,
+                player_off_id: "h_d".into(),
+                player_on_id: "stopper".into(),
+            })
+            .unwrap();
+        assert_eq!(state.team(Side::Home).players[1].role, PlayerRole::Stopper);
+    }
+
     const REFIT: [f64; 4] = [0.9, 0.95, 1.0, 0.9];
+
+    fn lineup(mixed: bool) -> (TeamData, [&'static str; 11]) {
+        let mut home = side("h");
+        let names = if mixed {
+            [
+                "gk", "st", "cb1", "cb2", "rb", "lm", "cm1", "cm2", "rm", "lb", "st2",
+            ]
+        } else {
+            [
+                "gk", "lb", "cb1", "cb2", "rb", "lm", "cm1", "cm2", "rm", "st1", "st2",
+            ]
+        };
+        home.players = names
+            .iter()
+            .enumerate()
+            .map(|(i, name)| {
+                let position = match i {
+                    0 => Position::Goalkeeper,
+                    1..=4 => Position::Defender,
+                    5..=8 => Position::Midfielder,
+                    _ => Position::Forward,
+                };
+                let mut p = player(name, position);
+                if i == 1 {
+                    p.passing = 99;
+                    p.vision = 99;
+                    p.decisions = 99;
+                }
+                p
+            })
+            .collect();
+        (home, names)
+    }
+
+    fn round_trip(mixed: bool) {
+        let (home, names) = lineup(mixed);
+        let original: Vec<_> = home
+            .players
+            .iter()
+            .map(|p| (p.id.clone(), p.position))
+            .collect();
+        let mut state = LiveMatchState::new(
+            home,
+            side("a"),
+            MatchConfig::default(),
+            vec![],
+            vec![],
+            false,
+        );
+        state.apply_formation(Side::Home, "3-5-2");
+        let intermediate: Vec<_> = state
+            .team(Side::Home)
+            .players
+            .iter()
+            .map(|p| p.id.as_str())
+            .collect();
+        assert_eq!(
+            intermediate,
+            [
+                names[0], names[2], names[3], names[4], names[1], names[5], names[6], names[7],
+                names[8], names[9], names[10]
+            ]
+        );
+        state.apply_formation(Side::Home, "4-4-2");
+        let restored: Vec<_> = state
+            .team(Side::Home)
+            .players
+            .iter()
+            .map(|p| p.id.as_str())
+            .collect();
+        assert_eq!(restored, names);
+        let restored_lines: Vec<_> = state
+            .team(Side::Home)
+            .players
+            .iter()
+            .map(|p| (p.id.clone(), p.position))
+            .collect();
+        assert_eq!(restored_lines, original);
+    }
+
+    /// Given a natural 4-4-2, when it changes to 3-5-2 and back, then every slot is restored.
+    #[test]
+    fn natural_lineup_returns_to_its_slots_after_formation_round_trip() {
+        round_trip(false);
+    }
+
+    /// Given a mixed 4-4-2, when it changes to 3-5-2 and back, then every slot is restored.
+    #[test]
+    fn mixed_lineup_returns_to_its_slots_after_formation_round_trip() {
+        round_trip(true);
+    }
+
+    /// Given a formation change, when two starters exchange slots via the bench,
+    /// then returning to the original formation keeps the swap instead of restoring stale slots.
+    #[test]
+    fn formation_history_does_not_undo_a_bench_swap_between_starters() {
+        let (home, _) = lineup(false);
+        let mut state = LiveMatchState::new(
+            home,
+            side("a"),
+            MatchConfig::default(),
+            vec![player("sub", Position::Defender)],
+            vec![],
+            false,
+        );
+        state.apply_formation(Side::Home, "3-5-2");
+        state.do_pre_match_swap(Side::Home, "cb1", "sub").unwrap();
+        state.do_pre_match_swap(Side::Home, "cb2", "cb1").unwrap();
+        state.do_pre_match_swap(Side::Home, "sub", "cb2").unwrap();
+        state.apply_formation(Side::Home, "4-4-2");
+        let players: Vec<_> = state
+            .team(Side::Home)
+            .players
+            .iter()
+            .map(|p| p.id.as_str())
+            .collect();
+        assert_eq!(
+            players,
+            [
+                "gk", "cb2", "cb1", "rb", "lb", "lm", "cm1", "cm2", "rm", "st1", "st2"
+            ]
+        );
+    }
 
     /// Given a home defender in the eleven,
     /// When his familiarity is set,
@@ -410,6 +711,32 @@ mod line_familiarity_tests {
         assert_eq!(state.bench(Side::Home)[0].line_familiarity, REFIT);
     }
 
+    /// Given a home substitute on the bench,
+    /// When he is given a role,
+    /// Then he carries it, and nobody in the eleven or on the other bench does.
+    #[test]
+    fn a_player_on_the_bench_takes_the_role_he_is_given() {
+        let mut state = state();
+
+        assert!(state.set_bench_role(Side::Home, "h_sub", PlayerRole::Stopper));
+
+        assert_eq!(state.bench(Side::Home)[0].role, PlayerRole::Stopper);
+        assert_eq!(state.bench(Side::Away)[0].role, PlayerRole::Standard);
+        assert_eq!(state.team(Side::Home).players[1].role, PlayerRole::Standard);
+    }
+
+    /// Given a home player in the eleven,
+    /// When a bench role is asked for him,
+    /// Then he is not found there and keeps his role.
+    #[test]
+    fn a_player_in_the_eleven_is_not_on_the_bench() {
+        let mut state = state();
+
+        assert!(!state.set_bench_role(Side::Home, "h_d", PlayerRole::Stopper));
+
+        assert_eq!(state.team(Side::Home).players[1].role, PlayerRole::Standard);
+    }
+
     /// Given the away side's substitute,
     /// When the home side's familiarity is set for him,
     /// Then nobody is found and nothing changes.
@@ -420,5 +747,67 @@ mod line_familiarity_tests {
         assert!(!state.set_line_familiarity(Side::Home, "a_sub", REFIT));
 
         assert_eq!(state.bench(Side::Away)[0].line_familiarity, [1.0; 4]);
+    }
+}
+
+#[cfg(test)]
+mod substituted_role_tests {
+    use super::line_familiarity_tests::{player, side};
+    use crate::live_match::{LiveMatchState, MatchCommand};
+    use crate::types::{MatchConfig, PlayerRole, Position, Side};
+    use rand::SeedableRng;
+    use rand::rngs::StdRng;
+
+    /// The role of the player who comes on for the home defender, `bench` waiting on the home
+    /// bench with `role`.
+    fn role_after_coming_on(bench: Position, role: PlayerRole) -> PlayerRole {
+        let mut substitute = player("h_sub", bench);
+        substitute.role = role;
+        let mut state = LiveMatchState::new(
+            side("h"),
+            side("a"),
+            MatchConfig::default(),
+            vec![substitute],
+            vec![player("a_sub", Position::Defender)],
+            false,
+        );
+        state.step_minute(&mut StdRng::seed_from_u64(1));
+        state
+            .apply_command(MatchCommand::Substitute {
+                side: Side::Home,
+                player_off_id: "h_d".to_string(),
+                player_on_id: "h_sub".to_string(),
+            })
+            .expect("the substitution is legal");
+        state
+            .team(Side::Home)
+            .players
+            .iter()
+            .find(|player| player.id == "h_sub")
+            .map(|player| player.role)
+            .expect("he is on the pitch")
+    }
+
+    /// Given a Poacher on the bench,
+    /// When he comes on for a defender and takes his slot in the back line,
+    /// Then he plays the slot on Standard: a Poacher is not a defender's role, and carrying it
+    /// there would put the Poacher's defensive penalty on a defence.
+    #[test]
+    fn a_role_the_slot_does_not_admit_is_dropped_by_a_substitution() {
+        assert_eq!(
+            role_after_coming_on(Position::Forward, PlayerRole::Poacher),
+            PlayerRole::Standard
+        );
+    }
+
+    /// Given an Attacking Full-Back on the bench,
+    /// When he comes on for a defender,
+    /// Then he keeps the role: the slot he takes admits it.
+    #[test]
+    fn a_role_the_slot_admits_is_kept_by_a_substitution() {
+        assert_eq!(
+            role_after_coming_on(Position::Defender, PlayerRole::AttackingFB),
+            PlayerRole::AttackingFB
+        );
     }
 }

@@ -4,6 +4,7 @@ import type { TacticsPhaseSettings } from "../../store/types";
 import TacticsInstructionsPanel, { type InstructionsSection } from "./TacticsInstructionsPanel";
 
 vi.mock("react-i18next", () => ({
+  initReactI18next: { type: "3rdParty", init: () => undefined },
   useTranslation: () => ({
     t: (key: string, params?: Record<string, unknown> | string) =>
       params && typeof params === "object" && "section" in params

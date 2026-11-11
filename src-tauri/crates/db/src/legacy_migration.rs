@@ -139,12 +139,28 @@ fn migrate_single_save(
     row: &LegacySaveRow,
     save_manager: &mut SaveManager,
 ) -> Result<String, String> {
-    let mut game: Game = serde_json::from_str(&row.game_data)
+    let mut json: serde_json::Value = serde_json::from_str(&row.game_data)
         .map_err(|_| LEGACY_MIGRATION_FAILED_ERROR.to_string())?;
+    if let Some(players) = json
+        .get_mut("players")
+        .and_then(serde_json::Value::as_array_mut)
+    {
+        for player in players {
+            if let Some(fields) = player.as_object_mut() {
+                // The identity upgrade uses zero to distinguish an absent field from a saved 2.
+                fields.entry("weak_foot").or_insert(serde_json::json!(0));
+            }
+        }
+    }
+    ofm_core::league_stats_compat::upgrade_world_json(&mut json)
+        .map_err(|_| LEGACY_MIGRATION_FAILED_ERROR.to_string())?;
+    let mut game: Game =
+        serde_json::from_value(json).map_err(|_| LEGACY_MIGRATION_FAILED_ERROR.to_string())?;
 
     canonicalize_game_starting_xi_ids(&mut game);
-    player_identity::upgrade_game_player_identities(&mut game);
+    player_identity::upgrade_loaded_player_identities(&mut game);
     ofm_core::football_identity::upgrade_game_football_identities(&mut game);
+    game.promote_legacy_league();
 
     save_manager.create_save(&game, &row.name)
 }
@@ -295,6 +311,25 @@ mod tests {
             "recent_treatment": null
         });
 
+        serde_json::to_string(&json).expect("legacy game json should serialize")
+    }
+
+    fn legacy_game_json_with_season_stats() -> String {
+        let mut json: serde_json::Value =
+            serde_json::from_str(&minimal_game_json()).expect("minimal game json should parse");
+        json["players"][0]["stats"] = serde_json::json!({ "appearances": 9, "goals": 7 });
+        if let Some(player) = json["players"][0].as_object_mut() {
+            player.remove("league_stats");
+            player.remove("league_stats_by_competition");
+        }
+        json["players"][0]["team_id"] = serde_json::json!("team-001");
+        json["league"] = serde_json::to_value(domain::league::League::new(
+            "legacy-league".into(),
+            "League".into(),
+            2026,
+            &["team-001".into()],
+        ))
+        .unwrap();
         serde_json::to_string(&json).expect("legacy game json should serialize")
     }
 
@@ -656,6 +691,35 @@ mod tests {
         assert_eq!(player.morale_core.renewal_state, None);
     }
 
+    /// Given a legacy save whose player has season stats and no league stats (the field is newer),
+    /// When it is migrated and loaded,
+    /// Then his season so far is his league season.
+    #[test]
+    fn test_migrate_legacy_save_reads_its_season_as_the_league_season() {
+        let dir = tempfile::tempdir().unwrap();
+        let legacy_path = dir.path().join("saves.db");
+        let saves_dir = dir.path().join("saves");
+        let json = legacy_game_json_with_season_stats();
+        create_legacy_db(
+            &legacy_path,
+            &[("old-save-1", "Legacy Stats Save", "Test Manager", &json)],
+        );
+        let mut sm = SaveManager::init(&saves_dir).unwrap();
+
+        migrate_legacy_saves(dir.path(), &mut sm).unwrap();
+
+        let save_id = sm.list_saves()[0].id.clone();
+        let loaded = sm.load_game(&save_id).unwrap();
+        let player = loaded.players.iter().find(|p| p.id == "p-001").unwrap();
+        assert_eq!(
+            (
+                player.league_stats_by_competition["legacy-league"].appearances,
+                player.league_stats_by_competition["legacy-league"].goals
+            ),
+            (9, 7)
+        );
+    }
+
     #[test]
     fn test_migrate_legacy_save_with_partial_transfer_offer_defaults_negotiation_fields() {
         let dir = tempfile::tempdir().unwrap();
@@ -881,6 +945,45 @@ mod tests {
                 .alternate_positions
                 .contains(&domain::player::Position::LeftWingBack)
         );
+    }
+
+    /// Given legacy JSON with an explicit weak foot, when migrated, then it stays unchanged.
+    #[test]
+    fn legacy_json_preserves_an_explicit_weak_foot() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut json: serde_json::Value = serde_json::from_str(&minimal_game_json()).unwrap();
+        json["players"][0]["weak_foot"] = serde_json::json!(1);
+        let json = serde_json::to_string(&json).unwrap();
+        create_legacy_db(
+            &dir.path().join("saves.db"),
+            &[("old", "Career", "Manager", &json)],
+        );
+        let mut manager = SaveManager::init(&dir.path().join("saves")).unwrap();
+        migrate_legacy_saves(dir.path(), &mut manager).unwrap();
+        let id = manager.list_saves()[0].id.clone();
+        let loaded = manager.load_game(&id).unwrap();
+        assert_eq!(loaded.players[0].weak_foot, 1);
+    }
+
+    /// Given legacy JSON without weak-foot data, when migrated, then identity inference fills it.
+    #[test]
+    fn legacy_json_backfills_an_absent_weak_foot() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut json: serde_json::Value = serde_json::from_str(&minimal_game_json()).unwrap();
+        json["players"][0]
+            .as_object_mut()
+            .unwrap()
+            .remove("weak_foot");
+        let json = serde_json::to_string(&json).unwrap();
+        create_legacy_db(
+            &dir.path().join("saves.db"),
+            &[("old", "Career", "Manager", &json)],
+        );
+        let mut manager = SaveManager::init(&dir.path().join("saves")).unwrap();
+        migrate_legacy_saves(dir.path(), &mut manager).unwrap();
+        let id = manager.list_saves()[0].id.clone();
+        let loaded = manager.load_game(&id).unwrap();
+        assert_eq!(loaded.players[0].weak_foot, 4);
     }
 
     /// Given a save from before `natural_position` existed: an outfielder and a keeper, neither

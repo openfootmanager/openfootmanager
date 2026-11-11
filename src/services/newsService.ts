@@ -5,6 +5,7 @@ export interface NewsFeed {
   articles: NewsArticle[];
   team_names: Record<string, string>;
   league_name: string | null;
+  competition_id?: string | null;
 }
 
 export async function fetchNewsFeed(): Promise<NewsFeed> {

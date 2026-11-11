@@ -26,6 +26,8 @@ interface EntityCardProps {
   status?: ReactNode;
   /** Full only: the two facts at the foot. */
   facts?: readonly [EntityFact, EntityFact];
+  /** Full only: a band under everything, for the one action the card's screen asks of it. */
+  footer?: ReactNode;
   /** Opens the entity's profile: from the name's button, or a click anywhere else on the card. */
   onOpen?: () => void;
 }
@@ -48,6 +50,7 @@ export function EntityCard({
   hero,
   status,
   facts,
+  footer,
   onOpen,
 }: EntityCardProps) {
   const nameId = useId();
@@ -75,7 +78,9 @@ export function EntityCard({
           <h3
             id={nameId}
             // Uppercase only at heading size: a compact card's name is lead-sized text.
-            className={`font-heading font-extrabold leading-tight ${
+            // A long name wraps, even one unbroken word: the card clips, so a name that did not
+            // break would be cut off.
+            className={`font-heading font-extrabold leading-tight [overflow-wrap:anywhere] ${
               compact ? "text-lead" : "text-heading uppercase tracking-label"
             }`}
           >
@@ -120,6 +125,9 @@ export function EntityCard({
             </div>
           ))}
         </dl>
+      ) : null}
+      {!compact && footer ? (
+        <div className="border-t border-line bg-sunken px-3.5 py-3">{footer}</div>
       ) : null}
     </article>
   );

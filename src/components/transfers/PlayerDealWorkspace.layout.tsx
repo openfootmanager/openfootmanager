@@ -1,3 +1,4 @@
+import { TransferBudgetCard } from "./TransferBudgetCard";
 import type { ReactNode } from "react";
 import { ArrowLeft } from "lucide-react";
 import { useTranslation } from "react-i18next";
@@ -204,8 +205,7 @@ export function DealWorkspaceFacts({
 
       {myTeam ? (
         <div className="rounded-lg border border-gray-200 dark:border-navy-600 bg-white p-4  dark:bg-navy-800 ">
-          <p className={factLabelClass()}>{t("finances.transferBudget")}</p>
-          <p className={`${factValueClass()} tabular-nums`}>{formatVal(myTeam.transfer_budget)}</p>
+          <TransferBudgetCard teamId={myTeam.id} revision={myTeam} />
           <div className="mt-4">
             <p className={factLabelClass()}>{t("finances.wageBudget")}</p>
             <p className={`${factValueClass()} tabular-nums`}>

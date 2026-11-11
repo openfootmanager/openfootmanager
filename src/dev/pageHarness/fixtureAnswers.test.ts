@@ -16,6 +16,7 @@ import {
   teamsDirectory,
 } from "./fixture.generated";
 import { UNANSWERED } from "./harnessIpc";
+import { profileCase } from "./profileCases";
 
 const handlers = fixtureHandlers(readStyleGuideOptions(""), "en");
 const club = gameState.manager.team_id;
@@ -194,5 +195,81 @@ describe("world list answers", () => {
     expect(staff.team_staff.every((member) => member.team_id === club)).toBe(true);
     expect(staff.available_staff.length).toBeGreaterThan(0);
     expect(handlers.get_staff({ teamId: "another-club" })).toBe(UNANSWERED);
+  });
+});
+
+describe("fixture answers: the profile's knowledge of players", () => {
+  const profileHandlers = (variant: "own" | "retired") =>
+    fixtureHandlers(readStyleGuideOptions(""), "en", variant);
+  const someOtherPlayerId = (not: string) => gameState.players.find((p) => p.id !== not)?.id ?? "";
+
+  /**
+   * Given the profile open on the club's own player
+   * When the knowledge of that player is asked for
+   * Then it is the case's: the club's own
+   */
+  it("answers the knowledge of the player the profile is open on", () => {
+    const { playerId } = profileCase("own");
+    expect(profileHandlers("own").get_player_knowledge({ playerIds: [playerId] })).toEqual({
+      [playerId]: { kind: "own" },
+    });
+  });
+
+  /**
+   * Given the profile open on one player
+   * When the page also asks about another player who is in the world
+   * Then the fixture has no answer (Rust answers every player in the game), so the harness lists it
+   *      as unanswered instead of letting the page read the missing entry as "unknown"
+   */
+  it("declines a request that includes another active player", () => {
+    const { playerId } = profileCase("own");
+    const other = someOtherPlayerId(playerId);
+    expect(profileHandlers("own").get_player_knowledge({ playerIds: [playerId, other] })).toBe(
+      UNANSWERED,
+    );
+    expect(profileHandlers("own").get_player_knowledge({ playerIds: [other] })).toBe(UNANSWERED);
+  });
+
+  /**
+   * Given the profile open on a retired player, who is no player of the world
+   * When his knowledge is asked for
+   * Then the answer is empty, as Rust leaves out an id no player has, and it is not a decline
+   */
+  it("leaves a retired player out of the answer, deliberately", () => {
+    const { playerId } = profileCase("retired");
+    expect(profileHandlers("retired").get_player_knowledge({ playerIds: [playerId] })).toEqual({});
+  });
+
+  /**
+   * Given the own player's profile asking for his last three matches
+   * When the match history is answered
+   * Then it is the three most recent of the five he has, as the page's `limit` asks for
+   */
+  it("answers the match history up to the limit the page asked for", () => {
+    const { playerId, recentMatches } = profileCase("own");
+    const answer = profileHandlers("own").get_player_match_history({ playerId, limit: 3 });
+    expect(answer).toEqual(recentMatches.slice(0, 3));
+  });
+
+  /**
+   * Given the profile open on the injured player, and on the club's own player
+   * When the active game is asked for
+   * Then the injured case's game holds his injury (the patch laid over him) and the other case's is
+   *      the fixture's game itself
+   */
+  it("lays the case's patch over the player in the active game", () => {
+    const injured = profileCase("injured");
+    const patched = fixtureHandlers(readStyleGuideOptions(""), "en", "injured").get_active_game(
+      {},
+    ) as {
+      players: { id: string; injury: unknown }[];
+    };
+
+    expect(patched.players.find((player) => player.id === injured.playerId)?.injury).toMatchObject({
+      days_remaining: 12,
+    });
+    expect(fixtureHandlers(readStyleGuideOptions(""), "en", "own").get_active_game({})).toBe(
+      gameState,
+    );
   });
 });

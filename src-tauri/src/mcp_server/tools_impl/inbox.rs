@@ -1,12 +1,15 @@
 //! MCP tool implementations: inbox
 
 use mcp_results::inbox::{
-    ActionResolved, AllMessagesMarkedRead, ArchivedMessage, ArchivedMessages, InboxMessage,
-    InboxMessages, MessageDeleted, MessageMarkedRead, OldMessagesCleared,
+    ActionResolved, AllMessagesMarkedRead, ArchivedMessage, ArchivedMessages, InboxAction,
+    InboxActionOption, InboxMessage, InboxMessages, MessageDeleted, MessageMarkedRead,
+    OldMessagesCleared,
 };
 
+use crate::mcp_server::backend_text;
 use crate::mcp_server::context::McpContext;
 use crate::mcp_server::tools_impl::helpers::require_game;
+use ofm_core::game::Game;
 use ofm_core::inbox_archive::{ArchiveCursor, ArchivedMessagesPage};
 use ofm_core::state::Career;
 use std::sync::Arc;
@@ -22,44 +25,69 @@ pub fn inbox_get_messages(
     unread_only: Option<bool>,
 ) -> Result<InboxMessages, String> {
     let game = require_game(&ctx.state_manager)?;
+    Ok(inbox_messages_result(
+        &game,
+        category.as_deref(),
+        unread_only,
+    ))
+}
 
+/// The inbox as the player sees it, in words: the subject, body and sender are the English text
+/// of the keys the backend wrote, and every action carries the ids `inbox_resolve_action` takes.
+fn inbox_messages_result(
+    game: &Game,
+    category: Option<&str>,
+    unread_only: Option<bool>,
+) -> InboxMessages {
     // Agents see the same inbox the player does, which means mail dated ahead of
     // the clock is hidden from them too — an agent must not be able to act on an
     // event the player cannot see yet.
     let today = game.clock.current_date.format("%Y-%m-%d").to_string();
-    let messages: Vec<_> = game
-        .messages
-        .iter()
-        .filter(|m| ofm_core::slices::inbox::message_is_visible(&m.date, &today))
-        .filter(|m| {
-            if let Some(ref cat) = category {
-                format!("{:?}", m.category) == *cat
-            } else {
-                true
-            }
-        })
-        .filter(|m| {
-            if let Some(true) = unread_only {
-                !m.read
-            } else {
-                true
-            }
-        })
-        .collect();
+    InboxMessages {
+        messages: game
+            .messages
+            .iter()
+            .filter(|m| ofm_core::slices::inbox::message_is_visible(&m.date, &today))
+            .filter(|m| category.is_none_or(|cat| format!("{:?}", m.category) == cat))
+            .filter(|m| !(unread_only == Some(true) && m.read))
+            .map(inbox_message_result)
+            .collect(),
+    }
+}
 
-    Ok(InboxMessages {
-        messages: messages
+fn inbox_message_result(message: &domain::message::InboxMessage) -> InboxMessage {
+    let text = backend_text::resolve_message(message);
+    InboxMessage {
+        id: message.id.clone(),
+        subject: text.subject,
+        body: text.body,
+        sender: text.sender,
+        sender_role: text.sender_role,
+        // Spelled as the `category` filter accepts it.
+        category: format!("{:?}", message.category),
+        read: message.read,
+        date: message.date.clone(),
+        actions: text
+            .actions
             .into_iter()
-            .map(|m| InboxMessage {
-                id: m.id.clone(),
-                subject: m.subject.clone(),
-                // Spelled as the `category` filter accepts it.
-                category: format!("{:?}", m.category),
-                read: m.read,
-                date: m.date.clone(),
+            .map(|action| InboxAction {
+                id: action.id,
+                label: action.label,
+                kind: action.kind.to_string(),
+                resolved: action.resolved,
+                options: action
+                    .options
+                    .into_iter()
+                    .map(|option| InboxActionOption {
+                        id: option.id,
+                        label: option.label,
+                        description: option.description,
+                    })
+                    .collect(),
             })
             .collect(),
-    })
+        details: text.details,
+    }
 }
 
 // ─── inbox_get_archived ─────────────────────────────────────────────────────
@@ -205,7 +233,192 @@ pub fn inbox_resolve_action(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use domain::message::InboxMessage;
+    use chrono::{TimeZone, Utc};
+    use domain::manager::Manager;
+    use domain::message::{ActionOption, ActionType, InboxMessage, MessageAction};
+    use ofm_core::clock::GameClock;
+    use std::collections::HashMap;
+
+    fn game_with(messages: Vec<InboxMessage>) -> Game {
+        let clock = GameClock::new(Utc.with_ymd_and_hms(2026, 8, 1, 12, 0, 0).unwrap());
+        let manager = Manager::new(
+            "mgr".to_string(),
+            "Test".to_string(),
+            "Manager".to_string(),
+            "1980-01-01".to_string(),
+            "England".to_string(),
+        );
+        let mut game = Game::new(clock, manager, vec![], vec![], vec![], vec![]);
+        game.messages = messages;
+        game
+    }
+
+    /// A message the way most of the backend writes one: no plain text, keys and params.
+    fn keyed(id: &str, subject_key: &str, body_key: &str, params: &[(&str, &str)]) -> InboxMessage {
+        InboxMessage::new(
+            id.to_string(),
+            String::new(),
+            String::new(),
+            String::new(),
+            "2026-07-30".to_string(),
+        )
+        .with_i18n(
+            subject_key,
+            body_key,
+            params
+                .iter()
+                .map(|(key, value)| (key.to_string(), value.to_string()))
+                .collect::<HashMap<_, _>>(),
+        )
+    }
+
+    /// Given the messages the game writes with keys and params (the board's season objectives,
+    ///       an incoming offer, a completed transfer, the assistant's advice)
+    /// When an agent lists the inbox
+    /// Then every subject and body is English text: not blank, not the key, no placeholder left
+    ///      (#1195: agents saw blank subjects for nearly every message)
+    #[test]
+    fn an_agent_reads_words_not_blanks_or_keys_for_the_messages_the_game_writes() {
+        let game = game_with(vec![
+            ofm_core::messages::board_expectations_message("Northfield", "t1", "2026-07-30"),
+            ofm_core::messages::incoming_transfer_offer_message(
+                "o1",
+                "p1",
+                "Jo Doe",
+                "Southgate",
+                1_250_000,
+                "2026-07-30",
+            ),
+            ofm_core::messages::transfer_complete_message("Jo Doe", 800_001, "2026-07-30"),
+            ofm_core::messages::staff_advice_message("Northfield", "t1", "2026-07-30"),
+        ]);
+
+        let listed = inbox_messages_result(&game, None, None).messages;
+
+        assert_eq!(listed.len(), 4);
+        for message in &listed {
+            for (field, text) in [("subject", &message.subject), ("body", &message.body)] {
+                assert!(!text.trim().is_empty(), "{}: blank {field}", message.id);
+                assert!(
+                    !text.contains("{{"),
+                    "{}: {field} has a placeholder: {text}",
+                    message.id
+                );
+                assert!(
+                    !text.starts_with("be."),
+                    "{}: {field} is a raw key: {text}",
+                    message.id
+                );
+            }
+        }
+        assert_eq!(listed[0].subject, "Northfield — Season Objectives");
+        assert_eq!(listed[1].subject, "Incoming Offer for Jo Doe");
+        assert_eq!(
+            listed[1].body,
+            "Southgate have submitted an offer of €1.25M for Jo Doe. Review the bid in the Transfers tab to accept or reject it."
+        );
+        assert_eq!(listed[0].sender, "Board of Directors");
+    }
+
+    /// Given a message that asks for a choice, and one that asks to be acknowledged
+    /// When an agent lists the inbox
+    /// Then each action is listed with the id `inbox_resolve_action` takes, its label in words,
+    ///      its kind and whether it is already answered, and a choice lists its options' ids with
+    ///      their labels and descriptions
+    #[test]
+    fn an_agent_is_shown_the_action_and_option_ids_it_can_resolve() {
+        let mut choice = keyed(
+            "sponsor_1",
+            "be.msg.sponsor.subject",
+            "be.msg.sponsor.body",
+            &[
+                ("sponsor", "Acme"),
+                ("team", "Northfield"),
+                ("amount", "900000"),
+            ],
+        );
+        choice.actions.push(MessageAction {
+            id: "respond".to_string(),
+            label: String::new(),
+            action_type: ActionType::ChooseOption {
+                options: vec![ActionOption {
+                    id: "accept".to_string(),
+                    label: String::new(),
+                    description: String::new(),
+                    label_key: Some("be.msg.sponsor.options.accept.label".to_string()),
+                    description_key: Some("be.msg.sponsor.options.accept.description".to_string()),
+                }],
+            },
+            resolved: false,
+            label_key: Some("be.msg.event.respond".to_string()),
+        });
+        let game = game_with(vec![
+            choice,
+            ofm_core::messages::board_expectations_message("Northfield", "t1", "2026-07-30"),
+        ]);
+
+        let listed = inbox_messages_result(&game, None, None).messages;
+
+        let sponsor = &listed[0].actions[0];
+        assert_eq!(
+            (sponsor.id.as_str(), sponsor.kind.as_str()),
+            ("respond", "choose_option")
+        );
+        assert!(
+            !sponsor.label.is_empty(),
+            "the action label is words: {sponsor:?}"
+        );
+        assert!(!sponsor.resolved);
+        let accept = &sponsor.options[0];
+        assert_eq!(accept.id, "accept");
+        assert!(
+            !accept.label.is_empty() && !accept.label.starts_with("be."),
+            "{accept:?}"
+        );
+        assert!(!accept.description.is_empty(), "{accept:?}");
+        let board = &listed[1].actions[0];
+        assert_eq!(
+            (board.id.as_str(), board.kind.as_str(), board.label.as_str()),
+            ("ack_objectives", "acknowledge", "Accept Objectives")
+        );
+    }
+
+    /// Given a message dated after the game's clock and a read one
+    /// When an agent lists the inbox, then lists only the unread, then filters by category
+    /// Then the future mail is never shown and the filters still apply: reading the text did not
+    ///      change which messages are listed
+    #[test]
+    fn the_listing_still_hides_future_mail_and_honours_its_filters() {
+        let mut future = keyed(
+            "later",
+            "be.msg.sponsor.subject",
+            "be.msg.sponsor.body",
+            &[],
+        );
+        future.date = "2026-09-01".to_string();
+        let mut read = ofm_core::messages::staff_advice_message("Northfield", "t1", "2026-07-30");
+        read.read = true;
+        let game = game_with(vec![
+            future,
+            read,
+            ofm_core::messages::board_expectations_message("Northfield", "t1", "2026-07-30"),
+        ]);
+
+        let ids = |category: Option<&str>, unread_only: Option<bool>| -> Vec<String> {
+            inbox_messages_result(&game, category, unread_only)
+                .messages
+                .into_iter()
+                .map(|m| m.id)
+                .collect()
+        };
+        let all = ids(None, None);
+        let unread = ids(None, Some(true));
+        let directives = ids(Some("BoardDirective"), None);
+
+        assert_eq!(all, ["staff_advice_1", "board_expect_1"]);
+        assert_eq!(unread, ["board_expect_1"]);
+        assert_eq!(directives, ["board_expect_1"]);
+    }
 
     /// Given a page of archived mail with more behind it
     /// When it is turned into the agent's result

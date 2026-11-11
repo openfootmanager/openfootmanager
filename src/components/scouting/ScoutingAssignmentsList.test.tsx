@@ -5,6 +5,7 @@ import type { PlayerData, ScoutingAssignment, StaffData, TeamData } from "../../
 import ScoutingAssignmentsList from "./ScoutingAssignmentsList";
 
 vi.mock("react-i18next", () => ({
+  initReactI18next: { type: "3rdParty", init: () => undefined },
   useTranslation: () => ({
     t: (key: string, params?: Record<string, string | number>) => {
       if (key === "scouting.activeScoutingAssignments") {

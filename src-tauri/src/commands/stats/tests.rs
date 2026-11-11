@@ -1,4 +1,5 @@
 use chrono::{TimeZone, Utc};
+use domain::competition_calendar::{CalendarMetadata, DivisionIdentity, SeasonCalendar};
 use domain::league::{FixtureCompetition, League, StandingEntry};
 use domain::manager::Manager;
 use domain::player::{Player, PlayerAttributes, PlayerSeasonStats, Position};
@@ -800,6 +801,38 @@ fn the_peer_group_is_the_players_own_league() {
     assert_eq!(overview.metrics.shots.percentile, Some(67));
 }
 
+/// Given a player in a third-tier league whose tier is stored in its calendar
+/// When the stats command returns the player's overview
+/// Then the peer group carries that tier in Rust and in the frontend JSON
+#[test]
+fn the_peer_group_carries_the_leagues_calendar_tier() {
+    let mut game = make_game(vec![make_player("target", "team-3", Position::Striker)]);
+    let mut third_division = league("league-3", &["team-3", "team-4"]);
+    third_division.name = "Germany Division 3".to_string();
+    third_division.name_key = Some("tournaments.competitions.tierDivision".to_string());
+    third_division.country_id = Some("DE".to_string());
+    third_division.calendar = Some(CalendarMetadata {
+        season: SeasonCalendar {
+            division: Some(DivisionIdentity {
+                family_id: "germany-league".to_string(),
+                tier: 3,
+                phase: Default::default(),
+            }),
+            ..Default::default()
+        },
+        ..Default::default()
+    });
+    game.competitions.push(third_division);
+
+    let overview = overview_of(game, "target");
+
+    let group = overview.peer_group.as_ref().expect("a peer group");
+    assert_eq!(group.competition_id, "league-3");
+    assert_eq!(group.division_tier, Some(3));
+    let serialized = serde_json::to_value(&overview).unwrap();
+    assert_eq!(serialized["peerGroup"]["divisionTier"], 3);
+}
+
 /// Given two midfielders in one league, one with 10 fouls and one with 40 (and a third in between)
 /// When their fouls percentiles are read
 /// Then the player with fewer fouls has the higher percentile
@@ -932,4 +965,71 @@ fn a_stranger_has_no_stats_overview() {
     .unwrap_err();
 
     assert_eq!(error, "be.error.playerNotFound");
+}
+
+fn history_record(
+    fixture_id: &str,
+    competition: FixtureCompetition,
+    shots: u8,
+) -> PlayerMatchStatsRecord {
+    PlayerMatchStatsRecord {
+        fixture_id: fixture_id.to_string(),
+        season: 2026,
+        matchday: 1,
+        date: "2026-08-01".to_string(),
+        competition,
+        player_id: "player-1".to_string(),
+        team_id: "team-1".to_string(),
+        opponent_team_id: "team-2".to_string(),
+        home_team_id: "team-1".to_string(),
+        away_team_id: "team-2".to_string(),
+        home_goals: 0,
+        away_goals: 0,
+        minutes_played: 90,
+        goals: 0,
+        assists: 0,
+        shots,
+        shots_on_target: 0,
+        passes_completed: 0,
+        passes_attempted: 0,
+        tackles_won: 0,
+        interceptions: 0,
+        fouls_committed: 0,
+        yellow_cards: 0,
+        red_cards: 0,
+        rating: 7.0,
+    }
+}
+
+/// Given a striker who shot 20 times in a friendly and then 10 times in a league match,
+/// When his advanced totals are read from the match history,
+/// Then they count the league match alone: a friendly is not part of a player's season
+/// (`Fixture::is_competitive`), whether it came before or after.
+#[test]
+fn a_friendly_is_not_part_of_the_advanced_totals() {
+    let state = StateManager::new();
+    state.set_game(make_game(vec![make_player(
+        "player-1",
+        "team-1",
+        Position::Striker,
+    )]));
+    let mut friendly = history_record("friendly", FixtureCompetition::Friendly, 20);
+    friendly.passes_completed = 5;
+    friendly.passes_attempted = 20;
+    let mut league = history_record("league", FixtureCompetition::League, 10);
+    league.passes_completed = 40;
+    league.passes_attempted = 50;
+    state.set_stats_state(StatsState {
+        player_matches: vec![friendly, league],
+        team_matches: vec![],
+    });
+
+    let overview = get_player_stats_overview_internal(&state, "player-1").unwrap();
+
+    assert_eq!(overview.metrics.shots.total, 10);
+    assert_eq!(overview.metrics.passes.completed, 40);
+    assert_eq!(overview.metrics.passes.attempted, 50);
+    // One league match of 90 minutes: the per-90 rate is that match's alone, not spread over the
+    // friendly's minutes too.
+    assert_eq!(overview.metrics.shots.per90, Some(10.0));
 }

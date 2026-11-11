@@ -29,6 +29,12 @@ const WINDOWS = [
 const PAGES = ["home", "squad", "players", "teams", "managers", "staff"];
 
 /**
+ * The player profile, which looks different for each way the club can know a player (HARNESS_PROFILES
+ * in the same file; a test holds them equal): measured in each, at every window.
+ */
+const PROFILES = ["own", "keeper", "injured", "loaned", "rival", "scouted", "unknown", "retired"];
+
+/**
  * The lists whose cards draw on the shared card shell, measured in their cards view too: a card that
  * lets its contents out stretches the page, as the cards' screen-reader text did before the card
  * was positioned.
@@ -36,9 +42,21 @@ const PAGES = ["home", "squad", "players", "teams", "managers", "staff"];
 const CARD_VIEWS = ["players", "squad", "teams"];
 const CARD_WINDOWS = WINDOWS.filter((window) => window.scale === "normal" && window.lang === "en");
 
+/**
+ * The World Editor's home, which is a route and not a dashboard tab (`?page=worlds`): measured with
+ * worlds in its library and with none, which shows the empty state.
+ */
+const WORLD_LIBRARIES = ["populated", "empty"];
+
 /** Every page at every window; `page: undefined` is the style guide itself. */
 export const CASES = [
   ...[undefined, ...PAGES].flatMap((page) => WINDOWS.map((window) => ({ page, ...window }))),
+  ...PROFILES.flatMap((player) =>
+    WINDOWS.map((window) => ({ page: "profile", player, ...window })),
+  ),
+  ...WORLD_LIBRARIES.flatMap((library) =>
+    WINDOWS.map((window) => ({ page: "worlds", library, tablesFit: true, ...window })),
+  ),
   ...CARD_VIEWS.flatMap((page) =>
     CARD_WINDOWS.map((window) => ({ page, view: "cards", ...window })),
   ),
@@ -92,6 +110,9 @@ export function judge({
   innerHeight,
   unanswered,
   pastEdge,
+  belowTheFold = [],
+  tablesFit = false,
+  tablesScroll = [],
   rendered,
   faces,
 }) {
@@ -112,6 +133,12 @@ export function judge({
     problems.push(`the page scrolls down (${scrollHeight} > ${innerHeight})`);
   }
   if (pastEdge.length > 0) problems.push(`past the right edge: ${pastEdge.join(", ")}`);
+  if (belowTheFold.length > 0) {
+    problems.push(`below the bottom edge of the window: ${belowTheFold.join(", ")}`);
+  }
+  if (tablesFit && tablesScroll.length > 0) {
+    problems.push(`table scrolls sideways inside its container: ${tablesScroll.join(", ")}`);
+  }
   if (unanswered.length > 0) problems.push(`unanswered commands: ${unanswered.join(", ")}`);
   if (!rendered) problems.push("nothing rendered");
   return problems;
@@ -177,14 +204,27 @@ const MEASURE = `(async () => {
     innerHeight: window.innerHeight,
     unanswered: harness ? harness.unanswered : [],
     pastEdge: harness ? harness.pastEdge() : [],
+    belowTheFold: [...document.querySelectorAll("[data-keep-in-window]")]
+      .filter((element) => element.getBoundingClientRect().bottom > window.innerHeight)
+      .map((element) => (element.textContent ?? "").trim()),
+    // A table whose container scrolls sideways: the page's own width never shows it.
+    tablesScroll: [...document.querySelectorAll("table")]
+      .filter((table) => {
+        let box = table.parentElement;
+        while (box && getComputedStyle(box).overflowX !== "auto" && getComputedStyle(box).overflowX !== "scroll") box = box.parentElement;
+        return box !== null && box.scrollWidth > box.clientWidth + 1;
+      })
+      .map((table) => table.getAttribute("aria-label") ?? "a table"),
     rendered: (document.getElementById("root")?.childElementCount ?? 0) > 0,
   });
 })()`;
 
-function caseUrl(base, { page, view, scale, lang }) {
+function caseUrl(base, { page, player, view, library, scale, lang }) {
   const query = new URLSearchParams({ theme: "light", scale, lang });
   if (page) query.set("page", page);
+  if (player) query.set("player", player);
   if (view) query.set("view", view);
+  if (library) query.set("library", library);
   return `${base}/style-guide.html?${query}`;
 }
 
@@ -292,8 +332,8 @@ async function main(base) {
         console.log(`device pixel ratio: ${measured.devicePixelRatio}`);
         console.log(`fonts loaded: ${measured.loadedFaces.join(", ")}`);
       }
-      const problems = judge({ ...measured, page: testCase.page });
-      const label = `${testCase.page ?? "style guide"}${testCase.view ? ` (${testCase.view})` : ""} ${testCase.width}×${testCase.height} ${testCase.scale} ${testCase.lang}`;
+      const problems = judge({ ...measured, page: testCase.page, tablesFit: testCase.tablesFit });
+      const label = `${testCase.page ?? "style guide"}${testCase.player ? ` (${testCase.player})` : ""}${testCase.view ? ` (${testCase.view})` : ""} ${testCase.width}×${testCase.height} ${testCase.scale} ${testCase.lang}`;
       console.log(
         `${problems.length === 0 ? "ok  " : "FAIL"} ${label}${problems.length ? `: ${problems.join("; ")}` : ""}`,
       );

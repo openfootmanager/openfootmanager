@@ -1,3 +1,4 @@
+import { getUserCompetition } from "../../lib/fixtures";
 import { useState, useEffect } from "react";
 import type { GameStateData, NewsArticle } from "../../store/gameStore";
 import {
@@ -130,7 +131,8 @@ export default function NewsTab({ gameState, onSelectTeam }: NewsTabProps) {
     (gameState.teams ?? []).map((t) => [t.id, t.name]),
   );
   const teamNames: Record<string, string> = feed?.team_names ?? fallbackTeamNames;
-  const leagueName = feed?.league_name ?? gameState.league?.name ?? "";
+  const followedLeague = getUserCompetition(gameState);
+  const leagueName = feed?.league_name ?? followedLeague?.name ?? "";
 
   const news = rawArticles.map(resolveNewsArticle);
   const sortedNews = [...news].sort((a, b) => b.date.localeCompare(a.date));
@@ -173,6 +175,7 @@ export default function NewsTab({ gameState, onSelectTeam }: NewsTabProps) {
         <AwardsCeremonyScreen
           season={seasonFromArticle(selectedArticle)}
           leagueName={leagueName}
+          competitionId={feed?.league_name != null ? feed.competition_id : followedLeague?.id}
           gameState={gameState}
           article={selectedArticle}
           onBack={() => setSelectedId(null)}

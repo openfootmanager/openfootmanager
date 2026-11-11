@@ -6,6 +6,7 @@ mod crash;
 mod main_window;
 mod platform;
 mod report;
+pub use commands::world_library::{WorldLibraryRow, WorldsLibrary};
 use commands::*;
 
 #[cfg(feature = "mcp")]
@@ -331,6 +332,7 @@ pub fn run() {
             check_season_complete,
             advance_to_next_season,
             get_season_awards,
+            get_followed_division,
             get_hall_of_fame_legends,
             get_hall_of_fame_champions,
             get_retired_player,
@@ -369,6 +371,8 @@ pub fn run() {
             create_package_project,
             create_world_project,
             read_package_project,
+            get_worlds_library,
+            validate_package_project,
             save_package_project,
             build_ofm,
             extract_ofm_for_editing,

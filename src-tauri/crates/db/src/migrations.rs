@@ -15,7 +15,7 @@ pub const MIGRATION_COUNT: usize = MIGRATIONS.len();
 /// **Lowering this is almost always wrong.** A save written by a release with N migrations
 /// reports `user_version = N` and expects every column those migrations added; a build with
 /// fewer can neither open it nor recreate it.
-const EXPECTED_MIGRATION_COUNT: usize = 63;
+const EXPECTED_MIGRATION_COUNT: usize = 67;
 
 // Compile-time rather than a test: adding or removing a migration should fail the build, not
 // merely turn a suite red.
@@ -187,6 +187,23 @@ const MIGRATIONS: &[(&str, &str)] = &[
     (
         "v063_unreadable_records.sql",
         include_str!("sql/v063_unreadable_records.sql"),
+    ),
+    // V64: Persist the elapsed job-offer cooldown
+    ("v064_job_offer_cooldown.sql", include_str!("sql/v064_job_offer_cooldown.sql")),
+    // V65: A player's league matches alone this season, for the division's awards
+    (
+        "v065_player_league_stats.sql",
+        include_str!("sql/v065_player_league_stats.sql"),
+    ),
+    // V66: League matches stay in the competition where a player played them
+    (
+        "v066_player_competition_stats.sql",
+        include_str!("sql/v066_player_competition_stats.sql"),
+    ),
+    // V67: A player's season split by club, for the career rows of a mid-season move
+    (
+        "v067_player_season_stints.sql",
+        include_str!("sql/v067_player_season_stints.sql"),
     ),
 ];
 
@@ -704,6 +721,38 @@ mod tests {
         }
     }
 
+    /// Given a v063 save with a career row
+    /// When the save is migrated to v064 twice
+    /// Then the cooldown is absent and the existing row is preserved.
+    #[test]
+    fn job_offer_cooldown_migration_preserves_old_careers() {
+        let mut conn = Connection::open_in_memory().unwrap();
+        Migrations::new(
+            MIGRATIONS
+                .iter()
+                .take(63)
+                .map(|(_, sql)| M::up(sql))
+                .collect(),
+        )
+        .to_latest(&mut conn)
+        .unwrap();
+        conn.execute(
+            "INSERT INTO game_meta (save_id, save_name, manager_id, start_date, game_date) VALUES ('save', 'Old career', 'manager', '2033-02-01', '2033-06-30')",
+            [],
+        ).unwrap();
+        for _ in 0..2 {
+            all_migrations().to_latest(&mut conn).unwrap();
+            let row: (String, Option<u32>) = conn
+                .query_row(
+                    "SELECT save_name, days_since_last_job_offer FROM game_meta",
+                    [],
+                    |row| Ok((row.get(0)?, row.get(1)?)),
+                )
+                .unwrap();
+            assert_eq!(row, ("Old career".to_string(), None));
+        }
+    }
+
     /// Given a real v060 save, written before the season rollover date was kept
     /// When it is migrated, twice
     /// Then its game_meta row reads "no rollover recorded" (NULL), so no scout report in it is
@@ -1126,6 +1175,10 @@ mod tests {
     ("v061_last_season_rollover.sql", 0x111c4c4f40b3952a),
     ("v062_scouted_potential_opinion.sql", 0xd409624c4d0ca76f),
     ("v063_unreadable_records.sql", 0xf03c1e895ee13d83),
+    ("v064_job_offer_cooldown.sql", 0x69f2afbcd7c8fe9d),
+    ("v065_player_league_stats.sql", 0x877d34d1535c0e66),
+    ("v066_player_competition_stats.sql", 0x80ce31187d396eed),
+    ("v067_player_season_stints.sql", 0xf1b727b06deb6941),
     ];
 
     /// Given the migrations already shipped

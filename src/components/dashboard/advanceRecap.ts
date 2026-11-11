@@ -2,6 +2,7 @@ import type { AdvanceMatchResultData } from "../../services/advanceTimeService";
 import type { GameStateData } from "../../store/gameStore";
 import { getUserCompetition } from "../../lib/fixtures";
 import { resolveMessage, resolveNewsArticle } from "../../utils/backendI18n";
+import { needsAttention } from "../../utils/messagePriority";
 
 /** Match result enriched with the user's outcome (win/draw/loss) when they were involved. */
 export interface RecapMatch extends AdvanceMatchResultData {
@@ -190,7 +191,7 @@ export function buildRecapWindow(
     }));
 
   const inbox: RecapHeadline[] = (game.messages ?? [])
-    .filter((message) => inWindow(message.date) && message.priority === "High")
+    .filter((message) => inWindow(message.date) && needsAttention(message.priority))
     .sort((left, right) => right.date.localeCompare(left.date))
     .slice(0, MAX_PER_SECTION)
     .map((message) => ({

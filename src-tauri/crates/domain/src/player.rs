@@ -1,3 +1,4 @@
+use crate::career_stints::SeasonStints;
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
@@ -70,11 +71,22 @@ pub struct Player {
     // frontend and the save columns keep the shape they always had.
     pub market_value: u64,
 
-    // Season stats
+    // Season stats: every competitive match (`ofm_core::turn::post_match`).
     pub stats: PlayerSeasonStats,
+    /// This season's league matches, keyed by the competition where they were played.
+    /// Transfers preserve the entries; each division ranks only its own matches.
+    #[serde(default)]
+    pub league_stats_by_competition: std::collections::BTreeMap<String, PlayerSeasonStats>,
 
     // Career history
     pub career: Vec<CareerEntry>,
+    /// The season in progress split by club, closed at every move and resolved into `career` rows
+    /// at the rollover. It is saved in its own SQLite column (`player_repo`), not through this
+    /// serializer, and no screen reads it: like the archives on `Game`, the wire never carries it,
+    /// so the TypeScript type and the JSON agree. A JSON player (a legacy save) has none.
+    #[serde(skip)]
+    #[ts(skip)]
+    pub season_stints: SeasonStints,
     /// Every move and every contract. Flattened so the wire and the saves keep their
     /// keys: it reads and writes `movement_history`, `wage`, `contract_start` and
     /// `contract_end` itself.
@@ -470,7 +482,8 @@ fn default_attr() -> u8 {
 pub const WEAK_FOOT_MIN: u8 = 1;
 pub const WEAK_FOOT_MAX: u8 = 5;
 
-fn default_weak_foot() -> u8 {
+/// Default used when a save predates weak-foot ratings.
+pub fn default_weak_foot() -> u8 {
     2
 }
 
@@ -680,6 +693,22 @@ pub enum PlayerMovementKind {
     InitialContract,
 }
 
+impl PlayerMovementKind {
+    /// Whether the club he plays for changes with this movement. A loan's purchase makes the
+    /// borrower his owner without moving him, and a renewal, a retirement and an opening
+    /// contract do not move him either.
+    pub(crate) fn changes_where_he_plays(&self) -> bool {
+        matches!(
+            self,
+            Self::PermanentTransfer
+                | Self::LoanStart
+                | Self::LoanReturn
+                | Self::FreeAgentSigning
+                | Self::Released
+        )
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, TS)]
 pub struct PlayerMovementEntry {
     pub date: String,
@@ -801,6 +830,14 @@ pub struct LoanOffer {
     /// [`TransferOffer::closed_on`] for why `date` cannot serve this purpose.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub closed_on: Option<String>,
+}
+
+impl LoanOffer {
+    /// Whether `team_id` is a party to this loan: the club borrowing the player
+    /// (`from_team_id`) or the club lending him (`parent_team_id`).
+    pub fn involves(&self, team_id: &str) -> bool {
+        self.from_team_id == team_id || self.parent_team_id == team_id
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, TS)]
@@ -940,6 +977,13 @@ pub fn compute_traits(attrs: &PlayerAttributes, _position: &Position) -> Vec<Pla
 }
 
 impl Player {
+    /// Starts his season totals over: the totals, and the split of them by club, which means
+    /// nothing against fresh totals. The one place both are cleared together.
+    pub fn reset_season_totals(&mut self) {
+        self.stats = PlayerSeasonStats::default();
+        self.season_stints = SeasonStints::default();
+    }
+
     pub fn new(
         id: String,
         match_name: String,
@@ -979,7 +1023,9 @@ impl Player {
             potential: 0,
             market_value: 0,
             stats: PlayerSeasonStats::default(),
+            league_stats_by_competition: Default::default(),
             career: Vec::new(),
+            season_stints: Default::default(),
             movement_history: Default::default(),
             training_focus: None,
             transfer_listed: false,
@@ -996,6 +1042,22 @@ impl Player {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Given a loan from "lender" to "borrower"
+    /// When each club, and a third, is asked whether it is a party to it
+    /// Then the borrower and the lender are, and the third club is not
+    #[test]
+    fn a_loan_involves_its_borrower_and_its_lender_only() {
+        let loan: LoanOffer = serde_json::from_value(serde_json::json!({
+            "id": "loan", "from_team_id": "borrower", "parent_team_id": "lender",
+            "start_date": "2026-01-12", "end_date": "2026-06-30", "wage_contribution_pct": 50
+        }))
+        .unwrap();
+
+        assert!(loan.involves("borrower"));
+        assert!(loan.involves("lender"));
+        assert!(!loan.involves("third"));
+    }
 
     /// Given an attribute block whose nineteen values all differ
     /// When each attribute name is written and read from it

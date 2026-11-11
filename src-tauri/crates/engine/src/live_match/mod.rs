@@ -15,7 +15,7 @@ pub(crate) use observation::AiObservation;
 use crate::event::MatchEvent;
 use crate::report::MatchReport;
 use crate::types::{
-    MatchConfig, PlayStyle, PlayerData, PlayerRole, Side, TacticalDial, TeamData, Zone,
+    MatchConfig, PlayStyle, PlayerData, PlayerRole, Position, Side, TacticalDial, TeamData, Zone,
 };
 
 // ---------------------------------------------------------------------------
@@ -250,6 +250,8 @@ pub struct LiveMatchState {
     home: TeamData,
     away: TeamData,
     config: MatchConfig,
+    home_formation_slots: HashMap<String, Vec<(String, Position, bool)>>,
+    away_formation_slots: HashMap<String, Vec<(String, Position, bool)>>,
 
     // Match progress
     phase: MatchPhase,
@@ -277,6 +279,9 @@ pub struct LiveMatchState {
     yellows: HashMap<String, u8>,
     sent_off: HashSet<String>,
 
+    /// The minutes each player has stood in goal (`goalkeeper_in_goal`), for the clean sheet.
+    minutes_in_goal: HashMap<String, u8>,
+
     // Substitutions
     home_subs_made: u8,
     away_subs_made: u8,
@@ -286,6 +291,8 @@ pub struct LiveMatchState {
     // Bench players (available for substitution)
     home_bench: Vec<PlayerData>,
     away_bench: Vec<PlayerData>,
+    home_slot_roles: Option<Vec<Vec<crate::types::PlayerRole>>>,
+    away_slot_roles: Option<Vec<Vec<crate::types::PlayerRole>>>,
 
     // Set piece takers
     home_set_pieces: SetPieceTakers,
@@ -335,6 +342,8 @@ impl LiveMatchState {
             home,
             away,
             config,
+            home_formation_slots: HashMap::new(),
+            away_formation_slots: HashMap::new(),
             phase: MatchPhase::PreKickOff,
             current_minute: 0,
             home_score: 0,
@@ -347,12 +356,15 @@ impl LiveMatchState {
             away_possession_ticks: 0,
             yellows: HashMap::new(),
             sent_off: HashSet::new(),
+            minutes_in_goal: HashMap::new(),
             home_subs_made: 0,
             away_subs_made: 0,
             max_subs: 5,
             substitutions: Vec::new(),
             home_bench,
             away_bench,
+            home_slot_roles: None,
+            away_slot_roles: None,
             home_set_pieces: SetPieceTakers::default(),
             away_set_pieces: SetPieceTakers::default(),
             allows_extra_time,
@@ -448,16 +460,15 @@ impl LiveMatchState {
                 player_id,
                 role,
             } => {
-                let player = self
-                    .team_mut(side)
-                    .players
-                    .iter_mut()
-                    .find(|p| p.id == player_id)
+                let players = &self.team_ref(side).players;
+                let index = players
+                    .iter()
+                    .position(|p| p.id == player_id)
                     .ok_or("be.error.liveMatch.playerNotOnPitch")?;
-                if !is_role_valid_for_position(role, player.position) {
+                if !self.slot_admits_role(side, index, players[index].position, role) {
                     return Err("be.error.roleNotValidForPosition".into());
                 }
-                player.role = role;
+                self.team_mut(side).players[index].role = role;
                 Ok(())
             }
         }
@@ -497,6 +508,9 @@ impl LiveMatchState {
             self.home.players.iter().chain(&self.home_bench).collect();
         let away_squad: Vec<&PlayerData> =
             self.away.players.iter().chain(&self.away_bench).collect();
+        for (id, stats) in report.player_stats.iter_mut() {
+            stats.minutes_in_goal = Some(self.minutes_in_goal.get(id).copied().unwrap_or(0));
+        }
         report.assign_ratings(&home_squad, &away_squad);
         report
     }
@@ -545,51 +559,5 @@ impl LiveMatchState {
     pub fn test_set_score(&mut self, home: u8, away: u8) {
         self.home_score = home;
         self.away_score = away;
-    }
-}
-
-fn is_role_valid_for_position(role: PlayerRole, position: crate::types::Position) -> bool {
-    use crate::types::Position;
-    match position {
-        Position::Goalkeeper => matches!(
-            role,
-            PlayerRole::Standard | PlayerRole::BallPlayingKeeper | PlayerRole::SweeperKeeper
-        ),
-        Position::Defender => matches!(
-            role,
-            PlayerRole::Standard
-                | PlayerRole::Stopper
-                | PlayerRole::CoverCB
-                | PlayerRole::BallPlayingCB
-                | PlayerRole::AttackingFB
-                | PlayerRole::DefensiveFB
-                | PlayerRole::InvertedFB
-                | PlayerRole::WingBack
-        ),
-        Position::Midfielder => matches!(
-            role,
-            PlayerRole::Standard
-                | PlayerRole::AnchorMan
-                | PlayerRole::BallWinner
-                | PlayerRole::DeepLyingPlaymaker
-                | PlayerRole::BoxToBox
-                | PlayerRole::Carrilero
-                | PlayerRole::Mezzala
-                | PlayerRole::AdvancedPlaymaker
-                | PlayerRole::ShadowStriker
-                | PlayerRole::WideForward
-                | PlayerRole::InsideForward
-                | PlayerRole::InvertedWinger
-        ),
-        Position::Forward => matches!(
-            role,
-            PlayerRole::Standard
-                | PlayerRole::Poacher
-                | PlayerRole::TargetMan
-                | PlayerRole::DeepLyingForward
-                | PlayerRole::False9
-                | PlayerRole::PressingForward
-                | PlayerRole::CompleteForward
-        ),
     }
 }

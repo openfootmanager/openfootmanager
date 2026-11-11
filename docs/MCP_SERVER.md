@@ -135,14 +135,14 @@ The `initialize` result's `serverInfo.version` is the package version plus the s
 | `info_team_match_history` | Match-by-match results for a team |
 | `info_finances` | Financial overview: wage spend, budget, projected net, debt status |
 | `info_finance_snapshot` | Detailed financial snapshot with all health metrics, for the manager's own club only (`team_id` may be left out or name the own club; another club's finances are refused) |
-| `info_news` | Recent news articles |
+| `info_news` | Recent news articles: headline, body and source, in English. A roundup's structured results come in `details` |
 
 ### Time (3 tools)
 
 | Tool | Description |
 |------|-------------|
 | `time_advance` | Advance one day. Matches are auto-simulated in delegate mode. Returns round summary on match days. Refused while a stopping blocker stands (see `time_check_blockers`): the reply lists them, and the squad, contract or other problem has to be resolved first, as on the screen. |
-| `time_skip_to_match_day` | Fast-forward day-by-day until next fixture. Use `time_advance` to then play the match. Stops with a `blocked` outcome, listing the blockers, before it starts if one stands and after any day that brings one. |
+| `time_skip_to_match_day` | Fast-forward day-by-day, through the screen's own skip, until a day your club has a match scheduled in any competition (league, cup or continental), stopping before it is played. Use `time_advance` or `match_start` to then play the match. Stops with `blocked`, listing the blockers, before it starts if one stands and after any day that brings one; with `fired` if the board sacks you on the way; with `match_day_today` if you already have a match today; and with `aborted` after 60 days without one. |
 | `time_check_blockers` | What stops time, from the game's own blocker check (`application::time_blockers`, the list and severities the UI uses; informational items such as unread urgent mail are left out): each blocker has an `id` (`injured_xi`, `incomplete_xi`, `squad_size_crisis`, `planned_contract_exit_crisis`, `key_contract_risk`, `contract_wage_risk`), a `severity`, the `tab` that resolves it and its `params`, plus `live_match_in_progress`. |
 
 ### Squad (7 tools)
@@ -187,23 +187,23 @@ The `initialize` result's `serverInfo.version` is the package version plus the s
 |------|-------------|
 | `contract_propose_renewal` | Propose contract renewal. Returns negotiation feedback with suggested wage/years. |
 | `contract_delegate_renewals` | Delegate renewals to assistant with budget constraints |
-| `contract_preview_renewal` | Preview renewal financial impact |
+| `contract_preview_renewal` | Preview renewal financial impact: wage bills, cash runway, and whether wage policy allows the offer |
 | `contract_set_exit_intent` | Mark a contract to expire (let player leave on free transfer) |
 | `contract_clear_exit_intent` | Remove exit intent from a contract |
-| `contract_preview_termination` | Preview cost of terminating a contract |
+| `contract_preview_termination` | Preview the severance cost of terminating a contract and the squad-safety report |
 | `contract_terminate` | Terminate a contract immediately (costs compensation) |
 
 ### Inbox (7 tools)
 
 | Tool | Description |
 |------|-------------|
-| `inbox_get_messages` | List messages with optional category and read-status filters |
+| `inbox_get_messages` | List messages with optional category and read-status filters: subject, body and sender in English, and each message's actions with the action and option ids `inbox_resolve_action` takes |
 | `inbox_get_archived` | Read mail older than 180 days, newest first, a page at a time (`before_date`/`before_id` continue) |
 | `inbox_mark_read` | Mark a message as read |
 | `inbox_mark_all_read` | Mark all messages as read |
 | `inbox_delete` | Delete a message |
 | `inbox_clear_old` | Clear old/processed messages |
-| `inbox_resolve_action` | Resolve a message action (job offers, scout reports, events) |
+| `inbox_resolve_action` | Resolve a message action (job offers, scout reports, events); `message_id`, `action_id` and `option_id` are the ids `inbox_get_messages` lists |
 
 ### Club & Staff (7 tools)
 
@@ -263,7 +263,7 @@ These tools allow agents to play matches interactively instead of delegating the
 | `match_command` | Apply a tactical command (substitution, formation change, etc.) for your own side only: a command naming the other side, or given in a match you are not playing in, is refused with `be.error.liveMatch.notYourSide` |
 | `match_snapshot` | Get current match state without advancing time; during a shootout, your own side's kicking order (never the opponent's) |
 | `match_set_shootout_order` | Set your side's penalty shootout order: all your eligible players, reordered, once the shootout has started and before its first kick. A multi-minute `match_step` stops when the shootout starts, so there is always a chance to set it |
-| `match_finish` | Finish the match, apply results, and clean up |
+| `match_finish` | Finish the match, apply results, and clean up. A match not yet over is simulated to the end, with the AI managing your side too |
 | `match_team_talk` | Apply a team talk (half-time or full-time) affecting player morale |
 | `match_press_conference` | Submit press conference answers affecting squad morale |
 

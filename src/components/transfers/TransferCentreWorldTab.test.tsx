@@ -6,6 +6,7 @@ import TransferCentreWorldTab from "./TransferCentreWorldTab";
 
 vi.mock("react-i18next", () => {
   return {
+    initReactI18next: { type: "3rdParty", init: () => undefined },
     useTranslation: () => ({
       t: (key: string, params?: Record<string, string | number>) => {
         if (key === "transferCentreWorld.title") return "Transfer Centre";
@@ -295,5 +296,68 @@ describe("TransferCentreWorldTab", () => {
     expect(onSelectPlayer).toHaveBeenCalledWith("player-1");
     expect(onSelectTeam).toHaveBeenNthCalledWith(1, "team-1");
     expect(onSelectTeam).toHaveBeenNthCalledWith(2, "team-3");
+  });
+
+  /**
+   * Given a manager who has never had a club, and a mirror on the world's first competition
+   * When the Transfer Centre's world tab opens
+   * Then it shows none of that league's rumours or deals
+   */
+  it("shows a manager who never had a club no rumours or deals", () => {
+    const state = createGameState();
+    state.manager = { ...state.manager, team_id: null, career_history: [] };
+
+    render(<TransferCentreWorldTab gameState={state} />);
+
+    expect(screen.queryByText("Alex Star")).not.toBeInTheDocument();
+    expect(screen.getByText("No active rumours.")).toBeInTheDocument();
+    expect(screen.getByText("No completed deals recorded.")).toBeInTheDocument();
+  });
+
+  /**
+   * Given a sacked manager, whose mirror follows the league he left
+   * When the world tab opens
+   * Then it shows that league's rumours
+   */
+  it("shows a sacked manager the rumours of the league he left", () => {
+    const state = createGameState();
+    state.manager = {
+      ...state.manager,
+      team_id: null,
+      career_history: [{ team_id: "team-1", team_name: "Alpha FC" }] as never,
+    };
+
+    render(<TransferCentreWorldTab gameState={state} />);
+
+    expect(screen.getByText("Alex Star")).toBeInTheDocument();
+  });
+
+  /**
+   * Given an employed manager in a save with competitions, whose mirror (`game.league`) holds the
+   *       rumours the weekly news just generated while the competition's own copy does not (the
+   *       mirror is where they are written; a Monday advance with no user match returns it as is)
+   * When the world tab opens
+   * Then the rumours of the mirror show: the tab's source is the mirror, as before
+   */
+  it("shows an employed manager the rumours on the mirror, not a competition's stale copy", () => {
+    const state = createGameState();
+    state.competitions = [
+      {
+        id: "league-1",
+        name: "Premier Division",
+        season: 2026,
+        kind: "League",
+        scope: "Domestic",
+        participant_ids: ["team-1"],
+        fixtures: [],
+        standings: [{ team_id: "team-1" }],
+        transfer_log: [],
+        transfer_rumours: [],
+      },
+    ] as unknown as GameStateData["competitions"];
+
+    render(<TransferCentreWorldTab gameState={state} />);
+
+    expect(screen.getByText("Alex Star")).toBeInTheDocument();
   });
 });

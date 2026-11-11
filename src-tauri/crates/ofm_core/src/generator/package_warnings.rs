@@ -14,14 +14,110 @@ use crate::nations::nation_by_code;
 pub(super) const COUNTRY_WITHOUT_REGION: &str = "be.warning.package.countryWithoutRegion";
 pub(super) const FREE_AGENT_FIELD_IGNORED: &str = "be.warning.package.freeAgentFieldIgnored";
 pub(super) const REPEATED_NAME_POOL: &str = "be.warning.package.repeatedNamePool";
+pub(super) const PATCH_CLUB_REFS_UNVERIFIED: &str = "be.warning.package.patchClubRefsUnverified";
+// One code for either half missing, rather than one carrying which half as a parameter: the
+// message is rendered with `t(code, params)`, so a parameter would put an English word into a
+// translated sentence.
+pub(super) const NAME_POOL_INCOMPLETE: &str = "be.warning.package.namePoolIncomplete";
 
 /// Problems that leave the package usable. Empty for a package whose own countries are all in
-/// the catalog or placed in a confederation, and whose club-less players carry no contract.
+/// the catalog or placed in a confederation, whose club-less players carry no contract, and whose
+/// name pools each have both first names and surnames.
 pub fn package_warnings(package: &WorldPackage) -> Vec<PackageError> {
     let mut warnings = country_warnings(package);
     warnings.extend(free_agent_warnings(package));
     warnings.extend(repeated_name_pool_warnings(package));
+    warnings.extend(incomplete_name_pool_warnings(package));
+    warnings.extend(patch_club_warnings(package));
     warnings
+}
+
+/// The warnings of a package whose club references were checked on its base (`ofm-cli validate
+/// --base`): everything [`package_warnings`] says except that those references were not checked.
+pub fn stack_checked_warnings(package: &WorldPackage) -> Vec<PackageError> {
+    package_warnings(package)
+        .into_iter()
+        .filter(|warning| warning.code != PATCH_CLUB_REFS_UNVERIFIED)
+        .collect()
+}
+
+/// A patch naming clubs it does not define: in its players and staff, in the team ids of its
+/// players' career histories and in its competitions' explicit participants. Alone it cannot tell
+/// a club its base database defines from one nothing defines, so this is not an error (#1271); the
+/// game checks it when the patch is stacked, and `ofm-cli validate --base` checks it the same way.
+/// One warning for each source file, naming how many distinct clubs of that file went unchecked.
+fn patch_club_warnings(package: &WorldPackage) -> Vec<PackageError> {
+    use std::collections::{BTreeMap, BTreeSet};
+
+    let is_patch = package
+        .meta
+        .as_ref()
+        .is_some_and(|meta| meta.package_type == "patch");
+    if !is_patch {
+        return Vec::new();
+    }
+    let defined: std::collections::HashSet<&str> =
+        package.teams.iter().map(|team| team.id.as_str()).collect();
+    let mut unchecked: BTreeMap<String, BTreeSet<String>> = BTreeMap::new();
+    let mut note = |file: String, club: &str| {
+        if !club.is_empty() && !defined.contains(club) {
+            unchecked.entry(file).or_default().insert(club.to_string());
+        }
+    };
+    for (index, player) in package.players.iter().enumerate() {
+        let file = package.source_at("player", index);
+        note(file.clone(), &player.club);
+        for entry in &player.career_history {
+            note(file.clone(), entry.team_id.as_deref().unwrap_or_default());
+        }
+    }
+    for (index, staff) in package.staff.iter().enumerate() {
+        note(package.source_at("staff", index), &staff.club);
+    }
+    // The competition rules already say which participants a package does not define: the very
+    // findings a patch's validation defers.
+    for finding in super::package::validate_competition_references(package)
+        .into_iter()
+        .filter(|finding| finding.code == super::competition_def::UNKNOWN_TEAM)
+    {
+        let club = finding
+            .params
+            .iter()
+            .find(|(key, _)| key == "team")
+            .map(|(_, value)| value.as_str())
+            .unwrap_or_default();
+        note(finding.file.clone(), club);
+    }
+    unchecked
+        .into_iter()
+        .map(|(file, clubs)| {
+            PackageError::new(PATCH_CLUB_REFS_UNVERIFIED, &file)
+                .with("clubs", clubs.len().to_string())
+        })
+        .collect()
+}
+
+/// A name pool missing its first names or its surnames. Building a world uses a package's pool
+/// only when it has both, and drops one that does not without a word, so the players of that
+/// country get the built-in pool's names, or generic ones (#1200).
+fn incomplete_name_pool_warnings(package: &WorldPackage) -> Vec<PackageError> {
+    let Some(names) = &package.names else {
+        return Vec::new();
+    };
+    let mut countries: Vec<&String> = names
+        .pools
+        .iter()
+        .filter(|(_, pool)| !pool.is_usable())
+        .map(|(country, _)| country)
+        .collect();
+    countries.sort();
+    countries
+        .into_iter()
+        .map(|country| {
+            PackageError::new(NAME_POOL_INCOMPLETE, package.name_pool_file(country))
+                .with("country", country.clone())
+        })
+        .collect()
 }
 
 /// A country given a name pool by two files of one package: the later file replaces the earlier
@@ -91,6 +187,142 @@ fn free_agent_warnings(package: &WorldPackage) -> Vec<PackageError> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Given a patch package whose player is at a club the patch does not define (its base would)
+    /// When its warnings are listed
+    /// Then there is one saying the club references were not checked, naming how many: the package
+    ///      alone cannot tell a club its base defines from a ghost, so it is not an error (#1364).
+    #[test]
+    fn a_patch_naming_clubs_it_does_not_define_gets_an_unverified_warning() {
+        let dir = std::env::temp_dir().join(format!("ofm-warn-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(dir.join("players")).unwrap();
+        std::fs::write(
+            dir.join("package.json"),
+            r#"{"schema":"world","id":"patchy","name":"Patchy","version":"1.0.0","license":"CC0-1.0","packageType":"patch"}"#,
+        )
+        .unwrap();
+        std::fs::write(
+            dir.join("players/players.json"),
+            r#"{"schema":"player","items":[{"id":"p1","name":"P One","club":"base-fc","nationality":"ENG","position":"Striker","overall":70},{"id":"p2","name":"P Two","club":"base-fc","nationality":"ENG","position":"Striker","overall":70}]}"#,
+        )
+        .unwrap();
+        let (package, errors) = crate::generator::load_world_package(&dir);
+        std::fs::remove_dir_all(&dir).ok();
+
+        let warnings = package_warnings(&package);
+
+        assert!(
+            errors.is_empty(),
+            "alone, the patch has no error: {errors:?}"
+        );
+        let unverified: Vec<_> = warnings
+            .iter()
+            .filter(|w| w.code == PATCH_CLUB_REFS_UNVERIFIED)
+            .collect();
+        assert_eq!(unverified.len(), 1, "{warnings:?}");
+        assert!(unverified[0].params.contains(&("clubs".into(), "1".into())));
+    }
+
+    /// A patch package directory loaded alone, for the warning tests.
+    fn loaded_patch(files: &[(&str, &str)]) -> WorldPackage {
+        let dir = std::env::temp_dir().join(format!("ofm-warn-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(
+            dir.join("package.json"),
+            r#"{"schema":"world","id":"patchy","name":"Patchy","version":"1.0.0","license":"CC0-1.0","packageType":"patch"}"#,
+        )
+        .unwrap();
+        for (name, body) in files {
+            let path = dir.join(name);
+            std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+            std::fs::write(path, body).unwrap();
+        }
+        let (package, _) = crate::generator::load_world_package(&dir);
+        std::fs::remove_dir_all(&dir).ok();
+        package
+    }
+
+    fn unverified(package: &WorldPackage) -> Vec<PackageError> {
+        package_warnings(package)
+            .into_iter()
+            .filter(|w| w.code == PATCH_CLUB_REFS_UNVERIFIED)
+            .collect()
+    }
+
+    /// Given a patch whose only reference to a club it does not define is a team id in a player's
+    ///       career history
+    /// When its warnings are listed
+    /// Then the unverified warning names that file: alone, the id may be its base's club.
+    #[test]
+    fn a_career_history_team_id_a_patch_does_not_define_is_unverified() {
+        let package = loaded_patch(&[(
+            "players/free-agents.json",
+            r#"{"schema":"player","items":[{"id":"p1","name":"P One","nationality":"ENG","position":"Striker","overall":70,"careerHistory":[{"season":2020,"teamId":"base-fc","teamName":"Base FC","appearances":10,"goals":1,"assists":0}]}]}"#,
+        )]);
+
+        let warnings = unverified(&package);
+
+        assert_eq!(warnings.len(), 1, "{warnings:?}");
+        assert!(
+            warnings[0].file.contains("free-agents.json"),
+            "{:?}",
+            warnings[0]
+        );
+    }
+
+    /// Given a patch whose only reference is a club in a competition's explicit participants
+    /// When its warnings are listed
+    /// Then the unverified warning names the competition's file.
+    #[test]
+    fn a_competition_participant_a_patch_does_not_define_is_unverified() {
+        let package = loaded_patch(&[(
+            "competitions/cup.json",
+            r#"{"schema":"competition","id":"cup","name":"Cup","type":"Cup","scope":"Domestic","format":{"kind":"Knockout"},"participants":{"explicit":["base-fc","base-two"]}}"#,
+        )]);
+
+        let warnings = unverified(&package);
+
+        assert_eq!(warnings.len(), 1, "{warnings:?}");
+        assert!(warnings[0].file.contains("cup.json"), "{:?}", warnings[0]);
+        assert!(warnings[0].params.contains(&("clubs".into(), "2".into())));
+    }
+
+    /// Given a patch with unverified clubs in two files
+    /// When its warnings are listed
+    /// Then there is one warning for each file, so the author can find every one.
+    #[test]
+    fn unverified_clubs_are_reported_for_each_source_file() {
+        let package = loaded_patch(&[
+            (
+                "players/a.json",
+                r#"{"schema":"player","items":[{"id":"p1","name":"P One","club":"base-fc","nationality":"ENG","position":"Striker","overall":70}]}"#,
+            ),
+            (
+                "players/b.json",
+                r#"{"schema":"player","items":[{"id":"p2","name":"P Two","club":"base-two","nationality":"ENG","position":"Striker","overall":70}]}"#,
+            ),
+        ]);
+
+        let mut files: Vec<String> = unverified(&package).into_iter().map(|w| w.file).collect();
+        files.sort();
+
+        assert_eq!(files.len(), 2, "{files:?}");
+        assert!(files[0].contains("a.json") && files[1].contains("b.json"));
+    }
+
+    /// Given a database package whose players name only clubs it defines
+    /// When its warnings are listed
+    /// Then there is no unverified-references warning: only a patch defers its references.
+    #[test]
+    fn a_database_package_gets_no_unverified_warning() {
+        let warnings = package_warnings(&WorldPackage::default());
+
+        assert!(
+            warnings
+                .iter()
+                .all(|w| w.code != PATCH_CLUB_REFS_UNVERIFIED)
+        );
+    }
     use crate::generator::load_world_package;
     use std::path::{Path, PathBuf};
 
@@ -118,6 +350,63 @@ mod tests {
         let (package, _errors) = load_world_package(&dir);
         std::fs::remove_dir_all(&dir).ok();
         package_warnings(&package)
+    }
+
+    fn incomplete_pool_warnings(first: &[&str], last: &[&str]) -> Vec<PackageError> {
+        let list = |names: &[&str]| {
+            names
+                .iter()
+                .map(|name| format!("\"{name}\""))
+                .collect::<Vec<_>>()
+                .join(",")
+        };
+        let contents = format!(
+            r#"{{"schema":"names","pools":{{"BR":{{"first_names":[{}],"last_names":[{}]}}}}}}"#,
+            list(first),
+            list(last)
+        );
+        warnings_for("pool", &[("names/pools.json", contents.as_str())])
+            .into_iter()
+            .filter(|warning| warning.code == NAME_POOL_INCOMPLETE)
+            .collect()
+    }
+
+    /// Given a package whose names file gives Brazil surnames but no first names
+    /// When its warnings are listed
+    /// Then one names the country and the file: a pool is used only with both lists, so this one
+    ///      would be dropped without a word when the world is built (#1200)
+    #[test]
+    fn a_name_pool_with_only_surnames_is_warned_about() {
+        let warnings = incomplete_pool_warnings(&[], &["Silva", "Souza"]);
+
+        assert_eq!(warnings.len(), 1, "{warnings:?}");
+        assert_eq!(warnings[0].file, "names/pools.json");
+        assert_eq!(
+            warnings[0].params,
+            vec![("country".to_string(), "BR".to_string())]
+        );
+    }
+
+    /// Given a package whose names file gives Brazil first names but no surnames
+    /// When its warnings are listed
+    /// Then one names the country, as for the other half missing
+    #[test]
+    fn a_name_pool_with_only_first_names_is_warned_about() {
+        let warnings = incomplete_pool_warnings(&["Joao", "Pedro"], &[]);
+
+        assert_eq!(warnings.len(), 1, "{warnings:?}");
+        assert_eq!(
+            warnings[0].params,
+            vec![("country".to_string(), "BR".to_string())]
+        );
+    }
+
+    /// Given a package whose names file gives Brazil both first names and surnames
+    /// When its warnings are listed
+    /// Then none is about the pool
+    #[test]
+    fn a_complete_name_pool_is_not_warned_about() {
+        assert!(incomplete_pool_warnings(&["Joao"], &["Silva"]).is_empty());
     }
 
     const COUNTRY_QQ: (&str, &str) = (

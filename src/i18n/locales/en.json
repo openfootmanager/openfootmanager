@@ -102,7 +102,6 @@
       "option": "{{count}} seasons",
       "recommended": "Recommended"
     },
-    "installedPackages": "Installed Packages",
     "installPackage": "Install Package (.ofm)",
     "noInstalledPackages": "No packages installed",
     "removePackage": "Remove",
@@ -299,10 +298,60 @@
     }
   },
   "teamSelect": {
-    "title": "Choose Your Club",
+    "title": "Choose your club",
     "subtitle": "Select the team you want to manage",
     "confirming": "Confirming...",
     "manage": "Manage {{name}}",
+    "steps": {
+      "label": "New career steps",
+      "manager": "Manager",
+      "world": "World",
+      "generation": "Generation",
+      "club": "Club",
+      "done": "completed"
+    },
+    "back": "Back to world generation",
+    "simulation": "Simulation",
+    "manageNone": "Manage",
+    "scope": {
+      "title": "What the world simulates",
+      "subtitle": "Choose which regions and competitions the game simulates in full. More of them make each day take longer.",
+      "sectionStart": "1 · Where you start",
+      "sectionRegions": "2 · Regions simulated",
+      "sectionCompetitions": "3 · Competitions",
+      "regionMeta": "{{countries}} · {{clubs}} clubs",
+      "simulate": "Simulate {{name}}",
+      "needs": "Needs {{regions}}",
+      "add": "Add {{regions}}",
+      "groupCount": "{{on}} of {{total}}",
+      "groupSimulated": "{{on}} of {{total}} simulated",
+      "needOne": "Switch on at least one competition.",
+      "summary": "{{regions}} regions · {{competitions}} competitions simulated",
+      "clubs": "{{clubs}} clubs in the simulated regions",
+      "apply": "Apply"
+    },
+    "rail": {
+      "label": "Countries and leagues",
+      "countries": "Countries"
+    },
+    "table": {
+      "label": "Clubs",
+      "club": "Club",
+      "transfers": "Transfers",
+      "wages": "Wages / wk",
+      "stadium": "Stadium"
+    },
+    "card": {
+      "label": "Chosen club",
+      "emptyTitle": "No club chosen yet",
+      "emptyHint": "Pick a club from the list to see its squad, budgets and what the board expects.",
+      "boardExpects": "Board expects",
+      "transferBudget": "Transfer budget",
+      "wageBudget": "Wage budget",
+      "balance": "Balance",
+      "stadium": "Stadium",
+      "founded": "founded {{year}}"
+    },
     "reputation": "Reputation",
     "squad": "Squad",
     "finances": "Finances",
@@ -312,21 +361,22 @@
     "repStrong": "Strong",
     "repAverage": "Average",
     "repDeveloping": "Developing",
+    "expectations": {
+      "title": "Challenge for the title",
+      "continental": "Push for continental football",
+      "topHalf": "Top half",
+      "midTable": "Mid-table",
+      "survival": "Avoid relegation"
+    },
     "failedToSelectTeam": "Failed to select team: {{error}}",
     "homeRegion": "Home Region",
     "homeCountry": "Home Country",
-    "allCountries": "All countries",
-    "simulationScope": "Simulation Scope",
     "otherClubs": "Other clubs",
     "searchClubs": "Search clubs…",
     "clubCount": "{{n}} clubs",
     "noClubsMatch": "No clubs match your search.",
-    "simulatedRegions": "Simulated Regions",
-    "simulatedCompetitions": "Simulated Competitions",
     "homeBadge": "Home",
-    "yourClub": "your club",
     "yourClubBadge": "Your Club",
-    "requiresRegions": "Requires {{regions}}",
     "selectedClub": "Selected Club",
     "formation": "Formation",
     "overall": "Overall",
@@ -337,7 +387,6 @@
     "clubCompetitionsAlwaysSimulated": "Your club's competitions are always simulated, even if you switch off other regions or tournaments.",
     "selectClubPrompt": "Select a club to inspect its squad and competitions.",
     "playersCount": "{{count}} players",
-    "scopeSummary": "{{regionsCount}} simulated regions and {{competitionsCount}} simulated competitions will be loaded.",
     "regionLabels": {
       "north-america": "North America",
       "central-america": "Central America",
@@ -360,13 +409,6 @@
       "InternationalClub": "International Club",
       "InternationalNation": "International Nation",
       "FriendlyCup": "Friendly Cup"
-    },
-    "scopeMessages": {
-      "homeRegionAlwaysActive": "Your playable region always stays active.",
-      "regionRequiredByCompetition": "{{competition}} is part of {{club}}'s schedule, so {{region}} must remain active.",
-      "regionRemovedDisablesCompetitions": "{{region}} was removed from the simulation scope, so dependent competitions were switched off too.",
-      "clubCompetitionLocked": "{{competition}} is on {{club}}'s schedule and will always be simulated.",
-      "autoEnabledRegions": "{{competition}} needs {{regions}}, so those regions were enabled automatically."
     }
   },
   "youthAcademy": {
@@ -404,6 +446,12 @@
       "B": "B"
     },
     "ordinal": {
+      "place": {
+        "one": "{{n}}st",
+        "two": "{{n}}nd",
+        "few": "{{n}}rd",
+        "other": "{{n}}th"
+      },
       "one": "{{n}}st",
       "two": "{{n}}nd",
       "few": "{{n}}rd",
@@ -421,12 +469,6 @@
     "listViewTable": "Table",
     "listViewCards": "Cards",
     "noResults": "No results found.",
-    "place": {
-      "1": "1st",
-      "2": "2nd",
-      "3": "3rd",
-      "other": "{{n}}th"
-    },
     "pts": "Pts",
     "playedFull": "Played",
     "wonFull": "Won",
@@ -1114,6 +1156,8 @@
     "clubBalance": "Club Balance",
     "wageBudget": "Wage Budget",
     "transferBudget": "Transfer Budget",
+    "committedTransferFees": "Committed transfer fees",
+    "availableTransferBudget": "Available transfer budget",
     "seasonIncome": "Season Income",
     "seasonExpenses": "Season Expenses",
     "moneyIn": "Money in",
@@ -1638,6 +1682,7 @@
       "league": "{{country}} League",
       "firstDivision": "{{country}} First Division",
       "secondDivision": "{{country}} Second Division",
+      "tierDivision": "{{country}} Division {{tier}}",
       "nationalCup": "{{country}} Cup",
       "continentalChampionsCup": "Continental Champions Cup",
       "premierDivision": "Premier Division"
@@ -1661,6 +1706,53 @@
     }
   },
   "playerProfile": {
+    "sections": "Profile sections",
+    "attributesTab": {
+      "key": "Key attribute",
+      "average": "average {{value}}",
+      "weight": "weight {{count}} of 3",
+      "scouted": "Scouted"
+    },
+    "overview": {
+      "axes": {
+        "pace": "PAC",
+        "shooting": "SHO",
+        "dribbling": "DRI",
+        "passing": "PAS",
+        "vision": "VIS",
+        "composure": "COM",
+        "strength": "STR",
+        "aerial": "AER",
+        "handling": "HAN",
+        "reflexes": "REF",
+        "agility": "AGI",
+        "stamina": "STA"
+      },
+      "now": "Now",
+      "details": "Details",
+      "previousMatches": "Previous matches",
+      "allMatches": "All matches",
+      "traits": "Traits",
+      "born": "Born",
+      "squadRole": "Squad role",
+      "squadSenior": "Senior squad",
+      "squadYouth": "Youth academy",
+      "contractUntil": "until {{date}}",
+      "keyFor": "Key for a {{position}}",
+      "radarLabel": "Attribute radar: {{values}}",
+      "seasonExtras": "Discipline and clean sheets"
+    },
+    "overall": "Overall",
+    "ratingUnknown": "Your club does not know his rating",
+    "retired": "Retired",
+    "retiredOn": "Retired on {{date}}",
+    "lastClub": "Last club: {{club}}",
+    "tabs": {
+      "overview": "Overview",
+      "attributes": "Attributes",
+      "career": "Career",
+      "contract": "Contract"
+    },
     "contractInfo": "Contract & Info",
     "dateOfBirth": "Date of Birth",
     "noContract": "No contract",
@@ -1674,6 +1766,7 @@
     "renewalLength": "Contract Length",
     "renewalSubmit": "Submit Offer",
     "renewalInvalidWage": "Enter a valid weekly wage",
+    "renewalMinimumYears": "Minimum contract length to extend (years): {{years}}.",
     "renewalBudgetWarning": "Offer exceeds the board wage pressure limit",
     "renewalAccepted": "Offer accepted",
     "renewalRejected": "Offer rejected",
@@ -2765,6 +2858,7 @@
       "critical": "Critical"
     },
     "error": {
+      "taskJoinFailed": "The simulation stopped unexpectedly. Please load your last save and try again.",
       "autoSave": {
         "failed": "Auto-save could not save your game. Your progress since the last save is not stored yet: save it yourself, and check that the disk has free space."
       },
@@ -3017,6 +3111,7 @@
         "insufficientFunds": "Insufficient funds",
         "buyerCannotAffordFee": "The buying club can no longer afford this fee, so the deal cannot go through.",
         "transferBudgetTooLow": "Transfer budget too low",
+        "transferBudgetCommitted": "This fee exceeds the available transfer budget after fees already committed to agreed deals.",
         "playerNotOwnedByUser": "Player not found or not yours",
         "offerNotPending": "Offer not found or not pending",
         "talksBrokenOff": "This club has ended talks over this player. Try again later.",
@@ -3039,6 +3134,7 @@
         "playerNotOwnedByClub": "Player does not belong to your club",
         "playerNotFreeAgent": "Player is not a free agent",
         "unableToCalculateContractEndDate": "Unable to calculate new contract end date",
+        "renewalDoesNotExtend": "The renewed contract must end after the current contract.",
         "playerHasNoActiveContract": "Player does not have an active contract",
         "playerOnActiveLoan": "Player is currently on loan and the contract cannot be terminated until the loan ends",
         "terminationWouldLeaveMatchdaySquadShort": "Terminating this contract would leave your squad unable to field a matchday XI",
@@ -3187,16 +3283,16 @@
       },
       "seasonPayout": {
         "subject": "Season {{season}} Prize Money Awarded",
-        "body": "The board has confirmed a prize payout of {{amount}} for your {{position}}-place league finish. The amount has been added to the club balance.",
-        "ledgerDescription": "Season {{season}} prize money for {{position}}{{suffix}} place"
+        "body": "The board has confirmed a prize payout of {{amount}} for your {{ordinal}}-place league finish. The amount has been added to the club balance.",
+        "ledgerDescription": "Season {{season}} prize money for {{ordinal}} place"
       },
       "seasonReview": {
         "subject": "Season {{season}} Review",
         "body": {
           "champion": "Congratulations! {{team}} are league champions! What an incredible achievement.\n\nThe board is absolutely delighted with your performance. You finished on {{points}} points.\n\nWe look forward to defending the title next season.",
-          "topFour": "A solid season for {{team}}. You finished in {{position}}{{suffix}} place with {{points}} points.\n\nThe board is satisfied with the campaign. Let's push for the title next season.",
-          "midTable": "{{team}} finished the season in {{position}}{{suffix}} place with {{points}} points.\n\nA mid-table finish. The board expects improvement next season. We need to be more competitive.",
-          "lowerHalf": "A disappointing season for {{team}}. Finishing {{position}}{{suffix}} with only {{points}} points is below expectations.\n\nThe board is concerned. Significant improvement will be needed next season, or your position may come under review."
+          "topFour": "A solid season for {{team}}. You finished in {{ordinal}} place with {{points}} points.\n\nThe board is satisfied with the campaign. Let's push for the title next season.",
+          "midTable": "{{team}} finished the season in {{ordinal}} place with {{points}} points.\n\nA mid-table finish. The board expects improvement next season. We need to be more competitive.",
+          "lowerHalf": "A disappointing season for {{team}}. Finishing {{ordinal}} with only {{points}} points is below expectations.\n\nThe board is concerned. Significant improvement will be needed next season, or your position may come under review."
         }
       },
       "promotion": {
@@ -3662,6 +3758,10 @@
         "body": "The agreed loan of {{player}} from {{parent}} to {{borrower}}, due to start on {{start}}, cannot go ahead: the player is no longer under contract to {{parent}}.",
         "bodyRequirementNotMet": "The agreed loan of {{player}} from {{parent}} to {{borrower}} could not start on {{start}}: one of the conditions it was agreed under, such as room in {{borrower}}'s wage budget or the length of the player's contract, no longer holds."
       },
+      "talksClosedBySale": {
+        "subject": "Signed elsewhere: {{player}}",
+        "body": "{{buyer}} have signed {{player}} for {{fee}}. Your open talks for him have been withdrawn."
+      },
       "loanOffer": {
         "subject": "Loan Offer for {{player}}",
         "body": "{{team}} want to take {{player}} on loan until {{endDate}} and cover {{wageContribution}}% of the wages. Purchase option: {{buyOption}}. Review the offer in the Transfers tab.",
@@ -3872,7 +3972,9 @@
       "package": {
         "countryWithoutRegion": "This package defines the country \"{{name}}\" ({{code}}) outside the game's nation list and puts it in no confederation, so its clubs are filed under Europe. Give it a confederation to place it.",
         "freeAgentFieldIgnored": "Player \"{{id}}\" has no club, so is a free agent with no contract: \"{{field}}\" is ignored. Give the player a club to use it, or remove the field.",
-        "repeatedNamePool": "The name pool for {{country}} was already given in {{first}}; this file's pool replaces it. Keep one of them, or give them different countries."
+        "repeatedNamePool": "The name pool for {{country}} was already given in {{first}}; this file's pool replaces it. Keep one of them, or give them different countries.",
+        "patchClubRefsUnverified": "This patch names clubs it does not define. Alone, it cannot tell the clubs of its base database from mistakes, so they were not checked here. The game checks them when the patch is stacked on its base.",
+        "namePoolIncomplete": "The name pool for {{country}} has first names but no surnames, or surnames but no first names, so it is not used: players from {{country}} get the game's own names. Give it both."
       }
     }
   },
@@ -4094,6 +4196,12 @@
     "winRate": "Win rate"
   },
   "worldEditor": {
+    "previewPlaceholder": {
+      "team": "New Team",
+      "player": "New Player",
+      "competition": "New Competition"
+    },
+    "estimatedRating": "est.",
     "positionGroupFilter": {
       "Goalkeeper": "All goalkeepers",
       "Defender": "All defenders",
@@ -4106,9 +4214,43 @@
     "positionFilterBySpecific": "Specific position",
     "showingEntries": "Showing {{shown}} of {{total}}",
     "title": "World Editor",
-    "newPackage": "New World",
-    "openPackageFile": "Open .ofm File",
-    "openPackageFolder": "Open Folder",
+    "home": {
+      "subtitle": "Build and edit .ofm worlds",
+      "newWorld": "New world",
+      "openFile": "Open .ofm file",
+      "openFolder": "Open folder",
+      "examples": "Start from an example",
+      "backToMenu": "Back to main menu",
+      "yourWorlds": "Your worlds",
+      "show": "Show",
+      "filterAll": "All",
+      "filterProjects": "Projects",
+      "filterInstalled": "Installed",
+      "search": "Search worlds",
+      "tableLabel": "Worlds",
+      "colWorld": "World",
+      "colKind": "Kind",
+      "colClubs": "Clubs",
+      "colPlayers": "Players",
+      "colOpened": "Last opened",
+      "colCheck": "Last check",
+      "colAction": "Actions",
+      "kindProject": "Project",
+      "kindInstalled": "Installed",
+      "installedVersion": "Installed · v{{version}}",
+      "noIssues": "No issues",
+      "notChecked": "Not checked",
+      "unreadable": "Can't be read",
+      "open": "Open",
+      "editCopy": "Edit a copy",
+      "openNamed": "Open {{name}}",
+      "editCopyNamed": "Edit a copy of {{name}}",
+      "resultCount": "{{count}} worlds shown",
+      "libraryFailed": "Couldn't read the worlds library. Your recent projects are listed without their counts.",
+      "libraryFailedEmpty": "No worlds are listed because the library could not be read.",
+      "installedNote": "Installed packages open as an editable copy, so the one you play stays as it is.",
+      "emptyLibrary": "No worlds yet. Start with New world, open an .ofm file or a folder, or begin from an example."
+    },
     "metadata": "Overview",
     "teams": "Teams ({{count}})",
     "addTeam": "Add Team",
@@ -4273,10 +4415,6 @@
       "allInRegion": "All in Region",
       "championsOf": "Champions Of"
     },
-    "homeSubtitle": "Build clubs, players, and tournaments from scratch. Customize logos, colors, and stats — then share your world with the community.",
-    "newPackageDesc": "Start a new world from scratch",
-    "openPackageFileDesc": "Open an existing .ofm package file",
-    "openPackageFolderDesc": "Open an existing world project folder",
     "openPackageFileInvalid": "Please select a valid .ofm package file",
     "noItemSelected": "Select an item from the list, or click Add to create one",
     "issuesBadge": "{{count}} issues",
@@ -4337,10 +4475,7 @@
     "worldDesc": "Description",
     "createWorld": "Create World",
     "creating": "Creating…",
-    "startFromExample": "Start from Example",
     "startFromExampleDesc": "4-team mini league — great for learning the format",
-    "recentProjects": "Recent Projects",
-    "openInEditor": "Edit",
     "teamLogo": "Team Logo",
     "packageLogo": "Package Logo",
     "competitionLogo": "Competition Logo",

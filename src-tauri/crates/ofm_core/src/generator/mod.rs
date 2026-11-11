@@ -6,6 +6,7 @@ pub mod file_format;
 mod generation;
 pub mod package;
 mod package_save;
+mod package_stack;
 mod package_warnings;
 pub mod scaffold;
 mod staff_bell;
@@ -16,17 +17,20 @@ pub use clubs::WorldGenConfig;
 pub use competition_def::*;
 pub use definitions::*;
 pub use file_format::{load_definition_file, parse_definition_str};
+pub use generation::ReputationScale;
 pub use package::{
     ConfederationDef, ConflictSeverity, CountryDef, MAX_ARCHIVE_BYTES, PackageError, PackageInfo,
     PackageLock, PlayerCareerEntryDef, PlayerDef, RESERVED_PACKAGE_ID, StackConflict, StaffDef,
     WorldMetaDef, WorldPackage, authored_reputations, extract_package_assets, hash_package_file,
     is_manifest_metadata_error, is_unreadable, is_valid_package_id, load_world_package,
-    load_world_package_files, load_world_package_from_ofm, merge_world_packages,
-    qualify_package_asset_paths, read_logo_from_ofm, read_package_manifest_from_ofm,
-    validate_manifest, validate_package, validate_package_stack, validate_references,
+    load_world_package_as_world, load_world_package_files, load_world_package_from_ofm,
+    merge_world_packages, qualify_package_asset_paths, read_logo_from_ofm,
+    read_package_manifest_from_ofm, validate_manifest, validate_package, validate_package_stack,
+    validate_references,
 };
 pub use package_save::{EditedPackage, save_package_files};
-pub use package_warnings::package_warnings;
+pub use package_stack::{StackCheck, check_world_package_on_bases, stack_check};
+pub use package_warnings::{package_warnings, stack_checked_warnings};
 pub use scaffold::{
     EntityKind, entity_template, manifest_json, names_json, new_package_meta, scaffold_package,
     slugify,
@@ -111,8 +115,16 @@ fn normalize_opening_contracts(
     opening_year: i32,
     authored_ids: &HashSet<String>,
 ) {
-    let first_summer = format!("{}-06-30", opening_year + 1);
-    let second_summer = format!("{}-06-30", opening_year + 2);
+    let Some(start) = chrono::NaiveDate::from_ymd_opt(opening_year, 1, 1) else {
+        return;
+    };
+    let Some((first_summer, second_summer)) = crate::contracts::contract_end_after(start, 1)
+        .zip(crate::contracts::contract_end_after(start, 2))
+    else {
+        return;
+    };
+    let first_summer = crate::contracts::iso(first_summer);
+    let second_summer = crate::contracts::iso(second_summer);
 
     let mut expiring_indices: Vec<usize> = players
         .iter()
@@ -284,7 +296,7 @@ pub fn generate_national_team_player(
         slot,
         &nationality,
         opening_year,
-        PlayerRoll::unscaled(None),
+        PlayerRoll::for_national_pool(),
         &names_def,
         rng,
     );
@@ -472,6 +484,48 @@ fn available_staff_count(staff: &[Staff]) -> usize {
         .count()
 }
 
+fn unemployed_scout_count(staff: &[Staff]) -> usize {
+    staff
+        .iter()
+        .filter(|s| s.team_id.is_none() && matches!(s.role, StaffRole::Scout))
+        .count()
+}
+
+/// How many unemployed managers and scouts the market is kept at: two per club, so the player always
+/// has candidates to consider.
+fn market_floor(team_count: usize) -> usize {
+    team_count * 2
+}
+
+/// Adds unemployed scouts until the market holds `target`; never removes any.
+fn top_up_unemployed_scouts(
+    staff: &mut Vec<Staff>,
+    target: usize,
+    market_year: u32,
+    rng: &mut impl rand::Rng,
+) {
+    let have = unemployed_scout_count(staff);
+    if have >= target {
+        return;
+    }
+    let (names_def, country_codes) = create_staff_generator_context();
+    for _ in 0..target - have {
+        let nationality = if country_codes.is_empty() {
+            "ENG".to_string()
+        } else {
+            let idx = rng.random_range(0..country_codes.len());
+            country_codes[idx].clone()
+        };
+        staff.push(generate_random_staff_unattached_from_def(
+            StaffRole::Scout,
+            &nationality,
+            market_year,
+            &names_def,
+            &mut *rng,
+        ));
+    }
+}
+
 fn replace_available_staff_market(
     staff: &mut Vec<Staff>,
     teams: &[Team],
@@ -571,7 +625,13 @@ pub fn process_available_staff_market(game: &mut crate::game::Game) -> bool {
         return false;
     }
 
+    // The rotation deals the standard batch, which holds three scouts: it must not undo the
+    // season-end floor (#474). The pool it held, up to the floor, is what it leaves: before any
+    // floor has applied that is the standard batch alone, and a pool hired down below the floor
+    // is not shrunk further. The market is one pool, so this is the same for the user and the AI.
+    let scouts_to_keep = unemployed_scout_count(&game.staff).min(market_floor(game.teams.len()));
     replace_available_staff_market(&mut game.staff, &game.teams, current_year, &mut rng);
+    top_up_unemployed_scouts(&mut game.staff, scouts_to_keep, current_year, &mut rng);
     game.available_staff_market_last_activity_date = Some(today);
     true
 }
@@ -586,8 +646,7 @@ pub fn replenish_manager_and_scout_market(game: &mut crate::game::Game) {
     // the running clock rather than the year the world opened in.
     let market_year = game.clock.current_date.year() as u32;
     let mut rng = game.rng_today("manager-scout-market");
-    let team_count = game.teams.len();
-    let floor = team_count * 2;
+    let floor = market_floor(game.teams.len());
 
     let user_manager_id = if game.manager_id.is_empty() {
         game.manager.id.clone()
@@ -623,32 +682,7 @@ pub fn replenish_manager_and_scout_market(game: &mut crate::game::Game) {
     }
 
     // --- Scouts ---
-    let unemployed_scout_count = game
-        .staff
-        .iter()
-        .filter(|s| s.team_id.is_none() && matches!(s.role, StaffRole::Scout))
-        .count();
-
-    if unemployed_scout_count < floor {
-        let needed = floor - unemployed_scout_count;
-        let (names_def, country_codes) = create_staff_generator_context();
-        for _ in 0..needed {
-            let nationality = if country_codes.is_empty() {
-                "ENG".to_string()
-            } else {
-                let idx = rng.random_range(0..country_codes.len());
-                country_codes[idx].clone()
-            };
-            let scout = generate_random_staff_unattached_from_def(
-                StaffRole::Scout,
-                &nationality,
-                market_year,
-                &names_def,
-                &mut rng,
-            );
-            game.staff.push(scout);
-        }
-    }
+    top_up_unemployed_scouts(&mut game.staff, floor, market_year, &mut rng);
 }
 
 // ---------------------------------------------------------------------------
@@ -750,11 +784,22 @@ fn build_team(tdef: &TeamDef, rng: &mut impl rand::Rng) -> domain::team::Team {
     team
 }
 
+/// The spread of club reputations in a world made of `defs`: each club draws its reputation from
+/// its definition's range (the default range when it names none), so the world's centre and spread
+/// are known before any club is built.
+fn reputation_scale_of(defs: &[TeamDef]) -> ReputationScale {
+    ReputationScale::of_ranges(defs.iter().map(|def| {
+        def.reputation_range
+            .unwrap_or(DEFAULT_TEAM_REPUTATION_RANGE)
+    }))
+}
+
 /// Build a club with a full generated squad (22 players) and staff, normalised
 /// to a sensible opening wage budget. Shared by the random world and world
 /// packages.
 fn build_club(
     tdef: &TeamDef,
+    reputations: &ReputationScale,
     country_codes: &[String],
     opening_year: u32,
     names_def: &NamesDefinition,
@@ -771,7 +816,7 @@ fn build_club(
             slot,
             &nationality,
             opening_year,
-            PlayerRoll::unscaled(None),
+            PlayerRoll::for_club(team.reputation, reputations),
             names_def,
             rng,
         );
@@ -808,7 +853,7 @@ fn build_club(
         youth_keeper_slot,
         &nationality,
         opening_year,
-        PlayerRoll::unscaled(None),
+        PlayerRoll::for_club(team.reputation, reputations),
         names_def,
         rng,
     );
@@ -850,7 +895,7 @@ fn generate_opening_free_agents(
                 senior_slot_for(&group),
                 nationality,
                 opening_year,
-                PlayerRoll::unscaled(None),
+                PlayerRoll::for_unattached(),
                 names_def,
                 rng,
             );
@@ -949,14 +994,21 @@ fn trim_backfill_players(
 /// generated squad is a backfill, not a floor to pad the authored squad on top of.
 fn build_package_club(
     tdef: &TeamDef,
+    reputations: &ReputationScale,
     authored: &[&package::PlayerDef],
     country_codes: &[String],
     opening_year: u32,
     names_def: &NamesDefinition,
     rng: &mut impl rand::Rng,
 ) -> (domain::team::Team, Vec<Player>, Vec<Staff>) {
-    let (mut team, mut players, staff) =
-        build_club(tdef, country_codes, opening_year, names_def, rng);
+    let (mut team, mut players, staff) = build_club(
+        tdef,
+        reputations,
+        country_codes,
+        opening_year,
+        names_def,
+        rng,
+    );
     if authored.is_empty() {
         return (team, players, staff);
     }
@@ -1013,9 +1065,9 @@ pub(super) fn builtin_region_name(id: &str) -> String {
 /// Build the region list for a package: one region per confederation, with each
 /// club's country assigned to its confederation (package-defined first,
 /// otherwise the built-in catalog).
-fn regions_from_package(
-    package: &package::WorldPackage,
-    teams: &[domain::team::Team],
+fn regions_from_package<'a>(
+    package: &'a package::WorldPackage,
+    club_nations: impl Iterator<Item = &'a str>,
 ) -> Vec<WorldRegionDefinition> {
     use std::collections::{BTreeMap, BTreeSet, HashMap};
 
@@ -1041,13 +1093,7 @@ fn regions_from_package(
         .countries
         .iter()
         .map(|country| country.id.as_str())
-        .chain(teams.iter().map(|team| {
-            if team.football_nation.is_empty() {
-                team.country.as_str()
-            } else {
-                team.football_nation.as_str()
-            }
-        }))
+        .chain(club_nations)
     {
         let region = country_region
             .get(code)
@@ -1070,6 +1116,67 @@ fn regions_from_package(
             country_codes: codes.into_iter().collect(),
         })
         .collect()
+}
+
+/// What competition selectors would see in the world [`build_world_data_from_package`] makes of
+/// `package`, without making it: one club per authored team, in the football nation the builder
+/// gives it, ranked by the middle of its reputation range (the authored basis a package is validated
+/// and resolved on), and the same regions. Meaningful for a package that declares competitions: with
+/// none, the builder pads and invents clubs that this does not.
+///
+/// A club with no id is an anonymous entrant: the builder gives it a generated id nothing can name,
+/// so here it carries a placeholder that equals no authored id (it is lengthened until it does not)
+/// and is kept out of the ids a definition may reference.
+///
+/// Known divergence (#1312): the built world ranks such a club by its rolled reputation, which its
+/// generated id keeps out of the authored map, and breaks ties by that random id; here it ranks by
+/// the middle of its range and by the placeholder. A package with such a club already fails
+/// validation (`missingId`), and only a ranked selector can tell the two apart.
+pub(super) fn competition_field_of_package(package: &package::WorldPackage) -> CompetitionField {
+    let authored_ids: HashSet<&str> = package.teams.iter().map(|team| team.id.as_str()).collect();
+    let nations: Vec<String> = package
+        .teams
+        .iter()
+        .map(|team| package_club_nation(&team.country))
+        .collect();
+    let clubs = package
+        .teams
+        .iter()
+        .enumerate()
+        .map(|(index, team)| {
+            let [min, max] = team
+                .reputation_range
+                .unwrap_or(DEFAULT_TEAM_REPUTATION_RANGE);
+            let anonymous = team.id.is_empty();
+            let mut id = team.id.clone();
+            if anonymous {
+                id = format!("club-without-id-{index}");
+                while authored_ids.contains(id.as_str()) {
+                    id.push('_');
+                }
+            }
+            competition_def::FieldClub {
+                id,
+                nation: nations[index].clone(),
+                reputation: min.midpoint(max),
+                anonymous,
+            }
+        })
+        .collect();
+    let regions = regions_from_package(package, nations.iter().map(String::as_str));
+    CompetitionField::new(clubs, regions)
+}
+
+/// The football nation the builder gives a club declared in `country`: `Team::new` normalises the
+/// country through `domain::identity`, and the competition resolver reads that, falling back to the
+/// country as written when it normalises to nothing. One decision, the domain's, not a second one.
+fn package_club_nation(country: &str) -> String {
+    let nation = domain::identity::normalize_football_nation_code(country);
+    if nation.is_empty() {
+        country.to_string()
+    } else {
+        nation
+    }
 }
 
 /// Generate procedural filler club definitions for a given country code. Used
@@ -1226,7 +1333,7 @@ pub fn build_world_data_from_package_with_rng(
         let mut merged = definitions::names_definition(sources);
         if let Some(pkg_names) = &package.names {
             for (key, pool) in &pkg_names.pools {
-                if !pool.first_names.is_empty() && !pool.last_names.is_empty() {
+                if pool.is_usable() {
                     merged.pools.insert(key.clone(), pool.clone());
                 }
             }
@@ -1267,6 +1374,7 @@ pub fn build_world_data_from_package_with_rng(
     let mut teams = Vec::new();
     let mut players = Vec::new();
     let mut staff = Vec::new();
+    let reputations = reputation_scale_of(&package.teams);
     for tdef in &package.teams {
         let authored = authored_by_club
             .get(tdef.id.as_str())
@@ -1278,6 +1386,7 @@ pub fn build_world_data_from_package_with_rng(
             .unwrap_or(NO_AUTHORED_STAFF);
         let (team, team_players, mut team_staff) = build_package_club(
             tdef,
+            &reputations,
             authored,
             &country_codes,
             opening_year,
@@ -1343,15 +1452,21 @@ pub fn build_world_data_from_package_with_rng(
         build_notices.push("be.error.notice.fallbackTeamsFilled".to_string());
         let country = teams[0].country.clone();
         for def in &filler_club_defs(&country, THIN_PACKAGE_MIN_TEAMS - 1, sources, &mut *rng) {
-            let (team, team_players, team_staff) =
-                build_club(def, &country_codes, opening_year, &names_def, &mut *rng);
+            let (team, team_players, team_staff) = build_club(
+                def,
+                &reputations,
+                &country_codes,
+                opening_year,
+                &names_def,
+                &mut *rng,
+            );
             teams.push(team);
             players.extend(team_players);
             staff.extend(team_staff);
         }
     }
 
-    let regions = regions_from_package(package, &teams);
+    let regions = regions_from_package(package, teams.iter().map(team_local_nationality));
 
     let competition_definitions = if !package.competitions.is_empty() {
         Some(CompetitionDefinitionFile {
@@ -1458,9 +1573,16 @@ fn generate_world_with_rng(
 
     let country_codes = generation::nationality_distribution();
 
+    let reputations = reputation_scale_of(&team_defs);
     for tdef in &team_defs {
-        let (team, team_players, team_staff) =
-            build_club(tdef, country_codes, opening_year, &names_def, &mut rng);
+        let (team, team_players, team_staff) = build_club(
+            tdef,
+            &reputations,
+            country_codes,
+            opening_year,
+            &names_def,
+            &mut rng,
+        );
         players.extend(team_players);
         staff.extend(team_staff);
         teams_out.push(team);
@@ -1764,6 +1886,7 @@ mod tests {
         let refs: Vec<&package::PlayerDef> = authored.iter().collect();
         let (_team, players, _staff) = build_package_club(
             &tdef,
+            &reputation_scale_of(std::slice::from_ref(&tdef)),
             &refs,
             country_codes,
             opening_year,
@@ -2043,8 +2166,14 @@ mod tests {
             let names_def = default_names_definition();
             let country_codes = generation::nationality_distribution();
             let mut rng = StdRng::seed_from_u64(7);
-            let (mut team, mut players, _staff) =
-                build_club(&tdef, country_codes, opening_year, &names_def, &mut rng);
+            let (mut team, mut players, _staff) = build_club(
+                &tdef,
+                &reputation_scale_of(std::slice::from_ref(&tdef)),
+                country_codes,
+                opening_year,
+                &names_def,
+                &mut rng,
+            );
 
             let expiring_next_summer = format!("{}-06-30", opening_year + 1);
             for player in players.iter_mut().take(6) {
@@ -2621,6 +2750,7 @@ mod tests {
             .map(|_| {
                 generate_youth_academy_recruit_with_nationality(
                     &team,
+                    &ReputationScale::new(500.0, 150.0),
                     None,
                     None,
                     TEST_OPENING_YEAR,
@@ -2654,6 +2784,7 @@ mod tests {
 
         let player = generate_youth_academy_recruit_with_nationality(
             &team,
+            &ReputationScale::new(500.0, 150.0),
             None,
             Some("GB"),
             TEST_OPENING_YEAR,
@@ -2688,12 +2819,14 @@ mod tests {
             for _ in 0..20 {
                 let scouted = generate_youth_academy_recruit(
                     &team,
+                    &ReputationScale::new(500.0, 150.0),
                     Some(&group),
                     TEST_OPENING_YEAR,
                     &mut rand::rng(),
                 );
                 let intake = generate_youth_intake_recruit(
                     &team,
+                    &ReputationScale::new(500.0, 150.0),
                     &group,
                     16,
                     TEST_OPENING_YEAR,
@@ -2742,6 +2875,7 @@ mod tests {
         for _ in 0..16 {
             let player = generate_youth_academy_recruit_with_nationality(
                 &team,
+                &ReputationScale::new(500.0, 150.0),
                 Some(&Position::Goalkeeper),
                 None,
                 TEST_OPENING_YEAR,
@@ -3245,6 +3379,109 @@ mod tests {
             game.available_staff_market_last_activity_date.as_deref(),
             Some("2026-08-01")
         );
+    }
+
+    /// Three clubs (so the scout floor is six) and the unemployed scouts the market holds.
+    fn market_of_three_clubs_with_scouts(scouts: usize) -> Game {
+        let free_scouts = (0..scouts)
+            .map(|index| make_import_staff(&format!("scout-{index}"), None, StaffRole::Scout))
+            .collect();
+        let mut game = make_staff_market_game(free_scouts);
+        game.teams.push(make_import_team("team-2", "Beta FC"));
+        game.teams.push(make_import_team("team-3", "Gamma FC"));
+        // Thirty days since the market last rotated: due now.
+        game.available_staff_market_last_activity_date = Some("2026-07-02".to_string());
+        game
+    }
+
+    fn unemployed_scouts(game: &Game) -> usize {
+        game.staff
+            .iter()
+            .filter(|staff_member| {
+                staff_member.team_id.is_none() && matches!(staff_member.role, StaffRole::Scout)
+            })
+            .count()
+    }
+
+    /// Given the season-end scout floor has filled the market (six scouts for three clubs)
+    /// When the 30-day rotation replaces the unemployed staff
+    /// Then the floor survives it: still at least six unemployed scouts, for the user and the AI
+    ///      alike, since they hire from the one market (#474).
+    #[test]
+    fn the_scout_floor_survives_the_thirty_day_rotation() {
+        let mut game = market_of_three_clubs_with_scouts(0);
+        replenish_manager_and_scout_market(&mut game);
+        assert_eq!(unemployed_scouts(&game), 6, "the floor filled the market");
+        game.available_staff_market_last_activity_date = Some("2026-07-02".to_string());
+
+        assert!(process_available_staff_market(&mut game));
+
+        assert!(
+            unemployed_scouts(&game) >= 6,
+            "the rotation wiped the floor: {} scouts left",
+            unemployed_scouts(&game)
+        );
+    }
+
+    /// Given a market that held five scouts (the floor, less one hired since) when it rotates
+    /// When the rotation replaces the unemployed staff
+    /// Then it leaves exactly the five it held: a rotation neither shrinks the pool nor refills it
+    ///      to the floor of six.
+    #[test]
+    fn a_rotation_does_not_shrink_the_scout_pool_below_the_floor() {
+        let mut game = market_of_three_clubs_with_scouts(5);
+
+        assert!(process_available_staff_market(&mut game));
+
+        assert_eq!(unemployed_scouts(&game), 5);
+    }
+
+    /// Given a market holding eight unemployed scouts, above the floor of six for three clubs
+    /// When it rotates
+    /// Then it holds exactly six: the standard batch topped up to the floor, no more. The pool is
+    ///      not kept at eight (that is the cap's job), nor does it fall below the floor.
+    #[test]
+    fn a_rotation_caps_the_kept_scouts_at_the_floor() {
+        let mut game = market_of_three_clubs_with_scouts(8);
+
+        assert!(process_available_staff_market(&mut game));
+
+        assert_eq!(unemployed_scouts(&game), 6);
+    }
+
+    /// Given a market that never had the floor applied (one scout, as a new world starts)
+    /// When it rotates
+    /// Then it is the standard batch alone (three scouts among the twelve): the floor is kept, not
+    ///      imposed early.
+    #[test]
+    fn a_rotation_before_any_floor_is_the_standard_batch_alone() {
+        let mut game = market_of_three_clubs_with_scouts(1);
+
+        assert!(process_available_staff_market(&mut game));
+
+        assert_eq!(unemployed_scouts(&game), 3);
+        assert_eq!(
+            game.staff
+                .iter()
+                .filter(|staff_member| staff_member.team_id.is_none())
+                .count(),
+            12
+        );
+    }
+
+    /// Given an empty market, when it replenishes, then new staff have their load-time identity.
+    #[test]
+    fn created_staff_have_football_identity_in_market() {
+        let mut game = make_staff_market_game(vec![]);
+        assert!(process_available_staff_market(&mut game));
+        assert!(!game.staff.is_empty());
+        let mut upgraded = game.clone();
+        crate::football_identity::upgrade_game_football_identities(&mut upgraded);
+        for (live, loaded) in game.staff.iter().zip(&upgraded.staff) {
+            assert!(!live.football_nation.is_empty());
+            assert_eq!(live.football_nation, loaded.football_nation);
+            assert_eq!(live.birth_country, loaded.birth_country);
+        }
     }
 
     /// Everything that identifies the people a market brought in.

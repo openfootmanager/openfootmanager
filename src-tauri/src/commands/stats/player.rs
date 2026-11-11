@@ -80,6 +80,12 @@ fn league_peers(game: &Game, player: &Player) -> (Option<PeerGroupDto>, HashSet<
         competition_name: table.name.clone(),
         competition_name_key: table.name_key.clone(),
         country_id: table.country_id.clone(),
+        division_tier: table
+            .calendar
+            .as_ref()
+            .and_then(|calendar| calendar.season.division.as_ref())
+            .map(|division| division.tier)
+            .filter(|tier| *tier > 0),
         // The serialized name, the same one `PlayerData.natural_position` sends.
         position: serde_json::to_value(position)
             .ok()
@@ -235,7 +241,13 @@ fn build_history_overview(
     let Some(history_aggregates) = state.get_stats_state(|stats| {
         let mut records_by_player: HashMap<String, Vec<PlayerMatchStatsRecord>> = HashMap::new();
 
-        for record in &stats.player_matches {
+        // A friendly is not part of a player's season (`Fixture::is_competitive`), so its
+        // records are kept for the match history and left out of the totals.
+        for record in stats
+            .player_matches
+            .iter()
+            .filter(|record| record.competition.is_competitive())
+        {
             if peer_ids.contains(&record.player_id) {
                 records_by_player
                     .entry(record.player_id.clone())

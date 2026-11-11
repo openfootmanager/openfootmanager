@@ -102,7 +102,6 @@
       "option": "{{count}} musim",
       "recommended": "Direkomendasikan"
     },
-    "installedPackages": "Paket Terpasang",
     "installPackage": "Pasang Paket (.ofm)",
     "noInstalledPackages": "Belum ada paket yang terpasang",
     "removePackage": "Hapus",
@@ -303,6 +302,56 @@
     "subtitle": "Pilih tim yang ingin dikelola",
     "confirming": "Mengonfirmasi...",
     "manage": "Kelola {{name}}",
+    "steps": {
+      "label": "Langkah karier baru",
+      "manager": "Manajer",
+      "world": "Dunia",
+      "generation": "Pembuatan",
+      "club": "Klub",
+      "done": "selesai"
+    },
+    "back": "Kembali ke pembuatan dunia",
+    "simulation": "Simulasi",
+    "manageNone": "Kelola",
+    "scope": {
+      "title": "Apa yang disimulasikan dunia",
+      "subtitle": "Pilih wilayah dan kompetisi yang disimulasikan penuh oleh game. Semakin banyak, semakin lama setiap harinya.",
+      "sectionStart": "1 · Tempat kamu mulai",
+      "sectionRegions": "2 · Wilayah yang disimulasikan",
+      "sectionCompetitions": "3 · Kompetisi",
+      "regionMeta": "{{countries}} · {{clubs}} klub",
+      "simulate": "Simulasikan {{name}}",
+      "needs": "Butuh {{regions}}",
+      "add": "Tambah {{regions}}",
+      "groupCount": "{{on}} dari {{total}}",
+      "groupSimulated": "{{on}} dari {{total}} disimulasikan",
+      "needOne": "Aktifkan setidaknya satu kompetisi.",
+      "summary": "{{regions}} wilayah · {{competitions}} kompetisi disimulasikan",
+      "clubs": "{{clubs}} klub di wilayah yang disimulasikan",
+      "apply": "Terapkan"
+    },
+    "rail": {
+      "label": "Negara dan liga",
+      "countries": "Negara"
+    },
+    "table": {
+      "label": "Klub",
+      "club": "Klub",
+      "transfers": "Transfer",
+      "wages": "Gaji / minggu",
+      "stadium": "Stadion"
+    },
+    "card": {
+      "label": "Klub terpilih",
+      "emptyTitle": "Belum ada klub terpilih",
+      "emptyHint": "Pilih klub dari daftar untuk melihat skuad, anggaran, dan target manajemen.",
+      "boardExpects": "Target manajemen",
+      "transferBudget": "Anggaran transfer",
+      "wageBudget": "Anggaran gaji",
+      "balance": "Saldo",
+      "stadium": "Stadion",
+      "founded": "didirikan {{year}}"
+    },
     "reputation": "Reputasi",
     "squad": "Skuad",
     "finances": "Keuangan",
@@ -312,21 +361,22 @@
     "repStrong": "Kuat",
     "repAverage": "Cukup",
     "repDeveloping": "Berkembang",
+    "expectations": {
+      "title": "Bersaing memperebutkan gelar",
+      "continental": "Mengejar kompetisi antarklub benua",
+      "topHalf": "Separuh atas klasemen",
+      "midTable": "Papan tengah",
+      "survival": "Hindari degradasi"
+    },
     "failedToSelectTeam": "Gagal memilih tim: {{error}}",
     "homeRegion": "Wilayah Asal",
     "homeCountry": "Negara Asal",
-    "allCountries": "Semua negara",
-    "simulationScope": "Cakupan Simulasi",
     "otherClubs": "Klub lainnya",
     "searchClubs": "Cari klub…",
     "clubCount": "{{n}} klub",
     "noClubsMatch": "Tidak ada klub yang cocok dengan pencarian.",
-    "simulatedRegions": "Wilayah yang Disimulasikan",
-    "simulatedCompetitions": "Kompetisi yang Disimulasikan",
     "homeBadge": "Asal",
-    "yourClub": "klub kamu",
     "yourClubBadge": "Klub Kamu",
-    "requiresRegions": "Membutuhkan {{regions}}",
     "selectedClub": "Klub Terpilih",
     "formation": "Formasi",
     "overall": "Keseluruhan",
@@ -337,7 +387,6 @@
     "clubCompetitionsAlwaysSimulated": "Kompetisi klub kamu selalu disimulasikan, meskipun wilayah atau turnamen lain dimatikan.",
     "selectClubPrompt": "Pilih klub untuk memeriksa skuad dan kompetisinya.",
     "playersCount": "{{count}} pemain",
-    "scopeSummary": "{{regionsCount}} wilayah dan {{competitionsCount}} kompetisi yang disimulasikan akan dimuat.",
     "regionLabels": {
       "north-america": "Amerika Utara",
       "central-america": "Amerika Tengah",
@@ -360,13 +409,6 @@
       "InternationalClub": "Klub Internasional",
       "InternationalNation": "Tim Nasional Internasional",
       "FriendlyCup": "Piala Persahabatan"
-    },
-    "scopeMessages": {
-      "homeRegionAlwaysActive": "Wilayah yang dapat dimainkan selalu aktif.",
-      "regionRequiredByCompetition": "{{competition}} bagian dari jadwal {{club}}, jadi {{region}} harus tetap aktif.",
-      "regionRemovedDisablesCompetitions": "{{region}} dihapus dari cakupan simulasi, sehingga kompetisi yang bergantung padanya ikut dimatikan.",
-      "clubCompetitionLocked": "{{competition}} ada di jadwal {{club}} dan akan selalu disimulasikan.",
-      "autoEnabledRegions": "{{competition}} membutuhkan {{regions}}, sehingga wilayah tersebut diaktifkan secara otomatis."
     }
   },
   "youthAcademy": {
@@ -404,6 +446,12 @@
       "B": "B"
     },
     "ordinal": {
+      "place": {
+        "one": "ke-{{n}}",
+        "two": "ke-{{n}}",
+        "few": "ke-{{n}}",
+        "other": "ke-{{n}}"
+      },
       "one": "ke-{{n}}",
       "two": "ke-{{n}}",
       "few": "ke-{{n}}",
@@ -421,12 +469,6 @@
     "listViewTable": "Tabel",
     "listViewCards": "Kartu",
     "noResults": "Tidak ada hasil ditemukan.",
-    "place": {
-      "1": "ke-1",
-      "2": "ke-2",
-      "3": "ke-3",
-      "other": "ke-{{n}}"
-    },
     "pts": "Poin",
     "playedFull": "Main",
     "wonFull": "Menang",
@@ -1114,6 +1156,8 @@
     "clubBalance": "Saldo Klub",
     "wageBudget": "Anggaran Gaji",
     "transferBudget": "Anggaran Transfer",
+    "committedTransferFees": "Biaya transfer yang telah dialokasikan",
+    "availableTransferBudget": "Anggaran transfer tersedia",
     "seasonIncome": "Pendapatan Musim",
     "seasonExpenses": "Pengeluaran Musim",
     "moneyIn": "Uang masuk",
@@ -1638,6 +1682,7 @@
       "league": "Liga {{country}}",
       "firstDivision": "Divisi Utama {{country}}",
       "secondDivision": "Divisi Kedua {{country}}",
+      "tierDivision": "Divisi {{tier}} {{country}}",
       "nationalCup": "Piala {{country}}",
       "continentalChampionsCup": "Piala Champions Kontinental",
       "premierDivision": "Divisi Premier"
@@ -1661,6 +1706,53 @@
     }
   },
   "playerProfile": {
+    "sections": "Bagian profil",
+    "attributesTab": {
+      "key": "Atribut kunci",
+      "average": "rata-rata {{value}}",
+      "weight": "bobot {{count}} dari 3",
+      "scouted": "Diskaut"
+    },
+    "overview": {
+      "axes": {
+        "pace": "KEC",
+        "shooting": "TEM",
+        "dribbling": "DRI",
+        "passing": "UMP",
+        "vision": "VIS",
+        "composure": "KET",
+        "strength": "KEK",
+        "aerial": "UDA",
+        "handling": "MEN",
+        "reflexes": "REF",
+        "agility": "KEL",
+        "stamina": "STA"
+      },
+      "now": "Sekarang",
+      "details": "Detail",
+      "previousMatches": "Pertandingan sebelumnya",
+      "allMatches": "Semua pertandingan",
+      "traits": "Sifat",
+      "born": "Lahir",
+      "squadRole": "Peran di skuad",
+      "squadSenior": "Tim utama",
+      "squadYouth": "Akademi",
+      "contractUntil": "hingga {{date}}",
+      "keyFor": "Kunci untuk posisi {{position}}",
+      "radarLabel": "Radar atribut: {{values}}",
+      "seasonExtras": "Disiplin dan clean sheet"
+    },
+    "overall": "Keseluruhan",
+    "ratingUnknown": "Klubmu tidak mengetahui peringkatnya",
+    "retired": "Pensiun",
+    "retiredOn": "Pensiun pada {{date}}",
+    "lastClub": "Klub terakhir: {{club}}",
+    "tabs": {
+      "overview": "Ikhtisar",
+      "attributes": "Atribut",
+      "career": "Karier",
+      "contract": "Kontrak"
+    },
     "contractInfo": "Kontrak & Info",
     "dateOfBirth": "Tanggal Lahir",
     "noContract": "Tanpa kontrak",
@@ -1674,6 +1766,7 @@
     "renewalLength": "Durasi Kontrak",
     "renewalSubmit": "Kirim Tawaran",
     "renewalInvalidWage": "Masukkan gaji mingguan yang valid",
+    "renewalMinimumYears": "Durasi kontrak minimum untuk perpanjangan (tahun): {{years}}.",
     "renewalBudgetWarning": "Tawaran melebihi batas tekanan gaji manajemen",
     "renewalAccepted": "Tawaran diterima",
     "renewalRejected": "Tawaran ditolak",
@@ -2765,6 +2858,7 @@
       "critical": "Kritis"
     },
     "error": {
+      "taskJoinFailed": "Simulasi berhenti secara tak terduga. Muat simpanan terakhirmu dan coba lagi.",
       "autoSave": {
         "failed": "Simpan otomatis tidak bisa menyimpan permainanmu. Kemajuanmu sejak penyimpanan terakhir belum tersimpan: simpan sendiri, dan periksa apakah disk masih punya ruang kosong."
       },
@@ -3017,6 +3111,7 @@
         "insufficientFunds": "Dana tidak mencukupi",
         "buyerCannotAffordFee": "Klub pembeli tidak lagi sanggup membayar biaya ini, jadi transfer tidak bisa terjadi.",
         "transferBudgetTooLow": "Anggaran transfer terlalu rendah",
+        "transferBudgetCommitted": "Biaya ini melebihi anggaran transfer yang tersedia setelah dikurangi dana yang telah dialokasikan untuk kesepakatan transfer.",
         "playerNotOwnedByUser": "Pemain tidak ditemukan atau bukan milik kamu",
         "offerNotPending": "Tawaran tidak ditemukan atau tidak tertunda",
         "talksBrokenOff": "Klub ini telah mengakhiri pembicaraan soal pemain ini. Coba lagi nanti.",
@@ -3039,6 +3134,7 @@
         "playerNotOwnedByClub": "Pemain tidak termasuk dalam klub kamu",
         "playerNotFreeAgent": "Pemain bukan agen bebas",
         "unableToCalculateContractEndDate": "Tidak dapat menghitung tanggal akhir kontrak baru",
+        "renewalDoesNotExtend": "Tanggal berakhir kontrak baru harus lebih lambat daripada kontrak saat ini.",
         "playerHasNoActiveContract": "Pemain tidak memiliki kontrak aktif",
         "playerOnActiveLoan": "Pemain sedang dipinjamkan dan kontrak tidak dapat diakhiri sampai pinjaman berakhir",
         "terminationWouldLeaveMatchdaySquadShort": "Mengakhiri kontrak ini akan membuat skuad kamu tidak dapat menurunkan XI pertandingan",
@@ -3662,6 +3758,10 @@
         "body": "Peminjaman {{player}} yang disepakati dari {{parent}} ke {{borrower}}, yang dijadwalkan mulai {{start}}, tidak bisa berjalan: pemain itu tidak lagi terikat kontrak dengan {{parent}}.",
         "bodyRequirementNotMet": "Peminjaman {{player}} yang disepakati dari {{parent}} ke {{borrower}} tidak bisa dimulai pada {{start}}: salah satu syarat kesepakatannya, seperti ruang dalam anggaran gaji {{borrower}} atau masa kontrak pemain, tidak lagi terpenuhi."
       },
+      "talksClosedBySale": {
+        "subject": "Direkrut klub lain: {{player}}",
+        "body": "{{buyer}} telah merekrut {{player}} seharga {{fee}}. Negosiasi terbukamu untuknya telah ditarik."
+      },
       "loanOffer": {
         "subject": "Tawaran Pinjaman untuk {{player}}",
         "body": "{{team}} ingin meminjam {{player}} hingga {{endDate}} dan menanggung {{wageContribution}}% dari gaji. Opsi pembelian: {{buyOption}}. Tinjau tawaran di tab Transfer.",
@@ -3872,7 +3972,9 @@
       "package": {
         "countryWithoutRegion": "Paket ini mendefinisikan negara \"{{name}}\" ({{code}}) di luar daftar negara permainan dan tidak menempatkannya di konfederasi mana pun, sehingga klubnya dikelompokkan di Eropa. Berikan konfederasi untuknya.",
         "freeAgentFieldIgnored": "Pemain \"{{id}}\" tidak punya klub, sehingga menjadi pemain bebas tanpa kontrak: \"{{field}}\" diabaikan. Berikan klub untuknya agar dipakai, atau hapus kolom itu.",
-        "repeatedNamePool": "Kumpulan nama untuk {{country}} sudah diberikan di {{first}}; kumpulan di berkas ini menggantikannya. Simpan salah satu saja, atau berikan ke negara yang berbeda."
+        "repeatedNamePool": "Kumpulan nama untuk {{country}} sudah diberikan di {{first}}; kumpulan di berkas ini menggantikannya. Simpan salah satu saja, atau berikan ke negara yang berbeda.",
+        "patchClubRefsUnverified": "Patch ini menyebut klub yang tidak didefinisikannya. Sendirian, patch tidak bisa membedakan klub basis datanya dari kesalahan, jadi klub itu tidak diperiksa di sini. Game memeriksanya saat patch ditumpuk di atas basisnya.",
+        "namePoolIncomplete": "Kumpulan nama untuk {{country}} punya nama depan tetapi tanpa nama keluarga, atau sebaliknya, sehingga tidak dipakai: pemain dari {{country}} mendapat nama bawaan game. Isi keduanya."
       }
     }
   },
@@ -4094,6 +4196,12 @@
     "winRate": "Persentase kemenangan"
   },
   "worldEditor": {
+    "previewPlaceholder": {
+      "team": "Tim baru",
+      "player": "Pemain baru",
+      "competition": "Kompetisi baru"
+    },
+    "estimatedRating": "perk.",
     "positionGroupFilter": {
       "Goalkeeper": "Semua penjaga gawang",
       "Defender": "Semua bek",
@@ -4106,9 +4214,43 @@
     "positionFilterBySpecific": "Posisi tertentu",
     "showingEntries": "Menampilkan {{shown}} dari {{total}}",
     "title": "Editor Dunia",
-    "newPackage": "Dunia Baru",
-    "openPackageFile": "Buka Berkas .ofm",
-    "openPackageFolder": "Buka Folder",
+    "home": {
+      "subtitle": "Buat dan sunting dunia .ofm",
+      "newWorld": "Dunia baru",
+      "openFile": "Buka berkas .ofm",
+      "openFolder": "Buka folder",
+      "examples": "Mulai dari contoh",
+      "backToMenu": "Kembali ke menu utama",
+      "yourWorlds": "Dunia kamu",
+      "show": "Tampilkan",
+      "filterAll": "Semua",
+      "filterProjects": "Proyek",
+      "filterInstalled": "Terpasang",
+      "search": "Cari dunia",
+      "tableLabel": "Dunia",
+      "colWorld": "Dunia",
+      "colKind": "Jenis",
+      "colClubs": "Klub",
+      "colPlayers": "Pemain",
+      "colOpened": "Terakhir dibuka",
+      "colCheck": "Pemeriksaan terakhir",
+      "colAction": "Tindakan",
+      "kindProject": "Proyek",
+      "kindInstalled": "Terpasang",
+      "installedVersion": "Terpasang · v{{version}}",
+      "noIssues": "Tidak ada masalah",
+      "notChecked": "Belum diperiksa",
+      "unreadable": "Tidak dapat dibaca",
+      "open": "Buka",
+      "editCopy": "Ubah salinan",
+      "openNamed": "Buka {{name}}",
+      "editCopyNamed": "Ubah salinan {{name}}",
+      "resultCount": "{{count}} dunia ditampilkan",
+      "libraryFailed": "Pustaka dunia tidak dapat dibaca. Proyek terbaru kamu ditampilkan tanpa jumlahnya.",
+      "libraryFailedEmpty": "Tidak ada dunia yang ditampilkan karena pustaka tidak dapat dibaca.",
+      "installedNote": "Paket terpasang dibuka sebagai salinan yang bisa disunting, jadi yang kamu mainkan tetap seperti semula.",
+      "emptyLibrary": "Belum ada dunia. Mulai dengan Dunia baru, buka berkas .ofm atau folder, atau mulai dari contoh."
+    },
     "metadata": "Ringkasan",
     "teams": "Tim ({{count}})",
     "addTeam": "Tambah Tim",
@@ -4273,10 +4415,6 @@
       "allInRegion": "Semua di Wilayah",
       "championsOf": "Juara dari"
     },
-    "homeSubtitle": "Bangun klub, pemain, dan turnamen dari nol. Sesuaikan logo, warna, dan statistik — lalu bagikan duniamu dengan komunitas.",
-    "newPackageDesc": "Mulai dunia baru dari nol",
-    "openPackageFileDesc": "Buka berkas paket .ofm yang ada",
-    "openPackageFolderDesc": "Buka folder proyek dunia yang ada",
     "openPackageFileInvalid": "Pilih berkas paket .ofm yang valid",
     "noItemSelected": "Pilih item dari daftar, atau klik Tambah untuk membuatnya",
     "issuesBadge": "{{count}} masalah",
@@ -4337,10 +4475,7 @@
     "worldDesc": "Deskripsi",
     "createWorld": "Buat Dunia",
     "creating": "Membuat…",
-    "startFromExample": "Mulai dari Contoh",
     "startFromExampleDesc": "Liga mini 4 tim — bagus untuk mempelajari format",
-    "recentProjects": "Proyek Terbaru",
-    "openInEditor": "Ubah",
     "teamLogo": "Logo Tim",
     "packageLogo": "Logo Paket",
     "competitionLogo": "Logo Kompetisi",

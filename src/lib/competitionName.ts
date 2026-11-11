@@ -2,10 +2,19 @@ type TranslateFn = (key: string, options?: Record<string, unknown>) => string;
 
 /** The fields needed to render a competition's display name. */
 export interface NamedCompetition {
+  id?: string;
   name?: string;
   name_key?: string | null;
   season?: number;
   country_id?: string | null;
+  division_tier?: number | null;
+  calendar?: {
+    season?: {
+      division?: {
+        tier?: number | null;
+      } | null;
+    } | null;
+  } | null;
 }
 
 /**
@@ -23,6 +32,11 @@ export function competitionDisplayName(comp: NamedCompetition, t: TranslateFn): 
         defaultValue: comp.country_id,
       })
     : "";
+  const division = comp.calendar?.season?.division;
+  const tier = comp.division_tier ?? division?.tier;
+  if (comp.name_key.endsWith(".tierDivision") && (!tier || tier < 1)) {
+    return comp.name ?? "";
+  }
   // Keep using name_key even without a country (e.g. the World Cup, which has a
   // key but no country_id) so its localized name still resolves. A missing key
   // or an absent `{{country}}` value falls back to the stored name and trims the
@@ -30,6 +44,20 @@ export function competitionDisplayName(comp: NamedCompetition, t: TranslateFn): 
   return t(comp.name_key, {
     year: comp.season,
     country,
-    defaultValue: comp.name ?? comp.name_key,
+    tier,
+    defaultValue: comp.name ?? "",
   }).trim();
+}
+
+/** Resolve only the identified competition; names are not unique. */
+export function localizeCompetitionName(
+  name: string,
+  competitions: readonly NamedCompetition[] | undefined,
+  t: TranslateFn,
+  competitionId?: string | null,
+): string {
+  const competition = competitionId
+    ? competitions?.find((item) => item.id === competitionId)
+    : undefined;
+  return competition ? competitionDisplayName(competition, t) : name;
 }

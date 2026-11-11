@@ -117,7 +117,6 @@ function deriveSessionState(state: GameStateData): SessionState {
 export type {
   TeamMatchRolesData,
   TeamData,
-  PlayerSeasonStats,
   CareerEntry,
   PlayerMovementEntry,
   PlayerMovementKind,

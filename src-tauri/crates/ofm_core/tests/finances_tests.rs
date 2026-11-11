@@ -440,6 +440,8 @@ fn facility_upgrade_previews_carry_the_block_reason_and_affordability() {
 
 fn snapshot_at(overall_status: finances::FinanceHealthLevel) -> finances::TeamFinanceSnapshot {
     finances::TeamFinanceSnapshot {
+        committed_transfer_fees: 0,
+        available_transfer_budget: 0,
         annual_wage_bill: 520_000,
         weekly_wage_spend: 10_000,
         weekly_wage_budget: 20_000,

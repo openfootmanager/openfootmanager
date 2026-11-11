@@ -105,9 +105,12 @@ function backendWhere(failing: Command | null, answers: Partial<Record<Command, 
 const calls = (command: string) =>
   vi.mocked(invoke).mock.calls.filter(([called]) => called === command).length;
 
-const renderProfile = () => {
+/** Opens the profile on the tab that holds what a test is about: the opinion and the positions are
+ *  on Attributes, the wage on Contract. */
+const renderProfile = (tab: "Overview" | "Attributes" | "Contract" = "Attributes") => {
   const player = createPlayer({ id: "player-1", team_id: "team-1" });
   render(<PlayerProfile player={player} gameState={gameWith(player)} isOwnClub />);
+  fireEvent.click(screen.getByRole("tab", { name: tab }));
 };
 
 const opinion = {
@@ -127,6 +130,7 @@ const ratings = {
       rating: 77,
       familiarity: "natural",
       deployed: false,
+      weights: [],
       key_attributes: [],
     },
   ],
@@ -154,9 +158,9 @@ describe("a profile answer that fails to load", () => {
         : answer?.(command, args as never),
     );
 
-    renderProfile();
+    renderProfile("Overview");
 
-    const wageRow = screen.getByText("Weekly Wage").parentElement as HTMLElement;
+    const wageRow = screen.getByText("Wage").parentElement as HTMLElement;
     await waitFor(() => expect(wageRow).toHaveTextContent(/12/));
     expect(calls("get_potential_opinion")).toBe(1);
     expect(calls("get_position_ratings")).toBe(1);
@@ -174,49 +178,49 @@ describe("a profile answer that fails to load", () => {
 
     renderProfile();
 
-    expect(await screen.findByText("Couldn't load")).toBeInTheDocument();
+    // On the Attributes tab and in the Overview's Details, which is a hidden panel now.
+    expect(await screen.findAllByText("Couldn't load")).toHaveLength(2);
     fireEvent.click(screen.getByRole("button", { name: "Retry" }));
 
     expect(await screen.findByRole("region", { name: "Coaches' opinion" })).toBeInTheDocument();
-    expect(screen.queryByText("Couldn't load")).not.toBeInTheDocument();
+    expect(screen.queryAllByText("Couldn't load")).toHaveLength(0);
     expect(calls("get_potential_opinion")).toBe(2);
   });
 
   /**
    * Given the request for his position ratings fails once
    * When his profile opens, and the manager retries
-   * Then it reads "Couldn't load" with a retry; after the retry his positions show
+   * Then it reads "Couldn't load" with a retry; after the retry the tab's dots and highlight show
    */
-  it("offers a retry for failed position ratings, then shows them", async () => {
+  it("offers a retry for failed position ratings, then uses them", async () => {
     backendWhere("get_position_ratings", { get_position_ratings: ratings });
 
     renderProfile();
 
-    expect(await screen.findByText("Couldn't load")).toBeInTheDocument();
+    // The Overview's attributes card and the Attributes tab each say so.
+    expect(await screen.findAllByText("Couldn't load")).toHaveLength(2);
     fireEvent.click(screen.getByRole("button", { name: "Retry" }));
 
-    expect(await screen.findByRole("region", { name: "Positions" })).toBeInTheDocument();
+    expect((await screen.findAllByLabelText(/^weight \d of 3$/)).length).toBeGreaterThan(0);
     expect(calls("get_position_ratings")).toBe(2);
   });
 
   /**
    * Given the request for his wage fails once
-   * When his profile opens
-   * Then the hero and the contract row both read "Couldn't load", never "–", each with its own
-   *      retry; retrying from the hero clears the contract row too: one request, one state
+   * When his profile opens on the Contract tab
+   * Then the contract row reads "Couldn't load", never "–", with a retry; retrying clears it
    */
-  it("retries a failed wage from the hero, which clears the contract row too", async () => {
+  it("retries a failed wage from the contract row", async () => {
     backendWhere("get_visible_wage");
 
-    renderProfile();
+    renderProfile("Overview");
 
-    const heroRetries = await screen.findAllByRole("button", { name: "Couldn't load" });
-    const wageRow = screen.getByText("Weekly Wage").parentElement as HTMLElement;
-    const rowRetry = within(wageRow).getByRole("button", { name: "Retry" });
+    const wageRow = screen.getByText("Wage").parentElement as HTMLElement;
+    const rowRetry = await within(wageRow).findByRole("button", { name: "Retry" });
     expect(rowRetry).toHaveAccessibleDescription("Retry loading the wage");
     expect(wageRow).toHaveTextContent("Couldn't load");
 
-    fireEvent.click(heroRetries[0]);
+    fireEvent.click(rowRetry);
 
     await waitFor(() => expect(within(wageRow).queryByRole("button")).not.toBeInTheDocument());
     expect(screen.queryByText("Couldn't load")).not.toBeInTheDocument();
@@ -226,18 +230,17 @@ describe("a profile answer that fails to load", () => {
 
   /**
    * Given the request for his wage fails once
-   * When his profile opens
-   * Then each wage retry is named by the text it shows, so a voice-control user can say what they
+   * When his profile opens on the Contract tab
+   * Then the wage retry is named by the text it shows, so a voice-control user can say what they
    *      see (WCAG 2.5.3), and says what it retries as its description
    */
-  it("names each wage retry by the text it shows", async () => {
+  it("names the wage retry by the text it shows", async () => {
     backendWhere("get_visible_wage");
 
-    renderProfile();
+    renderProfile("Overview");
 
     const retries = await screen.findAllByRole("button", { description: "Retry loading the wage" });
-    // The hero (desktop and narrow layouts) and the contract row.
-    expect(retries.length).toBe(3);
+    expect(retries.length).toBe(1);
     for (const retry of retries) {
       expect(retry).toHaveAccessibleName(retry.textContent ?? "");
     }

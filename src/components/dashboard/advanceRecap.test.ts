@@ -1,4 +1,5 @@
 import { createSeasonContext } from "../../test-utils/factories";
+import { takeMissingKeys } from "../../i18n/missingKeys";
 import { beforeAll, describe, expect, it } from "vitest";
 
 import { i18nReady } from "../../i18n";
@@ -151,6 +152,8 @@ describe("advanceRecap", (): void => {
     expect(recap.news.map((article) => article.id)).toEqual(["injury"]);
     // A key the app has no text for falls back to the headline the backend sent.
     expect(recap.news[0].text).toBe("Star out injured");
+    // `news.injury` is a key the fixture has no text for on purpose.
+    expect(takeMissingKeys()).toEqual(["news.injury"]);
   });
 
   it("keeps completed loan move news in the advance recap", (): void => {
@@ -273,6 +276,34 @@ describe("advanceRecap", (): void => {
 
     expect(recap.inbox.map((item) => item.id)).toEqual(["digest"]);
     expect(recap.inbox[0].text).toBe("Transfer interest in John Star");
+  });
+
+  /**
+   * Given an Urgent inbox message (the top priority) and a Normal one, both dated in the advance
+   * When the recap and its attention events are built
+   * Then the Urgent one is in the digest and pauses the advance, as a High one does.
+   */
+  it("treats an Urgent inbox item as at least High: it is listed and it pauses", (): void => {
+    const message = (id: string, priority: string) => ({
+      id,
+      subject: `Subject ${id}`,
+      body: "",
+      sender: "",
+      sender_role: "",
+      date: "2026-07-01",
+      read: false,
+      category: "System",
+      priority,
+      actions: [],
+    });
+    const game = createGame({
+      messages: [message("urgent", "Urgent"), message("normal", "Normal")],
+    } as unknown as Partial<GameStateData>);
+
+    const recap = buildAdvanceRecap(game, "2026-07-01", []);
+
+    expect(recap.inbox.map((item) => item.id)).toEqual(["urgent"]);
+    expect(detectAttentionEvents(game, recap)).toContain("highPriorityInbox");
   });
 
   it("reads transfer_log from competitions, not the deprecated league mirror", (): void => {

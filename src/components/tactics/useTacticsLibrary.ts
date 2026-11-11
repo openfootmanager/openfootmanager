@@ -32,6 +32,10 @@ interface UseTacticsLibraryArgs {
   initialPreset: TacticsPresetDefinition | null;
   onApplyPreset: (formation: string, playStyle: string) => Promise<boolean>;
   onGameUpdate: (game: GameStateData) => void;
+  /** A write the backend refused: the screen tells the manager it did not save. */
+  onWriteError: (error: unknown) => void;
+  /** A custom-tactic save or delete the backend accepted: the screen drops an earlier alert. */
+  onWriteSaved: () => void;
 }
 
 export function useTacticsLibrary({
@@ -41,6 +45,8 @@ export function useTacticsLibrary({
   initialPreset,
   onApplyPreset,
   onGameUpdate,
+  onWriteError,
+  onWriteSaved,
 }: UseTacticsLibraryArgs) {
   const { t } = useTranslation();
   // The library is the career's, kept in the save: it follows a change of club and a reload. It
@@ -94,6 +100,12 @@ export function useTacticsLibrary({
   // not put its older list over the save's newer one. Each step's reply is the whole list, so the
   // last step to finish is the library as the save has it.
   const savesInOrder = useRef<Promise<void>>(Promise.resolve());
+  const confirmedLibrary = useRef<{ epoch: number; entries: TacticsLibraryEntry[] } | null>(null);
+  function confirmLibrary(tactics: CustomTactic[], epoch: number): TacticsLibraryEntry[] {
+    const entries = toLibraryEntries(tactics);
+    confirmedLibrary.current = { epoch, entries };
+    return entries;
+  }
   // The commands act on whichever game is active, and carry no career with them. A step still
   // waiting in the queue when the career changes (another game loaded or the game left) would
   // write one career's tactic into the next, so each step remembers the store's career epoch it
@@ -110,6 +122,7 @@ export function useTacticsLibrary({
       .then(async () => {
         if (stale()) return;
         let tactics = await listCustomTactics();
+        if (!stale()) confirmLibrary(tactics, askedIn);
         // Once per career: the save records that the old browser library was copied in, so a
         // tactic the player has since deleted is not copied back from the browser's key.
         if (await legacyTacticsImportPending()) {
@@ -119,13 +132,15 @@ export function useTacticsLibrary({
             tactics,
             async (tactic) => {
               if (stale()) throw new Error("the career changed");
-              return saveCustomTactic(tactic, careerToken);
+              const saved = await saveCustomTactic(tactic, careerToken);
+              if (!stale()) confirmLibrary(saved, askedIn);
+              return saved;
             },
           );
           tactics = imported.tactics;
           if (imported.complete && !stale()) await markLegacyTacticsImported(careerToken);
         }
-        if (!stale()) setCustomTactics(toLibraryEntries(tactics));
+        if (!stale()) setCustomTactics(confirmLibrary(tactics, askedIn));
       })
       .catch(() => {});
   }, [managerId, careerStartDate, careerEpoch, careerToken]);
@@ -133,21 +148,44 @@ export function useTacticsLibrary({
   // The screen answers at once; the save's own list then replaces it, or, if the save refused the
   // change (a shape the game cannot lay out, an id that is already gone), puts the library back as
   // the save has it.
-  function changeSave(change: () => Promise<CustomTactic[]>): void {
+  // Resolves whether the save accepted the change, once it has answered.
+  function changeSave(change: () => Promise<CustomTactic[]>): Promise<boolean> {
     const askedIn = useGameStore.getState().careerEpoch;
     const stale = () => useGameStore.getState().careerEpoch !== askedIn;
-    savesInOrder.current = savesInOrder.current
-      .then(() => (stale() ? null : change().catch(() => listCustomTactics())))
+    let accepted = true;
+    const answered = savesInOrder.current
+      .then(() =>
+        stale()
+          ? null
+          : change().catch((error: unknown) => {
+              // The save refused the change: tell the screen, and put the library back as the
+              // save has it.
+              accepted = false;
+              if (!stale()) onWriteError(error);
+              return listCustomTactics().catch(() => {
+                if (!stale()) {
+                  const confirmed = confirmedLibrary.current;
+                  setCustomTactics(confirmed?.epoch === askedIn ? confirmed.entries : []);
+                }
+                return null;
+              });
+            }),
+      )
       .then((saved) => {
-        if (saved && !stale()) setCustomTactics(toLibraryEntries(saved));
+        if (saved && !stale()) setCustomTactics(confirmLibrary(saved, askedIn));
+        const held = saved !== null && accepted && !stale();
+        if (held) onWriteSaved();
+        return accepted && !stale();
       })
-      .catch(() => {});
+      .catch(() => false);
+    savesInOrder.current = answered.then(() => undefined);
+    return answered;
   }
 
   // A save is the team's tactic as it stands, whole (#1189): the backend reads it from the team,
   // and the entry only gives it its id, name and description.
-  function persistTactic(tactic: TacticsLibraryEntry): void {
-    changeSave(() => saveCurrentTactic(toCustomTactic(tactic), careerToken));
+  function persistTactic(tactic: TacticsLibraryEntry): Promise<boolean> {
+    return changeSave(() => saveCurrentTactic(toCustomTactic(tactic), careerToken));
   }
 
   const matchedPreset = findTacticsPresetBySetup(formation, activePlayStyle);
@@ -270,6 +308,7 @@ export function useTacticsLibrary({
       return true;
     } catch (error) {
       console.error("Failed to apply the saved tactic:", error);
+      onWriteError(error);
       return false;
     }
   }
@@ -334,7 +373,7 @@ export function useTacticsLibrary({
     changeSave(() => deleteCustomTactic(id.trim(), careerToken));
   }
 
-  function handleSaveTactic(): void {
+  function handleSaveTactic(): Promise<boolean> {
     const nextName = draftTacticName.trim() || t("tactics.customTactic");
 
     if (
@@ -352,8 +391,7 @@ export function useTacticsLibrary({
       setCustomTactics((current) =>
         current.map((entry) => (entry.id === activeTactic.id ? updated : entry)),
       );
-      persistTactic(updated);
-      return;
+      return persistTactic(updated);
     }
 
     const nextTactic = createCustomTacticEntry({
@@ -365,9 +403,10 @@ export function useTacticsLibrary({
     });
 
     setCustomTactics((current) => [nextTactic, ...current]);
-    persistTactic(nextTactic);
+    const saved = persistTactic(nextTactic);
     setActiveTacticId(nextTactic.id);
     setDraftTacticName(nextTactic.name);
+    return saved;
   }
 
   // What Reset goes back to: a preset applies as a whole (formation, style and phase blueprint, the

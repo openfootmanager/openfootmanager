@@ -311,7 +311,7 @@ pub(crate) fn consulted_phases(position: Position) -> &'static [PlayStylePhase] 
         Position::Goalkeeper => &[],
         Position::Defender => &[PlayStylePhase::Defense],
         Position::Midfielder => &[PlayStylePhase::Midfield, PlayStylePhase::Defense],
-        Position::Forward => &[PlayStylePhase::Attack],
+        Position::Forward => &[PlayStylePhase::Attack, PlayStylePhase::Press],
     }
 }
 
@@ -325,6 +325,46 @@ pub(crate) fn role_modifier(position: Position, role: PlayerRole, phase: PlaySty
     } else {
         1.0
     }
+}
+
+/// The share of a forward's Press entry above Standard that reaches his side's press. The press
+/// is the midfield's work (`effective_press` reads its line), and the front line starts it, so a
+/// Pressing Forward (1.15) adds 3.75% and two add 7.5%.
+const FORWARD_PRESS_SHARE: f64 = 0.25;
+
+/// What a side's forwards add to its press, from their roles: 1.0 for a front line on Standard.
+pub(crate) fn forward_press_factor<'a>(forwards: impl Iterator<Item = &'a PlayerData>) -> f64 {
+    1.0 + forwards
+        .map(|forward| {
+            (role_modifier(Position::Forward, forward.role, PlayStylePhase::Press) - 1.0)
+                * FORWARD_PRESS_SHARE
+        })
+        .sum::<f64>()
+}
+
+/// What a role costs a player in condition each minute: a Pressing Forward runs more, at the
+/// aggressive press's rate (`tactics_pressing_fatigue`). The live engine's alone, which is the
+/// one that tracks each player's condition. Only while the line he plays admits the role
+/// (`PlayerRole::suits`, the rule the press reads the front line by): a striker moved into
+/// midfield by a change of shape no longer presses, so he no longer pays for it.
+pub(crate) fn role_fatigue(role: PlayerRole, position: Position) -> f64 {
+    match role {
+        PlayerRole::PressingForward if role.suits(position) => 1.08,
+        _ => 1.0,
+    }
+}
+
+/// Whether the engine plays `role` differently from Standard for a player in `position`'s line:
+/// some phase that line is consulted on has an entry for it, or the AI's substitutions prefer
+/// it. Read off the table the resolvers use and the preference the AI reads, so a role starts to
+/// count here the moment either reads it. `Standard` is the baseline the others are measured
+/// from, and counts as itself.
+pub fn role_has_match_effect(role: PlayerRole, position: Position) -> bool {
+    role == PlayerRole::Standard
+        || consulted_phases(position)
+            .iter()
+            .any(|phase| role_attribute_modifier(role, *phase) != 1.0)
+        || crate::ai::substitution_reads_role(role, position)
 }
 
 /// Returns a multiplier (0.88–1.20) applied to the player's effective skill
@@ -904,5 +944,50 @@ mod emergency_keeper_tests {
             .expect("the teamsheet still names someone");
 
         assert_eq!(keeper.familiarity, 0.5);
+    }
+}
+
+#[cfg(test)]
+mod forward_press_factor_tests {
+    use super::forward_press_factor;
+    use crate::test_support::{player, same};
+    use crate::types::{PlayerData, PlayerRole, Position};
+
+    fn forward_as(role: PlayerRole) -> PlayerData {
+        let mut forward = player("fwd", Position::Forward);
+        forward.role = role;
+        forward
+    }
+
+    /// Given no forwards, or a front line on Standard,
+    /// When what they add to the press is read,
+    /// Then it adds nothing: 1.0.
+    #[test]
+    fn a_front_line_on_standard_adds_nothing_to_the_press() {
+        let standard = [
+            forward_as(PlayerRole::Standard),
+            forward_as(PlayerRole::Standard),
+        ];
+
+        assert_eq!(forward_press_factor(std::iter::empty()), 1.0);
+        assert_eq!(forward_press_factor(standard.iter()), 1.0);
+    }
+
+    /// Given one Pressing Forward (a Press entry of 1.15), and two,
+    /// When what they add to the press is read,
+    /// Then each adds a quarter of his entry above Standard: 3.75% for one, 7.5% for two.
+    #[test]
+    fn each_pressing_forward_adds_a_quarter_of_his_press_entry() {
+        let one = [
+            forward_as(PlayerRole::PressingForward),
+            forward_as(PlayerRole::Standard),
+        ];
+        let two = [
+            forward_as(PlayerRole::PressingForward),
+            forward_as(PlayerRole::PressingForward),
+        ];
+
+        assert!(same(forward_press_factor(one.iter()), 1.0375));
+        assert!(same(forward_press_factor(two.iter()), 1.075));
     }
 }

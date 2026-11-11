@@ -102,7 +102,6 @@
       "option": "{{count}} sezon",
       "recommended": "Önerilen"
     },
-    "installedPackages": "Yüklü Paketler",
     "installPackage": "Paket Yükle (.ofm)",
     "noInstalledPackages": "Yüklü paket yok",
     "removePackage": "Kaldır",
@@ -303,6 +302,56 @@
     "subtitle": "Yönetmek istediğin takımı seç",
     "confirming": "Onaylanıyor...",
     "manage": "{{name}} takımını yönet",
+    "steps": {
+      "label": "Yeni kariyer adımları",
+      "manager": "Menajer",
+      "world": "Dünya",
+      "generation": "Oluşturma",
+      "club": "Kulüp",
+      "done": "tamamlandı"
+    },
+    "back": "Dünya oluşturmaya dön",
+    "simulation": "Simülasyon",
+    "manageNone": "Yönet",
+    "scope": {
+      "title": "Dünyanın simüle ettikleri",
+      "subtitle": "Oyunun hangi bölgeleri ve organizasyonları tam olarak simüle edeceğini seçin. Ne kadar çoksa her gün o kadar uzun sürer.",
+      "sectionStart": "1 · Nereden başlıyorsunuz",
+      "sectionRegions": "2 · Simüle edilen bölgeler",
+      "sectionCompetitions": "3 · Turnuvalar",
+      "regionMeta": "{{countries}} · {{clubs}} kulüp",
+      "simulate": "{{name}} simüle edilsin",
+      "needs": "{{regions}} gerekli",
+      "add": "{{regions}} ekle",
+      "groupCount": "{{on}} / {{total}}",
+      "groupSimulated": "{{total}} içinden {{on}} simüle ediliyor",
+      "needOne": "En az bir turnuvayı açın.",
+      "summary": "{{regions}} bölge · {{competitions}} turnuva simüle ediliyor",
+      "clubs": "Simüle edilen bölgelerde {{clubs}} kulüp",
+      "apply": "Uygula"
+    },
+    "rail": {
+      "label": "Ülkeler ve ligler",
+      "countries": "Ülkeler"
+    },
+    "table": {
+      "label": "Kulüpler",
+      "club": "Kulüp",
+      "transfers": "Transferler",
+      "wages": "Maaşlar / hafta",
+      "stadium": "Stadyum"
+    },
+    "card": {
+      "label": "Seçilen kulüp",
+      "emptyTitle": "Henüz kulüp seçilmedi",
+      "emptyHint": "Kadrosunu, bütçelerini ve yönetimin beklentisini görmek için listeden bir kulüp seçin.",
+      "boardExpects": "Yönetim bekliyor",
+      "transferBudget": "Transfer bütçesi",
+      "wageBudget": "Maaş bütçesi",
+      "balance": "Bakiye",
+      "stadium": "Stadyum",
+      "founded": "{{year}} yılında kuruldu"
+    },
     "reputation": "İtibar",
     "squad": "Kadro",
     "finances": "Finans",
@@ -312,21 +361,22 @@
     "repStrong": "Güçlü",
     "repAverage": "Orta",
     "repDeveloping": "Gelişen",
+    "expectations": {
+      "title": "Şampiyonluk mücadelesi",
+      "continental": "Kıtasal turnuvalara katılma mücadelesi",
+      "topHalf": "Puan tablosunun üst yarısı",
+      "midTable": "Orta sıralar",
+      "survival": "Küme düşmekten kaçınma"
+    },
     "failedToSelectTeam": "Takım seçilemedi: {{error}}",
     "homeRegion": "Ana Bölge",
     "homeCountry": "Ana Ülke",
-    "allCountries": "Tüm ülkeler",
-    "simulationScope": "Simülasyon Kapsamı",
     "otherClubs": "Diğer kulüpler",
     "searchClubs": "Kulüp ara…",
     "clubCount": "{{n}} kulüp",
     "noClubsMatch": "Aramanızla eşleşen kulüp yok.",
-    "simulatedRegions": "Simüle Edilen Bölgeler",
-    "simulatedCompetitions": "Simüle Edilen Turnuvalar",
     "homeBadge": "Ana",
-    "yourClub": "kulübünüz",
     "yourClubBadge": "Kulübünüz",
-    "requiresRegions": "{{regions}} gerektirir",
     "selectedClub": "Seçilen Kulüp",
     "formation": "Diziliş",
     "overall": "Genel",
@@ -337,7 +387,6 @@
     "clubCompetitionsAlwaysSimulated": "Diğer bölgeleri veya turnuvaları kapatsanız bile kulübünüzün turnuvaları her zaman simüle edilir.",
     "selectClubPrompt": "Kadrosunu ve turnuvalarını incelemek için bir kulüp seçin.",
     "playersCount": "{{count}} oyuncu",
-    "scopeSummary": "{{regionsCount}} simüle edilen bölge ve {{competitionsCount}} simüle edilen turnuva yüklenecek.",
     "regionLabels": {
       "north-america": "Kuzey Amerika",
       "central-america": "Orta Amerika",
@@ -360,13 +409,6 @@
       "InternationalClub": "Uluslararası Kulüp",
       "InternationalNation": "Uluslararası Millî",
       "FriendlyCup": "Hazırlık Kupası"
-    },
-    "scopeMessages": {
-      "homeRegionAlwaysActive": "Oynanabilir bölgeniz her zaman aktif kalır.",
-      "regionRequiredByCompetition": "{{competition}}, {{club}} kulübünün programında olduğu için {{region}} aktif kalmalıdır.",
-      "regionRemovedDisablesCompetitions": "{{region}} simülasyon kapsamından çıkarıldığı için ona bağlı turnuvalar da kapatıldı.",
-      "clubCompetitionLocked": "{{competition}}, {{club}} kulübünün programında yer alıyor ve her zaman simüle edilecek.",
-      "autoEnabledRegions": "{{competition}} için {{regions}} gerekli olduğundan bu bölgeler otomatik olarak etkinleştirildi."
     }
   },
   "youthAcademy": {
@@ -404,6 +446,12 @@
       "B": "B"
     },
     "ordinal": {
+      "place": {
+        "one": "{{n}}.",
+        "two": "{{n}}.",
+        "few": "{{n}}.",
+        "other": "{{n}}."
+      },
       "one": "{{n}}.",
       "two": "{{n}}.",
       "few": "{{n}}.",
@@ -421,12 +469,6 @@
     "listViewTable": "Tablo",
     "listViewCards": "Kartlar",
     "noResults": "Sonuç bulunamadı.",
-    "place": {
-      "1": "1.",
-      "2": "2.",
-      "3": "3.",
-      "other": "{{n}}."
-    },
     "pts": "P",
     "playedFull": "Oynanan",
     "wonFull": "Galibiyet",
@@ -1114,6 +1156,8 @@
     "clubBalance": "Kulüp Bakiyesi",
     "wageBudget": "Maaş Bütçesi",
     "transferBudget": "Transfer Bütçesi",
+    "committedTransferFees": "Anlaşılan transferlere ayrılan tutar",
+    "availableTransferBudget": "Kullanılabilir transfer bütçesi",
     "seasonIncome": "Sezon Geliri",
     "seasonExpenses": "Sezon Gideri",
     "moneyIn": "Gelen para",
@@ -1638,6 +1682,7 @@
       "league": "{{country}} Ligi",
       "firstDivision": "{{country}} 1. Ligi",
       "secondDivision": "{{country}} 2. Ligi",
+      "tierDivision": "{{country}} {{tier}}. Ligi",
       "nationalCup": "{{country}} Kupası",
       "continentalChampionsCup": "Kıtasal Şampiyonlar Kupası",
       "premierDivision": "Premier Lig"
@@ -1661,6 +1706,53 @@
     }
   },
   "playerProfile": {
+    "sections": "Profil bölümleri",
+    "attributesTab": {
+      "key": "Anahtar özellik",
+      "average": "ortalama {{value}}",
+      "weight": "ağırlık {{count}}/3",
+      "scouted": "Gözlemlendi"
+    },
+    "overview": {
+      "axes": {
+        "pace": "HIZ",
+        "shooting": "ŞUT",
+        "dribbling": "DRP",
+        "passing": "PAS",
+        "vision": "VİZ",
+        "composure": "SOĞ",
+        "strength": "GÜÇ",
+        "aerial": "HAV",
+        "handling": "TUT",
+        "reflexes": "REF",
+        "agility": "ÇEV",
+        "stamina": "DAY"
+      },
+      "now": "Şu an",
+      "details": "Ayrıntılar",
+      "previousMatches": "Önceki maçlar",
+      "allMatches": "Tüm maçlar",
+      "traits": "Özellikler",
+      "born": "Doğum",
+      "squadRole": "Kadro rolü",
+      "squadSenior": "A takım",
+      "squadYouth": "Altyapı",
+      "contractUntil": "{{date}} tarihine kadar",
+      "keyFor": "{{position}} için anahtar",
+      "radarLabel": "Nitelik radarı: {{values}}",
+      "seasonExtras": "Disiplin ve gol yememe"
+    },
+    "overall": "Genel",
+    "ratingUnknown": "Kulübünüz onun reytingini bilmiyor",
+    "retired": "Emekli",
+    "retiredOn": "{{date}} tarihinde emekli oldu",
+    "lastClub": "Son kulüp: {{club}}",
+    "tabs": {
+      "overview": "Genel bakış",
+      "attributes": "Özellikler",
+      "career": "Kariyer",
+      "contract": "Sözleşme"
+    },
     "contractInfo": "Sözleşme ve Bilgi",
     "dateOfBirth": "Doğum Tarihi",
     "noContract": "Sözleşme yok",
@@ -1674,6 +1766,7 @@
     "renewalLength": "Sözleşme Süresi",
     "renewalSubmit": "Teklifi Gönder",
     "renewalInvalidWage": "Geçerli bir haftalık maaş girin",
+    "renewalMinimumYears": "Uzatma için gereken asgari sözleşme süresi (yıl): {{years}}.",
     "renewalBudgetWarning": "Teklif, yönetimin maaş baskısı sınırını aşıyor",
     "renewalAccepted": "Teklif kabul edildi",
     "renewalRejected": "Teklif reddedildi",
@@ -2765,6 +2858,7 @@
       "critical": "Kritik"
     },
     "error": {
+      "taskJoinFailed": "Simülasyon beklenmedik şekilde durdu. Son kayıtlı oyununuzu yükleyip tekrar deneyin.",
       "autoSave": {
         "failed": "Otomatik kayıt oyununuzu kaydedemedi. Son kayıttan bu yana ilerlemeniz henüz kaydedilmedi: elle kaydedin ve diskte boş alan olduğunu kontrol edin."
       },
@@ -3017,6 +3111,7 @@
         "insufficientFunds": "Yetersiz bakiye",
         "buyerCannotAffordFee": "Alıcı kulüp artık bu bonservis bedelini karşılayamıyor, bu yüzden transfer gerçekleşemez.",
         "transferBudgetTooLow": "Transfer bütçesi çok düşük",
+        "transferBudgetCommitted": "Bu bedel, anlaşmaya varılan transferlere ayrılan tutarlar düşüldükten sonra kalan transfer bütçesini aşıyor.",
         "playerNotOwnedByUser": "Oyuncu bulunamadı veya size ait değil",
         "offerNotPending": "Teklif bulunamadı veya beklemede değil",
         "talksBrokenOff": "Bu kulüp bu oyuncuyla ilgili görüşmeleri sonlandırdı. Daha sonra tekrar deneyin.",
@@ -3039,6 +3134,7 @@
         "playerNotOwnedByClub": "Oyuncu kulübünüze ait değil",
         "playerNotFreeAgent": "Oyuncu serbest oyuncu değil",
         "unableToCalculateContractEndDate": "Yeni sözleşme bitiş tarihi hesaplanamadı",
+        "renewalDoesNotExtend": "Yenilenen sözleşmenin bitiş tarihi mevcut sözleşmenin bitiş tarihinden daha geç olmalı.",
         "playerHasNoActiveContract": "Oyuncunun aktif bir sözleşmesi yok",
         "playerOnActiveLoan": "Oyuncu şu anda kiralık ve kiralama bitene kadar sözleşme feshedilemez",
         "terminationWouldLeaveMatchdaySquadShort": "Bu sözleşmenin feshi, kadronuzu maç günü 11'i çıkaramayacak duruma düşürür",
@@ -3188,7 +3284,7 @@
       "seasonPayout": {
         "subject": "Sezon {{season}} Ödül Parası Verildi",
         "body": "Yönetim, ligi {{position}}. sırada bitirmeniz karşılığında {{amount}} tutarında ödül ödemesini onayladı. Tutar kulüp bakiyesine eklendi.",
-        "ledgerDescription": "Sezon {{season}} — {{position}}{{suffix}} sıra ödül parası"
+        "ledgerDescription": "Sezon {{season}} — {{ordinal}} sıra ödül parası"
       },
       "seasonReview": {
         "subject": "Sezon {{season}} Değerlendirmesi",
@@ -3662,6 +3758,10 @@
         "body": "{{player}} oyuncusunun {{parent}} kulübünden {{borrower}} kulübüne {{start}} tarihinde başlaması kararlaştırılan kiralaması gerçekleşemiyor: oyuncunun artık {{parent}} ile sözleşmesi yok.",
         "bodyRequirementNotMet": "{{player}} oyuncusunun {{parent}} kulübünden {{borrower}} kulübüne kararlaştırılan kiralaması {{start}} tarihinde başlayamadı: anlaşmanın dayandığı koşullardan biri, örneğin {{borrower}} kulübünün maaş bütçesindeki yer ya da oyuncunun sözleşme süresi, artık sağlanmıyor."
       },
+      "talksClosedBySale": {
+        "subject": "Başka kulüpte: {{player}}",
+        "body": "{{buyer}}, {{player}} oyuncusunu {{fee}} karşılığında transfer etti. Onun için açık görüşmeleriniz geri çekildi."
+      },
       "loanOffer": {
         "subject": "{{player}} için Kiralama Teklifi",
         "body": "{{team}}, {{player}} oyuncusunu {{endDate}} tarihine kadar kiralamak ve maaşların %{{wageContribution}}'ini karşılamak istiyor. Satın alma opsiyonu: {{buyOption}}. Teklifi Transferler sekmesinde inceleyin.",
@@ -3872,7 +3972,9 @@
       "package": {
         "countryWithoutRegion": "Bu paket, oyunun ülke listesinde olmayan \"{{name}}\" ({{code}}) ülkesini tanımlıyor ve hiçbir konfederasyona yerleştirmiyor; bu yüzden kulüpleri Avrupa altında toplanıyor. Ona bir konfederasyon verin.",
         "freeAgentFieldIgnored": "\"{{id}}\" oyuncusunun kulübü yok, bu yüzden sözleşmesiz bir serbest oyuncu: \"{{field}}\" yok sayılıyor. Kullanılması için ona bir kulüp verin ya da alanı kaldırın.",
-        "repeatedNamePool": "{{country}} için isim havuzu daha önce {{first}} dosyasında verilmişti; bu dosyadaki havuz onun yerine geçer. Yalnızca birini bırakın ya da farklı ülkelere atayın."
+        "repeatedNamePool": "{{country}} için isim havuzu daha önce {{first}} dosyasında verilmişti; bu dosyadaki havuz onun yerine geçer. Yalnızca birini bırakın ya da farklı ülkelere atayın.",
+        "patchClubRefsUnverified": "Bu yama, kendisinin tanımlamadığı kulüplerden söz ediyor. Tek başına, temel veri tabanındaki kulüpleri hatalardan ayıramaz; bu yüzden burada denetlenmediler. Oyun, yama temeline yığıldığında bunları denetler.",
+        "namePoolIncomplete": "{{country}} için isim havuzunda ad var ama soyadı yok ya da soyadı var ama ad yok, bu yüzden kullanılmıyor: {{country}} oyuncuları oyunun kendi isimlerini alır. İkisini de girin."
       }
     }
   },
@@ -4094,6 +4196,12 @@
     "winRate": "Galibiyet oranı"
   },
   "worldEditor": {
+    "previewPlaceholder": {
+      "team": "Yeni takım",
+      "player": "Yeni oyuncu",
+      "competition": "Yeni turnuva"
+    },
+    "estimatedRating": "tah.",
     "positionGroupFilter": {
       "Goalkeeper": "Tüm kaleciler",
       "Defender": "Tüm defans oyuncuları",
@@ -4106,9 +4214,43 @@
     "positionFilterBySpecific": "Belirli mevki",
     "showingEntries": "{{total}} kayıttan {{shown}} tanesi gösteriliyor",
     "title": "Dünya Editörü",
-    "newPackage": "Yeni Dünya",
-    "openPackageFile": ".ofm dosyası aç",
-    "openPackageFolder": "Klasör aç",
+    "home": {
+      "subtitle": ".ofm dünyaları oluşturun ve düzenleyin",
+      "newWorld": "Yeni dünya",
+      "openFile": ".ofm dosyası aç",
+      "openFolder": "Klasör aç",
+      "examples": "Örnekle başla",
+      "backToMenu": "Ana menüye dön",
+      "yourWorlds": "Dünyalarınız",
+      "show": "Göster",
+      "filterAll": "Tümü",
+      "filterProjects": "Projeler",
+      "filterInstalled": "Yüklü",
+      "search": "Dünya ara",
+      "tableLabel": "Dünyalar",
+      "colWorld": "Dünya",
+      "colKind": "Tür",
+      "colClubs": "Kulüpler",
+      "colPlayers": "Oyuncular",
+      "colOpened": "Son açılış",
+      "colCheck": "Son kontrol",
+      "colAction": "İşlemler",
+      "kindProject": "Proje",
+      "kindInstalled": "Yüklü",
+      "installedVersion": "Yüklü · v{{version}}",
+      "noIssues": "Sorun yok",
+      "notChecked": "Kontrol edilmedi",
+      "unreadable": "Okunamıyor",
+      "open": "Aç",
+      "editCopy": "Kopyayı düzenle",
+      "openNamed": "{{name}} aç",
+      "editCopyNamed": "Kopyayı düzenle: {{name}}",
+      "resultCount": "{{count}} dünya gösteriliyor",
+      "libraryFailed": "Dünya kitaplığı okunamadı. Son projeleriniz sayıları olmadan listeleniyor.",
+      "libraryFailedEmpty": "Kitaplık okunamadığı için hiçbir dünya listelenmiyor.",
+      "installedNote": "Yüklü paketler düzenlenebilir bir kopya olarak açılır, böylece oynadığınız paket olduğu gibi kalır.",
+      "emptyLibrary": "Henüz dünya yok. Yeni dünya ile başlayın, bir .ofm dosyası ya da klasör açın veya bir örnekle başlayın."
+    },
     "metadata": "Genel Bakış",
     "teams": "Takımlar ({{count}})",
     "addTeam": "Takım Ekle",
@@ -4273,10 +4415,6 @@
       "allInRegion": "Bölgedeki Tümü",
       "championsOf": "Şampiyonları"
     },
-    "homeSubtitle": "Kulüpleri, oyuncuları ve turnuvaları sıfırdan oluşturun. Logoları, renkleri ve istatistikleri özelleştirin — sonra dünyanızı toplulukla paylaşın.",
-    "newPackageDesc": "Sıfırdan yeni bir dünya başlatın",
-    "openPackageFileDesc": "Mevcut bir .ofm paket dosyasını açın",
-    "openPackageFolderDesc": "Mevcut bir dünya proje klasörünü açın",
     "openPackageFileInvalid": "Lütfen geçerli bir .ofm paket dosyası seçin",
     "noItemSelected": "Listeden bir öğe seçin veya oluşturmak için Ekle'ye tıklayın",
     "issuesBadge": "{{count}} sorun",
@@ -4337,10 +4475,7 @@
     "worldDesc": "Açıklama",
     "createWorld": "Dünya Oluştur",
     "creating": "Oluşturuluyor…",
-    "startFromExample": "Örnekten Başla",
     "startFromExampleDesc": "4 takımlı mini lig — formatı öğrenmek için harika",
-    "recentProjects": "Son Projeler",
-    "openInEditor": "Düzenle",
     "teamLogo": "Takım Logosu",
     "packageLogo": "Paket Logosu",
     "competitionLogo": "Turnuva Logosu",

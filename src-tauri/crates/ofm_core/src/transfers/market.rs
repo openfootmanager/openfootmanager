@@ -165,87 +165,26 @@ pub fn evaluate_transfer_market(game: &mut Game) {
     expire_stale_transfer_offers(game);
     expire_stale_loan_offers(game);
     prune_closed_offers(game);
-
     if !transfer_window_is_open(game) {
         return;
     }
-
-    let user_team_id = game.manager.team_id.clone();
-
-    let current_date = game.clock.current_date.date_naive();
-    let today = game.clock.current_date.format("%Y-%m-%d").to_string();
+    let mut sweep = MarketSweep::new(game);
+    for buyer_id in market_buyer_ids(game, sweep.user_team_id.as_deref()) {
+        sweep.visit_buyer(game, &buyer_id);
+    }
+}
+fn market_shortlist(
+    game: &Game,
+    user_team_id: Option<&str>,
+    current_date: NaiveDate,
+    position_depths: &std::collections::HashMap<String, [usize; 4]>,
+) -> Vec<MarketTarget> {
     let award_leaderboards = award_leaderboard_player_ids(game);
     let team_reputation: std::collections::HashMap<String, u32> = game
         .teams
         .iter()
         .map(|team| (team.id.clone(), team.reputation))
         .collect();
-    let position_depths = squad_position_depths(game);
-    // Every club's wage bill, read once: a buyer's check needs its own, and finding one scans
-    // every player. The sweep moves players, so the two clubs of a completed transfer are
-    // recounted below.
-    let mut wage_bills = crate::finances::wage_bills_by_club(game);
-    // Where each target sits in `game.players`, so the buyer's wage check need not search.
-    // The sweep moves players between clubs but never adds or removes one.
-    let player_index: std::collections::HashMap<String, usize> = game
-        .players
-        .iter()
-        .enumerate()
-        .map(|(index, player)| (player.id.clone(), index))
-        .collect();
-
-    // In a multi-competition world only the player's active scope shops the
-    // market each day; dormant clubs are handled by lighter periodic passes.
-    // `None` means no scope is configured, so every club is a potential buyer.
-    let active_team_ids = game.active_team_ids();
-    let buyer_ids: Vec<String> = game
-        .teams
-        .iter()
-        .filter(|team| Some(team.id.as_str()) != user_team_id.as_deref())
-        .filter(|team| {
-            active_team_ids
-                .as_ref()
-                .is_none_or(|ids| ids.contains(&team.id))
-        })
-        .map(|team| team.id.clone())
-        .collect();
-    let mut completed_ai_transfers = 0_usize;
-    let mut moved_player_ids: HashSet<String> = HashSet::new();
-    // New incoming offers opened to user players today, tracked to throttle the
-    // inbox: at most one new club per player and a hard squad-wide ceiling.
-    let mut new_offers_per_player: std::collections::HashMap<String, usize> =
-        std::collections::HashMap::new();
-    let mut new_loan_offers_per_player: std::collections::HashMap<String, usize> =
-        std::collections::HashMap::new();
-    let mut new_user_offers_today = 0_usize;
-    let mut new_user_loan_offers_today = 0_usize;
-    // Clubs already in talks for each user player, kept live rather than snapshotted so offers
-    // opened earlier in today's sweep count against the ceiling too. One club is one approach,
-    // so this both caps the queue and stops a club holding two approaches on the same player.
-    let mut approach_clubs: std::collections::HashMap<String, HashSet<String>> = game
-        .players
-        .iter()
-        .filter(|player| player.team_id.as_deref() == user_team_id.as_deref())
-        .map(|player| (player.id.clone(), pending_approach_clubs(player)))
-        .collect();
-    // Clubs turned away recently. Unlike the queue above this is fixed for the day: a rejection
-    // made today already carries its closure date, so it is in here from the next sweep onwards.
-    let cooled_clubs: std::collections::HashMap<String, HashSet<String>> = game
-        .players
-        .iter()
-        .filter(|player| player.team_id.as_deref() == user_team_id.as_deref())
-        .map(|player| {
-            (
-                player.id.clone(),
-                clubs_in_rebid_cooldown(player, current_date),
-            )
-        })
-        .collect();
-
-    // A player's transfer appeal and asking fee don't depend on who's buying, so
-    // score every player once and keep only the genuinely attractive targets.
-    // Each club then scans this short, score-sorted list instead of the whole
-    // world, turning an O(clubs × players) sweep into O(players + clubs × shortlist).
     let mut shortlist: Vec<MarketTarget> = Vec::new();
     for player in &game.players {
         let Some(owner_team_id) = player.team_id.as_deref() else {
@@ -258,7 +197,7 @@ pub fn evaluate_transfer_market(game: &mut Game) {
         // should spend its approach on him. `execute_transfer` refuses the sale
         // regardless; this keeps the refusal from costing a buyer its day. The
         // player's own club is left to decide for itself.
-        let is_user_owned = Some(owner_team_id) == user_team_id.as_deref();
+        let is_user_owned = Some(owner_team_id) == user_team_id;
         if !is_user_owned
             && player.squad_role == domain::player::SquadRole::Senior
             && position_depths
@@ -288,25 +227,133 @@ pub fn evaluate_transfer_market(game: &mut Game) {
     // equally appealing targets, so selection is unchanged.
     shortlist.sort_by_key(|candidate| std::cmp::Reverse(candidate.score));
 
-    for buyer_id in buyer_ids {
-        let Some(buyer_team) = game.teams.iter().find(|team| team.id == buyer_id).cloned() else {
-            continue;
-        };
-        let buyer_depths = position_depths.get(&buyer_id).copied().unwrap_or([0; 4]);
+    shortlist
+}
+fn market_buyer_ids(game: &Game, user_team_id: Option<&str>) -> Vec<String> {
+    let active_team_ids = game.active_team_ids();
+    game.teams
+        .iter()
+        .filter(|team| Some(team.id.as_str()) != user_team_id)
+        .filter(|team| {
+            active_team_ids
+                .as_ref()
+                .is_none_or(|ids| ids.contains(&team.id))
+        })
+        .map(|team| team.id.clone())
+        .collect()
+}
+struct MarketSweep {
+    user_team_id: Option<String>,
+    current_date: NaiveDate,
+    today: String,
+    position_depths: std::collections::HashMap<String, [usize; 4]>,
+    wage_bills: std::collections::HashMap<String, i64>,
+    player_index: std::collections::HashMap<String, usize>,
+    completed_ai_transfers: usize,
+    moved_player_ids: HashSet<String>,
+    new_offers_per_player: std::collections::HashMap<String, usize>,
+    new_loan_offers_per_player: std::collections::HashMap<String, usize>,
+    new_user_offers_today: usize,
+    new_user_loan_offers_today: usize,
+    approach_clubs: std::collections::HashMap<String, HashSet<String>>,
+    cooled_clubs: std::collections::HashMap<String, HashSet<String>>,
+    shortlist: Vec<MarketTarget>,
+    reservations_by_club: std::collections::HashMap<String, i64>,
+}
+impl MarketSweep {
+    fn new(game: &Game) -> Self {
+        let user_team_id = game.manager.team_id.clone();
 
-        let loan_offer_player_id = if let Some(user_team_id) = user_team_id.as_deref() {
-            if new_user_loan_offers_today < MAX_NEW_INCOMING_USER_OFFERS_PER_DAY {
+        let current_date = game.clock.current_date.date_naive();
+        let today = game.clock.current_date.format("%Y-%m-%d").to_string();
+        let position_depths = squad_position_depths(game);
+        // Every club's wage bill, read once: a buyer's check needs its own, and finding one scans
+        // every player. The sweep moves players, so the two clubs of a completed transfer are
+        // recounted below.
+        let wage_bills = crate::finances::wage_bills_by_club(game);
+        // Where each target sits in `game.players`, so the buyer's wage check need not search.
+        // The sweep moves players between clubs but never adds or removes one.
+        let player_index: std::collections::HashMap<String, usize> = game
+            .players
+            .iter()
+            .enumerate()
+            .map(|(index, player)| (player.id.clone(), index))
+            .collect();
+
+        let completed_ai_transfers = 0_usize;
+        let moved_player_ids: HashSet<String> = HashSet::new();
+        // New incoming offers opened to user players today, tracked to throttle the
+        // inbox: at most one new club per player and a hard squad-wide ceiling.
+        let new_offers_per_player: std::collections::HashMap<String, usize> =
+            std::collections::HashMap::new();
+        let new_loan_offers_per_player: std::collections::HashMap<String, usize> =
+            std::collections::HashMap::new();
+        let new_user_offers_today = 0_usize;
+        let new_user_loan_offers_today = 0_usize;
+        // Clubs already in talks for each user player, kept live rather than snapshotted so offers
+        // opened earlier in today's sweep count against the ceiling too. One club is one approach,
+        // so this both caps the queue and stops a club holding two approaches on the same player.
+        let approach_clubs: std::collections::HashMap<String, HashSet<String>> = game
+            .players
+            .iter()
+            .filter(|player| player.team_id.as_deref() == user_team_id.as_deref())
+            .map(|player| (player.id.clone(), pending_approach_clubs(player)))
+            .collect();
+        // Clubs turned away recently. Unlike the queue above this is fixed for the day: a rejection
+        // made today already carries its closure date, so it is in here from the next sweep onwards.
+        let cooled_clubs: std::collections::HashMap<String, HashSet<String>> = game
+            .players
+            .iter()
+            .filter(|player| player.team_id.as_deref() == user_team_id.as_deref())
+            .map(|player| {
+                (
+                    player.id.clone(),
+                    clubs_in_rebid_cooldown(player, current_date),
+                )
+            })
+            .collect();
+
+        let shortlist = market_shortlist(
+            game,
+            user_team_id.as_deref(),
+            current_date,
+            &position_depths,
+        );
+        let reservations_by_club = committed_transfer_fees_by_club(game);
+        Self {
+            user_team_id,
+            current_date,
+            today,
+            position_depths,
+            wage_bills,
+            player_index,
+            completed_ai_transfers,
+            moved_player_ids,
+            new_offers_per_player,
+            new_loan_offers_per_player,
+            new_user_offers_today,
+            new_user_loan_offers_today,
+            approach_clubs,
+            cooled_clubs,
+            shortlist,
+            reservations_by_club,
+        }
+    }
+    fn offer_loan_to_user(&mut self, game: &mut Game, buyer_team: &Team) -> Option<String> {
+        let buyer_id = buyer_team.id.as_str();
+        let loan_offer_player_id = if let Some(user_team_id) = self.user_team_id.as_deref() {
+            if self.new_user_loan_offers_today < MAX_NEW_INCOMING_USER_OFFERS_PER_DAY {
                 create_incoming_user_loan_offer_if_any(
                     game,
                     user_team_id,
-                    &buyer_id,
+                    buyer_id,
                     &buyer_team.name,
-                    &today,
-                    current_date,
+                    &self.today,
+                    self.current_date,
                     IncomingOfferBudget {
-                        new_today: &new_loan_offers_per_player,
-                        approach_clubs: &approach_clubs,
-                        cooled_clubs: &cooled_clubs,
+                        new_today: &self.new_loan_offers_per_player,
+                        approach_clubs: &self.approach_clubs,
+                        cooled_clubs: &self.cooled_clubs,
                     },
                 )
             } else {
@@ -316,42 +363,63 @@ pub fn evaluate_transfer_market(game: &mut Game) {
             None
         };
         if let Some(player_id) = loan_offer_player_id.as_ref() {
-            *new_loan_offers_per_player
+            *self
+                .new_loan_offers_per_player
                 .entry(player_id.clone())
                 .or_insert(0) += 1;
-            approach_clubs
+            self.approach_clubs
                 .entry(player_id.clone())
                 .or_default()
-                .insert(buyer_id.clone());
-            new_user_loan_offers_today += 1;
+                .insert(buyer_id.to_string());
+            self.new_user_loan_offers_today += 1;
         }
 
+        loan_offer_player_id
+    }
+    fn candidate_for(
+        &self,
+        game: &Game,
+        buyer_team: &Team,
+        loan_offer_player_id: Option<&str>,
+    ) -> Option<MarketCandidate> {
+        let buyer_id = buyer_team.id.as_str();
+        let buyer_depths = self
+            .position_depths
+            .get(buyer_id)
+            .copied()
+            .unwrap_or([0; 4]);
         // The list is score-sorted, so the first target clearing this club's
         // filters is its highest-appeal eligible signing.
         // Worked out once for this buyer, and only if a target gets as far as needing it.
         let mut buyer_wage_facts: Option<BuyerWageFacts> = None;
-        let chosen = shortlist.iter().find(|target| {
-            if target.owner_team_id == buyer_id || moved_player_ids.contains(&target.player_id) {
+        let committed_fees = self
+            .reservations_by_club
+            .get(buyer_id)
+            .copied()
+            .unwrap_or(0);
+        let chosen = self.shortlist.iter().find(|target| {
+            if target.owner_team_id == buyer_id || self.moved_player_ids.contains(&target.player_id)
+            {
                 return false;
             }
-            if loan_offer_player_id.as_deref() == Some(target.player_id.as_str()) {
+            if loan_offer_player_id == Some(target.player_id.as_str()) {
                 return false;
             }
             if target.is_user_owned {
                 let budget = IncomingOfferBudget {
-                    new_today: &new_offers_per_player,
-                    approach_clubs: &approach_clubs,
-                    cooled_clubs: &cooled_clubs,
+                    new_today: &self.new_offers_per_player,
+                    approach_clubs: &self.approach_clubs,
+                    cooled_clubs: &self.cooled_clubs,
                 };
                 if !budget.accepts(
                     &target.player_id,
-                    &buyer_id,
+                    buyer_id,
                     MAX_NEW_INCOMING_OFFERS_PER_USER_PLAYER_PER_DAY,
-                ) || new_user_offers_today >= MAX_NEW_INCOMING_USER_OFFERS_PER_DAY
+                ) || self.new_user_offers_today >= MAX_NEW_INCOMING_USER_OFFERS_PER_DAY
                 {
                     return false;
                 }
-            } else if completed_ai_transfers >= MAX_COMPLETED_AI_TRANSFERS_PER_DAY {
+            } else if self.completed_ai_transfers >= MAX_COMPLETED_AI_TRANSFERS_PER_DAY {
                 return false;
             }
             // Clubs only chase players that fit their stature and a position they
@@ -363,70 +431,89 @@ pub fn evaluate_transfer_market(game: &mut Game) {
             ) {
                 return false;
             }
-            buyer_team.transfer_budget >= target.fee as i64
-                && buyer_team.finance >= target.fee as i64
-                && player_index.get(&target.player_id).is_some_and(|&index| {
-                    let facts = buyer_wage_facts.get_or_insert_with(|| {
-                        BuyerWageFacts::new(
-                            wage_bills.get(&buyer_id).copied().unwrap_or(0),
-                            buyer_depths,
+            can_afford_fee(buyer_team, target.fee, committed_fees)
+                && self
+                    .player_index
+                    .get(&target.player_id)
+                    .is_some_and(|&index| {
+                        let facts = buyer_wage_facts.get_or_insert_with(|| {
+                            BuyerWageFacts::new(
+                                self.wage_bills.get(buyer_id).copied().unwrap_or(0),
+                                buyer_depths,
+                            )
+                        });
+                        buyer_can_pay_standard_wage(
+                            &game.players[index],
+                            buyer_team,
+                            facts,
+                            self.current_date,
                         )
-                    });
-                    buyer_can_pay_standard_wage(
-                        &game.players[index],
-                        &buyer_team,
-                        facts,
-                        current_date,
-                    )
-                })
+                    })
         });
 
-        let Some(target) = chosen else {
-            continue;
-        };
-        let candidate = MarketCandidate {
+        let target = chosen?;
+        Some(MarketCandidate {
             player_id: target.player_id.clone(),
             owner_team_id: target.owner_team_id.clone(),
             score: target.score,
             fee: target.fee,
-        };
+        })
+    }
+    fn pursue_candidate(&mut self, game: &mut Game, buyer_team: &Team, candidate: MarketCandidate) {
+        let buyer_id = buyer_team.id.as_str();
 
-        if Some(candidate.owner_team_id.as_str()) == user_team_id.as_deref() {
-            create_incoming_user_offer(game, &candidate, &buyer_id, &buyer_team.name, &today);
-            *new_offers_per_player
+        if Some(candidate.owner_team_id.as_str()) == self.user_team_id.as_deref() {
+            create_incoming_user_offer(game, &candidate, buyer_id, &buyer_team.name, &self.today);
+            *self
+                .new_offers_per_player
                 .entry(candidate.player_id.clone())
                 .or_insert(0) += 1;
-            approach_clubs
+            self.approach_clubs
                 .entry(candidate.player_id.clone())
                 .or_default()
-                .insert(buyer_id.clone());
-            new_user_offers_today += 1;
-            continue;
+                .insert(buyer_id.to_string());
+            self.new_user_offers_today += 1;
+            return;
         }
 
-        if candidate.score <= 60 || completed_ai_transfers >= MAX_COMPLETED_AI_TRANSFERS_PER_DAY {
-            continue;
+        if candidate.score <= 60
+            || self.completed_ai_transfers >= MAX_COMPLETED_AI_TRANSFERS_PER_DAY
+        {
+            return;
         }
 
         if execute_transfer(
             game,
             &candidate.player_id,
-            &buyer_id,
+            buyer_id,
             &candidate.owner_team_id,
             candidate.fee,
         )
-        .and_then(|()| close_open_offers_after_sale(game, &candidate.player_id, None))
+        .and_then(|()| {
+            close_open_offers_after_sale(game, &candidate.player_id, buyer_id, candidate.fee, None)
+        })
         .is_ok()
         {
-            moved_player_ids.insert(candidate.player_id);
-            completed_ai_transfers += 1;
+            self.moved_player_ids.insert(candidate.player_id);
+            self.completed_ai_transfers += 1;
             // Only the seller is recounted: a club that has just bought has had its turn (each
             // club is a buyer once a sweep), so its new bill is never read again today, while
             // the seller may still buy and is held to the bill it has after the sale.
-            wage_bills.insert(
+            self.wage_bills.insert(
                 candidate.owner_team_id.clone(),
                 calc_wages(game, &candidate.owner_team_id),
             );
+        }
+    }
+    fn visit_buyer(&mut self, game: &mut Game, buyer_id: &str) {
+        let Some(buyer_team) = game.teams.iter().find(|team| team.id == buyer_id).cloned() else {
+            return;
+        };
+        let loan_offer_player_id = self.offer_loan_to_user(game, &buyer_team);
+        if let Some(candidate) =
+            self.candidate_for(game, &buyer_team, loan_offer_player_id.as_deref())
+        {
+            self.pursue_candidate(game, &buyer_team, candidate);
         }
     }
 }

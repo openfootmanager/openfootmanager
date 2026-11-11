@@ -1,7 +1,10 @@
-use super::super::continental::{continental_qualified_entrants, resolve_continental_fields};
+use super::super::continental::{
+    continental_qualified_entrants, cup_champion, resolve_continental_fields,
+};
 use super::super::pyramid::apply_pyramid_promotion_relegation;
 use super::super::test_support::*;
 use super::*;
+use crate::game::Game;
 use domain::league::{
     Berth, BerthRule, CompetitionFormat, CompetitionScope, CompetitionType, Fixture,
     FixtureCompetition, FixtureStatus, League,
@@ -680,6 +683,84 @@ fn apply_domestic_berth_ignores_unfinished_non_position_range_source() {
     );
 }
 
+fn continental_target(id: &str, priority: u32) -> League {
+    let mut target = League::new(id.to_string(), id.to_string(), 2026, &[]);
+    target.scope = CompetitionScope::Continental;
+    target.kind = CompetitionType::ContinentalClub;
+    target.priority = priority;
+    target
+}
+
+/// Which of `alpha` or `zeta` the club actually entered.
+fn continental_target_for(game: &Game, club: &str) -> String {
+    let fields = resolve_continental_fields(game);
+    let holders: Vec<&str> = ["alpha", "zeta"]
+        .into_iter()
+        .filter(|target| {
+            fields
+                .get(*target)
+                .is_some_and(|field| field.iter().any(|entrant| entrant == club))
+        })
+        .collect();
+    assert_eq!(
+        holders.len(),
+        1,
+        "{club} should qualify for exactly one of the two targets, got {fields:?}"
+    );
+    holders[0].to_string()
+}
+
+/// Given a club that finishes first in two leagues, each awarding a berth to a
+/// different continental competition of the same priority, when those
+/// competitions are listed zeta-first and then reversed, then the club enters
+/// `alpha` both times.
+#[test]
+fn equal_priority_berth_targets_ignore_the_order_competitions_are_listed_in() {
+    let club = "ace";
+    let mut league_zeta = division("league-zeta", 3, "BR", &[(club, 30), ("other-z", 10)]);
+    league_zeta.berths = vec![position_berth("zeta", 1, 1)];
+    let mut league_alpha = division("league-alpha", 3, "BR", &[(club, 30), ("other-a", 10)]);
+    league_alpha.berths = vec![position_berth("alpha", 1, 1)];
+
+    let mut game = empty_game();
+    // zeta's source is listed first, so a strict `<` on priority keeps zeta.
+    game.competitions = vec![
+        continental_target("zeta", 1),
+        continental_target("alpha", 1),
+        league_zeta,
+        league_alpha,
+    ];
+
+    let listed_zeta_first = continental_target_for(&game, club);
+    game.competitions.reverse();
+    let listed_alpha_first = continental_target_for(&game, club);
+
+    assert_eq!(listed_zeta_first, "alpha");
+    assert_eq!(listed_alpha_first, "alpha");
+}
+
+/// Given the same club earning `alpha` at priority 2 and `zeta` at priority 1,
+/// when the fields resolve, then the lower priority number wins even though
+/// `alpha` sorts first and is considered first.
+#[test]
+fn a_lower_priority_number_beats_an_earlier_target_id() {
+    let club = "ace";
+    let mut league_alpha = division("league-alpha", 3, "BR", &[(club, 30), ("other-a", 10)]);
+    league_alpha.berths = vec![position_berth("alpha", 1, 1)];
+    let mut league_zeta = division("league-zeta", 3, "BR", &[(club, 30), ("other-z", 10)]);
+    league_zeta.berths = vec![position_berth("zeta", 1, 1)];
+
+    let mut game = empty_game();
+    game.competitions = vec![
+        continental_target("alpha", 2),
+        continental_target("zeta", 1),
+        league_alpha,
+        league_zeta,
+    ];
+
+    assert_eq!(continental_target_for(&game, club), "zeta");
+}
+
 fn league_in_region(id: &str, country: &str, region: &str, club: &str) -> League {
     let mut league = division(id, 0, country, &[(club, 30)]);
     league.region_id = Some(region.to_string());
@@ -848,4 +929,188 @@ fn a_club_on_two_tables_only_leaves_the_feeder_that_promoted_it() {
             ["x", "b2", "b3", "b4"].map(String::from).to_vec(),
         ]
     );
+}
+
+/// A country's four finished tables: `top` (priority 0), `a-target` (1, the target of `feeder`'s
+/// berth, so off the ladder), `b-peer` (1, an ordinary tier that shares the target's priority) and
+/// `feeder` (2, its first place going to the target), in the given listing order.
+fn tied_with_a_berth_target(listing_order: [&str; 4]) -> Game {
+    let table = |id: &str, priority: u32, club: &str| {
+        let standings: Vec<(String, u32)> = (1..=4)
+            .map(|place| (format!("{club}{place}"), 50 - place * 10))
+            .collect();
+        let standings: Vec<(&str, u32)> = standings
+            .iter()
+            .map(|(club, points)| (club.as_str(), *points))
+            .collect();
+        division(id, priority, "XX", &standings)
+    };
+    let mut game = empty_game();
+    game.competitions = listing_order
+        .iter()
+        .map(|id| match *id {
+            "top" => table("top", 0, "a"),
+            "a-target" => table("a-target", 1, "t"),
+            "b-peer" => table("b-peer", 1, "p"),
+            _ => {
+                let mut feeder = table("feeder", 2, "f");
+                feeder.berths = vec![position_berth("a-target", 1, 1)];
+                feeder
+            }
+        })
+        .collect();
+    game
+}
+
+/// The season's rollover for `game`, in the order `end_of_season::mod` runs it: the berth fields
+/// are resolved first, then the linear pass, then the berth pass.
+fn roll_over_pyramid(game: &mut Game) {
+    let fields = resolve_domestic_berth_fields(game);
+    apply_pyramid_promotion_relegation(&mut game.competitions);
+    apply_domestic_berth_promotion_relegation(game, &fields);
+}
+
+fn sorted_roster_of(game: &Game, id: &str) -> Vec<String> {
+    let mut roster = roster(game, id);
+    roster.sort();
+    roster
+}
+
+fn assert_the_berth_winner_reaches_the_tied_target(listing_order: [&str; 4]) {
+    let mut game = tied_with_a_berth_target(listing_order);
+
+    roll_over_pyramid(&mut game);
+
+    let clubs = |ids: [&str; 4]| ids.map(String::from).to_vec();
+    assert_eq!(
+        sorted_roster_of(&game, "a-target"),
+        clubs(["f1", "t1", "t2", "t3"]),
+        "the feeder's first place takes the target's bottom place"
+    );
+    assert_eq!(
+        sorted_roster_of(&game, "feeder"),
+        clubs(["f2", "f3", "f4", "t4"]),
+        "the target's bottom club goes down to the feeder"
+    );
+    assert_eq!(
+        sorted_roster_of(&game, "top"),
+        clubs(["a1", "a2", "a3", "a4"]),
+        "the rung the tie occupies is a gap, so the top flight has no neighbour to exchange with"
+    );
+    assert_eq!(
+        sorted_roster_of(&game, "b-peer"),
+        clubs(["p1", "p2", "p3", "p4"]),
+        "a tier tied with a berth target has no automatic promotion or relegation"
+    );
+}
+
+/// Given a country whose berth-target table (priority 1) is tied with an ordinary tier (priority
+///       1), the target listed first, and a feeder below them whose first place is berthed into it
+/// When the season rolls over: the linear pass, then the berth pass
+/// Then the feeder's first place reaches the target and the clubs of the tied tier and the top
+///      flight stay where they are: the linear pass used to promote him into the tied tier, and
+///      the berth pass then dropped him for no longer being registered with the feeder (#1381)
+#[test]
+fn a_berth_winner_reaches_a_target_tied_with_a_tier_listed_after_it() {
+    assert_the_berth_winner_reaches_the_tied_target(["top", "a-target", "b-peer", "feeder"]);
+}
+
+/// Given the same country with the tied tier listed before the berth target
+/// When the season rolls over
+/// Then the outcome is the same: the ladder used to be cut on the other side, so the top flight
+///      exchanged clubs with the tied tier instead (#1381)
+#[test]
+fn a_berth_winner_reaches_a_target_tied_with_a_tier_listed_before_it() {
+    assert_the_berth_winner_reaches_the_tied_target(["top", "b-peer", "a-target", "feeder"]);
+}
+
+/// Two first divisions of one country at the same priority (a berth target, a sibling feeder or an
+/// older save can have them), each led by its own club, the Europe-limited cup listed first, and the
+/// divisions in the given order.
+fn two_equal_priority_first_divisions(ids_in_listing_order: [&str; 2]) -> Game {
+    let league = |id: &str| {
+        let leader = if id == "es-a" { "a1" } else { "b1" };
+        league_in_region(id, "ES", "europe", leader)
+    };
+    let mut game = empty_game();
+    game.competitions = vec![
+        continental_cup("euro", &["europe"]),
+        league(ids_in_listing_order[0]),
+        league(ids_in_listing_order[1]),
+    ];
+    game.teams.push(filler_club("es-filler", "ES", 10));
+    game
+}
+
+/// Given two first divisions of a country at the same priority, each led by its own club
+/// When continental qualification runs with them listed one way, and then the other
+/// Then the same clubs qualify both times: the division with the lower id is "the first
+///      division", not whichever the competition vector lists first (#1381).
+#[test]
+fn equal_priority_first_divisions_ignore_the_order_competitions_are_listed_in() {
+    let in_order = two_equal_priority_first_divisions(["es-a", "es-b"]);
+    let reversed = two_equal_priority_first_divisions(["es-b", "es-a"]);
+
+    let field = continental_qualified_entrants(&in_order, &in_order.competitions[0]);
+    let field_reversed = continental_qualified_entrants(&reversed, &reversed.competitions[0]);
+
+    assert_eq!(
+        field_reversed, field,
+        "the listing order changed who qualifies"
+    );
+    assert!(field.contains(&"a1".to_string()), "{field:?}");
+    assert!(!field.contains(&"b1".to_string()), "{field:?}");
+}
+
+/// A domestic cup of Spain for the 2027 edition, last season's edition (2026) in the archive won by
+/// "champ", and two Spanish first divisions at one priority: one still on 2026, one on 2027.
+fn cup_after_renewal_with_two_equal_priority_divisions(ids_in_listing_order: [&str; 2]) -> Game {
+    let division_on = |id: &str, season: u32| {
+        let mut league = division(id, 0, "ES", &[("x", 30)]);
+        league.season = season;
+        league
+    };
+    let mut cup = League::new("es-cup".to_string(), "Cup".to_string(), 2027, &[]);
+    cup.scope = CompetitionScope::Domestic;
+    cup.kind = CompetitionType::Cup;
+    cup.country_id = Some("ES".to_string());
+    let mut game = empty_game();
+    game.competitions = vec![cup];
+    for id in ids_in_listing_order {
+        game.competitions
+            .push(division_on(id, if id == "es-a" { 2026 } else { 2027 }));
+    }
+    game.edition_archive
+        .push(domain::edition_archive::CompletedEdition {
+            competition_id: "es-cup".to_string(),
+            season: 2026,
+            completed_on: "2026-05-30".to_string(),
+            champion_id: "champ".to_string(),
+            participant_ids: vec![],
+            standings: vec![],
+            groups: vec![],
+            knockout_rounds: vec![],
+            fixtures: vec![],
+        });
+    game
+}
+
+/// Given a renewed domestic cup, and two divisions of its country at the same priority that are on
+///       different seasons
+/// When its champion is read with the divisions listed one way, and then the other
+/// Then it is the same both times: the season being settled is the lower-id division's, not the
+///      first one listed (#1381).
+#[test]
+fn the_season_being_settled_ignores_the_order_equal_priority_divisions_are_listed_in() {
+    let in_order = cup_after_renewal_with_two_equal_priority_divisions(["es-a", "es-b"]);
+    let reversed = cup_after_renewal_with_two_equal_priority_divisions(["es-b", "es-a"]);
+
+    let champion = cup_champion(&in_order, &in_order.competitions[0]);
+    let champion_reversed = cup_champion(&reversed, &reversed.competitions[0]);
+
+    assert_eq!(
+        champion_reversed, champion,
+        "the listing order changed which edition is being settled"
+    );
+    assert_eq!(champion.as_deref(), Some("champ"));
 }

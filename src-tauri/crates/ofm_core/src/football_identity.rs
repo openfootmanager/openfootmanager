@@ -139,6 +139,10 @@ fn upgrade_staff_identity(staff: &mut Staff, team_nations: &HashMap<&str, &str>)
     )
 }
 
+pub(crate) fn initialize_unattached_staff_identity(staff: &mut Staff) {
+    upgrade_staff_identity(staff, &HashMap::new());
+}
+
 /// A person's identity fields, borrowed from a player, a staff member or a manager.
 struct Identity<'a> {
     nationality: &'a mut String,

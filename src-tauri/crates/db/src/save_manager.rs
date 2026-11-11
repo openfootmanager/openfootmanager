@@ -582,7 +582,13 @@ impl SaveManager {
             needs_resave = true;
         }
 
-        if player_identity::upgrade_game_player_identities(&mut game) {
+        let missing_weak_foot = db.needs_weak_foot_backfill()?;
+        let identity_changed = if missing_weak_foot {
+            player_identity::backfill_game_player_weak_feet(&mut game)
+        } else {
+            player_identity::upgrade_loaded_player_identities(&mut game)
+        };
+        if identity_changed || missing_weak_foot {
             needs_resave = true;
         }
 
@@ -775,6 +781,7 @@ impl SaveManager {
         game.youth_scouting_assignments.clear();
         game.scouted_players.clear();
         game.board_objectives.clear();
+        game.days_since_last_job_offer = None;
 
         // A new career is a new game: its World Cups are drawn from its own seed, whatever the
         // save it began from did.
@@ -802,7 +809,7 @@ impl SaveManager {
 
         // Reset player stats
         for player in &mut game.players {
-            player.stats = Default::default();
+            player.reset_season_totals();
             player.transfer_listed = false;
             player.loan_listed = false;
             player.transfer_offers.clear();
@@ -2390,6 +2397,158 @@ mod tests {
         assert_eq!(retired.team_id, None);
     }
 
+    /// Given a developed goalkeeper whose stored weak foot differs from today's inference,
+    /// when the career is saved and loaded by a fresh manager, then the value survives.
+    #[test]
+    fn a_developed_players_weak_foot_survives_a_save_and_reload() {
+        let dir = tempfile::tempdir().unwrap();
+        let saves_dir = dir.path().join("saves");
+        let mut manager = SaveManager::init(&saves_dir).unwrap();
+        let mut game = sample_game();
+        let mut player =
+            make_lineup_player("developed-keeper", Position::Goalkeeper, Footedness::Right);
+        player.weak_foot = 2;
+        game.players.push(player);
+        let save_id = manager.create_save(&game, "Developed player").unwrap();
+        drop(manager);
+
+        let mut reader = SaveManager::init(&saves_dir).unwrap();
+        let loaded = reader.load_game(&save_id).unwrap();
+        let player = loaded
+            .players
+            .iter()
+            .find(|p| p.id == "developed-keeper")
+            .unwrap();
+        assert_eq!(player.weak_foot, 2);
+    }
+
+    /// Given a non-default weak foot, when saved and reloaded, then SQLite retains it.
+    #[test]
+    fn a_non_default_weak_foot_survives_sqlite_reload() {
+        let dir = tempfile::tempdir().unwrap();
+        let saves_dir = dir.path().join("saves");
+        let mut manager = SaveManager::init(&saves_dir).unwrap();
+        let mut game = sample_game();
+        let mut player =
+            make_lineup_player("weak-foot-one", Position::Goalkeeper, Footedness::Right);
+        player.weak_foot = 1;
+        game.players.push(player);
+        let id = manager.create_save(&game, "Career").unwrap();
+        drop(manager);
+        let mut reader = SaveManager::init(&saves_dir).unwrap();
+        let loaded = reader.load_game(&id).unwrap();
+        assert_eq!(
+            loaded
+                .players
+                .iter()
+                .find(|p| p.id == "weak-foot-one")
+                .unwrap()
+                .weak_foot,
+            1
+        );
+        let db = GameDatabase::open(&saves_dir.join(format!("{id}.db"))).unwrap();
+        let persisted = GamePersistenceReader::read_game(&db).unwrap();
+        assert_eq!(
+            persisted
+                .players
+                .iter()
+                .find(|p| p.id == "weak-foot-one")
+                .unwrap()
+                .weak_foot,
+            1
+        );
+    }
+
+    /// Given a pre-v11 save without weak-foot data, when loaded, then the old inference runs.
+    #[test]
+    fn a_pre_v11_save_backfills_the_missing_weak_foot() {
+        let dir = tempfile::tempdir().unwrap();
+        let saves_dir = dir.path().join("saves");
+        let mut manager = SaveManager::init(&saves_dir).unwrap();
+        let mut game = sample_game();
+        let player = make_lineup_player("legacy-keeper", Position::Goalkeeper, Footedness::Right);
+        game.players.push(player);
+        let mut granular =
+            make_lineup_player("granular-player", Position::RightBack, Footedness::Right);
+        granular.attributes.passing = 80;
+        granular.attributes.dribbling = 80;
+        granular.attributes.decisions = 80;
+        granular.attributes.composure = 80;
+        granular.attributes.teamwork = 80;
+        game.players.push(granular);
+        let id = manager.create_save(&game, "Career").unwrap();
+        let path = saves_dir.join(format!("{id}.db"));
+        let old_path = dir.path().join("old.db");
+        let mut old = rusqlite::Connection::open(&old_path).unwrap();
+        crate::migrations::all_migrations()
+            .to_version(&mut old, 10)
+            .unwrap();
+        old.execute("ATTACH DATABASE ?1 AS source", [path.to_str().unwrap()])
+            .unwrap();
+        let tables: Vec<String> = old.prepare("SELECT name FROM main.sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'").unwrap()
+            .query_map([], |row| row.get(0)).unwrap().map(Result::unwrap).collect();
+        for table in tables {
+            let columns: Vec<String> = old
+                .prepare(&format!("PRAGMA main.table_info(\"{table}\")"))
+                .unwrap()
+                .query_map([], |row| row.get::<_, String>(1))
+                .unwrap()
+                .map(Result::unwrap)
+                .collect();
+            let names = columns
+                .iter()
+                .map(|name| format!("\"{name}\""))
+                .collect::<Vec<_>>()
+                .join(", ");
+            old.execute_batch(&format!(
+                "INSERT INTO main.\"{table}\" ({names}) SELECT {names} FROM source.\"{table}\""
+            ))
+            .unwrap();
+        }
+        drop(old);
+        std::fs::copy(old_path, &path).unwrap();
+        // Metadata access can migrate the database before the career is loaded.
+        drop(GameDatabase::open(&path).unwrap());
+        let loaded = manager.load_game(&id).unwrap();
+        let player = loaded
+            .players
+            .iter()
+            .find(|p| p.id == "legacy-keeper")
+            .unwrap();
+        assert_eq!(player.weak_foot, 3);
+        assert_eq!(
+            loaded
+                .players
+                .iter()
+                .find(|p| p.id == "granular-player")
+                .unwrap()
+                .weak_foot,
+            4
+        );
+        let db = GameDatabase::open(&path).unwrap();
+        assert!(!db.needs_weak_foot_backfill().unwrap());
+        assert_eq!(
+            GamePersistenceReader::read_game(&db)
+                .unwrap()
+                .players
+                .iter()
+                .find(|p| p.id == "granular-player")
+                .unwrap()
+                .weak_foot,
+            4
+        );
+        assert_eq!(
+            GamePersistenceReader::read_game(&db)
+                .unwrap()
+                .players
+                .iter()
+                .find(|p| p.id == "legacy-keeper")
+                .unwrap()
+                .weak_foot,
+            3
+        );
+    }
+
     #[test]
     fn test_load_game_upgrades_football_identity_fields() {
         let dir = tempfile::tempdir().unwrap();
@@ -3376,6 +3535,47 @@ mod tests {
         );
     }
 
+    /// Given an active job-offer cooldown
+    /// When the career is saved and loaded by a fresh manager
+    /// Then the elapsed cooldown days survive.
+    #[test]
+    fn job_offer_cooldown_survives_save_and_load() {
+        let dir = tempfile::tempdir().unwrap();
+        let saves = dir.path().join("saves");
+        let mut game = sample_game();
+        game.days_since_last_job_offer = Some(17);
+        let id = SaveManager::init(&saves)
+            .unwrap()
+            .create_save(&game, "Cooldown")
+            .unwrap();
+
+        let reader = rusqlite::Connection::open(saves.join(format!("{id}.db"))).unwrap();
+        let stored: Option<u32> = reader
+            .query_row(
+                "SELECT days_since_last_job_offer FROM game_meta",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(stored, Some(17));
+        let loaded = SaveManager::init(&saves).unwrap().load_game(&id).unwrap();
+        assert_eq!(loaded.days_since_last_job_offer, Some(17));
+    }
+
+    /// Given a saved career with a job-offer cooldown
+    /// When a new career is started from that save
+    /// Then the new career has no cooldown from the previous career.
+    #[test]
+    fn a_new_career_does_not_inherit_the_job_offer_cooldown() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut manager = SaveManager::init(&dir.path().join("saves")).unwrap();
+        let mut game = sample_game();
+        game.days_since_last_job_offer = Some(17);
+        let id = manager.create_save(&game, "Cooldown").unwrap();
+        let fresh = manager.new_game_from_save(&id).unwrap();
+        assert_eq!(fresh.days_since_last_job_offer, None);
+    }
+
     #[test]
     fn test_save_and_load_roundtrips_vacant_team_days() {
         let dir = tempfile::tempdir().unwrap();
@@ -4037,6 +4237,43 @@ mod tests {
         // Player stats should be reset
         assert!(!new_game.players[0].transfer_listed);
         assert!(!new_game.players[0].loan_listed);
+    }
+
+    /// Given a save whose player is in the middle of a stint (a closed stint and an arrival
+    ///      baseline), and has season stats
+    /// When a new game is begun from it
+    /// Then his stats and his stints are both cleared: a stale baseline against fresh stats would
+    ///      give the new career the wrong rows.
+    #[test]
+    fn test_new_game_from_save_clears_the_season_stints_with_the_stats() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut sm = SaveManager::init(&dir.path().join("saves")).unwrap();
+        let mut game = sample_game();
+        let player = &mut game.players[0];
+        player.stats.appearances = 12;
+        player.stats.goals = 8;
+        player
+            .record_movement(domain::player::PlayerMovementEntry {
+                from_team_id: Some("team-a".to_string()),
+                from_team_name: Some("Alpha FC".to_string()),
+                ..domain::player::PlayerMovementEntry::new(
+                    "2026-01-12",
+                    domain::player::PlayerMovementKind::PermanentTransfer,
+                )
+            })
+            .unwrap();
+        assert!(!player.season_stints.closed.is_empty());
+        let player_id = player.id.clone();
+        let save_id = sm.create_save(&game, "Source Save").unwrap();
+
+        let new_game = sm.new_game_from_save(&save_id).unwrap();
+
+        let fresh = new_game.players.iter().find(|p| p.id == player_id).unwrap();
+        assert_eq!(fresh.stats.appearances, 0);
+        assert_eq!(
+            fresh.season_stints,
+            domain::career_stints::SeasonStints::default()
+        );
     }
 
     #[test]

@@ -204,7 +204,7 @@ pub(super) fn transfer_buyer_can_register(game: &Game, buyer_team_id: &str, fee:
     game.teams
         .iter()
         .find(|team| team.id == buyer_team_id)
-        .is_some_and(|team| can_afford_fee(team, fee))
+        .is_some_and(|team| can_afford_fee(team, fee, 0))
 }
 
 pub(super) fn ensure_transfer_cash_postable(
@@ -464,30 +464,53 @@ pub(super) fn execute_transfer(
 /// here, the AI market's as well as the user's (#1251): left open, they went on with the old club
 /// over a player who is no longer theirs. `accepted_offer_id` is the bid the sale came from, when
 /// it came from one.
+///
+/// When that ends talks the user had opened (a bid, or a loan request) and another club is the
+/// buyer, the user gets one letter for the sale naming that club and its fee (#1256). A sale's fee
+/// is public: it is in the transfer log the news reads. The user's own purchase sends none.
 pub(super) fn close_open_offers_after_sale(
     game: &mut Game,
     player_id: &str,
+    buyer_team_id: &str,
+    fee: u64,
     accepted_offer_id: Option<&str>,
 ) -> Result<(), String> {
     let today = game.clock.current_date.format("%Y-%m-%d").to_string();
+    let user_club_id = game.manager.team_id.clone();
+    let made_by_the_user = |team_id: &str| user_club_id.as_deref() == Some(team_id);
+    let buyer_name = game.team_name_or_id(buyer_team_id);
     let player = game
         .players
         .iter_mut()
         .find(|player| player.id == player_id)
         .ok_or("be.error.playerNotFound")?;
 
+    let mut user_talks_ended = false;
     for offer in &mut player.transfer_offers {
         if Some(offer.id.as_str()) != accepted_offer_id
             && offer.status == TransferOfferStatus::Pending
         {
+            user_talks_ended |= made_by_the_user(&offer.from_team_id);
             close_transfer_offer(offer, TransferOfferStatus::Withdrawn, &today);
         }
     }
 
     for offer in &mut player.loan_offers {
         if offer.status == LoanOfferStatus::Pending {
+            user_talks_ended |= made_by_the_user(&offer.from_team_id);
             close_loan_offer(offer, LoanOfferStatus::Withdrawn, &today);
         }
+    }
+
+    if user_talks_ended && !made_by_the_user(buyer_team_id) {
+        let letter = crate::messages::talks_closed_by_sale_message(
+            player,
+            buyer_team_id,
+            &buyer_name,
+            fee,
+            &today,
+        );
+        crate::inbox::emit(game, letter);
     }
 
     Ok(())
@@ -549,18 +572,14 @@ pub(super) fn should_generate_major_transfer_news(
 ) -> bool {
     fee >= 1_000_000 || player.market_value >= 1_000_000
 }
-pub fn process_pending_transfer_registrations(game: &mut Game) {
-    if !transfer_window_is_open(game) {
-        return;
-    }
+type DueTransferRegistration = (String, String, String, u64);
 
-    let current_date = game.clock.current_date.date_naive();
-    let today = current_date.format("%Y-%m-%d").to_string();
-    let user_team_id = game.manager.team_id.clone();
-    type DueTransferRegistration = (String, String, String, u64);
-
-    let due_registrations: Vec<DueTransferRegistration> = game
-        .players
+fn due_transfer_registrations(
+    game: &Game,
+    current_date: NaiveDate,
+    window_is_open: bool,
+) -> Vec<DueTransferRegistration> {
+    game.players
         .iter()
         .flat_map(|player| {
             player.transfer_offers.iter().filter_map(|offer| {
@@ -571,7 +590,9 @@ pub fn process_pending_transfer_registrations(game: &mut Game) {
                 let registration_date = offer.registration_date.as_deref()?;
                 let registration_date =
                     NaiveDate::parse_from_str(registration_date, "%Y-%m-%d").ok()?;
-                if registration_date > current_date {
+                if registration_date > current_date
+                    || (!window_is_open && registration_date == current_date)
+                {
                     return None;
                 }
 
@@ -583,7 +604,14 @@ pub fn process_pending_transfer_registrations(game: &mut Game) {
                 ))
             })
         })
-        .collect();
+        .collect()
+}
+pub fn process_pending_transfer_registrations(game: &mut Game) {
+    let window_is_open = transfer_window_is_open(game);
+    let current_date = game.clock.current_date.date_naive();
+    let today = current_date.format("%Y-%m-%d").to_string();
+    let user_team_id = game.manager.team_id.clone();
+    let due_registrations = due_transfer_registrations(game, current_date, window_is_open);
 
     for (player_id, offer_id, buyer_team_id, fee) in due_registrations {
         let player_snapshot = game
@@ -600,17 +628,25 @@ pub fn process_pending_transfer_registrations(game: &mut Game) {
         });
         use domain::player::TransferRegistrationFailureReason as Failure;
         let registration_result = (|| {
+            // A missed window is a registration failure too: it must carry the same saved
+            // reason and user notice as other failures, not silently release the commitment.
+            if !window_is_open {
+                return Err(Failure::RegistrationBlocked);
+            }
+
             let player = player_snapshot.as_ref().ok_or(Failure::PlayerUnavailable)?;
             if player_has_active_or_pending_loan(player) {
                 return Err(Failure::LoanConflict);
             }
             let from_team_id = from_team_id.as_deref().ok_or(Failure::PlayerUnavailable)?;
+            // The fee is already committed: paying it reduces the gross budget and the
+            // reservation equally, so it must not be subtracted a second time here.
             if !transfer_buyer_can_register(game, &buyer_team_id, fee) {
                 return Err(Failure::InsufficientFunds);
             }
             execute_transfer(game, &player_id, &buyer_team_id, from_team_id, fee)
                 .map_err(|_| Failure::RegistrationBlocked)?;
-            close_open_offers_after_sale(game, &player_id, Some(&offer_id))
+            close_open_offers_after_sale(game, &player_id, &buyer_team_id, fee, Some(&offer_id))
                 .map_err(|_| Failure::RegistrationBlocked)
         })();
         let failure_reason = registration_result.err();
@@ -792,7 +828,7 @@ fn failed_loan_registration_letter(
         .loan_offers
         .iter()
         .find(|offer| offer.id == offer_id)?;
-    (offer.from_team_id == user_club_id || offer.parent_team_id == user_club_id).then(|| {
+    offer.involves(user_club_id).then(|| {
         crate::messages::loan_registration_failed_message(
             offer,
             player,
@@ -811,9 +847,61 @@ mod tests {
     use crate::transfers::tests::{make_game, sample_attributes};
     use chrono::{TimeZone, Utc};
     use domain::message::InboxMessage;
+    use domain::player::PlayerSeasonStats;
 
     fn pending_transfer_game(user_is_seller: bool) -> Game {
         pending_transfer_game_with(user_is_seller, None, "2026-01-12")
+    }
+
+    /// Given an agreed sale with two distinct league stints, when registration completes,
+    /// then the transfer preserves both competitions' statistics unchanged.
+    #[test]
+    fn registering_a_transfer_preserves_both_league_stints() {
+        let mut game = pending_transfer_game(true);
+        game.clock.current_date = Utc.with_ymd_and_hms(2026, 1, 12, 12, 0, 0).unwrap();
+        let expected = serde_json::json!({
+            "division-a": PlayerSeasonStats { goals: 10, clean_sheets: 2, appearances: 12, ..Default::default() },
+            "division-b": PlayerSeasonStats { goals: 2, appearances: 4, ..Default::default() }
+        });
+        let mut value = serde_json::to_value(&game.players[0]).unwrap();
+        value["league_stats_by_competition"] = expected.clone();
+        game.players[0] = serde_json::from_value(value).unwrap();
+
+        process_pending_transfer_registrations(&mut game);
+
+        assert_eq!(game.players[0].team_id.as_deref(), Some("team2"));
+        assert_eq!(
+            serde_json::to_value(&game.players[0]).unwrap()["league_stats_by_competition"],
+            expected
+        );
+    }
+
+    /// Given an agreed sale of a player with 12 appearances, 3 goals and 1 assist at the seller
+    /// When registration completes
+    /// Then the seller's stint holds those 12, 3 and 1: the season so far is the seller's, not the
+    ///      buyer's.
+    #[test]
+    fn a_completed_sale_closes_the_sellers_stint() {
+        let mut game = pending_transfer_game(true);
+        game.clock.current_date = Utc.with_ymd_and_hms(2026, 1, 12, 12, 0, 0).unwrap();
+        game.players[0].stats.appearances = 12;
+        game.players[0].stats.goals = 3;
+        game.players[0].stats.assists = 1;
+
+        process_pending_transfer_registrations(&mut game);
+
+        let stints = &game.players[0].season_stints;
+        assert_eq!(stints.closed.len(), 1);
+        assert_eq!(stints.closed[0].team_id, "team1");
+        assert_eq!(
+            (
+                stints.closed[0].tally.appearances,
+                stints.closed[0].tally.goals,
+                stints.closed[0].tally.assists
+            ),
+            (12, 3, 1)
+        );
+        assert_eq!(stints.stats_at_arrival.appearances, 12);
     }
 
     /// An agreed transfer of `game.players[0]` awaiting registration on `registration_date`,

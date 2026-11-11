@@ -423,22 +423,24 @@ pub fn terminate_contract_now_internal(
     career: Career,
     player_id: &str,
 ) -> Result<ContractTerminationCommandResponse, String> {
-    info!("[cmd] terminate_contract_now: player_id={}", player_id);
+    crate::application::live_session::player_role_operation(state, player_id, || {
+        info!("[cmd] terminate_contract_now: player_id={}", player_id);
 
-    // terminate_contract_now previews and checks squad safety before mutating.
-    state
-        .update_game_for(career, |game| {
-            let ContractTerminationResult {
-                severance_cost,
-                squad_safety,
-            } = ofm_core::contracts::terminate_contract_now(game, player_id)?;
-            Ok(ContractTerminationCommandResponse {
-                game: game.clone(),
-                severance_cost,
-                squad_safety,
+        // terminate_contract_now previews and checks squad safety before mutating.
+        state
+            .update_game_for(career, |game| {
+                let ContractTerminationResult {
+                    severance_cost,
+                    squad_safety,
+                } = ofm_core::contracts::terminate_contract_now(game, player_id)?;
+                Ok(ContractTerminationCommandResponse {
+                    game: game.clone(),
+                    severance_cost,
+                    squad_safety,
+                })
             })
-        })
-        .and_then(|response| response)
+            .and_then(|response| response)
+    })
 }
 
 #[cfg(test)]
@@ -677,6 +679,9 @@ mod tests {
         assert_eq!(after, before);
     }
 
+    /// Given an active career in August 2026
+    /// When a three-year renewal is accepted through the command service
+    /// Then live state and the response end the contract on 30 June 2029.
     #[test]
     fn propose_renewal_internal_returns_response_and_updates_state() {
         let state = StateManager::new();
@@ -694,7 +699,7 @@ mod tests {
             .find(|player| player.id == "player-1")
             .expect("player should exist");
         assert_eq!(player.wage(), 15_000);
-        assert_eq!(player.contract_end(), Some("2029-08-01"));
+        assert_eq!(player.contract_end(), Some("2029-06-30"));
 
         let stored_game = state.get_game(|game| game.clone()).expect("stored game");
         let stored_player = stored_game
@@ -703,9 +708,12 @@ mod tests {
             .find(|player| player.id == "player-1")
             .expect("stored player should exist");
         assert_eq!(stored_player.wage(), 15_000);
-        assert_eq!(stored_player.contract_end(), Some("2029-08-01"));
+        assert_eq!(stored_player.contract_end(), Some("2029-06-30"));
     }
 
+    /// Given an assistant and an active career in August 2026
+    /// When the command service delegates a three-year renewal
+    /// Then the response and live state retain the 30 June 2029 end.
     #[test]
     fn delegate_renewals_internal_returns_report_and_updates_state() {
         let state = StateManager::new();
@@ -729,7 +737,7 @@ mod tests {
             .iter()
             .find(|player| player.id == "player-1")
             .expect("player should exist");
-        assert_eq!(player.contract_end(), Some("2029-08-01"));
+        assert_eq!(player.contract_end(), Some("2029-06-30"));
         assert!(response
             .game
             .messages
@@ -742,9 +750,12 @@ mod tests {
             .iter()
             .find(|player| player.id == "player-1")
             .expect("stored player should exist");
-        assert_eq!(stored_player.contract_end(), Some("2029-08-01"));
+        assert_eq!(stored_player.contract_end(), Some("2029-06-30"));
     }
 
+    /// Given a persisted career with its old contract date
+    /// When the manager renews and then explicitly saves
+    /// Then a fresh reader sees the 30 June 2029 end only after that save.
     #[test]
     fn renewal_changes_only_persist_after_explicit_save() {
         let temp_dir = TempSaveDir::new();
@@ -793,9 +804,12 @@ mod tests {
             .find(|player| player.id == "player-1")
             .expect("saved player should exist");
         assert_eq!(saved_player.wage(), 15_000);
-        assert_eq!(saved_player.contract_end(), Some("2029-08-01"));
+        assert_eq!(saved_player.contract_end(), Some("2029-06-30"));
     }
 
+    /// Given a persisted career with its old contract date
+    /// When the assistant renews and the manager explicitly saves
+    /// Then a fresh reader sees the 30 June 2029 end only after that save.
     #[test]
     fn delegated_renewal_changes_only_persist_after_explicit_save() {
         let temp_dir = TempSaveDir::new();
@@ -852,7 +866,7 @@ mod tests {
             .iter()
             .find(|player| player.id == "player-1")
             .expect("saved player should exist");
-        assert_eq!(saved_player.contract_end(), Some("2029-08-01"));
+        assert_eq!(saved_player.contract_end(), Some("2029-06-30"));
         assert!(persisted_after_manual_save
             .messages
             .iter()
@@ -901,6 +915,9 @@ mod tests {
         assert_eq!(stages.len(), 1);
     }
 
+    /// Given a free agent and an active career in August 2026
+    /// When the command service signs him for three years
+    /// Then the response contains his contract ending on 30 June 2029.
     #[test]
     fn offer_free_agent_contract_internal_returns_response_and_updates_state() {
         let state = StateManager::new();
@@ -913,7 +930,7 @@ mod tests {
         assert!(matches!(response.outcome, RenewalDecision::Accepted));
         assert_eq!(response.session_status, "agreed");
         assert_eq!(response.game.players[0].team_id.as_deref(), Some("team-1"));
-        assert_eq!(response.game.players[0].contract_end(), Some("2029-08-01"));
+        assert_eq!(response.game.players[0].contract_end(), Some("2029-06-30"));
         assert!(response.game.players[0]
             .movement_history
             .iter()
@@ -1055,17 +1072,71 @@ mod tests {
             .is_none());
     }
 
+    /// Given an active squad, when its contract is previewed, then club and player data remain unchanged.
+    #[test]
+    fn termination_preview_does_not_mutate_club_or_player() {
+        let state = StateManager::new();
+        state.set_game(make_squad_game());
+
+        let snapshot = |state: &StateManager| {
+            state
+                .get_game(|game| {
+                    let team = game
+                        .teams
+                        .iter()
+                        .find(|team| team.id == "team-1")
+                        .expect("team should exist");
+                    let player = game
+                        .players
+                        .iter()
+                        .find(|player| player.id == "player-1")
+                        .expect("player should exist");
+                    (
+                        serde_json::to_value(team).expect("team snapshot should serialize"),
+                        serde_json::to_value(player).expect("player snapshot should serialize"),
+                    )
+                })
+                .expect("active game should exist")
+        };
+
+        let before = snapshot(&state);
+        preview_contract_termination_internal(&state, "player-1").expect("preview response");
+
+        assert_eq!(snapshot(&state), before);
+    }
+
+    /// Given a valid preview, when terminated, then club cash drops by the previewed severance.
     #[test]
     fn terminate_contract_now_internal_returns_updated_game() {
         let state = StateManager::new();
         state.set_game(make_squad_game());
 
+        let cash_before = state
+            .get_game(|game| {
+                game.teams
+                    .iter()
+                    .find(|team| team.id == "team-1")
+                    .expect("team should exist")
+                    .finance
+            })
+            .expect("active game should exist");
         let preview =
             preview_contract_termination_internal(&state, "player-1").expect("preview response");
         assert!(preview.preview.squad_safety.can_field_matchday_squad);
 
         let response = terminate_contract_now_internal(&state, Career::Active, "player-1")
             .expect("termination response");
+        let cash_after = state
+            .get_game(|game| {
+                game.teams
+                    .iter()
+                    .find(|team| team.id == "team-1")
+                    .expect("team should exist")
+                    .finance
+            })
+            .expect("active game should exist");
+        assert_eq!(cash_before - cash_after, preview.preview.severance_cost);
+        assert_eq!(response.severance_cost, preview.preview.severance_cost);
         assert_eq!(response.severance_cost, 132_000);
         assert!(response.squad_safety.can_field_matchday_squad);
         let player = response
@@ -1091,5 +1162,77 @@ mod tests {
             entry.kind == PlayerMovementKind::Released
                 && entry.from_team_name.as_deref() == Some("Alpha FC")
         }));
+    }
+    /// Given a saved role between matches, when the player is released, then no match snapshot is built.
+    #[test]
+    fn a_between_match_termination_does_not_build_a_match_snapshot() {
+        let state = StateManager::new();
+        let mut game = make_squad_game();
+        game.teams[0]
+            .player_roles
+            .insert("player-1".into(), domain::team::PlayerRole::Poacher);
+        state.set_game(game);
+        crate::application::live_session::ROLE_INITIAL_SNAPSHOTS.with(|count| count.set(0));
+        crate::application::live_session::ROLE_HANDOFF_PROJECTIONS.with(|count| count.set(0));
+        terminate_contract_now_internal(&state, Career::Active, "player-1").unwrap();
+        assert!(!state
+            .get_game(|game| game.teams[0].player_roles.contains_key("player-1"))
+            .unwrap());
+        crate::application::live_session::ROLE_INITIAL_SNAPSHOTS
+            .with(|count| assert_eq!(count.get(), 0, "no initial role snapshot between matches"));
+        crate::application::live_session::ROLE_HANDOFF_PROJECTIONS
+            .with(|count| assert_eq!(count.get(), 0, "no waiting match needs a snapshot"));
+    }
+
+    /// Given a lifecycle operation in progress, when a contract is terminated, then the
+    /// termination waits for the operation to finish before it can write the game.
+    #[test]
+    fn terminating_a_contract_waits_for_the_live_session_gate() {
+        let state = std::sync::Arc::new(StateManager::new());
+        state.set_game(make_squad_game());
+        let operation = crate::application::live_session::operation();
+        let (started_tx, started_rx) = std::sync::mpsc::channel();
+        let (done_tx, done_rx) = std::sync::mpsc::channel();
+        let worker = state.clone();
+        let handle = std::thread::spawn(move || {
+            crate::application::live_session::GATE_ATTEMPT
+                .with(|hook| *hook.borrow_mut() = Some(started_tx));
+            let result = terminate_contract_now_internal(&worker, Career::Active, "player-1");
+            done_tx.send(result.is_ok()).unwrap();
+        });
+        let reached_gate = started_rx
+            .recv_timeout(std::time::Duration::from_secs(2))
+            .is_ok();
+        let while_held = done_rx
+            .recv_timeout(std::time::Duration::from_millis(300))
+            .ok();
+        let club_while_held = state
+            .get_game(|game| {
+                game.players
+                    .iter()
+                    .find(|player| player.id == "player-1")
+                    .unwrap()
+                    .team_id
+                    .clone()
+            })
+            .unwrap();
+        drop(operation);
+        let after_release = while_held.or_else(|| {
+            done_rx
+                .recv_timeout(std::time::Duration::from_secs(30))
+                .ok()
+        });
+        handle.join().unwrap();
+        assert!(reached_gate, "termination must attempt the lifecycle gate");
+        assert_eq!(club_while_held.as_deref(), Some("team-1"));
+        assert_eq!(
+            while_held, None,
+            "termination must wait behind the lifecycle gate"
+        );
+        assert_eq!(
+            after_release,
+            Some(true),
+            "termination completes after release"
+        );
     }
 }

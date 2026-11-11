@@ -8,7 +8,7 @@ import type { ReactNode } from "react";
  */
 export default function PlayerProfileStatCard({
   label,
-  labelClassName = "text-gray-500 dark:text-gray-400",
+  labelClassName = "text-fg-muted",
   headerRight,
   children,
 }: {
@@ -18,9 +18,11 @@ export default function PlayerProfileStatCard({
   children: ReactNode;
 }) {
   return (
-    <div className="flex flex-col rounded-lg border border-gray-100 dark:border-navy-600 bg-gray-50/60 dark:bg-navy-800/40 p-4">
-      <div className="flex items-baseline justify-between mb-3 pb-2 border-b border-gray-100 dark:border-navy-600">
-        <h4 className={`font-heading font-bold text-xs uppercase tracking-wider ${labelClassName}`}>
+    <div className="flex flex-col rounded-lg border border-line bg-sunken p-4">
+      <div className="flex items-baseline justify-between mb-3 pb-2 border-b border-line">
+        <h4
+          className={`font-heading font-bold text-caption uppercase tracking-wider ${labelClassName}`}
+        >
           {label}
         </h4>
         {headerRight}

@@ -233,6 +233,7 @@ pub fn query_page(game: &Game, query: &PlayersPageQuery) -> PlayersPage {
 struct ListContext<'a> {
     today: NaiveDate,
     user_team: Option<&'a Team>,
+    committed_transfer_fees: i64,
 }
 
 impl<'a> ListContext<'a> {
@@ -245,6 +246,9 @@ impl<'a> ListContext<'a> {
         Self {
             today: game.clock.current_date.date_naive(),
             user_team,
+            committed_transfer_fees: user_team.map_or(0, |team| {
+                crate::transfers::committed_transfer_fees(game, &team.id)
+            }),
         }
     }
 
@@ -287,7 +291,7 @@ fn has_offer_involving(player: &Player, club_id: &str) -> bool {
         || player
             .loan_offers
             .iter()
-            .any(|offer| offer.parent_team_id == club_id || offer.from_team_id == club_id)
+            .any(|offer| offer.involves(club_id))
 }
 
 fn matches_position(player: &Player, filters: &[PositionFilter]) -> bool {
@@ -307,7 +311,9 @@ fn within_budget(player: &Player, context: &ListContext) -> bool {
         return true;
     };
     let loan_only = player.loan_listed && !player.transfer_listed;
-    player.team_id.is_none() || loan_only || can_afford_fee(team, player.market_value)
+    player.team_id.is_none()
+        || loan_only
+        || can_afford_fee(team, player.market_value, context.committed_transfer_fees)
 }
 
 /// Every filter of the query except status, which is counted separately for the status chips.

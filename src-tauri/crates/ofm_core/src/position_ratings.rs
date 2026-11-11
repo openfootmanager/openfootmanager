@@ -11,7 +11,7 @@ use crate::game::Game;
 use crate::player_knowledge::{PlayerKnowledge, player_knowledge};
 use crate::player_rating::{
     Familiarity, canonical_position, deployed_position, familiarity, key_attributes,
-    ovr_from_attributes, primary_position,
+    ovr_from_attributes, position_weights, primary_position, weight_importance,
 };
 
 /// One attribute a position cannot do without, and the player's value in it.
@@ -19,6 +19,17 @@ use crate::player_rating::{
 pub struct KeyAttribute {
     pub attribute: AttributeKey,
     pub value: u8,
+}
+
+/// How much of a position's rating one attribute is worth, in percent: the game's own table
+/// (`player_rating::position_weights`), the same for every player at the position.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, TS)]
+pub struct AttributeWeight {
+    pub attribute: AttributeKey,
+    pub weight: u8,
+    /// How much it counts there in three steps (`player_rating::weight_importance`), 1 to 3 for an
+    /// attribute the position weighs: what the profile's dots show.
+    pub importance: u8,
 }
 
 /// The player at one position.
@@ -31,6 +42,9 @@ pub struct PositionRating {
     /// The slot the manager plays him in: only ever for the club's own player.
     pub deployed: bool,
     pub key_attributes: Vec<KeyAttribute>,
+    /// What the game weighs at this position, attribute by attribute: the table his rating there
+    /// is built from. About the position, not the player, so it reveals nothing of his attributes.
+    pub weights: Vec<AttributeWeight>,
 }
 
 /// Whose attributes the ratings are read from.
@@ -85,6 +99,7 @@ pub fn position_ratings(game: &Game, player: &Player) -> Option<PositionRatings>
             familiarity: familiarity(player, &position),
             deployed: deployed.as_ref() == Some(&position),
             key_attributes: key_attributes_of(attributes, &position),
+            weights: weights_of(&position),
             position,
         })
         .collect();
@@ -114,6 +129,19 @@ fn positions_he_plays(player: &Player, deployed: Option<&Position>) -> Vec<Posit
         }
     }
     positions
+}
+
+/// What the game weighs at `position`, as rows (`player_rating::position_weights`): the screens' data
+/// and the page harness's fixture, which is generated from here so it cannot hold another table.
+pub fn weights_of(position: &Position) -> Vec<AttributeWeight> {
+    position_weights(position)
+        .iter()
+        .map(|(attribute, weight)| AttributeWeight {
+            attribute: *attribute,
+            weight: *weight,
+            importance: weight_importance(*weight),
+        })
+        .collect()
 }
 
 fn key_attributes_of(attributes: &PlayerAttributes, position: &Position) -> Vec<KeyAttribute> {
@@ -416,5 +444,60 @@ mod tests {
         let game = world(vec![far], vec![]);
 
         assert_eq!(ratings_of(&game, "far"), None);
+    }
+
+    /// Given the club's own central midfielder, who can also play defensive midfield
+    /// When his position ratings are read
+    /// Then each row carries what the game weighs at that row's position (`position_weights`),
+    ///      the natural row's at central midfield and the alternate's at defensive midfield
+    #[test]
+    fn each_row_carries_what_the_game_weighs_at_its_position() {
+        let game = world(
+            vec![midfielder("own", MY_CLUB, 70)],
+            vec![team(MY_CLUB, &[])],
+        );
+
+        let ratings = ratings_of(&game, "own").unwrap();
+
+        for position in [Position::CentralMidfielder, Position::DefensiveMidfielder] {
+            let expected: Vec<_> = position_weights(&position)
+                .iter()
+                .map(|(attribute, weight)| AttributeWeight {
+                    attribute: *attribute,
+                    weight: *weight,
+                    importance: weight_importance(*weight),
+                })
+                .collect();
+            assert_eq!(
+                row(&ratings, position.clone()).weights,
+                expected,
+                "{position:?}"
+            );
+        }
+        assert_ne!(
+            row(&ratings, Position::CentralMidfielder).weights,
+            row(&ratings, Position::DefensiveMidfielder).weights
+        );
+    }
+
+    /// Given two central midfielders of the same club, one of level 30 and one of level 90
+    /// When their natural rows are read
+    /// Then the weights are the same: they are the game's, not the player's, so they say nothing
+    ///      about his attributes
+    #[test]
+    fn the_weights_do_not_depend_on_the_player() {
+        let game = world(
+            vec![
+                midfielder("weak", MY_CLUB, 30),
+                midfielder("strong", MY_CLUB, 90),
+            ],
+            vec![team(MY_CLUB, &[])],
+        );
+
+        let weak = ratings_of(&game, "weak").unwrap();
+        let strong = ratings_of(&game, "strong").unwrap();
+
+        assert_eq!(weak.rows[0].weights, strong.rows[0].weights);
+        assert!(!weak.rows[0].weights.is_empty());
     }
 }

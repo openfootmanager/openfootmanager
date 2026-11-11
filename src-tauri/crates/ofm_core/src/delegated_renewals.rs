@@ -1,8 +1,9 @@
 use crate::contract_wage_policy::{WagePolicyVerdict, wage_policy_verdict};
 use crate::contracts::{
     ContractWarningStage, DelegatedRenewalCase, DelegatedRenewalOptions, DelegatedRenewalReport,
-    DelegatedRenewalResultStatus, contract_warning_stage, expected_contract_years, expected_wage,
-    has_active_manager_block, has_let_expire_intent, round_up_to_nearest_thousand,
+    DelegatedRenewalResultStatus, ERR_RENEWAL_DOES_NOT_EXTEND, RENEWAL_MINIMUM_YEARS_KEY,
+    contract_warning_stage, expected_renewal_years, expected_wage, has_active_manager_block,
+    has_let_expire_intent, minimum_renewal_years, round_up_to_nearest_thousand,
 };
 use crate::game::Game;
 use chrono::NaiveDate;
@@ -86,8 +87,7 @@ pub fn delegate_renewals(
     for player_index in candidate_indices {
         let player = &game.players[player_index];
         let expected_wage = expected_wage(player, &team, current_date);
-        let expected_years = expected_contract_years(player, current_date);
-        let agreed_years = expected_years.min(max_years);
+        let expected_years = expected_renewal_years(player, current_date);
         let max_wage = round_up_to_nearest_thousand(
             player
                 .wage()
@@ -122,15 +122,28 @@ pub fn delegate_renewals(
             continue;
         }
 
+        let Some(expected_years) = expected_years else {
+            report.stalled_count += 1;
+            case.status = DelegatedRenewalResultStatus::Stalled;
+            case.note_key = Some(ERR_RENEWAL_DOES_NOT_EXTEND.to_string());
+            report.cases.push(case);
+            continue;
+        };
+        let agreed_years = expected_years.min(max_years);
+
         if max_wage < expected_wage || max_years < expected_years {
             report.stalled_count += 1;
             case.status = DelegatedRenewalResultStatus::Stalled;
             case.note = String::new();
-            case.note_key = Some("be.msg.delegatedRenewals.notes.beyondLimits".to_string());
-            case.note_params = delegated_note_params(&[
-                ("wage", expected_wage.to_string()),
-                ("years", expected_years.to_string()),
-            ]);
+            let (key, params) = delegated_limit_note(
+                player,
+                current_date,
+                max_years,
+                expected_wage,
+                expected_years,
+            );
+            case.note_key = Some(key.to_string());
+            case.note_params = params;
             let player = &mut game.players[player_index];
             let state = player
                 .morale_core
@@ -253,6 +266,31 @@ pub fn delegate_renewals(
     }
 
     Ok(report)
+}
+
+/// Distinguish a term limit that cannot extend the contract from other limits.
+fn delegated_limit_note(
+    player: &Player,
+    current_date: NaiveDate,
+    max_years: u32,
+    expected_wage: u32,
+    expected_years: u32,
+) -> (&'static str, HashMap<String, String>) {
+    if let Some(minimum) = minimum_renewal_years(current_date, player.contract_end())
+        && max_years < minimum
+    {
+        return (
+            RENEWAL_MINIMUM_YEARS_KEY,
+            delegated_note_params(&[("years", minimum.to_string())]),
+        );
+    }
+    (
+        "be.msg.delegatedRenewals.notes.beyondLimits",
+        delegated_note_params(&[
+            ("wage", expected_wage.to_string()),
+            ("years", expected_years.to_string()),
+        ]),
+    )
 }
 
 fn assistant_delegation_score(

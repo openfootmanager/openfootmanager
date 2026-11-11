@@ -129,19 +129,21 @@ pub fn make_transfer_bid_internal(
     player_id: &str,
     fee: u64,
 ) -> Result<TransferNegotiationCommandResponse, String> {
-    info!(
-        "[cmd] make_transfer_bid: player_id={}, fee={}",
-        player_id, fee
-    );
-    // make_transfer_bid validates (window/player/funds) before executing; its
-    // only post-mutation error path (player-not-found in execute_transfer) is
-    // unreachable here, so in-place mutation is safe.
-    state
-        .update_game_for(career, |game| {
-            let result = ofm_core::transfers::make_transfer_bid(game, player_id, fee)?;
-            Ok(map_transfer_negotiation_response(result, game.clone()))
-        })
-        .and_then(|response| response)
+    crate::application::live_session::player_role_operation(state, player_id, || {
+        info!(
+            "[cmd] make_transfer_bid: player_id={}, fee={}",
+            player_id, fee
+        );
+        // make_transfer_bid validates (window/player/funds) before executing; its
+        // only post-mutation error path (player-not-found in execute_transfer) is
+        // unreachable here, so in-place mutation is safe.
+        state
+            .update_game_for(career, |game| {
+                let result = ofm_core::transfers::make_transfer_bid(game, player_id, fee)?;
+                Ok(map_transfer_negotiation_response(result, game.clone()))
+            })
+            .and_then(|response| response)
+    })
 }
 
 #[tauri::command]
@@ -171,26 +173,28 @@ pub fn make_loan_offer_internal(
     wage_contribution_pct: u8,
     buy_option_fee: Option<u64>,
 ) -> Result<LoanOfferCommandResponse, String> {
-    info!(
+    crate::application::live_session::player_role_operation(state, player_id, || {
+        info!(
         "[cmd] make_loan_offer: player_id={}, end_date={}, wage_contribution_pct={}, buy_option_fee={:?}",
         player_id, end_date, wage_contribution_pct, buy_option_fee
     );
-    // Worked on a copy and swapped in whole, under the lock and after the career check, so a
-    // refusal part way through leaves the live game as it was.
-    state
-        .update_game_for(career, |live| {
-            let mut game = live.clone();
-            let result = ofm_core::transfers::make_loan_offer(
-                &mut game,
-                player_id,
-                end_date,
-                wage_contribution_pct,
-                buy_option_fee,
-            )?;
-            *live = game.clone();
-            Ok(map_loan_offer_response(result, game))
-        })
-        .and_then(|response| response)
+        // Worked on a copy and swapped in whole, under the lock and after the career check, so a
+        // refusal part way through leaves the live game as it was.
+        state
+            .update_game_for(career, |live| {
+                let mut game = live.clone();
+                let result = ofm_core::transfers::make_loan_offer(
+                    &mut game,
+                    player_id,
+                    end_date,
+                    wage_contribution_pct,
+                    buy_option_fee,
+                )?;
+                *live = game.clone();
+                Ok(map_loan_offer_response(result, game))
+            })
+            .and_then(|response| response)
+    })
 }
 
 #[tauri::command]
@@ -207,16 +211,18 @@ pub fn exercise_loan_buy_option_internal(
     career: Career,
     player_id: &str,
 ) -> Result<Game, String> {
-    info!("[cmd] exercise_loan_buy_option: player_id={}", player_id);
-    // Worked on a copy and swapped in whole, under the lock and after the career check.
-    state
-        .update_game_for(career, |live| {
-            let mut game = live.clone();
-            ofm_core::transfers::exercise_loan_buy_option(&mut game, player_id)?;
-            *live = game.clone();
-            Ok(game)
-        })
-        .and_then(|response| response)
+    crate::application::live_session::player_role_operation(state, player_id, || {
+        info!("[cmd] exercise_loan_buy_option: player_id={}", player_id);
+        // Worked on a copy and swapped in whole, under the lock and after the career check.
+        state
+            .update_game_for(career, |live| {
+                let mut game = live.clone();
+                ofm_core::transfers::exercise_loan_buy_option(&mut game, player_id)?;
+                *live = game.clone();
+                Ok(game)
+            })
+            .and_then(|response| response)
+    })
 }
 
 pub fn preview_transfer_bid_financial_impact_internal(
@@ -262,14 +268,16 @@ pub fn respond_to_offer_internal(
     offer_id: &str,
     accept: bool,
 ) -> Result<Game, String> {
-    info!(
-        "[cmd] respond_to_offer: player_id={}, offer_id={}, accept={}",
-        player_id, offer_id, accept
-    );
-    // Validates (player owned / offer pending) before mutating; the post-accept
-    // execute_transfer error is unreachable once the player is validated.
-    mutate_active_game_for(state, career, |game| {
-        ofm_core::transfers::respond_to_offer(game, player_id, offer_id, accept)
+    crate::application::live_session::player_role_operation(state, player_id, || {
+        info!(
+            "[cmd] respond_to_offer: player_id={}, offer_id={}, accept={}",
+            player_id, offer_id, accept
+        );
+        // Validates (player owned / offer pending) before mutating; the post-accept
+        // execute_transfer error is unreachable once the player is validated.
+        mutate_active_game_for(state, career, |game| {
+            ofm_core::transfers::respond_to_offer(game, player_id, offer_id, accept)
+        })
     })
 }
 
@@ -297,12 +305,14 @@ pub fn respond_to_loan_offer_internal(
     offer_id: &str,
     accept: bool,
 ) -> Result<Game, String> {
-    info!(
-        "[cmd] respond_to_loan_offer: player_id={}, offer_id={}, accept={}",
-        player_id, offer_id, accept
-    );
-    mutate_active_game_for(state, career, |game| {
-        ofm_core::transfers::respond_to_loan_offer(game, player_id, offer_id, accept)
+    crate::application::live_session::player_role_operation(state, player_id, || {
+        info!(
+            "[cmd] respond_to_loan_offer: player_id={}, offer_id={}, accept={}",
+            player_id, offer_id, accept
+        );
+        mutate_active_game_for(state, career, |game| {
+            ofm_core::transfers::respond_to_loan_offer(game, player_id, offer_id, accept)
+        })
     })
 }
 
@@ -336,25 +346,27 @@ pub fn counter_loan_offer_internal(
     wage_contribution_pct: u8,
     buy_option_fee: Option<u64>,
 ) -> Result<LoanOfferCommandResponse, String> {
-    info!(
+    crate::application::live_session::player_role_operation(state, player_id, || {
+        info!(
         "[cmd] counter_loan_offer: player_id={}, offer_id={}, end_date={}, wage_contribution_pct={}, buy_option_fee={:?}",
         player_id, offer_id, end_date, wage_contribution_pct, buy_option_fee
     );
-    let mut outcome = None;
-    let game = mutate_active_game_for(state, career, |game| {
-        outcome = Some(ofm_core::transfers::counter_loan_offer(
-            game,
-            player_id,
-            offer_id,
-            end_date,
-            wage_contribution_pct,
-            buy_option_fee,
-        )?);
-        Ok(())
-    })?;
-    let outcome = outcome.ok_or("be.error.noActiveGameSession".to_string())?;
+        let mut outcome = None;
+        let game = mutate_active_game_for(state, career, |game| {
+            outcome = Some(ofm_core::transfers::counter_loan_offer(
+                game,
+                player_id,
+                offer_id,
+                end_date,
+                wage_contribution_pct,
+                buy_option_fee,
+            )?);
+            Ok(())
+        })?;
+        let outcome = outcome.ok_or("be.error.noActiveGameSession".to_string())?;
 
-    Ok(map_loan_offer_response(outcome, game))
+        Ok(map_loan_offer_response(outcome, game))
+    })
 }
 
 #[tauri::command]
@@ -381,18 +393,20 @@ pub fn counter_offer_internal(
     offer_id: &str,
     requested_fee: u64,
 ) -> Result<TransferNegotiationCommandResponse, String> {
-    info!(
-        "[cmd] counter_offer: player_id={}, offer_id={}, requested_fee={}",
-        player_id, offer_id, requested_fee
-    );
-    // Same shape as make_transfer_bid: full validation precedes mutation.
-    state
-        .update_game_for(career, |game| {
-            let result =
-                ofm_core::transfers::counter_offer(game, player_id, offer_id, requested_fee)?;
-            Ok(map_transfer_negotiation_response(result, game.clone()))
-        })
-        .and_then(|response| response)
+    crate::application::live_session::player_role_operation(state, player_id, || {
+        info!(
+            "[cmd] counter_offer: player_id={}, offer_id={}, requested_fee={}",
+            player_id, offer_id, requested_fee
+        );
+        // Same shape as make_transfer_bid: full validation precedes mutation.
+        state
+            .update_game_for(career, |game| {
+                let result =
+                    ofm_core::transfers::counter_offer(game, player_id, offer_id, requested_fee)?;
+                Ok(map_transfer_negotiation_response(result, game.clone()))
+            })
+            .and_then(|response| response)
+    })
 }
 
 fn map_transfer_negotiation_response(
@@ -545,6 +559,138 @@ mod tests {
     use ofm_core::state::Career;
     use ofm_core::state::StateManager;
     use ofm_core::transfers::{LoanOfferDecision, TransferNegotiationDecision};
+
+    /// Given a lifecycle operation, when any player-move command runs, then it waits at the gate.
+    #[test]
+    fn every_player_move_command_waits_for_the_lifecycle_gate() {
+        type MoveCommand = fn(&StateManager);
+        let commands: [(&str, MoveCommand); 8] = [
+            ("termination", |state| {
+                let _ = crate::commands::contracts::terminate_contract_now_internal(
+                    state,
+                    Career::Active,
+                    "missing",
+                );
+            }),
+            ("bid", |state| {
+                let _ = make_transfer_bid_internal(state, Career::Active, "missing", 1);
+            }),
+            ("respond transfer", |state| {
+                let _ =
+                    respond_to_offer_internal(state, Career::Active, "missing", "missing", true);
+            }),
+            ("counter transfer", |state| {
+                let _ = counter_offer_internal(state, Career::Active, "missing", "missing", 1);
+            }),
+            ("loan", |state| {
+                let _ = make_loan_offer_internal(
+                    state,
+                    Career::Active,
+                    "missing",
+                    "2027-01-01",
+                    50,
+                    None,
+                );
+            }),
+            ("respond loan", |state| {
+                let _ = respond_to_loan_offer_internal(
+                    state,
+                    Career::Active,
+                    "missing",
+                    "missing",
+                    true,
+                );
+            }),
+            ("counter loan", |state| {
+                let _ = counter_loan_offer_internal(
+                    state,
+                    Career::Active,
+                    "missing",
+                    "missing",
+                    "2027-01-01",
+                    50,
+                    None,
+                );
+            }),
+            ("buy option", |state| {
+                let _ = exercise_loan_buy_option_internal(state, Career::Active, "missing");
+            }),
+        ];
+        for (name, command) in commands {
+            let state = std::sync::Arc::new(StateManager::new());
+            let gate = crate::application::live_session::operation();
+            let (started_tx, started_rx) = std::sync::mpsc::channel();
+            let (done_tx, done_rx) = std::sync::mpsc::channel();
+            let handle = std::thread::spawn(move || {
+                started_tx.send(()).unwrap();
+                command(&state);
+                done_tx.send(()).unwrap();
+            });
+            started_rx.recv().unwrap();
+            let while_held = done_rx
+                .recv_timeout(std::time::Duration::from_millis(300))
+                .ok();
+            drop(gate);
+            if while_held.is_none() {
+                done_rx
+                    .recv_timeout(std::time::Duration::from_secs(30))
+                    .unwrap();
+            }
+            handle.join().unwrap();
+            assert_eq!(while_held, None, "{name} must wait for the lifecycle gate");
+        }
+    }
+
+    /// Given a gate held during a valid purchase or loan, when the command starts, then the
+    /// player's club changes only after the gate is released.
+    #[test]
+    fn successful_player_moves_write_only_after_the_gate_is_released() {
+        for is_loan in [false, true] {
+            let mut game = make_bid_game();
+            game.players[0].loan_listed = true;
+            let state = std::sync::Arc::new(StateManager::new());
+            state.set_game(game);
+            let gate = crate::application::live_session::operation();
+            let (started_tx, started_rx) = std::sync::mpsc::channel();
+            let worker = state.clone();
+            let handle = std::thread::spawn(move || {
+                crate::application::live_session::GATE_ATTEMPT
+                    .with(|hook| *hook.borrow_mut() = Some(started_tx));
+                if is_loan {
+                    make_loan_offer_internal(
+                        &worker,
+                        Career::Active,
+                        "player-2",
+                        "2027-01-01",
+                        100,
+                        None,
+                    )
+                    .map(|_| ())
+                } else {
+                    make_transfer_bid_internal(&worker, Career::Active, "player-2", 1_050_000)
+                        .map(|_| ())
+                }
+            });
+            let reached_gate = started_rx
+                .recv_timeout(std::time::Duration::from_secs(2))
+                .is_ok();
+            std::thread::sleep(std::time::Duration::from_millis(300));
+            let before_release = state
+                .get_game(|game| game.players[0].team_id.clone())
+                .unwrap();
+            drop(gate);
+            handle.join().unwrap().unwrap();
+            assert!(reached_gate, "player move must attempt the lifecycle gate");
+            assert_eq!(before_release.as_deref(), Some("team-2"));
+            assert_eq!(
+                state
+                    .get_game(|game| game.players[0].team_id.clone())
+                    .unwrap()
+                    .as_deref(),
+                Some("team-1")
+            );
+        }
+    }
 
     fn default_attrs() -> PlayerAttributes {
         PlayerAttributes {

@@ -1,7 +1,11 @@
 // @vitest-environment node
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { HARNESS_PAGES } from "../src/dev/pageHarness/harnessPage";
+import {
+  HARNESS_PAGES,
+  HARNESS_PROFILES,
+  HARNESS_WORLD_LIBRARIES as WORLD_LIBRARIES,
+} from "../src/dev/pageHarness/harnessPage";
 import { CASES, judge, loadFaces, nodeProblem, REQUIRED_FACES } from "./page-layout-check.mjs";
 
 describe("the Node check", () => {
@@ -246,6 +250,29 @@ describe("page layout check", () => {
     ]);
   });
 
+  /**
+   * Given a control the page marks as one that must stay in the window (the way back out) and that
+   * sits below the fold, then it is named: scrolling a sidebar to find "Back" is a trap.
+   */
+  it("names a control that must stay in the window and is below it", () => {
+    expect(judge({ ...clean, belowTheFold: ["Back to main menu"] })).toEqual([
+      "below the bottom edge of the window: Back to main menu",
+    ]);
+  });
+
+  /**
+   * Given a case that asks its tables to fit (the World Editor's home: its row buttons are the way
+   *       in, and a button scrolled out of the table's view is a way in lost), and a table that
+   *       scrolls sideways inside its container
+   * Then it is named; a case that does not ask (a wide data table may scroll) is not judged by it.
+   */
+  it("names a table that scrolls sideways when the case asks its tables to fit", () => {
+    expect(judge({ ...clean, tablesFit: true, tablesScroll: ["Your worlds"] })).toEqual([
+      "table scrolls sideways inside its container: Your worlds",
+    ]);
+    expect(judge({ ...clean, tablesScroll: ["Your worlds"] })).toEqual([]);
+  });
+
   /** Given a command the fixture didn't answer, or a page that never rendered, then it fails. */
   it("fails an unanswered command or a blank page", () => {
     expect(judge({ ...clean, unanswered: ["get_inbox"], rendered: false })).toEqual([
@@ -262,8 +289,32 @@ describe("page layout check", () => {
     const worst = CASES.filter(
       (c) => c.lang === "de" && c.scale === "xlarge" && c.width === 960 && c.height === 640,
     );
+    const profiles = HARNESS_PROFILES.map(() => "profile");
     expect(worst.map((c) => c.page ?? "style guide").sort()).toEqual(
-      [...Object.keys(HARNESS_PAGES), "style guide"].sort(),
+      [
+        ...Object.keys(HARNESS_PAGES).filter((page) => page !== "profile"),
+        ...profiles,
+        ...WORLD_LIBRARIES.map(() => "worlds"),
+        "style guide",
+      ].sort(),
+    );
+  });
+
+  /**
+   * Given the player profile, which looks different for each state the club's knowledge of a player
+   * can be in (its own, a rival, a scouted player, an unknown one, a retired one)
+   * When the cases are listed
+   * Then each state is measured at every window, so a state with a longer layout cannot hide
+   */
+  it("measures each state of the player profile at every window", () => {
+    const profile = CASES.filter((c) => c.page === "profile").map(
+      (c) => `${c.player} ${c.width}×${c.height} ${c.scale} ${c.lang}`,
+    );
+    const windows = CASES.filter((c) => c.page === "home").map(
+      (c) => `${c.width}×${c.height} ${c.scale} ${c.lang}`,
+    );
+    expect(profile.sort()).toEqual(
+      HARNESS_PROFILES.flatMap((player) => windows.map((window) => `${player} ${window}`)).sort(),
     );
   });
 });

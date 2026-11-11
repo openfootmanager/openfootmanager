@@ -1,7 +1,9 @@
-import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Check, ChevronDown } from "lucide-react";
 import type { TeamColorsDef } from "../menu/PackageEditor/types";
+import { useListboxKeys } from "./useListboxKeys";
+import { VirtualListbox, listboxOptionId } from "./VirtualListbox";
 
 type TeamOption = {
   id: string;
@@ -20,6 +22,9 @@ interface TeamComboboxProps {
   placeholder?: string;
 }
 
+/** One option's height: a 1.25rem line plus 0.5rem of padding above and below, so every option has it. */
+const OPTION_HEIGHT_REM = 2.25;
+
 function normaliseSearch(value: string): string {
   return value.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
 }
@@ -31,10 +36,8 @@ export function TeamCombobox({ label, value, options, onChange, placeholder }: T
   const listboxId = useId();
   const ref = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
-  const listRef = useRef<HTMLDivElement>(null);
   const [isOpen, setIsOpen] = useState(false);
   const [search, setSearch] = useState("");
-  const [activeIndex, setActiveIndex] = useState(0);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -45,13 +48,6 @@ export function TeamCombobox({ label, value, options, onChange, placeholder }: T
     return () => document.removeEventListener("mousedown", handleClick);
   }, [isOpen]);
 
-  useEffect(() => {
-    if (!isOpen) return;
-    listRef.current
-      ?.querySelector<HTMLElement>('[data-active="true"]')
-      ?.scrollIntoView?.({ block: "nearest" });
-  }, [activeIndex, isOpen, search]);
-
   const filtered = useMemo(() => {
     const query = normaliseSearch(search);
     return options.filter(
@@ -59,9 +55,12 @@ export function TeamCombobox({ label, value, options, onChange, placeholder }: T
         normaliseSearch(option.label).includes(query) || normaliseSearch(option.id).includes(query),
     );
   }, [options, search]);
-  const active = Math.min(activeIndex, filtered.length);
   const selected = options.find((option) => option.id === value);
-  const optionId = (index: number) => `${listboxId}-option-${index}`;
+  // The no-team option is the first row; with nothing matching the search there are no rows at all.
+  const rows = useMemo<TeamOption[]>(
+    () => (filtered.length > 0 ? [{ id: "", label: placeholder ?? "—" }, ...filtered] : []),
+    [filtered, placeholder],
+  );
 
   function close() {
     setIsOpen(false);
@@ -73,36 +72,11 @@ export function TeamCombobox({ label, value, options, onChange, placeholder }: T
     close();
   }
 
-  function handleSearchKeyDown(event: KeyboardEvent<HTMLInputElement>) {
-    if (filtered.length === 0 && event.key !== "Escape") return;
-    const optionCount = filtered.length + 1;
-    switch (event.key) {
-      case "ArrowDown":
-        event.preventDefault();
-        setActiveIndex((active + 1) % optionCount);
-        break;
-      case "ArrowUp":
-        event.preventDefault();
-        setActiveIndex((active - 1 + optionCount) % optionCount);
-        break;
-      case "Home":
-        event.preventDefault();
-        setActiveIndex(0);
-        break;
-      case "End":
-        event.preventDefault();
-        setActiveIndex(filtered.length);
-        break;
-      case "Enter":
-        event.preventDefault();
-        select(active === 0 ? "" : filtered[active - 1].id);
-        break;
-      case "Escape":
-        event.preventDefault();
-        close();
-        break;
-    }
-  }
+  const { active, setActive, onKeyDown } = useListboxKeys({
+    count: rows.length,
+    onPick: (index) => select(rows[index].id),
+    onEscape: close,
+  });
 
   return (
     <div className="flex flex-col gap-1" ref={ref}>
@@ -124,7 +98,7 @@ export function TeamCombobox({ label, value, options, onChange, placeholder }: T
             else {
               setIsOpen(true);
               setSearch("");
-              setActiveIndex(0);
+              setActive(0);
             }
           }}
           onClick={(event) => {
@@ -153,73 +127,50 @@ export function TeamCombobox({ label, value, options, onChange, placeholder }: T
                 role="combobox"
                 aria-expanded="true"
                 aria-controls={listboxId}
-                aria-activedescendant={filtered.length > 0 ? optionId(active) : undefined}
+                aria-activedescendant={
+                  rows.length > 0 ? listboxOptionId(listboxId, active) : undefined
+                }
                 aria-autocomplete="list"
                 aria-label={label}
                 placeholder={t("teams.searchPlaceholder")}
                 value={search}
                 onChange={(event) => {
                   setSearch(event.target.value);
-                  setActiveIndex(0);
+                  setActive(0);
                 }}
-                onKeyDown={handleSearchKeyDown}
+                onKeyDown={onKeyDown}
                 className="w-full rounded-md border border-line bg-sunken px-3 py-1.5 text-body text-fg outline-none placeholder:text-fg-subtle focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 focus-visible:ring-offset-page"
               />
             </div>
-            <div className="max-h-48 overflow-y-auto overscroll-contain">
-              <div role="listbox" id={listboxId} aria-label={label} ref={listRef}>
-                {filtered.length === 0 && (
-                  <p className="px-3 py-2 text-caption text-fg-subtle">{t("teams.noResults")}</p>
-                )}
-                {filtered.length > 0 && (
-                  <button
-                    type="button"
-                    role="option"
-                    id={optionId(0)}
-                    aria-selected={value === ""}
-                    data-active={active === 0}
-                    tabIndex={-1}
-                    onMouseDown={(event) => {
-                      event.preventDefault();
-                      select("");
-                    }}
-                    onClick={(event) => {
-                      if (event.detail === 0) select("");
-                    }}
-                    className={`flex w-full items-center justify-between px-3 py-2 text-body transition-colors ${value === "" ? "bg-selected-tint text-selected" : "text-fg hover:bg-hover"} ${active === 0 ? "ring-2 ring-inset ring-focus" : ""}`}
-                  >
-                    <span>{placeholder ?? "—"}</span>
-                    {value === "" && <Check className="h-4 w-4 flex-shrink-0 text-selected" />}
-                  </button>
-                )}
-                {filtered.map((option, index) => (
-                  <button
-                    key={option.id}
-                    id={optionId(index + 1)}
-                    type="button"
-                    role="option"
-                    aria-selected={value === option.id}
-                    data-active={index + 1 === active}
-                    tabIndex={-1}
-                    onMouseDown={(event) => {
-                      event.preventDefault();
-                      select(option.id);
-                    }}
-                    onClick={(event) => {
-                      if (event.detail === 0) select(option.id);
-                    }}
-                    className={`flex w-full items-center justify-between px-3 py-2 text-body transition-colors ${value === option.id ? "bg-selected-tint text-selected" : "text-fg hover:bg-hover"} ${index + 1 === active ? "ring-2 ring-inset ring-focus" : ""}`}
-                  >
-                    <span className="flex items-center gap-2">
-                      <span>{option.label}</span>
-                    </span>
-                    {value === option.id && (
-                      <Check className="h-4 w-4 flex-shrink-0 text-selected" />
-                    )}
-                  </button>
-                ))}
-              </div>
-            </div>
+            {rows.length === 0 && (
+              <p role="status" className="px-3 py-2 text-caption text-fg-subtle">
+                {t("teams.noResults")}
+              </p>
+            )}
+            {/* Mounted even when empty: the search field's aria-controls names it. */}
+            <VirtualListbox
+              id={listboxId}
+              aria-label={label}
+              items={rows}
+              rowHeightRem={OPTION_HEIGHT_REM}
+              maxHeight="12rem"
+              activeIndex={active}
+              resetKey={search}
+              itemKey={(row) => row.id}
+              isSelected={(row) => value === row.id}
+              onPick={(row) => select(row.id)}
+              optionClassName={({ active: isActive, selected: isSelected }) =>
+                `flex items-center justify-between px-3 text-body transition-colors ${isSelected ? "bg-selected-tint text-selected" : "text-fg hover:bg-hover"} ${isActive ? "ring-2 ring-inset ring-focus" : ""}`
+              }
+              renderOption={(row) => (
+                <>
+                  <span className="truncate" title={row.label}>
+                    {row.label}
+                  </span>
+                  {value === row.id && <Check className="h-4 w-4 flex-shrink-0 text-selected" />}
+                </>
+              )}
+            />
           </div>
         )}
       </div>

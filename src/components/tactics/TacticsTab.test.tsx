@@ -40,6 +40,8 @@ vi.mock("../../hooks/usePositionGroups", async () => {
 });
 
 vi.mock("react-i18next", () => ({
+  // The error banner pulls in utils/backendI18n -> i18n/index, which registers this plugin.
+  initReactI18next: { type: "3rdParty", init: () => undefined },
   useTranslation: () => ({
     t: (key: string, fallback?: string | Record<string, unknown>) => {
       if (key === "playerProfile.daysRemaining") {

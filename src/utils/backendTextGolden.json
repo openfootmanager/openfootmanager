@@ -1,0 +1,501 @@
+{
+  "cases": [
+    {
+      "name": "a message whose subject, body, sender and action label are keys with a plain param",
+      "kind": "message",
+      "input": {
+        "id": "board_expect_1",
+        "subject_key": "be.msg.boardExpect.subject",
+        "body_key": "be.msg.boardExpect.body",
+        "sender_key": "be.sender.boardOfDirectors",
+        "sender_role_key": "be.role.chairman",
+        "i18n_params": {
+          "team": "St. Pauli"
+        },
+        "actions": [
+          {
+            "id": "ack_objectives",
+            "label": "",
+            "label_key": "be.msg.boardExpect.actionAccept",
+            "action_type": "Acknowledge",
+            "resolved": false
+          }
+        ]
+      },
+      "expected": {
+        "subject": "St. Pauli — Season Objectives",
+        "body": "The board has set the following expectations for this season:\n\n• Finish in the top half of the table\n• Maintain financial stability\n• Develop young talent from the academy\n\nMeeting these objectives will strengthen your position. Failure to meet minimum expectations may result in a review of your tenure.\n\nWe trust in your abilities.",
+        "sender": "Board of Directors",
+        "sender_role": "Chairman",
+        "actions": [
+          {
+            "id": "ack_objectives",
+            "label": "Accept Objectives",
+            "options": []
+          }
+        ]
+      }
+    },
+    {
+      "name": "a name carrying an apostrophe, an ampersand and a dot is not mistaken for a key",
+      "kind": "message",
+      "input": {
+        "id": "transfer_offer_1",
+        "subject_key": "be.msg.transferOffer.subject",
+        "body_key": "be.msg.transferOffer.body",
+        "i18n_params": {
+          "player": "D'Arcy O'Neil & Sons",
+          "team": "St. Mirren F.C.",
+          "fee": "1250000"
+        }
+      },
+      "expected": {
+        "subject": "Incoming Offer for D'Arcy O'Neil & Sons",
+        "body": "St. Mirren F.C. have submitted an offer of €1.25M for D'Arcy O'Neil & Sons. Review the bid in the Transfers tab to accept or reject it.",
+        "sender": "",
+        "sender_role": "",
+        "actions": []
+      }
+    },
+    {
+      "name": "a money param is shown compact when three digits say it all",
+      "kind": "message",
+      "input": {
+        "id": "transfer_offer_2",
+        "subject_key": "be.msg.transferOffer.subject",
+        "body_key": "be.msg.transferOffer.body",
+        "i18n_params": {
+          "player": "A",
+          "team": "B",
+          "fee": "1700"
+        }
+      },
+      "expected": {
+        "subject": "Incoming Offer for A",
+        "body": "B have submitted an offer of €1.7K for A. Review the bid in the Transfers tab to accept or reject it.",
+        "sender": "",
+        "sender_role": "",
+        "actions": []
+      }
+    },
+    {
+      "name": "a money param that compact would round is shown exactly",
+      "kind": "message",
+      "input": {
+        "id": "transfer_offer_3",
+        "subject_key": "be.msg.transferOffer.subject",
+        "body_key": "be.msg.transferOffer.body",
+        "i18n_params": {
+          "player": "A",
+          "team": "B",
+          "fee": "800001"
+        }
+      },
+      "expected": {
+        "subject": "Incoming Offer for A",
+        "body": "B have submitted an offer of €800,001 for A. Review the bid in the Transfers tab to accept or reject it.",
+        "sender": "",
+        "sender_role": "",
+        "actions": []
+      }
+    },
+    {
+      "name": "a money param in whole millions drops the decimals",
+      "kind": "message",
+      "input": {
+        "id": "transfer_offer_4",
+        "subject_key": "be.msg.transferOffer.subject",
+        "body_key": "be.msg.transferOffer.body",
+        "i18n_params": {
+          "player": "A",
+          "team": "B",
+          "fee": "25000000"
+        }
+      },
+      "expected": {
+        "subject": "Incoming Offer for A",
+        "body": "B have submitted an offer of €25M for A. Review the bid in the Transfers tab to accept or reject it.",
+        "sender": "",
+        "sender_role": "",
+        "actions": []
+      }
+    },
+    {
+      "name": "a money param an old message saved already shortened keeps the figure it carries",
+      "kind": "message",
+      "input": {
+        "id": "transfer_offer_5",
+        "subject_key": "be.msg.transferOffer.subject",
+        "body_key": "be.msg.transferOffer.body",
+        "i18n_params": {
+          "player": "A",
+          "team": "B",
+          "fee": "€1.25M"
+        }
+      },
+      "expected": {
+        "subject": "Incoming Offer for A",
+        "body": "B have submitted an offer of €1.25M for A. Review the bid in the Transfers tab to accept or reject it.",
+        "sender": "",
+        "sender_role": "",
+        "actions": []
+      }
+    },
+    {
+      "name": "a negative money param keeps its sign",
+      "kind": "message",
+      "input": {
+        "id": "wage_over_budget_1",
+        "subject_key": "be.msg.wageOverBudget.subject",
+        "body_key": "be.msg.wageOverBudget.body",
+        "i18n_params": {
+          "weeklyWageBill": "-1500000",
+          "wageBudget": "0"
+        }
+      },
+      "expected": {
+        "subject": "Wage Bill Exceeds Budget",
+        "body": "Our weekly wage bill (-€1.5M) currently exceeds the allocated wage budget (€0).\n\nWhile we can sustain this in the short term, the board would prefer to see the wage bill brought under control.",
+        "sender": "",
+        "sender_role": "",
+        "actions": []
+      }
+    },
+    {
+      "name": "start and end are rendered as dates, and a plain param beside them is left alone",
+      "kind": "message",
+      "input": {
+        "id": "loan_agreed_1",
+        "subject_key": "be.msg.loanAgreed.subject",
+        "body_key": "be.msg.loanAgreed.bodyWithOption",
+        "i18n_params": {
+          "player": "P. Smith",
+          "parent": "North",
+          "borrower": "South",
+          "start": "2026-08-01",
+          "end": "2027-05-31",
+          "contribution": "50",
+          "fee": "4000000"
+        }
+      },
+      "expected": {
+        "subject": "Loan agreed: P. Smith",
+        "body": "P. Smith will move on loan from North to South from August 1, 2026 until May 31, 2027. South will cover 50% of the wages. Purchase option: €4M.",
+        "sender": "",
+        "sender_role": "",
+        "actions": []
+      }
+    },
+    {
+      "name": "a finishing position becomes the ordinal the template asks for",
+      "kind": "message",
+      "input": {
+        "id": "season_payout_1",
+        "subject_key": "be.msg.seasonPayout.subject",
+        "body_key": "be.msg.seasonPayout.body",
+        "i18n_params": {
+          "season": "2026",
+          "amount": "9000000",
+          "position": "21"
+        }
+      },
+      "expected": {
+        "subject": "Season 2026 Prize Money Awarded",
+        "body": "The board has confirmed a prize payout of €9M for your 21st-place league finish. The amount has been added to the club balance.",
+        "sender": "",
+        "sender_role": "",
+        "actions": []
+      }
+    },
+    {
+      "name": "the ordinal of a position ending 11, 12 and 13 is th",
+      "kind": "message",
+      "input": {
+        "id": "season_payout_2",
+        "subject_key": "be.msg.seasonPayout.subject",
+        "body_key": "be.msg.seasonPayout.body",
+        "i18n_params": {
+          "season": "2026",
+          "amount": "9000000",
+          "position": "12"
+        }
+      },
+      "expected": {
+        "subject": "Season 2026 Prize Money Awarded",
+        "body": "The board has confirmed a prize payout of €9M for your 12th-place league finish. The amount has been added to the club balance.",
+        "sender": "",
+        "sender_role": "",
+        "actions": []
+      }
+    },
+    {
+      "name": "a param an older message saved under its old name is read under the new one",
+      "kind": "message",
+      "input": {
+        "id": "wage_over_budget_2",
+        "subject_key": "be.msg.wageOverBudget.subject",
+        "body_key": "be.msg.wageOverBudget.body",
+        "i18n_params": {
+          "annualWages": "900000",
+          "wageBudget": "800000"
+        }
+      },
+      "expected": {
+        "subject": "Wage Bill Exceeds Budget",
+        "body": "Our weekly wage bill (€900K) currently exceeds the allocated wage budget (€800K).\n\nWhile we can sustain this in the short term, the board would prefer to see the wage bill brought under control.",
+        "sender": "",
+        "sender_role": "",
+        "actions": []
+      }
+    },
+    {
+      "name": "a param that is itself a key is resolved to its text",
+      "kind": "message",
+      "input": {
+        "id": "mood_report_1",
+        "subject_key": "be.msg.moodReport.subject",
+        "body_key": "be.msg.moodReport.body",
+        "i18n_params": {
+          "mood": "common.moods.excellent",
+          "avgMorale": "71",
+          "avgCondition": "88",
+          "affected": "3",
+          "count": "3"
+        }
+      },
+      "expected": {
+        "subject": "Dressing Room Report — Mood: Excellent",
+        "body": "Here is your weekly dressing room report:\n\n• Overall mood: Excellent (avg morale: 71)\n• Players in high spirits (80+): {{highCount}}\n• Players with low morale (<40): {{lowCount}}\n• Total squad: {{total}}",
+        "sender": "",
+        "sender_role": "",
+        "actions": []
+      }
+    },
+    {
+      "name": "a missing key falls back to the plain text the message carries",
+      "kind": "message",
+      "input": {
+        "id": "legacy_1",
+        "subject_key": "be.msg.thereIsNoSuchKey.subject",
+        "subject": "A plain subject",
+        "body": "A plain body.",
+        "sender": "The Chairman",
+        "sender_role": "Chairman"
+      },
+      "expected": {
+        "subject": "A plain subject",
+        "body": "A plain body.",
+        "sender": "The Chairman",
+        "sender_role": "Chairman",
+        "actions": []
+      }
+    },
+    {
+      "name": "a message with no keys is its plain text",
+      "kind": "message",
+      "input": {
+        "id": "plain_1",
+        "subject": "Hello",
+        "body": "Body text.",
+        "sender": "Someone"
+      },
+      "expected": {
+        "subject": "Hello",
+        "body": "Body text.",
+        "sender": "Someone",
+        "sender_role": "",
+        "actions": []
+      }
+    },
+    {
+      "name": "a placeholder the params do not supply is left as the frontend leaves it",
+      "kind": "message",
+      "input": {
+        "id": "transfer_offer_6",
+        "subject_key": "be.msg.transferOffer.subject",
+        "body_key": "be.msg.transferOffer.body",
+        "i18n_params": {
+          "player": "A"
+        }
+      },
+      "expected": {
+        "subject": "Incoming Offer for A",
+        "body": "{{team}} have submitted an offer of {{fee}} for A. Review the bid in the Transfers tab to accept or reject it.",
+        "sender": "",
+        "sender_role": "",
+        "actions": []
+      }
+    },
+    {
+      "name": "a choice action resolves its label and each option's label and description",
+      "kind": "message",
+      "input": {
+        "id": "morale_talk_1",
+        "subject_key": "be.msg.transferOffer.subject",
+        "body_key": "be.msg.transferOffer.body",
+        "i18n_params": {
+          "player": "A",
+          "team": "B",
+          "fee": "1000"
+        },
+        "actions": [
+          {
+            "id": "respond",
+            "label": "",
+            "label_key": "be.msg.playerEvent.respond",
+            "action_type": {
+              "ChooseOption": {
+                "options": [
+                  {
+                    "id": "encourage",
+                    "label": "",
+                    "description": "",
+                    "label_key": "be.msg.playerEvent.options.moraleCrisis.encourage.label",
+                    "description_key": "be.msg.playerEvent.options.moraleCrisis.encourage.description"
+                  },
+                  {
+                    "id": "plain",
+                    "label": "Plain label",
+                    "description": "Plain description"
+                  }
+                ]
+              }
+            },
+            "resolved": false
+          },
+          {
+            "id": "view_transfers",
+            "label": "Open",
+            "action_type": {
+              "NavigateTo": {
+                "route": "/dashboard?tab=Transfers"
+              }
+            },
+            "resolved": true
+          }
+        ]
+      },
+      "expected": {
+        "subject": "Incoming Offer for A",
+        "body": "B have submitted an offer of €1K for A. Review the bid in the Transfers tab to accept or reject it.",
+        "sender": "",
+        "sender_role": "",
+        "actions": [
+          {
+            "id": "respond",
+            "label": "Respond",
+            "options": [
+              {
+                "id": "encourage",
+                "label": "Encourage them",
+                "description": "Show empathy and encourage the player to keep working hard."
+              },
+              {
+                "id": "plain",
+                "label": "Plain label",
+                "description": "Plain description"
+              }
+            ]
+          },
+          {
+            "id": "view_transfers",
+            "label": "Open",
+            "options": []
+          }
+        ]
+      }
+    },
+    {
+      "name": "an old player-event message with no label keys gets them from its id and option ids",
+      "kind": "message",
+      "input": {
+        "id": "morale_talk_p1",
+        "subject": "Talk",
+        "body": "Body.",
+        "actions": [
+          {
+            "id": "respond",
+            "label": "",
+            "action_type": {
+              "ChooseOption": {
+                "options": [
+                  {
+                    "id": "encourage",
+                    "label": "",
+                    "description": ""
+                  },
+                  {
+                    "id": "x",
+                    "label": "",
+                    "description": ""
+                  }
+                ]
+              }
+            },
+            "resolved": false
+          }
+        ]
+      },
+      "expected": {
+        "subject": "Talk",
+        "body": "Body.",
+        "sender": "",
+        "sender_role": "",
+        "actions": [
+          {
+            "id": "respond",
+            "label": "Respond",
+            "options": [
+              {
+                "id": "encourage",
+                "label": "Encourage them",
+                "description": "Show empathy and encourage the player to keep working hard."
+              },
+              {
+                "id": "x",
+                "label": "",
+                "description": ""
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "a news article's headline, body and source resolve with a money param",
+      "kind": "article",
+      "input": {
+        "id": "news_1",
+        "headline_key": "be.news.majorTransfer.headline",
+        "body_key": "be.news.majorTransfer.body",
+        "source_key": "be.source.leagueChronicle",
+        "i18n_params": {
+          "player": "J. Doe",
+          "fromTeam": "North",
+          "toTeam": "South",
+          "fee": "12500000"
+        }
+      },
+      "expected": {
+        "headline": "J. Doe Completes Move to South",
+        "body": "South have completed the signing of J. Doe from North for €12.5M.",
+        "source": "League Chronicle"
+      }
+    },
+    {
+      "name": "a news article with no keys is its plain text",
+      "kind": "article",
+      "input": {
+        "id": "news_2",
+        "headline": "Plain headline",
+        "body": "Plain body.",
+        "source": "Wire"
+      },
+      "expected": {
+        "headline": "Plain headline",
+        "body": "Plain body.",
+        "source": "Wire"
+      }
+    }
+  ]
+}

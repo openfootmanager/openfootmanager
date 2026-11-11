@@ -44,6 +44,46 @@ function renderTable(props: Partial<Parameters<typeof DataTable<Player>>[0]> = {
 
 describe("DataTable", () => {
   /**
+   * Given a column marked `wrap` and a club with a long name
+   * When the table is drawn
+   * Then that cell may wrap and break a long word, and so is not held to one line; a cell that
+   *      is not marked stays on one line. jsdom does no layout, so the classes are what is checked.
+   */
+  it("lets a wrap column's cells wrap and keeps every other cell on one line", () => {
+    renderTable({
+      columns: [{ ...COLUMNS[0], wrap: true }, COLUMNS[1]],
+      rows: [{ ...PLAYERS[0], name: "Northbridge Athletic Football Club" }],
+    });
+
+    const nameCell = screen.getByText("Northbridge Athletic Football Club").closest("td");
+    expect(nameCell).toHaveClass("whitespace-normal", "[overflow-wrap:anywhere]");
+    expect(nameCell).not.toHaveClass("whitespace-nowrap");
+    expect(screen.getByText("31").closest("td")).toHaveClass("whitespace-nowrap");
+  });
+
+  /**
+   * Given a table to choose a row from, with one row chosen
+   * When it is drawn
+   * Then each row's open button says whether it is the chosen one (`aria-pressed`), so the choice
+   *      is not a colour alone; a table that does not choose sets no `aria-pressed`.
+   */
+  it("says which row is chosen from its open button", () => {
+    renderTable({ onOpen: vi.fn(), rowPressed: (player) => player.id === "p2" });
+
+    expect(screen.getByRole("button", { name: "Navarro" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: "Anderson" })).toHaveAttribute(
+      "aria-pressed",
+      "false",
+    );
+  });
+
+  it("sets no aria-pressed on a table that does not choose", () => {
+    renderTable({ onOpen: vi.fn() });
+
+    expect(screen.getByRole("button", { name: "Anderson" })).not.toHaveAttribute("aria-pressed");
+  });
+
+  /**
    * Given a table whose cells carry text only a screen reader reads (a starter's "Starting XI" on
    *       Squad's names, the action column's header), which `sr-only` places absolutely
    * When the table is drawn

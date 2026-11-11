@@ -206,6 +206,53 @@ impl DefinitionError {
     }
 }
 
+/// A club as competition selectors see it: who it is, which football nation it plays under, and the
+/// reputation it is ranked by.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(super) struct FieldClub {
+    pub(super) id: String,
+    /// The football nation: [`team_country`] of the built club, and for an authored one the same
+    /// decision taken on its declared country (see `competition_field_of_package`).
+    pub(super) nation: String,
+    pub(super) reputation: u32,
+    /// A club the package gave no id: it is an entrant and has a nation, but no id an author could
+    /// write in a participant list names it, so it is not among the ids a definition may reference.
+    pub(super) anonymous: bool,
+}
+
+/// Everything competition selectors read from a world, and nothing else: its clubs and its region
+/// catalog. Validation and construction both resolve participants from this one projection, so the
+/// verdict on a package can be reached without generating its squads, and cannot differ from the
+/// construction's, because there is one resolver and one input.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CompetitionField {
+    pub(super) clubs: Vec<FieldClub>,
+    pub(super) regions: Vec<super::WorldRegionDefinition>,
+}
+
+impl CompetitionField {
+    pub(super) fn new(clubs: Vec<FieldClub>, regions: Vec<super::WorldRegionDefinition>) -> Self {
+        Self { clubs, regions }
+    }
+
+    /// The field of a built world: its clubs as they are, and its region catalog.
+    pub fn of_world(world: &super::WorldData) -> Self {
+        Self::new(
+            world
+                .teams
+                .iter()
+                .map(|team| FieldClub {
+                    id: team.id.clone(),
+                    nation: team_country(team).to_string(),
+                    reputation: team.reputation,
+                    anonymous: false,
+                })
+                .collect(),
+            world.regions.clone(),
+        )
+    }
+}
+
 /// The world facts a definition is validated against.
 pub struct WorldValidationContext<'a> {
     pub team_ids: HashSet<&'a str>,
@@ -215,21 +262,40 @@ pub struct WorldValidationContext<'a> {
 
 impl<'a> WorldValidationContext<'a> {
     pub fn from_world(world: &'a super::WorldData) -> Self {
-        let team_ids = world.teams.iter().map(|team| team.id.as_str()).collect();
-        let mut country_codes: HashSet<&'a str> = world
-            .teams
-            .iter()
-            .map(|team| {
-                if team.football_nation.is_empty() {
-                    team.country.as_str()
-                } else {
-                    team.football_nation.as_str()
-                }
-            })
-            .collect();
-        country_codes.extend(
+        Self::from_parts(
             world
-                .regions
+                .teams
+                .iter()
+                .map(|team| (Some(team.id.as_str()), team_country(team))),
+            &world.regions,
+        )
+    }
+
+    pub(super) fn from_field(field: &'a CompetitionField) -> Self {
+        Self::from_parts(
+            field.clubs.iter().map(|club| {
+                (
+                    (!club.anonymous).then_some(club.id.as_str()),
+                    club.nation.as_str(),
+                )
+            }),
+            &field.regions,
+        )
+    }
+
+    /// `clubs` as (the id a definition may reference, if any, and the football nation).
+    fn from_parts(
+        clubs: impl Iterator<Item = (Option<&'a str>, &'a str)>,
+        regions: &'a [super::WorldRegionDefinition],
+    ) -> Self {
+        let mut team_ids = HashSet::new();
+        let mut country_codes: HashSet<&'a str> = HashSet::new();
+        for (id, nation) in clubs {
+            team_ids.extend(id);
+            country_codes.insert(nation);
+        }
+        country_codes.extend(
+            regions
                 .iter()
                 .flat_map(|region| region.country_codes.iter().map(String::as_str)),
         );
@@ -241,11 +307,8 @@ impl<'a> WorldValidationContext<'a> {
         for nation in crate::nations::all_nations() {
             country_codes.insert(nation.code);
         }
-        let mut region_ids: HashSet<&'a str> = world
-            .regions
-            .iter()
-            .map(|region| region.id.as_str())
-            .collect();
+        let mut region_ids: HashSet<&'a str> =
+            regions.iter().map(|region| region.id.as_str()).collect();
         // Same source as the country loop above. Today this adds nothing —
         // every `ADDITIONAL_NATIONS` region already appears in the World Cup
         // pool — but keeping the two loops on one catalog means a nation added
@@ -678,10 +741,10 @@ pub enum ReputationBasis<'a> {
 }
 
 impl ReputationBasis<'_> {
-    fn of(&self, team: &Team) -> u32 {
+    fn of(&self, club: &FieldClub) -> u32 {
         match self {
-            Self::Stored => team.reputation,
-            Self::Authored(authored) => authored.get(&team.id).copied().unwrap_or(team.reputation),
+            Self::Stored => club.reputation,
+            Self::Authored(authored) => authored.get(&club.id).copied().unwrap_or(club.reputation),
         }
     }
 }
@@ -701,11 +764,21 @@ pub fn validate_definitions_for_world_ranked(
     world: &super::WorldData,
     basis: ReputationBasis<'_>,
 ) -> Vec<DefinitionError> {
-    let mut errors = validate_definitions(file, &WorldValidationContext::from_world(world));
+    validate_definitions_for_field(file, &CompetitionField::of_world(world), basis)
+}
+
+/// [`validate_definitions_for_world_ranked`] on the projection, so a package can be validated without
+/// building the world its clubs would make.
+pub fn validate_definitions_for_field(
+    file: &CompetitionDefinitionFile,
+    field: &CompetitionField,
+    basis: ReputationBasis<'_>,
+) -> Vec<DefinitionError> {
+    let mut errors = validate_definitions(file, &WorldValidationContext::from_field(field));
     if !errors.is_empty() {
         return errors;
     }
-    let participants = resolve_definition_participants(file, world, basis);
+    let participants = resolve_definition_participants(file, field, basis);
     for (index, competition) in file.competitions.iter().enumerate() {
         if competition.participants.selector.is_none() {
             continue; // Explicit lists were checked by validate_format.
@@ -722,6 +795,10 @@ pub fn validate_definitions_for_world_ranked(
     }
     errors
 }
+
+/// A participant list naming a club the world does not define. `pub(super)`: a patch package
+/// leaves exactly this one to its stack (`package::validate_references`).
+pub(super) const UNKNOWN_TEAM: &str = "be.error.competitionDef.unknownTeam";
 
 fn validate_participants(
     competition: &CompetitionDefinition,
@@ -763,8 +840,7 @@ fn validate_explicit_participants(
     for team_id in explicit {
         if !ctx.team_ids.contains(team_id.as_str()) {
             errors.push(
-                DefinitionError::new("be.error.competitionDef.unknownTeam", &competition.id)
-                    .with("team", team_id.clone()),
+                DefinitionError::new(UNKNOWN_TEAM, &competition.id).with("team", team_id.clone()),
             );
         }
     }
@@ -965,9 +1041,9 @@ fn team_country(team: &Team) -> &str {
 }
 
 /// Country code -> region id, taken from the world's region catalog.
-fn country_to_region(world: &super::WorldData) -> HashMap<String, String> {
+fn country_to_region(field: &CompetitionField) -> HashMap<String, String> {
     let mut map = HashMap::new();
-    for region in &world.regions {
+    for region in &field.regions {
         for country in &region.country_codes {
             map.insert(country.clone(), region.id.clone());
         }
@@ -1008,7 +1084,7 @@ fn dependency_ids(def: &CompetitionDefinition) -> Vec<String> {
 
 fn resolve_participants(
     def: &CompetitionDefinition,
-    world: &super::WorldData,
+    field: &CompetitionField,
     basis: ReputationBasis<'_>,
     region_by_country: &HashMap<String, String>,
     resolved: &HashMap<String, Vec<String>>,
@@ -1032,10 +1108,10 @@ fn resolve_participants(
     match selector.kind {
         SelectorKind::TopByReputation => {
             let country = selector.country.clone().unwrap_or_default();
-            let mut clubs: Vec<&Team> = world
-                .teams
+            let mut clubs: Vec<&FieldClub> = field
+                .clubs
                 .iter()
-                .filter(|team| team_country(team) == country)
+                .filter(|team| team.nation == country)
                 .filter(|team| !excluded.contains(&team.id))
                 .collect();
             clubs.sort_by(|a, b| basis.of(b).cmp(&basis.of(a)).then(a.id.cmp(&b.id)));
@@ -1047,22 +1123,22 @@ fn resolve_participants(
         }
         SelectorKind::AllInCountry => {
             let country = selector.country.clone().unwrap_or_default();
-            world
-                .teams
+            field
+                .clubs
                 .iter()
-                .filter(|team| team_country(team) == country)
+                .filter(|team| team.nation == country)
                 .filter(|team| !excluded.contains(&team.id))
                 .map(|team| team.id.clone())
                 .collect()
         }
         SelectorKind::AllInRegion => {
             let region = selector.region.clone().unwrap_or_default();
-            world
-                .teams
+            field
+                .clubs
                 .iter()
                 .filter(|team| {
                     region_by_country
-                        .get(team_country(team))
+                        .get(team.nation.as_str())
                         .is_some_and(|r| r == &region)
                 })
                 .filter(|team| !excluded.contains(&team.id))
@@ -1076,11 +1152,11 @@ fn resolve_participants(
             // standings at rollover (see
             // `end_of_season::continental_qualified_entrants`).
             let source = selector.source_competition.clone().unwrap_or_default();
-            let mut clubs: Vec<&Team> = resolved
+            let mut clubs: Vec<&FieldClub> = resolved
                 .get(&source)
                 .map(|ids| {
                     ids.iter()
-                        .filter_map(|id| world.teams.iter().find(|team| &team.id == id))
+                        .filter_map(|id| field.clubs.iter().find(|team| &team.id == id))
                         .collect()
                 })
                 .unwrap_or_default();
@@ -1168,12 +1244,12 @@ fn build_competition(
     Some(competition)
 }
 
-fn resolve_definition_participants(
+pub(super) fn resolve_definition_participants(
     file: &CompetitionDefinitionFile,
-    world: &super::WorldData,
+    field: &CompetitionField,
     basis: ReputationBasis<'_>,
 ) -> HashMap<String, Vec<String>> {
-    let region_by_country = country_to_region(world);
+    let region_by_country = country_to_region(field);
 
     // Resolve participant lists in dependency order (selectors that read other
     // competitions resolve after their sources). Validation has already ruled
@@ -1187,7 +1263,7 @@ fn resolve_definition_participants(
                 .iter()
                 .all(|dep| resolved.contains_key(dep));
             if ready {
-                let ids = resolve_participants(def, world, basis, &region_by_country, &resolved);
+                let ids = resolve_participants(def, field, basis, &region_by_country, &resolved);
                 resolved.insert(def.id.clone(), ids);
                 progressed = true;
                 false
@@ -1202,7 +1278,7 @@ fn resolve_definition_participants(
     // Any unresolved (e.g. a dependency pointing outside the file) resolve
     // ignoring the missing dependency, so nothing is silently dropped.
     for def in pending {
-        let ids = resolve_participants(def, world, basis, &region_by_country, &resolved);
+        let ids = resolve_participants(def, field, basis, &region_by_country, &resolved);
         resolved.insert(def.id.clone(), ids);
     }
 
@@ -1234,7 +1310,7 @@ pub fn resolve_definitions_ranked(
     season: u32,
     game_start: DateTime<Utc>,
 ) -> Vec<League> {
-    let resolved = resolve_definition_participants(file, world, basis);
+    let resolved = resolve_definition_participants(file, &CompetitionField::of_world(world), basis);
 
     // Build in authoring order so priorities line up predictably.
     file.competitions

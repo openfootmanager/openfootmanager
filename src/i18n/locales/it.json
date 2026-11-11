@@ -102,7 +102,6 @@
       "option": "{{count}} stagioni",
       "recommended": "Consigliato"
     },
-    "installedPackages": "Pacchetti installati",
     "installPackage": "Installa pacchetto (.ofm)",
     "noInstalledPackages": "Nessun pacchetto installato",
     "removePackage": "Rimuovi",
@@ -322,6 +321,56 @@
     "subtitle": "Seleziona la squadra che vuoi allenare",
     "confirming": "Conferma in corso...",
     "manage": "Allena {{name}}",
+    "steps": {
+      "label": "Passaggi della nuova carriera",
+      "manager": "Allenatore",
+      "world": "Mondo",
+      "generation": "Generazione",
+      "club": "Club",
+      "done": "completato"
+    },
+    "back": "Torna alla generazione del mondo",
+    "simulation": "Simulazione",
+    "manageNone": "Allena",
+    "scope": {
+      "title": "Cosa simula il mondo",
+      "subtitle": "Scegli quali regioni e competizioni il gioco simula per intero. Più ce ne sono, più ogni giorno richiede tempo.",
+      "sectionStart": "1 · Da dove parti",
+      "sectionRegions": "2 · Regioni simulate",
+      "sectionCompetitions": "3 · Competizioni",
+      "regionMeta": "{{countries}} · {{clubs}} club",
+      "simulate": "Simula {{name}}",
+      "needs": "Richiede {{regions}}",
+      "add": "Aggiungi {{regions}}",
+      "groupCount": "{{on}} di {{total}}",
+      "groupSimulated": "{{on}} di {{total}} simulate",
+      "needOne": "Attiva almeno una competizione.",
+      "summary": "{{regions}} regioni · {{competitions}} competizioni simulate",
+      "clubs": "{{clubs}} club nelle regioni simulate",
+      "apply": "Applica"
+    },
+    "rail": {
+      "label": "Paesi e campionati",
+      "countries": "Paesi"
+    },
+    "table": {
+      "label": "Club",
+      "club": "Club",
+      "transfers": "Trasferimenti",
+      "wages": "Stipendi / sett.",
+      "stadium": "Stadio"
+    },
+    "card": {
+      "label": "Club scelto",
+      "emptyTitle": "Nessun club scelto",
+      "emptyHint": "Scegli un club dalla lista per vederne la rosa, i budget e ciò che si aspetta la dirigenza.",
+      "boardExpects": "La dirigenza si aspetta",
+      "transferBudget": "Budget trasferimenti",
+      "wageBudget": "Budget stipendi",
+      "balance": "Saldo",
+      "stadium": "Stadio",
+      "founded": "fondato nel {{year}}"
+    },
     "reputation": "Reputazione",
     "squad": "Rosa",
     "finances": "Finanze",
@@ -331,21 +380,22 @@
     "repStrong": "Forte",
     "repAverage": "Media",
     "repDeveloping": "In crescita",
+    "expectations": {
+      "title": "Lottare per il titolo",
+      "continental": "Puntare alle coppe continentali",
+      "topHalf": "Prima metà della classifica",
+      "midTable": "Metà classifica",
+      "survival": "Evitare la retrocessione"
+    },
     "failedToSelectTeam": "Selezione della squadra non riuscita: {{error}}",
     "homeRegion": "Regione di origine",
     "homeCountry": "Paese di origine",
-    "allCountries": "Tutti i paesi",
-    "simulationScope": "Ambito di simulazione",
     "otherClubs": "Altri club",
     "searchClubs": "Cerca club…",
     "clubCount": "{{n}} club",
     "noClubsMatch": "Nessun club corrisponde alla ricerca.",
-    "simulatedRegions": "Regioni simulate",
-    "simulatedCompetitions": "Competizioni simulate",
     "homeBadge": "Origine",
-    "yourClub": "il tuo club",
     "yourClubBadge": "Il tuo club",
-    "requiresRegions": "Richiede {{regions}}",
     "selectedClub": "Club selezionato",
     "formation": "Formazione",
     "overall": "Valutazione generale",
@@ -356,7 +406,6 @@
     "clubCompetitionsAlwaysSimulated": "Le competizioni del tuo club vengono sempre simulate, anche se disattivi altre regioni o tornei.",
     "selectClubPrompt": "Seleziona un club per vedere rosa e competizioni.",
     "playersCount": "{{count}} giocatori",
-    "scopeSummary": "Verranno caricate {{regionsCount}} regioni simulate e {{competitionsCount}} competizioni simulate.",
     "regionLabels": {
       "north-america": "Nord America",
       "central-america": "America Centrale",
@@ -379,13 +428,6 @@
       "InternationalClub": "Competizione internazionale per club",
       "InternationalNation": "Competizione internazionale per nazionali",
       "FriendlyCup": "Coppa amichevole"
-    },
-    "scopeMessages": {
-      "homeRegionAlwaysActive": "La tua regione giocabile resta sempre attiva.",
-      "regionRequiredByCompetition": "{{competition}} fa parte del calendario di {{club}}, quindi {{region}} deve restare attiva.",
-      "regionRemovedDisablesCompetitions": "{{region}} è stata rimossa dall'ambito di simulazione, quindi anche le competizioni dipendenti sono state disattivate.",
-      "clubCompetitionLocked": "{{competition}} è nel calendario di {{club}} e verrà sempre simulata.",
-      "autoEnabledRegions": "{{competition}} richiede {{regions}}, quindi quelle regioni sono state attivate automaticamente."
     }
   },
   "youthAcademy": {
@@ -423,6 +465,12 @@
       "B": "B"
     },
     "ordinal": {
+      "place": {
+        "one": "{{n}}ª",
+        "two": "{{n}}ª",
+        "few": "{{n}}ª",
+        "other": "{{n}}ª"
+      },
       "one": "{{n}}º",
       "two": "{{n}}º",
       "few": "{{n}}º",
@@ -440,12 +488,6 @@
     "listViewTable": "Tabella",
     "listViewCards": "Schede",
     "noResults": "Nessun risultato trovato.",
-    "place": {
-      "1": "1°",
-      "2": "2°",
-      "3": "3°",
-      "other": "{{n}}°"
-    },
     "pts": "Pt",
     "playedFull": "Giocate",
     "wonFull": "Vinte",
@@ -1133,6 +1175,8 @@
     "clubBalance": "Bilancio club",
     "wageBudget": "Budget stipendi",
     "transferBudget": "Budget trasferimenti",
+    "committedTransferFees": "Spese di trasferimento impegnate",
+    "availableTransferBudget": "Budget trasferimenti disponibile",
     "seasonIncome": "Entrate stagionali",
     "seasonExpenses": "Spese stagionali",
     "moneyIn": "Entrate di cassa",
@@ -1657,6 +1701,7 @@
       "league": "Lega di {{country}}",
       "firstDivision": "Prima Divisione di {{country}}",
       "secondDivision": "Seconda Divisione di {{country}}",
+      "tierDivision": "{{tier}}ª Divisione di {{country}}",
       "nationalCup": "Coppa di {{country}}",
       "continentalChampionsCup": "Coppa dei Campioni Continentale",
       "premierDivision": "Prima Divisione"
@@ -1680,6 +1725,53 @@
     }
   },
   "playerProfile": {
+    "sections": "Sezioni del profilo",
+    "attributesTab": {
+      "key": "Attributo chiave",
+      "average": "media {{value}}",
+      "weight": "peso {{count}} su 3",
+      "scouted": "Osservato"
+    },
+    "overview": {
+      "axes": {
+        "pace": "VEL",
+        "shooting": "TIR",
+        "dribbling": "DRI",
+        "passing": "PAS",
+        "vision": "VIS",
+        "composure": "FRE",
+        "strength": "FOR",
+        "aerial": "AER",
+        "handling": "PRE",
+        "reflexes": "RIF",
+        "agility": "AGI",
+        "stamina": "RES"
+      },
+      "now": "Adesso",
+      "details": "Dettagli",
+      "previousMatches": "Partite precedenti",
+      "allMatches": "Tutte le partite",
+      "traits": "Caratteristiche",
+      "born": "Nascita",
+      "squadRole": "Ruolo in rosa",
+      "squadSenior": "Prima squadra",
+      "squadYouth": "Settore giovanile",
+      "contractUntil": "fino al {{date}}",
+      "keyFor": "Fondamentale per un {{position}}",
+      "radarLabel": "Radar degli attributi: {{values}}",
+      "seasonExtras": "Disciplina e porte inviolate"
+    },
+    "overall": "Complessivo",
+    "ratingUnknown": "Il tuo club non conosce la sua valutazione",
+    "retired": "Ritirato",
+    "retiredOn": "Ritirato il {{date}}",
+    "lastClub": "Ultimo club: {{club}}",
+    "tabs": {
+      "overview": "Panoramica",
+      "attributes": "Attributi",
+      "career": "Carriera",
+      "contract": "Contratto"
+    },
     "contractInfo": "Contratto e info",
     "dateOfBirth": "Data di nascita",
     "noContract": "Nessun contratto",
@@ -1693,6 +1785,7 @@
     "renewalLength": "Durata del contratto",
     "renewalSubmit": "Invia offerta",
     "renewalInvalidWage": "Inserisci uno stipendio settimanale valido",
+    "renewalMinimumYears": "Durata minima del contratto per il rinnovo (anni): {{years}}.",
     "renewalBudgetWarning": "L'offerta supera il limite di pressione salariale fissato dalla dirigenza",
     "renewalAccepted": "Offerta accettata",
     "renewalRejected": "Offerta rifiutata",
@@ -2765,6 +2858,7 @@
       "critical": "Critico"
     },
     "error": {
+      "taskJoinFailed": "La simulazione si è interrotta inaspettatamente. Carica il tuo ultimo salvataggio e riprova.",
       "autoSave": {
         "failed": "Il salvataggio automatico non è riuscito a salvare la partita. I progressi dall'ultimo salvataggio non sono ancora salvati: salva tu stesso e controlla che ci sia spazio libero sul disco."
       },
@@ -3009,6 +3103,7 @@
         "insufficientFunds": "Fondi insufficienti",
         "buyerCannotAffordFee": "Il club acquirente non può più permettersi questo prezzo, quindi l'affare non può concludersi.",
         "transferBudgetTooLow": "Il budget trasferimenti è troppo basso",
+        "transferBudgetCommitted": "Questa cifra supera il budget trasferimenti disponibile dopo aver sottratto gli importi già impegnati negli accordi conclusi.",
         "playerNotOwnedByUser": "Giocatore non trovato o non appartiene al tuo club",
         "offerNotPending": "Offerta non trovata o non più in sospeso",
         "talksBrokenOff": "Questo club ha chiuso la trattativa per questo giocatore. Riprova più tardi.",
@@ -3031,6 +3126,7 @@
         "playerNotOwnedByClub": "Il giocatore non appartiene al tuo club",
         "playerNotFreeAgent": "Il giocatore non è svincolato",
         "unableToCalculateContractEndDate": "Impossibile calcolare la nuova data di fine contratto",
+        "renewalDoesNotExtend": "Il contratto rinnovato deve scadere dopo quello attuale.",
         "playerHasNoActiveContract": "Il giocatore non ha un contratto attivo",
         "playerOnActiveLoan": "Il giocatore è attualmente in prestito e il contratto non può essere risolto prima della fine del prestito",
         "terminationWouldLeaveMatchdaySquadShort": "Rescindere questo contratto lascerebbe la tua rosa senza la possibilità di schierare un undici nel giorno della partita",
@@ -3210,7 +3306,7 @@
       "seasonPayout": {
         "subject": "Stagione {{season}} — Premio assegnato",
         "body": "Il consiglio ha confermato un premio di {{amount}} per il tuo {{position}}º posto in campionato. L'importo è stato aggiunto al saldo del club.",
-        "ledgerDescription": "Premio stagione {{season}} per il {{position}}{{suffix}} posto"
+        "ledgerDescription": "Premio stagione {{season}} per il {{ordinal}} posto"
       },
       "seasonReview": {
         "subject": "Bilancio della Stagione {{season}}",
@@ -3662,6 +3758,10 @@
         "body": "Il prestito concordato di {{player}} dal {{parent}} al {{borrower}}, previsto dal {{start}}, non può avere luogo: il giocatore non è più sotto contratto con il {{parent}}.",
         "bodyRequirementNotMet": "Il prestito concordato di {{player}} dal {{parent}} al {{borrower}} non è potuto partire il {{start}}: una delle condizioni alle quali era stato concordato, come lo spazio nel monte ingaggi del {{borrower}} o la durata del contratto del giocatore, non è più rispettata."
       },
+      "talksClosedBySale": {
+        "subject": "Ingaggiato altrove: {{player}}",
+        "body": "Il {{buyer}} ha ingaggiato {{player}} per {{fee}}. Le tue trattative aperte per lui sono state ritirate."
+      },
       "loanOffer": {
         "subject": "Offerta di prestito per {{player}}",
         "body": "{{team}} vuole prendere {{player}} in prestito fino al {{endDate}} e coprire il {{wageContribution}}% dello stipendio. Opzione di riscatto: {{buyOption}}. Controlla l'offerta nella scheda Trasferimenti.",
@@ -3872,7 +3972,9 @@
       "package": {
         "countryWithoutRegion": "Questo pacchetto definisce il paese \"{{name}}\" ({{code}}) fuori dall'elenco dei paesi del gioco e non lo colloca in nessuna confederazione, quindi i suoi club sono archiviati in Europa. Assegnagli una confederazione.",
         "freeAgentFieldIgnored": "Il giocatore «{{id}}» non ha un club, quindi è svincolato e senza contratto: «{{field}}» viene ignorato. Assegnagli un club per usarlo, oppure rimuovi il campo.",
-        "repeatedNamePool": "Il gruppo di nomi di {{country}} è già stato dato in {{first}}; quello di questo file lo sostituisce. Tieni solo uno dei due, oppure assegnali a paesi diversi."
+        "repeatedNamePool": "Il gruppo di nomi di {{country}} è già stato dato in {{first}}; quello di questo file lo sostituisce. Tieni solo uno dei due, oppure assegnali a paesi diversi.",
+        "patchClubRefsUnverified": "Questa patch cita club che non definisce. Da sola non può distinguere i club del suo database di base dagli errori, quindi qui non sono stati controllati. Il gioco li controlla quando la patch viene impilata sulla sua base.",
+        "namePoolIncomplete": "Il gruppo di nomi di {{country}} ha nomi ma non cognomi, o cognomi ma non nomi, quindi non viene usato: i giocatori di {{country}} ricevono i nomi del gioco. Dagli entrambi."
       }
     }
   },
@@ -4094,6 +4196,12 @@
     "winRate": "Percentuale vittorie"
   },
   "worldEditor": {
+    "previewPlaceholder": {
+      "team": "Nuova squadra",
+      "player": "Nuovo giocatore",
+      "competition": "Nuova competizione"
+    },
+    "estimatedRating": "stim.",
     "positionGroupFilter": {
       "Goalkeeper": "Tutti i portieri",
       "Defender": "Tutti i difensori",
@@ -4106,9 +4214,43 @@
     "positionFilterBySpecific": "Ruolo specifico",
     "showingEntries": "Mostrati {{shown}} di {{total}}",
     "title": "Editor Mondo",
-    "newPackage": "Nuovo Mondo",
-    "openPackageFile": "Apri file .ofm",
-    "openPackageFolder": "Apri cartella",
+    "home": {
+      "subtitle": "Crea e modifica mondi .ofm",
+      "newWorld": "Nuovo mondo",
+      "openFile": "Apri file .ofm",
+      "openFolder": "Apri cartella",
+      "examples": "Parti da un esempio",
+      "backToMenu": "Torna al menu principale",
+      "yourWorlds": "I tuoi mondi",
+      "show": "Mostra",
+      "filterAll": "Tutti",
+      "filterProjects": "Progetti",
+      "filterInstalled": "Installati",
+      "search": "Cerca mondi",
+      "tableLabel": "Mondi",
+      "colWorld": "Mondo",
+      "colKind": "Tipo",
+      "colClubs": "Club",
+      "colPlayers": "Giocatori",
+      "colOpened": "Ultima apertura",
+      "colCheck": "Ultimo controllo",
+      "colAction": "Azioni",
+      "kindProject": "Progetto",
+      "kindInstalled": "Installato",
+      "installedVersion": "Installato · v{{version}}",
+      "noIssues": "Nessun problema",
+      "notChecked": "Non controllato",
+      "unreadable": "Non leggibile",
+      "open": "Apri",
+      "editCopy": "Modifica una copia",
+      "openNamed": "Apri {{name}}",
+      "editCopyNamed": "Modifica una copia di {{name}}",
+      "resultCount": "{{count}} mondi mostrati",
+      "libraryFailed": "Impossibile leggere la libreria dei mondi. I tuoi progetti recenti sono elencati senza i totali.",
+      "libraryFailedEmpty": "Nessun mondo è elencato perché non è stato possibile leggere la libreria.",
+      "installedNote": "I pacchetti installati si aprono come copia modificabile, così quello con cui giochi resta com'è.",
+      "emptyLibrary": "Ancora nessun mondo. Inizia con Nuovo mondo, apri un file .ofm o una cartella, oppure parti da un esempio."
+    },
     "metadata": "Panoramica",
     "teams": "Squadre ({{count}})",
     "addTeam": "Aggiungi Squadra",
@@ -4273,10 +4415,6 @@
       "allInRegion": "Tutti nella regione",
       "championsOf": "Campioni di"
     },
-    "homeSubtitle": "Crea club, giocatori e tornei da zero. Personalizza loghi, colori e statistiche — poi condividi il tuo mondo con la community.",
-    "newPackageDesc": "Crea un nuovo mondo da zero",
-    "openPackageFileDesc": "Apri un file di pacchetto .ofm esistente",
-    "openPackageFolderDesc": "Apri una cartella di progetto mondo esistente",
     "openPackageFileInvalid": "Seleziona un file di pacchetto .ofm valido",
     "noItemSelected": "Seleziona un elemento dall'elenco o fai clic su Aggiungi",
     "issuesBadge": "{{count}} problema/i",
@@ -4337,9 +4475,7 @@
     "worldDesc": "Descrizione",
     "createWorld": "Crea mondo",
     "creating": "Creazione…",
-    "startFromExample": "Inizia dall'esempio",
     "startFromExampleDesc": "Mini-lega a 4 squadre — ottima per imparare il formato",
-    "recentProjects": "Progetti recenti",
     "teamLogo": "Logo della squadra",
     "packageLogo": "Logo del pacchetto",
     "competitionLogo": "Logo della competizione",
@@ -4389,7 +4525,6 @@
     },
     "chooseLogo": "Scegli immagine…",
     "removeLogo": "Rimuovi",
-    "openInEditor": "Modifica",
     "poolKeyTaken": "Quella chiave del pool è già usata da un altro pool.",
     "playerDisplayNamePlaceholder": "Nome visualizzato in partita",
     "repBands": {

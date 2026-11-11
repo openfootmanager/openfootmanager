@@ -246,11 +246,13 @@ fn has_world_shape(value: &serde_json::Value) -> bool {
 
 /// Parse a JSON string into a `WorldData`.
 pub fn load_world_from_json(json: &str) -> Result<WorldData, String> {
-    let value: serde_json::Value =
+    let mut value: serde_json::Value =
         serde_json::from_str(json).map_err(|_| WORLD_PARSE_FAILED_ERROR.to_string())?;
     if !has_world_shape(&value) {
         return Err(WORLD_PARSE_FAILED_ERROR.to_string());
     }
+    crate::league_stats_compat::upgrade_world_json(&mut value)
+        .map_err(|_| WORLD_PARSE_FAILED_ERROR.to_string())?;
     let world: WorldData =
         serde_json::from_value(value).map_err(|_| WORLD_PARSE_FAILED_ERROR.to_string())?;
     let world = normalize_world(world);
@@ -319,7 +321,8 @@ fn load_world_from_manifest_path(
     }
 
     let teams = read_json_file(&manifest_shard_path(path, &manifest.shards.teams))?;
-    let players = read_json_file(&manifest_shard_path(path, &manifest.shards.players))?;
+    let mut players: serde_json::Value =
+        read_json_file(&manifest_shard_path(path, &manifest.shards.players))?;
     let staff = read_json_file(&manifest_shard_path(path, &manifest.shards.staff))?;
     let managers = read_json_file(&manifest_shard_path(path, &manifest.shards.managers))?;
     // Absent from a manifest written before the archives existed: nothing to read.
@@ -335,7 +338,12 @@ fn load_world_from_manifest_path(
     }
     let retired_managers = read_optional(path, &manifest.shards.retired_managers)?;
     let retired_players = read_optional(path, &manifest.shards.retired_players)?;
-    let competitions = read_json_file(&manifest_shard_path(path, &manifest.shards.competitions))?;
+    let competitions: Vec<domain::league::League> =
+        read_json_file(&manifest_shard_path(path, &manifest.shards.competitions))?;
+    crate::league_stats_compat::upgrade_players_json(&mut players, &competitions)
+        .map_err(|_| WORLD_PARSE_FAILED_ERROR.to_string())?;
+    let players =
+        serde_json::from_value(players).map_err(|_| WORLD_PARSE_FAILED_ERROR.to_string())?;
     let national_teams =
         read_json_file(&manifest_shard_path(path, &manifest.shards.national_teams))?;
     let news = read_json_file(&manifest_shard_path(path, &manifest.shards.news))?;
@@ -1726,5 +1734,228 @@ mod tests {
         assert!(one.teams.len() > 1, "the opponents were generated");
         assert_eq!(everything(&one), everything(&again));
         assert_ne!(everything(&one), everything(&other));
+    }
+
+    fn club_from(country: &str) -> domain::team::Team {
+        domain::team::Team::new(
+            country.to_string(),
+            country.to_string(),
+            country.to_string(),
+            country.to_string(),
+            "City".to_string(),
+            "Stadium".to_string(),
+            10_000,
+        )
+    }
+
+    /// A world file with these clubs and no `regions` key, loaded the way a
+    /// save loads one. Inference has to happen inside that load: calling
+    /// `infer_world_regions` directly would stay green if the load stopped
+    /// filling an empty region list.
+    fn load_regionless_world(countries: &[&str]) -> WorldData {
+        let teams: Vec<_> = countries.iter().copied().map(club_from).collect();
+        let json = serde_json::json!({ "teams": teams }).to_string();
+        assert!(
+            !json.contains("\"regions\""),
+            "the file must not declare regions"
+        );
+        load_world_from_json(&json).expect("a regionless world loads")
+    }
+
+    fn region_filing<'a>(country: &str, regions: &'a [WorldRegionDefinition]) -> Option<&'a str> {
+        regions
+            .iter()
+            .find(|region| region.country_codes.iter().any(|code| code == country))
+            .map(|region| region.id.as_str())
+    }
+
+    /// Given clubs from nations the old hand-written fallback did not know, and
+    /// a world file that declares no regions, when the file is loaded, then each
+    /// club is filed under its catalog region. England stays in Europe, so the
+    /// assertion is not "everything leaves Europe".
+    #[test]
+    fn a_regionless_world_files_catalog_nations_in_their_own_region() {
+        let expected = [
+            ("NG", "africa"),
+            ("EG", "africa"),
+            ("JP", "asia"),
+            ("JM", "central-america"),
+            ("ENG", "europe"),
+        ];
+        let countries: Vec<&str> = expected.iter().map(|(country, _)| *country).collect();
+
+        let world = load_regionless_world(&countries);
+
+        for (country, region) in expected {
+            assert_eq!(
+                region_filing(country, &world.regions),
+                Some(region),
+                "{country} was filed under {:?}",
+                world.regions
+            );
+        }
+    }
+
+    /// Given a club from every catalogued African nation and a world file with
+    /// no regions, when the file is loaded, then all of them are filed under Africa.
+    #[test]
+    fn a_regionless_world_files_every_catalogued_african_nation_under_africa() {
+        let codes: Vec<&str> = crate::nations::all_nations()
+            .filter(|nation| nation.region_id == "africa")
+            .map(|nation| nation.code)
+            .collect();
+        assert!(
+            codes.len() >= 54,
+            "the catalog should know the African nations the old fallback missed, got {}",
+            codes.len()
+        );
+
+        let world = load_regionless_world(&codes);
+
+        assert_eq!(
+            world.regions.len(),
+            1,
+            "inferred regions: {:?}",
+            world.regions
+        );
+        assert_eq!(world.regions[0].id, "africa");
+        for code in &codes {
+            assert!(
+                world.regions[0]
+                    .country_codes
+                    .iter()
+                    .any(|country| country == code),
+                "{code} was not filed under Africa"
+            );
+        }
+    }
+
+    fn snapshot_with_old_league_totals() -> serde_json::Value {
+        use domain::player::{Player, PlayerSeasonStats, Position};
+        let mut player = Player::new(
+            "snapshot-player".into(),
+            "Scorer".into(),
+            "Scorer".into(),
+            "2000-01-01".into(),
+            "ENG".into(),
+            Position::Forward,
+            crate::test_support::uniform_attributes(60),
+        );
+        player.team_id = Some("club".into());
+        player.stats = PlayerSeasonStats {
+            appearances: 20,
+            goals: 30,
+            ..Default::default()
+        };
+        let league = domain::league::League::new(
+            "division".into(),
+            "Division".into(),
+            2025,
+            &["club".into()],
+        );
+        let world = WorldData {
+            teams: vec![domain::team::Team::new(
+                "club".into(),
+                "Club FC".into(),
+                "CFC".into(),
+                "ENG".into(),
+                "City".into(),
+                "Ground".into(),
+                10_000,
+            )],
+            players: vec![player],
+            competitions: vec![league],
+            metadata: super::super::definitions::WorldDataMetadata {
+                kind: crate::generator::WorldDataKind::HistoricalSnapshot,
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+        let mut value = serde_json::to_value(world).unwrap();
+        value["players"][0]
+            .as_object_mut()
+            .unwrap()
+            .remove("league_stats_by_competition");
+        value["players"][0]["league_stats"] = serde_json::json!(PlayerSeasonStats {
+            appearances: 12,
+            goals: 10,
+            clean_sheets: 3,
+            ..Default::default()
+        });
+        value
+    }
+
+    /// Given an old single-file snapshot with ten league and thirty competitive goals,
+    /// when it loads, then the current club's division keeps ten league goals and three clean sheets.
+    #[test]
+    fn an_old_json_snapshot_keeps_its_league_totals() {
+        let world = load_world_from_json(&snapshot_with_old_league_totals().to_string()).unwrap();
+        let stats = world.players[0].league_stats_by_competition.get("division");
+        assert_eq!(
+            stats.map(|stats| (stats.goals, stats.clean_sheets)),
+            Some((10, 3))
+        );
+        assert_eq!(world.players[0].stats.goals, 30);
+    }
+
+    /// Given the same old snapshot in manifest shards, when the manifest loads,
+    /// then legacy league totals survive the players-shard deserialization boundary.
+    #[test]
+    fn an_old_sharded_snapshot_keeps_its_league_totals() {
+        let old = snapshot_with_old_league_totals();
+        let world: WorldData = serde_json::from_value(old.clone()).unwrap();
+        let dir = TempWorldDir::new();
+        let manifest = dir.path().join("world.json");
+        export_world_package(&world, &manifest).unwrap();
+        fs::write(
+            dir.path().join("world.shards/players.json"),
+            old["players"].to_string(),
+        )
+        .unwrap();
+        let loaded = load_world_from_path(&manifest).unwrap();
+        assert_eq!(
+            loaded.players[0]
+                .league_stats_by_competition
+                .get("division")
+                .map(|stats| stats.goals),
+            Some(10)
+        );
+        assert_eq!(loaded.players[0].stats.goals, 30);
+    }
+
+    /// Given an explicitly saved modern map and conflicting stale legacy totals,
+    /// when a snapshot loads, then the modern map, including an empty map, stays authoritative.
+    #[test]
+    fn a_snapshot_keeps_an_explicit_modern_competition_map() {
+        for map in [
+            serde_json::json!({}),
+            serde_json::json!({"division": {"goals": 4, "appearances": 5}}),
+        ] {
+            let mut value = snapshot_with_old_league_totals();
+            value["players"][0]["league_stats_by_competition"] = map.clone();
+            let loaded = load_world_from_json(&value.to_string()).unwrap();
+            let expected: std::collections::BTreeMap<String, domain::player::PlayerSeasonStats> =
+                serde_json::from_value(map).unwrap();
+            assert_eq!(loaded.players[0].league_stats_by_competition, expected);
+        }
+    }
+
+    /// Given a snapshot from before league-only stats existed, when it loads,
+    /// then the old competitive season remains the compatibility fallback for its league.
+    #[test]
+    fn a_snapshot_without_league_only_stats_keeps_the_legacy_season_fallback() {
+        let mut value = snapshot_with_old_league_totals();
+        value["players"][0]
+            .as_object_mut()
+            .unwrap()
+            .remove("league_stats");
+        let loaded = load_world_from_json(&value.to_string()).unwrap();
+        assert_eq!(
+            loaded.players[0]
+                .league_stats_by_competition
+                .get("division")
+                .map(|stats| stats.goals),
+            Some(30)
+        );
     }
 }

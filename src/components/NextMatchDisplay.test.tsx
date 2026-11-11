@@ -5,6 +5,7 @@ import NextMatchDisplay from "./NextMatchDisplay";
 import { createSeasonContext } from "../test-utils/factories";
 
 vi.mock("react-i18next", () => ({
+  initReactI18next: { type: "3rdParty", init: () => undefined },
   useTranslation: () => ({
     t: (key: string) => (key === "tournaments.competitions.nationalCup" ? "Copa Nacional" : key),
   }),

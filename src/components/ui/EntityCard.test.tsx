@@ -26,6 +26,42 @@ function renderCard(props: Partial<Parameters<typeof EntityCard>[0]> = {}) {
 
 describe("EntityCard", () => {
   /**
+   * Given a card whose name is one long unbroken word, with and without a button to open it
+   * When it is drawn
+   * Then the heading may break inside the word, so the name is never cut off by the card's clip
+   *      (a club's name must wrap). jsdom does no layout, so the class is what can be checked.
+   */
+  it("lets a long unbroken name wrap rather than be cut off by the card", () => {
+    const name = "Wolverhamptonshirebridgeunitedathleticfootballclub";
+    const { unmount } = renderCard({ name });
+    expect(screen.getByRole("heading", { name })).toHaveClass("[overflow-wrap:anywhere]");
+    unmount();
+
+    renderCard({ name, onOpen: undefined });
+    expect(screen.getByRole("heading", { name })).toHaveClass("[overflow-wrap:anywhere]");
+  });
+
+  /**
+   * Given a full card with a footer, and a compact one with the same footer
+   * When they are drawn
+   * Then the full card ends with the footer's band, after the status and the facts, and the compact
+   *      card draws none of it (it is the identity row alone).
+   */
+  it("draws a footer at the foot of a full card only", () => {
+    const { unmount } = renderCard({ footer: <button type="button">Manage Gonzalez</button> });
+    const card = screen.getByRole("article", { name: "Gonzalez" });
+    const footer = within(card).getByRole("button", { name: "Manage Gonzalez" });
+    expect(card.lastElementChild).toContainElement(footer);
+    expect(card.querySelector("dl")?.compareDocumentPosition(footer)).toBe(
+      Node.DOCUMENT_POSITION_FOLLOWING,
+    );
+    unmount();
+
+    renderCard({ size: "compact", footer: <button type="button">Manage Gonzalez</button> });
+    expect(screen.queryByRole("button", { name: "Manage Gonzalez" })).toBeNull();
+  });
+
+  /**
    * Given a player's card
    * When it is drawn
    * Then it is an article named for him, whose name is the button that opens his profile; the

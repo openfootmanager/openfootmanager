@@ -1,4 +1,5 @@
 import { useTranslation } from "react-i18next";
+import { resolveBackendText } from "../../utils/backendI18n";
 
 import type { ConditionStatus } from "../../store/types";
 import { ProgressBar } from "./ProgressBar";
@@ -26,7 +27,7 @@ export function ConditionMeter({ value, status, className = "" }: ConditionMeter
         <span
           className={`min-w-14 shrink-0 whitespace-nowrap font-semibold ${TONE_TEXT[status.tone]}`}
         >
-          {t(status.label_key)}
+          {resolveBackendText(status.label_key, "")}
         </span>
       ) : null}
       <ProgressBar

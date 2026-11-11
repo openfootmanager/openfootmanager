@@ -102,7 +102,6 @@
       "option": "{{count}} sezón",
       "recommended": "Doporučeno"
     },
-    "installedPackages": "Nainstalované balíčky",
     "installPackage": "Nainstalovat balíček (.ofm)",
     "noInstalledPackages": "Nejsou nainstalovány žádné balíčky",
     "removePackage": "Odebrat",
@@ -303,6 +302,56 @@
     "subtitle": "Zvolte tým, který chcete trénovat",
     "confirming": "Potvrzování...",
     "manage": "Trénovat {{name}}",
+    "steps": {
+      "label": "Kroky nové kariéry",
+      "manager": "Manažer",
+      "world": "Svět",
+      "generation": "Generování",
+      "club": "Klub",
+      "done": "dokončeno"
+    },
+    "back": "Zpět ke generování světa",
+    "simulation": "Simulace",
+    "manageNone": "Trénovat",
+    "scope": {
+      "title": "Co svět simuluje",
+      "subtitle": "Vyberte, které regiony a soutěže hra simuluje celé. Čím jich je víc, tím déle každý den trvá.",
+      "sectionStart": "1 · Kde začínáte",
+      "sectionRegions": "2 · Simulované regiony",
+      "sectionCompetitions": "3 · Soutěže",
+      "regionMeta": "{{countries}} · klubů: {{clubs}}",
+      "simulate": "Simulovat: {{name}}",
+      "needs": "Potřebuje: {{regions}}",
+      "add": "Přidat: {{regions}}",
+      "groupCount": "{{on}} z {{total}}",
+      "groupSimulated": "Simulováno {{on}} z {{total}}",
+      "needOne": "Zapněte alespoň jednu soutěž.",
+      "summary": "Regionů: {{regions}} · simulovaných soutěží: {{competitions}}",
+      "clubs": "Klubů v simulovaných regionech: {{clubs}}",
+      "apply": "Použít"
+    },
+    "rail": {
+      "label": "Země a ligy",
+      "countries": "Země"
+    },
+    "table": {
+      "label": "Kluby",
+      "club": "Klub",
+      "transfers": "Přestupy",
+      "wages": "Mzdy / týden",
+      "stadium": "Stadion"
+    },
+    "card": {
+      "label": "Vybraný klub",
+      "emptyTitle": "Zatím nebyl vybrán žádný klub",
+      "emptyHint": "Vyberte klub ze seznamu a uvidíte jeho kádr, rozpočty a očekávání vedení.",
+      "boardExpects": "Vedení očekává",
+      "transferBudget": "Přestupový rozpočet",
+      "wageBudget": "Mzdový rozpočet",
+      "balance": "Zůstatek",
+      "stadium": "Stadion",
+      "founded": "založen {{year}}"
+    },
     "reputation": "Reputace",
     "squad": "Soupiska",
     "finances": "Finance",
@@ -312,21 +361,22 @@
     "repStrong": "Silná",
     "repAverage": "Průměrná",
     "repDeveloping": "Rozvíjející se",
+    "expectations": {
+      "title": "Boj o titul",
+      "continental": "Boj o kontinentální poháry",
+      "topHalf": "Horní polovina tabulky",
+      "midTable": "Střed tabulky",
+      "survival": "Záchrana v soutěži"
+    },
     "failedToSelectTeam": "Nepodařilo se vybrat tým: {{error}}",
     "homeRegion": "Domovský region",
     "homeCountry": "Domovská země",
-    "allCountries": "Všechny země",
-    "simulationScope": "Rozsah simulace",
     "otherClubs": "Ostatní kluby",
     "searchClubs": "Hledat kluby…",
     "clubCount": "Počet klubů: {{n}}",
     "noClubsMatch": "Hledání neodpovídají žádné kluby.",
-    "simulatedRegions": "Simulované regiony",
-    "simulatedCompetitions": "Simulované soutěže",
     "homeBadge": "Domácí",
-    "yourClub": "váš klub",
     "yourClubBadge": "Váš klub",
-    "requiresRegions": "Vyžaduje regiony: {{regions}}",
     "selectedClub": "Vybraný klub",
     "formation": "Rozestavení",
     "overall": "Hodnocení",
@@ -337,7 +387,6 @@
     "clubCompetitionsAlwaysSimulated": "Soutěže vašeho klubu jsou simulovány vždy, i když vypnete ostatní regiony nebo turnaje.",
     "selectClubPrompt": "Vyberte klub pro zobrazení soupisky a soutěží.",
     "playersCount": "Počet hráčů: {{count}}",
-    "scopeSummary": "Bude načteno {{regionsCount}} simulovaných regionů a {{competitionsCount}} simulovaných soutěží.",
     "regionLabels": {
       "north-america": "Severní Amerika",
       "central-america": "Střední Amerika",
@@ -360,13 +409,6 @@
       "InternationalClub": "Mezinárodní klubový",
       "InternationalNation": "Mezinárodní reprezentační",
       "FriendlyCup": "Přátelský pohár"
-    },
-    "scopeMessages": {
-      "homeRegionAlwaysActive": "Váš hratelný region zůstává vždy aktivní.",
-      "regionRequiredByCompetition": "Soutěž {{competition}} je součástí zápasového kalendáře klubu {{club}}, proto musí být region {{region}} aktivní.",
-      "regionRemovedDisablesCompetitions": "Region {{region}} byl odebrán z rozsahu simulace, takže závislé soutěže byly také vypnuty.",
-      "clubCompetitionLocked": "Soutěž {{competition}} je v zápasovém kalendáři klubu {{club}} a bude simulována vždy.",
-      "autoEnabledRegions": "Soutěž {{competition}} vyžaduje regiony {{regions}}, proto byly tyto regiony automaticky zapnuty."
     }
   },
   "youthAcademy": {
@@ -404,6 +446,12 @@
       "B": "B"
     },
     "ordinal": {
+      "place": {
+        "one": "{{n}}.",
+        "two": "{{n}}.",
+        "few": "{{n}}.",
+        "other": "{{n}}."
+      },
       "one": "{{n}}.",
       "two": "{{n}}.",
       "few": "{{n}}.",
@@ -421,12 +469,6 @@
     "listViewTable": "Tabulka",
     "listViewCards": "Karty",
     "noResults": "Výsledky nenalezeny.",
-    "place": {
-      "1": "1.",
-      "2": "2.",
-      "3": "3.",
-      "other": "{{n}}."
-    },
     "pts": "Bod",
     "playedFull": "Zápasy",
     "wonFull": "Výhry",
@@ -1114,6 +1156,8 @@
     "clubBalance": "Zůstatek klubu",
     "wageBudget": "Platový rozpočet",
     "transferBudget": "Přestupový rozpočet",
+    "committedTransferFees": "Vázané přestupové částky",
+    "availableTransferBudget": "Dostupný přestupový rozpočet",
     "seasonIncome": "Sezónní příjmy",
     "seasonExpenses": "Sezónní výdaje",
     "moneyIn": "Peníze dovnitř",
@@ -1638,6 +1682,7 @@
       "league": "{{country}} lize",
       "firstDivision": "{{country}} — 1. liga",
       "secondDivision": "{{country}} — 2. liga",
+      "tierDivision": "{{country}} — {{tier}}. liga",
       "nationalCup": "{{country}} — pohár",
       "continentalChampionsCup": "Kontinentální Liga mistrů",
       "premierDivision": "Premier Division"
@@ -1661,6 +1706,53 @@
     }
   },
   "playerProfile": {
+    "sections": "Sekce profilu",
+    "attributesTab": {
+      "key": "Klíčový atribut",
+      "average": "průměr {{value}}",
+      "weight": "váha {{count}} ze 3",
+      "scouted": "Skautováno"
+    },
+    "overview": {
+      "axes": {
+        "pace": "RYC",
+        "shooting": "STŘ",
+        "dribbling": "DRI",
+        "passing": "PŘI",
+        "vision": "PŘE",
+        "composure": "KLI",
+        "strength": "SÍL",
+        "aerial": "VZD",
+        "handling": "CHY",
+        "reflexes": "REF",
+        "agility": "ABI",
+        "stamina": "VYT"
+      },
+      "now": "Teď",
+      "details": "Podrobnosti",
+      "previousMatches": "Předchozí zápasy",
+      "allMatches": "Všechny zápasy",
+      "traits": "Vlastnosti",
+      "born": "Narozen",
+      "squadRole": "Role v kádru",
+      "squadSenior": "A-tým",
+      "squadYouth": "Akademie",
+      "contractUntil": "do {{date}}",
+      "keyFor": "Klíčové pro pozici {{position}}",
+      "radarLabel": "Radar atributů: {{values}}",
+      "seasonExtras": "Disciplína a čistá konta"
+    },
+    "overall": "Celkově",
+    "ratingUnknown": "Váš klub jeho hodnocení nezná",
+    "retired": "Ukončil kariéru",
+    "retiredOn": "Ukončil kariéru {{date}}",
+    "lastClub": "Poslední klub: {{club}}",
+    "tabs": {
+      "overview": "Přehled",
+      "attributes": "Atributy",
+      "career": "Kariéra",
+      "contract": "Smlouva"
+    },
     "contractInfo": "Smlouva a info",
     "dateOfBirth": "Datum narození",
     "noContract": "Bez smlouvy",
@@ -1674,6 +1766,7 @@
     "renewalLength": "Délka smlouvy",
     "renewalSubmit": "Odeslat nabídku",
     "renewalInvalidWage": "Zadejte platnou výši týdenního platu",
+    "renewalMinimumYears": "Minimální délka smlouvy pro prodloužení (roky): {{years}}.",
     "renewalBudgetWarning": "Nabídka překračuje limit platového rozpočtu stanovený vedením",
     "renewalAccepted": "Nabídka byla přijata",
     "renewalRejected": "Nabídka byla odmítnuta",
@@ -2765,6 +2858,7 @@
       "critical": "Kritický"
     },
     "error": {
+      "taskJoinFailed": "Simulace se nečekaně zastavila. Načtěte svou poslední uloženou hru a zkuste to znovu.",
       "autoSave": {
         "failed": "Automatické ukládání hru neuložilo. Postup od posledního uložení zatím uložen není: uložte hru ručně a zkontrolujte, zda je na disku volné místo."
       },
@@ -3017,6 +3111,7 @@
         "insufficientFunds": "Nedostatek finančních prostředků",
         "buyerCannotAffordFee": "Kupující klub si tuto částku už nemůže dovolit, takže přestup nemůže proběhnout.",
         "transferBudgetTooLow": "Přestupový rozpočet je příliš nízký",
+        "transferBudgetCommitted": "Tato částka překračuje dostupný přestupový rozpočet po odečtení prostředků vázaných na dohodnuté přestupy.",
         "playerNotOwnedByUser": "Hráč nebyl nalezen nebo není váš",
         "offerNotPending": "Nabídka nebyla nalezena nebo nečeká na vyřízení",
         "talksBrokenOff": "Tento klub ukončil jednání o tomto hráči. Zkuste to později.",
@@ -3039,6 +3134,7 @@
         "playerNotOwnedByClub": "Hráč nepatří do vašeho klubu",
         "playerNotFreeAgent": "Hráč není volným hráčem",
         "unableToCalculateContractEndDate": "Nelze vypočítat datum ukončení nové smlouvy",
+        "renewalDoesNotExtend": "Prodloužená smlouva musí končit později než současná smlouva.",
         "playerHasNoActiveContract": "Hráč nemá aktivní smlouvu",
         "playerOnActiveLoan": "Hráč je momentálně na hostování a smlouvu nelze ukončit před jeho skončením",
         "terminationWouldLeaveMatchdaySquadShort": "Ukončení této smlouvy by způsobilo, že váš kádr nebude schopen postavit zápasovou jedenáctku",
@@ -3188,7 +3284,7 @@
       "seasonPayout": {
         "subject": "Finanční odměna za sezónu {{season}} udělena",
         "body": "Představenstvo potvrdilo vyplacení odměny ve výši {{amount}} za vaše {{position}}. místo v lize. Částka byla připsána k zůstatku klubu.",
-        "ledgerDescription": "Finanční odměna za sezónu {{season}} za {{position}}{{suffix}} místo"
+        "ledgerDescription": "Finanční odměna za sezónu {{season}} za {{ordinal}} místo"
       },
       "seasonReview": {
         "subject": "Ohlédnutí za sezónou {{season}}",
@@ -3662,6 +3758,10 @@
         "body": "Dohodnuté hostování hráče {{player}} z {{parent}} do {{borrower}}, které mělo začít {{start}}, se neuskuteční: hráč už nemá smlouvu s {{parent}}.",
         "bodyRequirementNotMet": "Dohodnuté hostování hráče {{player}} z {{parent}} do {{borrower}} nemohlo začít {{start}}: jedna z podmínek, za nichž bylo dohodnuto, například místo v mzdovém rozpočtu {{borrower}} nebo délka hráčovy smlouvy, už neplatí."
       },
+      "talksClosedBySale": {
+        "subject": "Podepsal jinde: {{player}}",
+        "body": "{{buyer}} podepsal hráče {{player}} za {{fee}}. Vaše otevřená jednání o něm byla stažena."
+      },
       "loanOffer": {
         "subject": "Nabídka hostování pro hráče {{player}}",
         "body": "Klub {{team}} chce získat hráče {{player}} na hostování do {{endDate}} a pokrýt {{wageContribution}} % jeho platu. Opce na odkup: {{buyOption}}. Zkontrolujte nabídku v záložce Přestupy.",
@@ -3872,7 +3972,9 @@
       "package": {
         "countryWithoutRegion": "Tento balíček definuje zemi „{{name}}“ ({{code}}), která není v seznamu zemí hry, a nezařazuje ji do žádné konfederace, takže její kluby jsou vedeny v Evropě. Přiřaďte jí konfederaci.",
         "freeAgentFieldIgnored": "Hráč „{{id}}“ nemá klub, je tedy volný hráč bez smlouvy: pole „{{field}}“ se ignoruje. Přiřaďte mu klub, aby se použilo, nebo pole odstraňte.",
-        "repeatedNamePool": "Sada jmen pro {{country}} už byla uvedena v {{first}}; sada v tomto souboru ji nahrazuje. Ponechte jen jednu, nebo je přiřaďte různým zemím."
+        "repeatedNamePool": "Sada jmen pro {{country}} už byla uvedena v {{first}}; sada v tomto souboru ji nahrazuje. Ponechte jen jednu, nebo je přiřaďte různým zemím.",
+        "patchClubRefsUnverified": "Tento patch uvádí kluby, které sám nedefinuje. Samotný nedokáže rozlišit kluby své základní databáze od chyb, proto se zde nekontrolovaly. Hra je zkontroluje, když se patch naskládá na svou základnu.",
+        "namePoolIncomplete": "Sada jmen pro {{country}} má křestní jména, ale ne příjmení, nebo příjmení, ale ne křestní jména, a proto se nepoužije: hráči z {{country}} dostanou jména ze hry. Uveďte obojí."
       }
     }
   },
@@ -4094,6 +4196,12 @@
     "winRate": "Úspěšnost"
   },
   "worldEditor": {
+    "previewPlaceholder": {
+      "team": "Nový tým",
+      "player": "Nový hráč",
+      "competition": "Nová soutěž"
+    },
+    "estimatedRating": "odh.",
     "positionGroupFilter": {
       "Goalkeeper": "Všichni brankáři",
       "Defender": "Všichni obránci",
@@ -4106,9 +4214,43 @@
     "positionFilterBySpecific": "Konkrétní pozice",
     "showingEntries": "Zobrazeno {{shown}} z {{total}}",
     "title": "Editor světa",
-    "newPackage": "Nový svět",
-    "openPackageFile": "Otevřít soubor .ofm",
-    "openPackageFolder": "Otevřít složku",
+    "home": {
+      "subtitle": "Vytvářejte a upravujte světy .ofm",
+      "newWorld": "Nový svět",
+      "openFile": "Otevřít soubor .ofm",
+      "openFolder": "Otevřít složku",
+      "examples": "Začít od příkladu",
+      "backToMenu": "Zpět do hlavní nabídky",
+      "yourWorlds": "Vaše světy",
+      "show": "Zobrazit",
+      "filterAll": "Vše",
+      "filterProjects": "Projekty",
+      "filterInstalled": "Nainstalované",
+      "search": "Hledat světy",
+      "tableLabel": "Světy",
+      "colWorld": "Svět",
+      "colKind": "Druh",
+      "colClubs": "Kluby",
+      "colPlayers": "Hráči",
+      "colOpened": "Naposledy otevřeno",
+      "colCheck": "Poslední kontrola",
+      "colAction": "Akce",
+      "kindProject": "Projekt",
+      "kindInstalled": "Nainstalováno",
+      "installedVersion": "Nainstalováno · v{{version}}",
+      "noIssues": "Bez problémů",
+      "notChecked": "Nezkontrolováno",
+      "unreadable": "Nelze přečíst",
+      "open": "Otevřít",
+      "editCopy": "Upravit kopii",
+      "openNamed": "Otevřít: {{name}}",
+      "editCopyNamed": "Upravit kopii: {{name}}",
+      "resultCount": "Zobrazeno světů: {{count}}",
+      "libraryFailed": "Knihovnu světů se nepodařilo přečíst. Vaše nedávné projekty jsou uvedeny bez počtů.",
+      "libraryFailedEmpty": "Žádné světy nejsou uvedeny, protože se knihovnu nepodařilo přečíst.",
+      "installedNote": "Nainstalované balíčky se otevírají jako upravitelná kopie, takže ten, který hrajete, zůstane beze změny.",
+      "emptyLibrary": "Zatím žádné světy. Začněte volbou Nový svět, otevřete soubor .ofm nebo složku, nebo vyjděte z příkladu."
+    },
     "metadata": "Přehled",
     "teams": "Týmy ({{count}})",
     "addTeam": "Přidat tým",
@@ -4273,10 +4415,6 @@
       "allInRegion": "Všichni v regionu",
       "championsOf": "Mistři soutěže"
     },
-    "homeSubtitle": "Vytvářejte kluby, hráče a turnaje od úplného začátku. Přizpůsobte si loga, barvy i statistiky — a pak sdílejte svůj svět s komunitou.",
-    "newPackageDesc": "Zahájit tvorbu nového světa od nuly",
-    "openPackageFileDesc": "Otevřít existující soubor balíčku .ofm",
-    "openPackageFolderDesc": "Otevřít existující složku projektu světa",
     "openPackageFileInvalid": "Vyberte platný soubor balíčku .ofm",
     "noItemSelected": "Vyberte položku ze seznamu, nebo klikněte na Přidat pro vytvoření nové",
     "issuesBadge": "{{count}} problémů",
@@ -4337,10 +4475,7 @@
     "worldDesc": "Popis",
     "createWorld": "Vytvořit svět",
     "creating": "Vytváření…",
-    "startFromExample": "Začít z příkladu",
     "startFromExampleDesc": "Miniliga se 4 týmy — skvělé pro pochopení formátu",
-    "recentProjects": "Nedávné projekty",
-    "openInEditor": "Upravit",
     "teamLogo": "Logo týmu",
     "packageLogo": "Logo balíčku",
     "competitionLogo": "Logo soutěže",

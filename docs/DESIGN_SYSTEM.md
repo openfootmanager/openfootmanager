@@ -245,15 +245,24 @@ window the game opens at) and 960×640 (its minimum).
   density, scale and contrast options. The pages are `home`, `squad`, and the world lists
   `players`, `teams`, `managers` and `staff` (`HARNESS_PAGES` in
   `src/dev/pageHarness/harnessPage.ts`). Screenshot them the same way.
+  - `?page=profile` opens a player's profile, and `&player=` picks how the club knows him: `own`
+    (default), `keeper` (the club's own goalkeeper, for the Goalkeeping column), `rival` (a
+    division rival), `scouted` (a scout's report), `injured` or `loaned` (the club's own players
+    with an injury, or on loan to a rival, for the banners), `unknown` or `retired`
+    (`HARNESS_PROFILES`). The answers follow `ofm_core::player_knowledge` (`profileCases.ts`): a
+    rival's wage is hidden, a scouted player's rounded, a stranger's public facts only. Only the
+    club's own players (`own`, `keeper`, `injured`, `loaned`) have a season (five matches, stats in
+    every cell); the others show the empty sections, so the check has not measured them populated. The layout check measures each profile case.
   - The career is `src/dev/pageHarness/fixture.generated.ts`: one eight-club league from a fixed
     seed, begun the way the app begins one, plus each command's answer for it. A command that
     takes a query (the Players page's, the Teams directory's) is answered only for the query the
     fixture was generated for, so a search or another page shows as unanswered rather than
     getting the opening page. It is generated, never committed: `npm run fixture:pages` writes it
     (the generator is `src-tauri/crates/ofm_core/examples/page_fixture.rs`), CI's frontend job runs
-    that before its checks, and `npm test` and `npm run build` run it first when the file is
-    missing (`scripts/ensure-page-fixture.mjs`). Run it again yourself after changing what it is
-    generated from; `npm exec -- vitest run <file>` skips the guard, so generate it once first.
+    that before its checks, and `npm test`, `npm run test:watch`, `npm run build`, `npm run knip`
+    (so `npm run preflight`) and `npm run dev` (so `npm run tauri dev`) run it first when the file
+    is missing (`scripts/ensure-page-fixture.mjs`). Run it again yourself after changing what it
+    is generated from; `npm exec -- vitest run <file>` skips the guard, so generate it once first.
     `scripts/check-untracked-generated.sh` fails CI if it is ever tracked again.
   - Every value in it `satisfies` the frontend type its command returns, so `npm run build` fails
     when the backend's shape and the frontend's type stop agreeing.
