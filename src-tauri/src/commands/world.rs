@@ -203,7 +203,11 @@ fn package_info_from_path(
         meta.id.clone()
     };
 
-    let (package, errors) = ofm_core::generator::load_world_package_from_ofm(path);
+    let (package, errors) = if include_logo {
+        ofm_core::generator::load_world_package_from_ofm(path)
+    } else {
+        ofm_core::generator::package::load_world_package_definitions_from_ofm(path)
+    };
     if !errors.is_empty() {
         return None;
     }

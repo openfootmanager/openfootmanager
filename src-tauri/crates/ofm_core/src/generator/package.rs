@@ -1992,8 +1992,21 @@ pub fn extract_archive_safely(
     extract_archive_entries(ofm_path, dest_dir, |_| true)
 }
 
-fn extract_package_definitions(ofm_path: &Path, dest_dir: &Path) -> Result<Vec<PackageError>, String> {
-    extract_archive_safely(ofm_path, dest_dir)
+fn extract_package_definitions(
+    ofm_path: &Path,
+    dest_dir: &Path,
+) -> Result<Vec<PackageError>, String> {
+    extract_archive_entries(ofm_path, dest_dir, |name| {
+        !is_package_asset_entry(name)
+            && matches!(
+                Path::new(name)
+                    .extension()
+                    .and_then(|ext| ext.to_str())
+                    .map(str::to_ascii_lowercase)
+                    .as_deref(),
+                Some("json" | "yaml" | "yml")
+            )
+    })
 }
 
 /// Extract only the package's `assets/` tree.
@@ -2110,6 +2123,9 @@ fn extract_archive_entries(
     use std::io::Read;
 
     let file = std::fs::File::open(ofm_path).map_err(|_| READ_FAILED.to_string())?;
+    if file.metadata().map_err(|_| READ_FAILED.to_string())?.len() > MAX_ARCHIVE_BYTES {
+        return Err(ARCHIVE_TOO_LARGE_ERROR.to_string());
+    }
     let mut archive = zip::ZipArchive::new(file).map_err(|_| READ_FAILED.to_string())?;
     std::fs::create_dir_all(dest_dir).map_err(|_| READ_FAILED.to_string())?;
 
@@ -2119,6 +2135,7 @@ fn extract_archive_entries(
 
     let mut errors = Vec::new();
     let mut total_uncompressed: u64 = 0;
+    let mut declared_uncompressed: u64 = 0;
     for i in 0..archive.len() {
         // An entry zip cannot open, such as one compressed with a codec we do not build, is
         // reported: skipping it would install the package as if that file had never existed.
@@ -2135,6 +2152,10 @@ fn extract_archive_entries(
         };
         if entry.is_dir() {
             continue;
+        }
+        declared_uncompressed = declared_uncompressed.saturating_add(entry.size());
+        if declared_uncompressed > MAX_UNCOMPRESSED_BYTES {
+            return Err(ARCHIVE_TOO_LARGE_ERROR.to_string());
         }
         if entry.is_symlink() {
             errors.push(PackageError::new(SYMLINK_ERROR, &entry_name));
@@ -2190,8 +2211,20 @@ fn extract_archive_entries(
 /// Extract a `.ofm` zip archive to a temp directory, load the package from it,
 /// clean up, and return. Zip-slip/symlink paths are silently skipped.
 pub fn load_world_package_from_ofm(path: &Path) -> (WorldPackage, Vec<PackageError>) {
+    load_world_package_with_extractor(path, extract_archive_safely)
+}
+
+/// Read the definitions needed for a package library without extracting artwork.
+pub fn load_world_package_definitions_from_ofm(path: &Path) -> (WorldPackage, Vec<PackageError>) {
+    load_world_package_with_extractor(path, extract_package_definitions)
+}
+
+fn load_world_package_with_extractor(
+    path: &Path,
+    extract: impl FnOnce(&Path, &Path) -> Result<Vec<PackageError>, String>,
+) -> (WorldPackage, Vec<PackageError>) {
     let temp_dir = std::env::temp_dir().join(format!("ofm-extract-{}", uuid::Uuid::new_v4()));
-    let extract_errors = match extract_archive_safely(path, &temp_dir) {
+    let extract_errors = match extract(path, &temp_dir) {
         Ok(errors) => errors,
         Err(code) => {
             let _ = std::fs::remove_dir_all(&temp_dir);
@@ -2317,7 +2350,8 @@ mod tests {
         let mut zip = zip::ZipWriter::new(std::fs::File::create(&archive).unwrap());
         let options = zip::write::SimpleFileOptions::default();
         zip.start_file("package.json", options).unwrap();
-        zip.write_all(br#"{"schema":"world","id":"a","name":"A"}"#).unwrap();
+        zip.write_all(br#"{"schema":"world","id":"a","name":"A"}"#)
+            .unwrap();
         zip.start_file("assets/portrait.png", options).unwrap();
         zip.write_all(b"artwork").unwrap();
         zip.finish().unwrap();
