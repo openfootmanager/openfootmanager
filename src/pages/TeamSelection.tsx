@@ -1,13 +1,21 @@
-import { useNavigate } from "react-router-dom";
+import { ArrowLeft, ChevronRight, Loader2, SlidersHorizontal } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { useNavigate } from "react-router-dom";
+
+import ChosenClubCard from "../components/teamSelection/ChosenClubCard";
+import ClubsTable from "../components/teamSelection/ClubsTable";
+import CountryLeagueRail from "../components/teamSelection/CountryLeagueRail";
+import { keyPlayers } from "../components/teamSelection/keyPlayers";
+import TeamSelectionStepper from "../components/teamSelection/TeamSelectionStepper";
+import { Button, Card, CardBody, ThemeToggle } from "../components/ui";
+import { competitionDisplayName } from "../lib/competitionName";
+import { calcAgeOnDate } from "../lib/valueFormatting";
 import { useGameStore } from "../store/gameStore";
-import { buildRegionLabel } from "../lib/teamRegions";
-import { Badge, Card, CardBody, ThemeToggle } from "../components/ui";
-import { ArrowLeft, ChevronRight, Loader2 } from "lucide-react";
 import TeamSelectionScopePanel from "./TeamSelectionScopePanel";
-import TeamSelectionGrid from "./TeamSelectionGrid";
-import TeamSelectionSidebar from "./TeamSelectionSidebar";
 import { useTeamSelection } from "./useTeamSelection";
+
+const SCOPE_BAND_ID = "team-selection-scope";
+const MANAGE_HINT_ID = "team-selection-manage-hint";
 
 export default function TeamSelection() {
   const { t } = useTranslation();
@@ -20,9 +28,13 @@ export default function TeamSelection() {
     scopeExpanded,
     setScopeExpanded,
     selectedHomeRegionId,
-    setSelectedHomeRegionId,
     selectedCountryCode,
     setSelectedCountryCode,
+    allCountryCodes,
+    handleSelectCountry,
+    changeHomeRegion,
+    activeLeagueId,
+    setSelectedLeagueId,
     regionSelection,
     setSelectedTeamId,
     scopeMessage,
@@ -32,9 +44,8 @@ export default function TeamSelection() {
     regionCountries,
     activeRegionIds,
     availableCompetitions,
-    filteredTeams,
-    teamGroups,
-    getTeamPlayers,
+    leagueGroups,
+    visibleClubs,
     getTeamAvgOvr,
     getPlayerRating,
     selectedTeam,
@@ -42,7 +53,6 @@ export default function TeamSelection() {
     selectedTeamCompetitions,
     mandatoryCompetitionIds,
     competitionSelection,
-    enabledCompetitionIds,
     handleRegionToggle,
     handleCompetitionToggle,
     handleConfirm,
@@ -53,122 +63,139 @@ export default function TeamSelection() {
     return null;
   }
 
+  const activeLeague = leagueGroups.find((group) => group.id === activeLeagueId) ?? null;
+  const today = gameState.clock.current_date;
+  let manageLabel = t("teamSelect.manageNone");
+  if (isConfirming) manageLabel = t("teamSelect.confirming");
+  else if (selectedTeam) manageLabel = t("teamSelect.manage", { name: selectedTeam.short_name });
+
   return (
-    <div className="min-h-screen bg-gray-100 transition-colors duration-300 dark:bg-navy-900">
-      <header className="flex items-center justify-between border-b border-gray-200 bg-white px-6 py-4 shadow-sm dark:border-navy-700 dark:bg-navy-800">
-        <div className="flex items-center gap-4">
-          <button
-            type="button"
-            onClick={() => navigate("/")}
-            className="rounded-lg p-2 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-700 dark:hover:bg-navy-700 dark:hover:text-gray-200"
-          >
-            <ArrowLeft className="h-5 w-5" />
-          </button>
-          <div>
-            <h1 className="font-heading text-xl font-bold uppercase tracking-wide text-gray-800 dark:text-gray-100">
-              {t("teamSelect.title")}
-            </h1>
-            <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
-              {t("teamSelect.subtitle")}
-            </p>
-          </div>
+    <div className="flex min-h-screen flex-col bg-page text-fg lg:h-screen lg:overflow-hidden">
+      <header className="sticky top-0 z-10 flex min-h-16 shrink-0 flex-wrap items-center gap-3.5 border-b border-line bg-panel px-5 py-2">
+        <Button
+          variant="ghost"
+          size="sm"
+          aria-label={t("teamSelect.back")}
+          onClick={() => navigate("/")}
+          icon={<ArrowLeft aria-hidden="true" />}
+        >
+          {null}
+        </Button>
+        <div className="flex flex-col gap-1">
+          <h1 className="font-heading text-title font-bold uppercase leading-none tracking-label">
+            {t("teamSelect.title")}
+          </h1>
+          <TeamSelectionStepper />
         </div>
-        <div className="flex items-center gap-3">
+        <div className="ml-auto flex items-center gap-2.5">
           <ThemeToggle />
-          {selectedTeam && (
-            <button
-              type="button"
-              onClick={handleConfirm}
-              disabled={isConfirming}
-              className={`flex items-center gap-2 rounded-lg bg-gradient-to-r from-primary-500 to-primary-600 px-6 py-2.5 font-heading text-sm font-bold uppercase tracking-wider text-white shadow-md transition-all hover:from-primary-600 hover:to-primary-700 hover:shadow-lg hover:shadow-primary-500/20 ${
-                isConfirming ? "cursor-wait opacity-70" : ""
-              }`}
-            >
-              <span>
-                {isConfirming
-                  ? t("teamSelect.confirming")
-                  : t("teamSelect.manage", { name: selectedTeam.short_name })}
-              </span>
-              {isConfirming ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <ChevronRight className="h-4 w-4" />
-              )}
-            </button>
+          <Button
+            variant="outline"
+            size="sm"
+            aria-expanded={scopeExpanded}
+            aria-controls={SCOPE_BAND_ID}
+            onClick={() => setScopeExpanded((value) => !value)}
+            icon={<SlidersHorizontal aria-hidden="true" />}
+          >
+            {t("teamSelect.simulation")}
+          </Button>
+          {selectedTeam ? null : (
+            <span id={MANAGE_HINT_ID} className="sr-only">
+              {t("teamSelect.card.emptyTitle")}
+            </span>
           )}
+          <Button
+            disabled={!selectedTeam || isConfirming}
+            aria-describedby={selectedTeam ? undefined : MANAGE_HINT_ID}
+            onClick={handleConfirm}
+            iconRight={
+              isConfirming ? (
+                <Loader2 aria-hidden="true" className="animate-spin" />
+              ) : (
+                <ChevronRight aria-hidden="true" />
+              )
+            }
+          >
+            {manageLabel}
+          </Button>
         </div>
       </header>
 
-      <div className="space-y-5 p-6">
-        {scopeMessage && (
-          <Card accent="accent">
-            <CardBody className="py-3">
-              <p className="text-sm text-gray-700 dark:text-gray-200">
-                {t(scopeMessage.key, scopeMessage.values)}
-              </p>
-            </CardBody>
-          </Card>
-        )}
+      {/* The simulation's settings, until they move into a dialog of their own. */}
+      <div id={SCOPE_BAND_ID} className="shrink-0 overflow-auto lg:max-h-[45vh]">
+        {scopeExpanded ? (
+          <div className="space-y-3 px-5 pt-3">
+            {scopeMessage && (
+              <Card accent="accent">
+                <CardBody className="py-3">
+                  <p className="text-body text-fg">{t(scopeMessage.key, scopeMessage.values)}</p>
+                </CardBody>
+              </Card>
+            )}
+            <TeamSelectionScopePanel
+              scopeExpanded={scopeExpanded}
+              onToggleScopeExpanded={() => setScopeExpanded((value) => !value)}
+              regions={regions}
+              selectedHomeRegionId={selectedHomeRegionId}
+              onSelectHomeRegion={(regionId) => {
+                changeHomeRegion(regionId);
+                setScopeMessage(null);
+              }}
+              selectedCountryCode={selectedCountryCode}
+              onSelectCountry={setSelectedCountryCode}
+              regionCountries={regionCountries}
+              regionSelection={regionSelection}
+              onRegionToggle={handleRegionToggle}
+              availableCompetitions={availableCompetitions}
+              competitionSelection={competitionSelection}
+              mandatoryCompetitionIds={mandatoryCompetitionIds}
+              activeRegionIds={activeRegionIds}
+              onCompetitionToggle={handleCompetitionToggle}
+            />
+          </div>
+        ) : null}
+      </div>
 
-        <TeamSelectionScopePanel
-          scopeExpanded={scopeExpanded}
-          onToggleScopeExpanded={() => setScopeExpanded((value) => !value)}
-          regions={regions}
-          selectedHomeRegionId={selectedHomeRegionId}
-          onSelectHomeRegion={(regionId) => {
-            setSelectedHomeRegionId(regionId);
-            setScopeMessage(null);
-          }}
+      <div className="grid min-h-0 flex-1 grid-cols-1 gap-3.5 px-5 pb-4 pt-4 lg:grid-cols-[14.5rem_minmax(0,1fr)_20rem]">
+        <CountryLeagueRail
+          countryCodes={allCountryCodes}
           selectedCountryCode={selectedCountryCode}
-          onSelectCountry={setSelectedCountryCode}
-          regionCountries={regionCountries}
-          regionSelection={regionSelection}
-          onRegionToggle={handleRegionToggle}
-          availableCompetitions={availableCompetitions}
-          competitionSelection={competitionSelection}
-          mandatoryCompetitionIds={mandatoryCompetitionIds}
-          activeRegionIds={activeRegionIds}
-          onCompetitionToggle={handleCompetitionToggle}
+          onSelectCountry={handleSelectCountry}
+          leagues={leagueGroups.map((group) => ({
+            id: group.id,
+            name: group.name,
+            clubCount: group.teams.length,
+          }))}
+          activeLeagueId={activeLeagueId}
+          onSelectLeague={setSelectedLeagueId}
         />
 
-        <div className="grid gap-5 xl:grid-cols-[minmax(0,1.2fr)_minmax(340px,0.8fr)]">
-          <TeamSelectionGrid
-            clubSearch={clubSearch}
-            onClubSearchChange={setClubSearch}
-            filteredTeamsCount={filteredTeams.length}
-            teamGroups={teamGroups}
-            selectedTeamId={selectedTeam?.id ?? null}
-            onSelectTeam={setSelectedTeamId}
-            getTeamAvgOvr={getTeamAvgOvr}
-            getTeamPlayerCount={(teamId) => getTeamPlayers(teamId).length}
-          />
+        <ClubsTable
+          leagueName={activeLeague?.name ?? ""}
+          clubs={visibleClubs}
+          clubCount={activeLeague?.teams.length ?? 0}
+          search={clubSearch}
+          onSearchChange={setClubSearch}
+          selectedTeamId={selectedTeam?.id ?? null}
+          onSelectTeam={setSelectedTeamId}
+          getTeamAvgOvr={getTeamAvgOvr}
+        />
 
-          <TeamSelectionSidebar
-            selectedTeam={selectedTeam}
-            selectedTeamXi={selectedTeamXi}
-            selectedTeamCompetitions={selectedTeamCompetitions}
-            getTeamAvgOvr={getTeamAvgOvr}
-            getPlayerRating={getPlayerRating}
+        <aside
+          aria-label={t("teamSelect.card.label")}
+          className="flex min-h-0 flex-col overflow-auto"
+        >
+          <ChosenClubCard
+            team={selectedTeam}
+            average={selectedTeam ? getTeamAvgOvr(selectedTeam.id) : null}
+            keyPlayers={keyPlayers(selectedTeamXi, getPlayerRating, (player) =>
+              calcAgeOnDate(player.date_of_birth, today),
+            )}
+            competitionNames={selectedTeamCompetitions.map((competition) =>
+              competitionDisplayName(competition, t),
+            )}
           />
-        </div>
-
-        <Card>
-          <CardBody className="flex flex-wrap items-center justify-between gap-3 py-3">
-            <div className="text-sm text-gray-600 dark:text-gray-300">
-              {t("teamSelect.scopeSummary", {
-                regionsCount: activeRegionIds.length,
-                competitionsCount: enabledCompetitionIds.length,
-              })}
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {activeRegionIds.map((regionId) => (
-                <Badge key={regionId} variant="neutral">
-                  {buildRegionLabel(t, regionId)}
-                </Badge>
-              ))}
-            </div>
-          </CardBody>
-        </Card>
+        </aside>
       </div>
     </div>
   );

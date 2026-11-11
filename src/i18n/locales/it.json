@@ -322,6 +322,39 @@
     "subtitle": "Seleziona la squadra che vuoi allenare",
     "confirming": "Conferma in corso...",
     "manage": "Allena {{name}}",
+    "steps": {
+      "label": "Passaggi della nuova carriera",
+      "manager": "Allenatore",
+      "world": "Mondo",
+      "generation": "Generazione",
+      "club": "Club",
+      "done": "completato"
+    },
+    "back": "Torna alla generazione del mondo",
+    "simulation": "Simulazione",
+    "manageNone": "Allena",
+    "rail": {
+      "label": "Paesi e campionati",
+      "countries": "Paesi"
+    },
+    "table": {
+      "label": "Club",
+      "club": "Club",
+      "transfers": "Trasferimenti",
+      "wages": "Stipendi / sett.",
+      "stadium": "Stadio"
+    },
+    "card": {
+      "label": "Club scelto",
+      "emptyTitle": "Nessun club scelto",
+      "emptyHint": "Scegli un club dalla lista per vederne la rosa, i budget e ciò che si aspetta la dirigenza.",
+      "boardExpects": "La dirigenza si aspetta",
+      "transferBudget": "Budget trasferimenti",
+      "wageBudget": "Budget stipendi",
+      "balance": "Saldo",
+      "stadium": "Stadio",
+      "founded": "fondato nel {{year}}"
+    },
     "reputation": "Reputazione",
     "squad": "Rosa",
     "finances": "Finanze",

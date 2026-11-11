@@ -303,6 +303,39 @@
     "subtitle": "Zvolte tým, který chcete trénovat",
     "confirming": "Potvrzování...",
     "manage": "Trénovat {{name}}",
+    "steps": {
+      "label": "Kroky nové kariéry",
+      "manager": "Manažer",
+      "world": "Svět",
+      "generation": "Generování",
+      "club": "Klub",
+      "done": "dokončeno"
+    },
+    "back": "Zpět ke generování světa",
+    "simulation": "Simulace",
+    "manageNone": "Trénovat",
+    "rail": {
+      "label": "Země a ligy",
+      "countries": "Země"
+    },
+    "table": {
+      "label": "Kluby",
+      "club": "Klub",
+      "transfers": "Přestupy",
+      "wages": "Mzdy / týden",
+      "stadium": "Stadion"
+    },
+    "card": {
+      "label": "Vybraný klub",
+      "emptyTitle": "Zatím nebyl vybrán žádný klub",
+      "emptyHint": "Vyberte klub ze seznamu a uvidíte jeho kádr, rozpočty a očekávání vedení.",
+      "boardExpects": "Vedení očekává",
+      "transferBudget": "Přestupový rozpočet",
+      "wageBudget": "Mzdový rozpočet",
+      "balance": "Zůstatek",
+      "stadium": "Stadion",
+      "founded": "založen {{year}}"
+    },
     "reputation": "Reputace",
     "squad": "Soupiska",
     "finances": "Finance",

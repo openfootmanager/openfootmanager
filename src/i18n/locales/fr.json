@@ -303,6 +303,39 @@
     "subtitle": "Sélectionnez l'équipe que vous voulez entraîner",
     "confirming": "Confirmation...",
     "manage": "Entraîner {{name}}",
+    "steps": {
+      "label": "Étapes de la nouvelle carrière",
+      "manager": "Entraîneur",
+      "world": "Monde",
+      "generation": "Génération",
+      "club": "Club",
+      "done": "terminé"
+    },
+    "back": "Retour à la génération du monde",
+    "simulation": "Simulation",
+    "manageNone": "Entraîner",
+    "rail": {
+      "label": "Pays et championnats",
+      "countries": "Pays"
+    },
+    "table": {
+      "label": "Clubs",
+      "club": "Club",
+      "transfers": "Transferts",
+      "wages": "Salaires / sem.",
+      "stadium": "Stade"
+    },
+    "card": {
+      "label": "Club choisi",
+      "emptyTitle": "Aucun club choisi pour l'instant",
+      "emptyHint": "Choisissez un club dans la liste pour voir son effectif, ses budgets et ce qu'attend la direction.",
+      "boardExpects": "La direction attend",
+      "transferBudget": "Budget transferts",
+      "wageBudget": "Budget salaires",
+      "balance": "Solde",
+      "stadium": "Stade",
+      "founded": "fondé en {{year}}"
+    },
     "reputation": "Réputation",
     "squad": "Effectif",
     "finances": "Finances",

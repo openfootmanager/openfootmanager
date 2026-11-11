@@ -189,6 +189,8 @@ fn process_day_common(game: &mut Game, today: &str) {
     player_events::check_player_events(game);
     progress_injury_recovery(game);
     random_events::check_random_events(game);
+    // After the day's recovery, so an injury picked up today keeps all of its days.
+    training::roll_training_injuries(game);
     scouting::process_scouting(game);
     transfers::process_pending_transfer_registrations(game);
     transfers::process_pending_loan_registrations(game);
@@ -264,6 +266,9 @@ where
     // Both self-filter by date, so they are no-ops on other days.
     crate::national_team::process_national_team_fixtures_due(game, today);
     crate::world_cup::process_world_cup_fixtures_due(game, today);
+    if let Some(tomorrow) = game.clock.current_date.date_naive().succ_opt() {
+        crate::national_team::settle_friendlies(game, tomorrow);
+    }
 
     // A cup whose last tie was played today starts its next edition, so the sweep below settles
     // the new ties too.

@@ -75,7 +75,9 @@ export function EntityCard({
           <h3
             id={nameId}
             // Uppercase only at heading size: a compact card's name is lead-sized text.
-            className={`font-heading font-extrabold leading-tight ${
+            // A long name wraps, even one unbroken word: the card clips, so a name that did not
+            // break would be cut off.
+            className={`font-heading font-extrabold leading-tight [overflow-wrap:anywhere] ${
               compact ? "text-lead" : "text-heading uppercase tracking-label"
             }`}
           >
