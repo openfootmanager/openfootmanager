@@ -10,7 +10,7 @@ use ofm_core::{
     game::Game,
     group_stage::{GroupStageConfig, generate_group_knockout_cup_with},
 };
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 fn tournament_game(active: bool) -> Game {
     let start = Utc.with_ymd_and_hms(2033, 2, 1, 12, 0, 0).unwrap();
@@ -471,6 +471,7 @@ fn a_drawn_continental_round_yields_to_world_cup_qualifying() {
 
 fn finish_collision_day(live: bool) {
     let mut game = draw_competing_round();
+    let published = national_fixture_ids(&game);
     for fixture in &mut game.competitions[0].fixtures {
         if fixture.status == FixtureStatus::Scheduled && overlaps_qualifier(fixture) {
             fixture.date = "2033-02-04".into();
@@ -504,6 +505,10 @@ fn finish_collision_day(live: bool) {
     assert_eq!(before.len(), 2);
     play(&mut legal);
     play(&mut game);
+    assert!(
+        published.is_subset(&national_fixture_ids(&game)),
+        "every published fixture keeps its identity"
+    );
     let qualifier = &game.competitions[1].fixtures[0];
     assert_eq!(qualifier.status, FixtureStatus::Completed);
     assert_eq!(qualifier.date, "2033-02-04");
@@ -561,8 +566,17 @@ fn assert_national_rest(game: &Game) {
     }
 }
 
+fn national_fixture_ids(game: &Game) -> BTreeSet<String> {
+    game.competitions
+        .iter()
+        .flat_map(|c| &c.fixtures)
+        .map(|f| f.id.clone())
+        .collect()
+}
+
 fn complete_competing_tournaments(mut game: Game, live: bool) {
     let mut results = BTreeMap::new();
+    let mut published = national_fixture_ids(&game);
     for _ in 0..30 {
         let date = game.clock.current_date.format("%Y-%m-%d").to_string();
         if live {
@@ -570,6 +584,12 @@ fn complete_competing_tournaments(mut game: Game, live: bool) {
         } else {
             ofm_core::turn::process_day(&mut game);
         }
+        let current = national_fixture_ids(&game);
+        assert!(
+            published.is_subset(&current),
+            "a postponed fixture must never disappear or be replaced"
+        );
+        published = current;
         for fixture in game.competitions.iter().flat_map(|c| &c.fixtures) {
             if let Some(previous) = results.get(&fixture.id) {
                 assert_eq!(
