@@ -79,6 +79,11 @@ pub struct Player {
 
     // Career history
     pub career: Vec<CareerEntry>,
+    /// The season in progress split by club, closed at every move and resolved into `career` rows
+    /// at the rollover. Not on the wire: no screen reads it.
+    #[serde(default)]
+    #[ts(skip)]
+    pub season_stints: crate::career_stints::SeasonStints,
     /// Every move and every contract. Flattened so the wire and the saves keep their
     /// keys: it reads and writes `movement_history`, `wage`, `contract_start` and
     /// `contract_end` itself.
@@ -994,6 +999,7 @@ impl Player {
             stats: PlayerSeasonStats::default(),
             league_stats_by_competition: Default::default(),
             career: Vec::new(),
+            season_stints: Default::default(),
             movement_history: Default::default(),
             training_focus: None,
             transfer_listed: false,

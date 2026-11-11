@@ -436,6 +436,7 @@ fn row_to_player(conn: &Connection, row: &rusqlite::Row) -> rusqlite::Result<Pla
             &league_stats_by_competition_json,
         ),
         career: json_column::read(conn, cell("career"), &career_json),
+        season_stints: Default::default(),
         // The contract columns are read only as a legacy input: they describe a contract
         // for a save from before the ledger, and are ignored once the entries hold one.
         movement_history: domain::contract_ledger::MovementLedger::restore(
@@ -1201,6 +1202,43 @@ mod tests {
             "InsufficientFunds"
         );
         assert_eq!(offer.closed_on.as_deref(), Some("2026-07-02"));
+    }
+
+    /// Given a player part-way through a stint at a new club, with a closed stint at his old one
+    /// When he is saved to SQLite and read back by a fresh load of the table
+    /// Then the closed stint and the totals he arrived with are both still there: the rollover
+    ///      credits each club from them, so a save in the middle of a season must keep them.
+    #[test]
+    fn a_player_midway_through_a_stint_keeps_his_stints_through_sqlite() {
+        let db = test_db();
+        let mut player = sample_player("p-stints", Some("team-b"));
+        player.stats.appearances = 12;
+        player.stats.goals = 8;
+        player.stats.assists = 4;
+        player
+            .record_movement(PlayerMovementEntry {
+                from_team_id: Some("team-a".to_string()),
+                from_team_name: Some("Alpha FC".to_string()),
+                to_team_id: Some("team-b".to_string()),
+                to_team_name: Some("Beta FC".to_string()),
+                ..PlayerMovementEntry::new("2026-01-12", PlayerMovementKind::PermanentTransfer)
+            })
+            .unwrap();
+        player.stats.appearances = 18;
+        player.stats.goals = 11;
+        assert_eq!(
+            player.season_stints.closed.len(),
+            1,
+            "the stint is closed before saving"
+        );
+
+        upsert_player(db.conn(), &player).unwrap();
+        let loaded = load_all_players(db.conn()).unwrap();
+        let stored = loaded.iter().find(|stored| stored.id == player.id).unwrap();
+
+        assert_eq!(stored.season_stints, player.season_stints);
+        assert_eq!(stored.season_stints.stats_at_arrival.appearances, 12);
+        assert_eq!(stored.season_stints.closed[0].team_id, "team-a");
     }
 
     #[test]
