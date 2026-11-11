@@ -1,6 +1,7 @@
 import type { JSX } from "react";
 import { useCallback, useState } from "react";
 import type { GameStateData, PlayerSelectionOptions } from "../../store/gameStore";
+import type { PlayerRole } from "../../store/types";
 import { useTranslation } from "react-i18next";
 import { setPlayerRole } from "../../services/squadService";
 import { resolveTranslatedErrorMessage } from "../../utils/errorMessage";
@@ -87,6 +88,16 @@ export default function TacticsTab({
     lineup,
     familiarity,
   } = useTacticsLineup({ gameState, onGameUpdate, onWriteError });
+
+  // A role chosen in the table or on the pitch: one write, and a refusal is shown, not only logged.
+  function changePlayerRole(playerId: string, role: PlayerRole) {
+    void setPlayerRole(playerId, role)
+      .then(onGameUpdate)
+      .catch((error: unknown) => {
+        console.error("Failed to set player role:", error);
+        onWriteError(error);
+      });
+  }
 
   const {
     activeTactic,
@@ -200,13 +211,7 @@ export default function TacticsTab({
               onTacticalSelect={(playerId, section) => {
                 void handleLineupPlayerClick(playerId, section);
               }}
-              onRoleChange={(playerId, role) => {
-                void setPlayerRole(playerId, role)
-                  .then(onGameUpdate)
-                  .catch((error: unknown) => {
-                    console.error("Failed to set player role:", error);
-                  });
-              }}
+              onRoleChange={changePlayerRole}
               onOpenPlayerProfile={onSelectPlayer}
               onAssignMatchRole={(role, playerId) => {
                 void handleAssignMatchRole(role, playerId);
@@ -232,14 +237,7 @@ export default function TacticsTab({
             comparePlayerId={comparePlayerId}
             hoveredSlot={hoveredSlot}
             matchRoles={effectiveMatchRoles}
-            onRoleChange={(playerId, role) => {
-              void setPlayerRole(playerId, role)
-                .then(onGameUpdate)
-                .catch((error: unknown) => {
-                  console.error("Failed to set player role:", error);
-                  onWriteError(error);
-                });
-            }}
+            onRoleChange={changePlayerRole}
             playerRoles={team?.player_roles}
             tacticsPhase={team?.tactics_phase}
             onAssignBestFit={(playerId) => {
