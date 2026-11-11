@@ -280,7 +280,7 @@ mod tests {
                 "stadium_name": "North End",
                 "stadium_capacity": 18_432,
                 "transfer_budget": 8_765_432,
-                "wage_budget": 123_456,
+                "weekly_wage_budget": 123_456,
                 "balance": -654_321,
                 "colors": { "primary": "#123456", "secondary": "#abcdef" },
                 "founded_year": 1897,
@@ -290,7 +290,7 @@ mod tests {
                 "stadium_name": "South Park",
                 "stadium_capacity": 31_678,
                 "transfer_budget": 2_345_678,
-                "wage_budget": 98_765,
+                "weekly_wage_budget": 98_765,
                 "balance": 543_210,
                 "colors": { "primary": "#654321", "secondary": "#fedcba" },
                 "founded_year": 1923,
@@ -305,6 +305,10 @@ mod tests {
             for (field, value) in expected.as_object().unwrap() {
                 assert_eq!(&facts[field], value, "{team_id}.{field}");
             }
+            assert!(
+                facts.get("wage_budget").is_none(),
+                "{team_id}: ambiguous wage-budget key"
+            );
         }
     }
 
