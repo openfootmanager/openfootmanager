@@ -705,6 +705,7 @@ mod bench_fallback_tests {
             fitness: 100,
             injury_risk: 1.0,
             line_familiarity: [1.0; 4],
+            morale_factor: 1.0,
             pace: skill,
             stamina: skill,
             strength: skill,

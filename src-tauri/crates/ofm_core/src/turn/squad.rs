@@ -911,6 +911,8 @@ fn to_engine_player(
         injury_risk: crate::player_wear::injury_multiplier_from_fitness(p.fitness)
             / CLUB_MATCH_MEAN_INJURY_MULTIPLIER,
         line_familiarity: familiarity::line_familiarity(p, deployed),
+        // His mood as it stands at kick-off; the half-time talk refits it (`LiveMatchSession::refit_morale`).
+        morale_factor: morale::morale_factor(p.morale),
         pace: p.attributes.pace,
         stamina: p.attributes.stamina,
         strength: p.attributes.strength,
@@ -1009,7 +1011,9 @@ pub(crate) fn set_piece_takers_among(
 }
 
 mod familiarity;
+mod morale;
 pub(crate) use familiarity::{line_familiarity, slot_factor};
+pub(crate) use morale::morale_factor;
 
 #[cfg(test)]
 mod tests;

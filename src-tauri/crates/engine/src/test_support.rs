@@ -13,6 +13,7 @@ pub(crate) fn player(id: &str, position: Position) -> PlayerData {
         fitness: 100,
         injury_risk: 1.0,
         line_familiarity: [1.0; 4],
+        morale_factor: 1.0,
         pace: 70,
         stamina: 70,
         strength: 70,
