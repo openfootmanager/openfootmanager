@@ -1,5 +1,6 @@
 pub mod cash_flow;
 pub mod gate;
+pub mod league_position;
 pub mod journal;
 
 pub use domain::finance::{CashJournal, CashKind};
