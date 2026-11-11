@@ -216,4 +216,107 @@ describe("the profile of a retired player", () => {
       within(screen.getByRole("tabpanel", { name: "Career" })).getAllByText("Alpha FC").length,
     ).toBeGreaterThan(0);
   });
+
+  /**
+   * Given a retirement the way the game writes it: a club id and no club name, and a career
+   * When his profile opens
+   * Then the last club is the name his career gives that club
+   */
+  it("names the last club from his career when the movement carries only the club's id", () => {
+    renderRetiree({
+      ...retiree,
+      movement_history: [
+        { date: "2031-06-30", kind: "retired", from_team_id: "team-1", from_team_name: null },
+      ],
+    });
+
+    const card = screen.getByRole("region", { name: "Oscar Timer" });
+    expect(within(card).getByText("Last club: Alpha FC")).toBeInTheDocument();
+  });
+
+  /**
+   * Given a retirement movement that names a club and a career whose latest row is another club's
+   * When his profile opens
+   * Then the movement's club is the last club: it is where he retired from
+   */
+  it("prefers the club the retirement movement names over his career's latest row", () => {
+    renderRetiree({
+      ...retiree,
+      career: [
+        {
+          season: 2030,
+          team_id: "team-2",
+          team_name: "Beta FC",
+          appearances: 1,
+          goals: 0,
+          assists: 0,
+        },
+      ],
+    });
+
+    const card = screen.getByRole("region", { name: "Oscar Timer" });
+    expect(within(card).getByText("Last club: Alpha FC")).toBeInTheDocument();
+  });
+
+  /**
+   * Given a career whose latest row is the one the game writes for a season spent without a club
+   *       (team_name "Free Agent", no club id), after a season at Alpha FC
+   * When his profile opens
+   * Then the last club is Alpha FC: a free agent is not a club, and the card must not say so in
+   *      English in every language
+   */
+  it("skips a free-agent season when naming his last club", () => {
+    renderRetiree({
+      ...retiree,
+      movement_history: [{ date: "2031-06-30", kind: "retired", from_team_id: null }],
+      career: [
+        {
+          season: 2029,
+          team_id: "team-1",
+          team_name: "Alpha FC",
+          appearances: 20,
+          goals: 1,
+          assists: 0,
+        },
+        {
+          season: 2030,
+          team_id: "",
+          team_name: "Free Agent",
+          appearances: 0,
+          goals: 0,
+          assists: 0,
+        },
+      ],
+    });
+
+    const card = screen.getByRole("region", { name: "Oscar Timer" });
+    expect(within(card).getByText("Last club: Alpha FC")).toBeInTheDocument();
+    expect(within(card).queryByText(/Free Agent/)).toBeNull();
+  });
+
+  /**
+   * Given a career that is only free-agent seasons, and no named club on the movement
+   * When his profile opens
+   * Then he has no last club to show: just "Retired"
+   */
+  it("shows no last club when every season of his career was spent without one", () => {
+    renderRetiree({
+      ...retiree,
+      movement_history: [],
+      career: [
+        {
+          season: 2030,
+          team_id: "",
+          team_name: "Free Agent",
+          appearances: 0,
+          goals: 0,
+          assists: 0,
+        },
+      ],
+    });
+
+    const card = screen.getByRole("region", { name: "Oscar Timer" });
+    expect(within(card).getByText("Retired")).toBeInTheDocument();
+    expect(within(card).queryByText(/Last club/)).toBeNull();
+  });
 });
