@@ -14,6 +14,8 @@ use crate::game::Game;
 /// day may move. Idempotent: a settled calendar changes nothing and announces nothing.
 pub fn repair_loaded_calendar(game: &mut Game) -> usize {
     let first_day_to_play = game.clock.current_date.date_naive();
+    let national_moves = crate::national_team::settle_tournaments(game, first_day_to_play)
+        + crate::national_team::settle_friendlies(game, first_day_to_play);
     let blackout = crate::national_team::international_blackout_around(game, first_day_to_play);
     let fixtures_before: usize = game.competitions.iter().map(|c| c.fixtures.len()).sum();
 
@@ -26,7 +28,7 @@ pub fn repair_loaded_calendar(game: &mut Game) -> usize {
 
     let fixtures_after: usize = game.competitions.iter().map(|c| c.fixtures.len()).sum();
     let dropped = fixtures_before.saturating_sub(fixtures_after);
-    let changed = moved.len() + dropped;
+    let changed = national_moves + moved.len() + dropped;
     if changed > 0 {
         game.sync_legacy_league();
         calendar_notice::announce_moved_matches(

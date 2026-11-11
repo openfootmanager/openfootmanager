@@ -230,6 +230,11 @@ where
     F: FnMut(StatsState),
 {
     let shown_fixtures = calendar_sweep::take_shown_at_day_start(game, today);
+    if let Ok(day) = chrono::NaiveDate::parse_from_str(today, "%Y-%m-%d") {
+        crate::national_team::settle_tournaments(game, day);
+        crate::national_team::settle_for_replay(game, day);
+    }
+    calendar_sweep::prepare_calendar(game, today, &shown_fixtures);
     let due = competition_indices_due_today(game, today);
     if !due.is_empty() {
         info!("[turn] {}: matchday in {} competition(s)", today, due.len());
