@@ -207,6 +207,10 @@ pub fn apply_team_talk_on(
     career: Career,
     tone: &str,
 ) -> Result<TeamTalkOutcome, String> {
+    // The lifecycle lock a career install holds, across reading the moment, claiming it and
+    // writing the morale: an install clears the claimed moments, so one that landed between two
+    // talks would let both give the old career's half-time talk.
+    let _operation = crate::application::live_session::operation();
     let (moment, career) = team_talk_moment_of(state, career)?;
     give_team_talk_at(state, career, &moment, tone)
 }
@@ -2810,10 +2814,8 @@ mod live_session_tests {
                 super::apply_team_talk_on(&asker, ofm_core::state::Career::Active, "motivational");
             done_tx.send(result.map(|_| ())).unwrap();
         });
-        let queued = matches!(
-            done_rx.recv_timeout(std::time::Duration::from_secs(1)),
-            Err(std::sync::mpsc::RecvTimeoutError::Timeout)
-        );
+        let first = done_rx.recv_timeout(std::time::Duration::from_secs(1));
+        let queued = matches!(first, Err(std::sync::mpsc::RecvTimeoutError::Timeout));
         // The install lands: the live match goes, the new career is set.
         drop(state.take_live_match());
         let mut other = make_game_with_matchday();
@@ -2821,7 +2823,7 @@ mod live_session_tests {
         state.set_game(other);
         let new_career_morale = squad_morale(&state);
         drop(install);
-        let result = done_rx.recv().unwrap();
+        let result = first.unwrap_or_else(|_| done_rx.recv().unwrap());
         handle.join().unwrap();
 
         assert!(queued, "the talk did not wait for the install in progress");
