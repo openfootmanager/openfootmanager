@@ -2118,6 +2118,7 @@ struct ValidatedArchiveEntry {
     index: usize,
     name: String,
     destination: PathBuf,
+    normalized_path: PathBuf,
 }
 
 struct ValidatedArchive {
@@ -2180,6 +2181,7 @@ fn validate_archive_entries<R: std::io::Read + std::io::Seek>(
                 index: i,
                 name,
                 destination: dest,
+                normalized_path: PathBuf::new(),
             });
         }
     }
@@ -2214,6 +2216,7 @@ fn extract_archive_entries(
         index,
         name: entry_name,
         destination: dest,
+        normalized_path: _,
     } in entries
     {
         if !keep(&entry_name) {
@@ -2403,6 +2406,40 @@ pub fn read_logo_from_ofm(archive_path: &Path, logo_path: &str) -> Option<String
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Given a safe path alias, when the shared archive pass validates it, then it exposes the normalized path.
+    #[test]
+    fn archive_validation_normalizes_safe_path_components() {
+        let archive_path = build_zip(&[("./assets/portrait.json", b"art")]);
+        let file = std::fs::File::open(&archive_path).unwrap();
+        let mut archive = zip::ZipArchive::new(file).unwrap();
+        let result = validate_archive_entries(&mut archive, Path::new("/tmp/base")).unwrap();
+        assert!(result.errors.is_empty());
+        assert_eq!(result.entries.len(), 1);
+        assert_eq!(
+            result.entries[0].normalized_path,
+            Path::new("assets/portrait.json")
+        );
+        std::fs::remove_file(archive_path).unwrap();
+    }
+
+    /// Given an unsafe world definition before a valid manifest, when metadata is read, then only the safe path is considered.
+    #[test]
+    fn manifest_scan_ignores_unsafe_world_paths() {
+        let archive_path = build_zip(&[
+            (
+                "../unsafe.json",
+                br#"{"schema":"world","id":"wrong","name":"Wrong"}"#,
+            ),
+            (
+                "package.json",
+                br#"{"schema":"world","id":"real","name":"Real"}"#,
+            ),
+        ]);
+        let meta = read_package_manifest_from_ofm(&archive_path).unwrap();
+        assert_eq!(meta.name, "Real");
+        std::fs::remove_file(archive_path).unwrap();
+    }
 
     /// Given a package with artwork, when definitions are extracted, then artwork is not written.
     #[test]
