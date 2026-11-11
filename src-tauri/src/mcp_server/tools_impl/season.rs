@@ -96,6 +96,16 @@ fn season_advance_for_state(
 
 // ─── season_get_awards ──────────────────────────────────────────────────────
 
+/// The club an award names, as the agent reads it. A winner at no club has no name stored (the
+/// screens word it in the player's language), so the agent, who reads English, is told so.
+fn award_team_label(team_name: &str) -> String {
+    if team_name.is_empty() {
+        "Free Agent".to_string()
+    } else {
+        team_name.to_string()
+    }
+}
+
 pub fn season_get_awards(ctx: Arc<McpContext>) -> Result<SeasonAwards, String> {
     let game = require_game(&ctx.state_manager)?;
     // The screen's awards: the user's league (`end_of_season::user_division`), so an agent and the
@@ -107,7 +117,7 @@ pub fn season_get_awards(ctx: Arc<McpContext>) -> Result<SeasonAwards, String> {
             .iter()
             .map(|e| AwardWinner {
                 name: e.player_name.clone(),
-                team: e.team_name.clone(),
+                team: award_team_label(&e.team_name),
                 value: e.value,
             })
             .collect()
@@ -125,7 +135,7 @@ pub fn season_get_awards(ctx: Arc<McpContext>) -> Result<SeasonAwards, String> {
             .iter()
             .map(|e| AwardWinner {
                 name: e.manager_name.clone(),
-                team: e.team_name.clone(),
+                team: award_team_label(&e.team_name),
                 value: e.value,
             })
             .collect(),
@@ -190,12 +200,21 @@ pub fn jobs_apply(ctx: Arc<McpContext>, team_id: String) -> Result<JobApplicatio
 
 #[cfg(test)]
 mod tests {
-    use super::{season_advance_for_state, season_status};
+    use super::{award_team_label, season_advance_for_state, season_status};
     use crate::commands::season::{advance_to_next_season_internal, tests::completed_checkpoint};
     use domain::league::FixtureStatus;
     use mcp_results::season::SeasonStatus;
     use ofm_core::game::{BoardObjective, ObjectiveType};
     use ofm_core::state::StateManager;
+
+    /// Given an award won by a player at no club (no team name stored)
+    /// When the agent reads it
+    /// Then the team column says "Free Agent", never a blank cell; a club keeps its name.
+    #[test]
+    fn an_award_won_at_no_club_reads_free_agent_to_the_agent() {
+        assert_eq!(award_team_label(""), "Free Agent");
+        assert_eq!(award_team_label("Alpha FC"), "Alpha FC");
+    }
 
     /// The completed checkpoint with a second English division that has kicked off and still has a
     /// round to play after today (the shape of Brazil's staggered second division).
