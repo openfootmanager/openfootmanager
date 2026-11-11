@@ -312,6 +312,8 @@ pub(crate) fn create_incoming_user_offer(
         game.messages.push(message);
     }
 }
+/// Quotes must preserve this exact ceiling: rounding upward after the cash/reservation
+/// cap can promise a fee the buyer cannot honor.
 pub(crate) fn buyer_counter_offer_ceiling(
     game: &Game,
     current_date: NaiveDate,
@@ -1184,7 +1186,7 @@ fn continue_incoming_counter(
         ..
     } = context;
 
-    let suggested_fee = round_transfer_fee(counter_ceiling);
+    let suggested_fee = counter_ceiling;
     if let Some(player) = game
         .players
         .iter_mut()
@@ -1241,7 +1243,7 @@ fn incoming_counter_rejection(context: IncomingCounterContext) -> TransferNegoti
             tension.saturating_add(10).min(92),
             patience.saturating_sub(12),
             round,
-            &[("fee", round_transfer_fee(counter_ceiling).to_string())],
+            &[("fee", counter_ceiling.to_string())],
         ),
     )
 }
