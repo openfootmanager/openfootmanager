@@ -283,18 +283,80 @@ describe("PlayerProfileOverview", () => {
   });
 
   /**
-   * Given a striker, whose natural row weighs eight attributes
-   * When the attributes card is read
-   * Then the radar has those eight axes (what the game weighs there), each with his value, and the
-   *      line names the position's three key attributes with their values
+   * Given a striker, and a defender
+   * When the attributes card is read for each
+   * Then both radars have the same eight fixed axes (pace, shooting, dribbling, passing, vision,
+   *      composure, strength, aerial), drawn short with his value ("PAC 80"), so two radars compare
+   *      at a glance; the picture names every value in full to a screen reader
    */
-  it("draws the radar from the position's weights, and the key attributes under it", () => {
+  it("draws the same eight fixed axes for every outfield player", () => {
+    const axes = (player: ReturnType<typeof props>["player"]) => {
+      const { unmount } = render(<PlayerProfileOverview {...props({ player })} />);
+      const radar = within(screen.getByRole("region", { name: "Attributes" })).getByRole("img");
+      const labels = [...radar.querySelectorAll("text")].map((text) => text.textContent);
+      const spoken = radar.getAttribute("aria-label");
+      unmount();
+      return { labels, spoken };
+    };
+    const striker = createPlayer({ position: "Forward", natural_position: "Striker" });
+    const defender = createPlayer({ position: "Defender", natural_position: "CenterBack" });
+
+    const first = axes(striker);
+    const second = axes(defender);
+
+    expect(first.labels.map((label) => label?.split(" ")[0])).toEqual([
+      "PAC", "SHO", "DRI", "PAS", "VIS", "COM", "STR", "AER",
+    ]);
+    expect(second.labels.map((label) => label?.split(" ")[0])).toEqual(
+      first.labels.map((label) => label?.split(" ")[0]),
+    );
+    expect(first.spoken).toContain("Shooting");
+    expect(first.spoken).toContain("Aerial");
+  });
+
+  /**
+   * Given a goalkeeper
+   * When the attributes card is read
+   * Then the axes are the goalkeeping ones (handling, reflexes, aerial, composure, vision, agility,
+   *      stamina, strength), not pace or shooting
+   */
+  it("swaps in the goalkeeping attributes for a goalkeeper", () => {
+    const keeper = createPlayer({ position: "Goalkeeper", natural_position: "Goalkeeper" });
+    render(<PlayerProfileOverview {...props({ player: keeper, attributes: keeper.attributes })} />);
+    const radar = within(screen.getByRole("region", { name: "Attributes" })).getByRole("img");
+
+    const spoken = radar.getAttribute("aria-label") ?? "";
+    expect(spoken).toContain("Handling");
+    expect(spoken).toContain("Reflexes");
+    expect(spoken).not.toContain("Pace");
+    expect(spoken).not.toContain("Shooting");
+  });
+
+  /**
+   * Given a striker whose key attributes are shooting, positioning and decisions
+   * When the radar is read
+   * Then the axis for a key attribute that the radar has (shooting) is drawn heavier, and no other:
+   *      the position's weights set the highlight, not the axes
+   */
+  it("highlights the axes that are the position's key attributes", () => {
+    render(<PlayerProfileOverview {...props()} />);
+    const radar = within(screen.getByRole("region", { name: "Attributes" })).getByRole("img");
+
+    const heavy = [...radar.querySelectorAll("text.font-bold")].map((text) => text.textContent);
+
+    expect(heavy).toHaveLength(1);
+    expect(heavy[0]).toMatch(/^SHO /);
+  });
+
+  /**
+   * Given a striker
+   * When the attributes card is read
+   * Then the line under the radar names the position's three key attributes with their values
+   */
+  it("names the key attributes under the radar", () => {
     render(<PlayerProfileOverview {...props()} />);
     const attributes = within(screen.getByRole("region", { name: "Attributes" }));
 
-    const radar = attributes.getByRole("img");
-    expect(radar.getAttribute("aria-label")).toContain("Shooting");
-    expect(radar.querySelectorAll("text")).toHaveLength(8);
     expect(attributes.getByText(/Key for a/)).toBeInTheDocument();
     expect(attributes.getByText("Shooting", { selector: "li > span" })).toBeInTheDocument();
     expect(attributes.getByText("84")).toBeInTheDocument();
