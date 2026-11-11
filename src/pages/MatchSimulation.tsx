@@ -309,7 +309,7 @@ export default function MatchSimulation() {
     return (
       <div className="min-h-screen bg-gray-100 dark:bg-navy-900 flex items-center justify-center transition-colors duration-300">
         <div className="flex flex-col items-center gap-3">
-          <div className="w-8 h-8 border-4 border-primary-500 border-t-transparent rounded-full animate-spin" />
+          <div className="w-8 h-8 border-4 border-primary-500 border-t-transparent rounded-full motion-safe:animate-spin" />
           <span className="text-gray-500 dark:text-gray-400 font-heading uppercase tracking-wider text-sm">
             {t("dashboard.loading")}
           </span>

@@ -536,7 +536,7 @@ export default function Dashboard({
     return (
       <div className="flex min-h-screen items-center justify-center bg-page">
         <div className="flex flex-col items-center gap-3">
-          <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary-700 border-t-transparent motion-reduce:animate-none" />
+          <div className="h-8 w-8 motion-safe:animate-spin rounded-full border-4 border-primary-700 border-t-transparent motion-reduce:animate-none" />
           <span className="font-heading text-body uppercase tracking-label text-fg-muted">
             {t("dashboard.loading")}
           </span>

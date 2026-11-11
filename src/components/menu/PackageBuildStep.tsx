@@ -276,7 +276,7 @@ export default function PackageBuildStep({
               className="flex items-center gap-1 text-xs font-heading font-bold uppercase tracking-wider text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 disabled:opacity-50 transition-colors"
             >
               {isInstallingPackage ? (
-                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                <Loader2 className="w-3.5 h-3.5 motion-safe:animate-spin" />
               ) : (
                 <PackagePlus className="w-3.5 h-3.5" />
               )}
