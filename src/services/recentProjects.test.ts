@@ -13,12 +13,27 @@ it("keeps validation when reopening a project", () => {
 
 /** Given stale storage and a failed write, when validation completes, then current recents retain the result. */
 it("keeps current projects and validation when storage is full", () => {
-  localStorage.setItem("worldEditor.recentProjects", JSON.stringify([{ path: "/a", name: "A", openedAt: "old" }]));
-  const write = vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => { throw new Error("full"); });
+  localStorage.setItem(
+    "worldEditor.recentProjects",
+    JSON.stringify([{ path: "/a", name: "A", openedAt: "old" }]),
+  );
+  const write = vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
+    throw new Error("full");
+  });
   try {
-    const current = [{ path: "/b", name: "B", openedAt: "now" }, { path: "/a", name: "A", openedAt: "old" }];
-    const result = updateRecentValidation(current, "/b", { errors: 2, warnings: 1, checkedAt: "today" });
-    expect(result).toEqual([{ ...current[0], lastValidation: { errors: 2, warnings: 1, checkedAt: "today" } }, current[1]]);
+    const current = [
+      { path: "/b", name: "B", openedAt: "now" },
+      { path: "/a", name: "A", openedAt: "old" },
+    ];
+    const result = updateRecentValidation(current, "/b", {
+      errors: 2,
+      warnings: 1,
+      checkedAt: "today",
+    });
+    expect(result).toEqual([
+      { ...current[0], lastValidation: { errors: 2, warnings: 1, checkedAt: "today" } },
+      current[1],
+    ]);
   } finally {
     write.mockRestore();
   }

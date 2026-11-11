@@ -2,8 +2,16 @@ import type { RecentProject } from "../store/packageEditorTypes";
 
 const KEY = "worldEditor.recentProjects";
 
-export function updateRecentValidation(records: RecentProject[], _path: string, _validation: NonNullable<RecentProject["lastValidation"]>): RecentProject[] {
-  return readRecentProjects(records);
+export function updateRecentValidation(
+  records: RecentProject[],
+  path: string,
+  validation: NonNullable<RecentProject["lastValidation"]>,
+): RecentProject[] {
+  const updated = records.map((record) =>
+    record.path === path ? { ...record, lastValidation: validation } : record,
+  );
+  writeRecentProjects(updated);
+  return updated;
 }
 
 function readStoredProjects(): RecentProject[] | null {
@@ -59,13 +67,5 @@ export function rememberRecentProject(
 export function recordValidation(path: string, errors: number, warnings: number): void {
   const records = readStoredProjects();
   if (!records) return;
-  const updated = records.map((record) =>
-    record.path === path
-      ? {
-          ...record,
-          lastValidation: { errors, warnings, checkedAt: new Date().toISOString() },
-        }
-      : record,
-  );
-  writeRecentProjects(updated);
+  updateRecentValidation(records, path, { errors, warnings, checkedAt: new Date().toISOString() });
 }
