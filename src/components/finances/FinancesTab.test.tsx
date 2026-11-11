@@ -596,6 +596,48 @@ describe("FinancesTab facilities", () => {
     ).toHaveLength(1);
   });
 
+  // Given a sponsor offer being answered (the backend has not replied)
+  // When another finance action is started in the meantime (board support)
+  // Then both answers to the offer are still disabled: the offer's own pending state is not the
+  //      tab's one shared "loading" slot, which the other action takes over.
+  it("keeps both sponsor answers disabled when another finance action starts meanwhile", async () => {
+    const initialState = createGameState({}, [createSponsorOfferMessage()]);
+    mockedInvoke.mockImplementation((command) => {
+      if (command === "get_finance_snapshot") {
+        return Promise.resolve(
+          wireSnapshot(
+            {},
+            {
+              board_support: {
+                support_amount: 1,
+                transfer_budget_reduction: 1,
+                satisfaction_penalty: 1,
+              },
+            },
+          ),
+        );
+      }
+      if (command === "resolve_message_action" || command === "request_board_support") {
+        return new Promise(() => {});
+      }
+      return Promise.reject(new Error(`Unexpected command: ${command}`));
+    });
+    await renderFinances(<FinancesTab gameState={initialState} onGameUpdate={vi.fn()} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Accept the deal" }));
+    fireEvent.click(screen.getByRole("button", { name: "finances.requestBoardSupport" }));
+
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "finances.requestBoardSupport" })).toBeDisabled(),
+    );
+    expect(screen.getByRole("button", { name: "Accept the deal" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Decline politely" })).toBeDisabled();
+    fireEvent.click(screen.getByRole("button", { name: "Decline politely" }));
+    expect(
+      mockedInvoke.mock.calls.filter(([command]) => command === "resolve_message_action"),
+    ).toHaveLength(1);
+  });
+
   it("requests a sponsor pitch for a pressured club and publishes the updated state", async () => {
     const initialState = createGameState(
       { wage_budget: 50000 },

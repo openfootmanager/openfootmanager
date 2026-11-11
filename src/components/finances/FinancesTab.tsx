@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { FinanceCashFlowChart } from "./FinanceCashFlowChart";
 import { useContractRiskLevels } from "../../hooks/useContractWarningStages";
 import type { GameStateData, PlayerSelectionOptions, TeamData } from "../../store/gameStore";
@@ -169,6 +169,11 @@ function FinancesTabLoaded({
 }: FinancesTabLoadedProps) {
   const { t, i18n } = useTranslation();
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  // The sponsor offer being answered, for the whole request: its own state, because `actionLoading`
+  // is one slot every finance action takes over, and an answer in flight must not look finished when
+  // another action starts. The ref guards a second press before the state has rendered.
+  const [answeringOfferId, setAnsweringOfferId] = useState<string | null>(null);
+  const answeringOfferRef = useRef<string | null>(null);
   // Why the backend refused the last answer to a sponsor offer; null once one is accepted.
   const [sponsorOfferError, setSponsorOfferError] = useState<string | null>(null);
   const [delegatedRenewalsSummary, setDelegatedRenewalsSummary] = useState<string | null>(null);
@@ -430,9 +435,10 @@ function FinancesTabLoaded({
     actionId: string,
     optionId: string,
   ): Promise<void> {
-    const loadingKey = `sponsor:${messageId}:${optionId}`;
+    if (answeringOfferRef.current !== null) return;
+    answeringOfferRef.current = messageId;
+    setAnsweringOfferId(messageId);
     setSponsorOfferError(null);
-    setActionLoading(loadingKey);
     try {
       const result = await invokeForCareer<ResolveMessageActionResult>("resolve_message_action", {
         messageId,
@@ -444,7 +450,8 @@ function FinancesTabLoaded({
       console.error("Failed to resolve sponsor offer:", error);
       setSponsorOfferError(resolveTranslatedErrorMessage(error));
     } finally {
-      setActionLoading(null);
+      answeringOfferRef.current = null;
+      setAnsweringOfferId(null);
     }
   }
 
@@ -903,8 +910,9 @@ function FinancesTabLoaded({
                       </div>
                       <div className="flex flex-wrap gap-2">
                         {sponsorAction.action_type.ChooseOption.options.map((option) => {
-                          // Either answer in flight holds both: the opposite one must not be sent too.
-                          const answering = actionLoading?.startsWith(`sponsor:${message.id}:`);
+                          // An answer in flight holds every sponsor answer: the opposite one must not
+                          // be sent too, whatever else the tab is doing.
+                          const answering = answeringOfferId !== null;
                           return (
                             <div
                               key={option.id}
