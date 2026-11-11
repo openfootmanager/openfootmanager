@@ -24,6 +24,8 @@ export { SortControl } from "./SortControl";
 export { Switch } from "./Switch";
 export { TabPanel, Tabs } from "./Tabs";
 export { DataTable, SortHeaderButton } from "./DataTable";
+export { VirtualList } from "./VirtualList";
+export type { VirtualListProps } from "./VirtualList";
 export type { DataTableColumn, SortDirection } from "./DataTable";
 export { RatingChip } from "./RatingChip";
 export { CardGrid } from "./CardGrid";

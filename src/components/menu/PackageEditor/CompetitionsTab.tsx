@@ -1,6 +1,7 @@
+import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { useAssetDataUrl } from "../../../hooks/useAssetDataUrl";
-import { EntityListShell, EntityRow } from "./shared";
+import { EntityListShell, EntityRow, EntityRowList } from "./shared";
 import type { CompetitionDef } from "./types";
 import { entityRowKey } from "./helpers";
 
@@ -47,6 +48,7 @@ export function CompetitionsTab({
   onSelect,
 }: CompetitionsTabProps) {
   const { t } = useTranslation();
+  const rows = useMemo(() => competitions.map((comp, i) => ({ comp, i })), [competitions]);
   return (
     <EntityListShell
       addLabel={t("worldEditor.addCompetition")}
@@ -54,24 +56,31 @@ export function CompetitionsTab({
       emptyLabel={t("worldEditor.noCompetitions")}
       isEmpty={competitions.length === 0}
     >
-      {competitions.map((comp, i) => (
-        <EntityRow
-          key={entityRowKey(comp.id, i)}
-          title={comp.name || comp.id}
-          subtitle={[t(`teamSelect.kinds.${comp.type}`), t(`teamSelect.scopes.${comp.scope}`)].join(
-            " · ",
-          )}
-          badge={<CompetitionBadge comp={comp} projectDir={projectDir} />}
-          onEdit={() => onEdit(i)}
-          onDelete={() => onDelete(i)}
-          onDuplicate={onDuplicate ? () => onDuplicate(i) : undefined}
-          duplicateLabel={t("worldEditor.duplicateEntity")}
-          editLabel={t("worldEditor.editCompetition")}
-          deleteLabel={t("worldEditor.deleteCompetition")}
-          isSelected={selectedIndex === i}
-          onClick={onSelect ? () => onSelect(i) : undefined}
-        />
-      ))}
+      <EntityRowList
+        rows={rows}
+        itemKey={({ comp, i }) => entityRowKey(comp.id, i)}
+        label={t("worldEditor.sectionCompetitions")}
+        selectedIndex={selectedIndex}
+        onSelect={onSelect}
+        renderRow={({ comp, i }) => (
+          <EntityRow
+            title={comp.name || comp.id}
+            subtitle={[
+              t(`teamSelect.kinds.${comp.type}`),
+              t(`teamSelect.scopes.${comp.scope}`),
+            ].join(" · ")}
+            badge={<CompetitionBadge comp={comp} projectDir={projectDir} />}
+            onEdit={() => onEdit(i)}
+            onDelete={() => onDelete(i)}
+            onDuplicate={onDuplicate ? () => onDuplicate(i) : undefined}
+            duplicateLabel={t("worldEditor.duplicateEntity")}
+            editLabel={t("worldEditor.editCompetition")}
+            deleteLabel={t("worldEditor.deleteCompetition")}
+            isSelected={selectedIndex === i}
+            onClick={onSelect ? () => onSelect(i) : undefined}
+          />
+        )}
+      />
     </EntityListShell>
   );
 }

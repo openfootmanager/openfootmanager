@@ -1,4 +1,4 @@
-import { useId, useState } from "react";
+import { useId, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   Plus,
@@ -11,8 +11,7 @@ import {
   Loader2,
   X,
 } from "lucide-react";
-import { Button } from "../../ui/Button";
-import { ENTITY_LIST_PAGE_SIZE } from "./entityList.helpers";
+import { VirtualList } from "../../ui/VirtualList";
 
 // ---------------------------------------------------------------------------
 // EntityListShell
@@ -67,77 +66,88 @@ export function EntityListShell({
 // ---------------------------------------------------------------------------
 
 interface EntityListFooterProps {
-  /** Rows currently rendered. */
-  shown: number;
-  /** Rows the search and filters left, rendered or not. */
+  /** Rows the search and filters left. */
   matches: number;
   /** Whether this section holds any records at all. */
   hasRecords: boolean;
-  onLoadMore: () => void;
 }
 
 /**
- * The line under an entity list: how much of it you are looking at, and the
- * button that shows more. Also the place a fruitless search is reported —
- * without it the panel just went blank, since the shell's empty message only
- * covers a section with no records in it at all.
+ * The line under an entity list: how many rows it holds, and the place a fruitless search is
+ * reported: without it the panel just went blank, since the shell's empty message only covers a
+ * section with no records in it at all. A live region, so a search into nothing is announced.
  */
-export function EntityListFooter({
-  shown,
-  matches,
-  hasRecords,
-  onLoadMore,
-}: EntityListFooterProps) {
+export function EntityListFooter({ matches, hasRecords }: EntityListFooterProps) {
   const { t } = useTranslation();
-  const countId = useId();
 
   if (!hasRecords) {
     return null;
   }
 
-  const everythingShown = shown >= matches;
+  return (
+    <p
+      role="status"
+      className={`text-xs text-gray-500 dark:text-gray-400 ${matches === 0 ? "text-center py-4" : "text-right"}`}
+    >
+      {matches === 0 ? t("common.noResults") : t("common.nResults", { count: matches })}
+    </p>
+  );
+}
 
-  // Kept mounted, disabled, once the list has run out: revealing the last
-  // page from the keyboard would otherwise unmount the focused button and
-  // drop focus to the top of the document, hundreds of rows above.
-  const wasCapped = matches > ENTITY_LIST_PAGE_SIZE;
+// ---------------------------------------------------------------------------
+// EntityRowList
+// ---------------------------------------------------------------------------
+
+/** One entity row's height in px; every row is given it (see [`VirtualList`]). */
+const ENTITY_ROW_HEIGHT = 64;
+
+interface EntityRowListProps<R extends { i: number }> {
+  /** The rows the search and filters left, each carrying its index in the whole list. */
+  rows: readonly R[];
+  itemKey: (row: R) => string | number;
+  renderRow: (row: R) => React.ReactNode;
+  /** Names the list for assistive technology. */
+  label: string;
+  /** The selected record's index in the whole list: the list scrolls it into view when it changes. */
+  selectedIndex?: number | null;
+  /** What the rows are filtered by: the list goes back to its first row when it changes. */
+  resetKey?: unknown;
+  /** Enter or Space on a focused row: select that record. */
+  onSelect?: (index: number) => void;
+}
+
+/**
+ * The rows of an entity list, rendered a window at a time however long the list is. The editor
+ * appended fifty rows per "Load more" and never removed any, which put 394,000 elements and a 5 GB
+ * web view behind the full 17,098-player list.
+ */
+export function EntityRowList<R extends { i: number }>({
+  rows,
+  itemKey,
+  renderRow,
+  label,
+  selectedIndex,
+  resetKey,
+  onSelect,
+}: EntityRowListProps<R>) {
+  const revealIndex = useMemo(() => {
+    if (selectedIndex === null || selectedIndex === undefined) return null;
+    const at = rows.findIndex((row) => row.i === selectedIndex);
+    return at < 0 ? null : at;
+  }, [rows, selectedIndex]);
 
   return (
-    <div className="flex flex-col gap-2 pt-1">
-      {wasCapped && (
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          // `aria-disabled`, not `disabled`: a disabled element is not
-          // focusable, so disabling the button the user just pressed hands
-          // focus back to the document — the same problem as unmounting it.
-          // This keeps it in the tab order and announced as unavailable.
-          className={`w-full ${everythingShown ? "opacity-50 cursor-not-allowed" : ""}`}
-          onClick={everythingShown ? undefined : onLoadMore}
-          aria-disabled={everythingShown}
-          aria-describedby={countId}
-        >
-          {t("common.loadMore")}
-        </Button>
-      )}
-      {/*
-        One live region for all three messages, so revealing a page or
-        searching into nothing is announced rather than silently changing
-        the rows underneath.
-      */}
-      <p
-        id={countId}
-        role="status"
-        className={`text-xs text-gray-500 dark:text-gray-400 ${matches === 0 ? "text-center py-4" : "text-right"}`}
-      >
-        {matches === 0
-          ? t("common.noResults")
-          : everythingShown
-            ? t("common.nResults", { count: matches })
-            : t("worldEditor.showingEntries", { shown, total: matches })}
-      </p>
-    </div>
+    <VirtualList
+      items={rows}
+      rowHeight={ENTITY_ROW_HEIGHT}
+      gap={8}
+      itemKey={itemKey}
+      renderItem={renderRow}
+      aria-label={label}
+      revealIndex={revealIndex}
+      resetKey={resetKey}
+      onActivate={onSelect ? (at) => onSelect(rows[at].i) : undefined}
+    />
   );
 }
 
