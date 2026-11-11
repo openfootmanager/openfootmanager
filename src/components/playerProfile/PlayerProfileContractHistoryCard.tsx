@@ -11,6 +11,8 @@ interface PlayerProfileContractHistoryCardProps {
   showsWages: boolean;
   /** The language dates are written in. */
   language: string;
+  /** Opens a club by its id; without it the club is plain text. */
+  onOpenTeam?: (teamId: string) => void;
   t: TranslateFn;
 }
 
@@ -34,6 +36,7 @@ export default function PlayerProfileContractHistoryCard({
   rows,
   showsWages,
   language,
+  onOpenTeam: _onOpenTeam,
   t,
 }: PlayerProfileContractHistoryCardProps) {
   return (

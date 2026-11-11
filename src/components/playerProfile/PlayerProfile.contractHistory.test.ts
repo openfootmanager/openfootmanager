@@ -209,4 +209,41 @@ describe("buildContractHistory", () => {
 
     expect(row.inForce).toBe(false);
   });
+
+  /**
+   * Given a transfer from another club and a renewal at the new one
+   * When the history is built
+   * Then each row carries its club's id (for a link), and the transfer's the club he came from
+   */
+  it("carries the club's id and the club a transfer came from", () => {
+    const rows = buildContractHistory(
+      [
+        {
+          date: "2029-07-01",
+          kind: "permanent_transfer",
+          from_team_id: "south",
+          from_team_name: "South FC",
+          to_team_id: "north",
+          to_team_name: "North FC",
+          contract: {
+            start: "2029-07-01",
+            end: "2031-06-30",
+            weekly_wage: 7000,
+            source: "transfer",
+          },
+        },
+        signing(
+          "2031-07-01",
+          "North FC",
+          { start: "2031-07-01", end: "2033-06-30", weekly_wage: 10000 },
+          "renewal",
+          "renewal",
+        ),
+      ],
+      TODAY,
+    );
+
+    expect(rows[1]).toMatchObject({ clubId: "north", fromClubName: "South FC" });
+    expect(rows[0]).toMatchObject({ clubId: "North FC", fromClubName: null });
+  });
 });

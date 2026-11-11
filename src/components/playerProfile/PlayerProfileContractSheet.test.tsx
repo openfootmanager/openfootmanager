@@ -71,6 +71,8 @@ const ANSWERED: ContractSheetData = {
 const LAST_SIGNED: ContractHistoryRow = {
   key: "a",
   clubName: "North FC",
+  clubId: "north",
+  fromClubName: null,
   start: "2031-07-01",
   end: "2034-06-30",
   weeklyWage: 10_000,
@@ -121,18 +123,13 @@ describe("PlayerProfileContractSheet: his own player", () => {
   it("shows his contract: the end, the years left and their risk, his wage, when he last signed", () => {
     renderSheet();
 
-    const ends = screen.getByText("playerProfile.contractSheet.ends").closest("div");
-    expect(ends).toHaveTextContent("Jun 30, 2034");
-    expect(screen.getByText("playerProfile.yearsRemaining").closest("div")).toHaveTextContent(
-      "Stable",
-    );
-    expect(screen.getByText(/playerProfile\.contractSheet\.weeklyWage/)).toBeInTheDocument();
-    expect(screen.getByText(/playerProfile\.contractSheet\.lastSigned/)).toHaveTextContent(
-      "Jul 1, 2031",
-    );
-    expect(screen.getByText(/playerProfile\.contractSheet\.lastSigned/)).toHaveTextContent(
-      "playerProfile.contractSheet.source.renewal",
-    );
+    const row = (label: string) => screen.getByText(label).closest("div");
+    expect(row("playerProfile.contractSheet.ends")).toHaveTextContent("Jun 30, 2034");
+    expect(row("playerProfile.contractSheet.timeLeft")).toHaveTextContent("Stable");
+    expect(row("playerProfile.contractSheet.wage")).toHaveTextContent("€10,000");
+    const lastSigned = row("playerProfile.contractSheet.lastSigned");
+    expect(lastSigned).toHaveTextContent("Jul 1, 2031");
+    expect(lastSigned).toHaveTextContent("playerProfile.contractSheet.source.renewal");
   });
 
   /**
@@ -146,7 +143,7 @@ describe("PlayerProfileContractSheet: his own player", () => {
     });
 
     expect(screen.getByText("playerProfile.movementLegacyContract")).toBeInTheDocument();
-    expect(screen.queryByText(/playerProfile\.contractSheet\.lastSigned/)).toBeNull();
+    expect(screen.queryByText("playerProfile.contractSheet.lastSigned")).toBeNull();
   });
 
   /**
@@ -242,6 +239,28 @@ describe("PlayerProfileContractSheet: his own player", () => {
     expect(
       screen.getByRole("button", { name: "playerProfile.terminateContract" }).className,
     ).toContain("border-danger");
+  });
+
+  /**
+   * Given the three decisions of his own player
+   * When the sheet is drawn
+   * Then they share their rows (title, what it does, the panel, the button) so the panels sit at
+   *      the same height at the bottom of each column, the buttons fill their column, and the
+   *      columns after the first are divided from the one before
+   */
+  it("aligns the panels to the column bottom, fills the buttons and divides the columns", () => {
+    renderSheet();
+
+    const decisions = screen.getByRole("region", { name: "playerProfile.contractSheet.decide" });
+    const groups = within(decisions).getAllByRole("group");
+    expect(groups).toHaveLength(3);
+    for (const group of groups) {
+      expect(group.className).toContain("grid-rows-subgrid");
+      expect(within(group).getByRole("button").className).toContain("w-full");
+    }
+    expect(groups[0].className).not.toContain("border-l");
+    expect(groups[1].className).toContain("border-l");
+    expect(groups[2].className).toContain("border-l");
   });
 
   /**
@@ -391,7 +410,7 @@ describe("PlayerProfileContractSheet: another club's player and a free agent", (
 
     expect(screen.getByText("Jun 30, 2034")).toBeInTheDocument();
     expect(screen.getByText("the-contracts-he-has-had")).toBeInTheDocument();
-    expect(screen.queryByText(/weeklyWage/)).toBeNull();
+    expect(screen.queryByText("playerProfile.contractSheet.wage")).toBeNull();
     expect(screen.queryByText(/billLabel/)).toBeNull();
     expect(screen.queryByRole("button")).toBeNull();
   });

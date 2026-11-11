@@ -7,6 +7,10 @@ export interface ContractHistoryRow {
   key: string;
   /** The club the contract is with; empty when the ledger names none. */
   clubName: string;
+  /** Its id, for a link to the club; `null` when the ledger names none. */
+  clubId: string | null;
+  /** The club he came from, when the contract is a transfer's; `null` otherwise. */
+  fromClubName: string | null;
   /** `null` is an honest unknown (a save from before starts were recorded), never a date. */
   start: string | null;
   end: string | null;
@@ -62,6 +66,8 @@ export function buildContractHistory(
     rows.push({
       key: `${entry.date}-${entry.kind}-${position}`,
       clubName: entry.to_team_name || entry.to_team_id || "",
+      clubId: null,
+      fromClubName: null,
       start: entry.contract.start ?? null,
       end: entry.contract.end ?? null,
       weeklyWage: entry.contract.weekly_wage,
