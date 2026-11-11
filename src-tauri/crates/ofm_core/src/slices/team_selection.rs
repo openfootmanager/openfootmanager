@@ -323,6 +323,7 @@ mod tests {
         game.players[1].natural_position = Position::Striker;
         game.players[1].match_name = "Ada North".into();
         game.players[1].full_name = "Ada Maria North".into();
+        game.players.reverse();
         let wire = serde_json::to_value(query_team_selection(&game)).unwrap();
         let keys = wire["clubs"][0]["key_players"]
             .as_array()
