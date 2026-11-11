@@ -2,7 +2,8 @@
 
 mod tournaments;
 pub(crate) use tournaments::{
-    published_tournament_fixtures, settle_drawn_tournaments, settle_for_replay, settle_tournaments,
+    published_tournament_fixtures, settle_drawn_tournaments, settle_for_replay,
+    settle_retained_calendar, settle_tournaments,
 };
 
 use super::INTERNATIONAL_FRIENDLY_COMPETITION_ID;

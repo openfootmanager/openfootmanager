@@ -5,9 +5,12 @@ use domain::league::{CompetitionFormat, CompetitionType, FixtureStatus, League, 
 
 /// Play national tournaments due today, including those outside the user's active simulation scope.
 pub fn process_fixtures_due(game: &mut Game, today: &str) -> usize {
-    process_selected_fixtures_due(game, today, |competition| {
-        competition.kind == CompetitionType::InternationalNation
-    })
+    process_selected_fixtures_due(
+        game,
+        today,
+        |competition| competition.kind == CompetitionType::InternationalNation,
+        None,
+    )
 }
 
 /// The World Cup's rollover catch-up can restrict this same match path to its own competitions.
@@ -15,6 +18,7 @@ pub(crate) fn process_selected_fixtures_due(
     game: &mut Game,
     today: &str,
     selected: impl Fn(&League) -> bool,
+    publication_history: Option<&std::collections::BTreeSet<(String, String)>>,
 ) -> usize {
     let Ok(day) = chrono::NaiveDate::parse_from_str(today, "%Y-%m-%d") else {
         return 0;
@@ -37,8 +41,15 @@ pub(crate) fn process_selected_fixtures_due(
     {
         return 0;
     }
-    national_team::settle_for_replay(game, day);
-    let published = national_team::published_tournament_fixtures(game);
+    let current_history;
+    let published = match publication_history {
+        Some(published) => published,
+        None => {
+            current_history = national_team::published_tournament_fixtures(game);
+            &current_history
+        }
+    };
+    national_team::settle_drawn_tournaments(game, day, published);
     let mut simulated = 0;
     let mut played_world_cup = false;
     for competition_index in indices {
@@ -59,7 +70,7 @@ pub(crate) fn process_selected_fixtures_due(
                 continue;
             }
             if play_fixture(game, competition_index, fixture_index, today) {
-                national_team::settle_drawn_tournaments(game, day, &published);
+                national_team::settle_drawn_tournaments(game, day, published);
             }
             simulated += 1;
             played = true;
@@ -72,9 +83,9 @@ pub(crate) fn process_selected_fixtures_due(
     }
     if played_world_cup {
         let before = game.competitions.len();
-        world_cup::stage_world_cup_playoff_if_ready(game, today, &published);
+        world_cup::stage_world_cup_playoff_if_ready(game, today, published);
         if game.competitions.len() != before {
-            national_team::settle_for_replay(game, day);
+            national_team::settle_drawn_tournaments(game, day, published);
         }
     }
     simulated

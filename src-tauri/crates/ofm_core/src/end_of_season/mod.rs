@@ -677,28 +677,23 @@ fn manage_international_calendar(
     qualified_field: Option<Vec<String>>,
     retained: &std::collections::HashSet<String>,
 ) {
-    let first_day = game.clock.current_date.date_naive();
+    let mut published = crate::national_team::published_tournament_fixtures(game);
+    published.retain(|(competition_id, _)| retained.contains(competition_id));
     if world_cup_due {
         if !game
             .competitions
             .iter()
             .any(crate::world_cup::is_world_cup_competition)
         {
-            crate::world_cup::schedule_world_cup_with_field(
+            crate::world_cup::schedule_world_cup_with_history(
                 game,
                 kickoff,
                 &crate::world_cup::FORMAT_48,
                 qualified_field,
+                &published,
             );
         }
-        crate::national_team::settle_tournaments(game, first_day);
-        crate::national_team::settle_friendlies(game, first_day);
-        // The tournament fills the break, but future club fixtures must still avoid
-        // international windows and each other.
-        let blackout = crate::national_team::international_blackout_around(
-            game,
-            game.clock.current_date.date_naive(),
-        );
+        let blackout = crate::national_team::settle_retained_calendar(game, &published);
         crate::world::foundations::settle_club_calendar(game, &blackout, retained);
         return;
     }
@@ -719,12 +714,17 @@ fn manage_international_calendar(
         // windows; a world without one (a save that started late) squeezes a
         // compressed campaign into the single remaining season.
         if qualifying_in_progress {
-            crate::world_cup::continue_world_cup_qualifying(game, &window_dates);
+            crate::world_cup::continue_world_cup_qualifying_with_history(
+                game,
+                &window_dates,
+                &published,
+            );
         } else {
-            crate::world_cup::schedule_world_cup_qualifying(
+            crate::world_cup::schedule_world_cup_qualifying_with_history(
                 game,
                 next_start.year() + 1,
                 &window_dates,
+                &published,
             );
         }
     } else if starts_qualifying {
@@ -733,17 +733,22 @@ fn manage_international_calendar(
         // cadence a campaign can't still be running here, but scheduling must
         // never double up if that invariant ever bends.
         if !qualifying_in_progress {
-            crate::world_cup::schedule_world_cup_qualifying(
+            crate::world_cup::schedule_world_cup_qualifying_with_history(
                 game,
                 next_start.year() + 2,
                 &window_dates,
+                &published,
             );
         }
     } else if qualifying_in_progress {
         // Unreachable under the four-year cadence, but if a campaign ever
         // survives into a neutral season, keep it anchored to this season's
         // windows rather than stacking friendlies on top of stale fixtures.
-        crate::world_cup::continue_world_cup_qualifying(game, &window_dates);
+        crate::world_cup::continue_world_cup_qualifying_with_history(
+            game,
+            &window_dates,
+            &published,
+        );
     } else {
         // Keyed by the year the windows belong to, so a replay draws the same fixtures.
         let mut friendlies_rng =
@@ -759,12 +764,7 @@ fn manage_international_calendar(
             &mut friendlies_rng,
         );
     }
-    crate::national_team::settle_tournaments(game, first_day);
-    crate::national_team::settle_friendlies(game, first_day);
-    let blackout = crate::national_team::international_blackout_around(
-        game,
-        game.clock.current_date.date_naive(),
-    );
+    let blackout = crate::national_team::settle_retained_calendar(game, &published);
     crate::world::foundations::place_club_calendar(game, &blackout, retained);
 }
 
@@ -2690,6 +2690,12 @@ mod tests {
     #[test]
     fn national_rollover_keeps_publication_history_through_world_cup_staging() {
         let (mut game, regenerated, retained) = national_rollover_publication_game(2034, 6, 1);
+        game.world_history
+            .record_world_cup_host(domain::world_history::WorldCupHostRecord {
+                year: 2034,
+                nation_code: "ENG".into(),
+                nation_name: "England".into(),
+            });
         for cup in &mut game.competitions[..2] {
             crate::schedule::regenerate_knockout_for_season(cup, 2034, at(2034, 6, 1));
         }

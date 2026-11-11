@@ -30,6 +30,17 @@ pub(crate) fn settle_tournaments(game: &mut Game, first_day: NaiveDate) -> usize
     settle_marking(game, first_day, |_| true)
 }
 
+/// Rollover retains publication history only for editions the player could already see.
+pub(crate) fn settle_tournaments_with_history(
+    game: &mut Game,
+    first_day: NaiveDate,
+    published: &BTreeSet<(String, String)>,
+) -> usize {
+    settle_marking(game, first_day, |m| {
+        published.contains(&(m.competition_id.clone(), m.fixture_id.clone()))
+    })
+}
+
 pub(crate) fn published_tournament_fixtures(game: &Game) -> BTreeSet<(String, String)> {
     game.competitions
         .iter()
@@ -45,9 +56,7 @@ pub(crate) fn settle_drawn_tournaments(
     published: &BTreeSet<(String, String)>,
 ) -> usize {
     let first = replay_first_day(game, day);
-    settle_marking(game, first, |m| {
-        published.contains(&(m.competition_id.clone(), m.fixture_id.clone()))
-    }) + super::settle_friendlies(game, first)
+    settle_tournaments_with_history(game, first, published) + super::settle_friendlies(game, first)
 }
 
 fn settle_marking(
@@ -170,4 +179,15 @@ fn full_calendar_days(
         })
         .map(|((_, date), _)| *date)
         .collect()
+}
+
+/// Settle a newly generated season before reserving its national dates in the club calendar.
+pub(crate) fn settle_retained_calendar(
+    game: &mut Game,
+    published: &std::collections::BTreeSet<(String, String)>,
+) -> BTreeSet<NaiveDate> {
+    let first_day = game.clock.current_date.date_naive();
+    settle_tournaments_with_history(game, first_day, published);
+    super::settle_friendlies(game, first_day);
+    crate::national_team::international_blackout_around(game, first_day)
 }

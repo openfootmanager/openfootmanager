@@ -579,6 +579,17 @@ pub fn schedule_world_cup_with_field(
     format: &WorldCupFormat,
     predetermined_field: Option<Vec<String>>,
 ) {
+    let published = crate::national_team::published_tournament_fixtures(game);
+    schedule_world_cup_with_history(game, kickoff, format, predetermined_field, &published);
+}
+
+pub(crate) fn schedule_world_cup_with_history(
+    game: &mut Game,
+    kickoff: DateTime<Utc>,
+    format: &WorldCupFormat,
+    predetermined_field: Option<Vec<String>>,
+    published: &std::collections::BTreeSet<(String, String)>,
+) {
     let year = kickoff.year();
     let host_code = host_for_year(game, year);
     let mut field = predetermined_field.unwrap_or_else(|| select_field(game, format));
@@ -640,35 +651,9 @@ pub fn schedule_world_cup_with_field(
     // Sort after every club competition in browsing lists.
     cup.priority = 10_000;
     cup.name_key = Some("tournaments.competitions.worldCup".to_string());
-    publication::publish(game, cup);
+    publication::publish_with_history(game, cup, published);
 
-    // The whole world hears about a World Cup, participant or not.
-    let kickoff_news_id = format!("world_cup_kickoff_{year}");
-    if !game
-        .news
-        .iter()
-        .any(|article| article.id == kickoff_news_id)
-    {
-        let mut params = std::collections::HashMap::new();
-        params.insert("year".to_string(), year.to_string());
-        params.insert("nations".to_string(), field.len().to_string());
-        game.news.push(
-            NewsArticle::new(
-                kickoff_news_id,
-                String::new(),
-                String::new(),
-                String::new(),
-                kickoff.format("%Y-%m-%d").to_string(),
-                NewsCategory::Editorial,
-            )
-            .with_i18n(
-                "be.news.worldCupKickoff.headline",
-                "be.news.worldCupKickoff.body",
-                "be.source.footballHerald",
-                params,
-            ),
-        );
-    }
+    publication::announce_finals(game, year, field.len(), kickoff);
 }
 
 // ---------------------------------------------------------------------------
@@ -974,6 +959,16 @@ fn standing_order(a: &StandingEntry, b: &StandingEntry) -> std::cmp::Ordering {
 /// [`QUALIFYING_GROUP_SIZE`], one matchday per window, as before. National
 /// squads are prepared for every candidate nation.
 pub fn schedule_world_cup_qualifying(game: &mut Game, wc_year: i32, window_dates: &[String]) {
+    let published = crate::national_team::published_tournament_fixtures(game);
+    schedule_world_cup_qualifying_with_history(game, wc_year, window_dates, &published);
+}
+
+pub(crate) fn schedule_world_cup_qualifying_with_history(
+    game: &mut Game,
+    wc_year: i32,
+    window_dates: &[String],
+    published: &std::collections::BTreeSet<(String, String)>,
+) {
     if window_dates.is_empty() {
         return;
     }
@@ -1062,7 +1057,7 @@ pub fn schedule_world_cup_qualifying(game: &mut Game, wc_year: i32, window_dates
         .map(|(_, fixture)| fixture)
         .collect();
     competition.participant_ids = participant_ids;
-    publication::publish(game, competition);
+    publication::publish_with_history(game, competition, published);
     publication::announce_qualifying(game, wc_year, all_codes.len(), &window_dates[0]);
 }
 
@@ -1074,6 +1069,15 @@ pub fn schedule_world_cup_qualifying(game: &mut Game, wc_year: i32, window_dates
 /// squads after a summer of transfers and retirements. Fixtures already
 /// played keep their dates and results untouched.
 pub fn continue_world_cup_qualifying(game: &mut Game, window_dates: &[String]) {
+    let published = crate::national_team::published_tournament_fixtures(game);
+    continue_world_cup_qualifying_with_history(game, window_dates, &published);
+}
+
+pub(crate) fn continue_world_cup_qualifying_with_history(
+    game: &mut Game,
+    window_dates: &[String],
+    published: &std::collections::BTreeSet<(String, String)>,
+) {
     if window_dates.is_empty() {
         return;
     }
@@ -1106,7 +1110,7 @@ pub fn continue_world_cup_qualifying(game: &mut Game, window_dates: &[String]) {
     stranded.sort();
     stranded.dedup();
     for date in stranded {
-        process_world_cup_fixtures_due(game, &date);
+        process_world_cup_fixtures_due_with_history(game, &date, Some(published));
     }
 
     // Squads next: the campaign's second half should field current players.
@@ -1399,7 +1403,20 @@ pub fn qualified_field_from_game(
 /// Play only World Cup fixtures. Qualifying catch-up uses this scoped adapter; the daily
 /// world and load repair use the shared processor for every national tournament instead.
 pub fn process_world_cup_fixtures_due(game: &mut Game, today: &str) -> usize {
-    crate::national_tournament::process_selected_fixtures_due(game, today, is_world_cup_competition)
+    process_world_cup_fixtures_due_with_history(game, today, None)
+}
+
+fn process_world_cup_fixtures_due_with_history(
+    game: &mut Game,
+    today: &str,
+    published: Option<&std::collections::BTreeSet<(String, String)>>,
+) -> usize {
+    crate::national_tournament::process_selected_fixtures_due(
+        game,
+        today,
+        is_world_cup_competition,
+        published,
+    )
 }
 
 /// The inter-confederation playoff has two parallel finals, rather than a single champion.

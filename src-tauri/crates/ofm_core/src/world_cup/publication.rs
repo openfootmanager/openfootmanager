@@ -2,11 +2,6 @@
 
 use super::*;
 
-pub(super) fn publish(game: &mut Game, competition: League) {
-    let published = crate::national_team::published_tournament_fixtures(game);
-    publish_with_history(game, competition, &published);
-}
-
 pub(super) fn publish_with_history(
     game: &mut Game,
     mut competition: League,
@@ -103,4 +98,34 @@ pub(super) fn qualifying_competition(wc_year: i32) -> League {
     competition.name_key = Some("tournaments.competitions.worldCupQualifying".to_string());
 
     competition
+}
+
+pub(super) fn announce_finals(game: &mut Game, year: i32, nations: usize, kickoff: DateTime<Utc>) {
+    // The whole world hears about a World Cup, participant or not.
+    let kickoff_news_id = format!("world_cup_kickoff_{year}");
+    if !game
+        .news
+        .iter()
+        .any(|article| article.id == kickoff_news_id)
+    {
+        let mut params = std::collections::HashMap::new();
+        params.insert("year".to_string(), year.to_string());
+        params.insert("nations".to_string(), nations.to_string());
+        game.news.push(
+            NewsArticle::new(
+                kickoff_news_id,
+                String::new(),
+                String::new(),
+                String::new(),
+                kickoff.format("%Y-%m-%d").to_string(),
+                NewsCategory::Editorial,
+            )
+            .with_i18n(
+                "be.news.worldCupKickoff.headline",
+                "be.news.worldCupKickoff.body",
+                "be.source.footballHerald",
+                params,
+            ),
+        );
+    }
 }

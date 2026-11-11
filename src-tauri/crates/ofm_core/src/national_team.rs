@@ -9,7 +9,7 @@
 mod calendar;
 pub(crate) use calendar::{
     published_tournament_fixtures, settle_drawn_tournaments, settle_for_replay, settle_friendlies,
-    settle_tournaments,
+    settle_retained_calendar, settle_tournaments,
 };
 
 use std::collections::HashMap;
