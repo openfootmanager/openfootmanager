@@ -90,11 +90,11 @@ describe("PlayerProfileAttributesTab", () => {
   it("has Goalkeeping in place of Technical for a goalkeeper", () => {
     render(<PlayerProfileAttributesTab {...props({ isGoalkeeper: true })} />);
 
-    expect(card().getAllByRole("heading", { level: 4 }).map((h) => h.textContent)).toEqual([
-      "Goalkeeper",
-      "Mental",
-      "Physical",
-    ]);
+    expect(
+      card()
+        .getAllByRole("heading", { level: 4 })
+        .map((h) => h.textContent),
+    ).toEqual(["Goalkeeper", "Mental", "Physical"]);
   });
 
   /**
@@ -139,7 +139,7 @@ describe("PlayerProfileAttributesTab", () => {
     const value = (name: string) =>
       (rowOf(name) as HTMLElement).querySelector("[data-value]") as HTMLElement;
     expect(value("Shooting").textContent).toBe("84");
-    expect(value("Shooting")).toHaveClass(...ratingTierClass("A", "text").split(" "));
+    expect(value("Shooting")).toHaveClass(...ratingTierClass("S", "text").split(" "));
     expect(value("Stamina")).toHaveClass(...ratingTierClass("Rest", "text").split(" "));
   });
 

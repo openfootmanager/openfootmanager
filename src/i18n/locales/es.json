@@ -1703,6 +1703,12 @@
   },
   "playerProfile": {
     "sections": "Secciones del perfil",
+    "attributesTab": {
+      "hint": "Resaltado: lo que más pesa el juego en un {{position}}, su posición natural · puntos = cuánto cuenta cada uno ahí",
+      "average": "media {{value}}",
+      "weight": "peso {{count}} de 3",
+      "scouted": "Ojeado"
+    },
     "overview": {
       "axes": {
         "pace": "VEL",

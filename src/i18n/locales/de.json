@@ -1703,6 +1703,12 @@
   },
   "playerProfile": {
     "sections": "Profilbereiche",
+    "attributesTab": {
+      "hint": "Hervorgehoben: was das Spiel auf der Position {{position}}, seiner natürlichen Position, am stärksten gewichtet · Punkte = wie viel jedes dort zählt",
+      "average": "Durchschnitt {{value}}",
+      "weight": "Gewicht {{count}} von 3",
+      "scouted": "Gescoutet"
+    },
     "overview": {
       "axes": {
         "pace": "TEM",

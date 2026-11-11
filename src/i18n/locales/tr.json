@@ -1703,6 +1703,12 @@
   },
   "playerProfile": {
     "sections": "Profil bölümleri",
+    "attributesTab": {
+      "hint": "Vurgulanan: oyunun {{position}} mevkisinde, yani doğal mevkisinde, en çok ağırlık verdiği özellikler · noktalar = her birinin orada ne kadar önemli olduğu",
+      "average": "ortalama {{value}}",
+      "weight": "ağırlık {{count}}/3",
+      "scouted": "Gözlemlendi"
+    },
     "overview": {
       "axes": {
         "pace": "HIZ",

@@ -15,14 +15,14 @@ export interface PlayerAttributeGroup {
 }
 
 export type PlayerAttributeKey = keyof PlayerData["attributes"];
-type AttributeGroupKey = "physical" | "technical" | "mental" | "goalkeeper";
+export type AttributeGroupKey = "physical" | "technical" | "mental" | "goalkeeper";
 
 // Single source of truth for the profile display. Every attribute in
 // PlayerData["attributes"] must appear here — `satisfies Record<...>` makes
 // adding an attribute to the domain a compile-time error until it's grouped.
 // Order within each group follows insertion order below (ES2015+ guarantees
 // `Object.entries` returns keys in insertion order for string keys).
-const ATTRIBUTE_META = {
+export const ATTRIBUTE_META = {
   // Physical
   pace: "physical",
   stamina: "physical",
@@ -54,7 +54,7 @@ const ATTRIBUTE_META = {
   reflexes: "goalkeeper",
 } as const satisfies Record<PlayerAttributeKey, AttributeGroupKey>;
 
-const GROUP_LABEL_KEY: Record<AttributeGroupKey, string> = {
+export const GROUP_LABEL_KEY: Record<AttributeGroupKey, string> = {
   physical: "common.attrGroups.physical",
   technical: "common.attrGroups.technical",
   mental: "common.attrGroups.mental",
