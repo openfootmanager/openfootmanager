@@ -1705,6 +1705,9 @@
     "sections": "Sekce profilu",
     "overall": "Celkově",
     "ratingUnknown": "Váš klub jeho hodnocení nezná",
+    "retired": "Ukončil kariéru",
+    "retiredOn": "Ukončil kariéru {{date}}",
+    "lastClub": "Poslední klub: {{club}}",
     "tabs": {
       "overview": "Přehled",
       "attributes": "Atributy",

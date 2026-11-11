@@ -166,4 +166,23 @@ describe("dashboardProfileNavigation", () => {
   it("has no name when no profile is open", () => {
     expect(openProfileTitle(createDashboardProfileNavigationState("Squad"), world)).toBeNull();
   });
+
+  /**
+   * Given a retired player's profile, who is no player of the world but was fetched from the archive
+   * When the header asks what is open
+   * Then it gets his name, not nothing: a retiree reads as himself in the top bar
+   */
+  it("names an open retired player by his name", () => {
+    const state = selectDashboardPlayer(
+      createDashboardProfileNavigationState("Players"),
+      "retired-1",
+    );
+
+    expect(openProfileTitle(state, world, { id: "retired-1", match_name: "O. Timer" })).toBe(
+      "O. Timer",
+    );
+    // A retiree fetched for another player is not this one.
+    expect(openProfileTitle(state, world, { id: "retired-2", match_name: "X. Other" })).toBeNull();
+    expect(openProfileTitle(state, world)).toBeNull();
+  });
 });

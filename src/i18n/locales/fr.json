@@ -1705,6 +1705,9 @@
     "sections": "Sections du profil",
     "overall": "Global",
     "ratingUnknown": "Votre club ne connaît pas sa note",
+    "retired": "Retraité",
+    "retiredOn": "Retraité le {{date}}",
+    "lastClub": "Dernier club : {{club}}",
     "tabs": {
       "overview": "Aperçu",
       "attributes": "Attributs",

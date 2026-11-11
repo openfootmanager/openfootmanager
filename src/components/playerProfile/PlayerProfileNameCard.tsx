@@ -2,6 +2,7 @@ import { useId, type ReactNode } from "react";
 
 import { useRatingTiers } from "../../hooks/useRatingTiers";
 import { countryName } from "../../lib/countries";
+import { formatDateFull } from "../../lib/helpers";
 import { kitStyle } from "../../lib/kitStyle";
 import { visibleRatingText } from "../../lib/playerKnowledge";
 import type { PlayerData } from "../../store/gameStore";
@@ -9,9 +10,10 @@ import type { TeamData } from "../../store/types";
 import ContextMenu from "../ContextMenu";
 import PlayerPositionBadge from "../PlayerPositionBadge";
 import { buildViewTeamMenuItem } from "../playerActions/playerContextMenuItems";
-import { CountryFlag, PlayerAvatar, RatingChip } from "../ui";
+import { Badge, CountryFlag, PlayerAvatar, RatingChip } from "../ui";
 import type { PlayerProfileScoutStatus, ScoutAvailability } from "./PlayerProfile.scouting";
 import PlayerProfileScoutAction from "./PlayerProfileScoutAction";
+import type { Retirement } from "./retirement";
 
 type TranslateFn = (key: string, options?: Record<string, string | number>) => string;
 
@@ -35,6 +37,8 @@ interface PlayerProfileNameCardProps {
   team?: TeamData;
   /** The Actions menu, drawn beside the name. */
   actions?: ReactNode;
+  /** Set for a retired player: the card says so in place of his club and offers no scouting. */
+  retirement?: Retirement | null;
   t: TranslateFn;
 }
 
@@ -61,6 +65,7 @@ export default function PlayerProfileNameCard({
   onSelectTeam,
   team,
   actions,
+  retirement = null,
   t,
 }: PlayerProfileNameCardProps) {
   const nameId = useId();
@@ -93,6 +98,7 @@ export default function PlayerProfileNameCard({
               {player.alternate_positions?.map((alternate) => (
                 <PlayerPositionBadge key={alternate} position={alternate} kind="alternate" />
               ))}
+              {retirement ? <Badge variant="neutral">{t("playerProfile.retired")}</Badge> : null}
             </div>
             <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-body text-fg-muted">
               <span className="whitespace-nowrap">
@@ -104,21 +110,45 @@ export default function PlayerProfileNameCard({
                 {countryName(player.nationality, language)}
               </span>
               <span aria-hidden="true">·</span>
-              {openClub ? (
-                <ContextMenu items={teamContextItems}>
-                  <button
-                    type="button"
-                    data-testid="player-profile-team-link"
-                    onClick={openClub}
-                    className="rounded-sm text-selected underline underline-offset-2 hover:text-fg focus:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 focus-visible:ring-offset-page"
-                  >
-                    {teamName}
-                  </button>
-                </ContextMenu>
+              {retirement ? (
+                <>
+                  {retirement.retiredOn ? (
+                    <>
+                      <span>
+                        {t("playerProfile.retiredOn", {
+                          date: formatDateFull(retirement.retiredOn, language),
+                        })}
+                      </span>
+                      <span aria-hidden="true">·</span>
+                    </>
+                  ) : null}
+                  {retirement.lastClubName ? (
+                    <>
+                      <span>{t("playerProfile.lastClub", { club: retirement.lastClubName })}</span>
+                      <span aria-hidden="true">·</span>
+                    </>
+                  ) : null}
+                </>
+              ) : openClub ? (
+                <>
+                  <ContextMenu items={teamContextItems}>
+                    <button
+                      type="button"
+                      data-testid="player-profile-team-link"
+                      onClick={openClub}
+                      className="rounded-sm text-selected underline underline-offset-2 hover:text-fg focus:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 focus-visible:ring-offset-page"
+                    >
+                      {teamName}
+                    </button>
+                  </ContextMenu>
+                  <span aria-hidden="true">·</span>
+                </>
               ) : (
-                <span>{teamName}</span>
+                <>
+                  <span>{teamName}</span>
+                  <span aria-hidden="true">·</span>
+                </>
               )}
-              <span aria-hidden="true">·</span>
               <span className="whitespace-nowrap">
                 {t("common.age")} {age}
               </span>
@@ -136,7 +166,7 @@ export default function PlayerProfileNameCard({
         {/* One group, so when the card is too narrow for a single row the rating wraps with the
             buttons, on the right, rather than dropping alone under the avatar. */}
         <div className="ml-auto flex items-center gap-3">
-          {!isOwnClub ? (
+          {!isOwnClub && !retirement ? (
             <PlayerProfileScoutAction
               availability={scoutAvailability}
               scoutStatus={scoutStatus}

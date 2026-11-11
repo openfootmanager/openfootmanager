@@ -1705,6 +1705,9 @@
     "sections": "Разделы профиля",
     "overall": "Общий",
     "ratingUnknown": "Ваш клуб не знает его рейтинг",
+    "retired": "Завершил карьеру",
+    "retiredOn": "Завершил карьеру {{date}}",
+    "lastClub": "Последний клуб: {{club}}",
     "tabs": {
       "overview": "Обзор",
       "attributes": "Атрибуты",

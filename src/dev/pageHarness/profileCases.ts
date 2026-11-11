@@ -222,7 +222,24 @@ export function profileCase(variant: HarnessProfile): ProfileCase {
         playerId: `${retiree.id}-retired`,
         knowledge: null,
         wage: null,
-        retiredPlayer: { ...retiree, id: `${retiree.id}-retired`, retired: true, team_id: null },
+        retiredPlayer: {
+          ...retiree,
+          id: `${retiree.id}-retired`,
+          retired: true,
+          team_id: null,
+          // He left from a rival club, as the archive records it.
+          movement_history: [
+            {
+              date: "2031-06-30",
+              kind: "retired",
+              from_team_id: rival.team_id,
+              from_team_name:
+                gameState.teams.find((team) => team.id === rival.team_id)?.name ?? null,
+              to_team_id: null,
+              to_team_name: null,
+            },
+          ],
+        },
       };
   }
 }
