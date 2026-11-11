@@ -30,7 +30,9 @@ export function useWorldsLibrary(paths: readonly string[]): WorldsLibraryState {
 
   useEffect(() => {
     let cancelled = false;
-    setState((current) => ({ ...current, loading: true, failed: false }));
+    // A failure stays until a request succeeds: a retry that is slow or stalls must not turn it into
+    // a loading row that hides the recent projects the failure still lists.
+    setState((current) => ({ ...current, loading: true }));
     getWorldsLibrary(JSON.parse(pathsKey) as string[])
       .then((library) => {
         if (!cancelled) setState({ library, loading: false, failed: false });

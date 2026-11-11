@@ -4232,6 +4232,7 @@
       "editCopyNamed": "Upravit kopii: {{name}}",
       "resultCount": "Zobrazeno světů: {{count}}",
       "libraryFailed": "Knihovnu světů se nepodařilo přečíst. Vaše nedávné projekty jsou uvedeny bez počtů.",
+      "libraryFailedEmpty": "Žádné světy nejsou uvedeny, protože se knihovnu nepodařilo přečíst.",
       "installedNote": "Nainstalované balíčky se otevírají jako upravitelná kopie, takže ten, který hrajete, zůstane beze změny.",
       "emptyLibrary": "Zatím žádné světy. Začněte volbou Nový svět, otevřete soubor .ofm nebo složku, nebo vyjděte z příkladu."
     },

@@ -191,6 +191,50 @@ describe("WorldsHome", () => {
   });
 
   /**
+   * Given the library request was refused, and Retry is pressed but the new request stays pending
+   * When the home is read while it waits
+   * Then the recent projects are still listed and openable (a slow retry does not hide them behind a
+   *      loading row), the failure message stays, and Retry waits; once the request answers, the
+   *      failure goes.
+   */
+  it("keeps the recent projects listed while a retry is pending", async () => {
+    invoke.mockImplementation(() => Promise.reject(new Error("no app data folder")));
+    const handlers = renderHome();
+    await screen.findByRole("alert");
+
+    let answer: (library: unknown) => void = () => {};
+    invoke.mockImplementation(() => new Promise((resolve) => (answer = resolve)));
+    fireEvent.click(screen.getByRole("button", { name: "common.retry" }));
+
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "common.retry" })).toBeDisabled(),
+    );
+    expect(screen.getByRole("alert")).toHaveTextContent("worldEditor.home.libraryFailed");
+    fireEvent.click(
+      screen.getByRole("button", { name: "worldEditor.home.openNamed:Nordic Leagues" }),
+    );
+    expect(handlers.onOpenProject).toHaveBeenCalledWith("/w/nordic");
+
+    answer(LIBRARY);
+    await screen.findByRole("button", { name: "worldEditor.home.editCopyNamed:Brazil 1962" });
+    expect(screen.queryByRole("alert")).toBeNull();
+  });
+
+  /**
+   * Given the library request is refused and the editor has no recent projects
+   * When the home opens
+   * Then the table says the library could not be read, not that it is empty (the library is unknown),
+   *      and does not show the how-to-start instructions.
+   */
+  it("does not present an unreadable library as an empty one", async () => {
+    invoke.mockImplementation(() => Promise.reject(new Error("no app data folder")));
+    renderHome({ recentProjects: [] });
+
+    expect(await screen.findByText("worldEditor.home.libraryFailedEmpty")).toBeInTheDocument();
+    expect(screen.queryByText("worldEditor.home.emptyLibrary")).toBeNull();
+  });
+
+  /**
    * Given no project opened and nothing installed
    * When the home opens
    * Then the table says how to start, instead of an empty grid.

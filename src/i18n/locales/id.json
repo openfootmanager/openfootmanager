@@ -4232,6 +4232,7 @@
       "editCopyNamed": "Ubah salinan {{name}}",
       "resultCount": "{{count}} dunia ditampilkan",
       "libraryFailed": "Pustaka dunia tidak dapat dibaca. Proyek terbaru kamu ditampilkan tanpa jumlahnya.",
+      "libraryFailedEmpty": "Tidak ada dunia yang ditampilkan karena pustaka tidak dapat dibaca.",
       "installedNote": "Paket terpasang dibuka sebagai salinan yang bisa disunting, jadi yang kamu mainkan tetap seperti semula.",
       "emptyLibrary": "Belum ada dunia. Mulai dengan Dunia baru, buka berkas .ofm atau folder, atau mulai dari contoh."
     },

@@ -64,6 +64,13 @@ export default function WorldsHome({
     return library ? buildWorldRows(library, recentProjects) : [];
   }, [library, failed, recentProjects]);
   const shown = filterWorldRows(rows, filter, query);
+  // An unreadable library is unknown, not empty: it does not say how to start.
+  let emptyText = t("common.noResults");
+  if (rows.length === 0) {
+    emptyText = failed
+      ? t("worldEditor.home.libraryFailedEmpty")
+      : t("worldEditor.home.emptyLibrary");
+  }
 
   function open(row: WorldRow) {
     if (row.kind === "installed") onOpenInstalled(row.path);
@@ -115,7 +122,7 @@ export default function WorldsHome({
             className="flex flex-wrap items-center gap-3 rounded-lg border border-line bg-warning-tint px-4 py-3 text-body text-warning"
           >
             <span className="min-w-0 flex-1">{t("worldEditor.home.libraryFailed")}</span>
-            <Button size="sm" variant="outline" onClick={retry}>
+            <Button size="sm" variant="outline" disabled={loading} onClick={retry}>
               {t("common.retry")}
             </Button>
           </div>
@@ -139,8 +146,8 @@ export default function WorldsHome({
             <WorldsTable
               rows={shown}
               busy={isBusy}
-              loading={loading}
-              empty={rows.length === 0 ? t("worldEditor.home.emptyLibrary") : t("common.noResults")}
+              loading={loading && !failed}
+              empty={emptyText}
               onOpen={open}
             />
           </div>

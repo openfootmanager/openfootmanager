@@ -4232,6 +4232,7 @@
       "editCopyNamed": "Kopie bearbeiten: {{name}}",
       "resultCount": "{{count}} Welten angezeigt",
       "libraryFailed": "Die Weltenbibliothek konnte nicht gelesen werden. Deine letzten Projekte erscheinen ohne ihre Zahlen.",
+      "libraryFailedEmpty": "Es werden keine Welten angezeigt, weil die Bibliothek nicht gelesen werden konnte.",
       "installedNote": "Installierte Pakete werden als bearbeitbare Kopie geöffnet, das gespielte bleibt unverändert.",
       "emptyLibrary": "Noch keine Welten. Beginne mit Neue Welt, öffne eine .ofm-Datei oder einen Ordner oder starte mit einem Beispiel."
     },

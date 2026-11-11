@@ -4232,6 +4232,7 @@
       "editCopyNamed": "Kopyayı düzenle: {{name}}",
       "resultCount": "{{count}} dünya gösteriliyor",
       "libraryFailed": "Dünya kitaplığı okunamadı. Son projeleriniz sayıları olmadan listeleniyor.",
+      "libraryFailedEmpty": "Kitaplık okunamadığı için hiçbir dünya listelenmiyor.",
       "installedNote": "Yüklü paketler düzenlenebilir bir kopya olarak açılır, böylece oynadığınız paket olduğu gibi kalır.",
       "emptyLibrary": "Henüz dünya yok. Yeni dünya ile başlayın, bir .ofm dosyası ya da klasör açın veya bir örnekle başlayın."
     },
