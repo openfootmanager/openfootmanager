@@ -15,6 +15,8 @@
 //! - **The season in progress is split by club** (`SeasonStints`), so a player who changed club this
 //!   season has a row for each club, not one total on whichever holds him.
 
+use std::collections::HashMap;
+
 use chrono::{Datelike, NaiveDate};
 use domain::career_stints::SeasonStints;
 use domain::player::{
@@ -145,29 +147,306 @@ fn parse_day(text: &str) -> Option<NaiveDate> {
     NaiveDate::parse_from_str(text.get(..10)?, "%Y-%m-%d").ok()
 }
 
-/// The career as one list from its parts. Scaffold: the projection replaces it.
-pub fn build_career(
-    _rows: &[StintRow],
-    _movements: &[PlayerMovementEntry],
-    _seasons: &StatisticsSeason,
-    _club_name: &dyn Fn(&str) -> Option<String>,
-) -> PlayerCareer {
-    PlayerCareer {
-        by_season: Vec::new(),
-        by_club: Vec::new(),
-        totals: CareerTotals::default(),
+/// A spell at one club, from the day he arrived to the day he left (`None` while he is there).
+struct Visit {
+    club_id: String,
+    from: NaiveDate,
+    until: Option<NaiveDate>,
+    on_loan: bool,
+}
+
+impl Visit {
+    fn overlaps(&self, start: NaiveDate, end: Option<NaiveDate>) -> bool {
+        end.is_none_or(|end| self.from < end) && self.until.is_none_or(|until| until > start)
     }
 }
 
-/// The season in progress as rows. Scaffold: the projection replaces it.
+fn close_open(visits: &mut [Visit], club: Option<&str>, day: NaiveDate) {
+    let Some(club) = club else { return };
+    if let Some(open) = visits
+        .iter_mut()
+        .rev()
+        .find(|visit| visit.club_id == club && visit.until.is_none())
+    {
+        open.until = Some(day);
+    }
+}
+
+fn open_visit(visits: &mut Vec<Visit>, club: Option<&str>, day: NaiveDate, on_loan: bool) {
+    if let Some(club) = club {
+        visits.push(Visit {
+            club_id: club.to_string(),
+            from: day,
+            until: None,
+            on_loan,
+        });
+    }
+}
+
+/// The clubs he has been at, in order, from his ledger. Where he plays changes exactly when
+/// `changes_where_he_plays` says it does; a loan's purchase ends the loan without moving him, and
+/// the opening contract starts his first spell. An entry with no date cannot place a visit.
+fn visits_from(movements: &[PlayerMovementEntry]) -> Vec<Visit> {
+    let mut visits = Vec::new();
+    for entry in movements {
+        let Some(day) = parse_day(&entry.date) else {
+            continue;
+        };
+        let from = entry.from_team_id.as_deref();
+        let to = entry.to_team_id.as_deref();
+        if entry.kind.changes_where_he_plays() {
+            close_open(&mut visits, from, day);
+            open_visit(
+                &mut visits,
+                to,
+                day,
+                entry.kind == PlayerMovementKind::LoanStart,
+            );
+        } else if entry.kind == PlayerMovementKind::InitialContract {
+            let already_there = to.is_some_and(|club| {
+                visits
+                    .iter()
+                    .any(|visit| visit.club_id == club && visit.until.is_none())
+            });
+            if !already_there {
+                open_visit(&mut visits, to, day, false);
+            }
+        } else if entry.kind == PlayerMovementKind::LoanToBuy {
+            close_open(&mut visits, to, day);
+            open_visit(&mut visits, to, day, false);
+        } else if entry.kind == PlayerMovementKind::Retired {
+            close_open(&mut visits, from, day);
+        }
+    }
+    visits
+}
+
+/// Where a season row falls in time, and whether it was a loan.
+struct Placing {
+    when: NaiveDate,
+    on_loan: bool,
+}
+
+/// Each row's place: the day he arrived at the club for that spell, or the first day of the
+/// season if he was already there. Rows of one season are in the order they happened, and each
+/// takes the first visit at its club after the one the row before it took: a stint with no
+/// appearance has no row, so the rows are a subsequence of the season's visits, not all of them.
+///
+/// Only a club he visits twice in one season with a gap he played none of is ambiguous: the row
+/// takes the first visit, which is right unless the first spell was the one with no appearance.
+fn place_rows(rows: &[StintRow], visits: &[Visit], seasons: &StatisticsSeason) -> Vec<Placing> {
+    let mut cursors: HashMap<u32, usize> = HashMap::new();
+    rows.iter()
+        .map(|row| {
+            let (start, end) = seasons.window(row.entry.season);
+            let cursor = cursors.entry(row.entry.season).or_insert(0);
+            let overlapping: Vec<&Visit> = visits
+                .iter()
+                .filter(|visit| visit.overlaps(start, end))
+                .collect();
+            let found = overlapping
+                .iter()
+                .enumerate()
+                .skip(*cursor)
+                .find(|(_, visit)| visit.club_id == row.entry.team_id);
+            match found {
+                Some((index, visit)) => {
+                    *cursor = index + 1;
+                    Placing {
+                        when: visit.from.max(start),
+                        on_loan: visit.on_loan,
+                    }
+                }
+                None => Placing {
+                    when: start,
+                    on_loan: false,
+                },
+            }
+        })
+        .collect()
+}
+
+/// A move as a line of the career. A renewal is a contract matter and a loan's return is carried
+/// by the loan's own line, so neither is one; a move with no date cannot be placed.
+fn move_line(
+    entry: &PlayerMovementEntry,
+    position: usize,
+    club_name: &dyn Fn(&str) -> Option<String>,
+) -> Option<(NaiveDate, CareerMoveLine)> {
+    let is_a_line = matches!(
+        entry.kind,
+        PlayerMovementKind::InitialContract
+            | PlayerMovementKind::PermanentTransfer
+            | PlayerMovementKind::LoanStart
+            | PlayerMovementKind::LoanToBuy
+            | PlayerMovementKind::FreeAgentSigning
+            | PlayerMovementKind::Released
+            | PlayerMovementKind::Retired
+    );
+    let day = parse_day(&entry.date)?;
+    if !is_a_line {
+        return None;
+    }
+    let name_of = |name: Option<&str>, id: Option<&str>| {
+        name.filter(|name| !name.is_empty())
+            .map(str::to_string)
+            .or_else(|| id.and_then(club_name))
+    };
+    Some((
+        day,
+        CareerMoveLine {
+            key: format!("{}-{}", entry.date, position),
+            date: day.format("%Y-%m-%d").to_string(),
+            movement: entry.kind.clone(),
+            from_club_name: name_of(
+                entry.from_team_name.as_deref(),
+                entry.from_team_id.as_deref(),
+            ),
+            to_club_name: name_of(entry.to_team_name.as_deref(), entry.to_team_id.as_deref()),
+            fee: entry.fee.filter(|fee| *fee > 0),
+            loan_end: entry.loan_end_date.clone(),
+        },
+    ))
+}
+
+fn club_totals<'a>(rows: impl Iterator<Item = &'a CareerSeasonRow>) -> Vec<CareerClubTotals> {
+    // Each club with the position of its latest row, to order clubs that share their seasons.
+    let mut clubs: Vec<(CareerClubTotals, usize)> = Vec::new();
+    for (order, row) in rows.enumerate() {
+        let key = if row.club_id.is_empty() {
+            format!("name:{}", row.club_name)
+        } else {
+            row.club_id.clone()
+        };
+        if let Some((club, latest)) = clubs.iter_mut().find(|(club, _)| club.key == key) {
+            club.first_season = club.first_season.min(row.season);
+            club.last_season = club.last_season.max(row.season);
+            club.appearances += row.appearances;
+            club.goals += row.goals;
+            club.assists += row.assists;
+            *latest = order;
+        } else {
+            clubs.push((
+                CareerClubTotals {
+                    key,
+                    club_id: row.club_id.clone(),
+                    club_name: row.club_name.clone(),
+                    first_season: row.season,
+                    last_season: row.season,
+                    appearances: row.appearances,
+                    goals: row.goals,
+                    assists: row.assists,
+                },
+                order,
+            ));
+        }
+    }
+    clubs.sort_by(|(left, left_latest), (right, right_latest)| {
+        right
+            .last_season
+            .cmp(&left.last_season)
+            .then(right.first_season.cmp(&left.first_season))
+            .then(right_latest.cmp(left_latest))
+    });
+    clubs.into_iter().map(|(club, _)| club).collect()
+}
+
+/// The career as one list from its parts: his stints (closed seasons then the season in progress,
+/// in the order they happened), his ledger, the statistics season and a way to name a club by id.
+///
+/// On one day a move comes before the stint it began, so the line sits between the season he
+/// arrived and the one he left.
+pub fn build_career(
+    rows: &[StintRow],
+    movements: &[PlayerMovementEntry],
+    seasons: &StatisticsSeason,
+    club_name: &dyn Fn(&str) -> Option<String>,
+) -> PlayerCareer {
+    let visits = visits_from(movements);
+    let placings = place_rows(rows, &visits, seasons);
+    let mut chronology: Vec<(NaiveDate, u8, usize, CareerLine)> = Vec::new();
+    for (position, (row, placing)) in rows.iter().zip(placings).enumerate() {
+        let entry = &row.entry;
+        chronology.push((
+            placing.when,
+            1,
+            position,
+            CareerLine::Season(CareerSeasonRow {
+                key: format!("{}-{}-{}", entry.season, entry.team_id, position),
+                season: entry.season,
+                club_id: entry.team_id.clone(),
+                club_name: entry.team_name.clone(),
+                appearances: entry.appearances,
+                goals: entry.goals,
+                assists: entry.assists,
+                in_progress: row.in_progress,
+                on_loan: placing.on_loan,
+            }),
+        ));
+    }
+    for (position, entry) in movements.iter().enumerate() {
+        if let Some((day, line)) = move_line(entry, position, club_name) {
+            chronology.push((day, 0, position, CareerLine::Move(line)));
+        }
+    }
+    chronology.sort_by_key(|(when, rank, position, _)| (*when, *rank, *position));
+
+    let season_rows = || {
+        chronology.iter().filter_map(|(_, _, _, line)| match line {
+            CareerLine::Season(row) => Some(row),
+            CareerLine::Move(_) => None,
+        })
+    };
+    let by_club = club_totals(season_rows());
+    let totals = season_rows().fold(CareerTotals::default(), |sum, row| CareerTotals {
+        appearances: sum.appearances + row.appearances,
+        goals: sum.goals + row.goals,
+        assists: sum.assists + row.assists,
+    });
+    let by_season = chronology
+        .into_iter()
+        .rev()
+        .map(|(_, _, _, line)| line)
+        .collect();
+    PlayerCareer {
+        by_season,
+        by_club,
+        totals,
+    }
+}
+
+/// The season in progress as rows: a row for each club he has played for since it began (his stints
+/// are closed at every move), and one for the club he is with now even before his first
+/// appearance there. A player with no club and no appearance has none.
 pub fn in_progress_rows(
-    _stints: &SeasonStints,
-    _stats: &PlayerSeasonStats,
-    _season: u32,
-    _club_id: &str,
-    _club_name: &str,
+    stints: &SeasonStints,
+    stats: &PlayerSeasonStats,
+    season: u32,
+    club_id: &str,
+    club_name: &str,
 ) -> Vec<StintRow> {
-    Vec::new()
+    let mut entries = stints.career_entries(season, stats, club_id, club_name);
+    let has_current_stint = entries.len() > stints.closed.len();
+    if !has_current_stint && !club_id.is_empty() {
+        entries.push(CareerEntry {
+            season,
+            team_id: club_id.to_string(),
+            team_name: club_name.to_string(),
+            appearances: 0,
+            goals: 0,
+            assists: 0,
+        });
+    }
+    let current_exists = has_current_stint || !club_id.is_empty();
+    let last = entries.len().checked_sub(1);
+    entries
+        .into_iter()
+        .enumerate()
+        .map(|(index, entry)| StintRow {
+            entry,
+            in_progress: current_exists && Some(index) == last,
+        })
+        .collect()
 }
 
 /// The world's statistics season: the rollover division's calendar, and the day the stats were
