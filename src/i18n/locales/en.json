@@ -802,6 +802,8 @@
     "unsavedChanges": "Unsaved changes",
     "currentPlanCard": "Current plan",
     "phaseBlueprint": "Phase blueprint",
+    "reserves": "Reserves",
+    "playerTable": "Players",
     "instructionsPanel": {
       "title": "Team instructions",
       "show": "Show team instructions",

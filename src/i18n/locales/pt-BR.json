@@ -850,6 +850,8 @@
     "unsavedChanges": "Alterações não salvas",
     "currentPlanCard": "Plano atual",
     "phaseBlueprint": "Plano por fases",
+    "reserves": "Não relacionados",
+    "playerTable": "Jogadores",
     "instructionsPanel": {
       "title": "Instruções da equipe",
       "show": "Mostrar as instruções da equipe",
