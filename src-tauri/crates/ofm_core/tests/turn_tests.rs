@@ -1649,7 +1649,9 @@ fn process_day_full_integration() {
 
 #[test]
 fn build_round_summary_collects_results_and_deltas() {
-    let game = make_round_summary_game();
+    let mut game = make_round_summary_game();
+    game.players.retain(|player| player.id != "bra_fwd0");
+    game.players.iter_mut().find(|player| player.id == "t1_fwd0").unwrap().stats.goals = 5;
     let summary =
         turn::build_round_summary(&game, &round_context(7)).expect("expected round summary");
 
