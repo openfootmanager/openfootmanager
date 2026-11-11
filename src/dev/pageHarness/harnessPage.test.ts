@@ -61,7 +61,7 @@ describe("readHarnessPage: the player profile", () => {
 describe("readHarnessProfile", () => {
   /** Given each of the five knowledge states the club can have of a player, then that one is read. */
   it("reads each state the profile can be in", () => {
-    expect(HARNESS_PROFILES).toEqual(["own", "rival", "scouted", "unknown", "retired"]);
+    expect(HARNESS_PROFILES).toEqual(["own", "keeper", "rival", "scouted", "unknown", "retired"]);
     for (const player of HARNESS_PROFILES) {
       expect(readHarnessProfile(`?page=profile&player=${player}`)).toBe(player);
     }

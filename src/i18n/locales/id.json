@@ -1703,6 +1703,12 @@
   },
   "playerProfile": {
     "sections": "Bagian profil",
+    "attributesTab": {
+      "key": "Atribut kunci",
+      "average": "rata-rata {{value}}",
+      "weight": "bobot {{count}} dari 3",
+      "scouted": "Diskaut"
+    },
     "overview": {
       "axes": {
         "pace": "KEC",

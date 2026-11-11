@@ -5,8 +5,9 @@ import type { PositionRatings } from "../../store/generated/PositionRatings";
 import type { PotentialOpinion } from "../../store/generated/PotentialOpinion";
 import type { Position } from "../../store/generated/Position";
 import type { PlayerData, ScoutedPlayerView } from "../../store/types";
+import type { AttributeKey } from "../../store/generated/AttributeKey";
 import type { AttributeWeight } from "../../store/generated/AttributeWeight";
-import { gameState, positionWeights } from "./fixture.generated";
+import { gameState, positionKeyAttributes, positionWeights } from "./fixture.generated";
 import type { HarnessProfile } from "./harnessPage";
 
 /** What the backend answers about the one player a profile page is open on. */
@@ -45,6 +46,7 @@ function pickPlayers(players: PlayerData[]) {
   const [scouted, unknown, retiree] = freeAgents(players);
   return {
     own: outfield(ofClub(players))[0],
+    keeper: ofClub(players).find((p) => p.position === "Goalkeeper") ?? ofClub(players)[0],
     rival: outfield(rivals(players))[0],
     scouted,
     unknown,
@@ -119,16 +121,16 @@ const scoutedWage = (player: PlayerData) =>
  * rating and a step below it: enough rows for the layout, not the backend's `ovr_from_attributes`.
  */
 function positionRatingsOf(player: PlayerData, source: PositionRatings["source"]): PositionRatings {
-  const top = Object.entries(player.attributes)
-    .sort(([, a], [, b]) => b - a)
-    .slice(0, 3)
-    .map(([attribute, value]) => ({ attribute, value }));
   const rows = [player.natural_position, ...player.alternate_positions].map((position, index) => ({
     position: position as Position,
     rating: (player.ovr ?? 60) - index * 3,
     familiarity: index === 0 ? ("natural" as const) : ("can_play" as const),
     deployed: false,
-    key_attributes: top as PositionRatings["rows"][number]["key_attributes"],
+    // Rust writes the game's three key attributes per position into the fixture
+    // (`key_attributes`); each carries this player's own value.
+    key_attributes: ((positionKeyAttributes as Record<string, AttributeKey[]>)[position] ?? []).map(
+      (attribute) => ({ attribute, value: player.attributes[attribute] }),
+    ),
     // Rust writes the table into the fixture (`position_weights`): the harness holds no copy.
     weights: (positionWeights as Record<string, AttributeWeight[]>)[position] ?? [],
   }));
@@ -155,7 +157,7 @@ function opinionOf(player: PlayerData, source: PotentialOpinion["source"]): Pote
  * facts only; a retiree fetched on his own.
  */
 export function profileCase(variant: HarnessProfile): ProfileCase {
-  const { own, rival, scouted, unknown, retiree } = pickPlayers(gameState.players);
+  const { own, keeper, rival, scouted, unknown, retiree } = pickPlayers(gameState.players);
   const none = {
     opinion: null,
     positionRatings: null,
@@ -173,6 +175,17 @@ export function profileCase(variant: HarnessProfile): ProfileCase {
         wage: { kind: "exact", weekly: own.wage },
         opinion: opinionOf(own, { kind: "coaches" }),
         positionRatings: positionRatingsOf(own, { kind: "live" }),
+        recentMatches: fiveMatches(),
+        seasonStats: A_SEASON,
+      };
+    case "keeper":
+      return {
+        ...none,
+        playerId: keeper.id,
+        knowledge: { kind: "own" },
+        wage: { kind: "exact", weekly: keeper.wage },
+        opinion: opinionOf(keeper, { kind: "coaches" }),
+        positionRatings: positionRatingsOf(keeper, { kind: "live" }),
         recentMatches: fiveMatches(),
         seasonStats: A_SEASON,
       };

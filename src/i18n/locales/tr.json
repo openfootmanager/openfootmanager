@@ -1703,6 +1703,12 @@
   },
   "playerProfile": {
     "sections": "Profil bölümleri",
+    "attributesTab": {
+      "key": "Anahtar özellik",
+      "average": "ortalama {{value}}",
+      "weight": "ağırlık {{count}}/3",
+      "scouted": "Gözlemlendi"
+    },
     "overview": {
       "axes": {
         "pace": "HIZ",

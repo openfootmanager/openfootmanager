@@ -1722,6 +1722,12 @@
   },
   "playerProfile": {
     "sections": "Sezioni del profilo",
+    "attributesTab": {
+      "key": "Attributo chiave",
+      "average": "media {{value}}",
+      "weight": "peso {{count}} su 3",
+      "scouted": "Osservato"
+    },
     "overview": {
       "axes": {
         "pace": "VEL",

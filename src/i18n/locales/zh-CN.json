@@ -1703,6 +1703,12 @@
   },
   "playerProfile": {
     "sections": "个人资料分区",
+    "attributesTab": {
+      "key": "关键属性",
+      "average": "平均 {{value}}",
+      "weight": "权重 {{count}}/3",
+      "scouted": "球探报告"
+    },
     "overview": {
       "axes": {
         "pace": "速度",

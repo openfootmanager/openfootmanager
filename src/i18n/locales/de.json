@@ -1703,6 +1703,12 @@
   },
   "playerProfile": {
     "sections": "Profilbereiche",
+    "attributesTab": {
+      "key": "Schlüsselattribut",
+      "average": "Durchschnitt {{value}}",
+      "weight": "Gewicht {{count}} von 3",
+      "scouted": "Gescoutet"
+    },
     "overview": {
       "axes": {
         "pace": "TEM",

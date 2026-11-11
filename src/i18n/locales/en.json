@@ -1703,6 +1703,12 @@
   },
   "playerProfile": {
     "sections": "Profile sections",
+    "attributesTab": {
+      "key": "Key attribute",
+      "average": "average {{value}}",
+      "weight": "weight {{count}} of 3",
+      "scouted": "Scouted"
+    },
     "overview": {
       "axes": {
         "pace": "PAC",

@@ -1703,6 +1703,12 @@
   },
   "playerProfile": {
     "sections": "Sekce profilu",
+    "attributesTab": {
+      "key": "Klíčový atribut",
+      "average": "průměr {{value}}",
+      "weight": "váha {{count}} ze 3",
+      "scouted": "Skautováno"
+    },
     "overview": {
       "axes": {
         "pace": "RYC",

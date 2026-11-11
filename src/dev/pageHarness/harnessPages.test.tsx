@@ -113,6 +113,11 @@ const NO_VALUE = /–$/;
 const KNOWLEDGE_SHOWS: Record<HarnessProfile, (view: ReturnType<typeof within>) => void> = {
   // The own player's condition, morale and exact wage.
   own: (view) => {
+    // The Attributes tab: the dots for his natural position's weights and the three columns.
+    expect(view.getAllByLabelText(/^weight \d of 3$/).length).toBeGreaterThan(0);
+    for (const column of ["Technical", "Mental", "Physical"]) {
+      expect(view.getAllByText(column, { selector: "h4" })).toHaveLength(1);
+    }
     for (const row of rowsLabelled(view, "Condition")) expect(row).toMatch(/\d+/);
     for (const row of rowsLabelled(view, "Morale")) expect(row).toMatch(/\d+%/);
     for (const row of rowsLabelled(view, "Wage")) expect(row).toMatch(/€[\d,]+\/wk/);
@@ -121,6 +126,14 @@ const KNOWLEDGE_SHOWS: Record<HarnessProfile, (view: ReturnType<typeof within>) 
     expect(
       view.getAllByText(new RegExp(profileCase("own").recentMatches[0].opponent_name)).length,
     ).toBeGreaterThan(0);
+  },
+  // The own goalkeeper: Goalkeeping in place of Technical.
+  keeper: (view) => {
+    for (const row of rowsLabelled(view, "Wage")) expect(row).toMatch(/€[\d,]+\/wk/);
+    for (const column of ["Goalkeeper", "Mental", "Physical"]) {
+      expect(view.getAllByText(column, { selector: "h4" })).toHaveLength(1);
+    }
+    expect(view.queryByText("Technical", { selector: "h4" })).toBeNull();
   },
   // A division rival: his attributes are known, his condition, morale and wage are not.
   rival: (view) => {
