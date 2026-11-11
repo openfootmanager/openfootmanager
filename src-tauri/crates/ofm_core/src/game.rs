@@ -633,4 +633,80 @@ mod tests {
             "with a competition to mirror, the stale legacy copy is replaced"
         );
     }
+
+    /// A world of two divisions, the first listed holding a1 and a2, the second b1 and b2.
+    fn two_division_world() -> Game {
+        let mut game = game_with_only_a_legacy_league();
+        let division = |id: &str, clubs: [&str; 2]| {
+            let clubs = clubs.map(String::from);
+            let mut league = League::new(id.to_string(), id.to_string(), 1, &clubs);
+            league.participant_ids = clubs.to_vec();
+            league
+        };
+        game.competitions = vec![
+            division("first", ["a1", "a2"]),
+            division("second", ["b1", "b2"]),
+        ];
+        game
+    }
+
+    fn mirrored(game: &Game) -> Option<&str> {
+        game.league.as_ref().map(|league| league.id.as_str())
+    }
+
+    /// Given a manager sacked from a second-division club, in a world whose first listed division
+    ///       is another club's
+    /// When the legacy mirror is synced
+    /// Then it is the second division, the league he left: the Home screens that read the mirror
+    ///      follow him as the season summary does, not the world's first competition
+    #[test]
+    fn a_sacked_managers_mirror_is_the_league_of_his_last_club() {
+        let mut game = two_division_world();
+        game.manager.hire("b1".to_string());
+        game.manager.fire("2025-03-01");
+
+        game.sync_legacy_league();
+
+        assert_eq!(mirrored(&game), Some("second"));
+    }
+
+    /// Given a manager who has never had a club
+    /// When the legacy mirror is synced
+    /// Then it is still the first competition: the season's rollover reads the mirror and must not
+    ///      freeze, so what the Home screens show him is a display question, not the mirror's
+    #[test]
+    fn a_manager_who_never_had_a_club_still_mirrors_the_first_competition() {
+        let mut game = two_division_world();
+
+        game.sync_legacy_league();
+
+        assert_eq!(mirrored(&game), Some("first"));
+    }
+
+    /// Given a manager with a club in the second division
+    /// When the legacy mirror is synced
+    /// Then it is his club's competition, as before (a club beats a last club)
+    #[test]
+    fn an_employed_managers_mirror_is_his_clubs_competition() {
+        let mut game = two_division_world();
+        game.manager.hire("b2".to_string());
+
+        game.sync_legacy_league();
+
+        assert_eq!(mirrored(&game), Some("second"));
+    }
+
+    /// Given a manager sacked from a club that no league table lists
+    /// When the legacy mirror is synced
+    /// Then it falls back to the first competition, as for a manager with no club
+    #[test]
+    fn a_sacked_managers_mirror_falls_back_when_his_last_club_has_no_table() {
+        let mut game = two_division_world();
+        game.manager.hire("nowhere".to_string());
+        game.manager.fire("2025-03-01");
+
+        game.sync_legacy_league();
+
+        assert_eq!(mirrored(&game), Some("first"));
+    }
 }
