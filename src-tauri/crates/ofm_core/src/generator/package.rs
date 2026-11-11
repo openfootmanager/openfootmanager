@@ -2423,6 +2423,17 @@ mod tests {
         std::fs::remove_file(archive_path).unwrap();
     }
 
+    /// Given a harmless root directory entry, when the archive is validated, then the entry is accepted.
+    #[test]
+    fn archive_validation_accepts_dot_directory() {
+        let archive_path = build_zip(&[("./", b"")]);
+        let file = std::fs::File::open(&archive_path).unwrap();
+        let mut archive = zip::ZipArchive::new(file).unwrap();
+        let result = validate_archive_entries(&mut archive, Path::new("/tmp/base")).unwrap();
+        assert!(result.errors.is_empty());
+        std::fs::remove_file(archive_path).unwrap();
+    }
+
     /// Given an unsafe world definition before a valid manifest, when metadata is read, then only the safe path is considered.
     #[test]
     fn manifest_scan_ignores_unsafe_world_paths() {
