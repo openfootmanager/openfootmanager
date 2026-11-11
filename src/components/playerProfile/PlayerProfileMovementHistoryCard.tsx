@@ -6,6 +6,8 @@ type TranslateFn = (key: string, options?: Record<string, string | number>) => s
 
 interface PlayerProfileMovementHistoryCardProps {
   movementHistory: PlayerMovementEntry[];
+  /** The language dates are written in. */
+  language: string;
   t: TranslateFn;
 }
 
@@ -69,6 +71,7 @@ function movementDirection(entry: PlayerMovementEntry, t: TranslateFn): string {
 
 export default function PlayerProfileMovementHistoryCard({
   movementHistory,
+  language: _language,
   t,
 }: PlayerProfileMovementHistoryCardProps) {
   // Newest first. Entries on the same day keep the order they happened in, which is

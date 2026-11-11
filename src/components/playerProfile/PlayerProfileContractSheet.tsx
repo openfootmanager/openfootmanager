@@ -4,6 +4,7 @@ import { formatExactMoney, getContractYearsRemaining } from "../../lib/helpers";
 import type { PlayerData } from "../../store/gameStore";
 import { Button, Card, CardBody, CardHeader } from "../ui";
 import { terminationBlockedBy } from "./PlayerProfile.contract";
+import type { ContractHistoryRow } from "./PlayerProfile.contractHistory";
 import { formatPlayerWage } from "./PlayerProfile.helpers";
 import ProfileLoadFailed from "./ProfileLoadFailed";
 import type { ContractSheetData, SheetAnswer } from "./useContractSheetData";
@@ -20,6 +21,14 @@ export interface PlayerProfileContractSheetProps {
   hasLetExpireIntent: boolean;
   /** His weekly wage when the club may see it exactly; `null` for every other state. */
   exactWeeklyWage: number | null;
+  /** The language dates are written in. */
+  language: string;
+  /** The backend's rating of how near his contract's end is. */
+  contractRisk: { level: "critical" | "warning" | "stable"; label: string };
+  /** The contract he is on now, from the history; `null` when he has none. */
+  lastSigned: ContractHistoryRow | null;
+  /** Placed in the right column under the decisions: the contracts he has had. */
+  below: ReactNode;
   data: ContractSheetData;
   actionSubmitting: boolean;
   onOpenRenewal: () => void;

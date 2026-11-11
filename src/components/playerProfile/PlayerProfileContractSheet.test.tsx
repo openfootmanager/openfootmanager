@@ -1,10 +1,11 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import type { PlayerData } from "../../store/gameStore";
 import PlayerProfileContractSheet, {
   type PlayerProfileContractSheetProps,
 } from "./PlayerProfileContractSheet";
+import type { ContractHistoryRow } from "./PlayerProfile.contractHistory";
 import type { ContractSheetData } from "./useContractSheetData";
 
 /** Keys and their params: what the sheet asks to say is what the tests read. */
@@ -25,7 +26,7 @@ const player = (patch: Partial<PlayerData> = {}) =>
     id: "p1",
     match_name: "P. Player",
     wage: 10_000,
-    contract_end: "2033-06-30",
+    contract_end: "2034-06-30",
     active_loan: null,
     team_id: "t1",
     ...patch,
@@ -67,6 +68,18 @@ const ANSWERED: ContractSheetData = {
   retry: () => {},
 };
 
+const LAST_SIGNED: ContractHistoryRow = {
+  key: "a",
+  clubName: "North FC",
+  start: "2031-07-01",
+  end: "2034-06-30",
+  weeklyWage: 10_000,
+  source: "renewal",
+  endedBy: null,
+  replacedOn: null,
+  inForce: true,
+};
+
 function renderSheet(patch: Partial<PlayerProfileContractSheetProps> = {}) {
   const handlers = {
     onOpenRenewal: vi.fn(),
@@ -83,6 +96,10 @@ function renderSheet(patch: Partial<PlayerProfileContractSheetProps> = {}) {
       isFreeAgent={false}
       hasLetExpireIntent={false}
       exactWeeklyWage={10_000}
+      language="en"
+      contractRisk={{ level: "stable", label: "Stable" }}
+      lastSigned={LAST_SIGNED}
+      below={<p>the-contracts-he-has-had</p>}
       data={ANSWERED}
       actionSubmitting={false}
       t={t}
@@ -95,48 +112,148 @@ function renderSheet(patch: Partial<PlayerProfileContractSheetProps> = {}) {
 
 describe("PlayerProfileContractSheet: his own player", () => {
   /**
-   * Given his own player with a contract to 30 June 2033, on 10,000 a week
+   * Given his own player with a contract to 30 June 2034, on 10,000 a week, last signed as a renewal
+   *       on 1 July 2031, and a contract risk the backend rates stable
    * When the sheet is drawn
-   * Then it shows when the contract ends and the years left, his exact wage, and the club's weekly
-   *      wage bill with its budget use and his share of it (the previews loaded with the tab)
+   * Then his contract card shows the end as a date in the player's language, the years left with
+   *      the risk beside them, his exact wage, and when and how he last signed
    */
-  it("shows his contract, his wage and the club's weekly wage bill", () => {
+  it("shows his contract: the end, the years left and their risk, his wage, when he last signed", () => {
     renderSheet();
 
-    expect(screen.getByText("2033-06-30")).toBeInTheDocument();
+    expect(screen.getByText("Jun 30, 2034")).toBeInTheDocument();
     expect(screen.getByText("playerProfile.yearsRemaining")).toBeInTheDocument();
+    expect(screen.getByText("Stable")).toBeInTheDocument();
     expect(screen.getByText(/playerProfile\.contractSheet\.weeklyWage/)).toBeInTheDocument();
-    expect(screen.getByText(/playerProfile\.contractSheet\.billWeekly/)).toHaveTextContent(
-      "300,000",
+    expect(screen.getByText(/playerProfile\.contractSheet\.lastSigned/)).toHaveTextContent(
+      "Jul 1, 2031",
     );
-    expect(screen.getByText(/playerProfile\.contractSheet\.budgetUse/)).toHaveTextContent(
-      '"percent":75',
+    expect(screen.getByText(/playerProfile\.contractSheet\.lastSigned/)).toHaveTextContent(
+      "playerProfile.contractSheet.source.renewal",
     );
-    expect(screen.getByText(/playerProfile\.contractSheet\.share/)).toHaveTextContent(
-      '"percent":3',
-    );
+  });
+
+  /**
+   * Given a contract from a save made before starts were recorded
+   * When the sheet is drawn
+   * Then "last signed" says so in words, never a date it does not have
+   */
+  it("says a legacy contract has no signing date, not a made-up one", () => {
+    renderSheet({
+      lastSigned: { ...LAST_SIGNED, start: null, source: "legacy_migrated" },
+    });
+
+    expect(screen.getByText("playerProfile.movementLegacyContract")).toBeInTheDocument();
+    expect(screen.queryByText(/playerProfile\.contractSheet\.lastSigned/)).toBeNull();
+  });
+
+  /**
+   * Given the projection the backend sent (the weekly bill 300,000 against a weekly budget of
+   *       400,000, 40 weeks of runway)
+   * When the sheet is drawn
+   * Then the wage bill card shows the bill, the budget in use as a named bar and a figure, the
+   *      runway, and his share of the bill, all read from that projection
+   */
+  it("shows the club's wage bill, the budget in use as a bar, the runway and his share", () => {
+    renderSheet();
+
+    expect(screen.getByText("playerProfile.contractSheet.billLabel")).toBeInTheDocument();
+    expect(screen.getByText(/300,000/)).toBeInTheDocument();
+    const bar = screen.getByRole("progressbar", {
+      name: /playerProfile\.contractSheet\.budgetLabel/,
+    });
+    expect(bar).toHaveAttribute("aria-valuenow", "75");
+    expect(screen.getByText(/playerProfile\.contractSheet\.runwayLabel/)).toBeInTheDocument();
+    expect(screen.getByText("playerProfile.contractSheet.shareLabel")).toBeInTheDocument();
+    expect(screen.getByText("3.3%")).toBeInTheDocument();
+  });
+
+  /**
+   * Given a club the backend says is over its wage budget
+   * When the sheet is drawn
+   * Then the bar is drawn in the danger fill: the backend's flag decides it, the sheet compares
+   *      no figure against a threshold
+   */
+  it("fills the budget bar in the danger colour when the backend says the club is over budget", () => {
+    const projection = ANSWERED.projection;
+    if (projection.status !== "answered") throw new Error("the fixture answers the projection");
+    renderSheet({
+      data: {
+        ...ANSWERED,
+        projection: {
+          status: "answered",
+          value: {
+            ...projection.value,
+            currently_over_budget: true,
+            current_weekly_wage_spend: 500_000,
+          },
+        },
+      },
+    });
+
+    const bar = screen.getByRole("progressbar", { name: /budgetLabel/ });
+    expect(bar.firstElementChild?.className).toContain("bg-danger-solid");
   });
 
   /**
    * Given his own player, with the previews answered
    * When the sheet is drawn
-   * Then each decision says what it does and costs before a click: Terminate names the severance and
-   *      the healthy players left, Renew says it is at his current wage, Let expire names the day he
-   *      leaves
+   * Then the three decisions are side by side in one card, each saying what it does and carrying
+   *      its own panel of what it costs before a click: Renew "at his current wage", Let expire the
+   *      day he would leave, Terminate the severance and the healthy players left
    */
-  it("says what each decision does and costs before the click", () => {
+  it("gives each decision a panel of what it costs before the click", () => {
     renderSheet();
 
-    expect(screen.getByText(/playerProfile\.contractSheet\.terminateNote/)).toHaveTextContent(
-      "250,000",
+    const decisions = screen.getByRole("region", { name: "playerProfile.contractSheet.decide" });
+    const renew = within(decisions).getByRole("group", { name: "common.renewContract" });
+    const expire = within(decisions).getByRole("group", {
+      name: "playerProfile.letContractExpire",
+    });
+    const terminate = within(decisions).getByRole("group", {
+      name: "playerProfile.terminateContract",
+    });
+
+    expect(renew).toHaveTextContent("€10,000");
+    expect(renew).toHaveTextContent("Jun 30, 2034");
+    expect(renew).toHaveTextContent("playerProfile.contractSheet.billAtThisWage");
+    expect(expire).toHaveTextContent("playerProfile.contractSheet.leaveOn");
+    expect(expire).toHaveTextContent("Jun 30, 2034");
+    expect(terminate).toHaveTextContent("playerProfile.contractSheet.severance");
+    expect(terminate).toHaveTextContent("250,000");
+    expect(terminate).toHaveTextContent('"healthy":18');
+  });
+
+  /**
+   * Given his own player
+   * When the sheet is drawn
+   * Then Renew is the filled button and Terminate the danger-outlined one, in the design system's
+   *      token variants
+   */
+  it("draws Renew filled and Terminate danger-outlined", () => {
+    renderSheet();
+
+    expect(screen.getByRole("button", { name: "common.renewContract" }).className).toContain(
+      "bg-primary",
     );
-    expect(screen.getByText(/playerProfile\.contractSheet\.terminateNote/)).toHaveTextContent(
-      '"healthy":18',
-    );
-    expect(screen.getByText(/playerProfile\.contractSheet\.renewNote/)).toHaveTextContent("10,000");
-    expect(screen.getByText(/playerProfile\.contractSheet\.letExpireNote/)).toHaveTextContent(
-      "2033-06-30",
-    );
+    expect(
+      screen.getByRole("button", { name: "playerProfile.terminateContract" }).className,
+    ).toContain("border-danger");
+  });
+
+  /**
+   * Given the contracts he has had, handed to the sheet to place
+   * When the sheet is drawn
+   * Then they sit under the decisions, in the same column
+   */
+  it("places the contracts he has had under the decisions", () => {
+    renderSheet();
+
+    const decisions = screen.getByRole("region", { name: "playerProfile.contractSheet.decide" });
+    const slot = screen.getByText("the-contracts-he-has-had");
+
+    expect(decisions.compareDocumentPosition(slot) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(decisions.parentElement).toBe(slot.parentElement);
   });
 
   /**
@@ -168,9 +285,9 @@ describe("PlayerProfileContractSheet: his own player", () => {
     expect(screen.queryByRole("button", { name: "playerProfile.letContractExpire" })).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "playerProfile.reopenContractTalks" }));
     expect(handlers.onClearLetExpire).toHaveBeenCalledTimes(1);
-    expect(screen.getByText(/playerProfile\.contractSheet\.letExpireSetNote/)).toHaveTextContent(
-      "2033-06-30",
-    );
+    expect(
+      screen.getByRole("group", { name: "playerProfile.reopenContractTalks" }),
+    ).toHaveTextContent("Jun 30, 2034");
   });
 
   /**
@@ -195,7 +312,7 @@ describe("PlayerProfileContractSheet: his own player", () => {
 
     expect(screen.getByRole("button", { name: "playerProfile.terminateContract" })).toBeDisabled();
     expect(screen.getByText("playerProfile.contractSheet.terminateOnLoan")).toBeInTheDocument();
-    expect(screen.queryByText(/playerProfile\.contractSheet\.terminateNote/)).toBeNull();
+    expect(screen.queryByText("playerProfile.contractSheet.severance")).toBeNull();
   });
 
   /**
@@ -241,7 +358,7 @@ describe("PlayerProfileContractSheet: his own player", () => {
       },
     });
     expect(screen.getAllByText("common.loading").length).toBeGreaterThan(0);
-    expect(screen.queryByText(/billWeekly/)).toBeNull();
+    expect(screen.queryByText(/billLabel/)).toBeNull();
   });
 
   it("offers a retry for a preview that failed", () => {
@@ -251,7 +368,7 @@ describe("PlayerProfileContractSheet: his own player", () => {
     fireEvent.click(screen.getByRole("button", { name: /retry/i }));
 
     expect(retry).toHaveBeenCalledTimes(1);
-    expect(screen.queryByText(/billWeekly/)).toBeNull();
+    expect(screen.queryByText(/billLabel/)).toBeNull();
   });
 });
 
@@ -269,9 +386,10 @@ describe("PlayerProfileContractSheet: another club's player and a free agent", (
       data: { termination: { status: "idle" }, projection: { status: "idle" }, retry: () => {} },
     });
 
-    expect(screen.getByText("2033-06-30")).toBeInTheDocument();
+    expect(screen.getByText("Jun 30, 2034")).toBeInTheDocument();
+    expect(screen.getByText("the-contracts-he-has-had")).toBeInTheDocument();
     expect(screen.queryByText(/weeklyWage/)).toBeNull();
-    expect(screen.queryByText(/billWeekly/)).toBeNull();
+    expect(screen.queryByText(/billLabel/)).toBeNull();
     expect(screen.queryByRole("button")).toBeNull();
   });
 

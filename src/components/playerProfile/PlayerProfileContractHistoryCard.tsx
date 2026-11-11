@@ -9,6 +9,8 @@ interface PlayerProfileContractHistoryCardProps {
   rows: ContractHistoryRow[];
   /** Whether the club may see his wages: only its own player's contracts name one. */
   showsWages: boolean;
+  /** The language dates are written in. */
+  language: string;
   t: TranslateFn;
 }
 
@@ -31,6 +33,7 @@ function spanText(row: ContractHistoryRow, t: TranslateFn): string {
 export default function PlayerProfileContractHistoryCard({
   rows,
   showsWages,
+  language: _language,
   t,
 }: PlayerProfileContractHistoryCardProps) {
   return (

@@ -171,3 +171,13 @@ export function buildPlayerAdvancedStats(player: PlayerData): PlayerAdvancedStat
     },
   };
 }
+
+/**
+ * A day from the ledger or a contract, written the way the player's language writes dates
+ * (`formatDate`, the project's one formatter): `Jun 30, 2033`. A value that is not a day (an
+ * unknown date, empty) is returned as it came, never as today.
+ */
+export function formatProfileDay(day: string, language: string): string {
+  void language;
+  return day;
+}

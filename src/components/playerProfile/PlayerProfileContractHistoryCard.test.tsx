@@ -39,7 +39,9 @@ describe("PlayerProfileContractHistoryCard", () => {
    *      ended says how
    */
   it("lists each contract with its club, span, wage and how it ended", () => {
-    render(<PlayerProfileContractHistoryCard rows={[RENEWED, EXPIRED]} showsWages t={t} />);
+    render(
+      <PlayerProfileContractHistoryCard language="en" rows={[RENEWED, EXPIRED]} showsWages t={t} />,
+    );
 
     expect(screen.getByText("playerProfile.contractsHad")).toBeInTheDocument();
     const rows = screen.getAllByRole("row").slice(1);
@@ -48,7 +50,7 @@ describe("PlayerProfileContractHistoryCard", () => {
     expect(within(rows[1]).getByText(/7,000/)).toBeInTheDocument();
     expect(
       within(rows[1]).getByText(
-        'playerProfile.movementContractRange {"start":"2029-07-01","end":"2031-06-30"}',
+        'playerProfile.movementContractRange {"start":"Jul 1, 2029","end":"Jun 30, 2031"}',
       ),
     ).toBeInTheDocument();
     expect(within(rows[1]).getByText("playerProfile.movementReleasedExpired")).toBeInTheDocument();
@@ -61,7 +63,9 @@ describe("PlayerProfileContractHistoryCard", () => {
    * Then the dates stay and no wage, and no wage column, is shown
    */
   it("leaves the wage out when the club may not see it", () => {
-    render(<PlayerProfileContractHistoryCard rows={[RENEWED]} showsWages={false} t={t} />);
+    render(
+      <PlayerProfileContractHistoryCard language="en" rows={[RENEWED]} showsWages={false} t={t} />,
+    );
 
     expect(screen.queryByText(/10,000/)).toBeNull();
     expect(
@@ -69,7 +73,7 @@ describe("PlayerProfileContractHistoryCard", () => {
     ).toBeNull();
     expect(
       screen.getByText(
-        'playerProfile.movementContractRange {"start":"2031-07-01","end":"2033-06-30"}',
+        'playerProfile.movementContractRange {"start":"Jul 1, 2031","end":"Jun 30, 2033"}',
       ),
     ).toBeInTheDocument();
   });
@@ -82,6 +86,7 @@ describe("PlayerProfileContractHistoryCard", () => {
   it("shows an unknown start as an end alone, with the legacy label", () => {
     render(
       <PlayerProfileContractHistoryCard
+        language="en"
         rows={[row({ start: null, source: "legacy_migrated" })]}
         showsWages
         t={t}
@@ -90,13 +95,13 @@ describe("PlayerProfileContractHistoryCard", () => {
 
     expect(screen.getByText("playerProfile.movementLegacyContract")).toBeInTheDocument();
     expect(
-      screen.getByText('playerProfile.movementContractUntil {"end":"2033-06-30"}'),
+      screen.getByText('playerProfile.movementContractUntil {"end":"Jun 30, 2033"}'),
     ).toBeInTheDocument();
   });
 
   /** Given no contract on record, then the card says so. */
   it("says when there is no contract on record", () => {
-    render(<PlayerProfileContractHistoryCard rows={[]} showsWages t={t} />);
+    render(<PlayerProfileContractHistoryCard language="en" rows={[]} showsWages t={t} />);
 
     expect(screen.getByText("playerProfile.noContractsHad")).toBeInTheDocument();
     expect(screen.queryByRole("table")).toBeNull();

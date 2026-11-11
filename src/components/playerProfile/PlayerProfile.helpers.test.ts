@@ -6,6 +6,7 @@ import {
   buildPlayerAdvancedStats,
   formatPlayerMarketValue,
   formatPlayerWage,
+  formatProfileDay,
   getAttributeColorClass,
   getPlayerTeamName,
   resolvePlayerInjuryName,
@@ -239,5 +240,23 @@ describe("PlayerProfile.helpers", (): void => {
     ]) {
       expect(metric.percentile).toBeNull();
     }
+  });
+});
+
+describe("formatProfileDay", () => {
+  /**
+   * Given a contract day, in English and in German
+   * When it is formatted
+   * Then each language writes it as it writes dates (short month, year), not as an ISO day
+   */
+  it("writes a day the way the language writes dates", () => {
+    expect(formatProfileDay("2033-06-30", "en")).toBe("Jun 30, 2033");
+    expect(formatProfileDay("2033-06-30", "de")).toMatch(/30\.? ?Juni?\.? 2033|30\. Juni 2033/);
+  });
+
+  /** Given an empty or unparseable day, then it comes back as it was: never today's date. */
+  it("returns what is not a day unchanged", () => {
+    expect(formatProfileDay("", "en")).toBe("");
+    expect(formatProfileDay("unknown", "en")).toBe("unknown");
   });
 });

@@ -9,7 +9,9 @@ const t = (key: string, options?: Record<string, string | number>) =>
   options ? `${key} ${JSON.stringify(options)}` : key;
 
 function renderCard(movementHistory: PlayerMovementEntry[]) {
-  return render(<PlayerProfileMovementHistoryCard movementHistory={movementHistory} t={t} />);
+  return render(
+    <PlayerProfileMovementHistoryCard movementHistory={movementHistory} language="en" t={t} />,
+  );
 }
 
 const renewal: PlayerMovementEntry = {
@@ -146,5 +148,30 @@ describe("PlayerProfileMovementHistoryCard moves, not contracts", () => {
     expect(screen.queryByText(/playerProfile\.movementWage/)).toBeNull();
     expect(screen.queryByText("playerProfile.movementLegacyContract")).toBeNull();
     expect(screen.queryByText("playerProfile.movementReleasedExpired")).toBeNull();
+  });
+});
+
+describe("PlayerProfileMovementHistoryCard dates", () => {
+  /**
+   * Given a loan that began on 1 August 2025 and ends on 31 May 2026
+   * When the movement history renders in English
+   * Then the date of the move and the end of the loan are written as the language writes dates,
+   *      the same way the Contract tab writes its own, not as ISO days
+   */
+  it("writes a move's date and a loan's end the way the language writes dates", () => {
+    renderCard([
+      {
+        date: "2025-08-01",
+        kind: "loan_start",
+        from_team_name: "Beta FC",
+        to_team_name: "Alpha FC",
+        loan_end_date: "2026-05-31",
+      },
+    ]);
+
+    expect(screen.getByText("Aug 1, 2025")).toBeInTheDocument();
+    expect(
+      screen.getByText('playerProfile.movementLoanUntil {"date":"May 31, 2026"}'),
+    ).toBeInTheDocument();
   });
 });

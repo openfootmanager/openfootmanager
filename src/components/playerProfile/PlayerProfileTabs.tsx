@@ -61,6 +61,10 @@ export default function PlayerProfileTabs({
   const hidden = (id: ProfileTab) => tab !== id;
   const { isManagerOwnedProfile, isFreeAgent, hasLetExpireIntent } = relationship;
   const { opinionAnswer, potentialOpinion } = knowledge;
+  const contractHistory = buildContractHistory(
+    player.movement_history ?? [],
+    currentDate.slice(0, 10),
+  );
   const exactWeeklyWage =
     knowledge.visibleWage.kind === "exact" ? knowledge.visibleWage.weekly : null;
   // Asked for only while this tab is the open one: hidden tabs stay mounted, and the previews are
@@ -143,7 +147,11 @@ export default function PlayerProfileTabs({
 
         <PlayerProfileCareerHistoryCard career={player.career} t={t} />
 
-        <PlayerProfileMovementHistoryCard movementHistory={player.movement_history ?? []} t={t} />
+        <PlayerProfileMovementHistoryCard
+          movementHistory={player.movement_history ?? []}
+          language={i18n.language}
+          t={t}
+        />
       </TabPanel>
 
       <TabPanel
@@ -159,6 +167,17 @@ export default function PlayerProfileTabs({
           isFreeAgent={isFreeAgent}
           hasLetExpireIntent={hasLetExpireIntent}
           exactWeeklyWage={exactWeeklyWage}
+          language={i18n.language}
+          contractRisk={contractRisk}
+          lastSigned={contractHistory.find((row) => row.inForce) ?? null}
+          below={
+            <PlayerProfileContractHistoryCard
+              rows={contractHistory}
+              showsWages={exactWeeklyWage !== null}
+              language={i18n.language}
+              t={t}
+            />
+          }
           data={contractSheet}
           actionSubmitting={actions.contract.contractActionSubmitting}
           onOpenRenewal={actions.renewal.openRenewalModal}
@@ -166,11 +185,6 @@ export default function PlayerProfileTabs({
           onClearLetExpire={() => void actions.contract.handleClearLetExpire()}
           onOpenTermination={() => void actions.contract.openTerminationModal()}
           onOpenFreeAgentContract={() => actions.freeAgent.openFreeAgentContract(player)}
-          t={t}
-        />
-        <PlayerProfileContractHistoryCard
-          rows={buildContractHistory(player.movement_history ?? [], currentDate.slice(0, 10))}
-          showsWages={exactWeeklyWage !== null}
           t={t}
         />
       </TabPanel>
