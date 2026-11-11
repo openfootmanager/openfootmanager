@@ -273,6 +273,24 @@ describe("page layout check", () => {
     expect(judge({ ...clean, tablesScroll: ["Your worlds"] })).toEqual([]);
   });
 
+  /**
+   * Given a page that must not scroll (a case that asks its regions to fit: the Tactics screen), whose
+   *       document does not scroll because the dashboard's main region scrolls inside itself
+   * When the case is judged
+   * Then the region is named with its scroll height against its visible height: the document's own
+   *      height (equal to the window's) hides it, which is how a page that "never scrolls" scrolled.
+   *      A case that does not ask (a list that scrolls in its panel) is not judged by it.
+   */
+  it("names a region that scrolls inside a page that must not scroll", () => {
+    const scrolling = ["div.overflow-y-auto (1180 > 640)"];
+
+    expect(judge({ ...clean, regionsFit: true, regionsScroll: scrolling })).toEqual([
+      "a region scrolls down inside the page: div.overflow-y-auto (1180 > 640)",
+    ]);
+    expect(judge({ ...clean, regionsScroll: scrolling })).toEqual([]);
+    expect(judge({ ...clean, regionsFit: true, regionsScroll: [] })).toEqual([]);
+  });
+
   /** Given a command the fixture didn't answer, or a page that never rendered, then it fails. */
   it("fails an unanswered command or a blank page", () => {
     expect(judge({ ...clean, unanswered: ["get_inbox"], rendered: false })).toEqual([

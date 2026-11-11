@@ -113,6 +113,8 @@ export function judge({
   belowTheFold = [],
   tablesFit = false,
   tablesScroll = [],
+  regionsFit = false,
+  regionsScroll = [],
   rendered,
   faces,
 }) {
@@ -135,6 +137,9 @@ export function judge({
   if (pastEdge.length > 0) problems.push(`past the right edge: ${pastEdge.join(", ")}`);
   if (belowTheFold.length > 0) {
     problems.push(`below the bottom edge of the window: ${belowTheFold.join(", ")}`);
+  }
+  if (regionsFit && regionsScroll.length > 0) {
+    problems.push(`a region scrolls down inside the page: ${regionsScroll.join(", ")}`);
   }
   if (tablesFit && tablesScroll.length > 0) {
     problems.push(`table scrolls sideways inside its container: ${tablesScroll.join(", ")}`);
@@ -207,6 +212,18 @@ const MEASURE = `(async () => {
     belowTheFold: [...document.querySelectorAll("[data-keep-in-window]")]
       .filter((element) => element.getBoundingClientRect().bottom > window.innerHeight)
       .map((element) => (element.textContent ?? "").trim()),
+    // A region that scrolls down inside the page (the dashboard's main region keeps the document the
+    // window's height, so the document's own height never shows it): named by its tag, its aria-label
+    // or its first classes, with its scroll height against its visible height.
+    regionsScroll: [...document.querySelectorAll("main *")]
+      .filter((element) => {
+        const overflowY = getComputedStyle(element).overflowY;
+        return (overflowY === "auto" || overflowY === "scroll") && element.scrollHeight > element.clientHeight + 1;
+      })
+      .map((element) => {
+        const name = element.getAttribute("aria-label") ?? [...element.classList].slice(0, 2).join(".");
+        return element.tagName.toLowerCase() + (name ? "." + name : "") + " (" + element.scrollHeight + " > " + element.clientHeight + ")";
+      }),
     // A table whose container scrolls sideways: the page's own width never shows it.
     tablesScroll: [...document.querySelectorAll("table")]
       .filter((table) => {
@@ -332,11 +349,21 @@ async function main(base) {
         console.log(`device pixel ratio: ${measured.devicePixelRatio}`);
         console.log(`fonts loaded: ${measured.loadedFaces.join(", ")}`);
       }
-      const problems = judge({ ...measured, page: testCase.page, tablesFit: testCase.tablesFit });
+      const problems = judge({
+        ...measured,
+        page: testCase.page,
+        tablesFit: testCase.tablesFit,
+        regionsFit: testCase.regionsFit,
+      });
       const label = `${testCase.page ?? "style guide"}${testCase.player ? ` (${testCase.player})` : ""}${testCase.view ? ` (${testCase.view})` : ""} ${testCase.width}×${testCase.height} ${testCase.scale} ${testCase.lang}`;
       console.log(
         `${problems.length === 0 ? "ok  " : "FAIL"} ${label}${problems.length ? `: ${problems.join("; ")}` : ""}`,
       );
+      // What scrolls inside the page where no case asked it not to: a list's panel scrolls by design,
+      // and the redesign's Tactics screen must not; the run shows which pages do, without failing them.
+      if (!testCase.regionsFit && measured.regionsScroll?.length > 0) {
+        console.log(`     scrolls inside: ${measured.regionsScroll.join(", ")}`);
+      }
       if (problems.length > 0) failed += 1;
     }
     socket.close();
