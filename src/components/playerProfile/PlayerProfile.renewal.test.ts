@@ -97,10 +97,10 @@ describe("PlayerProfile renewal helpers", () => {
   });
 
   it("maps renewal statuses to their display class names", () => {
-    expect(getRenewalStatusClassName("accepted")).toBe("text-primary-500");
-    expect(getRenewalStatusClassName("rejected")).toBe("text-red-500");
+    expect(getRenewalStatusClassName("accepted")).toBe("text-positive");
+    expect(getRenewalStatusClassName("rejected")).toBe("text-danger");
     expect(getRenewalStatusClassName("counter_offer")).toBe("text-accent-600 dark:text-accent-400");
-    expect(getRenewalStatusClassName("idle")).toBe("text-gray-500 dark:text-gray-400");
+    expect(getRenewalStatusClassName("idle")).toBe("text-fg-muted");
   });
 
   it("disables submit when any blocking condition is present", () => {

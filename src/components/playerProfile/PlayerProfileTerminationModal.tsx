@@ -47,48 +47,37 @@ export default function PlayerProfileTerminationModal({
     >
       <div className="space-y-4">
         <div>
-          <h2
-            id={titleId}
-            className="font-heading text-lg font-bold text-gray-900 dark:text-gray-100"
-          >
+          <h2 id={titleId} className="font-heading text-heading font-bold text-fg">
             {t("playerProfile.terminateContractTitle")}
           </h2>
-          <p className="mt-1 text-sm text-gray-600 dark:text-gray-300">
+          <p className="mt-1 text-body text-fg-muted">
             {t("playerProfile.terminateContractBody", { name: playerName })}
           </p>
         </div>
 
         {preview ? (
-          <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 text-sm dark:border-navy-600 dark:bg-navy-700/60">
+          <div className="rounded-lg border border-line bg-sunken p-4 text-body">
             <div className="flex items-center justify-between gap-4">
-              <span className="text-gray-500 dark:text-gray-400">
-                {t("playerProfile.terminationSeverance")}
-              </span>
-              <span className="font-semibold text-gray-900 dark:text-gray-100">
+              <span className="text-fg-muted">{t("playerProfile.terminationSeverance")}</span>
+              <span className="font-semibold text-fg">
                 {formatExactMoney(preview.severance_cost)}
               </span>
             </div>
             <div className="mt-3 flex items-center justify-between gap-4">
-              <span className="text-gray-500 dark:text-gray-400">
-                {t("playerProfile.projectedHealthyPlayers")}
-              </span>
-              <span className="font-semibold text-gray-900 dark:text-gray-100">
+              <span className="text-fg-muted">{t("playerProfile.projectedHealthyPlayers")}</span>
+              <span className="font-semibold text-fg">
                 {preview.squad_safety.healthy_players}/11
               </span>
             </div>
             {!preview.squad_safety.can_field_matchday_squad ? (
-              <p className="mt-3 text-red-600 dark:text-red-300">
-                {t("playerProfile.terminationUnsafe")}
-              </p>
+              <p className="mt-3 text-danger">{t("playerProfile.terminationUnsafe")}</p>
             ) : null}
           </div>
         ) : (
-          <p className="text-sm text-gray-500 dark:text-gray-400">{t("common.loading")}</p>
+          <p className="text-body text-fg-muted">{t("common.loading")}</p>
         )}
 
-        {errorMessage ? (
-          <p className="text-sm text-red-600 dark:text-red-300">{errorMessage}</p>
-        ) : null}
+        {errorMessage ? <p className="text-body text-danger">{errorMessage}</p> : null}
 
         <div className="flex justify-end gap-2">
           <Button variant="ghost" onClick={onCancel} disabled={submitting}>
@@ -96,7 +85,7 @@ export default function PlayerProfileTerminationModal({
           </Button>
           <Button
             variant="outline"
-            className="text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300"
+            className="text-danger hover:bg-danger-tint"
             disabled={submitting || !preview?.squad_safety.can_field_matchday_squad}
             onClick={onConfirm}
           >

@@ -107,18 +107,18 @@ export function getRenewalStatusMessage(
 
 export function getRenewalStatusClassName(renewalStatus: RenewalStatus): string {
   if (renewalStatus === "accepted") {
-    return "text-primary-500";
+    return "text-positive";
   }
 
   if (renewalStatus === "rejected" || renewalStatus === "error") {
-    return "text-red-500";
+    return "text-danger";
   }
 
   if (renewalStatus === "counter_offer") {
     return "text-accent-600 dark:text-accent-400";
   }
 
-  return "text-gray-500 dark:text-gray-400";
+  return "text-fg-muted";
 }
 
 export function shouldDisableRenewalSubmit(state: RenewalSubmitState): boolean {

@@ -63,18 +63,18 @@ export default function PlayerProfileRenewalModal({
         <div>
           <h3
             id={titleId}
-            className="text-lg font-heading font-bold uppercase tracking-wider text-gray-900 dark:text-gray-100"
+            className="text-heading font-heading font-bold uppercase tracking-wider text-fg"
           >
             {t("playerProfile.renewalTitle")}
           </h3>
-          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{playerName}</p>
+          <p className="text-body text-fg-muted mt-1">{playerName}</p>
         </div>
 
         <div className="space-y-3">
           <div>
             <label
               htmlFor="renewal-wage"
-              className="text-xs font-heading font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 block mb-1"
+              className="text-caption font-heading font-bold uppercase tracking-wider text-fg-muted block mb-1"
             >
               {t("playerProfile.renewalWage")}
             </label>
@@ -86,14 +86,14 @@ export default function PlayerProfileRenewalModal({
               value={renewalWage}
               onChange={(event) => onWageChange(event.target.value)}
               disabled={renewalIsTerminal}
-              className="w-full px-3 py-2 rounded-lg bg-gray-50 dark:bg-navy-700 border border-gray-200 dark:border-navy-600 text-sm text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-primary-500/50"
+              className="w-full px-3 py-2 rounded-lg bg-sunken border border-line text-body text-fg focus:outline-none focus-visible:ring-2 focus-visible:ring-focus"
             />
           </div>
 
           <div>
             <label
               htmlFor="renewal-length"
-              className="text-xs font-heading font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 block mb-1"
+              className="text-caption font-heading font-bold uppercase tracking-wider text-fg-muted block mb-1"
             >
               {t("playerProfile.renewalLength")}
             </label>
@@ -106,31 +106,31 @@ export default function PlayerProfileRenewalModal({
               value={renewalLength}
               onChange={(event) => onLengthChange(event.target.value)}
               disabled={renewalIsTerminal}
-              className="w-full px-3 py-2 rounded-lg bg-gray-50 dark:bg-navy-700 border border-gray-200 dark:border-navy-600 text-sm text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-primary-500/50"
+              className="w-full px-3 py-2 rounded-lg bg-sunken border border-line text-body text-fg focus:outline-none focus-visible:ring-2 focus-visible:ring-focus"
             />
           </div>
         </div>
 
         {!isRenewalWageValid && renewalWage !== "" ? (
-          <p className="text-sm text-red-500">{t("playerProfile.renewalInvalidWage")}</p>
+          <p className="text-body text-danger">{t("playerProfile.renewalInvalidWage")}</p>
         ) : null}
 
         {renewalViolatesSoftCap ? (
-          <p className="text-sm text-red-500">{t("playerProfile.renewalBudgetWarning")}</p>
+          <p className="text-body text-danger">{t("playerProfile.renewalBudgetWarning")}</p>
         ) : null}
 
         {renewalProjection ? (
-          <div className="rounded-lg border border-gray-200 dark:border-navy-600 bg-gray-50 dark:bg-navy-700/40 p-3 space-y-2">
-            <p className="text-xs font-heading font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+          <div className="rounded-lg border border-line bg-sunken p-3 space-y-2">
+            <p className="text-caption font-heading font-bold uppercase tracking-wider text-fg-muted">
               {t("playerProfile.renewalProjectionTitle")}
             </p>
-            <p className="text-xs text-gray-600 dark:text-gray-300">
+            <p className="text-caption text-fg-muted">
               {t("playerProfile.renewalProjectionWageBill", {
                 before: formatPlayerWage(renewalProjection.current_weekly_wage_spend),
                 after: formatPlayerWage(renewalProjection.projected_weekly_wage_spend),
               })}
             </p>
-            <p className="text-xs text-gray-600 dark:text-gray-300">
+            <p className="text-caption text-fg-muted">
               {t("playerProfile.renewalProjectionBudgetUsage", {
                 before:
                   renewalProjection.annual_wage_budget > 0
@@ -150,7 +150,7 @@ export default function PlayerProfileRenewalModal({
                     : 0,
               })}
             </p>
-            <p className="text-xs text-gray-600 dark:text-gray-300">
+            <p className="text-caption text-fg-muted">
               {t("playerProfile.renewalProjectionRunway", {
                 before:
                   renewalProjection.current_cash_runway_weeks === null
@@ -170,13 +170,13 @@ export default function PlayerProfileRenewalModal({
         ) : null}
 
         {renewalStatusMessage ? (
-          <p className={`text-sm font-medium ${renewalStatusClassName}`}>{renewalStatusMessage}</p>
+          <p className={`text-body font-medium ${renewalStatusClassName}`}>
+            {renewalStatusMessage}
+          </p>
         ) : null}
 
         {renewalCooledOff ? (
-          <p className="text-sm text-amber-600 dark:text-amber-300">
-            {t("playerProfile.renewalCooledOff")}
-          </p>
+          <p className="text-body text-warning">{t("playerProfile.renewalCooledOff")}</p>
         ) : null}
 
         <NegotiationFeedbackPanel
