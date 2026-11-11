@@ -1,8 +1,10 @@
 import { useTranslation } from "react-i18next";
 
 export interface RadarAxis {
-  /** The translated name, drawn at the axis. */
+  /** The translated name, read out in full. */
   label: string;
+  /** The short form drawn at the axis ("PAC"). */
+  short: string;
   /** 0 to 100. */
   value: number;
   /** An axis the position cannot do without: drawn heavier. */
@@ -59,7 +61,7 @@ export function PlayerProfileRadar({ axes }: { axes: RadarAxis[] }) {
             textAnchor={anchor}
             className={`text-caption ${axis.key ? "fill-fg font-bold" : "fill-fg-muted"}`}
           >
-            {axis.label} {axis.value}
+            {axis.short} {axis.value}
           </text>
         );
       })}

@@ -12,7 +12,8 @@ import { formatPlayerMarketValue } from "../PlayerProfile.helpers";
 import type { PlayerRecentMatchEntry } from "../PlayerProfile.helpers";
 import { RetryButton } from "../ProfileLoadFailed";
 import { OverviewCard, OverviewRow } from "./OverviewCard";
-import { formOf, resultOf } from "./overviewModel";
+import { formOf, resultOf, shortLabels } from "./overviewModel";
+import { isGoalkeeper } from "../PlayerProfile.attributes";
 import { PlayerProfileRadar, type RadarAxis } from "./PlayerProfileRadar";
 
 type PlayerRole = string;
@@ -74,6 +75,30 @@ export default function PlayerProfileOverview(props: PlayerProfileOverviewProps)
 }
 
 const NO_VALUE = "–";
+
+/** The radar's eight axes, the same for every outfield player so two radars compare at a glance. */
+const OUTFIELD_AXES = [
+  "pace",
+  "shooting",
+  "dribbling",
+  "passing",
+  "vision",
+  "composure",
+  "strength",
+  "aerial",
+] as const;
+
+/** A goalkeeper's eight, in place of the outfield ones. */
+const GOALKEEPER_AXES = [
+  "handling",
+  "reflexes",
+  "aerial",
+  "composure",
+  "vision",
+  "agility",
+  "stamina",
+  "strength",
+] as const;
 
 function NowCard({
   player,
@@ -251,7 +276,7 @@ function SeasonCard({
   );
 }
 
-function AttributesCard({ positionRatings, attributes }: PlayerProfileOverviewProps) {
+function AttributesCard({ player, positionRatings, attributes }: PlayerProfileOverviewProps) {
   const { t } = useTranslation();
   const tierOf = useRatingTiers();
   const natural = positionRatings?.rows[0];
@@ -268,8 +293,14 @@ function AttributesCard({ positionRatings, attributes }: PlayerProfileOverviewPr
     );
   }
   const keyAttributes = new Set<string>(natural.key_attributes.map((key) => key.attribute));
-  const axes: RadarAxis[] = natural.weights.map(({ attribute }) => ({
-    label: t(`common.attributes.${attribute}`),
+  // The axes are fixed; the position's key attributes (what the game weighs most there) only mark
+  // which of them are drawn heavier.
+  const shown = isGoalkeeper(player) ? GOALKEEPER_AXES : OUTFIELD_AXES;
+  const names = shown.map((attribute) => t(`common.attributes.${attribute}`));
+  const short = shortLabels(names);
+  const axes: RadarAxis[] = shown.map((attribute, index) => ({
+    label: names[index],
+    short: short[index],
     value: attributes[attribute],
     key: keyAttributes.has(attribute),
   }));

@@ -305,7 +305,14 @@ describe("PlayerProfileOverview", () => {
     const second = axes(defender);
 
     expect(first.labels.map((label) => label?.split(" ")[0])).toEqual([
-      "PAC", "SHO", "DRI", "PAS", "VIS", "COM", "STR", "AER",
+      "PAC",
+      "SHO",
+      "DRI",
+      "PAS",
+      "VIS",
+      "COM",
+      "STR",
+      "AER",
     ]);
     expect(second.labels.map((label) => label?.split(" ")[0])).toEqual(
       first.labels.map((label) => label?.split(" ")[0]),
