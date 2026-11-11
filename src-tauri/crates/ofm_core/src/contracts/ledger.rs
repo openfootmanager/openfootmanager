@@ -152,6 +152,9 @@ mod tests {
         assert!(wage > 0, "a zero offered wage must never become his pay");
     }
 
+    /// Given players aged 26, 30 and 36 in August 2026
+    /// When their buying club offers standard terms
+    /// Then age chooses three, two or one year, all ending on 30 June.
     #[test]
     fn the_length_follows_the_age_the_renewal_model_uses() {
         let today = day(2026, 8, 1);

@@ -1079,6 +1079,9 @@ fn stale_manual_renewal_talks_cool_off_and_restart_from_round_one() {
     );
 }
 
+/// Given low manager trust and an assistant who can agree a routine deal
+/// When the assistant completes the renewal
+/// Then the three-year contract ends on 30 June 2029.
 #[test]
 fn assistant_can_complete_routine_delegate_renewal_even_when_manager_trust_is_low() {
     let mut game = make_game();
@@ -1291,6 +1294,9 @@ fn renewal_blocks_large_worsening_for_legacy_over_budget_saves() {
 // released player reads as an agreement that never ended.
 // ---------------------------------------------------------------------------
 
+/// Given a player renewing an existing contract in August 2026
+/// When the manager agrees a three-year deal
+/// Then it starts today and ends on 30 June 2029.
 #[test]
 fn an_accepted_renewal_dates_the_new_agreement_from_today() {
     let mut game = make_game();
