@@ -16,9 +16,6 @@ beforeAll(async () => {
   await i18nReady;
 });
 
-const t = (key: string, options?: Record<string, string | number>) =>
-  options ? `${key}:${JSON.stringify(options)}` : key;
-
 const match = (
   index: number,
   teamGoals: number,
@@ -109,7 +106,6 @@ function props(overrides: Partial<PlayerProfileOverviewProps> = {}): PlayerProfi
     attributes: player.attributes,
     traits: ["Finisher"],
     onOpenTab: () => {},
-    t,
     ...overrides,
   };
 }
@@ -125,12 +121,12 @@ describe("PlayerProfileOverview", () => {
     render(<PlayerProfileOverview {...props()} />);
 
     for (const name of [
-      "playerProfile.overview.now",
-      "playerProfile.overview.details",
-      "playerProfile.overview.previousMatches",
-      "playerProfile.seasonStats",
-      "playerProfile.attributes",
-      "playerProfile.overview.traits",
+      "Now",
+      "Details",
+      "Previous matches",
+      "Season Statistics",
+      "Attributes",
+      "Traits",
     ]) {
       expect(screen.getAllByRole("region", { name })).toHaveLength(1);
     }
@@ -143,16 +139,16 @@ describe("PlayerProfileOverview", () => {
    */
   it("shows the own player's condition, morale and form in Now", () => {
     render(<PlayerProfileOverview {...props()} />);
-    const now = within(screen.getByRole("region", { name: "playerProfile.overview.now" }));
+    const now = within(screen.getByRole("region", { name: "Now" }));
 
     expect(now.getByText("92")).toBeInTheDocument();
     expect(now.getByText("75%")).toBeInTheDocument();
-    const form = now.getByRole("list", { name: "common.recentForm" });
+    const form = now.getByRole("list", { name: "Recent form" });
     expect(
       within(form)
         .getAllByRole("listitem")
         .map((item) => item.textContent),
-    ).toEqual(["common.formResult.D", "common.formResult.L", "common.formResult.W"]);
+    ).toEqual(["DDraw", "LDefeat", "WVictory"]);
   });
 
   /**
@@ -162,7 +158,7 @@ describe("PlayerProfileOverview", () => {
    */
   it("hides a rival's condition and morale", () => {
     render(<PlayerProfileOverview {...props({ showsPrivateState: false })} />);
-    const now = within(screen.getByRole("region", { name: "playerProfile.overview.now" }));
+    const now = within(screen.getByRole("region", { name: "Now" }));
 
     expect(now.queryByText("92")).toBeNull();
     expect(now.queryByText("75%")).toBeNull();
@@ -185,9 +181,8 @@ describe("PlayerProfileOverview", () => {
       />,
     );
 
-    fireEvent.change(screen.getByRole("combobox", { name: "tactics.playerRoleLabel" }), {
-      target: { value: "Poacher" },
-    });
+    fireEvent.click(screen.getByRole("combobox", { name: "Role" }));
+    fireEvent.click(screen.getByRole("option", { name: /Poacher/ }));
 
     expect(onChange).toHaveBeenCalledWith("Poacher");
   });
@@ -200,7 +195,7 @@ describe("PlayerProfileOverview", () => {
    */
   it("holds born, contract, risk, value, wage and the potential opinion in Details", () => {
     render(<PlayerProfileOverview {...props()} />);
-    const details = within(screen.getByRole("region", { name: "playerProfile.overview.details" }));
+    const details = within(screen.getByRole("region", { name: "Details" }));
 
     expect(details.getByText(/March 14, 2002/)).toBeInTheDocument();
     expect(details.getByText(/June 30, 2028/)).toBeInTheDocument();
@@ -218,11 +213,7 @@ describe("PlayerProfileOverview", () => {
     const retry = vi.fn();
     render(<PlayerProfileOverview {...props({ wageRetry: retry })} />);
 
-    fireEvent.click(
-      within(screen.getByRole("region", { name: "playerProfile.overview.details" })).getByRole(
-        "button",
-      ),
-    );
+    fireEvent.click(within(screen.getByRole("region", { name: "Details" })).getByRole("button"));
 
     expect(retry).toHaveBeenCalledTimes(1);
   });
@@ -234,16 +225,16 @@ describe("PlayerProfileOverview", () => {
    */
   it("lists the previous matches with result, opponent, score and rating", () => {
     render(<PlayerProfileOverview {...props()} />);
-    const rows = within(
-      screen.getByRole("region", { name: "playerProfile.overview.previousMatches" }),
-    ).getAllByRole("listitem");
+    const rows = within(screen.getByRole("region", { name: "Previous matches" })).getAllByRole(
+      "listitem",
+    );
 
     expect(rows).toHaveLength(3);
-    expect(rows[0]).toHaveTextContent("common.formResult.W");
+    expect(rows[0]).toHaveTextContent("W");
     expect(rows[0]).toHaveTextContent("Rovers 0");
     expect(rows[0]).toHaveTextContent("3–0");
     expect(rows[0]).toHaveTextContent("7.8");
-    expect(rows[1]).toHaveTextContent("common.formResult.L");
+    expect(rows[1]).toHaveTextContent("L");
     expect(rows[1]).toHaveTextContent("1–2");
   });
 
@@ -256,11 +247,11 @@ describe("PlayerProfileOverview", () => {
     render(<PlayerProfileOverview {...props({ recentMatches: [] })} />);
 
     expect(
-      within(
-        screen.getByRole("region", { name: "playerProfile.overview.previousMatches" }),
-      ).getByText("playerProfile.noRecentMatches"),
+      within(screen.getByRole("region", { name: "Previous matches" })).getByText(
+        "No recent match data",
+      ),
     ).toBeInTheDocument();
-    expect(screen.queryByRole("list", { name: "common.recentForm" })).toBeNull();
+    expect(screen.queryByRole("list", { name: "Recent form" })).toBeNull();
   });
 
   /**
@@ -270,7 +261,7 @@ describe("PlayerProfileOverview", () => {
    */
   it("shows the season's five figures", () => {
     render(<PlayerProfileOverview {...props()} />);
-    const season = within(screen.getByRole("region", { name: "playerProfile.seasonStats" }));
+    const season = within(screen.getByRole("region", { name: "Season Statistics" }));
 
     expect(season.getByText("27")).toBeInTheDocument();
     expect(season.getByText("19")).toBeInTheDocument();
@@ -285,7 +276,7 @@ describe("PlayerProfileOverview", () => {
    */
   it("shows no average rating before the backend rates one", () => {
     render(<PlayerProfileOverview {...props({ seasonRatingRated: false })} />);
-    const season = within(screen.getByRole("region", { name: "playerProfile.seasonStats" }));
+    const season = within(screen.getByRole("region", { name: "Season Statistics" }));
 
     expect(season.queryByText("7.4")).toBeNull();
     expect(season.getByText("–")).toBeInTheDocument();
@@ -299,15 +290,13 @@ describe("PlayerProfileOverview", () => {
    */
   it("draws the radar from the position's weights, and the key attributes under it", () => {
     render(<PlayerProfileOverview {...props()} />);
-    const attributes = within(screen.getByRole("region", { name: "playerProfile.attributes" }));
+    const attributes = within(screen.getByRole("region", { name: "Attributes" }));
 
     const radar = attributes.getByRole("img");
-    expect(radar.getAttribute("aria-label")).toContain("common.attributes.shooting");
+    expect(radar.getAttribute("aria-label")).toContain("Shooting");
     expect(radar.querySelectorAll("text")).toHaveLength(8);
-    expect(attributes.getByText(/playerProfile.overview.keyFor/)).toBeInTheDocument();
-    expect(
-      attributes.getByText(/common.attributes.shooting/, { selector: "span" }),
-    ).toBeInTheDocument();
+    expect(attributes.getByText(/Key for a/)).toBeInTheDocument();
+    expect(attributes.getByText("Shooting", { selector: "li > span" })).toBeInTheDocument();
     expect(attributes.getByText("84")).toBeInTheDocument();
   });
 
@@ -318,10 +307,10 @@ describe("PlayerProfileOverview", () => {
    */
   it("hides the radar for a player whose attributes the club cannot read", () => {
     render(<PlayerProfileOverview {...props({ positionRatings: null, attributes: null })} />);
-    const attributes = within(screen.getByRole("region", { name: "playerProfile.attributes" }));
+    const attributes = within(screen.getByRole("region", { name: "Attributes" }));
 
     expect(attributes.queryByRole("img")).toBeNull();
-    expect(attributes.getByText("playerProfile.attributesHidden")).toBeInTheDocument();
+    expect(attributes.getByText("Attributes Hidden")).toBeInTheDocument();
   });
 
   /**
@@ -333,8 +322,8 @@ describe("PlayerProfileOverview", () => {
     const onOpenTab = vi.fn();
     render(<PlayerProfileOverview {...props({ onOpenTab })} />);
 
-    fireEvent.click(screen.getByRole("button", { name: "playerProfile.overview.allMatches" }));
-    fireEvent.click(screen.getByRole("button", { name: "playerProfile.tabs.career" }));
+    fireEvent.click(screen.getByRole("button", { name: "All matches" }));
+    fireEvent.click(screen.getByRole("button", { name: "Career" }));
 
     expect(onOpenTab).toHaveBeenNthCalledWith(1, "career");
     expect(onOpenTab).toHaveBeenNthCalledWith(2, "career");
@@ -348,6 +337,6 @@ describe("PlayerProfileOverview", () => {
   it("draws no Traits card for a player without traits", () => {
     render(<PlayerProfileOverview {...props({ traits: [] })} />);
 
-    expect(screen.queryByRole("region", { name: "playerProfile.overview.traits" })).toBeNull();
+    expect(screen.queryByRole("region", { name: "Traits" })).toBeNull();
   });
 });

@@ -251,7 +251,7 @@ function SeasonCard({
   );
 }
 
-function AttributesCard({ player, positionRatings, attributes }: PlayerProfileOverviewProps) {
+function AttributesCard({ positionRatings, attributes }: PlayerProfileOverviewProps) {
   const { t } = useTranslation();
   const tierOf = useRatingTiers();
   const natural = positionRatings?.rows[0];
