@@ -958,6 +958,31 @@ fn morale_talk_encourage_boosts_morale() {
     );
 }
 
+/// Given a player event whose message has one action, "respond"
+/// When a response names an action the message does not have
+/// Then nothing is applied: no effect is returned and the player's morale is unchanged.
+#[test]
+fn a_response_to_an_action_the_message_lacks_applies_nothing() {
+    let mut game = make_game();
+    game.players
+        .iter_mut()
+        .find(|p| p.id == "p_fwd0")
+        .unwrap()
+        .morale = 30;
+    inject_player_message(&mut game, "morale_talk_p_fwd0", "p_fwd0", "respond");
+
+    let result = player_events::apply_player_response(
+        &mut game,
+        "morale_talk_p_fwd0",
+        "no-such-action",
+        "encourage",
+    );
+
+    assert!(result.is_none());
+    let player = game.players.iter().find(|p| p.id == "p_fwd0").unwrap();
+    assert_eq!(player.morale, 30);
+}
+
 #[test]
 fn morale_talk_promise_time_big_boost() {
     let mut game = make_game();

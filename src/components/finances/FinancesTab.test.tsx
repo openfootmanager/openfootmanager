@@ -216,6 +216,173 @@ describe("FinancesTab facilities", () => {
     expect(onGameUpdate).toHaveBeenCalledWith(updatedState);
   });
 
+  // Given a sponsor offer that was already answered (a stale screen: the backend refuses a second
+  // answer with a translated key)
+  // When "Accept the deal" is pressed
+  // Then the message is shown, translated, where the offer is, instead of the press doing nothing;
+  //      and it goes once a later answer is accepted.
+  it("shows the translated reason when the backend refuses a sponsor offer's answer", async () => {
+    const initialState = createGameState({}, [createSponsorOfferMessage()]);
+    const onGameUpdate = vi.fn();
+    mockedInvoke.mockImplementation((command) => {
+      if (command === "get_finance_snapshot") return Promise.resolve(wireSnapshot());
+      if (command === "resolve_message_action") {
+        return Promise.reject("be.error.actionAlreadyResolved");
+      }
+      return Promise.reject(new Error(`Unexpected command: ${command}`));
+    });
+    await renderFinances(<FinancesTab gameState={initialState} onGameUpdate={onGameUpdate} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Accept the deal" }));
+
+    const reason = resolveBackendError("be.error.actionAlreadyResolved");
+    expect(reason).not.toBe("be.error.actionAlreadyResolved");
+    expect(await screen.findByRole("alert")).toHaveTextContent(reason);
+    expect(onGameUpdate).not.toHaveBeenCalled();
+
+    mockedInvoke.mockImplementation((command) =>
+      command === "get_finance_snapshot"
+        ? Promise.resolve(wireSnapshot())
+        : Promise.resolve({ game: createGameState({}, []), effect: "Offer accepted" }),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Accept the deal" }));
+    await waitFor(() => expect(screen.queryByRole("alert")).toBeNull());
+  });
+
+  // Given two pending sponsor offers, and a refusal of the answer to the first
+  // When the first's "Accept the deal" is pressed
+  // Then the reason is shown within that offer only, and the second offer shows none.
+  it("shows a refused sponsor answer's reason beside its own offer only", async () => {
+    const first = createSponsorOfferMessage({ subject: "Sponsorship Offer — First Co" });
+    const second = createSponsorOfferMessage({
+      id: "sponsor_2025-06-22",
+      subject: "Sponsorship Offer — Second Co",
+    });
+    mockedInvoke.mockImplementation((command) => {
+      if (command === "get_finance_snapshot") return Promise.resolve(wireSnapshot());
+      if (command === "resolve_message_action") {
+        return Promise.reject("be.error.actionAlreadyResolved");
+      }
+      return Promise.reject(new Error(`Unexpected command: ${command}`));
+    });
+    await renderFinances(
+      <FinancesTab gameState={createGameState({}, [first, second])} onGameUpdate={vi.fn()} />,
+    );
+
+    fireEvent.click(screen.getAllByRole("button", { name: "Accept the deal" })[0]);
+
+    const alert = await screen.findByRole("alert");
+    const cardOf = (subject: string) =>
+      screen.getByRole("heading", { name: subject }).parentElement?.parentElement as HTMLElement;
+    expect(cardOf("Sponsorship Offer — First Co")).toContainElement(alert);
+    expect(cardOf("Sponsorship Offer — Second Co")).not.toContainElement(alert);
+    expect(screen.getAllByRole("alert")).toHaveLength(1);
+  });
+
+  // Given two pending sponsor offers, the answer to the first refused
+  // When the second offer is answered
+  // Then the first offer's reason is still shown: answering one offer clears only its own error.
+  it("keeps one offer's refusal when another offer is answered", async () => {
+    const first = createSponsorOfferMessage({ subject: "Sponsorship Offer — First Co" });
+    const second = createSponsorOfferMessage({
+      id: "sponsor_2025-06-22",
+      subject: "Sponsorship Offer — Second Co",
+    });
+    mockedInvoke.mockImplementation((command, args) => {
+      if (command === "get_finance_snapshot") return Promise.resolve(wireSnapshot());
+      if (command === "resolve_message_action") {
+        return (args as { messageId: string }).messageId === first.id
+          ? Promise.reject("be.error.actionAlreadyResolved")
+          : Promise.resolve({ game: createGameState({}, [first, second]), effect: "Accepted" });
+      }
+      return Promise.reject(new Error(`Unexpected command: ${command}`));
+    });
+    await renderFinances(
+      <FinancesTab gameState={createGameState({}, [first, second])} onGameUpdate={vi.fn()} />,
+    );
+    fireEvent.click(screen.getAllByRole("button", { name: "Accept the deal" })[0]);
+    await screen.findByRole("alert");
+
+    fireEvent.click(screen.getAllByRole("button", { name: "Accept the deal" })[1]);
+
+    await waitFor(() =>
+      expect(
+        mockedInvoke.mock.calls.filter(([command]) => command === "resolve_message_action"),
+      ).toHaveLength(2),
+    );
+    const cardOf = (subject: string) =>
+      screen.getByRole("heading", { name: subject }).parentElement?.parentElement as HTMLElement;
+    expect(cardOf("Sponsorship Offer — First Co")).toContainElement(screen.getByRole("alert"));
+    expect(screen.getAllByRole("alert")).toHaveLength(1);
+  });
+
+  // Given a sponsor offer being answered (the backend has not replied)
+  // When the offer's buttons are read
+  // Then both answers wait, not only the one pressed: a second, opposite answer must not be sent
+  //      while the first is on its way.
+  it("disables both answers to a sponsor offer while either is on its way", async () => {
+    const initialState = createGameState({}, [createSponsorOfferMessage()]);
+    mockedInvoke.mockImplementation((command) => {
+      if (command === "get_finance_snapshot") return Promise.resolve(wireSnapshot());
+      if (command === "resolve_message_action") return new Promise(() => {});
+      return Promise.reject(new Error(`Unexpected command: ${command}`));
+    });
+    await renderFinances(<FinancesTab gameState={initialState} onGameUpdate={vi.fn()} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Accept the deal" }));
+
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Accept the deal" })).toBeDisabled(),
+    );
+    expect(screen.getByRole("button", { name: "Decline politely" })).toBeDisabled();
+    fireEvent.click(screen.getByRole("button", { name: "Decline politely" }));
+    expect(
+      mockedInvoke.mock.calls.filter(([command]) => command === "resolve_message_action"),
+    ).toHaveLength(1);
+  });
+
+  // Given a sponsor offer being answered (the backend has not replied)
+  // When another finance action is started in the meantime (board support)
+  // Then both answers to the offer are still disabled: the offer's own pending state is not the
+  //      tab's one shared "loading" slot, which the other action takes over.
+  it("keeps both sponsor answers disabled when another finance action starts meanwhile", async () => {
+    const initialState = createGameState({}, [createSponsorOfferMessage()]);
+    mockedInvoke.mockImplementation((command) => {
+      if (command === "get_finance_snapshot") {
+        return Promise.resolve(
+          wireSnapshot(
+            {},
+            {
+              board_support: {
+                support_amount: 1,
+                transfer_budget_reduction: 1,
+                satisfaction_penalty: 1,
+              },
+            },
+          ),
+        );
+      }
+      if (command === "resolve_message_action" || command === "request_board_support") {
+        return new Promise(() => {});
+      }
+      return Promise.reject(new Error(`Unexpected command: ${command}`));
+    });
+    await renderFinances(<FinancesTab gameState={initialState} onGameUpdate={vi.fn()} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Accept the deal" }));
+    fireEvent.click(screen.getByRole("button", { name: "finances.requestBoardSupport" }));
+
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "finances.requestBoardSupport" })).toBeDisabled(),
+    );
+    expect(screen.getByRole("button", { name: "Accept the deal" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Decline politely" })).toBeDisabled();
+    fireEvent.click(screen.getByRole("button", { name: "Decline politely" }));
+    expect(
+      mockedInvoke.mock.calls.filter(([command]) => command === "resolve_message_action"),
+    ).toHaveLength(1);
+  });
+
   it("requests a sponsor pitch for a pressured club and publishes the updated state", async () => {
     const initialState = createGameState(
       { wage_budget: 50000 },

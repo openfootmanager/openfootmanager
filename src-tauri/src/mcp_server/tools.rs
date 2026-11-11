@@ -1870,21 +1870,14 @@ pub fn build_tool_router(context: &Arc<McpContext>, disabled: &[String]) -> OfmT
     // match_team_talk
     custom_tool!(
         "match_team_talk",
-        "Apply a team talk during half-time or full-time break",
+        "Give a team talk: at half-time (or half-time of extra time) of a live match, or once after your match has finished (after match_finish). One per moment; refused at any other time. The game reads the score for your side; you choose the tone",
         build_schema(
-            &[
-                (
-                    "tone",
-                    "string",
-                    "Talk tone: calm, motivational, assertive, aggressive, praise, disappointed"
-                ),
-                (
-                    "context",
-                    "string",
-                    "Match context: winning, losing, drawing"
-                ),
-            ],
-            &["tone", "context"]
+            &[(
+                "tone",
+                "string",
+                "Talk tone: calm, motivational, assertive, aggressive, praise, disappointed"
+            ),],
+            &["tone"]
         ),
         ctx,
         args,
@@ -1893,11 +1886,7 @@ pub fn build_tool_router(context: &Arc<McpContext>, disabled: &[String]) -> OfmT
                 Ok(v) => v,
                 Err(e) => return Ok(e),
             };
-            let context = match require_string_param(args, "context") {
-                Ok(v) => v,
-                Err(e) => return Ok(e),
-            };
-            match tools_impl::live_match::match_team_talk(ctx, tone, context) {
+            match tools_impl::live_match::match_team_talk(ctx, tone) {
                 Ok(value) => Ok(success(value)),
                 Err(e) => Ok(err_result(&e)),
             }
@@ -2316,7 +2305,7 @@ pub fn tool_catalog() -> Vec<(&'static str, &'static str, &'static str)> {
         ),
         (
             "match_team_talk",
-            "Apply a team talk during a match break",
+            "Give the half-time or post-match team talk (once per moment, context from the score)",
             "Live Match",
         ),
         (

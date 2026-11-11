@@ -2866,6 +2866,9 @@
       },
       "noActiveGameSession": "Aucune partie active",
       "careerChanged": "La carrière a changé avant que cela puisse être enregistré.",
+      "actionAlreadyResolved": "Cela a déjà reçu une réponse, donc rien n'a changé.",
+      "actionNotFound": "Cette conversation ou cette offre n'existe plus.",
+      "actionOptionRequired": "Choisissez l'une des réponses proposées.",
       "noActiveSaveSession": "Aucune session de sauvegarde active",
       "saveNotFound": "Sauvegarde '{{saveId}}' introuvable.",
       "teamNotFound": "Équipe introuvable",
@@ -2913,6 +2916,10 @@
         "playerNotInStartingXi": "Le joueur n'est pas dans le onze de départ",
         "pressConferenceAlreadyHeld": "Vous avez déjà tenu une conférence de presse aujourd'hui",
         "noCompletedMatch": "Aucun match terminé n'a été trouvé pour votre équipe"
+      },
+      "teamTalk": {
+        "notAtABreak": "Une causerie n'est possible qu'à la mi-temps ou après le match.",
+        "alreadyGiven": "Vous avez déjà fait la causerie pour ce moment."
       },
       "csv": {
         "writeFailed": "Échec de l'écriture du fichier CSV."

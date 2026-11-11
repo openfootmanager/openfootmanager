@@ -2866,6 +2866,9 @@
       },
       "noActiveGameSession": "Žádná aktivní herní relace",
       "careerChanged": "Kariéra se změnila dříve, než to bylo možné uložit.",
+      "actionAlreadyResolved": "Na to už bylo odpovězeno, takže se nic nezměnilo.",
+      "actionNotFound": "Tato konverzace nebo nabídka už neexistuje.",
+      "actionOptionRequired": "Vyberte jednu z nabízených odpovědí.",
       "noActiveSaveSession": "Žádná aktivní relace ukládání",
       "saveNotFound": "Uložená pozice '{{saveId}}' nebyla nalezena.",
       "saveManagerUnavailable": "Uložená data jsou dočasně nedostupná.",
@@ -2948,6 +2951,10 @@
         "playerNotInStartingXi": "Hráč není v základní sestavě",
         "pressConferenceAlreadyHeld": "Tisková konference dnes už proběhla",
         "noCompletedMatch": "Pro váš tým nebyl nalezen žádný odehraný zápas"
+      },
+      "teamTalk": {
+        "notAtABreak": "Proslov k týmu lze pronést jen v poločase nebo po zápase.",
+        "alreadyGiven": "Proslov pro tuto chvíli jste už pronesli."
       },
       "csv": {
         "writeFailed": "Nepodařilo se zapsat soubor CSV."

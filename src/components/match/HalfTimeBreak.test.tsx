@@ -156,7 +156,11 @@ describe("HalfTimeBreak", () => {
       expect(screen.getByText("58")).toBeInTheDocument();
       expect(invokeMock).toHaveBeenCalledWith(
         "apply_team_talk",
-        expect.objectContaining({ tone: "calm", context: "winning" }),
+        expect.objectContaining({ tone: "calm" }),
+      );
+      // The backend reads the score; a screen that sent its own context would be asking to choose it.
+      expect(invokeMock.mock.calls[invokeMock.mock.calls.length - 1]?.[1]).not.toHaveProperty(
+        "context",
       );
       expect(screen.queryByRole("alert")).toBeNull();
       expect(screen.queryByRole("button", { name: "match.deliverTeamTalk" })).toBeNull();

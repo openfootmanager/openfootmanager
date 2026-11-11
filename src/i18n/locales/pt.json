@@ -2866,6 +2866,9 @@
       },
       "noActiveGameSession": "Sem sessão de jogo ativa",
       "careerChanged": "A carreira mudou antes de isto poder ser guardado.",
+      "actionAlreadyResolved": "Isso já foi respondido, por isso nada mudou.",
+      "actionNotFound": "Essa conversa ou oferta já não existe.",
+      "actionOptionRequired": "Escolhe uma das respostas oferecidas.",
       "noActiveSaveSession": "Sem sessão de gravação ativa",
       "saveNotFound": "Gravação '{{saveId}}' não encontrada.",
       "teamNotFound": "Equipa não encontrada",
@@ -2913,6 +2916,10 @@
         "playerNotInStartingXi": "O jogador não está no onze inicial",
         "pressConferenceAlreadyHeld": "Já deste uma conferência de imprensa hoje",
         "noCompletedMatch": "Não foi encontrado nenhum jogo disputado pela tua equipa"
+      },
+      "teamTalk": {
+        "notAtABreak": "A palestra à equipa só pode ser feita ao intervalo ou depois do jogo.",
+        "alreadyGiven": "Já deste a palestra à equipa para este momento."
       },
       "csv": {
         "writeFailed": "Falha ao escrever o ficheiro CSV."

@@ -52,6 +52,8 @@ const PAGE_CONTENT: Record<HarnessPage, (view: ReturnType<typeof within>) => voi
     expect(view.getByRole("table", { name: /^My Staff \(\d+\)$/ })).toBeInTheDocument(),
   // The profile of the club's own player: his name is the page's heading.
   profile: (view) => expect(view.getAllByRole("heading", { level: 1 }).length).toBeGreaterThan(0),
+  // The formation picker: only the Tactics tab draws it.
+  tactics: (view) => expect(view.getByRole("combobox", { name: "Formation" })).toBeInTheDocument(),
 };
 
 afterEach(async () => {
@@ -164,6 +166,11 @@ const KNOWLEDGE_SHOWS: Record<HarnessProfile, (view: ReturnType<typeof within>) 
   },
   // A stranger and a retiree: public facts only.
   unknown: (view) => expectHidden(view),
+  // A free agent the club has never scouted: public facts only, and no club to be loaned from.
+  freeAgent: (view) => {
+    expectHidden(view);
+    expect(view.queryByText(/^On loan at /)).toBeNull();
+  },
   retired: (view) => {
     expectHidden(view);
     // The card says he has retired, when, and from which club.

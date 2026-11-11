@@ -133,6 +133,17 @@ pub fn translate_error(key: &str) -> String {
         "be.error.noActiveLiveMatch" => {
             "No live match is in progress. Start one with `match_start`.".to_string()
         }
+        "be.error.teamTalk.notAtABreak" => {
+            "A team talk can only be given at half-time (or half-time \
+             of extra time) of a live match, or right after your match has finished. Step the \
+             match to half-time with `match_step`, or give it after `match_finish`."
+                .to_string()
+        }
+        "be.error.teamTalk.alreadyGiven" => {
+            "You have already given the team talk for this moment. The next one is at the next \
+             half-time, or after the match."
+                .to_string()
+        }
         "be.error.liveMatch.shootoutOrderNotNow" => {
             "The shootout order can only be set once the shootout has started, before its first \
              kick."
@@ -220,6 +231,19 @@ mod tests {
             "be.error.liveMatch.notYourSide",
             "be.error.liveMatch.shootoutOrderNotEligible",
             "be.error.liveMatch.noSubstitutionsForShootout",
+        ] {
+            let rendered = translate_error(key);
+            assert!(!rendered.contains(key), "{key} renders as {rendered:?}");
+        }
+    }
+
+    /// Given the two refusals a team talk can meet (no moment to give one in, and the moment's
+    /// talk already given), when rendered for an agent, then each is a readable message.
+    #[test]
+    fn the_team_talk_refusals_are_renderable() {
+        for key in [
+            "be.error.teamTalk.notAtABreak",
+            "be.error.teamTalk.alreadyGiven",
         ] {
             let rendered = translate_error(key);
             assert!(!rendered.contains(key), "{key} renders as {rendered:?}");

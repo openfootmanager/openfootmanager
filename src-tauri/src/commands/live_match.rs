@@ -20,7 +20,10 @@ use crate::application::press_conference::{
 use crate::application::team_talk::apply_team_talk as apply_team_talk_service;
 use crate::commands::util::user_team_id;
 use ofm_core::game::Game;
-use ofm_core::state::{Career, StateManager};
+use ofm_core::state::{Career, StateManager, NO_ACTIVE_GAME_ERROR};
+use ofm_core::team_talk_moment::{
+    interval_moment, post_match_moment, TeamTalkMoment, ALREADY_GIVEN_ERROR, NOT_AT_A_BREAK_ERROR,
+};
 
 #[derive(Debug, Deserialize)]
 pub struct PressConferenceAnswer {
@@ -173,34 +176,115 @@ pub fn finish_live_match(
 
 /// Apply a team talk and return per-player morale changes.
 /// tone: "calm" | "motivational" | "assertive" | "aggressive" | "praise" | "disappointed"
-/// context: "winning" | "losing" | "drawing"
+///
+/// The context (winning, losing, drawing) is the game's to say, from the score: it is not asked
+/// for, so a caller cannot choose the one its talk reads best in.
 #[tauri::command]
 pub fn apply_team_talk(
     state: State<'_, Arc<StateManager>>,
     tone: String,
-    context: String,
     career_token: u64,
 ) -> Result<Vec<serde_json::Value>, String> {
-    info!("[cmd] apply_team_talk: tone={}, context={}", tone, context);
-    apply_team_talk_on(&state, Career::Token(career_token), &tone, &context)
+    info!("[cmd] apply_team_talk: tone={}", tone);
+    let talk = apply_team_talk_on(&state, Career::Token(career_token), &tone)?;
+    info!("[cmd] apply_team_talk: context={}", talk.context);
+    Ok(talk.changes)
 }
 
-/// Applies a team talk to the career `career` names and returns the morale changes; refused if
-/// another career is active. The command and the MCP tool share it.
+/// A team talk as the game gave it.
+pub struct TeamTalkOutcome {
+    /// How the match stood for the user's side when the talk was given.
+    pub context: &'static str,
+    /// Each player's morale change.
+    pub changes: Vec<serde_json::Value>,
+}
+
+/// Applies a team talk to the career `career` names; refused if another career is active, if no
+/// moment the screen offers a talk in is under way, or if that moment's talk was given. The
+/// command and the MCP tool share it.
 pub fn apply_team_talk_on(
     state: &StateManager,
     career: Career,
     tone: &str,
-    context: &str,
-) -> Result<Vec<serde_json::Value>, String> {
+) -> Result<TeamTalkOutcome, String> {
+    // The lifecycle lock a career install holds, across reading the moment, claiming it and
+    // writing the morale: an install clears the claimed moments, so one that landed between two
+    // talks would let both give the old career's half-time talk.
+    let _operation = crate::application::live_session::operation();
+    let (moment, career) = team_talk_moment_of(state, career)?;
+    give_team_talk_at(state, career, &moment, tone)
+}
+
+/// Gives the talk of `moment`, claimed first so two callers at the same moment cannot both pass
+/// the check, and given back if the talk then fails, so a refused talk does not use it up.
+fn give_team_talk_at(
+    state: &StateManager,
+    career: Career,
+    moment: &TeamTalkMoment,
+    tone: &str,
+) -> Result<TeamTalkOutcome, String> {
+    if !state.claim_team_talk_moment(&moment.key) {
+        return Err(ALREADY_GIVEN_ERROR.to_string());
+    }
     // apply_team_talk validates (team assigned) before mutating morale.
     let phase = live_phase_tag(state);
-    state
+    let talk = state
         .update_game_for(career, |game| {
-            let seed = team_talk_seed_in_phase(game, tone, context, &phase);
-            apply_team_talk_internal(game, tone, context, seed)
+            let seed = team_talk_seed_in_phase(game, tone, moment.context, &phase);
+            apply_team_talk_internal(game, tone, moment.context, seed)
         })
-        .and_then(|talk| talk)
+        .and_then(|talk| talk);
+    match talk {
+        Ok(changes) => Ok(TeamTalkOutcome {
+            context: moment.context,
+            changes,
+        }),
+        Err(error) => {
+            state.release_team_talk_moment(&moment.key);
+            Err(error)
+        }
+    }
+}
+
+/// The moment a team talk would be given in now, how the match stands, and the career it was read
+/// for. A live match decides the moment by its phase, and with none, the user's match just played
+/// does. The game and the live match are each looked at in turn, never both held, so the talk
+/// has to be given for the career read here (`Career::Token`), not for whichever is active by
+/// then: the screen can install another career in between.
+fn team_talk_moment_of(
+    state: &StateManager,
+    career: Career,
+) -> Result<(TeamTalkMoment, Career), String> {
+    let (token, after_match) = state
+        .get_game(|game| {
+            career
+                .check(game)
+                .map(|()| (game.career_token, post_match_moment(game)))
+        })
+        .unwrap_or_else(|| Err(NO_ACTIVE_GAME_ERROR.to_string()))?;
+    let read_for = Career::Token(token);
+    let live = state.with_live_match(|session| {
+        read_for.check_token(session.career_token)?;
+        let Some(side) = session.user_side else {
+            return Err(NOT_AT_A_BREAK_ERROR.to_string());
+        };
+        let snapshot = session.match_state.snapshot();
+        interval_moment(
+            &session.fixture_id,
+            session.match_state.phase(),
+            side,
+            snapshot.home_score,
+            snapshot.away_score,
+        )
+        .map_err(str::to_string)
+    });
+    let mut moment = match live {
+        Some(moment) => moment,
+        None => after_match.ok_or_else(|| NOT_AT_A_BREAK_ERROR.to_string()),
+    }?;
+    // The career is part of the moment, so a used moment of one career is never read as another's.
+    moment.key = format!("{token}/{}", moment.key);
+    Ok((moment, read_for))
 }
 
 /// Process press conference answers: generate news article, affect squad morale.
@@ -2133,7 +2217,7 @@ mod live_session_tests {
     /// Given a game in career 3 and a screen holding career 5's token
     /// When a team talk and a press conference arrive
     /// Then both are refused with the career-changed key and the game is untouched; the right
-    ///      token reaches the team talk and applies it.
+    ///      token is not refused for its career.
     #[test]
     fn a_team_talk_and_a_press_conference_for_a_replaced_career_are_refused() {
         use ofm_core::state::Career;
@@ -2148,7 +2232,7 @@ mod live_session_tests {
         let key = Some("be.error.careerChanged".to_string());
 
         assert_eq!(
-            super::apply_team_talk_on(&state, Career::Token(5), "calm", "drawing").err(),
+            super::apply_team_talk_on(&state, Career::Token(5), "calm").err(),
             key
         );
         assert_eq!(
@@ -2157,11 +2241,275 @@ mod live_session_tests {
         );
 
         assert_eq!(game_json(&state), before);
-        assert!(super::apply_team_talk_on(&state, Career::Token(3), "calm", "drawing").is_ok());
+        assert_ne!(
+            super::apply_team_talk_on(&state, Career::Token(3), "calm").err(),
+            key,
+            "the right token reaches the team talk itself"
+        );
         assert_ne!(
             super::submit_press_conference_on(&state, Career::Token(3), &[]).err(),
             key,
             "the right token reaches the press conference itself"
+        );
+    }
+
+    /// A live match the user plays, stepped on to half-time (the step stops there for the talk).
+    fn state_at_half_time() -> StateManager {
+        let state = StateManager::new();
+        state.set_game(make_game_with_matchday());
+        live_match::start_live_match_with_identity(
+            &state,
+            ofm_core::state::Career::Active,
+            0,
+            "live",
+            false,
+            None,
+            None,
+        )
+        .unwrap();
+        live_match::step_live_match(&state, ofm_core::state::Career::Active, 60).unwrap();
+        let snapshot = live_match::get_match_snapshot(&state).unwrap();
+        assert_eq!(
+            format!("{:?}", snapshot.phase),
+            "HalfTime",
+            "the helper reached the interval"
+        );
+        state
+    }
+
+    fn squad_morale(state: &StateManager) -> Vec<(String, u8)> {
+        state
+            .get_game(|game| {
+                game.players
+                    .iter()
+                    .map(|player| (player.id.clone(), player.morale))
+                    .collect()
+            })
+            .unwrap()
+    }
+
+    /// Given a game with a match scheduled today but not begun
+    /// When a team talk is given
+    /// Then it is refused as not at a break, and no player's morale moves (#1194: an agent could
+    ///      talk on any day with no match at all)
+    #[test]
+    fn a_team_talk_with_no_match_to_talk_about_is_refused_and_moves_no_morale() {
+        let state = StateManager::new();
+        state.set_game(make_game_with_matchday());
+        let before = squad_morale(&state);
+
+        let result = super::apply_team_talk_on(&state, ofm_core::state::Career::Active, "calm");
+
+        assert_eq!(
+            result.err().as_deref(),
+            Some("be.error.teamTalk.notAtABreak")
+        );
+        assert_eq!(squad_morale(&state), before);
+    }
+
+    /// A live match the user plays, stepped thirty minutes into the first half.
+    fn state_in_the_first_half_as_manager() -> StateManager {
+        let state = StateManager::new();
+        state.set_game(make_game_with_matchday());
+        live_match::start_live_match_with_identity(
+            &state,
+            ofm_core::state::Career::Active,
+            0,
+            "live",
+            false,
+            None,
+            None,
+        )
+        .unwrap();
+        live_match::step_live_match(&state, ofm_core::state::Career::Active, 30).unwrap();
+        let snapshot = live_match::get_match_snapshot(&state).unwrap();
+        assert_eq!(format!("{:?}", snapshot.phase), "FirstHalf");
+        assert!(state
+            .with_live_match(|session| session.user_side)
+            .unwrap()
+            .is_some());
+        state
+    }
+
+    /// Given a live match the user manages, in its first half
+    /// When a team talk is given
+    /// Then it is refused as not at a break (the phase decides, not who is watching) and no morale
+    ///      moves: the screen offers none until half-time
+    #[test]
+    fn a_team_talk_mid_half_is_refused_and_moves_no_morale() {
+        let state = state_in_the_first_half_as_manager();
+        let before = squad_morale(&state);
+
+        let result = super::apply_team_talk_on(&state, ofm_core::state::Career::Active, "calm");
+
+        assert_eq!(
+            result.err().as_deref(),
+            Some("be.error.teamTalk.notAtABreak")
+        );
+        assert_eq!(squad_morale(&state), before);
+    }
+
+    /// Given a match the user is only watching, at minute thirty
+    /// When a team talk is given
+    /// Then it is refused: there is no side to talk to, and no morale moves
+    #[test]
+    fn a_team_talk_while_spectating_is_refused_and_moves_no_morale() {
+        let state = state_at_minute_thirty();
+        let before = squad_morale(&state);
+
+        let result = super::apply_team_talk_on(&state, ofm_core::state::Career::Active, "calm");
+
+        assert_eq!(
+            result.err().as_deref(),
+            Some("be.error.teamTalk.notAtABreak")
+        );
+        assert_eq!(squad_morale(&state), before);
+    }
+
+    /// Given a match at half-time and every player's morale at 50, clear of both ends of the scale
+    /// When a talk is given through the shared seam
+    /// Then the reactions are listed and each is the morale the game now holds, and some moved
+    #[test]
+    fn an_accepted_team_talk_moves_morale_and_reports_what_it_moved() {
+        let state = state_at_half_time();
+        state
+            .update_game(|game| {
+                game.players
+                    .iter_mut()
+                    .for_each(|player| player.morale = 50)
+            })
+            .unwrap();
+        let before = squad_morale(&state);
+
+        let expected_context = context_for_the_score(&state);
+        let talk =
+            super::apply_team_talk_on(&state, ofm_core::state::Career::Active, "motivational")
+                .unwrap();
+
+        let after = squad_morale(&state);
+        assert!(!talk.changes.is_empty(), "no reactions were reported");
+        assert_ne!(after, before, "no player's morale moved");
+        for change in &talk.changes {
+            let id = change["player_id"].as_str().unwrap();
+            let now = after.iter().find(|(player, _)| player == id).unwrap().1;
+            assert_eq!(change["new_morale"].as_u64(), Some(u64::from(now)));
+        }
+        // Each squad member remembers the talk under the context the score gave, so a wrong
+        // context argument would be remembered as another talk.
+        let remembered: Vec<String> = state
+            .get_game(|game| {
+                game.players
+                    .iter()
+                    .filter(|player| player.team_id.as_deref() == Some("team1"))
+                    .filter_map(|player| player.morale_core.recent_treatment.clone())
+                    .map(|memory| memory.action_key)
+                    .collect()
+            })
+            .unwrap();
+        assert!(!remembered.is_empty(), "no squad member remembers the talk");
+        assert!(
+            remembered
+                .iter()
+                .all(|key| *key == format!("team_talk:motivational:{expected_context}")),
+            "{remembered:?} does not match the context {expected_context}"
+        );
+    }
+
+    /// Given the moment read for one career, and another career installed before the talk is
+    ///       given (the screen can start a new game between the two)
+    /// When the talk is given at the moment read
+    /// Then it is refused as a changed career, and the new career's morale does not move
+    #[test]
+    fn a_career_swapped_in_before_the_talk_is_given_is_refused() {
+        let state = state_at_half_time();
+        let (moment, career) =
+            super::team_talk_moment_of(&state, ofm_core::state::Career::Active).unwrap();
+        let mut other = make_game_with_matchday();
+        other.career_token = 9;
+        state.set_game(other);
+        let before = squad_morale(&state);
+
+        let result = super::give_team_talk_at(&state, career, &moment, "motivational");
+
+        assert_eq!(result.err().as_deref(), Some("be.error.careerChanged"));
+        assert_eq!(squad_morale(&state), before);
+    }
+
+    /// Given a match at half-time
+    /// When the manager gives a talk, then another with a different tone (as an agent could, to
+    ///      get round the damping a repeated talk gets)
+    /// Then the first is applied and the second refused as already given, with every player's
+    ///      morale as the first left it
+    #[test]
+    fn a_second_team_talk_in_the_same_half_time_is_refused() {
+        let state = state_at_half_time();
+        let career = ofm_core::state::Career::Active;
+
+        let first = super::apply_team_talk_on(&state, career, "motivational");
+        let after_first = squad_morale(&state);
+        let second = super::apply_team_talk_on(&state, career, "aggressive");
+
+        assert!(first.is_ok(), "{:?}", first.err());
+        assert_eq!(
+            second.err().as_deref(),
+            Some("be.error.teamTalk.alreadyGiven")
+        );
+        assert_eq!(squad_morale(&state), after_first);
+    }
+
+    /// How the half-time score stands for the user's side, worked out here and not by the code
+    /// under test.
+    fn context_for_the_score(state: &StateManager) -> &'static str {
+        let snapshot = live_match::get_match_snapshot(state).unwrap();
+        let side = state
+            .with_live_match(|session| session.user_side)
+            .unwrap()
+            .unwrap();
+        let (mine, theirs) = if side == engine::Side::Home {
+            (snapshot.home_score, snapshot.away_score)
+        } else {
+            (snapshot.away_score, snapshot.home_score)
+        };
+        match mine.cmp(&theirs) {
+            std::cmp::Ordering::Greater => "winning",
+            std::cmp::Ordering::Less => "losing",
+            std::cmp::Ordering::Equal => "drawing",
+        }
+    }
+
+    /// Given a match at half-time, with whatever score it has
+    /// When a team talk is given
+    /// Then its context is the user's side's view of that score: the caller no longer chooses it
+    #[test]
+    fn the_team_talk_context_comes_from_the_score() {
+        let state = state_at_half_time();
+        let expected = context_for_the_score(&state);
+
+        let talk =
+            super::apply_team_talk_on(&state, ofm_core::state::Career::Active, "calm").unwrap();
+
+        assert_eq!(talk.context, expected);
+    }
+
+    /// Given a match whose half-time talk was given, and which is then finished (the screen's
+    ///       post-match tab comes after the match is cleared)
+    /// When a post-match talk is given, then another
+    /// Then the first is allowed (a different moment from half-time) and the second refused
+    #[test]
+    fn the_post_match_team_talk_is_allowed_once_after_the_half_time_one() {
+        let state = state_at_half_time();
+        let career = ofm_core::state::Career::Active;
+        super::apply_team_talk_on(&state, career, "calm").unwrap();
+        live_match::step_live_match(&state, career, 120).unwrap();
+        live_match::finish_live_match(&state, career).unwrap();
+
+        let post_match = super::apply_team_talk_on(&state, career, "praise");
+        let again = super::apply_team_talk_on(&state, career, "praise");
+
+        assert!(post_match.is_ok(), "{:?}", post_match.err());
+        assert_eq!(
+            again.err().as_deref(),
+            Some("be.error.teamTalk.alreadyGiven")
         );
     }
 
@@ -2475,6 +2823,55 @@ mod live_session_tests {
             "career replacement must wait for the current start/finish/save/advance operation"
         );
     }
+    /// Given a career install in progress (it holds the lifecycle lock, and has replaced the game
+    ///       by the time it lets go)
+    /// When a team talk is asked for at the old career's half-time meanwhile
+    /// Then the talk is seen reaching the lock and does not return while it is held, and once the
+    ///      install lands it reads the new career, so it can neither give the old career's moment
+    ///      nor move any morale: the moment, its claim and the morale write are one step under the
+    ///      lock, not interleaved with a replacement
+    #[test]
+    fn a_team_talk_waits_for_a_career_install_in_progress() {
+        let state = std::sync::Arc::new(state_at_half_time());
+        let install = crate::application::live_session::operation();
+        let (attempt_tx, attempt_rx) = std::sync::mpsc::channel();
+        let (done_tx, done_rx) = std::sync::mpsc::channel();
+        let asker = state.clone();
+        let handle = std::thread::spawn(move || {
+            crate::application::live_session::GATE_ATTEMPT
+                .with(|hook| *hook.borrow_mut() = Some(attempt_tx));
+            let result =
+                super::apply_team_talk_on(&asker, ofm_core::state::Career::Active, "motivational");
+            done_tx.send(result.map(|_| ())).unwrap();
+        });
+        let reached_the_lock = attempt_rx
+            .recv_timeout(std::time::Duration::from_secs(5))
+            .is_ok();
+        let returned_while_held = done_rx
+            .recv_timeout(std::time::Duration::from_millis(300))
+            .is_ok();
+        // The install lands: the live match goes, the new career is set.
+        drop(state.take_live_match());
+        let mut other = make_game_with_matchday();
+        other.career_token = 9;
+        state.set_game(other);
+        let new_career_morale = squad_morale(&state);
+        drop(install);
+        let result = done_rx.recv_timeout(std::time::Duration::from_secs(5));
+        handle.join().unwrap();
+
+        assert!(reached_the_lock, "the talk never took the lifecycle lock");
+        assert!(
+            !returned_while_held,
+            "the talk returned while an install held the lock"
+        );
+        assert_eq!(
+            result.unwrap().err().as_deref(),
+            Some("be.error.teamTalk.notAtABreak")
+        );
+        assert_eq!(squad_morale(&state), new_career_morale);
+    }
+
     /// Given an idle saved career with changed finances, when returning to the menu,
     /// then the changes reach a fresh save reader before the active state is cleared.
     #[test]

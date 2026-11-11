@@ -2866,6 +2866,9 @@
       },
       "noActiveGameSession": "Tidak ada sesi permainan yang aktif",
       "careerChanged": "Karier berubah sebelum ini sempat disimpan.",
+      "actionAlreadyResolved": "Itu sudah dijawab, jadi tidak ada yang berubah.",
+      "actionNotFound": "Percakapan atau tawaran itu sudah tidak ada.",
+      "actionOptionRequired": "Pilih salah satu jawaban yang ditawarkan.",
       "noActiveSaveSession": "Tidak ada sesi penyimpanan yang aktif",
       "saveNotFound": "Penyimpanan '{{saveId}}' tidak ditemukan.",
       "saveManagerUnavailable": "Data penyimpanan untuk sementara tidak tersedia.",
@@ -2948,6 +2951,10 @@
         "playerNotInStartingXi": "Pemain tidak berada di Starting XI",
         "pressConferenceAlreadyHeld": "Kamu sudah menggelar konferensi pers hari ini",
         "noCompletedMatch": "Tidak ada pertandingan selesai yang ditemukan untuk tim kamu"
+      },
+      "teamTalk": {
+        "notAtABreak": "Arahan tim hanya bisa diberikan saat turun minum atau setelah pertandingan.",
+        "alreadyGiven": "Kamu sudah memberikan arahan tim untuk momen ini."
       },
       "csv": {
         "writeFailed": "Gagal menulis berkas CSV."

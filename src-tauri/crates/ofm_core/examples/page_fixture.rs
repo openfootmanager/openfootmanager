@@ -154,6 +154,7 @@ fn render_module(game: &Game) -> Result<String, String> {
         "FamiliarityProjection",
         &ofm_core::familiarity_projection::familiarity_projection(game)?,
     )?;
+    export_tactics(&mut module, game, &club)?;
     export(
         &mut module,
         "positionWeights",
@@ -213,6 +214,49 @@ fn position_key_attributes()
         .collect()
 }
 
+/// The Tactics tab's mount queries: the side the club would field (`get_tactics_lineup`), whether the
+/// club's instructions differ from its style's blueprint (the comparison
+/// `get_tactics_blueprint_status` makes), and the takers the backend would use for the club's eleven,
+/// with the eleven they were picked for.
+fn export_tactics(module: &mut String, game: &Game, club: &str) -> Result<(), String> {
+    let team = game
+        .teams
+        .iter()
+        .find(|team| team.id == club)
+        .ok_or("the career's club is missing")?;
+    // The eleven is the side the match would field (the club's saved eleven may be empty): the
+    // Tactics tab asks for the takers of exactly those players.
+    let lineup = ofm_core::tactics_lineup::tactics_lineup(game)?;
+    let eleven: Vec<String> = lineup
+        .eleven
+        .iter()
+        .map(|slot| slot.player_id.clone())
+        .collect();
+    export(module, "tacticsLineup", "TacticsLineup", &lineup)?;
+    export(
+        module,
+        "tacticsBlueprintStatus",
+        "{ modified: boolean }",
+        &json!({
+            "modified": team.tactics_phase != ofm_core::ai_tactics::blueprint_for(&team.play_style)
+        }),
+    )?;
+    let (captain, penalty_taker, free_kick_taker, corner_taker) =
+        ofm_core::live_match_manager::auto_select_set_pieces(game, &eleven);
+    export(module, "autoSetPiecesFor", "string[]", &eleven)?;
+    export(
+        module,
+        "autoSetPieces",
+        "AutoSetPieces",
+        &json!({
+            "captain": captain,
+            "penalty_taker": penalty_taker,
+            "free_kick_taker": free_kick_taker,
+            "corner_taker": corner_taker,
+        }),
+    )
+}
+
 /// The world lists' answers: the Players page's first page, the Teams directory and the Staff page.
 fn export_world_lists(module: &mut String, game: &Game, club: &str) -> Result<(), String> {
     // The query the Players page sends on opening (`PLAYERS_OPENING_QUERY`, in
@@ -260,12 +304,13 @@ import type { BackendFinanceSnapshotResponseData } from \"../../services/finance
 import type { JobOpportunity } from \"../../services/jobService\";
 import type { PlayersPage, PlayersPageQuery } from \"../../services/playersService\";
 import type { PositionGroupEntry } from \"../../services/positionService\";
-import type { RatingTier, SquadFitness } from \"../../services/squadService\";
+import type { AutoSetPieces, RatingTier, SquadFitness } from \"../../services/squadService\";
 import type { StaffSlice } from \"../../services/staffService\";
 import type { TeamsDirectory } from \"../../services/teamsService\";
 import type { AttributeKey } from \"../../store/generated/AttributeKey\";
 import type { AttributeWeight } from \"../../store/generated/AttributeWeight\";
 import type { FamiliarityProjection } from \"../../store/generated/FamiliarityProjection\";
+import type { TacticsLineup } from \"../../store/generated/TacticsLineup\";
 import type { GameStateData, PlayerData } from \"../../store/types\";
 ";
 

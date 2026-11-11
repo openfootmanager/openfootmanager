@@ -26,13 +26,23 @@ const WINDOWS = [
 ];
 
 /** The harness's pages (HARNESS_PAGES in src/dev/pageHarness/harnessPage.ts; a test holds them equal). */
-const PAGES = ["home", "squad", "players", "teams", "managers", "staff"];
+const PAGES = ["home", "squad", "players", "teams", "managers", "staff", "tactics"];
 
 /**
  * The player profile, which looks different for each way the club can know a player (HARNESS_PROFILES
  * in the same file; a test holds them equal): measured in each, at every window.
  */
-const PROFILES = ["own", "keeper", "injured", "loaned", "rival", "scouted", "unknown", "retired"];
+const PROFILES = [
+  "own",
+  "keeper",
+  "injured",
+  "loaned",
+  "rival",
+  "scouted",
+  "unknown",
+  "freeAgent",
+  "retired",
+];
 
 /**
  * The lists whose cards draw on the shared card shell, measured in their cards view too: a card that
