@@ -487,7 +487,17 @@ fn finish_collision_day(live: bool) {
             ofm_core::turn::process_day(game);
         }
     };
-    let before = serde_json::to_value(&game.players).unwrap();
+    let before: BTreeMap<_, _> = game
+        .players
+        .iter()
+        .filter(|p| {
+            game.national_teams[..2]
+                .iter()
+                .any(|n| n.squad_player_ids.contains(&p.id))
+        })
+        .map(|p| (p.id.clone(), p.condition))
+        .collect();
+    assert_eq!(before.len(), 2);
     play(&mut legal);
     play(&mut game);
     let qualifier = &game.competitions[1].fixtures[0];
@@ -505,11 +515,12 @@ fn finish_collision_day(live: bool) {
         national_games_today, 1,
         "qualifying nations must play only their qualifier today"
     );
-    assert_ne!(
-        serde_json::to_value(&game.players).unwrap(),
-        before,
-        "the one real match must still apply wear"
-    );
+    for (id, condition) in before {
+        assert!(
+            game.players.iter().find(|p| p.id == id).unwrap().condition < condition,
+            "qualifier player {id} must receive one match of wear"
+        );
+    }
     assert_eq!(
         serde_json::to_value(&game.players).unwrap(),
         serde_json::to_value(&legal.players).unwrap(),
