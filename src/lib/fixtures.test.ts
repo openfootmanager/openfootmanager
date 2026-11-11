@@ -81,11 +81,12 @@ describe("getFixtureCompetitionName", () => {
 describe("getUserCompetition", () => {
   const mirror = { id: "league-1", name: "First Division" } as LeagueData;
   const stint = { team_id: "t1", team_name: "Alpha FC" } as never;
-  const game = (team_id: string | null, career_history: never[]) => ({
-    manager: { team_id, career_history },
-    competitions: [],
-    league: mirror,
-  });
+  const game = (team_id: string | null, career_history: never[]) =>
+    ({
+      manager: { team_id, career_history },
+      competitions: [],
+      league: mirror,
+    }) as unknown as Parameters<typeof getUserCompetition>[0];
 
   /**
    * Given a manager sacked from a club (no club now, one in his history), and the mirror the game

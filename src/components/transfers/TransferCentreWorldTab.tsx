@@ -1,3 +1,4 @@
+import { getUserCompetition } from "../../lib/fixtures";
 import { ArrowLeftRight, CalendarDays, Building2, TrendingUp, UserRound } from "lucide-react";
 import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
@@ -37,7 +38,7 @@ export default function TransferCentreWorldTab({
   onSelectTeam,
 }: TransferCentreWorldTabProps) {
   const { t, i18n } = useTranslation();
-  const league = gameState.league;
+  const league = getUserCompetition(gameState);
   const rumours = sortByDateDesc(league?.transfer_rumours ?? []);
   const completedDeals = sortByDateDesc(league?.transfer_log ?? []);
   const playersById = playerMap(gameState.players);
