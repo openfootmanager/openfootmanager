@@ -123,6 +123,34 @@ function renderTabForRerender() {
 }
 
 describe("PlayersTab", () => {
+  /**
+   * Given players whose ids are all blank (a package that needs repairing) and a keyboard user on one
+   *   of them, scrolled away
+   * When a row above it is removed, as an undo does, and the list re-renders with the same records
+   * Then focus stays on the same record and its node: the editor's own row key follows the record,
+   *   not its index, so the removal cannot hand focus to a neighbour or unmount the focused row
+   */
+  it("keeps keyboard focus on a blank-id player when a row above it is removed", async () => {
+    const all = players(300, () => ({ id: "" }));
+    const tabOf = (rows: PlayerDef[]) => (
+      <div data-testid="scroller" data-scroll-container="">
+        <PlayersTab players={rows} onAdd={() => {}} onEdit={() => {}} onDelete={() => {}} />
+      </div>
+    );
+    const view = render(tabOf(all));
+    await scrollToPlayer(101);
+    const focused = screen.getByText("Player 101").closest('[role="listitem"]') as HTMLElement;
+    focused.focus();
+    await scrollToPlayer(250);
+    expect(document.activeElement).toBe(focused);
+
+    view.rerender(tabOf(all.slice(1)));
+
+    expect(document.activeElement).toBe(focused);
+    expect(focused.textContent).toContain("Player 101");
+    expect(focused.getAttribute("aria-posinset")).toBe("101");
+  });
+
   it("renders a window of rows rather than every player", () => {
     // A package with a full pyramid holds tens of thousands of players, and every row on the page
     // is what made the list slow: 17,098 of them were 394,000 elements and a 5 GB web view.

@@ -21,13 +21,7 @@ const LONG_SUBTITLE =
   "A very long club name that FC · Some Extraordinarily Long Country Name · Midfielder · 1998-04-12";
 
 describe("EntityRow", () => {
-  /**
-   * Given a row whose subtitle is far wider than its column
-   * When it is rendered
-   * Then the subtitle is clamped to one line (so the row keeps the height the list gives it) and the
-   *      whole text stays available as the element's title
-   */
-  it("clamps a long subtitle to one line and keeps its full text as a title", () => {
+  const renderRow = () =>
     render(
       <EntityRow
         title="Player"
@@ -39,9 +33,34 @@ describe("EntityRow", () => {
       />,
     );
 
+  /**
+   * Given a row whose subtitle is far wider than its column
+   * When it is rendered
+   * Then the subtitle is one line, in the scaling caption size (not a px literal), and the whole text
+   *      is in the page once, as the paragraph a screen reader reads, and as its title
+   */
+  it("clamps a long subtitle to one line in the caption size and keeps its full text", () => {
+    renderRow();
+
     const subtitle = screen.getByText(LONG_SUBTITLE);
-    expect(subtitle).toHaveClass("truncate");
+    expect(subtitle).toHaveClass("truncate", "text-caption");
+    expect(subtitle.className).not.toMatch(/text-\[\d+px\]/);
     expect(subtitle).toHaveAttribute("title", LONG_SUBTITLE);
+  });
+
+  /**
+   * Given a keyboard user on the row's edit button (no pointer, so no hover title)
+   * When the row has focus
+   * Then the full subtitle is drawn from the row: the panel shows under `group-focus-within` and
+   *      takes its text from the subtitle
+   */
+  it("shows the whole subtitle while the row has keyboard focus", () => {
+    renderRow();
+
+    const panel = screen.getByText(LONG_SUBTITLE).parentElement as HTMLElement;
+    expect(panel).toHaveAttribute("data-full", LONG_SUBTITLE);
+    expect(panel.className).toContain("group-focus-within:after:block");
+    expect(panel.closest(".group")).not.toBeNull();
   });
 });
 

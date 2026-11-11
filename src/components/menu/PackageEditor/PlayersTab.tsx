@@ -174,7 +174,7 @@ export function PlayersTab({
     >
       <EntityRowList
         rows={filtered}
-        itemKey={({ player, i }) => entityRowKey(player.id, i)}
+        itemKey={({ player }) => entityRowKey(player)}
         label={youthOnly ? t("worldEditor.sectionYouth") : t("worldEditor.sectionPlayers")}
         selectedIndex={selectedIndex}
         resetKey={resetKey}

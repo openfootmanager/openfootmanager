@@ -258,22 +258,36 @@ export function toSlug(name: string): string {
     .slice(0, 64);
 }
 
+/** The key each blank-id record was given, by object identity (see [`entityRowKey`]). */
+const blankIdKeys = new WeakMap<object, string>();
+let blankIdKeyCount = 0;
+
 /**
  * React key for an entity row in the editor's lists.
  *
  * The id is the right identity when there is one: it survives an insert or a
  * delete that shifts every index, so `EntityRow`'s delete-confirmation state
- * stays on the row that owns it. But an id is blank until the entity is named,
- * and a package can arrive with several already blank — `id` is `#[serde(default)]`
- * on the Rust side, and repairing such a package is exactly what the editor is
- * for. Two blank ids would collapse into one key and let that row state attach
- * to the wrong entity.
+ * and a virtual list's keyboard focus stay on the row that owns them. But an id
+ * is blank until the entity is named, and a package can arrive with several
+ * already blank — `id` is `#[serde(default)]` on the Rust side, and repairing
+ * such a package is exactly what the editor is for. Two blank ids would collapse
+ * into one key, and an index would hand a row's state to its neighbour as soon
+ * as an undo removed a row above it.
  *
- * Blank ids therefore fall back to the index, prefixed with a `#` that `toSlug`
- * can never emit, so a generated id cannot collide with a fallback key.
+ * A blank-id record is therefore keyed by the record object itself: the editor
+ * keeps every row it did not touch as the same object through inserts, deletes
+ * and undo, so the key follows the record, not its position. The `#` prefix is
+ * one `toSlug` can never emit, so a generated id cannot collide with it.
  */
-export function entityRowKey(id: string, index: number): string {
-  return id || `#row-${index}`;
+export function entityRowKey(record: { id: string }): string {
+  if (record.id) return record.id;
+  let key = blankIdKeys.get(record);
+  if (key === undefined) {
+    blankIdKeyCount += 1;
+    key = `#row-${blankIdKeyCount}`;
+    blankIdKeys.set(record, key);
+  }
+  return key;
 }
 
 export function emptyNamesDefinition(): NamesDefinition {

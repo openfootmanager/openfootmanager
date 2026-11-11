@@ -109,7 +109,7 @@ export function TeamsTab({
     >
       <EntityRowList
         rows={filtered}
-        itemKey={({ team, i }) => entityRowKey(team.id, i)}
+        itemKey={({ team }) => entityRowKey(team)}
         label={t("worldEditor.sectionTeams")}
         selectedIndex={selectedIndex}
         resetKey={query}

@@ -58,7 +58,7 @@ export function CompetitionsTab({
     >
       <EntityRowList
         rows={rows}
-        itemKey={({ comp, i }) => entityRowKey(comp.id, i)}
+        itemKey={({ comp }) => entityRowKey(comp)}
         label={t("worldEditor.sectionCompetitions")}
         selectedIndex={selectedIndex}
         onSelect={onSelect}

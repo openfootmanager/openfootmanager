@@ -231,7 +231,7 @@ export function EntityRow({
 
   return (
     <div
-      className={`flex items-center gap-3 p-3 rounded-xl border transition-colors ${
+      className={`group relative flex items-center gap-3 p-3 rounded-xl border transition-colors ${
         isSelected
           ? "border-primary-400 dark:border-primary-500 bg-primary-50 dark:bg-primary-500/10"
           : "border-gray-200 dark:border-navy-600 bg-white dark:bg-navy-700 hover:border-gray-300 dark:hover:border-navy-500"
@@ -244,11 +244,19 @@ export function EntityRow({
           {title}
         </p>
         {subtitle && (
-          // One line, whatever the text scale: a wrapped subtitle would be taller than the row a
-          // virtual list gives it. The whole text stays reachable as the title.
-          <p className="text-[10px] text-gray-400 dark:text-gray-500 truncate" title={subtitle}>
-            {subtitle}
-          </p>
+          // One line at every text scale: a wrapped subtitle would be taller than the row a virtual
+          // list gives it (4rem = 1.5rem padding + 1.25rem title + 1rem caption + borders, so it fits
+          // at any scale). The whole text is the title for a pointer, and a panel drawn from
+          // `data-full` shows it while the row or a control in it has keyboard focus. The panel is a
+          // pseudo-element so the text is in the page once: a screen reader reads the paragraph.
+          <div
+            data-full={subtitle}
+            className="after:hidden group-focus-within:after:block after:content-[attr(data-full)] after:absolute after:left-3 after:right-3 after:top-full after:z-20 after:mt-1 after:rounded-lg after:border after:border-gray-200 dark:after:border-navy-600 after:bg-white dark:after:bg-navy-700 after:px-3 after:py-2 after:text-caption after:text-gray-700 dark:after:text-gray-200 after:shadow-lg"
+          >
+            <p className="text-caption text-gray-400 dark:text-gray-500 truncate" title={subtitle}>
+              {subtitle}
+            </p>
+          </div>
         )}
       </div>
       {confirming ? (

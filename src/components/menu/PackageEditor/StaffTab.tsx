@@ -93,7 +93,7 @@ export function StaffTab({
     >
       <EntityRowList
         rows={filtered}
-        itemKey={({ s: member, i }) => entityRowKey(member.id, i)}
+        itemKey={({ s: member }) => entityRowKey(member)}
         label={t("worldEditor.sectionStaff")}
         selectedIndex={selectedIndex}
         resetKey={query}
