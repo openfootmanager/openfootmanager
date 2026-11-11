@@ -246,4 +246,68 @@ describe("buildContractHistory", () => {
     expect(rows[1]).toMatchObject({ clubId: "north", fromClubName: "South FC" });
     expect(rows[0]).toMatchObject({ clubId: "North FC", fromClubName: null });
   });
+
+  /**
+   * Given a release dated 2030, and after it (in the ledger's append order) a contract migrated
+   *       from an old save, whose start is unknown (an empty date) and which ends in 2033
+   * When the history is built
+   * Then the migrated contract is the one in force, and only the contract before the release is
+   *      closed: the ledger's current contract is the last one appended, never the latest by date
+   */
+  it("keeps a contract migrated after a release in force", () => {
+    const rows = buildContractHistory(
+      [
+        signing("2029-07-01", "North FC", {
+          start: "2029-07-01",
+          end: "2031-06-30",
+          weekly_wage: 7000,
+        }),
+        {
+          date: "2030-06-30",
+          kind: "released",
+          from_team_id: "North FC",
+          release_reason: "terminated",
+        },
+        {
+          date: "",
+          kind: "initial_contract",
+          to_team_id: "North FC",
+          to_team_name: "North FC",
+          contract: {
+            start: null,
+            end: "2033-06-30",
+            weekly_wage: 9000,
+            source: "legacy_migrated",
+          },
+        },
+      ],
+      TODAY,
+    );
+
+    expect(rows.map((row) => [row.source, row.inForce, row.endedBy])).toEqual([
+      ["legacy_migrated", true, null],
+      ["transfer", false, "terminated"],
+    ]);
+  });
+
+  /**
+   * Given a contract to 2033 and a retirement in 2031
+   * When the history is built
+   * Then the retirement closes it, as the ledger does: it is not in force, and it says he retired
+   */
+  it("closes a contract when the player retires", () => {
+    const rows = buildContractHistory(
+      [
+        signing("2029-07-01", "North FC", {
+          start: "2029-07-01",
+          end: "2033-06-30",
+          weekly_wage: 7000,
+        }),
+        { date: "2031-06-30", kind: "retired", from_team_id: "North FC" },
+      ],
+      TODAY,
+    );
+
+    expect(rows[0]).toMatchObject({ inForce: false, endedBy: "retired" });
+  });
 });

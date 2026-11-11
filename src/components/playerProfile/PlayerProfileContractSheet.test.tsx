@@ -82,7 +82,7 @@ const LAST_SIGNED: ContractHistoryRow = {
   inForce: true,
 };
 
-function renderSheet(patch: Partial<PlayerProfileContractSheetProps> = {}) {
+function sheetProps(patch: Partial<PlayerProfileContractSheetProps> = {}) {
   const handlers = {
     onOpenRenewal: vi.fn(),
     onMarkLetExpire: vi.fn(),
@@ -90,25 +90,29 @@ function renderSheet(patch: Partial<PlayerProfileContractSheetProps> = {}) {
     onOpenTermination: vi.fn(),
     onOpenFreeAgentContract: vi.fn(),
   };
-  render(
-    <PlayerProfileContractSheet
-      player={player()}
-      currentDate="2031-07-10"
-      isOwnContract
-      isFreeAgent={false}
-      hasLetExpireIntent={false}
-      exactWeeklyWage={10_000}
-      language="en"
-      contractRisk={{ level: "stable", label: "Stable" }}
-      lastSigned={LAST_SIGNED}
-      below={<p>the-contracts-he-has-had</p>}
-      data={ANSWERED}
-      actionSubmitting={false}
-      t={t}
-      {...handlers}
-      {...patch}
-    />,
-  );
+  const props: PlayerProfileContractSheetProps = {
+    player: player(),
+    currentDate: "2031-07-10",
+    isOwnContract: true,
+    isFreeAgent: false,
+    hasLetExpireIntent: false,
+    exactWeeklyWage: 10_000,
+    language: "en",
+    contractRisk: { level: "stable", label: "Stable" },
+    lastSigned: LAST_SIGNED,
+    below: <p>the-contracts-he-has-had</p>,
+    data: ANSWERED,
+    actionSubmitting: false,
+    t,
+    ...handlers,
+    ...patch,
+  };
+  return { props, handlers };
+}
+
+function renderSheet(patch: Partial<PlayerProfileContractSheetProps> = {}) {
+  const { props, handlers } = sheetProps(patch);
+  render(<PlayerProfileContractSheet {...props} />);
   return handlers;
 }
 
@@ -170,30 +174,40 @@ describe("PlayerProfileContractSheet: his own player", () => {
   });
 
   /**
-   * Given a club the backend says is over its wage budget
+   * Given the backend's over-budget flag set while the bill is BELOW the budget, and the flag
+   *       unset while the bill is ABOVE it
    * When the sheet is drawn
-   * Then the bar is drawn in the danger fill: the backend's flag decides it, the sheet compares
-   *      no figure against a threshold
+   * Then the bar follows the flag, not the figures: danger for the first, the normal fill for the
+   *      second (a comparison made in TypeScript would turn both round)
    */
-  it("fills the budget bar in the danger colour when the backend says the club is over budget", () => {
+  it("fills the budget bar by the backend's over-budget flag, not by the figures", () => {
     const projection = ANSWERED.projection;
     if (projection.status !== "answered") throw new Error("the fixture answers the projection");
-    renderSheet({
-      data: {
-        ...ANSWERED,
-        projection: {
-          status: "answered",
-          value: {
-            ...projection.value,
-            currently_over_budget: true,
-            current_weekly_wage_spend: 500_000,
-          },
-        },
-      },
-    });
+    const drawn = (overrides: { flag: boolean; spend: number }) => {
+      const { unmount } = render(
+        <PlayerProfileContractSheet
+          {...sheetProps().props}
+          data={{
+            ...ANSWERED,
+            projection: {
+              status: "answered",
+              value: {
+                ...projection.value,
+                currently_over_budget: overrides.flag,
+                current_weekly_wage_spend: overrides.spend,
+              },
+            },
+          }}
+        />,
+      );
+      const fill = screen.getByRole("progressbar", { name: /budgetLabel/ }).firstElementChild
+        ?.className;
+      unmount();
+      return fill ?? "";
+    };
 
-    const bar = screen.getByRole("progressbar", { name: /budgetLabel/ });
-    expect(bar.firstElementChild?.className).toContain("bg-danger-solid");
+    expect(drawn({ flag: true, spend: 100_000 })).toContain("bg-danger-solid");
+    expect(drawn({ flag: false, spend: 500_000 })).not.toContain("bg-danger-solid");
   });
 
   /**
@@ -301,18 +315,42 @@ describe("PlayerProfileContractSheet: his own player", () => {
   /**
    * Given his contract is set to run down (let expire)
    * When the sheet is drawn
-   * Then Renew and Let expire give way to Reopen contract talks, and the note names the day he leaves
+   * Then all three decisions stay: Renew says the talks are closed and offers to reopen them, Let
+   *      expire says he leaves on the contract's end and is already set, Terminate stays third
    */
-  it("offers to reopen the talks once the contract is let to expire", () => {
+  it("keeps the three decisions when the contract is set to expire, changing what they offer", () => {
     const handlers = renderSheet({ hasLetExpireIntent: true });
 
-    expect(screen.queryByRole("button", { name: "common.renewContract" })).toBeNull();
-    expect(screen.queryByRole("button", { name: "playerProfile.letContractExpire" })).toBeNull();
-    fireEvent.click(screen.getByRole("button", { name: "playerProfile.reopenContractTalks" }));
+    const decisions = screen.getByRole("region", { name: "playerProfile.contractSheet.decide" });
+    const [renew, expire, terminate] = within(decisions).getAllByRole("group");
+    expect(renew).toHaveAccessibleName("common.renewContract");
+    expect(expire).toHaveAccessibleName("playerProfile.letContractExpire");
+    expect(terminate).toHaveAccessibleName("playerProfile.terminateContract");
+    expect(renew).toHaveTextContent("playerProfile.contractSheet.renewClosedWhat");
+    fireEvent.click(
+      within(renew).getByRole("button", { name: "playerProfile.reopenContractTalks" }),
+    );
     expect(handlers.onClearLetExpire).toHaveBeenCalledTimes(1);
-    expect(
-      screen.getByRole("group", { name: "playerProfile.reopenContractTalks" }),
-    ).toHaveTextContent("Jun 30, 2034");
+    expect(expire).toHaveTextContent("playerProfile.contractSheet.leavesOn");
+    expect(expire).toHaveTextContent("Jun 30, 2034");
+    expect(within(expire).getByRole("button")).toBeDisabled();
+    expect(within(expire).getByRole("button")).toHaveTextContent(
+      "playerProfile.contractSheet.letExpireSetButton",
+    );
+    expect(handlers.onMarkLetExpire).not.toHaveBeenCalled();
+  });
+
+  /**
+   * Given his own player on loan to another club, whose wage the backend splits between the clubs
+   * When the sheet is drawn
+   * Then there is no share-of-the-bill row: the bill counts only the parent club's part of his
+   *      wage, and the split is the backend's, not a formula here
+   */
+  it("shows no share of the wage bill for a player on loan", () => {
+    renderSheet({ player: player({ active_loan: LOAN }) });
+
+    expect(screen.queryByText("playerProfile.contractSheet.shareLabel")).toBeNull();
+    expect(screen.getByText("playerProfile.contractSheet.billLabel")).toBeInTheDocument();
   });
 
   /**

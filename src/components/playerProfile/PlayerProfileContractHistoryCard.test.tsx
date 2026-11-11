@@ -163,4 +163,39 @@ describe("PlayerProfileContractHistoryCard", () => {
     expect(screen.getByText("playerProfile.noContractsHad")).toBeInTheDocument();
     expect(screen.queryByRole("table")).toBeNull();
   });
+
+  /**
+   * Given a contract renewed early, so it was replaced before its scheduled end
+   * When the card is drawn
+   * Then its row keeps the scheduled end and says on which day it was replaced
+   */
+  it("says when an early renewal replaced a contract, keeping its scheduled end", () => {
+    renderCard([
+      RENEWED,
+      row({
+        key: "old",
+        start: "2029-07-01",
+        end: "2032-06-30",
+        inForce: false,
+        replacedOn: "2031-01-15",
+      }),
+    ]);
+
+    const closed = screen.getAllByRole("row")[2];
+    expect(closed).toHaveTextContent('"end":"Jun 30, 2032"');
+    expect(
+      within(closed).getByText('playerProfile.contractSheet.replacedOn {"date":"Jan 15, 2031"}'),
+    ).toBeInTheDocument();
+  });
+
+  /**
+   * Given a contract that ended because the player retired
+   * When the card is drawn
+   * Then its row says so
+   */
+  it("says when a contract ended because he retired", () => {
+    renderCard([row({ inForce: false, endedBy: "retired" })]);
+
+    expect(screen.getByText("playerProfile.movementRetired")).toBeInTheDocument();
+  });
 });

@@ -18,7 +18,7 @@ export interface ContractHistoryRow {
   weeklyWage: number;
   source: ContractSource;
   /** The release that closed it, when one did and said why; `null` for a contract that was renewed or is in force. */
-  endedBy: ReleaseReason | null;
+  endedBy: ReleaseReason | "retired" | null;
   /** The day a later contract took over from it before its own end (a renewal signed early). */
   replacedOn: string | null;
   /** The contract he is on now: the last one, not closed by a release, and not yet past its end. */

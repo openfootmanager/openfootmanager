@@ -282,4 +282,23 @@ describe("the profile's Contract tab", () => {
       ).toEqual([]);
     },
   );
+
+  /**
+   * Given the club's own goalkeeper, whose only ledger entry is the contract the career opened
+   *       with (it names his club by id alone, as the game writes it)
+   * When the Contract tab is selected
+   * Then the contracts he has had name his club, and no internal club id is on the page
+   */
+  it("names the club of an opening contract, never its id", async () => {
+    const { root, settle } = await mountProfile("keeper");
+
+    fireEvent.click(within(root).getByRole("tab", { name: "Contract" }));
+    await settle();
+
+    const clubName = gameState.teams.find((team) => team.id === gameState.manager.team_id)?.name;
+    expect(clubName).toBeTruthy();
+    const history = within(root).getByText("Contracts he has had").parentElement;
+    expect(history).toHaveTextContent(clubName ?? "");
+    expect(root.textContent).not.toMatch(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-/);
+  });
 });

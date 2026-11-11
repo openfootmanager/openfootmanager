@@ -18,9 +18,10 @@ interface PlayerProfileContractHistoryCardProps {
 
 const SECTION = "playerProfile.contractSheet";
 
-const RELEASE_REASON_KEYS: Record<ReleaseReason, string> = {
+const RELEASE_REASON_KEYS: Record<ReleaseReason | "retired", string> = {
   expired: "playerProfile.movementReleasedExpired",
   terminated: "playerProfile.movementReleasedTerminated",
+  retired: "playerProfile.movementRetired",
 };
 
 /** The contract's span in words. An unknown start is left out, never replaced by a date. */
