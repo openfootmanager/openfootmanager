@@ -326,6 +326,7 @@
       "add": "Tambah {{regions}}",
       "groupCount": "{{on}} dari {{total}}",
       "groupSimulated": "{{on}} dari {{total}} disimulasikan",
+      "needOne": "Aktifkan setidaknya satu kompetisi.",
       "summary": "{{regions}} wilayah · {{competitions}} kompetisi disimulasikan",
       "clubs": "{{clubs}} klub di wilayah yang disimulasikan",
       "apply": "Terapkan"

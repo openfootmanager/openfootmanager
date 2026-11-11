@@ -326,6 +326,7 @@
       "add": "Přidat: {{regions}}",
       "groupCount": "{{on}} z {{total}}",
       "groupSimulated": "Simulováno {{on}} z {{total}}",
+      "needOne": "Zapněte alespoň jednu soutěž.",
       "summary": "Regionů: {{regions}} · simulovaných soutěží: {{competitions}}",
       "clubs": "Klubů v simulovaných regionech: {{clubs}}",
       "apply": "Použít"

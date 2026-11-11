@@ -172,6 +172,37 @@ describe("TeamSelection", () => {
   });
 
   /**
+   * Given the simulation dialog open, with a setting changed (the only competition unchecked)
+   * When it is dismissed, by Cancel, by the close button, or by Escape, and then reopened
+   * Then the setting is as it was (the competition is checked again), and each time focus returned
+   *      to the Simulation button that opened it: a dismissal discards the draft, however it is made.
+   */
+  it.each([
+    ["Cancel", () => fireEvent.click(screen.getByRole("button", { name: "common.cancel" }))],
+    [
+      "the close button",
+      () => fireEvent.click(screen.getByRole("button", { name: "common.close" })),
+    ],
+    ["Escape", () => fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape" })],
+  ])("discards the draft and returns focus when dismissed by %s", (_name, dismiss) => {
+    renderPage();
+    const opener = screen.getByRole("button", { name: "teamSelect.simulation" });
+    opener.focus();
+    fireEvent.click(opener);
+    const competition = () => screen.getByRole("checkbox", { name: "teamSelect.scope.simulate" });
+    expect(competition()).toBeChecked();
+    fireEvent.click(competition());
+    expect(competition()).not.toBeChecked();
+
+    dismiss();
+
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(opener).toHaveFocus();
+    fireEvent.click(opener);
+    expect(competition()).toBeChecked();
+  });
+
+  /**
    * Given the dialog open
    * When Apply is pressed
    * Then the dialog closes and the screen goes on with the settings applied.

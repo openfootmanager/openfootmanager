@@ -326,6 +326,7 @@
       "add": "Добавить: {{regions}}",
       "groupCount": "{{on}} из {{total}}",
       "groupSimulated": "Симулируется {{on}} из {{total}}",
+      "needOne": "Включите хотя бы один турнир.",
       "summary": "Регионов: {{regions}} · симулируемых турниров: {{competitions}}",
       "clubs": "Клубов в симулируемых регионах: {{clubs}}",
       "apply": "Применить"

@@ -326,6 +326,7 @@
       "add": "{{regions}} ekle",
       "groupCount": "{{on}} / {{total}}",
       "groupSimulated": "{{total}} içinden {{on}} simüle ediliyor",
+      "needOne": "En az bir turnuvayı açın.",
       "summary": "{{regions}} bölge · {{competitions}} turnuva simüle ediliyor",
       "clubs": "Simüle edilen bölgelerde {{clubs}} kulüp",
       "apply": "Uygula"

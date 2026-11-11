@@ -101,7 +101,73 @@ function renderDialog(overrides: Partial<Parameters<typeof SimulationDialog>[0]>
   return handlers;
 }
 
+const ASIA_CUP = comp({
+  id: "asia_cup",
+  name: "Asia Cup",
+  scope: "Continental",
+  kind: "Cup",
+  required_region_ids: ["asia"],
+});
+
 describe("SimulationDialog", () => {
+  /**
+   * Given every competition the dialog can simulate switched off
+   * When the footer is read, and then one competition is switched on again
+   * Then Apply is disabled and a short reason says to switch one on, so the game is never asked to
+   *      simulate nothing; with one on, Apply is enabled and the reason is gone.
+   */
+  it("disables Apply, with its reason, while no competition is simulated", () => {
+    renderDialog();
+    const apply = () => screen.getByRole("button", { name: "teamSelect.scope.apply" });
+    expect(apply()).toBeEnabled();
+
+    fireEvent.click(
+      screen.getByRole("checkbox", { name: "teamSelect.scope.simulate:Swedish First Division" }),
+    );
+    expect(apply()).toBeEnabled();
+    fireEvent.click(
+      screen.getByRole("checkbox", { name: "teamSelect.scope.simulate:Swedish Third Division" }),
+    );
+
+    expect(apply()).toBeDisabled();
+    expect(apply()).toHaveAccessibleDescription("teamSelect.scope.needOne");
+
+    fireEvent.click(
+      screen.getByRole("checkbox", { name: "teamSelect.scope.simulate:Swedish Third Division" }),
+    );
+    expect(apply()).toBeEnabled();
+    expect(screen.queryByText("teamSelect.scope.needOne")).toBeNull();
+  });
+
+  /**
+   * Given a cup that needs a region no club is in (Asia), which the world does not list
+   * When the dialog opens, "Add" is pressed on the cup, and then the region's switch is turned off
+   * Then the region has a switch of its own, off at first; Add turns it on and enables the cup;
+   *      and the switch turns it off again, which blocks the cup: a region a competition needs is
+   *      never simulated without a switch to say so.
+   */
+  it("lists a region no club is in when a competition needs it, and lets it be switched off", () => {
+    renderDialog({ competitions: [...COMPETITIONS, ASIA_CUP] });
+
+    const asia = screen.getByRole("switch", { name: "Asia" });
+    expect(asia).not.toBeChecked();
+    expect(asia).toBeEnabled();
+    const cup = screen.getByRole("checkbox", { name: "teamSelect.scope.simulate:Asia Cup" });
+    expect(cup).toBeDisabled();
+
+    fireEvent.click(within(cup.closest("li") as HTMLElement).getByRole("button", { name: /add/ }));
+    expect(screen.getByRole("switch", { name: "Asia" })).toBeChecked();
+    expect(
+      screen.getByRole("checkbox", { name: "teamSelect.scope.simulate:Asia Cup" }),
+    ).toBeEnabled();
+
+    fireEvent.click(screen.getByRole("switch", { name: "Asia" }));
+    expect(screen.getByRole("switch", { name: "Asia" })).not.toBeChecked();
+    expect(
+      screen.getByRole("checkbox", { name: "teamSelect.scope.simulate:Asia Cup" }),
+    ).toBeDisabled();
+  });
+
   /**
    * Given the settings with the home region Scandinavia, and no club chosen yet
    * When the dialog opens

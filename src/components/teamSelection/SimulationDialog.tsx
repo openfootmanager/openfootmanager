@@ -10,6 +10,7 @@ import { Button, Checkbox, Dialog, DialogCloseButton, Select, Switch } from "../
 import {
   activeRegionIds,
   clubsInRegions,
+  competitionRequiredRegions,
   competitionState,
   enabledCompetitionIds,
   groupCompetitions,
@@ -67,6 +68,7 @@ export default function SimulationDialog({
   const titleId = useId();
   const subtitleId = useId();
   const idBase = useId();
+  const needOneId = `${idBase}-need-one`;
   const [draft, setDraft] = useState<ScopeDraft>(initial);
   // The competition whose checkbox takes focus once "Add" has switched its region on: the button
   // that held focus is gone by then.
@@ -77,6 +79,23 @@ export default function SimulationDialog({
   const yourIds = new Set(yourCompetitions.map((competition) => competition.id));
   const enabledCount = enabledCompetitionIds(competitions, draft, yourIds, active).length;
   const homeRegion = regions.find((region) => region.id === draft.homeRegionId);
+  // Every region the simulation can need has a switch: the world's regions, and any a competition
+  // needs, a lock names or the draft switched on that no club is in. Without one, such a region
+  // would be simulated with no way to switch it off.
+  const listedIds = new Set(regions.map((region) => region.id));
+  const unlistedIds = Array.from(
+    new Set([
+      ...competitions.flatMap(competitionRequiredRegions),
+      ...locks.keys(),
+      ...Object.keys(draft.regions),
+    ]),
+  )
+    .filter((regionId) => !listedIds.has(regionId))
+    .sort();
+  const regionRows: WorldRegionData[] = [
+    ...regions,
+    ...unlistedIds.map((id) => ({ id, name: id, country_codes: [] })),
+  ];
   const regionLabel = (regionId: string) =>
     buildRegionLabel(t, regionId, regions.find((region) => region.id === regionId)?.name);
   const checkboxId = (competitionId: string) => `${idBase}-${competitionId}`;
@@ -179,7 +198,7 @@ export default function SimulationDialog({
           <section className="flex flex-col gap-2">
             <h3 className={SECTION_TITLE}>{t("teamSelect.scope.sectionRegions")}</h3>
             <ul className="flex flex-col gap-1.5">
-              {regions.map((region) => {
+              {regionRows.map((region) => {
                 const lock = locks.get(region.id);
                 const nameId = `${idBase}-region-${region.id}`;
                 return (
@@ -199,12 +218,14 @@ export default function SimulationDialog({
                         {regionLabel(region.id)}
                       </span>
                       <span className="text-caption text-fg-subtle [overflow-wrap:anywhere]">
-                        {t("teamSelect.scope.regionMeta", {
-                          countries: region.country_codes
-                            .map((code) => countryName(code, i18n.language))
-                            .join(", "),
-                          clubs: clubsInRegions(regions, new Set([region.id]), teams),
-                        })}
+                        {region.country_codes.length === 0
+                          ? t("teamSelect.clubCount", { n: 0 })
+                          : t("teamSelect.scope.regionMeta", {
+                              countries: region.country_codes
+                                .map((code) => countryName(code, i18n.language))
+                                .join(", "),
+                              clubs: clubsInRegions(regions, new Set([region.id]), teams),
+                            })}
                       </span>
                     </span>
                     {lock ? <LockChip lock={lock} id={`${nameId}-lock`} /> : null}
@@ -325,12 +346,23 @@ export default function SimulationDialog({
           <span className="text-caption text-fg-subtle">
             {t("teamSelect.scope.clubs", { clubs: clubsInRegions(regions, active, teams) })}
           </span>
+          {enabledCount === 0 ? (
+            <span id={needOneId} className="text-caption text-warning">
+              {t("teamSelect.scope.needOne")}
+            </span>
+          ) : null}
         </p>
         <div className="ml-auto flex items-center gap-2.5">
           <Button variant="ghost" onClick={onCancel}>
             {t("common.cancel")}
           </Button>
-          <Button onClick={() => onApply(draft)}>{t("teamSelect.scope.apply")}</Button>
+          <Button
+            onClick={() => onApply(draft)}
+            disabled={enabledCount === 0}
+            aria-describedby={enabledCount === 0 ? needOneId : undefined}
+          >
+            {t("teamSelect.scope.apply")}
+          </Button>
         </div>
       </div>
     </Dialog>
