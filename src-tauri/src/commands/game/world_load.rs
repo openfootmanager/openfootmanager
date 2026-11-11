@@ -300,7 +300,8 @@ mod tests {
             &ofm_core::generator::DefinitionSources::embedded_only(),
         )
         .map(|_| ());
-        let (_, cli) = ofm_core::generator::check_world_package_on_bases(&patch, &[base.clone()]);
+        let (_, cli) =
+            ofm_core::generator::check_world_package_on_bases(&patch, std::slice::from_ref(&base));
         for dir in [&base, &patch, &packages] {
             std::fs::remove_dir_all(dir).ok();
         }

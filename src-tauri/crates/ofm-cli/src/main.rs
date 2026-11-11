@@ -1017,8 +1017,8 @@ mod tests {
         let legit = patch_naming("patch-legit", "base-fc");
         let ghost = patch_naming("patch-ghost", "ghost-fc");
 
-        let legit_exit = cmd_validate(&legit, &[base.clone()]);
-        let ghost_exit = cmd_validate(&ghost, &[base.clone()]);
+        let legit_exit = cmd_validate(&legit, std::slice::from_ref(&base));
+        let ghost_exit = cmd_validate(&ghost, std::slice::from_ref(&base));
         for dir in [&base, &legit, &ghost] {
             std::fs::remove_dir_all(dir).ok();
         }

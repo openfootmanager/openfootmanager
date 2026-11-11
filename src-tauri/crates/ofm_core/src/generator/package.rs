@@ -2753,8 +2753,8 @@ mod tests {
         let legit = patch_with_player_at("base-fc");
         let ghost = patch_with_player_at("ghost-fc");
 
-        let (_, legit_errors) = check_world_package_on_bases(&legit, &[base.clone()]);
-        let (_, ghost_errors) = check_world_package_on_bases(&ghost, &[base.clone()]);
+        let (_, legit_errors) = check_world_package_on_bases(&legit, std::slice::from_ref(&base));
+        let (_, ghost_errors) = check_world_package_on_bases(&ghost, std::slice::from_ref(&base));
         for dir in [&base, &legit, &ghost] {
             std::fs::remove_dir_all(dir).ok();
         }
