@@ -373,9 +373,21 @@ impl Game {
         // `promote_legacy_league` fills `competitions` from it on load — so an empty vector here
         // means "no competitions to mirror", never "the user has no league". Clearing it cost the
         // delegate path its round summary, which reads the mirror.
+        //
+        // A manager out of work follows the league of the last club he managed
+        // (`end_of_season::followed_club`), as the season's preview, awards and summary do, so a
+        // sacked manager's Home screens read the league he left instead of the world's first
+        // competition (#1296). One who has never had a club still mirrors the first competition:
+        // the season's rollover reads the mirror and must not freeze, and the screens show him
+        // nothing of it.
         if let Some(mirrored) = self
             .user_competition_index()
             .map(|index| self.competitions[index].clone())
+            .or_else(|| {
+                crate::end_of_season::followed_club(self)
+                    .and_then(|club| crate::end_of_season::club_league_table(self, club))
+                    .cloned()
+            })
             .or_else(|| self.competitions.first().cloned())
         {
             self.league = Some(mirrored);
