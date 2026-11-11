@@ -1,28 +1,9 @@
 import { describe, expect, it } from "vitest";
 
 import { createPlayer } from "../../../test-utils/factories";
-import { attributeColumns, weightDots } from "./attributesTabModel";
+import { attributeColumns } from "./attributesTabModel";
 
 const names = (key: string) => key;
-
-describe("weightDots", () => {
-  /**
-   * Given the weights the game's tables hold (4 to 28 percent of a position's rating)
-   * When they are shown as dots out of three
-   * Then the heaviest are three dots, the middle two, the lightest one, and an attribute the
-   *      position does not weigh none
-   */
-  it("shows a weight as zero to three dots", () => {
-    expect(weightDots(28)).toBe(3);
-    expect(weightDots(16)).toBe(3);
-    expect(weightDots(15)).toBe(2);
-    expect(weightDots(8)).toBe(2);
-    expect(weightDots(7)).toBe(1);
-    expect(weightDots(4)).toBe(1);
-    expect(weightDots(0)).toBe(0);
-    expect(weightDots(undefined)).toBe(0);
-  });
-});
 
 describe("attributeColumns", () => {
   /**

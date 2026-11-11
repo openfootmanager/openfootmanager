@@ -42,7 +42,11 @@ const striker: PositionRatings = {
         { attribute: "positioning", value: 81 },
         { attribute: "decisions", value: 70 },
       ],
-      weights: STRIKER_WEIGHTS.map(([attribute, weight]) => ({ attribute, weight })),
+      weights: STRIKER_WEIGHTS.map(([attribute, weight]) => ({
+        attribute,
+        weight,
+        importance: weight >= 16 ? 3 : weight >= 8 ? 2 : 1,
+      })),
     },
   ],
 };
@@ -110,6 +114,33 @@ describe("PlayerProfileAttributesTab", () => {
     expect(within(rowOf("Pace") as HTMLElement).getByLabelText("weight 2 of 3")).toBeVisible();
     expect(within(rowOf("Aerial") as HTMLElement).getByLabelText("weight 1 of 3")).toBeVisible();
     expect(within(rowOf("Stamina") as HTMLElement).getByLabelText("weight 0 of 3")).toBeVisible();
+  });
+
+  /**
+   * Given a position whose backend importance for aerial is 3 although its weight is only 4 percent
+   * When the rows are read
+   * Then aerial has three dots: the dots are the backend's importance, not a cut of the weight made
+   *      here
+   */
+  it("reads the importance the backend gives, not the weight", () => {
+    const odd: PositionRatings = {
+      ...striker,
+      rows: [
+        {
+          ...striker.rows[0],
+          weights: [
+            { attribute: "aerial", weight: 4, importance: 3 },
+            { attribute: "shooting", weight: 26, importance: 1 },
+          ],
+        },
+      ],
+    };
+    render(
+      <PlayerProfileAttributesTab {...props({ ratings: { status: "answered", value: odd } })} />,
+    );
+
+    expect(within(rowOf("Aerial") as HTMLElement).getByLabelText("weight 3 of 3")).toBeVisible();
+    expect(within(rowOf("Shooting") as HTMLElement).getByLabelText("weight 1 of 3")).toBeVisible();
   });
 
   /**

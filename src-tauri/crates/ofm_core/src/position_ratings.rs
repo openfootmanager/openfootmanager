@@ -27,6 +27,9 @@ pub struct KeyAttribute {
 pub struct AttributeWeight {
     pub attribute: AttributeKey,
     pub weight: u8,
+    /// How much it counts there in three steps (`player_rating::weight_importance`), 1 to 3 for an
+    /// attribute the position weighs: what the profile's dots show.
+    pub importance: u8,
 }
 
 /// The player at one position.
@@ -136,6 +139,7 @@ pub fn weights_of(position: &Position) -> Vec<AttributeWeight> {
         .map(|(attribute, weight)| AttributeWeight {
             attribute: *attribute,
             weight: *weight,
+            importance: weight_importance(*weight),
         })
         .collect()
 }

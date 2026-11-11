@@ -611,6 +611,19 @@ pub fn position_weights(position: &Position) -> &'static [(AttributeKey, u8)] {
     }
 }
 
+/// How much an attribute counts at a position, in three steps, from its weight there: 3 for 16 percent
+/// and more, 2 for 8 to 15, 1 for anything else the position weighs, 0 for an attribute it does not
+/// weigh. The one place the steps are cut: the profile's weight dots read this and never cut the
+/// percentages themselves.
+pub fn weight_importance(weight: u8) -> u8 {
+    match weight {
+        0 => 0,
+        1..=7 => 1,
+        8..=15 => 2,
+        _ => 3,
+    }
+}
+
 fn weighted_score(attrs: &PlayerAttributes, position: &Position) -> f64 {
     position_weights(position)
         .iter()
@@ -1029,7 +1042,9 @@ mod tests {
             let heaviest = weights.iter().map(|(_, weight)| *weight).max().unwrap();
             assert_eq!(weight_importance(heaviest), 3, "{position:?}");
             assert!(
-                weights.iter().all(|(_, weight)| weight_importance(*weight) >= 1),
+                weights
+                    .iter()
+                    .all(|(_, weight)| weight_importance(*weight) >= 1),
                 "{position:?}"
             );
         }

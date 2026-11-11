@@ -250,7 +250,7 @@ describe("the player profile's ratings at his positions", () => {
               rating: 77,
               familiarity: "natural",
               deployed: false,
-              weights: [{ attribute: "passing", weight: 20 }],
+              weights: [{ attribute: "passing", weight: 20, importance: 3 }],
               key_attributes: [{ attribute: "passing", value: 80 }],
             },
           ],
