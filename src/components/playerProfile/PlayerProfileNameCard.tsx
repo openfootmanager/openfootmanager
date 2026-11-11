@@ -130,16 +130,19 @@ export default function PlayerProfileNameCard({
                   ) : null}
                 </>
               ) : openClub ? (
-                <ContextMenu items={teamContextItems}>
-                  <button
-                    type="button"
-                    data-testid="player-profile-team-link"
-                    onClick={openClub}
-                    className="rounded-sm text-selected underline underline-offset-2 hover:text-fg focus:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 focus-visible:ring-offset-page"
-                  >
-                    {teamName}
-                  </button>
-                </ContextMenu>
+                <>
+                  <ContextMenu items={teamContextItems}>
+                    <button
+                      type="button"
+                      data-testid="player-profile-team-link"
+                      onClick={openClub}
+                      className="rounded-sm text-selected underline underline-offset-2 hover:text-fg focus:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 focus-visible:ring-offset-page"
+                    >
+                      {teamName}
+                    </button>
+                  </ContextMenu>
+                  <span aria-hidden="true">·</span>
+                </>
               ) : (
                 <>
                   <span>{teamName}</span>

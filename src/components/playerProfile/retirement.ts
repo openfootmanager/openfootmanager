@@ -19,9 +19,13 @@ export function retirementOf(player: PlayerData): Retirement | null {
   const movement = [...(player.movement_history ?? [])]
     .reverse()
     .find((entry) => entry.kind === "retired");
-  const latestSeason = player.career?.length ? player.career[player.career.length - 1] : null;
+  // A season spent without a club is written with no club id (and the English words "Free Agent" as
+  // its name): it is not a club, so the last club is the latest season that has one.
+  const latestClubSeason = [...(player.career ?? [])]
+    .reverse()
+    .find((season) => season.team_id !== "");
   return {
     retiredOn: movement?.date ?? null,
-    lastClubName: movement?.from_team_name ?? latestSeason?.team_name ?? null,
+    lastClubName: movement?.from_team_name ?? latestClubSeason?.team_name ?? null,
   };
 }
