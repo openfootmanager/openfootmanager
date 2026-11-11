@@ -17,6 +17,7 @@ import { getFinanceSnapshot, type FinanceSnapshotData } from "../../services/fin
 import { invokeForCareer } from "../../services/careerInvoke";
 import { useTranslation } from "react-i18next";
 import { resolveBackendError, resolveMessage } from "../../utils/backendI18n";
+import { resolveTranslatedErrorMessage } from "../../utils/errorMessage";
 import {
   type FacilityId,
   type FacilityUpgradeErrorState,
@@ -168,6 +169,8 @@ function FinancesTabLoaded({
 }: FinancesTabLoadedProps) {
   const { t, i18n } = useTranslation();
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  // Why the backend refused the last answer to a sponsor offer; null once one is accepted.
+  const [sponsorOfferError, setSponsorOfferError] = useState<string | null>(null);
   const [delegatedRenewalsSummary, setDelegatedRenewalsSummary] = useState<string | null>(null);
   // What the manager has switched off, not what is switched on: everyone at risk is selected until
   // told otherwise, so the default needs no effect to fill it in and no click can beat that effect.
@@ -428,6 +431,7 @@ function FinancesTabLoaded({
     optionId: string,
   ): Promise<void> {
     const loadingKey = `sponsor:${messageId}:${optionId}`;
+    setSponsorOfferError(null);
     setActionLoading(loadingKey);
     try {
       const result = await invokeForCareer<ResolveMessageActionResult>("resolve_message_action", {
@@ -438,6 +442,7 @@ function FinancesTabLoaded({
       onGameUpdate?.(result.game);
     } catch (error) {
       console.error("Failed to resolve sponsor offer:", error);
+      setSponsorOfferError(resolveTranslatedErrorMessage(error));
     } finally {
       setActionLoading(null);
     }
@@ -870,6 +875,11 @@ function FinancesTabLoaded({
                   </p>
                 ) : null}
               </div>
+              {sponsorOfferError ? (
+                <p role="alert" className="text-sm text-danger">
+                  {sponsorOfferError}
+                </p>
+              ) : null}
               {sponsorOffers.length > 0 ? (
                 sponsorOffers.map((message) => {
                   const sponsorAction = message.actions.find(

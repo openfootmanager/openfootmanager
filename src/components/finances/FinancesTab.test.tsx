@@ -538,6 +538,39 @@ describe("FinancesTab facilities", () => {
     expect(onGameUpdate).toHaveBeenCalledWith(updatedState);
   });
 
+  // Given a sponsor offer that was already answered (a stale screen: the backend refuses a second
+  // answer with a translated key)
+  // When "Accept the deal" is pressed
+  // Then the message is shown, translated, where the offer is, instead of the press doing nothing;
+  //      and it goes once a later answer is accepted.
+  it("shows the translated reason when the backend refuses a sponsor offer's answer", async () => {
+    const initialState = createGameState({}, [createSponsorOfferMessage()]);
+    const onGameUpdate = vi.fn();
+    mockedInvoke.mockImplementation((command) => {
+      if (command === "get_finance_snapshot") return Promise.resolve(wireSnapshot());
+      if (command === "resolve_message_action") {
+        return Promise.reject("be.error.actionAlreadyResolved");
+      }
+      return Promise.reject(new Error(`Unexpected command: ${command}`));
+    });
+    await renderFinances(<FinancesTab gameState={initialState} onGameUpdate={onGameUpdate} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Accept the deal" }));
+
+    const reason = resolveBackendError("be.error.actionAlreadyResolved");
+    expect(reason).not.toBe("be.error.actionAlreadyResolved");
+    expect(await screen.findByRole("alert")).toHaveTextContent(reason);
+    expect(onGameUpdate).not.toHaveBeenCalled();
+
+    mockedInvoke.mockImplementation((command) =>
+      command === "get_finance_snapshot"
+        ? Promise.resolve(wireSnapshot())
+        : Promise.resolve({ game: createGameState({}, []), effect: "Offer accepted" }),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Accept the deal" }));
+    await waitFor(() => expect(screen.queryByRole("alert")).toBeNull());
+  });
+
   it("requests a sponsor pitch for a pressured club and publishes the updated state", async () => {
     const initialState = createGameState(
       { wage_budget: 50000 },
