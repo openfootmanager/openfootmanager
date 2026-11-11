@@ -42,11 +42,20 @@ const PROFILES = ["own", "rival", "scouted", "unknown", "retired"];
 const CARD_VIEWS = ["players", "squad", "teams"];
 const CARD_WINDOWS = WINDOWS.filter((window) => window.scale === "normal" && window.lang === "en");
 
+/**
+ * The World Editor's home, which is a route and not a dashboard tab (`?page=worlds`): measured with
+ * worlds in its library and with none, which shows the empty state.
+ */
+const WORLD_LIBRARIES = ["populated", "empty"];
+
 /** Every page at every window; `page: undefined` is the style guide itself. */
 export const CASES = [
   ...[undefined, ...PAGES].flatMap((page) => WINDOWS.map((window) => ({ page, ...window }))),
   ...PROFILES.flatMap((player) =>
     WINDOWS.map((window) => ({ page: "profile", player, ...window })),
+  ),
+  ...WORLD_LIBRARIES.flatMap((library) =>
+    WINDOWS.map((window) => ({ page: "worlds", library, ...window })),
   ),
   ...CARD_VIEWS.flatMap((page) =>
     CARD_WINDOWS.map((window) => ({ page, view: "cards", ...window })),
@@ -190,11 +199,12 @@ const MEASURE = `(async () => {
   });
 })()`;
 
-function caseUrl(base, { page, player, view, scale, lang }) {
+function caseUrl(base, { page, player, view, library, scale, lang }) {
   const query = new URLSearchParams({ theme: "light", scale, lang });
   if (page) query.set("page", page);
   if (player) query.set("player", player);
   if (view) query.set("view", view);
+  if (library) query.set("library", library);
   return `${base}/style-guide.html?${query}`;
 }
 

@@ -162,6 +162,35 @@ describe("WorldsHome", () => {
   });
 
   /**
+   * Given the editor has recent projects, and the library request is refused (the app-data folder
+   *       could not be resolved, say)
+   * When the home opens
+   * Then the recent projects are still listed from the editor's own record, with their counts
+   *      unknown, and still open; a translated error says the library could not be read, with Retry;
+   *      and Retry asks the backend again.
+   */
+  it("keeps the recent projects openable when the library cannot be read, and offers Retry", async () => {
+    invoke.mockImplementation(() => Promise.reject(new Error("no app data folder")));
+    const handlers = renderHome();
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("worldEditor.home.libraryFailed");
+    fireEvent.click(
+      screen.getByRole("button", { name: "worldEditor.home.openNamed:Nordic Leagues" }),
+    );
+    expect(handlers.onOpenProject).toHaveBeenCalledWith("/w/nordic");
+    expect(screen.getByText("Classic 1962")).toBeInTheDocument();
+    expect(screen.queryByText("worldEditor.home.emptyLibrary")).toBeNull();
+
+    const asked = invoke.mock.calls.length;
+    invoke.mockImplementation(() => Promise.resolve(LIBRARY));
+    fireEvent.click(screen.getByRole("button", { name: "common.retry" }));
+
+    await screen.findByRole("button", { name: "worldEditor.home.editCopyNamed:Brazil 1962" });
+    expect(invoke.mock.calls.length).toBeGreaterThan(asked);
+    expect(screen.queryByRole("alert")).toBeNull();
+  });
+
+  /**
    * Given no project opened and nothing installed
    * When the home opens
    * Then the table says how to start, instead of an empty grid.

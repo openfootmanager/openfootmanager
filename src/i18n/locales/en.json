@@ -4180,6 +4180,7 @@
       "openNamed": "Open {{name}}",
       "editCopyNamed": "Edit a copy of {{name}}",
       "resultCount": "{{count}} worlds shown",
+      "libraryFailed": "Couldn't read the worlds library. Your recent projects are listed without their counts.",
       "installedNote": "Installed packages open as an editable copy, so the one you play stays as it is.",
       "emptyLibrary": "No worlds yet. Start with New world, open an .ofm file or a folder, or begin from an example."
     },

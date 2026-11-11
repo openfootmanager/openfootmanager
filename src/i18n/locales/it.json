@@ -4180,6 +4180,7 @@
       "openNamed": "Apri {{name}}",
       "editCopyNamed": "Modifica una copia di {{name}}",
       "resultCount": "{{count}} mondi mostrati",
+      "libraryFailed": "Impossibile leggere la libreria dei mondi. I tuoi progetti recenti sono elencati senza i totali.",
       "installedNote": "I pacchetti installati si aprono come copia modificabile, così quello con cui giochi resta com'è.",
       "emptyLibrary": "Ancora nessun mondo. Inizia con Nuovo mondo, apri un file .ofm o una cartella, oppure parti da un esempio."
     },

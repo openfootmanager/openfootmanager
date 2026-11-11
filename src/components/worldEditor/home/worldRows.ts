@@ -19,8 +19,9 @@ export interface WorldRow {
   kind: WorldKind;
   name: string;
   version: string | null;
-  clubs: number;
-  players: number;
+  /** The backend's count; null when the library could not be read. */
+  clubs: number | null;
+  players: number | null;
   /** When a project was last opened in the editor; null for an installed package. */
   openedAt: string | null;
   check: WorldCheck;
@@ -91,5 +92,29 @@ export function filterWorldRows(
       row.name.toLowerCase().includes(needle) ||
       row.path.toLowerCase().includes(needle)
     );
+  });
+}
+
+/**
+ * The projects the editor knows, listed from its own record when the library could not be read: each
+ * with its name and folder and its last open and check, and its counts unknown (null). They stay
+ * openable: the folder is known, which is all opening needs.
+ */
+export function fallbackWorldRows(recentProjects: readonly RecentProject[]): WorldRow[] {
+  return recentProjects.map((record) => {
+    const validation = record.lastValidation;
+    const count = validation ? validation.errors + validation.warnings : null;
+    let check: WorldCheck = { kind: "unchecked" };
+    if (count !== null) check = count === 0 ? { kind: "clean" } : { kind: "issues", count };
+    return {
+      path: record.path,
+      kind: "project",
+      name: record.name || lastFolderOf(record.path),
+      version: null,
+      clubs: null,
+      players: null,
+      openedAt: record.openedAt,
+      check,
+    };
   });
 }

@@ -114,7 +114,9 @@ export default function WorldsTable({ rows, busy, loading, empty, onOpen }: Worl
       header: t("worldEditor.home.colClubs"),
       numeric: true,
       cell: (row) =>
-        row.check.kind === "unreadable" ? dash : row.clubs.toLocaleString(i18n.language),
+        row.check.kind === "unreadable" || row.clubs === null
+          ? dash
+          : row.clubs.toLocaleString(i18n.language),
     },
     {
       key: "players",
@@ -122,7 +124,9 @@ export default function WorldsTable({ rows, busy, loading, empty, onOpen }: Worl
       numeric: true,
       drawer: true,
       cell: (row) =>
-        row.check.kind === "unreadable" ? dash : row.players.toLocaleString(i18n.language),
+        row.check.kind === "unreadable" || row.players === null
+          ? dash
+          : row.players.toLocaleString(i18n.language),
     },
     {
       key: "opened",

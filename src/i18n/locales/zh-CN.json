@@ -4180,6 +4180,7 @@
       "openNamed": "打开 {{name}}",
       "editCopyNamed": "编辑副本：{{name}}",
       "resultCount": "显示 {{count}} 个世界",
+      "libraryFailed": "无法读取世界库。最近的项目仍会列出，但不显示数量。",
       "installedNote": "已安装的包以可编辑副本的形式打开，正在游玩的那个保持原样。",
       "emptyLibrary": "还没有世界。请从“新建世界”开始，打开 .ofm 文件或文件夹，或从示例开始。"
     },

@@ -1,7 +1,11 @@
 // @vitest-environment node
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { HARNESS_PAGES, HARNESS_PROFILES } from "../src/dev/pageHarness/harnessPage";
+import {
+  HARNESS_PAGES,
+  HARNESS_PROFILES,
+  HARNESS_WORLD_LIBRARIES as WORLD_LIBRARIES,
+} from "../src/dev/pageHarness/harnessPage";
 import { CASES, judge, loadFaces, nodeProblem, REQUIRED_FACES } from "./page-layout-check.mjs";
 
 describe("the Node check", () => {
@@ -267,6 +271,7 @@ describe("page layout check", () => {
       [
         ...Object.keys(HARNESS_PAGES).filter((page) => page !== "profile"),
         ...profiles,
+        ...WORLD_LIBRARIES.map(() => "worlds"),
         "style guide",
       ].sort(),
     );

@@ -7,33 +7,42 @@ export interface WorldsLibraryState {
   /** The backend's reading of the projects and installed packages; null until it has answered. */
   library: WorldsLibrary | null;
   loading: boolean;
+  /** The last ask was refused: the library is unknown, not empty. */
+  failed: boolean;
+  /** Asks again. */
+  retry: () => void;
 }
 
 /**
  * The worlds library for the projects at `paths` (`get_worlds_library`): their counts and the installed
- * packages'. Asked again when the set of paths changes; a failed ask leaves the table empty rather than
- * the screen broken, as the editor's home has no other way to say it.
+ * packages'. Asked again when the set of paths changes, or by `retry`. A failed ask is `failed`, not
+ * an empty library: the editor's own record of its projects is still known and still openable.
  */
 export function useWorldsLibrary(paths: readonly string[]): WorldsLibraryState {
-  const [state, setState] = useState<WorldsLibraryState>({ library: null, loading: true });
+  const [state, setState] = useState<Omit<WorldsLibraryState, "retry">>({
+    library: null,
+    loading: true,
+    failed: false,
+  });
+  const [attempt, setAttempt] = useState(0);
   // The paths are an array rebuilt on every render; their content is what asks again.
   const pathsKey = JSON.stringify(paths);
 
   useEffect(() => {
     let cancelled = false;
-    setState((current) => ({ ...current, loading: true }));
+    setState((current) => ({ ...current, loading: true, failed: false }));
     getWorldsLibrary(JSON.parse(pathsKey) as string[])
       .then((library) => {
-        if (!cancelled) setState({ library, loading: false });
+        if (!cancelled) setState({ library, loading: false, failed: false });
       })
       .catch((error: unknown) => {
         console.error("Failed to read the worlds library", error);
-        if (!cancelled) setState({ library: { projects: [], installed: [] }, loading: false });
+        if (!cancelled) setState({ library: null, loading: false, failed: true });
       });
     return () => {
       cancelled = true;
     };
-  }, [pathsKey]);
+  }, [pathsKey, attempt]);
 
-  return state;
+  return { ...state, retry: () => setAttempt((count) => count + 1) };
 }

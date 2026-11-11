@@ -3,11 +3,17 @@ import { useTranslation } from "react-i18next";
 
 import type { RecentProject } from "../../../store/packageEditorTypes";
 import type { SamplePackage } from "../../menu/PackageEditor/sampleData";
-import { SegmentedControl } from "../../ui";
+import { Button, SegmentedControl } from "../../ui";
 import { useWorldsLibrary } from "./useWorldsLibrary";
 import WorldsSidebar from "./WorldsSidebar";
 import WorldsTable from "./WorldsTable";
-import { buildWorldRows, filterWorldRows, type WorldFilter, type WorldRow } from "./worldRows";
+import {
+  buildWorldRows,
+  fallbackWorldRows,
+  filterWorldRows,
+  type WorldFilter,
+  type WorldRow,
+} from "./worldRows";
 
 interface WorldsHomeProps {
   isBusy: boolean;
@@ -47,12 +53,16 @@ export default function WorldsHome({
   const filterLabelId = useId();
   const [filter, setFilter] = useState<WorldFilter>("all");
   const [query, setQuery] = useState("");
-  const { library, loading } = useWorldsLibrary(recentProjects.map((project) => project.path));
-
-  const rows = useMemo(
-    () => (library ? buildWorldRows(library, recentProjects) : []),
-    [library, recentProjects],
+  const { library, loading, failed, retry } = useWorldsLibrary(
+    recentProjects.map((project) => project.path),
   );
+
+  // When the library could not be read the editor's own record of its projects still lists them, and
+  // they still open: only the counts are unknown.
+  const rows = useMemo(() => {
+    if (failed) return fallbackWorldRows(recentProjects);
+    return library ? buildWorldRows(library, recentProjects) : [];
+  }, [library, failed, recentProjects]);
   const shown = filterWorldRows(rows, filter, query);
 
   function open(row: WorldRow) {
@@ -98,6 +108,18 @@ export default function WorldsHome({
             className="ml-auto h-9 w-56 rounded-lg border border-line-strong bg-panel px-3 text-body text-fg placeholder:text-fg-subtle focus:outline-none focus-visible:ring-2 focus-visible:ring-focus"
           />
         </div>
+
+        {failed ? (
+          <div
+            role="alert"
+            className="flex flex-wrap items-center gap-3 rounded-lg border border-line bg-warning-tint px-4 py-3 text-body text-warning"
+          >
+            <span className="min-w-0 flex-1">{t("worldEditor.home.libraryFailed")}</span>
+            <Button size="sm" variant="outline" onClick={retry}>
+              {t("common.retry")}
+            </Button>
+          </div>
+        ) : null}
 
         {errorMsg ? (
           <p

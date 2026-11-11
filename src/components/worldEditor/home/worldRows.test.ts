@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import type { WorldsLibrary } from "../../../store/generated/WorldsLibrary";
 import type { RecentProject } from "../../../store/packageEditorTypes";
-import { buildWorldRows, filterWorldRows } from "./worldRows";
+import { buildWorldRows, fallbackWorldRows, filterWorldRows } from "./worldRows";
 
 const row = (path: string, name: string, overrides = {}) => ({
   path,
@@ -91,6 +91,35 @@ describe("buildWorldRows", () => {
       kind: "unreadable",
       errorKey: "be.error.package.notAProjectDirectory",
     });
+  });
+});
+
+describe("fallbackWorldRows", () => {
+  /**
+   * Given the editor's record of its projects, and a library that could not be read
+   * When the rows are built from the record alone
+   * Then each project is listed by its name and folder with its last open and check, its counts
+   *      unknown (null), so it can still be opened: the folder is known.
+   */
+  it("lists the recent projects from the editor's own record, with counts unknown", () => {
+    const rows = fallbackWorldRows(RECENT);
+
+    expect(
+      rows.map((world) => [world.kind, world.name, world.path, world.clubs, world.players]),
+    ).toEqual([
+      ["project", "Nordic (recent)", "/w/nordic", null, null],
+      ["project", "Classic", "/w/classic", null, null],
+    ]);
+    expect(rows[0]).toMatchObject({ openedAt: "2026-11-09T10:00:00Z", check: { kind: "clean" } });
+    expect(rows[1].check).toEqual({ kind: "issues", count: 2 });
+  });
+
+  it("names a project the record has no name for by its folder, and says it was never checked", () => {
+    const [world] = fallbackWorldRows([
+      { path: "/w/some-folder", name: "", openedAt: "2026-11-01T10:00:00Z" },
+    ]);
+
+    expect(world).toMatchObject({ name: "some-folder", check: { kind: "unchecked" } });
   });
 });
 
