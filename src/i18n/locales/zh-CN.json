@@ -313,6 +313,23 @@
     "back": "返回世界生成",
     "simulation": "模拟",
     "manageNone": "管理",
+    "scope": {
+      "title": "世界模拟的内容",
+      "subtitle": "选择游戏完整模拟哪些地区和赛事。越多，每天的推进就越慢。",
+      "sectionStart": "1 · 起始位置",
+      "sectionRegions": "2 · 模拟的地区",
+      "sectionCompetitions": "3 · 赛事",
+      "regionMeta": "{{countries}} · {{clubs}} 家俱乐部",
+      "simulate": "模拟{{name}}",
+      "needs": "需要{{regions}}",
+      "add": "添加{{regions}}",
+      "groupCount": "{{on}} / {{total}}",
+      "groupSimulated": "已模拟 {{on}} / {{total}}",
+      "needOne": "请至少开启一项赛事。",
+      "summary": "模拟 {{regions}} 个地区 · {{competitions}} 项赛事",
+      "clubs": "模拟地区内共有 {{clubs}} 家俱乐部",
+      "apply": "应用"
+    },
     "rail": {
       "label": "国家和联赛",
       "countries": "国家"
@@ -344,21 +361,22 @@
     "repStrong": "强队",
     "repAverage": "中游",
     "repDeveloping": "发展中",
+    "expectations": {
+      "title": "争夺冠军",
+      "continental": "争取洲际赛事资格",
+      "topHalf": "积分榜上半区",
+      "midTable": "积分榜中游",
+      "survival": "保级"
+    },
     "failedToSelectTeam": "选择球队失败：{{error}}",
     "homeRegion": "所属地区",
     "homeCountry": "所属国家",
-    "allCountries": "所有国家",
-    "simulationScope": "模拟范围",
     "otherClubs": "其他俱乐部",
     "searchClubs": "搜索俱乐部…",
     "clubCount": "{{n}} 家俱乐部",
     "noClubsMatch": "没有匹配的俱乐部。",
-    "simulatedRegions": "已模拟地区",
-    "simulatedCompetitions": "已模拟赛事",
     "homeBadge": "所属",
-    "yourClub": "你的俱乐部",
     "yourClubBadge": "你的俱乐部",
-    "requiresRegions": "需要 {{regions}}",
     "selectedClub": "已选俱乐部",
     "formation": "阵型",
     "overall": "综合实力",
@@ -369,7 +387,6 @@
     "clubCompetitionsAlwaysSimulated": "你的俱乐部所参加的赛事始终会被模拟，即使你关闭了其他地区或赛事。",
     "selectClubPrompt": "选择一家俱乐部以查看它的阵容和参赛赛事。",
     "playersCount": "{{count}} 名球员",
-    "scopeSummary": "将加载 {{regionsCount}} 个模拟地区和 {{competitionsCount}} 项模拟赛事。",
     "regionLabels": {
       "north-america": "北美洲",
       "central-america": "中美洲",
@@ -392,13 +409,6 @@
       "InternationalClub": "国际俱乐部赛事",
       "InternationalNation": "国际国家队赛事",
       "FriendlyCup": "友谊杯"
-    },
-    "scopeMessages": {
-      "homeRegionAlwaysActive": "你的可玩地区会始终保持激活。",
-      "regionRequiredByCompetition": "{{competition}} 属于 {{club}} 的赛程，因此 {{region}} 必须保持激活。",
-      "regionRemovedDisablesCompetitions": "{{region}} 已从模拟范围中移除，因此依赖它的赛事也一并关闭。",
-      "clubCompetitionLocked": "{{competition}} 已在 {{club}} 的赛程中，因此始终会被模拟。",
-      "autoEnabledRegions": "{{competition}} 需要 {{regions}}，因此这些地区已自动启用。"
     }
   },
   "youthAcademy": {
@@ -1691,6 +1701,47 @@
     }
   },
   "playerProfile": {
+    "sections": "个人资料分区",
+    "overview": {
+      "axes": {
+        "pace": "速度",
+        "shooting": "射门",
+        "dribbling": "盘带",
+        "passing": "传球",
+        "vision": "视野",
+        "composure": "镇定",
+        "strength": "力量",
+        "aerial": "制空",
+        "handling": "扑接",
+        "reflexes": "反应",
+        "agility": "敏捷",
+        "stamina": "耐力"
+      },
+      "now": "当前",
+      "details": "详情",
+      "previousMatches": "近期比赛",
+      "allMatches": "全部比赛",
+      "traits": "特质",
+      "born": "出生日期",
+      "squadRole": "阵容角色",
+      "squadSenior": "一线队",
+      "squadYouth": "青训",
+      "contractUntil": "至 {{date}}",
+      "keyFor": "{{position}}的关键属性",
+      "radarLabel": "属性雷达图：{{values}}",
+      "seasonExtras": "纪律与零封"
+    },
+    "overall": "综合",
+    "ratingUnknown": "你的俱乐部不了解他的评分",
+    "retired": "已退役",
+    "retiredOn": "{{date}} 退役",
+    "lastClub": "最后效力的俱乐部：{{club}}",
+    "tabs": {
+      "overview": "概览",
+      "attributes": "属性",
+      "career": "职业生涯",
+      "contract": "合同"
+    },
     "contractInfo": "合同与信息",
     "dateOfBirth": "出生日期",
     "noContract": "无合同",

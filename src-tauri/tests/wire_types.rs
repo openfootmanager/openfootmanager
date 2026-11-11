@@ -27,6 +27,7 @@ fn visit_wire_roots(visitor: &mut impl TypeVisitor) {
     visitor.visit::<openfootmanager_lib::WorldsLibrary>();
     visitor.visit::<ofm_core::game::Game>();
     visitor.visit::<ofm_core::slices::squad::SquadPlayer>();
+    visitor.visit::<ofm_core::slices::team_selection::TeamSelectionRatings>();
     // `get_potential_opinion` returns it; nothing in `Game` reaches it.
     visitor.visit::<ofm_core::potential_opinion::PotentialOpinion>();
     // `get_position_ratings` returns it; nothing in `Game` reaches it.

@@ -1,11 +1,12 @@
 import type { PlayerAdvancedStatsSummary } from "../../components/playerProfile/PlayerProfile.helpers";
-import type { PlayerRecentMatchEntry } from "../../components/playerProfile/PlayerProfileRecentMatchesCard";
+import type { PlayerRecentMatchEntry } from "../../components/playerProfile/PlayerProfile.helpers";
 import type { PlayerKnowledge, VisibleWage } from "../../services/scoutingService";
 import type { PositionRatings } from "../../store/generated/PositionRatings";
 import type { PotentialOpinion } from "../../store/generated/PotentialOpinion";
 import type { Position } from "../../store/generated/Position";
 import type { PlayerData, ScoutedPlayerView } from "../../store/types";
-import { gameState } from "./fixture.generated";
+import type { AttributeWeight } from "../../store/generated/AttributeWeight";
+import { gameState, positionWeights } from "./fixture.generated";
 import type { HarnessProfile } from "./harnessPage";
 
 /** What the backend answers about the one player a profile page is open on. */
@@ -128,6 +129,8 @@ function positionRatingsOf(player: PlayerData, source: PositionRatings["source"]
     familiarity: index === 0 ? ("natural" as const) : ("can_play" as const),
     deployed: false,
     key_attributes: top as PositionRatings["rows"][number]["key_attributes"],
+    // Rust writes the table into the fixture (`position_weights`): the harness holds no copy.
+    weights: (positionWeights as Record<string, AttributeWeight[]>)[position] ?? [],
   }));
   return { source, rows };
 }
@@ -219,7 +222,24 @@ export function profileCase(variant: HarnessProfile): ProfileCase {
         playerId: `${retiree.id}-retired`,
         knowledge: null,
         wage: null,
-        retiredPlayer: { ...retiree, id: `${retiree.id}-retired`, retired: true, team_id: null },
+        retiredPlayer: {
+          ...retiree,
+          id: `${retiree.id}-retired`,
+          retired: true,
+          team_id: null,
+          // He left from a rival club, as the archive records it.
+          movement_history: [
+            {
+              date: "2031-06-30",
+              kind: "retired",
+              from_team_id: rival.team_id,
+              from_team_name:
+                gameState.teams.find((team) => team.id === rival.team_id)?.name ?? null,
+              to_team_id: null,
+              to_team_name: null,
+            },
+          ],
+        },
       };
   }
 }

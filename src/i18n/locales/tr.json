@@ -313,6 +313,23 @@
     "back": "Dünya oluşturmaya dön",
     "simulation": "Simülasyon",
     "manageNone": "Yönet",
+    "scope": {
+      "title": "Dünyanın simüle ettikleri",
+      "subtitle": "Oyunun hangi bölgeleri ve organizasyonları tam olarak simüle edeceğini seçin. Ne kadar çoksa her gün o kadar uzun sürer.",
+      "sectionStart": "1 · Nereden başlıyorsunuz",
+      "sectionRegions": "2 · Simüle edilen bölgeler",
+      "sectionCompetitions": "3 · Turnuvalar",
+      "regionMeta": "{{countries}} · {{clubs}} kulüp",
+      "simulate": "{{name}} simüle edilsin",
+      "needs": "{{regions}} gerekli",
+      "add": "{{regions}} ekle",
+      "groupCount": "{{on}} / {{total}}",
+      "groupSimulated": "{{total}} içinden {{on}} simüle ediliyor",
+      "needOne": "En az bir turnuvayı açın.",
+      "summary": "{{regions}} bölge · {{competitions}} turnuva simüle ediliyor",
+      "clubs": "Simüle edilen bölgelerde {{clubs}} kulüp",
+      "apply": "Uygula"
+    },
     "rail": {
       "label": "Ülkeler ve ligler",
       "countries": "Ülkeler"
@@ -344,21 +361,22 @@
     "repStrong": "Güçlü",
     "repAverage": "Orta",
     "repDeveloping": "Gelişen",
+    "expectations": {
+      "title": "Şampiyonluk mücadelesi",
+      "continental": "Kıtasal turnuvalara katılma mücadelesi",
+      "topHalf": "Puan tablosunun üst yarısı",
+      "midTable": "Orta sıralar",
+      "survival": "Küme düşmekten kaçınma"
+    },
     "failedToSelectTeam": "Takım seçilemedi: {{error}}",
     "homeRegion": "Ana Bölge",
     "homeCountry": "Ana Ülke",
-    "allCountries": "Tüm ülkeler",
-    "simulationScope": "Simülasyon Kapsamı",
     "otherClubs": "Diğer kulüpler",
     "searchClubs": "Kulüp ara…",
     "clubCount": "{{n}} kulüp",
     "noClubsMatch": "Aramanızla eşleşen kulüp yok.",
-    "simulatedRegions": "Simüle Edilen Bölgeler",
-    "simulatedCompetitions": "Simüle Edilen Turnuvalar",
     "homeBadge": "Ana",
-    "yourClub": "kulübünüz",
     "yourClubBadge": "Kulübünüz",
-    "requiresRegions": "{{regions}} gerektirir",
     "selectedClub": "Seçilen Kulüp",
     "formation": "Diziliş",
     "overall": "Genel",
@@ -369,7 +387,6 @@
     "clubCompetitionsAlwaysSimulated": "Diğer bölgeleri veya turnuvaları kapatsanız bile kulübünüzün turnuvaları her zaman simüle edilir.",
     "selectClubPrompt": "Kadrosunu ve turnuvalarını incelemek için bir kulüp seçin.",
     "playersCount": "{{count}} oyuncu",
-    "scopeSummary": "{{regionsCount}} simüle edilen bölge ve {{competitionsCount}} simüle edilen turnuva yüklenecek.",
     "regionLabels": {
       "north-america": "Kuzey Amerika",
       "central-america": "Orta Amerika",
@@ -392,13 +409,6 @@
       "InternationalClub": "Uluslararası Kulüp",
       "InternationalNation": "Uluslararası Millî",
       "FriendlyCup": "Hazırlık Kupası"
-    },
-    "scopeMessages": {
-      "homeRegionAlwaysActive": "Oynanabilir bölgeniz her zaman aktif kalır.",
-      "regionRequiredByCompetition": "{{competition}}, {{club}} kulübünün programında olduğu için {{region}} aktif kalmalıdır.",
-      "regionRemovedDisablesCompetitions": "{{region}} simülasyon kapsamından çıkarıldığı için ona bağlı turnuvalar da kapatıldı.",
-      "clubCompetitionLocked": "{{competition}}, {{club}} kulübünün programında yer alıyor ve her zaman simüle edilecek.",
-      "autoEnabledRegions": "{{competition}} için {{regions}} gerekli olduğundan bu bölgeler otomatik olarak etkinleştirildi."
     }
   },
   "youthAcademy": {
@@ -1691,6 +1701,47 @@
     }
   },
   "playerProfile": {
+    "sections": "Profil bölümleri",
+    "overview": {
+      "axes": {
+        "pace": "HIZ",
+        "shooting": "ŞUT",
+        "dribbling": "DRP",
+        "passing": "PAS",
+        "vision": "VİZ",
+        "composure": "SOĞ",
+        "strength": "GÜÇ",
+        "aerial": "HAV",
+        "handling": "TUT",
+        "reflexes": "REF",
+        "agility": "ÇEV",
+        "stamina": "DAY"
+      },
+      "now": "Şu an",
+      "details": "Ayrıntılar",
+      "previousMatches": "Önceki maçlar",
+      "allMatches": "Tüm maçlar",
+      "traits": "Özellikler",
+      "born": "Doğum",
+      "squadRole": "Kadro rolü",
+      "squadSenior": "A takım",
+      "squadYouth": "Altyapı",
+      "contractUntil": "{{date}} tarihine kadar",
+      "keyFor": "{{position}} için anahtar",
+      "radarLabel": "Nitelik radarı: {{values}}",
+      "seasonExtras": "Disiplin ve gol yememe"
+    },
+    "overall": "Genel",
+    "ratingUnknown": "Kulübünüz onun reytingini bilmiyor",
+    "retired": "Emekli",
+    "retiredOn": "{{date}} tarihinde emekli oldu",
+    "lastClub": "Son kulüp: {{club}}",
+    "tabs": {
+      "overview": "Genel bakış",
+      "attributes": "Özellikler",
+      "career": "Kariyer",
+      "contract": "Sözleşme"
+    },
     "contractInfo": "Sözleşme ve Bilgi",
     "dateOfBirth": "Doğum Tarihi",
     "noContract": "Sözleşme yok",

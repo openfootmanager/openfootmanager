@@ -1,8 +1,9 @@
+import { useId, useState } from "react";
 import { getPlayerOvr } from "../../lib/helpers";
 import { useContractRiskLevels } from "../../hooks/useContractWarningStages";
 import type { PlayerData, GameStateData } from "../../store/gameStore";
 import { useTranslation } from "react-i18next";
-import { Select } from "../ui";
+import { TabPanel, Tabs } from "../ui";
 import { getRoleOptions } from "../../lib/playerRoles";
 import { getDeployedPosition } from "../squad/SquadTab.helpers";
 import { setPlayerRole as setPlayerRoleService } from "../../services/squadService";
@@ -12,11 +13,8 @@ import TransferBidModal from "../transfers/TransferBidModal";
 import { useFreeAgentContractFlow } from "../transfers/useFreeAgentContractFlow";
 import { useTransferBidFlow } from "../transfers/useTransferBidFlow";
 import PlayerProfileActionsMenu from "./PlayerProfileActionsMenu";
-import {
-  formatPlayerWage,
-  formatPlayerWageCompact,
-  getPlayerTeamName,
-} from "./PlayerProfile.helpers";
+import { formatPlayerWage, getPlayerTeamName } from "./PlayerProfile.helpers";
+import { retirementOf } from "./retirement";
 import { useVisibleWage } from "../../hooks/useVisibleWage";
 import { answeredOr } from "../../hooks/useKnowledgeAnswer";
 import ProfileLoadFailed from "./ProfileLoadFailed";
@@ -28,13 +26,12 @@ import { formatDate } from "../../lib/dateFormatting";
 import PlayerProfileAttributesCard from "./PlayerProfileAttributesCard";
 import PlayerProfileCareerHistoryCard from "./PlayerProfileCareerHistoryCard";
 import PlayerProfileContractCard from "./PlayerProfileContractCard";
-import PlayerProfileHeroCard from "./PlayerProfileHeroCard";
+import PlayerProfileNameCard from "./PlayerProfileNameCard";
+import PlayerProfileOverview from "./overview/PlayerProfileOverview";
 import PlayerProfileInjuryBanner from "./PlayerProfileInjuryBanner";
 import PlayerProfileLoanStatusBanner from "./PlayerProfileLoanStatusBanner";
 import PlayerProfileMovementHistoryCard from "./PlayerProfileMovementHistoryCard";
-import PlayerProfileRecentMatchesCard from "./PlayerProfileRecentMatchesCard";
 import PlayerProfileRenewalModal from "./PlayerProfileRenewalModal";
-import PlayerProfileSeasonStatsCard from "./PlayerProfileSeasonStatsCard";
 import PlayerProfileTerminationModal from "./PlayerProfileTerminationModal";
 import { useScoutedReport } from "./useScoutedReport";
 import PlayerProfilePotentialOpinion from "./PlayerProfilePotentialOpinion";
@@ -58,6 +55,10 @@ import {
 } from "../../lib/playerKnowledge";
 import { usePlayerKnowledge } from "../../hooks/usePlayerKnowledge";
 
+/** The profile's sections, in tab order. */
+const PROFILE_TABS = ["overview", "attributes", "career", "contract"] as const;
+type ProfileTab = (typeof PROFILE_TABS)[number];
+
 interface PlayerProfileProps {
   player: PlayerData;
   gameState: GameStateData;
@@ -78,14 +79,24 @@ export default function PlayerProfile({
   onGameUpdate,
 }: PlayerProfileProps) {
   const { t, i18n } = useTranslation();
+  const tabsId = useId();
+  // The page reuses this instance when another player is opened, so the tab is reset on every
+  // change of player (A to B and back to A included), not remembered per player.
+  const [tab, setTab] = useState<ProfileTab>("overview");
+  const [shownPlayerId, setShownPlayerId] = useState(player.id);
+  if (shownPlayerId !== player.id) {
+    setShownPlayerId(player.id);
+    setTab("overview");
+  }
   const primaryPosition = naturalPositionOf(player);
   const footednessLabel = t(`common.footedness.${player.footedness || "Right"}`);
   const weakFootValue = player.weak_foot ?? 2;
 
-  const { advancedStats, recentMatches } = usePlayerProfileData({
-    player,
-    currentDate: gameState.clock.current_date,
-  });
+  const { advancedStats, recentMatches, recentMatchesStatus, retryRecentMatches } =
+    usePlayerProfileData({
+      player,
+      currentDate: gameState.clock.current_date,
+    });
   const { scoutAvailability, scoutStatus, scoutError, sendScout } = useScoutPlayerFlow({
     player,
     gameState,
@@ -121,6 +132,8 @@ export default function PlayerProfile({
   const roleValidationPosition =
     (playerTeam && getDeployedPosition(playerTeam, player.id)) || primaryPosition;
   const tacticalRoleOptions = getRoleOptions(roleValidationPosition, currentTacticalRole);
+  // A retired player has no club and nothing to scout, sign or renew: the card says he retired.
+  const retirement = retirementOf(player);
   const teamName = getPlayerTeamName(gameState.teams, player.team_id, {
     freeAgent: t("common.freeAgent"),
     unknown: t("common.unknown"),
@@ -260,39 +273,15 @@ export default function PlayerProfile({
     }
   }
 
+  const traits = visibleTraits(player.traits ?? [], potentialOpinion);
+  const tabItems = PROFILE_TABS.map((id) => ({ id, label: t(`playerProfile.tabs.${id}`) }));
+  const hidden = (id: ProfileTab) => tab !== id;
+
   return (
     <div>
-      {onGameUpdate ? (
-        <div className="mb-4 flex justify-end">
-          <PlayerProfileActionsMenu
-            player={player}
-            gameState={gameState}
-            isManagerOwnedProfile={isManagerOwnedProfile}
-            isFreeAgent={isFreeAgent}
-            hasLetExpireIntent={hasLetExpireIntent}
-            contractRiskLevel={contractRiskLevel}
-            actionSubmitting={contractActionSubmitting}
-            onGameUpdate={onGameUpdate}
-            onOpenRenewal={openRenewalModal}
-            onMarkLetExpire={() => void handleMarkLetExpire()}
-            onClearLetExpire={() => void handleClearLetExpire()}
-            onOpenTermination={() => void openTerminationModal()}
-            onOpenBid={() => openBidNegotiation(player)}
-            onOpenFreeAgentContract={() => openFreeAgentContract(player)}
-            onError={setContractActionError}
-          />
-        </div>
-      ) : null}
-
-      <PlayerProfileHeroCard
+      <PlayerProfileNameCard
         player={player}
         ovr={knowsPlayerRating(knowledge) ? ovr : null}
-        wageText={
-          wageRetry
-            ? t("playerProfile.loadFailed")
-            : visibleWageText(visibleWage, formatPlayerWageCompact, t)
-        }
-        wageRetry={wageRetry}
         primaryPosition={primaryPosition}
         age={age}
         teamName={teamName}
@@ -306,8 +295,28 @@ export default function PlayerProfile({
         onScout={sendScout}
         onSelectTeam={onSelectTeam}
         team={playerTeam}
-        traits={visibleTraits(player.traits ?? [], potentialOpinion)}
-        showsPrivateState={showsPrivateState}
+        retirement={retirement}
+        actions={
+          onGameUpdate && !retirement ? (
+            <PlayerProfileActionsMenu
+              player={player}
+              gameState={gameState}
+              isManagerOwnedProfile={isManagerOwnedProfile}
+              isFreeAgent={isFreeAgent}
+              hasLetExpireIntent={hasLetExpireIntent}
+              contractRiskLevel={contractRiskLevel}
+              actionSubmitting={contractActionSubmitting}
+              onGameUpdate={onGameUpdate}
+              onOpenRenewal={openRenewalModal}
+              onMarkLetExpire={() => void handleMarkLetExpire()}
+              onClearLetExpire={() => void handleClearLetExpire()}
+              onOpenTermination={() => void openTerminationModal()}
+              onOpenBid={() => openBidNegotiation(player)}
+              onOpenFreeAgentContract={() => openFreeAgentContract(player)}
+              onError={setContractActionError}
+            />
+          ) : null
+        }
         t={t}
       />
 
@@ -321,67 +330,74 @@ export default function PlayerProfile({
         />
       ) : null}
 
+      {/* Outside the tab panels: the Actions menu in the name card starts these, from any tab. */}
+      {contractActionError ? (
+        <div
+          role="alert"
+          className="mb-4 rounded-lg border border-line bg-danger-tint px-4 py-3 text-body text-danger"
+        >
+          {contractActionError}
+        </div>
+      ) : null}
+
       {/* Injury banner */}
       {player.injury ? <PlayerProfileInjuryBanner injury={player.injury} t={t} /> : null}
 
-      {isOwnClub && onGameUpdate && (
-        <div className="mb-4 flex items-center gap-3 rounded-xl border border-gray-200 bg-white px-4 py-3 dark:border-navy-600 dark:bg-navy-800">
-          <span className="shrink-0 text-sm font-medium text-gray-600 dark:text-gray-300">
-            {t("tactics.playerRoleLabel")}
-          </span>
-          <Select
-            selectSize="sm"
-            value={currentTacticalRole}
-            onChange={(e) => {
-              void handleTacticalRoleChange(e.target.value as PlayerRole);
-            }}
-            aria-label={t("tactics.playerRoleLabel")}
-          >
-            {tacticalRoleOptions.map((role) => (
-              <option key={role} value={role}>
-                {t(`tactics.playerRoles.${role}`, role)}
-              </option>
-            ))}
-          </Select>
-        </div>
-      )}
+      <div className="mb-4 border-b border-line">
+        <Tabs
+          idPrefix={tabsId}
+          label={t("playerProfile.sections")}
+          tabs={tabItems}
+          selectedId={tab}
+          onSelect={(id) => setTab(id as ProfileTab)}
+        />
+      </div>
 
-      {/* Main content grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-        <PlayerProfileContractCard
-          dateOfBirth={player.date_of_birth}
-          contractEnd={player.contract_end}
-          currentDate={gameState.clock.current_date}
-          condition={showsPrivateState ? player.condition : null}
-          morale={showsPrivateState ? player.morale : null}
-          marketValue={player.market_value}
-          wageText={
-            wageRetry
-              ? t("playerProfile.loadFailed")
-              : visibleWageText(visibleWage, formatPlayerWage, t)
-          }
-          wageRetry={wageRetry}
+      <TabPanel idPrefix={tabsId} tabId="overview" hidden={hidden("overview")}>
+        <PlayerProfileOverview
+          player={player}
           language={i18n.language}
+          showsPrivateState={showsPrivateState}
+          recentMatches={recentMatches}
+          recentMatchesStatus={recentMatchesStatus}
+          retryRecentMatches={retryRecentMatches}
+          seasonRatingRated={advancedStats.seasonRatingRated}
+          tacticalRole={
+            isOwnClub && onGameUpdate
+              ? {
+                  value: currentTacticalRole,
+                  options: tacticalRoleOptions,
+                  onChange: (role) => void handleTacticalRoleChange(role as PlayerRole),
+                }
+              : null
+          }
           contractRiskLevel={contractRiskLevel}
           contractRiskLabel={contractRiskLabel}
-          isOwnClub={isManagerOwnedProfile}
-          isFreeAgent={isFreeAgent}
-          hasLetExpireIntent={hasLetExpireIntent}
-          actionSubmitting={contractActionSubmitting}
-          onOpenRenewal={openRenewalModal}
-          onMarkLetExpire={() => void handleMarkLetExpire()}
-          onClearLetExpire={() => void handleClearLetExpire()}
-          onOpenTermination={() => void openTerminationModal()}
-          onOpenFreeAgentContract={() => openFreeAgentContract(player)}
-          t={t}
+          wageText={visibleWageText(visibleWage, formatPlayerWage, t)}
+          wageRetry={wageRetry}
+          potentialOpinion={
+            opinionAnswer.status === "failed" ? (
+              <ProfileLoadFailed t={t} onRetry={opinionAnswer.retry} />
+            ) : potentialOpinion ? (
+              <PlayerProfilePotentialOpinion
+                opinion={potentialOpinion}
+                locale={i18n.language}
+                t={t}
+              />
+            ) : null
+          }
+          ratings={ratingsAnswer}
+          attributes={
+            knowsPlayerRating(knowledge) || scoutedReport !== null
+              ? attributesPlayer.attributes
+              : null
+          }
+          traits={traits}
+          onOpenTab={setTab}
         />
+      </TabPanel>
 
-        {contractActionError ? (
-          <div className="lg:col-span-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-300">
-            {contractActionError}
-          </div>
-        ) : null}
-
+      <TabPanel idPrefix={tabsId} tabId="attributes" hidden={hidden("attributes")}>
         <PlayerProfileAttributesCard
           attrGroups={attrGroups}
           player={attributesPlayer}
@@ -427,16 +443,14 @@ export default function PlayerProfile({
             ) : null
           }
         />
-      </div>
+      </TabPanel>
 
-      {/* Full-width data cards, stacked for a uniform page */}
-      <div className="grid grid-cols-1 gap-5 mt-5">
-        <PlayerProfileSeasonStatsCard
-          stats={player.stats}
-          seasonRatingRated={advancedStats.seasonRatingRated}
-          t={t}
-        />
-
+      <TabPanel
+        idPrefix={tabsId}
+        tabId="career"
+        hidden={hidden("career")}
+        className="grid grid-cols-1 gap-5"
+      >
         <PlayerProfileAdvancedStatsCard summary={advancedStats} t={t} />
 
         <PlayerProfileCareerHistoryCard career={player.career} t={t} />
@@ -446,9 +460,29 @@ export default function PlayerProfile({
           showsWages={visibleWage.kind === "exact"}
           t={t}
         />
+      </TabPanel>
 
-        <PlayerProfileRecentMatchesCard matches={recentMatches} t={t} />
-      </div>
+      <TabPanel
+        idPrefix={tabsId}
+        tabId="contract"
+        hidden={hidden("contract")}
+        className="flex flex-col gap-5"
+      >
+        <PlayerProfileContractCard
+          contractEnd={player.contract_end}
+          currentDate={gameState.clock.current_date}
+          isOwnClub={isManagerOwnedProfile}
+          isFreeAgent={isFreeAgent}
+          hasLetExpireIntent={hasLetExpireIntent}
+          actionSubmitting={contractActionSubmitting}
+          onOpenRenewal={openRenewalModal}
+          onMarkLetExpire={() => void handleMarkLetExpire()}
+          onClearLetExpire={() => void handleClearLetExpire()}
+          onOpenTermination={() => void openTerminationModal()}
+          onOpenFreeAgentContract={() => openFreeAgentContract(player)}
+          t={t}
+        />
+      </TabPanel>
 
       {bidTarget && (
         <TransferBidModal

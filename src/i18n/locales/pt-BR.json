@@ -313,6 +313,23 @@
     "back": "Voltar para a geração do mundo",
     "simulation": "Simulação",
     "manageNone": "Comandar",
+    "scope": {
+      "title": "O que o mundo simula",
+      "subtitle": "Escolha quais regiões e competições o jogo simula por completo. Quanto mais houver, mais cada dia demora.",
+      "sectionStart": "1 · Onde você começa",
+      "sectionRegions": "2 · Regiões simuladas",
+      "sectionCompetitions": "3 · Competições",
+      "regionMeta": "{{countries}} · {{clubs}} clubes",
+      "simulate": "Simular {{name}}",
+      "needs": "Precisa de {{regions}}",
+      "add": "Adicionar {{regions}}",
+      "groupCount": "{{on}} de {{total}}",
+      "groupSimulated": "{{on}} de {{total}} simuladas",
+      "needOne": "Ative pelo menos uma competição.",
+      "summary": "{{regions}} regiões · {{competitions}} competições simuladas",
+      "clubs": "{{clubs}} clubes nas regiões simuladas",
+      "apply": "Aplicar"
+    },
     "rail": {
       "label": "Países e ligas",
       "countries": "Países"
@@ -344,21 +361,22 @@
     "repStrong": "Forte",
     "repAverage": "Mediano",
     "repDeveloping": "Em Desenvolvimento",
+    "expectations": {
+      "title": "Brigar pelo título",
+      "continental": "Buscar vaga nas competições continentais",
+      "topHalf": "Metade de cima da tabela",
+      "midTable": "Meio de tabela",
+      "survival": "Evitar o rebaixamento"
+    },
     "failedToSelectTeam": "Falha ao selecionar o time: {{error}}",
     "homeRegion": "Região de origem",
     "homeCountry": "País de origem",
-    "allCountries": "Todos os países",
-    "simulationScope": "Escopo de simulação",
     "otherClubs": "Outros clubes",
     "searchClubs": "Buscar clubes…",
     "clubCount": "{{n}} clubes",
     "noClubsMatch": "Nenhum clube corresponde à busca.",
-    "simulatedRegions": "Regiões simuladas",
-    "simulatedCompetitions": "Competições simuladas",
     "homeBadge": "Origem",
-    "yourClub": "seu clube",
     "yourClubBadge": "Seu clube",
-    "requiresRegions": "Requer {{regions}}",
     "selectedClub": "Clube selecionado",
     "formation": "Formação",
     "overall": "Geral",
@@ -369,7 +387,6 @@
     "clubCompetitionsAlwaysSimulated": "As competições do seu clube sempre são simuladas, mesmo se você desativar outras regiões ou torneios.",
     "selectClubPrompt": "Selecione um clube para ver seu elenco e suas competições.",
     "playersCount": "{{count}} jogadores",
-    "scopeSummary": "{{regionsCount}} regiões simuladas e {{competitionsCount}} competições simuladas serão carregadas.",
     "regionLabels": {
       "north-america": "América do Norte",
       "central-america": "América Central",
@@ -392,13 +409,6 @@
       "InternationalClub": "Competição internacional de clubes",
       "InternationalNation": "Competição internacional de seleções",
       "FriendlyCup": "Copa amistosa"
-    },
-    "scopeMessages": {
-      "homeRegionAlwaysActive": "Sua região jogável sempre permanece ativa.",
-      "regionRequiredByCompetition": "{{competition}} faz parte do calendário de {{club}}, então {{region}} precisa permanecer ativa.",
-      "regionRemovedDisablesCompetitions": "{{region}} foi removida do escopo de simulação, então as competições dependentes também foram desativadas.",
-      "clubCompetitionLocked": "{{competition}} está no calendário de {{club}} e sempre será simulada.",
-      "autoEnabledRegions": "{{competition}} precisa de {{regions}}, então essas regiões foram ativadas automaticamente."
     }
   },
   "youthAcademy": {
@@ -1691,6 +1701,47 @@
     }
   },
   "playerProfile": {
+    "sections": "Seções do perfil",
+    "overview": {
+      "axes": {
+        "pace": "VEL",
+        "shooting": "FIN",
+        "dribbling": "DRI",
+        "passing": "PAS",
+        "vision": "VIS",
+        "composure": "COM",
+        "strength": "FOR",
+        "aerial": "AÉR",
+        "handling": "PEG",
+        "reflexes": "REF",
+        "agility": "AGI",
+        "stamina": "RES"
+      },
+      "now": "Agora",
+      "details": "Detalhes",
+      "previousMatches": "Jogos anteriores",
+      "allMatches": "Todos os jogos",
+      "traits": "Características",
+      "born": "Nascimento",
+      "squadRole": "Função no elenco",
+      "squadSenior": "Elenco principal",
+      "squadYouth": "Base",
+      "contractUntil": "até {{date}}",
+      "keyFor": "Fundamental para um {{position}}",
+      "radarLabel": "Radar de atributos: {{values}}",
+      "seasonExtras": "Disciplina e jogos sem sofrer gols"
+    },
+    "overall": "Geral",
+    "ratingUnknown": "Seu clube não conhece a avaliação dele",
+    "retired": "Aposentado",
+    "retiredOn": "Aposentado em {{date}}",
+    "lastClub": "Último clube: {{club}}",
+    "tabs": {
+      "overview": "Visão geral",
+      "attributes": "Atributos",
+      "career": "Carreira",
+      "contract": "Contrato"
+    },
     "contractInfo": "Contrato e Info",
     "dateOfBirth": "Data de Nascimento",
     "noContract": "Sem contrato",

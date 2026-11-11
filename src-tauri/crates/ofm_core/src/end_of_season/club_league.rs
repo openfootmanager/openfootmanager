@@ -16,11 +16,7 @@ pub fn club_league_table<'a>(game: &'a Game, club_id: &str) -> Option<&'a League
 pub fn club_league_table_in<'a>(competitions: &'a [League], club_id: &str) -> Option<&'a League> {
     let contains_club = |competition: &League| {
         crate::world::ladder::is_ladder_table(competition)
-            && (competition.participant_ids.iter().any(|id| id == club_id)
-                || competition
-                    .standings
-                    .iter()
-                    .any(|standing| standing.team_id == club_id))
+            && Game::club_takes_part_in(competition, club_id)
     };
 
     competitions

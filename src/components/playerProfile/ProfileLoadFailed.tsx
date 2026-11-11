@@ -59,25 +59,3 @@ export default function ProfileLoadFailed({ t, onRetry }: { t: TranslateFn; onRe
     </p>
   );
 }
-
-/**
- * "Couldn't load" as its own retry button, for a slot with room only for the value (the hero's
- * wage). `description` says what is retried; `tone` is the surface's.
- */
-export function LoadFailedRetryText({
-  t,
-  onRetry,
-  description,
-  tone = "page",
-}: {
-  t: TranslateFn;
-  onRetry: () => void;
-  description: string;
-  tone?: RetryTone;
-}) {
-  return (
-    <RetryButton onRetry={onRetry} description={description} tone={tone}>
-      {t("playerProfile.loadFailed")}
-    </RetryButton>
-  );
-}

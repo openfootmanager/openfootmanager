@@ -2,7 +2,6 @@ import { useId, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { useRatingTiers } from "../../hooks/useRatingTiers";
-import { weeklyWageAmount } from "../../lib/finance";
 import { formatVal, formatWeeklyWage } from "../../lib/helpers";
 import {
   nextSort,
@@ -11,10 +10,15 @@ import {
   type SortValue,
   sortRows,
 } from "../../lib/sortRows";
+import type { ClubSquadRatings } from "../../services/teamsService";
 import type { TeamData } from "../../store/gameStore";
+import { resolveBackendText } from "../../utils/backendI18n";
 import { DataTable, type DataTableColumn, RatingChip, TeamLogo } from "../ui";
 
 type ClubSortKey = "name" | "squad" | "transfers" | "wages" | "stadium";
+
+/** What a figure the backend has not given yet reads as. */
+const NOT_YET = "\u2014";
 
 /** The table opens strongest squad first, as the board's mock does. */
 const DEFAULT_SORT: SortState<ClubSortKey> = { key: "squad", direction: "desc" };
@@ -36,6 +40,8 @@ interface ClubsTableProps {
   onSelectTeam: (id: string) => void;
   /** The club's average as the backend rates it; null until it answers. */
   getTeamAvgOvr: (teamId: string) => number | null;
+  /** The club's facts as the backend gives them (budgets, stadium, reputation, expectation); undefined until it answers. */
+  getClubFacts: (teamId: string) => ClubSquadRatings | undefined;
 }
 
 /**
@@ -53,6 +59,7 @@ export default function ClubsTable({
   selectedTeamId,
   onSelectTeam,
   getTeamAvgOvr,
+  getClubFacts,
 }: ClubsTableProps) {
   const { t, i18n } = useTranslation();
   const tierOf = useRatingTiers();
@@ -67,15 +74,15 @@ export default function ClubsTable({
         case "squad":
           return getTeamAvgOvr(team.id);
         case "transfers":
-          return team.transfer_budget;
+          return getClubFacts(team.id)?.transfer_budget ?? null;
         case "wages":
-          return team.wage_budget;
+          return getClubFacts(team.id)?.weekly_wage_budget ?? null;
         case "stadium":
-          return team.stadium_capacity;
+          return getClubFacts(team.id)?.stadium_capacity ?? null;
       }
     };
     return sortRows(clubs, sortValueOf, sort.direction, i18n.language);
-  }, [clubs, sort, getTeamAvgOvr, i18n.language]);
+  }, [clubs, sort, getTeamAvgOvr, getClubFacts, i18n.language]);
 
   function onSortChange(key: string) {
     const next = key as ClubSortKey;
@@ -104,13 +111,32 @@ export default function ClubsTable({
       ),
     },
     {
+      key: "reputation",
+      header: t("teamSelect.reputation"),
+      // The word is the backend's, a translation key: no number here is judged.
+      cell: (team) => {
+        const key = getClubFacts(team.id)?.reputation_key;
+        return key ? resolveBackendText(key, NOT_YET) : NOT_YET;
+      },
+    },
+    {
       key: "squad",
       header: t("teamSelect.squad"),
       numeric: true,
       sortable: true,
       cell: (team) => {
         const average = getTeamAvgOvr(team.id);
-        return average === null ? "\u2014" : <RatingChip value={average} tier={tierOf(average)} />;
+        return average === null ? NOT_YET : <RatingChip value={average} tier={tierOf(average)} />;
+      },
+    },
+    {
+      key: "expects",
+      header: t("teamSelect.card.boardExpects"),
+      drawer: true,
+      wrap: true,
+      cell: (team) => {
+        const key = getClubFacts(team.id)?.opening_expectation.label_key;
+        return key ? resolveBackendText(key, NOT_YET) : NOT_YET;
       },
     },
     {
@@ -119,7 +145,10 @@ export default function ClubsTable({
       numeric: true,
       sortable: true,
       drawer: true,
-      cell: (team) => formatVal(team.transfer_budget),
+      cell: (team) => {
+        const facts = getClubFacts(team.id);
+        return facts ? formatVal(facts.transfer_budget) : NOT_YET;
+      },
     },
     {
       key: "wages",
@@ -127,7 +156,10 @@ export default function ClubsTable({
       numeric: true,
       sortable: true,
       drawer: true,
-      cell: (team) => formatWeeklyWage(weeklyWageAmount(team.wage_budget), "compact"),
+      cell: (team) => {
+        const facts = getClubFacts(team.id);
+        return facts ? formatWeeklyWage(facts.weekly_wage_budget, "compact") : NOT_YET;
+      },
     },
     {
       key: "stadium",
@@ -135,7 +167,8 @@ export default function ClubsTable({
       numeric: true,
       sortable: true,
       drawer: true,
-      cell: (team) => team.stadium_capacity.toLocaleString(i18n.language),
+      cell: (team) =>
+        getClubFacts(team.id)?.stadium_capacity.toLocaleString(i18n.language) ?? NOT_YET,
     },
   ];
 

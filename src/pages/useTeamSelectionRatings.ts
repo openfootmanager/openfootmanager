@@ -35,23 +35,11 @@ export function useTeamSelectionRatings(gameState: GameStateData | null) {
     () => new Map((ratings?.clubs ?? []).map((club) => [club.team_id, club])),
     [ratings],
   );
-  const ratingByPlayer = useMemo(
-    () =>
-      new Map(
-        (ratings?.clubs ?? []).flatMap((club) =>
-          club.players.map((rated) => [rated.player_id, rated.ovr] as const),
-        ),
-      ),
-    [ratings],
-  );
-
   return {
-    /** A club's rated squad, for its likely eleven; undefined until the backend answers. */
+    /** A club's facts and rated squad as the backend gives them; undefined until it answers. */
     clubRatings: (teamId: string): ClubSquadRatings | undefined => ratingsByClub.get(teamId),
     /** The club's average as the backend rates it; null until it answers. */
     getTeamAvgOvr: (teamId: string): number | null =>
       ratingsByClub.get(teamId)?.average_rating ?? null,
-    /** A player's rating as the backend rates it; null until it answers. */
-    getPlayerRating: (playerId: string): number | null => ratingByPlayer.get(playerId) ?? null,
   };
 }

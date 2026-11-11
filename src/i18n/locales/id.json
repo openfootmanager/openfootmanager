@@ -313,6 +313,23 @@
     "back": "Kembali ke pembuatan dunia",
     "simulation": "Simulasi",
     "manageNone": "Kelola",
+    "scope": {
+      "title": "Apa yang disimulasikan dunia",
+      "subtitle": "Pilih wilayah dan kompetisi yang disimulasikan penuh oleh game. Semakin banyak, semakin lama setiap harinya.",
+      "sectionStart": "1 · Tempat kamu mulai",
+      "sectionRegions": "2 · Wilayah yang disimulasikan",
+      "sectionCompetitions": "3 · Kompetisi",
+      "regionMeta": "{{countries}} · {{clubs}} klub",
+      "simulate": "Simulasikan {{name}}",
+      "needs": "Butuh {{regions}}",
+      "add": "Tambah {{regions}}",
+      "groupCount": "{{on}} dari {{total}}",
+      "groupSimulated": "{{on}} dari {{total}} disimulasikan",
+      "needOne": "Aktifkan setidaknya satu kompetisi.",
+      "summary": "{{regions}} wilayah · {{competitions}} kompetisi disimulasikan",
+      "clubs": "{{clubs}} klub di wilayah yang disimulasikan",
+      "apply": "Terapkan"
+    },
     "rail": {
       "label": "Negara dan liga",
       "countries": "Negara"
@@ -344,21 +361,22 @@
     "repStrong": "Kuat",
     "repAverage": "Cukup",
     "repDeveloping": "Berkembang",
+    "expectations": {
+      "title": "Bersaing memperebutkan gelar",
+      "continental": "Mengejar kompetisi antarklub benua",
+      "topHalf": "Separuh atas klasemen",
+      "midTable": "Papan tengah",
+      "survival": "Hindari degradasi"
+    },
     "failedToSelectTeam": "Gagal memilih tim: {{error}}",
     "homeRegion": "Wilayah Asal",
     "homeCountry": "Negara Asal",
-    "allCountries": "Semua negara",
-    "simulationScope": "Cakupan Simulasi",
     "otherClubs": "Klub lainnya",
     "searchClubs": "Cari klub…",
     "clubCount": "{{n}} klub",
     "noClubsMatch": "Tidak ada klub yang cocok dengan pencarian.",
-    "simulatedRegions": "Wilayah yang Disimulasikan",
-    "simulatedCompetitions": "Kompetisi yang Disimulasikan",
     "homeBadge": "Asal",
-    "yourClub": "klub kamu",
     "yourClubBadge": "Klub Kamu",
-    "requiresRegions": "Membutuhkan {{regions}}",
     "selectedClub": "Klub Terpilih",
     "formation": "Formasi",
     "overall": "Keseluruhan",
@@ -369,7 +387,6 @@
     "clubCompetitionsAlwaysSimulated": "Kompetisi klub kamu selalu disimulasikan, meskipun wilayah atau turnamen lain dimatikan.",
     "selectClubPrompt": "Pilih klub untuk memeriksa skuad dan kompetisinya.",
     "playersCount": "{{count}} pemain",
-    "scopeSummary": "{{regionsCount}} wilayah dan {{competitionsCount}} kompetisi yang disimulasikan akan dimuat.",
     "regionLabels": {
       "north-america": "Amerika Utara",
       "central-america": "Amerika Tengah",
@@ -392,13 +409,6 @@
       "InternationalClub": "Klub Internasional",
       "InternationalNation": "Tim Nasional Internasional",
       "FriendlyCup": "Piala Persahabatan"
-    },
-    "scopeMessages": {
-      "homeRegionAlwaysActive": "Wilayah yang dapat dimainkan selalu aktif.",
-      "regionRequiredByCompetition": "{{competition}} bagian dari jadwal {{club}}, jadi {{region}} harus tetap aktif.",
-      "regionRemovedDisablesCompetitions": "{{region}} dihapus dari cakupan simulasi, sehingga kompetisi yang bergantung padanya ikut dimatikan.",
-      "clubCompetitionLocked": "{{competition}} ada di jadwal {{club}} dan akan selalu disimulasikan.",
-      "autoEnabledRegions": "{{competition}} membutuhkan {{regions}}, sehingga wilayah tersebut diaktifkan secara otomatis."
     }
   },
   "youthAcademy": {
@@ -1691,6 +1701,47 @@
     }
   },
   "playerProfile": {
+    "sections": "Bagian profil",
+    "overview": {
+      "axes": {
+        "pace": "KEC",
+        "shooting": "TEM",
+        "dribbling": "DRI",
+        "passing": "UMP",
+        "vision": "VIS",
+        "composure": "KET",
+        "strength": "KEK",
+        "aerial": "UDA",
+        "handling": "MEN",
+        "reflexes": "REF",
+        "agility": "KEL",
+        "stamina": "STA"
+      },
+      "now": "Sekarang",
+      "details": "Detail",
+      "previousMatches": "Pertandingan sebelumnya",
+      "allMatches": "Semua pertandingan",
+      "traits": "Sifat",
+      "born": "Lahir",
+      "squadRole": "Peran di skuad",
+      "squadSenior": "Tim utama",
+      "squadYouth": "Akademi",
+      "contractUntil": "hingga {{date}}",
+      "keyFor": "Kunci untuk posisi {{position}}",
+      "radarLabel": "Radar atribut: {{values}}",
+      "seasonExtras": "Disiplin dan clean sheet"
+    },
+    "overall": "Keseluruhan",
+    "ratingUnknown": "Klubmu tidak mengetahui peringkatnya",
+    "retired": "Pensiun",
+    "retiredOn": "Pensiun pada {{date}}",
+    "lastClub": "Klub terakhir: {{club}}",
+    "tabs": {
+      "overview": "Ikhtisar",
+      "attributes": "Atribut",
+      "career": "Karier",
+      "contract": "Kontrak"
+    },
     "contractInfo": "Kontrak & Info",
     "dateOfBirth": "Tanggal Lahir",
     "noContract": "Tanpa kontrak",

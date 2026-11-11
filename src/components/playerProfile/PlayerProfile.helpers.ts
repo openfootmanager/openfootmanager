@@ -30,6 +30,25 @@ export interface PercentilePeerGroup {
   position: string;
 }
 
+/** One of a player's recent matches, latest first, as the backend returns it. */
+export interface PlayerRecentMatchEntry {
+  fixture_id: string;
+  date: string;
+  competition: string;
+  matchday: number;
+  opponent_team_id: string;
+  opponent_name: string;
+  team_goals: number;
+  opponent_goals: number;
+  minutes_played: number;
+  goals: number;
+  assists: number;
+  shots: number;
+  shots_on_target: number;
+  rating: number;
+  rated: boolean;
+}
+
 export interface PlayerAdvancedStatsSummary {
   percentileEligible: boolean;
   peerGroup: PercentilePeerGroup | null;
@@ -66,11 +85,6 @@ export function formatPlayerMarketValue(value: number): string {
 
 export function formatPlayerWage(weeklyWage: number): string {
   return formatWeeklyWage(weeklyWageAmount(weeklyWage));
-}
-
-/** The compact form for the profile's header tiles. */
-export function formatPlayerWageCompact(weeklyWage: number): string {
-  return formatWeeklyWage(weeklyWage, "compact");
 }
 
 export function getAttributeColorClass(value: number): string {

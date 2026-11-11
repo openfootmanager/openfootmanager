@@ -113,19 +113,18 @@ const NO_VALUE = /–$/;
 const KNOWLEDGE_SHOWS: Record<HarnessProfile, (view: ReturnType<typeof within>) => void> = {
   // The own player's condition, morale and exact wage.
   own: (view) => {
-    for (const label of ["Condition", "Morale"]) {
-      for (const row of rowsLabelled(view, label)) expect(row).toMatch(/\d+%/);
-    }
-    for (const row of rowsLabelled(view, "Weekly Wage")) expect(row).toMatch(/€[\d,]+\/wk/);
+    for (const row of rowsLabelled(view, "Condition")) expect(row).toMatch(/\d+/);
+    for (const row of rowsLabelled(view, "Morale")) expect(row).toMatch(/\d+%/);
+    for (const row of rowsLabelled(view, "Wage")) expect(row).toMatch(/€[\d,]+\/wk/);
     expect(view.queryByText("Attributes Hidden")).toBeNull();
     // He has played: his matches are listed (the others' lists are empty).
     expect(
-      view.getAllByText(profileCase("own").recentMatches[0].opponent_name).length,
+      view.getAllByText(new RegExp(profileCase("own").recentMatches[0].opponent_name)).length,
     ).toBeGreaterThan(0);
   },
   // A division rival: his attributes are known, his condition, morale and wage are not.
   rival: (view) => {
-    for (const label of ["Condition", "Morale", "Weekly Wage"]) {
+    for (const label of ["Condition", "Morale", "Wage"]) {
       for (const row of rowsLabelled(view, label)) expect(row).toMatch(NO_VALUE);
     }
     expect(view.queryByText("Attributes Hidden")).toBeNull();
@@ -133,17 +132,32 @@ const KNOWLEDGE_SHOWS: Record<HarnessProfile, (view: ReturnType<typeof within>) 
   // A scouted player: the report's date and a wage that says it is approximate.
   scouted: (view) => {
     expect(view.getAllByText(/^Scouted on /).length).toBeGreaterThan(0);
-    for (const row of rowsLabelled(view, "Weekly Wage")) expect(row).toContain("about");
+    for (const row of rowsLabelled(view, "Wage")) expect(row).toContain("about");
     expect(view.queryByText("Attributes Hidden")).toBeNull();
   },
   // A stranger and a retiree: public facts only.
   unknown: (view) => expectHidden(view),
-  retired: (view) => expectHidden(view),
+  retired: (view) => {
+    expectHidden(view);
+    // The card says he has retired, when, and from which club.
+    const card = within(
+      view.getByRole("region", { name: profileCase("retired").retiredPlayer?.full_name }),
+    );
+    expect(card.getByText("Retired")).toBeInTheDocument();
+    expect(card.getByText(/^Retired on /)).toBeInTheDocument();
+    expect(card.getByText(/^Last club: /)).toBeInTheDocument();
+    expect(card.queryByRole("button", { name: /scout/i })).toBeNull();
+    // The top bar names him, as it names any player (it used to read "Player").
+    expect(
+      view.getByRole("heading", { name: profileCase("retired").retiredPlayer?.match_name }),
+    ).toBeInTheDocument();
+  },
 };
 
 function expectHidden(view: ReturnType<typeof within>) {
-  expect(view.getByText("Attributes Hidden")).toBeInTheDocument();
-  for (const row of rowsLabelled(view, "Weekly Wage")) expect(row).toMatch(NO_VALUE);
+  // The Overview's attributes card and the Attributes tab each say so.
+  expect(view.getAllByText("Attributes Hidden")).toHaveLength(2);
+  for (const row of rowsLabelled(view, "Wage")) expect(row).toMatch(NO_VALUE);
   expect(view.queryByText(/^Scouted on /)).toBeNull();
 }
 

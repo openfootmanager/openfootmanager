@@ -143,11 +143,17 @@
     "worldEditor.staffRole.Scout",
     "worldEditor.staffSpecialization.Fitness",
     "worldEditor.staffAttr.coaching",
-    "packageBuild.patches"
+    "packageBuild.patches",
+    "playerProfile.overview.details",
+    "playerProfile.overview.axes.dribbling",
+    "playerProfile.overview.axes.passing",
+    "playerProfile.overview.axes.reflexes",
+    "playerProfile.overview.axes.agility"
   ],
   "fr": [
     "worldEditor.home.colClubs",
     "worldEditor.home.colAction",
+    "teamSelect.scope.regionMeta",
     "teamSelect.steps.club",
     "teamSelect.simulation",
     "teamSelect.table.label",
@@ -275,7 +281,12 @@
     "worldEditor.staffClub",
     "worldEditor.staffSpecialization.Technique",
     "packageBuild.patches",
-    "worldEditor.estimatedRating"
+    "worldEditor.estimatedRating",
+    "playerProfile.overview.traits",
+    "playerProfile.overview.axes.dribbling",
+    "playerProfile.overview.axes.passing",
+    "playerProfile.overview.axes.vision",
+    "playerProfile.overview.axes.agility"
   ],
   "it": [
     "teamSelect.steps.club",
@@ -347,7 +358,12 @@
     "worldEditor.staffClub",
     "worldEditor.staffRole.Scout",
     "worldEditor.staffSpecialization.Fitness",
-    "teamSelect.regionLabels.africa"
+    "teamSelect.regionLabels.africa",
+    "playerProfile.overview.axes.dribbling",
+    "playerProfile.overview.axes.passing",
+    "playerProfile.overview.axes.vision",
+    "playerProfile.overview.axes.aerial",
+    "playerProfile.overview.axes.agility"
   ],
   "es": [
     "teamSelect.steps.club",
@@ -411,7 +427,12 @@
     "worldEditor.competitionSelector",
     "worldEditor.staffClub",
     "worldEditor.staffSpecialization.Fitness",
-    "worldEditor.estimatedRating"
+    "worldEditor.estimatedRating",
+    "playerProfile.overview.axes.passing",
+    "playerProfile.overview.axes.vision",
+    "playerProfile.overview.axes.composure",
+    "playerProfile.overview.axes.reflexes",
+    "playerProfile.overview.axes.agility"
   ],
   "pt-BR": [
     "settings.sidebarBehaviourOptions.normal",
@@ -456,7 +477,13 @@
     "match.commentary.Goal.hattrick.headline",
     "squad.kitPatterns.Diagonal",
     "packageBuild.patches",
-    "worldEditor.estimatedRating"
+    "worldEditor.estimatedRating",
+    "playerProfile.overview.axes.dribbling",
+    "playerProfile.overview.axes.passing",
+    "playerProfile.overview.axes.vision",
+    "playerProfile.overview.axes.composure",
+    "playerProfile.overview.axes.reflexes",
+    "playerProfile.overview.axes.agility"
   ],
   "pt": [
     "settings.sidebarBehaviourOptions.normal",
@@ -499,7 +526,13 @@
     "match.commentary.Goal.hattrick.headline",
     "squad.kitPatterns.Diagonal",
     "packageBuild.patches",
-    "worldEditor.estimatedRating"
+    "worldEditor.estimatedRating",
+    "playerProfile.overview.axes.dribbling",
+    "playerProfile.overview.axes.passing",
+    "playerProfile.overview.axes.vision",
+    "playerProfile.overview.axes.composure",
+    "playerProfile.overview.axes.reflexes",
+    "playerProfile.overview.axes.agility"
   ],
   "ru": ["dashboard.recapTransferLine"],
   "zh-CN": ["be.news.roundup.resultLine", "be.news.preseasonDigest.resultLine"],
@@ -540,7 +573,9 @@
     "nations.gt",
     "nations.sv",
     "nations.sn",
-    "worldEditor.competitionFormat"
+    "worldEditor.competitionFormat",
+    "playerProfile.overview.axes.passing",
+    "playerProfile.overview.axes.reflexes"
   ],
   "cs": [
     "dashboard.recapTransferLine",
@@ -589,7 +624,9 @@
     "worldEditor.competitionSelectorRegion",
     "worldEditor.staffRole.label",
     "worldSelect.packageAuthor",
-    "tournaments.competitions.premierDivision"
+    "tournaments.competitions.premierDivision",
+    "playerProfile.overview.axes.dribbling",
+    "playerProfile.overview.axes.reflexes"
   ],
   "id": [
     "settings.sidebarBehaviourOptions.normal",
@@ -741,6 +778,10 @@
     "worldEditor.staffRole.Scout",
     "youthAcademy.ovr",
     "youthAcademy.pos",
-    "youthAcademy.traits"
+    "youthAcademy.traits",
+    "playerProfile.overview.axes.dribbling",
+    "playerProfile.overview.axes.vision",
+    "playerProfile.overview.axes.reflexes",
+    "playerProfile.overview.axes.stamina"
   ]
 }

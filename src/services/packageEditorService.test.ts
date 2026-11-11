@@ -32,35 +32,29 @@ describe("validatePackageProject", () => {
     localStorage.clear();
   });
 
-  /** Given an old recent record, when Validate reports findings, then the stored record is updated. */
-  it("saves validation findings on an old recent project", async () => {
-    vi.useFakeTimers();
-    vi.setSystemTime(new Date("2026-11-10T12:00:00.000Z"));
+  /** Given stored recents, when Validate returns, then the caller owns the only persistence update. */
+  it("does not write recent projects while fetching validation", async () => {
     localStorage.setItem(
       "worldEditor.recentProjects",
-      JSON.stringify([
-        { path: "/p", name: "Old world", openedAt: "2026-01-01" },
-        { path: "/other", name: "Other", openedAt: "2026-01-02" },
-      ]),
+      JSON.stringify([{ path: "/p", name: "P", openedAt: "old" }]),
     );
-    invokeMock.mockResolvedValue({
-      issues: [{ code: "x" }],
-      warnings: [{ code: "y" }, { code: "z" }],
-    });
-
+    const write = vi.spyOn(Storage.prototype, "setItem");
+    invokeMock.mockResolvedValue({ issues: [], warnings: [] });
     try {
       await validatePackageProject("/p");
-
-      const records = JSON.parse(localStorage.getItem("worldEditor.recentProjects") ?? "[]");
-      expect(records[0].lastValidation).toEqual({
-        errors: 1,
-        warnings: 2,
-        checkedAt: "2026-11-10T12:00:00.000Z",
-      });
-      expect(records[1]).toEqual({ path: "/other", name: "Other", openedAt: "2026-01-02" });
+      expect(write).not.toHaveBeenCalled();
     } finally {
-      vi.useRealTimers();
+      write.mockRestore();
     }
+  });
+
+  /** Given diagnostics omit warnings, when Validate returns, then its issues still reach the caller. */
+  it("returns diagnostics when warnings are absent", async () => {
+    invokeMock.mockResolvedValue({ issues: [{ code: "x" }] });
+    await expect(validatePackageProject("/p")).resolves.toEqual({
+      issues: [{ code: "x" }],
+      warnings: [],
+    });
   });
 
   /** Given storage cannot be read, when Validate succeeds, then its findings still reach the editor. */

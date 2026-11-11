@@ -1,60 +1,53 @@
-import { ArrowLeft, ChevronRight, Loader2, SlidersHorizontal } from "lucide-react";
+import { ArrowLeft, SlidersHorizontal } from "lucide-react";
+import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 
 import ChosenClubCard from "../components/teamSelection/ChosenClubCard";
 import ClubsTable from "../components/teamSelection/ClubsTable";
 import CountryLeagueRail from "../components/teamSelection/CountryLeagueRail";
-import { keyPlayers } from "../components/teamSelection/keyPlayers";
+import ManageButton from "../components/teamSelection/ManageButton";
+import SimulationDialog from "../components/teamSelection/SimulationDialog";
 import TeamSelectionStepper from "../components/teamSelection/TeamSelectionStepper";
-import { Button, Card, CardBody, ThemeToggle } from "../components/ui";
-import { competitionDisplayName } from "../lib/competitionName";
+import { Button, ThemeToggle } from "../components/ui";
 import { calcAgeOnDate } from "../lib/valueFormatting";
 import { useGameStore } from "../store/gameStore";
-import TeamSelectionScopePanel from "./TeamSelectionScopePanel";
 import { useTeamSelection } from "./useTeamSelection";
 
-const SCOPE_BAND_ID = "team-selection-scope";
 const MANAGE_HINT_ID = "team-selection-manage-hint";
 
 export default function TeamSelection() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { gameState, setGameState, setGameActive } = useGameStore();
+  const [scopeOpen, setScopeOpen] = useState(false);
+  // A key player's age is worked out from his date of birth in the game state: found by id.
+  const playersById = useMemo(
+    () => new Map((gameState?.players ?? []).map((player) => [player.id, player])),
+    [gameState],
+  );
 
   const {
     clubSearch,
     setClubSearch,
-    scopeExpanded,
-    setScopeExpanded,
-    selectedHomeRegionId,
     selectedCountryCode,
-    setSelectedCountryCode,
     allCountryCodes,
     handleSelectCountry,
-    changeHomeRegion,
     activeLeagueId,
     setSelectedLeagueId,
-    regionSelection,
     setSelectedTeamId,
-    scopeMessage,
-    setScopeMessage,
     isConfirming,
+    competitions,
     regions,
-    regionCountries,
-    activeRegionIds,
-    availableCompetitions,
     leagueGroups,
     visibleClubs,
     getTeamAvgOvr,
-    getPlayerRating,
+    getClubFacts,
     selectedTeam,
-    selectedTeamXi,
+    selectedClubFacts,
     selectedTeamCompetitions,
-    mandatoryCompetitionIds,
-    competitionSelection,
-    handleRegionToggle,
-    handleCompetitionToggle,
+    scopeDraft,
+    applyScope,
     handleConfirm,
   } = useTeamSelection({ gameState, setGameState, setGameActive, navigate });
 
@@ -92,9 +85,11 @@ export default function TeamSelection() {
           <Button
             variant="outline"
             size="sm"
-            aria-expanded={scopeExpanded}
-            aria-controls={SCOPE_BAND_ID}
-            onClick={() => setScopeExpanded((value) => !value)}
+            aria-haspopup="dialog"
+            // The dialog locks the chosen club's own competitions and regions, which the backend names
+            // with the club's facts: it waits for them rather than show the club as having none.
+            disabled={selectedTeam !== null && selectedClubFacts === undefined}
+            onClick={() => setScopeOpen(true)}
             icon={<SlidersHorizontal aria-hidden="true" />}
           >
             {t("teamSelect.simulation")}
@@ -104,57 +99,15 @@ export default function TeamSelection() {
               {t("teamSelect.card.emptyTitle")}
             </span>
           )}
-          <Button
+          <ManageButton
+            label={manageLabel}
             disabled={!selectedTeam || isConfirming}
-            aria-describedby={selectedTeam ? undefined : MANAGE_HINT_ID}
+            confirming={isConfirming}
+            describedBy={selectedTeam ? undefined : MANAGE_HINT_ID}
             onClick={handleConfirm}
-            iconRight={
-              isConfirming ? (
-                <Loader2 aria-hidden="true" className="animate-spin" />
-              ) : (
-                <ChevronRight aria-hidden="true" />
-              )
-            }
-          >
-            {manageLabel}
-          </Button>
+          />
         </div>
       </header>
-
-      {/* The simulation's settings, until they move into a dialog of their own. */}
-      <div id={SCOPE_BAND_ID} className="shrink-0 overflow-auto lg:max-h-[45vh]">
-        {scopeExpanded ? (
-          <div className="space-y-3 px-5 pt-3">
-            {scopeMessage && (
-              <Card accent="accent">
-                <CardBody className="py-3">
-                  <p className="text-body text-fg">{t(scopeMessage.key, scopeMessage.values)}</p>
-                </CardBody>
-              </Card>
-            )}
-            <TeamSelectionScopePanel
-              scopeExpanded={scopeExpanded}
-              onToggleScopeExpanded={() => setScopeExpanded((value) => !value)}
-              regions={regions}
-              selectedHomeRegionId={selectedHomeRegionId}
-              onSelectHomeRegion={(regionId) => {
-                changeHomeRegion(regionId);
-                setScopeMessage(null);
-              }}
-              selectedCountryCode={selectedCountryCode}
-              onSelectCountry={setSelectedCountryCode}
-              regionCountries={regionCountries}
-              regionSelection={regionSelection}
-              onRegionToggle={handleRegionToggle}
-              availableCompetitions={availableCompetitions}
-              competitionSelection={competitionSelection}
-              mandatoryCompetitionIds={mandatoryCompetitionIds}
-              activeRegionIds={activeRegionIds}
-              onCompetitionToggle={handleCompetitionToggle}
-            />
-          </div>
-        ) : null}
-      </div>
 
       <div className="grid min-h-0 flex-1 grid-cols-1 gap-3.5 px-5 pb-4 pt-4 lg:grid-cols-[14.5rem_minmax(0,1fr)_20rem]">
         <CountryLeagueRail
@@ -179,6 +132,7 @@ export default function TeamSelection() {
           selectedTeamId={selectedTeam?.id ?? null}
           onSelectTeam={setSelectedTeamId}
           getTeamAvgOvr={getTeamAvgOvr}
+          getClubFacts={getClubFacts}
         />
 
         <aside
@@ -188,15 +142,40 @@ export default function TeamSelection() {
           <ChosenClubCard
             team={selectedTeam}
             average={selectedTeam ? getTeamAvgOvr(selectedTeam.id) : null}
-            keyPlayers={keyPlayers(selectedTeamXi, getPlayerRating, (player) =>
-              calcAgeOnDate(player.date_of_birth, today),
-            )}
-            competitionNames={selectedTeamCompetitions.map((competition) =>
-              competitionDisplayName(competition, t),
-            )}
+            facts={selectedClubFacts}
+            competitions={competitions}
+            ageOf={(playerId) => {
+              const player = playersById.get(playerId);
+              return player ? calcAgeOnDate(player.date_of_birth, today) : null;
+            }}
+            // The same action as the header's Manage, which a keyboard reaches right after the table.
+            action={
+              <ManageButton
+                className="w-full"
+                label={manageLabel}
+                disabled={!selectedTeam || isConfirming}
+                confirming={isConfirming}
+                onClick={handleConfirm}
+              />
+            }
           />
         </aside>
       </div>
+
+      {scopeOpen ? (
+        <SimulationDialog
+          regions={regions}
+          competitions={competitions}
+          teams={gameState.teams}
+          yourCompetitions={selectedTeamCompetitions}
+          initial={scopeDraft}
+          onApply={(draft) => {
+            applyScope(draft);
+            setScopeOpen(false);
+          }}
+          onCancel={() => setScopeOpen(false)}
+        />
+      ) : null}
     </div>
   );
 }

@@ -74,7 +74,44 @@ function buildGameState(): GameStateData {
   } as unknown as GameStateData;
 }
 
-function renderController({ pick = true } = {}) {
+/** One club's facts as the backend gives them (`get_team_selection_ratings`), contesting `competitionIds`. */
+function clubFacts(teamId: string, competitionIds: string[], overrides = {}) {
+  return {
+    team_id: teamId,
+    average_rating: 73,
+    players: [{ player_id: "p1", ovr: 77 }],
+    stadium_name: "Ground",
+    stadium_capacity: 20_000,
+    transfer_budget: 5_000_000,
+    weekly_wage_budget: 100_000,
+    balance: 1_000_000,
+    colors: { primary: "#112233", secondary: "#ffffff" },
+    founded_year: 1900,
+    competitions: competitionIds.map((id) => ({
+      id,
+      name: id,
+      name_key: null,
+      season: 2025,
+      kind: "League",
+      scope: "Domestic",
+    })),
+    key_players: [{ player_id: "p1", name: "J. Smith", position: "Striker", ovr: 77 }],
+    reputation_key: "teamSelect.repAverage",
+    opening_expectation: { target_position: 10, label_key: "teamSelect.expectations.midTable" },
+    ...overrides,
+  };
+}
+
+/** The backend, as the hook sees it: the club's facts, and a started career for `select_team`. */
+function mockBackend(clubs = [clubFacts("team-1", ["epl", "intl"])]) {
+  vi.mocked(invoke).mockImplementation(async (command: string) =>
+    command === "get_team_selection_ratings"
+      ? { clubs }
+      : { manager: { display_name: "Sam Boss" } },
+  );
+}
+
+async function renderController({ pick = true } = {}) {
   // Build the game state once so the hook receives a stable reference across
   // re-renders (the real store does the same); a fresh object each render would
   // retrigger the region/competition memos and loop the sync effects.
@@ -84,125 +121,106 @@ function renderController({ pick = true } = {}) {
     setGameActive: vi.fn(),
     navigate: vi.fn(),
   };
+  mockBackend();
   const controller = renderHook(() => useTeamSelection({ gameState, ...externals }));
+  // The club's competitions are the backend's answer, so the scope waits for it.
+  await waitFor(() => expect(controller.result.current.getClubFacts("team-1")).toBeDefined());
   // Nothing is chosen on arrival; the scope tests are about the club the player picks.
   if (pick) act(() => controller.result.current.setSelectedTeamId("team-1"));
   return controller;
 }
 
-describe("useTeamSelection scope toggles", () => {
+describe("useTeamSelection simulation scope", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  it("initializes the home region, region selection, and competition selection", () => {
-    const { result } = renderController();
+  /**
+   * Given a world with a home league, a cup that needs a second region and another that needs a
+   *       third, and nobody has touched the simulation settings
+   * When the screen opens, with and without a club chosen
+   * Then the career simulates what it always has: every competition, and every region they need.
+   *      The redesign changes the screen, not what an untouched career simulates.
+   */
+  it("simulates every competition and the regions they need until the settings are touched", async () => {
+    const { result } = await renderController({ pick: false });
 
     expect(result.current.selectedHomeRegionId).toBe("europe");
-    expect(result.current.regionSelection.europe).toBe(true);
-    expect(result.current.selectedTeam?.id).toBe("team-1");
-    expect(result.current.mandatoryCompetitionIds.has("epl")).toBe(true);
-    expect(result.current.mandatoryCompetitionIds.has("intl")).toBe(true);
+    expect(result.current.activeRegionIds).toEqual(["asia", "europe", "south_america"]);
+    expect(result.current.enabledCompetitionIds).toEqual(["epl", "intl", "asia_cup"]);
+
+    act(() => result.current.setSelectedTeamId("team-1"));
+    expect(result.current.activeRegionIds).toEqual(["asia", "europe", "south_america"]);
+    expect(result.current.enabledCompetitionIds).toEqual(["epl", "intl", "asia_cup"]);
   });
 
-  it("refuses to toggle the home region off", () => {
-    const { result } = renderController();
-
-    act(() => result.current.handleRegionToggle("europe"));
-
-    expect(result.current.scopeMessage?.key).toBe(
-      "teamSelect.scopeMessages.homeRegionAlwaysActive",
-    );
-    expect(result.current.regionSelection.europe).toBe(true);
-  });
-
-  it("enables a non-home region when toggled on", () => {
-    const { result } = renderController();
-
-    act(() => result.current.handleRegionToggle("asia"));
-
-    expect(result.current.regionSelection.asia).toBe(true);
-    expect(result.current.scopeMessage).toBeNull();
-  });
-
-  it("blocks disabling a region required by a mandatory competition", () => {
-    const { result } = renderController();
-
-    act(() => result.current.handleRegionToggle("south_america")); // enable
-    act(() => result.current.handleRegionToggle("south_america")); // try disable
-
-    expect(result.current.scopeMessage?.key).toBe(
-      "teamSelect.scopeMessages.regionRequiredByCompetition",
-    );
-    expect(result.current.regionSelection.south_america).toBe(true);
-  });
-
-  it("disables stranded dependent competitions when a region is removed", () => {
-    const { result } = renderController();
-
-    act(() => result.current.handleRegionToggle("asia")); // enable, asia_cup stays on
-    act(() => result.current.handleRegionToggle("asia")); // disable, strands asia_cup
-
-    expect(result.current.competitionSelection.asia_cup).toBe(false);
-    expect(result.current.scopeMessage?.key).toBe(
-      "teamSelect.scopeMessages.regionRemovedDisablesCompetitions",
-    );
-  });
-
-  it("auto-enables missing regions when enabling a competition", () => {
-    const { result } = renderController();
-    const asiaCup = () => result.current.availableCompetitions.find((c) => c.id === "asia_cup")!;
-
-    act(() => result.current.handleCompetitionToggle(asiaCup())); // turn asia_cup off
-    act(() => result.current.handleCompetitionToggle(asiaCup())); // turn back on -> needs asia
-
-    expect(result.current.regionSelection.asia).toBe(true);
-    expect(result.current.competitionSelection.asia_cup).toBe(true);
-    expect(result.current.scopeMessage?.key).toBe("teamSelect.scopeMessages.autoEnabledRegions");
-  });
-
-  it("locks mandatory competitions against being disabled", () => {
-    const { result } = renderController();
-    const epl = result.current.availableCompetitions.find((c) => c.id === "epl")!;
-
-    act(() => result.current.handleCompetitionToggle(epl));
-
-    expect(result.current.scopeMessage?.key).toBe("teamSelect.scopeMessages.clubCompetitionLocked");
-    expect(result.current.competitionSelection.epl).toBe(true);
-  });
-
-  it("disables an enabled non-locked competition and clears the message", () => {
-    const { result } = renderController();
-    const asiaCup = result.current.availableCompetitions.find((c) => c.id === "asia_cup")!;
-
-    act(() => result.current.handleCompetitionToggle(asiaCup));
-
-    expect(result.current.competitionSelection.asia_cup).toBe(false);
-    expect(result.current.scopeMessage).toBeNull();
-  });
-});
-
-describe("useTeamSelection home-region club filter", () => {
   /**
-   * Given a club in a country that no competition places in a region
-   * When team selection derives its regions
-   * Then there is none and no home region is picked, so there is nothing to filter by and the club
-   * is still listed: the frontend invents no region of its own, as it did when it guessed a club's
-   * region from a table of country codes.
+   * Given the dialog is applied with only the locked regions on, then with the third region on, then
+   *       with that cup unchosen
+   * When the competitions to simulate are worked out each time
+   * Then a competition whose region is off is blocked and not simulated; with its region on it is
+   *      simulated again; and once the player has unchosen it, it is not.
    */
-  it("derives no region for a country no competition places, and still lists the club", () => {
-    const gameState = {
-      teams: [createTeam({ id: "team-gb", country: "GB", short_name: "ENG" })],
-      players: [],
-      competitions: [],
-      league: null,
-      manager: { first_name: "Sam", last_name: "Boss" },
-    } as unknown as GameStateData;
-    const externals = { setGameState: vi.fn(), setGameActive: vi.fn(), navigate: vi.fn() };
-    const { result } = renderHook(() => useTeamSelection({ gameState, ...externals }));
+  it("applies the dialog's draft: a region off blocks its competition, on brings it back", async () => {
+    const { result } = await renderController();
 
-    expect(result.current.selectedHomeRegionId).toBeNull();
-    expect(result.current.visibleClubs.map((team) => team.id)).toEqual(["team-gb"]);
+    act(() => result.current.applyScope({ ...result.current.scopeDraft, regions: {} }));
+    expect(result.current.activeRegionIds).toEqual(["europe", "south_america"]);
+    expect(result.current.enabledCompetitionIds).toEqual(["epl", "intl"]);
+
+    act(() => result.current.applyScope({ ...result.current.scopeDraft, regions: { asia: true } }));
+    expect(result.current.activeRegionIds).toEqual(["asia", "europe", "south_america"]);
+    expect(result.current.enabledCompetitionIds).toEqual(["epl", "intl", "asia_cup"]);
+
+    act(() =>
+      result.current.applyScope({
+        ...result.current.scopeDraft,
+        competitions: { ...result.current.scopeDraft.competitions, asia_cup: false },
+      }),
+    );
+    expect(result.current.enabledCompetitionIds).toEqual(["epl", "intl"]);
+  });
+
+  /**
+   * Given a club chosen and the settings untouched
+   * When the career is started
+   * Then `select_team` is sent every competition and every region they need, which is what the old
+   *      flow's career simulated (it sent every competition and the game widened its home-only
+   *      region list to the regions they need).
+   */
+  it("sends select_team the full default set when the settings are untouched", async () => {
+    const { result } = await renderController();
+
+    await act(async () => {
+      await result.current.handleConfirm();
+    });
+
+    expect(invoke).toHaveBeenCalledWith("select_team", {
+      teamId: "team-1",
+      activeRegionIds: ["asia", "europe", "south_america"],
+      activeCompetitionIds: ["epl", "intl", "asia_cup"],
+    });
+  });
+
+  /**
+   * Given a club chosen and the dialog applied with the third region off, so that cup is blocked
+   * When the career is started
+   * Then `select_team` is sent only what is simulated: the blocked cup is not among them. It is the
+   *      one place a stale rule would reach the game.
+   */
+  it("sends select_team only the regions and competitions simulated after the player's changes", async () => {
+    const { result } = await renderController();
+    act(() => result.current.applyScope({ ...result.current.scopeDraft, regions: {} }));
+
+    await act(async () => {
+      await result.current.handleConfirm();
+    });
+
+    expect(invoke).toHaveBeenCalledWith("select_team", {
+      teamId: "team-1",
+      activeRegionIds: ["europe", "south_america"],
+      activeCompetitionIds: ["epl", "intl"],
+    });
   });
 });
 
@@ -308,39 +326,62 @@ describe("useTeamSelection countries", () => {
   });
 
   /**
-   * Given a player who only browsed from the European home region to a South American country
+   * Given settings nobody has touched, in a world with a competition in each of two regions
    * When the South American country is picked
-   * Then the European region is no longer simulated: the home region follows the country, and a
-   *      region merely browsed through does not slow every day down.
+   * Then both regions are still simulated, as the career always has: nothing is dropped because the
+   *      home region moved.
    */
-  it("stops simulating the region it leaves when the player only browsed", () => {
+  it("changes nothing a career simulates when the home region moves and the settings are untouched", () => {
     const gameState = buildTwoRegionGameState();
     const externals = { setGameState: vi.fn(), setGameActive: vi.fn(), navigate: vi.fn() };
     const { result } = renderHook(() => useTeamSelection({ gameState, ...externals }));
+    expect(result.current.activeRegionIds).toEqual(["europe", "south_america"]);
+
+    act(() => result.current.handleSelectCountry("BR"));
+
+    expect(result.current.activeRegionIds).toEqual(["europe", "south_america"]);
+    expect(result.current.enabledCompetitionIds).toEqual(["gb1", "br1"]);
+  });
+
+  /**
+   * Given a player who applied the settings with only the home region on, then browsed to a South
+   *       American country
+   * When the home region moves
+   * Then the European region is no longer simulated, and its competition is blocked: the home
+   *      region follows the country, and a region that was only home is not kept.
+   */
+  it("stops simulating the region it leaves once the player has chosen their regions", () => {
+    const gameState = buildTwoRegionGameState();
+    const externals = { setGameState: vi.fn(), setGameActive: vi.fn(), navigate: vi.fn() };
+    const { result } = renderHook(() => useTeamSelection({ gameState, ...externals }));
+    act(() => result.current.applyScope({ ...result.current.scopeDraft, regions: {} }));
     expect(result.current.activeRegionIds).toEqual(["europe"]);
 
     act(() => result.current.handleSelectCountry("BR"));
 
     expect(result.current.activeRegionIds).toEqual(["south_america"]);
+    expect(result.current.enabledCompetitionIds).toEqual(["br1"]);
   });
 
   /**
-   * Given a player who switched the South American region on in the simulation settings, and then
-   *       picked a South American country and went back to a European one
+   * Given a player who chose the South American region in the settings, and then went to a South
+   *       American country and back to a European one
    * When the home region moves away from South America
-   * Then South America stays simulated: the player asked for it, and only a region they did not
-   *      ask for is dropped.
+   * Then South America stays simulated: the player chose it, and only a region that was just home
+   *      is dropped.
    */
-  it("keeps simulating a region the player switched on themselves", () => {
+  it("keeps simulating a region the player chose themselves", () => {
     const gameState = buildTwoRegionGameState();
     const externals = { setGameState: vi.fn(), setGameActive: vi.fn(), navigate: vi.fn() };
     const { result } = renderHook(() => useTeamSelection({ gameState, ...externals }));
 
-    act(() => result.current.handleRegionToggle("south_america"));
+    act(() =>
+      result.current.applyScope({ ...result.current.scopeDraft, regions: { south_america: true } }),
+    );
     act(() => result.current.handleSelectCountry("BR"));
     act(() => result.current.handleSelectCountry("GB"));
 
-    expect([...result.current.activeRegionIds].sort()).toEqual(["europe", "south_america"]);
+    expect(result.current.activeRegionIds).toEqual(["europe", "south_america"]);
   });
 });
 
@@ -409,29 +450,79 @@ describe("useTeamSelection club table", () => {
   });
 });
 
-describe("useTeamSelection ratings", () => {
+describe("useTeamSelection: Manage does not wait for the club's facts", () => {
   /**
-   * Given the backend rates team-1's squad before the career (p1 at 77, the club's average 73,
-   *       which no player of the game state carries)
-   * When the hook has its answer
-   * Then the club's average, the player's rating and the likely eleven are the backend's, not
-   *      figures read off the game state
+   * Given the backend's club facts are still pending, or the request failed
+   * When a club is chosen and the career is started
+   * Then `select_team` is sent the full default set all the same: Manage never waits on the facts, so
+   *      a failed ask cannot block a career, and the game adds the club's own competitions itself.
    */
-  it("reads the squads' ratings from the backend", async () => {
+  it.each([
+    ["pending", () => new Promise(() => {})],
+    ["failed", () => Promise.reject(new Error("the ratings could not be read"))],
+  ])("starts the career with the default scope while the facts are %s", async (_state, ratings) => {
     vi.mocked(invoke).mockImplementation(async (command: string) =>
       command === "get_team_selection_ratings"
-        ? {
-            clubs: [
-              { team_id: "team-1", average_rating: 73, players: [{ player_id: "p1", ovr: 77 }] },
-            ],
-          }
-        : undefined,
+        ? ratings()
+        : { manager: { display_name: "Sam Boss" } },
     );
+    const gameState = buildGameState();
+    const externals = { setGameState: vi.fn(), setGameActive: vi.fn(), navigate: vi.fn() };
+    const { result } = renderHook(() => useTeamSelection({ gameState, ...externals }));
+    act(() => result.current.setSelectedTeamId("team-1"));
+    expect(result.current.selectedClubFacts).toBeUndefined();
 
-    const { result } = renderController();
+    await act(async () => {
+      await result.current.handleConfirm();
+    });
 
-    await waitFor(() => expect(result.current.getTeamAvgOvr("team-1")).toBe(73));
-    expect(result.current.getPlayerRating("p1")).toBe(77);
-    expect(result.current.selectedTeamXi.map((player) => player.id)).toEqual(["p1"]);
+    expect(invoke).toHaveBeenCalledWith("select_team", {
+      teamId: "team-1",
+      activeRegionIds: ["asia", "europe", "south_america"],
+      activeCompetitionIds: ["epl", "intl", "asia_cup"],
+    });
+  });
+});
+
+describe("useTeamSelection ratings", () => {
+  /**
+   * Given the backend rates team-1's squad before the career (the club's average 73, a key player
+   *       at 77, which no player of the game state carries) and names its reputation and the board's
+   *       opening expectation
+   * When the hook has its answer
+   * Then the club's average and its facts are the backend's, not figures read off the game state:
+   *      the reputation word and the expectation are the translation keys it names
+   */
+  it("reads the clubs' facts from the backend", async () => {
+    const { result } = await renderController();
+
+    expect(result.current.getTeamAvgOvr("team-1")).toBe(73);
+    expect(result.current.selectedClubFacts).toMatchObject({
+      reputation_key: "teamSelect.repAverage",
+      opening_expectation: { label_key: "teamSelect.expectations.midTable" },
+    });
+    expect(result.current.selectedClubFacts?.key_players.map((player) => player.player_id)).toEqual(
+      ["p1"],
+    );
+  });
+
+  /**
+   * Given the backend says the club contests only its league
+   * When the club is chosen
+   * Then the club's own competitions, which are always simulated, are the backend's list, not one
+   *      worked out here from the fixtures.
+   */
+  it("takes the club's competitions from the backend's answer", async () => {
+    mockBackend([clubFacts("team-1", ["epl"])]);
+    const gameState = buildGameState();
+    const externals = { setGameState: vi.fn(), setGameActive: vi.fn(), navigate: vi.fn() };
+    const { result } = renderHook(() => useTeamSelection({ gameState, ...externals }));
+    await waitFor(() => expect(result.current.getClubFacts("team-1")).toBeDefined());
+
+    act(() => result.current.setSelectedTeamId("team-1"));
+
+    expect(result.current.selectedTeamCompetitions.map((competition) => competition.id)).toEqual([
+      "epl",
+    ]);
   });
 });

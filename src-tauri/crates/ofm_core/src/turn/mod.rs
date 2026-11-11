@@ -230,6 +230,11 @@ where
     F: FnMut(StatsState),
 {
     let shown_fixtures = calendar_sweep::take_shown_at_day_start(game, today);
+    if let Ok(day) = chrono::NaiveDate::parse_from_str(today, "%Y-%m-%d") {
+        crate::national_team::settle_tournaments(game, day);
+        crate::national_team::settle_for_replay(game, day);
+    }
+    calendar_sweep::prepare_calendar(game, today, &shown_fixtures);
     let due = competition_indices_due_today(game, today);
     if !due.is_empty() {
         info!("[turn] {}: matchday in {} competition(s)", today, due.len());
@@ -262,10 +267,10 @@ where
         }
     }
 
-    // National-team football: window friendlies and any running World Cup.
+    // National-team football: window friendlies and every national tournament.
     // Both self-filter by date, so they are no-ops on other days.
     crate::national_team::process_national_team_fixtures_due(game, today);
-    crate::world_cup::process_world_cup_fixtures_due(game, today);
+    crate::national_tournament::process_fixtures_due(game, today);
     if let Some(tomorrow) = game.clock.current_date.date_naive().succ_opt() {
         crate::national_team::settle_friendlies(game, tomorrow);
     }

@@ -225,6 +225,22 @@ describe("NewsTab", () => {
     expect(screen.getByText("Awards Ceremony Mock league-de")).toBeInTheDocument();
   });
 
+  /** Given a manager who has never had a club, when an awards article opens, then no league's id is passed. */
+  it("passes no fallback league to the awards ceremony for a manager who never had a club", () => {
+    const game = createGameState([
+      createNewsArticle({
+        id: "season_awards_6",
+        headline: "Season awards night",
+        category: "Editorial",
+      }),
+    ]);
+    game.manager = { ...game.manager, team_id: null, career_history: [] };
+    game.league = { id: "league-de", name: "Germany First Division" } as GameStateData["league"];
+    render(<NewsTab gameState={game} onSelectTeam={vi.fn()} />);
+    fireEvent.click(screen.getByRole("button", { name: /Season awards night/i }));
+    expect(screen.queryByText(/league-de/)).not.toBeInTheDocument();
+  });
+
   it("opens the dedicated awards ceremony page from a season awards article", () => {
     render(
       <NewsTab

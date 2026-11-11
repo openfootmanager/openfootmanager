@@ -63,9 +63,3 @@ export function rememberRecentProject(
   writeRecentProjects(updated);
   return updated;
 }
-
-export function recordValidation(path: string, errors: number, warnings: number): void {
-  const records = readStoredProjects();
-  if (!records) return;
-  updateRecentValidation(records, path, { errors, warnings, checkedAt: new Date().toISOString() });
-}
