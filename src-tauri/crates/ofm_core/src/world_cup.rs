@@ -2957,4 +2957,107 @@ mod tests {
                 .all(|group| group.iter().filter(|code| regions[*code] == "asia").count() <= 1)
         );
     }
+    /// Given continental progression and qualifying completion in one processor call, When
+    /// a new playoff displaces that freshly drawn final, Then its date was never shown as postponed.
+    #[test]
+    fn a_playoff_draw_keeps_a_fresh_continental_final_unmarked() {
+        let mut game = empty_game();
+        schedule_world_cup_qualifying(&mut game, 2026, &season_windows(2024));
+        let mut last_day = None;
+        for _ in 0..400 {
+            let dates: std::collections::BTreeSet<_> = game
+                .competitions
+                .iter()
+                .filter(|c| is_world_cup_qualifying(c))
+                .flat_map(|c| &c.fixtures)
+                .filter(|f| f.status == FixtureStatus::Scheduled)
+                .map(|f| f.date.clone())
+                .collect();
+            if dates.len() == 1 {
+                last_day = dates.into_iter().next();
+                break;
+            }
+            let date = dates
+                .into_iter()
+                .next()
+                .expect("qualifying still has matches");
+            process_world_cup_fixtures_due(&mut game, &date);
+        }
+        let day = last_day.expect("one final qualifying date");
+        let date = |s: &str| chrono::NaiveDate::parse_from_str(s, "%Y-%m-%d").unwrap();
+        let mut oracle = game.clone();
+        process_world_cup_fixtures_due(&mut oracle, &day);
+        let playoff = oracle
+            .competitions
+            .iter()
+            .find(|c| is_world_cup_playoff(c))
+            .expect("the campaign stages its playoff");
+        let prelim = playoff.fixtures.first().unwrap();
+        let entrant = prelim.home_team_id.clone();
+        let busy: std::collections::BTreeSet<_> = game
+            .competitions
+            .iter()
+            .flat_map(|c| &c.fixtures)
+            .filter(|f| (date(&f.date) - date(&day)).num_days().abs() < 3)
+            .flat_map(|f| [&f.home_team_id, &f.away_team_id])
+            .cloned()
+            .collect();
+        let others: Vec<_> = game
+            .national_teams
+            .iter()
+            .filter(|n| !busy.contains(&n.id) && !playoff.participant_ids.contains(&n.id))
+            .take(3)
+            .map(|n| n.id.clone())
+            .collect();
+        assert_eq!(others.len(), 3);
+        let entrants = vec![
+            entrant.clone(),
+            others[0].clone(),
+            others[1].clone(),
+            others[2].clone(),
+        ];
+        let start = crate::schedule::date_str_to_utc(&day).unwrap();
+        let mut continental = crate::schedule::generate_knockout_cup(
+            "Delayed continental cup",
+            2026,
+            &entrants,
+            start,
+            CompetitionType::InternationalNation,
+            CompetitionScope::Continental,
+        );
+        continental.priority = 10_000;
+        let final_day = season_window_dates(2025).pop().unwrap();
+
+        continental.rules.knockout_round_gap_days =
+            (date(&final_day) - date(&day)).num_days() as u32;
+        for fixture in &mut continental.fixtures {
+            if fixture.home_team_id == entrant || fixture.away_team_id == entrant {
+                fixture.date = "2023-01-01".into();
+                fixture.status = FixtureStatus::Completed;
+                fixture.result = Some(domain::league::MatchResult {
+                    home_goals: u8::from(fixture.home_team_id == entrant),
+                    away_goals: u8::from(fixture.away_team_id == entrant),
+                    ..Default::default()
+                });
+            } else {
+                fixture.date = day.clone();
+            }
+        }
+        let cup_id = continental.id.clone();
+        game.competitions.push(continental);
+        assert!(crate::national_tournament::process_fixtures_due(&mut game, &day) > 1);
+        assert!(game.competitions.iter().any(is_world_cup_playoff));
+        let cup = game.competitions.iter().find(|c| c.id == cup_id).unwrap();
+        assert_eq!(cup.knockout_rounds.len(), 2);
+        let final_id = &cup.knockout_rounds[1].fixture_ids[0];
+        let final_tie = cup.fixtures.iter().find(|f| &f.id == final_id).unwrap();
+        assert!(
+            final_tie.date > final_day,
+            "the higher-priority playoff must actually displace the final"
+        );
+        assert!(
+            final_tie.postponement.is_none(),
+            "the final was drawn during this call, never shown on its original date"
+        );
+    }
 }
