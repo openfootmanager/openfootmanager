@@ -1,5 +1,6 @@
 //! Results of the read-only information tools.
 
+use std::collections::BTreeMap;
 use std::fmt;
 
 use serde::{Deserialize, Serialize};
@@ -523,7 +524,13 @@ impl fmt::Display for SeasonContext {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct NewsItem {
     pub headline: String,
+    #[serde(default)]
+    pub body: String,
     pub date: String,
+    /// The structured params of an article whose text carries a list the game builds as data (a
+    /// roundup's results, a standings table). The sentence does not repeat them.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub details: BTreeMap<String, Value>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

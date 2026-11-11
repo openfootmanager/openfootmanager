@@ -1,21 +1,55 @@
 //! Results of the inbox tools.
 
+use std::collections::BTreeMap;
 use std::fmt;
 
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 
 use crate::tool_results;
 
 /// Messages the text lists before it summarises the rest; the structure always carries all of them.
 const LISTED_IN_TEXT: usize = 20;
 
+/// One choice of a `choose_option` action: pass `id` as `option_id` to `inbox_resolve_action`.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct InboxActionOption {
+    pub id: String,
+    pub label: String,
+    pub description: String,
+}
+
+/// Something a message asks the manager to do. Pass the message's `id` and this `id` to
+/// `inbox_resolve_action`; a `resolved` action has been answered and is refused a second time.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct InboxAction {
+    pub id: String,
+    pub label: String,
+    /// `acknowledge`, `navigate`, `choose_option` or `dismiss`.
+    pub kind: String,
+    pub resolved: bool,
+    /// The choices of a `choose_option` action; empty for the other kinds.
+    #[serde(default)]
+    pub options: Vec<InboxActionOption>,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct InboxMessage {
     pub id: String,
     pub subject: String,
+    #[serde(default)]
+    pub body: String,
+    #[serde(default)]
+    pub sender: String,
     pub category: String,
     pub read: bool,
     pub date: String,
+    #[serde(default)]
+    pub actions: Vec<InboxAction>,
+    /// The structured params of a message whose text carries a list the game builds as data (a
+    /// roundup's results, a standings table). The sentence does not repeat them.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub details: BTreeMap<String, Value>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

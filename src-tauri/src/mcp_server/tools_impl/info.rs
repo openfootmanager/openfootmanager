@@ -8,6 +8,7 @@ use mcp_results::info::{
     TeamProfile, TeamResult, TeamStats,
 };
 
+use crate::mcp_server::backend_text;
 use crate::mcp_server::context::McpContext;
 use crate::mcp_server::tools_impl::helpers::{
     age_from_dob, format_position, require_game, require_league, serde_label, user_team,
@@ -543,9 +544,14 @@ fn recent_news(news: &[domain::news::NewsArticle], today: &str) -> RecentNews {
             .iter()
             .filter(|n| ofm_core::slices::news::article_is_visible(&n.date, today))
             .take(10)
-            .map(|n| NewsItem {
-                headline: n.headline.clone(),
-                date: n.date.clone(),
+            .map(|n| {
+                let text = backend_text::resolve_article(n);
+                NewsItem {
+                    headline: text.headline,
+                    body: text.body,
+                    date: n.date.clone(),
+                    details: text.details,
+                }
             })
             .collect(),
     }
@@ -849,6 +855,85 @@ mod info_news_tests {
         let rendered = recent_news(&news, "2026-02-15").to_string();
 
         assert!(rendered.contains("digest headline"));
+    }
+
+    /// Given the articles the game writes with keys and params (a major transfer, a roundup)
+    /// When an agent reads the news
+    /// Then each headline is English text, not blank and not a key, and the body is words too
+    ///      (#1195: agents saw blank headlines)
+    #[test]
+    fn an_agent_reads_a_headline_for_the_articles_the_game_writes() {
+        let news = vec![
+            ofm_core::news::major_transfer_article(
+                "n1",
+                "p1",
+                "J. Doe",
+                "t1",
+                "North",
+                "t2",
+                "South",
+                12_500_000,
+                "2026-02-14",
+            ),
+            ofm_core::news::season_preview_article(
+                &["North".to_string(), "South".to_string()],
+                "2026-02-14",
+            ),
+        ];
+
+        let read = recent_news(&news, "2026-02-15");
+
+        assert_eq!(read.articles[0].headline, "J. Doe Completes Move to South");
+        assert_eq!(
+            read.articles[0].body,
+            "South have completed the signing of J. Doe from North for €12.5M."
+        );
+        for article in &read.articles {
+            assert!(
+                !article.headline.trim().is_empty(),
+                "blank headline: {article:?}"
+            );
+            assert!(!article.headline.starts_with("be."), "a key: {article:?}");
+            assert!(
+                !article.headline.contains("{{"),
+                "a placeholder: {article:?}"
+            );
+            assert!(!article.body.trim().is_empty(), "blank body: {article:?}");
+        }
+    }
+
+    /// Given a roundup, whose results the game builds as structured data (`resultsData`) for the
+    ///       screen to lay out
+    /// When an agent reads the news
+    /// Then the data is in `details` for the agent to read, and the sentence neither carries the
+    ///      raw JSON nor a placeholder it could not fill
+    #[test]
+    fn a_roundup_hands_its_structured_results_over_as_details_not_as_raw_json_in_the_text() {
+        let news = vec![ofm_core::news::league_roundup_article(
+            "league",
+            3,
+            &[("North".to_string(), 2, "South".to_string(), 1)],
+            "2026-02-14",
+        )];
+
+        let article = &recent_news(&news, "2026-02-15").articles[0];
+
+        assert!(
+            article.details.contains_key("resultsData"),
+            "{:?}",
+            article.details
+        );
+        assert!(
+            !article.body.contains("{{"),
+            "a placeholder is left: {}",
+            article.body
+        );
+        assert!(
+            !article.body.contains("[{"),
+            "raw JSON in the sentence: {}",
+            article.body
+        );
+        assert!(article.body.contains("North"), "{}", article.body);
     }
 }
 
