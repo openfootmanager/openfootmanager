@@ -14,7 +14,7 @@ export function OverviewCard({ title, link, children, className = "" }: Overview
   return (
     <section
       aria-label={title}
-      className={`flex min-w-0 flex-col overflow-hidden rounded-xl border border-line bg-panel shadow-card ${className}`}
+      className={`relative flex min-w-0 flex-col overflow-hidden rounded-xl border border-line bg-panel shadow-card ${className}`}
     >
       <div className="flex items-center justify-between gap-3 border-b border-line px-4 py-2.5">
         <h3 className="font-heading text-body font-bold uppercase tracking-label text-fg">

@@ -371,7 +371,7 @@ function TraitsCard({ traits }: PlayerProfileOverviewProps) {
   const { t } = useTranslation();
   if (traits.length === 0) return null;
   return (
-    <OverviewCard title={t("playerProfile.overview.traits")} className="flex-1">
+    <OverviewCard title={t("playerProfile.overview.traits")}>
       <div className="p-3">
         <TraitList traits={traits} size="sm" />
       </div>
