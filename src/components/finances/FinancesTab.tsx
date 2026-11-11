@@ -78,6 +78,8 @@ function FinancesTabContent({
   const [loadFailure, setLoadFailure] = useState<{ teamId: string; key: string } | null>(null);
   const [loadAttempt, setLoadAttempt] = useState(0);
 
+  // Slim session updates may omit the foreign player carrying a reservation, so a fresh
+  // career state must refresh commitments even when its visible finance fields are unchanged.
   useEffect(() => {
     let cancelled = false;
     const requestKey = financeSnapshotKey;
@@ -99,7 +101,7 @@ function FinancesTabContent({
     return () => {
       cancelled = true;
     };
-  }, [financeSnapshotKey, myTeam.id, loadAttempt]);
+  }, [financeSnapshotKey, myTeam.id, loadAttempt, gameState]);
 
   const ownData = remoteFinanceData?.teamId === myTeam.id ? remoteFinanceData : null;
   const failedForThisState =
