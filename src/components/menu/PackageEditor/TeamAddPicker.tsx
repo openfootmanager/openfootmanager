@@ -72,13 +72,16 @@ export function TeamAddPicker({ teams, taken, onAdd }: TeamAddPickerProps) {
       <button
         ref={triggerRef}
         type="button"
-        disabled={!anyLeft && !isOpen}
+        // aria-disabled, not disabled: picking the last team re-renders this button as unavailable while
+        // focus is on it (close() just put it there), and a disabled button would drop that focus.
+        aria-disabled={!anyLeft && !isOpen}
         onClick={() => {
+          if (!anyLeft && !isOpen) return;
           setSearch("");
           setActive(0);
           setIsOpen((open) => !open);
         }}
-        className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-dashed border-gray-300 dark:border-navy-500 text-sm text-gray-500 dark:text-gray-400 hover:border-primary-400 hover:text-primary-500 dark:hover:border-primary-500 dark:hover:text-primary-400 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+        className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-dashed border-gray-300 dark:border-navy-500 text-sm text-gray-500 dark:text-gray-400 hover:border-primary-400 hover:text-primary-500 dark:hover:border-primary-500 dark:hover:text-primary-400 transition-all aria-disabled:opacity-40 aria-disabled:cursor-not-allowed"
       >
         <Plus className="w-4 h-4" />
         {t("worldEditor.addTeam")}

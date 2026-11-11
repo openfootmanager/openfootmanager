@@ -122,7 +122,25 @@ describe("CompetitionForm: the explicit participants picker", () => {
   it("disables Add team when every team is already in", () => {
     renderForm({ teams: teams(2), explicit: ["t0", "t1"] });
 
-    expect(addButton()).toBeDisabled();
+    expect(addButton()).toHaveAttribute("aria-disabled", "true");
+    fireEvent.click(addButton());
+    expect(screen.queryByPlaceholderText("worldEditor.searchTeams")).not.toBeInTheDocument();
+  });
+
+  /**
+   * Given exactly one team left to add and the picker open on the keyboard
+   * When Enter picks that last team
+   * Then focus is on the Add team button, which is still focusable (aria-disabled, not removed from the
+   *   tab order): a disabled button would drop the focus the keyboard user just had
+   */
+  it("keeps focus on a still-focusable Add team after the last team is picked", () => {
+    renderForm({ teams: teams(2), explicit: ["t0"] });
+    fireEvent.click(addButton());
+
+    fireEvent.keyDown(searchBox(), { key: "Enter" });
+
+    expect(addButton()).not.toBeDisabled();
+    expect(addButton()).toHaveFocus();
   });
 
   /**
