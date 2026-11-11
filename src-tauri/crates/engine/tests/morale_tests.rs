@@ -130,24 +130,33 @@ fn assert_drop(engine: Engine) {
     );
 }
 
-/// Given a home side whose players are all at +3% and a neutral side, equal otherwise,
-/// When each engine plays its arm of matches against the same seeds as a neutral home side,
-/// Then the lifted side's shot difference rises by more than STANDARD_ERRORS standard errors.
+/// Given a home side whose players are all at +3% and a neutral side, equal otherwise
+/// When the instant engine plays its arm of matches against the same seeds as a neutral home side
+/// Then the lifted side's shot difference rises by more than STANDARD_ERRORS standard errors of the difference
 #[test]
 fn a_lifted_mood_helps_in_the_instant_engine() {
     assert_lift(Engine::Instant);
 }
 
+/// Given a home side whose players are all at -3% and a neutral side, equal otherwise
+/// When the instant engine plays its arm of matches against the same seeds as a neutral home side
+/// Then the lowered side's shot difference falls by more than STANDARD_ERRORS standard errors of the difference
 #[test]
 fn a_lowered_mood_costs_in_the_instant_engine() {
     assert_drop(Engine::Instant);
 }
 
+/// Given a home side whose players are all at +3% and a neutral side, equal otherwise
+/// When the live engine plays its arm of matches against the same seeds as a neutral home side
+/// Then the lifted side's shot difference rises by more than STANDARD_ERRORS standard errors of the difference
 #[test]
 fn a_lifted_mood_helps_in_the_live_engine() {
     assert_lift(Engine::Live);
 }
 
+/// Given a home side whose players are all at -3% and a neutral side, equal otherwise
+/// When the live engine plays its arm of matches against the same seeds as a neutral home side
+/// Then the lowered side's shot difference falls by more than STANDARD_ERRORS standard errors of the difference
 #[test]
 fn a_lowered_mood_costs_in_the_live_engine() {
     assert_drop(Engine::Live);
