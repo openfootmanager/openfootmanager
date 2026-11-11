@@ -2,6 +2,10 @@ import type { RecentProject } from "../store/packageEditorTypes";
 
 const KEY = "worldEditor.recentProjects";
 
+export function updateRecentValidation(records: RecentProject[], _path: string, _validation: NonNullable<RecentProject["lastValidation"]>): RecentProject[] {
+  return readRecentProjects(records);
+}
+
 function readStoredProjects(): RecentProject[] | null {
   try {
     const raw = localStorage.getItem(KEY);
