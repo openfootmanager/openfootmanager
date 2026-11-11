@@ -172,8 +172,10 @@ fn staging_path(target: &Path) -> PathBuf {
 /// files staged so far are removed and no target has changed. (A rename that fails after that,
 /// which only the filesystem can cause, leaves the files before it renamed.)
 ///
-/// Each file's value is consumed as it is staged, so a large collection's tree is gone before the
-/// next file is built and never waits for the renames.
+/// Each file's value is consumed as it is staged, so a large collection's tree is freed before the
+/// next file is staged and never waits for the renames. (Every file's value already exists by then:
+/// the plan is built whole before staging starts, so this does not lower the peak, only how long
+/// each tree is held after its own file is on disk.)
 fn write_all(pending: Vec<Pending>) -> Result<(), String> {
     let mut targets: Vec<PathBuf> = Vec::new();
     for file in pending {
@@ -974,6 +976,42 @@ mod tests {
         assert!(result.is_err(), "the save reports the failure");
         assert_eq!(manifest, MANIFEST);
         assert!(!staged_manifest, "the staged manifest is removed");
+    }
+
+    /// Given a package whose staging file for the clubs is a device that accepts the create but
+    ///       fails every write, as a full disk does (so the file exists when the write fails)
+    /// When the package is saved
+    /// Then the save fails, the half-created staging file is removed, no staged manifest is left, and
+    ///      the clubs file and the manifest are unchanged
+    #[cfg(unix)]
+    #[test]
+    fn a_staging_file_that_fails_mid_write_is_removed() {
+        if !Path::new("/dev/full").exists() {
+            return;
+        }
+        let dir = package_dir(&[
+            ("package.json", MANIFEST),
+            ("teams/teams.json", &team_file(&["fc-a"])),
+        ]);
+        let staging = dir.join("teams").join("teams.json.tmp");
+        std::os::unix::fs::symlink("/dev/full", &staging).expect("a full disk stood in");
+        let teams_before = std::fs::read(dir.join("teams").join("teams.json")).expect("readable");
+        let package = edited(&dir, |package| {
+            package.meta.as_mut().expect("meta sent").name = "Renamed".to_string()
+        });
+
+        let result = save_package_files(&dir, &package);
+        let staging_left = std::fs::symlink_metadata(&staging).is_ok();
+        let staged_manifest = dir.join("package.json.tmp").exists();
+        let manifest = std::fs::read_to_string(dir.join("package.json")).expect("readable");
+        let teams_after = std::fs::read(dir.join("teams").join("teams.json")).expect("readable");
+        std::fs::remove_dir_all(&dir).ok();
+
+        assert!(result.is_err(), "the save reports the failed write");
+        assert!(!staging_left, "the half-written staging file is removed");
+        assert!(!staged_manifest, "the staged manifest is removed");
+        assert_eq!(manifest, MANIFEST);
+        assert_eq!(teams_after, teams_before);
     }
 
     /// Given a package whose name pools for two countries live in two files
