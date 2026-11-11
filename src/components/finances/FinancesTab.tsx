@@ -175,7 +175,10 @@ function FinancesTabLoaded({
   const [answeringOfferId, setAnsweringOfferId] = useState<string | null>(null);
   const answeringOfferRef = useRef<string | null>(null);
   // Why the backend refused the last answer to a sponsor offer; null once one is accepted.
-  const [sponsorOfferError, setSponsorOfferError] = useState<string | null>(null);
+  const [sponsorOfferError, setSponsorOfferError] = useState<{
+    messageId: string;
+    text: string;
+  } | null>(null);
   const [delegatedRenewalsSummary, setDelegatedRenewalsSummary] = useState<string | null>(null);
   // What the manager has switched off, not what is switched on: everyone at risk is selected until
   // told otherwise, so the default needs no effect to fill it in and no click can beat that effect.
@@ -448,7 +451,7 @@ function FinancesTabLoaded({
       onGameUpdate?.(result.game);
     } catch (error) {
       console.error("Failed to resolve sponsor offer:", error);
-      setSponsorOfferError(resolveTranslatedErrorMessage(error));
+      setSponsorOfferError({ messageId, text: resolveTranslatedErrorMessage(error) });
     } finally {
       answeringOfferRef.current = null;
       setAnsweringOfferId(null);
@@ -882,11 +885,6 @@ function FinancesTabLoaded({
                   </p>
                 ) : null}
               </div>
-              {sponsorOfferError ? (
-                <p role="alert" className="text-sm text-danger">
-                  {sponsorOfferError}
-                </p>
-              ) : null}
               {sponsorOffers.length > 0 ? (
                 sponsorOffers.map((message) => {
                   const sponsorAction = message.actions.find(
@@ -908,6 +906,11 @@ function FinancesTabLoaded({
                         </h3>
                         <p className="text-sm text-gray-600 dark:text-gray-400">{message.body}</p>
                       </div>
+                      {sponsorOfferError?.messageId === message.id ? (
+                        <p role="alert" className="text-sm text-danger">
+                          {sponsorOfferError.text}
+                        </p>
+                      ) : null}
                       <div className="flex flex-wrap gap-2">
                         {sponsorAction.action_type.ChooseOption.options.map((option) => {
                           // An answer in flight holds every sponsor answer: the opposite one must not

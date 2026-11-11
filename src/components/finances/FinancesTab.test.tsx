@@ -571,6 +571,36 @@ describe("FinancesTab facilities", () => {
     await waitFor(() => expect(screen.queryByRole("alert")).toBeNull());
   });
 
+  // Given two pending sponsor offers, and a refusal of the answer to the first
+  // When the first's "Accept the deal" is pressed
+  // Then the reason is shown within that offer only, and the second offer shows none.
+  it("shows a refused sponsor answer's reason beside its own offer only", async () => {
+    const first = createSponsorOfferMessage({ subject: "Sponsorship Offer — First Co" });
+    const second = createSponsorOfferMessage({
+      id: "sponsor_2025-06-22",
+      subject: "Sponsorship Offer — Second Co",
+    });
+    mockedInvoke.mockImplementation((command) => {
+      if (command === "get_finance_snapshot") return Promise.resolve(wireSnapshot());
+      if (command === "resolve_message_action") {
+        return Promise.reject("be.error.actionAlreadyResolved");
+      }
+      return Promise.reject(new Error(`Unexpected command: ${command}`));
+    });
+    await renderFinances(
+      <FinancesTab gameState={createGameState({}, [first, second])} onGameUpdate={vi.fn()} />,
+    );
+
+    fireEvent.click(screen.getAllByRole("button", { name: "Accept the deal" })[0]);
+
+    const alert = await screen.findByRole("alert");
+    const cardOf = (subject: string) =>
+      screen.getByRole("heading", { name: subject }).parentElement?.parentElement as HTMLElement;
+    expect(cardOf("Sponsorship Offer — First Co")).toContainElement(alert);
+    expect(cardOf("Sponsorship Offer — Second Co")).not.toContainElement(alert);
+    expect(screen.getAllByRole("alert")).toHaveLength(1);
+  });
+
   // Given a sponsor offer being answered (the backend has not replied)
   // When the offer's buttons are read
   // Then both answers wait, not only the one pressed: a second, opposite answer must not be sent

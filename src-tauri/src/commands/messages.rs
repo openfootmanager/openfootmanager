@@ -4,7 +4,7 @@ use std::sync::Arc;
 use log::info;
 use tauri::State;
 
-use domain::message::InboxMessage;
+use domain::message::{ActionType, InboxMessage};
 use ofm_core::inbox_archive::{ArchiveCursor, ArchivedMessagesPage};
 use ofm_core::state::{Career, StateManager};
 
@@ -223,6 +223,15 @@ pub fn resolve_message_action_internal(
                 None => return Err("be.error.actionNotFound".to_string()),
                 Some(action) if action.resolved => {
                     return Err("be.error.actionAlreadyResolved".to_string());
+                }
+                // A choice is answered by one of its options: resolving it with none would close it
+                // without signing, declining or applying anything, and a later valid answer would
+                // find it resolved.
+                Some(action)
+                    if option_id.is_none()
+                        && matches!(action.action_type, ActionType::ChooseOption { .. }) =>
+                {
+                    return Err("be.error.actionOptionRequired".to_string());
                 }
                 Some(_) => {}
             }
@@ -1202,5 +1211,39 @@ mod tests {
             ask("future-resolved", "action-future-resolved", None),
             missing
         );
+    }
+
+    /// Given a sponsor offer, a choice between accepting and declining
+    /// When an agent resolves it without naming an option
+    /// Then it is refused and the offer stays pending, so a later answer with a valid option still
+    ///      works: leaving the option out must not burn the offer without signing or declining.
+    #[test]
+    fn a_choice_resolved_without_an_option_is_refused_and_stays_open() {
+        let state = StateManager::new();
+        let mut game = make_game();
+        game.messages = vec![choice_message("sponsor_2026-08-20", &["accept", "decline"])];
+        state.set_game(game);
+        let resolve = |option: Option<&str>| {
+            resolve_message_action_internal(
+                &state,
+                Career::Active,
+                "sponsor_2026-08-20",
+                "action-sponsor_2026-08-20",
+                option,
+            )
+            .map(|_| ())
+        };
+
+        let without_option = resolve(None);
+
+        assert_eq!(
+            without_option,
+            Err("be.error.actionOptionRequired".to_string())
+        );
+        let still_open = state
+            .get_game(|game| !game.messages[0].actions[0].resolved)
+            .expect("game");
+        assert!(still_open, "the offer is still pending");
+        assert_eq!(resolve(Some("accept")), Ok(()));
     }
 }
