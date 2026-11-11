@@ -1708,7 +1708,8 @@
       "squadYouth": "Jugendakademie",
       "contractUntil": "bis {{date}}",
       "keyFor": "Entscheidend für {{position}}",
-      "radarLabel": "Attributradar: {{values}}"
+      "radarLabel": "Attributradar: {{values}}",
+      "seasonExtras": "Disziplin und weiße Weste"
     },
     "overall": "Gesamt",
     "ratingUnknown": "Dein Verein kennt seine Bewertung nicht",

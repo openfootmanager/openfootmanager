@@ -1708,7 +1708,8 @@
       "squadYouth": "Академия",
       "contractUntil": "до {{date}}",
       "keyFor": "Ключевое для позиции «{{position}}»",
-      "radarLabel": "Радар атрибутов: {{values}}"
+      "radarLabel": "Радар атрибутов: {{values}}",
+      "seasonExtras": "Дисциплина и «сухие» матчи"
     },
     "overall": "Общий",
     "ratingUnknown": "Ваш клуб не знает его рейтинг",

@@ -91,10 +91,11 @@ export default function PlayerProfile({
   const footednessLabel = t(`common.footedness.${player.footedness || "Right"}`);
   const weakFootValue = player.weak_foot ?? 2;
 
-  const { advancedStats, recentMatches } = usePlayerProfileData({
-    player,
-    currentDate: gameState.clock.current_date,
-  });
+  const { advancedStats, recentMatches, recentMatchesStatus, retryRecentMatches } =
+    usePlayerProfileData({
+      player,
+      currentDate: gameState.clock.current_date,
+    });
   const { scoutAvailability, scoutStatus, scoutError, sendScout } = useScoutPlayerFlow({
     player,
     gameState,
@@ -354,6 +355,8 @@ export default function PlayerProfile({
           language={i18n.language}
           showsPrivateState={showsPrivateState}
           recentMatches={recentMatches}
+          recentMatchesStatus={recentMatchesStatus}
+          retryRecentMatches={retryRecentMatches}
           seasonRatingRated={advancedStats.seasonRatingRated}
           tacticalRole={
             isOwnClub && onGameUpdate
@@ -379,7 +382,7 @@ export default function PlayerProfile({
               />
             ) : null
           }
-          positionRatings={positionRatings}
+          ratings={ratingsAnswer}
           attributes={
             knowsPlayerRating(knowledge) || scoutedReport !== null
               ? attributesPlayer.attributes

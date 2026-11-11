@@ -1708,7 +1708,8 @@
       "squadYouth": "Cantera",
       "contractUntil": "hasta el {{date}}",
       "keyFor": "Clave para un {{position}}",
-      "radarLabel": "Radar de atributos: {{values}}"
+      "radarLabel": "Radar de atributos: {{values}}",
+      "seasonExtras": "Disciplina y porterías a cero"
     },
     "overall": "Global",
     "ratingUnknown": "Tu club no conoce su valoración",

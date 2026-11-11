@@ -197,7 +197,8 @@ describe("a profile answer that fails to load", () => {
 
     renderProfile();
 
-    expect(await screen.findByText("Couldn't load")).toBeInTheDocument();
+    // The Overview's attributes card and the Attributes tab each say so.
+    expect(await screen.findAllByText("Couldn't load")).toHaveLength(2);
     fireEvent.click(screen.getByRole("button", { name: "Retry" }));
 
     expect(await screen.findByRole("region", { name: "Positions" })).toBeInTheDocument();

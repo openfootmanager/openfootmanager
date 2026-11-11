@@ -1708,7 +1708,8 @@
       "squadYouth": "Youth academy",
       "contractUntil": "until {{date}}",
       "keyFor": "Key for a {{position}}",
-      "radarLabel": "Attribute radar: {{values}}"
+      "radarLabel": "Attribute radar: {{values}}",
+      "seasonExtras": "Discipline and clean sheets"
     },
     "overall": "Overall",
     "ratingUnknown": "Your club does not know his rating",

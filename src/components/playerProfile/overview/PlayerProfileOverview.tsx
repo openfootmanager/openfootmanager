@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 
 import { useRatingTiers } from "../../../hooks/useRatingTiers";
 import { formatDateFull, getContractRiskBadgeVariant } from "../../../lib/helpers";
+import { formatMatchDate } from "../../../lib/dateFormatting";
 import { getPlayerSquadRole } from "../../../lib/playerSquad";
 import type { PositionRatings } from "../../../store/generated/PositionRatings";
 import type { PlayerData } from "../../../store/gameStore";
@@ -10,9 +11,10 @@ import { Badge, ConditionMeter, FormDots, FormResultMark, RatingChip, Select } f
 import { TraitList } from "../../TraitBadge";
 import { formatPlayerMarketValue } from "../PlayerProfile.helpers";
 import type { PlayerRecentMatchEntry } from "../PlayerProfile.helpers";
-import { RetryButton } from "../ProfileLoadFailed";
+import ProfileLoadFailed, { RetryButton } from "../ProfileLoadFailed";
+import type { KnowledgeAnswer } from "../../../hooks/useKnowledgeAnswer";
 import { OverviewCard, OverviewRow } from "./OverviewCard";
-import { formOf, resultOf, shortLabels } from "./overviewModel";
+import { formOf, GOALKEEPER_AXES, OUTFIELD_AXES, resultOf, shortLabels } from "./overviewModel";
 import { isGoalkeeper } from "../PlayerProfile.attributes";
 import { PlayerProfileRadar, type RadarAxis } from "./PlayerProfileRadar";
 
@@ -25,6 +27,9 @@ export interface PlayerProfileOverviewProps {
   showsPrivateState: boolean;
   /** Latest first, as the backend returns them. */
   recentMatches: PlayerRecentMatchEntry[];
+  /** Whether the history has answered: only an answered empty list means "no matches". */
+  recentMatchesStatus: "loading" | "answered" | "failed";
+  retryRecentMatches: () => void;
   seasonRatingRated: boolean;
   /** The own player's tactical role and how to change it; null for anyone else. */
   tacticalRole: {
@@ -40,7 +45,8 @@ export interface PlayerProfileOverviewProps {
   wageRetry?: () => void;
   /** The club's opinion of his potential, or its load-failed state, drawn at the foot of Details. */
   potentialOpinion: ReactNode;
-  positionRatings: PositionRatings | null;
+  /** The position ratings request: loading, failed (with its retry) or answered (null when the club knows nothing of him). */
+  ratings: KnowledgeAnswer<PositionRatings | null>;
   /** The attributes the club may read (a scout's report for a scouted player); null when none. */
   attributes: PlayerData["attributes"] | null;
   traits: string[];
@@ -75,30 +81,6 @@ export default function PlayerProfileOverview(props: PlayerProfileOverviewProps)
 }
 
 const NO_VALUE = "–";
-
-/** The radar's eight axes, the same for every outfield player so two radars compare at a glance. */
-const OUTFIELD_AXES = [
-  "pace",
-  "shooting",
-  "dribbling",
-  "passing",
-  "vision",
-  "composure",
-  "strength",
-  "aerial",
-] as const;
-
-/** A goalkeeper's eight, in place of the outfield ones. */
-const GOALKEEPER_AXES = [
-  "handling",
-  "reflexes",
-  "aerial",
-  "composure",
-  "vision",
-  "agility",
-  "stamina",
-  "strength",
-] as const;
 
 function NowCard({
   player,
@@ -197,17 +179,28 @@ function DetailsCard(props: PlayerProfileOverviewProps) {
   );
 }
 
-function PreviousMatchesCard({ recentMatches, onOpenTab }: PlayerProfileOverviewProps) {
+function PreviousMatchesCard({
+  recentMatches,
+  recentMatchesStatus,
+  retryRecentMatches,
+  language,
+}: PlayerProfileOverviewProps) {
   const { t } = useTranslation();
   const shown = recentMatches.slice(0, 5);
   return (
-    <OverviewCard
-      title={t("playerProfile.overview.previousMatches")}
-      link={{ label: t("playerProfile.overview.allMatches"), onPress: () => onOpenTab("career") }}
-    >
-      {shown.length === 0 ? (
+    <OverviewCard title={t("playerProfile.overview.previousMatches")}>
+      {recentMatchesStatus === "loading" && shown.length === 0 ? (
+        <p className="px-4 py-3 text-body text-fg-muted">{t("common.loading")}</p>
+      ) : null}
+      {recentMatchesStatus === "failed" && shown.length === 0 ? (
+        <div className="px-4 py-3 text-body text-fg-muted">
+          <ProfileLoadFailed t={t} onRetry={retryRecentMatches} />
+        </div>
+      ) : null}
+      {recentMatchesStatus === "answered" && shown.length === 0 ? (
         <p className="px-4 py-3 text-body text-fg-muted">{t("playerProfile.noRecentMatches")}</p>
-      ) : (
+      ) : null}
+      {shown.length > 0 ? (
         // biome-ignore lint/a11y/noRedundantRoles: WebKit drops a list's semantics under list-style: none, so the role is restated.
         <ul role="list" className="m-0 list-none p-0">
           {shown.map((match) => (
@@ -216,8 +209,13 @@ function PreviousMatchesCard({ recentMatches, onOpenTab }: PlayerProfileOverview
               className="flex items-center gap-3 border-b border-line px-4 py-2 text-body last:border-b-0"
             >
               <FormResultMark result={resultOf(match)} className="size-5" />
-              <span className="min-w-0 flex-1 truncate">
-                {t("playerProfile.vs")} {match.opponent_name}
+              <span className="flex min-w-0 flex-1 flex-col">
+                <span className="truncate">
+                  {t("playerProfile.vs")} {match.opponent_name}
+                </span>
+                <span className="text-caption text-fg-muted">
+                  {formatMatchDate(match.date, language)}
+                </span>
               </span>
               <span className="font-semibold tabular-nums">
                 {match.team_goals}–{match.opponent_goals}
@@ -229,19 +227,21 @@ function PreviousMatchesCard({ recentMatches, onOpenTab }: PlayerProfileOverview
             </li>
           ))}
         </ul>
-      )}
+      ) : null}
     </OverviewCard>
   );
 }
 
-/** His part in the match, in words: his goals, else his assists, else nothing to say. */
+/** His part in the match, in words: his goals and his assists, each when he had any, else a dash. */
 function contribution(
   match: PlayerRecentMatchEntry,
   t: (key: string, options?: Record<string, string | number>) => string,
 ): string {
-  if (match.goals > 0) return t("playerProfile.nGoals", { count: match.goals });
-  if (match.assists > 0) return t("playerProfile.nAssists", { count: match.assists });
-  return NO_VALUE;
+  const parts = [
+    match.goals > 0 ? t("playerProfile.nGoals", { count: match.goals }) : null,
+    match.assists > 0 ? t("playerProfile.nAssists", { count: match.assists }) : null,
+  ].filter((part): part is string => part !== null);
+  return parts.length > 0 ? parts.join(", ") : NO_VALUE;
 }
 
 function SeasonCard({
@@ -259,6 +259,11 @@ function SeasonCard({
     [t("playerProfile.avgRating"), seasonRatingRated ? stats.avg_rating.toFixed(1) : NO_VALUE],
     [t("playerProfile.mins"), stats.minutes_played.toLocaleString(language)],
   ];
+  const extras: [string, number][] = [
+    [t("playerProfile.cleanSheets"), stats.clean_sheets],
+    [t("playerProfile.yellows"), stats.yellow_cards],
+    [t("playerProfile.reds"), stats.red_cards],
+  ];
   return (
     <OverviewCard
       title={t("playerProfile.seasonStats")}
@@ -272,15 +277,45 @@ function SeasonCard({
           </div>
         ))}
       </div>
+      {/* Always drawn, zeros included: a keeper's clean sheets and a player's cards are part of his season. */}
+      {/* biome-ignore lint/a11y/noRedundantRoles: WebKit drops a list's semantics under list-style: none, so the role is restated. */}
+      <ul
+        role="list"
+        aria-label={t("playerProfile.overview.seasonExtras")}
+        className="m-0 flex list-none flex-wrap gap-x-4 gap-y-1 border-t border-line p-0 px-4 py-2 text-caption text-fg-muted"
+      >
+        {extras.map(([label, value]) => (
+          <li key={label}>
+            {label} <span className="font-semibold tabular-nums text-fg">{value}</span>
+          </li>
+        ))}
+      </ul>
     </OverviewCard>
   );
 }
 
-function AttributesCard({ player, positionRatings, attributes }: PlayerProfileOverviewProps) {
+function AttributesCard({ player, ratings, attributes }: PlayerProfileOverviewProps) {
   const { t } = useTranslation();
   const tierOf = useRatingTiers();
-  const natural = positionRatings?.rows[0];
-  // The club can read his attributes but the position's ratings have not arrived: no axes to draw yet.
+  if (ratings.status === "loading") {
+    return (
+      <OverviewCard title={t("playerProfile.attributes")}>
+        <p className="px-4 py-3 text-body text-fg-muted">{t("common.loading")}</p>
+      </OverviewCard>
+    );
+  }
+  if (ratings.status === "failed") {
+    return (
+      <OverviewCard title={t("playerProfile.attributes")}>
+        <div className="px-4 py-3 text-body text-fg-muted">
+          <ProfileLoadFailed t={t} onRetry={ratings.retry} />
+        </div>
+      </OverviewCard>
+    );
+  }
+  const natural = ratings.value?.rows[0];
+  // The club can read his attributes but the position's ratings answered with none: no key
+  // attributes to draw.
   if (attributes && !natural) return null;
   if (!attributes || !natural) {
     return (

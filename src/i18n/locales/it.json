@@ -1727,7 +1727,8 @@
       "squadYouth": "Settore giovanile",
       "contractUntil": "fino al {{date}}",
       "keyFor": "Fondamentale per un {{position}}",
-      "radarLabel": "Radar degli attributi: {{values}}"
+      "radarLabel": "Radar degli attributi: {{values}}",
+      "seasonExtras": "Disciplina e porte inviolate"
     },
     "overall": "Complessivo",
     "ratingUnknown": "Il tuo club non conosce la sua valutazione",

@@ -1708,7 +1708,8 @@
       "squadYouth": "Altyapı",
       "contractUntil": "{{date}} tarihine kadar",
       "keyFor": "{{position}} için anahtar",
-      "radarLabel": "Nitelik radarı: {{values}}"
+      "radarLabel": "Nitelik radarı: {{values}}",
+      "seasonExtras": "Disiplin ve gol yememe"
     },
     "overall": "Genel",
     "ratingUnknown": "Kulübünüz onun reytingini bilmiyor",

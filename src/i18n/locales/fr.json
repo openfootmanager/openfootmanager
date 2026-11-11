@@ -1708,7 +1708,8 @@
       "squadYouth": "Centre de formation",
       "contractUntil": "jusqu'au {{date}}",
       "keyFor": "Clé pour un poste de {{position}}",
-      "radarLabel": "Radar des attributs : {{values}}"
+      "radarLabel": "Radar des attributs : {{values}}",
+      "seasonExtras": "Discipline et clean sheets"
     },
     "overall": "Global",
     "ratingUnknown": "Votre club ne connaît pas sa note",

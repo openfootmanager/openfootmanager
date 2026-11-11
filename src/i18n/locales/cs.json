@@ -1708,7 +1708,8 @@
       "squadYouth": "Akademie",
       "contractUntil": "do {{date}}",
       "keyFor": "Klíčové pro pozici {{position}}",
-      "radarLabel": "Radar atributů: {{values}}"
+      "radarLabel": "Radar atributů: {{values}}",
+      "seasonExtras": "Disciplína a čistá konta"
     },
     "overall": "Celkově",
     "ratingUnknown": "Váš klub jeho hodnocení nezná",

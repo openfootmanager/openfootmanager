@@ -294,9 +294,9 @@ describe("PlayerProfileOverview", () => {
   it("draws the same eight fixed axes for every outfield player", () => {
     const axes = (player: ReturnType<typeof props>["player"]) => {
       const { unmount } = render(<PlayerProfileOverview {...props({ player })} />);
-      const radar = within(screen.getByRole("region", { name: "Attributes" })).getByRole("img");
-      const labels = [...radar.querySelectorAll("text")].map((text) => text.textContent);
-      const spoken = radar.getAttribute("aria-label");
+      const card = within(screen.getByRole("region", { name: "Attributes" }));
+      const labels = card.getAllByText(/^\S{2,5} \d+$/).map((label) => label.textContent);
+      const spoken = card.getByRole("img").getAttribute("aria-label");
       unmount();
       return { labels, spoken };
     };
@@ -349,9 +349,12 @@ describe("PlayerProfileOverview", () => {
    */
   it("highlights the axes that are the position's key attributes", () => {
     render(<PlayerProfileOverview {...props()} />);
-    const radar = within(screen.getByRole("region", { name: "Attributes" })).getByRole("img");
+    const card = within(screen.getByRole("region", { name: "Attributes" }));
 
-    const heavy = [...radar.querySelectorAll("text.font-bold")].map((text) => text.textContent);
+    const heavy = card
+      .getAllByText(/^\S{2,5} \d+$/)
+      .filter((label) => label.classList.contains("font-bold"))
+      .map((label) => label.textContent);
 
     expect(heavy).toHaveLength(1);
     expect(heavy[0]).toMatch(/^SHO /);
@@ -377,7 +380,11 @@ describe("PlayerProfileOverview", () => {
    * Then there is no radar and it says the attributes are hidden
    */
   it("hides the radar for a player whose attributes the club cannot read", () => {
-    render(<PlayerProfileOverview {...props({ ratings: { status: "answered", value: null }, attributes: null })} />);
+    render(
+      <PlayerProfileOverview
+        {...props({ ratings: { status: "answered", value: null }, attributes: null })}
+      />,
+    );
     const attributes = within(screen.getByRole("region", { name: "Attributes" }));
 
     expect(attributes.queryByRole("img")).toBeNull();
@@ -408,9 +415,9 @@ describe("PlayerProfileOverview", () => {
   it("shows a goal and an assist from one match, and the match's date", () => {
     const both = { ...match(0, 3, 0), goals: 1, assists: 2 };
     render(<PlayerProfileOverview {...props({ recentMatches: [both] })} />);
-    const row = within(
-      screen.getByRole("region", { name: "Previous matches" }),
-    ).getAllByRole("listitem")[0];
+    const row = within(screen.getByRole("region", { name: "Previous matches" })).getAllByRole(
+      "listitem",
+    )[0];
 
     expect(row).toHaveTextContent("1 goals");
     expect(row).toHaveTextContent("2 assists");
@@ -457,10 +464,11 @@ describe("PlayerProfileOverview", () => {
    */
   it("keeps clean sheets, yellow and red cards on a line under the season tiles", () => {
     const base = props();
-    const player = {
+    const withStats = (clean_sheets: number, yellow_cards: number, red_cards: number) => ({
       ...base.player,
-      stats: { ...base.player.stats, clean_sheets: 4, yellow_cards: 6, red_cards: 1 },
-    };
+      stats: { ...base.player.stats, clean_sheets, yellow_cards, red_cards },
+    });
+    const player = withStats(4, 6, 1);
     const { unmount } = render(<PlayerProfileOverview {...props({ player })} />);
     const line = within(screen.getByRole("region", { name: "Season Statistics" })).getByRole(
       "list",
@@ -474,7 +482,7 @@ describe("PlayerProfileOverview", () => {
     expect(line).toHaveTextContent("1");
     unmount();
 
-    render(<PlayerProfileOverview {...props()} />);
+    render(<PlayerProfileOverview {...props({ player: withStats(0, 0, 0) })} />);
     const zeros = within(screen.getByRole("region", { name: "Season Statistics" })).getByRole(
       "list",
       { name: "Discipline and clean sheets" },

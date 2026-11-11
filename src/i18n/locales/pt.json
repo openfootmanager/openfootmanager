@@ -1708,7 +1708,8 @@
       "squadYouth": "Academia",
       "contractUntil": "até {{date}}",
       "keyFor": "Chave para um {{position}}",
-      "radarLabel": "Radar de atributos: {{values}}"
+      "radarLabel": "Radar de atributos: {{values}}",
+      "seasonExtras": "Disciplina e jogos sem sofrer golos"
     },
     "overall": "Geral",
     "ratingUnknown": "O teu clube não conhece a sua avaliação",

@@ -1708,7 +1708,8 @@
       "squadYouth": "青训",
       "contractUntil": "至 {{date}}",
       "keyFor": "{{position}}的关键属性",
-      "radarLabel": "属性雷达图：{{values}}"
+      "radarLabel": "属性雷达图：{{values}}",
+      "seasonExtras": "纪律与零封"
     },
     "overall": "综合",
     "ratingUnknown": "你的俱乐部不了解他的评分",

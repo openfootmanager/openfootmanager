@@ -1708,7 +1708,8 @@
       "squadYouth": "Akademi",
       "contractUntil": "hingga {{date}}",
       "keyFor": "Kunci untuk posisi {{position}}",
-      "radarLabel": "Radar atribut: {{values}}"
+      "radarLabel": "Radar atribut: {{values}}",
+      "seasonExtras": "Disiplin dan clean sheet"
     },
     "overall": "Keseluruhan",
     "ratingUnknown": "Klubmu tidak mengetahui peringkatnya",
