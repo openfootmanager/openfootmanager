@@ -143,7 +143,8 @@
     "worldEditor.staffRole.Scout",
     "worldEditor.staffSpecialization.Fitness",
     "worldEditor.staffAttr.coaching",
-    "packageBuild.patches"
+    "packageBuild.patches",
+    "playerProfile.overview.details"
   ],
   "fr": [
     "teamSelect.scope.regionMeta",
@@ -274,7 +275,8 @@
     "worldEditor.staffClub",
     "worldEditor.staffSpecialization.Technique",
     "packageBuild.patches",
-    "worldEditor.estimatedRating"
+    "worldEditor.estimatedRating",
+    "playerProfile.overview.traits"
   ],
   "it": [
     "teamSelect.steps.club",
