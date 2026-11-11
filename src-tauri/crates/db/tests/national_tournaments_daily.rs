@@ -558,12 +558,16 @@ fn complete_competing_tournaments(mut game: Game, live: bool) {
         for fixture in game.competitions.iter().flat_map(|c| &c.fixtures) {
             if let Some(previous) = results.get(&fixture.id) {
                 assert_eq!(
-                    previous, &fixture.result,
+                    previous,
+                    &serde_json::to_value(&fixture.result).unwrap(),
                     "a played fixture must retain its result"
                 );
             }
             if fixture.status == FixtureStatus::Completed {
-                results.insert(fixture.id.clone(), fixture.result.clone());
+                results.insert(
+                    fixture.id.clone(),
+                    serde_json::to_value(&fixture.result).unwrap(),
+                );
             }
         }
         let wear = serde_json::to_value(&game.players).unwrap();
