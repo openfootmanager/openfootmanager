@@ -121,9 +121,11 @@ describe("PlayerProfileContractSheet: his own player", () => {
   it("shows his contract: the end, the years left and their risk, his wage, when he last signed", () => {
     renderSheet();
 
-    expect(screen.getByText("Jun 30, 2034")).toBeInTheDocument();
-    expect(screen.getByText("playerProfile.yearsRemaining")).toBeInTheDocument();
-    expect(screen.getByText("Stable")).toBeInTheDocument();
+    const ends = screen.getByText("playerProfile.contractSheet.ends").closest("div");
+    expect(ends).toHaveTextContent("Jun 30, 2034");
+    expect(screen.getByText("playerProfile.yearsRemaining").closest("div")).toHaveTextContent(
+      "Stable",
+    );
     expect(screen.getByText(/playerProfile\.contractSheet\.weeklyWage/)).toBeInTheDocument();
     expect(screen.getByText(/playerProfile\.contractSheet\.lastSigned/)).toHaveTextContent(
       "Jul 1, 2031",
@@ -157,8 +159,9 @@ describe("PlayerProfileContractSheet: his own player", () => {
   it("shows the club's wage bill, the budget in use as a bar, the runway and his share", () => {
     renderSheet();
 
-    expect(screen.getByText("playerProfile.contractSheet.billLabel")).toBeInTheDocument();
-    expect(screen.getByText(/300,000/)).toBeInTheDocument();
+    expect(
+      screen.getByText("playerProfile.contractSheet.billLabel").closest("div"),
+    ).toHaveTextContent("300,000");
     const bar = screen.getByRole("progressbar", {
       name: /playerProfile\.contractSheet\.budgetLabel/,
     });

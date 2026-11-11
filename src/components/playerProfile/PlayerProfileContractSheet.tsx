@@ -1,11 +1,12 @@
 import type { ReactNode } from "react";
 
 import { formatExactMoney, getContractYearsRemaining } from "../../lib/helpers";
+import { getContractRiskBadgeVariant } from "../../lib/contractUtils";
 import type { PlayerData } from "../../store/gameStore";
-import { Button, Card, CardBody, CardHeader } from "../ui";
+import { Badge, Button, Card, CardBody, CardHeader, ProgressBar } from "../ui";
 import { terminationBlockedBy } from "./PlayerProfile.contract";
 import type { ContractHistoryRow } from "./PlayerProfile.contractHistory";
-import { formatPlayerWage } from "./PlayerProfile.helpers";
+import { formatPlayerWage, formatProfileDay } from "./PlayerProfile.helpers";
 import ProfileLoadFailed from "./ProfileLoadFailed";
 import type { ContractSheetData, SheetAnswer } from "./useContractSheetData";
 
@@ -21,11 +22,11 @@ export interface PlayerProfileContractSheetProps {
   hasLetExpireIntent: boolean;
   /** His weekly wage when the club may see it exactly; `null` for every other state. */
   exactWeeklyWage: number | null;
-  /** The language dates are written in. */
+  /** The language dates and percentages are written in. */
   language: string;
   /** The backend's rating of how near his contract's end is. */
   contractRisk: { level: "critical" | "warning" | "stable"; label: string };
-  /** The contract he is on now, from the history; `null` when he has none. */
+  /** The contract he is on now, from his history; `null` when he has none. */
   lastSigned: ContractHistoryRow | null;
   /** Placed in the right column under the decisions: the contracts he has had. */
   below: ReactNode;
@@ -41,33 +42,47 @@ export interface PlayerProfileContractSheetProps {
 
 const SECTION = "playerProfile.contractSheet";
 
+/** A figure and the words for it. */
 function Row({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div className="flex items-baseline justify-between gap-4">
-      <dt className="text-body text-fg-muted">{label}</dt>
-      <dd className="text-body font-semibold text-fg tabular-nums">{children}</dd>
+      <dt className="shrink-0 text-body text-fg-muted">{label}</dt>
+      <dd className="text-right text-body font-semibold text-fg tabular-nums">{children}</dd>
     </div>
   );
 }
 
-/** A decision: what it does and costs, written before the button that takes it. */
+/** What a decision costs, written before the button that takes it. */
+function Panel({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <div className="rounded-lg border border-line bg-panel p-2">
+      <p className="text-caption text-fg-muted">{label}</p>
+      <div className="text-body font-semibold text-fg">{children}</div>
+    </div>
+  );
+}
+
+/** One decision: what it does, what it costs, and the button that takes it. */
 function Decision({
   title,
-  note,
-  extra,
+  what,
+  panel,
   children,
 }: {
   title: string;
-  note: ReactNode;
-  extra?: ReactNode;
+  what: string;
+  panel: ReactNode;
   children: ReactNode;
 }) {
   return (
-    <div className="flex flex-col gap-2 rounded-lg border border-line bg-sunken p-3">
-      <h4 className="font-heading text-lead font-bold text-fg">{title}</h4>
-      <p className="text-body text-fg-muted">{note}</p>
-      {extra}
-      <div>{children}</div>
+    // biome-ignore lint/a11y/useSemanticElements: a group of related controls under one heading, named by its title
+    <div role="group" aria-label={title} className="flex min-w-0 flex-col gap-2">
+      <h4 className="font-heading text-lead font-bold uppercase tracking-label text-fg">{title}</h4>
+      <p className="text-body text-fg-muted">{what}</p>
+      <div className="mt-auto flex flex-col gap-2">
+        {panel}
+        <div>{children}</div>
+      </div>
     </div>
   );
 }
@@ -82,18 +97,31 @@ function Pending<T>({
   retry: () => void;
   t: TranslateFn;
 }) {
-  if (answer.status === "loading")
+  if (answer.status === "loading") {
     return <p className="text-body text-fg-subtle">{t("common.loading")}</p>;
+  }
   if (answer.status === "failed") return <ProfileLoadFailed t={t} onRetry={retry} />;
   return null;
 }
 
+/** `value` of `whole` as the language writes a percentage: a ratio of two figures the backend sent. */
+function percentOf(value: number, whole: number, language: string, digits: number): string {
+  return new Intl.NumberFormat(language, {
+    style: "percent",
+    maximumFractionDigits: digits,
+  }).format(value / whole);
+}
+
 /**
- * The Contract tab's decision sheet: his contract, the club's wage bill, and what each decision
- * does and costs before it is taken. The previews load with the tab; his own player's contract
- * only, so another club's player shows dates and nothing to act on, and a free agent shows an offer.
+ * The Contract tab's decision sheet (board "Contract A"): his contract and the club's wage bill on
+ * the left; what you can do on the right, each decision with what it costs before it is taken, and
+ * the contracts he has had under them. The previews load with the tab. His own player's contract
+ * only gets the decisions and the bill: another club's player shows his contract's dates, and a free
+ * agent an offer.
  *
- * The wage bill and budget are weekly amounts although the backend names them "annual" (#300).
+ * The wage bill and budget are weekly amounts although the backend names them "annual" (#300). The
+ * bar and the share are ratios of the figures the projection sends; whether the club is over budget
+ * is the backend's flag, not a threshold here.
  */
 export default function PlayerProfileContractSheet({
   player,
@@ -102,6 +130,10 @@ export default function PlayerProfileContractSheet({
   isFreeAgent,
   hasLetExpireIntent,
   exactWeeklyWage,
+  language,
+  contractRisk,
+  lastSigned,
+  below,
   data,
   actionSubmitting,
   onOpenRenewal,
@@ -111,107 +143,124 @@ export default function PlayerProfileContractSheet({
   onOpenFreeAgentContract,
   t,
 }: PlayerProfileContractSheetProps) {
-  if (isFreeAgent) {
-    return (
-      <Card>
-        <CardHeader>{t(`${SECTION}.his`)}</CardHeader>
-        <CardBody>
-          <p className="mb-3 text-body text-fg-muted">{t(`${SECTION}.noContract`)}</p>
-          <Button variant="outline" size="sm" onClick={onOpenFreeAgentContract}>
-            {t("transfers.offerContract")}
-          </Button>
-        </CardBody>
-      </Card>
-    );
-  }
-
   const contractEnd = player.contract_end;
+  const endText = contractEnd ? formatProfileDay(contractEnd, language) : "";
   const projection = data.projection.status === "answered" ? data.projection.value : null;
-  const budgetUse =
-    projection && projection.annual_wage_budget > 0
-      ? Math.round((projection.current_weekly_wage_spend / projection.annual_wage_budget) * 100)
-      : null;
-  const share =
-    projection && exactWeeklyWage !== null && projection.current_weekly_wage_spend > 0
-      ? Math.round((exactWeeklyWage / projection.current_weekly_wage_spend) * 100)
-      : null;
+  const spend = projection?.current_weekly_wage_spend ?? 0;
+  const budgetRatio =
+    projection && projection.annual_wage_budget > 0 ? spend / projection.annual_wage_budget : null;
   const runway = projection
     ? projection.current_cash_runway_weeks === null
       ? t("finances.runwayStable")
       : t("finances.runwayWeeks", { count: projection.current_cash_runway_weeks })
     : null;
 
-  const blocked = terminationBlockedBy(player);
-  const termination = data.termination.status === "answered" ? data.termination.value : null;
-  const squadUnsafe = termination !== null && !termination.squad_safety.can_field_matchday_squad;
-
-  const contract = (
+  const left = isFreeAgent ? (
+    <Card>
+      <CardHeader>{t(`${SECTION}.his`)}</CardHeader>
+      <CardBody>
+        <p className="mb-3 text-body text-fg-muted">{t(`${SECTION}.noContract`)}</p>
+        <Button variant="outline" size="sm" onClick={onOpenFreeAgentContract}>
+          {t("transfers.offerContract")}
+        </Button>
+      </CardBody>
+    </Card>
+  ) : (
     <Card>
       <CardHeader>{t(`${SECTION}.his`)}</CardHeader>
       <CardBody>
         {contractEnd ? (
           <dl className="flex flex-col gap-2">
-            <Row label={t(`${SECTION}.ends`)}>{contractEnd}</Row>
+            <Row label={t(`${SECTION}.ends`)}>{endText}</Row>
             <Row label={t("playerProfile.yearsRemaining")}>
-              {getContractYearsRemaining(contractEnd, currentDate)}
+              <span className="inline-flex items-center gap-2">
+                {getContractYearsRemaining(contractEnd, currentDate)}
+                <Badge variant={getContractRiskBadgeVariant(contractRisk.level)}>
+                  {contractRisk.label}
+                </Badge>
+              </span>
             </Row>
             {isOwnContract && exactWeeklyWage !== null ? (
               <Row label={t(`${SECTION}.weeklyWage`)}>{formatPlayerWage(exactWeeklyWage)}</Row>
-            ) : null}
-            {share !== null ? (
-              <p className="text-caption text-fg-muted">
-                {t(`${SECTION}.share`, { percent: share })}
-              </p>
             ) : null}
           </dl>
         ) : (
           <p className="text-body text-fg-muted">{t(`${SECTION}.noContract`)}</p>
         )}
+        {lastSigned ? (
+          <p className="mt-3 text-caption text-fg-muted">
+            {lastSigned.source === "legacy_migrated" || !lastSigned.start
+              ? t("playerProfile.movementLegacyContract")
+              : t(`${SECTION}.lastSigned`, {
+                  date: formatProfileDay(lastSigned.start, language),
+                  source: t(`${SECTION}.source.${lastSigned.source}`),
+                })}
+          </p>
+        ) : null}
       </CardBody>
     </Card>
   );
 
-  if (!isOwnContract) return contract;
+  if (!isOwnContract) {
+    return <Layout left={left} right={below} />;
+  }
 
+  const share =
+    projection && exactWeeklyWage !== null && spend > 0
+      ? percentOf(exactWeeklyWage, spend, language, 1)
+      : null;
   const bill = (
     <Card>
       <CardHeader>{t(`${SECTION}.clubBill`)}</CardHeader>
       <CardBody>
         <Pending answer={data.projection} retry={data.retry} t={t} />
         {projection ? (
-          <div className="flex flex-col gap-1">
-            <p className="text-body font-semibold text-fg">
-              {t(`${SECTION}.billWeekly`, {
-                amount: formatPlayerWage(projection.current_weekly_wage_spend),
-              })}
-            </p>
-            {budgetUse !== null ? (
-              <p className="text-body text-fg-muted">
-                {t(`${SECTION}.budgetUse`, { percent: budgetUse })}
-              </p>
+          <dl className="flex flex-col gap-2">
+            <Row label={t(`${SECTION}.billLabel`)}>{formatPlayerWage(spend)}</Row>
+            {budgetRatio !== null ? (
+              <div className="flex flex-col gap-1">
+                <Row label={t(`${SECTION}.budgetLabel`)}>
+                  {percentOf(spend, projection.annual_wage_budget, language, 0)}
+                </Row>
+                <ProgressBar
+                  value={budgetRatio * 100}
+                  variant={projection.currently_over_budget ? "danger" : "primary"}
+                  label={t(`${SECTION}.budgetLabel`)}
+                />
+              </div>
             ) : null}
-            {runway ? (
-              <p className="text-body text-fg-muted">{t(`${SECTION}.runway`, { runway })}</p>
-            ) : null}
-          </div>
+            {runway ? <Row label={t(`${SECTION}.runwayLabel`)}>{runway}</Row> : null}
+            {share ? <Row label={t(`${SECTION}.shareLabel`)}>{share}</Row> : null}
+          </dl>
         ) : null}
       </CardBody>
     </Card>
   );
 
+  const blocked = terminationBlockedBy(player);
+  const termination = data.termination.status === "answered" ? data.termination.value : null;
+  const squadUnsafe = termination !== null && !termination.squad_safety.can_field_matchday_squad;
+
   const renew = (
     <Decision
       title={t("common.renewContract")}
-      note={
-        projection && exactWeeklyWage !== null
-          ? t(`${SECTION}.renewNote`, {
-              wage: formatPlayerWage(exactWeeklyWage),
-              bill: formatPlayerWage(projection.projected_weekly_wage_spend),
-            })
-          : t(`${SECTION}.renewNoteShort`)
+      what={t(`${SECTION}.renewWhat`)}
+      panel={
+        <Panel label={t(`${SECTION}.now`)}>
+          {exactWeeklyWage !== null && contractEnd
+            ? t(`${SECTION}.nowValue`, { wage: formatPlayerWage(exactWeeklyWage), date: endText })
+            : endText}
+          {projection ? (
+            <p className="text-caption font-normal text-fg-muted">
+              {t(`${SECTION}.billAtThisWage`, {
+                bill: formatPlayerWage(projection.projected_weekly_wage_spend),
+              })}
+            </p>
+          ) : null}
+        </Panel>
       }
     >
-      <Button variant="outline" size="sm" disabled={!contractEnd} onClick={onOpenRenewal}>
+      <Button size="sm" disabled={!contractEnd} onClick={onOpenRenewal}>
         {t("common.renewContract")}
       </Button>
     </Decision>
@@ -220,7 +269,8 @@ export default function PlayerProfileContractSheet({
   const letExpire = hasLetExpireIntent ? (
     <Decision
       title={t("playerProfile.reopenContractTalks")}
-      note={t(`${SECTION}.letExpireSetNote`, { date: contractEnd ?? "" })}
+      what={t(`${SECTION}.letExpireSetWhat`)}
+      panel={<Panel label={t(`${SECTION}.leavesOn`)}>{endText}</Panel>}
     >
       <Button variant="outline" size="sm" disabled={actionSubmitting} onClick={onClearLetExpire}>
         {t("playerProfile.reopenContractTalks")}
@@ -229,7 +279,8 @@ export default function PlayerProfileContractSheet({
   ) : (
     <Decision
       title={t("playerProfile.letContractExpire")}
-      note={t(`${SECTION}.letExpireNote`, { date: contractEnd ?? "" })}
+      what={t(`${SECTION}.letExpireWhat`)}
+      panel={<Panel label={t(`${SECTION}.leaveOn`)}>{endText}</Panel>}
     >
       <Button
         variant="outline"
@@ -242,25 +293,34 @@ export default function PlayerProfileContractSheet({
     </Decision>
   );
 
-  const terminateNote =
-    blocked === "no_contract"
-      ? t(`${SECTION}.terminateNoContract`)
-      : blocked === "on_loan"
-        ? t(`${SECTION}.terminateOnLoan`)
-        : termination
-          ? t(`${SECTION}.terminateNote`, {
-              severance: formatExactMoney(termination.severance_cost),
+  const terminatePanel =
+    blocked === "no_contract" ? (
+      <p className="text-body text-fg-muted">{t(`${SECTION}.terminateNoContract`)}</p>
+    ) : blocked === "on_loan" ? (
+      <p className="text-body text-fg-muted">{t(`${SECTION}.terminateOnLoan`)}</p>
+    ) : termination ? (
+      <Panel label={t(`${SECTION}.severance`)}>
+        {formatExactMoney(termination.severance_cost)}
+        <p className="text-caption font-normal text-fg-muted">
+          {t(`${SECTION}.healthyAfter`)}:{" "}
+          <span className="font-semibold text-fg">
+            {t(`${SECTION}.healthyValue`, {
               healthy: termination.squad_safety.healthy_players,
               needed: termination.squad_safety.effective_xi_size,
-            })
-          : null;
+            })}
+          </span>
+        </p>
+      </Panel>
+    ) : (
+      <Pending answer={data.termination} retry={data.retry} t={t} />
+    );
   const terminate = (
     <Decision
       title={t("playerProfile.terminateContract")}
-      note={terminateNote ?? ""}
-      extra={
+      what={t(`${SECTION}.terminateWhat`)}
+      panel={
         <>
-          {blocked === null ? <Pending answer={data.termination} retry={data.retry} t={t} /> : null}
+          {terminatePanel}
           {squadUnsafe ? (
             <p className="text-body text-danger">{t("playerProfile.terminationUnsafe")}</p>
           ) : null}
@@ -270,7 +330,7 @@ export default function PlayerProfileContractSheet({
       <Button
         variant="outline"
         size="sm"
-        className="hover:bg-danger-tint"
+        className="border-danger hover:bg-danger-tint hover:border-danger"
         disabled={actionSubmitting || blocked !== null || squadUnsafe}
         onClick={onOpenTermination}
       >
@@ -279,23 +339,52 @@ export default function PlayerProfileContractSheet({
     </Decision>
   );
 
-  return (
-    <div className="@container">
-      <div className="grid grid-cols-1 gap-5 @[40rem]:grid-cols-2">
-        <div className="flex flex-col gap-5">
-          {contract}
-          {bill}
-        </div>
-        <Card>
-          <CardHeader>{t(`${SECTION}.decide`)}</CardHeader>
-          <CardBody>
-            <div className="flex flex-col gap-3">
+  const decisions = (
+    <section aria-label={t(`${SECTION}.decide`)}>
+      <Card>
+        <CardHeader>{t(`${SECTION}.decide`)}</CardHeader>
+        <CardBody>
+          <div className="@container">
+            <div className="grid grid-cols-1 gap-4 @[34rem]:grid-cols-3">
               {hasLetExpireIntent ? null : renew}
               {letExpire}
               {terminate}
             </div>
-          </CardBody>
-        </Card>
+          </div>
+        </CardBody>
+      </Card>
+    </section>
+  );
+
+  return (
+    <Layout
+      left={
+        <>
+          {left}
+          {bill}
+        </>
+      }
+      right={
+        <>
+          {decisions}
+          {below}
+        </>
+      }
+    />
+  );
+}
+
+/**
+ * The sheet's two columns: his contract and the club's bill on the left, the decisions and the
+ * contracts he has had on the right. One column below the width where the right column would be
+ * cramped (container breakpoints are rem, so they follow the interface scale).
+ */
+function Layout({ left, right }: { left: ReactNode; right: ReactNode }) {
+  return (
+    <div className="@container">
+      <div className="grid grid-cols-1 gap-5 @[56rem]:grid-cols-[19rem_minmax(0,1fr)]">
+        <div className="flex min-w-0 flex-col gap-5">{left}</div>
+        <div className="flex min-w-0 flex-col gap-5">{right}</div>
       </div>
     </div>
   );

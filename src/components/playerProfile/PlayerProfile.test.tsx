@@ -707,7 +707,7 @@ describe("PlayerProfile contract surfaces", () => {
     expect(screen.getByText(/until .*October 15, 2026/)).toBeInTheDocument();
     expect(screen.getByText("Years Remaining")).toBeInTheDocument();
     expect(screen.queryByText("Contract Risk")).toBeNull();
-    expect(screen.getByText("Critical")).toBeInTheDocument();
+    expect(screen.getAllByText("Critical").length).toBeGreaterThan(0);
     expect(screen.queryByText("Weekly Wage")).toBeNull();
     expect(screen.getByText("Wage")).toBeInTheDocument();
     expect(
@@ -1056,7 +1056,7 @@ describe("PlayerProfile contract surfaces", () => {
     expect(screen.getByText("Gamma FC -> Alpha FC")).toBeInTheDocument();
     expect(screen.getByText("Beta FC -> Alpha FC")).toBeInTheDocument();
     expect(screen.getByText("Fee €1,250,000")).toBeInTheDocument();
-    expect(screen.getByText("Loan until 2027-01-01")).toBeInTheDocument();
+    expect(screen.getByText("Loan until Jan 1, 2027")).toBeInTheDocument();
   });
 
   it("validates renewal offers before submission", async () => {
@@ -1153,7 +1153,7 @@ describe("PlayerProfile contract surfaces", () => {
         screen.getAllByText((_, element) => hasWeeklyWage(element?.textContent ?? "", "15,000"))
           .length,
       ).toBeGreaterThan(0);
-      expect(screen.getByText("Stable")).toBeInTheDocument();
+      expect(screen.getAllByText("Stable").length).toBeGreaterThan(0);
       expect(screen.getByRole("button", { name: "Done" })).toBeInTheDocument();
       expect(screen.queryByRole("button", { name: "Submit Offer" })).not.toBeInTheDocument();
     });

@@ -1,6 +1,6 @@
 import { Badge, Card, CardBody, CardHeader } from "../ui";
 import type { ReleaseReason } from "../../store/types";
-import { formatPlayerWage } from "./PlayerProfile.helpers";
+import { formatPlayerWage, formatProfileDay } from "./PlayerProfile.helpers";
 import type { ContractHistoryRow } from "./PlayerProfile.contractHistory";
 
 type TranslateFn = (key: string, options?: Record<string, string | number>) => string;
@@ -20,12 +20,12 @@ const RELEASE_REASON_KEYS: Record<ReleaseReason, string> = {
 };
 
 /** The contract's span in words. An unknown start is left out, never replaced by a date. */
-function spanText(row: ContractHistoryRow, t: TranslateFn): string {
-  if (row.start && row.end) {
-    return t("playerProfile.movementContractRange", { start: row.start, end: row.end });
-  }
-  if (row.end) return t("playerProfile.movementContractUntil", { end: row.end });
-  if (row.start) return t("playerProfile.movementContractFrom", { start: row.start });
+function spanText(row: ContractHistoryRow, language: string, t: TranslateFn): string {
+  const start = row.start ? formatProfileDay(row.start, language) : null;
+  const end = row.end ? formatProfileDay(row.end, language) : null;
+  if (start && end) return t("playerProfile.movementContractRange", { start, end });
+  if (end) return t("playerProfile.movementContractUntil", { end });
+  if (start) return t("playerProfile.movementContractFrom", { start });
   return t("playerProfile.movementDateUnknown");
 }
 
@@ -33,7 +33,7 @@ function spanText(row: ContractHistoryRow, t: TranslateFn): string {
 export default function PlayerProfileContractHistoryCard({
   rows,
   showsWages,
-  language: _language,
+  language,
   t,
 }: PlayerProfileContractHistoryCardProps) {
   return (
@@ -65,7 +65,7 @@ export default function PlayerProfileContractHistoryCard({
                 <tr key={row.key}>
                   <td className="py-2 pr-3 font-semibold text-fg">{row.clubName}</td>
                   <td className="py-2 pr-3 text-fg-muted">
-                    <span>{spanText(row, t)}</span>
+                    <span>{spanText(row, language, t)}</span>
                     {row.source === "legacy_migrated" ? (
                       <span className="block text-caption text-fg-subtle">
                         {t("playerProfile.movementLegacyContract")}

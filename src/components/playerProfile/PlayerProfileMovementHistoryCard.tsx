@@ -1,6 +1,7 @@
 import type { PlayerMovementEntry, PlayerMovementKind } from "../../store/gameStore";
 import { formatExactMoney } from "../../lib/helpers";
 import { Badge, Card, CardBody, CardHeader } from "../ui";
+import { formatProfileDay } from "./PlayerProfile.helpers";
 
 type TranslateFn = (key: string, options?: Record<string, string | number>) => string;
 
@@ -71,7 +72,7 @@ function movementDirection(entry: PlayerMovementEntry, t: TranslateFn): string {
 
 export default function PlayerProfileMovementHistoryCard({
   movementHistory,
-  language: _language,
+  language,
   t,
 }: PlayerProfileMovementHistoryCardProps) {
   // Newest first. Entries on the same day keep the order they happened in, which is
@@ -102,7 +103,9 @@ export default function PlayerProfileMovementHistoryCard({
                       {t(MOVEMENT_LABEL_KEYS[entry.kind])}
                     </Badge>
                     <span className="text-xs font-semibold text-gray-500 dark:text-gray-400">
-                      {entry.date || t("playerProfile.movementDateUnknown")}
+                      {entry.date
+                        ? formatProfileDay(entry.date, language)
+                        : t("playerProfile.movementDateUnknown")}
                     </span>
                   </div>
 
@@ -123,7 +126,7 @@ export default function PlayerProfileMovementHistoryCard({
                     {entry.loan_end_date ? (
                       <span>
                         {t("playerProfile.movementLoanUntil", {
-                          date: entry.loan_end_date,
+                          date: formatProfileDay(entry.loan_end_date, language),
                         })}
                       </span>
                     ) : null}

@@ -1,3 +1,4 @@
+import { formatDate } from "../../lib/dateFormatting";
 import type { PlayerData, TeamData } from "../../store/gameStore";
 import type { TOptions } from "i18next";
 import { weeklyWageAmount } from "../../lib/finance";
@@ -178,6 +179,5 @@ export function buildPlayerAdvancedStats(player: PlayerData): PlayerAdvancedStat
  * unknown date, empty) is returned as it came, never as today.
  */
 export function formatProfileDay(day: string, language: string): string {
-  void language;
-  return day;
+  return formatDate(day, language, { day: "numeric", month: "short", year: "numeric" });
 }
