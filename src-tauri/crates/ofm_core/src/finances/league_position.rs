@@ -177,4 +177,42 @@ mod tests {
         assert_eq!(sponsorship_paid(&game, "alpha"), BASE + BONUS);
         assert_eq!(sponsorship_paid(&game, "bravo"), BASE);
     }
+
+    /// Given the same world, "charlie" top of league B and "delta" below him, with the user in A
+    /// When the Finances screen's snapshot is taken for each
+    /// Then "charlie" projects the position bonus and "delta" the base only: the screen reads the
+    ///      club's own table as the week's payment does.
+    #[test]
+    fn the_snapshot_projects_the_bonus_of_a_club_in_the_league_the_user_does_not_follow() {
+        let game = two_league_game();
+
+        let charlie = crate::finances::team_finance_snapshot(&game, "charlie").expect("a snapshot");
+        let delta = crate::finances::team_finance_snapshot(&game, "delta").expect("a snapshot");
+
+        assert_eq!(charlie.weekly_sponsor_income, BASE + BONUS);
+        assert_eq!(delta.weekly_sponsor_income, BASE);
+    }
+
+    /// Given two otherwise identical clubs in debt and with no sponsor, first and second of the
+    ///      league the user does not follow
+    /// When each is shown a sponsor pitch
+    /// Then the leader's offer is higher by the difference between the first and the second
+    ///      place's league-position component (18,000 - 12,000).
+    #[test]
+    fn the_sponsor_pitch_reads_the_position_of_a_club_in_the_league_the_user_does_not_follow() {
+        let mut game = two_league_game();
+        for team in game
+            .teams
+            .iter_mut()
+            .filter(|team| team.id == "charlie" || team.id == "delta")
+        {
+            team.finance = -10_000;
+            team.sponsorship = None;
+        }
+
+        let charlie = crate::finances::preview_sponsor_pitch(&game, "charlie").expect("a pitch");
+        let delta = crate::finances::preview_sponsor_pitch(&game, "delta").expect("a pitch");
+
+        assert_eq!(charlie.weekly_amount - delta.weekly_amount, 6_000);
+    }
 }
