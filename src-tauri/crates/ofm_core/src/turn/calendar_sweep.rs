@@ -115,11 +115,13 @@ fn reconcile_from(
         // follow. A sweep that changed nothing leaves it alone.
         game.sync_legacy_league();
     }
-    calendar_notice::announce_moved_matches(
-        game,
-        &format!("postponed_{today}"),
-        &moved_after_being_shown,
-    );
+    // A later draw is a separate event: the pre-day notice must not consume its sent-ledger key.
+    let event_key = if first_day == day {
+        format!("postponed_before_{today}")
+    } else {
+        format!("postponed_{today}")
+    };
+    calendar_notice::announce_moved_matches(game, &event_key, &moved_after_being_shown);
     game.calendar_fingerprint = Some(after);
     true
 }
