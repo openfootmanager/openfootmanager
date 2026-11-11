@@ -101,6 +101,9 @@ fn effect_against_neutral(engine: Engine, morale_factor: f64) -> (f64, f64) {
 
 fn assert_lift(engine: Engine) {
     let (effect, standard_error) = effect_against_neutral(engine, 1.03);
+    eprintln!(
+        "MORALE_EFFECT {engine:?} +3%: shot difference {effect:+.4}, standard error {standard_error:.4}"
+    );
     assert!(
         effect > STANDARD_ERRORS * standard_error,
         "{engine:?}: a side at +3% should out-shoot the neutral one: the shot difference moved \
@@ -110,6 +113,9 @@ fn assert_lift(engine: Engine) {
 
 fn assert_drop(engine: Engine) {
     let (effect, standard_error) = effect_against_neutral(engine, 0.97);
+    eprintln!(
+        "MORALE_EFFECT {engine:?} -3%: shot difference {effect:+.4}, standard error {standard_error:.4}"
+    );
     assert!(
         effect < -STANDARD_ERRORS * standard_error,
         "{engine:?}: a side at -3% should be out-shot by the neutral one: the shot difference \
