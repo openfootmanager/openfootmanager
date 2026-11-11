@@ -936,6 +936,34 @@ mod info_news_tests {
         );
         assert!(article.body.contains("North"), "{}", article.body);
     }
+
+    /// Given a roundup whose result lines name a club "{{United}} FC" (a mod's club name), with its
+    ///       structured results present so the body's own unfilled slots are dropped
+    /// When an agent reads the news
+    /// Then the club's name stays as it was written: only the template's unfilled slots go, never
+    ///      braces that came from a value
+    #[test]
+    fn a_club_name_with_braces_survives_the_removal_of_unfilled_slots() {
+        let news = vec![ofm_core::news::league_roundup_article(
+            "league",
+            3,
+            &[("{{United}} FC".to_string(), 2, "South".to_string(), 1)],
+            "2026-02-14",
+        )];
+
+        let article = &recent_news(&news, "2026-02-15").articles[0];
+
+        assert!(
+            article.body.contains("{{United}} FC"),
+            "the club's name was eaten: {}",
+            article.body
+        );
+        assert!(
+            article.details.contains_key("resultsData"),
+            "{:?}",
+            article.details
+        );
+    }
 }
 
 #[cfg(test)]
