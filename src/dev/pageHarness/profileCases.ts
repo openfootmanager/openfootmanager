@@ -45,7 +45,7 @@ const freeAgents = (players: PlayerData[]) =>
  */
 function pickPlayers(players: PlayerData[]) {
   const outfield = (list: PlayerData[]) => list.filter((p) => p.position !== "Goalkeeper");
-  const [scouted, unknown, retiree] = freeAgents(players);
+  const [scouted, unknown, retiree, freeAgent] = freeAgents(players);
   const club = outfield(ofClub(players));
   if (club.length < 3) {
     throw new Error(
@@ -60,6 +60,7 @@ function pickPlayers(players: PlayerData[]) {
     rival: outfield(rivals(players))[0],
     scouted,
     unknown,
+    freeAgent,
     retiree,
   };
 }
@@ -182,7 +183,7 @@ function ownCase(player: PlayerData): ProfileCase {
  * facts only; a retiree fetched on his own.
  */
 export function profileCase(variant: HarnessProfile): ProfileCase {
-  const { own, keeper, injured, loaned, rival, scouted, unknown, retiree } = pickPlayers(
+  const { own, keeper, injured, loaned, rival, scouted, unknown, freeAgent, retiree } = pickPlayers(
     gameState.players,
   );
   const none = {
@@ -277,6 +278,13 @@ export function profileCase(variant: HarnessProfile): ProfileCase {
       return {
         ...none,
         playerId: unknown.id,
+        knowledge: { kind: "unknown" },
+        wage: { kind: "hidden" },
+      };
+    case "freeAgent":
+      return {
+        ...none,
+        playerId: freeAgent.id,
         knowledge: { kind: "unknown" },
         wage: { kind: "hidden" },
       };
