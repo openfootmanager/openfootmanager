@@ -1,5 +1,5 @@
 import type { PlayerAdvancedStatsSummary } from "../../components/playerProfile/PlayerProfile.helpers";
-import type { PlayerRecentMatchEntry } from "../../components/playerProfile/PlayerProfileRecentMatchesCard";
+import type { PlayerRecentMatchEntry } from "../../components/playerProfile/PlayerProfile.helpers";
 import type { PlayerKnowledge, VisibleWage } from "../../services/scoutingService";
 import type { PositionRatings } from "../../store/generated/PositionRatings";
 import type { PotentialOpinion } from "../../store/generated/PotentialOpinion";

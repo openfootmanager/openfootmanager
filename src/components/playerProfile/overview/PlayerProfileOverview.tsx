@@ -9,7 +9,7 @@ import type { PlayerData } from "../../../store/gameStore";
 import { Badge, ConditionMeter, FormDots, FormResultMark, RatingChip, Select } from "../../ui";
 import { TraitList } from "../../TraitBadge";
 import { formatPlayerMarketValue } from "../PlayerProfile.helpers";
-import type { PlayerRecentMatchEntry } from "../PlayerProfileRecentMatchesCard";
+import type { PlayerRecentMatchEntry } from "../PlayerProfile.helpers";
 import { RetryButton } from "../ProfileLoadFailed";
 import { OverviewCard, OverviewRow } from "./OverviewCard";
 import { formOf, resultOf } from "./overviewModel";

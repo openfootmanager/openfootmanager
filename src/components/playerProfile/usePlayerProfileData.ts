@@ -3,7 +3,7 @@ import { invoke } from "@tauri-apps/api/core";
 
 import type { PlayerData } from "../../store/gameStore";
 import { buildPlayerAdvancedStats, type PlayerAdvancedStatsSummary } from "./PlayerProfile.helpers";
-import type { PlayerRecentMatchEntry } from "./PlayerProfileRecentMatchesCard";
+import type { PlayerRecentMatchEntry } from "./PlayerProfile.helpers";
 
 const RECENT_MATCH_LIMIT = 5;
 

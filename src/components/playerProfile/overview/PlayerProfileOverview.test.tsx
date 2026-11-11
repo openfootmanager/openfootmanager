@@ -4,7 +4,7 @@ import { beforeAll, describe, expect, it, vi } from "vitest";
 import { i18nReady } from "../../../i18n";
 import type { PositionRatings } from "../../../store/generated/PositionRatings";
 import { createPlayer } from "../../../test-utils/factories";
-import type { PlayerRecentMatchEntry } from "../PlayerProfileRecentMatchesCard";
+import type { PlayerRecentMatchEntry } from "../PlayerProfile.helpers";
 import PlayerProfileOverview, { type PlayerProfileOverviewProps } from "./PlayerProfileOverview";
 
 vi.mock("../../../hooks/useRatingTiers", async () => {

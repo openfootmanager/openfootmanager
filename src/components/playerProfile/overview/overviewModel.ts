@@ -1,4 +1,4 @@
-import type { PlayerRecentMatchEntry } from "../PlayerProfileRecentMatchesCard";
+import type { PlayerRecentMatchEntry } from "../PlayerProfile.helpers";
 
 /** A result as the form marks and the previous-matches rows draw it. */
 export type MatchResult = "W" | "D" | "L";

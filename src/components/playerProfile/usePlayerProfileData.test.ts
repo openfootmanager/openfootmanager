@@ -3,7 +3,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createPlayer } from "../../test-utils/factories";
-import type { PlayerRecentMatchEntry } from "./PlayerProfileRecentMatchesCard";
+import type { PlayerRecentMatchEntry } from "./PlayerProfile.helpers";
 import { usePlayerProfileData } from "./usePlayerProfileData";
 
 vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));

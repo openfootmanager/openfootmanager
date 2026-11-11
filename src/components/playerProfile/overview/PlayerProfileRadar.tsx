@@ -57,7 +57,6 @@ export function PlayerProfileRadar({ axes }: { axes: RadarAxis[] }) {
             x={at.x}
             y={at.y + 4}
             textAnchor={anchor}
-            aria-hidden="true"
             className={`text-caption ${axis.key ? "fill-fg font-bold" : "fill-fg-muted"}`}
           >
             {axis.label} {axis.value}
