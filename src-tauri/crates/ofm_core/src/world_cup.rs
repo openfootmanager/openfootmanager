@@ -642,6 +642,7 @@ pub fn schedule_world_cup_with_field(
     let cup_id = cup.id.clone();
     crate::calendar_identity::ensure_competition_calendar(&mut cup);
     game.competitions.push(cup);
+    national_team::settle_for_replay(game, game.clock.current_date.date_naive());
     if !game.active_competition_ids.is_empty() {
         game.active_competition_ids.push(cup_id);
     }
@@ -1100,6 +1101,7 @@ pub fn schedule_world_cup_qualifying(game: &mut Game, wc_year: i32, window_dates
     let competition_id = competition.id.clone();
     crate::calendar_identity::ensure_competition_calendar(&mut competition);
     game.competitions.push(competition);
+    national_team::settle_for_replay(game, game.clock.current_date.date_naive());
     if !game.active_competition_ids.is_empty() {
         game.active_competition_ids.push(competition_id);
     }

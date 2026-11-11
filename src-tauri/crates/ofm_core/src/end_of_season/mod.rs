@@ -691,6 +691,7 @@ fn manage_international_calendar(
                 qualified_field,
             );
         }
+        crate::national_team::settle_tournaments(game, first_day);
         crate::national_team::settle_friendlies(game, first_day);
         // The tournament fills the break, but future club fixtures must still avoid
         // international windows and each other.
@@ -758,6 +759,7 @@ fn manage_international_calendar(
             &mut friendlies_rng,
         );
     }
+    crate::national_team::settle_tournaments(game, first_day);
     crate::national_team::settle_friendlies(game, first_day);
     let blackout = crate::national_team::international_blackout_around(
         game,
