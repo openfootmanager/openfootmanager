@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 
 import type { GameStateData } from "../../store/gameStore";
 
@@ -7,6 +7,7 @@ import { formatExactMoney } from "../../lib/helpers";
 import { invokeForCareer } from "../../services/careerInvoke";
 import { useTranslation } from "react-i18next";
 import { resolveBackendError } from "../../utils/backendI18n";
+import { resolveTranslatedErrorMessage } from "../../utils/errorMessage";
 import type {
   FacilityId,
   FacilityUpgradeErrorState,
@@ -21,6 +22,14 @@ import type {
 export function useFinanceActions(onGameUpdate?: (state: GameStateData) => void) {
   const { t } = useTranslation();
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  // The sponsor offer being answered, for the whole request: its own state, because `actionLoading`
+  // is one slot every finance action takes over, and an answer in flight must not look finished when
+  // another action starts. The ref guards a second press before the state has rendered.
+  const [answeringOfferId, setAnsweringOfferId] = useState<string | null>(null);
+  const answeringOfferRef = useRef<string | null>(null);
+  // Why the backend refused the last answer to each sponsor offer, by the offer's message id: answering
+  // one offer clears only its own entry.
+  const [sponsorOfferErrors, setSponsorOfferErrors] = useState<Record<string, string>>({});
   const [delegatedRenewalsSummary, setDelegatedRenewalsSummary] = useState<string | null>(null);
   const [facilityUpgradeError, setFacilityUpgradeError] =
     useState<FacilityUpgradeErrorState | null>(null);
@@ -175,8 +184,12 @@ export function useFinanceActions(onGameUpdate?: (state: GameStateData) => void)
     actionId: string,
     optionId: string,
   ): Promise<void> {
-    const loadingKey = `sponsor:${messageId}:${optionId}`;
-    setActionLoading(loadingKey);
+    if (answeringOfferRef.current !== null) return;
+    answeringOfferRef.current = messageId;
+    setAnsweringOfferId(messageId);
+    setSponsorOfferErrors((errors) =>
+      Object.fromEntries(Object.entries(errors).filter(([id]) => id !== messageId)),
+    );
     try {
       const result = await invokeForCareer<ResolveMessageActionResult>("resolve_message_action", {
         messageId,
@@ -186,12 +199,17 @@ export function useFinanceActions(onGameUpdate?: (state: GameStateData) => void)
       onGameUpdate?.(result.game);
     } catch (error) {
       console.error("Failed to resolve sponsor offer:", error);
+      const text = resolveTranslatedErrorMessage(error);
+      setSponsorOfferErrors((errors) => ({ ...errors, [messageId]: text }));
     } finally {
-      setActionLoading(null);
+      answeringOfferRef.current = null;
+      setAnsweringOfferId(null);
     }
   }
   return {
     actionLoading,
+    answeringOfferId,
+    sponsorOfferErrors,
     facilityUpgradeError,
     boardSupportFeedback,
     sponsorPitchFeedback,

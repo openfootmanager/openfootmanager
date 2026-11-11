@@ -26,6 +26,8 @@ export function FinanceSponsorsCard({
     | "marketingCampaignFeedback"
     | "sponsorOffers"
     | "handleSponsorOption"
+    | "answeringOfferId"
+    | "sponsorOfferErrors"
   >;
 }) {
   const {
@@ -165,9 +167,9 @@ function FinanceSponsorOffer({
   state,
 }: {
   message: ReturnType<typeof resolveMessage>;
-  state: Pick<FinanceViewState, "actionLoading" | "handleSponsorOption">;
+  state: Pick<FinanceViewState, "answeringOfferId" | "sponsorOfferErrors" | "handleSponsorOption">;
 }) {
-  const { actionLoading, handleSponsorOption } = state;
+  const { answeringOfferId, sponsorOfferErrors, handleSponsorOption } = state;
 
   const sponsorAction = message.actions.find(
     (action) => !action.resolved && isChooseOptionAction(action.action_type),
@@ -183,9 +185,13 @@ function FinanceSponsorOffer({
         <h3 className="font-semibold text-body text-fg">{message.subject}</h3>
         <p className="text-body text-fg-muted">{message.body}</p>
       </div>
+      {sponsorOfferErrors[message.id] ? (
+        <p role="alert" className="text-body text-danger">
+          {sponsorOfferErrors[message.id]}
+        </p>
+      ) : null}
       <div className="flex flex-wrap gap-2">
         {sponsorAction.action_type.ChooseOption.options.map((option) => {
-          const optionLoadingKey = `sponsor:${message.id}:${option.id}`;
           return (
             <div
               key={option.id}
@@ -193,7 +199,9 @@ function FinanceSponsorOffer({
             >
               <p className="text-caption text-fg-muted">{option.description}</p>
               <Button
-                disabled={actionLoading === optionLoadingKey}
+                // An answer in flight holds every sponsor answer: the opposite one must not be sent
+                // too, whatever else the tab is doing.
+                disabled={answeringOfferId !== null}
                 onClick={() => void handleSponsorOption(message.id, sponsorAction.id, option.id)}
                 size="sm"
                 variant={option.id === "decline" ? "outline" : "primary"}

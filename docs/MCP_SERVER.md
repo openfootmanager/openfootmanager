@@ -203,7 +203,7 @@ The `initialize` result's `serverInfo.version` is the package version plus the s
 | `inbox_mark_all_read` | Mark all messages as read |
 | `inbox_delete` | Delete a message |
 | `inbox_clear_old` | Clear old/processed messages |
-| `inbox_resolve_action` | Resolve a message action (job offers, scout reports, events); `message_id`, `action_id` and `option_id` are the ids `inbox_get_messages` lists |
+| `inbox_resolve_action` | Resolve a message action (job offers, scout reports, events); `message_id`, `action_id` and `option_id` are the ids `inbox_get_messages` lists; an action answers once, a second answer is refused with `be.error.actionAlreadyResolved`, and a message that is not there (or not visible yet, answered the same way so an agent learns nothing of future mail) or an action it lacks with `be.error.actionNotFound`; a choice resolved without one of its offered options (none, or one it does not offer) is refused with `be.error.actionOptionRequired` and stays pending |
 
 ### Club & Staff (7 tools)
 
