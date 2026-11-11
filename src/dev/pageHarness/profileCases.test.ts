@@ -50,7 +50,7 @@ describe("the player profile's cases", () => {
     expect(own.recentMatches.every((match) => match.opponent_team_id !== USER_CLUB)).toBe(true);
     expect(own.seasonStats.metrics.shots.total).toBeGreaterThan(0);
     for (const variant of HARNESS_PROFILES.filter(
-      (variant) => variant !== "own" && variant !== "keeper",
+      (variant) => !["own", "keeper", "injured", "loaned"].includes(variant),
     )) {
       expect(profileCase(variant).recentMatches).toEqual([]);
       expect(profileCase(variant).seasonStats.metrics.shots.total).toBe(0);

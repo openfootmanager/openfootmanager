@@ -259,7 +259,9 @@ describe("fixture answers: the profile's knowledge of players", () => {
    */
   it("lays the case's patch over the player in the active game", () => {
     const injured = profileCase("injured");
-    const patched = fixtureHandlers(readStyleGuideOptions(""), "en", "injured").get_active_game({}) as {
+    const patched = fixtureHandlers(readStyleGuideOptions(""), "en", "injured").get_active_game(
+      {},
+    ) as {
       players: { id: string; injury: unknown }[];
     };
 
