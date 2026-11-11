@@ -5,9 +5,12 @@ use domain::league::{CompetitionFormat, CompetitionType, FixtureStatus, League, 
 
 /// Play national tournaments due today, including those outside the user's active simulation scope.
 pub fn process_fixtures_due(game: &mut Game, today: &str) -> usize {
-    process_selected_fixtures_due(game, today, |competition| {
-        competition.kind == CompetitionType::InternationalNation
-    })
+    process_selected_fixtures_due(
+        game,
+        today,
+        |competition| competition.kind == CompetitionType::InternationalNation,
+        None,
+    )
 }
 
 /// The World Cup's rollover catch-up can restrict this same match path to its own competitions.
@@ -15,7 +18,11 @@ pub(crate) fn process_selected_fixtures_due(
     game: &mut Game,
     today: &str,
     selected: impl Fn(&League) -> bool,
+    publication_history: Option<&std::collections::BTreeSet<(String, String)>>,
 ) -> usize {
+    let Ok(day) = chrono::NaiveDate::parse_from_str(today, "%Y-%m-%d") else {
+        return 0;
+    };
     let indices: Vec<_> = game
         .competitions
         .iter()
@@ -25,6 +32,24 @@ pub(crate) fn process_selected_fixtures_due(
         })
         .map(|(index, _)| index)
         .collect();
+    let due_today = |fixture: &domain::league::Fixture| {
+        fixture.date == today && fixture.status == FixtureStatus::Scheduled
+    };
+    if !indices
+        .iter()
+        .any(|&index| game.competitions[index].fixtures.iter().any(due_today))
+    {
+        return 0;
+    }
+    let current_history;
+    let published = match publication_history {
+        Some(published) => published,
+        None => {
+            current_history = national_team::published_tournament_fixtures(game);
+            &current_history
+        }
+    };
+    national_team::settle_drawn_tournaments(game, day, published);
     let mut simulated = 0;
     let mut played_world_cup = false;
     for competition_index in indices {
@@ -32,30 +57,48 @@ pub(crate) fn process_selected_fixtures_due(
             .fixtures
             .iter()
             .enumerate()
-            .filter(|(_, fixture)| {
-                fixture.date == today && fixture.status == FixtureStatus::Scheduled
-            })
+            .filter(|(_, fixture)| due_today(fixture))
             .map(|(index, _)| index)
             .collect();
         if due.is_empty() {
             continue;
         }
-        played_world_cup |=
-            world_cup::is_world_cup_competition(&game.competitions[competition_index]);
-        simulated += due.len();
+        let mut played = false;
         for fixture_index in due {
-            play_fixture(game, competition_index, fixture_index, today);
+            let fixture = &game.competitions[competition_index].fixtures[fixture_index];
+            if !due_today(fixture) {
+                continue;
+            }
+            if play_fixture(game, competition_index, fixture_index, today) {
+                national_team::settle_drawn_tournaments(game, day, published);
+            }
+            simulated += 1;
+            played = true;
         }
-        world_cup::apply_world_cup_match_policies(game, competition_index, today);
+        if played {
+            played_world_cup |=
+                world_cup::is_world_cup_competition(&game.competitions[competition_index]);
+            world_cup::apply_world_cup_match_policies(game, competition_index, today);
+        }
     }
     if played_world_cup {
-        world_cup::stage_world_cup_playoff_if_ready(game, today);
+        let before = game.competitions.len();
+        world_cup::stage_world_cup_playoff_if_ready(game, today, published);
+        if game.competitions.len() != before {
+            national_team::settle_drawn_tournaments(game, day, published);
+        }
     }
     simulated
 }
 
-fn play_fixture(game: &mut Game, competition_index: usize, fixture_index: usize, today: &str) {
+fn play_fixture(
+    game: &mut Game,
+    competition_index: usize,
+    fixture_index: usize,
+    today: &str,
+) -> bool {
     let competition = &game.competitions[competition_index];
+    let before = competition.fixtures.len();
     let fixture = &competition.fixtures[fixture_index];
     let (home, away) = (fixture.home_team_id.clone(), fixture.away_team_id.clone());
     let is_knockout = competition.is_knockout_fixture(&fixture.id);
@@ -92,6 +135,7 @@ fn play_fixture(game: &mut Game, competition_index: usize, fixture_index: usize,
     if !world_cup::advance_special_round(competition) {
         crate::schedule::advance_knockout_competition_round(competition);
     }
+    let drawn = competition.fixtures.len() != before;
     game.world_history.apply_national_result(
         &world_cup::nation_code_of_national_team(&home),
         &world_cup::nation_code_of_national_team(&away),
@@ -99,6 +143,7 @@ fn play_fixture(game: &mut Game, competition_index: usize, fixture_index: usize,
         away_goals,
         shootout,
     );
+    drawn
 }
 
 fn play_result(

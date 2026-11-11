@@ -11,7 +11,7 @@ use chrono::{DateTime, NaiveDate, Utc};
 use domain::league::{CompetitionType, FixtureStatus, League, MatchResult};
 use domain::player::Player;
 use rand::Rng;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 const CATCHUP_XI: usize = 11;
 
@@ -348,6 +348,7 @@ fn stranded_international_dates(game: &Game, today: NaiveDate) -> Vec<String> {
 /// One repair pass. Returns how many fixtures it resolved; zero means nothing moved.
 fn repair_one_pass(game: &mut Game, today: NaiveDate, pass: usize) -> usize {
     let mut resolved = 0;
+    let before = scheduled_national_dates(game);
 
     // Club football: a scoreline sweep per competition, skipping the ones with nothing stranded so
     // an ordinary load does not pay to rank every squad in the world.
@@ -391,7 +392,25 @@ fn repair_one_pass(game: &mut Game, today: NaiveDate, pass: usize) -> usize {
         resolved += crate::national_tournament::process_fixtures_due(game, &date);
     }
 
+    // Moving the only stranded match into the future is also a persistent repair, even though
+    // it must not be simulated yet. Count it once; matches played in this pass are counted above.
+    resolved += scheduled_national_dates(game)
+        .into_iter()
+        .filter(|(id, date)| before.get(id).is_some_and(|original| original != date))
+        .count();
+
     resolved
+}
+
+fn scheduled_national_dates(game: &Game) -> HashMap<(String, String), String> {
+    game.competitions
+        .iter()
+        .filter(|c| is_national_team_competition(c))
+        .flat_map(|c| &c.fixtures)
+        .chain(game.national_teams.iter().flat_map(|n| &n.fixtures))
+        .filter(|f| f.status == FixtureStatus::Scheduled)
+        .map(|f| ((f.competition_id.clone(), f.id.clone()), f.date.clone()))
+        .collect()
 }
 
 /// Returns how many fixtures were repaired, for the caller to log and to decide whether to resave.
@@ -404,18 +423,26 @@ pub fn repair_stranded_fixtures(game: &mut Game) -> usize {
         return 0;
     }
 
-    let mut repaired = 0;
+    let mut repaired = HashSet::new();
     for pass in 0..MAX_REPAIR_PASSES {
+        let before = fixture_states(game);
         let resolved = repair_one_pass(game, today, pass);
+        for (key, state) in fixture_states(game) {
+            let changed = before
+                .get(&key)
+                .map_or(state.0 == FixtureStatus::Completed, |old| old != &state);
+            if changed {
+                repaired.insert(key);
+            }
+        }
         if resolved == 0 {
             // Nothing moved, so nothing will. Stop instead of spinning: an unplayable fixture stays
             // as it is rather than costing the load a bounded-but-pointless sixty-four passes.
             break;
         }
-        repaired += resolved;
     }
 
-    if repaired > 0 {
+    if !repaired.is_empty() {
         // The repair rewrote `competitions`, and `game.league` is a *mirror* of the user's — the one
         // the home dashboard reads for the next match and the league table. Left un-synced it shows
         // the player a fixture that has just been played as still to come, above a table that
@@ -427,7 +454,22 @@ pub fn repair_stranded_fixtures(game: &mut Game) -> usize {
         game.sync_legacy_league();
     }
 
-    repaired
+    repaired.len()
+}
+
+// A postponed match played on a later pass is still one repaired fixture, not two repairs.
+fn fixture_states(game: &Game) -> HashMap<(String, String), (FixtureStatus, String)> {
+    game.competitions
+        .iter()
+        .flat_map(|c| &c.fixtures)
+        .chain(game.national_teams.iter().flat_map(|n| &n.fixtures))
+        .map(|f| {
+            (
+                (f.competition_id.clone(), f.id.clone()),
+                (f.status.clone(), f.date.clone()),
+            )
+        })
+        .collect()
 }
 
 #[cfg(test)]
@@ -1097,6 +1139,34 @@ mod tests {
             drawn_league && drawn_tie && decided_tie,
             "every case must occur: {drawn_league} {drawn_tie} {decided_tie}"
         );
+    }
+
+    /// Given one overdue tie blocked by a completed national match, When repair moves it into
+    /// the future, Then that one persistent change is counted without playing it or applying wear.
+    #[test]
+    fn a_move_only_national_repair_is_counted_once_without_playing_early() {
+        let mut game = game_with_two_national_squads("2030-06-11");
+        add_national_squad(&mut game, "nt-fra", "France", "fra", 75);
+        let mut fixed = international_fixture("fixed", "2030-06-10", "nt-eng", "nt-bra");
+        fixed.status = FixtureStatus::Completed;
+        fixed.result = Some(Default::default());
+        let mut competition =
+            League::new("wc-2030".into(), "Continental nations".into(), 2030, &[]);
+        competition.kind = CompetitionType::InternationalNation;
+        competition.scope = CompetitionScope::Continental;
+        competition.fixtures = vec![
+            fixed,
+            international_fixture("overdue", "2030-06-09", "nt-eng", "nt-fra"),
+        ];
+        game.competitions = vec![competition];
+        let players = serde_json::to_value(&game.players).unwrap();
+        assert_eq!(super::repair_stranded_fixtures(&mut game), 1);
+        let fixture = &game.competitions[0].fixtures[1];
+        assert_eq!(fixture.date, "2030-06-13");
+        assert_eq!(fixture.status, FixtureStatus::Scheduled);
+        assert!(fixture.result.is_none());
+        assert_eq!(super::repair_stranded_fixtures(&mut game), 0);
+        assert_eq!(serde_json::to_value(&game.players).unwrap(), players);
     }
 
     #[test]

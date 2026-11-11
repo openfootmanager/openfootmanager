@@ -168,7 +168,7 @@ fn latest_date_per_round<'a>(
 }
 
 /// Index of each knockout fixture's round within its competition.
-fn round_index(competitions: &[League]) -> HashMap<(&str, &str), usize> {
+pub(crate) fn round_index(competitions: &[League]) -> HashMap<(&str, &str), usize> {
     let mut rounds = HashMap::new();
     for competition in competitions {
         for (index, round) in competition.knockout_rounds.iter().enumerate() {
@@ -209,28 +209,17 @@ impl<'a> Settling<'a> {
             .today
             .checked_add_days(Days::new(1))
             .unwrap_or(self.today);
-        let Some(&round) = self.rounds.get(&item.key()) else {
-            return tomorrow.max(item.date);
-        };
-        let feeding_last = item
-            .competition
-            .knockout_rounds
-            .get(round.wrapping_sub(1))
-            .into_iter()
-            .flat_map(|previous| &previous.fixture_ids)
-            .filter_map(|id| {
+        crate::knockout_dates::fixture_not_before(
+            item.competition,
+            &item.fixture.id,
+            item.date,
+            tomorrow,
+            |id| {
                 self.settled
-                    .get(&(item.competition.id.as_str(), id.as_str()))
-            })
-            .max();
-        // The same wait `knockout_round_date` leaves between rounds (at least a day, so a round
-        // is never on the day of its feeders), or a moved feeder would pull its successor
-        // closer than the cup's own rule when the two are dated separately.
-        let wait = u64::from(item.competition.rules.knockout_round_gap_days.max(1));
-        let after_feeding = feeding_last.and_then(|last| last.checked_add_days(Days::new(wait)));
-        after_feeding.map_or(tomorrow.max(item.date), |date| {
-            date.max(tomorrow).max(item.date)
-        })
+                    .get(&(item.competition.id.as_str(), id))
+                    .copied()
+            },
+        )
     }
 
     /// Whether the fixture may stay on `date`: no blackout and no firm booking within the rest window.

@@ -164,15 +164,16 @@ pub(super) fn advance_world_cup_playoff(cup: &mut League) {
 /// seeds bye to the finals, four contest the preliminaries); a compressed
 /// campaign, or a degenerate world, resolves its playoff synthetically at the
 /// rollover instead.
-pub(crate) fn stage_world_cup_playoff_if_ready(game: &mut Game, today: &str) {
+pub(crate) fn stage_world_cup_playoff_if_ready(
+    game: &mut Game,
+    today: &str,
+    published: &std::collections::BTreeSet<(String, String)>,
+) {
     let Some((year, playoff_date, ranked)) = playoff_field_if_ready(game, today) else {
         return;
     };
     let cup = build_playoff(game, year, &playoff_date, &ranked);
-    if !game.active_competition_ids.is_empty() {
-        game.active_competition_ids.push(cup.id.clone());
-    }
-    game.competitions.push(cup);
+    super::publication::publish_with_history(game, cup, published);
     announce_playoff_draw(game, year, &ranked, today);
 }
 
@@ -275,7 +276,6 @@ fn build_playoff(game: &Game, year: u32, playoff_date: &str, ranked: &[String]) 
         preliminaries.name = "Semifinal".to_string();
     }
 
-    crate::calendar_identity::ensure_competition_calendar(&mut cup);
     cup
 }
 

@@ -217,6 +217,7 @@ fn ensure_international_windows(game: &mut Game, retained: &std::collections::Ha
     if opens_in_world_cup_summer
         && crate::world_cup::schedule_world_cup_if_due(game, now + Duration::days(2))
     {
+        crate::national_team::settle_tournaments(game, now.date_naive());
         crate::national_team::settle_friendlies(game, now.date_naive());
         let blackout = crate::national_team::international_blackout_around(
             game,
@@ -275,6 +276,7 @@ fn ensure_international_windows(game: &mut Game, retained: &std::collections::Ha
         }
     }
 
+    crate::national_team::settle_tournaments(game, now.date_naive());
     crate::national_team::settle_friendlies(game, now.date_naive());
 
     // Qualifying spreads each window's matches across a multi-day block, so club

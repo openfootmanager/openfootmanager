@@ -1,5 +1,11 @@
 //! National fixtures share nations and called-up players; club calendars reserve their dates too.
 
+mod tournaments;
+pub(crate) use tournaments::{
+    published_tournament_fixtures, settle_drawn_tournaments, settle_for_replay,
+    settle_retained_calendar, settle_tournaments,
+};
+
 use super::INTERNATIONAL_FRIENDLY_COMPETITION_ID;
 use crate::{
     calendar_booking::{MIN_GAP_DAYS, too_close},
@@ -172,13 +178,17 @@ fn tournament_bookings(game: &Game, first_day: NaiveDate) -> Bookings<'_> {
     let horizon = first_day
         .checked_sub_days(chrono::Days::new(MIN_GAP_DAYS as u64))
         .unwrap_or(first_day);
-    let mut bookings = Bookings::new(&game.national_teams);
+    let mut bookings = immutable_bookings(game, first_day);
     for competition in game
         .competitions
         .iter()
         .filter(|c| c.kind == CompetitionType::InternationalNation)
     {
-        for fixture in &competition.fixtures {
+        for fixture in competition
+            .fixtures
+            .iter()
+            .filter(|f| f.status == FixtureStatus::Scheduled)
+        {
             if let Ok(date) = NaiveDate::parse_from_str(&fixture.date, "%Y-%m-%d")
                 && date >= horizon
             {
@@ -195,11 +205,21 @@ fn tournament_bookings(game: &Game, first_day: NaiveDate) -> Bookings<'_> {
             }
         }
     }
+    bookings
+}
+
+fn immutable_bookings(game: &Game, first_day: NaiveDate) -> Bookings<'_> {
+    let horizon = first_day
+        .checked_sub_days(chrono::Days::new(MIN_GAP_DAYS as u64))
+        .unwrap_or(first_day);
+    let mut bookings = Bookings::new(&game.national_teams);
     for fixture in game
-        .national_teams
+        .competitions
         .iter()
-        .flat_map(|team| &team.fixtures)
-        .filter(|fixture| fixture.status != FixtureStatus::Scheduled)
+        .filter(|c| c.kind == CompetitionType::InternationalNation)
+        .flat_map(|c| &c.fixtures)
+        .chain(game.national_teams.iter().flat_map(|n| &n.fixtures))
+        .filter(|f| f.status != FixtureStatus::Scheduled)
     {
         if let Ok(date) = NaiveDate::parse_from_str(&fixture.date, "%Y-%m-%d")
             && date >= horizon
@@ -207,18 +227,21 @@ fn tournament_bookings(game: &Game, first_day: NaiveDate) -> Bookings<'_> {
             bookings.book(&fixture.home_team_id, &fixture.away_team_id, date);
         }
     }
+    book_immutable_club_appearances(game, first_day, &mut bookings);
     bookings
 }
 
-/// Club fixtures are immutable once played. Without full XI snapshots here, reserve the
+/// Club fixtures are immutable once started. Without full XI snapshots here, reserve the
 /// called-up clubmates conservatively, including clubs from recent recorded moves. Unplayed
 /// club fixtures still yield to international duty.
-fn book_completed_club_appearances(game: &Game, first_day: NaiveDate, bookings: &mut Bookings<'_>) {
+fn book_immutable_club_appearances(game: &Game, first_day: NaiveDate, bookings: &mut Bookings<'_>) {
     let horizon = first_day
         .checked_sub_days(chrono::Days::new(MIN_GAP_DAYS as u64))
         .unwrap_or(first_day);
     let since = horizon.to_string();
-    let through = first_day.to_string();
+    let through = first_day
+        .max(game.clock.current_date.date_naive())
+        .to_string();
     let called_up: BTreeSet<_> = game
         .national_teams
         .iter()
@@ -261,7 +284,7 @@ fn book_completed_club_appearances(game: &Game, first_day: NaiveDate, bookings: 
         .iter()
         .filter(|competition| competition.kind != CompetitionType::InternationalNation)
         .flat_map(|competition| &competition.fixtures)
-        .filter(|fixture| fixture.status == FixtureStatus::Completed)
+        .filter(|fixture| fixture.status != FixtureStatus::Scheduled)
     {
         let Ok(date) = NaiveDate::parse_from_str(&fixture.date, "%Y-%m-%d") else {
             continue;
@@ -279,8 +302,9 @@ fn book_completed_club_appearances(game: &Game, first_day: NaiveDate, bookings: 
 
 /// A friendly gives way to a tournament or an earlier published friendly, retaining its identity.
 /// Planning is read-only; applying it afterwards avoids invalidating the bookings while settling.
-pub(crate) fn settle_friendlies(game: &mut Game, first_day: NaiveDate) {
+pub(crate) fn settle_friendlies(game: &mut Game, first_day: NaiveDate) -> usize {
     let moves = friendly_moves(game, first_day);
+    let moved = moves.len();
     for (team_index, fixture_index, date) in moves {
         let fixture = &mut game.national_teams[team_index].fixtures[fixture_index];
         if fixture.postponement.is_none() {
@@ -291,6 +315,7 @@ pub(crate) fn settle_friendlies(game: &mut Game, first_day: NaiveDate) {
         }
         fixture.date = date.to_string();
     }
+    moved
 }
 
 fn friendly_moves(game: &Game, first_day: NaiveDate) -> Vec<(usize, usize, NaiveDate)> {
@@ -311,7 +336,6 @@ fn friendly_moves(game: &Game, first_day: NaiveDate) -> Vec<(usize, usize, Naive
         return Vec::new();
     }
     let mut bookings = tournament_bookings(game, first_day);
-    book_completed_club_appearances(game, first_day, &mut bookings);
     scheduled.sort_by_key(|(_, _, fixture)| (&fixture.date, &fixture.id));
     let mut moves = Vec::new();
     for (team_index, fixture_index, fixture) in scheduled {
