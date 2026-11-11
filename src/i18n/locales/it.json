@@ -1681,6 +1681,9 @@
     "sections": "Sezioni del profilo",
     "overall": "Complessivo",
     "ratingUnknown": "Il tuo club non conosce la sua valutazione",
+    "retired": "Ritirato",
+    "retiredOn": "Ritirato il {{date}}",
+    "lastClub": "Ultimo club: {{club}}",
     "tabs": {
       "overview": "Panoramica",
       "attributes": "Attributi",

@@ -1662,6 +1662,9 @@
     "sections": "个人资料分区",
     "overall": "综合",
     "ratingUnknown": "你的俱乐部不了解他的评分",
+    "retired": "已退役",
+    "retiredOn": "{{date}} 退役",
+    "lastClub": "最后效力的俱乐部：{{club}}",
     "tabs": {
       "overview": "概览",
       "attributes": "属性",

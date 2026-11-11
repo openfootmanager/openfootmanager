@@ -15,6 +15,7 @@ import { useFreeAgentContractFlow } from "../transfers/useFreeAgentContractFlow"
 import { useTransferBidFlow } from "../transfers/useTransferBidFlow";
 import PlayerProfileActionsMenu from "./PlayerProfileActionsMenu";
 import { formatPlayerWage, getPlayerTeamName } from "./PlayerProfile.helpers";
+import { retirementOf } from "./retirement";
 import { useVisibleWage } from "../../hooks/useVisibleWage";
 import { answeredOr } from "../../hooks/useKnowledgeAnswer";
 import ProfileLoadFailed from "./ProfileLoadFailed";
@@ -132,6 +133,8 @@ export default function PlayerProfile({
   const roleValidationPosition =
     (playerTeam && getDeployedPosition(playerTeam, player.id)) || primaryPosition;
   const tacticalRoleOptions = getRoleOptions(roleValidationPosition, currentTacticalRole);
+  // A retired player has no club and nothing to scout, sign or renew: the card says he retired.
+  const retirement = retirementOf(player);
   const teamName = getPlayerTeamName(gameState.teams, player.team_id, {
     freeAgent: t("common.freeAgent"),
     unknown: t("common.unknown"),
@@ -293,8 +296,9 @@ export default function PlayerProfile({
         onScout={sendScout}
         onSelectTeam={onSelectTeam}
         team={playerTeam}
+        retirement={retirement}
         actions={
-          onGameUpdate ? (
+          onGameUpdate && !retirement ? (
             <PlayerProfileActionsMenu
               player={player}
               gameState={gameState}

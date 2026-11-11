@@ -1662,6 +1662,9 @@
     "sections": "Secções do perfil",
     "overall": "Geral",
     "ratingUnknown": "O teu clube não conhece a sua avaliação",
+    "retired": "Reformado",
+    "retiredOn": "Reformado em {{date}}",
+    "lastClub": "Último clube: {{club}}",
     "tabs": {
       "overview": "Resumo",
       "attributes": "Atributos",

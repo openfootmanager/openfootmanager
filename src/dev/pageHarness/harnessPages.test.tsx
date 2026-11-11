@@ -138,7 +138,17 @@ const KNOWLEDGE_SHOWS: Record<HarnessProfile, (view: ReturnType<typeof within>) 
   },
   // A stranger and a retiree: public facts only.
   unknown: (view) => expectHidden(view),
-  retired: (view) => expectHidden(view),
+  retired: (view) => {
+    expectHidden(view);
+    // The card says he has retired, when, and from which club.
+    const card = within(
+      view.getByRole("region", { name: profileCase("retired").retiredPlayer?.full_name }),
+    );
+    expect(card.getByText("Retired")).toBeInTheDocument();
+    expect(card.getByText(/^Retired on /)).toBeInTheDocument();
+    expect(card.getByText(/^Last club: /)).toBeInTheDocument();
+    expect(card.queryByRole("button", { name: /scout/i })).toBeNull();
+  },
 };
 
 function expectHidden(view: ReturnType<typeof within>) {
