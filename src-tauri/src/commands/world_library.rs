@@ -1,6 +1,6 @@
 use std::path::Path;
 
-#[derive(serde::Serialize)]
+#[derive(serde::Serialize, ts_rs::TS)]
 #[serde(rename_all = "camelCase")]
 pub struct WorldLibraryRow {
     pub path: String,
@@ -12,7 +12,7 @@ pub struct WorldLibraryRow {
     pub error: Option<String>,
 }
 
-#[derive(serde::Serialize)]
+#[derive(serde::Serialize, ts_rs::TS)]
 #[serde(rename_all = "camelCase")]
 pub struct WorldsLibrary {
     pub projects: Vec<WorldLibraryRow>,
@@ -55,7 +55,7 @@ fn project_row(path: &str) -> WorldLibraryRow {
 }
 
 pub fn worlds_library_internal(paths: &[String], packages_dir: &Path) -> WorldsLibrary {
-    let installed = super::world::list_installed_packages_in(packages_dir)
+    let installed = super::world::list_installed_packages_in(packages_dir, false)
         .into_iter()
         .map(|package| WorldLibraryRow {
             path: package.installed_path,

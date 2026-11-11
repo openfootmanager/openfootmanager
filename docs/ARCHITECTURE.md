@@ -510,7 +510,7 @@ This means CLI validation results are guaranteed to match in-game validation res
 
 ### Package Editor Tauri Commands
 
-Four commands in `src-tauri/src/commands/package_editor.rs` expose package authoring to the React frontend:
+Package authoring commands expose the editor to the React frontend:
 
 | Command | What it does |
 |---------|-------------|

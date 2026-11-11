@@ -1,22 +1,8 @@
 import { invoke } from "@tauri-apps/api/core";
 
 import type { PackageCollections } from "../store/packageEditorTypes";
+import type { WorldsLibrary } from "../store/generated/WorldsLibrary";
 import { recordValidation } from "./recentProjects";
-
-export interface WorldLibraryRow {
-  path: string;
-  name: string;
-  version: string | null;
-  clubs: number;
-  players: number;
-  countries: number;
-  error: string | null;
-}
-
-export interface WorldsLibrary {
-  projects: WorldLibraryRow[];
-  installed: WorldLibraryRow[];
-}
 
 export function getWorldsLibrary(paths: string[]): Promise<WorldsLibrary> {
   return invoke<WorldsLibrary>("get_worlds_library", { paths });

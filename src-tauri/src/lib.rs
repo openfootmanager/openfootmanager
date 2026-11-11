@@ -6,6 +6,7 @@ mod crash;
 mod main_window;
 mod platform;
 mod report;
+pub use commands::world_library::{WorldLibraryRow, WorldsLibrary};
 use commands::*;
 
 #[cfg(feature = "mcp")]
