@@ -1,4 +1,5 @@
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { invoke } from "@tauri-apps/api/core";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { GameStateData, LeagueData } from "../store/gameStore";
@@ -57,6 +58,24 @@ Object.defineProperty(window, "matchMedia", {
   })),
 });
 
+/** The backend's facts for team-1 (`get_team_selection_ratings`). */
+const CLUB_FACTS = {
+  team_id: "team-1",
+  average_rating: 70,
+  players: [],
+  stadium_name: "Ground",
+  stadium_capacity: 20_000,
+  transfer_budget: 5_000_000,
+  weekly_wage_budget: 100_000,
+  balance: 1_000_000,
+  colors: { primary: "#112233", secondary: "#ffffff" },
+  founded_year: 1900,
+  competitions: [],
+  key_players: [],
+  reputation_key: "teamSelect.repAverage",
+  opening_expectation: { target_position: 10, label_key: "teamSelect.expectations.midTable" },
+};
+
 function league(overrides: Partial<LeagueData> = {}): LeagueData {
   return {
     id: "epl",
@@ -98,6 +117,7 @@ function renderPage() {
 
 describe("TeamSelection", () => {
   beforeEach(() => {
+    vi.mocked(invoke).mockReset();
     vi.mocked(useGameStore).mockReturnValue({
       gameState: buildGameState(),
       setGameState: vi.fn(),
@@ -151,6 +171,29 @@ describe("TeamSelection", () => {
     const card = screen.getByRole("complementary", { name: "teamSelect.card.label" });
     expect(within(card).getByRole("heading", { name: "Alpha FC" })).toBeInTheDocument();
     expect(within(card).queryByText("teamSelect.card.emptyTitle")).toBeNull();
+  });
+
+  /**
+   * Given a club chosen, and the backend has not yet named its facts (its own competitions and
+   *       regions)
+   * When the header is read, and then the facts arrive
+   * Then Simulation waits, so the dialog never shows the club as having no competitions of its own;
+   *      with the facts it is available.
+   */
+  it("makes the simulation dialog wait for the chosen club's facts", async () => {
+    vi.mocked(invoke).mockResolvedValue(undefined);
+    renderPage();
+    fireEvent.click(screen.getByRole("button", { name: "Alpha FC" }));
+    expect(screen.getByRole("button", { name: "teamSelect.simulation" })).toBeDisabled();
+
+    vi.mocked(invoke).mockResolvedValue({ clubs: [CLUB_FACTS] });
+    cleanup();
+    renderPage();
+    fireEvent.click(screen.getByRole("button", { name: "Alpha FC" }));
+
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "teamSelect.simulation" })).toBeEnabled(),
+    );
   });
 
   /**

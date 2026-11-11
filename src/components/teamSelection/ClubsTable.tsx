@@ -17,6 +17,9 @@ import { DataTable, type DataTableColumn, RatingChip, TeamLogo } from "../ui";
 
 type ClubSortKey = "name" | "squad" | "transfers" | "wages" | "stadium";
 
+/** What a figure the backend has not given yet reads as. */
+const NOT_YET = "\u2014";
+
 /** The table opens strongest squad first, as the board's mock does. */
 const DEFAULT_SORT: SortState<ClubSortKey> = { key: "squad", direction: "desc" };
 
@@ -113,7 +116,7 @@ export default function ClubsTable({
       // The word is the backend's, a translation key: no number here is judged.
       cell: (team) => {
         const key = getClubFacts(team.id)?.reputation_key;
-        return key ? resolveBackendText(key, "\u2014") : "\u2014";
+        return key ? resolveBackendText(key, NOT_YET) : NOT_YET;
       },
     },
     {
@@ -123,7 +126,7 @@ export default function ClubsTable({
       sortable: true,
       cell: (team) => {
         const average = getTeamAvgOvr(team.id);
-        return average === null ? "\u2014" : <RatingChip value={average} tier={tierOf(average)} />;
+        return average === null ? NOT_YET : <RatingChip value={average} tier={tierOf(average)} />;
       },
     },
     {
@@ -133,7 +136,7 @@ export default function ClubsTable({
       wrap: true,
       cell: (team) => {
         const key = getClubFacts(team.id)?.opening_expectation.label_key;
-        return key ? resolveBackendText(key, "\u2014") : "\u2014";
+        return key ? resolveBackendText(key, NOT_YET) : NOT_YET;
       },
     },
     {
@@ -144,7 +147,7 @@ export default function ClubsTable({
       drawer: true,
       cell: (team) => {
         const facts = getClubFacts(team.id);
-        return facts ? formatVal(facts.transfer_budget) : "\u2014";
+        return facts ? formatVal(facts.transfer_budget) : NOT_YET;
       },
     },
     {
@@ -155,7 +158,7 @@ export default function ClubsTable({
       drawer: true,
       cell: (team) => {
         const facts = getClubFacts(team.id);
-        return facts ? formatWeeklyWage(facts.weekly_wage_budget, "compact") : "\u2014";
+        return facts ? formatWeeklyWage(facts.weekly_wage_budget, "compact") : NOT_YET;
       },
     },
     {
@@ -165,7 +168,7 @@ export default function ClubsTable({
       sortable: true,
       drawer: true,
       cell: (team) =>
-        getClubFacts(team.id)?.stadium_capacity.toLocaleString(i18n.language) ?? "\u2014",
+        getClubFacts(team.id)?.stadium_capacity.toLocaleString(i18n.language) ?? NOT_YET,
     },
   ];
 

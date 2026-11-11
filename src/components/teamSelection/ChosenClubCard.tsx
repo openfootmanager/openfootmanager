@@ -3,10 +3,10 @@ import { useId } from "react";
 import { useTranslation } from "react-i18next";
 
 import { useRatingTiers } from "../../hooks/useRatingTiers";
-import { competitionDisplayName } from "../../lib/competitionName";
+import { localizeCompetitionName } from "../../lib/competitionName";
 import { formatVal, formatWeeklyWage } from "../../lib/helpers";
 import type { ClubSquadRatings } from "../../services/teamsService";
-import type { TeamData } from "../../store/gameStore";
+import type { LeagueData, TeamData } from "../../store/gameStore";
 import { resolveBackendText } from "../../utils/backendI18n";
 import { translatePositionAbbreviation, translatePositionLabel } from "../squad/SquadTab.helpers";
 import { EntityCard, PositionBadge, RatingChip, TeamLocation, TeamLogo } from "../ui";
@@ -31,6 +31,11 @@ interface ChosenClubCardProps {
   average: number | null;
   /** The club's facts as the backend gives them; undefined until it answers. */
   facts: ClubSquadRatings | undefined;
+  /**
+   * The world's competitions: a club's competition is named from its own entry here, which carries
+   * the country its name is built with ("England First Division").
+   */
+  competitions: readonly LeagueData[];
   /** A player's age on the game's date; null for one the game state does not hold. */
   ageOf: (playerId: string) => number | null;
 }
@@ -50,7 +55,13 @@ function Fact({ label, value }: { label: string; value: string }) {
  * fact is the backend's (`get_team_selection_ratings`): the reputation word and the expectation are
  * translation keys it names, and the card judges no number. Until it answers they read as a dash.
  */
-export default function ChosenClubCard({ team, average, facts, ageOf }: ChosenClubCardProps) {
+export default function ChosenClubCard({
+  team,
+  average,
+  facts,
+  competitions,
+  ageOf,
+}: ChosenClubCardProps) {
   const { t, i18n } = useTranslation();
   const tierOf = useRatingTiers();
   const keyPlayersId = useId();
@@ -175,7 +186,7 @@ export default function ChosenClubCard({ team, average, facts, ageOf }: ChosenCl
                 key={competition.id}
                 className="rounded-md border border-line bg-sunken px-2 py-0.5 text-caption font-semibold text-fg-muted"
               >
-                {competitionDisplayName(competition, t)}
+                {localizeCompetitionName(competition.name, competitions, t, competition.id)}
               </li>
             ))}
           </ul>

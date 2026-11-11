@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import { createTeam } from "../../test-utils/factories";
 import type { ClubSquadRatings } from "../../services/teamsService";
+import type { LeagueData } from "../../store/gameStore";
 import ChosenClubCard from "./ChosenClubCard";
 
 vi.mock("react-i18next", () => ({
@@ -78,7 +79,15 @@ describe("ChosenClubCard", () => {
    * Then it says so and what picking a club shows, and draws none of a club's facts.
    */
   it("says no club is chosen yet", () => {
-    render(<ChosenClubCard team={null} average={null} facts={undefined} ageOf={() => null} />);
+    render(
+      <ChosenClubCard
+        team={null}
+        average={null}
+        facts={undefined}
+        competitions={[]}
+        ageOf={() => null}
+      />,
+    );
 
     expect(screen.getByText("teamSelect.card.emptyTitle")).toBeInTheDocument();
     expect(screen.getByText("teamSelect.card.emptyHint")).toBeInTheDocument();
@@ -94,7 +103,13 @@ describe("ChosenClubCard", () => {
    */
   it("shows the backend's facts for the chosen club", () => {
     render(
-      <ChosenClubCard team={TEAM} average={74} facts={FACTS} ageOf={(id) => AGES[id] ?? null} />,
+      <ChosenClubCard
+        team={TEAM}
+        average={74}
+        facts={FACTS}
+        competitions={[]}
+        ageOf={(id) => AGES[id] ?? null}
+      />,
     );
 
     expect(screen.getByRole("heading", { name: "Northbridge Athletic" })).toBeInTheDocument();
@@ -121,13 +136,42 @@ describe("ChosenClubCard", () => {
   });
 
   /**
+   * Given the backend names a club's competition "First Division", and the world's own entry for it
+   *       is "England First Division" (its name is built with its country)
+   * When the card is drawn
+   * Then the chip is named from the world's entry, so competitions of different countries stay
+   *      apart.
+   */
+  it("names a competition from the world's own entry, which carries its country", () => {
+    render(
+      <ChosenClubCard
+        team={TEAM}
+        average={74}
+        facts={FACTS}
+        competitions={[{ id: "d1", name: "England First Division", season: 2026 } as LeagueData]}
+        ageOf={() => null}
+      />,
+    );
+
+    expect(screen.getByRole("list", { name: "teamSelect.competitions" })).toHaveTextContent(
+      "England First DivisionSwedish Cup",
+    );
+  });
+
+  /**
    * Given a key player the game state does not hold (so his age is unknown)
    * When the card is drawn
    * Then his row has no age, and the others keep theirs.
    */
   it("leaves out the age of a key player the game state does not hold", () => {
     render(
-      <ChosenClubCard team={TEAM} average={74} facts={FACTS} ageOf={(id) => AGES[id] ?? null} />,
+      <ChosenClubCard
+        team={TEAM}
+        average={74}
+        facts={FACTS}
+        competitions={[]}
+        ageOf={(id) => AGES[id] ?? null}
+      />,
     );
 
     const rows = screen
@@ -145,7 +189,15 @@ describe("ChosenClubCard", () => {
    * Then every backend fact reads a dash, and no number is invented from the game state.
    */
   it("reads a dash for every fact until the backend answers", () => {
-    render(<ChosenClubCard team={TEAM} average={null} facts={undefined} ageOf={() => null} />);
+    render(
+      <ChosenClubCard
+        team={TEAM}
+        average={null}
+        facts={undefined}
+        competitions={[]}
+        ageOf={() => null}
+      />,
+    );
 
     expect(screen.queryByTitle(/common\.overallRating/)).toBeNull();
     expect(screen.getByText("teamSelect.card.boardExpects").nextSibling).toHaveTextContent("—");

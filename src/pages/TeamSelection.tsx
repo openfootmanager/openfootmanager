@@ -1,5 +1,5 @@
 import { ArrowLeft, ChevronRight, Loader2, SlidersHorizontal } from "lucide-react";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 
@@ -20,6 +20,11 @@ export default function TeamSelection() {
   const navigate = useNavigate();
   const { gameState, setGameState, setGameActive } = useGameStore();
   const [scopeOpen, setScopeOpen] = useState(false);
+  // A key player's age is worked out from his date of birth in the game state: found by id.
+  const playersById = useMemo(
+    () => new Map((gameState?.players ?? []).map((player) => [player.id, player])),
+    [gameState],
+  );
 
   const {
     clubSearch,
@@ -80,6 +85,9 @@ export default function TeamSelection() {
             variant="outline"
             size="sm"
             aria-haspopup="dialog"
+            // The dialog locks the chosen club's own competitions and regions, which the backend names
+            // with the club's facts: it waits for them rather than show the club as having none.
+            disabled={selectedTeam !== null && selectedClubFacts === undefined}
             onClick={() => setScopeOpen(true)}
             icon={<SlidersHorizontal aria-hidden="true" />}
           >
@@ -141,8 +149,9 @@ export default function TeamSelection() {
             team={selectedTeam}
             average={selectedTeam ? getTeamAvgOvr(selectedTeam.id) : null}
             facts={selectedClubFacts}
+            competitions={competitions}
             ageOf={(playerId) => {
-              const player = gameState.players.find((candidate) => candidate.id === playerId);
+              const player = playersById.get(playerId);
               return player ? calcAgeOnDate(player.date_of_birth, today) : null;
             }}
           />

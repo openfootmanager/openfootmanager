@@ -36,7 +36,7 @@ export function useTeamSelectionRatings(gameState: GameStateData | null) {
     [ratings],
   );
   return {
-    /** A club's rated squad, for its likely eleven; undefined until the backend answers. */
+    /** A club's facts and rated squad as the backend gives them; undefined until it answers. */
     clubRatings: (teamId: string): ClubSquadRatings | undefined => ratingsByClub.get(teamId),
     /** The club's average as the backend rates it; null until it answers. */
     getTeamAvgOvr: (teamId: string): number | null =>
