@@ -55,7 +55,7 @@ export const CASES = [
     WINDOWS.map((window) => ({ page: "profile", player, ...window })),
   ),
   ...WORLD_LIBRARIES.flatMap((library) =>
-    WINDOWS.map((window) => ({ page: "worlds", library, ...window })),
+    WINDOWS.map((window) => ({ page: "worlds", library, tablesFit: true, ...window })),
   ),
   ...CARD_VIEWS.flatMap((page) =>
     CARD_WINDOWS.map((window) => ({ page, view: "cards", ...window })),
@@ -111,7 +111,8 @@ export function judge({
   unanswered,
   pastEdge,
   belowTheFold = [],
-  squeezed = [],
+  tablesFit = false,
+  tablesScroll = [],
   rendered,
   faces,
 }) {
@@ -135,7 +136,9 @@ export function judge({
   if (belowTheFold.length > 0) {
     problems.push(`below the bottom edge of the window: ${belowTheFold.join(", ")}`);
   }
-  if (squeezed.length > 0) problems.push(`text squeezed into a sliver: ${squeezed.join(", ")}`);
+  if (tablesFit && tablesScroll.length > 0) {
+    problems.push(`table scrolls sideways inside its container: ${tablesScroll.join(", ")}`);
+  }
   if (unanswered.length > 0) problems.push(`unanswered commands: ${unanswered.join(", ")}`);
   if (!rendered) problems.push("nothing rendered");
   return problems;
@@ -204,10 +207,14 @@ const MEASURE = `(async () => {
     belowTheFold: [...document.querySelectorAll("[data-keep-in-window]")]
       .filter((element) => element.getBoundingClientRect().bottom > window.innerHeight)
       .map((element) => (element.textContent ?? "").trim()),
-    squeezed: [...document.querySelectorAll("td")]
-      .map((cell) => ({ cell, box: cell.getBoundingClientRect(), text: (cell.textContent ?? "").trim() }))
-      .filter(({ box, text }) => box.width > 0 && text.length > 8 && box.height > 3 * box.width)
-      .map(({ box, text }) => text.slice(0, 24) + " (" + Math.round(box.width) + "px wide)"),
+    // A table whose container scrolls sideways: the page's own width never shows it.
+    tablesScroll: [...document.querySelectorAll("table")]
+      .filter((table) => {
+        let box = table.parentElement;
+        while (box && getComputedStyle(box).overflowX !== "auto" && getComputedStyle(box).overflowX !== "scroll") box = box.parentElement;
+        return box !== null && box.scrollWidth > box.clientWidth + 1;
+      })
+      .map((table) => table.getAttribute("aria-label") ?? "a table"),
     rendered: (document.getElementById("root")?.childElementCount ?? 0) > 0,
   });
 })()`;
@@ -325,7 +332,7 @@ async function main(base) {
         console.log(`device pixel ratio: ${measured.devicePixelRatio}`);
         console.log(`fonts loaded: ${measured.loadedFaces.join(", ")}`);
       }
-      const problems = judge({ ...measured, page: testCase.page });
+      const problems = judge({ ...measured, page: testCase.page, tablesFit: testCase.tablesFit });
       const label = `${testCase.page ?? "style guide"}${testCase.player ? ` (${testCase.player})` : ""}${testCase.view ? ` (${testCase.view})` : ""} ${testCase.width}×${testCase.height} ${testCase.scale} ${testCase.lang}`;
       console.log(
         `${problems.length === 0 ? "ok  " : "FAIL"} ${label}${problems.length ? `: ${problems.join("; ")}` : ""}`,

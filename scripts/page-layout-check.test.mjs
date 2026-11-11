@@ -261,13 +261,16 @@ describe("page layout check", () => {
   });
 
   /**
-   * Given a table cell whose text was squeezed into a sliver (a name drawn one letter to a line),
-   * then it is named: the page does not scroll sideways, so nothing else would show it.
+   * Given a case that asks its tables to fit (the World Editor's home: its row buttons are the way
+   *       in, and a button scrolled out of the table's view is a way in lost), and a table that
+   *       scrolls sideways inside its container
+   * Then it is named; a case that does not ask (a wide data table may scroll) is not judged by it.
    */
-  it("names a table cell squeezed into a sliver", () => {
-    expect(judge({ ...clean, squeezed: ["Nordic Leagues 2027 (18px wide)"] })).toEqual([
-      "text squeezed into a sliver: Nordic Leagues 2027 (18px wide)",
+  it("names a table that scrolls sideways when the case asks its tables to fit", () => {
+    expect(judge({ ...clean, tablesFit: true, tablesScroll: ["Your worlds"] })).toEqual([
+      "table scrolls sideways inside its container: Your worlds",
     ]);
+    expect(judge({ ...clean, tablesScroll: ["Your worlds"] })).toEqual([]);
   });
 
   /** Given a command the fixture didn't answer, or a page that never rendered, then it fails. */

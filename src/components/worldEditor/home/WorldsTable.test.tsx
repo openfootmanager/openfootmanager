@@ -99,15 +99,16 @@ describe("WorldsTable", () => {
    * Given a table narrower than the details breakpoint (German at extra-large text in the smallest
    *       window was one)
    * When it folds its columns
-   * Then Kind, Players and Last opened fold into the row's details, and the world's name, its
-   *      clubs, its check and its button stay: with Kind kept, the name was squeezed to one letter
-   *      a line.
+   * Then Kind, Clubs, Players and Last opened fold into the row's details, and the world's name, its
+   *      check and its button stay: with more kept, the table scrolled sideways and the button was
+   *      out of its view.
    */
-  it("folds Kind with the other details in a narrow table, and keeps the world's name wide", () => {
+  it("folds Kind and the counts into the details in a narrow table, keeping the way in", () => {
     renderTable([PROJECT]);
 
     const folded = [
       "worldEditor.home.colKind",
+      "worldEditor.home.colClubs",
       "worldEditor.home.colPlayers",
       "worldEditor.home.colOpened",
     ];
@@ -116,14 +117,12 @@ describe("WorldsTable", () => {
         "@max-3xl:hidden",
       );
     }
-    for (const header of [
-      "worldEditor.home.colWorld",
-      "worldEditor.home.colClubs",
-      "worldEditor.home.colCheck",
-    ]) {
+    for (const header of ["worldEditor.home.colWorld", "worldEditor.home.colCheck"]) {
       expect(screen.getByRole("columnheader", { name: header })).not.toHaveClass("@max-3xl:hidden");
     }
-    expect(screen.getByText("/w/nordic").closest("span.flex")).toHaveClass("min-w-40");
+    expect(
+      screen.getByRole("button", { name: "worldEditor.home.openNamed:Nordic Leagues 2027" }),
+    ).toBeVisible();
   });
 
   /**
