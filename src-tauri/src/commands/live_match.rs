@@ -1605,10 +1605,34 @@ mod tests {
     // domestic league — writing the cup result onto an unrelated league
     // fixture (or panicking on an out-of-range index) while the real cup
     // fixture stayed Scheduled and the bracket stalled.
+    /// Given the watched cup tie and a separate league round with no shared clubs, When the
+    /// live result is applied, Then each competition keeps its own results, table and digest.
     #[test]
     fn finish_live_match_applies_cup_result_to_the_cup_competition() {
         let state = StateManager::new();
         let mut game = make_game_with_round();
+        // Keep the league's same-day digest coverage without asking the cup clubs to play twice.
+        for (id, name, prefix) in [
+            ("team5", "Fifth FC", "t5"),
+            ("team6", "Sixth FC", "t6"),
+            ("team7", "Seventh FC", "t7"),
+            ("team8", "Eighth FC", "t8"),
+        ] {
+            game.teams.push(make_team(id, name));
+            game.players.extend(make_squad(id, prefix));
+            game.competitions[0]
+                .standings
+                .push(StandingEntry::new(id.to_string()));
+        }
+        game.competitions[0].participant_ids = game.teams.iter().map(|t| t.id.clone()).collect();
+        for (fixture, (home, away)) in game.competitions[0]
+            .fixtures
+            .iter_mut()
+            .zip([("team5", "team6"), ("team7", "team8")])
+        {
+            fixture.home_team_id = home.into();
+            fixture.away_team_id = away.into();
+        }
         let mut cup = make_knockout_cup("2025-06-15");
         // A cup round is numbered independently of the league's. Keeping them different is what
         // lets this test tell apart "the digest used the league's round context" from "it used
@@ -1649,9 +1673,8 @@ mod tests {
         );
         assert!(cup.knockout_rounds[0].completed, "cup bracket advances");
 
-        // This league fixture is due the same day as the cup tie, so asserting it stayed
-        // Scheduled was also asserting #608's bug. The index-collision guard is now the pair
-        // above plus the standings count below: a leaked cup result gives a club two games.
+        // The separate league round must still play. The cup clubs have no league fixture here,
+        // so their table rows also discriminate a cup report leaking into the league.
         let league = response
             .game
             .competitions
@@ -1668,9 +1691,11 @@ mod tests {
             "the league fixture gets its own result"
         );
         assert!(
-            league.standings.iter().all(|entry| entry.played == 1),
-            "the league had two fixtures today and four clubs, so each plays exactly once; \
-             a cup result leaking into the league table would give one of them two"
+            league.standings.iter().all(|entry| entry.played
+                == u32::from(
+                    ["team5", "team6", "team7", "team8"].contains(&entry.team_id.as_str())
+                )),
+            "only the four league-round clubs get one league appearance; the cup clubs get none"
         );
 
         // The summary is built after the day's sweep, so it describes the round the response is
