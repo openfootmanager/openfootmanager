@@ -306,20 +306,13 @@ pub fn process_completed_fixture(league: &mut League, fixture_index: usize) {
         .iter_mut()
         .find(|group| group.team_ids.contains(&home_team_id))
     {
-        if let Some(entry) = group
-            .standings
-            .iter_mut()
-            .find(|entry| entry.team_id == home_team_id)
-        {
-            entry.record_result(result.home_goals, result.away_goals);
-        }
-        if let Some(entry) = group
-            .standings
-            .iter_mut()
-            .find(|entry| entry.team_id == away_team_id)
-        {
-            entry.record_result(result.away_goals, result.home_goals);
-        }
+        crate::competition_results::record_result(
+            &mut group.standings,
+            &home_team_id,
+            &away_team_id,
+            result.home_goals,
+            result.away_goals,
+        );
     }
 
     if league.rules.format == CompetitionFormat::GroupAndKnockout {

@@ -303,6 +303,56 @@
     "subtitle": "Selecciona el equipo que quieres dirigir",
     "confirming": "Confirmando...",
     "manage": "Dirigir {{name}}",
+    "steps": {
+      "label": "Pasos de la nueva carrera",
+      "manager": "Entrenador",
+      "world": "Mundo",
+      "generation": "Generación",
+      "club": "Club",
+      "done": "completado"
+    },
+    "back": "Volver a la generación del mundo",
+    "simulation": "Simulación",
+    "manageNone": "Dirigir",
+    "scope": {
+      "title": "Qué simula el mundo",
+      "subtitle": "Elige qué regiones y competiciones simula el juego por completo. Cuantas más haya, más tarda cada día.",
+      "sectionStart": "1 · Dónde empiezas",
+      "sectionRegions": "2 · Regiones simuladas",
+      "sectionCompetitions": "3 · Competiciones",
+      "regionMeta": "{{countries}} · {{clubs}} clubes",
+      "simulate": "Simular {{name}}",
+      "needs": "Necesita {{regions}}",
+      "add": "Añadir {{regions}}",
+      "groupCount": "{{on}} de {{total}}",
+      "groupSimulated": "{{on}} de {{total}} simuladas",
+      "needOne": "Activa al menos una competición.",
+      "summary": "{{regions}} regiones · {{competitions}} competiciones simuladas",
+      "clubs": "{{clubs}} clubes en las regiones simuladas",
+      "apply": "Aplicar"
+    },
+    "rail": {
+      "label": "Países y ligas",
+      "countries": "Países"
+    },
+    "table": {
+      "label": "Clubes",
+      "club": "Club",
+      "transfers": "Fichajes",
+      "wages": "Salarios / sem.",
+      "stadium": "Estadio"
+    },
+    "card": {
+      "label": "Club elegido",
+      "emptyTitle": "Aún no has elegido club",
+      "emptyHint": "Elige un club de la lista para ver su plantilla, sus presupuestos y lo que espera la directiva.",
+      "boardExpects": "La directiva espera",
+      "transferBudget": "Presupuesto de fichajes",
+      "wageBudget": "Presupuesto salarial",
+      "balance": "Saldo",
+      "stadium": "Estadio",
+      "founded": "fundado en {{year}}"
+    },
     "reputation": "Reputación",
     "squad": "Plantilla",
     "finances": "Finanzas",
@@ -315,18 +365,12 @@
     "failedToSelectTeam": "No se pudo seleccionar el equipo: {{error}}",
     "homeRegion": "Región de origen",
     "homeCountry": "País de origen",
-    "allCountries": "Todos los países",
-    "simulationScope": "Alcance de simulación",
     "otherClubs": "Otros clubes",
     "searchClubs": "Buscar clubes…",
     "clubCount": "{{n}} clubes",
     "noClubsMatch": "Ningún club coincide con tu búsqueda.",
-    "simulatedRegions": "Regiones simuladas",
-    "simulatedCompetitions": "Competiciones simuladas",
     "homeBadge": "Origen",
-    "yourClub": "tu club",
     "yourClubBadge": "Tu club",
-    "requiresRegions": "Requiere {{regions}}",
     "selectedClub": "Club seleccionado",
     "formation": "Formación",
     "overall": "Nivel general",
@@ -337,7 +381,6 @@
     "clubCompetitionsAlwaysSimulated": "Las competiciones de tu club siempre se simulan, incluso si desactivas otras regiones o torneos.",
     "selectClubPrompt": "Selecciona un club para revisar su plantilla y sus competiciones.",
     "playersCount": "{{count}} jugadores",
-    "scopeSummary": "Se cargarán {{regionsCount}} regiones simuladas y {{competitionsCount}} competiciones simuladas.",
     "regionLabels": {
       "north-america": "Norteamérica",
       "central-america": "Centroamérica",
@@ -360,13 +403,6 @@
       "InternationalClub": "Competición internacional de clubes",
       "InternationalNation": "Competición internacional de selecciones",
       "FriendlyCup": "Copa amistosa"
-    },
-    "scopeMessages": {
-      "homeRegionAlwaysActive": "Tu región jugable siempre permanece activa.",
-      "regionRequiredByCompetition": "{{competition}} forma parte del calendario de {{club}}, así que {{region}} debe permanecer activa.",
-      "regionRemovedDisablesCompetitions": "{{region}} salió del alcance de simulación, así que las competiciones dependientes también se desactivaron.",
-      "clubCompetitionLocked": "{{competition}} está en el calendario de {{club}} y siempre se simulará.",
-      "autoEnabledRegions": "{{competition}} necesita {{regions}}, así que esas regiones se activaron automáticamente."
     }
   },
   "youthAcademy": {

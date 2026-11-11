@@ -303,6 +303,56 @@
     "subtitle": "Zvolte tým, který chcete trénovat",
     "confirming": "Potvrzování...",
     "manage": "Trénovat {{name}}",
+    "steps": {
+      "label": "Kroky nové kariéry",
+      "manager": "Manažer",
+      "world": "Svět",
+      "generation": "Generování",
+      "club": "Klub",
+      "done": "dokončeno"
+    },
+    "back": "Zpět ke generování světa",
+    "simulation": "Simulace",
+    "manageNone": "Trénovat",
+    "scope": {
+      "title": "Co svět simuluje",
+      "subtitle": "Vyberte, které regiony a soutěže hra simuluje celé. Čím jich je víc, tím déle každý den trvá.",
+      "sectionStart": "1 · Kde začínáte",
+      "sectionRegions": "2 · Simulované regiony",
+      "sectionCompetitions": "3 · Soutěže",
+      "regionMeta": "{{countries}} · klubů: {{clubs}}",
+      "simulate": "Simulovat: {{name}}",
+      "needs": "Potřebuje: {{regions}}",
+      "add": "Přidat: {{regions}}",
+      "groupCount": "{{on}} z {{total}}",
+      "groupSimulated": "Simulováno {{on}} z {{total}}",
+      "needOne": "Zapněte alespoň jednu soutěž.",
+      "summary": "Regionů: {{regions}} · simulovaných soutěží: {{competitions}}",
+      "clubs": "Klubů v simulovaných regionech: {{clubs}}",
+      "apply": "Použít"
+    },
+    "rail": {
+      "label": "Země a ligy",
+      "countries": "Země"
+    },
+    "table": {
+      "label": "Kluby",
+      "club": "Klub",
+      "transfers": "Přestupy",
+      "wages": "Mzdy / týden",
+      "stadium": "Stadion"
+    },
+    "card": {
+      "label": "Vybraný klub",
+      "emptyTitle": "Zatím nebyl vybrán žádný klub",
+      "emptyHint": "Vyberte klub ze seznamu a uvidíte jeho kádr, rozpočty a očekávání vedení.",
+      "boardExpects": "Vedení očekává",
+      "transferBudget": "Přestupový rozpočet",
+      "wageBudget": "Mzdový rozpočet",
+      "balance": "Zůstatek",
+      "stadium": "Stadion",
+      "founded": "založen {{year}}"
+    },
     "reputation": "Reputace",
     "squad": "Soupiska",
     "finances": "Finance",
@@ -315,18 +365,12 @@
     "failedToSelectTeam": "Nepodařilo se vybrat tým: {{error}}",
     "homeRegion": "Domovský region",
     "homeCountry": "Domovská země",
-    "allCountries": "Všechny země",
-    "simulationScope": "Rozsah simulace",
     "otherClubs": "Ostatní kluby",
     "searchClubs": "Hledat kluby…",
     "clubCount": "Počet klubů: {{n}}",
     "noClubsMatch": "Hledání neodpovídají žádné kluby.",
-    "simulatedRegions": "Simulované regiony",
-    "simulatedCompetitions": "Simulované soutěže",
     "homeBadge": "Domácí",
-    "yourClub": "váš klub",
     "yourClubBadge": "Váš klub",
-    "requiresRegions": "Vyžaduje regiony: {{regions}}",
     "selectedClub": "Vybraný klub",
     "formation": "Rozestavení",
     "overall": "Hodnocení",
@@ -337,7 +381,6 @@
     "clubCompetitionsAlwaysSimulated": "Soutěže vašeho klubu jsou simulovány vždy, i když vypnete ostatní regiony nebo turnaje.",
     "selectClubPrompt": "Vyberte klub pro zobrazení soupisky a soutěží.",
     "playersCount": "Počet hráčů: {{count}}",
-    "scopeSummary": "Bude načteno {{regionsCount}} simulovaných regionů a {{competitionsCount}} simulovaných soutěží.",
     "regionLabels": {
       "north-america": "Severní Amerika",
       "central-america": "Střední Amerika",
@@ -360,13 +403,6 @@
       "InternationalClub": "Mezinárodní klubový",
       "InternationalNation": "Mezinárodní reprezentační",
       "FriendlyCup": "Přátelský pohár"
-    },
-    "scopeMessages": {
-      "homeRegionAlwaysActive": "Váš hratelný region zůstává vždy aktivní.",
-      "regionRequiredByCompetition": "Soutěž {{competition}} je součástí zápasového kalendáře klubu {{club}}, proto musí být region {{region}} aktivní.",
-      "regionRemovedDisablesCompetitions": "Region {{region}} byl odebrán z rozsahu simulace, takže závislé soutěže byly také vypnuty.",
-      "clubCompetitionLocked": "Soutěž {{competition}} je v zápasovém kalendáři klubu {{club}} a bude simulována vždy.",
-      "autoEnabledRegions": "Soutěž {{competition}} vyžaduje regiony {{regions}}, proto byly tyto regiony automaticky zapnuty."
     }
   },
   "youthAcademy": {

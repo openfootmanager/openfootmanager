@@ -299,10 +299,60 @@
     }
   },
   "teamSelect": {
-    "title": "Choose Your Club",
+    "title": "Choose your club",
     "subtitle": "Select the team you want to manage",
     "confirming": "Confirming...",
     "manage": "Manage {{name}}",
+    "steps": {
+      "label": "New career steps",
+      "manager": "Manager",
+      "world": "World",
+      "generation": "Generation",
+      "club": "Club",
+      "done": "completed"
+    },
+    "back": "Back to world generation",
+    "simulation": "Simulation",
+    "manageNone": "Manage",
+    "scope": {
+      "title": "What the world simulates",
+      "subtitle": "Choose which regions and competitions the game simulates in full. More of them make each day take longer.",
+      "sectionStart": "1 · Where you start",
+      "sectionRegions": "2 · Regions simulated",
+      "sectionCompetitions": "3 · Competitions",
+      "regionMeta": "{{countries}} · {{clubs}} clubs",
+      "simulate": "Simulate {{name}}",
+      "needs": "Needs {{regions}}",
+      "add": "Add {{regions}}",
+      "groupCount": "{{on}} of {{total}}",
+      "groupSimulated": "{{on}} of {{total}} simulated",
+      "needOne": "Switch on at least one competition.",
+      "summary": "{{regions}} regions · {{competitions}} competitions simulated",
+      "clubs": "{{clubs}} clubs in the simulated regions",
+      "apply": "Apply"
+    },
+    "rail": {
+      "label": "Countries and leagues",
+      "countries": "Countries"
+    },
+    "table": {
+      "label": "Clubs",
+      "club": "Club",
+      "transfers": "Transfers",
+      "wages": "Wages / wk",
+      "stadium": "Stadium"
+    },
+    "card": {
+      "label": "Chosen club",
+      "emptyTitle": "No club chosen yet",
+      "emptyHint": "Pick a club from the list to see its squad, budgets and what the board expects.",
+      "boardExpects": "Board expects",
+      "transferBudget": "Transfer budget",
+      "wageBudget": "Wage budget",
+      "balance": "Balance",
+      "stadium": "Stadium",
+      "founded": "founded {{year}}"
+    },
     "reputation": "Reputation",
     "squad": "Squad",
     "finances": "Finances",
@@ -315,18 +365,12 @@
     "failedToSelectTeam": "Failed to select team: {{error}}",
     "homeRegion": "Home Region",
     "homeCountry": "Home Country",
-    "allCountries": "All countries",
-    "simulationScope": "Simulation Scope",
     "otherClubs": "Other clubs",
     "searchClubs": "Search clubs…",
     "clubCount": "{{n}} clubs",
     "noClubsMatch": "No clubs match your search.",
-    "simulatedRegions": "Simulated Regions",
-    "simulatedCompetitions": "Simulated Competitions",
     "homeBadge": "Home",
-    "yourClub": "your club",
     "yourClubBadge": "Your Club",
-    "requiresRegions": "Requires {{regions}}",
     "selectedClub": "Selected Club",
     "formation": "Formation",
     "overall": "Overall",
@@ -337,7 +381,6 @@
     "clubCompetitionsAlwaysSimulated": "Your club's competitions are always simulated, even if you switch off other regions or tournaments.",
     "selectClubPrompt": "Select a club to inspect its squad and competitions.",
     "playersCount": "{{count}} players",
-    "scopeSummary": "{{regionsCount}} simulated regions and {{competitionsCount}} simulated competitions will be loaded.",
     "regionLabels": {
       "north-america": "North America",
       "central-america": "Central America",
@@ -360,13 +403,6 @@
       "InternationalClub": "International Club",
       "InternationalNation": "International Nation",
       "FriendlyCup": "Friendly Cup"
-    },
-    "scopeMessages": {
-      "homeRegionAlwaysActive": "Your playable region always stays active.",
-      "regionRequiredByCompetition": "{{competition}} is part of {{club}}'s schedule, so {{region}} must remain active.",
-      "regionRemovedDisablesCompetitions": "{{region}} was removed from the simulation scope, so dependent competitions were switched off too.",
-      "clubCompetitionLocked": "{{competition}} is on {{club}}'s schedule and will always be simulated.",
-      "autoEnabledRegions": "{{competition}} needs {{regions}}, so those regions were enabled automatically."
     }
   },
   "youthAcademy": {

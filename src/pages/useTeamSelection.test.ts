@@ -74,7 +74,7 @@ function buildGameState(): GameStateData {
   } as unknown as GameStateData;
 }
 
-function renderController() {
+function renderController({ pick = true } = {}) {
   // Build the game state once so the hook receives a stable reference across
   // re-renders (the real store does the same); a fresh object each render would
   // retrigger the region/competition memos and loop the sync effects.
@@ -84,122 +84,331 @@ function renderController() {
     setGameActive: vi.fn(),
     navigate: vi.fn(),
   };
-  return renderHook(() => useTeamSelection({ gameState, ...externals }));
+  const controller = renderHook(() => useTeamSelection({ gameState, ...externals }));
+  // Nothing is chosen on arrival; the scope tests are about the club the player picks.
+  if (pick) act(() => controller.result.current.setSelectedTeamId("team-1"));
+  return controller;
 }
 
-describe("useTeamSelection scope toggles", () => {
+describe("useTeamSelection simulation scope", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  it("initializes the home region, region selection, and competition selection", () => {
-    const { result } = renderController();
+  /**
+   * Given a world with a home league, a cup that needs a second region and another that needs a
+   *       third, and nobody has touched the simulation settings
+   * When the screen opens, with and without a club chosen
+   * Then the career simulates what it always has: every competition, and every region they need.
+   *      The redesign changes the screen, not what an untouched career simulates.
+   */
+  it("simulates every competition and the regions they need until the settings are touched", () => {
+    const { result } = renderController({ pick: false });
 
     expect(result.current.selectedHomeRegionId).toBe("europe");
-    expect(result.current.regionSelection.europe).toBe(true);
-    expect(result.current.selectedTeam?.id).toBe("team-1");
-    expect(result.current.mandatoryCompetitionIds.has("epl")).toBe(true);
-    expect(result.current.mandatoryCompetitionIds.has("intl")).toBe(true);
+    expect(result.current.activeRegionIds).toEqual(["asia", "europe", "south_america"]);
+    expect(result.current.enabledCompetitionIds).toEqual(["epl", "intl", "asia_cup"]);
+
+    act(() => result.current.setSelectedTeamId("team-1"));
+    expect(result.current.activeRegionIds).toEqual(["asia", "europe", "south_america"]);
+    expect(result.current.enabledCompetitionIds).toEqual(["epl", "intl", "asia_cup"]);
   });
 
-  it("refuses to toggle the home region off", () => {
+  /**
+   * Given the dialog is applied with only the locked regions on, then with the third region on, then
+   *       with that cup unchosen
+   * When the competitions to simulate are worked out each time
+   * Then a competition whose region is off is blocked and not simulated; with its region on it is
+   *      simulated again; and once the player has unchosen it, it is not.
+   */
+  it("applies the dialog's draft: a region off blocks its competition, on brings it back", () => {
     const { result } = renderController();
 
-    act(() => result.current.handleRegionToggle("europe"));
+    act(() => result.current.applyScope({ ...result.current.scopeDraft, regions: {} }));
+    expect(result.current.activeRegionIds).toEqual(["europe", "south_america"]);
+    expect(result.current.enabledCompetitionIds).toEqual(["epl", "intl"]);
 
-    expect(result.current.scopeMessage?.key).toBe(
-      "teamSelect.scopeMessages.homeRegionAlwaysActive",
+    act(() => result.current.applyScope({ ...result.current.scopeDraft, regions: { asia: true } }));
+    expect(result.current.activeRegionIds).toEqual(["asia", "europe", "south_america"]);
+    expect(result.current.enabledCompetitionIds).toEqual(["epl", "intl", "asia_cup"]);
+
+    act(() =>
+      result.current.applyScope({
+        ...result.current.scopeDraft,
+        competitions: { ...result.current.scopeDraft.competitions, asia_cup: false },
+      }),
     );
-    expect(result.current.regionSelection.europe).toBe(true);
+    expect(result.current.enabledCompetitionIds).toEqual(["epl", "intl"]);
   });
 
-  it("enables a non-home region when toggled on", () => {
+  /**
+   * Given a club chosen and the settings untouched
+   * When the career is started
+   * Then `select_team` is sent every competition and every region they need, which is what the old
+   *      flow's career simulated (it sent every competition and the game widened its home-only
+   *      region list to the regions they need).
+   */
+  it("sends select_team the full default set when the settings are untouched", async () => {
+    vi.mocked(invoke).mockResolvedValue({ manager: { display_name: "Sam Boss" } });
     const { result } = renderController();
 
-    act(() => result.current.handleRegionToggle("asia"));
+    await act(async () => {
+      await result.current.handleConfirm();
+    });
 
-    expect(result.current.regionSelection.asia).toBe(true);
-    expect(result.current.scopeMessage).toBeNull();
+    expect(invoke).toHaveBeenCalledWith("select_team", {
+      teamId: "team-1",
+      activeRegionIds: ["asia", "europe", "south_america"],
+      activeCompetitionIds: ["epl", "intl", "asia_cup"],
+    });
   });
 
-  it("blocks disabling a region required by a mandatory competition", () => {
+  /**
+   * Given a club chosen and the dialog applied with the third region off, so that cup is blocked
+   * When the career is started
+   * Then `select_team` is sent only what is simulated: the blocked cup is not among them. It is the
+   *      one place a stale rule would reach the game.
+   */
+  it("sends select_team only the regions and competitions simulated after the player's changes", async () => {
+    vi.mocked(invoke).mockResolvedValue({ manager: { display_name: "Sam Boss" } });
     const { result } = renderController();
+    act(() => result.current.applyScope({ ...result.current.scopeDraft, regions: {} }));
 
-    act(() => result.current.handleRegionToggle("south_america")); // enable
-    act(() => result.current.handleRegionToggle("south_america")); // try disable
+    await act(async () => {
+      await result.current.handleConfirm();
+    });
 
-    expect(result.current.scopeMessage?.key).toBe(
-      "teamSelect.scopeMessages.regionRequiredByCompetition",
-    );
-    expect(result.current.regionSelection.south_america).toBe(true);
-  });
-
-  it("disables stranded dependent competitions when a region is removed", () => {
-    const { result } = renderController();
-
-    act(() => result.current.handleRegionToggle("asia")); // enable, asia_cup stays on
-    act(() => result.current.handleRegionToggle("asia")); // disable, strands asia_cup
-
-    expect(result.current.competitionSelection.asia_cup).toBe(false);
-    expect(result.current.scopeMessage?.key).toBe(
-      "teamSelect.scopeMessages.regionRemovedDisablesCompetitions",
-    );
-  });
-
-  it("auto-enables missing regions when enabling a competition", () => {
-    const { result } = renderController();
-    const asiaCup = () => result.current.availableCompetitions.find((c) => c.id === "asia_cup")!;
-
-    act(() => result.current.handleCompetitionToggle(asiaCup())); // turn asia_cup off
-    act(() => result.current.handleCompetitionToggle(asiaCup())); // turn back on -> needs asia
-
-    expect(result.current.regionSelection.asia).toBe(true);
-    expect(result.current.competitionSelection.asia_cup).toBe(true);
-    expect(result.current.scopeMessage?.key).toBe("teamSelect.scopeMessages.autoEnabledRegions");
-  });
-
-  it("locks mandatory competitions against being disabled", () => {
-    const { result } = renderController();
-    const epl = result.current.availableCompetitions.find((c) => c.id === "epl")!;
-
-    act(() => result.current.handleCompetitionToggle(epl));
-
-    expect(result.current.scopeMessage?.key).toBe("teamSelect.scopeMessages.clubCompetitionLocked");
-    expect(result.current.competitionSelection.epl).toBe(true);
-  });
-
-  it("disables an enabled non-locked competition and clears the message", () => {
-    const { result } = renderController();
-    const asiaCup = result.current.availableCompetitions.find((c) => c.id === "asia_cup")!;
-
-    act(() => result.current.handleCompetitionToggle(asiaCup));
-
-    expect(result.current.competitionSelection.asia_cup).toBe(false);
-    expect(result.current.scopeMessage).toBeNull();
+    expect(invoke).toHaveBeenCalledWith("select_team", {
+      teamId: "team-1",
+      activeRegionIds: ["europe", "south_america"],
+      activeCompetitionIds: ["epl", "intl"],
+    });
   });
 });
 
-describe("useTeamSelection home-region club filter", () => {
+// Two domestic leagues in one country, and a club in each: the rail lists the leagues, the table
+// shows one of them.
+function buildTwoLeagueGameState(): GameStateData {
+  const clubs = [
+    createTeam({ id: "top-a", name: "Alpha FC", city: "Alton", country: "GB" }),
+    createTeam({ id: "top-b", name: "Bravo Town", city: "Bexley", country: "GB" }),
+    createTeam({ id: "low-c", name: "Charlie Rovers", city: "Carlow", country: "GB" }),
+  ];
+  return {
+    teams: clubs,
+    players: [],
+    competitions: [
+      league({
+        id: "top",
+        name: "Top Division",
+        scope: "Domestic",
+        kind: "League",
+        region_id: "europe",
+        country_id: "GB",
+        participant_ids: ["top-a", "top-b"],
+        priority: 1,
+      }),
+      league({
+        id: "low",
+        name: "Lower Division",
+        scope: "Domestic",
+        kind: "League",
+        region_id: "europe",
+        country_id: "GB",
+        participant_ids: ["low-c"],
+        priority: 2,
+      }),
+    ],
+    league: null,
+    manager: { first_name: "Sam", last_name: "Boss" },
+  } as unknown as GameStateData;
+}
+
+function renderTwoLeagues() {
+  const gameState = buildTwoLeagueGameState();
+  const externals = { setGameState: vi.fn(), setGameActive: vi.fn(), navigate: vi.fn() };
+  return renderHook(() => useTeamSelection({ gameState, ...externals }));
+}
+
+// A club in each of two regions: a European one and a South American one.
+function buildTwoRegionGameState(): GameStateData {
+  return {
+    teams: [
+      createTeam({ id: "gb-a", name: "Alpha FC", country: "GB" }),
+      createTeam({ id: "br-a", name: "Brasa SC", country: "BR" }),
+    ],
+    players: [],
+    competitions: [
+      league({
+        id: "gb1",
+        scope: "Domestic",
+        kind: "League",
+        region_id: "europe",
+        country_id: "GB",
+        participant_ids: ["gb-a"],
+        priority: 1,
+      }),
+      league({
+        id: "br1",
+        scope: "Domestic",
+        kind: "League",
+        region_id: "south_america",
+        country_id: "BR",
+        participant_ids: ["br-a"],
+        priority: 1,
+      }),
+    ],
+    league: null,
+    manager: { first_name: "Sam", last_name: "Boss" },
+  } as unknown as GameStateData;
+}
+
+describe("useTeamSelection countries", () => {
   /**
-   * Given a club in a country that no competition places in a region
-   * When team selection derives its regions
-   * Then there is none and no home region is picked, so there is nothing to filter by and the club
-   * is still listed: the frontend invents no region of its own, as it did when it guessed a club's
-   * region from a table of country codes.
+   * Given clubs in two regions, with the European one the home region on arrival
+   * When the rail's countries are listed, and the South American country is picked
+   * Then every country is listed, not only the home region's; and picking one makes its region the
+   *      home region and shows its clubs, so a club anywhere is a pick away, not behind the
+   *      simulation settings.
    */
-  it("derives no region for a country no competition places, and still lists the club", () => {
-    const gameState = {
-      teams: [createTeam({ id: "team-gb", country: "GB", short_name: "ENG" })],
-      players: [],
-      competitions: [],
-      league: null,
-      manager: { first_name: "Sam", last_name: "Boss" },
-    } as unknown as GameStateData;
+  it("lists every country, and picking one makes its region the home one", () => {
+    const gameState = buildTwoRegionGameState();
     const externals = { setGameState: vi.fn(), setGameActive: vi.fn(), navigate: vi.fn() };
     const { result } = renderHook(() => useTeamSelection({ gameState, ...externals }));
 
-    expect(result.current.selectedHomeRegionId).toBeNull();
-    expect(result.current.filteredTeams.map((team) => team.id)).toEqual(["team-gb"]);
+    expect([...result.current.allCountryCodes].sort()).toEqual(["BR", "GB"]);
+    const homeBefore = result.current.selectedHomeRegionId;
+
+    act(() => result.current.handleSelectCountry("BR"));
+
+    expect(result.current.selectedHomeRegionId).toBe("south_america");
+    expect(result.current.selectedHomeRegionId).not.toBe(homeBefore);
+    expect(result.current.selectedCountryCode).toBe("BR");
+    expect(result.current.visibleClubs.map((team) => team.id)).toEqual(["br-a"]);
+  });
+
+  /**
+   * Given settings nobody has touched, in a world with a competition in each of two regions
+   * When the South American country is picked
+   * Then both regions are still simulated, as the career always has: nothing is dropped because the
+   *      home region moved.
+   */
+  it("changes nothing a career simulates when the home region moves and the settings are untouched", () => {
+    const gameState = buildTwoRegionGameState();
+    const externals = { setGameState: vi.fn(), setGameActive: vi.fn(), navigate: vi.fn() };
+    const { result } = renderHook(() => useTeamSelection({ gameState, ...externals }));
+    expect(result.current.activeRegionIds).toEqual(["europe", "south_america"]);
+
+    act(() => result.current.handleSelectCountry("BR"));
+
+    expect(result.current.activeRegionIds).toEqual(["europe", "south_america"]);
+    expect(result.current.enabledCompetitionIds).toEqual(["gb1", "br1"]);
+  });
+
+  /**
+   * Given a player who applied the settings with only the home region on, then browsed to a South
+   *       American country
+   * When the home region moves
+   * Then the European region is no longer simulated, and its competition is blocked: the home
+   *      region follows the country, and a region that was only home is not kept.
+   */
+  it("stops simulating the region it leaves once the player has chosen their regions", () => {
+    const gameState = buildTwoRegionGameState();
+    const externals = { setGameState: vi.fn(), setGameActive: vi.fn(), navigate: vi.fn() };
+    const { result } = renderHook(() => useTeamSelection({ gameState, ...externals }));
+    act(() => result.current.applyScope({ ...result.current.scopeDraft, regions: {} }));
+    expect(result.current.activeRegionIds).toEqual(["europe"]);
+
+    act(() => result.current.handleSelectCountry("BR"));
+
+    expect(result.current.activeRegionIds).toEqual(["south_america"]);
+    expect(result.current.enabledCompetitionIds).toEqual(["br1"]);
+  });
+
+  /**
+   * Given a player who chose the South American region in the settings, and then went to a South
+   *       American country and back to a European one
+   * When the home region moves away from South America
+   * Then South America stays simulated: the player chose it, and only a region that was just home
+   *      is dropped.
+   */
+  it("keeps simulating a region the player chose themselves", () => {
+    const gameState = buildTwoRegionGameState();
+    const externals = { setGameState: vi.fn(), setGameActive: vi.fn(), navigate: vi.fn() };
+    const { result } = renderHook(() => useTeamSelection({ gameState, ...externals }));
+
+    act(() =>
+      result.current.applyScope({ ...result.current.scopeDraft, regions: { south_america: true } }),
+    );
+    act(() => result.current.handleSelectCountry("BR"));
+    act(() => result.current.handleSelectCountry("GB"));
+
+    expect(result.current.activeRegionIds).toEqual(["europe", "south_america"]);
+  });
+});
+
+describe("useTeamSelection club table", () => {
+  /**
+   * Given a game with clubs and a league to show
+   * When the screen opens
+   * Then no club is chosen: the player picks one, and the first of the list is not picked for them.
+   */
+  it("chooses no club on arrival", () => {
+    const { result } = renderTwoLeagues();
+
+    expect(result.current.visibleClubs.length).toBeGreaterThan(0);
+    expect(result.current.selectedTeam).toBeNull();
+  });
+
+  /**
+   * Given two leagues in the home country, the stronger first
+   * When the screen opens, and then the lower league is picked in the rail
+   * Then the rail lists both with their clubs counted, and the table shows the stronger league's
+   *      clubs until the lower is picked, and that league's after.
+   */
+  it("lists the country's leagues and shows the picked league's clubs", () => {
+    const { result } = renderTwoLeagues();
+
+    expect(result.current.leagueGroups.map((group) => [group.id, group.teams.length])).toEqual([
+      ["top", 2],
+      ["low", 1],
+    ]);
+    expect(result.current.activeLeagueId).toBe("top");
+    expect(result.current.visibleClubs.map((team) => team.id)).toEqual(["top-a", "top-b"]);
+
+    act(() => result.current.setSelectedLeagueId("low"));
+
+    expect(result.current.activeLeagueId).toBe("low");
+    expect(result.current.visibleClubs.map((team) => team.id)).toEqual(["low-c"]);
+  });
+
+  /**
+   * Given a club chosen in the top league
+   * When the lower league is picked in the rail
+   * Then the choice is dropped: Manage would otherwise name a club that is no longer in view.
+   */
+  it("drops the chosen club when its league leaves the table", () => {
+    const { result } = renderTwoLeagues();
+    act(() => result.current.setSelectedTeamId("top-a"));
+    expect(result.current.selectedTeam?.id).toBe("top-a");
+
+    act(() => result.current.setSelectedLeagueId("low"));
+
+    expect(result.current.selectedTeam).toBeNull();
+  });
+
+  /**
+   * Given a search typed over the top league
+   * When it matches a club's city and not the others
+   * Then only that club is in the table, while the rail still counts the whole league.
+   */
+  it("narrows the table by name or city, and leaves the rail's counts alone", () => {
+    const { result } = renderTwoLeagues();
+
+    act(() => result.current.setClubSearch("bexley"));
+
+    expect(result.current.visibleClubs.map((team) => team.id)).toEqual(["top-b"]);
+    expect(result.current.leagueGroups[0].teams).toHaveLength(2);
   });
 });
 
