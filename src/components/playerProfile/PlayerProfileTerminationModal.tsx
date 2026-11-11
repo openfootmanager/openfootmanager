@@ -85,11 +85,13 @@ export default function PlayerProfileTerminationModal({
           </Button>
           <Button
             variant="outline"
-            className="text-danger hover:bg-danger-tint"
+            className="hover:bg-danger-tint"
             disabled={submitting || !preview?.squad_safety.can_field_matchday_squad}
             onClick={onConfirm}
           >
-            {t("playerProfile.confirmTerminateContract")}
+            {/* The label carries the danger colour itself: the outline variant sets its own text colour,
+                and which of two competing utilities wins is the order they are generated in. */}
+            <span className="text-danger">{t("playerProfile.confirmTerminateContract")}</span>
           </Button>
         </div>
       </div>
