@@ -10,8 +10,8 @@ function sized(element, scroll, visible) {
 }
 
 /** A dashboard page: `<main>`, the workspace (marked) and a roster inside it that may scroll itself. */
-function page({ workspace, roster }) {
-  document.body.innerHTML = `<main><div data-workspace><section aria-label="Roster" style="overflow-y:auto"></section></div></main>`;
+function page({ workspace, roster, workspaceStyle = "" }) {
+  document.body.innerHTML = `<main><div data-workspace style="${workspaceStyle}"><section aria-label="Roster" style="overflow-y:auto"></section></div></main>`;
   sized(document.querySelector("[data-workspace]"), ...workspace);
   sized(document.querySelector("section"), ...roster);
 }
@@ -56,6 +56,23 @@ describe("collecting the regions that scroll", () => {
 
     expect(regions.overflow).toEqual(["div (1180 > 640)"]);
     expect(problems).toEqual(["a region scrolls down inside the page: div (1180 > 640)"]);
+  });
+
+  /**
+   * Given a workspace that cannot scroll (overflow hidden, as the Tactics tab's is) holding more than
+   *       it shows (900 of 640): its pitch is clipped
+   * When its regions are collected for a case that asks the workspace to fit
+   * Then the clipped content counts as overflow and the case fails, though nothing there scrolls:
+   *      a clipped pitch must not pass because it cannot scroll.
+   */
+  it("counts content a workspace clips as overflow", () => {
+    page({ workspace: [900, 640], roster: [400, 400], workspaceStyle: "overflow:hidden" });
+
+    const { regions, problems } = judged("[data-workspace]");
+
+    expect(regions.all).toEqual([]);
+    expect(regions.overflow).toEqual(["div (900 > 640)"]);
+    expect(problems).toEqual(["a region scrolls down inside the page: div (900 > 640)"]);
   });
 
   /**
