@@ -1316,6 +1316,49 @@ describe("TacticsTab", () => {
     expect(screen.queryByRole("option", { name: "Poacher" })).not.toBeInTheDocument();
   });
 
+  /**
+   * Given a striker standing at right-midfield whose stored role is Poacher, and a backend lineup
+   *       that says he plays Standard there (a poacher is a striker's role, which the slot does not
+   *       admit)
+   * When the Tactics screen shows him
+   * Then the table and the pitch both show Standard: the role the match will play, not the stale
+   *      stored one, so the two cannot disagree.
+   */
+  it("shows the same role for a starter in the table and on the pitch", async () => {
+    const gameState = makeOutOfPositionGameState();
+    gameState.teams = gameState.teams.map((team) => ({
+      ...team,
+      player_roles: { m4: "Poacher" },
+    }));
+    const roster = gameState.players.filter((p) => p.team_id === "team1");
+    const eleven = ["gk1", "d1", "d2", "d3", "d4", "m1", "m2", "m3", "m4", "f1", "f2"];
+    mockedInvoke.mockImplementation(async (command: string) => {
+      if (command === "get_squad") return roster;
+      if (command === "get_tactics_lineup") {
+        return {
+          formation: "4-4-2",
+          eleven: eleven.map((player_id) => ({
+            position: player_id === "m4" ? "RightMidfielder" : "CentralMidfielder",
+            player_id,
+            role: "Standard",
+            familiarity: player_id === "m4" ? "out_of_position" : "natural",
+          })),
+          substitutes: [],
+          reserves: [],
+        };
+      }
+      return gameState;
+    });
+
+    render(<TacticsTab gameState={gameState} onSelectPlayer={vi.fn()} onGameUpdate={vi.fn()} />);
+
+    const tableRole = await screen.findByRole("combobox", { name: /tactics.playerRoleLabel: M4/ });
+    const pitchRole = within(screen.getByTestId("pitch-player-m4")).getByRole("combobox");
+    await waitFor(() => expect(tableRole).toHaveTextContent("tactics.playerRoles.Standard"));
+    expect(pitchRole).toHaveTextContent("Standard");
+    expect(pitchRole).not.toHaveTextContent("Poacher");
+  });
+
   it("does not promote an injured bench player into the starting XI", async () => {
     const gameState = makeGameState();
     gameState.players = gameState.players.map((player) =>
