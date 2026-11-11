@@ -1,4 +1,4 @@
-import { Card, CardBody, CardHeader } from "../ui";
+import { Badge, Card, CardBody, CardHeader } from "../ui";
 import type { ReleaseReason } from "../../store/types";
 import { formatPlayerWage, formatProfileDay } from "./PlayerProfile.helpers";
 import type { ContractHistoryRow } from "./PlayerProfile.contractHistory";
@@ -89,6 +89,11 @@ export default function PlayerProfileContractHistoryCard({
                       ) : (
                         <span className="font-semibold text-fg">{row.clubName}</span>
                       )}
+                      {row.inForce ? (
+                        <span className="ml-2">
+                          <Badge variant="success">{t(`${SECTION}.current`)}</Badge>
+                        </span>
+                      ) : null}
                       <Note>{howText(row, t)}</Note>
                       {!row.inForce && row.endedBy ? (
                         <Note>{t(RELEASE_REASON_KEYS[row.endedBy])}</Note>

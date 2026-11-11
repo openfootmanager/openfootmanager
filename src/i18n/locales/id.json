@@ -1916,7 +1916,8 @@
         "one": "{{years}} tahun",
         "many": "{{years}} tahun",
         "other": "{{years}} tahun"
-      }
+      },
+      "current": "Saat ini"
     },
     "movementRenewedWith": "Diperpanjang bersama {{club}}",
     "movementAtClub": "Di {{club}}",
