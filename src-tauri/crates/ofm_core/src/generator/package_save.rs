@@ -181,10 +181,11 @@ fn write_all(pending: Vec<Pending>) -> Result<(), String> {
     for file in pending {
         let target = file.path.clone();
         if let Err(error) = stage(file) {
-            // The half-written file of this one included.
-            std::fs::remove_file(staging_path(&target)).ok();
+            // The half-written file of this one included. The error returned is the write's, not
+            // a cleanup's.
+            discard_staged(&target);
             for done in &targets {
-                std::fs::remove_file(staging_path(done)).ok();
+                discard_staged(done);
             }
             return Err(error);
         }
@@ -194,12 +195,25 @@ fn write_all(pending: Vec<Pending>) -> Result<(), String> {
         if let Err(error) = std::fs::rename(staging_path(target), target) {
             // The `.json.tmp` siblings left behind would be archived into a built `.ofm`.
             for rest in &targets[index..] {
-                std::fs::remove_file(staging_path(rest)).ok();
+                discard_staged(rest);
             }
             return Err(error.to_string());
         }
     }
     Ok(())
+}
+
+/// Remove the staging sibling of `target`. This runs while a save is already failing, so a file
+/// that cannot be removed does not replace that error; it is logged with its path instead, because
+/// the leftover `.tmp` would be archived into a built `.ofm`. A file that is not there (the save
+/// failed before it was created) is nothing to report.
+fn discard_staged(target: &Path) {
+    let staged = staging_path(target);
+    if let Err(error) = std::fs::remove_file(&staged)
+        && error.kind() != std::io::ErrorKind::NotFound
+    {
+        log::warn!("[package_save] could not remove the staging file {staged:?}: {error}");
+    }
 }
 
 /// Write one file's contents beside its target, straight to disk rather than through a string the
