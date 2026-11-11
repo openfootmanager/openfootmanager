@@ -1686,6 +1686,83 @@ fn build_round_summary_collects_results_and_deltas() {
     assert_eq!(scorer.current_goals, 6);
 }
 
+/// Given a division whose round has two scorers, a world where a player of another country's
+///       league has fourteen season goals, and a division scorer with extra goals in a cup
+/// When the round summary is built
+/// Then the top scorers are the division's own: the round's two scorers and the division's earlier
+///      scorer, and the player of another competition is not among them.
+#[test]
+fn the_round_summarys_top_scorers_are_the_divisions_own() {
+    let game = make_round_summary_game();
+
+    let summary =
+        turn::build_round_summary(&game, &round_context(7)).expect("expected round summary");
+
+    let listed: Vec<&str> = summary
+        .top_scorer_delta
+        .iter()
+        .map(|entry| entry.player_id.as_str())
+        .collect();
+    assert_eq!(listed, ["t3_fwd0", "t1_fwd0", "t2_fwd0"]);
+    assert!(!listed.contains(&"bra_fwd0"));
+}
+
+/// Given a division scorer with eight season goals, five of them in the division and three in a cup
+/// When the round summary is built
+/// Then his goals are the five of the division, and so are the goals before the round.
+#[test]
+fn a_cup_goal_is_not_a_division_scorers_goal() {
+    let game = make_round_summary_game();
+
+    let summary =
+        turn::build_round_summary(&game, &round_context(7)).expect("expected round summary");
+
+    let scorer = summary
+        .top_scorer_delta
+        .iter()
+        .find(|entry| entry.player_id == "t1_fwd0")
+        .expect("t1_fwd0 has division goals");
+    assert_eq!((scorer.previous_goals, scorer.current_goals), (5, 5));
+}
+
+/// Given the first round of a season in a division where nobody had scored, and a player elsewhere
+///       with fourteen goals
+/// When the round summary is built
+/// Then it lists only the round's scorer, with the division's goals from the round.
+#[test]
+fn after_the_first_round_only_its_scorers_are_listed() {
+    let mut game = make_round_summary_game();
+    for player in &mut game.players {
+        player.league_stats_by_competition.remove("league1");
+    }
+    for (id, goals) in [("t2_fwd0", 1), ("t3_fwd0", 2)] {
+        let player = game.players.iter_mut().find(|p| p.id == id).unwrap();
+        player.league_stats_by_competition.insert(
+            "league1".to_string(),
+            domain::player::PlayerSeasonStats {
+                goals,
+                ..Default::default()
+            },
+        );
+    }
+
+    let summary =
+        turn::build_round_summary(&game, &round_context(1)).expect("expected round summary");
+
+    let tally: Vec<(&str, u32, u32)> = summary
+        .top_scorer_delta
+        .iter()
+        .map(|entry| {
+            (
+                entry.player_id.as_str(),
+                entry.previous_goals,
+                entry.current_goals,
+            )
+        })
+        .collect();
+    assert_eq!(tally, [("t3_fwd0", 0, 2), ("t2_fwd0", 0, 1)]);
+}
+
 #[test]
 fn build_round_summary_picks_biggest_overall_gap_upset() {
     let game = make_round_summary_game();
