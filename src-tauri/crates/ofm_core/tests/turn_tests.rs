@@ -1869,6 +1869,50 @@ fn round_summary_keeps_an_initial_without_a_space() {
     assert_eq!(scorer.player_name, "J.Doe");
 }
 
+/// Given a division scorer with a multiword surname as his match name
+/// When the round summary is built
+/// Then his first initial distinguishes the surname.
+#[test]
+fn round_summary_adds_an_initial_to_a_multiword_surname() {
+    let mut game = make_round_summary_game();
+    let player = game
+        .players
+        .iter_mut()
+        .find(|player| player.id == "t1_fwd0")
+        .unwrap();
+    player.full_name = "Alfredo Di Stefano".to_string();
+    player.match_name = "Di Stefano".to_string();
+    let summary = turn::build_round_summary(&game, &round_context(7)).unwrap();
+    let scorer = summary
+        .top_scorer_delta
+        .iter()
+        .find(|entry| entry.player_id == "t1_fwd0")
+        .unwrap();
+    assert_eq!(scorer.player_name, "A. Di Stefano");
+}
+
+/// Given a division scorer whose match name already includes his full first name
+/// When the round summary is built
+/// Then the full match name is preserved.
+#[test]
+fn round_summary_keeps_a_scorers_full_first_name() {
+    let mut game = make_round_summary_game();
+    let player = game
+        .players
+        .iter_mut()
+        .find(|player| player.id == "t1_fwd0")
+        .unwrap();
+    player.full_name = "John Doe".to_string();
+    player.match_name = "John Doe".to_string();
+    let summary = turn::build_round_summary(&game, &round_context(7)).unwrap();
+    let scorer = summary
+        .top_scorer_delta
+        .iter()
+        .find(|entry| entry.player_id == "t1_fwd0")
+        .unwrap();
+    assert_eq!(scorer.player_name, "John Doe");
+}
+
 #[test]
 fn build_round_summary_picks_biggest_overall_gap_upset() {
     let game = make_round_summary_game();
