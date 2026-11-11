@@ -152,7 +152,7 @@ jobs:
       # defaults and advisory handling change between releases, so an unpinned tool turns
       # someone else's release into a red build on an unrelated PR.
       - name: Install cargo-deny
-        uses: taiki-e/install-action@682ce6c3c696a4cd5168a05f98e51aa02b877941 # v2
+        uses: taiki-e/install-action@cfdb7ed4ccc7c7dce37759eae89dc5674b469b39 # v2
         with:
           tool: cargo-deny@0.20.2
 
@@ -182,7 +182,7 @@ jobs:
       # Pinned for the same reason cargo-deny is: the heuristic changes between releases, and
       # an unpinned tool turns someone else's release into a red build on an unrelated PR.
       - name: Install cargo-machete
-        uses: taiki-e/install-action@682ce6c3c696a4cd5168a05f98e51aa02b877941 # v2
+        uses: taiki-e/install-action@cfdb7ed4ccc7c7dce37759eae89dc5674b469b39 # v2
         with:
           tool: cargo-machete@0.9.2
 
