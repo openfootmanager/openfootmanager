@@ -42,7 +42,7 @@ pub fn evaluate_renewal_offer(
 ) -> RenewalOutcome {
     let round = next_renewal_round(player, None);
     let expected_wage = expected_wage(player, team, current_date);
-    let expected_years = expected_renewal_years(player, current_date).unwrap_or(MAX_CONTRACT_YEARS);
+    let expected_years = expected_renewal_years(player, current_date);
     let minimum_wage = minimum_acceptable_wage(player.wage());
 
     if offer.contract_years == 0 || offer.contract_years > MAX_CONTRACT_YEARS {
@@ -112,7 +112,9 @@ pub fn evaluate_renewal_offer(
         );
     }
 
-    if offer.weekly_wage >= expected_wage && offer.contract_years >= expected_years {
+    if offer.weekly_wage >= expected_wage
+        && expected_years.is_some_and(|years| offer.contract_years >= years)
+    {
         let feedback = build_renewal_feedback(
             player,
             current_date,
@@ -146,7 +148,7 @@ pub fn evaluate_renewal_offer(
     renewal_outcome(
         RenewalDecision::CounterOffer,
         Some(expected_wage),
-        Some(expected_years),
+        expected_years,
         RenewalSessionStatus::Open,
         false,
         false,
