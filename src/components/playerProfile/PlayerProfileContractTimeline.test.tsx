@@ -69,7 +69,8 @@ describe("PlayerProfileContractTimeline", () => {
   it("draws a planned end with a dashed edge", () => {
     renderTimeline(ROWS);
 
-    const [planned, over] = screen.getAllByTitle(/North FC/);
+    // Oldest first: the contract that ran its course, then the one in force.
+    const [over, planned] = screen.getAllByTitle(/North FC/);
     expect(planned.className).toContain("border-dashed");
     expect(over.className).not.toContain("border-dashed");
   });
@@ -84,6 +85,18 @@ describe("PlayerProfileContractTimeline", () => {
 
     expect(screen.getAllByTitle(/North FC/)).toHaveLength(2);
     expect(screen.queryByText(/€/)).toBeNull();
+    expect(screen.getByText("playerProfile.contractSheet.overTimeNoteNoWage")).toBeInTheDocument();
+  });
+
+  /**
+   * Given a contract from a save made before starts were recorded
+   * When the card is drawn
+   * Then its bar is open at the start (no left border), so it does not claim a date it lacks
+   */
+  it("leaves the start of an unknown-start contract open", () => {
+    renderTimeline([row({ key: "u", start: null, source: "legacy_migrated", inForce: true })]);
+
+    expect(screen.getByTitle(/North FC/).className).toContain("border-l-0");
   });
 
   /** Given no contract on record, then the card is not drawn. */

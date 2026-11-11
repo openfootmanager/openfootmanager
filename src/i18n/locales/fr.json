@@ -1910,7 +1910,12 @@
       },
       "renewClosedWhat": "Les négociations de contrat sont closes. Rouvrez-les pour le prolonger.",
       "letExpireSetButton": "Fin de contrat prévue",
-      "replacedOn": "Remplacé le {{date}}"
+      "replacedOn": "Remplacé le {{date}}",
+      "overTime": "Contrats au fil du temps",
+      "overTimeNote": "Salaire hebdomadaire de chaque contrat. Un bord en pointillés est une fin prévue qui n’est pas encore arrivée.",
+      "overTimeNoteNoWage": "Un bord en pointillés est une fin prévue qui n’est pas encore arrivée.",
+      "overTimeLabel": "Chronologie de ses contrats, avec aujourd’hui repéré",
+      "today": "Aujourd’hui"
     },
     "movementRenewedWith": "Prolongé à {{club}}",
     "movementAtClub": "À {{club}}",

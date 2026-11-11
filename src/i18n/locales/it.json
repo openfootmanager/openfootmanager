@@ -1929,7 +1929,12 @@
       },
       "renewClosedWhat": "Le trattative per il contratto sono chiuse. Riaprile per rinnovarlo.",
       "letExpireSetButton": "Lasciato scadere",
-      "replacedOn": "Sostituito il {{date}}"
+      "replacedOn": "Sostituito il {{date}}",
+      "overTime": "Contratti nel tempo",
+      "overTimeNote": "Stipendio settimanale di ogni contratto. Un bordo tratteggiato è una scadenza prevista che non è ancora arrivata.",
+      "overTimeNoteNoWage": "Un bordo tratteggiato è una scadenza prevista che non è ancora arrivata.",
+      "overTimeLabel": "Cronologia dei suoi contratti, con la data di oggi indicata",
+      "today": "Oggi"
     },
     "movementRenewedWith": "Rinnovato con {{club}}",
     "movementAtClub": "Presso {{club}}",

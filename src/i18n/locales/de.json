@@ -1910,7 +1910,12 @@
       },
       "renewClosedWhat": "Die Vertragsgespräche sind beendet. Öffne sie wieder, um ihn zu verlängern.",
       "letExpireSetButton": "Läuft aus",
-      "replacedOn": "Ersetzt am {{date}}"
+      "replacedOn": "Ersetzt am {{date}}",
+      "overTime": "Verträge im Zeitverlauf",
+      "overTimeNote": "Wochengehalt je Vertrag. Ein gestrichelter Rand ist ein geplantes Ende, das noch nicht eingetreten ist.",
+      "overTimeNoteNoWage": "Ein gestrichelter Rand ist ein geplantes Ende, das noch nicht eingetreten ist.",
+      "overTimeLabel": "Zeitleiste seiner Verträge, mit markiertem heutigen Tag",
+      "today": "Heute"
     },
     "movementRenewedWith": "Verlängert bei {{club}}",
     "movementAtClub": "Bei {{club}}",

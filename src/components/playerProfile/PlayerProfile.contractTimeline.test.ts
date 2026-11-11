@@ -63,7 +63,8 @@ describe("buildContractTimeline", () => {
   /**
    * Given a contract planned to 2033 that was terminated in January 2031
    * When the timeline is built
-   * Then the bar ends on the day it was terminated, not on the plan, and it is not planned
+   * Then the bar ends on the day it was terminated, not on the plan, and it is not planned; the
+   *      axis stops at the year of today, not at the plan that never happened
    */
   it("ends a terminated contract on the day it was closed", () => {
     const timeline = buildContractTimeline(
@@ -71,7 +72,7 @@ describe("buildContractTimeline", () => {
       TODAY,
     );
     const [bar] = timeline?.bars ?? [];
-    const total = days("2029-01-01", "2034-01-01");
+    const total = days("2029-01-01", "2032-01-01");
 
     expect(bar.widthPct).toBeCloseTo((days("2029-07-01", "2031-01-10") / total) * 100, 3);
     expect(bar.planned).toBe(false);

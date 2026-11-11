@@ -49,6 +49,7 @@ export function buildContractHistory(
       const last = rows[rows.length - 1];
       if (last && !closed) {
         last.endedBy = entry.kind === "retired" ? "retired" : (entry.release_reason ?? null);
+        last.endedOn = entry.date;
         last.inForce = false;
         closed = true;
       }

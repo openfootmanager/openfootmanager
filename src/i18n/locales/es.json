@@ -1910,7 +1910,12 @@
       },
       "renewClosedWhat": "Las negociaciones del contrato están cerradas. Reábrelas para renovarlo.",
       "letExpireSetButton": "Fijado para vencer",
-      "replacedOn": "Sustituido el {{date}}"
+      "replacedOn": "Sustituido el {{date}}",
+      "overTime": "Contratos a lo largo del tiempo",
+      "overTimeNote": "Salario semanal de cada contrato. Un borde discontinuo es un final previsto que aún no ha llegado.",
+      "overTimeNoteNoWage": "Un borde discontinuo es un final previsto que aún no ha llegado.",
+      "overTimeLabel": "Cronología de sus contratos, con hoy señalado",
+      "today": "Hoy"
     },
     "movementRenewedWith": "Renovó con {{club}}",
     "movementAtClub": "En {{club}}",

@@ -1910,7 +1910,12 @@
       },
       "renewClosedWhat": "As negociações do contrato estão encerradas. Reabra para renová-lo.",
       "letExpireSetButton": "Definido para expirar",
-      "replacedOn": "Substituído em {{date}}"
+      "replacedOn": "Substituído em {{date}}",
+      "overTime": "Contratos ao longo do tempo",
+      "overTimeNote": "Salário semanal de cada contrato. Uma borda tracejada é um fim previsto que ainda não chegou.",
+      "overTimeNoteNoWage": "Uma borda tracejada é um fim previsto que ainda não chegou.",
+      "overTimeLabel": "Linha do tempo dos contratos dele, com o dia de hoje marcado",
+      "today": "Hoje"
     },
     "movementRenewedWith": "Renovou com {{club}}",
     "movementAtClub": "Em {{club}}",

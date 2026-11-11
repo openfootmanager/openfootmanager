@@ -1911,7 +1911,12 @@
       },
       "renewClosedWhat": "Negosiasi kontrak ditutup. Buka kembali untuk memperpanjangnya.",
       "letExpireSetButton": "Dibiarkan habis",
-      "replacedOn": "Digantikan pada {{date}}"
+      "replacedOn": "Digantikan pada {{date}}",
+      "overTime": "Kontrak dari waktu ke waktu",
+      "overTimeNote": "Gaji mingguan pada setiap kontrak. Tepi putus-putus adalah akhir yang direncanakan dan belum tiba.",
+      "overTimeNoteNoWage": "Tepi putus-putus adalah akhir yang direncanakan dan belum tiba.",
+      "overTimeLabel": "Garis waktu kontraknya, dengan hari ini ditandai",
+      "today": "Hari ini"
     },
     "movementRenewedWith": "Diperpanjang bersama {{club}}",
     "movementAtClub": "Di {{club}}",
