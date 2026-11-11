@@ -17,11 +17,8 @@ import type { WorldMetaDef } from "../menu/PackageEditor/types";
 import { SAMPLE_PACKAGES, type SamplePackage } from "../menu/PackageEditor/sampleData";
 import type { PackageInfo } from "../menu/WorldSelect";
 
-export interface RecentProject {
-  path: string;
-  name: string;
-  openedAt: string;
-}
+import type { RecentProject } from "../../store/packageEditorTypes";
+export type { RecentProject } from "../../store/packageEditorTypes";
 
 type HomeView = "home" | "new-form";
 

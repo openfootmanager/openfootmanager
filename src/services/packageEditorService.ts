@@ -1,6 +1,11 @@
 import { invoke } from "@tauri-apps/api/core";
 
 import type { PackageCollections } from "../store/packageEditorTypes";
+import type { WorldsLibrary } from "../store/generated/WorldsLibrary";
+
+export function getWorldsLibrary(paths: string[]): Promise<WorldsLibrary> {
+  return invoke<WorldsLibrary>("get_worlds_library", { paths });
+}
 
 /** One finding about a package project. Mirrors the backend's `PackageIssue`. */
 export interface PackageDiagnostic {
@@ -20,8 +25,9 @@ export interface PackageDiagnostics {
  * diagnostics alone, because the editor already holds every entity and re-sending them is what made
  * Validate slow on a large package.
  */
-export function validatePackageProject(dir: string): Promise<PackageDiagnostics> {
-  return invoke<PackageDiagnostics>("validate_package_project", { dir });
+export async function validatePackageProject(dir: string): Promise<PackageDiagnostics> {
+  const result = await invoke<PackageDiagnostics>("validate_package_project", { dir });
+  return { ...result, warnings: result.warnings ?? [] };
 }
 
 /**

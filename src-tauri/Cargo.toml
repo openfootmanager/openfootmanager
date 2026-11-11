@@ -59,6 +59,7 @@ tauri-plugin-dialog = "2"
 log = "0.4"
 serde_json = "1"
 serde = { version = "1", features = ["derive"] }
+ts-rs = "=12.0.1"
 domain = { path = "crates/domain" }
 ofm_core = { path = "crates/ofm_core" }
 mcp-results = { path = "crates/mcp-results" }
@@ -109,8 +110,6 @@ tauri = { version = "2", features = ["test"] }
 # Both are already in the lock through the proc-macro crates.
 proc-macro2 = "1"
 syn = { version = "2", features = ["full", "visit"] }
-# Pinned for the reason given in `crates/domain/Cargo.toml`.
-ts-rs = "=12.0.1"
 
 # Dev builds (`tauri dev`) otherwise run the whole simulation unoptimized, which
 # is the dominant cause of the in-app sluggishness. Lightly optimizing our own

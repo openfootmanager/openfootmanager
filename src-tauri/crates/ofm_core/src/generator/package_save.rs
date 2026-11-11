@@ -66,7 +66,7 @@ pub struct SaveOutcome {
 /// a save that stopped halfway would leave some files new and some old, and nothing would say so.
 pub fn save_package_files(dir: &Path, edited: &EditedPackage) -> Result<SaveOutcome, String> {
     let mut plan = SavePlan::default();
-    let layout = Layout::read(dir);
+    let layout = Layout::read(dir)?;
     let collection = |kind: EntityKind| Collection {
         dir,
         kind,
@@ -386,9 +386,10 @@ struct Layout {
 }
 
 impl Layout {
-    fn read(dir: &Path) -> Self {
+    fn read(dir: &Path) -> Result<Self, String> {
         let mut paths = Vec::new();
-        collect_data_files(dir, &mut paths);
+        collect_data_files(dir, &mut paths)
+            .map_err(|_| "be.error.package.readFailed".to_string())?;
         paths.sort();
         let mut layout = Self::default();
         for path in paths {
@@ -405,7 +406,7 @@ impl Layout {
             };
             layout.add(file, head, &text);
         }
-        layout
+        Ok(layout)
     }
 
     fn add(&mut self, file: String, head: FileHead, text: &str) {
@@ -637,6 +638,31 @@ mod tests {
 
     const MANIFEST: &str =
         r#"{"schema":"world","id":"split","name":"Split","version":"1.0.0","license":"CC0-1.0"}"#;
+
+    /// Given an unreadable entity directory, when a changed package is saved, then no file changes.
+    #[cfg(unix)]
+    #[test]
+    fn saving_an_unreadable_project_leaves_its_files_unchanged() {
+        use std::os::unix::fs::PermissionsExt;
+        let dir = package_dir(&[("package.json", MANIFEST), ("players/p.json", "{}")]);
+        let package = edited(&dir, |package| {
+            package.meta.as_mut().unwrap().name = "Renamed".to_string();
+        });
+        let nested = dir.join("players");
+        std::fs::set_permissions(&nested, std::fs::Permissions::from_mode(0o0)).unwrap();
+        if std::fs::read_dir(&nested).is_ok() {
+            std::fs::set_permissions(&nested, std::fs::Permissions::from_mode(0o700)).unwrap();
+            std::fs::remove_dir_all(dir).unwrap();
+            eprintln!("Skipping permission assertion: directory remains readable");
+            return;
+        }
+        let result = save_package_files(&dir, &package);
+        std::fs::set_permissions(&nested, std::fs::Permissions::from_mode(0o700)).unwrap();
+        let manifest = std::fs::read_to_string(dir.join("package.json")).unwrap();
+        std::fs::remove_dir_all(dir).unwrap();
+        assert_eq!(result.unwrap_err(), "be.error.package.readFailed");
+        assert_eq!(manifest, MANIFEST);
+    }
 
     fn team_file(ids: &[&str]) -> String {
         let items: Vec<String> = ids

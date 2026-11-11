@@ -6,6 +6,7 @@ mod crash;
 mod main_window;
 mod platform;
 mod report;
+pub use commands::world_library::{WorldLibraryRow, WorldsLibrary};
 use commands::*;
 
 #[cfg(feature = "mcp")]
@@ -370,6 +371,7 @@ pub fn run() {
             create_package_project,
             create_world_project,
             read_package_project,
+            get_worlds_library,
             validate_package_project,
             save_package_project,
             build_ofm,
