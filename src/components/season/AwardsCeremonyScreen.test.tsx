@@ -24,6 +24,7 @@ vi.mock("react-i18next", () => ({
       if (key === "awardsCeremony.rating") return "Rating";
       if (key === "awardsCeremony.winRate") return "Win rate";
       if (key === "awardsCeremony.record") return "Record";
+      if (key === "common.freeAgent") return "Free agent";
       return key;
     },
     i18n: { language: "en" },
@@ -220,6 +221,30 @@ describe("AwardsCeremonyScreen", () => {
     expect(screen.getAllByText("Manager of the Season").length).toBeGreaterThan(0);
     expect(screen.getByText("Jane Doe")).toBeInTheDocument();
     expect(screen.getAllByText("Victor Vale").length).toBeGreaterThan(0);
+  });
+
+  /**
+   * Given a golden boot won by a player at no club (team id empty, whatever name was stored)
+   * When the ceremony is drawn
+   * Then the team line is the translated "free agent", not the stored literal or an empty line.
+   */
+  it("words a winner at no club as a free agent", () => {
+    const awards = createAwards();
+    awards.golden_boot = [
+      { player_id: "player-1", player_name: "Victor Vale", team_id: "", team_name: "", value: 24 },
+    ];
+    awards.player_of_year = [];
+
+    render(
+      <AwardsCeremonyScreen
+        season={6}
+        leagueName="Premier League"
+        gameState={createGameState()}
+        awards={awards}
+      />,
+    );
+
+    expect(screen.getByText("Free agent")).toBeInTheDocument();
   });
 
   /**

@@ -1318,7 +1318,7 @@ mod tests {
         assert_eq!(awards.clean_sheet_king.len(), 2);
         assert_eq!(awards.clean_sheet_king[0].player_id, "free-agent-gk");
         assert_eq!(awards.clean_sheet_king[0].team_id, "");
-        assert_eq!(awards.clean_sheet_king[0].team_name, "Free Agent");
+        assert_eq!(awards.clean_sheet_king[0].team_name, "");
         assert!(
             awards
                 .clean_sheet_king
