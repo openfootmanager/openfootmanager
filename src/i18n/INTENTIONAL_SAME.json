@@ -146,6 +146,7 @@
     "packageBuild.patches"
   ],
   "fr": [
+    "teamSelect.scope.regionMeta",
     "teamSelect.steps.club",
     "teamSelect.simulation",
     "teamSelect.table.label",
