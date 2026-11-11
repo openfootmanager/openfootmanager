@@ -315,4 +315,48 @@ describe("PlayerProfile shell", () => {
     expect(within(card).getByRole("button", { name: /actions/i })).toBeInTheDocument();
     expect(within(card).getByText("Overall")).toBeInTheDocument();
   });
+
+  /**
+   * Given the club's own player, on the Overview
+   * When his tactical role is changed in Now
+   * Then the backend is asked to set that role for him
+   */
+  it("sets the own player's tactical role from the Overview", async () => {
+    renderProfile();
+
+    fireEvent.click(screen.getByRole("combobox", { name: "Role" }));
+    const options = screen.getAllByRole("option");
+    expect(options.length).toBeGreaterThan(1);
+    fireEvent.click(options[options.length - 1]);
+
+    await vi.waitFor(() =>
+      expect(invoke).toHaveBeenCalledWith(
+        "set_player_role",
+        expect.objectContaining({ playerId: "player-1" }),
+      ),
+    );
+  });
+
+  /**
+   * Given a free agent the manager could sign, on the Contract tab
+   * When "Offer Contract" is pressed
+   * Then the free-agent contract dialog opens
+   */
+  it("opens the free-agent contract dialog from the Contract tab", () => {
+    const player = createPlayer({ id: "player-9", team_id: null });
+    render(
+      <PlayerProfile
+        player={player}
+        gameState={gameWith(player)}
+        isOwnClub={false}
+        onGameUpdate={() => {}}
+        onSelectTeam={() => {}}
+      />,
+    );
+    fireEvent.click(screen.getByRole("tab", { name: "Contract" }));
+
+    fireEvent.click(screen.getByRole("button", { name: "Offer Contract" }));
+
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+  });
 });
