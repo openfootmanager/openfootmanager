@@ -878,6 +878,18 @@ fn world_check(
     merge_world_packages(vec![package])
 }
 
+/// A package as `validate` reads it: a directory by its own load, an archive by the runtime read
+/// (permissive, so an installed package keeps working) and then the full set of checks, asked for
+/// explicitly because validating is the point.
+fn read_for_validation(path: &Path) -> (WorldPackage, Vec<PackageError>) {
+    if path.is_dir() {
+        return load_world_package(path);
+    }
+    let (package, mut errors) = load_world_package_from_ofm(path);
+    errors.extend(validate_package(&package));
+    (package, errors)
+}
+
 /// A package directory checked on the packages it is stacked on: `bases` (a directory or a `.ofm`
 /// archive each), then the package, merged as the game merges a stack it starts a career on.
 ///
@@ -889,8 +901,8 @@ pub fn check_world_package_on_bases(
     dir: &Path,
     bases: &[PathBuf],
 ) -> (WorldPackage, Vec<PackageError>) {
-    let (package, errors) = load_world_package(dir);
-    if !errors.is_empty() || bases.is_empty() {
+    let (package, errors) = read_for_validation(dir);
+    if !errors.is_empty() || bases.is_empty() || !dir.is_dir() {
         return (package, errors);
     }
     let mut stack = Vec::with_capacity(bases.len() + 1);
@@ -2756,6 +2768,44 @@ mod tests {
         let (_, legit_errors) = check_world_package_on_bases(&legit, std::slice::from_ref(&base));
         let (_, ghost_errors) = check_world_package_on_bases(&ghost, std::slice::from_ref(&base));
         for dir in [&base, &legit, &ghost] {
+            std::fs::remove_dir_all(dir).ok();
+        }
+
+        assert!(legit_errors.is_empty(), "{legit_errors:?}");
+        assert!(
+            ghost_errors.iter().any(|e| e.code == UNKNOWN_TEAM),
+            "{ghost_errors:?}"
+        );
+    }
+
+    /// Given a legit patch and a ghost-club patch, each packed as a `.ofm`, and the base packed too
+    /// When each archive is checked on that base
+    /// Then the legit one passes and the ghost one is refused with the unknown team: an archive is
+    ///      checked on its base as a directory is.
+    #[test]
+    fn a_patch_archive_checked_on_its_base_passes_and_a_ghost_club_is_refused() {
+        let base = base_with_one_club();
+        let (legit, ghost) = (
+            patch_with_player_at("base-fc"),
+            patch_with_player_at("ghost-fc"),
+        );
+        let out = temp_package();
+        let (base_ofm, legit_ofm, ghost_ofm) = (
+            out.join("base.ofm"),
+            out.join("legit.ofm"),
+            out.join("ghost.ofm"),
+        );
+        for (dir, archive) in [
+            (&base, &base_ofm),
+            (&legit, &legit_ofm),
+            (&ghost, &ghost_ofm),
+        ] {
+            super::super::world_io::export_directory_to_ofm(dir, archive).expect("packed");
+        }
+
+        let (_, legit_errors) = check_world_package_on_bases(&legit_ofm, &[base_ofm.clone()]);
+        let (_, ghost_errors) = check_world_package_on_bases(&ghost_ofm, &[base_ofm.clone()]);
+        for dir in [&base, &legit, &ghost, &out] {
             std::fs::remove_dir_all(dir).ok();
         }
 

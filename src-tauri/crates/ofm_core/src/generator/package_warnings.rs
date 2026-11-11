@@ -199,6 +199,93 @@ mod tests {
         assert!(unverified[0].params.contains(&("clubs".into(), "1".into())));
     }
 
+    /// A patch package directory loaded alone, for the warning tests.
+    fn loaded_patch(files: &[(&str, &str)]) -> WorldPackage {
+        let dir = std::env::temp_dir().join(format!("ofm-warn-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(
+            dir.join("package.json"),
+            r#"{"schema":"world","id":"patchy","name":"Patchy","version":"1.0.0","license":"CC0-1.0","packageType":"patch"}"#,
+        )
+        .unwrap();
+        for (name, body) in files {
+            let path = dir.join(name);
+            std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+            std::fs::write(path, body).unwrap();
+        }
+        let (package, _) = crate::generator::load_world_package(&dir);
+        std::fs::remove_dir_all(&dir).ok();
+        package
+    }
+
+    fn unverified(package: &WorldPackage) -> Vec<PackageError> {
+        package_warnings(package)
+            .into_iter()
+            .filter(|w| w.code == PATCH_CLUB_REFS_UNVERIFIED)
+            .collect()
+    }
+
+    /// Given a patch whose only reference to a club it does not define is a team id in a player's
+    ///       career history
+    /// When its warnings are listed
+    /// Then the unverified warning names that file: alone, the id may be its base's club.
+    #[test]
+    fn a_career_history_team_id_a_patch_does_not_define_is_unverified() {
+        let package = loaded_patch(&[(
+            "players/free-agents.json",
+            r#"{"schema":"player","items":[{"id":"p1","name":"P One","nationality":"ENG","position":"Striker","overall":70,"careerHistory":[{"season":2020,"teamId":"base-fc","teamName":"Base FC","appearances":10,"goals":1,"assists":0}]}]}"#,
+        )]);
+
+        let warnings = unverified(&package);
+
+        assert_eq!(warnings.len(), 1, "{warnings:?}");
+        assert!(
+            warnings[0].file.contains("free-agents.json"),
+            "{:?}",
+            warnings[0]
+        );
+    }
+
+    /// Given a patch whose only reference is a club in a competition's explicit participants
+    /// When its warnings are listed
+    /// Then the unverified warning names the competition's file.
+    #[test]
+    fn a_competition_participant_a_patch_does_not_define_is_unverified() {
+        let package = loaded_patch(&[(
+            "competitions/cup.json",
+            r#"{"schema":"competition","id":"cup","name":"Cup","type":"Cup","scope":"Domestic","format":{"kind":"Knockout"},"participants":{"explicit":["base-fc","base-two"]}}"#,
+        )]);
+
+        let warnings = unverified(&package);
+
+        assert_eq!(warnings.len(), 1, "{warnings:?}");
+        assert!(warnings[0].file.contains("cup.json"), "{:?}", warnings[0]);
+        assert!(warnings[0].params.contains(&("clubs".into(), "2".into())));
+    }
+
+    /// Given a patch with unverified clubs in two files
+    /// When its warnings are listed
+    /// Then there is one warning for each file, so the author can find every one.
+    #[test]
+    fn unverified_clubs_are_reported_for_each_source_file() {
+        let package = loaded_patch(&[
+            (
+                "players/a.json",
+                r#"{"schema":"player","items":[{"id":"p1","name":"P One","club":"base-fc","nationality":"ENG","position":"Striker","overall":70}]}"#,
+            ),
+            (
+                "players/b.json",
+                r#"{"schema":"player","items":[{"id":"p2","name":"P Two","club":"base-two","nationality":"ENG","position":"Striker","overall":70}]}"#,
+            ),
+        ]);
+
+        let mut files: Vec<String> = unverified(&package).into_iter().map(|w| w.file).collect();
+        files.sort();
+
+        assert_eq!(files.len(), 2, "{files:?}");
+        assert!(files[0].contains("a.json") && files[1].contains("b.json"));
+    }
+
     /// Given a database package whose players name only clubs it defines
     /// When its warnings are listed
     /// Then there is no unverified-references warning: only a patch defers its references.
