@@ -597,4 +597,37 @@ mod tests {
         assert!(final_tie.postponement.is_none(), "it was never shown");
         assert_eq!(moved_message_count(&game), 0);
     }
+    /// Given an old clash settled before play and another caused by today's draw, When both
+    /// sweeps announce their distinct events, Then neither of the user's moved matches is omitted.
+    #[test]
+    fn before_and_after_day_moves_are_both_announced() {
+        let mut game = game_on(2033, 3, 1, "a");
+        game.competitions = vec![
+            league(vec![
+                fixture("league", "l1", "2033-03-10", "a", "z"),
+                fixture("league", "l2", "2033-03-17", "a", "y"),
+            ]),
+            cup(vec![vec![fixture("cup", "t1", "2033-03-10", "a", "b")]]),
+        ];
+        let shown = shown_bracket_fixtures(&game);
+        prepare_calendar(&mut game, "2033-03-01", &shown);
+        assert_ne!(date_of(&game, "league", "l1"), "2033-03-10");
+        game.competitions[1]
+            .fixtures
+            .push(fixture("cup", "t2", "2033-03-17", "a", "c"));
+        reconcile_calendar(&mut game, "2033-03-01", &shown);
+        assert_ne!(date_of(&game, "league", "l2"), "2033-03-17");
+        let notices = game
+            .messages
+            .iter()
+            .filter_map(|m| m.i18n_params.get("matches"))
+            .cloned()
+            .collect::<Vec<_>>()
+            .join("\n");
+        assert!(notices.contains("a – z:"));
+        assert!(
+            notices.contains("a – y:"),
+            "the later draw must announce the other moved match too"
+        );
+    }
 }
