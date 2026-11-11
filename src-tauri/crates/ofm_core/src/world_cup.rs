@@ -1635,15 +1635,21 @@ mod tests {
     fn newly_staged_world_cup_playoff_has_its_calendar() {
         let mut game = empty_game();
         schedule_world_cup_qualifying(&mut game, 2026, &season_windows(2024));
-        let mut campaign_days: Vec<String> = game
-            .competitions
-            .iter()
-            .flat_map(|c| c.fixtures.iter().map(|f| f.date.clone()))
-            .collect();
-        campaign_days.sort();
-        campaign_days.dedup();
-        for date in &campaign_days {
-            process_world_cup_fixtures_due(&mut game, date);
+        // Settlement can postpone individual qualifiers: follow their actual dates, as a live
+        // campaign does, instead of retaining a list captured before any match was played.
+        for _ in 0..400 {
+            let next = game
+                .competitions
+                .iter()
+                .filter(|c| is_world_cup_qualifying(c))
+                .flat_map(|c| &c.fixtures)
+                .filter(|f| f.status == FixtureStatus::Scheduled)
+                .map(|f| f.date.clone())
+                .min();
+            let Some(date) = next else {
+                break;
+            };
+            process_world_cup_fixtures_due(&mut game, &date);
         }
         assert!(
             game.competitions.iter().any(is_world_cup_playoff),
