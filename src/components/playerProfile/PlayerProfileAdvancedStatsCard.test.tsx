@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import { afterEach, beforeAll, describe, expect, it } from "vitest";
 
 import i18n, { changeAppLanguage, i18nReady } from "../../i18n";
@@ -118,5 +118,75 @@ describe("PlayerProfileAdvancedStatsCard percentiles", () => {
     render(<PlayerProfileAdvancedStatsCard summary={SUMMARY} t={i18n.t} />);
 
     expect(screen.queryByText(/Compared with/)).not.toBeInTheDocument();
+  });
+});
+
+// A translator that shows its options, so a figure and its unit are told apart from the key.
+const tShowing = (key: string, options?: Record<string, unknown>) =>
+  options ? `${key} ${JSON.stringify(options)}` : key;
+
+describe("PlayerProfileAdvancedStatsCard rows", () => {
+  /**
+   * Given a season's advanced stats
+   * When the card renders
+   * Then each of the six stats is one row of a list, led by its name, with its total and, under the
+   *      name, its rate in words (per 90 minutes, or the pass accuracy)
+   */
+  it("draws each stat as a row with its total and its rate", () => {
+    render(<PlayerProfileAdvancedStatsCard summary={SUMMARY} t={tShowing} />);
+
+    const rows = screen.getAllByRole("listitem");
+    expect(rows).toHaveLength(6);
+    const shots = within(rows[0]);
+    expect(shots.getByText("playerProfile.shots")).toBeInTheDocument();
+    expect(shots.getByText("20")).toBeInTheDocument();
+    expect(shots.getByText('playerProfile.per90Value {"value":"4.00"}')).toBeInTheDocument();
+    const passes = within(rows[2]);
+    expect(passes.getByText("80 / 100")).toBeInTheDocument();
+    expect(passes.getByText('playerProfile.accurateValue {"value":"80%"}')).toBeInTheDocument();
+  });
+
+  /**
+   * Given a player with no minutes (no rate) and no attempted pass (no accuracy)
+   * When the card renders
+   * Then the rate says "-" for each, never "0.00 per 90" or "0% accurate"
+   */
+  it("shows a dash, not a made-up rate, when there is none", () => {
+    render(
+      <PlayerProfileAdvancedStatsCard
+        summary={{
+          ...SUMMARY,
+          metrics: {
+            ...SUMMARY.metrics,
+            // A percentile is present so a dash in the row can only be the missing rate.
+            shots: { total: 0, per90: null, percentile: 5 },
+            passes: { completed: 0, attempted: 0, accuracy: null, percentile: 5 },
+          },
+        }}
+        t={tShowing}
+      />,
+    );
+
+    const rows = screen.getAllByRole("listitem");
+    expect(within(rows[0]).queryByText(/per90Value/)).toBeNull();
+    expect(within(rows[2]).queryByText(/accurateValue/)).toBeNull();
+    expect(within(rows[0]).getByText("-")).toBeInTheDocument();
+    expect(within(rows[2]).getByText("-")).toBeInTheDocument();
+  });
+
+  /**
+   * Given percentiles the backend computed for two stats and none for the rest
+   * When the card renders
+   * Then a row with a percentile shows its ordinal and one without shows "-", and the card draws
+   *      no bar (no meter or progress bar): the ordinal is the backend's word, not a drawn guess
+   */
+  it("shows the backend's ordinal or a dash, and draws no bar", () => {
+    render(<PlayerProfileAdvancedStatsCard summary={SUMMARY} t={tShowing} />);
+
+    const rows = screen.getAllByRole("listitem");
+    expect(within(rows[0]).getByText("2nd")).toBeInTheDocument();
+    expect(within(rows[1]).queryByText(/\d(st|nd|rd|th)$/)).toBeNull();
+    expect(screen.queryByRole("meter")).toBeNull();
+    expect(screen.queryByRole("progressbar")).toBeNull();
   });
 });
