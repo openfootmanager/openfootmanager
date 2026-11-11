@@ -662,6 +662,20 @@ mod tests {
         game
     }
 
+    /// The manager sacked from `club` as the game records it: a stint opened there and closed (a
+    /// bare `hire` opens none, so he would have no last club).
+    fn sack_from(game: &mut Game, club: &str) {
+        game.manager.hire(club.to_string());
+        game.manager
+            .career_history
+            .push(domain::manager::ManagerCareerEntry::open(
+                club.to_string(),
+                club.to_string(),
+                "2024-07-01".to_string(),
+            ));
+        game.manager.fire("2025-03-01");
+    }
+
     fn mirrored(game: &Game) -> Option<&str> {
         game.league.as_ref().map(|league| league.id.as_str())
     }
@@ -674,8 +688,7 @@ mod tests {
     #[test]
     fn a_sacked_managers_mirror_is_the_league_of_his_last_club() {
         let mut game = two_division_world();
-        game.manager.hire("b1".to_string());
-        game.manager.fire("2025-03-01");
+        sack_from(&mut game, "b1");
 
         game.sync_legacy_league();
 
@@ -714,8 +727,7 @@ mod tests {
     #[test]
     fn a_sacked_managers_mirror_falls_back_when_his_last_club_has_no_table() {
         let mut game = two_division_world();
-        game.manager.hire("nowhere".to_string());
-        game.manager.fire("2025-03-01");
+        sack_from(&mut game, "nowhere");
 
         game.sync_legacy_league();
 
