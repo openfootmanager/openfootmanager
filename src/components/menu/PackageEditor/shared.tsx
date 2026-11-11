@@ -12,7 +12,7 @@ import {
   X,
 } from "lucide-react";
 import { useRootFontPx } from "../../../hooks/useRootFontPx";
-import { VirtualList } from "../../ui/VirtualList";
+import { VirtualList } from "../../ui";
 
 // ---------------------------------------------------------------------------
 // EntityListShell
