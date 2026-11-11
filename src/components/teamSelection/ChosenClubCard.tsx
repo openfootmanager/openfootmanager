@@ -3,10 +3,10 @@ import { useId } from "react";
 import { useTranslation } from "react-i18next";
 
 import { useRatingTiers } from "../../hooks/useRatingTiers";
-import { weeklyWageAmount } from "../../lib/finance";
+import { competitionDisplayName } from "../../lib/competitionName";
 import { formatVal, formatWeeklyWage } from "../../lib/helpers";
+import type { ClubSquadRatings } from "../../services/teamsService";
 import type { TeamData } from "../../store/gameStore";
-import type { KeyPlayer } from "./keyPlayers";
 import { translatePositionAbbreviation, translatePositionLabel } from "../squad/SquadTab.helpers";
 import { EntityCard, PositionBadge, RatingChip, TeamLocation, TeamLogo } from "../ui";
 
@@ -28,9 +28,10 @@ interface ChosenClubCardProps {
   team: TeamData | null;
   /** The club's average as the backend rates it; null until it answers. */
   average: number | null;
-  keyPlayers: readonly KeyPlayer[];
-  /** The names of the competitions the club plays, which the game always simulates. */
-  competitionNames: readonly string[];
+  /** The club's facts as the backend gives them; undefined until it answers. */
+  facts: ClubSquadRatings | undefined;
+  /** A player's age on the game's date; null for one the game state does not hold. */
+  ageOf: (playerId: string) => number | null;
 }
 
 function Fact({ label, value }: { label: string; value: string }) {
@@ -44,16 +45,11 @@ function Fact({ label, value }: { label: string; value: string }) {
 
 /**
  * The club the player has chosen, as a card: its kit, name and squad rating, then what the board
- * expects, its budgets and stadium, its five key players and its competitions. Until a club is
- * chosen it says so and what picking one shows. The board's expectation and the club's reputation
- * are the backend's words and read as a dash until it gives them.
+ * expects, its reputation, its budgets and stadium, its five key players and its competitions. Every
+ * fact is the backend's (`get_team_selection_ratings`): the reputation word and the expectation are
+ * translation keys it names, and the card judges no number. Until it answers they read as a dash.
  */
-export default function ChosenClubCard({
-  team,
-  average,
-  keyPlayers,
-  competitionNames,
-}: ChosenClubCardProps) {
+export default function ChosenClubCard({ team, average, facts, ageOf }: ChosenClubCardProps) {
   const { t, i18n } = useTranslation();
   const tierOf = useRatingTiers();
   const keyPlayersId = useId();
@@ -102,29 +98,40 @@ export default function ChosenClubCard({
             <div className="flex flex-col gap-0.5">
               <dt className="text-caption text-fg-muted">{t("teamSelect.card.boardExpects")}</dt>
               <dd className="font-semibold">
-                <NotYet unknownLabel={t("common.unknown")} />
+                {facts ? (
+                  t(facts.opening_expectation.label_key)
+                ) : (
+                  <NotYet unknownLabel={t("common.unknown")} />
+                )}
               </dd>
             </div>
             <div className="flex flex-col gap-0.5">
               <dt className="text-caption text-fg-muted">{t("teamSelect.reputation")}</dt>
               <dd className="font-semibold">
-                <NotYet unknownLabel={t("common.unknown")} />
+                {facts ? t(facts.reputation_key) : <NotYet unknownLabel={t("common.unknown")} />}
               </dd>
             </div>
           </dl>
           <dl>
             <Fact
               label={t("teamSelect.card.transferBudget")}
-              value={formatVal(team.transfer_budget)}
+              value={facts ? formatVal(facts.transfer_budget) : NOT_YET}
             />
             <Fact
               label={t("teamSelect.card.wageBudget")}
-              value={formatWeeklyWage(weeklyWageAmount(team.wage_budget), "compact")}
+              value={facts ? formatWeeklyWage(facts.weekly_wage_budget, "compact") : NOT_YET}
             />
-            <Fact label={t("teamSelect.card.balance")} value={formatVal(team.finance)} />
+            <Fact
+              label={t("teamSelect.card.balance")}
+              value={facts ? formatVal(facts.balance) : NOT_YET}
+            />
             <Fact
               label={t("teamSelect.card.stadium")}
-              value={`${team.stadium_name} \u00b7 ${team.stadium_capacity.toLocaleString(i18n.language)}`}
+              value={
+                facts
+                  ? `${facts.stadium_name} \u00b7 ${facts.stadium_capacity.toLocaleString(i18n.language)}`
+                  : NOT_YET
+              }
             />
           </dl>
           <section aria-labelledby={keyPlayersId}>
@@ -135,9 +142,9 @@ export default function ChosenClubCard({
               {t("teamSelect.keyPlayers")}
             </h3>
             <ul>
-              {keyPlayers.map((player) => (
+              {(facts?.key_players ?? []).map((player) => (
                 <li
-                  key={player.id}
+                  key={player.player_id}
                   className="flex min-h-8 items-center gap-2 border-b border-line last:border-b-0"
                 >
                   <PositionBadge
@@ -146,22 +153,24 @@ export default function ChosenClubCard({
                     name={translatePositionLabel(t, player.position)}
                   />
                   <span className="min-w-0 flex-1 [overflow-wrap:anywhere]">{player.name}</span>
-                  <span className="text-caption tabular-nums text-fg-muted">
-                    <span className="sr-only">{t("common.age")} </span>
-                    {player.age}
-                  </span>
+                  {ageOf(player.player_id) === null ? null : (
+                    <span className="text-caption tabular-nums text-fg-muted">
+                      <span className="sr-only">{t("common.age")} </span>
+                      {ageOf(player.player_id)}
+                    </span>
+                  )}
                   <RatingChip value={player.ovr} tier={tierOf(player.ovr)} />
                 </li>
               ))}
             </ul>
           </section>
           <ul aria-label={t("teamSelect.competitions")} className="flex flex-wrap gap-1.5">
-            {competitionNames.map((name) => (
+            {(facts?.competitions ?? []).map((competition) => (
               <li
-                key={name}
+                key={competition.id}
                 className="rounded-md border border-line bg-sunken px-2 py-0.5 text-caption font-semibold text-fg-muted"
               >
-                {name}
+                {competitionDisplayName(competition, t)}
               </li>
             ))}
           </ul>

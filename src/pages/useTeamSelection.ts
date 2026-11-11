@@ -16,12 +16,7 @@ import {
   lockedRegions,
   type ScopeDraft,
 } from "../components/teamSelection/simulationScope";
-import {
-  regionsFromCompetitions,
-  likelyXi,
-  sortCompetitions,
-  teamCompetitions,
-} from "./TeamSelection.helpers";
+import { regionsFromCompetitions, sortCompetitions } from "./TeamSelection.helpers";
 
 type CompetitionSelection = Record<string, boolean>;
 
@@ -52,12 +47,7 @@ export function useTeamSelection({
   const [playerRegionIds, setPlayerRegionIds] = useState<ReadonlySet<string> | null>(null);
   const [competitionSelection, setCompetitionSelection] = useState<CompetitionSelection>({});
   const [isConfirming, setIsConfirming] = useState(false);
-  const { clubRatings, getTeamAvgOvr, getPlayerRating } = useTeamSelectionRatings(gameState);
-  const playersById = useMemo(
-    () => new Map((gameState?.players ?? []).map((player) => [player.id, player])),
-    [gameState],
-  );
-
+  const { clubRatings, getTeamAvgOvr } = useTeamSelectionRatings(gameState);
   const competitions = useMemo(
     () => (gameState ? sortCompetitions(getActiveCompetitions(gameState)) : []),
     [gameState],
@@ -217,10 +207,13 @@ export function useTeamSelection({
   }, [selectedTeamId, leagueClubs]);
 
   const selectedTeam = leagueClubs.find((team) => team.id === selectedTeamId) ?? null;
-  const selectedTeamXi = selectedTeam ? likelyXi(clubRatings(selectedTeam.id), playersById) : [];
-  const selectedTeamCompetitions = selectedTeam
-    ? teamCompetitions(selectedTeam.id, competitions)
-    : [];
+  // The competitions the club contests are the backend's answer, not worked out from the fixtures here;
+  // until it answers there are none.
+  const selectedClubFacts = selectedTeam ? clubRatings(selectedTeam.id) : undefined;
+  const clubCompetitionIds = new Set(selectedClubFacts?.competitions.map((entry) => entry.id));
+  const selectedTeamCompetitions = competitions.filter((competition) =>
+    clubCompetitionIds.has(competition.id),
+  );
   const mandatoryCompetitionIds = new Set(
     selectedTeamCompetitions.map((competition) => competition.id),
   );
@@ -313,9 +306,9 @@ export function useTeamSelection({
     leagueGroups,
     visibleClubs,
     getTeamAvgOvr,
-    getPlayerRating,
+    getClubFacts: clubRatings,
     selectedTeam,
-    selectedTeamXi,
+    selectedClubFacts,
     selectedTeamCompetitions,
     scopeDraft,
     applyScope,

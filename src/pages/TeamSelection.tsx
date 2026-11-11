@@ -6,11 +6,9 @@ import { useNavigate } from "react-router-dom";
 import ChosenClubCard from "../components/teamSelection/ChosenClubCard";
 import ClubsTable from "../components/teamSelection/ClubsTable";
 import CountryLeagueRail from "../components/teamSelection/CountryLeagueRail";
-import { keyPlayers } from "../components/teamSelection/keyPlayers";
 import SimulationDialog from "../components/teamSelection/SimulationDialog";
 import TeamSelectionStepper from "../components/teamSelection/TeamSelectionStepper";
 import { Button, ThemeToggle } from "../components/ui";
-import { competitionDisplayName } from "../lib/competitionName";
 import { calcAgeOnDate } from "../lib/valueFormatting";
 import { useGameStore } from "../store/gameStore";
 import { useTeamSelection } from "./useTeamSelection";
@@ -38,9 +36,9 @@ export default function TeamSelection() {
     leagueGroups,
     visibleClubs,
     getTeamAvgOvr,
-    getPlayerRating,
+    getClubFacts,
     selectedTeam,
-    selectedTeamXi,
+    selectedClubFacts,
     selectedTeamCompetitions,
     scopeDraft,
     applyScope,
@@ -132,6 +130,7 @@ export default function TeamSelection() {
           selectedTeamId={selectedTeam?.id ?? null}
           onSelectTeam={setSelectedTeamId}
           getTeamAvgOvr={getTeamAvgOvr}
+          getClubFacts={getClubFacts}
         />
 
         <aside
@@ -141,12 +140,11 @@ export default function TeamSelection() {
           <ChosenClubCard
             team={selectedTeam}
             average={selectedTeam ? getTeamAvgOvr(selectedTeam.id) : null}
-            keyPlayers={keyPlayers(selectedTeamXi, getPlayerRating, (player) =>
-              calcAgeOnDate(player.date_of_birth, today),
-            )}
-            competitionNames={selectedTeamCompetitions.map((competition) =>
-              competitionDisplayName(competition, t),
-            )}
+            facts={selectedClubFacts}
+            ageOf={(playerId) => {
+              const player = gameState.players.find((candidate) => candidate.id === playerId);
+              return player ? calcAgeOnDate(player.date_of_birth, today) : null;
+            }}
           />
         </aside>
       </div>
