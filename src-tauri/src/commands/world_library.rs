@@ -98,6 +98,9 @@ mod tests {
         zip.start_file("assets/portrait.json", options).unwrap();
         zip.write_all(br#"{"schema":"world","id":"wrong","name":"Artwork"}"#)
             .unwrap();
+        zip.start_file("./assets/alias.json", options).unwrap();
+        zip.write_all(br#"{"schema":"world","id":"wrong2","name":"Alias"}"#)
+            .unwrap();
         zip.start_file("package.json", options).unwrap();
         zip.write_all(br#"{"schema":"world","id":"real","name":"Real world","version":"1.0.0","license":"CC0-1.0"}"#).unwrap();
         zip.finish().unwrap();

@@ -2419,12 +2419,15 @@ mod tests {
         zip.write_all(b"artwork").unwrap();
         zip.start_file("assets/portrait.json", options).unwrap();
         zip.write_all(b"artwork").unwrap();
+        zip.start_file("./assets/alias.json", options).unwrap();
+        zip.write_all(b"artwork").unwrap();
         zip.finish().unwrap();
         let dest = temp.join("out");
         extract_package_definitions(&archive, &dest).unwrap();
         assert!(dest.join("package.json").exists());
         assert!(!dest.join("assets/portrait.png").exists());
         assert!(!dest.join("assets/portrait.json").exists());
+        assert!(!dest.join("assets/alias.json").exists());
         std::fs::remove_dir_all(temp).unwrap();
     }
 
@@ -2498,7 +2501,7 @@ mod tests {
         let mut writer = zip::ZipWriter::new(std::io::Cursor::new(Vec::new()));
         let options = zip::write::SimpleFileOptions::default()
             .compression_method(zip::CompressionMethod::Stored);
-        writer.start_file("assets/portrait.json", options).unwrap();
+        writer.start_file("./assets/portrait.json", options).unwrap();
         writer.write_all(&vec![b'X'; 1024 * 1024]).unwrap();
         writer.start_file("package.json", options).unwrap();
         writer
