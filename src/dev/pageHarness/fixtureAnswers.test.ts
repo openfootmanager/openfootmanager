@@ -282,4 +282,34 @@ describe("fixture answers: the profile's knowledge of players", () => {
       gameState,
     );
   });
+
+  /**
+   * Given the contract previews the Contract tab asks for
+   * When they are asked about the club's own player, one on loan, and a rival's
+   * Then the own player gets both (what releasing him costs, the club's wage bill), the loaned-out
+   *      one only the wage bill (the backend refuses to release a loaned player), and the rival
+   *      neither: the backend refuses both for a contract the manager does not hold
+   */
+  it("answers the contract previews the way the backend does", () => {
+    const own = profileCase("own");
+    const loaned = profileCase("loaned");
+    const rival = profileCase("rival");
+    const asking = (variant: "own" | "loaned" | "rival") =>
+      fixtureHandlers(readStyleGuideOptions(""), "en", variant);
+    const termination = (variant: "own" | "loaned" | "rival", playerId: string) =>
+      asking(variant).preview_contract_termination({ playerId });
+    const projection = (variant: "own" | "loaned" | "rival", playerId: string) =>
+      asking(variant).preview_renewal_financial_impact({ playerId, weeklyWage: 1 });
+
+    expect(termination("own", own.playerId)).toMatchObject({
+      preview: { severance_cost: expect.any(Number), squad_safety: { healthy_players: 18 } },
+    });
+    expect(projection("own", own.playerId)).toMatchObject({
+      projection: { current_weekly_wage_spend: expect.any(Number) },
+    });
+    expect(termination("loaned", loaned.playerId)).toBe(UNANSWERED);
+    expect(projection("loaned", loaned.playerId)).toMatchObject({ projection: expect.anything() });
+    expect(termination("rival", rival.playerId)).toBe(UNANSWERED);
+    expect(projection("rival", rival.playerId)).toBe(UNANSWERED);
+  });
 });

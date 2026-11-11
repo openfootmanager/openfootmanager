@@ -21,6 +21,8 @@ export interface HarnessIpc {
    * by name, and a call its handler declined with its arguments.
    */
   unanswered: string[];
+  /** Every command asked, in order, answered or not. Scaffold: nothing records it yet. */
+  calls: string[];
 }
 
 /**
@@ -36,6 +38,7 @@ export function createHarnessIpc(handlers: CommandHandlers): HarnessIpc {
   }
   return {
     unanswered,
+    calls: [],
     handle(cmd, args) {
       if (!(cmd in handlers)) decline(cmd, cmd);
       const callArgs = asCommandArgs(args);

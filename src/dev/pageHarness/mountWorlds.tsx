@@ -29,7 +29,11 @@ export async function mountWorldsHarness(
   const ipc = createHarnessIpc({ get_worlds_library: () => answer });
   mockWindows("main");
   mockIPC(ipc.handle, { shouldMockEvents: true });
-  window.__pageHarness = { unanswered: ipc.unanswered, pastEdge: () => elementsPastEdge(root) };
+  window.__pageHarness = {
+    unanswered: ipc.unanswered,
+    calls: ipc.calls,
+    pastEdge: () => elementsPastEdge(root),
+  };
 
   const reactRoot = ReactDOM.createRoot(root);
   const nothing = () => {};

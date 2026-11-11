@@ -40,3 +40,22 @@ describe("createHarnessIpc", () => {
     expect(ipc.unanswered).toEqual(["get_inbox"]);
   });
 });
+
+describe("the commands a page asked for", () => {
+  /**
+   * Given a page that asks for a command it has an answer to, one it has none to, and the first
+   *       again
+   * When the harness is asked what the page asked for
+   * Then every call is listed in order, answered or not, so a test can say a page did not ask
+   *      for a command yet
+   */
+  it("lists every command asked, in order, answered or not", () => {
+    const ipc = createHarnessIpc({ get_squad: () => ["squad"] });
+
+    ipc.handle("get_squad", { teamId: "club-1" });
+    expect(() => ipc.handle("get_inbox")).toThrow();
+    ipc.handle("get_squad", { teamId: "club-1" });
+
+    expect(ipc.calls).toEqual(["get_squad", "get_inbox", "get_squad"]);
+  });
+});

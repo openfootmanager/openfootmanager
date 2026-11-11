@@ -187,3 +187,37 @@ describe("PlayerProfileMovementHistoryCard contract terms", () => {
     expect(screen.getByText('playerProfile.movementTo {"to":"Alpha FC"}')).toBeInTheDocument();
   });
 });
+
+describe("PlayerProfileMovementHistoryCard moves, not contracts", () => {
+  /**
+   * Given a renewal, a legacy contract and a release, whose contracts the Contract tab now lists
+   * When the movement history renders
+   * Then each entry says what moved and when (and the fee and loan end), and none repeats a
+   *      contract's span, wage, legacy label or release reason: nothing shows twice
+   */
+  it("leaves the contract terms and the release reason to the Contract tab", () => {
+    renderCard([
+      renewal,
+      {
+        date: "",
+        kind: "initial_contract",
+        to_team_id: "team-1",
+        to_team_name: "Alpha FC",
+        contract: { start: null, end: "2028-06-30", weekly_wage: 7000, source: "legacy_migrated" },
+      },
+      {
+        date: "2027-06-30",
+        kind: "released",
+        from_team_id: "team-1",
+        from_team_name: "Alpha FC",
+        release_reason: "expired",
+      },
+    ]);
+
+    expect(screen.getByText("playerProfile.movementRenewal")).toBeInTheDocument();
+    expect(screen.queryByText(/playerProfile\.movementContract/)).toBeNull();
+    expect(screen.queryByText(/playerProfile\.movementWage/)).toBeNull();
+    expect(screen.queryByText("playerProfile.movementLegacyContract")).toBeNull();
+    expect(screen.queryByText("playerProfile.movementReleasedExpired")).toBeNull();
+  });
+});
