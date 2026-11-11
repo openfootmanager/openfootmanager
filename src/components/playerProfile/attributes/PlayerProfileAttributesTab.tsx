@@ -9,7 +9,7 @@ import type { PositionRatings } from "../../../store/generated/PositionRatings";
 import type { PlayerData } from "../../../store/gameStore";
 import { Badge } from "../../ui";
 import ProfileLoadFailed from "../ProfileLoadFailed";
-import { type AttributeRow, attributeColumns, weightDots } from "./attributesTabModel";
+import { type AttributeRow, attributeColumns } from "./attributesTabModel";
 
 export interface PlayerProfileAttributesTabProps {
   /** The attributes the club may read (a scout's report for a scouted player); null when none. */
@@ -65,8 +65,10 @@ function ReadableAttributes({
   const { t } = useTranslation();
   const tierOf = useRatingTiers();
   const natural = ratings.status === "answered" ? ratings.value?.rows[0] : undefined;
-  const weights = new Map<string, number>(
-    (natural?.weights ?? []).map(({ attribute, weight }) => [attribute, weight]),
+  // How much each attribute counts at his natural position, in the backend's three steps; an
+  // attribute the position does not weigh is not in the list and has none.
+  const importance = new Map<string, number>(
+    (natural?.weights ?? []).map(({ attribute, importance }) => [attribute, importance]),
   );
   const keyAttributes = new Set<string>(
     (natural?.key_attributes ?? []).map((key) => key.attribute),
@@ -112,7 +114,7 @@ function ReadableAttributes({
                 <AttributeLine
                   key={attr.key}
                   attr={attr}
-                  dots={natural ? weightDots(weights.get(attr.key)) : null}
+                  dots={natural ? clampDots(importance.get(attr.key) ?? 0) : null}
                   isKey={keyAttributes.has(attr.key)}
                   tier={tierOf(attr.value)}
                 />
@@ -133,6 +135,11 @@ function ReadableAttributes({
       </div>
     </section>
   );
+}
+
+/** The backend's importance as the three dots drawn: 0 to 3, nothing else. */
+function clampDots(importance: number): 0 | 1 | 2 | 3 {
+  return Math.max(0, Math.min(3, Math.round(importance))) as 0 | 1 | 2 | 3;
 }
 
 function AttributeLine({

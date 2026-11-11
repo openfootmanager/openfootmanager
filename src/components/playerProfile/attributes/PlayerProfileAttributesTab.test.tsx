@@ -146,16 +146,36 @@ describe("PlayerProfileAttributesTab", () => {
   /**
    * Given a striker whose key attributes are shooting, positioning and decisions
    * When the rows are read
-   * Then those three are highlighted and the others are not, and the card says it is for a striker
+   * Then those three are highlighted, each says "Key attribute" to a screen reader (not shown), the
+   *      others do not, and there is no explanatory line over the columns
    */
-  it("highlights the natural position's key attributes", () => {
+  it("highlights the natural position's key attributes, with no explanatory line", () => {
     render(<PlayerProfileAttributesTab {...props()} />);
 
     for (const name of ["Shooting", "Positioning", "Decisions"]) {
-      expect(rowOf(name)).toHaveAttribute("data-key", "true");
+      const row = rowOf(name) as HTMLElement;
+      expect(row).toHaveAttribute("data-key", "true");
+      expect(within(row).getByText("Key attribute")).toHaveClass("sr-only");
     }
     expect(rowOf("Pace")).not.toHaveAttribute("data-key", "true");
-    expect(card().getByText(/what the game weighs most for a Striker/)).toBeInTheDocument();
+    expect(within(rowOf("Pace") as HTMLElement).queryByText("Key attribute")).toBeNull();
+    expect(card().queryByText(/what the game weighs most/)).toBeNull();
+    expect(card().queryByText(/dots = how much/)).toBeNull();
+  });
+
+  /**
+   * Given the columns
+   * When they are laid out
+   * Then they are three side by side only where the card itself is wide (a container breakpoint, not
+   *      the window's), and stack below it, so a name is never cut to a letter in a narrow window
+   */
+  it("stacks the columns in a narrow card", () => {
+    render(<PlayerProfileAttributesTab {...props()} />);
+    const grid = card().getAllByRole("heading", { level: 4 })[0].closest("[data-columns]");
+
+    expect(grid).toHaveClass("@[56rem]:grid-cols-3");
+    expect(grid).toHaveClass("grid-cols-1");
+    expect(grid).not.toHaveClass("md:grid-cols-3");
   });
 
   /**

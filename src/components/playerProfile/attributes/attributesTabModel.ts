@@ -6,19 +6,6 @@ import {
 } from "../PlayerProfile.attributes";
 import type { PlayerData } from "../../../store/gameStore";
 
-/**
- * How many of three dots an attribute's weight at a position earns. The game's tables weigh 4 to 28
- * percent of a position's rating on an attribute: 16 and more is three dots, 8 and more two,
- * anything else the position weighs one, and an attribute it does not weigh none. The dots only
- * draw the table's own numbers in three steps; they decide nothing.
- */
-export function weightDots(weight: number | undefined): 0 | 1 | 2 | 3 {
-  if (weight === undefined || weight <= 0) return 0;
-  if (weight >= 16) return 3;
-  if (weight >= 8) return 2;
-  return 1;
-}
-
 export interface AttributeRow {
   key: PlayerAttributeKey;
   name: string;
