@@ -11,7 +11,7 @@ use chrono::{DateTime, NaiveDate, Utc};
 use domain::league::{CompetitionType, FixtureStatus, League, MatchResult};
 use domain::player::Player;
 use rand::Rng;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 const CATCHUP_XI: usize = 11;
 
@@ -423,18 +423,26 @@ pub fn repair_stranded_fixtures(game: &mut Game) -> usize {
         return 0;
     }
 
-    let mut repaired = 0;
+    let mut repaired = HashSet::new();
     for pass in 0..MAX_REPAIR_PASSES {
+        let before = fixture_states(game);
         let resolved = repair_one_pass(game, today, pass);
+        for (key, state) in fixture_states(game) {
+            let changed = before
+                .get(&key)
+                .map_or(state.0 == FixtureStatus::Completed, |old| old != &state);
+            if changed {
+                repaired.insert(key);
+            }
+        }
         if resolved == 0 {
             // Nothing moved, so nothing will. Stop instead of spinning: an unplayable fixture stays
             // as it is rather than costing the load a bounded-but-pointless sixty-four passes.
             break;
         }
-        repaired += resolved;
     }
 
-    if repaired > 0 {
+    if !repaired.is_empty() {
         // The repair rewrote `competitions`, and `game.league` is a *mirror* of the user's — the one
         // the home dashboard reads for the next match and the league table. Left un-synced it shows
         // the player a fixture that has just been played as still to come, above a table that
@@ -446,7 +454,22 @@ pub fn repair_stranded_fixtures(game: &mut Game) -> usize {
         game.sync_legacy_league();
     }
 
-    repaired
+    repaired.len()
+}
+
+// A postponed match played on a later pass is still one repaired fixture, not two repairs.
+fn fixture_states(game: &Game) -> HashMap<(String, String), (FixtureStatus, String)> {
+    game.competitions
+        .iter()
+        .flat_map(|c| &c.fixtures)
+        .chain(game.national_teams.iter().flat_map(|n| &n.fixtures))
+        .map(|f| {
+            (
+                (f.competition_id.clone(), f.id.clone()),
+                (f.status.clone(), f.date.clone()),
+            )
+        })
+        .collect()
 }
 
 #[cfg(test)]
