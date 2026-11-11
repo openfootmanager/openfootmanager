@@ -185,20 +185,13 @@ fn apply_simulated_result(
         away_penalties: penalties.map(|(_, away)| away),
     });
     if counts {
-        if let Some(entry) = competition
-            .standings
-            .iter_mut()
-            .find(|e| e.team_id == home_team_id)
-        {
-            entry.record_result(home_goals, away_goals);
-        }
-        if let Some(entry) = competition
-            .standings
-            .iter_mut()
-            .find(|e| e.team_id == away_team_id)
-        {
-            entry.record_result(away_goals, home_goals);
-        }
+        crate::competition_results::record_result(
+            &mut competition.standings,
+            home_team_id,
+            away_team_id,
+            home_goals,
+            away_goals,
+        );
     }
     crate::group_stage::process_completed_fixture(competition, fixture_index);
     crate::schedule::advance_knockout_competition_round(competition);
@@ -395,35 +388,8 @@ fn repair_one_pass(game: &mut Game, today: NaiveDate, pass: usize) -> usize {
     // can deliver months-old international news.
     for date in stranded_international_dates(game, today) {
         resolved += crate::national_team::process_national_team_fixtures_due(game, &date);
-        resolved += crate::world_cup::process_world_cup_fixtures_due(game, &date);
+        resolved += crate::national_tournament::process_fixtures_due(game, &date);
     }
-
-    // A national-team competition the processors above cannot reach at all:
-    // `process_world_cup_fixtures_due` serves international *scope* only, and a package may author a
-    // national-team competition at continental scope (`competition.scope` comes straight from the
-    // definition file). For those, the scoreline sweep is worse football than a squad-strength
-    // result but better than a fixture stranded for good — which is the bug, not a lesser form of it.
-    //
-    // Excluding what those processors *do* serve is not a nicety. The dates were collected before
-    // this pass played anything, so a round the national path has just seeded — the final of a
-    // bracket, the knockouts after a group stage — is stranded-in-the-past and not yet on the list.
-    // Without this filter the fallback would resolve it here, by coin flip between two sides scored
-    // at 50.0 apiece, before the next pass could hand it to the engine that owns it.
-    let mut competitions = std::mem::take(&mut game.competitions);
-    for competition in competitions.iter_mut().filter(|competition| {
-        is_national_team_competition(competition)
-            && !crate::world_cup::is_world_cup_competition(competition)
-            && stranded_in(competition, today) > 0
-    }) {
-        let mut rng = crate::seed::rng_for_seed(
-            game.seed,
-            &format!("catchup/{}/pass{pass}", competition.id),
-            &today.to_string(),
-        );
-        resolved +=
-            simulate_past_fixtures_with(competition, &strengths, game.clock.current_date, &mut rng);
-    }
-    game.competitions = competitions;
 
     resolved
 }
@@ -1063,8 +1029,7 @@ mod tests {
     /// Given a national-team competition a package authored at continental scope, with one tie
     ///       stranded in June while the clock reads December
     /// When stranded fixtures are repaired
-    /// Then the tie is resolved: the World Cup's processors serve international scope only, so
-    ///      this one is the fallback sweep's to settle, or nobody's
+    /// Then the shared national-tournament processor resolves the tie regardless of scope
     #[test]
     fn repairs_a_stranded_fixture_in_a_continental_national_team_competition() {
         let mut game = game_with_two_national_squads("2030-12-01");
