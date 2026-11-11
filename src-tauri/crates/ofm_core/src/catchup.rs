@@ -1118,6 +1118,34 @@ mod tests {
         );
     }
 
+    /// Given one overdue tie blocked by a completed national match, When repair moves it into
+    /// the future, Then that one persistent change is counted without playing it or applying wear.
+    #[test]
+    fn a_move_only_national_repair_is_counted_once_without_playing_early() {
+        let mut game = game_with_two_national_squads("2030-06-11");
+        add_national_squad(&mut game, "nt-fra", "France", "fra", 75);
+        let mut fixed = international_fixture("fixed", "2030-06-10", "nt-eng", "nt-bra");
+        fixed.status = FixtureStatus::Completed;
+        fixed.result = Some(Default::default());
+        let mut competition =
+            League::new("wc-2030".into(), "Continental nations".into(), 2030, &[]);
+        competition.kind = CompetitionType::InternationalNation;
+        competition.scope = CompetitionScope::Continental;
+        competition.fixtures = vec![
+            fixed,
+            international_fixture("overdue", "2030-06-09", "nt-eng", "nt-fra"),
+        ];
+        game.competitions = vec![competition];
+        let players = serde_json::to_value(&game.players).unwrap();
+        assert_eq!(super::repair_stranded_fixtures(&mut game), 1);
+        let fixture = &game.competitions[0].fixtures[1];
+        assert_eq!(fixture.date, "2030-06-13");
+        assert_eq!(fixture.status, FixtureStatus::Scheduled);
+        assert!(fixture.result.is_none());
+        assert_eq!(super::repair_stranded_fixtures(&mut game), 0);
+        assert_eq!(serde_json::to_value(&game.players).unwrap(), players);
+    }
+
     #[test]
     fn a_cascaded_international_round_still_goes_through_the_national_team_path() {
         // The two fixes meet here, and the first version got it wrong.
