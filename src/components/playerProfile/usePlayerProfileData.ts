@@ -17,6 +17,13 @@ interface UsePlayerProfileDataResult {
   /** The backend's figures when they differ from what the squad data implies. */
   advancedStats: PlayerAdvancedStatsSummary;
   recentMatches: PlayerRecentMatchEntry[];
+  /**
+   * Where the history stands: not answered yet, answered (and the list may be empty: no matches
+   * played), or failed. A failed or pending history is never "no matches".
+   */
+  recentMatchesStatus: "loading" | "answered" | "failed";
+  /** Asks for the history again after a failure. */
+  retryRecentMatches: () => void;
 }
 
 function areAdvancedStatsEqual(
@@ -52,6 +59,9 @@ export function usePlayerProfileData({
   const [advancedStatsOverride, setAdvancedStatsOverride] =
     useState<PlayerAdvancedStatsSummary | null>(null);
   const [recentMatches, setRecentMatches] = useState<PlayerRecentMatchEntry[]>([]);
+  const [recentMatchesStatus, setRecentMatchesStatus] =
+    useState<UsePlayerProfileDataResult["recentMatchesStatus"]>("loading");
+  const [historyAttempt, setHistoryAttempt] = useState(0);
   const listedPlayerId = useRef<string | null>(null);
 
   const fallbackAdvancedStats = buildPlayerAdvancedStats(player);
@@ -107,6 +117,7 @@ export function usePlayerProfileData({
     if (listedPlayerId.current !== player.id) {
       listedPlayerId.current = player.id;
       setRecentMatches((current) => (current.length === 0 ? current : []));
+      setRecentMatchesStatus("loading");
     }
 
     let cancelled = false;
@@ -120,10 +131,15 @@ export function usePlayerProfileData({
 
         if (!cancelled) {
           setRecentMatches((current) => (haveSameFixtures(current, result) ? current : result));
+          setRecentMatchesStatus("answered");
         }
       } catch {
         // The list already on screen is this player's (a change of player cleared it above), and
-        // a failed refresh is not an empty history: leave it.
+        // a failed refresh is not an empty history: leave it, answered. A history that never
+        // answered is failed, never "no matches".
+        if (!cancelled) {
+          setRecentMatchesStatus((current) => (current === "answered" ? current : "failed"));
+        }
       }
     };
 
@@ -132,10 +148,15 @@ export function usePlayerProfileData({
     return () => {
       cancelled = true;
     };
-  }, [player.id, player.stats.appearances, currentDate]);
+  }, [player.id, player.stats.appearances, currentDate, historyAttempt]);
 
   return {
     advancedStats: advancedStatsOverride ?? fallbackAdvancedStats,
     recentMatches,
+    recentMatchesStatus,
+    retryRecentMatches: () => {
+      setRecentMatchesStatus("loading");
+      setHistoryAttempt((count) => count + 1);
+    },
   };
 }
