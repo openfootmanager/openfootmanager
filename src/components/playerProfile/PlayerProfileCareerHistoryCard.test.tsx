@@ -61,6 +61,24 @@ describe("PlayerProfileCareerHistoryCard", () => {
   });
 
   /**
+   * Given a season at a club the package authored by name only (no team id: the club is not in
+   *      the package), as a package's career entry may
+   * When the card is read in Spanish
+   * Then the club's authored name shows: an empty id does not mean "no club".
+   */
+  it("keeps the authored name of a club the package does not define", () => {
+    render(
+      <PlayerProfileCareerHistoryCard
+        career={[entry({ team_id: "", team_name: "Juventus" })]}
+        t={translatorFor("es")}
+      />,
+    );
+
+    expect(screen.getByText("Juventus")).toBeInTheDocument();
+    expect(screen.queryByText("Agente Libre")).toBeNull();
+  });
+
+  /**
    * Given a season at a club
    * When the card is read
    * Then the club's own name shows.

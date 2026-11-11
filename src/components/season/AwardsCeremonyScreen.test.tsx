@@ -1,7 +1,13 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
-import type { GameStateData, ManagerData, PlayerData, TeamData } from "../../store/gameStore";
+import type {
+  GameStateData,
+  ManagerData,
+  NewsArticle,
+  PlayerData,
+  TeamData,
+} from "../../store/gameStore";
 import type { SeasonAwardsData } from "../../store/types";
 import AwardsCeremonyScreen from "./AwardsCeremonyScreen";
 import { createSeasonContext } from "../../test-utils/factories";
@@ -344,5 +350,40 @@ describe("AwardsCeremonyScreen", () => {
       <AwardsCeremonyScreen season={2026} leagueName="League" gameState={createGameState()} />,
     );
     expect(screen.queryByText("Player of the Year")).not.toBeInTheDocument();
+  });
+  /**
+   * Given a season-awards article with no stored awards (the route a News article opens), whose
+   *      Golden Boot winner was at no club: the team param is the free-agent key, the legacy English
+   *      literal an older article stored, or empty
+   * When the ceremony is drawn from the article alone
+   * Then the team line says "free agent" for each, never the literal or an empty line.
+   */
+  it.each([
+    ["the free-agent key", "common.freeAgent"],
+    ["the legacy English literal", "Free Agent"],
+    ["an empty name", ""],
+  ])("words an article-only winner at no club as a free agent: %s", (_case, teamParam) => {
+    const article = {
+      id: "season_awards_6",
+      category: "Editorial",
+      i18n_params: {
+        season: "6",
+        goldenBootWinner: "Victor Vale",
+        goldenBootTeam: teamParam,
+        goldenBootGoals: "24",
+      },
+    } as unknown as NewsArticle;
+
+    render(
+      <AwardsCeremonyScreen
+        season={6}
+        leagueName="Premier League"
+        gameState={createGameState()}
+        article={article}
+      />,
+    );
+
+    expect(screen.getByText("Free agent")).toBeInTheDocument();
+    expect(screen.queryByText("Free Agent")).toBeNull();
   });
 });

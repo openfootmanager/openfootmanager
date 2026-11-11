@@ -1157,6 +1157,28 @@ mod tests {
         assert!(article.team_ids.contains(&"team1".to_string()));
     }
 
+    /// Given a Golden Boot won by a player at no club (no team id, no team name)
+    /// When the awards article is written
+    /// Then its team parameter is the free-agent translation key, not an empty string: the reader
+    ///      resolves it in the player's language (an empty name reads as nothing).
+    #[test]
+    fn season_awards_article_names_a_free_agent_winners_club_by_key() {
+        let mut awards = empty_awards();
+        awards.golden_boot = vec![award_entry("p1", "Star Striker", "", "", 22.0)];
+        awards.player_of_year = vec![award_entry("p1", "Star Striker", "", "", 7.9)];
+
+        let article = season_awards_article(&awards, 3, "2026-05-20").expect("an article");
+
+        assert_eq!(
+            article.i18n_params.get("goldenBootTeam"),
+            Some(&"common.freeAgent".to_string())
+        );
+        assert_eq!(
+            article.i18n_params.get("potyTeam"),
+            Some(&"common.freeAgent".to_string())
+        );
+    }
+
     #[test]
     fn season_awards_article_celebrates_player_of_the_year_winner() {
         let mut awards = empty_awards();

@@ -105,3 +105,26 @@ fn a_rollover_preserves_user_and_ai_statistics_for_retained_league_editions() {
     assert_eq!(awards.golden_boot.len(), 2);
     assert!(awards.golden_boot.iter().all(|entry| entry.value == 7.0));
 }
+
+/// Given a player released mid-season, with appearances, still unsigned when the season ends
+/// When the season ends
+/// Then his career entry names no club (no id, no name): the screen words it in the player's
+///      language, so no English literal is stored.
+#[test]
+fn a_free_agent_career_entry_names_no_club() {
+    let mut game = make_completed_season_game();
+    game.players
+        .iter_mut()
+        .find(|p| p.id == "p1")
+        .unwrap()
+        .team_id = None;
+
+    process_end_of_season(&mut game);
+
+    let entry = &game.players.iter().find(|p| p.id == "p1").unwrap().career[0];
+    assert_eq!(
+        (entry.team_id.as_str(), entry.team_name.as_str()),
+        ("", ""),
+        "a free agent's entry has no club"
+    );
+}
