@@ -108,12 +108,7 @@ pub(crate) fn apply_pyramid_promotion_relegation(competitions: &mut [League]) {
     let ladder_runs: Vec<Vec<usize>> = tiers_by_country
         .into_values()
         .flat_map(|mut indices| {
-            // Ranked, not merely sorted by priority: a berth target can share a priority with an
-            // ordinary tier, and the order the two are listed in decided where the run was cut
-            // below, so which clubs changed division (#1381).
-            indices.sort_by_key(|&index| {
-                super::tier_rank(competitions[index].priority, &competitions[index].id)
-            });
+            indices.sort_by_key(|&index| competitions[index].priority);
             // Overlap is a property of the whole country, not of one run. Two
             // repeated phases of a pyramid separated by an excluded rung land
             // in different runs, and a per-run check never compares them: both
