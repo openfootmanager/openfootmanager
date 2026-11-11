@@ -86,7 +86,7 @@ describe("collecting the regions that scroll", () => {
 
     const { regions, problems } = judged("[data-workspace]");
 
-    expect(regions.all).toEqual(["section.Roster (2000 > 400)"]);
+    expect(regions.all).toEqual(['section[aria-label="Roster"] (2000 > 400)']);
     expect(regions.overflow).toEqual([]);
     expect(problems).toEqual([]);
   });
@@ -116,5 +116,28 @@ describe("collecting the regions that scroll", () => {
     const { problems } = judged("[data-no-such-region]");
 
     expect(problems).toEqual(["no region on the page matches the case's fit selector"]);
+  });
+
+  /**
+   * Given scrolling regions that carry an accessible label (the Tactics instructions rail, a nav) or
+   *       classes with characters CSS needs escaped (`md:h-screen`, `@container`)
+   * When their names are collected
+   * Then each name is a selector that identifies the element (`nav[aria-label="..."]`,
+   *      `div.md\\:h-screen`), not a label glued onto the tag, so it can be pasted into the page.
+   */
+  it("names each region by a selector that identifies it", () => {
+    document.body.innerHTML = `<main>
+      <nav aria-label='Team "instructions"' style="overflow-y:auto"></nav>
+      <div class="md:h-screen @container" style="overflow-y:auto"></div>
+    </main>`;
+    sized(document.querySelector("nav"), 900, 300);
+    sized(document.querySelector("div"), 700, 400);
+
+    const { all } = collectRegions(document, getComputedStyle, null);
+
+    expect(all).toEqual([
+      'nav[aria-label="Team \\"instructions\\""] (900 > 300)',
+      "div.md\\:h-screen.\\@container (700 > 400)",
+    ]);
   });
 });

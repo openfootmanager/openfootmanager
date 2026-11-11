@@ -214,14 +214,30 @@ export async function loadFaces(fonts, faces) {
  * roster in its own box). `overflow` lists only the regions matching `fitSelector` that hold more
  * than they show: the page's workspace, which the document's own height never reveals (the
  * dashboard keeps the document the window's height and scrolls inside). `missing` is a selector that
- * matches nothing on the page. Each is named by its tag, its aria-label or its first classes, with
- * its scroll height against its visible height.
+ * matches nothing on the page. Each is named by a selector that identifies it (`nav[aria-label="..."]`
+ * for a labelled region, else its tag and first classes, escaped), with its scroll height against its
+ * visible height.
  */
 export function collectRegions(doc, styleOf, fitSelector) {
-  const describe = (element) => {
-    const name = element.getAttribute("aria-label") ?? [...element.classList].slice(0, 2).join(".");
-    return `${element.tagName.toLowerCase()}${name ? `.${name}` : ""} (${element.scrollHeight} > ${element.clientHeight})`;
+  // CSS.escape lives in the page; a stand-in escapes what a selector needs where it does not exist.
+  const escape = (text) =>
+    typeof CSS !== "undefined" && CSS.escape ? CSS.escape(text) : text.replace(/[^\w-]/g, "\\$&");
+  // A name that can be pasted into the page: an attribute selector for a labelled region, else its
+  // tag and first classes, escaped.
+  const selectorOf = (element) => {
+    const tag = element.tagName.toLowerCase();
+    const label = element.getAttribute("aria-label");
+    if (label) return `${tag}[aria-label="${label.replace(/["\\]/g, "\\$&")}"]`;
+    return (
+      tag +
+      [...element.classList]
+        .slice(0, 2)
+        .map((name) => `.${escape(name)}`)
+        .join("")
+    );
   };
+  const describe = (element) =>
+    `${selectorOf(element)} (${element.scrollHeight} > ${element.clientHeight})`;
   const holdsMore = (element) => element.scrollHeight > element.clientHeight + 1;
   const all = [...doc.querySelectorAll("main *")]
     .filter((element) => {
