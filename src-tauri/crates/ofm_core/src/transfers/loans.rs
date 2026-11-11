@@ -654,6 +654,34 @@ pub(crate) fn complete_loan_buy_option_transfer(
     fee: u64,
     notify_user: bool,
 ) -> Result<(), String> {
+    let terms = prepare_loan_purchase(game, player_id, buying_team_id, parent_team_id, fee)?;
+    apply_loan_purchase(game, &terms)?;
+    announce_loan_purchase(game, &terms, notify_user);
+    Ok(())
+}
+struct LoanPurchaseTerms {
+    player_id: String,
+    buying_team_id: String,
+    parent_team_id: String,
+    fee: u64,
+    player_snapshot: Player,
+    loan: ActiveLoan,
+    fee_i64: i64,
+    from_team_name: String,
+    to_team_name: String,
+    today: String,
+    date: NaiveDate,
+    buying_club: Team,
+    new_wage: u32,
+    new_contract_end: NaiveDate,
+}
+fn prepare_loan_purchase(
+    game: &Game,
+    player_id: &str,
+    buying_team_id: &str,
+    parent_team_id: &str,
+    fee: u64,
+) -> Result<LoanPurchaseTerms, String> {
     if fee == 0 {
         return Err(ERR_INVALID_LOAN_BUY_OPTION.into());
     }
@@ -684,12 +712,12 @@ pub(crate) fn complete_loan_buy_option_transfer(
         .find(|team| team.id == buying_team_id)
         .ok_or("be.error.teamNotFound")?;
     let fee_i64 = i64::try_from(fee).map_err(|_| ERR_INSUFFICIENT_FUNDS.to_string())?;
-    if buying_team.finance < fee_i64 {
-        return Err(ERR_INSUFFICIENT_FUNDS.into());
-    }
-    if buying_team.transfer_budget < fee_i64 {
-        return Err(ERR_TRANSFER_BUDGET_TOO_LOW.into());
-    }
+    fee_block(
+        buying_team,
+        fee,
+        committed_transfer_fees(game, buying_team_id),
+    )
+    .map_err(|block| block.error_key().to_string())?;
 
     if !game.teams.iter().any(|team| team.id == parent_team_id) {
         return Err("be.error.teamNotFound".into());
@@ -713,45 +741,63 @@ pub(crate) fn complete_loan_buy_option_transfer(
     // The option names a fee and nothing else.
     let (buying_club, new_wage, new_contract_end) =
         buyers_contract_terms(game, &player_snapshot, buying_team_id)?;
+    Ok(LoanPurchaseTerms {
+        player_id: player_id.to_string(),
+        buying_team_id: buying_team_id.to_string(),
+        parent_team_id: parent_team_id.to_string(),
+        fee,
+        player_snapshot,
+        loan,
+        fee_i64,
+        from_team_name,
+        to_team_name,
+        today,
+        date,
+        buying_club,
+        new_wage,
+        new_contract_end,
+    })
+}
+fn apply_loan_purchase(game: &mut Game, terms: &LoanPurchaseTerms) -> Result<(), String> {
     crate::finances::post_all(
         game,
         &[
             crate::finances::PostRequest::new(
-                buying_team_id,
-                -fee_i64,
+                terms.buying_team_id.as_str(),
+                -terms.fee_i64,
                 crate::finances::CashKind::TransferFeeOut,
-                date,
+                terms.date,
             ),
             crate::finances::PostRequest::new(
-                parent_team_id,
-                fee_i64,
+                terms.parent_team_id.as_str(),
+                terms.fee_i64,
                 crate::finances::CashKind::TransferFeeIn,
-                date,
+                terms.date,
             ),
         ],
     )?;
 
     for team in &mut game.teams {
-        if team.id == buying_team_id {
-            team.transfer_budget -= fee_i64;
-        } else if team.id == parent_team_id {
+        if team.id == terms.buying_team_id.as_str() {
+            team.transfer_budget -= terms.fee_i64;
+        } else if team.id == terms.parent_team_id.as_str() {
             // Same rule as a permanent sale: the proceeds replenish this season's transfer
             // envelope, not only the balance. The cash reaches the parent through the journal
             // post above; crediting one and not the other left a club that sold through an
             // option unable to spend what it had just earned.
-            team.transfer_budget += fee_i64;
-            team.remove_player_references(player_id);
+            team.transfer_budget += terms.fee_i64;
+            team.remove_player_references(terms.player_id.as_str());
         } else {
-            team.remove_player_references(player_id);
+            team.remove_player_references(terms.player_id.as_str());
         }
     }
 
     if let Some(player) = game
         .players
         .iter_mut()
-        .find(|player| player.id == player_id)
+        .find(|player| player.id == terms.player_id.as_str())
     {
-        player.team_id = Some(buying_team_id.to_string());
+        player.team_id = Some(terms.buying_team_id.as_str().to_string());
         player.transfer_listed = false;
         player.loan_listed = false;
         player.active_loan = None;
@@ -760,36 +806,47 @@ pub(crate) fn complete_loan_buy_option_transfer(
         record_movement(
             player,
             PlayerMovementEntry {
-                from_team_id: Some(parent_team_id.to_string()),
-                from_team_name: Some(from_team_name.clone()),
-                fee: Some(fee),
-                loan_end_date: Some(loan.end_date),
+                from_team_id: Some(terms.parent_team_id.as_str().to_string()),
+                from_team_name: Some(terms.from_team_name.clone()),
+                fee: Some(terms.fee),
+                loan_end_date: Some(terms.loan.end_date.clone()),
                 ..contract_entry(
                     PlayerMovementKind::LoanToBuy,
-                    date,
-                    &buying_club,
-                    contract_record(date, new_contract_end, new_wage, ContractSource::Transfer),
+                    terms.date,
+                    &terms.buying_club,
+                    contract_record(
+                        terms.date,
+                        terms.new_contract_end,
+                        terms.new_wage,
+                        ContractSource::Transfer,
+                    ),
                 )
             },
         );
     }
 
-    if should_generate_major_transfer_news(&player_snapshot, fee) {
+    Ok(())
+}
+fn announce_loan_purchase(game: &mut Game, terms: &LoanPurchaseTerms, notify_user: bool) {
+    if should_generate_major_transfer_news(&terms.player_snapshot, terms.fee) {
         let article_id = format!(
             "transfer_news_{}_{}_{}_{}",
-            player_id, parent_team_id, buying_team_id, today
+            terms.player_id.as_str(),
+            terms.parent_team_id.as_str(),
+            terms.buying_team_id.as_str(),
+            terms.today
         );
         if !game.news.iter().any(|article| article.id == article_id) {
             game.news.push(crate::news::major_transfer_article(
                 &article_id,
-                player_id,
-                &player_snapshot.full_name,
-                parent_team_id,
-                &from_team_name,
-                buying_team_id,
-                &to_team_name,
-                fee,
-                &today,
+                terms.player_id.as_str(),
+                &terms.player_snapshot.full_name,
+                terms.parent_team_id.as_str(),
+                &terms.from_team_name,
+                terms.buying_team_id.as_str(),
+                &terms.to_team_name,
+                terms.fee,
+                &terms.today,
             ));
         }
     }
@@ -797,25 +854,23 @@ pub(crate) fn complete_loan_buy_option_transfer(
     log_completed_transfer(
         game,
         CompletedTransfer {
-            date: today.clone(),
-            from_team_id: parent_team_id.to_string(),
-            to_team_id: buying_team_id.to_string(),
-            player_id: player_id.to_string(),
-            fee,
+            date: terms.today.clone(),
+            from_team_id: terms.parent_team_id.as_str().to_string(),
+            to_team_id: terms.buying_team_id.as_str().to_string(),
+            player_id: terms.player_id.as_str().to_string(),
+            fee: terms.fee,
         },
     );
 
     if notify_user {
         game.messages
             .push(crate::messages::loan_buy_option_exercised_message(
-                player_id,
-                &player_snapshot.full_name,
-                fee,
-                &today,
+                terms.player_id.as_str(),
+                &terms.player_snapshot.full_name,
+                terms.fee,
+                &terms.today,
             ));
     }
-
-    Ok(())
 }
 pub fn exercise_loan_buy_option(game: &mut Game, player_id: &str) -> Result<(), String> {
     expire_stale_loan_offers(game);
@@ -868,9 +923,10 @@ pub(crate) fn ai_should_exercise_loan_buy_option(
     fee: u64,
     loan_minutes: u32,
     loan_appearances: u32,
+    committed: i64,
 ) -> bool {
     // A zero buy option is no option at all, so it is refused before the club's means are asked.
-    if fee == 0 || !can_afford_fee(loan_team, fee) {
+    if fee == 0 || !can_afford_fee(loan_team, fee, committed) {
         return false;
     }
 
@@ -920,6 +976,7 @@ pub(crate) fn maybe_exercise_ai_loan_buy_option(game: &mut Game, player_id: &str
         fee,
         loan_minutes,
         loan_appearances,
+        committed_transfer_fees(game, &loan.loan_team_id),
     ) {
         return false;
     }
@@ -1251,7 +1308,7 @@ mod tests {
         let (player, club) = buy_option_candidate(1_000_000);
 
         assert!(!ai_should_exercise_loan_buy_option(
-            &player, &club, 0, 2_000, 30
+            &player, &club, 0, 2_000, 30, 0
         ));
     }
 
@@ -1262,13 +1319,13 @@ mod tests {
         let (player, mut club) = buy_option_candidate(1_000_000);
         club.finance = 100_000;
         assert!(!ai_should_exercise_loan_buy_option(
-            &player, &club, 900_000, 2_000, 30
+            &player, &club, 900_000, 2_000, 30, 0
         ));
 
         let (player, mut club) = buy_option_candidate(1_000_000);
         club.transfer_budget = 100_000;
         assert!(!ai_should_exercise_loan_buy_option(
-            &player, &club, 900_000, 2_000, 30
+            &player, &club, 900_000, 2_000, 30, 0
         ));
     }
 
@@ -1278,7 +1335,7 @@ mod tests {
         let (player, club) = buy_option_candidate(1_000_000);
 
         assert!(ai_should_exercise_loan_buy_option(
-            &player, &club, 900_000, 2_000, 30
+            &player, &club, 900_000, 2_000, 30, 0
         ));
     }
 
@@ -1734,7 +1791,7 @@ mod tests {
         let (player, club) = buy_option_candidate(1_000_000);
 
         assert!(ai_should_exercise_loan_buy_option(
-            &player, &club, 1_200_000, 1_000, 5
+            &player, &club, 1_200_000, 1_000, 5, 0
         ));
     }
 
@@ -1747,7 +1804,7 @@ mod tests {
         let (player, club) = buy_option_candidate(1_000_000);
 
         assert!(!ai_should_exercise_loan_buy_option(
-            &player, &club, 1_260_000, 1_000, 8
+            &player, &club, 1_260_000, 1_000, 8, 0
         ));
     }
 
@@ -1759,7 +1816,7 @@ mod tests {
         let (player, club) = buy_option_candidate(1_000_000);
 
         assert!(ai_should_exercise_loan_buy_option(
-            &player, &club, 1_200_000, 300, 8
+            &player, &club, 1_200_000, 300, 8, 0
         ));
     }
 

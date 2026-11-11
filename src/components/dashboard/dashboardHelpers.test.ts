@@ -179,6 +179,8 @@ function translateDashboardAlert(key: string, options?: Record<string, unknown>)
 
 function financeVerdict(overrides: Partial<TeamFinanceSnapshotData> = {}): TeamFinanceSnapshotData {
   return {
+    committedTransferFees: 0,
+    availableTransferBudget: 300000,
     annualWageBill: 0,
     weeklyWageSpend: 0,
     weeklyWageBudget: 10000,
