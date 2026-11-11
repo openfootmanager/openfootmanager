@@ -78,6 +78,7 @@ const LAST_SIGNED: ContractHistoryRow = {
   weeklyWage: 10_000,
   source: "renewal",
   endedBy: null,
+  endedOn: null,
   replacedOn: null,
   inForce: true,
 };

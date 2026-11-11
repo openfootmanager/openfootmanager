@@ -17,6 +17,7 @@ const row = (patch: Partial<ContractHistoryRow>): ContractHistoryRow => ({
   weeklyWage: 10_000,
   source: "renewal",
   endedBy: null,
+  endedOn: null,
   replacedOn: null,
   inForce: true,
   ...patch,
