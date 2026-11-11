@@ -1,6 +1,57 @@
 //! Where each club stands in its own league table, for the league-position sponsorship bonus
 //! (#1363).
 
+use std::collections::HashMap;
+
+use domain::league::League;
+
+use crate::end_of_season::club_league_table;
+use crate::game::Game;
+
+/// The table a club's position is read from: the league table it contests, whichever league the
+/// user follows. A legacy save has no `competitions`, and its one league is the `game.league`
+/// mirror.
+fn own_table<'a>(game: &'a Game, club_id: &str) -> Option<&'a League> {
+    if game.competitions.is_empty() {
+        return game.league.as_ref();
+    }
+    club_league_table(game, club_id)
+}
+
+/// Each club of `league` by its place in the table, first place is 1.
+fn ranking(league: &League) -> HashMap<String, u32> {
+    league
+        .sorted_standings()
+        .into_iter()
+        .enumerate()
+        .map(|(index, standing)| (standing.team_id, index as u32 + 1))
+        .collect()
+}
+
+/// A club's place in its own league table, `None` when no league table lists it.
+pub(super) fn league_position(game: &Game, club_id: &str) -> Option<u32> {
+    own_table(game, club_id).and_then(|league| ranking(league).remove(club_id))
+}
+
+/// Every club's place in its own league table, each table ranked once. A club in no league table
+/// has no entry.
+pub(super) fn league_positions(game: &Game) -> HashMap<String, u32> {
+    let mut rankings: HashMap<&str, HashMap<String, u32>> = HashMap::new();
+    let mut positions = HashMap::new();
+    for team in &game.teams {
+        let Some(table) = own_table(game, &team.id) else {
+            continue;
+        };
+        let ranked = rankings
+            .entry(table.id.as_str())
+            .or_insert_with(|| ranking(table));
+        if let Some(position) = ranked.get(&team.id) {
+            positions.insert(team.id.clone(), *position);
+        }
+    }
+    positions
+}
+
 #[cfg(test)]
 mod tests {
     use crate::clock::GameClock;

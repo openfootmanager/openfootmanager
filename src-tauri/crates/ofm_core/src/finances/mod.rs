@@ -1,7 +1,7 @@
 pub mod cash_flow;
 pub mod gate;
-pub mod league_position;
 pub mod journal;
+mod league_position;
 
 pub use domain::finance::{CashJournal, CashKind};
 pub use journal::{
@@ -12,6 +12,7 @@ pub use journal::{
 /// Weeks of committed wages a club must be able to cover after the weekly unit lock.
 pub const MIN_OPENING_RUNWAY_WEEKS: i64 = 16;
 
+use self::league_position::{league_position, league_positions};
 use crate::game::Game;
 use chrono::{Datelike, NaiveDate};
 use domain::message::*;
@@ -390,7 +391,7 @@ pub fn team_finance_snapshot(game: &Game, team_id: &str) -> Option<TeamFinanceSn
     let weekly_wage_spend = calc_wages(game, team_id);
     let annual_wage_bill = weekly_wage_spend;
     let weekly_wage_budget = team.wage_budget;
-    let current_position = current_league_position(game, team_id);
+    let current_position = league_position(game, team_id);
     let weekly_sponsor_income = team
         .sponsorship
         .as_ref()
@@ -879,7 +880,7 @@ pub fn preview_sponsor_pitch(game: &Game, team_id: &str) -> Result<SponsorPitchP
         return Err("be.error.finance.sponsorPitchActiveSponsor".to_string());
     }
 
-    let current_position = current_league_position(game, team_id);
+    let current_position = league_position(game, team_id);
 
     Ok(SponsorPitchPreview {
         sponsor_name: sponsor_pitch_partner(team_id, game.clock.current_date),
@@ -1123,16 +1124,6 @@ pub fn evaluate_sponsorship_bonus(
         .sum()
 }
 
-fn current_league_position(game: &Game, team_id: &str) -> Option<u32> {
-    let league = game.league.as_ref()?;
-
-    league
-        .sorted_standings()
-        .iter()
-        .position(|standing| standing.team_id == team_id)
-        .map(|index| index as u32 + 1)
-}
-
 fn add_weekly_wage(map: &mut std::collections::HashMap<String, i64>, team_id: &str, amount: i64) {
     if amount == 0 {
         return;
@@ -1199,18 +1190,7 @@ pub fn process_weekly_finances(game: &mut Game) {
         }
     }
 
-    let position_by_team: std::collections::HashMap<String, u32> = game
-        .league
-        .as_ref()
-        .map(|league| {
-            league
-                .sorted_standings()
-                .iter()
-                .enumerate()
-                .map(|(index, standing)| (standing.team_id.clone(), index as u32 + 1))
-                .collect()
-        })
-        .unwrap_or_default();
+    let position_by_team = league_positions(game);
 
     let post_date = game.clock.current_date.date_naive();
     let mut weekly_by_club: Vec<(String, Vec<PostRequest>)> = Vec::new();
