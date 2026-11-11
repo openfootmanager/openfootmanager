@@ -679,6 +679,9 @@ mod tests {
         assert_eq!(after, before);
     }
 
+    /// Given an active career in August 2026
+    /// When a three-year renewal is accepted through the command service
+    /// Then live state and the response end the contract on 30 June 2029.
     #[test]
     fn propose_renewal_internal_returns_response_and_updates_state() {
         let state = StateManager::new();
@@ -696,7 +699,7 @@ mod tests {
             .find(|player| player.id == "player-1")
             .expect("player should exist");
         assert_eq!(player.wage(), 15_000);
-        assert_eq!(player.contract_end(), Some("2029-08-01"));
+        assert_eq!(player.contract_end(), Some("2029-06-30"));
 
         let stored_game = state.get_game(|game| game.clone()).expect("stored game");
         let stored_player = stored_game
@@ -705,9 +708,12 @@ mod tests {
             .find(|player| player.id == "player-1")
             .expect("stored player should exist");
         assert_eq!(stored_player.wage(), 15_000);
-        assert_eq!(stored_player.contract_end(), Some("2029-08-01"));
+        assert_eq!(stored_player.contract_end(), Some("2029-06-30"));
     }
 
+    /// Given an assistant and an active career in August 2026
+    /// When the command service delegates a three-year renewal
+    /// Then the response and live state retain the 30 June 2029 end.
     #[test]
     fn delegate_renewals_internal_returns_report_and_updates_state() {
         let state = StateManager::new();
@@ -731,7 +737,7 @@ mod tests {
             .iter()
             .find(|player| player.id == "player-1")
             .expect("player should exist");
-        assert_eq!(player.contract_end(), Some("2029-08-01"));
+        assert_eq!(player.contract_end(), Some("2029-06-30"));
         assert!(response
             .game
             .messages
@@ -744,9 +750,12 @@ mod tests {
             .iter()
             .find(|player| player.id == "player-1")
             .expect("stored player should exist");
-        assert_eq!(stored_player.contract_end(), Some("2029-08-01"));
+        assert_eq!(stored_player.contract_end(), Some("2029-06-30"));
     }
 
+    /// Given a persisted career with its old contract date
+    /// When the manager renews and then explicitly saves
+    /// Then a fresh reader sees the 30 June 2029 end only after that save.
     #[test]
     fn renewal_changes_only_persist_after_explicit_save() {
         let temp_dir = TempSaveDir::new();
@@ -795,9 +804,12 @@ mod tests {
             .find(|player| player.id == "player-1")
             .expect("saved player should exist");
         assert_eq!(saved_player.wage(), 15_000);
-        assert_eq!(saved_player.contract_end(), Some("2029-08-01"));
+        assert_eq!(saved_player.contract_end(), Some("2029-06-30"));
     }
 
+    /// Given a persisted career with its old contract date
+    /// When the assistant renews and the manager explicitly saves
+    /// Then a fresh reader sees the 30 June 2029 end only after that save.
     #[test]
     fn delegated_renewal_changes_only_persist_after_explicit_save() {
         let temp_dir = TempSaveDir::new();
@@ -854,7 +866,7 @@ mod tests {
             .iter()
             .find(|player| player.id == "player-1")
             .expect("saved player should exist");
-        assert_eq!(saved_player.contract_end(), Some("2029-08-01"));
+        assert_eq!(saved_player.contract_end(), Some("2029-06-30"));
         assert!(persisted_after_manual_save
             .messages
             .iter()
@@ -903,6 +915,9 @@ mod tests {
         assert_eq!(stages.len(), 1);
     }
 
+    /// Given a free agent and an active career in August 2026
+    /// When the command service signs him for three years
+    /// Then the response contains his contract ending on 30 June 2029.
     #[test]
     fn offer_free_agent_contract_internal_returns_response_and_updates_state() {
         let state = StateManager::new();
@@ -915,7 +930,7 @@ mod tests {
         assert!(matches!(response.outcome, RenewalDecision::Accepted));
         assert_eq!(response.session_status, "agreed");
         assert_eq!(response.game.players[0].team_id.as_deref(), Some("team-1"));
-        assert_eq!(response.game.players[0].contract_end(), Some("2029-08-01"));
+        assert_eq!(response.game.players[0].contract_end(), Some("2029-06-30"));
         assert!(response.game.players[0]
             .movement_history
             .iter()

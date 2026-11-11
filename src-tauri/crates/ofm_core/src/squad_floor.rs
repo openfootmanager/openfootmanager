@@ -1065,8 +1065,9 @@ mod tests {
     }
 
     /// Given a club one keeper short, no academy keeper, several free agents
-    /// and no money at all, the best keeper is signed on a real contract: the
-    /// club pays his wages and its balance may go further negative.
+    /// and no money at all
+    /// When the club restores its minimum squad
+    /// Then the best keeper signs until 30 June 2029 and the balance stays negative.
     #[test]
     fn a_short_club_with_no_youth_signs_a_free_agent_even_in_debt() {
         let mut game = club_with([1, 5, 5, 4]);
@@ -1083,7 +1084,7 @@ mod tests {
         assert_eq!(top_up.signed, vec!["good_keeper".to_string()]);
         let keeper = game.players.iter().find(|p| p.id == "good_keeper").unwrap();
         assert_eq!(keeper.team_id.as_deref(), Some("club"));
-        assert!(keeper.contract_end().is_some(), "signed without a contract");
+        assert_eq!(keeper.contract_end(), Some("2029-06-30"));
         assert!(keeper.wage() > 0, "signed on no wage");
         assert_eq!(team_of(&game, "forward"), None);
         assert_eq!(

@@ -1,3 +1,5 @@
+#[path = "contracts_tests/extension_terms.rs"]
+mod extension_terms;
 #[path = "contracts_tests/renewal_feedback.rs"]
 mod renewal_feedback;
 #[path = "contracts_tests/renewal_terms.rs"]
@@ -202,6 +204,9 @@ fn make_free_agent_game() -> Game {
     game
 }
 
+/// Given a three-year renewal accepted by the user in August 2026
+/// When the signing completes through its public entry point
+/// Then its contract ends on 30 June 2029.
 #[test]
 fn accepted_offer_updates_wage_and_term_correctly() {
     let mut game = make_game();
@@ -220,7 +225,7 @@ fn accepted_offer_updates_wage_and_term_correctly() {
     assert!(outcome.feedback.is_some());
     let player = game.players.iter().find(|p| p.id == "player-1").unwrap();
     assert_eq!(player.wage(), 15_000);
-    assert_eq!(player.contract_end(), Some("2029-08-01"));
+    assert_eq!(player.contract_end(), Some("2029-06-30"));
 }
 
 /// `RenewalOffer.weekly_wage`, `player.wage` and the finance wage bill are one unit: weekly.
@@ -597,6 +602,9 @@ fn high_value_star_expects_more_than_fringe_player() {
     assert!(star_outcome.suggested_wage > fringe_outcome.suggested_wage);
 }
 
+/// Given a free agent accepting the manager's offer in August 2026
+/// When the signing completes through its public entry point
+/// Then its contract ends on 30 June 2029.
 #[test]
 fn free_agent_offer_accepts_and_assigns_player_to_manager_team() {
     let mut game = make_free_agent_game();
@@ -619,7 +627,7 @@ fn free_agent_offer_accepts_and_assigns_player_to_manager_team() {
         .unwrap();
     assert_eq!(player.team_id.as_deref(), Some("team-1"));
     assert_eq!(player.wage(), 4_000);
-    assert_eq!(player.contract_end(), Some("2029-08-01"));
+    assert_eq!(player.contract_end(), Some("2029-06-30"));
     let message = game
         .messages
         .iter()
@@ -1073,6 +1081,9 @@ fn stale_manual_renewal_talks_cool_off_and_restart_from_round_one() {
     );
 }
 
+/// Given low manager trust and an assistant who can agree a routine deal
+/// When the assistant completes the renewal
+/// Then the three-year contract ends on 30 June 2029.
 #[test]
 fn assistant_can_complete_routine_delegate_renewal_even_when_manager_trust_is_low() {
     let mut game = make_game();
@@ -1105,7 +1116,7 @@ fn assistant_can_complete_routine_delegate_renewal_even_when_manager_trust_is_lo
         .iter()
         .find(|player| player.id == "player-1")
         .unwrap();
-    assert_eq!(player.contract_end(), Some("2029-08-01"));
+    assert_eq!(player.contract_end(), Some("2029-06-30"));
     assert_eq!(
         player.contract_start(),
         Some("2026-08-01"),
@@ -1285,6 +1296,9 @@ fn renewal_blocks_large_worsening_for_legacy_over_budget_saves() {
 // released player reads as an agreement that never ended.
 // ---------------------------------------------------------------------------
 
+/// Given a player renewing an existing contract in August 2026
+/// When the manager agrees a three-year deal
+/// Then it starts today and ends on 30 June 2029.
 #[test]
 fn an_accepted_renewal_dates_the_new_agreement_from_today() {
     let mut game = make_game();
@@ -1305,7 +1319,7 @@ fn an_accepted_renewal_dates_the_new_agreement_from_today() {
         Some("2026-08-01"),
         "a renewal signed today starts today, not whenever the old deal began"
     );
-    assert_eq!(player.contract_end(), Some("2029-08-01"));
+    assert_eq!(player.contract_end(), Some("2029-06-30"));
 }
 
 #[test]
@@ -1393,6 +1407,9 @@ fn recorded(entry: &PlayerMovementEntry) -> &ContractRecord {
         .expect("the entry should carry the contract it made")
 }
 
+/// Given a renewal recorded in the ledger in August 2026
+/// When the signing completes through its public entry point
+/// Then its contract ends on 30 June 2029.
 #[test]
 fn a_renewal_by_the_user_appends_a_renewal_entry() {
     let mut game = make_game();
@@ -1416,7 +1433,7 @@ fn a_renewal_by_the_user_appends_a_renewal_entry() {
     let record = recorded(entry);
     assert_eq!(record.source, ContractSource::Renewal);
     assert_eq!(record.start.as_deref(), Some("2026-08-01"));
-    assert_eq!(record.end.as_deref(), Some("2029-08-01"));
+    assert_eq!(record.end.as_deref(), Some("2029-06-30"));
     assert_eq!(record.weekly_wage, 15_000);
     assert_eq!(player.wage(), 15_000, "the current contract is the new one");
 }
@@ -1440,6 +1457,9 @@ fn a_rejected_renewal_appends_nothing() {
     assert_eq!(game.players[0].movement_history.len(), before);
 }
 
+/// Given an assistant agreeing a three-year renewal in August 2026
+/// When the signing completes through its public entry point
+/// Then its contract ends on 30 June 2029.
 #[test]
 fn a_delegated_renewal_appends_one_renewal_entry() {
     let mut game = make_game();
@@ -1465,10 +1485,13 @@ fn a_delegated_renewal_appends_one_renewal_entry() {
     let record = recorded(entry);
     assert_eq!(record.source, ContractSource::Renewal);
     assert_eq!(record.start.as_deref(), Some("2026-08-01"));
-    assert_eq!(record.end.as_deref(), Some("2029-08-01"));
+    assert_eq!(record.end.as_deref(), Some("2029-06-30"));
     assert_eq!(record.weekly_wage, player.wage());
 }
 
+/// Given a free agent accepting a three-year contract in August 2026
+/// When the signing completes through its public entry point
+/// Then its contract ends on 30 June 2029.
 #[test]
 fn a_free_agent_signing_appends_a_free_agent_contract() {
     let mut game = make_free_agent_game();
@@ -1491,7 +1514,7 @@ fn a_free_agent_signing_appends_a_free_agent_contract() {
     let record = recorded(entry);
     assert_eq!(record.source, ContractSource::FreeAgent);
     assert_eq!(record.start.as_deref(), Some("2026-08-01"));
-    assert_eq!(record.end.as_deref(), Some("2029-08-01"));
+    assert_eq!(record.end.as_deref(), Some("2029-06-30"));
     assert_eq!(record.weekly_wage, 4_000);
 }
 
@@ -2113,4 +2136,109 @@ fn a_player_the_assistant_scores_below_72_refuses_him() {
             Some("be.msg.delegatedRenewals.notes.relationshipBlocked")
         )
     );
+}
+
+/// Given a one-year renewal signed on 29 june 2026
+/// When the manager agrees the renewal
+/// Then it ends on 30 June 2027 and is recorded as the current contract.
+#[test]
+fn a_one_year_renewal_on_29_june_ends_on_30_june_next_year() {
+    let mut game = make_game();
+    game.players[0].date_of_birth = "1990-01-01".to_string();
+    game.clock.current_date = Utc.with_ymd_and_hms(2026, 6, 29, 12, 0, 0).unwrap();
+    let outcome = propose_renewal(
+        &mut game,
+        "player-1",
+        RenewalOffer {
+            weekly_wage: 30_000,
+            contract_years: 1,
+        },
+    )
+    .expect("the offer resolves");
+    assert_eq!(outcome.decision, RenewalDecision::Accepted);
+    assert_eq!(game.players[0].contract_end(), Some("2027-06-30"));
+}
+
+/// Given a one-year renewal signed on 30 june 2026
+/// When the manager agrees the renewal
+/// Then it ends on 30 June 2027 and is recorded as the current contract.
+#[test]
+fn a_one_year_renewal_on_30_june_ends_on_30_june_next_year() {
+    let mut game = make_game();
+    game.players[0].date_of_birth = "1990-01-01".to_string();
+    game.clock.current_date = Utc.with_ymd_and_hms(2026, 6, 30, 12, 0, 0).unwrap();
+    let outcome = propose_renewal(
+        &mut game,
+        "player-1",
+        RenewalOffer {
+            weekly_wage: 30_000,
+            contract_years: 1,
+        },
+    )
+    .expect("the offer resolves");
+    assert_eq!(outcome.decision, RenewalDecision::Accepted);
+    assert_eq!(game.players[0].contract_end(), Some("2027-06-30"));
+}
+
+/// Given a one-year renewal signed on 1 july 2026
+/// When the manager agrees the renewal
+/// Then it ends on 30 June 2027 and is recorded as the current contract.
+#[test]
+fn a_one_year_renewal_on_1_july_ends_on_30_june_next_year() {
+    let mut game = make_game();
+    game.players[0].date_of_birth = "1990-01-01".to_string();
+    game.clock.current_date = Utc.with_ymd_and_hms(2026, 7, 1, 12, 0, 0).unwrap();
+    let outcome = propose_renewal(
+        &mut game,
+        "player-1",
+        RenewalOffer {
+            weekly_wage: 30_000,
+            contract_years: 1,
+        },
+    )
+    .expect("the offer resolves");
+    assert_eq!(outcome.decision, RenewalDecision::Accepted);
+    assert_eq!(game.players[0].contract_end(), Some("2027-06-30"));
+}
+
+/// Given a one-year renewal signed on 31 december 2026
+/// When the manager agrees the renewal
+/// Then it ends on 30 June 2027 and is recorded as the current contract.
+#[test]
+fn a_one_year_renewal_on_31_december_ends_on_30_june_next_year() {
+    let mut game = make_game();
+    game.players[0].date_of_birth = "1990-01-01".to_string();
+    game.clock.current_date = Utc.with_ymd_and_hms(2026, 12, 31, 12, 0, 0).unwrap();
+    let outcome = propose_renewal(
+        &mut game,
+        "player-1",
+        RenewalOffer {
+            weekly_wage: 30_000,
+            contract_years: 1,
+        },
+    )
+    .expect("the offer resolves");
+    assert_eq!(outcome.decision, RenewalDecision::Accepted);
+    assert_eq!(game.players[0].contract_end(), Some("2027-06-30"));
+}
+
+/// Given a one-year renewal signed on 1 january 2026
+/// When the manager agrees the renewal
+/// Then it ends on 30 June 2027 and is recorded as the current contract.
+#[test]
+fn a_one_year_renewal_on_1_january_ends_on_30_june_next_year() {
+    let mut game = make_game();
+    game.players[0].date_of_birth = "1990-01-01".to_string();
+    game.clock.current_date = Utc.with_ymd_and_hms(2026, 1, 1, 12, 0, 0).unwrap();
+    let outcome = propose_renewal(
+        &mut game,
+        "player-1",
+        RenewalOffer {
+            weekly_wage: 30_000,
+            contract_years: 1,
+        },
+    )
+    .expect("the offer resolves");
+    assert_eq!(outcome.decision, RenewalDecision::Accepted);
+    assert_eq!(game.players[0].contract_end(), Some("2027-06-30"));
 }

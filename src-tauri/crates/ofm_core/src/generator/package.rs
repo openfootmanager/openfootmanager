@@ -105,9 +105,9 @@ pub struct PlayerDef {
     /// any era wants `contractLength` instead. Give one or the other, not both.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub contract_end: Option<String>,
-    /// How long the contract runs, in whole years, as an alternative to
-    /// `contractEnd`. Counted from `contractStart` when there is one, otherwise from
-    /// the year the career opens in, so the same package works in any era.
+    /// How long the contract runs, in years, as an alternative to `contractEnd`.
+    /// Ends on 30 June of the start year plus this length, or the career opening
+    /// year plus this length when no start is given.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub contract_length: Option<u32>,
     /// Weekly wage, in the game's money. Sized from the player's value when omitted.

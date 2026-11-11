@@ -113,8 +113,16 @@ fn normalize_opening_contracts(
     opening_year: i32,
     authored_ids: &HashSet<String>,
 ) {
-    let first_summer = format!("{}-06-30", opening_year + 1);
-    let second_summer = format!("{}-06-30", opening_year + 2);
+    let Some(start) = chrono::NaiveDate::from_ymd_opt(opening_year, 1, 1) else {
+        return;
+    };
+    let Some((first_summer, second_summer)) = crate::contracts::contract_end_after(start, 1)
+        .zip(crate::contracts::contract_end_after(start, 2))
+    else {
+        return;
+    };
+    let first_summer = crate::contracts::iso(first_summer);
+    let second_summer = crate::contracts::iso(second_summer);
 
     let mut expiring_indices: Vec<usize> = players
         .iter()
