@@ -148,6 +148,10 @@ const KNOWLEDGE_SHOWS: Record<HarnessProfile, (view: ReturnType<typeof within>) 
     expect(card.getByText(/^Retired on /)).toBeInTheDocument();
     expect(card.getByText(/^Last club: /)).toBeInTheDocument();
     expect(card.queryByRole("button", { name: /scout/i })).toBeNull();
+    // The top bar names him, as it names any player (it used to read "Player").
+    expect(
+      view.getByRole("heading", { name: profileCase("retired").retiredPlayer?.match_name }),
+    ).toBeInTheDocument();
   },
 };
 
