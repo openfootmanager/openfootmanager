@@ -876,6 +876,34 @@ mod tests {
         );
     }
 
+    /// Given an agreed sale of a player with 12 appearances, 3 goals and 1 assist at the seller
+    /// When registration completes
+    /// Then the seller's stint holds those 12, 3 and 1: the season so far is the seller's, not the
+    ///      buyer's.
+    #[test]
+    fn a_completed_sale_closes_the_sellers_stint() {
+        let mut game = pending_transfer_game(true);
+        game.clock.current_date = Utc.with_ymd_and_hms(2026, 1, 12, 12, 0, 0).unwrap();
+        game.players[0].stats.appearances = 12;
+        game.players[0].stats.goals = 3;
+        game.players[0].stats.assists = 1;
+
+        process_pending_transfer_registrations(&mut game);
+
+        let stints = &game.players[0].season_stints;
+        assert_eq!(stints.closed.len(), 1);
+        assert_eq!(stints.closed[0].team_id, "team1");
+        assert_eq!(
+            (
+                stints.closed[0].tally.appearances,
+                stints.closed[0].tally.goals,
+                stints.closed[0].tally.assists
+            ),
+            (12, 3, 1)
+        );
+        assert_eq!(stints.stats_at_arrival.appearances, 12);
+    }
+
     /// An agreed transfer of `game.players[0]` awaiting registration on `registration_date`,
     /// his contract ending on `contract_end` when given.
     fn pending_transfer_game_with(

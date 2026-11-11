@@ -261,6 +261,15 @@ impl Player {
             // `YYYY-MM-DD` orders the same as a date does, so no parse is needed.
             return Err(LedgerError::EndNotAfterStart);
         }
+        // The club he plays for changes: what he did there this season is the club's, whatever he
+        // does next. A loan's purchase and a renewal leave him where he plays, so close nothing.
+        if entry.kind.changes_where_he_plays() {
+            self.season_stints.close(
+                &self.stats,
+                entry.from_team_id.as_deref().unwrap_or_default(),
+                entry.from_team_name.as_deref().unwrap_or_default(),
+            );
+        }
         let changes_contract = entry.contract.is_some()
             || matches!(
                 entry.kind,
@@ -1270,5 +1279,183 @@ mod tests {
         .unwrap();
 
         p.stage_wage(1);
+    }
+
+    // -- A move closes the stint at the club he leaves ------------------------------------------
+
+    fn with_season(appearances: u32, goals: u32, assists: u32) -> Player {
+        let mut player = player();
+        player.stats.appearances = appearances;
+        player.stats.goals = goals;
+        player.stats.assists = assists;
+        player
+    }
+
+    fn leaving(kind: PlayerMovementKind, from: &str, to: Option<&str>) -> PlayerMovementEntry {
+        PlayerMovementEntry {
+            from_team_id: Some(from.to_string()),
+            from_team_name: Some(format!("{from} FC")),
+            to_team_id: to.map(str::to_string),
+            to_team_name: to.map(|id| format!("{id} FC")),
+            ..PlayerMovementEntry::new("2026-01-12", kind)
+        }
+    }
+
+    fn closed(player: &Player) -> Vec<(&str, u32, u32, u32)> {
+        player
+            .season_stints
+            .closed
+            .iter()
+            .map(|stint| {
+                (
+                    stint.team_id.as_str(),
+                    stint.tally.appearances,
+                    stint.tally.goals,
+                    stint.tally.assists,
+                )
+            })
+            .collect()
+    }
+
+    /// Given a player with 10 appearances, 4 goals and 2 assists at "seller"
+    /// When his transfer to "buyer" is recorded
+    /// Then "seller" keeps those 10, 4 and 2, and the buyer's stint starts from them.
+    #[test]
+    fn a_transfer_closes_the_stint_at_the_club_he_leaves() {
+        let mut player = with_season(10, 4, 2);
+
+        player
+            .record_movement(leaving(
+                PlayerMovementKind::PermanentTransfer,
+                "seller",
+                Some("buyer"),
+            ))
+            .unwrap();
+
+        assert_eq!(closed(&player), vec![("seller", 10, 4, 2)]);
+        assert_eq!(player.season_stints.stats_at_arrival.appearances, 10);
+    }
+
+    /// Given a player on loan who plays at the borrower and returns
+    /// When the loan out and its return are recorded
+    /// Then the parent club and the borrower each keep their share: three rows with the final one.
+    #[test]
+    fn a_loan_out_and_back_closes_the_parents_then_the_borrowers_stint() {
+        let mut player = with_season(5, 1, 0);
+        player
+            .record_movement(leaving(
+                PlayerMovementKind::LoanStart,
+                "parent",
+                Some("borrower"),
+            ))
+            .unwrap();
+        player.stats.appearances = 14;
+        player.stats.goals = 4;
+        player
+            .record_movement(leaving(
+                PlayerMovementKind::LoanReturn,
+                "borrower",
+                Some("parent"),
+            ))
+            .unwrap();
+
+        assert_eq!(
+            closed(&player),
+            vec![("parent", 5, 1, 0), ("borrower", 9, 3, 0)]
+        );
+    }
+
+    /// Given a player released mid-season
+    /// When the release is recorded
+    /// Then the club that released him keeps his season so far.
+    #[test]
+    fn a_release_closes_the_stint_at_the_releasing_club() {
+        let mut player = with_season(8, 2, 1);
+
+        player
+            .record_movement(leaving(PlayerMovementKind::Released, "seller", None))
+            .unwrap();
+
+        assert_eq!(closed(&player), vec![("seller", 8, 2, 1)]);
+    }
+
+    /// Given a loan club that buys the player it has had on loan, and a renewal
+    /// When each is recorded
+    /// Then no stint closes: he plays for the same club, and his totals carry on there.
+    #[test]
+    fn a_purchase_of_a_loanee_and_a_renewal_do_not_close_a_stint() {
+        let mut player = with_season(6, 2, 0);
+
+        player
+            .record_movement(leaving(
+                PlayerMovementKind::LoanToBuy,
+                "parent",
+                Some("borrower"),
+            ))
+            .unwrap();
+        player
+            .record_movement(leaving(
+                PlayerMovementKind::Renewal,
+                "borrower",
+                Some("borrower"),
+            ))
+            .unwrap();
+
+        assert!(player.season_stints.closed.is_empty());
+        assert_eq!(player.season_stints.stats_at_arrival.appearances, 0);
+    }
+
+    /// Given a free agent with no appearance who signs for a club
+    /// When the signing is recorded
+    /// Then no row for "no club" is kept.
+    #[test]
+    fn signing_a_free_agent_with_no_appearance_keeps_no_stint() {
+        let mut player = with_season(0, 0, 0);
+        let signing = PlayerMovementEntry {
+            to_team_id: Some("club".to_string()),
+            to_team_name: Some("Club FC".to_string()),
+            ..PlayerMovementEntry::new("2026-01-12", PlayerMovementKind::FreeAgentSigning)
+        };
+
+        player.record_movement(signing).unwrap();
+
+        assert!(player.season_stints.closed.is_empty());
+    }
+
+    /// Given a player's saved JSON from before stints existed (no `season_stints` key)
+    /// When it is read
+    /// Then his stints are empty, so the rollover credits the whole season to his club as before.
+    #[test]
+    fn a_player_saved_before_stints_loads_with_none() {
+        let mut value = serde_json::to_value(player()).unwrap();
+        value.as_object_mut().unwrap().remove("season_stints");
+
+        let loaded: Player = serde_json::from_value(value).unwrap();
+
+        assert_eq!(
+            loaded.season_stints,
+            crate::career_stints::SeasonStints::default()
+        );
+    }
+
+    /// Given a player who has moved this season, with a closed stint
+    /// When he is written as JSON
+    /// Then there is no `season_stints` key: the stints are saved in their own column, and the
+    ///      wire (which the TypeScript type describes) never carries them.
+    #[test]
+    fn stints_are_not_on_the_wire() {
+        let mut moved = with_season(10, 4, 2);
+        moved
+            .record_movement(leaving(
+                PlayerMovementKind::PermanentTransfer,
+                "seller",
+                Some("buyer"),
+            ))
+            .unwrap();
+        assert!(!moved.season_stints.closed.is_empty());
+
+        let written = serde_json::to_value(&moved).unwrap();
+
+        assert!(written.get("season_stints").is_none());
     }
 }
