@@ -272,7 +272,6 @@ fn build_playoff(game: &Game, year: u32, playoff_date: &str, ranked: &[String]) 
         preliminaries.name = "Semifinal".to_string();
     }
 
-    crate::calendar_identity::ensure_competition_calendar(&mut cup);
     cup
 }
 
