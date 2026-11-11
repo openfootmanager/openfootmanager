@@ -1248,6 +1248,41 @@ mod tests {
         assert_eq!(stored.season_stints.closed[0].team_id, "team-a");
     }
 
+    /// Given a player already saved, who then moves and is saved again under the same id
+    /// When he is read back, and then saved once more with his stints cleared (a new season)
+    /// Then the update path writes the stints each time: first the closed stint, then none.
+    #[test]
+    fn saving_a_player_again_updates_his_stints() {
+        let db = test_db();
+        let mut player = sample_player("p-resave", Some("team-b"));
+        player.stats.appearances = 12;
+        upsert_player(db.conn(), &player).unwrap();
+        player
+            .record_movement(PlayerMovementEntry {
+                from_team_id: Some("team-a".to_string()),
+                from_team_name: Some("Alpha FC".to_string()),
+                to_team_id: Some("team-b".to_string()),
+                to_team_name: Some("Beta FC".to_string()),
+                ..PlayerMovementEntry::new("2026-01-12", PlayerMovementKind::PermanentTransfer)
+            })
+            .unwrap();
+
+        upsert_player(db.conn(), &player).unwrap();
+        let loaded = load_all_players(db.conn()).unwrap();
+        let stored = loaded.iter().find(|stored| stored.id == player.id).unwrap();
+        assert_eq!(stored.season_stints, player.season_stints);
+        assert_eq!(stored.season_stints.closed.len(), 1);
+
+        player.season_stints = Default::default();
+        upsert_player(db.conn(), &player).unwrap();
+        let loaded = load_all_players(db.conn()).unwrap();
+        let stored = loaded.iter().find(|stored| stored.id == player.id).unwrap();
+        assert_eq!(
+            stored.season_stints,
+            domain::career_stints::SeasonStints::default()
+        );
+    }
+
     /// Given a player row written before the `season_stints` column held anything (NULL)
     /// When it is loaded
     /// Then he has no stints, so his season goes whole to the club that holds him, as it did.

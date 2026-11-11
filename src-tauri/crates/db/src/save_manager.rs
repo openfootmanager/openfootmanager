@@ -4239,6 +4239,43 @@ mod tests {
         assert!(!new_game.players[0].loan_listed);
     }
 
+    /// Given a save whose player is in the middle of a stint (a closed stint and an arrival
+    ///      baseline), and has season stats
+    /// When a new game is begun from it
+    /// Then his stats and his stints are both cleared: a stale baseline against fresh stats would
+    ///      give the new career the wrong rows.
+    #[test]
+    fn test_new_game_from_save_clears_the_season_stints_with_the_stats() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut sm = SaveManager::init(&dir.path().join("saves")).unwrap();
+        let mut game = sample_game();
+        let player = &mut game.players[0];
+        player.stats.appearances = 12;
+        player.stats.goals = 8;
+        player
+            .record_movement(domain::player::PlayerMovementEntry {
+                from_team_id: Some("team-a".to_string()),
+                from_team_name: Some("Alpha FC".to_string()),
+                ..domain::player::PlayerMovementEntry::new(
+                    "2026-01-12",
+                    domain::player::PlayerMovementKind::PermanentTransfer,
+                )
+            })
+            .unwrap();
+        assert!(!player.season_stints.closed.is_empty());
+        let player_id = player.id.clone();
+        let save_id = sm.create_save(&game, "Source Save").unwrap();
+
+        let new_game = sm.new_game_from_save(&save_id).unwrap();
+
+        let fresh = new_game.players.iter().find(|p| p.id == player_id).unwrap();
+        assert_eq!(fresh.stats.appearances, 0);
+        assert_eq!(
+            fresh.season_stints,
+            domain::career_stints::SeasonStints::default()
+        );
+    }
+
     #[test]
     fn test_new_game_from_save_reseeds_ai_loan_market() {
         let dir = tempfile::tempdir().unwrap();

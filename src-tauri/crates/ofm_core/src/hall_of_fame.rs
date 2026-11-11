@@ -328,6 +328,30 @@ mod tests {
         assert_eq!(hall_of_fame_legends(&game)[0].titles, 2);
     }
 
+    /// Given a season he spent at his club, out on loan, and back (three career rows: his club
+    ///      twice around the borrower's), and his club won the league that season
+    /// When legends are listed
+    /// Then the season is one title, not two: titles count (club, season) pairs, not rows.
+    #[test]
+    fn a_title_season_split_by_a_loan_counts_once() {
+        let vale = veteran(
+            "p-vale",
+            "Victor Vale",
+            vec![
+                career(1, "t-a", "Alpha FC", 10, 3),
+                career(1, "t-b", "Beta United", 12, 4),
+                career(1, "t-a", "Alpha FC", 8, 3),
+            ],
+        );
+        let teams = vec![
+            champion_team("t-a", "Alpha FC", &[1]),
+            champion_team("t-b", "Beta United", &[9]),
+        ];
+        let game = game_with(vec![vale], teams);
+
+        assert_eq!(hall_of_fame_legends(&game)[0].titles, 1);
+    }
+
     /// Given three legends, when listed, then more titles come first, then appearances, goals,
     /// and name.
     #[test]
