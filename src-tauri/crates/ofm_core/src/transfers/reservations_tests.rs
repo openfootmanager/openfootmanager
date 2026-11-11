@@ -307,3 +307,68 @@ fn a_missed_window_explains_the_cancellation_to_the_seller() {
     assert_eq!(game.teams[1].finance, 5_000_000);
     assert_eq!(committed_transfer_fees(&game, "team2"), 0);
 }
+
+fn accept_counter_with_a_non_multiple_budget(deferred: bool) -> (Game, u64) {
+    let mut game = acceptance_game("team1", true);
+    let target = preview_player(&mut game);
+    game.teams[1].transfer_budget = 1_000_000;
+    let first_offer = incoming_transfer(&mut game);
+    game.players[0].transfer_offers[0].fee = 379_999;
+    respond_to_offer(&mut game, "player-award", &first_offer, true).unwrap();
+    assert_eq!(committed_transfer_fees(&game, "team2"), 379_999);
+
+    let mut offer = game.players[0].transfer_offers[0].clone();
+    offer.id = "non-multiple-counter".into();
+    offer.status = TransferOfferStatus::Pending;
+    offer.fee = 600_000;
+    offer.registration_date = None;
+    game.players
+        .iter_mut()
+        .find(|player| player.id == target)
+        .unwrap()
+        .transfer_offers
+        .push(offer);
+    if !deferred {
+        game.season_context.transfer_window.status = TransferWindowStatus::Open;
+    }
+
+    let outcome = counter_offer(&mut game, &target, "non-multiple-counter", 650_001).unwrap();
+    assert_eq!(outcome.decision, TransferNegotiationDecision::CounterOffer);
+    let suggested_fee = outcome.suggested_fee.unwrap();
+    let stored_fee = game
+        .players
+        .iter()
+        .find(|player| player.id == target)
+        .unwrap()
+        .transfer_offers[0]
+        .fee;
+    assert_eq!(stored_fee, suggested_fee);
+    assert_eq!(
+        respond_to_offer(&mut game, &target, "non-multiple-counter", true),
+        Ok(()),
+        "the AI buyer must be able to honor its own proposed terms"
+    );
+    assert!(suggested_fee <= 620_001);
+    (game, suggested_fee)
+}
+
+/// Given 379999 committed from a 1m AI budget, when its rounded counter is accepted in an open window, then the counter fits the remaining 620001 and executes successfully.
+#[test]
+fn an_ai_counter_with_a_non_multiple_budget_can_be_accepted_immediately() {
+    let (game, fee) = accept_counter_with_a_non_multiple_budget(false);
+    assert_eq!(game.teams[1].finance, 5_000_000 - fee as i64);
+    assert_eq!(game.teams[1].transfer_budget, 1_000_000 - fee as i64);
+    assert_eq!(committed_transfer_fees(&game, "team2"), 379_999);
+}
+
+/// Given the same non-multiple available AI budget and a closed window, when its counter is accepted, then the affordable fee is reserved without paying cash.
+#[test]
+fn an_ai_counter_with_a_non_multiple_budget_can_be_agreed_for_later_registration() {
+    let (game, fee) = accept_counter_with_a_non_multiple_budget(true);
+    assert_eq!(game.teams[1].finance, 5_000_000);
+    assert_eq!(game.teams[1].transfer_budget, 1_000_000);
+    assert_eq!(
+        committed_transfer_fees(&game, "team2"),
+        379_999 + fee as i64
+    );
+}
