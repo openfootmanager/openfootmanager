@@ -128,7 +128,9 @@ fn positions_he_plays(player: &Player, deployed: Option<&Position>) -> Vec<Posit
     positions
 }
 
-fn weights_of(position: &Position) -> Vec<AttributeWeight> {
+/// What the game weighs at `position`, as rows (`player_rating::position_weights`): the screens' data
+/// and the page harness's fixture, which is generated from here so it cannot hold another table.
+pub fn weights_of(position: &Position) -> Vec<AttributeWeight> {
     position_weights(position)
         .iter()
         .map(|(attribute, weight)| AttributeWeight {

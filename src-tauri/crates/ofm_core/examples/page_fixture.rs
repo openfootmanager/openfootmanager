@@ -156,12 +156,37 @@ fn render_module(game: &Game) -> Result<String, String> {
     )?;
     export(
         &mut module,
+        "positionWeights",
+        "Record<string, AttributeWeight[]>",
+        &position_weights()?,
+    )?;
+    export(
+        &mut module,
         "careerStage",
         "CareerStage",
         &ofm_core::career_stage::career_stage(game),
     )?;
     export_world_lists(&mut module, game, &club)?;
     Ok(module)
+}
+
+/// What the game weighs at every position, by the position's name: the table the profile's position
+/// ratings carry, so the harness's ratings hold the game's weights and no copy of them.
+fn position_weights() -> Result<
+    std::collections::BTreeMap<String, Vec<ofm_core::position_ratings::AttributeWeight>>,
+    String,
+> {
+    domain::player::Position::ALL
+        .iter()
+        .map(|position| {
+            let name = serde_json::to_value(position)
+                .map_err(|error| error.to_string())?
+                .as_str()
+                .map(str::to_string)
+                .ok_or_else(|| "a position serialises as a string".to_string())?;
+            Ok((name, ofm_core::position_ratings::weights_of(position)))
+        })
+        .collect()
 }
 
 /// The world lists' answers: the Players page's first page, the Teams directory and the Staff page.
@@ -214,6 +239,7 @@ import type { PositionGroupEntry } from \"../../services/positionService\";
 import type { RatingTier, SquadFitness } from \"../../services/squadService\";
 import type { StaffSlice } from \"../../services/staffService\";
 import type { TeamsDirectory } from \"../../services/teamsService\";
+import type { AttributeWeight } from \"../../store/generated/AttributeWeight\";
 import type { FamiliarityProjection } from \"../../store/generated/FamiliarityProjection\";
 import type { GameStateData, PlayerData } from \"../../store/types\";
 ";
