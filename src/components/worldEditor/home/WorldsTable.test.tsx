@@ -109,9 +109,9 @@ describe("WorldsTable", () => {
       "/w/nordic",
       "/p/nordic.ofm",
     ]);
-    expect(screen.getByText("worldEditor.home.unreadable")).toBeInTheDocument();
-    // Why it cannot be read is written under its folder, visible whatever the table's width.
-    expect(screen.getByText("be.error.package.notAProjectDirectory")).toBeInTheDocument();
+    // The chip says it, and a line under the folder says why (here the resolver has no catalogue, so
+    // the reason is its fallback): visible whatever the table's width, not a tooltip.
+    expect(screen.getAllByText("worldEditor.home.unreadable")).toHaveLength(2);
     expect(screen.getByRole("button", { name: "worldEditor.home.openNamed:gone" })).toBeEnabled();
   });
 
