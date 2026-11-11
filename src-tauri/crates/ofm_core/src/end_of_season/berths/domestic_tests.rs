@@ -4,8 +4,8 @@ use super::super::test_support::*;
 use super::*;
 use crate::game::Game;
 use domain::league::{
-    Berth, BerthRule, CompetitionFormat, CompetitionScope, CompetitionType, Fixture, FixtureCompetition,
-    FixtureStatus, League,
+    Berth, BerthRule, CompetitionFormat, CompetitionScope, CompetitionType, Fixture,
+    FixtureCompetition, FixtureStatus, League,
 };
 use std::collections::HashSet;
 
