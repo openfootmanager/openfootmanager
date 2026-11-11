@@ -809,7 +809,7 @@ impl SaveManager {
 
         // Reset player stats
         for player in &mut game.players {
-            player.stats = Default::default();
+            player.reset_season_totals();
             player.transfer_listed = false;
             player.loan_listed = false;
             player.transfer_offers.clear();

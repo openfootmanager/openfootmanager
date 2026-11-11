@@ -1,6 +1,5 @@
 use super::is_regenerated_at_rollover;
 use crate::game::Game;
-use domain::player::PlayerSeasonStats;
 use std::collections::HashSet;
 
 /// A global rollover starts a new competitive season, but foreign league editions can still
@@ -13,9 +12,7 @@ pub(super) fn reset_for_new_season(game: &mut Game) {
         .map(|competition| competition.id.clone())
         .collect();
     for player in &mut game.players {
-        player.stats = PlayerSeasonStats::default();
-        // The stints split the season just ended: they start again with the stats.
-        player.season_stints = Default::default();
+        player.reset_season_totals();
         player
             .league_stats_by_competition
             .retain(|id, _| retained.contains(id));

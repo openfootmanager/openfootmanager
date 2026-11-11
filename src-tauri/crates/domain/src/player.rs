@@ -977,6 +977,13 @@ pub fn compute_traits(attrs: &PlayerAttributes, _position: &Position) -> Vec<Pla
 }
 
 impl Player {
+    /// Starts his season totals over: the totals, and the split of them by club, which means
+    /// nothing against fresh totals. The one place both are cleared together.
+    pub fn reset_season_totals(&mut self) {
+        self.stats = PlayerSeasonStats::default();
+        self.season_stints = SeasonStints::default();
+    }
+
     pub fn new(
         id: String,
         match_name: String,

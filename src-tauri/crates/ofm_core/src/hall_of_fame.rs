@@ -127,6 +127,8 @@ fn legend_of(
     championships: &HashMap<&str, HashSet<u32>>,
 ) -> HallOfFameLegend {
     let latest = retiree.career.iter().max_by_key(|entry| entry.season);
+    // A season can be several rows (a loan splits it around the borrower's), so a title is a
+    // (club, season) pair, counted once.
     let titles = retiree
         .career
         .iter()
@@ -135,7 +137,9 @@ fn legend_of(
                 .get(entry.team_id.as_str())
                 .is_some_and(|seasons| seasons.contains(&entry.season))
         })
-        .count() as u32;
+        .map(|entry| (entry.team_id.as_str(), entry.season))
+        .collect::<HashSet<_>>()
+        .len() as u32;
     HallOfFameLegend {
         player_id: retiree.id.clone(),
         full_name: retiree.full_name.clone(),
