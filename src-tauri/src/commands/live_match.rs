@@ -186,7 +186,9 @@ pub fn apply_team_talk(
     career_token: u64,
 ) -> Result<Vec<serde_json::Value>, String> {
     info!("[cmd] apply_team_talk: tone={}", tone);
-    apply_team_talk_on(&state, Career::Token(career_token), &tone).map(|talk| talk.changes)
+    let talk = apply_team_talk_on(&state, Career::Token(career_token), &tone)?;
+    info!("[cmd] apply_team_talk: context={}", talk.context);
+    Ok(talk.changes)
 }
 
 /// A team talk as the game gave it.

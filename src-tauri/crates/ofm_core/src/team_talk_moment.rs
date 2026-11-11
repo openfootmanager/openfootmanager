@@ -55,11 +55,14 @@ pub fn interval_moment(
     })
 }
 
-/// The moment the user's match played today offers once it is over, if there is one: the
-/// user's club's fixture with a result dated the game's current day.
+/// The moment the user's match offers once it is over, if there is one: the user's club's most
+/// recent fixture with a result, dated today or yesterday. Yesterday because finishing a live
+/// match moves the clock on a day, and the post-match tab is read after that.
 pub fn post_match_moment(game: &Game) -> Option<TeamTalkMoment> {
     let team_id = game.manager.team_id.as_deref()?;
-    let today = game.clock.current_date.format("%Y-%m-%d").to_string();
+    let day = |date: chrono::DateTime<chrono::Utc>| date.format("%Y-%m-%d").to_string();
+    let today = day(game.clock.current_date);
+    let yesterday = day(game.clock.current_date - chrono::Duration::days(1));
     let fixture = game
         .competitions
         .iter()
@@ -67,7 +70,8 @@ pub fn post_match_moment(game: &Game) -> Option<TeamTalkMoment> {
         .filter(|fixture| {
             fixture.result.is_some()
                 && (fixture.home_team_id == team_id || fixture.away_team_id == team_id)
-                && fixture.date.get(..10) == Some(today.as_str())
+                && [today.as_str(), yesterday.as_str()]
+                    .contains(&fixture.date.get(..10).unwrap_or(""))
         })
         .max_by(|a, b| (&a.date, &a.id).cmp(&(&b.date, &b.id)))?;
     let result = fixture.result.as_ref()?;
@@ -205,15 +209,29 @@ mod tests {
         );
     }
 
-    /// Given a match played yesterday, one dated today with no result, and one between other clubs
+    /// Given the clock a day after the user's match (finishing a live match moves it on a day)
     /// When the post-match moment is asked for
-    /// Then there is none: only the user's match, played today, is offered a talk
+    /// Then the match is still offered its talk
     #[test]
-    fn no_post_match_moment_without_a_match_of_the_users_played_today() {
+    fn a_match_played_yesterday_still_offers_its_post_match_moment() {
+        let game = game_managing("me", vec![played("f1", "2026-05-19", "me", "them", (1, 0))]);
+
+        assert_eq!(
+            post_match_moment(&game).map(|moment| moment.context),
+            Some("winning")
+        );
+    }
+
+    /// Given a match played two days ago, one dated today with no result, and one between other
+    ///       clubs
+    /// When the post-match moment is asked for
+    /// Then there is none: only the user's match just played is offered a talk
+    #[test]
+    fn no_post_match_moment_without_a_match_of_the_users_just_played() {
         let game = game_managing(
             "me",
             vec![
-                played("yesterday", "2026-05-19", "me", "them", (1, 0)),
+                played("long_ago", "2026-05-18", "me", "them", (1, 0)),
                 Fixture {
                     id: "unplayed".to_string(),
                     date: "2026-05-20".to_string(),
