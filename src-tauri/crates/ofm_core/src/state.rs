@@ -43,7 +43,7 @@ fn cloned_option<T: Clone>(mutex: &Mutex<Option<T>>) -> Option<T> {
 
 /// Key returned when a write was meant for another career than the one that is active.
 pub const CAREER_CHANGED_ERROR: &str = "be.error.careerChanged";
-const NO_ACTIVE_GAME_ERROR: &str = "be.error.noActiveGameSession";
+pub const NO_ACTIVE_GAME_ERROR: &str = "be.error.noActiveGameSession";
 
 /// Which career a write is for.
 ///
@@ -120,16 +120,29 @@ impl StateManager {
 
     /// Uses up the team talk of `moment`: `true` the first time, `false` when it was used already.
     pub fn claim_team_talk_moment(&self, moment: &str) -> bool {
-        let _ = moment;
-        true
+        self.team_talks_given
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .insert(moment.to_string())
     }
 
     /// Gives back a moment [`Self::claim_team_talk_moment`] took, for a talk that then failed.
     pub fn release_team_talk_moment(&self, moment: &str) {
-        let _ = moment;
+        self.team_talks_given
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .remove(moment);
+    }
+
+    fn forget_team_talks(&self) {
+        self.team_talks_given
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .clear();
     }
 
     pub fn set_game(&self, game: Game) {
+        self.forget_team_talks();
         set_option(&self.active_game, game);
     }
 
@@ -163,6 +176,7 @@ impl StateManager {
     }
 
     pub fn clear_game(&self) {
+        self.forget_team_talks();
         clear_option(&self.active_game);
         clear_option(&self.active_stats);
         clear_option(&self.live_match);

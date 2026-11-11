@@ -2914,6 +2914,10 @@
         "pressConferenceAlreadyHeld": "今天你已经召开过新闻发布会了",
         "noCompletedMatch": "未找到你的球队已完成的比赛"
       },
+      "teamTalk": {
+        "notAtABreak": "只能在中场休息或赛后进行球队讲话。",
+        "alreadyGiven": "这一时刻的球队讲话你已经进行过了。"
+      },
       "csv": {
         "writeFailed": "无法写入 CSV 文件。"
       },

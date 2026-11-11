@@ -2949,6 +2949,10 @@
         "pressConferenceAlreadyHeld": "Tisková konference dnes už proběhla",
         "noCompletedMatch": "Pro váš tým nebyl nalezen žádný odehraný zápas"
       },
+      "teamTalk": {
+        "notAtABreak": "Proslov k týmu lze pronést jen v poločase nebo po zápase.",
+        "alreadyGiven": "Proslov pro tuto chvíli jste už pronesli."
+      },
       "csv": {
         "writeFailed": "Nepodařilo se zapsat soubor CSV."
       },

@@ -20,7 +20,10 @@ use crate::application::press_conference::{
 use crate::application::team_talk::apply_team_talk as apply_team_talk_service;
 use crate::commands::util::user_team_id;
 use ofm_core::game::Game;
-use ofm_core::state::{Career, StateManager};
+use ofm_core::state::{Career, StateManager, NO_ACTIVE_GAME_ERROR};
+use ofm_core::team_talk_moment::{
+    interval_moment, post_match_moment, TeamTalkMoment, ALREADY_GIVEN_ERROR, NOT_AT_A_BREAK_ERROR,
+};
 
 #[derive(Debug, Deserialize)]
 pub struct PressConferenceAnswer {
@@ -194,23 +197,69 @@ pub struct TeamTalkOutcome {
     pub changes: Vec<serde_json::Value>,
 }
 
-/// Applies a team talk to the career `career` names; refused if another career is active. The
+/// Applies a team talk to the career `career` names; refused if another career is active, if no
+/// moment the screen offers a talk in is under way, or if that moment's talk was given. The
 /// command and the MCP tool share it.
 pub fn apply_team_talk_on(
     state: &StateManager,
     career: Career,
     tone: &str,
 ) -> Result<TeamTalkOutcome, String> {
-    let context = "drawing";
+    let moment = current_team_talk_moment(state, career)?;
+    // Claimed before the morale moves, so two callers at the same moment cannot both pass the
+    // check; given back if the talk then fails, so a refused talk does not use the moment up.
+    if !state.claim_team_talk_moment(&moment.key) {
+        return Err(ALREADY_GIVEN_ERROR.to_string());
+    }
     // apply_team_talk validates (team assigned) before mutating morale.
     let phase = live_phase_tag(state);
-    state
+    let talk = state
         .update_game_for(career, |game| {
-            let seed = team_talk_seed_in_phase(game, tone, context, &phase);
-            apply_team_talk_internal(game, tone, context, seed)
+            let seed = team_talk_seed_in_phase(game, tone, moment.context, &phase);
+            apply_team_talk_internal(game, tone, moment.context, seed)
         })
-        .and_then(|talk| talk)
-        .map(|changes| TeamTalkOutcome { context, changes })
+        .and_then(|talk| talk);
+    match talk {
+        Ok(changes) => Ok(TeamTalkOutcome {
+            context: moment.context,
+            changes,
+        }),
+        Err(error) => {
+            state.release_team_talk_moment(&moment.key);
+            Err(error)
+        }
+    }
+}
+
+/// The moment a team talk would be given in now, and how the match stands: a live match decides
+/// it by its phase, and with none, the user's match played today does. The game and the live
+/// match are each looked at in turn, never both held.
+fn current_team_talk_moment(
+    state: &StateManager,
+    career: Career,
+) -> Result<TeamTalkMoment, String> {
+    let after_match = state
+        .get_game(|game| career.check(game).map(|()| post_match_moment(game)))
+        .unwrap_or_else(|| Err(NO_ACTIVE_GAME_ERROR.to_string()))?;
+    let live = state.with_live_match(|session| {
+        career.check_token(session.career_token)?;
+        let Some(side) = session.user_side else {
+            return Err(NOT_AT_A_BREAK_ERROR.to_string());
+        };
+        let snapshot = session.match_state.snapshot();
+        interval_moment(
+            &session.fixture_id,
+            session.match_state.phase(),
+            side,
+            snapshot.home_score,
+            snapshot.away_score,
+        )
+        .map_err(str::to_string)
+    });
+    match live {
+        Some(moment) => moment,
+        None => after_match.ok_or_else(|| NOT_AT_A_BREAK_ERROR.to_string()),
+    }
 }
 
 /// Process press conference answers: generate news article, affect squad morale.

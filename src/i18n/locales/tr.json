@@ -2949,6 +2949,10 @@
         "pressConferenceAlreadyHeld": "Bugün zaten bir basın toplantısı düzenlediniz",
         "noCompletedMatch": "Takımınız için tamamlanmış bir maç bulunamadı"
       },
+      "teamTalk": {
+        "notAtABreak": "Takım konuşması yalnızca devre arasında veya maçtan sonra yapılabilir.",
+        "alreadyGiven": "Bu an için takım konuşmasını zaten yaptınız."
+      },
       "csv": {
         "writeFailed": "CSV dosyası yazılamadı."
       },

@@ -27,8 +27,15 @@ pub struct TeamTalkMoment {
 
 /// How the match stands for `side`, as a team talk reads it.
 pub fn team_talk_context(side: Side, home_goals: u8, away_goals: u8) -> &'static str {
-    let _ = (side, home_goals, away_goals);
-    "winning"
+    let (ours, theirs) = match side {
+        Side::Home => (home_goals, away_goals),
+        Side::Away => (away_goals, home_goals),
+    };
+    match ours.cmp(&theirs) {
+        std::cmp::Ordering::Greater => "winning",
+        std::cmp::Ordering::Less => "losing",
+        std::cmp::Ordering::Equal => "drawing",
+    }
 }
 
 /// The moment a live match at `phase` offers, or the refusal: only the two half-times offer one.
@@ -39,9 +46,11 @@ pub fn interval_moment(
     home_goals: u8,
     away_goals: u8,
 ) -> Result<TeamTalkMoment, &'static str> {
-    let _ = phase;
+    if !matches!(phase, MatchPhase::HalfTime | MatchPhase::ExtraTimeHalfTime) {
+        return Err(NOT_AT_A_BREAK_ERROR);
+    }
     Ok(TeamTalkMoment {
-        key: fixture_id.to_string(),
+        key: format!("{fixture_id}/{phase:?}"),
         context: team_talk_context(side, home_goals, away_goals),
     })
 }
@@ -49,8 +58,28 @@ pub fn interval_moment(
 /// The moment the user's match played today offers once it is over, if there is one: the
 /// user's club's fixture with a result dated the game's current day.
 pub fn post_match_moment(game: &Game) -> Option<TeamTalkMoment> {
-    let _ = game;
-    None
+    let team_id = game.manager.team_id.as_deref()?;
+    let today = game.clock.current_date.format("%Y-%m-%d").to_string();
+    let fixture = game
+        .competitions
+        .iter()
+        .flat_map(|competition| competition.fixtures.iter())
+        .filter(|fixture| {
+            fixture.result.is_some()
+                && (fixture.home_team_id == team_id || fixture.away_team_id == team_id)
+                && fixture.date.get(..10) == Some(today.as_str())
+        })
+        .max_by(|a, b| (&a.date, &a.id).cmp(&(&b.date, &b.id)))?;
+    let result = fixture.result.as_ref()?;
+    let side = if fixture.home_team_id == team_id {
+        Side::Home
+    } else {
+        Side::Away
+    };
+    Some(TeamTalkMoment {
+        key: format!("{}/PostMatch", fixture.id),
+        context: team_talk_context(side, result.home_goals, result.away_goals),
+    })
 }
 
 #[cfg(test)]

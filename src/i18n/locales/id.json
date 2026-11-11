@@ -2949,6 +2949,10 @@
         "pressConferenceAlreadyHeld": "Kamu sudah menggelar konferensi pers hari ini",
         "noCompletedMatch": "Tidak ada pertandingan selesai yang ditemukan untuk tim kamu"
       },
+      "teamTalk": {
+        "notAtABreak": "Arahan tim hanya bisa diberikan saat turun minum atau setelah pertandingan.",
+        "alreadyGiven": "Kamu sudah memberikan arahan tim untuk momen ini."
+      },
       "csv": {
         "writeFailed": "Gagal menulis berkas CSV."
       },
