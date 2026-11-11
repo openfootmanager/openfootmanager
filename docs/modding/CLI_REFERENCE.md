@@ -125,6 +125,8 @@ ofm-cli add player "Luis Figo" --dir my-league --format yaml
 
 Validate a package directory or a `.ofm` archive. Reports all errors with file location and i18n code.
 
+A directory is checked as the game checks a package it starts alone: the package's own checks, then the complete-world check, so every club and other reference must resolve inside it. The World Editor's Validate and the game's import and career start give the same answer. A **patch** package that names a club only its base database defines is therefore reported here, as it is refused when started alone; `ofm-cli pack` does not run that check on a patch.
+
 ```bash
 ofm-cli validate my-league
 ofm-cli validate my-league.ofm
@@ -177,7 +179,7 @@ ofm-cli pack my-league --output ~/releases/my-league-1.0.0.ofm
 | `--output <path>` | `<id>.ofm` in current directory | Output file path |
 
 **Notes:**
-- Runs `validate` first; if there are errors the archive is not created and a full error list is printed
+- Runs the package's own checks first; if there are errors the archive is not created and a full error list is printed. It does not run the complete-world check, so a patch's references to its base database are not reported (it prints a note saying so)
 - The default output name reads the `id` field from `package.json`
 - The archive includes all files in the directory (data + assets). Non-data files (`.md`, `.txt`, images) are preserved but not parsed by the loader
 
