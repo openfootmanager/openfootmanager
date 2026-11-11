@@ -7,7 +7,10 @@
 //! [`Player`](domain::player::Player) records).
 
 mod calendar;
-pub(crate) use calendar::{settle_for_replay, settle_friendlies, settle_tournaments};
+pub(crate) use calendar::{
+    published_tournament_fixtures, settle_drawn_tournaments, settle_for_replay, settle_friendlies,
+    settle_tournaments,
+};
 
 use std::collections::HashMap;
 

@@ -29,6 +29,7 @@ pub(crate) fn process_selected_fixtures_due(
         })
         .map(|(index, _)| index)
         .collect();
+    let published = national_team::published_tournament_fixtures(game);
     let mut simulated = 0;
     let mut played_world_cup = false;
     for competition_index in indices {
@@ -51,7 +52,7 @@ pub(crate) fn process_selected_fixtures_due(
                 continue;
             }
             if play_fixture(game, competition_index, fixture_index, today) {
-                national_team::settle_for_replay(game, day);
+                national_team::settle_drawn_tournaments(game, day, &published);
             }
             simulated += 1;
             played = true;

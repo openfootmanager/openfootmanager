@@ -5,6 +5,7 @@
 
 mod daily_policy;
 mod playoffs;
+mod publication;
 pub(crate) use daily_policy::after_matches as apply_world_cup_match_policies;
 pub use daily_policy::world_cup_champion;
 #[cfg(test)]
@@ -639,13 +640,7 @@ pub fn schedule_world_cup_with_field(
     // Sort after every club competition in browsing lists.
     cup.priority = 10_000;
     cup.name_key = Some("tournaments.competitions.worldCup".to_string());
-    let cup_id = cup.id.clone();
-    crate::calendar_identity::ensure_competition_calendar(&mut cup);
-    game.competitions.push(cup);
-    crate::national_team::settle_for_replay(game, game.clock.current_date.date_naive());
-    if !game.active_competition_ids.is_empty() {
-        game.active_competition_ids.push(cup_id);
-    }
+    publication::publish(game, cup);
 
     // The whole world hears about a World Cup, participant or not.
     let kickoff_news_id = format!("world_cup_kickoff_{year}");
@@ -989,34 +984,14 @@ pub fn schedule_world_cup_qualifying(game: &mut Game, wc_year: i32, window_dates
     }
     prepare_national_squads(game, &all_codes);
 
-    // The span is inferred from the windows: windows opening two years before
-    // the cup mean the campaign has both seasons to play with.
-    let first_window_year = chrono::NaiveDate::parse_from_str(&window_dates[0], "%Y-%m-%d")
-        .map(|date| date.year())
-        .unwrap_or(wc_year - 1);
-    let full_campaign = wc_year - first_window_year >= 2;
-    let (campaign_windows, matchdays_per_window, campaign_slots, group_size, legs) =
-        if full_campaign {
-            let mut windows = window_dates.to_vec();
-            windows.extend(season_window_dates(first_window_year + 1));
-            let slots = full_campaign_slots(windows.len());
-            (
-                windows,
-                MATCHDAYS_PER_WINDOW,
-                slots,
-                FULL_CAMPAIGN_GROUP_SIZE,
-                2u8,
-            )
-        } else {
-            let slots = window_dates.len();
-            (
-                window_dates.to_vec(),
-                1usize,
-                slots,
-                QUALIFYING_GROUP_SIZE,
-                1u8,
-            )
-        };
+    let publication::QualifyingWindows {
+        full_campaign,
+        dates: campaign_windows,
+        matches_per_window: matchdays_per_window,
+        slots: campaign_slots,
+        group_size,
+        legs,
+    } = publication::qualifying_windows(wc_year, window_dates);
 
     let competition_id = format!("{QUALIFYING_COMPETITION_PREFIX}{wc_year}");
     let mut competition = League::new(
@@ -1098,37 +1073,8 @@ pub fn schedule_world_cup_qualifying(game: &mut Game, wc_year: i32, window_dates
         .map(|(_, fixture)| fixture)
         .collect();
     competition.participant_ids = participant_ids;
-    let competition_id = competition.id.clone();
-    crate::calendar_identity::ensure_competition_calendar(&mut competition);
-    game.competitions.push(competition);
-    crate::national_team::settle_for_replay(game, game.clock.current_date.date_naive());
-    if !game.active_competition_ids.is_empty() {
-        game.active_competition_ids.push(competition_id);
-    }
-
-    // News: the qualifying campaign gets under way.
-    let news_id = format!("world_cup_qualifying_{wc_year}");
-    if !game.news.iter().any(|article| article.id == news_id) {
-        let mut params = std::collections::HashMap::new();
-        params.insert("year".to_string(), wc_year.to_string());
-        params.insert("nations".to_string(), all_codes.len().to_string());
-        game.news.push(
-            NewsArticle::new(
-                news_id,
-                String::new(),
-                String::new(),
-                String::new(),
-                window_dates[0].clone(),
-                NewsCategory::Editorial,
-            )
-            .with_i18n(
-                "be.news.worldCupQualifying.headline",
-                "be.news.worldCupQualifying.body",
-                "be.source.footballHerald",
-                params,
-            ),
-        );
-    }
+    publication::publish(game, competition);
+    publication::announce_qualifying(game, wc_year, all_codes.len(), &window_dates[0]);
 }
 
 /// Carry an in-progress two-season qualifying campaign across the intermediate

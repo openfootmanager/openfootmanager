@@ -1,7 +1,9 @@
 //! National fixtures share nations and called-up players; club calendars reserve their dates too.
 
 mod tournaments;
-pub(crate) use tournaments::{settle_for_replay, settle_tournaments};
+pub(crate) use tournaments::{
+    published_tournament_fixtures, settle_drawn_tournaments, settle_for_replay, settle_tournaments,
+};
 
 use super::INTERNATIONAL_FRIENDLY_COMPETITION_ID;
 use crate::{

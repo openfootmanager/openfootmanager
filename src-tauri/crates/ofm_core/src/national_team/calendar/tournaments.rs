@@ -9,24 +9,55 @@ use std::collections::{BTreeMap, BTreeSet};
 /// A historical/scoped replay must not drag unrelated, earlier tournaments up to its own date.
 /// Their original dates still participate in conflict resolution, even if that adapter won't play them.
 pub(crate) fn settle_for_replay(game: &mut Game, day: NaiveDate) -> usize {
-    let first = game
-        .competitions
+    let first = replay_first_day(game, day);
+    settle_tournaments(game, first) + super::settle_friendlies(game, first)
+}
+
+fn replay_first_day(game: &Game, day: NaiveDate) -> NaiveDate {
+    game.competitions
         .iter()
         .filter(|c| c.kind == CompetitionType::InternationalNation)
         .flat_map(|c| &c.fixtures)
         .chain(game.national_teams.iter().flat_map(|n| &n.fixtures))
         .filter(|f| f.status == FixtureStatus::Scheduled)
         .filter_map(|f| NaiveDate::parse_from_str(&f.date, "%Y-%m-%d").ok())
-        .fold(day, NaiveDate::min);
-    settle_tournaments(game, first) + super::settle_friendlies(game, first)
+        .fold(day, NaiveDate::min)
 }
 
 /// Immutable matches keep their dates. Scheduled tournaments settle by the same numeric priority
 /// as club competitions (smaller wins), before lower-priority friendlies and club fixtures.
 pub(crate) fn settle_tournaments(game: &mut Game, first_day: NaiveDate) -> usize {
+    settle_marking(game, first_day, |_| true)
+}
+
+pub(crate) fn published_tournament_fixtures(game: &Game) -> BTreeSet<(String, String)> {
+    game.competitions
+        .iter()
+        .filter(|c| c.kind == CompetitionType::InternationalNation)
+        .flat_map(|c| c.fixtures.iter().map(|f| (c.id.clone(), f.id.clone())))
+        .collect()
+}
+
+/// Newly drawn fixtures were never shown; existing rivals still keep their postponement record.
+pub(crate) fn settle_drawn_tournaments(
+    game: &mut Game,
+    day: NaiveDate,
+    published: &BTreeSet<(String, String)>,
+) -> usize {
+    let first = replay_first_day(game, day);
+    settle_marking(game, first, |m| {
+        published.contains(&(m.competition_id.clone(), m.fixture_id.clone()))
+    }) + super::settle_friendlies(game, first)
+}
+
+fn settle_marking(
+    game: &mut Game,
+    first_day: NaiveDate,
+    was_shown: impl FnMut(&calendar_reconcile::Move) -> bool,
+) -> usize {
     let plan = tournament_plan(game, first_day);
     let moved = plan.moves.len();
-    calendar_reconcile::apply(&plan, &mut game.competitions, true);
+    calendar_reconcile::apply_marking(&plan, &mut game.competitions, was_shown);
     moved
 }
 

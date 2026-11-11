@@ -169,10 +169,7 @@ pub(crate) fn stage_world_cup_playoff_if_ready(game: &mut Game, today: &str) {
         return;
     };
     let cup = build_playoff(game, year, &playoff_date, &ranked);
-    if !game.active_competition_ids.is_empty() {
-        game.active_competition_ids.push(cup.id.clone());
-    }
-    game.competitions.push(cup);
+    super::publication::publish(game, cup);
     announce_playoff_draw(game, year, &ranked, today);
 }
 
