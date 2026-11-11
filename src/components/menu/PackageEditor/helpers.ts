@@ -267,7 +267,8 @@ let blankIdKeyCount = 0;
  *
  * The id is the right identity when there is one: it survives an insert or a
  * delete that shifts every index, so `EntityRow`'s delete-confirmation state
- * and a virtual list's keyboard focus stay on the row that owns them. But an id
+ * and a virtual list's keyboard focus stay on the row that owns them (prefixed `id:`, so an imported id
+ * that happens to read like a generated key, "#row-1", cannot collide with one). But an id
  * is blank until the entity is named, and a package can arrive with several
  * already blank — `id` is `#[serde(default)]` on the Rust side, and repairing
  * such a package is exactly what the editor is for. Two blank ids would collapse
@@ -280,7 +281,7 @@ let blankIdKeyCount = 0;
  * one `toSlug` can never emit, so a generated id cannot collide with it.
  */
 export function entityRowKey(record: { id: string }): string {
-  if (record.id) return record.id;
+  if (record.id) return `id:${record.id}`;
   let key = blankIdKeys.get(record);
   if (key === undefined) {
     blankIdKeyCount += 1;

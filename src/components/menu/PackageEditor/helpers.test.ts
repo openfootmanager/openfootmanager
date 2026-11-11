@@ -401,10 +401,23 @@ describe("entityRowKey", () => {
   /**
    * Given an entity with an id
    * When its row is keyed
-   * Then the key is the id, wherever the row sits
+   * Then the key follows the id, wherever the row sits
    */
-  it("uses the id when there is one", () => {
-    expect(entityRowKey({ id: "fc-test" })).toBe("fc-test");
+  it("is stable for an id, whatever else is in the list", () => {
+    expect(entityRowKey({ id: "fc-test" })).toBe(entityRowKey({ id: "fc-test" }));
+    expect(entityRowKey({ id: "fc-test" })).not.toBe(entityRowKey({ id: "fc-other" }));
+  });
+
+  /**
+   * Given an imported record whose id is literally the key a blank-id row would be given
+   * When both rows are keyed
+   * Then they still get different keys: one React and focus identity per row
+   */
+  it("keeps an imported id that looks like a generated key apart from a blank-id row", () => {
+    const blank = { id: "" };
+    const generated = entityRowKey(blank);
+
+    expect(entityRowKey({ id: generated })).not.toBe(generated);
   });
 
   /**
