@@ -234,4 +234,27 @@ describe("usePlayerProfileData", () => {
     expect(result.current.recentMatchesStatus).toBe("answered");
     expect(result.current.recentMatches).toHaveLength(1);
   });
+
+  /**
+   * Given a history that answered with no matches
+   * When a refresh of it fails (the player has played since)
+   * Then it is "failed", with a retry: an empty answer is not a list worth keeping, and the card
+   *      must not go on saying there are no matches
+   */
+  it("reports a failed refresh when the only answer held was an empty list", async () => {
+    historyAnswers([], new Error("ipc"), [recentMatch("f-1")]);
+    const { result, rerender } = renderHook(
+      ({ date }) =>
+        usePlayerProfileData({ player: createPlayer({ id: "p-1" }), currentDate: date }),
+      { initialProps: { date: "2026-08-01" } },
+    );
+    await waitFor(() => expect(result.current.recentMatchesStatus).toBe("answered"));
+
+    rerender({ date: "2026-08-02" });
+
+    await waitFor(() => expect(result.current.recentMatchesStatus).toBe("failed"));
+    act(() => result.current.retryRecentMatches());
+    await waitFor(() => expect(result.current.recentMatchesStatus).toBe("answered"));
+    expect(result.current.recentMatches).toHaveLength(1);
+  });
 });
