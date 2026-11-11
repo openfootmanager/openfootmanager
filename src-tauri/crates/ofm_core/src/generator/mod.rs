@@ -3357,6 +3357,84 @@ mod tests {
         );
     }
 
+    /// Three clubs (so the scout floor is six) and the unemployed scouts the market holds.
+    fn market_of_three_clubs_with_scouts(scouts: usize) -> Game {
+        let free_scouts = (0..scouts)
+            .map(|index| make_import_staff(&format!("scout-{index}"), None, StaffRole::Scout))
+            .collect();
+        let mut game = make_staff_market_game(free_scouts);
+        game.teams.push(make_import_team("team-2", "Beta FC"));
+        game.teams.push(make_import_team("team-3", "Gamma FC"));
+        // Thirty days since the market last rotated: due now.
+        game.available_staff_market_last_activity_date = Some("2026-07-02".to_string());
+        game
+    }
+
+    fn unemployed_scouts(game: &Game) -> usize {
+        game.staff
+            .iter()
+            .filter(|staff_member| {
+                staff_member.team_id.is_none() && matches!(staff_member.role, StaffRole::Scout)
+            })
+            .count()
+    }
+
+    /// Given the season-end scout floor has filled the market (six scouts for three clubs)
+    /// When the 30-day rotation replaces the unemployed staff
+    /// Then the floor survives it: still at least six unemployed scouts, for the user and the AI
+    ///      alike, since they hire from the one market (#474).
+    #[test]
+    fn the_scout_floor_survives_the_thirty_day_rotation() {
+        let mut game = market_of_three_clubs_with_scouts(0);
+        replenish_manager_and_scout_market(&mut game);
+        assert_eq!(unemployed_scouts(&game), 6, "the floor filled the market");
+        game.available_staff_market_last_activity_date = Some("2026-07-02".to_string());
+
+        assert!(process_available_staff_market(&mut game));
+
+        assert!(
+            unemployed_scouts(&game) >= 6,
+            "the rotation wiped the floor: {} scouts left",
+            unemployed_scouts(&game)
+        );
+    }
+
+    /// Given a market that held five scouts (the floor, less one hired since) when it rotates
+    /// When the rotation replaces the unemployed staff
+    /// Then it never leaves fewer than the five it held: a rotation does not shrink the pool.
+    #[test]
+    fn a_rotation_does_not_shrink_the_scout_pool_below_the_floor() {
+        let mut game = market_of_three_clubs_with_scouts(5);
+
+        assert!(process_available_staff_market(&mut game));
+
+        assert!(
+            unemployed_scouts(&game) >= 5,
+            "{}",
+            unemployed_scouts(&game)
+        );
+    }
+
+    /// Given a market that never had the floor applied (one scout, as a new world starts)
+    /// When it rotates
+    /// Then it is the standard batch alone (three scouts among the twelve): the floor is kept, not
+    ///      imposed early.
+    #[test]
+    fn a_rotation_before_any_floor_is_the_standard_batch_alone() {
+        let mut game = market_of_three_clubs_with_scouts(1);
+
+        assert!(process_available_staff_market(&mut game));
+
+        assert_eq!(unemployed_scouts(&game), 3);
+        assert_eq!(
+            game.staff
+                .iter()
+                .filter(|staff_member| staff_member.team_id.is_none())
+                .count(),
+            12
+        );
+    }
+
     /// Given an empty market, when it replenishes, then new staff have their load-time identity.
     #[test]
     fn created_staff_have_football_identity_in_market() {
