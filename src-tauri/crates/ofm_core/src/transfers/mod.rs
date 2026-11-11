@@ -32,6 +32,7 @@ mod market;
 mod notifications;
 mod registration;
 
+pub(crate) use affordability::{available_transfer_budget, committed_transfer_fees};
 pub(crate) use affordability::{can_afford_fee, fee_block, transfer_fee_ceiling};
 pub use bids::*;
 use consts::*;

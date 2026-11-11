@@ -62,6 +62,10 @@ pub enum FinanceHealthLevel {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct TeamFinanceSnapshot {
+    #[serde(default)]
+    pub committed_transfer_fees: i64,
+    #[serde(default)]
+    pub available_transfer_budget: i64,
     pub annual_wage_bill: i64,
     pub weekly_wage_spend: i64,
     pub weekly_wage_budget: i64,
@@ -410,6 +414,8 @@ pub fn team_finance_snapshot(game: &Game, team_id: &str) -> Option<TeamFinanceSn
     let runway_status = runway_status(team.finance, cash_runway_weeks);
 
     Some(TeamFinanceSnapshot {
+        committed_transfer_fees: crate::transfers::committed_transfer_fees(game, team_id),
+        available_transfer_budget: crate::transfers::available_transfer_budget(game, team),
         annual_wage_bill,
         weekly_wage_spend,
         weekly_wage_budget,

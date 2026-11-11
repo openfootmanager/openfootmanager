@@ -186,6 +186,8 @@ function createGameState(): GameStateData {
 let gameState = createGameState();
 function createBackendFinanceSnapshot() {
   return {
+    committed_transfer_fees: 0,
+    available_transfer_budget: 300000,
     annual_wage_bill: 12000,
     weekly_wage_spend: 12000,
     weekly_wage_budget: 50000,

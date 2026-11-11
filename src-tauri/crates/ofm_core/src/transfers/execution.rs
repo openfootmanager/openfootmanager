@@ -204,7 +204,7 @@ pub(super) fn transfer_buyer_can_register(game: &Game, buyer_team_id: &str, fee:
     game.teams
         .iter()
         .find(|team| team.id == buyer_team_id)
-        .is_some_and(|team| can_afford_fee(team, fee))
+        .is_some_and(|team| can_afford_fee(team, fee, 0))
 }
 
 pub(super) fn ensure_transfer_cash_postable(
@@ -572,18 +572,13 @@ pub(super) fn should_generate_major_transfer_news(
 ) -> bool {
     fee >= 1_000_000 || player.market_value >= 1_000_000
 }
-pub fn process_pending_transfer_registrations(game: &mut Game) {
-    if !transfer_window_is_open(game) {
-        return;
-    }
+type DueTransferRegistration = (String, String, String, u64);
 
-    let current_date = game.clock.current_date.date_naive();
-    let today = current_date.format("%Y-%m-%d").to_string();
-    let user_team_id = game.manager.team_id.clone();
-    type DueTransferRegistration = (String, String, String, u64);
-
-    let due_registrations: Vec<DueTransferRegistration> = game
-        .players
+fn due_transfer_registrations(
+    game: &Game,
+    current_date: NaiveDate,
+) -> Vec<DueTransferRegistration> {
+    game.players
         .iter()
         .flat_map(|player| {
             player.transfer_offers.iter().filter_map(|offer| {
@@ -606,7 +601,18 @@ pub fn process_pending_transfer_registrations(game: &mut Game) {
                 ))
             })
         })
-        .collect();
+        .collect()
+}
+pub fn process_pending_transfer_registrations(game: &mut Game) {
+    if !transfer_window_is_open(game) {
+        expire_missed_transfer_registrations(game);
+        return;
+    }
+
+    let current_date = game.clock.current_date.date_naive();
+    let today = current_date.format("%Y-%m-%d").to_string();
+    let user_team_id = game.manager.team_id.clone();
+    let due_registrations = due_transfer_registrations(game, current_date);
 
     for (player_id, offer_id, buyer_team_id, fee) in due_registrations {
         let player_snapshot = game
@@ -628,6 +634,8 @@ pub fn process_pending_transfer_registrations(game: &mut Game) {
                 return Err(Failure::LoanConflict);
             }
             let from_team_id = from_team_id.as_deref().ok_or(Failure::PlayerUnavailable)?;
+            // The fee is already committed: paying it reduces the gross budget and the
+            // reservation equally, so it must not be subtracted a second time here.
             if !transfer_buyer_can_register(game, &buyer_team_id, fee) {
                 return Err(Failure::InsufficientFunds);
             }

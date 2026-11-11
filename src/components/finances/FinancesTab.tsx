@@ -1,3 +1,4 @@
+import { FinanceOverview } from "./FinanceOverview";
 import { useEffect, useState } from "react";
 import { FinanceCashFlowChart } from "./FinanceCashFlowChart";
 import { useContractRiskLevels } from "../../hooks/useContractWarningStages";
@@ -443,65 +444,9 @@ function FinancesTabLoaded({
     }
   }
 
-  const financeItems = [
-    {
-      label: t("finances.clubBalance"),
-      value: myTeam.finance,
-      color: myTeam.finance >= 0 ? "text-primary-500" : "text-red-500",
-    },
-    {
-      label: t("finances.wageBudget"),
-      value: myTeam.wage_budget,
-      color: "text-gray-800 dark:text-gray-200",
-    },
-    {
-      label: t("finances.transferBudget"),
-      value: myTeam.transfer_budget,
-      color: "text-gray-800 dark:text-gray-200",
-    },
-    {
-      label: t("finances.seasonIncome"),
-      value: myTeam.season_income,
-      color: "text-primary-500",
-    },
-    {
-      label: t("finances.seasonExpenses"),
-      value: myTeam.season_expenses,
-      color: "text-red-500",
-    },
-  ];
-
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-      {/* Financial overview */}
-      <Card accent="accent" className="lg:col-span-2">
-        <CardHeader>{t("finances.overview")}</CardHeader>
-        <CardBody>
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-            {financeItems.map((item) => (
-              <div
-                key={item.label}
-                className="bg-gray-50 dark:bg-navy-800 rounded-xl p-4 text-center"
-              >
-                <p className="text-xs font-heading font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500 mb-1">
-                  {item.label}
-                </p>
-                <p className={`font-heading font-bold text-xl ${item.color}`}>
-                  {formatVal(item.value)}
-                </p>
-              </div>
-            ))}
-            <div className="bg-gray-50 dark:bg-navy-800 rounded-xl p-4 text-center">
-              <p className="text-xs font-heading font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500 mb-1">
-                {t("finances.squadValue")}
-              </p>
-              <p className="font-heading font-bold text-xl text-gray-800 dark:text-gray-200">
-                {formatVal(totalValue)}
-              </p>
-            </div>
-          </div>
-        </CardBody>
-      </Card>
+      <FinanceOverview myTeam={myTeam} snapshot={financeSnapshot} totalValue={totalValue} />
 
       {/* Wage summary */}
       <Card>

@@ -1,11 +1,13 @@
+import { TransferBudgetCard } from "./TransferBudgetCard";
 import { Card, Badge } from "../ui";
 import { TrendingUp } from "lucide-react";
-import { formatVal, formatWeeklyWage } from "../../lib/helpers";
+import { formatWeeklyWage } from "../../lib/helpers";
 import type { TransfersTabController } from "./useTransfersTabController";
 type TransfersBudgetHeaderProps = {
   state: Pick<
     TransfersTabController,
     | "myTeam"
+    | "gameState"
     | "t"
     | "transferWindowVariant"
     | "transferWindow"
@@ -21,6 +23,7 @@ type TransfersTabNavigationProps = {
 export function TransfersBudgetHeader({ state }: TransfersBudgetHeaderProps) {
   const {
     myTeam,
+    gameState,
     t,
     transferWindowVariant,
     transferWindow,
@@ -31,7 +34,7 @@ export function TransfersBudgetHeader({ state }: TransfersBudgetHeaderProps) {
   return (
     myTeam && (
       <Card accent="primary" className="mb-5">
-        <div className="bg-gradient-to-r from-navy-700 to-navy-800 p-5 rounded-t-xl flex items-center gap-6">
+        <div className="bg-gradient-to-r from-navy-700 to-navy-800 p-5 rounded-t-xl flex flex-col items-stretch gap-6 lg:flex-row lg:items-center">
           <div className="flex-1">
             <div className="flex flex-wrap items-center gap-2">
               <h2 className="text-lg font-heading font-bold text-white uppercase tracking-wide flex items-center gap-2">
@@ -47,15 +50,8 @@ export function TransfersBudgetHeader({ state }: TransfersBudgetHeaderProps) {
             </p>
             <p className="text-gray-500 text-xs mt-1">{transferWindowSummary}</p>
           </div>
-          <div className="hidden md:flex gap-4">
-            <div className="bg-white/5 rounded-xl px-4 py-2 text-center">
-              <p className="text-xs text-gray-300 dark:text-gray-300 font-heading uppercase tracking-wider">
-                {t("finances.transferBudget")}
-              </p>
-              <p className="font-heading font-bold text-lg text-accent-400">
-                {formatVal(myTeam.transfer_budget)}
-              </p>
-            </div>
+          <div className="flex flex-wrap gap-4">
+            <TransferBudgetCard teamId={myTeam.id} revision={gameState} />
             <div
               data-testid="wage-budget-card"
               className="bg-white/5 rounded-xl px-4 py-2 text-center"

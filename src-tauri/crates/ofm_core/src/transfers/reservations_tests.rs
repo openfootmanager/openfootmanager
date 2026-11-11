@@ -42,7 +42,7 @@ fn reserved_money_cannot_fund_another_offer() {
     );
 }
 
-/// Given the user's agreed sale, when the AI buyer tries another purchase, then the same reserved-budget rule refuses it.
+/// Given the user's agreed sale, when the AI buyer previews another purchase, then the same reserved-budget rule reduces its available funds.
 #[test]
 fn ai_agreements_reserve_the_same_budget() {
     let mut game = acceptance_game("team1", true);
@@ -122,6 +122,13 @@ fn an_ai_buyer_cannot_agree_a_sale_beyond_available_budget() {
         respond_to_offer(&mut game, &next, "second-offer", true).unwrap_err(),
         "be.error.transfers.transferBudgetCommitted"
     );
+    let second = game.players.iter().find(|p| p.id == next).unwrap();
+    assert_eq!(
+        second.transfer_offers[0].status,
+        TransferOfferStatus::Pending
+    );
+    assert_eq!(game.teams[1].finance, 5_000_000);
+    assert_eq!(committed_transfer_fees(&game, "team2"), 600_000);
 }
 
 /// Given a reserved purchase whose player becomes unavailable, when registration fails, then its fee is released without payment.
@@ -170,4 +177,80 @@ fn a_missed_window_releases_the_agreed_fee() {
             .transfer_budget_before,
         5_000_000
     );
+}
+
+/// Given an AI buyer with 600k committed from a 1m budget, when a second sale is countered at 650001, then the counter cannot become an agreement.
+#[test]
+fn an_ai_counter_cannot_spend_an_existing_commitment() {
+    let mut game = acceptance_game("team1", true);
+    let next = preview_player(&mut game);
+    game.teams[1].transfer_budget = 1_000_000;
+    let offer_id = incoming_transfer(&mut game);
+    respond_to_offer(&mut game, "player-award", &offer_id, true).unwrap();
+    let mut offer = game.players[0].transfer_offers[0].clone();
+    offer.id = "countered-offer".into();
+    offer.status = TransferOfferStatus::Pending;
+    game.players
+        .iter_mut()
+        .find(|p| p.id == next)
+        .unwrap()
+        .transfer_offers
+        .push(offer);
+    let outcome = counter_offer(&mut game, &next, "countered-offer", 650_001).unwrap();
+    assert_ne!(outcome.decision, TransferNegotiationDecision::Accepted);
+    assert_eq!(committed_transfer_fees(&game, "team2"), 600_000);
+    assert_eq!(game.teams[1].finance, 5_000_000);
+}
+
+/// Given a user purchase reserved for a future window and an active loan, when its buy option exceeds remaining budget, then the option is refused without disturbing either deal.
+#[test]
+fn a_loan_buy_option_cannot_spend_reserved_money() {
+    let mut game = acceptance_game("team2", true);
+    let loanee = preview_player(&mut game);
+    make_transfer_bid(&mut game, "player-award", 2_000_001).unwrap();
+    execute_loan(
+        &mut game,
+        &loanee,
+        "team2",
+        "team1",
+        "2026-01-12",
+        "2026-12-31",
+        50,
+        Some(3_000_000),
+    )
+    .unwrap();
+    game.season_context.transfer_window.status = TransferWindowStatus::Open;
+    assert_eq!(
+        exercise_loan_buy_option(&mut game, &loanee).unwrap_err(),
+        "be.error.transfers.transferBudgetCommitted"
+    );
+    assert_eq!(game.teams[0].finance, 5_000_000);
+    assert_eq!(committed_transfer_fees(&game, "team1"), 2_000_001);
+    assert!(
+        game.players
+            .iter()
+            .find(|p| p.id == loanee)
+            .unwrap()
+            .active_loan
+            .is_some()
+    );
+}
+
+/// Given an AI buyer with all funds committed, when the market sweeps a desirable player, then no additional fee offer is issued; a control without the reservation still bids.
+#[test]
+fn the_ai_market_does_not_offer_reserved_money() {
+    let mut control = super::tests::make_game();
+    evaluate_transfer_market(&mut control);
+    assert!(!control.players[0].transfer_offers.is_empty());
+    let mut game = super::tests::make_game();
+    let mut reserved = game.players[0].clone();
+    reserved.id = "reserved-player".into();
+    reserved.transfer_offers.push(serde_json::from_value(serde_json::json!({
+        "id":"reserved-offer", "from_team_id":"team2", "fee":5_000_000,
+        "wage_offered":0, "status":"PendingRegistration", "date":"2026-01-12", "registration_date":"2026-07-02"
+    })).unwrap());
+    game.players.push(reserved);
+    evaluate_transfer_market(&mut game);
+    assert!(game.players[0].transfer_offers.is_empty());
+    assert_eq!(game.teams[1].finance, 5_000_000);
 }

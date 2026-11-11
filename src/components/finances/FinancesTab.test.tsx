@@ -167,6 +167,8 @@ function wireSnapshot(
   return {
     previews,
     snapshot: {
+      committed_transfer_fees: 0,
+      available_transfer_budget: 300000,
       annual_wage_bill: 10000,
       weekly_wage_spend: 10000,
       weekly_wage_budget: 50000,
@@ -555,6 +557,8 @@ describe("FinancesTab facilities", () => {
       if (command === "get_finance_snapshot") {
         return Promise.resolve({
           snapshot: {
+            committed_transfer_fees: 0,
+            available_transfer_budget: 300000,
             annual_wage_bill: 5200000,
             weekly_wage_spend: 100000,
             weekly_wage_budget: 962,
@@ -626,6 +630,8 @@ describe("FinancesTab facilities", () => {
       if (command === "get_finance_snapshot") {
         return Promise.resolve({
           snapshot: {
+            committed_transfer_fees: 0,
+            available_transfer_budget: 300000,
             annual_wage_bill: 5200000,
             weekly_wage_spend: 100000,
             weekly_wage_budget: 962,
@@ -698,6 +704,8 @@ describe("FinancesTab facilities", () => {
       if (command === "get_finance_snapshot") {
         return Promise.resolve({
           snapshot: {
+            committed_transfer_fees: 0,
+            available_transfer_budget: 300000,
             annual_wage_bill: 5200000,
             weekly_wage_spend: 100000,
             weekly_wage_budget: 962,
@@ -769,6 +777,8 @@ describe("FinancesTab facilities", () => {
       if (command === "get_finance_snapshot") {
         return Promise.resolve({
           snapshot: {
+            committed_transfer_fees: 0,
+            available_transfer_budget: 300000,
             annual_wage_bill: 5200000,
             weekly_wage_spend: 100000,
             weekly_wage_budget: 962,

@@ -330,6 +330,7 @@ pub fn evaluate_transfer_market(game: &mut Game) {
         // filters is its highest-appeal eligible signing.
         // Worked out once for this buyer, and only if a target gets as far as needing it.
         let mut buyer_wage_facts: Option<BuyerWageFacts> = None;
+        let committed_fees = committed_transfer_fees(game, &buyer_team.id);
         let chosen = shortlist.iter().find(|target| {
             if target.owner_team_id == buyer_id || moved_player_ids.contains(&target.player_id) {
                 return false;
@@ -363,8 +364,7 @@ pub fn evaluate_transfer_market(game: &mut Game) {
             ) {
                 return false;
             }
-            buyer_team.transfer_budget >= target.fee as i64
-                && buyer_team.finance >= target.fee as i64
+            can_afford_fee(&buyer_team, target.fee, committed_fees)
                 && player_index.get(&target.player_id).is_some_and(|&index| {
                     let facts = buyer_wage_facts.get_or_insert_with(|| {
                         BuyerWageFacts::new(
