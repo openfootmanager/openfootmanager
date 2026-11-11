@@ -362,6 +362,13 @@
     "repStrong": "Forte",
     "repAverage": "Médio",
     "repDeveloping": "Em Desenvolvimento",
+    "expectations": {
+      "title": "Lutar pelo título",
+      "continental": "Lutar pelas competições continentais",
+      "topHalf": "Metade superior da tabela",
+      "midTable": "Meio da tabela",
+      "survival": "Evitar a despromoção"
+    },
     "failedToSelectTeam": "Falha ao selecionar a equipa: {{error}}",
     "homeRegion": "Região de origem",
     "homeCountry": "País de origem",

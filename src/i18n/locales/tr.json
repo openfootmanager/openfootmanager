@@ -362,6 +362,13 @@
     "repStrong": "Güçlü",
     "repAverage": "Orta",
     "repDeveloping": "Gelişen",
+    "expectations": {
+      "title": "Şampiyonluk mücadelesi",
+      "continental": "Kıtasal turnuvalara katılma mücadelesi",
+      "topHalf": "Puan tablosunun üst yarısı",
+      "midTable": "Orta sıralar",
+      "survival": "Küme düşmekten kaçınma"
+    },
     "failedToSelectTeam": "Takım seçilemedi: {{error}}",
     "homeRegion": "Ana Bölge",
     "homeCountry": "Ana Ülke",

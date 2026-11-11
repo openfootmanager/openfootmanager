@@ -381,6 +381,13 @@
     "repStrong": "Forte",
     "repAverage": "Media",
     "repDeveloping": "In crescita",
+    "expectations": {
+      "title": "Lottare per il titolo",
+      "continental": "Puntare alle coppe continentali",
+      "topHalf": "Prima metà della classifica",
+      "midTable": "Metà classifica",
+      "survival": "Evitare la retrocessione"
+    },
     "failedToSelectTeam": "Selezione della squadra non riuscita: {{error}}",
     "homeRegion": "Regione di origine",
     "homeCountry": "Paese di origine",

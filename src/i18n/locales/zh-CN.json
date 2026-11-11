@@ -362,6 +362,13 @@
     "repStrong": "强队",
     "repAverage": "中游",
     "repDeveloping": "发展中",
+    "expectations": {
+      "title": "争夺冠军",
+      "continental": "争取洲际赛事资格",
+      "topHalf": "积分榜上半区",
+      "midTable": "积分榜中游",
+      "survival": "保级"
+    },
     "failedToSelectTeam": "选择球队失败：{{error}}",
     "homeRegion": "所属地区",
     "homeCountry": "所属国家",
