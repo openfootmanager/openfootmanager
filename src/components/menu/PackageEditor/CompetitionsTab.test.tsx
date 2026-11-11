@@ -1,10 +1,10 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { installScrollGeometry } from "../../../test-utils/scrollGeometry";
 
 import { CompetitionsTab } from "./CompetitionsTab";
-import { emptyCompetition } from "./helpers";
+import { emptyCompetition, entityRowKey } from "./helpers";
 import type { CompetitionDef } from "./types";
 
 // jsdom lays nothing out: the fixture gives the scroller a viewport and puts the list below a toolbar,
@@ -50,7 +50,7 @@ function tab(
   extra: Partial<React.ComponentProps<typeof CompetitionsTab>> = {},
 ) {
   return (
-    <div data-testid="scroller" data-scroll-container="">
+    <div role="region" aria-label="Competitions scroller" data-scroll-container="">
       <CompetitionsTab
         competitions={rows}
         onAdd={() => {}}
@@ -62,7 +62,8 @@ function tab(
   );
 }
 
-const editButtons = () => screen.queryAllByTitle("worldEditor.editCompetition");
+const scroller = () => screen.getByRole("region", { name: "Competitions scroller" });
+const editButtons = () => screen.queryAllByRole("button", { name: "worldEditor.editCompetition" });
 
 describe("CompetitionsTab", () => {
   /**
@@ -105,32 +106,36 @@ describe("CompetitionsTab", () => {
   it("addresses a row it scrolled to by its index in the whole list", async () => {
     const onEdit = vi.fn();
     render(tab(competitions(500), { onEdit }));
-    const scroller = screen.getByTestId("scroller");
 
-    scroller.scrollTop = LIST_OFFSET + 300 * ROW_STEP;
-    fireEvent.scroll(scroller);
+    scroller().scrollTop = LIST_OFFSET + 300 * ROW_STEP;
+    fireEvent.scroll(scroller());
     await waitFor(() => expect(screen.getByText("Competition 300")).toBeInTheDocument());
     const row = screen.getByText("Competition 300").closest('[role="listitem"]') as HTMLElement;
-    fireEvent.click(row.querySelector('[title="worldEditor.editCompetition"]') as HTMLElement);
+    fireEvent.click(within(row).getByRole("button", { name: "worldEditor.editCompetition" }));
 
     expect(onEdit).toHaveBeenCalledWith(300);
   });
 
   /**
-   * Given a competition with no id yet (blank until it is named) beside one whose id looks like a
-   *   generated row key
-   * When the tab is shown
-   * Then both rows render (no duplicate-key collapse)
+   * Given a competition with no id yet (blank until it is named) and an imported one whose id is
+   *   exactly the key that blank record is given
+   * When the list is rendered and then updated (the rows swap places, as an undo or a sort would)
+   * Then React sees two distinct keys (no "same key" warning), and each row keeps its own element:
+   *   one React and focus identity per row, not two rows collapsed into one
    */
-  it("shows rows with a blank id and with an id that reads like a generated key", () => {
-    const rows = [
-      { ...emptyCompetition(), id: "", name: "Unnamed" },
-      { ...emptyCompetition(), id: "#row-1", name: "Imported" },
-    ];
+  it("keeps a blank-id row and an imported id equal to its generated key apart", () => {
+    const blank = { ...emptyCompetition(), id: "", name: "Unnamed" };
+    const imported = { ...emptyCompetition(), id: entityRowKey(blank), name: "Imported" };
+    const errors = vi.spyOn(console, "error").mockImplementation(() => {});
 
-    render(tab(rows));
+    const view = render(tab([blank, imported]));
+    const unnamedBefore = screen.getByText("Unnamed").closest('[role="listitem"]');
+    const importedBefore = screen.getByText("Imported").closest('[role="listitem"]');
+    view.rerender(tab([imported, blank]));
 
-    expect(screen.getByText("Unnamed")).toBeInTheDocument();
-    expect(screen.getByText("Imported")).toBeInTheDocument();
+    expect(errors.mock.calls.flat().join(" ")).not.toMatch(/same key/);
+    expect(screen.getByText("Unnamed").closest('[role="listitem"]')).toBe(unnamedBefore);
+    expect(screen.getByText("Imported").closest('[role="listitem"]')).toBe(importedBefore);
+    errors.mockRestore();
   });
 });
