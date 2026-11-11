@@ -1,9 +1,20 @@
-import { fireEvent, render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+import { installScrollGeometry } from "../../../test-utils/scrollGeometry";
 
 import { TeamsTab } from "./TeamsTab";
 import { emptyTeam } from "./helpers";
 import type { TeamDef } from "./types";
+
+// jsdom lays nothing out: the fixture gives the scroller a viewport and puts the list below a toolbar,
+// moving the list's top with the scroll as a browser does, so a scroll test can fail.
+const LIST_OFFSET = 120;
+let restoreGeometry: () => void;
+beforeEach(() => {
+  restoreGeometry = installScrollGeometry({ viewportHeight: 640, listOffset: LIST_OFFSET });
+});
+afterEach(() => restoreGeometry());
 
 const useAssetDataUrl = vi.fn(() => null);
 
@@ -40,7 +51,15 @@ function teams(count: number, overrides: (i: number) => Partial<TeamDef> = () =>
 function renderTab(props: Partial<React.ComponentProps<typeof TeamsTab>> = {}) {
   const onEdit = vi.fn();
   render(
-    <TeamsTab teams={teams(500)} onAdd={() => {}} onEdit={onEdit} onDelete={() => {}} {...props} />,
+    <div data-testid="scroller" data-scroll-container="">
+      <TeamsTab
+        teams={teams(500)}
+        onAdd={() => {}}
+        onEdit={onEdit}
+        onDelete={() => {}}
+        {...props}
+      />
+    </div>,
   );
   return { onEdit };
 }
@@ -50,28 +69,31 @@ function editButtons() {
 }
 
 describe("TeamsTab", () => {
-  it("renders one page of rows rather than every team", () => {
+  it("renders a window of rows rather than every team", () => {
     renderTab();
 
-    expect(editButtons()).toHaveLength(50);
-    expect(screen.getByText("worldEditor.showingEntries shown=50 total=500")).toBeInTheDocument();
+    expect(editButtons().length).toBeGreaterThan(5);
+    expect(editButtons().length).toBeLessThan(40);
+    expect(screen.getByText("common.nResults count=500")).toBeInTheDocument();
   });
 
-  it("reveals another page on request", () => {
+  it("offers no Load more: the rest of the list is a scroll away", () => {
     renderTab();
 
-    fireEvent.click(screen.getByRole("button", { name: "common.loadMore" }));
-
-    expect(editButtons()).toHaveLength(100);
+    expect(screen.queryByRole("button", { name: "common.loadMore" })).not.toBeInTheDocument();
   });
 
-  it("still addresses a revealed row by its index in the whole list", () => {
+  it("still addresses a row it scrolled to by its index in the whole list", async () => {
     const { onEdit } = renderTab();
+    const scroller = screen.getByTestId("scroller");
 
-    fireEvent.click(screen.getByRole("button", { name: "common.loadMore" }));
-    fireEvent.click(editButtons()[50]);
+    scroller.scrollTop = LIST_OFFSET + 300 * 72;
+    fireEvent.scroll(scroller);
+    await waitFor(() => expect(screen.getByText("Team 300")).toBeInTheDocument());
+    const row = screen.getByText("Team 300").closest('[role="listitem"]') as HTMLElement;
+    fireEvent.click(row.querySelector('[title="worldEditor.editTeam"]') as HTMLElement);
 
-    expect(onEdit).toHaveBeenCalledWith(50);
+    expect(onEdit).toHaveBeenCalledWith(300);
   });
 
   it("says so when a search matches nothing, instead of going blank", () => {
@@ -85,17 +107,16 @@ describe("TeamsTab", () => {
     expect(screen.getByText("common.noResults")).toBeInTheDocument();
   });
 
-  it("reads at most one page of crests on mount", () => {
+  it("reads only the crests of the rows in the window on mount", () => {
     useAssetDataUrl.mockClear();
     renderTab({ teams: teams(500, () => ({ logo: "logos/a.png" })), projectDir: "/pkg" });
 
-    expect(useAssetDataUrl.mock.calls.length).toBeLessThanOrEqual(50);
+    expect(useAssetDataUrl.mock.calls.length).toBeLessThanOrEqual(40);
   });
 
   it("leaves a short list uncapped", () => {
     renderTab({ teams: teams(4) });
 
     expect(editButtons()).toHaveLength(4);
-    expect(screen.queryByRole("button", { name: "common.loadMore" })).not.toBeInTheDocument();
   });
 });

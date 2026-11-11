@@ -1,5 +1,7 @@
 import { render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+import { installScrollGeometry } from "../../test-utils/scrollGeometry";
 
 import { WorldEditorListContent } from "./WorldEditorListContent";
 import { emptyPlayer } from "../menu/PackageEditor/helpers";
@@ -36,7 +38,7 @@ function editor(editingIndex: number | null) {
   };
 }
 
-/** 60 youth players, so the list is capped and the 51st is past the edge. */
+/** 60 youth players: more than a window holds, so the 51st is far below the first screenful. */
 function youthSquad(): PlayerDef[] {
   return Array.from({ length: 60 }, (_, i) => ({
     ...emptyPlayer(),
@@ -49,49 +51,68 @@ function youthSquad(): PlayerDef[] {
 function renderYouthSection(youthEditingIndex: number | null) {
   const youthEditor = editor(youthEditingIndex);
   render(
-    <WorldEditorListContent
-      selectedSection="youth"
-      formPanel="youth"
-      teams={[]}
-      players={youthSquad()}
-      staff={[]}
-      confederations={[]}
-      countries={[]}
-      competitions={[]}
-      names={{ version: 1, description: "", pools: {} }}
-      teamEditor={editor(null)}
-      playerEditor={editor(null)}
-      youthEditor={youthEditor}
-      staffEditor={editor(null)}
-      confEditor={editor(null)}
-      countryEditor={editor(null)}
-      compEditor={editor(null)}
-      namesEditor={{
-        editingPoolKey: "",
-        handleAddPool: vi.fn(),
-        handleSelectPool: vi.fn(),
-        handleDeletePool: vi.fn(),
-      }}
-    />,
+    <div data-scroll-container="">
+      <WorldEditorListContent
+        selectedSection="youth"
+        formPanel="youth"
+        teams={[]}
+        players={youthSquad()}
+        staff={[]}
+        confederations={[]}
+        countries={[]}
+        competitions={[]}
+        names={{ version: 1, description: "", pools: {} }}
+        teamEditor={editor(null)}
+        playerEditor={editor(null)}
+        youthEditor={youthEditor}
+        staffEditor={editor(null)}
+        confEditor={editor(null)}
+        countryEditor={editor(null)}
+        compEditor={editor(null)}
+        namesEditor={{
+          editingPoolKey: "",
+          handleAddPool: vi.fn(),
+          handleSelectPool: vi.fn(),
+          handleDeletePool: vi.fn(),
+        }}
+      />
+    </div>,
   );
   return { youthEditor };
 }
 
+// jsdom lays nothing out: the fixture gives the scroller a viewport, so a row 50 deep is outside the
+// first window unless the list scrolls to it.
+let restoreGeometry: () => void;
+beforeEach(() => {
+  restoreGeometry = installScrollGeometry({ viewportHeight: 640, listOffset: 120 });
+});
+afterEach(() => restoreGeometry());
+
 describe("WorldEditorListContent", () => {
+  /**
+   * Given 60 youth players and the youth form open on the 51st
+   * When the list is shown
+   * Then the list scrolls to the selected row and renders it: the youth list reads the selection while
+   *      the *youth* panel is open (it used to read it only for the player panel, so the copy a
+   *      duplicate makes further down was left off-screen with its form open)
+   */
   it("tells the youth list which row is selected", () => {
-    // The youth editor opens its own form panel, but this list used to read
-    // the selection only while the *player* panel was open — so the youth list
-    // never knew what was selected. Duplicating the last visible youth player
-    // selects the copy one row further down, and with the list capped the copy
-    // would have been left off-screen with its form open.
     renderYouthSection(50);
 
-    expect(screen.queryAllByRole("button", { name: "worldEditor.editPlayer" })).toHaveLength(51);
+    expect(screen.getByText("Youth 50")).toBeInTheDocument();
+    expect(screen.queryByText("Youth 0")).not.toBeInTheDocument();
   });
 
-  it("caps the youth list when nothing is selected", () => {
+  /**
+   * Given 60 youth players and nothing selected
+   * When the list is shown
+   * Then it starts at the first row and the 51st is not rendered
+   */
+  it("starts at the first row when nothing is selected", () => {
     renderYouthSection(null);
 
-    expect(screen.queryAllByRole("button", { name: "worldEditor.editPlayer" })).toHaveLength(50);
+    expect(screen.getByText("Youth 0")).toBeInTheDocument();
+    expect(screen.queryByText("Youth 50")).not.toBeInTheDocument();
   });
 });
