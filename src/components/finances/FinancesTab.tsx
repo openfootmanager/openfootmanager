@@ -7,7 +7,6 @@ import { Card, CardHeader, CardBody, Badge, ProgressBar, Button, Checkbox } from
 import {
   contractExpiryLabel,
   formatExactMoney,
-  formatVal,
   formatWeeklyAmount,
   formatWeeklyWage,
   getContractRiskBadgeVariant,
