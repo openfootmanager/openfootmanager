@@ -20,6 +20,8 @@ use crate::world::ladder::is_ladder_table;
 /// leave the ladder as a set, so none of them is left swapping with the tier
 /// below by accident of declaration order. A tier below a sibling group
 /// therefore has no automatic promotion path; it needs berths of its own.
+/// A tier that shares its priority with one of those excluded leagues leaves the ladder
+/// too: nothing ranks the two, so the cut would fall wherever the listing order put it.
 /// A league that is the *sole* `PositionRange` feeder into a target keeps its
 /// ladder edge — that is an ordinary two-tier pyramid written as data.
 /// Only a berth into a domestic league table makes siblings at all: a berth
@@ -84,6 +86,8 @@ pub(crate) fn apply_pyramid_promotion_relegation(competitions: &mut [League]) {
         .flatten()
         .collect();
 
+    let excluded: HashSet<&str> = berth_targets.union(&sibling_feeders).copied().collect();
+
     // Every rung of every country, excluded ones included: a tier that leaves
     // the ladder has to leave a *gap* in it, not be spirited away so that the
     // tiers on either side close up and become neighbours.
@@ -126,14 +130,7 @@ pub(crate) fn apply_pyramid_promotion_relegation(competitions: &mut [League]) {
                 );
                 return Vec::new();
             }
-            indices
-                .split(|&index| {
-                    let id = competitions[index].id.as_str();
-                    berth_targets.contains(id) || sibling_feeders.contains(id)
-                })
-                .filter(|run| run.len() >= 2)
-                .map(<[usize]>::to_vec)
-                .collect::<Vec<_>>()
+            cut_into_runs(competitions, &indices, &excluded)
         })
         .collect();
 
@@ -165,6 +162,42 @@ pub(crate) fn apply_pyramid_promotion_relegation(competitions: &mut [League]) {
         }
         apply_linear_chain(competitions, &run);
     }
+}
+
+/// Cut one country's tiers (ranked, top first) into the runs the linear ladder may swap within.
+///
+/// An excluded tier is a gap, and so is **its whole priority**: a berth target can share a
+/// priority with an ordinary tier, and the two cannot be told apart by rank, so which of them
+/// sits above the other would decide where the cut falls and so which clubs change division. The
+/// peer would be promoted into by the feeder's winner, who the berth pass then drops for no longer
+/// being registered with the feeder; or it would swap with the top flight across the berth
+/// tier's rung (#1381). A tier tied with an excluded one therefore has no automatic movement,
+/// like the tie refusal in [`tiers_are_ranked_distinctly`].
+fn cut_into_runs(
+    competitions: &[League],
+    indices: &[usize],
+    excluded: &std::collections::HashSet<&str>,
+) -> Vec<Vec<usize>> {
+    let barrier_priorities: std::collections::HashSet<u32> = indices
+        .iter()
+        .filter(|&&index| excluded.contains(competitions[index].id.as_str()))
+        .map(|&index| competitions[index].priority)
+        .collect();
+    for &index in indices {
+        let tier = &competitions[index];
+        if barrier_priorities.contains(&tier.priority) && !excluded.contains(tier.id.as_str()) {
+            log::warn!(
+                "[end-of-season] no promotion or relegation for {}: it shares priority {} with a berth-fed tier, so its place in the ladder is arbitrary",
+                tier.id,
+                tier.priority
+            );
+        }
+    }
+    indices
+        .split(|&index| barrier_priorities.contains(&competitions[index].priority))
+        .filter(|run| run.len() >= 2)
+        .map(<[usize]>::to_vec)
+        .collect()
 }
 
 /// True when every tier named by `indices` has played its season out.
