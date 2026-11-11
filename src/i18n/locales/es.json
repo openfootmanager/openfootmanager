@@ -1888,12 +1888,12 @@
       "leavesOn": "Se marcha el",
       "severance": "Indemnización",
       "healthyAfter": "Jugadores aptos tras la rescisión",
-      "healthyValue": "{{healthy}} (un once inicial necesita {{needed}})",
+      "healthyValue": "{{healthy}} (cubre {{filled}} puestos del once inicial)",
       "source": {
         "renewal": "una renovación",
         "transfer": "un traspaso",
         "free_agent": "una firma como agente libre",
-        "initial": "su primer contrato"
+        "initial": "su contrato de partida"
       },
       "timeLeft": "Tiempo restante",
       "wage": "Salario",
@@ -1906,7 +1906,7 @@
         "transfer": "Traspasado desde {{club}}",
         "transferNoClub": "Un traspaso",
         "free_agent": "Fichado como agente libre",
-        "initial": "Su primer contrato"
+        "initial": "Su contrato de partida"
       },
       "renewClosedWhat": "Las negociaciones del contrato están cerradas. Reábrelas para renovarlo.",
       "letExpireSetButton": "Fijado para vencer",

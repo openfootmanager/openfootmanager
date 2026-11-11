@@ -1888,12 +1888,12 @@
       "leavesOn": "Er geht am",
       "severance": "Abfindung",
       "healthyAfter": "Fitte Spieler nach der Entlassung",
-      "healthyValue": "{{healthy}} (eine Startelf braucht {{needed}})",
+      "healthyValue": "{{healthy}} (besetzt {{filled}} Plätze der Startelf)",
       "source": {
         "renewal": "eine Verlängerung",
         "transfer": "ein Transfer",
         "free_agent": "eine ablösefreie Verpflichtung",
-        "initial": "sein erster Vertrag"
+        "initial": "sein Ausgangsvertrag"
       },
       "timeLeft": "Restlaufzeit",
       "wage": "Gehalt",
@@ -1906,7 +1906,7 @@
         "transfer": "Wechsel von {{club}}",
         "transferNoClub": "Ein Wechsel",
         "free_agent": "Ablösefrei verpflichtet",
-        "initial": "Sein erster Vertrag"
+        "initial": "Sein Ausgangsvertrag"
       },
       "renewClosedWhat": "Die Vertragsgespräche sind beendet. Öffne sie wieder, um ihn zu verlängern.",
       "letExpireSetButton": "Läuft aus",

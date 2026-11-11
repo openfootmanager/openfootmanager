@@ -1889,12 +1889,12 @@
       "leavesOn": "He leaves on",
       "severance": "Severance",
       "healthyAfter": "Healthy players after release",
-      "healthyValue": "{{healthy}} (a matchday XI needs {{needed}})",
+      "healthyValue": "{{healthy}} (fills {{filled}} places in the matchday XI)",
       "source": {
         "renewal": "a renewal",
         "transfer": "a transfer",
         "free_agent": "a free-agent signing",
-        "initial": "his first contract"
+        "initial": "his opening contract"
       },
       "timeLeft": "Time left",
       "wage": "Wage",
@@ -1907,7 +1907,7 @@
         "transfer": "Transferred from {{club}}",
         "transferNoClub": "A transfer",
         "free_agent": "Signed as a free agent",
-        "initial": "His first contract"
+        "initial": "His opening contract"
       },
       "renewClosedWhat": "Contract talks are closed. Reopen them to renew him.",
       "letExpireSetButton": "Set to expire",

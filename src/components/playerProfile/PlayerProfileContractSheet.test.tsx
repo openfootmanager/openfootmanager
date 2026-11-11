@@ -400,6 +400,9 @@ describe("PlayerProfileContractSheet: his own player", () => {
             ...safe.value.squad_safety,
             projected_roster_size: 14,
             healthy_players: 9,
+            // Nine healthy players can fill nine places: the report's size is what he can field,
+            // not what a matchday XI needs.
+            effective_xi_size: 9,
             can_field_matchday_squad: false,
           },
         },
@@ -409,6 +412,10 @@ describe("PlayerProfileContractSheet: his own player", () => {
 
     expect(screen.getByRole("button", { name: "playerProfile.terminateContract" })).toBeDisabled();
     expect(screen.getByText("playerProfile.terminationUnsafe")).toBeInTheDocument();
+    // The count is the places his healthy players can fill, never worded as what an XI needs.
+    expect(
+      screen.getByText('playerProfile.contractSheet.healthyValue {"healthy":9,"filled":9}'),
+    ).toBeInTheDocument();
   });
 
   /**

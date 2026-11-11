@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { PlayerData } from "../../store/gameStore";
-import { terminationBlockedBy } from "./PlayerProfile.contract";
+import { squadStateKey, terminationBlockedBy } from "./PlayerProfile.contract";
 
 const player = (patch: Partial<PlayerData>) =>
   ({ contract_end: "2033-06-30", active_loan: null, ...patch }) as PlayerData;
@@ -56,5 +56,54 @@ describe("terminationBlockedBy", () => {
         }),
       ),
     ).toBe("no_contract");
+  });
+});
+
+describe("squadStateKey", () => {
+  const member = (patch: Partial<PlayerData>) =>
+    ({
+      id: "a",
+      team_id: "mine",
+      wage: 5_000,
+      contract_end: "2033-06-30",
+      injury: null,
+      active_loan: null,
+      ...patch,
+    }) as PlayerData;
+  const SQUAD = [member({ id: "a" }), member({ id: "b" })];
+  const key = (players: PlayerData[]) => squadStateKey(players, "mine");
+
+  /**
+   * Given the club's squad and a player at another club
+   * When the key is made with and without the other club's player
+   * Then it is the same: only the club's own squad is in it
+   */
+  it("ignores players at other clubs", () => {
+    expect(key([...SQUAD, member({ id: "x", team_id: "rival", wage: 99 })])).toBe(key(SQUAD));
+  });
+
+  /**
+   * Given the club's squad
+   * When another player is signed, one is released, one is injured, a wage is renewed, or a
+   *      contract end changes
+   * Then each gives a different key: the previews that depend on the whole club are asked again
+   */
+  it.each([
+    ["a signing", [...SQUAD, member({ id: "c" })]],
+    ["a release", [SQUAD[0]]],
+    ["an injury", [SQUAD[0], member({ id: "b", injury: { name: "Sprain", days_remaining: 9 } })]],
+    ["a renewed wage", [SQUAD[0], member({ id: "b", wage: 9_000 })]],
+    ["a new contract end", [SQUAD[0], member({ id: "b", contract_end: "2034-06-30" })]],
+  ])("changes with %s", (_what, players) => {
+    expect(key(players)).not.toBe(key(SQUAD));
+  });
+
+  /**
+   * Given the same squad listed in another order
+   * When the key is made
+   * Then it is the same: the order a game lists players in is not a change
+   */
+  it("does not depend on the order of the list", () => {
+    expect(key([...SQUAD].reverse())).toBe(key(SQUAD));
   });
 });
