@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { GameStateData, LeagueData } from "../store/gameStore";
@@ -12,6 +12,16 @@ vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
 vi.mock("react-router-dom", () => ({
   useNavigate: () => vi.fn(),
 }));
+
+vi.mock("../hooks/useRatingTiers", async () => {
+  const { cannedRatingTiersModule } = await import("../test-utils/ratingTiers");
+  return cannedRatingTiersModule();
+});
+
+vi.mock("../hooks/usePositionGroups", async () => {
+  const { cannedPositionsModule } = await import("../test-utils/positionTable");
+  return cannedPositionsModule();
+});
 
 vi.mock("../services/portraitService", () => ({
   prewarmManagerSquadPortraits: vi.fn(),
@@ -66,12 +76,24 @@ function league(overrides: Partial<LeagueData> = {}): LeagueData {
 
 function buildGameState(): GameStateData {
   return {
-    teams: [createTeam({ id: "team-1", name: "Alpha FC", country: "GB" })],
+    teams: [
+      createTeam({ id: "team-1", name: "Alpha FC", short_name: "ALP", country: "GB" }),
+      createTeam({ id: "team-2", name: "Bravo Town", short_name: "BRV", country: "GB" }),
+    ],
     players: [createPlayer({ id: "p1", team_id: "team-1" })],
-    competitions: [league()],
+    competitions: [league({ participant_ids: ["team-1", "team-2"] })],
     league: null,
+    clock: { current_date: "2026-07-01", start_date: "2026-07-01" },
     manager: { first_name: "Sam", last_name: "Boss" },
   } as unknown as GameStateData;
+}
+
+function renderPage() {
+  render(
+    <ThemeProvider>
+      <TeamSelection />
+    </ThemeProvider>,
+  );
 }
 
 describe("TeamSelection", () => {
@@ -83,22 +105,72 @@ describe("TeamSelection", () => {
     } as unknown as ReturnType<typeof useGameStore>);
   });
 
-  it("renders the scope panel, the club grid, and the selected-team sidebar", () => {
-    render(
-      <ThemeProvider>
-        <TeamSelection />
-      </ThemeProvider>,
+  /**
+   * Given a world with two clubs in one league
+   * When the screen opens
+   * Then the steps, the country and league rail and the clubs' table are drawn; no club is chosen,
+   *      so the card says so and Manage is disabled; and the simulation settings are closed.
+   */
+  it("opens with no club chosen and Manage disabled", () => {
+    renderPage();
+
+    expect(screen.getByRole("heading", { level: 1, name: "teamSelect.title" })).toBeInTheDocument();
+    expect(screen.getByRole("list", { name: "teamSelect.steps.label" })).toBeInTheDocument();
+    expect(screen.getByRole("navigation", { name: "teamSelect.rail.label" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Alpha FC" })).toHaveAttribute(
+      "aria-pressed",
+      "false",
     );
+    expect(screen.getByRole("button", { name: "Bravo Town" })).toBeInTheDocument();
 
-    // Page chrome + scope panel
-    expect(screen.getByText("teamSelect.title")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "teamSelect.manageNone" })).toBeDisabled();
+    // A disabled button says why: no club is chosen yet.
+    expect(
+      screen.getByRole("button", { name: "teamSelect.manageNone" }),
+    ).toHaveAccessibleDescription("teamSelect.card.emptyTitle");
+    const card = screen.getByRole("complementary", { name: "teamSelect.card.label" });
+    expect(within(card).getByText("teamSelect.card.emptyTitle")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "teamSelect.simulation" })).toHaveAttribute(
+      "aria-expanded",
+      "false",
+    );
+  });
+
+  /**
+   * Given the screen with no club chosen
+   * When a club is pressed in the table
+   * Then Manage names that club and is enabled, and the chosen-club card shows it.
+   */
+  it("enables Manage and shows the card once a club is chosen", () => {
+    renderPage();
+
+    fireEvent.click(screen.getByRole("button", { name: "Alpha FC" }));
+
+    expect(screen.getByRole("button", { name: "Alpha FC" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    expect(screen.getByRole("button", { name: "teamSelect.manage" })).toBeEnabled();
+    const card = screen.getByRole("complementary", { name: "teamSelect.card.label" });
+    expect(within(card).getByRole("heading", { name: "Alpha FC" })).toBeInTheDocument();
+    expect(within(card).queryByText("teamSelect.card.emptyTitle")).toBeNull();
+  });
+
+  /**
+   * Given the simulation settings closed
+   * When the header's Simulation button is pressed
+   * Then the scope panel opens, so the regions and competitions stay reachable until they move
+   *      into a dialog.
+   */
+  it("opens the simulation settings from the header", () => {
+    renderPage();
+
+    fireEvent.click(screen.getByRole("button", { name: "teamSelect.simulation" }));
+
+    expect(screen.getByRole("button", { name: "teamSelect.simulation" })).toHaveAttribute(
+      "aria-expanded",
+      "true",
+    );
     expect(screen.getByText("teamSelect.simulationScope")).toBeInTheDocument();
-
-    // Club grid renders the team; sidebar auto-selects the first team, so the
-    // club name appears in both the card and the sidebar header.
-    expect(screen.getAllByText("Alpha FC").length).toBeGreaterThanOrEqual(2);
-
-    // Confirm button reflects the auto-selected club.
-    expect(screen.getByText("teamSelect.manage")).toBeInTheDocument();
   });
 });
