@@ -56,21 +56,27 @@ describe("fixture answers", () => {
   });
 
   /**
-   * Given a takers request that has the club's eleven's length but is not its eleven: one player
-   *       named eleven times, or one of the eleven swapped for a player outside it
+   * Given a takers request that has the club's eleven's length but is not its eleven
    * When the harness is asked
-   * Then it declines both, as a backend that picks only from the ids it is given would not hand
-   *      back the opening eleven's takers for them.
+   * Then it declines, as a backend that picks only from the ids it is given would not hand back the
+   *      opening eleven's takers for them: one scenario each, so a failure names the one that broke.
    */
-  it("declines a takers request of the right length that is not the club's eleven", () => {
-    const [first, second] = autoSetPiecesFor;
-    const repeated = autoSetPiecesFor.map(() => first);
-    const swapped = [...autoSetPiecesFor.slice(0, -1), "a-player-outside-the-eleven"];
-    const duplicated = [first, ...autoSetPiecesFor.slice(1).map(() => second)];
+  it.each([
+    ["one player named eleven times", (eleven: readonly string[]) => eleven.map(() => eleven[0])],
+    [
+      "one of the eleven swapped for a player outside it",
+      (eleven: readonly string[]) => [...eleven.slice(0, -1), "a-player-outside-the-eleven"],
+    ],
+    [
+      "two players named between them, one once and one ten times",
+      (eleven: readonly string[]) => [eleven[0], ...eleven.slice(1).map(() => eleven[1])],
+    ],
+  ])("declines a takers request of the right length naming %s", (_scenario, request) => {
+    expect(autoSetPiecesFor).toHaveLength(11);
 
-    expect(handlers.auto_select_set_pieces({ playerIds: repeated })).toBe(UNANSWERED);
-    expect(handlers.auto_select_set_pieces({ playerIds: swapped })).toBe(UNANSWERED);
-    expect(handlers.auto_select_set_pieces({ playerIds: duplicated })).toBe(UNANSWERED);
+    expect(handlers.auto_select_set_pieces({ playerIds: request(autoSetPiecesFor) })).toBe(
+      UNANSWERED,
+    );
   });
 
   /**
