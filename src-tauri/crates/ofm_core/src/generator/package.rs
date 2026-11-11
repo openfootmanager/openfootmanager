@@ -869,6 +869,13 @@ pub fn load_world_package_as_world(dir: &Path) -> (WorldPackage, Vec<PackageErro
     merge_world_packages(vec![package])
 }
 
+/// The one validation answer for a package directory, whoever asks: `ofm-cli validate`, the package
+/// editor's Validate and the game's import and career start. Returns the package as read (the editor
+/// edits it, the CLI warns on it) and the findings of [`load_world_package_as_world`].
+pub fn check_world_package(dir: &Path) -> (WorldPackage, Vec<PackageError>) {
+    load_world_package(dir)
+}
+
 /// The filename of the world-save manifest in `dir`, if `dir` holds an exported
 /// world rather than an authoring package.
 ///
@@ -2659,6 +2666,49 @@ mod tests {
 
         std::fs::remove_dir_all(&dir).ok();
         std::fs::remove_dir_all(&data_dir).ok();
+    }
+
+    /// A patch package whose one player is at a club that neither it nor anything it loads defines.
+    fn patch_naming_an_unknown_club() -> PathBuf {
+        let dir = temp_package();
+        write(
+            &dir,
+            "package.json",
+            r#"{"schema":"world","id":"patchy","name":"Patchy","version":"1.0.0","license":"CC0-1.0","packageType":"patch"}"#,
+        );
+        write(
+            &dir,
+            "players/players.json",
+            r#"{"schema":"player","items":[{"id":"p1","name":"P One","club":"ghost-fc","nationality":"ENG","position":"Striker","overall":70}]}"#,
+        );
+        dir
+    }
+
+    /// Given a patch package naming a club its base database may not have
+    /// When it is validated by the one entry the CLI and the editor call, and as the world the game
+    ///      starts a career on
+    /// Then both report the same findings, and they are not empty: `load_world_package` alone passes
+    ///      it, which is the gap this closes (#1364).
+    #[test]
+    fn the_validation_entry_reports_what_the_game_reports_for_a_patch_with_an_unknown_club() {
+        let dir = patch_naming_an_unknown_club();
+
+        let (_, alone) = load_world_package(&dir);
+        let (_, checked) = check_world_package(&dir);
+        let (_, as_world) = load_world_package_as_world(&dir);
+        std::fs::remove_dir_all(&dir).ok();
+
+        let codes = |errors: &[PackageError]| -> Vec<String> {
+            let mut codes: Vec<String> = errors
+                .iter()
+                .map(|e| format!("{}|{}|{:?}", e.code, e.file, e.params))
+                .collect();
+            codes.sort();
+            codes
+        };
+        assert!(alone.is_empty(), "alone, the patch passes: {alone:?}");
+        assert!(!as_world.is_empty(), "as a world, it is refused");
+        assert_eq!(codes(&checked), codes(&as_world));
     }
 
     fn temp_package() -> PathBuf {

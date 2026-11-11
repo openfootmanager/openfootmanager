@@ -583,6 +583,12 @@ fn cmd_add(
     0
 }
 
+/// What `pack` tells the author of a patch package: it is packed without the check against the base
+/// that a database package gets from its own contents.
+fn patch_pack_note(_pkg: &ofm_core::generator::WorldPackage) -> Option<&'static str> {
+    None
+}
+
 fn cmd_validate(path: &Path) -> i32 {
     if !path.exists() {
         eprintln!(
@@ -907,6 +913,53 @@ mod tests {
                 .contains(&("competition".into(), "authored-cup".into())));
             std::fs::remove_dir_all(&dir).ok();
         }
+    }
+
+    fn patch_naming_an_unknown_club(name: &str) -> PathBuf {
+        let dir = scratch_dir(name);
+        std::fs::create_dir_all(dir.join("players")).expect("temp dir");
+        std::fs::write(
+            dir.join("package.json"),
+            json!({"schema": "world", "id": "patchy", "name": "Patchy", "version": "1.0.0",
+                "license": "CC0-1.0", "packageType": "patch"})
+            .to_string(),
+        )
+        .expect("manifest written");
+        std::fs::write(
+            dir.join("players/players.json"),
+            json!({"schema": "player", "items": [{"id": "p1", "name": "P One", "club": "ghost-fc",
+                "nationality": "ENG", "position": "Striker", "overall": 70}]})
+            .to_string(),
+        )
+        .expect("players written");
+        dir
+    }
+
+    /// Given a patch package naming a club that nothing it loads defines (the game refuses it at
+    ///       career start)
+    /// When `validate` runs
+    /// Then it fails: the CLI answers as the game does, not as the package alone would (#1364).
+    #[test]
+    fn validate_rejects_a_patch_the_game_would_refuse() {
+        let dir = patch_naming_an_unknown_club("patch-unknown-club");
+
+        let exit = cmd_validate(&dir);
+        std::fs::remove_dir_all(&dir).ok();
+
+        assert_eq!(exit, 1, "an unknown club in a patch must fail validation");
+    }
+
+    /// Given a patch package and a database package
+    /// When `pack` decides what to tell the author
+    /// Then a patch gets a note that its references are resolved against the base when it is
+    ///      installed, and a database package gets none.
+    #[test]
+    fn pack_notes_a_patch_package_only() {
+        let (patch, _) = load_world_package(&patch_naming_an_unknown_club("patch-note"));
+        let database = ofm_core::generator::WorldPackage::default();
+
+        assert!(patch_pack_note(&patch).is_some());
+        assert!(patch_pack_note(&database).is_none());
     }
 
     /// Given a package whose league lists one of its three clubs twice

@@ -951,10 +951,10 @@ mod tests {
 
     /// Given a package with a parse error, a duplicate id and a semantic error (a player at a club that
     ///       does not exist)
-    /// When the editor validates it, and the CLI's `validate` pipeline (load, then package warnings)
-    ///      runs on the same directory
-    /// Then both report the same findings, code for code: the editor's Validate cannot pass what the
-    ///      CLI fails, or the reverse
+    /// When the editor validates it, the CLI's `validate` pipeline (the one validation entry, then
+    ///      package warnings) runs on the same directory, and the game validates it for import
+    /// Then all three report the same findings, code for code: the editor's Validate cannot pass what
+    ///      the CLI fails, or the reverse, and neither can pass what the game refuses
     #[test]
     fn editor_validate_and_cli_validate_report_the_same_findings() {
         let team = |id: &str| {
@@ -989,9 +989,13 @@ mod tests {
         );
 
         let validated = validate_package_project(dir.to_string_lossy().to_string()).expect("ok");
-        let (pkg, errors) = load_world_package(&dir);
+        let (pkg, errors) = ofm_core::generator::check_world_package(&dir);
         let cli_warnings = ofm_core::generator::package_warnings(&pkg);
+        let [editor_keys, cli_keys, game_keys] = editor_cli_and_game_findings(&dir);
         std::fs::remove_dir_all(&dir).ok();
+        // The game's validation of the same package says the same, finding for finding.
+        assert_eq!(editor_keys, game_keys);
+        assert_eq!(cli_keys, game_keys);
 
         let key = |code: &str, file: &str, params: &[(String, String)]| {
             let mut params = params.to_vec();
@@ -1045,6 +1049,85 @@ mod tests {
         cli_warning_keys.sort();
         assert!(!cli_warning_keys.is_empty(), "the fixture must warn");
         assert_eq!(editor_warnings, cli_warning_keys);
+    }
+
+    /// The findings of one reporter as comparable keys: code, file and sorted params.
+    fn finding_keys<'a>(
+        findings: impl Iterator<Item = (&'a str, &'a str, Vec<(String, String)>)>,
+    ) -> Vec<String> {
+        let mut keys: Vec<String> = findings
+            .map(|(code, file, mut params)| {
+                params.sort();
+                format!("{code}|{file}|{params:?}")
+            })
+            .collect();
+        keys.sort();
+        keys
+    }
+
+    /// The same package, asked of its three entry points: the package editor's Validate, the one
+    /// entry `ofm-cli validate` calls (`check_world_package`), and the game's validation on import
+    /// and career start.
+    fn editor_cli_and_game_findings(dir: &std::path::Path) -> [Vec<String>; 3] {
+        let path = dir.to_string_lossy().to_string();
+        let editor = validate_package_project(path.clone()).expect("the editor validates");
+        let (_, cli) = ofm_core::generator::check_world_package(dir);
+        let game = crate::commands::game::validate_world_package(path).expect("the game validates");
+        [
+            finding_keys(editor.issues.iter().map(|i| {
+                (
+                    i.code.as_str(),
+                    i.file.as_str(),
+                    i.params
+                        .iter()
+                        .map(|(k, v)| (k.clone(), v.clone()))
+                        .collect(),
+                )
+            })),
+            finding_keys(
+                cli.iter()
+                    .map(|e| (e.code.as_str(), e.file.as_str(), e.params.clone())),
+            ),
+            finding_keys(game.iter().map(|i| {
+                (
+                    i.code.as_str(),
+                    i.file.as_str(),
+                    i.params
+                        .iter()
+                        .map(|(k, v)| (k.clone(), v.clone()))
+                        .collect(),
+                )
+            })),
+        ]
+    }
+
+    /// Given a patch package naming a club that neither it nor its base defines
+    /// When the editor's Validate, the CLI's validate and the game's validation each check it
+    /// Then all three report the same, non-empty, findings: the game refuses it at career start, so
+    ///      neither tool may pass it (#1364; the parity test above compared only the editor and the
+    ///      CLI, which shared a loader, so it could not see this).
+    #[test]
+    fn editor_cli_and_game_report_the_same_findings_for_a_patch_naming_an_unknown_club() {
+        let dir = temp_project(
+            "diag-three-way-patch",
+            &[
+                (
+                    "package.json",
+                    r#"{"schema":"world","id":"patchy","name":"Patchy","version":"1.0.0","license":"CC0-1.0","packageType":"patch"}"#,
+                ),
+                (
+                    "players/players.json",
+                    r#"{"schema":"player","items":[{"id":"p1","name":"P One","club":"ghost-fc","nationality":"ENG","position":"Striker","overall":70}]}"#,
+                ),
+            ],
+        );
+
+        let [editor, cli, game] = editor_cli_and_game_findings(&dir);
+        std::fs::remove_dir_all(&dir).ok();
+
+        assert!(!game.is_empty(), "the game refuses the patch: {game:?}");
+        assert_eq!(editor, game);
+        assert_eq!(cli, game);
     }
 
     /// Given a project with thousands of entities' worth of data
