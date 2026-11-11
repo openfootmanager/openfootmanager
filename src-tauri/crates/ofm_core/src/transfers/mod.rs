@@ -24,6 +24,7 @@ use uuid::Uuid;
 
 mod affordability;
 mod bids;
+use affordability::committed_transfer_fees_by_club;
 mod consts;
 mod execution;
 mod lifecycle;

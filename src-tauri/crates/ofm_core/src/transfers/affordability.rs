@@ -62,16 +62,28 @@ pub(crate) fn transfer_fee_ceiling(team: &Team, committed: i64) -> u64 {
 /// Saved agreed offers are the reservation ledger, including those in older saves. Computing
 /// from their status releases a cancelled or failed deal without a second mutable balance.
 pub(crate) fn committed_transfer_fees(game: &Game, team_id: &str) -> i64 {
-    game.players
+    committed_transfer_fees_by_club(game)
+        .get(team_id)
+        .copied()
+        .unwrap_or(0)
+}
+
+/// The market reads this once: its pending approaches and immediate moves never alter reservations.
+pub(super) fn committed_transfer_fees_by_club(
+    game: &Game,
+) -> std::collections::HashMap<String, i64> {
+    let mut totals = std::collections::HashMap::new();
+    for offer in game
+        .players
         .iter()
         .flat_map(|player| &player.transfer_offers)
-        .filter(|offer| {
-            offer.status == TransferOfferStatus::PendingRegistration
-                && offer.from_team_id == team_id
-        })
-        .fold(0i64, |total, offer| {
-            total.saturating_add(i64::try_from(offer.fee).unwrap_or(i64::MAX))
-        })
+    {
+        if offer.status == TransferOfferStatus::PendingRegistration {
+            let total = totals.entry(offer.from_team_id.clone()).or_insert(0i64);
+            *total = total.saturating_add(i64::try_from(offer.fee).unwrap_or(i64::MAX));
+        }
+    }
+    totals
 }
 
 pub(crate) fn available_transfer_budget(game: &Game, team: &Team) -> i64 {
@@ -164,9 +176,13 @@ mod tests {
             FeeBlock::TransferBudgetTooLow.error_key(),
             "be.error.transfers.transferBudgetTooLow"
         );
+        assert_eq!(
+            FeeBlock::TransferBudgetCommitted.error_key(),
+            "be.error.transfers.transferBudgetCommitted"
+        );
     }
 
-    /// Given a grid of cash, budget (including negatives) and fees, when the ceiling and the block
+    /// Given a grid of cash, budget (including negatives), commitments and fees, when the ceiling and the block
     /// are compared, then for every fee above zero `fee <= ceiling` exactly when nothing blocks it.
     #[test]
     fn the_ceiling_agrees_with_the_block_for_every_positive_fee() {
@@ -174,13 +190,15 @@ mod tests {
         for finance in amounts {
             for budget in amounts {
                 let team = club(finance, budget);
-                let ceiling = transfer_fee_ceiling(&team, 0);
-                for fee in [1u64, 2, 799, 800, 801, 5_000, 999_999, 1_000_000, 2_000_000] {
-                    assert_eq!(
-                        fee <= ceiling,
-                        fee_block(&team, fee, 0).is_ok(),
-                        "finance {finance}, budget {budget}, fee {fee}"
-                    );
+                for committed in [0, 1, 799, 5_000, 1_000_000] {
+                    let ceiling = transfer_fee_ceiling(&team, committed);
+                    for fee in [1u64, 2, 799, 800, 801, 5_000, 999_999, 1_000_000, 2_000_000] {
+                        assert_eq!(
+                            fee <= ceiling,
+                            fee_block(&team, fee, committed).is_ok(),
+                            "finance {finance}, budget {budget}, committed {committed}, fee {fee}"
+                        );
+                    }
                 }
             }
         }
