@@ -56,6 +56,24 @@ describe("fixture answers", () => {
   });
 
   /**
+   * Given a takers request that has the club's eleven's length but is not its eleven: one player
+   *       named eleven times, or one of the eleven swapped for a player outside it
+   * When the harness is asked
+   * Then it declines both, as a backend that picks only from the ids it is given would not hand
+   *      back the opening eleven's takers for them.
+   */
+  it("declines a takers request of the right length that is not the club's eleven", () => {
+    const [first, second] = autoSetPiecesFor;
+    const repeated = autoSetPiecesFor.map(() => first);
+    const swapped = [...autoSetPiecesFor.slice(0, -1), "a-player-outside-the-eleven"];
+    const duplicated = [first, ...autoSetPiecesFor.slice(1).map(() => second)];
+
+    expect(handlers.auto_select_set_pieces({ playerIds: repeated })).toBe(UNANSWERED);
+    expect(handlers.auto_select_set_pieces({ playerIds: swapped })).toBe(UNANSWERED);
+    expect(handlers.auto_select_set_pieces({ playerIds: duplicated })).toBe(UNANSWERED);
+  });
+
+  /**
    * Given the Tactics tab opening on the club
    * When it asks for the side the club would field
    * Then the harness gives the backend's projection generated for the club: an eleven, a bench and

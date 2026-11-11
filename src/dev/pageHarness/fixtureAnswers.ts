@@ -13,11 +13,19 @@ function forUserClub(teamId: unknown, answer: () => unknown): unknown {
   return teamId === USER_CLUB ? answer() : UNANSWERED;
 }
 
-/** Whether a list of ids names the same players as `expected`, in whatever order. */
+/**
+ * Whether a list of ids names exactly the players of `expected`, each once, in whatever order: the
+ * same length and every id there is not enough, as one player named eleven times has both.
+ */
 function sameIds(ids: unknown, expected: readonly string[]): boolean {
-  if (!Array.isArray(ids) || ids.length !== expected.length) return false;
+  if (!Array.isArray(ids)) return false;
+  const given = new Set<unknown>(ids);
   const wanted = new Set(expected);
-  return ids.every((id) => typeof id === "string" && wanted.has(id));
+  return (
+    given.size === ids.length &&
+    given.size === wanted.size &&
+    ids.every((id) => typeof id === "string" && wanted.has(id))
+  );
 }
 
 /** The same JSON whatever the key order: the page builds its query by spreading, Rust by serde. */
