@@ -306,15 +306,12 @@ fn scorer_display_name(full_name: &str, match_name: &str) -> String {
     let mut characters = match_name.chars();
     let starts_with_initial =
         characters.next().is_some_and(char::is_alphabetic) && characters.next() == Some('.');
-    if match_name.chars().any(char::is_whitespace) || starts_with_initial {
+    let first_name = full_name.split_whitespace().next();
+    if starts_with_initial || first_name == match_name.split_whitespace().next() {
         return match_name.to_string();
     }
 
-    let initial = full_name
-        .split_whitespace()
-        .next()
-        .filter(|first_name| *first_name != match_name)
-        .and_then(|first_name| first_name.chars().next());
+    let initial = first_name.and_then(|first_name| first_name.chars().next());
     match initial {
         Some(initial) => format!("{initial}. {match_name}"),
         None => match_name.to_string(),
