@@ -3,7 +3,13 @@ import { useTranslation } from "react-i18next";
 import { Search } from "lucide-react";
 import { GeneratedCrest } from "../../ui/GeneratedCrest";
 import { useAssetDataUrl } from "../../../hooks/useAssetDataUrl";
-import { EntityListFooter, EntityListShell, EntityRow, EntityRowList, ExportCsvButton } from "./shared";
+import {
+  EntityListFooter,
+  EntityListShell,
+  EntityRow,
+  EntityRowList,
+  ExportCsvButton,
+} from "./shared";
 import type { TeamDef } from "./types";
 import { entityRowKey } from "./helpers";
 

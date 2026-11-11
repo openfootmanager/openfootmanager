@@ -269,7 +269,10 @@ export function VirtualList<T>({
 
   // The window, plus the focused row if it has been scrolled out of it.
   const indexes: number[] = [];
-  const keepFocused = focusIndex !== null && focusIndex < count && (focusIndex < range.start || focusIndex >= range.end);
+  const keepFocused =
+    focusIndex !== null &&
+    focusIndex < count &&
+    (focusIndex < range.start || focusIndex >= range.end);
   if (keepFocused && focusIndex < range.start) indexes.push(focusIndex);
   for (let i = range.start; i < Math.min(range.end, count); i += 1) indexes.push(i);
   if (keepFocused && focusIndex >= range.end) indexes.push(focusIndex);

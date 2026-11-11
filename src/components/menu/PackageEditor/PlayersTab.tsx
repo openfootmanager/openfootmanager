@@ -4,7 +4,13 @@ import { Search } from "lucide-react";
 import { GeneratedAvatar } from "../../ui/GeneratedAvatar";
 import { useAssetDataUrl } from "../../../hooks/useAssetDataUrl";
 import { POSITION_COLOR, entityRowKey } from "./helpers";
-import { EntityListFooter, EntityListShell, EntityRow, EntityRowList, ExportCsvButton } from "./shared";
+import {
+  EntityListFooter,
+  EntityListShell,
+  EntityRow,
+  EntityRowList,
+  ExportCsvButton,
+} from "./shared";
 import { buildTeamNameMap } from "./entityList.helpers";
 import { filterPlayerRows, positionFilterGroups, type PositionFilter } from "./PlayersTab.helpers";
 import { Select } from "../../ui/Select";

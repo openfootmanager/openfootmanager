@@ -55,7 +55,10 @@ describe("windowRange", () => {
    * Then it is empty
    */
   it("is empty for no rows", () => {
-    expect(windowRange({ ...base, count: 0, scrollTop: 0, listTop: 0 })).toEqual({ start: 0, end: 0 });
+    expect(windowRange({ ...base, count: 0, scrollTop: 0, listTop: 0 })).toEqual({
+      start: 0,
+      end: 0,
+    });
   });
 
   /**
@@ -64,7 +67,10 @@ describe("windowRange", () => {
    * Then every row is in it
    */
   it("holds a short list whole", () => {
-    expect(windowRange({ ...base, count: 4, scrollTop: 0, listTop: 0 })).toEqual({ start: 0, end: 4 });
+    expect(windowRange({ ...base, count: 4, scrollTop: 0, listTop: 0 })).toEqual({
+      start: 0,
+      end: 4,
+    });
   });
 });
 
