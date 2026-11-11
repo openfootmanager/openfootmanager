@@ -50,7 +50,7 @@ describe("the player profile's cases", () => {
     expect(own.recentMatches.every((match) => match.opponent_team_id !== USER_CLUB)).toBe(true);
     expect(own.seasonStats.metrics.shots.total).toBeGreaterThan(0);
     for (const variant of HARNESS_PROFILES.filter(
-      (variant) => variant !== "own" && variant !== "keeper",
+      (variant) => !["own", "keeper", "injured", "loaned"].includes(variant),
     )) {
       expect(profileCase(variant).recentMatches).toEqual([]);
       expect(profileCase(variant).seasonStats.metrics.shots.total).toBe(0);
@@ -118,6 +118,27 @@ describe("the player profile's cases", () => {
     expect(keeper.knowledge).toEqual({ kind: "own" });
     expect(keeper.positionRatings?.rows[0].position).toBe("Goalkeeper");
     expect(keeper.positionRatings?.rows[0].weights).toEqual(positionWeights.Goalkeeper);
+  });
+
+  /**
+   * Given the club's own injured player and its own loaned-out player
+   * When their cases are built
+   * Then the first carries an injury and the second a loan from the user's club to a rival, in the
+   *      patch the harness lays over the world's player, so the profile's banners can be shown
+   */
+  it("gives the injured and the loaned-out player the state their banners show", () => {
+    const injured = profileCase("injured");
+    const loaned = profileCase("loaned");
+
+    expect(playerOf(injured.playerId)?.team_id).toBe(USER_CLUB);
+    expect(injured.playerPatch?.injury).toMatchObject({ days_remaining: 12 });
+    expect(loaned.playerPatch?.active_loan).toMatchObject({ parent_team_id: USER_CLUB });
+    expect(loaned.playerPatch?.active_loan?.loan_team_id).not.toBe(USER_CLUB);
+    expect(profileCase("own").playerPatch).toBeUndefined();
+    // The club's coaches watch a player they have loaned out no longer, so there is no opinion of
+    // his potential for the loaned player (`player_knowledge`); the injured one keeps his.
+    expect(loaned.opinion).toBeNull();
+    expect(injured.opinion).not.toBeNull();
   });
 
   /**

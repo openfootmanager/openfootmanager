@@ -254,6 +254,44 @@ describe("AwardsCeremonyScreen", () => {
   });
 
   /**
+   * Given an article-only winner at no club, while a real club happens to carry the same name as
+   *      the translated label
+   * When the ceremony is drawn with a team-selection handler
+   * Then the winner's team line is not a link to that club: the marker, not the display label,
+   *      says "no club".
+   */
+  it("does not link an article-only winner at no club to a club named like the label", () => {
+    const base = createGameState();
+    const gameState = {
+      ...base,
+      teams: [...base.teams, createTeam({ id: "team-9", name: "Free agent" })],
+    };
+    const article = {
+      id: "season_awards_6",
+      category: "Editorial",
+      i18n_params: {
+        season: "6",
+        goldenBootWinner: "Victor Vale",
+        goldenBootTeam: "common.freeAgent",
+        goldenBootGoals: "24",
+      },
+    } as unknown as NewsArticle;
+
+    render(
+      <AwardsCeremonyScreen
+        season={6}
+        leagueName="Premier League"
+        gameState={gameState}
+        article={article}
+        onSelectTeam={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText("Free agent")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Free agent" })).toBeNull();
+  });
+
+  /**
    * Given the awards of a season in a league stored under its English template name
    * When the ceremony subtitle is drawn
    * Then the league is named through the competition's name key and country, as every screen does.

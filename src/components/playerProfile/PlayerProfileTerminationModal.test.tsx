@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import PlayerProfileTerminationModal from "./PlayerProfileTerminationModal";
@@ -130,5 +130,25 @@ describe("PlayerProfileTerminationModal", () => {
     renderModal({ errorMessage: "Could not release this player." });
 
     expect(screen.getByText("Could not release this player.")).toBeInTheDocument();
+  });
+
+  /**
+   * Given the confirm button, enabled (the squad can still field a matchday XI) and disabled (it
+   *       cannot)
+   * When its label is read
+   * Then the span that owns the text carries the danger colour in both: the outline button sets
+   *      its own text colour, which would otherwise win over one set on the button
+   */
+  it("keeps the confirm label in the danger colour, enabled or disabled", () => {
+    renderModal();
+    const enabled = screen.getByText("Terminate Contract", { selector: "span" });
+    expect(enabled).toHaveClass("text-danger");
+    expect(enabled.closest("button")).toBeEnabled();
+    cleanup();
+
+    renderModal({ preview: buildPreview({ can_field_matchday_squad: false }) });
+    const disabled = screen.getByText("Terminate Contract", { selector: "span" });
+    expect(disabled).toHaveClass("text-danger");
+    expect(disabled.closest("button")).toBeDisabled();
   });
 });

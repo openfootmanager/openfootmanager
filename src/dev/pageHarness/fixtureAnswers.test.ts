@@ -250,4 +250,26 @@ describe("fixture answers: the profile's knowledge of players", () => {
     const answer = profileHandlers("own").get_player_match_history({ playerId, limit: 3 });
     expect(answer).toEqual(recentMatches.slice(0, 3));
   });
+
+  /**
+   * Given the profile open on the injured player, and on the club's own player
+   * When the active game is asked for
+   * Then the injured case's game holds his injury (the patch laid over him) and the other case's is
+   *      the fixture's game itself
+   */
+  it("lays the case's patch over the player in the active game", () => {
+    const injured = profileCase("injured");
+    const patched = fixtureHandlers(readStyleGuideOptions(""), "en", "injured").get_active_game(
+      {},
+    ) as {
+      players: { id: string; injury: unknown }[];
+    };
+
+    expect(patched.players.find((player) => player.id === injured.playerId)?.injury).toMatchObject({
+      days_remaining: 12,
+    });
+    expect(fixtureHandlers(readStyleGuideOptions(""), "en", "own").get_active_game({})).toBe(
+      gameState,
+    );
+  });
 });
