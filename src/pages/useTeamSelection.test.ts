@@ -450,6 +450,40 @@ describe("useTeamSelection club table", () => {
   });
 });
 
+describe("useTeamSelection: Manage does not wait for the club's facts", () => {
+  /**
+   * Given the backend's club facts are still pending, or the request failed
+   * When a club is chosen and the career is started
+   * Then `select_team` is sent the full default set all the same: Manage never waits on the facts, so
+   *      a failed ask cannot block a career, and the game adds the club's own competitions itself.
+   */
+  it.each([
+    ["pending", () => new Promise(() => {})],
+    ["failed", () => Promise.reject(new Error("the ratings could not be read"))],
+  ])("starts the career with the default scope while the facts are %s", async (_state, ratings) => {
+    vi.mocked(invoke).mockImplementation(async (command: string) =>
+      command === "get_team_selection_ratings"
+        ? ratings()
+        : { manager: { display_name: "Sam Boss" } },
+    );
+    const gameState = buildGameState();
+    const externals = { setGameState: vi.fn(), setGameActive: vi.fn(), navigate: vi.fn() };
+    const { result } = renderHook(() => useTeamSelection({ gameState, ...externals }));
+    act(() => result.current.setSelectedTeamId("team-1"));
+    expect(result.current.selectedClubFacts).toBeUndefined();
+
+    await act(async () => {
+      await result.current.handleConfirm();
+    });
+
+    expect(invoke).toHaveBeenCalledWith("select_team", {
+      teamId: "team-1",
+      activeRegionIds: ["asia", "europe", "south_america"],
+      activeCompetitionIds: ["epl", "intl", "asia_cup"],
+    });
+  });
+});
+
 describe("useTeamSelection ratings", () => {
   /**
    * Given the backend rates team-1's squad before the career (the club's average 73, a key player
