@@ -107,6 +107,13 @@ function buildGameState(): GameStateData {
   } as unknown as GameStateData;
 }
 
+/** The page's header bar: a plain lookup, as it is the only `header` the screen draws. */
+function pageHeader(): HTMLElement {
+  const header = document.querySelector("header");
+  if (!header) throw new Error("the page has no header");
+  return header;
+}
+
 function renderPage() {
   render(
     <ThemeProvider>
@@ -167,10 +174,130 @@ describe("TeamSelection", () => {
       "aria-pressed",
       "true",
     );
-    expect(screen.getByRole("button", { name: "teamSelect.manage" })).toBeEnabled();
+    expect(within(pageHeader()).getByRole("button", { name: "teamSelect.manage" })).toBeEnabled();
     const card = screen.getByRole("complementary", { name: "teamSelect.card.label" });
     expect(within(card).getByRole("heading", { name: "Alpha FC" })).toBeInTheDocument();
     expect(within(card).queryByText("teamSelect.card.emptyTitle")).toBeNull();
+  });
+
+  /**
+   * Given a club chosen
+   * When the chosen-club card is read
+   * Then it ends with a Manage button named like the header's, and before a club is chosen the card
+   *      has none (it only says to choose one).
+   */
+  it("puts a second Manage button at the foot of the chosen club's card", () => {
+    renderPage();
+    const card = screen.getByRole("complementary", { name: "teamSelect.card.label" });
+    expect(within(card).queryByRole("button", { name: "teamSelect.manage" })).toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: "Alpha FC" }));
+
+    expect(screen.getAllByRole("button", { name: "teamSelect.manage" })).toHaveLength(2);
+    expect(within(card).getByRole("button", { name: "teamSelect.manage" })).toBeEnabled();
+    expect(card.lastElementChild).toContainElement(
+      within(card).getByRole("button", { name: "teamSelect.manage" }),
+    );
+  });
+
+  /**
+   * Given a club chosen and the backend ready to start the career
+   * When the header's Manage is pressed, and in a fresh screen the card's
+   * Then each asks the backend for the same career: the same club with the same regions and
+   *      competitions, one request each (one handler, not two copies).
+   */
+  it("starts the same career from the header's Manage and the card's", async () => {
+    const requestsFrom = async (pressManage: () => void) => {
+      vi.mocked(invoke).mockReset();
+      vi.mocked(invoke).mockImplementation(async (command) =>
+        command === "select_team"
+          ? ({ manager: { display_name: "Sam Boss" } } as never)
+          : undefined,
+      );
+      renderPage();
+      fireEvent.click(screen.getByRole("button", { name: "Alpha FC" }));
+      pressManage();
+      await waitFor(() =>
+        expect(vi.mocked(invoke).mock.calls.filter(([c]) => c === "select_team")).toHaveLength(1),
+      );
+      const request = vi.mocked(invoke).mock.calls.find(([c]) => c === "select_team");
+      cleanup();
+      return request;
+    };
+
+    const fromHeader = await requestsFrom(() =>
+      fireEvent.click(within(pageHeader()).getByRole("button", { name: "teamSelect.manage" })),
+    );
+    const fromCard = await requestsFrom(() =>
+      fireEvent.click(
+        within(screen.getByRole("complementary", { name: "teamSelect.card.label" })).getByRole(
+          "button",
+          { name: "teamSelect.manage" },
+        ),
+      ),
+    );
+
+    expect(fromHeader?.[1]).toMatchObject({ teamId: "team-1" });
+    expect(fromCard).toEqual(fromHeader);
+  });
+
+  /**
+   * Given the career being started from the card's Manage (the request has not answered)
+   * When both buttons are read, and the header's is pressed too
+   * Then both read as confirming and are disabled, and no second request is made.
+   */
+  it("shows both Manage buttons as confirming while the career starts", async () => {
+    vi.mocked(invoke).mockImplementation(async (command) =>
+      command === "select_team" ? await new Promise<never>(() => {}) : undefined,
+    );
+    renderPage();
+    fireEvent.click(screen.getByRole("button", { name: "Alpha FC" }));
+
+    fireEvent.click(
+      within(screen.getByRole("complementary", { name: "teamSelect.card.label" })).getByRole(
+        "button",
+        { name: "teamSelect.manage" },
+      ),
+    );
+
+    await waitFor(() =>
+      expect(screen.getAllByRole("button", { name: "teamSelect.confirming" })).toHaveLength(2),
+    );
+    for (const button of screen.getAllByRole("button", { name: "teamSelect.confirming" })) {
+      expect(button).toBeDisabled();
+      fireEvent.click(button);
+    }
+    expect(vi.mocked(invoke).mock.calls.filter(([c]) => c === "select_team")).toHaveLength(1);
+  });
+
+  /**
+   * Given a club chosen
+   * When the keyboard's tab stops are listed in the order the page offers them
+   * Then the card's Manage is the first stop after the clubs table's last (nothing sits between the
+   *      table and it), and the header's Manage, which is the other way to the same career, is
+   *      before the table.
+   */
+  it("reaches the card's Manage right after the clubs table in tab order", () => {
+    renderPage();
+    fireEvent.click(screen.getByRole("button", { name: "Alpha FC" }));
+    const stops = [
+      ...document.querySelectorAll<HTMLElement>(
+        'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])',
+      ),
+    ];
+    const table = screen.getByRole("table", { name: "teamSelect.table.label" });
+    const lastInTable = stops.filter((stop) => table.contains(stop)).at(-1) as HTMLElement;
+    const cardManage = within(
+      screen.getByRole("complementary", { name: "teamSelect.card.label" }),
+    ).getByRole("button", { name: "teamSelect.manage" });
+    const headerManage = within(pageHeader()).getByRole("button", {
+      name: "teamSelect.manage",
+    });
+
+    expect(stops[stops.indexOf(lastInTable) + 1]).toBe(cardManage);
+    expect(stops.indexOf(headerManage)).toBeLessThan(
+      stops.indexOf(table.querySelector("button") as HTMLElement),
+    );
   });
 
   /**

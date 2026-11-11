@@ -1,4 +1,4 @@
-import { ArrowLeft, ChevronRight, Loader2, SlidersHorizontal } from "lucide-react";
+import { ArrowLeft, SlidersHorizontal } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
@@ -6,6 +6,7 @@ import { useNavigate } from "react-router-dom";
 import ChosenClubCard from "../components/teamSelection/ChosenClubCard";
 import ClubsTable from "../components/teamSelection/ClubsTable";
 import CountryLeagueRail from "../components/teamSelection/CountryLeagueRail";
+import ManageButton from "../components/teamSelection/ManageButton";
 import SimulationDialog from "../components/teamSelection/SimulationDialog";
 import TeamSelectionStepper from "../components/teamSelection/TeamSelectionStepper";
 import { Button, ThemeToggle } from "../components/ui";
@@ -98,20 +99,13 @@ export default function TeamSelection() {
               {t("teamSelect.card.emptyTitle")}
             </span>
           )}
-          <Button
+          <ManageButton
+            label={manageLabel}
             disabled={!selectedTeam || isConfirming}
-            aria-describedby={selectedTeam ? undefined : MANAGE_HINT_ID}
+            confirming={isConfirming}
+            describedBy={selectedTeam ? undefined : MANAGE_HINT_ID}
             onClick={handleConfirm}
-            iconRight={
-              isConfirming ? (
-                <Loader2 aria-hidden="true" className="animate-spin" />
-              ) : (
-                <ChevronRight aria-hidden="true" />
-              )
-            }
-          >
-            {manageLabel}
-          </Button>
+          />
         </div>
       </header>
 
@@ -154,6 +148,16 @@ export default function TeamSelection() {
               const player = playersById.get(playerId);
               return player ? calcAgeOnDate(player.date_of_birth, today) : null;
             }}
+            // The same action as the header's Manage, which a keyboard reaches right after the table.
+            action={
+              <ManageButton
+                className="w-full"
+                label={manageLabel}
+                disabled={!selectedTeam || isConfirming}
+                confirming={isConfirming}
+                onClick={handleConfirm}
+              />
+            }
           />
         </aside>
       </div>

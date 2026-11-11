@@ -100,6 +100,40 @@ describe("ChosenClubCard", () => {
   });
 
   /**
+   * Given an action for the chosen club (the page's Manage button), with a club and with none
+   * When the card is drawn
+   * Then the action ends the club's card, after its facts, and the empty card draws none.
+   */
+  it("ends the club's card with the page's action, and the empty card has none", () => {
+    const { unmount } = render(
+      <ChosenClubCard
+        team={TEAM}
+        average={74}
+        facts={FACTS}
+        competitions={[]}
+        ageOf={() => null}
+        action={<button type="button">Manage NBA</button>}
+      />,
+    );
+    const action = screen.getByRole("button", { name: "Manage NBA" });
+    const lastFact = screen.getByText("teamSelect.card.balance");
+    expect(lastFact.compareDocumentPosition(action)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+    unmount();
+
+    render(
+      <ChosenClubCard
+        team={null}
+        average={null}
+        facts={undefined}
+        competitions={[]}
+        ageOf={() => null}
+        action={<button type="button">Manage NBA</button>}
+      />,
+    );
+    expect(screen.queryByRole("button", { name: "Manage NBA" })).toBeNull();
+  });
+
+  /**
    * Given a club chosen and the backend's facts for it
    * When the card is drawn
    * Then it shows the reputation word and the board's opening expectation the backend names, its

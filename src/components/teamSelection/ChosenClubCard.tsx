@@ -1,5 +1,5 @@
 import { Shield } from "lucide-react";
-import { useId } from "react";
+import { type ReactNode, useId } from "react";
 import { useTranslation } from "react-i18next";
 
 import { useRatingTiers } from "../../hooks/useRatingTiers";
@@ -38,6 +38,8 @@ interface ChosenClubCardProps {
   competitions: readonly LeagueData[];
   /** A player's age on the game's date; null for one the game state does not hold. */
   ageOf: (playerId: string) => number | null;
+  /** The page's action for the chosen club (Manage), at the card's foot; not drawn with no club. */
+  action?: ReactNode;
 }
 
 function Fact({ label, value }: { label: string; value: string }) {
@@ -61,6 +63,7 @@ export default function ChosenClubCard({
   facts,
   competitions,
   ageOf,
+  action,
 }: ChosenClubCardProps) {
   const { t, i18n } = useTranslation();
   const tierOf = useRatingTiers();
@@ -101,6 +104,7 @@ export default function ChosenClubCard({
           <span>{t("teamSelect.card.founded", { year: team.founded_year })}</span>
         </>
       }
+      footer={action}
       hero={
         average === null ? NOT_YET : <RatingChip value={average} tier={tierOf(average)} size="md" />
       }
