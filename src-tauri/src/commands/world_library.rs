@@ -165,6 +165,12 @@ mod tests {
         std::fs::create_dir_all(&nested).unwrap();
         std::fs::write(dir.join("package.json"), r#"{"schema":"world","id":"test","name":"Test world","version":"1.0.0","license":"CC0-1.0"}"#).unwrap();
         std::fs::set_permissions(&nested, std::fs::Permissions::from_mode(0o0)).unwrap();
+        if std::fs::read_dir(&nested).is_ok() {
+            std::fs::set_permissions(&nested, std::fs::Permissions::from_mode(0o700)).unwrap();
+            std::fs::remove_dir_all(dir).unwrap();
+            eprintln!("Skipping permission assertion: directory remains readable");
+            return;
+        }
         let answer = worlds_library_internal(
             &[dir.to_string_lossy().into_owned()],
             Path::new("/nonexistent"),
