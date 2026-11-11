@@ -32,6 +32,25 @@ describe("validatePackageProject", () => {
     localStorage.clear();
   });
 
+  /** Given stored recents, when Validate returns, then the caller owns the only persistence update. */
+  it("does not write recent projects while fetching validation", async () => {
+    localStorage.setItem("worldEditor.recentProjects", JSON.stringify([{ path: "/p", name: "P", openedAt: "old" }]));
+    const write = vi.spyOn(Storage.prototype, "setItem");
+    invokeMock.mockResolvedValue({ issues: [], warnings: [] });
+    try {
+      await validatePackageProject("/p");
+      expect(write).not.toHaveBeenCalled();
+    } finally {
+      write.mockRestore();
+    }
+  });
+
+  /** Given diagnostics omit warnings, when Validate returns, then its issues still reach the caller. */
+  it("returns diagnostics when warnings are absent", async () => {
+    invokeMock.mockResolvedValue({ issues: [{ code: "x" }] });
+    await expect(validatePackageProject("/p")).resolves.toEqual({ issues: [{ code: "x" }], warnings: [] });
+  });
+
   /** Given an old recent record, when Validate reports findings, then the stored record is updated. */
   it("saves validation findings on an old recent project", async () => {
     vi.useFakeTimers();
