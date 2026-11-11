@@ -702,10 +702,28 @@ fn a_legacy_tournament_collision_is_repaired_without_replaying_wear() {
         }
     }
     game.clock.current_date = Utc.with_ymd_and_hms(2033, 2, 5, 12, 0, 0).unwrap();
-    assert!(ofm_core::catchup::repair_stranded_fixtures(&mut game) > 0);
-    assert_eq!(game.competitions[1].fixtures[0].date, "2033-02-04");
+    let saves = tempfile::tempdir().unwrap();
+    let mut writer = SaveManager::init(saves.path()).unwrap();
+    let save_id = writer
+        .create_save(&game, "Legacy tournament collision")
+        .unwrap();
+    let mut reader = SaveManager::init(saves.path()).unwrap();
+    let mut game = reader.load_game(&save_id).unwrap();
+    let qualifier = game
+        .competitions
+        .iter()
+        .flat_map(|c| &c.fixtures)
+        .find(|f| f.id == "qualifier-eng-fr")
+        .unwrap();
+    assert_eq!(qualifier.date, "2033-02-04");
+    assert_eq!(qualifier.status, FixtureStatus::Completed);
     assert_national_rest(&game);
+    let wear_and_ranking = serde_json::to_value((&game.players, &game.world_history)).unwrap();
     assert_eq!(ofm_core::catchup::repair_stranded_fixtures(&mut game), 0);
+    assert_eq!(
+        serde_json::to_value((&game.players, &game.world_history)).unwrap(),
+        wear_and_ranking
+    );
     complete_competing_tournaments(game, false);
 }
 
