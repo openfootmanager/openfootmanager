@@ -439,6 +439,73 @@ mod tests {
         MatchEvent::new(minute, event_type, side, Zone::attacking_box(side)).with_player(player)
     }
 
+    fn substitution(minute: u8, on: &str, off: &str) -> MatchEvent {
+        event(minute, EventType::Substitution, Side::Home, on).with_secondary(off)
+    }
+
+    fn reported_minutes(events: Vec<MatchEvent>, player: &str) -> u8 {
+        MatchReport::from_events_with_players(events, 0, 0, 90, vec![player.to_string()])
+            .player_stats[player]
+            .minutes_played
+    }
+
+    /// Given a substitute sent off five minutes after entering, when reported, then credit five minutes.
+    #[test]
+    fn substitute_sent_off_only_plays_until_dismissal() {
+        assert_eq!(
+            reported_minutes(
+                vec![
+                    substitution(60, "sub", "starter"),
+                    event(65, EventType::RedCard, Side::Home, "sub")
+                ],
+                "sub"
+            ),
+            5
+        );
+    }
+
+    /// Given a substitute later replaced, when reported, then credit only his time on the pitch.
+    #[test]
+    fn substitute_replaced_only_plays_until_exit() {
+        assert_eq!(
+            reported_minutes(
+                vec![
+                    substitution(60, "sub", "starter"),
+                    substitution(80, "other", "sub")
+                ],
+                "sub"
+            ),
+            20
+        );
+    }
+
+    /// Given a starter replaced at 60, when reported, then credit 60 minutes.
+    #[test]
+    fn starter_replaced_plays_until_exit() {
+        assert_eq!(
+            reported_minutes(vec![substitution(60, "sub", "starter")], "starter"),
+            60
+        );
+    }
+
+    /// Given a starter sent off at 65, when reported, then credit 65 minutes.
+    #[test]
+    fn starter_sent_off_plays_until_dismissal() {
+        assert_eq!(
+            reported_minutes(
+                vec![event(65, EventType::SecondYellow, Side::Home, "starter")],
+                "starter"
+            ),
+            65
+        );
+    }
+
+    /// Given a starter still playing at full time, when reported, then credit the whole match.
+    #[test]
+    fn starter_remaining_plays_the_whole_match() {
+        assert_eq!(reported_minutes(vec![], "starter"), 90);
+    }
+
     // Regression: shootout kicks used to be counted as match goals, inflating
     // the scoreline (1-1 won 4-3 on pens was reported as 5-4) and the
     // scorers' goal tallies.
