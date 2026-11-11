@@ -2705,22 +2705,6 @@ mod tests {
         std::fs::remove_dir_all(&data_dir).ok();
     }
 
-    /// A patch package whose one player is at a club that neither it nor anything it loads defines.
-    fn patch_naming_an_unknown_club() -> PathBuf {
-        let dir = temp_package();
-        write(
-            &dir,
-            "package.json",
-            r#"{"schema":"world","id":"patchy","name":"Patchy","version":"1.0.0","license":"CC0-1.0","packageType":"patch"}"#,
-        );
-        write(
-            &dir,
-            "players/players.json",
-            r#"{"schema":"player","items":[{"id":"p1","name":"P One","club":"ghost-fc","nationality":"ENG","position":"Striker","overall":70}]}"#,
-        );
-        dir
-    }
-
     /// A database package defining one club, "base-fc".
     fn base_with_one_club() -> PathBuf {
         let dir = temp_package();
