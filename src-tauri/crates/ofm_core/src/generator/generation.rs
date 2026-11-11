@@ -5,6 +5,7 @@ use rand::{Rng, RngExt};
 
 use super::authored_player::{is_valid_date_of_birth, resolve_authored_contract};
 use super::definitions::{NamePool, NamesDefinition};
+use crate::contracts::{contract_end_after, iso};
 use crate::nations;
 use crate::player_rating::{
     WONDERKID_MAX_AGE, generate_potential, move_attributes_to, natural_ovr, ovr_from_attributes,
@@ -1061,7 +1062,10 @@ pub(super) fn generate_random_player_from_def(
     } else {
         2
     };
-    let contract_end = format!("{}-06-30", opening_year.saturating_add(contract_years));
+    let contract_end = i32::try_from(opening_year)
+        .ok()
+        .and_then(|year| chrono::NaiveDate::from_ymd_opt(year, 1, 1))
+        .and_then(|start| contract_end_after(start, contract_years));
 
     let mut player = Player::new(
         p_id,
@@ -1075,7 +1079,7 @@ pub(super) fn generate_random_player_from_def(
     player.team_id = Some(team_id.to_string());
     player.market_value = market_value;
     player.stage_wage(wage);
-    player.stage_contract_end(Some(contract_end));
+    player.stage_contract_end(contract_end.map(iso));
     player.condition = rng.random_range(75..100);
     player.morale = rng.random_range(40..76);
 
@@ -1577,7 +1581,10 @@ pub(super) fn generate_player_from_def(
     } else {
         rng.random_range(1..4)
     };
-    let generated_contract_end = format!("{}-06-30", opening_year.saturating_add(contract_years));
+    let generated_contract_end = i32::try_from(opening_year)
+        .ok()
+        .and_then(|year| chrono::NaiveDate::from_ymd_opt(year, 1, 1))
+        .and_then(|start| contract_end_after(start, contract_years));
     // Validation is what tells an author their contract cannot be resolved. Generation
     // never panics on one and falls back to the roll, as it would for no contract.
     let authored_contract =
@@ -1610,12 +1617,7 @@ pub(super) fn generate_player_from_def(
     player.market_value = market_value;
     player.stage_wage(wage);
     player.stage_contract_start(authored_contract.start.map(contract_date));
-    player.stage_contract_end(Some(
-        authored_contract
-            .end
-            .map(contract_date)
-            .unwrap_or(generated_contract_end),
-    ));
+    player.stage_contract_end(authored_contract.end.or(generated_contract_end).map(iso));
     player.condition = def.condition.unwrap_or_else(|| rng.random_range(75..100));
     player.morale = def.morale.unwrap_or_else(|| rng.random_range(40..76));
     if let Some(ref foot_str) = def.footedness {

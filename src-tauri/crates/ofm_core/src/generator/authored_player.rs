@@ -9,8 +9,8 @@
 
 use super::MIN_OPENING_YEAR;
 use super::package::{PackageError, PlayerDef, UNKNOWN_TEAM};
-use crate::contracts::{MAX_CONTRACT_YEARS, parse_contract_date};
-use chrono::{Months, NaiveDate};
+use crate::contracts::{MAX_CONTRACT_YEARS, contract_end_after, parse_contract_date};
+use chrono::NaiveDate;
 use domain::player::{WEAK_FOOT_MAX, WEAK_FOOT_MIN};
 use std::collections::HashSet;
 
@@ -47,16 +47,6 @@ fn parse_authored_date(field: &'static str, value: &str) -> Result<NaiveDate, Co
         return Err(ContractError::InvalidDate(field));
     }
     parse_contract_date(value).ok_or(ContractError::InvalidDate(field))
-}
-
-fn add_years(
-    start: NaiveDate,
-    years: u32,
-    field: &'static str,
-) -> Result<NaiveDate, ContractError> {
-    start
-        .checked_add_months(Months::new(years.saturating_mul(12)))
-        .ok_or(ContractError::InvalidDate(field))
 }
 
 /// Whether `value` is a date of birth exactly as the package format writes it, `YYYY-MM-DD`.
@@ -110,7 +100,7 @@ pub(super) fn independent_contract_problems(def: &PlayerDef) -> Vec<ContractErro
 ///
 /// - An end date is kept exactly. It is correct for the period it was written for
 ///   and nowhere else, which is the author's choice to make.
-/// - A length counts whole years from the start when there is one, and otherwise
+/// - A length counts from the start year when there is one, and otherwise
 ///   from the year the career opens in, ending on 30 June as every generated
 ///   contract does. That is what lets one package be played in any era.
 /// - A start on its own is half an interval. Rather than invent an end, the length
@@ -138,11 +128,18 @@ pub(super) fn resolve_authored_contract(
     let end = match (end, def.contract_length, start) {
         (Some(end), _, _) => Some(end),
         (None, Some(length), start) => Some(match start {
-            Some(start) => add_years(start, length, "contractStart")?,
-            None => NaiveDate::from_ymd_opt(opening_year.saturating_add(length) as i32, 6, 30)
+            Some(start) => contract_end_after(start, length)
+                .ok_or(ContractError::InvalidDate("contractStart"))?,
+            None => i32::try_from(opening_year)
+                .ok()
+                .and_then(|year| NaiveDate::from_ymd_opt(year, 1, 1))
+                .and_then(|start| contract_end_after(start, length))
                 .ok_or(ContractError::InvalidDate("contractLength"))?,
         }),
-        (None, None, Some(start)) => Some(add_years(start, rolled_years, "contractStart")?),
+        (None, None, Some(start)) => Some(
+            contract_end_after(start, rolled_years)
+                .ok_or(ContractError::InvalidDate("contractStart"))?,
+        ),
         (None, None, None) => None,
     };
 

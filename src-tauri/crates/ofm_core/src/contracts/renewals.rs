@@ -574,8 +574,7 @@ pub(crate) fn apply_agreed_renewal(
     current_date: NaiveDate,
     agreed_by: RenewalAgreedBy,
 ) -> Result<(), String> {
-    let new_contract_end = current_date
-        .checked_add_months(Months::new(contract_years * 12))
+    let new_contract_end = contract_end_after(current_date, contract_years)
         .ok_or(ERR_UNABLE_TO_CALCULATE_CONTRACT_END_DATE.to_string())?;
     let today = current_date.format("%Y-%m-%d").to_string();
 

@@ -94,7 +94,7 @@ fn a_second_offer_on_the_day_a_renewal_was_agreed_is_refused() {
 
 /// Given player-1, who wants 14,000 a week
 /// When he is offered 14,000 for five years, the longest contract allowed
-/// Then he accepts, and his contract runs to 2031-08-01
+/// Then he accepts, and his contract runs to 2031-06-30
 #[test]
 fn a_five_year_renewal_at_the_expected_wage_is_accepted() {
     let mut game = make_game();
@@ -102,7 +102,7 @@ fn a_five_year_renewal_at_the_expected_wage_is_accepted() {
     let outcome = propose_renewal(&mut game, "player-1", offer(14_000, 5)).expect("an answer");
 
     assert!(matches!(outcome.decision, RenewalDecision::Accepted));
-    assert_eq!(game.players[0].contract_end(), Some("2031-08-01"));
+    assert_eq!(game.players[0].contract_end(), Some("2031-06-30"));
 }
 
 /// Given player-1 with no renewal talks on record
