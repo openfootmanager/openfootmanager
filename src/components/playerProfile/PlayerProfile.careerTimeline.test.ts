@@ -58,7 +58,12 @@ const BOARD_CAREER = [
   stint(2025, "north", "Northbridge", 33, 15, 8),
 ];
 const BOARD_MOVES = [
-  move({ date: "2020-07-01", kind: "initial_contract", to_team_id: "ash", to_team_name: "Ashford" }),
+  move({
+    date: "2020-07-01",
+    kind: "initial_contract",
+    to_team_id: "ash",
+    to_team_name: "Ashford",
+  }),
   move({
     date: "2024-01-02",
     kind: "loan_start",
@@ -244,7 +249,12 @@ describe("buildCareerTimeline", () => {
     const timeline = buildCareerTimeline(
       input({
         career: [stint(2025, "north", "North FC", 30, 5, 2)],
-        current: { season: 2026, club: null, stats: { appearances: 0, goals: 0, assists: 0 }, onLoan: false },
+        current: {
+          season: 2026,
+          club: null,
+          stats: { appearances: 0, goals: 0, assists: 0 },
+          onLoan: false,
+        },
       }),
     );
 
@@ -262,9 +272,24 @@ describe("buildCareerTimeline", () => {
       input({
         career: [stint(2025, "north", "North FC", 30, 5, 2)],
         movements: [
-          move({ date: "2025-07-01", kind: "renewal", to_team_id: "north", to_team_name: "North FC" }),
-          move({ date: "", kind: "permanent_transfer", to_team_id: "north", to_team_name: "North FC" }),
-          move({ date: "2026-06-30", kind: "loan_return", to_team_id: "north", to_team_name: "North FC" }),
+          move({
+            date: "2025-07-01",
+            kind: "renewal",
+            to_team_id: "north",
+            to_team_name: "North FC",
+          }),
+          move({
+            date: "",
+            kind: "permanent_transfer",
+            to_team_id: "north",
+            to_team_name: "North FC",
+          }),
+          move({
+            date: "2026-06-30",
+            kind: "loan_return",
+            to_team_id: "north",
+            to_team_name: "North FC",
+          }),
         ],
       }),
     );
