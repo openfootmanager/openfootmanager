@@ -1711,6 +1711,15 @@
     }
   },
   "playerProfile": {
+    "sections": "Sezioni del profilo",
+    "overall": "Complessivo",
+    "ratingUnknown": "Il tuo club non conosce la sua valutazione",
+    "tabs": {
+      "overview": "Panoramica",
+      "attributes": "Attributi",
+      "career": "Carriera",
+      "contract": "Contratto"
+    },
     "contractInfo": "Contratto e info",
     "dateOfBirth": "Data di nascita",
     "noContract": "Nessun contratto",

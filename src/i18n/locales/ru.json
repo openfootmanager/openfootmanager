@@ -1692,6 +1692,15 @@
     }
   },
   "playerProfile": {
+    "sections": "Разделы профиля",
+    "overall": "Общий",
+    "ratingUnknown": "Ваш клуб не знает его рейтинг",
+    "tabs": {
+      "overview": "Обзор",
+      "attributes": "Атрибуты",
+      "career": "Карьера",
+      "contract": "Контракт"
+    },
     "contractInfo": "Контракт и информация",
     "dateOfBirth": "Дата рождения",
     "noContract": "Без контракта",

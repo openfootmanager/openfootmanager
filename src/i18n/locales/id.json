@@ -1692,6 +1692,15 @@
     }
   },
   "playerProfile": {
+    "sections": "Bagian profil",
+    "overall": "Keseluruhan",
+    "ratingUnknown": "Klubmu tidak mengetahui peringkatnya",
+    "tabs": {
+      "overview": "Ikhtisar",
+      "attributes": "Atribut",
+      "career": "Karier",
+      "contract": "Kontrak"
+    },
     "contractInfo": "Kontrak & Info",
     "dateOfBirth": "Tanggal Lahir",
     "noContract": "Tanpa kontrak",

@@ -1692,6 +1692,15 @@
     }
   },
   "playerProfile": {
+    "sections": "Sekce profilu",
+    "overall": "Celkově",
+    "ratingUnknown": "Váš klub jeho hodnocení nezná",
+    "tabs": {
+      "overview": "Přehled",
+      "attributes": "Atributy",
+      "career": "Kariéra",
+      "contract": "Smlouva"
+    },
     "contractInfo": "Smlouva a info",
     "dateOfBirth": "Datum narození",
     "noContract": "Bez smlouvy",

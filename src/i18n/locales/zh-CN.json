@@ -1692,6 +1692,15 @@
     }
   },
   "playerProfile": {
+    "sections": "个人资料分区",
+    "overall": "综合",
+    "ratingUnknown": "你的俱乐部不了解他的评分",
+    "tabs": {
+      "overview": "概览",
+      "attributes": "属性",
+      "career": "职业生涯",
+      "contract": "合同"
+    },
     "contractInfo": "合同与信息",
     "dateOfBirth": "出生日期",
     "noContract": "无合同",
