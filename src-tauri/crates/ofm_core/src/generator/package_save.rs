@@ -640,6 +640,7 @@ fn empty_names_like(names: &NamesDefinition) -> NamesDefinition {
 mod tests {
     use super::*;
     use crate::generator::package::load_world_package_files;
+    use serde_json::json;
 
     /// A package directory holding `files` (relative path, contents), under a fresh temp dir.
     fn package_dir(files: &[(&str, &str)]) -> std::path::PathBuf {
