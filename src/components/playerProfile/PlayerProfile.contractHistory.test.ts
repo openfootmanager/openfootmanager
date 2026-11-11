@@ -310,4 +310,41 @@ describe("buildContractHistory", () => {
 
     expect(rows[0]).toMatchObject({ inForce: false, endedBy: "retired" });
   });
+
+  /**
+   * Given a contract terminated in 2030 and, in 2031, a free-agent signing that starts before the
+   *       old contract's planned end
+   * When the history is built
+   * Then the terminated contract says it was terminated and never that it was "replaced": nothing
+   *      took over from a contract that was already closed
+   */
+  it("does not say a closed contract was replaced by a later free-agent signing", () => {
+    const rows = buildContractHistory(
+      [
+        signing("2029-07-01", "North FC", {
+          start: "2029-07-01",
+          end: "2033-06-30",
+          weekly_wage: 7000,
+        }),
+        {
+          date: "2030-03-01",
+          kind: "released",
+          from_team_id: "North FC",
+          release_reason: "terminated",
+        },
+        signing(
+          "2031-02-01",
+          "South FC",
+          { start: "2031-02-01", end: "2034-06-30", weekly_wage: 9000 },
+          "free_agent_signing",
+          "free_agent",
+        ),
+      ],
+      TODAY,
+    );
+
+    expect(rows[1]).toMatchObject({ endedBy: "terminated", endedOn: "2030-03-01" });
+    expect(rows[1].replacedOn).toBeNull();
+    expect(rows[0].inForce).toBe(true);
+  });
 });
