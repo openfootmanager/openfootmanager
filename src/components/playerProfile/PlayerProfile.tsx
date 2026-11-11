@@ -154,7 +154,7 @@ export default function PlayerProfile({
         tab={tab}
         onTabChange={setTab}
         player={player}
-        gameState={gameState}
+        currentDate={gameState.clock.current_date}
         canSetTacticalRole={isOwnClub && Boolean(onGameUpdate)}
         relationship={relationship}
         data={data}
@@ -165,7 +165,7 @@ export default function PlayerProfile({
 
       <PlayerProfileModals
         player={player}
-        gameState={gameState}
+        teams={gameState.teams}
         actions={actions}
         hasAssistantManager={relationship.hasAssistantManager}
       />

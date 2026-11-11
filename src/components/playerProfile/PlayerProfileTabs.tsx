@@ -1,7 +1,7 @@
 import { useId } from "react";
 import { useTranslation } from "react-i18next";
 
-import type { GameStateData, PlayerData } from "../../store/gameStore";
+import type { PlayerData } from "../../store/gameStore";
 import type { PlayerRole } from "../../store/types";
 import { TabPanel, Tabs } from "../ui";
 import { visibleWageText } from "../../lib/playerKnowledge";
@@ -28,7 +28,8 @@ interface PlayerProfileTabsProps {
   tab: ProfileTab;
   onTabChange: (tab: ProfileTab) => void;
   player: PlayerData;
-  gameState: GameStateData;
+  /** The game's date, for the years left on his contract. */
+  currentDate: string;
   /** The own club's player in a screen that can edit (the role select is his alone). */
   canSetTacticalRole: boolean;
   relationship: ReturnType<typeof buildPlayerProfileRelationship>;
@@ -43,7 +44,7 @@ export default function PlayerProfileTabs({
   tab,
   onTabChange,
   player,
-  gameState,
+  currentDate,
   canSetTacticalRole,
   relationship,
   data,
@@ -143,7 +144,7 @@ export default function PlayerProfileTabs({
       >
         <PlayerProfileContractCard
           contractEnd={player.contract_end}
-          currentDate={gameState.clock.current_date}
+          currentDate={currentDate}
           isOwnClub={isManagerOwnedProfile}
           isFreeAgent={isFreeAgent}
           hasLetExpireIntent={hasLetExpireIntent}

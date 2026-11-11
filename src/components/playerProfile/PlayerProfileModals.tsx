@@ -1,6 +1,6 @@
 import { useTranslation } from "react-i18next";
 
-import type { GameStateData, PlayerData } from "../../store/gameStore";
+import type { PlayerData, TeamData } from "../../store/gameStore";
 import FreeAgentContractModal from "../transfers/FreeAgentContractModal";
 import TransferBidModal from "../transfers/TransferBidModal";
 import type { PlayerProfileActions } from "./usePlayerProfileActions";
@@ -9,7 +9,7 @@ import PlayerProfileTerminationModal from "./PlayerProfileTerminationModal";
 
 interface PlayerProfileModalsProps {
   player: PlayerData;
-  gameState: GameStateData;
+  teams: TeamData[];
   actions: PlayerProfileActions;
   hasAssistantManager: boolean;
 }
@@ -17,7 +17,7 @@ interface PlayerProfileModalsProps {
 /** The profile's dialogs: bidding, signing a free agent, renewing a contract and terminating it. */
 export default function PlayerProfileModals({
   player,
-  gameState,
+  teams,
   actions,
   hasAssistantManager,
 }: PlayerProfileModalsProps) {
@@ -28,7 +28,7 @@ export default function PlayerProfileModals({
       {bid.bidTarget && (
         <TransferBidModal
           bidTarget={bid.bidTarget}
-          teams={gameState.teams}
+          teams={teams}
           bidAmount={bid.bidAmount}
           onBidAmountChange={bid.setBidAmount}
           myTeam={bid.myTeam}
@@ -48,7 +48,7 @@ export default function PlayerProfileModals({
       {freeAgent.freeAgentTarget && (
         <FreeAgentContractModal
           player={freeAgent.freeAgentTarget}
-          teams={gameState.teams}
+          teams={teams}
           wage={freeAgent.contractWage}
           onWageChange={freeAgent.setContractWage}
           contractLength={freeAgent.contractLength}
