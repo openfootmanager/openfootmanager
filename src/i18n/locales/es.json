@@ -1704,6 +1704,20 @@
   "playerProfile": {
     "sections": "Secciones del perfil",
     "overview": {
+      "axes": {
+        "pace": "VEL",
+        "shooting": "DIS",
+        "dribbling": "REG",
+        "passing": "PAS",
+        "vision": "VIS",
+        "composure": "COM",
+        "strength": "FUE",
+        "aerial": "AÉR",
+        "handling": "BLO",
+        "reflexes": "REF",
+        "agility": "AGI",
+        "stamina": "RES"
+      },
       "now": "Ahora",
       "details": "Detalles",
       "previousMatches": "Partidos anteriores",

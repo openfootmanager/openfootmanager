@@ -14,7 +14,7 @@ import type { PlayerRecentMatchEntry } from "../PlayerProfile.helpers";
 import ProfileLoadFailed, { RetryButton } from "../ProfileLoadFailed";
 import type { KnowledgeAnswer } from "../../../hooks/useKnowledgeAnswer";
 import { OverviewCard, OverviewRow } from "./OverviewCard";
-import { formOf, GOALKEEPER_AXES, OUTFIELD_AXES, resultOf, shortLabels } from "./overviewModel";
+import { formOf, GOALKEEPER_AXES, OUTFIELD_AXES, resultOf } from "./overviewModel";
 import { isGoalkeeper } from "../PlayerProfile.attributes";
 import { PlayerProfileRadar, type RadarAxis } from "./PlayerProfileRadar";
 
@@ -332,10 +332,9 @@ function AttributesCard({ player, ratings, attributes }: PlayerProfileOverviewPr
   // which of them are drawn heavier.
   const shown = isGoalkeeper(player) ? GOALKEEPER_AXES : OUTFIELD_AXES;
   const names = shown.map((attribute) => t(`common.attributes.${attribute}`));
-  const short = shortLabels(names);
   const axes: RadarAxis[] = shown.map((attribute, index) => ({
     label: names[index],
-    short: short[index],
+    short: t(`playerProfile.overview.axes.${attribute}`),
     value: attributes[attribute],
     key: keyAttributes.has(attribute),
   }));

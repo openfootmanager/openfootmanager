@@ -1704,6 +1704,20 @@
   "playerProfile": {
     "sections": "Sekce profilu",
     "overview": {
+      "axes": {
+        "pace": "RYC",
+        "shooting": "STŘ",
+        "dribbling": "DRI",
+        "passing": "PŘI",
+        "vision": "PŘE",
+        "composure": "KLI",
+        "strength": "SÍL",
+        "aerial": "VZD",
+        "handling": "CHY",
+        "reflexes": "REF",
+        "agility": "ABI",
+        "stamina": "VYT"
+      },
       "now": "Teď",
       "details": "Podrobnosti",
       "previousMatches": "Předchozí zápasy",

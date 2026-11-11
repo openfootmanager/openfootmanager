@@ -1704,6 +1704,20 @@
   "playerProfile": {
     "sections": "Bagian profil",
     "overview": {
+      "axes": {
+        "pace": "KEC",
+        "shooting": "TEM",
+        "dribbling": "DRI",
+        "passing": "UMP",
+        "vision": "VIS",
+        "composure": "KET",
+        "strength": "KEK",
+        "aerial": "UDA",
+        "handling": "MEN",
+        "reflexes": "REF",
+        "agility": "KEL",
+        "stamina": "STA"
+      },
       "now": "Sekarang",
       "details": "Detail",
       "previousMatches": "Pertandingan sebelumnya",

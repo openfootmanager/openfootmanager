@@ -1704,6 +1704,20 @@
   "playerProfile": {
     "sections": "个人资料分区",
     "overview": {
+      "axes": {
+        "pace": "速度",
+        "shooting": "射门",
+        "dribbling": "盘带",
+        "passing": "传球",
+        "vision": "视野",
+        "composure": "镇定",
+        "strength": "力量",
+        "aerial": "制空",
+        "handling": "扑接",
+        "reflexes": "反应",
+        "agility": "敏捷",
+        "stamina": "耐力"
+      },
       "now": "当前",
       "details": "详情",
       "previousMatches": "近期比赛",

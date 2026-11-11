@@ -42,27 +42,3 @@ export function formOf(matches: readonly PlayerRecentMatchEntry[], count = 5): M
     .map((match) => resultOf(match))
     .reverse();
 }
-
-const HAN = /[\u3400-\u9fff]/;
-
-/**
- * Each name shortened for a radar axis: its first three letters, upper-cased (its first two
- * characters for a Chinese name). Names that would collide, as two that begin alike in some
- * languages do, are lengthened one letter at a time until every label differs.
- */
-export function shortLabels(names: readonly string[]): string[] {
-  // Letters only: a space in a short label would read as two words.
-  const letters = names.map((name) => name.replace(/\s+/g, ""));
-  const lengths = letters.map((name) => (HAN.test(name) ? 2 : 3));
-  const label = (index: number) => letters[index].slice(0, lengths[index]).toUpperCase();
-  for (let pass = 0; pass < 16; pass += 1) {
-    const labels = letters.map((_, index) => label(index));
-    const clashing = labels
-      .map((value, index) => ({ value, index }))
-      .filter(({ value }) => labels.filter((other) => other === value).length > 1)
-      .filter(({ index }) => lengths[index] < letters[index].length);
-    if (clashing.length === 0) break;
-    for (const { index } of clashing) lengths[index] += 1;
-  }
-  return letters.map((_, index) => label(index));
-}

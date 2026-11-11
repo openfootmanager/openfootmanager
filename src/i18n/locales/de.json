@@ -1704,6 +1704,20 @@
   "playerProfile": {
     "sections": "Profilbereiche",
     "overview": {
+      "axes": {
+        "pace": "TEM",
+        "shooting": "SCH",
+        "dribbling": "DRI",
+        "passing": "PAS",
+        "vision": "ÜBS",
+        "composure": "GEL",
+        "strength": "STÄ",
+        "aerial": "KOP",
+        "handling": "FAN",
+        "reflexes": "REF",
+        "agility": "AGI",
+        "stamina": "AUS"
+      },
       "now": "Jetzt",
       "details": "Details",
       "previousMatches": "Letzte Spiele",
