@@ -173,26 +173,35 @@ pub fn finish_live_match(
 
 /// Apply a team talk and return per-player morale changes.
 /// tone: "calm" | "motivational" | "assertive" | "aggressive" | "praise" | "disappointed"
-/// context: "winning" | "losing" | "drawing"
+///
+/// The context (winning, losing, drawing) is the game's to say, from the score: it is not asked
+/// for, so a caller cannot choose the one its talk reads best in.
 #[tauri::command]
 pub fn apply_team_talk(
     state: State<'_, Arc<StateManager>>,
     tone: String,
-    context: String,
     career_token: u64,
 ) -> Result<Vec<serde_json::Value>, String> {
-    info!("[cmd] apply_team_talk: tone={}, context={}", tone, context);
-    apply_team_talk_on(&state, Career::Token(career_token), &tone, &context)
+    info!("[cmd] apply_team_talk: tone={}", tone);
+    apply_team_talk_on(&state, Career::Token(career_token), &tone).map(|talk| talk.changes)
 }
 
-/// Applies a team talk to the career `career` names and returns the morale changes; refused if
-/// another career is active. The command and the MCP tool share it.
+/// A team talk as the game gave it.
+pub struct TeamTalkOutcome {
+    /// How the match stood for the user's side when the talk was given.
+    pub context: &'static str,
+    /// Each player's morale change.
+    pub changes: Vec<serde_json::Value>,
+}
+
+/// Applies a team talk to the career `career` names; refused if another career is active. The
+/// command and the MCP tool share it.
 pub fn apply_team_talk_on(
     state: &StateManager,
     career: Career,
     tone: &str,
-    context: &str,
-) -> Result<Vec<serde_json::Value>, String> {
+) -> Result<TeamTalkOutcome, String> {
+    let context = "drawing";
     // apply_team_talk validates (team assigned) before mutating morale.
     let phase = live_phase_tag(state);
     state
@@ -201,6 +210,7 @@ pub fn apply_team_talk_on(
             apply_team_talk_internal(game, tone, context, seed)
         })
         .and_then(|talk| talk)
+        .map(|changes| TeamTalkOutcome { context, changes })
 }
 
 /// Process press conference answers: generate news article, affect squad morale.
@@ -2133,7 +2143,7 @@ mod live_session_tests {
     /// Given a game in career 3 and a screen holding career 5's token
     /// When a team talk and a press conference arrive
     /// Then both are refused with the career-changed key and the game is untouched; the right
-    ///      token reaches the team talk and applies it.
+    ///      token is not refused for its career.
     #[test]
     fn a_team_talk_and_a_press_conference_for_a_replaced_career_are_refused() {
         use ofm_core::state::Career;
@@ -2148,7 +2158,7 @@ mod live_session_tests {
         let key = Some("be.error.careerChanged".to_string());
 
         assert_eq!(
-            super::apply_team_talk_on(&state, Career::Token(5), "calm", "drawing").err(),
+            super::apply_team_talk_on(&state, Career::Token(5), "calm").err(),
             key
         );
         assert_eq!(
@@ -2157,11 +2167,159 @@ mod live_session_tests {
         );
 
         assert_eq!(game_json(&state), before);
-        assert!(super::apply_team_talk_on(&state, Career::Token(3), "calm", "drawing").is_ok());
+        assert_ne!(
+            super::apply_team_talk_on(&state, Career::Token(3), "calm").err(),
+            key,
+            "the right token reaches the team talk itself"
+        );
         assert_ne!(
             super::submit_press_conference_on(&state, Career::Token(3), &[]).err(),
             key,
             "the right token reaches the press conference itself"
+        );
+    }
+
+    /// A live match the user plays, stepped on to half-time (the step stops there for the talk).
+    fn state_at_half_time() -> StateManager {
+        let state = StateManager::new();
+        state.set_game(make_game_with_matchday());
+        live_match::start_live_match_with_identity(
+            &state,
+            ofm_core::state::Career::Active,
+            0,
+            "live",
+            false,
+            None,
+            None,
+        )
+        .unwrap();
+        live_match::step_live_match(&state, ofm_core::state::Career::Active, 60).unwrap();
+        let snapshot = live_match::get_match_snapshot(&state).unwrap();
+        assert_eq!(
+            format!("{:?}", snapshot.phase),
+            "HalfTime",
+            "the helper reached the interval"
+        );
+        state
+    }
+
+    fn squad_morale(state: &StateManager) -> Vec<(String, u8)> {
+        state
+            .get_game(|game| {
+                game.players
+                    .iter()
+                    .map(|player| (player.id.clone(), player.morale))
+                    .collect()
+            })
+            .unwrap()
+    }
+
+    /// Given a game with a match scheduled today but not begun
+    /// When a team talk is given
+    /// Then it is refused as not at a break, and no player's morale moves (#1194: an agent could
+    ///      talk on any day with no match at all)
+    #[test]
+    fn a_team_talk_with_no_match_to_talk_about_is_refused_and_moves_no_morale() {
+        let state = StateManager::new();
+        state.set_game(make_game_with_matchday());
+        let before = squad_morale(&state);
+
+        let result = super::apply_team_talk_on(&state, ofm_core::state::Career::Active, "calm");
+
+        assert_eq!(
+            result.err().as_deref(),
+            Some("be.error.teamTalk.notAtABreak")
+        );
+        assert_eq!(squad_morale(&state), before);
+    }
+
+    /// Given a live match in its first half
+    /// When a team talk is given
+    /// Then it is refused as not at a break and no morale moves: the screen offers none until
+    ///      half-time
+    #[test]
+    fn a_team_talk_mid_half_is_refused_and_moves_no_morale() {
+        let state = state_at_minute_thirty();
+        let before = squad_morale(&state);
+
+        let result = super::apply_team_talk_on(&state, ofm_core::state::Career::Active, "calm");
+
+        assert_eq!(
+            result.err().as_deref(),
+            Some("be.error.teamTalk.notAtABreak")
+        );
+        assert_eq!(squad_morale(&state), before);
+    }
+
+    /// Given a match at half-time
+    /// When the manager gives a talk, then another with a different tone (as an agent could, to
+    ///      get round the damping a repeated talk gets)
+    /// Then the first is applied and the second refused as already given, with every player's
+    ///      morale as the first left it
+    #[test]
+    fn a_second_team_talk_in_the_same_half_time_is_refused() {
+        let state = state_at_half_time();
+        let career = ofm_core::state::Career::Active;
+
+        let first = super::apply_team_talk_on(&state, career, "motivational");
+        let after_first = squad_morale(&state);
+        let second = super::apply_team_talk_on(&state, career, "aggressive");
+
+        assert!(first.is_ok(), "{:?}", first.err());
+        assert_eq!(
+            second.err().as_deref(),
+            Some("be.error.teamTalk.alreadyGiven")
+        );
+        assert_eq!(squad_morale(&state), after_first);
+    }
+
+    /// Given a match at half-time, with whatever score it has
+    /// When a team talk is given
+    /// Then its context is the user's side's view of that score: the caller no longer chooses it
+    #[test]
+    fn the_team_talk_context_comes_from_the_score() {
+        let state = state_at_half_time();
+        let snapshot = live_match::get_match_snapshot(&state).unwrap();
+        let side = state
+            .with_live_match(|session| session.user_side)
+            .unwrap()
+            .unwrap();
+        let (mine, theirs) = if side == engine::Side::Home {
+            (snapshot.home_score, snapshot.away_score)
+        } else {
+            (snapshot.away_score, snapshot.home_score)
+        };
+        let expected = match mine.cmp(&theirs) {
+            std::cmp::Ordering::Greater => "winning",
+            std::cmp::Ordering::Less => "losing",
+            std::cmp::Ordering::Equal => "drawing",
+        };
+
+        let talk =
+            super::apply_team_talk_on(&state, ofm_core::state::Career::Active, "calm").unwrap();
+
+        assert_eq!(talk.context, expected);
+    }
+
+    /// Given a match whose half-time talk was given, and which is then finished (the screen's
+    ///       post-match tab comes after the match is cleared)
+    /// When a post-match talk is given, then another
+    /// Then the first is allowed (a different moment from half-time) and the second refused
+    #[test]
+    fn the_post_match_team_talk_is_allowed_once_after_the_half_time_one() {
+        let state = state_at_half_time();
+        let career = ofm_core::state::Career::Active;
+        super::apply_team_talk_on(&state, career, "calm").unwrap();
+        live_match::step_live_match(&state, career, 120).unwrap();
+        live_match::finish_live_match(&state, career).unwrap();
+
+        let post_match = super::apply_team_talk_on(&state, career, "praise");
+        let again = super::apply_team_talk_on(&state, career, "praise");
+
+        assert!(post_match.is_ok(), "{:?}", post_match.err());
+        assert_eq!(
+            again.err().as_deref(),
+            Some("be.error.teamTalk.alreadyGiven")
         );
     }
 
