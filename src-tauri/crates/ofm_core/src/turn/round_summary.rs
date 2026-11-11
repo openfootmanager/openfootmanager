@@ -269,7 +269,7 @@ fn build_top_scorer_delta(
 
             Some(ScorerSnapshot {
                 player_id: player.id.clone(),
-                player_name: player.match_name.clone(),
+                player_name: scorer_display_name(&player.full_name, &player.match_name),
                 team_id: player.team_id.clone().unwrap_or_default(),
                 previous_goals,
                 current_goals,
@@ -300,6 +300,16 @@ fn build_top_scorer_delta(
     });
 
     deltas
+}
+
+fn scorer_display_name(full_name: &str, match_name: &str) -> String {
+    let initial = full_name
+        .strip_suffix(match_name)
+        .and_then(|prefix| prefix.trim().chars().next());
+    match initial {
+        Some(initial) => format!("{initial}. {match_name}"),
+        None => match_name.to_string(),
+    }
 }
 
 fn scorer_ranks(
