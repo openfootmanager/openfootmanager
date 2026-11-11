@@ -45,6 +45,7 @@ function pickPlayers(players: PlayerData[]) {
   const [scouted, unknown, retiree] = freeAgents(players);
   return {
     own: outfield(ofClub(players))[0],
+    keeper: ofClub(players).find((p) => p.position === "Goalkeeper") ?? ofClub(players)[0],
     rival: outfield(rivals(players))[0],
     scouted,
     unknown,
@@ -155,7 +156,7 @@ function opinionOf(player: PlayerData, source: PotentialOpinion["source"]): Pote
  * facts only; a retiree fetched on his own.
  */
 export function profileCase(variant: HarnessProfile): ProfileCase {
-  const { own, rival, scouted, unknown, retiree } = pickPlayers(gameState.players);
+  const { own, keeper, rival, scouted, unknown, retiree } = pickPlayers(gameState.players);
   const none = {
     opinion: null,
     positionRatings: null,
@@ -173,6 +174,17 @@ export function profileCase(variant: HarnessProfile): ProfileCase {
         wage: { kind: "exact", weekly: own.wage },
         opinion: opinionOf(own, { kind: "coaches" }),
         positionRatings: positionRatingsOf(own, { kind: "live" }),
+        recentMatches: fiveMatches(),
+        seasonStats: A_SEASON,
+      };
+    case "keeper":
+      return {
+        ...none,
+        playerId: keeper.id,
+        knowledge: { kind: "own" },
+        wage: { kind: "exact", weekly: keeper.wage },
+        opinion: opinionOf(keeper, { kind: "coaches" }),
+        positionRatings: positionRatingsOf(keeper, { kind: "live" }),
         recentMatches: fiveMatches(),
         seasonStats: A_SEASON,
       };

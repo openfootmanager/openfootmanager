@@ -32,7 +32,7 @@ const PAGES = ["home", "squad", "players", "teams", "managers", "staff"];
  * The player profile, which looks different for each way the club can know a player (HARNESS_PROFILES
  * in the same file; a test holds them equal): measured in each, at every window.
  */
-const PROFILES = ["own", "rival", "scouted", "unknown", "retired"];
+const PROFILES = ["own", "keeper", "rival", "scouted", "unknown", "retired"];
 
 /**
  * The lists whose cards draw on the shared card shell, measured in their cards view too: a card that

@@ -44,12 +44,14 @@ describe("the player profile's cases", () => {
    *      season totals above zero, so the layout check measures the populated sections; the others
    *      show the empty ones
    */
-  it("gives the own player a season to measure, and the others none", () => {
+  it("gives the own players a season to measure, and the others none", () => {
     const own = profileCase("own");
     expect(own.recentMatches).toHaveLength(5);
     expect(own.recentMatches.every((match) => match.opponent_team_id !== USER_CLUB)).toBe(true);
     expect(own.seasonStats.metrics.shots.total).toBeGreaterThan(0);
-    for (const variant of HARNESS_PROFILES.filter((variant) => variant !== "own")) {
+    for (const variant of HARNESS_PROFILES.filter(
+      (variant) => variant !== "own" && variant !== "keeper",
+    )) {
       expect(profileCase(variant).recentMatches).toEqual([]);
       expect(profileCase(variant).seasonStats.metrics.shots.total).toBe(0);
     }
@@ -72,6 +74,23 @@ describe("the player profile's cases", () => {
         expect(row.weights.reduce((sum, entry) => sum + entry.weight, 0)).toBe(100);
       }
     }
+  });
+
+  /**
+   * Given the club's own goalkeeper
+   * When his case is built
+   * Then he is a goalkeeper at the user's club, known as its own, whose natural row is the
+   *      goalkeeper's, with the game's goalkeeper weights: the Attributes tab's Goalkeeping column
+   */
+  it("gives the club's own goalkeeper a goalkeeping row", () => {
+    const keeper = profileCase("keeper");
+    const player = playerOf(keeper.playerId);
+
+    expect(player?.team_id).toBe(USER_CLUB);
+    expect(player?.natural_position).toBe("Goalkeeper");
+    expect(keeper.knowledge).toEqual({ kind: "own" });
+    expect(keeper.positionRatings?.rows[0].position).toBe("Goalkeeper");
+    expect(keeper.positionRatings?.rows[0].weights).toEqual(positionWeights.Goalkeeper);
   });
 
   /**

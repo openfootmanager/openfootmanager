@@ -34,7 +34,14 @@ export function readHarnessPage(search: string): HarnessPage | null {
  * its own player, a rival in its division, one a scout reported on, one it knows nothing of, and one
  * who has retired. Each shows different facts, so each is a case of the layout check.
  */
-export const HARNESS_PROFILES = ["own", "rival", "scouted", "unknown", "retired"] as const;
+export const HARNESS_PROFILES = [
+  "own",
+  "keeper",
+  "rival",
+  "scouted",
+  "unknown",
+  "retired",
+] as const;
 export type HarnessProfile = (typeof HARNESS_PROFILES)[number];
 
 /** `?page=profile&player=rival` and the like; the club's own player when it names none. */
