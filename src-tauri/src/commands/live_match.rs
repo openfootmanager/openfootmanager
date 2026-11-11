@@ -2793,6 +2793,45 @@ mod live_session_tests {
             "career replacement must wait for the current start/finish/save/advance operation"
         );
     }
+    /// Given a career install in progress (it holds the lifecycle lock, and has replaced the game
+    ///       by the time it lets go)
+    /// When a team talk is asked for at the old career's half-time meanwhile
+    /// Then the talk waits for the install and then reads the new career, so it can neither give
+    ///      the old career's moment nor move any morale: the moment, its claim and the morale write
+    ///      are one step under the lock, not interleaved with a replacement
+    #[test]
+    fn a_team_talk_waits_for_a_career_install_in_progress() {
+        let state = std::sync::Arc::new(state_at_half_time());
+        let install = crate::application::live_session::operation();
+        let (done_tx, done_rx) = std::sync::mpsc::channel();
+        let asker = state.clone();
+        let handle = std::thread::spawn(move || {
+            let result =
+                super::apply_team_talk_on(&asker, ofm_core::state::Career::Active, "motivational");
+            done_tx.send(result.map(|_| ())).unwrap();
+        });
+        let queued = matches!(
+            done_rx.recv_timeout(std::time::Duration::from_secs(1)),
+            Err(std::sync::mpsc::RecvTimeoutError::Timeout)
+        );
+        // The install lands: the live match goes, the new career is set.
+        drop(state.take_live_match());
+        let mut other = make_game_with_matchday();
+        other.career_token = 9;
+        state.set_game(other);
+        let new_career_morale = squad_morale(&state);
+        drop(install);
+        let result = done_rx.recv().unwrap();
+        handle.join().unwrap();
+
+        assert!(queued, "the talk did not wait for the install in progress");
+        assert_eq!(
+            result.err().as_deref(),
+            Some("be.error.teamTalk.notAtABreak")
+        );
+        assert_eq!(squad_morale(&state), new_career_morale);
+    }
+
     /// Given an idle saved career with changed finances, when returning to the menu,
     /// then the changes reach a fresh save reader before the active state is cleared.
     #[test]
