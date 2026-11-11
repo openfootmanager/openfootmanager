@@ -2,7 +2,7 @@ mod builders_reports;
 mod message_builders;
 mod responses;
 
-pub(crate) use message_builders::sponsor_offer_message;
+pub(crate) use message_builders::{sponsor_offer_message, training_injury_message};
 pub use responses::{RandomEventResponseEffect, apply_event_response};
 
 use crate::contracts::{ContractWarningStage, contract_warning_stage};
@@ -93,88 +93,6 @@ pub fn check_random_events(game: &mut Game) {
             new_messages.push(message_builders::sponsor_offer_message(
                 &msg_id, team_name, &sponsor, amount, &today,
             ));
-        }
-    }
-
-    // --- 2. Training ground injury (fitness-weighted probability, non-match days) ---
-    {
-        let has_match = game.league.as_ref().is_some_and(|l| {
-            l.fixtures
-                .iter()
-                .any(|f| f.date == today && f.status == domain::league::FixtureStatus::Scheduled)
-        });
-        if !has_match {
-            // Pick a random non-injured player, biased toward less fit players.
-            let eligible: Vec<&domain::player::Player> = game
-                .players
-                .iter()
-                .filter(|p| p.team_id.as_deref() == Some(&user_team_id) && p.injury.is_none())
-                .collect();
-            if !eligible.is_empty() {
-                let player = eligible[rng.random_range(0..eligible.len())];
-                // Base 2% chance, scaled by fitness: less fit → higher probability
-                let fitness_mult =
-                    crate::player_wear::injury_multiplier_from_fitness(player.fitness);
-                let base_prob = 1.0_f64 / 50.0;
-                let injury_prob = (base_prob * fitness_mult).min(1.0);
-                if rng.random_bool(injury_prob) {
-                    let msg_id = format!("training_injury_{}_{}", player.id, today);
-                    if !existing_ids.contains(&msg_id) {
-                        let injury = crate::player_wear::roll_training_injury(&mut rng);
-                        let injury_name = injury.name.clone();
-                        let days = injury.days_remaining;
-
-                        new_messages.push(message_builders::training_injury_message(
-                            &msg_id,
-                            &player.id,
-                            &player.match_name,
-                            &injury_name,
-                            days,
-                            &today,
-                        ));
-
-                        // Apply the injury
-                        let pid = player.id.clone();
-                        let player_name = player.match_name.clone();
-                        let player_team_id = player.team_id.clone();
-                        let is_notable = player.market_value >= 500_000
-                            || player_team_id.as_deref().is_some_and(|tid| {
-                                game.teams
-                                    .iter()
-                                    .find(|t| t.id == tid)
-                                    .is_some_and(|t| t.starting_xi_ids.iter().any(|id| id == &pid))
-                            });
-
-                        if let Some(p) = game.players.iter_mut().find(|p| p.id == pid) {
-                            p.injury = Some(injury);
-                        }
-
-                        // Generate a public news article for notable players
-                        if is_notable {
-                            let news_id = format!("injury_news_{}_{}", pid, today);
-                            let actual_team_id = player_team_id.as_deref().unwrap_or(&user_team_id);
-                            let team_name = game
-                                .teams
-                                .iter()
-                                .find(|t| t.id == actual_team_id)
-                                .map(|t| t.name.clone())
-                                .unwrap_or_else(|| actual_team_id.to_string());
-                            let date_str = game.clock.current_date.to_rfc3339();
-                            if !game.news.iter().any(|a| a.id == news_id) {
-                                game.news.push(crate::news::injury_news_article(
-                                    &news_id,
-                                    &pid,
-                                    &player_name,
-                                    actual_team_id,
-                                    &team_name,
-                                    days,
-                                    &date_str,
-                                ));
-                            }
-                        }
-                    }
-                }
-            }
         }
     }
 

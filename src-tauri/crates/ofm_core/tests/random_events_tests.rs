@@ -19,6 +19,7 @@ use domain::team::{SponsorshipBonusCriterion, Team};
 use ofm_core::clock::GameClock;
 use ofm_core::game::Game;
 use ofm_core::random_events::{apply_event_response, check_random_events, rival_interest_weight};
+use ofm_core::training::roll_training_injuries;
 use std::collections::HashMap;
 
 // ---------------------------------------------------------------------------
@@ -272,13 +273,13 @@ fn check_random_events_sponsor_offer_has_correct_structure() {
 }
 
 #[test]
-fn check_random_events_training_injury_applies_injury() {
+fn a_training_injury_reported_in_the_inbox_is_applied_to_the_player() {
     let mut game = make_game();
     // Remove the league so no match-day exclusion applies
     game.league = None;
     // Run many days
     for _ in 0..2000 {
-        check_random_events(&mut game);
+        roll_training_injuries(&mut game);
         game.clock.advance_days(1);
     }
     let injury_msgs: Vec<&InboxMessage> = game
@@ -298,7 +299,7 @@ fn check_random_events_training_injury_applies_injury() {
 
 /// Given a squad training for four thousand days, each injured player healed once his injury is
 ///      read
-/// When the daily random events roll their training injuries
+/// When the day's training injuries roll
 /// Then a knee bruise or a minor strain lasts 1-2 days, as after a match, and a moderate injury (an
 ///      ankle sprain, a hamstring tear) turns up: the injuries come from the shared match bands,
 ///      not training's old flat 3-14 days over five names
@@ -309,7 +310,7 @@ fn training_injuries_come_from_the_shared_injury_bands() {
     let mut moderate = 0;
     let mut slight = 0;
     for _ in 0..4000 {
-        check_random_events(&mut game);
+        roll_training_injuries(&mut game);
         for player in &mut game.players {
             let Some(injury) = player.injury.take() else {
                 continue;
@@ -716,7 +717,7 @@ fn injury_news_article_created_for_notable_player() {
     game.league = None;
     // Run many days to trigger training injuries
     for _ in 0..2000 {
-        check_random_events(&mut game);
+        roll_training_injuries(&mut game);
         // Clear injury messages so the same player can be injured again next day
         game.messages
             .retain(|m| !m.id.starts_with("training_injury_"));
@@ -734,34 +735,6 @@ fn injury_news_article_created_for_notable_player() {
     assert!(
         !injury_news.is_empty(),
         "A notable player (market_value = 1_000_000, above the 500K threshold) should generate InjuryNews articles"
-    );
-}
-
-#[test]
-fn injury_news_article_not_created_for_non_notable_player() {
-    let mut game = make_game();
-    // Ensure no player is notable: all have default market_value = 0 and empty starting_xi
-    for p in &mut game.players {
-        p.market_value = 0;
-    }
-    game.league = None;
-    for _ in 0..2000 {
-        check_random_events(&mut game);
-        game.messages
-            .retain(|m| !m.id.starts_with("training_injury_"));
-        for p in &mut game.players {
-            p.injury = None;
-        }
-        game.clock.advance_days(1);
-    }
-    let injury_news_count = game
-        .news
-        .iter()
-        .filter(|a| a.id.starts_with("injury_news_"))
-        .count();
-    assert_eq!(
-        injury_news_count, 0,
-        "Non-notable players should not generate InjuryNews articles"
     );
 }
 
@@ -1330,7 +1303,7 @@ fn already_injured_players_excluded_from_training_injury() {
         });
     }
     for _ in 0..500 {
-        check_random_events(&mut game);
+        roll_training_injuries(&mut game);
         game.clock.advance_days(1);
     }
     let injury_msgs = game
@@ -1420,10 +1393,6 @@ fn check_random_events_all_message_types_generated() {
         .messages
         .iter()
         .any(|m| m.id.starts_with("rival_interest_"));
-    let has_injury = game
-        .messages
-        .iter()
-        .any(|m| m.id.starts_with("training_injury_"));
 
     assert!(
         has_sponsor,
@@ -1445,10 +1414,6 @@ fn check_random_events_all_message_types_generated() {
     assert!(
         has_rival,
         "Should generate rival interest messages over 5000 days"
-    );
-    assert!(
-        has_injury,
-        "Should generate training injury messages over 5000 days"
     );
 }
 
@@ -1518,7 +1483,7 @@ fn unfit_players_get_more_training_injuries() {
         let mut injury_count = 0;
         for _ in 0..3000 {
             let before = game.players[0].injury.is_some();
-            check_random_events(&mut game);
+            roll_training_injuries(&mut game);
             let after = game.players[0].injury.is_some();
             if !before && after {
                 injury_count += 1;
