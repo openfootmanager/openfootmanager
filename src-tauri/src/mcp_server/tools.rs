@@ -1870,7 +1870,7 @@ pub fn build_tool_router(context: &Arc<McpContext>, disabled: &[String]) -> OfmT
     // match_team_talk
     custom_tool!(
         "match_team_talk",
-        "Give the half-time team talk (or the one at half-time of extra time): one per interval, and only while the match is at that interval. The game reads the score for your side; you choose the tone",
+        "Give a team talk: at half-time (or half-time of extra time) of a live match, or once after your match has finished (after match_finish). One per moment; refused at any other time. The game reads the score for your side; you choose the tone",
         build_schema(
             &[(
                 "tone",
@@ -2301,7 +2301,7 @@ pub fn tool_catalog() -> Vec<(&'static str, &'static str, &'static str)> {
         ),
         (
             "match_team_talk",
-            "Give the half-time team talk (one per interval, context from the score)",
+            "Give the half-time or post-match team talk (once per moment, context from the score)",
             "Live Match",
         ),
         (

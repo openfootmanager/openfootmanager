@@ -80,9 +80,15 @@ pub fn post_match_moment(game: &Game) -> Option<TeamTalkMoment> {
     } else {
         Side::Away
     };
+    // A tie level after extra time is settled by the shootout, and the post-match tab judges it so
+    // too: penalties only break a level score.
+    let (home, away) = match (result.home_penalties, result.away_penalties) {
+        (Some(home), Some(away)) if result.home_goals == result.away_goals => (home, away),
+        _ => (result.home_goals, result.away_goals),
+    };
     Some(TeamTalkMoment {
         key: format!("{}/PostMatch", fixture.id),
-        context: team_talk_context(side, result.home_goals, result.away_goals),
+        context: team_talk_context(side, home, away),
     })
 }
 

@@ -242,18 +242,25 @@ fn give_team_talk_at(
     }
 }
 
-/// The moment a team talk would be given in now, and how the match stands: a live match decides
-/// it by its phase, and with none, the user's match played today does. The game and the live
-/// match are each looked at in turn, never both held.
+/// The moment a team talk would be given in now, how the match stands, and the career it was read
+/// for. A live match decides the moment by its phase, and with none, the user's match just played
+/// does. The game and the live match are each looked at in turn, never both held, so the talk
+/// has to be given for the career read here (`Career::Token`), not for whichever is active by
+/// then: the screen can install another career in between.
 fn team_talk_moment_of(
     state: &StateManager,
     career: Career,
 ) -> Result<(TeamTalkMoment, Career), String> {
-    let after_match = state
-        .get_game(|game| career.check(game).map(|()| post_match_moment(game)))
+    let (token, after_match) = state
+        .get_game(|game| {
+            career
+                .check(game)
+                .map(|()| (game.career_token, post_match_moment(game)))
+        })
         .unwrap_or_else(|| Err(NO_ACTIVE_GAME_ERROR.to_string()))?;
+    let read_for = Career::Token(token);
     let live = state.with_live_match(|session| {
-        career.check_token(session.career_token)?;
+        read_for.check_token(session.career_token)?;
         let Some(side) = session.user_side else {
             return Err(NOT_AT_A_BREAK_ERROR.to_string());
         };
@@ -267,11 +274,13 @@ fn team_talk_moment_of(
         )
         .map_err(str::to_string)
     });
-    let moment = match live {
+    let mut moment = match live {
         Some(moment) => moment,
         None => after_match.ok_or_else(|| NOT_AT_A_BREAK_ERROR.to_string()),
     }?;
-    Ok((moment, career))
+    // The career is part of the moment, so a used moment of one career is never read as another's.
+    moment.key = format!("{token}/{}", moment.key);
+    Ok((moment, read_for))
 }
 
 /// Process press conference answers: generate news article, affect squad morale.
