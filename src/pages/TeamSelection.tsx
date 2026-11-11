@@ -1,16 +1,15 @@
-import { ArrowLeft, ChevronRight, Loader2, SlidersHorizontal } from "lucide-react";
-import { useState } from "react";
+import { ArrowLeft, SlidersHorizontal } from "lucide-react";
+import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 
 import ChosenClubCard from "../components/teamSelection/ChosenClubCard";
 import ClubsTable from "../components/teamSelection/ClubsTable";
 import CountryLeagueRail from "../components/teamSelection/CountryLeagueRail";
-import { keyPlayers } from "../components/teamSelection/keyPlayers";
+import ManageButton from "../components/teamSelection/ManageButton";
 import SimulationDialog from "../components/teamSelection/SimulationDialog";
 import TeamSelectionStepper from "../components/teamSelection/TeamSelectionStepper";
 import { Button, ThemeToggle } from "../components/ui";
-import { competitionDisplayName } from "../lib/competitionName";
 import { calcAgeOnDate } from "../lib/valueFormatting";
 import { useGameStore } from "../store/gameStore";
 import { useTeamSelection } from "./useTeamSelection";
@@ -22,6 +21,11 @@ export default function TeamSelection() {
   const navigate = useNavigate();
   const { gameState, setGameState, setGameActive } = useGameStore();
   const [scopeOpen, setScopeOpen] = useState(false);
+  // A key player's age is worked out from his date of birth in the game state: found by id.
+  const playersById = useMemo(
+    () => new Map((gameState?.players ?? []).map((player) => [player.id, player])),
+    [gameState],
+  );
 
   const {
     clubSearch,
@@ -38,9 +42,9 @@ export default function TeamSelection() {
     leagueGroups,
     visibleClubs,
     getTeamAvgOvr,
-    getPlayerRating,
+    getClubFacts,
     selectedTeam,
-    selectedTeamXi,
+    selectedClubFacts,
     selectedTeamCompetitions,
     scopeDraft,
     applyScope,
@@ -82,6 +86,9 @@ export default function TeamSelection() {
             variant="outline"
             size="sm"
             aria-haspopup="dialog"
+            // The dialog locks the chosen club's own competitions and regions, which the backend names
+            // with the club's facts: it waits for them rather than show the club as having none.
+            disabled={selectedTeam !== null && selectedClubFacts === undefined}
             onClick={() => setScopeOpen(true)}
             icon={<SlidersHorizontal aria-hidden="true" />}
           >
@@ -92,20 +99,13 @@ export default function TeamSelection() {
               {t("teamSelect.card.emptyTitle")}
             </span>
           )}
-          <Button
+          <ManageButton
+            label={manageLabel}
             disabled={!selectedTeam || isConfirming}
-            aria-describedby={selectedTeam ? undefined : MANAGE_HINT_ID}
+            confirming={isConfirming}
+            describedBy={selectedTeam ? undefined : MANAGE_HINT_ID}
             onClick={handleConfirm}
-            iconRight={
-              isConfirming ? (
-                <Loader2 aria-hidden="true" className="animate-spin" />
-              ) : (
-                <ChevronRight aria-hidden="true" />
-              )
-            }
-          >
-            {manageLabel}
-          </Button>
+          />
         </div>
       </header>
 
@@ -132,6 +132,7 @@ export default function TeamSelection() {
           selectedTeamId={selectedTeam?.id ?? null}
           onSelectTeam={setSelectedTeamId}
           getTeamAvgOvr={getTeamAvgOvr}
+          getClubFacts={getClubFacts}
         />
 
         <aside
@@ -141,12 +142,22 @@ export default function TeamSelection() {
           <ChosenClubCard
             team={selectedTeam}
             average={selectedTeam ? getTeamAvgOvr(selectedTeam.id) : null}
-            keyPlayers={keyPlayers(selectedTeamXi, getPlayerRating, (player) =>
-              calcAgeOnDate(player.date_of_birth, today),
-            )}
-            competitionNames={selectedTeamCompetitions.map((competition) =>
-              competitionDisplayName(competition, t),
-            )}
+            facts={selectedClubFacts}
+            competitions={competitions}
+            ageOf={(playerId) => {
+              const player = playersById.get(playerId);
+              return player ? calcAgeOnDate(player.date_of_birth, today) : null;
+            }}
+            // The same action as the header's Manage, which a keyboard reaches right after the table.
+            action={
+              <ManageButton
+                className="w-full"
+                label={manageLabel}
+                disabled={!selectedTeam || isConfirming}
+                confirming={isConfirming}
+                onClick={handleConfirm}
+              />
+            }
           />
         </aside>
       </div>

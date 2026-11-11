@@ -352,12 +352,15 @@ pub fn resolve_simulation_scope(
         })
         .collect();
 
-    for competition in game.competitions.iter().filter(|competition| {
-        competition
-            .participant_ids
-            .iter()
-            .any(|participant_id| participant_id == team_id)
-    }) {
+    // The club's own competitions are always simulated. Membership is `Game::club_takes_part_in`, the
+    // rule the team-selection screen's facts list them by: a club in a competition's standings but
+    // not in its participants is the club's too, or the screen would show a competition the career
+    // then left out.
+    for competition in game
+        .competitions
+        .iter()
+        .filter(|competition| Game::club_takes_part_in(competition, team_id))
+    {
         active_competition_ids.insert(competition.id.clone());
     }
 
@@ -1018,6 +1021,64 @@ mod tests {
         assert_eq!(
             active_competitions,
             vec![domestic.id.clone(), continental.id.clone()]
+        );
+    }
+
+    /// Given a competition whose standings list the club but whose participants do not (the rule the
+    ///       facts projection lists a club's competitions by), and a request that names another one
+    /// When the scope is resolved
+    /// Then the club's competition is simulated, and the region it needs is switched on: both
+    ///      definitions of "the club's competitions" are one.
+    #[test]
+    fn resolve_simulation_scope_keeps_a_competition_the_club_is_only_in_the_standings_of() {
+        let mut game = scope_test_game();
+        game.teams[0].football_nation = "BR".to_string();
+
+        let mut home = League::new(
+            "home-league".to_string(),
+            "Brazil League".to_string(),
+            2032,
+            &["team1".to_string()],
+        );
+        home.region_id = Some("south-america".to_string());
+        home.required_region_ids = vec!["south-america".to_string()];
+        home.priority = 0;
+
+        let mut standings_only = League::new(
+            "standings-only".to_string(),
+            "Legacy Cup".to_string(),
+            2032,
+            &["team1".to_string()],
+        );
+        standings_only.scope = CompetitionScope::Continental;
+        standings_only.required_region_ids = vec!["europe".to_string()];
+        standings_only.priority = 1;
+        // The club is in the standings only: no participant list names it.
+        standings_only.participant_ids.clear();
+        assert!(
+            standings_only
+                .standings
+                .iter()
+                .any(|entry| entry.team_id == "team1")
+        );
+
+        game.competitions = vec![home.clone(), standings_only.clone()];
+
+        let (active_regions, active_competitions) = resolve_simulation_scope(
+            &game,
+            "team1",
+            Some(vec!["south-america".to_string()]),
+            Some(vec![home.id.clone()]),
+        )
+        .unwrap();
+
+        assert_eq!(
+            active_competitions,
+            vec![home.id.clone(), standings_only.id.clone()]
+        );
+        assert_eq!(
+            active_regions,
+            vec!["europe".to_string(), "south-america".to_string()]
         );
     }
 
