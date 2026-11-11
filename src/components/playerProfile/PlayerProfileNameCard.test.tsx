@@ -146,6 +146,21 @@ describe("PlayerProfileNameCard", () => {
   });
 
   /**
+   * Given the name card of a player the manager can scout, in a narrow window
+   * When the card is drawn
+   * Then the scouting button, the Actions menu and the rating are one group: they wrap together
+   *      under the identity, so the rating never drops to the left under the avatar on its own
+   *      (the 960×640 shot of a rival's profile)
+   */
+  it("keeps the scouting button, the Actions menu and the rating in one group", () => {
+    renderCard({ isOwnClub: false });
+
+    const group = screen.getByRole("button", { name: "Actions" }).parentElement;
+    expect(group).toContainElement(screen.getByText("Overall"));
+    expect(group).not.toContainElement(screen.getByRole("heading", { name: "John Smith" }));
+  });
+
+  /**
    * Given a player at a club the manager can open
    * When his club's name is pressed
    * Then the club opens
