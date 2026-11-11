@@ -55,7 +55,7 @@ export function buildContractHistory(
     if (!entry.contract) return;
     const previous = rows[rows.length - 1];
     const takesOverOn = entry.contract.start ?? entry.date;
-    if (previous && previous.end && takesOverOn && takesOverOn < previous.end) {
+    if (previous?.end && takesOverOn && takesOverOn < previous.end) {
       previous.replacedOn = takesOverOn;
     }
     closed = false;
