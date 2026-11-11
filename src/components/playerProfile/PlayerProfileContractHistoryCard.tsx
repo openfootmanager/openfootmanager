@@ -89,13 +89,16 @@ export default function PlayerProfileContractHistoryCard({
                       ) : (
                         <span className="font-semibold text-fg">{row.clubName}</span>
                       )}
-                      <span className="text-caption text-fg-muted"> · </span>
-                      <span className="text-caption text-fg-muted">{howText(row, t)}</span>
+                      <Note>{howText(row, t)}</Note>
                       {!row.inForce && row.endedBy ? (
-                        <span className="text-caption text-fg-muted">
-                          {" · "}
-                          {t(RELEASE_REASON_KEYS[row.endedBy])}
-                        </span>
+                        <Note>{t(RELEASE_REASON_KEYS[row.endedBy])}</Note>
+                      ) : null}
+                      {row.replacedOn ? (
+                        <Note>
+                          {t(`${SECTION}.replacedOn`, {
+                            date: formatProfileDay(row.replacedOn, language),
+                          })}
+                        </Note>
                       ) : null}
                     </td>
                     {showsWages ? (
@@ -115,5 +118,17 @@ export default function PlayerProfileContractHistoryCard({
         )}
       </CardBody>
     </Card>
+  );
+}
+
+/** A muted note after the club's name, set off from it by a dot. */
+function Note({ children }: { children: string }) {
+  return (
+    <>
+      <span aria-hidden="true" className="text-caption text-fg-muted">
+        {" · "}
+      </span>
+      <span className="text-caption text-fg-muted">{children}</span>
+    </>
   );
 }

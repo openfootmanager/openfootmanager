@@ -28,29 +28,25 @@ export interface ContractHistoryRow {
 /**
  * The contracts a player has had, newest first, from his movement ledger.
  *
- * A row is a ledger entry that makes a contract. A release (`released`) closes the contract
- * before it; a renewal signed before the older contract ran out leaves the older one with the day
- * it was replaced. Entries on the same day keep the order they were recorded in, so the later one
- * is listed above the earlier. An unknown start stays null.
+ * The ledger is read in the order it was appended, never by date: the game's current contract is
+ * the last one appended (a legacy save appends its current contract, with an unknown start and no
+ * date, after the history that came before it). A row is an entry that makes a contract. A release
+ * or a retirement closes the contract before it; a renewal signed before the older contract ran
+ * out leaves the older one with the day it was replaced. The later appended is listed above the
+ * earlier. An unknown start stays null.
  */
 export function buildContractHistory(
   movements: PlayerMovementEntry[],
   today: string,
 ): ContractHistoryRow[] {
-  const ledger = movements
-    .map((entry, index) => ({ entry, index }))
-    .sort(
-      (left, right) => left.entry.date.localeCompare(right.entry.date) || left.index - right.index,
-    )
-    .map(({ entry }) => entry);
   const rows: ContractHistoryRow[] = [];
   let closed = false;
 
-  ledger.forEach((entry, position) => {
-    if (entry.kind === "released") {
+  movements.forEach((entry, position) => {
+    if (entry.kind === "released" || entry.kind === "retired") {
       const last = rows[rows.length - 1];
       if (last && !closed) {
-        last.endedBy = entry.release_reason ?? null;
+        last.endedBy = entry.kind === "retired" ? "retired" : (entry.release_reason ?? null);
         last.inForce = false;
         closed = true;
       }
@@ -65,7 +61,7 @@ export function buildContractHistory(
     closed = false;
     rows.push({
       key: `${entry.date}-${entry.kind}-${position}`,
-      clubName: entry.to_team_name || entry.to_team_id || "",
+      clubName: entry.to_team_name || "",
       clubId: entry.to_team_id ?? null,
       // Only a transfer comes from another club; a renewal or a first contract does not.
       fromClubName:

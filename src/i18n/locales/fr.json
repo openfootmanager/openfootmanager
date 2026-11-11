@@ -1907,7 +1907,10 @@
         "transferNoClub": "Un transfert",
         "free_agent": "Signé libre",
         "initial": "Son premier contrat"
-      }
+      },
+      "renewClosedWhat": "Les négociations de contrat sont closes. Rouvrez-les pour le prolonger.",
+      "letExpireSetButton": "Fin de contrat prévue",
+      "replacedOn": "Remplacé le {{date}}"
     },
     "movementRenewedWith": "Prolongé à {{club}}",
     "movementAtClub": "À {{club}}",

@@ -1908,7 +1908,10 @@
         "transferNoClub": "A transfer",
         "free_agent": "Signed as a free agent",
         "initial": "His first contract"
-      }
+      },
+      "renewClosedWhat": "Contract talks are closed. Reopen them to renew him.",
+      "letExpireSetButton": "Set to expire",
+      "replacedOn": "Replaced on {{date}}"
     },
     "movementRenewedWith": "Renewed with {{club}}",
     "movementAtClub": "At {{club}}",

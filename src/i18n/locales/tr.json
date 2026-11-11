@@ -1908,7 +1908,10 @@
         "transferNoClub": "Bir transfer",
         "free_agent": "Serbest oyuncu olarak imzalandı",
         "initial": "İlk sözleşmesi"
-      }
+      },
+      "renewClosedWhat": "Sözleşme görüşmeleri kapatıldı. Uzatmak için yeniden açın.",
+      "letExpireSetButton": "Bitmesi için ayarlandı",
+      "replacedOn": "{{date}} tarihinde değiştirildi"
     },
     "movementRenewedWith": "{{club}} ile yenilendi",
     "movementAtClub": "{{club}} kulübünde",

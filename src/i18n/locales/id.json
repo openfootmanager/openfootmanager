@@ -1908,7 +1908,10 @@
         "transferNoClub": "Sebuah transfer",
         "free_agent": "Direkrut sebagai pemain bebas transfer",
         "initial": "Kontrak pertamanya"
-      }
+      },
+      "renewClosedWhat": "Negosiasi kontrak ditutup. Buka kembali untuk memperpanjangnya.",
+      "letExpireSetButton": "Dibiarkan habis",
+      "replacedOn": "Digantikan pada {{date}}"
     },
     "movementRenewedWith": "Diperpanjang bersama {{club}}",
     "movementAtClub": "Di {{club}}",

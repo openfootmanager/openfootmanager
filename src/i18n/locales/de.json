@@ -1907,7 +1907,10 @@
         "transferNoClub": "Ein Wechsel",
         "free_agent": "Ablösefrei verpflichtet",
         "initial": "Sein erster Vertrag"
-      }
+      },
+      "renewClosedWhat": "Die Vertragsgespräche sind beendet. Öffne sie wieder, um ihn zu verlängern.",
+      "letExpireSetButton": "Läuft aus",
+      "replacedOn": "Ersetzt am {{date}}"
     },
     "movementRenewedWith": "Verlängert bei {{club}}",
     "movementAtClub": "Bei {{club}}",

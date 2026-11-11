@@ -297,7 +297,9 @@ describe("the profile's Contract tab", () => {
 
     const clubName = gameState.teams.find((team) => team.id === gameState.manager.team_id)?.name;
     expect(clubName).toBeTruthy();
-    const history = within(root).getByText("Contracts he has had").parentElement;
+    let history: HTMLElement | null = within(root).getByText("Contracts he has had");
+    while (history && !history.querySelector("table")) history = history.parentElement;
+    expect(history).not.toBeNull();
     expect(history).toHaveTextContent(clubName ?? "");
     expect(root.textContent).not.toMatch(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-/);
   });

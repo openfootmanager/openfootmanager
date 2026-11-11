@@ -1926,7 +1926,10 @@
         "transferNoClub": "Un trasferimento",
         "free_agent": "Ingaggiato da svincolato",
         "initial": "Il suo primo contratto"
-      }
+      },
+      "renewClosedWhat": "Le trattative per il contratto sono chiuse. Riaprile per rinnovarlo.",
+      "letExpireSetButton": "Lasciato scadere",
+      "replacedOn": "Sostituito il {{date}}"
     },
     "movementRenewedWith": "Rinnovato con {{club}}",
     "movementAtClub": "Presso {{club}}",

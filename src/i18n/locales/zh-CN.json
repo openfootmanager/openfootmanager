@@ -1907,7 +1907,10 @@
         "transferNoClub": "转会",
         "free_agent": "以自由球员身份签约",
         "initial": "他的首份合同"
-      }
+      },
+      "renewClosedWhat": "合同谈判已关闭。重新开启后才能续约。",
+      "letExpireSetButton": "已设为到期",
+      "replacedOn": "于 {{date}} 被取代"
     },
     "movementRenewedWith": "与{{club}}续约",
     "movementAtClub": "效力于{{club}}",

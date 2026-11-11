@@ -1,12 +1,13 @@
 import { useId } from "react";
 import { useTranslation } from "react-i18next";
 
-import type { PlayerData } from "../../store/gameStore";
+import type { PlayerData, TeamData } from "../../store/gameStore";
 import type { PlayerRole } from "../../store/types";
 import { TabPanel, Tabs } from "../ui";
 import { visibleWageText } from "../../lib/playerKnowledge";
 import { isGoalkeeper } from "./PlayerProfile.attributes";
 import { buildContractHistory } from "./PlayerProfile.contractHistory";
+import { withClubNames } from "./PlayerProfile.movements";
 import { formatPlayerWage } from "./PlayerProfile.helpers";
 import type { buildPlayerProfileRelationship } from "./PlayerProfile.viewModel";
 import PlayerProfileAdvancedStatsCard from "./PlayerProfileAdvancedStatsCard";
@@ -42,6 +43,8 @@ interface PlayerProfileTabsProps {
   contractRisk: { level: "critical" | "warning" | "stable"; label: string };
   /** Opens a club (the contracts he has had link to theirs). */
   onSelectTeam?: (id: string) => void;
+  /** The game's clubs: a ledger entry that names its club by id alone is named from them. */
+  teams: Pick<TeamData, "id" | "name">[];
 }
 
 /** The four tabs of the profile and what each holds. */
@@ -57,6 +60,7 @@ export default function PlayerProfileTabs({
   actions,
   contractRisk,
   onSelectTeam,
+  teams,
 }: PlayerProfileTabsProps) {
   const { t, i18n } = useTranslation();
   const tabsId = useId();
@@ -64,10 +68,8 @@ export default function PlayerProfileTabs({
   const hidden = (id: ProfileTab) => tab !== id;
   const { isManagerOwnedProfile, isFreeAgent, hasLetExpireIntent } = relationship;
   const { opinionAnswer, potentialOpinion } = knowledge;
-  const contractHistory = buildContractHistory(
-    player.movement_history ?? [],
-    currentDate.slice(0, 10),
-  );
+  const movements = withClubNames(player.movement_history ?? [], teams);
+  const contractHistory = buildContractHistory(movements, currentDate.slice(0, 10));
   const exactWeeklyWage =
     knowledge.visibleWage.kind === "exact" ? knowledge.visibleWage.weekly : null;
   // Asked for only while this tab is the open one: hidden tabs stay mounted, and the previews are
@@ -151,7 +153,7 @@ export default function PlayerProfileTabs({
         <PlayerProfileCareerHistoryCard career={player.career} t={t} />
 
         <PlayerProfileMovementHistoryCard
-          movementHistory={player.movement_history ?? []}
+          movementHistory={movements}
           language={i18n.language}
           t={t}
         />

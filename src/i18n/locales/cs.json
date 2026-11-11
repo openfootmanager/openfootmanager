@@ -1908,7 +1908,10 @@
         "transferNoClub": "Přestup",
         "free_agent": "Příchod jako volný hráč",
         "initial": "Jeho první smlouva"
-      }
+      },
+      "renewClosedWhat": "Jednání o smlouvě jsou uzavřena. Znovu je otevřete, abyste ho mohli prodloužit.",
+      "letExpireSetButton": "Nastaveno na vypršení",
+      "replacedOn": "Nahrazena {{date}}"
     },
     "movementRenewedWith": "Prodloužení v klubu {{club}}",
     "movementAtClub": "V klubu {{club}}",
