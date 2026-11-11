@@ -182,6 +182,19 @@ describe("PlayerProfileNameCard", () => {
   });
 
   /**
+   * Given an active player at a club the manager can open
+   * When the meta line is read
+   * Then his club is separated from his age by the same dot as the rest ("Brussels FC · Age 22"),
+   *      not run into it
+   */
+  it("separates a linked club from his age", () => {
+    renderCard({ onSelectTeam: () => {} });
+
+    const meta = screen.getByRole("button", { name: "Brussels FC" }).closest("p");
+    expect(meta).toHaveTextContent(/Brussels FC\s*·\s*Age 22/);
+  });
+
+  /**
    * Given a player at a club the manager can open
    * When his club's name is pressed
    * Then the club opens

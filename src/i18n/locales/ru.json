@@ -362,6 +362,13 @@
     "repStrong": "Сильный",
     "repAverage": "Средний",
     "repDeveloping": "Развивающийся",
+    "expectations": {
+      "title": "Борьба за титул",
+      "continental": "Борьба за континентальные турниры",
+      "topHalf": "Верхняя половина таблицы",
+      "midTable": "Середина таблицы",
+      "survival": "Избежать вылета"
+    },
     "failedToSelectTeam": "Не удалось выбрать команду: {{error}}.",
     "homeRegion": "Домашний регион",
     "homeCountry": "Домашняя страна",
@@ -1713,6 +1720,9 @@
     },
     "overall": "Общий",
     "ratingUnknown": "Ваш клуб не знает его рейтинг",
+    "retired": "Завершил карьеру",
+    "retiredOn": "Завершил карьеру {{date}}",
+    "lastClub": "Последний клуб: {{club}}",
     "tabs": {
       "overview": "Обзор",
       "attributes": "Атрибуты",

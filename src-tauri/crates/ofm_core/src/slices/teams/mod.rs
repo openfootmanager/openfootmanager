@@ -85,7 +85,7 @@ pub struct TeamCardTeam {
     pub media: TeamCardMedia,
 }
 
-#[derive(Debug, Serialize, PartialEq, Eq)]
+#[derive(Debug, Serialize, PartialEq, Eq, ts_rs::TS)]
 pub struct TeamCardColors {
     pub primary: String,
     pub secondary: String,

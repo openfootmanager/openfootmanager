@@ -362,6 +362,13 @@
     "repStrong": "Kuat",
     "repAverage": "Cukup",
     "repDeveloping": "Berkembang",
+    "expectations": {
+      "title": "Bersaing memperebutkan gelar",
+      "continental": "Mengejar kompetisi antarklub benua",
+      "topHalf": "Separuh atas klasemen",
+      "midTable": "Papan tengah",
+      "survival": "Hindari degradasi"
+    },
     "failedToSelectTeam": "Gagal memilih tim: {{error}}",
     "homeRegion": "Wilayah Asal",
     "homeCountry": "Negara Asal",
@@ -1713,6 +1720,9 @@
     },
     "overall": "Keseluruhan",
     "ratingUnknown": "Klubmu tidak mengetahui peringkatnya",
+    "retired": "Pensiun",
+    "retiredOn": "Pensiun pada {{date}}",
+    "lastClub": "Klub terakhir: {{club}}",
     "tabs": {
       "overview": "Ikhtisar",
       "attributes": "Atribut",

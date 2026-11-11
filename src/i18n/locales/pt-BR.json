@@ -362,6 +362,13 @@
     "repStrong": "Forte",
     "repAverage": "Mediano",
     "repDeveloping": "Em Desenvolvimento",
+    "expectations": {
+      "title": "Brigar pelo título",
+      "continental": "Buscar vaga nas competições continentais",
+      "topHalf": "Metade de cima da tabela",
+      "midTable": "Meio de tabela",
+      "survival": "Evitar o rebaixamento"
+    },
     "failedToSelectTeam": "Falha ao selecionar o time: {{error}}",
     "homeRegion": "Região de origem",
     "homeCountry": "País de origem",
@@ -1713,6 +1720,9 @@
     },
     "overall": "Geral",
     "ratingUnknown": "Seu clube não conhece a avaliação dele",
+    "retired": "Aposentado",
+    "retiredOn": "Aposentado em {{date}}",
+    "lastClub": "Último clube: {{club}}",
     "tabs": {
       "overview": "Visão geral",
       "attributes": "Atributos",

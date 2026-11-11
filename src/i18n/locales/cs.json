@@ -362,6 +362,13 @@
     "repStrong": "Silná",
     "repAverage": "Průměrná",
     "repDeveloping": "Rozvíjející se",
+    "expectations": {
+      "title": "Boj o titul",
+      "continental": "Boj o kontinentální poháry",
+      "topHalf": "Horní polovina tabulky",
+      "midTable": "Střed tabulky",
+      "survival": "Záchrana v soutěži"
+    },
     "failedToSelectTeam": "Nepodařilo se vybrat tým: {{error}}",
     "homeRegion": "Domovský region",
     "homeCountry": "Domovská země",
@@ -1713,6 +1720,9 @@
     },
     "overall": "Celkově",
     "ratingUnknown": "Váš klub jeho hodnocení nezná",
+    "retired": "Ukončil kariéru",
+    "retiredOn": "Ukončil kariéru {{date}}",
+    "lastClub": "Poslední klub: {{club}}",
     "tabs": {
       "overview": "Přehled",
       "attributes": "Atributy",

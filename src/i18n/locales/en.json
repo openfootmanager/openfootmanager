@@ -362,6 +362,13 @@
     "repStrong": "Strong",
     "repAverage": "Average",
     "repDeveloping": "Developing",
+    "expectations": {
+      "title": "Challenge for the title",
+      "continental": "Push for continental football",
+      "topHalf": "Top half",
+      "midTable": "Mid-table",
+      "survival": "Avoid relegation"
+    },
     "failedToSelectTeam": "Failed to select team: {{error}}",
     "homeRegion": "Home Region",
     "homeCountry": "Home Country",
@@ -1713,6 +1720,9 @@
     },
     "overall": "Overall",
     "ratingUnknown": "Your club does not know his rating",
+    "retired": "Retired",
+    "retiredOn": "Retired on {{date}}",
+    "lastClub": "Last club: {{club}}",
     "tabs": {
       "overview": "Overview",
       "attributes": "Attributes",

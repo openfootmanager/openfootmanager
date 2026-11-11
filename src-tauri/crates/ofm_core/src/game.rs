@@ -422,6 +422,11 @@ impl Game {
         let Some(team_id) = self.manager.team_id.as_deref() else {
             return false;
         };
+        Self::club_takes_part_in(competition, team_id)
+    }
+
+    /// Membership is public and independent of whether the manager has taken a club yet.
+    pub(crate) fn club_takes_part_in(competition: &League, team_id: &str) -> bool {
         competition
             .standings
             .iter()
@@ -430,16 +435,24 @@ impl Game {
     }
 
     pub(crate) fn user_competition_index(&self) -> Option<usize> {
+        self.manager
+            .team_id
+            .as_deref()
+            .and_then(|club_id| self.club_competition_index(club_id))
+    }
+
+    /// The same competition hiring will mirror, before or after the manager joins the club.
+    pub(crate) fn club_competition_index(&self, club_id: &str) -> Option<usize> {
         self.competitions
             .iter()
             .position(|competition| {
                 competition.kind == CompetitionType::League
-                    && self.user_club_takes_part_in(competition)
+                    && Self::club_takes_part_in(competition, club_id)
             })
             .or_else(|| {
                 self.competitions
                     .iter()
-                    .position(|competition| self.user_club_takes_part_in(competition))
+                    .position(|competition| Self::club_takes_part_in(competition, club_id))
             })
     }
 

@@ -1,5 +1,5 @@
 import type { GameStateData, PlayerSelectionOptions } from "../../store/gameStore";
-import { useRetiredPlayer } from "../playerProfile/useRetiredPlayer";
+import type { PlayerData } from "../../store/types";
 import PlayerProfile from "../playerProfile/PlayerProfile";
 import TeamProfile from "../teamProfile";
 import DashboardAlerts from "./DashboardAlerts";
@@ -14,6 +14,8 @@ interface DashboardWorkspaceContentProps {
   dashboardAlerts: DashboardAlert[];
   gameState: GameStateData;
   profileNavigation: DashboardProfileNavigationState;
+  /** The retired player fetched for the open profile (the page fetches him once, for its title too). */
+  retiredPlayer: PlayerData | null;
   dashboardTabContentModel: DashboardTabContentModel;
   onNavigate: (tab: string) => void;
   onSelectPlayer: (id: string, options?: PlayerSelectionOptions) => void;
@@ -26,6 +28,7 @@ export default function DashboardWorkspaceContent({
   dashboardAlerts,
   gameState,
   profileNavigation,
+  retiredPlayer,
   dashboardTabContentModel,
   onNavigate,
   onSelectPlayer,
@@ -37,9 +40,6 @@ export default function DashboardWorkspaceContent({
   const rosterPlayer = profileNavigation.selectedPlayerId
     ? (gameState.players.find((player) => player.id === profileNavigation.selectedPlayerId) ?? null)
     : null;
-  const retiredPlayer = useRetiredPlayer(
-    rosterPlayer === null ? profileNavigation.selectedPlayerId : null,
-  );
   const selectedPlayer = rosterPlayer ?? retiredPlayer;
   const selectedTeam = profileNavigation.selectedTeamId
     ? (gameState.teams.find((team) => team.id === profileNavigation.selectedTeamId) ?? null)

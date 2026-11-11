@@ -1,12 +1,24 @@
 use crate::end_of_season;
 use crate::finances;
 use crate::game::{BoardObjective, Game, ObjectiveType};
-use domain::league::FixtureStatus;
+use domain::league::{BerthRule, CompetitionType, FixtureStatus, League};
 use domain::message::*;
+use domain::team::Team;
+use serde::Serialize;
 use std::collections::HashMap;
+use ts_rs::TS;
+
+/// The exact league target the board will set after hiring, plus its translated description.
+#[derive(Debug, Serialize, PartialEq, Eq, TS)]
+pub struct OpeningExpectation {
+    #[serde(default)]
+    pub target_position: u32,
+    #[serde(default)]
+    pub label_key: String,
+}
 
 struct ObjectiveTargets {
-    expected_pos: u32,
+    opening_expectation: OpeningExpectation,
     win_target: u32,
     goals_target: u32,
     finance_target: u32,
@@ -65,12 +77,84 @@ impl ObjectiveTargets {
         };
 
         Self {
-            expected_pos,
+            opening_expectation: OpeningExpectation {
+                target_position: expected_pos,
+                label_key: expectation_label(expected_pos, league_size).into(),
+            },
             win_target,
             goals_target,
             finance_target: 100,
         }
     }
+}
+
+fn expectation_label(target: u32, league_size: u32) -> &'static str {
+    if target == 1 {
+        "teamSelect.expectations.title"
+    } else if target < league_size.div_ceil(2) {
+        "teamSelect.expectations.topHalf"
+    } else if target == league_size.div_ceil(2) {
+        "teamSelect.expectations.midTable"
+    } else {
+        "teamSelect.expectations.survival"
+    }
+}
+
+fn target_earns_continental_place(game: &Game, league: &League, target: u32) -> bool {
+    league.berths.iter().any(|berth| {
+        let in_range = match berth.rule {
+            BerthRule::PositionRange { from, to } => (from..=to).contains(&target),
+            BerthRule::CupWinner | BerthRule::PlayoffWinner { .. } => false,
+        };
+        in_range
+            && game.competitions_in_play().iter().any(|competition| {
+                competition.id == berth.target
+                    && competition.kind == CompetitionType::ContinentalClub
+            })
+    })
+}
+
+fn targets_for_club(game: &Game, team: &Team) -> ObjectiveTargets {
+    let league = if game.competitions.is_empty() {
+        game.league.as_ref()
+    } else {
+        game.club_competition_index(&team.id)
+            .and_then(|index| game.competitions.get(index))
+            .or_else(|| game.competitions.first())
+    };
+    // Hiring mirrors this competition. Targets and progress must refer to the same table,
+    // including when a split-season country has more than one league table for the club.
+    let num_teams = league
+        .map(|league| {
+            if league.participant_ids.is_empty() {
+                league.standings.len()
+            } else {
+                league.participant_ids.len()
+            }
+        })
+        .filter(|&count| count > 1)
+        .unwrap_or(game.teams.len()) as u32;
+    let legs = league.map_or(2, |league| {
+        u32::from(crate::schedule::league_table_legs(league))
+    });
+    let mut targets = ObjectiveTargets::new(team.reputation, num_teams, legs);
+    // Winning the title stays the stronger description, even when it also earns a berth.
+    if targets.opening_expectation.target_position != 1
+        && league.is_some_and(|league| {
+            target_earns_continental_place(
+                game,
+                league,
+                targets.opening_expectation.target_position,
+            )
+        })
+    {
+        targets.opening_expectation.label_key = "teamSelect.expectations.continental".into();
+    }
+    targets
+}
+
+pub(crate) fn opening_expectation(game: &Game, team: &Team) -> OpeningExpectation {
+    targets_for_club(game, team).opening_expectation
 }
 
 fn board_message_id(season: u32) -> String {
@@ -84,7 +168,10 @@ fn build_objectives_message(
 ) -> InboxMessage {
     let mut params = HashMap::new();
     params.insert("season".to_string(), season.to_string());
-    params.insert("expectedPos".to_string(), targets.expected_pos.to_string());
+    params.insert(
+        "expectedPos".to_string(),
+        targets.opening_expectation.target_position.to_string(),
+    );
     params.insert("winTarget".to_string(), targets.win_target.to_string());
     params.insert("goalsTarget".to_string(), targets.goals_target.to_string());
     params.insert(
@@ -139,31 +226,13 @@ pub fn generate_objectives(game: &mut Game) {
         None => return,
     };
 
-    // Scale targets by the user's *league* size, not the whole world — otherwise
-    // a 440-club world yields absurd objectives ("win 526 matches" a season).
-    let num_teams = game
-        .league
-        .as_ref()
-        .map(|league| {
-            if league.participant_ids.is_empty() {
-                league.standings.len()
-            } else {
-                league.participant_ids.len()
-            }
-        })
-        .filter(|&count| count > 1)
-        .unwrap_or(game.teams.len()) as u32;
-    let legs = game.league.as_ref().map_or(2, |league| {
-        u32::from(crate::schedule::league_table_legs(league))
-    });
-    let reputation = team.reputation;
-    let targets = ObjectiveTargets::new(reputation, num_teams, legs);
+    let targets = targets_for_club(game, team);
 
     game.board_objectives = vec![
         BoardObjective {
             id: "obj_position".to_string(),
             description: "boardObjectives.objective.LeaguePosition".to_string(),
-            target: targets.expected_pos,
+            target: targets.opening_expectation.target_position,
             objective_type: ObjectiveType::LeaguePosition,
             met: false,
         },
