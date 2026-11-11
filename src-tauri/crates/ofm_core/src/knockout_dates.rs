@@ -30,6 +30,36 @@ pub fn knockout_round_date(
         })
 }
 
+/// A published tie waits for its actual feeders, including feeders moved after it was drawn.
+/// The caller supplies settled dates so club and national calendars use the same dependency rule.
+pub(crate) fn fixture_not_before(
+    competition: &domain::league::League,
+    fixture_id: &str,
+    authored: NaiveDate,
+    first_day: NaiveDate,
+    mut settled_date: impl FnMut(&str) -> Option<NaiveDate>,
+) -> NaiveDate {
+    let first = authored.max(first_day);
+    let Some(round) = competition
+        .knockout_rounds
+        .iter()
+        .position(|round| round.fixture_ids.iter().any(|id| id == fixture_id))
+    else {
+        return first;
+    };
+    let last_feeder = competition
+        .knockout_rounds
+        .get(round.wrapping_sub(1))
+        .into_iter()
+        .flat_map(|previous| &previous.fixture_ids)
+        .filter_map(|id| settled_date(id))
+        .max();
+    let wait = u64::from(competition.rules.knockout_round_gap_days.max(1));
+    last_feeder
+        .and_then(|last| last.checked_add_days(Days::new(wait)))
+        .map_or(first, |date| date.max(first))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

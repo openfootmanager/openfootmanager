@@ -7,7 +7,10 @@
 //! [`Player`](domain::player::Player) records).
 
 mod calendar;
-pub(crate) use calendar::settle_friendlies;
+pub(crate) use calendar::{
+    published_tournament_fixtures, settle_drawn_tournaments, settle_for_replay, settle_friendlies,
+    settle_retained_calendar, settle_tournaments,
+};
 
 use std::collections::HashMap;
 
@@ -177,6 +180,9 @@ pub fn schedule_national_team_friendlies(
 /// Simulate every national-team fixture due on `today`, applying full carry-back
 /// to the called-up club players. Returns the number of fixtures simulated.
 pub fn process_national_team_fixtures_due(game: &mut Game, today: &str) -> usize {
+    if let Ok(day) = chrono::NaiveDate::parse_from_str(today, "%Y-%m-%d") {
+        settle_for_replay(game, day);
+    }
     let due: Vec<(usize, usize)> = game
         .national_teams
         .iter()
