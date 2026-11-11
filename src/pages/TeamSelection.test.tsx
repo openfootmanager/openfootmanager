@@ -286,7 +286,8 @@ describe("TeamSelection", () => {
       ),
     ];
     const table = screen.getByRole("table", { name: "teamSelect.table.label" });
-    const lastInTable = stops.filter((stop) => table.contains(stop)).at(-1) as HTMLElement;
+    const tableStops = stops.filter((stop) => table.contains(stop));
+    const lastInTable = tableStops[tableStops.length - 1] as HTMLElement;
     const cardManage = within(
       screen.getByRole("complementary", { name: "teamSelect.card.label" }),
     ).getByRole("button", { name: "teamSelect.manage" });
