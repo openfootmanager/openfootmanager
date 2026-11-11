@@ -205,37 +205,29 @@ pub fn resolve_message_action_internal(
             // guard belongs here rather than in the MCP tool so the GUI obeys the
             // same rule through the same door.
             let today = game.clock.current_date.format("%Y-%m-%d").to_string();
-            // A message that is not in the inbox is refused: no handler runs for it. (A sponsor
-            // handler, say, needs neither the message nor the action, and would sign a deal from its
-            // fallback amount for a message that was deleted.)
-            let Some(message) = game
-                .messages
-                .iter()
-                .find(|message| message.id == message_id)
-            else {
+            // A message that is not in the inbox, or not there for the player yet, is refused with one
+            // and the same answer: an agent must not learn that a future message exists. No handler
+            // runs for it. (A sponsor handler, say, needs neither the message nor the action, and
+            // would sign a deal from its fallback amount for a message that was deleted.)
+            let Some(message) = game.messages.iter().find(|message| {
+                message.id == message_id
+                    && ofm_core::slices::inbox::message_is_visible(&message.date, &today)
+            }) else {
                 return Err("be.error.actionNotFound".to_string());
             };
-            let visible = ofm_core::slices::inbox::message_is_visible(&message.date, &today);
             // An action answers once, and only an action the message has. Every handler below applies
             // its effect (a morale hit, a signed sponsor) before it marks the action resolved, so a
             // second answer would apply it again; the refusals here cover all of them, for the GUI and
-            // for an MCP agent alike. Visibility comes first: a message the player cannot see yet is
-            // ignored whatever its actions say.
-            if visible {
-                match message.actions.iter().find(|action| action.id == action_id) {
-                    None => return Err("be.error.actionNotFound".to_string()),
-                    Some(action) if action.resolved => {
-                        return Err("be.error.actionAlreadyResolved".to_string());
-                    }
-                    Some(_) => {}
+            // for an MCP agent alike.
+            match message.actions.iter().find(|action| action.id == action_id) {
+                None => return Err("be.error.actionNotFound".to_string()),
+                Some(action) if action.resolved => {
+                    return Err("be.error.actionAlreadyResolved".to_string());
                 }
+                Some(_) => {}
             }
             // Try to apply player conversation or random event response
-            let (effect, effect_i18n_key, effect_i18n_params) = if !visible {
-                // From the player's side the message is not there yet: no effect,
-                // nothing resolved.
-                (None, None, None)
-            } else if let Some(opt) = option_id {
+            let (effect, effect_i18n_key, effect_i18n_params) = if let Some(opt) = option_id {
                 // Try player events first, then random events
                 let player_effect = ofm_core::player_events::apply_player_response(
                     game, message_id, action_id, opt,
@@ -468,19 +460,30 @@ mod tests {
         assert_eq!(after, before);
     }
 
+    /// Given a message dated ahead of the clock (the inbox list hides it, but an MCP agent can name
+    ///       its id)
+    /// When its action is resolved
+    /// Then it is refused as not found and the action stays unresolved: acting on it would let an
+    ///      agent resolve an event before the player can see it.
     #[test]
-    fn resolve_message_action_internal_ignores_a_message_dated_ahead_of_the_clock() {
-        // The inbox list hides future-dated mail, but this takes an id from the
-        // caller, and an MCP agent can name one the list never showed it. Acting
-        // on it would let an agent resolve an event before the player can see it.
+    fn resolve_message_action_internal_refuses_a_message_dated_ahead_of_the_clock() {
         let state = StateManager::new();
         let mut game = make_game();
         game.messages = vec![unresolved_action_message("future", "2026-09-01")];
         state.set_game(game);
 
-        resolve_message_action_internal(&state, Career::Active, "future", "action-future", None)
-            .expect("the call itself succeeds");
+        let refused = resolve_message_action_internal(
+            &state,
+            Career::Active,
+            "future",
+            "action-future",
+            None,
+        );
 
+        assert_eq!(
+            refused.map(|_| ()),
+            Err("be.error.actionNotFound".to_string())
+        );
         let stored = state.get_game(|game| game.clone()).expect("stored game");
         let action = &stored.messages[0].actions[0];
         assert!(
@@ -1137,10 +1140,9 @@ mod tests {
 
     /// Given a message dated ahead of the clock, whose action is already resolved
     /// When it is resolved again
-    /// Then the call succeeds with no effect and the game is exactly as it was: the player cannot
-    ///      see the message yet, so visibility is judged before the action is looked at.
+    /// Then it is refused as not found, whatever its action says, and the game is exactly as it was.
     #[test]
-    fn a_not_yet_visible_message_with_a_resolved_action_is_ignored_not_refused() {
+    fn a_not_yet_visible_message_with_a_resolved_action_is_refused_as_not_found() {
         let state = StateManager::new();
         let mut game = make_game();
         let mut future = unresolved_action_message("future", "2026-09-01");
@@ -1151,19 +1153,54 @@ mod tests {
             .get_game(|game| serde_json::to_value(game).expect("serialises"))
             .expect("game");
 
-        let response = resolve_message_action_internal(
+        let refused = resolve_message_action_internal(
             &state,
             Career::Active,
             "future",
             "action-future",
             None,
-        )
-        .expect("the call itself succeeds");
+        );
 
-        assert!(response["effect"].is_null());
+        assert_eq!(
+            refused.map(|_| ()),
+            Err("be.error.actionNotFound".to_string())
+        );
         let after = state
             .get_game(|game| serde_json::to_value(game).expect("serialises"))
             .expect("game");
         assert_eq!(after, before);
+    }
+
+    /// Given an agent that may see only what the manager can see
+    /// When it names an id that is not in the inbox, a message dated ahead of the clock (with its real
+    ///      action id, with an unknown one, and with its action already resolved)
+    /// Then every call gets the very same answer, so none of them tells it that a future message
+    ///      exists: sponsor offers and the like have guessable ids.
+    #[test]
+    fn a_not_yet_visible_message_answers_exactly_like_one_that_is_not_there() {
+        let state = StateManager::new();
+        let mut game = make_game();
+        let mut resolved_future = unresolved_action_message("future-resolved", "2026-09-01");
+        resolved_future.actions[0].resolved = true;
+        game.messages = vec![
+            unresolved_action_message("future", "2026-09-01"),
+            resolved_future,
+        ];
+        state.set_game(game);
+        let ask = |message: &str, action: &str, option: Option<&str>| {
+            resolve_message_action_internal(&state, Career::Active, message, action, option)
+                .map(|_| ())
+        };
+
+        let missing = ask("not-there", "action-not-there", None);
+
+        assert_eq!(missing, Err("be.error.actionNotFound".to_string()));
+        assert_eq!(ask("future", "action-future", None), missing);
+        assert_eq!(ask("future", "no-such-action", None), missing);
+        assert_eq!(ask("future", "action-future", Some("accept")), missing);
+        assert_eq!(
+            ask("future-resolved", "action-future-resolved", None),
+            missing
+        );
     }
 }
