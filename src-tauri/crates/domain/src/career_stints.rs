@@ -63,7 +63,7 @@ impl StintTally {
 impl SeasonStints {
     /// He leaves `team_id`: what he did there since he arrived is kept, and the next club's
     /// stint starts from his totals now. A spell with no appearance is not kept.
-    pub fn close(&mut self, stats: &PlayerSeasonStats, team_id: &str, team_name: &str) {
+    pub(crate) fn close(&mut self, stats: &PlayerSeasonStats, team_id: &str, team_name: &str) {
         let now = StintTally::of(stats);
         let tally = now.since(self.stats_at_arrival);
         if tally.appearances > 0 {
