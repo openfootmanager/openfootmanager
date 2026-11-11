@@ -2310,6 +2310,12 @@ fn load_world_package_with_extractor(
 pub fn read_package_manifest_from_ofm(path: &Path) -> Option<WorldMetaDef> {
     let file = std::fs::File::open(path).ok()?;
     let mut archive = zip::ZipArchive::new(file).ok()?;
+    read_manifest_from_archive(&mut archive)
+}
+
+fn read_manifest_from_archive<R: std::io::Read + std::io::Seek>(
+    archive: &mut zip::ZipArchive<R>,
+) -> Option<WorldMetaDef> {
     let count = archive.len();
 
     for i in 0..count {
@@ -2457,6 +2463,65 @@ mod tests {
         assert!(errors.iter().any(|error| error.code == ZIPSLIP_ERROR));
         std::fs::remove_dir_all(dest).unwrap();
         std::fs::remove_file(archive).unwrap();
+    }
+
+    /// Given JSON artwork before the manifest, when the manifest is read, then its payload is not read.
+    #[test]
+    fn manifest_scan_does_not_read_json_artwork() {
+        use std::cell::Cell;
+        use std::io::{Read, Seek, SeekFrom, Write};
+        use std::rc::Rc;
+
+        struct CountingReader {
+            data: std::io::Cursor<Vec<u8>>,
+            watched: std::ops::Range<u64>,
+            bytes_read: Rc<Cell<u64>>,
+        }
+        impl Read for CountingReader {
+            fn read(&mut self, buffer: &mut [u8]) -> std::io::Result<usize> {
+                let start = self.data.position();
+                let count = self.data.read(buffer)?;
+                let end = start + count as u64;
+                let overlap = end
+                    .min(self.watched.end)
+                    .saturating_sub(start.max(self.watched.start));
+                self.bytes_read.set(self.bytes_read.get() + overlap);
+                Ok(count)
+            }
+        }
+        impl Seek for CountingReader {
+            fn seek(&mut self, position: SeekFrom) -> std::io::Result<u64> {
+                self.data.seek(position)
+            }
+        }
+
+        let mut writer = zip::ZipWriter::new(std::io::Cursor::new(Vec::new()));
+        let options = zip::write::SimpleFileOptions::default()
+            .compression_method(zip::CompressionMethod::Stored);
+        writer.start_file("assets/portrait.json", options).unwrap();
+        writer.write_all(&vec![b'X'; 1024 * 1024]).unwrap();
+        writer.start_file("package.json", options).unwrap();
+        writer
+            .write_all(br#"{"schema":"world","id":"a","name":"Real"}"#)
+            .unwrap();
+        let data = writer.finish().unwrap().into_inner();
+        let start = data
+            .windows(1024)
+            .position(|bytes| bytes.iter().all(|&byte| byte == b'X'))
+            .unwrap() as u64;
+        let bytes_read = Rc::new(Cell::new(0));
+        let reader = CountingReader {
+            data: std::io::Cursor::new(data),
+            watched: start..start + 1024 * 1024,
+            bytes_read: bytes_read.clone(),
+        };
+        let mut archive = zip::ZipArchive::new(reader).unwrap();
+        bytes_read.set(0);
+        assert_eq!(
+            read_manifest_from_archive(&mut archive).unwrap().name,
+            "Real"
+        );
+        assert_eq!(bytes_read.get(), 0, "artwork payload must not be read");
     }
 
     #[test]
