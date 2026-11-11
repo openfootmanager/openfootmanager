@@ -255,6 +255,8 @@ function AttributesCard({ positionRatings, attributes }: PlayerProfileOverviewPr
   const { t } = useTranslation();
   const tierOf = useRatingTiers();
   const natural = positionRatings?.rows[0];
+  // The club can read his attributes but the position's ratings have not arrived: no axes to draw yet.
+  if (attributes && !natural) return null;
   if (!attributes || !natural) {
     return (
       <OverviewCard title={t("playerProfile.attributes")}>

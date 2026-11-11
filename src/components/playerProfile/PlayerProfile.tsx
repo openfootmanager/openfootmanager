@@ -3,7 +3,7 @@ import { getPlayerOvr } from "../../lib/helpers";
 import { useContractRiskLevels } from "../../hooks/useContractWarningStages";
 import type { PlayerData, GameStateData } from "../../store/gameStore";
 import { useTranslation } from "react-i18next";
-import { Select, TabPanel, Tabs } from "../ui";
+import { TabPanel, Tabs } from "../ui";
 import { getRoleOptions } from "../../lib/playerRoles";
 import { getDeployedPosition } from "../squad/SquadTab.helpers";
 import { setPlayerRole as setPlayerRoleService } from "../../services/squadService";
@@ -462,21 +462,8 @@ export default function PlayerProfile({
         className="flex flex-col gap-5"
       >
         <PlayerProfileContractCard
-          dateOfBirth={player.date_of_birth}
           contractEnd={player.contract_end}
           currentDate={gameState.clock.current_date}
-          condition={showsPrivateState ? player.condition : null}
-          morale={showsPrivateState ? player.morale : null}
-          marketValue={player.market_value}
-          wageText={
-            wageRetry
-              ? t("playerProfile.loadFailed")
-              : visibleWageText(visibleWage, formatPlayerWage, t)
-          }
-          wageRetry={wageRetry}
-          language={i18n.language}
-          contractRiskLevel={contractRiskLevel}
-          contractRiskLabel={contractRiskLabel}
           isOwnClub={isManagerOwnedProfile}
           isFreeAgent={isFreeAgent}
           hasLetExpireIntent={hasLetExpireIntent}
