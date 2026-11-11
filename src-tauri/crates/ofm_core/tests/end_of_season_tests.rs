@@ -902,8 +902,11 @@ fn rollover_passes_continental_qualifiers_into_the_next_season() {
     );
 }
 
+/// Given a completed national friendly before a neutral-season rollover,
+/// When the new calendar is scheduled, then the old result stays intact and five future windows
+/// are added exactly once.
 #[test]
-fn process_end_of_season_reschedules_national_team_windows() {
+fn process_end_of_season_keeps_history_and_adds_future_national_windows() {
     use domain::national_team::NationalTeam;
 
     let mut game = make_completed_season_game();
@@ -923,7 +926,11 @@ fn process_end_of_season_reschedules_national_team_windows() {
         away_team_id: "nt-b".into(),
         competition: FixtureCompetition::InternationalNation,
         status: FixtureStatus::Completed,
-        result: None,
+        result: Some(MatchResult {
+            home_goals: 3,
+            away_goals: 1,
+            ..Default::default()
+        }),
     });
     let mut nt_b = NationalTeam::new("nt-b".into(), "B".into(), "BBB".into(), None);
     nt_b.squad_player_ids = vec!["p2".into()];
@@ -937,19 +944,35 @@ fn process_end_of_season_reschedules_national_team_windows() {
         .flat_map(|team| team.fixtures.iter())
         .collect();
 
-    assert!(!fixtures.is_empty(), "new national-team fixtures scheduled");
-    assert!(
-        !fixtures.iter().any(|f| f.id == "old-friendly"),
-        "last season's national-team fixtures are cleared"
+    assert_eq!(
+        fixtures.len(),
+        6,
+        "one historical match and five future windows"
     );
+    let old: Vec<_> = fixtures
+        .iter()
+        .filter(|fixture| fixture.id == "old-friendly")
+        .collect();
+    assert_eq!(old.len(), 1);
+    assert_eq!(old[0].status, FixtureStatus::Completed);
+    assert_eq!(old[0].date, "2026-09-09");
+    let result = old[0].result.as_ref().unwrap();
+    assert_eq!((result.home_goals, result.away_goals), (3, 1));
+    let future: Vec<_> = fixtures
+        .iter()
+        .filter(|fixture| fixture.id != "old-friendly")
+        .collect();
+    assert_eq!(future.len(), 5);
     assert!(
-        fixtures
+        future
             .iter()
-            .all(|f| f.status == FixtureStatus::Scheduled),
-        "rescheduled friendlies start the new season unplayed"
+            .all(|fixture| fixture.status == FixtureStatus::Scheduled && fixture.result.is_none())
     );
-    // Windows for the new season fall after the rollover date.
-    assert!(fixtures.iter().all(|f| f.date.as_str() > "2027-06-01"));
+    assert!(
+        future
+            .iter()
+            .all(|fixture| fixture.date.as_str() > "2027-06-01")
+    );
 }
 
 #[test]

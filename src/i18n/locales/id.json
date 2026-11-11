@@ -303,6 +303,39 @@
     "subtitle": "Pilih tim yang ingin dikelola",
     "confirming": "Mengonfirmasi...",
     "manage": "Kelola {{name}}",
+    "steps": {
+      "label": "Langkah karier baru",
+      "manager": "Manajer",
+      "world": "Dunia",
+      "generation": "Pembuatan",
+      "club": "Klub",
+      "done": "selesai"
+    },
+    "back": "Kembali ke pembuatan dunia",
+    "simulation": "Simulasi",
+    "manageNone": "Kelola",
+    "rail": {
+      "label": "Negara dan liga",
+      "countries": "Negara"
+    },
+    "table": {
+      "label": "Klub",
+      "club": "Klub",
+      "transfers": "Transfer",
+      "wages": "Gaji / minggu",
+      "stadium": "Stadion"
+    },
+    "card": {
+      "label": "Klub terpilih",
+      "emptyTitle": "Belum ada klub terpilih",
+      "emptyHint": "Pilih klub dari daftar untuk melihat skuad, anggaran, dan target manajemen.",
+      "boardExpects": "Target manajemen",
+      "transferBudget": "Anggaran transfer",
+      "wageBudget": "Anggaran gaji",
+      "balance": "Saldo",
+      "stadium": "Stadion",
+      "founded": "didirikan {{year}}"
+    },
     "reputation": "Reputasi",
     "squad": "Skuad",
     "finances": "Keuangan",
