@@ -2564,4 +2564,149 @@ mod tests {
 
         assert_eq!(game.last_season_rollover_on.as_deref(), Some("2027-05-30"));
     }
+    fn national_rollover_publication_game(
+        year: i32,
+        month: u32,
+        day: u32,
+    ) -> (Game, Vec<String>, String) {
+        let mut game = calendar_game(at(year, 5, 1));
+        for code in ["ENG", "FR", "DE", "ES"] {
+            game.national_teams
+                .push(domain::national_team::NationalTeam::new(
+                    format!("nt-{code}"),
+                    code.into(),
+                    code.into(),
+                    None,
+                ));
+        }
+        let mut regenerated = Vec::new();
+        for (priority, opponent) in [(20_000, "nt-FR"), (21_000, "nt-DE")] {
+            let mut cup = crate::schedule::generate_knockout_cup(
+                &format!("Nations {priority}"),
+                (year - 1) as u32,
+                &["nt-ENG".into(), opponent.into()],
+                at(year - 1, month, day),
+                CompetitionType::InternationalNation,
+                CompetitionScope::Continental,
+            );
+            cup.priority = priority;
+            cup.season_start_month = month as u8;
+            cup.season_start_day = day as u8;
+            cup.fixtures[0].status = FixtureStatus::Completed;
+            cup.fixtures[0].result = Some(domain::league::MatchResult {
+                home_goals: 1,
+                ..Default::default()
+            });
+            cup.knockout_rounds[0].completed = true;
+            regenerated.push(cup.id.clone());
+            game.competitions.push(cup);
+        }
+        let mut published = crate::schedule::generate_knockout_cup(
+            "Published nations",
+            year as u32,
+            &["nt-ENG".into(), "nt-ES".into()],
+            at(year, month, day),
+            CompetitionType::InternationalNation,
+            CompetitionScope::Continental,
+        );
+        published.priority = 30_000;
+        published.fixtures[0].postponement = Some(domain::league::Postponement {
+            original_date: format!("{year}-04-25"),
+            reason: domain::league::RescheduleReason::LeagueClash,
+        });
+        let retained_id = published.id.clone();
+        game.competitions.push(published);
+        (game, regenerated, retained_id)
+    }
+
+    fn assert_national_rollover_publication(
+        game: &Game,
+        regenerated: &[String],
+        retained_id: &str,
+        opener: &str,
+        appearances: usize,
+    ) {
+        let retained = game
+            .competitions
+            .iter()
+            .find(|c| c.id == retained_id)
+            .unwrap();
+        assert_eq!(retained.fixtures.len(), 1);
+        assert!(
+            retained.fixtures[0].date.as_str() > opener,
+            "a published rival must actually move too"
+        );
+        let record = retained.fixtures[0].postponement.as_ref().unwrap();
+        assert_eq!(
+            record.original_date,
+            format!("{}-04-25", game.clock.current_date.year())
+        );
+        assert_eq!(record.reason, domain::league::RescheduleReason::LeagueClash);
+        for id in regenerated {
+            let cup = game.competitions.iter().find(|c| &c.id == id).unwrap();
+            assert_eq!(cup.season, game.clock.current_date.year() as u32);
+            assert_eq!(cup.fixtures.len(), 1);
+            assert_eq!(cup.fixtures[0].status, FixtureStatus::Scheduled);
+            assert!(cup.fixtures[0].result.is_none());
+            assert!(
+                cup.fixtures[0].postponement.is_none(),
+                "regenerated {} was never published",
+                cup.name
+            );
+        }
+        let date = |s: &str| chrono::NaiveDate::parse_from_str(s, "%Y-%m-%d").unwrap();
+        let mut dates: Vec<_> = game
+            .competitions
+            .iter()
+            .flat_map(|c| &c.fixtures)
+            .filter(|f| f.home_team_id == "nt-ENG" || f.away_team_id == "nt-ENG")
+            .map(|f| date(&f.date))
+            .collect();
+        dates.sort();
+        assert_eq!(dates.len(), appearances);
+        assert!(
+            dates
+                .windows(2)
+                .all(|pair| (pair[1] - pair[0]).num_days() >= 3)
+        );
+    }
+
+    /// Given two completed national cups and one genuinely published rival, When rollover
+    /// regenerates them, Then new legal dates are unmarked and the rival keeps its first record.
+    #[test]
+    fn national_rollover_marks_only_retained_fixture_dates() {
+        let (mut game, regenerated, retained) = national_rollover_publication_game(2035, 8, 1);
+        regenerate_competitions_for_new_season(&mut game, 2035, at(2035, 5, 29));
+        assert_eq!(
+            game.edition_archive.len(),
+            2,
+            "completed matches remain archived"
+        );
+        assert_national_rollover_publication(&game, &regenerated, &retained, "2035-08-01", 3);
+    }
+
+    /// Given freshly regenerated national cups, When rollover stages a higher-priority World Cup,
+    /// Then nested publication also knows the new editions were never shown to the player.
+    #[test]
+    fn national_rollover_keeps_publication_history_through_world_cup_staging() {
+        let (mut game, regenerated, retained) = national_rollover_publication_game(2034, 6, 1);
+        for cup in &mut game.competitions[..2] {
+            crate::schedule::regenerate_knockout_for_season(cup, 2034, at(2034, 6, 1));
+        }
+        manage_international_calendar(
+            &mut game,
+            at(2034, 5, 29),
+            at(2034, 6, 1),
+            true,
+            Some(vec!["ENG".into(), "FR".into(), "DE".into(), "ES".into()]),
+            &std::collections::HashSet::from([retained.clone()]),
+        );
+        assert!(
+            game.competitions
+                .iter()
+                .any(crate::world_cup::is_world_cup_competition),
+            "the nested publication path must run"
+        );
+        assert_national_rollover_publication(&game, &regenerated, &retained, "2034-06-01", 6);
+    }
 }

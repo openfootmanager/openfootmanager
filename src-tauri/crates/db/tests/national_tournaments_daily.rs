@@ -829,11 +829,33 @@ fn a_legacy_tournament_collision_is_repaired_without_replaying_wear() {
 /// When the scoped World Cup adapter runs, Then it does not advance that continental calendar.
 #[test]
 fn a_world_cup_replay_keeps_unrelated_continental_dates() {
+    use domain::league::{Fixture, FixtureCompetition, League};
     let mut game = competing_tournaments();
+    let nations = vec!["nt-DE".into(), "nt-ES".into()];
+    let mut continental = League::new(
+        "earlier-nations".into(),
+        "Earlier continental".into(),
+        2033,
+        &nations,
+    );
+    continental.kind = CompetitionType::InternationalNation;
+    continental.scope = CompetitionScope::Continental;
+    continental.fixtures.push(Fixture {
+        id: "earlier-de-es".into(),
+        competition_id: continental.id.clone(),
+        date: "2033-02-01".into(),
+        home_team_id: nations[0].clone(),
+        away_team_id: nations[1].clone(),
+        competition: FixtureCompetition::InternationalNation,
+        ..Default::default()
+    });
+    game.competitions[0] = continental;
+    game.competitions[1].fixtures[0].date = "2033-03-01".into();
     let fixtures = serde_json::to_value(&game.competitions[0].fixtures).unwrap();
     assert_eq!(
         ofm_core::world_cup::process_world_cup_fixtures_due(&mut game, "2033-03-01"),
-        0
+        1,
+        "a real due qualifier must reach replay settlement"
     );
     assert_eq!(
         serde_json::to_value(&game.competitions[0].fixtures).unwrap(),
