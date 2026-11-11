@@ -9,6 +9,15 @@ import { describe, expect, it } from "vitest";
  */
 const FINISHED_FOLDERS = [
   "./components/ui/",
+  // The profile's dialogs, banners, scout button and stat tile. Its Career and Contract cards join
+  // after their mockup round, and then these become the one folder.
+  "./components/playerProfile/PlayerProfileRenewalModal.tsx",
+  "./components/playerProfile/PlayerProfileTerminationModal.tsx",
+  "./components/playerProfile/PlayerProfileLoanStatusBanner.tsx",
+  "./components/playerProfile/PlayerProfileInjuryBanner.tsx",
+  "./components/playerProfile/PlayerProfileScoutAction.tsx",
+  "./components/playerProfile/PlayerProfileStatCard.tsx",
+  "./components/playerProfile/PlayerProfile.renewal.ts",
   // The dashboard shell. The rest of components/dashboard (its modals) joins with them, and these
   // four entries become the one folder.
   "./components/dashboard/DashboardAlerts.tsx",

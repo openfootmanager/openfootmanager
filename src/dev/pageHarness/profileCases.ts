@@ -24,6 +24,8 @@ export interface ProfileCase {
   /** Latest first, as the backend returns them. Only the club's own player has played. */
   recentMatches: PlayerRecentMatchEntry[];
   seasonStats: PlayerAdvancedStatsSummary;
+  /** Laid over the world's player of this id, to show a state the generated career has none of. */
+  playerPatch?: Partial<PlayerData>;
 }
 
 const USER_CLUB = gameState.manager.team_id;
@@ -44,8 +46,16 @@ const freeAgents = (players: PlayerData[]) =>
 function pickPlayers(players: PlayerData[]) {
   const outfield = (list: PlayerData[]) => list.filter((p) => p.position !== "Goalkeeper");
   const [scouted, unknown, retiree] = freeAgents(players);
+  const club = outfield(ofClub(players));
+  if (club.length < 3) {
+    throw new Error(
+      `the generated career's club has ${club.length} outfield players; the own, injured and loaned cases need three`,
+    );
+  }
   return {
-    own: outfield(ofClub(players))[0],
+    own: club[0],
+    injured: club[1],
+    loaned: club[2],
     keeper: ofClub(players).find((p) => p.position === "Goalkeeper") ?? ofClub(players)[0],
     rival: outfield(rivals(players))[0],
     scouted,
@@ -150,6 +160,21 @@ function opinionOf(player: PlayerData, source: PotentialOpinion["source"]): Pote
   };
 }
 
+/** The club's own player as the club sees him: known, his wage exact, with ratings and a season. */
+function ownCase(player: PlayerData): ProfileCase {
+  return {
+    playerId: player.id,
+    knowledge: { kind: "own" },
+    wage: { kind: "exact", weekly: player.wage },
+    opinion: opinionOf(player, { kind: "coaches" }),
+    positionRatings: positionRatingsOf(player, { kind: "live" }),
+    scoutedReport: null,
+    retiredPlayer: null,
+    recentMatches: fiveMatches(),
+    seasonStats: A_SEASON,
+  };
+}
+
 /**
  * The backend's answers about the player a profile is open on, in the state `variant` names, as
  * `ofm_core::player_knowledge` decides them: its own player in full; a division rival's rating but
@@ -157,7 +182,9 @@ function opinionOf(player: PlayerData, source: PotentialOpinion["source"]): Pote
  * facts only; a retiree fetched on his own.
  */
 export function profileCase(variant: HarnessProfile): ProfileCase {
-  const { own, keeper, rival, scouted, unknown, retiree } = pickPlayers(gameState.players);
+  const { own, keeper, injured, loaned, rival, scouted, unknown, retiree } = pickPlayers(
+    gameState.players,
+  );
   const none = {
     opinion: null,
     positionRatings: null,
@@ -188,6 +215,31 @@ export function profileCase(variant: HarnessProfile): ProfileCase {
         positionRatings: positionRatingsOf(keeper, { kind: "live" }),
         recentMatches: fiveMatches(),
         seasonStats: A_SEASON,
+      };
+    case "injured":
+      return {
+        ...ownCase(injured),
+        // A knee injury with twelve days to go: the profile's injury banner.
+        playerPatch: { injury: { name: "common.injuries.kneeBruise", days_remaining: 12 } },
+      };
+    case "loaned":
+      return {
+        ...ownCase(loaned),
+        // The coaches watch a player the club has loaned out no longer, so no opinion of him
+        // (`player_knowledge::trains_with_club_since`).
+        opinion: null,
+        // On loan from the user's club to a rival: the profile's loan banner.
+        playerPatch: {
+          team_id: rival.team_id,
+          active_loan: {
+            parent_team_id: USER_CLUB,
+            loan_team_id: rival.team_id ?? "",
+            start_date: "2031-07-01",
+            end_date: "2032-06-30",
+            wage_contribution_pct: 50,
+            buy_option_fee: null,
+          },
+        },
       };
     case "rival":
       return {
