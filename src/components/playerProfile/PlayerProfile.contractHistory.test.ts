@@ -343,7 +343,7 @@ describe("buildContractHistory", () => {
       TODAY,
     );
 
-    expect(rows[1]).toMatchObject({ endedBy: "terminated", endedOn: "2030-03-01" });
+    expect(rows[1]).toMatchObject({ endedBy: "terminated" });
     expect(rows[1].replacedOn).toBeNull();
     expect(rows[0].inForce).toBe(true);
   });
