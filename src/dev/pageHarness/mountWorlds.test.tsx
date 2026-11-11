@@ -54,7 +54,7 @@ describe("the World Editor home on the page harness", () => {
     const view = within(root);
     expect(view.getByRole("heading", { level: 1, name: "Your worlds" })).toBeInTheDocument();
     expect(view.getAllByRole("row").length).toBeGreaterThan(5);
-    expect(view.getByText("Nordic Leagues 2027", { selector: "span" })).toBeInTheDocument();
+    expect(view.getAllByText("Nordic Leagues 2027", { selector: "span" })).toHaveLength(2);
     expect(view.getAllByText("Can't be read").length).toBeGreaterThan(0);
     expect(window.__pageHarness?.unanswered).toEqual([]);
   });

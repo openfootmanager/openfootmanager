@@ -110,6 +110,7 @@ export function judge({
   innerHeight,
   unanswered,
   pastEdge,
+  belowTheFold = [],
   rendered,
   faces,
 }) {
@@ -130,6 +131,9 @@ export function judge({
     problems.push(`the page scrolls down (${scrollHeight} > ${innerHeight})`);
   }
   if (pastEdge.length > 0) problems.push(`past the right edge: ${pastEdge.join(", ")}`);
+  if (belowTheFold.length > 0) {
+    problems.push(`below the bottom edge of the window: ${belowTheFold.join(", ")}`);
+  }
   if (unanswered.length > 0) problems.push(`unanswered commands: ${unanswered.join(", ")}`);
   if (!rendered) problems.push("nothing rendered");
   return problems;
@@ -195,6 +199,9 @@ const MEASURE = `(async () => {
     innerHeight: window.innerHeight,
     unanswered: harness ? harness.unanswered : [],
     pastEdge: harness ? harness.pastEdge() : [],
+    belowTheFold: [...document.querySelectorAll("[data-keep-in-window]")]
+      .filter((element) => element.getBoundingClientRect().bottom > window.innerHeight)
+      .map((element) => (element.textContent ?? "").trim()),
     rendered: (document.getElementById("root")?.childElementCount ?? 0) > 0,
   });
 })()`;

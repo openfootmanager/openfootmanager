@@ -34,7 +34,7 @@ export default function WorldsSidebar({
   return (
     <aside
       aria-label={t("worldEditor.title")}
-      className="dark flex w-full shrink-0 flex-col gap-5 border-b border-line bg-chrome p-5 text-fg md:sticky md:top-0 md:h-screen md:w-64 md:overflow-y-auto md:border-b-0 md:border-r"
+      className="dark flex w-full shrink-0 flex-col gap-5 border-b border-line bg-chrome p-5 text-fg md:sticky md:top-0 md:h-screen md:w-64 md:overflow-hidden md:border-b-0 md:border-r"
     >
       <div className="flex flex-col gap-1">
         <p className="font-heading text-title font-bold uppercase leading-none tracking-label">
@@ -72,7 +72,10 @@ export default function WorldsSidebar({
         </Button>
       </div>
 
-      <section aria-labelledby={examplesId} className="flex flex-col gap-1">
+      <section
+        aria-labelledby={examplesId}
+        className="flex flex-col gap-1 md:min-h-0 md:flex-1 md:overflow-y-auto"
+      >
         <p
           id={examplesId}
           className="px-2.5 text-caption font-bold uppercase tracking-label text-fg-subtle"
@@ -99,7 +102,8 @@ export default function WorldsSidebar({
       <button
         type="button"
         onClick={onBack}
-        className="mt-auto inline-flex items-center gap-2 rounded-lg px-2.5 py-1 text-body text-fg-muted hover:text-fg focus:outline-none focus-visible:ring-2 focus-visible:ring-focus"
+        data-keep-in-window
+        className="mt-auto inline-flex shrink-0 items-center gap-2 rounded-lg px-2.5 py-1 text-body text-fg-muted hover:text-fg focus:outline-none focus-visible:ring-2 focus-visible:ring-focus"
       >
         <ArrowLeft aria-hidden="true" className="size-4" />
         {t("worldEditor.home.backToMenu")}

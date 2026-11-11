@@ -250,6 +250,16 @@ describe("page layout check", () => {
     ]);
   });
 
+  /**
+   * Given a control the page marks as one that must stay in the window (the way back out) and that
+   * sits below the fold, then it is named: scrolling a sidebar to find "Back" is a trap.
+   */
+  it("names a control that must stay in the window and is below it", () => {
+    expect(judge({ ...clean, belowTheFold: ["Back to main menu"] })).toEqual([
+      "below the bottom edge of the window: Back to main menu",
+    ]);
+  });
+
   /** Given a command the fixture didn't answer, or a page that never rendered, then it fails. */
   it("fails an unanswered command or a blank page", () => {
     expect(judge({ ...clean, unanswered: ["get_inbox"], rendered: false })).toEqual([
