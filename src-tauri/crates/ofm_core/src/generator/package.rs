@@ -1996,17 +1996,19 @@ fn extract_package_definitions(
     ofm_path: &Path,
     dest_dir: &Path,
 ) -> Result<Vec<PackageError>, String> {
-    extract_archive_entries(ofm_path, dest_dir, |name| {
-        !is_package_asset_entry(name)
-            && matches!(
-                Path::new(name)
-                    .extension()
-                    .and_then(|ext| ext.to_str())
-                    .map(str::to_ascii_lowercase)
-                    .as_deref(),
-                Some("json" | "yaml" | "yml")
-            )
-    })
+    extract_archive_entries(ofm_path, dest_dir, is_package_definition_entry)
+}
+
+fn is_package_definition_entry(name: &str) -> bool {
+    !is_package_asset_entry(name)
+        && matches!(
+            Path::new(name)
+                .extension()
+                .and_then(|ext| ext.to_str())
+                .map(str::to_ascii_lowercase)
+                .as_deref(),
+            Some("json" | "yaml" | "yml")
+        )
 }
 
 /// Extract only the package's `assets/` tree.
@@ -2112,9 +2114,79 @@ fn entry_name_for_report<R: std::io::Read + std::io::Seek>(
     }
 }
 
-/// Shared, hardened extraction. `keep` selects which entries are written; every
-/// entry is still checked for symlinks, zip-slip and decompressed size first, so
-/// a filtered extraction is no less safe than a full one.
+struct ValidatedArchiveEntry {
+    index: usize,
+    name: String,
+    destination: PathBuf,
+}
+
+struct ValidatedArchive {
+    entries: Vec<ValidatedArchiveEntry>,
+    errors: Vec<PackageError>,
+}
+
+/// Validate metadata for every entry before selecting which entries to read.
+fn validate_archive_entries<R: std::io::Read + std::io::Seek>(
+    archive: &mut zip::ZipArchive<R>,
+    dest_dir: &Path,
+) -> Result<ValidatedArchive, String> {
+    let mut entries = Vec::new();
+    let mut errors = Vec::new();
+    let mut declared_size = 0u64;
+    for i in 0..archive.len() {
+        let Ok(entry) = archive.by_index_data(i) else {
+            errors.push(PackageError::new(
+                READ_FAILED,
+                &entry_name_for_report(archive, i),
+            ));
+            continue;
+        };
+        let Ok(name) = entry.name().map(std::borrow::Cow::into_owned) else {
+            errors.push(PackageError::new(READ_FAILED, &format!("#{i}")));
+            continue;
+        };
+        declared_size = declared_size.saturating_add(entry.size());
+        if declared_size > MAX_UNCOMPRESSED_BYTES {
+            return Err(ARCHIVE_TOO_LARGE_ERROR.to_string());
+        }
+        let is_symlink = entry.is_symlink();
+        if is_symlink {
+            errors.push(PackageError::new(SYMLINK_ERROR, &name));
+        }
+        let is_dir = entry.is_dir();
+        let path_name = if is_dir {
+            name.trim_end_matches(['/', '\\'])
+        } else {
+            &name
+        };
+        let dest = if path_name.is_empty() {
+            None
+        } else {
+            safe_entry_path(dest_dir, path_name)
+        };
+        if dest.is_none() {
+            errors.push(PackageError::new(ZIPSLIP_ERROR, &name));
+        }
+        let can_open = archive.by_index(i).is_ok();
+        if !can_open {
+            errors.push(PackageError::new(READ_FAILED, &name));
+        }
+        if !is_dir
+            && !is_symlink
+            && can_open
+            && let Some(dest) = dest
+        {
+            entries.push(ValidatedArchiveEntry {
+                index: i,
+                name,
+                destination: dest,
+            });
+        }
+    }
+    Ok(ValidatedArchive { entries, errors })
+}
+
+/// Shared hardened extraction; selected entries are bounded by actual bytes read.
 fn extract_archive_entries(
     ofm_path: &Path,
     dest_dir: &Path,
@@ -2133,39 +2205,22 @@ fn extract_archive_entries(
         return Err(TOO_MANY_FILES_ERROR.to_string());
     }
 
-    let mut errors = Vec::new();
+    let ValidatedArchive {
+        entries,
+        mut errors,
+    } = validate_archive_entries(&mut archive, dest_dir)?;
     let mut total_uncompressed: u64 = 0;
-    let mut declared_uncompressed: u64 = 0;
-    for i in 0..archive.len() {
-        // An entry zip cannot open, such as one compressed with a codec we do not build, is
-        // reported: skipping it would install the package as if that file had never existed.
-        let Ok(mut entry) = archive.by_index(i) else {
-            let entry_name = entry_name_for_report(&archive, i);
-            if keep(&entry_name) {
-                errors.push(PackageError::new(READ_FAILED, &entry_name));
-            }
-            continue;
-        };
-        let Ok(entry_name) = entry.name().map(std::borrow::Cow::into_owned) else {
-            errors.push(PackageError::new(READ_FAILED, &format!("#{i}")));
-            continue;
-        };
-        if entry.is_dir() {
-            continue;
-        }
-        declared_uncompressed = declared_uncompressed.saturating_add(entry.size());
-        if declared_uncompressed > MAX_UNCOMPRESSED_BYTES {
-            return Err(ARCHIVE_TOO_LARGE_ERROR.to_string());
-        }
-        if entry.is_symlink() {
-            errors.push(PackageError::new(SYMLINK_ERROR, &entry_name));
-            continue;
-        }
-        let Some(dest) = safe_entry_path(dest_dir, &entry_name) else {
-            errors.push(PackageError::new(ZIPSLIP_ERROR, &entry_name));
-            continue;
-        };
+    for ValidatedArchiveEntry {
+        index,
+        name: entry_name,
+        destination: dest,
+    } in entries
+    {
         if !keep(&entry_name) {
+            continue;
+        }
+        let Ok(mut entry) = archive.by_index(index) else {
+            errors.push(PackageError::new(READ_FAILED, &entry_name));
             continue;
         };
         if let Some(parent) = dest.parent()
@@ -2258,19 +2313,21 @@ pub fn read_package_manifest_from_ofm(path: &Path) -> Option<WorldMetaDef> {
     let count = archive.len();
 
     for i in 0..count {
+        let Ok(metadata) = archive.by_index_data(i) else {
+            continue;
+        };
+        if metadata.is_dir() {
+            continue;
+        }
+        let Ok(name) = metadata.name() else {
+            continue;
+        };
+        if !is_package_definition_entry(&name) {
+            continue;
+        }
         let Ok(mut entry) = archive.by_index(i) else {
             continue;
         };
-        if entry.is_dir() {
-            continue;
-        }
-        let Ok(name) = entry.name() else {
-            continue;
-        };
-        let lower = name.to_ascii_lowercase();
-        if !lower.ends_with(".json") && !lower.ends_with(".yaml") && !lower.ends_with(".yml") {
-            continue;
-        }
         let Some(bytes) = read_entry_capped(&mut entry, MAX_SINGLE_ENTRY_BYTES) else {
             continue;
         };
@@ -2389,6 +2446,17 @@ mod tests {
         assert!(full.iter().any(|e| e.code == READ_FAILED));
         assert!(filtered.iter().any(|e| e.code == READ_FAILED));
         std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    /// Given an absolute directory entry, when filtered extraction checks metadata, then it rejects the path.
+    #[test]
+    fn filtered_extraction_reports_an_absolute_directory() {
+        let archive = build_zip(&[("/", b"")]);
+        let dest = temp_package();
+        let errors = extract_package_definitions(&archive, &dest).unwrap();
+        assert!(errors.iter().any(|error| error.code == ZIPSLIP_ERROR));
+        std::fs::remove_dir_all(dest).unwrap();
+        std::fs::remove_file(archive).unwrap();
     }
 
     #[test]
