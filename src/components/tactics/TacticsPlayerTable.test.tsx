@@ -146,10 +146,10 @@ describe("TacticsPlayerTable", () => {
     renderTable();
 
     const table = screen.getByRole("table", { name: "tactics.playerTable" });
-    const groups = within(table)
-      .getAllByRole("columnheader")
-      .filter((th) => th.getAttribute("colspan"))
-      .map((th) => th.textContent);
+    // Each section is a row group of its own, opened by a row-group header.
+    const groups = [...table.querySelectorAll("tbody")].map(
+      (body) => body.querySelector('tr:first-child > th[scope="rowgroup"]')?.textContent,
+    );
     expect(groups).toEqual(["preMatch.startingXI", "preMatch.substitutes", "tactics.reserves"]);
   });
 
@@ -180,6 +180,22 @@ describe("TacticsPlayerTable", () => {
     fireEvent.click(screen.getByRole("option", { name: "tactics.playerRoles.BallPlayingKeeper" }));
 
     expect(handlers.onRoleChange).toHaveBeenCalledWith("gk", "BallPlayingKeeper");
+  });
+
+  /**
+   * Given a striker deployed at left-back (his slot's position is LeftBack, his own is Striker)
+   * When his role is changed
+   * Then the roles offered are the left-back slot's, not a striker's: wing-back is offered and the
+   *      poacher is not, and the table asks for the wing-back role for him.
+   */
+  it("offers a starter the roles of the slot he stands in, not of his own position", () => {
+    const handlers = renderTable();
+
+    fireEvent.click(screen.getByRole("combobox", { name: "tactics.playerRoleLabel: ST" }));
+    expect(screen.queryByRole("option", { name: "tactics.playerRoles.Poacher" })).toBeNull();
+    fireEvent.click(screen.getByRole("option", { name: "tactics.playerRoles.WingBack" }));
+
+    expect(handlers.onRoleChange).toHaveBeenCalledWith("st", "WingBack");
   });
 
   /**

@@ -364,25 +364,31 @@ describe("DataTable", () => {
   /**
    * Given rows in two groups, the starters first
    * When the table draws them
-   * Then a header row names each group where it begins, spanning the table, and the rows follow it.
+   * Then each group is a row group of its own (a `tbody`) opened by a header row that names it and
+   *      spans the table, so a screen reader announces the group and the rows inside it; the
+   *      column headers stay the only column headers.
    */
-  it("opens each group of rows with a header naming it", () => {
-    renderTable({
+  it("opens each group of rows with a row-group header in a body of its own", () => {
+    const { container } = renderTable({
       groupOf: (p) =>
         p.starter
           ? { key: "xi", title: "Starting eleven" }
           : { key: "bench", title: "Substitutes" },
     });
 
-    const headers = screen.getAllByRole("columnheader").filter((th) => th.getAttribute("colspan"));
-    expect(headers.map((th) => th.textContent)).toEqual(["Starting eleven", "Substitutes"]);
-    expect(headers[0]).toHaveAttribute("colspan", "3");
-    const rows = screen.getAllByRole("row").map((row) => row.textContent ?? "");
-    expect(rows.findIndex((row) => row.includes("Starting eleven"))).toBeLessThan(
-      rows.findIndex((row) => row.includes("Anderson")),
+    const bodies = [...container.querySelectorAll("tbody")];
+    expect(bodies).toHaveLength(2);
+    const headers = bodies.map((body) =>
+      body.querySelector('tr:first-child > th[scope="rowgroup"]'),
     );
-    expect(rows.findIndex((row) => row.includes("Substitutes"))).toBeLessThan(
-      rows.findIndex((row) => row.includes("Navarro")),
+    expect(headers.map((th) => th?.textContent)).toEqual(["Starting eleven", "Substitutes"]);
+    expect(headers[0]).toHaveAttribute("colspan", "3");
+    expect(bodies[0]).toHaveTextContent("Anderson");
+    expect(bodies[0]).not.toHaveTextContent("Navarro");
+    expect(bodies[1]).toHaveTextContent("Navarro");
+    // Not a column header: only the header row's cells are.
+    expect(screen.getAllByRole("columnheader").every((th) => !th.getAttribute("colspan"))).toBe(
+      true,
     );
   });
 
