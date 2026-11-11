@@ -1,22 +1,33 @@
 import { useMemo } from "react";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { installScrollGeometry } from "../../test-utils/scrollGeometry";
 import { VirtualList } from "./VirtualList";
 
-// jsdom has no layout: the scroller reports no height, so the list assumes a viewport of 800 px
-// (13 rows at a 64 px step) and the rows around it.
+// jsdom has no layout; the geometry fixture gives the scroller a 640 px viewport and puts the list
+// 96 px down its content (a toolbar above it), moving the list's top with the scroll as a browser does.
 const STEP = 64;
+const VIEWPORT = 640;
+const LIST_OFFSET = 96;
+
+let restoreGeometry: () => void;
+beforeEach(() => {
+  restoreGeometry = installScrollGeometry({ viewportHeight: VIEWPORT, listOffset: LIST_OFFSET });
+});
+afterEach(() => restoreGeometry());
 
 interface HarnessProps {
   count?: number;
+  /** The rows' identities, in order; defaults to 0..count-1. */
+  ids?: number[];
   revealIndex?: number | null;
   resetKey?: unknown;
   onActivate?: (index: number) => void;
 }
 
-function Harness({ count = 10_000, revealIndex, resetKey, onActivate }: HarnessProps) {
-  const items = useMemo(() => Array.from({ length: count }, (_, i) => i), [count]);
+function Harness({ count = 10_000, ids, revealIndex, resetKey, onActivate }: HarnessProps) {
+  const items = useMemo(() => ids ?? Array.from({ length: count }, (_, i) => i), [count, ids]);
   return (
     <div data-testid="scroller" data-scroll-container="" style={{ height: 400, overflow: "auto" }}>
       <VirtualList
@@ -39,7 +50,7 @@ const item = (index: number) =>
   document.querySelector<HTMLElement>(`[data-vindex="${index}"]`) as HTMLElement;
 
 async function scrollToRow(row: number) {
-  scroller().scrollTop = row * STEP;
+  scroller().scrollTop = LIST_OFFSET + row * STEP;
   fireEvent.scroll(scroller());
   await waitFor(() => expect(item(row)).not.toBeNull());
 }
@@ -55,7 +66,7 @@ describe("VirtualList", () => {
 
     const rendered = screen.getAllByRole("listitem").length;
     expect(rendered).toBeGreaterThan(10);
-    expect(rendered).toBeLessThan(40);
+    expect(rendered).toBeLessThan(25);
     expect(screen.getByText("row 0")).toBeInTheDocument();
     expect(screen.queryByText("row 9999")).toBeNull();
   });
@@ -86,7 +97,9 @@ describe("VirtualList", () => {
 
     expect(screen.getByText("row 5000")).toBeInTheDocument();
     expect(screen.queryByText("row 0")).toBeNull();
-    expect(screen.getAllByRole("listitem").length).toBeLessThan(40);
+    expect(screen.getAllByRole("listitem").length).toBeLessThan(25);
+    // The row at the top of the viewport and the rows below it are all there.
+    expect(screen.getByText("row 5009")).toBeInTheDocument();
   });
 
   /**
@@ -213,6 +226,52 @@ describe("VirtualList", () => {
 
     await waitFor(() => expect(item(0)).not.toBeNull());
     expect(scroller().scrollTop).toBe(0);
+  });
+
+  /**
+   * Given the record at row 101 focused, then scrolled far away
+   * When a row is inserted above it (a duplicate of row 0), and then removed again (undo)
+   * Then the focused record keeps focus and its node each time: focus follows the record's identity,
+   *      not the index it had, so a shift cannot hand it to the wrong row or unmount it
+   */
+  it("keeps focus on the same record when rows are inserted or removed above it", async () => {
+    const original = Array.from({ length: 300 }, (_, i) => i);
+    const inserted = [-1, ...original];
+    const { rerender } = render(<Harness ids={original} />);
+    await scrollToRow(101);
+    item(101).focus();
+    const focused = item(101);
+    await scrollToRow(250);
+    expect(document.activeElement).toBe(focused);
+
+    rerender(<Harness ids={inserted} />);
+
+    // The record is now row 102; it is the same node, still focused, and the tab stop.
+    expect(item(102)).toBe(focused);
+    expect(document.activeElement).toBe(focused);
+    expect(focused.tabIndex).toBe(0);
+    expect(focused.textContent).toBe("row 101");
+
+    rerender(<Harness ids={original} />);
+
+    expect(item(101)).toBe(focused);
+    expect(document.activeElement).toBe(focused);
+    expect(focused.textContent).toBe("row 101");
+  });
+
+  /**
+   * Given the focused record removed from the list
+   * When the list re-renders
+   * Then nothing throws and the list has a tab stop again
+   */
+  it("keeps a tab stop when the focused record is removed", () => {
+    const ids = Array.from({ length: 40 }, (_, i) => i);
+    const { rerender } = render(<Harness ids={ids} />);
+    item(5).focus();
+
+    rerender(<Harness ids={ids.filter((id) => id !== 5)} />);
+
+    expect(screen.getAllByRole("listitem").filter((row) => row.tabIndex === 0)).toHaveLength(1);
   });
 
   /**

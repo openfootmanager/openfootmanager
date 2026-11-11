@@ -1,9 +1,20 @@
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+import { installScrollGeometry } from "../../../test-utils/scrollGeometry";
 
 import { PlayersTab } from "./PlayersTab";
 import { emptyPlayer, emptyTeam } from "./helpers";
 import type { PlayerDef, Position, TeamDef } from "./types";
+
+// jsdom lays nothing out: the fixture gives the scroller a viewport and puts the list below a toolbar,
+// moving the list's top with the scroll as a browser does, so a scroll test can fail.
+const LIST_OFFSET = 120;
+let restoreGeometry: () => void;
+beforeEach(() => {
+  restoreGeometry = installScrollGeometry({ viewportHeight: 640, listOffset: LIST_OFFSET });
+});
+afterEach(() => restoreGeometry());
 
 const useAssetDataUrl = vi.fn(() => null);
 
@@ -69,7 +80,7 @@ const ROW_STEP = 72;
 
 async function scrollToPlayer(row: number) {
   const scroller = screen.getByTestId("scroller");
-  scroller.scrollTop = row * ROW_STEP;
+  scroller.scrollTop = LIST_OFFSET + row * ROW_STEP;
   fireEvent.scroll(scroller);
   await waitFor(() => expect(screen.getByText(`Player ${row}`)).toBeInTheDocument());
 }

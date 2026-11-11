@@ -1,9 +1,20 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+import { installScrollGeometry } from "../../../test-utils/scrollGeometry";
 
 import { StaffTab } from "./StaffTab";
 import { emptyStaff, emptyTeam } from "./helpers";
 import type { StaffDef, TeamDef } from "./types";
+
+// jsdom lays nothing out: the fixture gives the scroller a viewport and puts the list below a toolbar,
+// moving the list's top with the scroll as a browser does, so a scroll test can fail.
+const LIST_OFFSET = 120;
+let restoreGeometry: () => void;
+beforeEach(() => {
+  restoreGeometry = installScrollGeometry({ viewportHeight: 640, listOffset: LIST_OFFSET });
+});
+afterEach(() => restoreGeometry());
 
 vi.mock("react-i18next", () => ({
   useTranslation: () => ({
@@ -66,7 +77,7 @@ describe("StaffTab", () => {
     const { onEdit } = renderTab();
     const scroller = screen.getByTestId("scroller");
 
-    scroller.scrollTop = 300 * 72;
+    scroller.scrollTop = LIST_OFFSET + 300 * 72;
     fireEvent.scroll(scroller);
     await waitFor(() => expect(screen.getByText("Staff 300")).toBeInTheDocument());
     const row = screen.getByText("Staff 300").closest('[role="listitem"]') as HTMLElement;

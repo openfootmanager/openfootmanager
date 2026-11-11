@@ -70,3 +70,18 @@ export function scrollTopToReveal({
   if (bottom > scrollTop + viewportHeight) return bottom - viewportHeight;
   return null;
 }
+
+/**
+ * The row indexes to put in the page, in order: the window, plus the focused row if it has been
+ * scrolled out of it (it keeps its DOM node, and with it the user's keyboard focus).
+ */
+export function renderedIndexes(range: RowWindow, count: number, focusIndex: number): number[] {
+  const end = Math.min(range.end, count);
+  const indexes: number[] = [];
+  const keepFocused =
+    focusIndex >= 0 && focusIndex < count && (focusIndex < range.start || focusIndex >= end);
+  if (keepFocused && focusIndex < range.start) indexes.push(focusIndex);
+  for (let i = range.start; i < end; i += 1) indexes.push(i);
+  if (keepFocused && focusIndex >= end) indexes.push(focusIndex);
+  return indexes;
+}

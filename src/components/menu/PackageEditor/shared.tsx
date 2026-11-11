@@ -1,4 +1,4 @@
-import { useId, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   Plus,
@@ -11,6 +11,7 @@ import {
   Loader2,
   X,
 } from "lucide-react";
+import { useRootFontPx } from "../../../hooks/useRootFontPx";
 import { VirtualList } from "../../ui/VirtualList";
 
 // ---------------------------------------------------------------------------
@@ -98,8 +99,12 @@ export function EntityListFooter({ matches, hasRecords }: EntityListFooterProps)
 // EntityRowList
 // ---------------------------------------------------------------------------
 
-/** One entity row's height in px; every row is given it (see [`VirtualList`]). */
-const ENTITY_ROW_HEIGHT = 64;
+/**
+ * One entity row's height and the gap below it, in rem so the UI text scale moves them with the text
+ * inside (see [`VirtualList`], which positions rows by arithmetic and needs every row to have it).
+ */
+const ENTITY_ROW_HEIGHT_REM = 4;
+const ENTITY_ROW_GAP_REM = 0.5;
 
 interface EntityRowListProps<R extends { i: number }> {
   /** The rows the search and filters left, each carrying its index in the whole list. */
@@ -136,11 +141,13 @@ export function EntityRowList<R extends { i: number }>({
     return at < 0 ? null : at;
   }, [rows, selectedIndex]);
 
+  const rootPx = useRootFontPx();
+
   return (
     <VirtualList
       items={rows}
-      rowHeight={ENTITY_ROW_HEIGHT}
-      gap={8}
+      rowHeight={ENTITY_ROW_HEIGHT_REM * rootPx}
+      gap={ENTITY_ROW_GAP_REM * rootPx}
       itemKey={itemKey}
       renderItem={renderRow}
       aria-label={label}
@@ -236,7 +243,13 @@ export function EntityRow({
         <p className="font-heading font-bold text-sm uppercase tracking-wide text-gray-800 dark:text-gray-200 truncate">
           {title}
         </p>
-        {subtitle && <p className="text-[10px] text-gray-400 dark:text-gray-500">{subtitle}</p>}
+        {subtitle && (
+          // One line, whatever the text scale: a wrapped subtitle would be taller than the row a
+          // virtual list gives it. The whole text stays reachable as the title.
+          <p className="text-[10px] text-gray-400 dark:text-gray-500 truncate" title={subtitle}>
+            {subtitle}
+          </p>
+        )}
       </div>
       {confirming ? (
         <div className="flex items-center gap-1 flex-shrink-0">

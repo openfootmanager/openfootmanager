@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { scrollTopToReveal, windowRange } from "./VirtualList.helpers";
+import { renderedIndexes, scrollTopToReveal, windowRange } from "./VirtualList.helpers";
 
 describe("windowRange", () => {
   const base = { count: 10_000, step: 64, viewportHeight: 640, overscan: 5 };
@@ -104,5 +104,44 @@ describe("scrollTopToReveal", () => {
   it("scrolls down to a row below the viewport", () => {
     // Row 50 spans 3300..3356; the viewport must end at 3356.
     expect(scrollTopToReveal({ ...args, index: 50, scrollTop: 0 })).toBe(3_356 - 400);
+  });
+});
+
+describe("renderedIndexes", () => {
+  /**
+   * Given a window of rows 10..14 and no focused row
+   * When the indexes to render are listed
+   * Then they are exactly the window
+   */
+  it("is the window when nothing outside it has focus", () => {
+    expect(renderedIndexes({ start: 10, end: 14 }, 100, -1)).toEqual([10, 11, 12, 13]);
+  });
+
+  /**
+   * Given a focused row above the window
+   * When the indexes are listed
+   * Then it comes first, before the window, so document order matches list order
+   */
+  it("keeps a focused row above the window ahead of it", () => {
+    expect(renderedIndexes({ start: 10, end: 12 }, 100, 3)).toEqual([3, 10, 11]);
+  });
+
+  /**
+   * Given a focused row below the window
+   * When the indexes are listed
+   * Then it comes last
+   */
+  it("keeps a focused row below the window after it", () => {
+    expect(renderedIndexes({ start: 10, end: 12 }, 100, 50)).toEqual([10, 11, 50]);
+  });
+
+  /**
+   * Given a focused row already inside the window, or one past the end of a shrunk list
+   * When the indexes are listed
+   * Then it is not added twice, and a row that no longer exists is not added at all
+   */
+  it("does not duplicate a focused row in the window or invent one past the end", () => {
+    expect(renderedIndexes({ start: 10, end: 12 }, 100, 11)).toEqual([10, 11]);
+    expect(renderedIndexes({ start: 0, end: 3 }, 5, 9)).toEqual([0, 1, 2]);
   });
 });
