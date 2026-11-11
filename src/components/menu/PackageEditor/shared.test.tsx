@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { installScrollGeometry } from "../../../test-utils/scrollGeometry";
@@ -61,6 +61,74 @@ describe("EntityRow", () => {
     expect(panel).toHaveAttribute("data-full", LONG_SUBTITLE);
     expect(panel.className).toContain("group-focus-within:after:block");
     expect(panel.closest(".group")).not.toBeNull();
+  });
+});
+
+describe("EntityRow in a virtual list", () => {
+  const rows = Array.from({ length: 30 }, (_, i) => ({ i }));
+  const renderList = () =>
+    render(
+      <div data-scroll-container="">
+        <EntityRowList
+          rows={rows}
+          itemKey={(row) => row.i}
+          renderRow={(row) => (
+            <EntityRow
+              title={`Player ${row.i}`}
+              subtitle={`${LONG_SUBTITLE} ${row.i}`}
+              onEdit={() => {}}
+              onDelete={() => {}}
+              editLabel={`edit ${row.i}`}
+              deleteLabel="delete"
+            />
+          )}
+          label="Rows"
+        />
+      </div>,
+    );
+  /**
+   * What the panel's CSS (`group-focus-within:`, i.e. a `.group:focus-within` ancestor) would match for
+   * this row: the nearest `.group` ancestor that is, or contains, the focused element. Computed from
+   * `document.activeElement` because jsdom's selector engine caches `:focus-within` across focus
+   * changes within a test.
+   */
+  const panelTrigger = (subtitle: HTMLElement) => {
+    for (let el: HTMLElement | null = subtitle; el; el = el.parentElement) {
+      if (el.classList.contains("group") && el.contains(document.activeElement)) return el;
+    }
+    return null;
+  };
+
+  /**
+   * Given a list a keyboard user walks with the arrow keys (focus is on the row's own list item, not on
+   *   a button in it)
+   * When a row is focused that way
+   * Then the full-subtitle panel's trigger matches: `group-focus-within` must see focus on the list item
+   */
+  it("shows the full subtitle while the list item itself has focus (arrow-key navigation)", () => {
+    renderList();
+    const item = screen.getAllByRole("listitem")[2];
+    const subtitle = within(item).getByText(`${LONG_SUBTITLE} 2`);
+    expect(panelTrigger(subtitle)).toBeNull();
+
+    item.focus();
+
+    expect(panelTrigger(subtitle)).not.toBeNull();
+  });
+
+  /**
+   * Given the same row
+   * When focus is on a button inside it (Tab, or a click)
+   * Then the panel's trigger matches too
+   */
+  it("shows the full subtitle while a button in the row has focus", () => {
+    renderList();
+    const item = screen.getAllByRole("listitem")[2];
+    const subtitle = within(item).getByText(`${LONG_SUBTITLE} 2`);
+
+    within(item).getByTitle("edit 2").focus();
+
+    expect(panelTrigger(subtitle)).not.toBeNull();
   });
 });
 

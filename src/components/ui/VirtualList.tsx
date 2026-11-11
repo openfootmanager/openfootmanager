@@ -108,7 +108,7 @@ export function VirtualList<T>({
           aria-setsize={count}
           aria-posinset={index + 1}
           tabIndex={index === tabStop ? 0 : -1}
-          className="absolute inset-x-0 rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 focus-visible:ring-offset-page [&>*]:h-full"
+          className="group absolute inset-x-0 rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 focus-visible:ring-offset-page [&>*]:h-full"
           style={{ top: index * step, height: rowHeight }}
         >
           {renderItem(items[index], index)}
