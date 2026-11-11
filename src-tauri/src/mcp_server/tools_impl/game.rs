@@ -47,7 +47,11 @@ pub fn game_save(ctx: Arc<McpContext>) -> Result<GameSaved, String> {
             .0
             .lock()
             .map_err(|_| crate::SAVE_MANAGER_UNAVAILABLE_ERROR.to_string())?;
-        crate::commands::util::persist_active_game(&ctx.state_manager, &mut sm)?;
+        crate::commands::util::persist_active_game(
+            &ctx.state_manager,
+            &mut sm,
+            ofm_core::state::Career::Active,
+        )?;
     }
     let date = ctx
         .state_manager

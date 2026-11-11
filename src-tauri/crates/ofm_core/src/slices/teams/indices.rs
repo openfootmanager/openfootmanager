@@ -6,7 +6,7 @@ use std::collections::HashMap;
 pub(super) type LeagueByTeam<'a> = HashMap<&'a str, &'a League>;
 pub(super) type StandingByTeam<'a> = HashMap<&'a str, (u32, &'a StandingEntry)>;
 
-pub(super) fn index_players_by_team(players: &[Player]) -> HashMap<&str, Vec<&Player>> {
+pub(crate) fn index_players_by_team(players: &[Player]) -> HashMap<&str, Vec<&Player>> {
     let mut by_team: HashMap<&str, Vec<&Player>> = HashMap::new();
     for player in players {
         if let Some(team_id) = &player.team_id {

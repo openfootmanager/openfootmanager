@@ -13,6 +13,11 @@ let gameStoreState: {
   setGameState: typeof setGameStateMock;
 };
 
+vi.mock("../hooks/usePositionGroups", async () => {
+  const { cannedPositionsModule } = await import("../test-utils/positionTable");
+  return cannedPositionsModule();
+});
+
 vi.mock("../components/match/matchCommands", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../components/match/matchCommands")>();
   return { ...actual, resetMatchCommands: vi.fn(actual.resetMatchCommands) };
@@ -28,6 +33,7 @@ vi.mock("react-router-dom", () => ({
 }));
 
 vi.mock("react-i18next", () => ({
+  initReactI18next: { type: "3rdParty", init: () => {} },
   useTranslation: () => ({
     t: (key: string, fallback?: string) => fallback ?? key,
     i18n: { language: "en" },
@@ -35,7 +41,7 @@ vi.mock("react-i18next", () => ({
 }));
 
 vi.mock("../store/gameStore", () => ({
-  useGameStore: () => gameStoreState,
+  useGameStore: Object.assign(() => gameStoreState, { getState: () => gameStoreState }),
 }));
 
 vi.mock("../store/settingsStore", () => ({
@@ -428,6 +434,7 @@ describe("MatchSimulation", (): void => {
 
       await waitFor((): void => {
         expect(mockedInvoke).toHaveBeenCalledWith("start_live_match", {
+          careerToken: 0,
           allowsExtraTime: false,
           fixtureIndex: 4,
           competitionId: "cup1",
@@ -486,7 +493,7 @@ describe("MatchSimulation", (): void => {
     fireEvent.click(screen.getByTestId("match-live"));
 
     await waitFor((): void => {
-      expect(mockedInvoke).toHaveBeenLastCalledWith("finish_live_match");
+      expect(mockedInvoke).toHaveBeenLastCalledWith("finish_live_match", { careerToken: 0 });
       expect(screen.getByTestId("postmatch-finish")).toBeInTheDocument();
     });
 
@@ -536,7 +543,7 @@ describe("MatchSimulation", (): void => {
     fireEvent.click(screen.getByTestId("match-live"));
 
     await waitFor((): void => {
-      expect(mockedInvoke).toHaveBeenLastCalledWith("finish_live_match");
+      expect(mockedInvoke).toHaveBeenLastCalledWith("finish_live_match", { careerToken: 0 });
       expect(screen.getByTestId("postmatch-finish")).toBeInTheDocument();
     });
 

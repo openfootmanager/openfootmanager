@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { cannedPositionTable } from "../../test-utils/positionTable";
 import type { GameStateData, MessageData, PlayerData, TeamData } from "../../store/gameStore";
 import type { TeamFinanceSnapshotData } from "../../services/financeService";
 import {
@@ -192,6 +193,7 @@ function financeVerdict(overrides: Partial<TeamFinanceSnapshotData> = {}): TeamF
     runwayStatus: "stable",
     overallStatus: "stable",
     marketingCampaignCooldownDaysRemaining: 0,
+    cashFlow: [],
     ...overrides,
   };
 }
@@ -319,7 +321,14 @@ describe("dashboardHelpers", (): void => {
     // The backend counts three players in a critical state (injured ones are not in the squad that
     // can play, so they are not among them).
     const fitness = createSquadFitness({ exhausted_count: 3, critical_count: 3 });
-    const alerts = getDashboardAlerts(gameState, true, translateDashboardAlert, null, fitness);
+    const alerts = getDashboardAlerts(
+      gameState,
+      cannedPositionTable(),
+      true,
+      translateDashboardAlert,
+      null,
+      fitness,
+    );
     const alertIds = alerts.map((alert) => alert.id);
 
     expect(alertIds).toContain("exhausted");
@@ -345,7 +354,14 @@ describe("dashboardHelpers", (): void => {
     });
     const fitness = createSquadFitness({ exhausted_count: 5, critical_count: 1 });
 
-    const alerts = getDashboardAlerts(gameState, false, translateDashboardAlert, null, fitness);
+    const alerts = getDashboardAlerts(
+      gameState,
+      cannedPositionTable(),
+      false,
+      translateDashboardAlert,
+      null,
+      fitness,
+    );
 
     expect(alerts.map((alert) => alert.id)).not.toContain("exhausted");
   });
@@ -362,6 +378,7 @@ describe("dashboardHelpers", (): void => {
 
     const alerts = getDashboardAlerts(
       gameState,
+      cannedPositionTable(),
       false,
       translateDashboardAlert,
       financeVerdict({
@@ -401,7 +418,13 @@ describe("dashboardHelpers", (): void => {
       ],
     });
 
-    const alerts = getDashboardAlerts(gameState, false, translateDashboardAlert, financeVerdict());
+    const alerts = getDashboardAlerts(
+      gameState,
+      cannedPositionTable(),
+      false,
+      translateDashboardAlert,
+      financeVerdict(),
+    );
     const alertIds = alerts.map((alert) => alert.id);
 
     expect(alertIds).not.toContain("wage_pressure");
@@ -415,6 +438,7 @@ describe("dashboardHelpers", (): void => {
 
     const alerts = getDashboardAlerts(
       gameState,
+      cannedPositionTable(),
       false,
       translateDashboardAlert,
       financeVerdict({ projectedWeeklyNet: 5200 }),
@@ -429,7 +453,12 @@ describe("dashboardHelpers", (): void => {
       players: [createPlayer({ wage: 10000 })],
     });
 
-    const alerts = getDashboardAlerts(gameState, false, translateDashboardAlert);
+    const alerts = getDashboardAlerts(
+      gameState,
+      cannedPositionTable(),
+      false,
+      translateDashboardAlert,
+    );
 
     expect(alerts.some((alert) => alert.tab === "Finances")).toBe(false);
   });
@@ -439,6 +468,7 @@ describe("dashboardHelpers", (): void => {
 
     const alerts = getDashboardAlerts(
       gameState,
+      cannedPositionTable(),
       false,
       translateDashboardAlert,
       financeVerdict({ runwayStatus: "critical", cashRunwayWeeks: 2 }),
@@ -469,7 +499,12 @@ describe("dashboardHelpers", (): void => {
       players: roster,
     });
 
-    const alerts = getDashboardAlerts(gameState, true, translateDashboardAlert);
+    const alerts = getDashboardAlerts(
+      gameState,
+      cannedPositionTable(),
+      true,
+      translateDashboardAlert,
+    );
     const alertIds = alerts.map((alert) => alert.id);
 
     expect(alertIds).not.toContain("xi");

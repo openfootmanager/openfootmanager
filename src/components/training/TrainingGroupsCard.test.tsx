@@ -8,12 +8,18 @@ import { createSeasonContext } from "../../test-utils/factories";
 const setTrainingGroupsMock = vi.fn();
 const setPlayerTrainingFocusMock = vi.fn();
 
+vi.mock("../../hooks/usePositionGroups", async () => {
+  const { cannedPositionsModule } = await import("../../test-utils/positionTable");
+  return cannedPositionsModule();
+});
+
 vi.mock("../../services/trainingService", () => ({
   setTrainingGroups: (...args: unknown[]) => setTrainingGroupsMock(...args),
   setPlayerTrainingFocus: (...args: unknown[]) => setPlayerTrainingFocusMock(...args),
 }));
 
 vi.mock("react-i18next", () => ({
+  initReactI18next: { type: "3rdParty", init: () => undefined },
   useTranslation: () => ({
     t: (key: string, _params?: Record<string, string | number>, fallback?: string) => {
       if (key === "training.groups.trainingGroups") return "Training Groups";

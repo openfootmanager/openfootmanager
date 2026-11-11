@@ -1,4 +1,3 @@
-export { positionBadgeVariant } from "./playerRating";
 export { getPlayerOvr } from "./playerOvr";
 export {
   getTeamName,

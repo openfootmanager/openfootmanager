@@ -1,11 +1,11 @@
 import { useState } from "react";
-import { invoke } from "@tauri-apps/api/core";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
 import type { GameStateData } from "../../store/gameStore";
 import type { MatchSnapshot } from "./types";
 import { Badge, ThemeToggle } from "../ui";
 import { ChevronRight, Mic, MessageSquare } from "lucide-react";
+import { invokeForCareer } from "../../services/careerInvoke";
 
 interface PressConferenceProps {
   snapshot: MatchSnapshot;
@@ -257,7 +257,7 @@ export default function PressConference({
         })
         .filter((p) => p.response_id);
 
-      const result = await invoke<{
+      const result = await invokeForCareer<{
         game: GameStateData;
         morale_delta: number;
       }>("submit_press_conference", {

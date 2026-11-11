@@ -1,19 +1,33 @@
 use crate::end_of_season;
 use crate::finances;
 use crate::game::{BoardObjective, Game, ObjectiveType};
-use domain::league::FixtureStatus;
+use domain::league::{BerthRule, CompetitionType, FixtureStatus, League};
 use domain::message::*;
+use domain::team::Team;
+use serde::Serialize;
 use std::collections::HashMap;
+use ts_rs::TS;
+
+/// The exact league target the board will set after hiring, plus its translated description.
+#[derive(Debug, Serialize, PartialEq, Eq, TS)]
+pub struct OpeningExpectation {
+    #[serde(default)]
+    pub target_position: u32,
+    #[serde(default)]
+    pub label_key: String,
+}
 
 struct ObjectiveTargets {
-    expected_pos: u32,
+    opening_expectation: OpeningExpectation,
     win_target: u32,
     goals_target: u32,
     finance_target: u32,
 }
 
 impl ObjectiveTargets {
-    fn new(reputation: u32, num_teams: u32) -> Self {
+    /// `legs` is how many times each club meets every other: the season is `(n - 1) * legs`
+    /// matches long, so a single round robin is judged on the matches it has (#1177).
+    fn new(reputation: u32, num_teams: u32, legs: u32) -> Self {
         const HIGH_REPUTATION: u32 = 800;
         const MEDIUM_REPUTATION: u32 = 650;
         const LOW_REPUTATION: u32 = 400;
@@ -35,7 +49,7 @@ impl ObjectiveTargets {
         .min(league_size);
 
         let total_matchdays = if league_size > 1 {
-            (league_size - 1) * 2
+            (league_size - 1) * legs
         } else {
             0
         };
@@ -63,12 +77,84 @@ impl ObjectiveTargets {
         };
 
         Self {
-            expected_pos,
+            opening_expectation: OpeningExpectation {
+                target_position: expected_pos,
+                label_key: expectation_label(expected_pos, league_size).into(),
+            },
             win_target,
             goals_target,
             finance_target: 100,
         }
     }
+}
+
+fn expectation_label(target: u32, league_size: u32) -> &'static str {
+    if target == 1 {
+        "teamSelect.expectations.title"
+    } else if target < league_size.div_ceil(2) {
+        "teamSelect.expectations.topHalf"
+    } else if target == league_size.div_ceil(2) {
+        "teamSelect.expectations.midTable"
+    } else {
+        "teamSelect.expectations.survival"
+    }
+}
+
+fn target_earns_continental_place(game: &Game, league: &League, target: u32) -> bool {
+    league.berths.iter().any(|berth| {
+        let in_range = match berth.rule {
+            BerthRule::PositionRange { from, to } => (from..=to).contains(&target),
+            BerthRule::CupWinner | BerthRule::PlayoffWinner { .. } => false,
+        };
+        in_range
+            && game.competitions_in_play().iter().any(|competition| {
+                competition.id == berth.target
+                    && competition.kind == CompetitionType::ContinentalClub
+            })
+    })
+}
+
+fn targets_for_club(game: &Game, team: &Team) -> ObjectiveTargets {
+    let league = if game.competitions.is_empty() {
+        game.league.as_ref()
+    } else {
+        game.club_competition_index(&team.id)
+            .and_then(|index| game.competitions.get(index))
+            .or_else(|| game.competitions.first())
+    };
+    // Hiring mirrors this competition. Targets and progress must refer to the same table,
+    // including when a split-season country has more than one league table for the club.
+    let num_teams = league
+        .map(|league| {
+            if league.participant_ids.is_empty() {
+                league.standings.len()
+            } else {
+                league.participant_ids.len()
+            }
+        })
+        .filter(|&count| count > 1)
+        .unwrap_or(game.teams.len()) as u32;
+    let legs = league.map_or(2, |league| {
+        u32::from(crate::schedule::league_table_legs(league))
+    });
+    let mut targets = ObjectiveTargets::new(team.reputation, num_teams, legs);
+    // Winning the title stays the stronger description, even when it also earns a berth.
+    if targets.opening_expectation.target_position != 1
+        && league.is_some_and(|league| {
+            target_earns_continental_place(
+                game,
+                league,
+                targets.opening_expectation.target_position,
+            )
+        })
+    {
+        targets.opening_expectation.label_key = "teamSelect.expectations.continental".into();
+    }
+    targets
+}
+
+pub(crate) fn opening_expectation(game: &Game, team: &Team) -> OpeningExpectation {
+    targets_for_club(game, team).opening_expectation
 }
 
 fn board_message_id(season: u32) -> String {
@@ -82,7 +168,10 @@ fn build_objectives_message(
 ) -> InboxMessage {
     let mut params = HashMap::new();
     params.insert("season".to_string(), season.to_string());
-    params.insert("expectedPos".to_string(), targets.expected_pos.to_string());
+    params.insert(
+        "expectedPos".to_string(),
+        targets.opening_expectation.target_position.to_string(),
+    );
     params.insert("winTarget".to_string(), targets.win_target.to_string());
     params.insert("goalsTarget".to_string(), targets.goals_target.to_string());
     params.insert(
@@ -137,28 +226,13 @@ pub fn generate_objectives(game: &mut Game) {
         None => return,
     };
 
-    // Scale targets by the user's *league* size, not the whole world — otherwise
-    // a 440-club world yields absurd objectives ("win 526 matches" a season).
-    let num_teams = game
-        .league
-        .as_ref()
-        .map(|league| {
-            if league.participant_ids.is_empty() {
-                league.standings.len()
-            } else {
-                league.participant_ids.len()
-            }
-        })
-        .filter(|&count| count > 1)
-        .unwrap_or(game.teams.len()) as u32;
-    let reputation = team.reputation;
-    let targets = ObjectiveTargets::new(reputation, num_teams);
+    let targets = targets_for_club(game, team);
 
     game.board_objectives = vec![
         BoardObjective {
             id: "obj_position".to_string(),
             description: "boardObjectives.objective.LeaguePosition".to_string(),
-            target: targets.expected_pos,
+            target: targets.opening_expectation.target_position,
             objective_type: ObjectiveType::LeaguePosition,
             met: false,
         },
@@ -249,7 +323,11 @@ pub fn update_objective_progress(game: &mut Game) {
                 ObjectiveType::FinancialStability => {
                     finance_snapshot.as_ref().is_some_and(|snapshot| {
                         !snapshot.currently_in_debt
-                            && snapshot.wage_budget_usage_percent <= obj.target
+                            && finances::wage_bill_against_percent(
+                                snapshot.annual_wage_bill,
+                                snapshot.weekly_wage_budget,
+                                obj.target,
+                            ) != std::cmp::Ordering::Greater
                     })
                 }
             };
@@ -787,6 +865,115 @@ mod tests {
         assert!(objective_by_id(&game, "obj_finance").met);
     }
 
+    /// Plays out the two-club league `make_game(60, 1, 2)` builds: the user's club won it.
+    fn finish_the_league(game: &mut Game) {
+        let mut league = game.league.clone().unwrap();
+        league.standings = vec![
+            StandingEntry {
+                team_id: "team1".to_string(),
+                played: 2,
+                won: 2,
+                drawn: 0,
+                lost: 0,
+                goals_for: 3,
+                goals_against: 1,
+                points: 6,
+            },
+            StandingEntry {
+                team_id: "team2".to_string(),
+                played: 2,
+                won: 0,
+                drawn: 0,
+                lost: 2,
+                goals_for: 1,
+                goals_against: 3,
+                points: 0,
+            },
+        ];
+        league.fixtures = vec![
+            Fixture {
+                id: "f1".to_string(),
+                matchday: 1,
+                date: "2025-08-01".to_string(),
+                home_team_id: "team1".to_string(),
+                away_team_id: "team2".to_string(),
+                competition: FixtureCompetition::League,
+                status: FixtureStatus::Completed,
+                result: Some(MatchResult {
+                    home_goals: 1,
+                    away_goals: 0,
+                    home_scorers: vec![],
+                    away_scorers: vec![],
+                    report: None,
+                    home_penalties: None,
+                    away_penalties: None,
+                }),
+                ..Default::default()
+            },
+            Fixture {
+                id: "f2".to_string(),
+                matchday: 2,
+                date: "2025-08-08".to_string(),
+                home_team_id: "team2".to_string(),
+                away_team_id: "team1".to_string(),
+                competition: FixtureCompetition::League,
+                status: FixtureStatus::Completed,
+                result: Some(MatchResult {
+                    home_goals: 1,
+                    away_goals: 1,
+                    home_scorers: vec![],
+                    away_scorers: vec![],
+                    report: None,
+                    home_penalties: None,
+                    away_penalties: None,
+                }),
+                ..Default::default()
+            },
+        ];
+        game.league = Some(league);
+    }
+
+    /// The FinancialStability objective "wages within budget" at season end, for a club whose
+    /// budget is its wage bill plus `headroom`.
+    fn wages_within_budget_met_with(headroom: i64) -> bool {
+        let mut game = make_game(60, 1, 2);
+        game.board_objectives = vec![make_objective(
+            "obj_finance",
+            ObjectiveType::FinancialStability,
+            100,
+            false,
+        )];
+        game.players.push(make_player("player-1", "team1", 220_000));
+        finish_the_league(&mut game);
+        let bill = crate::finances::calc_wages(&game, "team1");
+        game.teams
+            .iter_mut()
+            .find(|team| team.id == "team1")
+            .unwrap()
+            .wage_budget = bill + headroom;
+
+        update_objective_progress(&mut game);
+
+        objective_by_id(&game, "obj_finance").met
+    }
+
+    /// Given a club whose wage bill is exactly its budget at season end
+    /// When the board's objectives are scored
+    /// Then "wages within budget" is met
+    #[test]
+    fn wages_exactly_on_budget_meet_the_financial_stability_objective() {
+        assert!(wages_within_budget_met_with(0));
+    }
+
+    /// Given a club whose wage bill is one over its budget at season end, a fraction of a percent
+    /// the whole-number usage percentage cannot show
+    /// When the board's objectives are scored
+    /// Then "wages within budget" is not met: the club is over budget, as its finances say
+    #[test]
+    fn wages_one_over_budget_miss_the_financial_stability_objective() {
+        assert!(!wages_within_budget_met_with(-1));
+    }
+
     #[test]
     fn update_objective_progress_only_marks_league_position_met_after_all_fixtures_finish() {
         let mut game = make_game(80, 1, 4);
@@ -1021,5 +1208,66 @@ mod tests {
             make_objective("c", ObjectiveType::GoalsScored, 1, false),
         ];
         assert_eq!(evaluate_objectives(&game), -15);
+    }
+
+    /// The objectives' wins and goals targets for a club of reputation 800 in a 20-club world
+    /// whose league holds `league_size` of those clubs.
+    fn wins_and_goals_in_a_league_of(league_size: usize) -> (u32, u32) {
+        wins_and_goals_in_a_league_of_legs(league_size, None)
+    }
+
+    /// The win and goal targets of a club of reputation 800 in a league of `league_size` clubs,
+    /// whose calendar stored `legs` when given.
+    fn wins_and_goals_in_a_league_of_legs(league_size: usize, legs: Option<u8>) -> (u32, u32) {
+        let mut game = make_game(800, 1, 20);
+        let league_ids: Vec<String> = (1..=league_size).map(|idx| format!("team{idx}")).collect();
+        let mut league = League::new(
+            "league1".to_string(),
+            "Test League".to_string(),
+            1,
+            &league_ids,
+        );
+        league.calendar = legs.map(|legs| domain::competition_calendar::CalendarMetadata {
+            league_legs: Some(legs),
+            ..Default::default()
+        });
+        game.league = Some(league);
+
+        generate_objectives(&mut game);
+
+        (
+            objective_by_id(&game, "obj_wins").target,
+            objective_by_id(&game, "obj_goals").target,
+        )
+    }
+
+    /// Given a club of reputation 800 in a four-club league, in a world of twenty clubs
+    /// When the board sets its objectives
+    /// Then the targets come from the league's six matchdays (3 wins), not the world's 38
+    #[test]
+    fn generate_objectives_scales_targets_to_the_user_league_not_the_whole_world() {
+        assert_eq!(wins_and_goals_in_a_league_of(4).0, 3);
+    }
+
+    /// Given a club of reputation 800 in a twenty-club league authored as a single round robin
+    /// When the board sets its objectives
+    /// Then the targets come from its 19 matches (11 wins, 28 goals), not a double round
+    ///      robin's 38 (22 wins: more than the season has games) (#1177)
+    #[test]
+    fn a_single_round_robins_targets_fit_its_matches() {
+        assert_eq!(wins_and_goals_in_a_league_of_legs(20, Some(1)), (11, 28));
+        assert_eq!(wins_and_goals_in_a_league_of_legs(20, Some(2)), (22, 57));
+    }
+
+    /// Given a club of reputation 800 whose league lists only itself, in a world of twenty clubs
+    /// When the board sets its objectives
+    /// Then a one-club league cannot set a season, so the targets fall back to the world's twenty
+    ///      clubs, the same as a twenty-club league: 22 wins and 57 goals from 38 matchdays
+    #[test]
+    fn a_one_club_league_falls_back_to_the_world_team_count() {
+        let twenty_clubs = wins_and_goals_in_a_league_of(20);
+
+        assert_eq!(twenty_clubs, (22, 57));
+        assert_eq!(wins_and_goals_in_a_league_of(1), twenty_clubs);
     }
 }

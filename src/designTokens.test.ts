@@ -1,9 +1,35 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
+import { contrastRatio } from "./lib/colorContrast";
+import { kitWashScale } from "./lib/kitStyle";
+
+import { gameState } from "./dev/pageHarness/fixture.generated";
 
 // Paths are relative to the Vitest root (the repository root); `new URL(..., import.meta.url)`
 // throws under jsdom.
 const appCss = readFileSync("src/App.css", "utf-8");
+
+/** The kit primaries the world generator hands out, read from the shipped definitions. */
+const SHIPPED_PALETTE: string[] = (
+  JSON.parse(readFileSync("src-tauri/crates/ofm_core/data/default_nations.json", "utf-8")) as {
+    colorPalette: { primary: string }[];
+  }
+).colorPalette.map((colours) => colours.primary);
+
+/** Kits at the edges of what kitStyle accepts (any six-digit hex): a modded club can be any. */
+const BOUNDARY_KITS = [
+  "#ffffff",
+  "#ffff00",
+  "#00ff00",
+  "#00ffff",
+  "#ff8000",
+  "#ff3030",
+  "#808080",
+  "#000000",
+  "#0000ff",
+  // The approved mock's green, just under the full-wash threshold: it takes the whole share.
+  "#16a34a",
+];
 
 /**
  * The custom properties declared in the one block whose line reads exactly `selector {`. A selector
@@ -49,17 +75,8 @@ function over(top: Rgba, bottom: Rgba): Rgba {
   return [0, 1, 2].map((i) => top[i] * alpha + bottom[i] * (1 - alpha)).concat(1) as Rgba;
 }
 
-function luminance([r, g, b]: Rgba): number {
-  const channel = (c: number) => {
-    const s = c / 255;
-    return s <= 0.03928 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;
-  };
-  return 0.2126 * channel(r) + 0.7152 * channel(g) + 0.0722 * channel(b);
-}
-
 function contrast(a: Rgba, b: Rgba): number {
-  const [high, low] = [luminance(a), luminance(b)].sort((x, y) => y - x);
-  return (high + 0.05) / (low + 0.05);
+  return contrastRatio({ r: a[0], g: a[1], b: a[2] }, { r: b[0], g: b[1], b: b[2] });
 }
 
 type Mode = "light" | "dark" | "high-contrast light" | "high-contrast dark";
@@ -102,9 +119,13 @@ const THEMED_COLOURS = [
   "line",
   "line-strong",
   "hover",
+  "card-band",
   "focus",
   "series-1",
   "series-2",
+  "selected",
+  "selected-tint",
+  "selected-fill",
   ...["positive", "warning", "danger", "info"].flatMap((s) => [s, `${s}-tint`]),
   ...["top", "good", "fair", "low", "bad"].flatMap((t) => [`tone-${t}`, `tone-${t}-tint`]),
 ].map((name) => `--color-${name}`);
@@ -114,13 +135,20 @@ const READABLE_PAIRS: Array<[string, string[]]> = [
   ["fg", ["page", "panel", "sunken"]],
   ["fg-muted", ["page", "panel", "sunken"]],
   ["fg-subtle", ["page", "panel", "sunken"]],
+  // An entity card's status band: its labels are fg-muted, its values fg.
+  ["fg", ["card-band"]],
+  ["fg-muted", ["card-band"]],
+  // The chosen option in a list (Select, DatePicker, the comboboxes) and its check mark.
+  ["selected", ["panel", "selected-tint"]],
   ...["positive", "warning", "danger", "info"].map((status): [string, string[]] => [
     status,
     ["panel", `${status}-tint`],
   ]),
+  // A rated value on a sunken inset too: the profile's opinion of a player's potential paints its
+  // band in the tone on bg-sunken.
   ...["top", "good", "fair", "low", "bad"].map((tone): [string, string[]] => [
     `tone-${tone}`,
-    ["panel", `tone-${tone}-tint`],
+    ["panel", "sunken", `tone-${tone}-tint`],
   ]),
 ];
 
@@ -159,6 +187,36 @@ describe("design tokens", () => {
   });
 
   /**
+   * Given every club in the page harness's career, the shipped palette's twelve primaries, and the kits at the edges of what kitStyle
+   * accepts (white, yellow, lime, cyan, orange, a light red, grey, black, pure blue), each card
+   * header washed in its kit colour (--kit-wash-mix of the kit over the panel, scaled by
+   * kitWashScale for a pale kit, as the kit-wash token mixes it)
+   * When the header's name (fg) and meta line (fg-muted) sit on that wash in any mode
+   * Then both reach 4.5:1, so the mix is safe for any six-digit kit, not only the fixture's.
+   */
+  it.each(MODES)("keeps a card header readable on every kit's wash in %s", (mode) => {
+    const mix = Number.parseFloat(tokenIn(mode, "--kit-wash-mix")) / 100;
+    const panel = parseColour(tokenIn(mode, "--color-panel"));
+    const failures: string[] = [];
+    const kits = [
+      ...gameState.teams.map((team) => ({ name: team.name, primary: team.colors.primary })),
+      ...SHIPPED_PALETTE.map((primary) => ({ name: `palette ${primary}`, primary })),
+      ...BOUNDARY_KITS.map((primary) => ({ name: primary, primary })),
+    ];
+    for (const { name, primary } of kits) {
+      const kit = parseColour(primary);
+      const share = mix * kitWashScale(primary);
+      const wash = [0, 1, 2].map((i) => kit[i] * share + panel[i] * (1 - share)).concat(1) as Rgba;
+      for (const text of ["fg", "fg-muted"]) {
+        const ratio = contrast(rendered(mode, `--color-${text}`), wash);
+        if (ratio < 4.5) failures.push(`${text} on ${name}: ${ratio.toFixed(2)}`);
+      }
+    }
+    expect(gameState.teams.length).toBeGreaterThan(0);
+    expect(failures).toEqual([]);
+  });
+
+  /**
    * Given the focus ring,
    * when it is drawn against the page or a panel in any mode,
    * then it reaches the 3:1 that WCAG 1.4.11 asks of a non-text indicator.
@@ -185,6 +243,39 @@ describe("design tokens", () => {
       expect(ratio).toBeGreaterThanOrEqual(4.5);
     },
   );
+
+  /**
+   * Given a control that is on or chosen (a switch, a checked box, a strong segmented option, a
+   * count badge), drawn in selected-fill with on-brand text or a check mark on it,
+   * when it is rendered in any mode,
+   * then the text reaches 4.5:1 on the fill.
+   */
+  it.each(MODES)("keeps on-brand text readable on the selected fill in %s", (mode) => {
+    const ratio = contrast(
+      rendered(mode, "--color-on-brand"),
+      rendered(mode, "--color-selected-fill"),
+    );
+    expect(ratio).toBeGreaterThanOrEqual(4.5);
+  });
+
+  /**
+   * Given the selected fill marking a control as on (a switch's track, a checked box),
+   * when it sits on the page, a panel or a sunken track in any mode,
+   * then it reaches the 3:1 that WCAG 1.4.11 asks of a control's state, so "on" reads in dark too.
+   */
+  it.each(MODES)("sets the selected fill apart from every surface in %s", (mode) => {
+    const failures = ["page", "panel", "sunken"]
+      .map((surface) => ({
+        surface,
+        ratio: contrast(
+          rendered(mode, "--color-selected-fill"),
+          rendered(mode, `--color-${surface}`),
+        ),
+      }))
+      .filter(({ ratio }) => ratio < 3)
+      .map(({ surface, ratio }) => `selected-fill on ${surface}: ${ratio.toFixed(2)}`);
+    expect(failures).toEqual([]);
+  });
 
   /**
    * Given the six role-named type sizes,

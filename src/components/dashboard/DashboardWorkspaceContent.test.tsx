@@ -1,21 +1,14 @@
 import { fireEvent, render, screen } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
-import { fetchRetiredPlayer } from "../../services/retireesService";
+import { describe, expect, it, vi } from "vitest";
 import type { GameStateData } from "../../store/gameStore";
 import {
   createDashboardProfileNavigationState,
   selectDashboardPlayer,
   selectDashboardTeam,
 } from "./dashboardProfileNavigation";
-import { createDashboardTabContentModel } from "./dashboardTabContentModel";
+import { createDashboardTabContentModel, tabFillsWorkspace } from "./dashboardTabContentModel";
 import DashboardWorkspaceContent from "./DashboardWorkspaceContent";
 import { createSeasonContext } from "../../test-utils/factories";
-
-vi.mock("../../services/retireesService", () => ({
-  fetchRetiredPlayer: vi.fn(),
-}));
-
-const mockedFetchRetiredPlayer = vi.mocked(fetchRetiredPlayer);
 
 vi.mock("react-i18next", () => ({
   useTranslation: () => ({
@@ -70,8 +63,12 @@ vi.mock("../teamProfile", () => ({
 }));
 
 vi.mock("./DashboardAlerts", () => ({
-  default: ({ onNavigate }: { onNavigate: (tab: string) => void }) => (
-    <button type="button" onClick={() => onNavigate("Inbox")}>
+  default: ({ onNavigate, scrolls }: { onNavigate: (tab: string) => void; scrolls?: boolean }) => (
+    <button
+      type="button"
+      data-scrolls={scrolls ? "true" : undefined}
+      onClick={() => onNavigate("Inbox")}
+    >
       alerts-mock
     </button>
   ),
@@ -234,12 +231,14 @@ function createGameState(): GameStateData {
 function renderWorkspace(
   gameState: GameStateData,
   profileNavigation: ReturnType<typeof selectDashboardPlayer>,
+  retiredPlayer: GameStateData["players"][number] | null = null,
 ) {
   return render(
     <DashboardWorkspaceContent
       dashboardAlerts={[]}
       gameState={gameState}
       profileNavigation={profileNavigation}
+      retiredPlayer={retiredPlayer}
       dashboardTabContentModel={createDashboardTabContentModel({
         activeTab: "Squad",
         gameState,
@@ -263,8 +262,58 @@ function renderWorkspace(
 }
 
 describe("DashboardWorkspaceContent", () => {
-  beforeEach(() => {
-    mockedFetchRetiredPlayer.mockReset();
+  /**
+   * Given the Tactics tab, and the Squad tab
+   * When the workspace draws each
+   * Then Tactics fills the workspace and the workspace doesn't scroll (its own regions do), while
+   *      Squad scrolls in the workspace as every other page does.
+   */
+  it("lets the Tactics tab fill the workspace while other tabs scroll in it", () => {
+    const gameState = createGameState();
+    const workspace = (activeTab: string) =>
+      render(
+        <DashboardWorkspaceContent
+          dashboardAlerts={[]}
+          gameState={gameState}
+          profileNavigation={createDashboardProfileNavigationState(activeTab)}
+          retiredPlayer={null}
+          dashboardTabContentModel={createDashboardTabContentModel({
+            activeTab,
+            gameState,
+            seasonComplete: false,
+            visitedOnboardingTabs: new Set<string>(),
+            initialMessageId: null,
+            handlers: {
+              onSelectPlayer: vi.fn(),
+              onSelectTeam: vi.fn(),
+              onGameUpdate: vi.fn(),
+              onNavigate: vi.fn(),
+            },
+          })}
+          onNavigate={vi.fn()}
+          onSelectPlayer={vi.fn()}
+          onSelectTeam={vi.fn()}
+          onGameUpdate={vi.fn()}
+          isUnemployed={false}
+        />,
+      );
+
+    const tactics = workspace("Tactics");
+    const tacticsArea = tactics.getByText("Tab Content Tactics").parentElement;
+    expect(tacticsArea).toHaveAttribute("data-fills-workspace", "true");
+    expect(tacticsArea).toHaveClass("overflow-hidden", "flex", "flex-col");
+    expect(tacticsArea).not.toHaveClass("overflow-auto");
+    // The alerts above it scroll themselves, so they cannot squeeze the lineup to a strip.
+    expect(tactics.getByText("alerts-mock")).toHaveAttribute("data-scrolls", "true");
+    tactics.unmount();
+
+    const squad = workspace("Squad");
+    const squadArea = squad.getByText("Tab Content Squad").parentElement;
+    expect(squadArea).not.toHaveAttribute("data-fills-workspace");
+    expect(squadArea).toHaveClass("overflow-auto");
+    expect(squad.getByText("alerts-mock")).not.toHaveAttribute("data-scrolls");
+    expect(tabFillsWorkspace("Tactics")).toBe(true);
+    expect(tabFillsWorkspace("Squad")).toBe(false);
   });
 
   it("renders alerts and tab content when no profile is selected", () => {
@@ -276,6 +325,7 @@ describe("DashboardWorkspaceContent", () => {
         dashboardAlerts={[{ id: "alert-1", text: "Alert", tab: "Inbox", severity: "info" }]}
         gameState={gameState}
         profileNavigation={createDashboardProfileNavigationState("Home")}
+        retiredPlayer={null}
         dashboardTabContentModel={createDashboardTabContentModel({
           activeTab: "Home",
           gameState,
@@ -317,6 +367,7 @@ describe("DashboardWorkspaceContent", () => {
         dashboardAlerts={[]}
         gameState={gameState}
         profileNavigation={profileNavigation}
+        retiredPlayer={null}
         dashboardTabContentModel={createDashboardTabContentModel({
           activeTab: "Squad",
           gameState,
@@ -345,14 +396,30 @@ describe("DashboardWorkspaceContent", () => {
   });
 
   /**
-   * Given a player who is not in the roster (a retiree kept in the archive)
+   * Given a player who is not in the roster (a retiree kept in the archive), fetched by the page
    * When his profile is selected
-   * Then the profile opens from what the backend returns for him
+   * Then the profile opens on the person it was given
    */
-  it("opens the profile of a player who is not in the roster by fetching him", async () => {
+  it("opens the profile of a player who is not in the roster from the one it is given", () => {
     const gameState = createGameState();
     const archived = { ...gameState.players[0], id: "archived-legend", retired: true };
-    mockedFetchRetiredPlayer.mockResolvedValue(archived);
+    const profileNavigation = selectDashboardPlayer(
+      createDashboardProfileNavigationState("HallOfFame"),
+      "archived-legend",
+    );
+
+    renderWorkspace(gameState, profileNavigation, archived);
+
+    expect(screen.getByText("Player Profile Mock")).toBeInTheDocument();
+  });
+
+  /**
+   * Given a player who is not in the roster and has not been fetched yet
+   * When his profile is selected
+   * Then no profile is drawn yet
+   */
+  it("draws no profile for a player who is not in the roster until he is given", () => {
+    const gameState = createGameState();
     const profileNavigation = selectDashboardPlayer(
       createDashboardProfileNavigationState("HallOfFame"),
       "archived-legend",
@@ -360,26 +427,7 @@ describe("DashboardWorkspaceContent", () => {
 
     renderWorkspace(gameState, profileNavigation);
 
-    expect(await screen.findByText("Player Profile Mock")).toBeInTheDocument();
-    expect(mockedFetchRetiredPlayer).toHaveBeenCalledWith("archived-legend");
-  });
-
-  /**
-   * Given a player who is in the roster
-   * When his profile is selected
-   * Then nothing is fetched
-   */
-  it("does not fetch a player who is in the roster", () => {
-    const gameState = createGameState();
-    const profileNavigation = selectDashboardPlayer(
-      createDashboardProfileNavigationState("Squad"),
-      gameState.players[0].id,
-    );
-
-    renderWorkspace(gameState, profileNavigation);
-
-    expect(screen.getByText("Player Profile Mock")).toBeInTheDocument();
-    expect(mockedFetchRetiredPlayer).not.toHaveBeenCalled();
+    expect(screen.queryByText("Player Profile Mock")).not.toBeInTheDocument();
   });
 
   it("passes the termination intent to the player profile branch", () => {
@@ -395,6 +443,7 @@ describe("DashboardWorkspaceContent", () => {
         dashboardAlerts={[]}
         gameState={gameState}
         profileNavigation={profileNavigation}
+        retiredPlayer={null}
         dashboardTabContentModel={createDashboardTabContentModel({
           activeTab: "Squad",
           gameState,
@@ -432,6 +481,7 @@ describe("DashboardWorkspaceContent", () => {
         dashboardAlerts={[]}
         gameState={gameState}
         profileNavigation={profileNavigation}
+        retiredPlayer={null}
         dashboardTabContentModel={createDashboardTabContentModel({
           activeTab: "Teams",
           gameState,

@@ -1,0 +1,120 @@
+import { useTranslation } from "react-i18next";
+
+import { visibleRatingText } from "../../lib/playerKnowledge";
+import type { TeamCard as TeamCardData } from "../../services/teamsService";
+import { Badge, CountryFlag, EntityCard, FormDots, TeamLogo } from "../ui";
+
+interface TeamCardProps {
+  card: TeamCardData;
+  /** The manager's own club, which the card marks. */
+  isUser: boolean;
+  onOpen: () => void;
+}
+
+/**
+ * A club's card in the Teams directory, on the shared card shell: its crest, country and city in
+ * the identity row, its league position as the hero, its last five results (the form dots), its
+ * manager, standing and squad average in the status band, and its squad's size and reputation as
+ * the two facts. This is the approved card (round 4, v4).
+ */
+export default function TeamCard({ card, isUser, onOpen }: TeamCardProps) {
+  const { t, i18n } = useTranslation();
+  const { team, standing } = card;
+  return (
+    <EntityCard
+      kit={team.colors}
+      media={<TeamLogo team={team} />}
+      name={team.name}
+      meta={
+        <>
+          <CountryFlag code={team.country} locale={i18n.language} />
+          <span>{team.city}</span>
+          {isUser ? (
+            <Badge variant="accent" size="sm">
+              {t("teams.yourTeam")}
+            </Badge>
+          ) : null}
+        </>
+      }
+      hero={
+        <span>
+          <span className="sr-only">{t("common.position")} </span>
+          {card.league_pos > 0 ? card.league_pos : "—"}
+        </span>
+      }
+      status={
+        <>
+          <FormDots results={card.form} />
+          <dl className="flex flex-wrap gap-x-4 gap-y-1 tabular-nums">
+            {/* A club between managers shows a dash, as the v4 card does. */}
+            <StatusFigure label={t("teams.manager")} value={card.manager?.name ?? "—"} />
+            {standing ? (
+              <>
+                <StatusFigure
+                  label={t("common.wonFull")}
+                  abbreviation={t("common.won")}
+                  value={standing.won}
+                />
+                <StatusFigure
+                  label={t("common.drawnFull")}
+                  abbreviation={t("common.drawn")}
+                  value={standing.drawn}
+                />
+                <StatusFigure
+                  label={t("common.lostFull")}
+                  abbreviation={t("common.lost")}
+                  value={standing.lost}
+                />
+                <StatusFigure
+                  label={t("common.ptsFull")}
+                  abbreviation={t("common.pts")}
+                  value={standing.points}
+                />
+              </>
+            ) : (
+              // No table yet: one dash, not a row of zeros that reads as a record.
+              <StatusFigure label={t("common.ptsFull")} abbreviation={t("common.pts")} value="—" />
+            )}
+            {/* Withheld ("–") for a club whose squad the manager doesn't know. */}
+            <StatusFigure label={t("teams.avgOvr")} value={visibleRatingText(card.avg_ovr)} />
+          </dl>
+        </>
+      }
+      facts={[
+        { label: t("teams.squad"), value: card.roster_size },
+        { label: t("teams.rep"), value: team.reputation },
+      ]}
+      onOpen={onOpen}
+    />
+  );
+}
+
+/**
+ * One figure of the status band. A standing's letter ("W") is drawn for the eye and read out as its
+ * word ("Won"), which a screen reader would otherwise spell as a letter.
+ */
+function StatusFigure({
+  label,
+  abbreviation,
+  value,
+}: {
+  label: string;
+  abbreviation?: string;
+  value: string | number;
+}) {
+  return (
+    <div className="flex items-baseline gap-1">
+      <dt className="text-caption text-fg-muted">
+        {abbreviation ? (
+          <>
+            <span aria-hidden="true">{abbreviation}</span>
+            <span className="sr-only">{label}</span>
+          </>
+        ) : (
+          label
+        )}
+      </dt>
+      <dd className="font-semibold">{value}</dd>
+    </div>
+  );
+}

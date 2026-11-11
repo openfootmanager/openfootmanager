@@ -2,16 +2,16 @@ import { useTranslation } from "react-i18next";
 import { AlertTriangle } from "lucide-react";
 
 import type { PlayerData, TeamData, TransferOfferData } from "../../store/gameStore";
-import { formatExactMoney, getTeamName, positionBadgeVariant } from "../../lib/helpers";
+import { formatExactMoney, getTeamName } from "../../lib/helpers";
 import type { TransferNegotiationResponseData } from "../../services/transfersService";
 import NegotiationFeedbackPanel, {
   type NegotiationFeedbackPanelData,
 } from "../NegotiationFeedbackPanel";
-import { Badge } from "../ui";
-import { translatePositionAbbreviation } from "../squad/SquadTab.helpers";
 import { naturalPositionOf } from "../../lib/positions";
 import TransferNegotiationHistory from "./TransferNegotiationHistory";
 import { parseTransferFeeInput } from "./TransfersTab.helpers";
+import PlayerPositionBadge from "../PlayerPositionBadge";
+import { Dialog } from "../ui";
 
 interface TransferCounterTarget {
   player: PlayerData;
@@ -57,21 +57,21 @@ export default function TransferCounterOfferModal({
   const parsedCounterAmount = parseTransferFeeInput(counterAmount);
 
   return (
-    <div
-      className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
-      onClick={onClose}
+    <Dialog
+      labelledBy="transfer-counter-offer-title"
+      onClose={onClose}
+      dismissOnBackdrop
+      className="w-full max-w-sm rounded-xl p-6"
     >
-      <div
-        className="bg-white dark:bg-navy-800 rounded-xl shadow-2xl border border-gray-200 dark:border-navy-600 p-6 w-full max-w-sm"
-        onClick={(event) => event.stopPropagation()}
-      >
-        <h3 className="text-sm font-heading font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-3">
+      <div>
+        <h3
+          id="transfer-counter-offer-title"
+          className="text-sm font-heading font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-3"
+        >
           {t("transfers.counterOffer")}
         </h3>
         <div className="flex items-center gap-3 mb-4">
-          <Badge variant={positionBadgeVariant(naturalPositionOf(counterTarget.player))} size="sm">
-            {translatePositionAbbreviation(t, naturalPositionOf(counterTarget.player))}
-          </Badge>
+          <PlayerPositionBadge position={naturalPositionOf(counterTarget.player)} />
           <div>
             <p className="font-semibold text-sm text-gray-800 dark:text-gray-200">
               {counterTarget.player.full_name}
@@ -164,6 +164,6 @@ export default function TransferCounterOfferModal({
           </button>
         </div>
       </div>
-    </div>
+    </Dialog>
   );
 }

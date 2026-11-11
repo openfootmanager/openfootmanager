@@ -303,6 +303,56 @@
     "subtitle": "Seleciona a equipa que queres treinar",
     "confirming": "A confirmar...",
     "manage": "Treinar {{name}}",
+    "steps": {
+      "label": "Passos da nova carreira",
+      "manager": "Treinador",
+      "world": "Mundo",
+      "generation": "Geração",
+      "club": "Clube",
+      "done": "concluído"
+    },
+    "back": "Voltar à geração do mundo",
+    "simulation": "Simulação",
+    "manageNone": "Treinar",
+    "scope": {
+      "title": "O que o mundo simula",
+      "subtitle": "Escolhe que regiões e competições o jogo simula por completo. Quantas mais houver, mais demora cada dia.",
+      "sectionStart": "1 · Onde começas",
+      "sectionRegions": "2 · Regiões simuladas",
+      "sectionCompetitions": "3 · Competições",
+      "regionMeta": "{{countries}} · {{clubs}} clubes",
+      "simulate": "Simular {{name}}",
+      "needs": "Precisa de {{regions}}",
+      "add": "Adicionar {{regions}}",
+      "groupCount": "{{on}} de {{total}}",
+      "groupSimulated": "{{on}} de {{total}} simuladas",
+      "needOne": "Ativa pelo menos uma competição.",
+      "summary": "{{regions}} regiões · {{competitions}} competições simuladas",
+      "clubs": "{{clubs}} clubes nas regiões simuladas",
+      "apply": "Aplicar"
+    },
+    "rail": {
+      "label": "Países e ligas",
+      "countries": "Países"
+    },
+    "table": {
+      "label": "Clubes",
+      "club": "Clube",
+      "transfers": "Transferências",
+      "wages": "Salários / sem.",
+      "stadium": "Estádio"
+    },
+    "card": {
+      "label": "Clube escolhido",
+      "emptyTitle": "Ainda não escolheste um clube",
+      "emptyHint": "Escolhe um clube da lista para veres o plantel, os orçamentos e o que a direção espera.",
+      "boardExpects": "A direção espera",
+      "transferBudget": "Orçamento de transferências",
+      "wageBudget": "Orçamento salarial",
+      "balance": "Saldo",
+      "stadium": "Estádio",
+      "founded": "fundado em {{year}}"
+    },
     "reputation": "Reputação",
     "squad": "Plantel",
     "finances": "Finanças",
@@ -312,21 +362,22 @@
     "repStrong": "Forte",
     "repAverage": "Médio",
     "repDeveloping": "Em Desenvolvimento",
+    "expectations": {
+      "title": "Lutar pelo título",
+      "continental": "Lutar pelas competições continentais",
+      "topHalf": "Metade superior da tabela",
+      "midTable": "Meio da tabela",
+      "survival": "Evitar a despromoção"
+    },
     "failedToSelectTeam": "Falha ao selecionar a equipa: {{error}}",
     "homeRegion": "Região de origem",
     "homeCountry": "País de origem",
-    "allCountries": "Todos os países",
-    "simulationScope": "Âmbito de simulação",
     "otherClubs": "Outros clubes",
     "searchClubs": "Procurar clubes…",
     "clubCount": "{{n}} clubes",
     "noClubsMatch": "Nenhum clube corresponde à pesquisa.",
-    "simulatedRegions": "Regiões simuladas",
-    "simulatedCompetitions": "Competições simuladas",
     "homeBadge": "Origem",
-    "yourClub": "o teu clube",
     "yourClubBadge": "Teu clube",
-    "requiresRegions": "Requer {{regions}}",
     "selectedClub": "Clube selecionado",
     "formation": "Formação",
     "overall": "Geral",
@@ -337,7 +388,6 @@
     "clubCompetitionsAlwaysSimulated": "As competições do teu clube são sempre simuladas, mesmo que desatives outras regiões ou torneios.",
     "selectClubPrompt": "Seleciona um clube para veres o plantel e as competições.",
     "playersCount": "{{count}} jogadores",
-    "scopeSummary": "{{regionsCount}} regiões simuladas e {{competitionsCount}} competições simuladas serão carregadas.",
     "regionLabels": {
       "north-america": "América do Norte",
       "central-america": "América Central",
@@ -360,13 +410,6 @@
       "InternationalClub": "Competição internacional de clubes",
       "InternationalNation": "Competição internacional de seleções",
       "FriendlyCup": "Taça amigável"
-    },
-    "scopeMessages": {
-      "homeRegionAlwaysActive": "A tua região jogável mantém-se sempre ativa.",
-      "regionRequiredByCompetition": "{{competition}} faz parte do calendário de {{club}}, por isso {{region}} tem de se manter ativa.",
-      "regionRemovedDisablesCompetitions": "{{region}} foi removida do escopo de simulação, por isso as competições dependentes também foram desativadas.",
-      "clubCompetitionLocked": "{{competition}} está no calendário de {{club}} e será sempre simulada.",
-      "autoEnabledRegions": "{{competition}} precisa de {{regions}}, por isso essas regiões foram ativadas automaticamente."
     }
   },
   "youthAcademy": {
@@ -404,6 +447,12 @@
       "B": "B"
     },
     "ordinal": {
+      "place": {
+        "one": "{{n}}.ª",
+        "two": "{{n}}.ª",
+        "few": "{{n}}.ª",
+        "other": "{{n}}.ª"
+      },
       "one": "{{n}}.º",
       "two": "{{n}}.º",
       "few": "{{n}}.º",
@@ -412,14 +461,27 @@
     "currentWage": "Salário atual",
     "loading": "A carregar...",
     "loadingGameState": "A carregar estado do jogo...",
+    "detailsFor": "Detalhes de {{name}}",
+    "overallRating": "Geral {{value}}",
+    "overallRatingTier": "Geral {{value}}, nível {{tier}}",
+    "namedRating": "{{name}} {{value}}",
+    "namedRatingTier": "{{name}} {{value}}, nível {{tier}}",
+    "listViewLabel": "Mostrar como",
+    "listViewTable": "Tabela",
+    "listViewCards": "Cartões",
     "noResults": "Nenhum resultado encontrado.",
-    "place": {
-      "1": "1º",
-      "2": "2º",
-      "3": "3º",
-      "other": "{{n}}º"
-    },
     "pts": "Pts",
+    "playedFull": "Jogos",
+    "wonFull": "Vitórias",
+    "drawnFull": "Empates",
+    "lostFull": "Derrotas",
+    "ptsFull": "Pontos",
+    "recentForm": "Forma recente",
+    "formResult": {
+      "W": "V",
+      "D": "E",
+      "L": "D"
+    },
     "played": "J",
     "won": "V",
     "drawn": "E",
@@ -621,7 +683,14 @@
     "center": "Centro",
     "right": "Direita",
     "competition": "Competição",
-    "confirmDelete": "Confirmar eliminação"
+    "confirmDelete": "Confirmar eliminação",
+    "firstPage": "Primeira página",
+    "previousPage": "Página anterior",
+    "nextPage": "Página seguinte",
+    "lastPage": "Última página",
+    "sortBy": "Ordenar por",
+    "sortAscending": "Ascendente",
+    "lineupLoading": "O plantel ainda está a carregar, por isso as alterações à equipa ainda não estão disponíveis."
   },
   "teamSelection": {
     "title": "Escolhe o Teu Clube",
@@ -697,8 +766,8 @@
     "coverageNeedsAttention": "{{count}} grupos de funções precisam de cobertura",
     "coverageBadge": "XI {{starters}}/{{required}} · Banco {{bench}}",
     "bestRole": "Melhor função",
-    "formationFit": "Familiaridade",
     "startingXi": "Onze inicial",
+    "notMatchDayEligible": "Indisponível para a convocatória",
     "starter": "Titular",
     "benchOption": "Banco",
     "naturalFit": "Posição natural",
@@ -782,6 +851,12 @@
     "unsavedChanges": "Alterações por guardar",
     "currentPlanCard": "Plano atual",
     "phaseBlueprint": "Plano por fases",
+    "instructionsPanel": {
+      "title": "Instruções da equipa",
+      "show": "Mostrar as instruções da equipa",
+      "hide": "Ocultar as instruções da equipa",
+      "openAt": "Mostrar as instruções da equipa: {{section}}"
+    },
     "phaseLabels": {
       "withBall": "Com bola",
       "withoutBall": "Sem bola",
@@ -1045,6 +1120,7 @@
     "youthSearches": "pesquisas jovens",
     "hireStaff": "Contratar membro do staff",
     "best": "Melhor",
+    "staffActions": "Ações para {{name}}",
     "roles": {
       "AssistantManager": "Treinador Adjunto",
       "Coach": "Treinador",
@@ -1081,6 +1157,8 @@
     "transferBudget": "Orçamento de Transferências",
     "seasonIncome": "Receita da Temporada",
     "seasonExpenses": "Despesas da Temporada",
+    "moneyIn": "Entrada de dinheiro",
+    "moneyOut": "Saída de dinheiro",
     "perWeekSuffix": "/sem",
     "snapshotLoadFailed": "Não foi possível carregar as finanças do clube.",
     "perYearSuffix": "/ano",
@@ -1226,6 +1304,8 @@
     "boardSatisfied": "A direção está satisfeita com o teu desempenho.",
     "boardConcerns": "A direção tem preocupações com os resultados.",
     "boardThreat": "A tua posição está seriamente ameaçada.",
+    "boardWarned": "A direção advertiu-te.",
+    "boardFinalWarning": "Estás na última advertência.",
     "board": "Direção",
     "fans": "Adeptos",
     "born": "Nascido em",
@@ -1242,6 +1322,15 @@
     "employed": "Em funções",
     "unemployed": "Desempregado",
     "reputation": "Reputação",
+    "reputationBand": {
+      "world_class": "Classe mundial",
+      "established": "Consagrado",
+      "great": "Excelente",
+      "good": "Bom",
+      "average": "Médio",
+      "below_average": "Abaixo da média",
+      "unknown": "Desconhecido"
+    },
     "winRate": "Taxa de vitórias",
     "matches": "Jogos",
     "currentClub": "Clube atual",
@@ -1509,6 +1598,7 @@
     "yourTeam": "A Tua Equipa",
     "squad": "Plantel",
     "avgOvr": "Média OVR",
+    "manager": "Treinador",
     "rep": "Rep.",
     "est": "Fund."
   },
@@ -1613,10 +1703,52 @@
     }
   },
   "playerProfile": {
+    "sections": "Secções do perfil",
+    "overview": {
+      "axes": {
+        "pace": "VEL",
+        "shooting": "REM",
+        "dribbling": "DRI",
+        "passing": "PAS",
+        "vision": "VIS",
+        "composure": "COM",
+        "strength": "FOR",
+        "aerial": "AÉR",
+        "handling": "ENQ",
+        "reflexes": "REF",
+        "agility": "AGI",
+        "stamina": "RES"
+      },
+      "now": "Agora",
+      "details": "Detalhes",
+      "previousMatches": "Jogos anteriores",
+      "allMatches": "Todos os jogos",
+      "traits": "Traços",
+      "born": "Nascimento",
+      "squadRole": "Papel no plantel",
+      "squadSenior": "Plantel principal",
+      "squadYouth": "Academia",
+      "contractUntil": "até {{date}}",
+      "keyFor": "Chave para um {{position}}",
+      "radarLabel": "Radar de atributos: {{values}}",
+      "seasonExtras": "Disciplina e jogos sem sofrer golos"
+    },
+    "overall": "Geral",
+    "ratingUnknown": "O teu clube não conhece a sua avaliação",
+    "retired": "Reformado",
+    "retiredOn": "Reformado em {{date}}",
+    "lastClub": "Último clube: {{club}}",
+    "tabs": {
+      "overview": "Resumo",
+      "attributes": "Atributos",
+      "career": "Carreira",
+      "contract": "Contrato"
+    },
     "contractInfo": "Contrato e Info",
     "dateOfBirth": "Data de Nascimento",
     "noContract": "Sem contrato",
     "weeklyWage": "Salário Semanal",
+    "approximateWage": "cerca de {{wage}}",
     "annualWage": "Salário Anual",
     "yearsRemaining": "Anos restantes",
     "contractRisk": "Risco contratual",
@@ -1736,7 +1868,27 @@
     "renewalProjectionWageBill": "Folha de salários semanal {{before}} → {{after}}",
     "renewalProjectionBudgetUsage": "Uso do orçamento salarial {{before}}% → {{after}}%",
     "renewalProjectionRunway": "Reserva de caixa {{before}} → {{after}}",
-    "ratingTrend": "Tendência de avaliação"
+    "ratingTrend": "Tendência de avaliação",
+    "potentialOpinion": {
+      "scoutsOpinion": "Opinião do observador",
+      "coachesOpinion": "Opinião da equipa técnica",
+      "bandS": "Pode tornar-se um dos melhores",
+      "bandA": "Pode tornar-se titular habitual",
+      "bandB": "Pode ser um jogador útil no plantel",
+      "bandRest": "É pouco provável que evolua muito mais",
+      "range": "Potencial {{low}}–{{high}}",
+      "confident": "Confiante",
+      "fairlySure": "Bastante seguro",
+      "unsure": "Incerto",
+      "guess": "Um palpite",
+      "byScout": "Observado por {{scout}} a {{date}}"
+    },
+    "positions": {
+      "title": "Posições",
+      "wherePlayed": "onde o pões a jogar"
+    },
+    "loadFailed": "Não foi possível carregar",
+    "retryWage": "Tentar carregar o salário novamente"
   },
   "teamProfile": {
     "clubInfo": "Informações do Clube",
@@ -1809,9 +1961,11 @@
     "confirmAdvanceDesc": "Pedir confirmação antes de avançar um dia",
     "continueToNextEvent": "Continuar avança até ao próximo evento",
     "continueToNextEventDesc": "Continuar avança até ao próximo jogo, um bloqueio, um prazo de transferências ou uma notícia importante",
+    "skipShootoutPicker": "Saltar a Ordem de Penáltis",
+    "skipShootoutPickerDesc": "Começa as grandes penalidades na ordem automática, sem te pedir para a definir",
     "savesData": "Saves e Dados",
     "autoSave": "Guardar Automaticamente",
-    "autoSaveDesc": "Guardar automaticamente após cada dia",
+    "autoSaveDesc": "Guardar automaticamente todas as semanas",
     "exportWorld": "Exportar Base de Dados do Mundo",
     "exportWorldDesc": "Guardar os dados do mundo como ficheiro JSON partilhável",
     "export": "Exportar",
@@ -1836,6 +1990,21 @@
     },
     "uiScale": "Escala da UI",
     "uiScaleDesc": "Ajustar tamanho da fonte e espaçamento para legibilidade",
+    "sidebarWidth": "Largura da barra lateral",
+    "sidebarWidthDesc": "A largura da barra lateral aberta. «Larga» mostra cada nome do menu numa linha.",
+    "sidebarWidthOptions": {
+      "compact": "Compacta",
+      "standard": "Padrão",
+      "wide": "Larga"
+    },
+    "sidebarBehaviour": "Barra lateral",
+    "sidebarBehaviourDesc": "Como a barra lateral abre. Se a janela for demasiado estreita, abre sobre a página.",
+    "sidebarBehaviourOptions": {
+      "normal": "Normal",
+      "hover": "Abrir ao passar o rato",
+      "click": "Abrir com um clique",
+      "icons": "Só ícones"
+    },
     "uiScaleOptions": {
       "small": "Pequena",
       "normal": "Normal",
@@ -1954,6 +2123,7 @@
     "step1Min": "Avançar 1 Minuto",
     "teamControls": "Controlos da Equipa",
     "subs": "Substituições",
+    "subsClosed": "As substituições encerram no fim do prolongamento",
     "formation": "Formação",
     "playStyle": "Estilo de Jogo",
     "keyEvents": "Eventos-Chave",
@@ -2007,7 +2177,47 @@
       "suddenDeath": "Morte Súbita",
       "shootoutScore": "Penáltis: {{h}} – {{a}}",
       "homeKick": "Pontapé da equipa da casa...",
-      "awayKick": "Pontapé da equipa visitante..."
+      "awayKick": "Pontapé da equipa visitante...",
+      "kickScored": "Penálti {{n}}, marcado",
+      "kickMissed": "Penálti {{n}}, falhado",
+      "kickToCome": "Penálti {{n}}, por marcar",
+      "kickSheet": "Folha de penáltis",
+      "kickColumn": "Remate",
+      "sheetCaption": "Cada ronda do desempate: quem bateu e como correu",
+      "scored": "Marcado",
+      "missed": "Falhado",
+      "toCome": "Por bater",
+      "notTaken": "Não batido",
+      "afterExtraTime": "{{home}} – {{away}} após o prolongamento",
+      "kickAnnounceScored": "Penálti {{n}}, {{team}}: {{kicker}} marca.",
+      "kickAnnounceMissed": "Penálti {{n}}, {{team}}: {{kicker}} falha.",
+      "stepFailed": "O desempate não conseguiu continuar. Tenta outra vez.",
+      "nextKick": "Próximo penálti",
+      "orderHeading": "A tua ordem de penáltis",
+      "orderStep": "Passo 1 de 2",
+      "orderHint": "O teu marcador de penáltis vai primeiro, depois os melhores rematadores e o guarda-redes no fim. Arrasta um jogador, ou pega nele com Espaço ou Enter e move-o com as setas.",
+      "useAutoOrder": "Usar ordem automática",
+      "startShootout": "Começar as grandes penalidades",
+      "penTaker": "Marcador",
+      "moving": "A mover",
+      "sitsOut": "Fica de fora",
+      "sitsOutNote": "Ambas as equipas usam {{k}} marcadores",
+      "sitsOutLine": "Ficam de fora abaixo desta linha: {{n}}. Ambas as equipas usam {{k}} marcadores.",
+      "moveKicker": "Mover {{name}}, penálti {{n}} de {{k}}",
+      "moveSitter": "Mover {{name}}, fica de fora",
+      "liftedKick": "{{name}}, penálti {{n}} de {{k}}. Setas para mover, Espaço para largar, Escape para repor.",
+      "liftedSitsOut": "{{name}}, fica de fora. Setas para mover, Espaço para largar, Escape para repor.",
+      "movedKick": "{{name}}, penálti {{n}} de {{k}}",
+      "movedSitsOut": "{{name}} fica de fora",
+      "droppedKick": "{{name}} largado no penálti {{n}} de {{k}}.",
+      "droppedSitsOut": "{{name}} largado: fica de fora.",
+      "putBackKick": "{{name}} reposto no penálti {{n}} de {{k}}.",
+      "putBackSitsOut": "{{name}} reposto: fica de fora.",
+      "autoOrderRestored": "De volta à ordem automática.",
+      "columnShooting": "Rem.",
+      "columnComposure": "Comp.",
+      "opponentOrderHidden": "A ordem de {{team}} fica escondida até cada jogador avançar para a marca.",
+      "orderFailed": "Não foi possível definir a tua ordem. Tenta outra vez."
     },
     "fullTime": "Tempo Completo",
     "ft": "TC",
@@ -2631,7 +2841,17 @@
     "compare": "Comparar"
   },
   "be": {
+    "condition": {
+      "fresh": "Fresco",
+      "tiring": "A cansar-se",
+      "exhausted": "Exausto",
+      "critical": "Crítico"
+    },
     "error": {
+      "taskJoinFailed": "A simulação parou inesperadamente. Carregue o seu último jogo guardado e tente novamente.",
+      "autoSave": {
+        "failed": "O guardar automático não conseguiu guardar o jogo. O seu progresso desde o último guardar ainda não está guardado: guarde-o manualmente e verifique se o disco tem espaço livre."
+      },
       "squadFloor": {
         "wouldLeaveShort": "Este jogador não pode sair: o plantel ficaria abaixo do mínimo que um clube tem de manter. Setor afetado: {{group}}.",
         "wouldLeaveSeniorsShort": "Este jogador não pode sair: o clube ficaria com menos de {{floor}} jogadores no plantel principal, o mínimo que um clube tem de manter."
@@ -2674,6 +2894,11 @@
         "maxSubstitutionsReached": "Foi atingido o limite máximo de substituições",
         "preMatchSwapTooLate": "As trocas pré-jogo só são permitidas antes do pontapé de saída",
         "cannotSubstituteSentOffPlayer": "Não podes substituir um jogador expulso",
+        "noSubstitutionsForShootout": "Não há substituições depois do prolongamento: o desempate por penáltis é feito pelos jogadores em campo no apito final.",
+        "shootoutOrderNotNow": "A ordem dos marcadores só pode ser definida depois do prolongamento, antes do primeiro penálti.",
+        "shootoutOrderNotYourSide": "Só podes definir a ordem dos marcadores da tua equipa.",
+        "notYourSide": "Só podes dar ordens à tua própria equipa.",
+        "shootoutOrderNotEligible": "A ordem dos marcadores tem de incluir uma única vez cada um dos teus jogadores disponíveis.",
         "playerNotOnPitch": "O jogador não está em campo",
         "playerAlreadySubstitutedOff": "Esse jogador já foi substituído",
         "playerNotOnBench": "O jogador não está no banco",
@@ -2692,6 +2917,7 @@
         "missingSchema": "Falta o campo \"schema\" num ficheiro do pacote.",
         "worldExportNotPackage": "Esta pasta é um mundo exportado, não um projeto de pacote. Os mundos exportados usam um formato diferente e não podem ser editados aqui.",
         "notAProjectDirectory": "Esta não é uma pasta de projeto de pacote. Escolhe a pasta que contém o package.json do pacote — ou, para um pacote .ofm instalado, usa «Abrir ficheiro .ofm».",
+        "saveWouldDropItem": "Não foi guardado: {{file}} tem uma entrada que o editor não consegue ler nem manter em JSON. Corrija essa entrada no ficheiro e guarde de novo.",
         "unknownSchema": "Esquema desconhecido \"{{schema}}\".",
         "invalidEntity": "Uma entrada \"{{schema}}\" é inválida: {{detail}}",
         "duplicateWorld": "O pacote já tem um manifesto em \"{{first}}\"; um pacote só pode ter um ficheiro \"world\".",
@@ -2732,6 +2958,8 @@
       },
       "competitionDef": {
         "invalidCalendar": "Calendário da competição inválido: verifique a família da divisão, o escalão, a fase e a data de encerramento.",
+        "invalidSeasonMonth": "O mês de início da época {{month}} não é válido (deve estar entre 1 e 12).",
+        "invalidSeasonDay": "O dia de início da época {{day}} não é um dia válido do mês de início.",
         "invalidEmbedded": "As definições de competições deste mundo são inválidas e não foi possível carregá-las.",
         "invalidStandalone": "O ficheiro de definição de competições selecionado é inválido.",
         "parseFailed": "Não foi possível ler o ficheiro de definição de competições como JSON.",
@@ -2755,6 +2983,7 @@
         "bothParticipantSources": "Forneça uma lista explícita ou um seletor, não ambos.",
         "tooFewParticipants": "São necessários pelo menos dois participantes.",
         "unknownTeam": "Equipa desconhecida \"{{team}}\".",
+        "duplicateTeam": "A equipa \"{{team}}\" aparece mais de uma vez.",
         "selectorMissingCountry": "Este seletor precisa de um país.",
         "selectorCountTooSmall": "Este seletor precisa de uma contagem de pelo menos 2.",
         "selectorMissingRegion": "Este seletor precisa de uma região.",
@@ -2862,6 +3091,7 @@
         "cannotBidOnOwnPlayer": "Não podes licitar o teu próprio jogador",
         "playerHasNoTeam": "O jogador não tem equipa",
         "insufficientFunds": "Fundos insuficientes",
+        "buyerCannotAffordFee": "O clube comprador já não consegue pagar esta verba, por isso o negócio não pode avançar.",
         "transferBudgetTooLow": "O orçamento de transferências é demasiado baixo",
         "playerNotOwnedByUser": "Jogador não encontrado ou não te pertence",
         "offerNotPending": "Oferta não encontrada ou já não está pendente",
@@ -2871,6 +3101,7 @@
         "loanCounterMustImproveTerms": "A contraproposta de empréstimo tem de melhorar a oferta atual",
         "playerNotLoanListed": "O jogador não está listado para empréstimo",
         "playerAlreadyLoaned": "O jogador já está emprestado",
+        "playerAlreadySold": "Este jogador já foi vendido. A transferência concretiza-se quando abrir o mercado.",
         "invalidLoanEndDate": "A data de fim do empréstimo tem de ficar entre 30 dias e um ano a partir de hoje",
         "invalidLoanWageContribution": "A comparticipação salarial do empréstimo tem de ficar entre 0% e 100%",
         "invalidLoanBuyOption": "A opção de compra do empréstimo tem de ser superior a zero",
@@ -2916,7 +3147,11 @@
         "invalidFormation": "O jogo não conhece essa formação.",
         "invalidPlayStyle": "O jogo não conhece esse estilo de jogo.",
         "notFound": "Essa tática já não existe."
-      }
+      },
+      "anotherClubsSquad": "Esse plantel pertence a outro clube.",
+      "startingXiPlayerNotEligible": "Um jogador desta equipa não pode ser titular no teu clube.",
+      "startingXiDuplicatePlayer": "Um jogador aparece duas vezes nesta equipa.",
+      "startingXiWrongSize": "O onze inicial tem de ter exatamente onze jogadores, ou todos os jogadores elegíveis se o clube tiver menos."
     },
     "sender": {
       "boardOfDirectors": "Conselho de Administração",
@@ -3037,7 +3272,7 @@
       "seasonPayout": {
         "subject": "Época {{season}} — Prémio atribuído",
         "body": "A direção confirmou um prémio de {{amount}} pelo teu {{position}}.º lugar na liga. O valor foi adicionado ao saldo do clube.",
-        "ledgerDescription": "Prémio da temporada {{season}} pelo {{position}}{{suffix}} lugar"
+        "ledgerDescription": "Prémio da temporada {{season}} pelo {{ordinal}} lugar"
       },
       "seasonReview": {
         "subject": "Balanço da Época {{season}}",
@@ -3394,6 +3629,7 @@
         },
         "notes": {
           "managerBlocked": "Disseste-me para ainda não reabrir as conversas contratuais.",
+          "markedLetExpire": "Marcaste este contrato para o deixar expirar, por isso não abri conversações.",
           "completed": "Consegui fechar esta sem precisares de intervir.",
           "completedToKeepSquadFloor": "Feito, acima da política salarial da direção. A direção autorizou porque, sem este jogador, ficaríamos abaixo do plantel mínimo.",
           "beyondLimits": "O entourage deles quer cerca de {{wage}}/semana por {{years}} anos, acima dos limites da delegação.",
@@ -3435,6 +3671,12 @@
       "scoutReport": {
         "subject": "Relatório do observador: {{player}}",
         "body": "O seu observador {{scout}} concluiu a avaliação de {{player}}. O relatório completo está disponível na secção de observação."
+      },
+      "scoutingCancelled": {
+        "subject": "Missão de observação cancelada",
+        "body": "O observador que enviou para observar {{player}} saiu do clube, por isso não haverá relatório. Envie outro observador se ainda o quiser.",
+        "bodyWithoutPlayer": "O observador que enviou para observar um jogador saiu do clube, e esse jogador já não consta dos nossos registos, por isso não haverá relatório.",
+        "youthBody": "O observador que enviou numa pesquisa de jovens saiu do clube, por isso a pesquisa foi cancelada. Comece uma nova com outro observador se ainda a quiser."
       },
       "boardWarning": {
         "subject": "Preocupação da Direção — Revisão de Desempenho",
@@ -3499,6 +3741,15 @@
         "bodyWithOption": "{{player}} será emprestado por {{parent}} a {{borrower}} de {{start}} até {{end}}. {{borrower}} suportará {{contribution}}% do salário. Opção de compra: {{fee}}.",
         "bodyNoOption": "{{player}} será emprestado por {{parent}} a {{borrower}} de {{start}} até {{end}}. {{borrower}} suportará {{contribution}}% do salário. Sem opção de compra."
       },
+      "loanRegistrationFailed": {
+        "subject": "Empréstimo cancelado: {{player}}",
+        "body": "O empréstimo acordado de {{player}} do {{parent}} para o {{borrower}}, previsto para {{start}}, não pode avançar: o jogador já não tem contrato com o {{parent}}.",
+        "bodyRequirementNotMet": "O empréstimo acordado de {{player}} do {{parent}} para o {{borrower}} não pôde começar a {{start}}: uma das condições em que foi acordado, como margem no orçamento salarial do {{borrower}} ou a duração do contrato do jogador, já não se verifica."
+      },
+      "talksClosedBySale": {
+        "subject": "Contratado por outro clube: {{player}}",
+        "body": "O {{buyer}} contratou {{player}} por {{fee}}. As tuas negociações em aberto por ele foram retiradas."
+      },
       "loanOffer": {
         "subject": "Proposta de Empréstimo por {{player}}",
         "body": "{{team}} quer receber {{player}} por empréstimo até {{endDate}} e cobrir {{wageContribution}}% do salário. Opção de compra: {{buyOption}}. Reveja a proposta no separador Transferências.",
@@ -3523,6 +3774,10 @@
       "matchesMoved": {
         "subject": "Jogos reagendados",
         "body": "Alguns dos seus jogos foram alterados para que os seus jogadores mantenham o descanso e as pausas internacionais sejam respeitadas:\n{{matches}}"
+      },
+      "savedDataSetAside": {
+        "subject": "Alguns dados guardados foram postos de parte",
+        "body": "Uma parte deste jogo guardado não pôde ser lida ao carregar. Foi posta de parte em vez de se perder, e a sua carreira continua. Se faltar alguma coisa, um relatório de erro ({{settings}} → {{reportBug}}, com o jogo guardado em anexo) permite-nos analisá-lo."
       }
     },
     "news": {
@@ -3636,7 +3891,9 @@
       "weeklyDigest": {
         "headline": "Resumo Semanal — Semana de {{weekStart}}",
         "bodyNoTopScorer": "Já chegou o mais recente resumo semanal. {{leader}} lidera a tabela e {{storylineCount}} narrativa(s) estão a marcar a divisão esta semana.",
-        "bodyWithTopScorer": "Já chegou o mais recente resumo semanal. {{leader}} lidera a tabela, enquanto {{topScorer}} comanda a lista de marcadores com {{topScorerGoals}} golo(s). {{storylineCount}} narrativa(s) estão a marcar a divisão esta semana."
+        "bodyWithTopScorer": "Já chegou o mais recente resumo semanal. {{leader}} lidera a tabela, enquanto {{topScorer}} comanda a lista de marcadores com {{topScorerGoals}} golo(s). {{storylineCount}} narrativa(s) estão a marcar a divisão esta semana.",
+        "bodyNoTopScorerNoStorylines": "Já chegou o mais recente resumo semanal. {{leader}} lidera a tabela.",
+        "bodyWithTopScorerNoStorylines": "Já chegou o mais recente resumo semanal. {{leader}} lidera a tabela, enquanto {{topScorer}} comanda a lista de marcadores com {{topScorerGoals}} golo(s)."
       },
       "preseasonDigest": {
         "headline": "Resumo da pré-época — Semana de {{weekStart}}",
@@ -3703,7 +3960,8 @@
       "package": {
         "countryWithoutRegion": "Este pacote define o país \"{{name}}\" ({{code}}) fora da lista de países do jogo e não o coloca em nenhuma confederação, pelo que os seus clubes ficam na Europa. Atribua-lhe uma confederação.",
         "freeAgentFieldIgnored": "O jogador «{{id}}» não tem clube, pelo que é um jogador livre sem contrato: «{{field}}» é ignorado. Atribua-lhe um clube para o usar, ou remova o campo.",
-        "repeatedNamePool": "O conjunto de nomes de {{country}} já foi dado em {{first}}; o deste ficheiro substitui-o. Mantenha só um, ou atribua-os a países diferentes."
+        "repeatedNamePool": "O conjunto de nomes de {{country}} já foi dado em {{first}}; o deste ficheiro substitui-o. Mantenha só um, ou atribua-os a países diferentes.",
+        "namePoolIncomplete": "O conjunto de nomes de {{country}} tem nomes próprios mas não apelidos, ou apelidos mas não nomes próprios, por isso não é usado: os jogadores de {{country}} recebem os nomes do jogo. Dê-lhe ambos."
       }
     }
   },
@@ -3925,6 +4183,12 @@
     "winRate": "Taxa de vitórias"
   },
   "worldEditor": {
+    "previewPlaceholder": {
+      "team": "Nova equipa",
+      "player": "Novo jogador",
+      "competition": "Nova competição"
+    },
+    "estimatedRating": "est.",
     "positionGroupFilter": {
       "Goalkeeper": "Todos os guarda-redes",
       "Defender": "Todos os defesas",

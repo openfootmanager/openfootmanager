@@ -35,8 +35,6 @@ const baseQuery: PlayersPageQuery = {
 const page = (label: string): PlayersPage =>
   ({ items: [{ id: label }], total: 1, page: 1, page_size: 30 }) as unknown as PlayersPage;
 
-const translate = (key: string) => key;
-
 beforeEach(() => {
   mockedFetch.mockReset();
 });
@@ -50,7 +48,7 @@ describe("usePlayersPage", () => {
   it("fetches the page for the query it is given", async () => {
     mockedFetch.mockResolvedValue(page("a"));
 
-    const { result } = renderHook(() => usePlayersPage(baseQuery, translate));
+    const { result } = renderHook(() => usePlayersPage(baseQuery));
 
     await waitFor(() => expect(result.current.slice?.items[0].id).toBe("a"));
     expect(mockedFetch).toHaveBeenCalledWith(baseQuery);
@@ -63,7 +61,7 @@ describe("usePlayersPage", () => {
    */
   it("returns to page 1 when a filter changes, unless the change is the page", async () => {
     mockedFetch.mockResolvedValue(page("a"));
-    const { result } = renderHook(() => usePlayersPage({ ...baseQuery, page: 3 }, translate));
+    const { result } = renderHook(() => usePlayersPage({ ...baseQuery, page: 3 }));
     await waitFor(() => expect(result.current.slice).not.toBeNull());
 
     act(() => result.current.patchQuery({ search: "ron" }));
@@ -81,7 +79,7 @@ describe("usePlayersPage", () => {
    */
   it("asks again for the same query on refetch", async () => {
     mockedFetch.mockResolvedValue(page("a"));
-    const { result } = renderHook(() => usePlayersPage(baseQuery, translate));
+    const { result } = renderHook(() => usePlayersPage(baseQuery));
     await waitFor(() => expect(mockedFetch).toHaveBeenCalledTimes(1));
 
     act(() => result.current.refetch());
@@ -97,7 +95,7 @@ describe("usePlayersPage", () => {
    */
   it("exposes a translated error and clears it on success", async () => {
     mockedFetch.mockRejectedValueOnce("some failure").mockResolvedValueOnce(page("b"));
-    const { result } = renderHook(() => usePlayersPage(baseQuery, translate));
+    const { result } = renderHook(() => usePlayersPage(baseQuery));
 
     await waitFor(() => expect(result.current.error).toBe("some failure"));
 
@@ -116,7 +114,7 @@ describe("usePlayersPage", () => {
     mockedFetch
       .mockImplementationOnce(() => new Promise<PlayersPage>((resolve) => (answerFirst = resolve)))
       .mockResolvedValueOnce(page("newer"));
-    const { result } = renderHook(() => usePlayersPage(baseQuery, translate));
+    const { result } = renderHook(() => usePlayersPage(baseQuery));
 
     act(() => result.current.patchQuery({ search: "x" }));
     await waitFor(() => expect(result.current.slice?.items[0].id).toBe("newer"));
@@ -142,9 +140,36 @@ describe("usePlayersPage", () => {
             page_size: 30,
           } as unknown as PlayersPage),
     );
-    const { result } = renderHook(() => usePlayersPage({ ...baseQuery, page: 3 }, translate));
+    const { result } = renderHook(() => usePlayersPage({ ...baseQuery, page: 3 }));
 
     await waitFor(() => expect(result.current.query.page).toBe(2));
     await waitFor(() => expect(result.current.slice?.items[0].id).toBe("page-2"));
+  });
+
+  /**
+   * Given a page answered under one revision of the game (say, one manager's club)
+   * When the revision changes and the new answer is still on its way
+   * Then the hook asks again, says the page it holds answers the old revision, and says the new
+   *      one only once its answer lands.
+   */
+  it("says which revision of the game its page answers", async () => {
+    let answerSecond!: (value: PlayersPage) => void;
+    mockedFetch
+      .mockResolvedValueOnce(page("first"))
+      .mockImplementationOnce(
+        () => new Promise<PlayersPage>((resolve) => (answerSecond = resolve)),
+      );
+    const { result, rerender } = renderHook(({ revision }) => usePlayersPage(baseQuery, revision), {
+      initialProps: { revision: "club-a" },
+    });
+    await waitFor(() => expect(result.current.answeredRevision).toBe("club-a"));
+
+    rerender({ revision: "club-b" });
+
+    await waitFor(() => expect(mockedFetch).toHaveBeenCalledTimes(2));
+    expect(result.current.answeredRevision).toBe("club-a");
+    await act(async () => answerSecond(page("second")));
+    expect(result.current.answeredRevision).toBe("club-b");
+    expect(result.current.slice?.items[0].id).toBe("second");
   });
 });

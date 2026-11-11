@@ -126,6 +126,7 @@ pub struct App {
     dir: Option<TempDir>,
     log: PathBuf,
     client: Option<Client>,
+    mode: Mode,
 }
 
 impl App {
@@ -167,17 +168,23 @@ impl App {
             "--auto-save-interval-days".to_string(),
             "0".to_string(),
         ];
+        // The harness reads the whole game through `dev_full_game_state`, which only a sandbox
+        // server may offer: the app refuses the flag in competition mode.
+        if config.mode == Mode::Sandbox {
+            args.push("--dev-full-state".to_string());
+        }
         args.extend(config.extra_args.iter().cloned());
 
-        let child = app_command(&binary, &args, dir.path())
+        let mut command = app_command(&binary, &args, dir.path());
+        command
             .stdin(Stdio::null())
             .stdout(Stdio::from(
                 log_file
                     .try_clone()
                     .map_err(|e| LaunchError::Io(e.to_string()))?,
             ))
-            .stderr(Stdio::from(log_file))
-            .spawn()
+            .stderr(Stdio::from(log_file));
+        let child = spawn_retrying_busy(&mut command)
             .map_err(|e| LaunchError::Io(format!("could not start {}: {e}", binary.display())))?;
 
         let mut app = Self {
@@ -188,6 +195,7 @@ impl App {
             dir: Some(dir),
             log,
             client: None,
+            mode: config.mode,
         };
         match app.wait_until_ready() {
             Ok(client) => {
@@ -200,6 +208,11 @@ impl App {
                 Err(LaunchError::NotReady(bundle))
             }
         }
+    }
+
+    /// The mode the app was started in. A competition server has no state oracle by design.
+    pub fn mode(&self) -> Mode {
+        self.mode
     }
 
     /// The binary this app was started from.
@@ -304,7 +317,7 @@ impl App {
         // A fresh short-lived session: the scenario's own client may be the one that hung.
         let state_file = dir.join("game-state.json");
         let state = Client::connect(&self.url(), STATE_CAPTURE_TIMEOUT)
-            .and_then(|probe| probe.call_value("info_game_state", serde_json::json!({})));
+            .and_then(|probe| probe.call_value("dev_full_game_state", serde_json::json!({})));
         let state_note = match state {
             Ok(state) => match fs::write(&state_file, state.to_string()) {
                 Ok(()) => state_file.display().to_string(),
@@ -465,14 +478,15 @@ pub fn gui_launch_maps_a_window(timeout: Duration) -> Result<GuiLaunch, LaunchEr
     let dir = tempfile::tempdir().map_err(|e| LaunchError::Io(e.to_string()))?;
     let log_path = dir.path().join("app.log");
     let log = fs::File::create(&log_path).map_err(|e| LaunchError::Io(e.to_string()))?;
-    let mut child = app_command(&binary, &[], dir.path())
+    let mut command = app_command(&binary, &[], dir.path());
+    command
         .stdin(Stdio::null())
         .stdout(Stdio::from(
             log.try_clone()
                 .map_err(|e| LaunchError::Io(e.to_string()))?,
         ))
-        .stderr(Stdio::from(log))
-        .spawn()
+        .stderr(Stdio::from(log));
+    let mut child = spawn_retrying_busy(&mut command)
         .map_err(|e| LaunchError::Io(format!("could not start {}: {e}", binary.display())))?;
     let outcome = wait_for_window_of(child.id(), timeout);
     let _ = child.kill();
@@ -496,6 +510,31 @@ fn wait_for_window_of(pid: u32, timeout: Duration) -> Result<bool, LaunchError> 
         }
     }
     Ok(false)
+}
+
+/// Starts `command`, trying again while the kernel calls the binary busy (`ETXTBSY`).
+///
+/// A binary written moments ago is refused with "Text file busy" if another thread forked while
+/// the file was still open for writing: the fork holds a copy of the write descriptor until it
+/// execs. The tests write their fake binaries exactly that way, from parallel threads, and a
+/// refused probe read as an unknown version. That failed
+/// `a_stale_binary_is_refused_before_the_display_is_touched` in merge-group run 41276812623.
+/// The window closes as soon as that child execs, so a short retry outlasts it. Renaming the
+/// file into place would not help: busy follows the inode, not the name.
+fn spawn_retrying_busy(command: &mut Command) -> std::io::Result<Child> {
+    const ATTEMPTS: u32 = 100;
+    let mut attempt = 1;
+    loop {
+        match command.spawn() {
+            Err(error)
+                if error.kind() == std::io::ErrorKind::ExecutableFileBusy && attempt < ATTEMPTS =>
+            {
+                attempt += 1;
+                std::thread::sleep(Duration::from_millis(10));
+            }
+            result => return result,
+        }
+    }
 }
 
 /// The command that starts the app, with its environment pinned to the scratch directory and to X11.
@@ -551,12 +590,12 @@ pub fn probe_build_version(binary: &Path, within: Duration) -> Option<String> {
     for sub in ["data", "config", "cache", "state"] {
         fs::create_dir_all(dir.path().join(sub)).ok()?;
     }
-    let mut child = probe_command(binary, dir.path())
+    let mut command = probe_command(binary, dir.path());
+    command
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
-        .stderr(Stdio::null())
-        .spawn()
-        .ok()?;
+        .stderr(Stdio::null());
+    let mut child = spawn_retrying_busy(&mut command).ok()?;
     let started = Instant::now();
     let finished = loop {
         match child.try_wait() {
@@ -827,6 +866,29 @@ mod tests {
         }
     }
 
+    /// Given a fake binary that is still open for writing, as one is when another test thread
+    ///       forks while it is being written, and is closed a moment later
+    /// When its version is probed
+    /// Then the probe waits out the "text file busy" refusal and reads the version
+    #[test]
+    fn a_binary_busy_for_a_moment_still_reports_its_version() {
+        let dir = tempfile::tempdir().unwrap();
+        let binary = fake_binary(dir.path(), "echo 0.3.0+abc123abc123");
+        let still_writing = std::fs::OpenOptions::new()
+            .write(true)
+            .open(&binary)
+            .unwrap();
+        let closer = std::thread::spawn(move || {
+            std::thread::sleep(Duration::from_millis(200));
+            drop(still_writing);
+        });
+
+        let version = probe_build_version(&binary, Duration::from_secs(5));
+        closer.join().unwrap();
+
+        assert_eq!(version.as_deref(), Some("0.3.0+abc123abc123"));
+    }
+
     /// Given a binary from the right sources
     /// When the app is launched
     /// Then the display is checked next, so the stale check did not skip it.
@@ -947,15 +1009,57 @@ mod tests {
         );
     }
 
-    /// Whether a process is still running (a zombie waiting to be reaped is not).
-    fn process_is_running(pid: u32) -> bool {
-        std::fs::read_to_string(format!("/proc/{pid}/stat"))
-            .ok()
-            .and_then(|stat| {
-                stat.rsplit_once(')')
-                    .map(|(_, rest)| rest.trim_start().to_string())
-            })
-            .is_some_and(|rest| !rest.starts_with('Z'))
+    /// What one look at a process says.
+    #[derive(Debug, PartialEq, Eq)]
+    enum Process {
+        Running,
+        Gone,
+    }
+
+    /// Reads a process's `/proc/<pid>/stat` result. A process is gone when its stat file does not
+    /// exist or it is a zombie waiting to be reaped. A read that fails for any other reason (too
+    /// many open files in a busy parallel test run, say) says nothing about the process, so it is
+    /// not "gone": the caller looks again. Counting it as gone made the test read the helper as
+    /// dead and then, on the next read, as alive.
+    fn observe(stat: std::io::Result<String>) -> Process {
+        match stat {
+            Ok(stat) => match stat.rsplit_once(')') {
+                Some((_, rest)) if rest.trim_start().starts_with('Z') => Process::Gone,
+                _ => Process::Running,
+            },
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => Process::Gone,
+            Err(_) => Process::Running,
+        }
+    }
+
+    /// Looks at the process until it is gone or `within` has passed. The answer is the last look,
+    /// never a second one: a test that polls with one read and asserts with another can see the
+    /// process change between them.
+    fn wait_until_gone(pid: u32, within: Duration) -> Process {
+        let deadline = std::time::Instant::now() + within;
+        loop {
+            let seen = observe(std::fs::read_to_string(format!("/proc/{pid}/stat")));
+            if seen == Process::Gone || std::time::Instant::now() >= deadline {
+                return seen;
+            }
+            std::thread::sleep(Duration::from_millis(50));
+        }
+    }
+
+    /// Given the four things a stat read can answer (a running process, a zombie, no such file,
+    ///       and a failure that says nothing)
+    /// When each is observed
+    /// Then only the zombie and the missing file are "gone": a failed read is not evidence of death.
+    #[test]
+    fn only_a_zombie_or_a_missing_file_is_gone() {
+        let stat = |state: &str| Ok(format!("123 (sleep) {state} 1 123 123 0 -1 4194560"));
+        let not_found = std::io::Error::from(std::io::ErrorKind::NotFound);
+        let transient = std::io::Error::other("Too many open files");
+
+        assert_eq!(observe(stat("S")), Process::Running);
+        assert_eq!(observe(stat("Z")), Process::Gone);
+        assert_eq!(observe(Err(not_found)), Process::Gone);
+        assert_eq!(observe(Err(transient)), Process::Running);
     }
 
     /// Given a binary that starts a helper process of its own before it prints its version, as the
@@ -983,12 +1087,9 @@ mod tests {
             .trim()
             .parse()
             .unwrap();
-        let deadline = std::time::Instant::now() + Duration::from_secs(5);
-        while process_is_running(helper) && std::time::Instant::now() < deadline {
-            std::thread::sleep(Duration::from_millis(50));
-        }
-        assert!(
-            !process_is_running(helper),
+        assert_eq!(
+            wait_until_gone(helper, Duration::from_secs(5)),
+            Process::Gone,
             "the helper process {helper} outlived the probe"
         );
     }

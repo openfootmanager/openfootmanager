@@ -6,27 +6,45 @@ import {
   Button,
   Card,
   CardBody,
+  CardGrid,
   CardHeader,
   Checkbox,
+  ConditionMeter,
   CountryFlag,
+  FormDots,
+  FormResultMark,
+  DataTable,
+  SortHeaderButton,
+  type DataTableColumn,
   DatePicker,
   Dialog,
+  EntityCard,
   DialogCloseButton,
   InjuryBadge,
+  UnreadBadge,
+  ViewSwitch,
   JerseyIcon,
   PageToolbar,
   PitchToken,
   PlayerAvatar,
+  PositionBadge,
+  PositionBadges,
   ProgressBar,
+  RatingChip,
   SegmentedControl,
   Select,
+  SortControl,
+  type SortDirection,
+  Switch,
   TabPanel,
   Tabs,
   TeamLocation,
   TeamLogo,
   ThemeToggle,
+  TONE_TEXT,
 } from "../../components/ui";
 import { ChartContainer } from "../../components/ui/charts/ChartContainer";
+import type { ListView } from "../../store/settingsStore";
 import type { StyleGuideOptions } from "./styleGuideOptions";
 
 /*
@@ -44,6 +62,7 @@ const SURFACES = [
   "--color-hover",
   "--color-chrome",
   "--color-overlay",
+  "--color-card-band",
 ];
 const TEXT_AND_LINES = [
   "--color-fg",
@@ -62,6 +81,7 @@ const STATUSES = [
   ["--color-danger", "--color-danger-tint", "--color-danger-solid"],
   ["--color-info", "--color-info-tint", "--color-info-solid"],
 ].flat();
+const SELECTED = ["--color-selected", "--color-selected-tint", "--color-selected-fill"];
 const TONES = [
   ["--color-tone-top", "--color-tone-top-tint", "--color-tone-top-solid"],
   ["--color-tone-good", "--color-tone-good-tint", "--color-tone-good-solid"],
@@ -106,10 +126,24 @@ const HEIGHTS = [
 ];
 const WIDTHS = [
   { token: "--container-page", use: "the page width (max-w-page)" },
+  { token: "--spacing-sidebar-rail", use: "the sidebar's icon rail (w-sidebar-rail)" },
+  { token: "--spacing-sidebar-compact", use: "the open sidebar, Compact (w-sidebar-compact)" },
+  { token: "--spacing-sidebar-standard", use: "the open sidebar, Standard (w-sidebar-standard)" },
+  { token: "--spacing-sidebar-wide", use: "the open sidebar, Wide (w-sidebar-wide)" },
   {
     token: "--container-split",
     use: "two panels side by side above this container width (@split)",
   },
+];
+const CARD_TOKENS = [
+  { token: "--shadow-card", use: "an entity card's lift (shadow-card)" },
+  { token: "--kit-wash-mix", use: "how much of a club's kit a card's header takes (bg-kit-wash)" },
+];
+// Two fixture clubs' kits, and none: a free agent's card falls back to the neutral stripe.
+const CARD_KITS = [
+  { name: "Gonzalez", country: "AU", kit: { primary: "#16a34a", secondary: "#ffffff" } },
+  { name: "Ferguson", country: "SCO", kit: { primary: "#ea580c", secondary: "#1e3a5f" } },
+  { name: "Aguero", country: "PY", kit: null },
 ];
 const FONTS = [
   { token: "--font-heading", className: "font-heading uppercase tracking-label" },
@@ -154,6 +188,7 @@ function TokensSection() {
       <Swatches tokens={SURFACES} />
       <Swatches tokens={TEXT_AND_LINES} />
       <Swatches tokens={STATUSES} />
+      <Swatches tokens={SELECTED} />
       <Swatches tokens={TONES} />
       <Swatches tokens={BRAND} />
       <Swatches tokens={DATA_AND_PITCH} />
@@ -249,6 +284,12 @@ function ControlsSection() {
         <Checkbox checked={false} indeterminate onChange={() => undefined} aria-label="Mixed" />
         <Checkbox checked onChange={() => undefined} disabled aria-label="Disabled" />
       </Row>
+      <Row>
+        <Switch label="Switch" checked={checked} onChange={setChecked} />
+        <Switch label="Switch, off" checked={false} onChange={() => undefined} />
+        <Switch label="Switch, disabled on" checked disabled onChange={() => undefined} />
+        <Switch label="Switch, disabled off" checked={false} disabled onChange={() => undefined} />
+      </Row>
       <div className="grid max-w-md gap-3">
         <DatePicker value={date} onChange={setDate} />
         <DatePicker value="" onChange={() => undefined} error />
@@ -269,6 +310,30 @@ function DisplaySection() {
         <Badge size="md">medium</Badge>
         <InjuryBadge injury={{ name: "Hamstring strain", days_remaining: 4 }} />
         <InjuryBadge injury={{ name: "Metatarsal fracture", days_remaining: 42 }} />
+        <UnreadBadge count={3} />
+        <UnreadBadge count={42} />
+        <UnreadBadge count={120} />
+      </Row>
+      <Row>
+        {/* The backend's tiers (S, A, B and the rest), at the row's size and a card's. */}
+        {(
+          [
+            [88, "S"],
+            [79, "A"],
+            [71, "B"],
+            [58, "Rest"],
+          ] as const
+        ).map(([value, tier]) => (
+          <RatingChip key={tier} value={value} tier={tier} />
+        ))}
+        {(
+          [
+            [88, "S"],
+            [58, "Rest"],
+          ] as const
+        ).map(([value, tier]) => (
+          <RatingChip key={`md-${tier}`} value={value} tier={tier} size="md" />
+        ))}
       </Row>
       <div className="grid max-w-md gap-2">
         {(["auto", "primary", "accent", "success", "danger", "muted"] as const).map(
@@ -277,6 +342,29 @@ function DisplaySection() {
           ),
         )}
       </div>
+      {/* Condition on the backend's bands: the band's word and bar in its tone; none sent, neutral. */}
+      <div className="grid max-w-md gap-2">
+        {(
+          [
+            ["good", "Fresh", 90],
+            ["fair", "Tiring", 60],
+            ["low", "Exhausted", 32],
+            ["bad", "Critical", 15],
+          ] as const
+        ).map(([tone, band, value]) => (
+          <ConditionMeter
+            key={band}
+            value={value}
+            status={{ band, label_key: `be.condition.${band.toLowerCase()}`, tone }}
+          />
+        ))}
+        <ConditionMeter value={50} status={null} />
+      </div>
+      <Row>
+        <FormDots results={["W", "D", "W", "W", "L"]} />
+        <FormDots results={["L", "L", "D"]} />
+        <FormResultMark result="W" className="px-1.5 py-0.5" />
+      </Row>
       <Row>
         <CountryFlag code="BE" />
         <CountryFlag code="ENG" />
@@ -287,6 +375,14 @@ function DisplaySection() {
             name: "Brussels FC",
             short_name: "BRU",
             colors: { primary: "#15803d", secondary: "#ffffff" },
+          }}
+        />
+        {/* Bright green beside white: the pair whose label used to vanish on the white half. */}
+        <TeamLogo
+          team={{
+            name: "Alpha United",
+            short_name: "AL",
+            colors: { primary: "#00ff00", secondary: "#ffffff" },
           }}
         />
         <TeamLogo
@@ -336,6 +432,170 @@ function CardsSection() {
         ))}
         <ChartContainer isEmpty height={120} />
       </div>
+      {/* Entity cards: the kit stripe and wash, the name as the one button, the status and facts. */}
+      <CardGrid>
+        {CARD_KITS.map(({ name, country, kit }) => (
+          <li key={name} className="min-w-0">
+            <EntityCard
+              kit={kit}
+              media={<PlayerAvatar player={{ id: name, match_name: name, full_name: name }} />}
+              name={name}
+              meta={
+                <>
+                  <CountryFlag code={country} />
+                  <span>CM · 30</span>
+                </>
+              }
+              hero={<span className={TONE_TEXT.good}>79</span>}
+              status={<ProgressBar value={80} tone="good" showLabel label="Condition" />}
+              facts={[
+                { label: "Value", value: "€2.5M" },
+                { label: "Morale", value: "75" },
+              ]}
+              onOpen={() => undefined}
+            />
+          </li>
+        ))}
+      </CardGrid>
+      {/* The same grid in a container narrower than a card: one full-width column, no sideways scroll. */}
+      <div className="w-48 overflow-hidden rounded-lg border border-line p-2">
+        <CardGrid>
+          <li className="min-w-0 truncate rounded-lg bg-panel p-2 text-caption">
+            Narrow container
+          </li>
+        </CardGrid>
+      </div>
+      <div className="flex max-w-xl flex-col gap-2">
+        {CARD_KITS.slice(0, 2).map(({ name, country, kit }) => (
+          <EntityCard
+            key={name}
+            size="compact"
+            kit={kit}
+            media={<PlayerAvatar player={{ id: name, match_name: name, full_name: name }} />}
+            name={name}
+            meta={<CountryFlag code={country} />}
+            hero={<span className={TONE_TEXT.good}>79</span>}
+            onOpen={() => undefined}
+          />
+        ))}
+      </div>
+      <dl className="grid gap-1 text-caption">
+        {CARD_TOKENS.map(({ token, use }) => (
+          <div key={token} className="flex gap-2">
+            <dt className="font-semibold text-fg">{token}</dt>
+            <dd className="text-fg-muted">{use}</dd>
+          </div>
+        ))}
+      </dl>
+    </Section>
+  );
+}
+
+const TABLE_FIXTURES = [
+  { id: "t1", name: "Anderson", age: 31, morale: 72, starter: true, injured: false },
+  { id: "t2", name: "Navarro", age: 33, morale: 55, starter: true, injured: false },
+  { id: "t3", name: "Johnston", age: 29, morale: 61, starter: false, injured: true },
+  { id: "t4", name: "Graham", age: 34, morale: 80, starter: false, injured: false },
+];
+type TableFixture = (typeof TABLE_FIXTURES)[number];
+
+const TABLE_COLUMNS: DataTableColumn<TableFixture>[] = [
+  { key: "name", header: "Name", cell: (row) => row.name, primary: true, sortable: true },
+  { key: "age", header: "Age", cell: (row) => row.age, numeric: true, sortable: true },
+  // Folds into the row's details in a table narrower than 48rem.
+  { key: "morale", header: "Morale", cell: (row) => row.morale, numeric: true, drawer: true },
+];
+
+/** The panel a page puts its table in: DataTable draws none of its own. */
+function TablePanel({ children }: { children: ReactNode }) {
+  return <div className="overflow-hidden rounded-lg border border-line bg-panel">{children}</div>;
+}
+
+function TablesSection() {
+  const [sort, setSort] = useState<{ key: string; direction: SortDirection }>({
+    key: "age",
+    direction: "desc",
+  });
+  const sorted = [...TABLE_FIXTURES].sort((a, b) => {
+    const order = sort.key === "name" ? a.name.localeCompare(b.name) : a.age - b.age;
+    return sort.direction === "asc" ? order : -order;
+  });
+  return (
+    <Section title="Tables">
+      {/* The button inside a sortable column header, for a table that draws its own header: it fills
+          the cell and carries the cell's padding, so the whole header sorts. */}
+      <div className="w-48 rounded-lg border border-line bg-panel text-caption">
+        <SortHeaderButton
+          header="Age"
+          direction={sort.key === "age" ? sort.direction : null}
+          onSort={() =>
+            setSort((current) => ({
+              key: "age",
+              direction: current.key === "age" && current.direction === "desc" ? "asc" : "desc",
+            }))
+          }
+          className="h-8 px-2"
+        />
+      </div>
+      <div className="grid gap-4">
+        <TablePanel>
+          <DataTable
+            label="Squad (sortable; starters and an injury accented; morale folds when narrow)"
+            columns={TABLE_COLUMNS}
+            rows={sorted}
+            rowKey={(row) => row.id}
+            rowName={(row) => row.name}
+            sort={sort}
+            onSortChange={(key) =>
+              setSort((current) => ({
+                key,
+                direction: current.key === key && current.direction === "desc" ? "asc" : "desc",
+              }))
+            }
+            onOpen={() => undefined}
+            rowAccent={(row) => (row.injured ? "danger" : row.starter ? "selected" : null)}
+            rowAction={{
+              header: "Actions",
+              cell: (row) => (
+                <Button size="sm" variant="ghost" aria-label={`Menu for ${row.name}`}>
+                  ⋯
+                </Button>
+              ),
+            }}
+          />
+        </TablePanel>
+        <div className="max-w-md">
+          <TablePanel>
+            <DataTable
+              label="Narrow (morale in the row's details)"
+              columns={TABLE_COLUMNS}
+              rows={TABLE_FIXTURES.slice(0, 2)}
+              rowKey={(row) => row.id}
+              rowName={(row) => row.name}
+            />
+          </TablePanel>
+        </div>
+        <TablePanel>
+          <DataTable
+            label="Empty"
+            columns={TABLE_COLUMNS}
+            rows={[]}
+            rowKey={(row) => row.id}
+            rowName={(row) => row.name}
+            empty="No players match these filters."
+          />
+        </TablePanel>
+        <TablePanel>
+          <DataTable
+            label="Loading"
+            columns={TABLE_COLUMNS}
+            rows={[]}
+            rowKey={(row) => row.id}
+            rowName={(row) => row.name}
+            loading
+          />
+        </TablePanel>
+      </div>
     </Section>
   );
 }
@@ -352,6 +612,43 @@ const PITCH_FIXTURES = [
   },
   { name: "DUPONT", abbr: "RB", position: "RightBack", ovr: 70, condition: 98, fit: "out" },
 ] as const;
+
+const BADGE_NAMES: Record<string, { label: string; name: string }> = {
+  Striker: { label: "ST", name: "Striker" },
+  RightWinger: { label: "RW", name: "Right Winger" },
+  LeftWinger: { label: "LW", name: "Left Winger" },
+  CenterBack: { label: "CB", name: "Center Back" },
+};
+
+function PositionBadgeSection() {
+  const describe = (position: string) => BADGE_NAMES[position];
+  return (
+    <Section title="Position badges">
+      <div className="flex flex-wrap items-center gap-6">
+        <PositionBadge position="Striker" {...BADGE_NAMES.Striker} familiarity="natural" />
+        <PositionBadge position="RightWinger" {...BADGE_NAMES.RightWinger} familiarity="adapted" />
+        <PositionBadge position="CenterBack" {...BADGE_NAMES.CenterBack} familiarity="out" />
+        <PositionBadge position="LeftWinger" {...BADGE_NAMES.LeftWinger} kind="alternate" />
+      </div>
+      <div className="flex flex-wrap items-center gap-6">
+        <PositionBadges
+          natural="Striker"
+          alternates={["RightWinger", "LeftWinger"]}
+          deployed="RightWinger"
+          familiarity="adapted"
+          describe={describe}
+        />
+        <PositionBadges
+          natural="Striker"
+          alternates={["RightWinger"]}
+          deployed="CenterBack"
+          familiarity="out"
+          describe={describe}
+        />
+      </div>
+    </Section>
+  );
+}
 
 function PitchSection() {
   return (
@@ -399,6 +696,11 @@ function NavigationSection() {
   const [view, setView] = useState("list");
   const [pace, setPace] = useState("normal");
   const [density, setDensity] = useState("comfortable");
+  const [listView, setListView] = useState<ListView>("table");
+  const [cardSort, setCardSort] = useState<{ key: "name" | "age" | "ovr"; ascending: boolean }>({
+    key: "ovr",
+    ascending: false,
+  });
   return (
     <Section title="Navigation">
       <PageToolbar
@@ -499,6 +801,22 @@ function NavigationSection() {
         />
       </Row>
       <PageToolbar action={<Button size="sm">Hire</Button>} />
+      {/* A list's toolbar: the Table/Cards switch at its end, bound to the one global setting. */}
+      <PageToolbar action={<ViewSwitch value={listView} onChange={setListView} />} />
+      {/* A card list has no column headers, so its sort is a field and a direction. */}
+      <Row>
+        <SortControl
+          options={[
+            { key: "name", label: "Name" },
+            { key: "age", label: "Age" },
+            { key: "ovr", label: "OVR" },
+          ]}
+          sortKey={cardSort.key}
+          ascending={cardSort.ascending}
+          defaultAscending={(key) => key === "name"}
+          onChange={(key, ascending) => setCardSort({ key, ascending })}
+        />
+      </Row>
     </Section>
   );
 }
@@ -556,6 +874,8 @@ export function StyleGuide({ options }: { options: StyleGuideOptions }) {
         <ControlsSection />
         <DisplaySection />
         <CardsSection />
+        <PositionBadgeSection />
+        <TablesSection />
         <PitchSection />
         <DialogSection open={options.dialogOpen} />
       </div>

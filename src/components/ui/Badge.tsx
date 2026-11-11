@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 
 interface BadgeProps {
   children: ReactNode;
-  variant?: "primary" | "accent" | "success" | "danger" | "neutral";
+  variant?: "primary" | "accent" | "success" | "danger" | "neutral" | "outline";
   size?: "sm" | "md";
   className?: string;
 }
@@ -15,6 +15,8 @@ export function Badge({ children, variant = "neutral", size = "sm", className = 
     danger: "bg-danger-tint text-danger",
     // The inset line keeps it visible on a white panel, where sunken alone is 1.04:1.
     neutral: "bg-sunken text-fg-muted ring-1 ring-inset ring-line",
+    // An unfilled badge, for a value that is secondary to a filled one beside it.
+    outline: "bg-transparent text-fg ring-1 ring-inset ring-line-strong",
   };
 
   const sizes = {

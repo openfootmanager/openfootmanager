@@ -14,9 +14,15 @@ interface Labelled {
   labelledBy?: never;
 }
 
+/** Escape's request for a dialog that has no `onClose`: stable, so the keyboard hook doesn't re-bind. */
+const STAYS_OPEN = () => {};
+
 type DialogProps = (NamedBy | Labelled) & {
-  /** Escape, and a backdrop click when `dismissOnBackdrop`, ask for this. A refusal is the caller's. */
-  onClose: () => void;
+  /**
+   * Escape, and a backdrop click when `dismissOnBackdrop`, ask for this. A refusal is the caller's.
+   * Left out for a dialog that can't be closed yet (a save in flight, with `busy`): nothing to ask.
+   */
+  onClose?: () => void;
   dismissOnBackdrop?: boolean;
   /** Set while the dialog refuses to close, so the refusal is not silent to a screen reader. */
   busy?: boolean;
@@ -54,7 +60,7 @@ export function Dialog({
   const pressStartedOnBackdrop = useRef(false);
   const ownPanelRef = useRef<HTMLDivElement>(null);
   const panelRef = callerPanelRef ?? ownPanelRef;
-  useDialogKeyboard(panelRef, onClose);
+  useDialogKeyboard(panelRef, onClose ?? STAYS_OPEN);
 
   // A child that asked for focus (an amount field, a step heading) keeps it.
   useEffect(() => {
@@ -75,7 +81,7 @@ export function Dialog({
           event.target === event.currentTarget &&
           pressStartedOnBackdrop.current
         )
-          onClose();
+          onClose?.();
       }}
     >
       <div

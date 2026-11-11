@@ -9,7 +9,11 @@ import type {
   PlayerData,
   TeamData,
 } from "../../store/gameStore";
-import { createSeasonContext, createSquadFitness } from "../../test-utils/factories";
+import {
+  createConditionStatus,
+  createSeasonContext,
+  createSquadFitness,
+} from "../../test-utils/factories";
 
 const squadMocks = vi.hoisted(() => ({
   getSquad: vi.fn().mockResolvedValue([]),
@@ -33,14 +37,18 @@ vi.mock("../NextMatchDisplay", () => ({
 vi.mock("./HomeSquadOverviewCard", () => ({
   default: ({
     avgCondition,
+    avgConditionTone,
     avgOvr,
     exhaustedCount,
   }: {
     avgCondition: number;
+    avgConditionTone: string | null;
     avgOvr: number;
     exhaustedCount: number;
   }) => (
-    <div data-testid="home-squad-overview">{`${avgCondition}|${avgOvr}|${exhaustedCount}`}</div>
+    <div data-testid="home-squad-overview">
+      {`${avgCondition}|${avgOvr}|${exhaustedCount}|tone:${avgConditionTone}`}
+    </div>
   ),
 }));
 
@@ -378,6 +386,23 @@ describe("HomeTab", (): void => {
     render(<HomeTab gameState={createGameState()} visitedOnboardingTabs={new Set()} />);
     await waitFor(() => expect(screen.getByTestId("home-squad-overview")).toHaveTextContent("45|"));
     expect(screen.getByTestId("home-squad-overview")).toHaveTextContent("45|0|4");
+  });
+
+  // Given the backend's summary painting an average of 90 critical (the band rule is the
+  //       backend's, the fixture contradicts the number on purpose)
+  // When Home shows the squad overview
+  // Then the card is given the backend's tone for the average, not one picked from 90.
+  it("gives the squad overview the backend's tone for the average", async () => {
+    squadMocks.getSquadFitness.mockResolvedValueOnce(
+      createSquadFitness({
+        average_condition: 90,
+        average_status: createConditionStatus("Critical"),
+      }),
+    );
+    render(<HomeTab gameState={createGameState()} visitedOnboardingTabs={new Set()} />);
+    await waitFor(() =>
+      expect(screen.getByTestId("home-squad-overview")).toHaveTextContent("90|0|0|tone:bad"),
+    );
   });
 
   // Given the backend has not answered yet (or has no healthy first-team player to average)

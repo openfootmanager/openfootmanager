@@ -826,3 +826,38 @@ fn a_new_game_handed_to_the_screen_carries_the_installed_careers_token() {
     assert_eq!(shown.career_token, installed);
     assert_eq!(shown.package_lockfile, vec![lock]);
 }
+
+/// Given an active career saved once, then changed in memory
+/// When the screen's Save arrives through the command with the career's own token
+/// Then the save on disk holds the change.
+#[test]
+fn save_game_writes_the_active_career_to_its_save() {
+    let app = crate::commands::wrapper_testkit::WrapperApp::new(make_bootstrap_test_game(), true);
+    app.state()
+        .update_game(|game| game.manager.first_name = "Renamed".to_string())
+        .expect("game");
+    assert_ne!(app.saved_game().manager.first_name, "Renamed");
+
+    let saved =
+        tauri::async_runtime::block_on(super::save_game(app.state(), app.saves(), app.token));
+
+    assert_eq!(saved, Ok(()));
+    assert_eq!(app.saved_game().manager.first_name, "Renamed");
+}
+
+/// Given career B is active and a screen still holds career A's token
+/// When that screen's Save arrives
+/// Then it is refused with the career-changed key and the save on disk is not touched.
+#[test]
+fn save_game_for_a_replaced_career_is_refused_and_writes_nothing() {
+    let app = crate::commands::wrapper_testkit::WrapperApp::new(make_bootstrap_test_game(), true);
+    app.state()
+        .update_game(|game| game.manager.first_name = "Renamed".to_string())
+        .expect("game");
+    let stale = app.token + 1;
+
+    let refused = tauri::async_runtime::block_on(super::save_game(app.state(), app.saves(), stale));
+
+    assert_eq!(refused, Err("be.error.careerChanged".to_string()));
+    assert_ne!(app.saved_game().manager.first_name, "Renamed");
+}

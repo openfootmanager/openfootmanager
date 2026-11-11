@@ -186,10 +186,10 @@ export function TeamCombobox({ label, value, options, onChange, placeholder }: T
                     onClick={(event) => {
                       if (event.detail === 0) select("");
                     }}
-                    className={`flex w-full items-center justify-between px-3 py-2 text-body transition-colors ${value === "" ? "bg-primary-50 dark:bg-primary-500/10 text-primary-600 dark:text-primary-400" : "text-fg hover:bg-hover"} ${active === 0 ? "ring-2 ring-inset ring-primary-400 dark:ring-primary-500" : ""}`}
+                    className={`flex w-full items-center justify-between px-3 py-2 text-body transition-colors ${value === "" ? "bg-selected-tint text-selected" : "text-fg hover:bg-hover"} ${active === 0 ? "ring-2 ring-inset ring-focus" : ""}`}
                   >
                     <span>{placeholder ?? "—"}</span>
-                    {value === "" && <Check className="h-4 w-4 flex-shrink-0 text-primary-500" />}
+                    {value === "" && <Check className="h-4 w-4 flex-shrink-0 text-selected" />}
                   </button>
                 )}
                 {filtered.map((option, index) => (
@@ -208,13 +208,13 @@ export function TeamCombobox({ label, value, options, onChange, placeholder }: T
                     onClick={(event) => {
                       if (event.detail === 0) select(option.id);
                     }}
-                    className={`flex w-full items-center justify-between px-3 py-2 text-body transition-colors ${value === option.id ? "bg-primary-50 dark:bg-primary-500/10 text-primary-600 dark:text-primary-400" : "text-fg hover:bg-hover"} ${index + 1 === active ? "ring-2 ring-inset ring-primary-400 dark:ring-primary-500" : ""}`}
+                    className={`flex w-full items-center justify-between px-3 py-2 text-body transition-colors ${value === option.id ? "bg-selected-tint text-selected" : "text-fg hover:bg-hover"} ${index + 1 === active ? "ring-2 ring-inset ring-focus" : ""}`}
                   >
                     <span className="flex items-center gap-2">
                       <span>{option.label}</span>
                     </span>
                     {value === option.id && (
-                      <Check className="h-4 w-4 flex-shrink-0 text-primary-500" />
+                      <Check className="h-4 w-4 flex-shrink-0 text-selected" />
                     )}
                   </button>
                 ))}

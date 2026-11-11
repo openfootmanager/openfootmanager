@@ -15,7 +15,7 @@ pub const MIGRATION_COUNT: usize = MIGRATIONS.len();
 /// **Lowering this is almost always wrong.** A save written by a release with N migrations
 /// reports `user_version = N` and expects every column those migrations added; a build with
 /// fewer can neither open it nor recreate it.
-const EXPECTED_MIGRATION_COUNT: usize = 59;
+const EXPECTED_MIGRATION_COUNT: usize = 66;
 
 // Compile-time rather than a test: adding or removing a migration should fail the build, not
 // merely turn a suite red.
@@ -167,6 +167,38 @@ const MIGRATIONS: &[(&str, &str)] = &[
     (
         "v059_legacy_tactics_imported.sql",
         include_str!("sql/v059_legacy_tactics_imported.sql"),
+    ),
+    // V60: The first date a completed home fixture is paid a gate for
+    (
+        "v060_gate_settled_from.sql",
+        include_str!("sql/v060_gate_settled_from.sql"),
+    ),
+    // V61: The day the last season ended, so a scout report from before it reads as out of date
+    (
+        "v061_last_season_rollover.sql",
+        include_str!("sql/v061_last_season_rollover.sql"),
+    ),
+    // V62: A scout report's opinion of the player's potential (a range) and the scout's name
+    (
+        "v062_scouted_potential_opinion.sql",
+        include_str!("sql/v062_scouted_potential_opinion.sql"),
+    ),
+    // V63: JSON cells that did not parse on load, kept as they were (`json_column`)
+    (
+        "v063_unreadable_records.sql",
+        include_str!("sql/v063_unreadable_records.sql"),
+    ),
+    // V64: Persist the elapsed job-offer cooldown
+    ("v064_job_offer_cooldown.sql", include_str!("sql/v064_job_offer_cooldown.sql")),
+    // V65: A player's league matches alone this season, for the division's awards
+    (
+        "v065_player_league_stats.sql",
+        include_str!("sql/v065_player_league_stats.sql"),
+    ),
+    // V66: League matches stay in the competition where a player played them
+    (
+        "v066_player_competition_stats.sql",
+        include_str!("sql/v066_player_competition_stats.sql"),
     ),
 ];
 
@@ -635,6 +667,126 @@ mod tests {
         }
     }
 
+    /// Given a real v061 save holding a scout report, written before reports carried an opinion of
+    ///       the player's potential
+    /// When it is migrated, twice
+    /// Then the report reads "no opinion, no scout named" (NULLs), so that player shows no opinion
+    ///      until he is scouted again, and the report's date and attributes are untouched
+    #[test]
+    fn scouted_potential_v062_upgrades_a_v061_report_with_no_opinion() {
+        let mut conn = Connection::open_in_memory().unwrap();
+        Migrations::new(
+            MIGRATIONS
+                .iter()
+                .take(61)
+                .map(|(_, sql)| M::up(sql))
+                .collect(),
+        )
+        .to_latest(&mut conn)
+        .unwrap();
+        conn.execute(
+            "INSERT INTO scouted_players (player_id, scouted_on, attributes_json) VALUES ('p1', '2033-03-10', '{\"pace\":71}')",
+            [],
+        )
+        .unwrap();
+        assert!(
+            conn.prepare("SELECT potential_low FROM scouted_players")
+                .is_err()
+        );
+
+        for _ in 0..2 {
+            all_migrations().to_latest(&mut conn).unwrap();
+            let row: (String, String, Option<i64>, Option<i64>, Option<String>) = conn
+                .query_row(
+                    "SELECT scouted_on, attributes_json, potential_low, potential_high, scout_name FROM scouted_players",
+                    [],
+                    |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?, row.get(4)?)),
+                )
+                .expect("v062 must add the columns to a real v061 report");
+            assert_eq!(
+                row,
+                (
+                    "2033-03-10".to_string(),
+                    "{\"pace\":71}".to_string(),
+                    None,
+                    None,
+                    None
+                )
+            );
+        }
+    }
+
+    /// Given a v063 save with a career row
+    /// When the save is migrated to v064 twice
+    /// Then the cooldown is absent and the existing row is preserved.
+    #[test]
+    fn job_offer_cooldown_migration_preserves_old_careers() {
+        let mut conn = Connection::open_in_memory().unwrap();
+        Migrations::new(
+            MIGRATIONS
+                .iter()
+                .take(63)
+                .map(|(_, sql)| M::up(sql))
+                .collect(),
+        )
+        .to_latest(&mut conn)
+        .unwrap();
+        conn.execute(
+            "INSERT INTO game_meta (save_id, save_name, manager_id, start_date, game_date) VALUES ('save', 'Old career', 'manager', '2033-02-01', '2033-06-30')",
+            [],
+        ).unwrap();
+        for _ in 0..2 {
+            all_migrations().to_latest(&mut conn).unwrap();
+            let row: (String, Option<u32>) = conn
+                .query_row(
+                    "SELECT save_name, days_since_last_job_offer FROM game_meta",
+                    [],
+                    |row| Ok((row.get(0)?, row.get(1)?)),
+                )
+                .unwrap();
+            assert_eq!(row, ("Old career".to_string(), None));
+        }
+    }
+
+    /// Given a real v060 save, written before the season rollover date was kept
+    /// When it is migrated, twice
+    /// Then its game_meta row reads "no rollover recorded" (NULL), so no scout report in it is
+    ///      called out of date until the next season ends, and the rest of the row is untouched.
+    #[test]
+    fn rollover_v061_upgrades_a_v060_save_with_no_rollover_recorded() {
+        let mut conn = Connection::open_in_memory().unwrap();
+        Migrations::new(
+            MIGRATIONS
+                .iter()
+                .take(60)
+                .map(|(_, sql)| M::up(sql))
+                .collect(),
+        )
+        .to_latest(&mut conn)
+        .unwrap();
+        conn.execute(
+            "INSERT INTO game_meta (save_id, save_name, manager_id, start_date, game_date) VALUES ('save', 'Old career', 'manager', '2033-02-01', '2033-06-30')",
+            [],
+        )
+        .unwrap();
+        assert!(
+            conn.prepare("SELECT last_season_rollover_on FROM game_meta")
+                .is_err()
+        );
+
+        for _ in 0..2 {
+            all_migrations().to_latest(&mut conn).unwrap();
+            let row: (String, Option<String>) = conn
+                .query_row(
+                    "SELECT save_name, last_season_rollover_on FROM game_meta",
+                    [],
+                    |row| Ok((row.get(0)?, row.get(1)?)),
+                )
+                .expect("v061 must add the column to a real v060 save");
+            assert_eq!(row, ("Old career".to_string(), None));
+        }
+    }
+
     /// Given a real v058 save (written before the old-tactics import was recorded)
     /// When it is migrated, twice
     /// Then its game_meta row reads "not imported yet", so the import runs once more and is then
@@ -671,6 +823,45 @@ mod tests {
                 )
                 .expect("v059 must add the column to a real v058 save");
             assert_eq!(row, ("Old career".to_string(), 0));
+        }
+    }
+
+    /// Given a real v059 save (written before per-fixture gates)
+    /// When it is migrated, twice
+    /// Then its game_meta row has no gate cutover yet, so the first settlement fixes one, and the
+    ///      rest of the row is untouched.
+    #[test]
+    fn gate_settled_from_v060_upgrades_a_v059_save_with_no_cutover_yet() {
+        let mut conn = Connection::open_in_memory().unwrap();
+        Migrations::new(
+            MIGRATIONS
+                .iter()
+                .take(59)
+                .map(|(_, sql)| M::up(sql))
+                .collect(),
+        )
+        .to_latest(&mut conn)
+        .unwrap();
+        conn.execute(
+            "INSERT INTO game_meta (save_id, save_name, manager_id, start_date, game_date) VALUES ('save', 'Old career', 'manager', '2033-02-01', '2033-06-30')",
+            [],
+        )
+        .unwrap();
+        assert!(
+            conn.prepare("SELECT gate_settled_from FROM game_meta")
+                .is_err()
+        );
+
+        for _ in 0..2 {
+            all_migrations().to_latest(&mut conn).unwrap();
+            let row: (String, Option<String>) = conn
+                .query_row(
+                    "SELECT save_name, gate_settled_from FROM game_meta",
+                    [],
+                    |row| Ok((row.get(0)?, row.get(1)?)),
+                )
+                .expect("v060 must add the column to a real v059 save");
+            assert_eq!(row, ("Old career".to_string(), None));
         }
     }
 
@@ -975,6 +1166,13 @@ mod tests {
     ("v057_manager_known_as.sql", 0x1a62f523b6d15799),
     ("v058_archived_messages.sql", 0x853776cba0dffed1),
     ("v059_legacy_tactics_imported.sql", 0xf2fdbc95bf5fdc99),
+    ("v060_gate_settled_from.sql", 0x8040d9e0256352d4),
+    ("v061_last_season_rollover.sql", 0x111c4c4f40b3952a),
+    ("v062_scouted_potential_opinion.sql", 0xd409624c4d0ca76f),
+    ("v063_unreadable_records.sql", 0xf03c1e895ee13d83),
+    ("v064_job_offer_cooldown.sql", 0x69f2afbcd7c8fe9d),
+    ("v065_player_league_stats.sql", 0x877d34d1535c0e66),
+    ("v066_player_competition_stats.sql", 0x80ce31187d396eed),
     ];
 
     /// Given the migrations already shipped

@@ -7,6 +7,7 @@ import { translatePositionAbbreviation } from "../squad/SquadTab.helpers";
 import { Select } from "../ui";
 import { sortByPositionGroup } from "./SubPanel.helpers";
 import type { EnginePlayerData, RoleChangeOutcome } from "./types";
+import { usePositionTable } from "../../hooks/usePositionGroups";
 
 /**
  * A role picker for each player on the pitch. The engine is the authority on what a role may be:
@@ -21,6 +22,7 @@ export function PlayerRolesPanel({
   onChangeRole: (playerId: string, role: string) => Promise<RoleChangeOutcome>;
 }) {
   const { t } = useTranslation();
+  const positions = usePositionTable();
   const alertId = useId();
   // `count` makes every refusal a new alert: the same refusal twice in a row would otherwise change
   // nothing in the DOM, and a screen reader would say nothing the second time.
@@ -65,7 +67,7 @@ export function PlayerRolesPanel({
         {t("match.playerRoles")}
       </summary>
       <ul className="mt-2 grid gap-1.5 sm:grid-cols-2">
-        {sortByPositionGroup(players).map((player) => (
+        {sortByPositionGroup(players, positions).map((player) => (
           <li key={player.id} className="flex items-center justify-between gap-2 text-xs">
             <span className="min-w-0 truncate text-gray-900 dark:text-white">
               <span className="mr-1.5 font-heading text-gray-500 dark:text-gray-400">

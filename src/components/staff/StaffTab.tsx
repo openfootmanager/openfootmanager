@@ -1,7 +1,11 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { type GameStateData, type StaffData, useGameStore } from "../../store/gameStore";
-import { getStaff, type StaffSlice } from "../../services/staffService";
-import { Card, CardBody, Badge, CountryFlag, ProgressBar } from "../ui";
+import { visibleRatingText } from "../../lib/playerKnowledge";
+import { getStaff, type StaffRow, type StaffSlice } from "../../services/staffService";
+import { useListView } from "../../hooks/useListView";
+import { Card, CardBody, Badge, CountryFlag, ProgressBar, RatingChip, ViewSwitch } from "../ui";
+import { staffMenuItems } from "./StaffTab.menu";
+import StaffTable from "./StaffTable";
 import {
   UserCog,
   Search,
@@ -17,7 +21,7 @@ import { getTeamName, calcAge, formatWeeklyWage } from "../../lib/helpers";
 import { countryName } from "../../lib/countries";
 import { useTranslation } from "react-i18next";
 import { hireStaff, releaseStaff } from "../../services/staffService";
-import ContextMenu, { type ContextMenuItem } from "../ContextMenu";
+import ContextMenu from "../ContextMenu";
 import type { DashboardNavigateContext } from "../dashboard/dashboardProfileNavigation";
 
 interface StaffTabProps {
@@ -49,51 +53,6 @@ function bestAttr(s: StaffData): { key: string; value: number } {
   return attrs.reduce((a, b) => (b.value > a.value ? b : a));
 }
 
-/**
- * Per-role attribute weights, mirroring what the engine actually consumes.
- * A flat average over all four attributes rated a specialist on work their
- * role never does — an elite physio read as mediocre because coaching and
- * scouting dragged the number down.
- *
- * Sources, so these stay honest if the engine changes:
- * - Coach: `coaching` alone drives the training multiplier (`training.rs`).
- * - Physio: `physiotherapy` alone drives recovery (`training.rs`).
- * - Scout: `judgingAbility` sets assignment speed, `judgingPotential` sets
- *   potential accuracy (`scouting.rs`).
- * - AssistantManager: `(coaching*4 + judgingAbility*3 + judgingPotential*3)/10`
- *   is the engine's own `assistant_quality` (`delegated_renewals.rs`).
- */
-const ROLE_ATTR_WEIGHTS: Record<string, Partial<Record<keyof StaffData["attributes"], number>>> = {
-  Coach: { coaching: 10 },
-  Physio: { physiotherapy: 10 },
-  Scout: { judgingAbility: 5, judgingPotential: 5 },
-  AssistantManager: { coaching: 4, judgingAbility: 3, judgingPotential: 3 },
-};
-
-/**
- * Weighting for a role we do not recognise. An even split says "no opinion",
- * which is the honest answer; borrowing another role's weighting would rate
- * someone confidently on work their role may never do.
- */
-const UNKNOWN_ROLE_WEIGHTS = {
-  coaching: 1,
-  judgingAbility: 1,
-  judgingPotential: 1,
-  physiotherapy: 1,
-} as const;
-
-function ovrRating(s: StaffData): number {
-  const weights = ROLE_ATTR_WEIGHTS[s.role] ?? UNKNOWN_ROLE_WEIGHTS;
-  const total = Object.values(weights).reduce((sum, w) => sum + (w ?? 0), 0);
-  if (total === 0) return 0;
-  const weighted = Object.entries(weights).reduce(
-    (sum, [key, weight]) =>
-      sum + s.attributes[key as keyof StaffData["attributes"]] * (weight ?? 0),
-    0,
-  );
-  return Math.round(weighted / total);
-}
-
 export default function StaffTab({ gameState, onGameUpdate, onNavigate }: StaffTabProps) {
   const { t, i18n } = useTranslation();
   const { sessionState } = useGameStore();
@@ -102,40 +61,56 @@ export default function StaffTab({ gameState, onGameUpdate, onNavigate }: StaffT
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  // The Table/Cards choice every list shares; `view` above is this page's own My staff/Available.
+  const [listView, setListView] = useListView();
+  /** The newest staff refresh asked for; an older one that answers late is dropped. */
+  const latestRefresh = useRef(0);
 
   const teamId = sessionState?.manager?.team_id ?? gameState?.manager?.team_id ?? null;
 
   useEffect(() => {
     if (!teamId) return;
+    // The first fetch takes a refresh number too, so a hire's refresh that answers before it wins.
+    const refresh = ++latestRefresh.current;
     void getStaff(teamId)
-      .then(setFetchedStaff)
+      .then((slice) => {
+        if (refresh === latestRefresh.current) setFetchedStaff(slice);
+      })
       .catch(() => {});
   }, [teamId]);
 
   const openScoutingWorkflowLabel = t("staff.openScoutingWorkflow");
 
-  const myStaff =
+  const myStaff: StaffRow[] =
     fetchedStaff?.team_staff ?? gameState?.staff.filter((s) => s.team_id === teamId) ?? [];
-  const availableStaff =
+  const availableStaff: StaffRow[] =
     fetchedStaff?.available_staff ?? gameState?.staff.filter((s) => !s.team_id) ?? [];
   const assignments = fetchedStaff?.scouting_assignments ?? gameState?.scouting_assignments ?? [];
   const youthAssignments =
     fetchedStaff?.youth_scouting_assignments ?? gameState?.youth_scouting_assignments ?? [];
 
-  const applyStaffUpdate = (updated: GameStateData) => {
+  const applyStaffUpdate = async (updated: GameStateData) => {
     onGameUpdate?.(updated);
-    setFetchedStaff({
-      team_staff: updated.staff.filter((s) => s.team_id === teamId),
-      available_staff: updated.staff.filter((s) => !s.team_id),
-      scouting_assignments: updated.scouting_assignments,
-      youth_scouting_assignments: updated.youth_scouting_assignments ?? [],
-    });
+    // The slice carries each member's rating, which the game state doesn't: ask for it again, and
+    // fall back to the game state's staff (unrated) only if that fails. Two hires in quick
+    // succession ask twice; only the newer answer may land, or a late older one would undo it.
+    const refresh = ++latestRefresh.current;
+    const refetched = teamId ? await getStaff(teamId).catch(() => null) : null;
+    if (refresh !== latestRefresh.current) return;
+    setFetchedStaff(
+      refetched ?? {
+        team_staff: updated.staff.filter((s) => s.team_id === teamId),
+        available_staff: updated.staff.filter((s) => !s.team_id),
+        scouting_assignments: updated.scouting_assignments,
+        youth_scouting_assignments: updated.youth_scouting_assignments ?? [],
+      },
+    );
   };
 
   const handleHire = async (staffId: string) => {
     setActionLoading(staffId);
     try {
-      applyStaffUpdate(await hireStaff(staffId));
+      await applyStaffUpdate(await hireStaff(staffId));
     } catch (err) {
       console.error("Failed to hire staff:", err);
     } finally {
@@ -146,7 +121,7 @@ export default function StaffTab({ gameState, onGameUpdate, onNavigate }: StaffT
   const handleRelease = async (staffId: string) => {
     setActionLoading(staffId);
     try {
-      applyStaffUpdate(await releaseStaff(staffId));
+      await applyStaffUpdate(await releaseStaff(staffId));
     } catch (err) {
       console.error("Failed to release staff:", err);
     } finally {
@@ -171,6 +146,17 @@ export default function StaffTab({ gameState, onGameUpdate, onNavigate }: StaffT
   });
 
   const roles = ["AssistantManager", "Coach", "Scout", "Physio"];
+
+  /** A member's actions, the same on his card and on his table row. */
+  const menuItemsFor = (staff: StaffRow) =>
+    staffMenuItems(staff, {
+      t,
+      list: view,
+      pendingId: actionLoading,
+      onHire: handleHire,
+      onRelease: handleRelease,
+      onNavigate,
+    });
 
   return (
     <div>
@@ -207,6 +193,7 @@ export default function StaffTab({ gameState, onGameUpdate, onNavigate }: StaffT
           <input
             type="text"
             placeholder={t("staff.searchStaff")}
+            aria-label={t("staff.searchStaff")}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="w-full pl-9 pr-3 py-2 rounded-lg bg-white dark:bg-navy-800 border border-gray-200 dark:border-navy-600 text-sm text-gray-800 dark:text-gray-200 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary-500/50"
@@ -240,6 +227,7 @@ export default function StaffTab({ gameState, onGameUpdate, onNavigate }: StaffT
             </button>
           ))}
         </div>
+        <ViewSwitch value={listView} onChange={setListView} />
       </div>
 
       {/* Staff grid */}
@@ -250,13 +238,23 @@ export default function StaffTab({ gameState, onGameUpdate, onNavigate }: StaffT
             {view === "mystaff" ? t("staff.noStaffMatch") : t("staff.noAvailableStaff")}
           </p>
         </div>
+      ) : listView === "table" ? (
+        <StaffTable
+          label={
+            view === "mystaff"
+              ? t("staff.myStaff", { count: myStaff.length })
+              : t("staff.available", { count: availableStaff.length })
+          }
+          rows={filtered}
+          menuItemsFor={menuItemsFor}
+        />
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {filtered.map((staff) => {
             const roleIcon = ROLE_ICONS[staff.role] || ROLE_ICONS.Coach;
             const roleColor = ROLE_COLORS[staff.role] || ROLE_COLORS.Coach;
             const age = calcAge(staff.date_of_birth);
-            const ovr = ovrRating(staff);
+            const ovr = staff.rating;
             const best = bestAttr(staff);
             const isLoading = actionLoading === staff.id;
             const scoutingLoad =
@@ -269,35 +267,7 @@ export default function StaffTab({ gameState, onGameUpdate, onNavigate }: StaffT
             const youthLoadLabel = `${youthLoad} ${t(
               youthLoad === 1 ? "staff.youthSearch" : "staff.youthSearches",
             )}`;
-            const contextItems: ContextMenuItem[] =
-              view === "mystaff"
-                ? [
-                    ...(staff.role === "Scout" && onNavigate
-                      ? [
-                          {
-                            label: openScoutingWorkflowLabel,
-                            icon: <Eye className="w-4 h-4" />,
-                            onClick: () => onNavigate("Scouting"),
-                            disabled: false,
-                          } satisfies ContextMenuItem,
-                        ]
-                      : []),
-                    {
-                      label: t("staff.releaseStaff"),
-                      icon: <UserMinus className="w-4 h-4" />,
-                      onClick: () => handleRelease(staff.id),
-                      danger: true,
-                      disabled: isLoading,
-                    },
-                  ]
-                : [
-                    {
-                      label: t("staff.hireStaff"),
-                      icon: <UserPlus className="w-4 h-4" />,
-                      onClick: () => handleHire(staff.id),
-                      disabled: isLoading,
-                    },
-                  ];
+            const contextItems = menuItemsFor(staff);
             const staffCard = (
               <div data-testid={`staff-card-${staff.id}`} className="h-full">
                 <Card className="h-full">
@@ -314,12 +284,15 @@ export default function StaffTab({ gameState, onGameUpdate, onNavigate }: StaffT
                           <h3 className="font-heading font-bold text-sm text-gray-800 dark:text-gray-100 uppercase tracking-wide truncate">
                             {staff.display_name}
                           </h3>
-                          <Badge
-                            variant={ovr >= 65 ? "success" : ovr >= 45 ? "primary" : "neutral"}
-                            size="sm"
-                          >
-                            {ovr} OVR
-                          </Badge>
+                          {ovr === undefined || staff.tier === undefined ? (
+                            // A rating without its tier is not painted: the chip never picks one.
+                            <Badge variant="neutral" size="md">
+                              {visibleRatingText(null)} {t("common.ovr")}
+                            </Badge>
+                          ) : (
+                            // The tone is the backend's tier among his own role (staff_tier).
+                            <RatingChip value={ovr} tier={staff.tier} size="md" />
+                          )}
                         </div>
                         <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
                           {t(`staff.roles.${staff.role}`)} — {t("common.age")} {age}

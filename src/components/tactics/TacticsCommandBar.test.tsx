@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import TacticsCommandBar, { type TacticsLibraryEntry } from "./TacticsCommandBar";
 
 vi.mock("react-i18next", () => ({
+  initReactI18next: { type: "3rdParty", init: () => undefined },
   useTranslation: () => ({
     t: (key: string, fallback?: string | Record<string, unknown>) =>
       typeof fallback === "string" ? fallback : key,
@@ -51,7 +52,7 @@ function buildProps(
     onPlayStyleChange: vi.fn(),
     onReset: vi.fn(),
     canReset: true,
-    onSave: vi.fn(),
+    onSave: vi.fn().mockResolvedValue(true),
     onSelectTactic: vi.fn(),
     tacticLibrary: [customTactic, presetTactic],
     ...overrides,
@@ -83,14 +84,15 @@ describe("TacticsCommandBar", () => {
     expect(screen.getByRole("button", { name: "tactics.saveAsTactic" })).toBeEnabled();
   });
 
-  it("shows a temporary Saved confirmation after a successful save click", () => {
+  it("shows a temporary Saved confirmation after a successful save click", async () => {
     vi.useFakeTimers();
-    const onSave = vi.fn();
+    const onSave = vi.fn().mockResolvedValue(true);
     const props = buildProps({ activeTactic: customTactic, isDirty: true, onSave });
 
     const { rerender } = render(<TacticsCommandBar {...props} />);
 
     fireEvent.click(screen.getByRole("button", { name: "tactics.updateTactic" }));
+    await act(async () => {});
     expect(onSave).toHaveBeenCalledTimes(1);
 
     // A successful save syncs the stored tactic, so the parent re-renders
@@ -106,9 +108,140 @@ describe("TacticsCommandBar", () => {
     expect(screen.getByRole("button", { name: "tactics.updateTactic" })).toBeInTheDocument();
   });
 
-  it("clears the Saved cue immediately when new edits make the tactic dirty again mid-cue", () => {
+  /**
+   * Given a save the backend has not answered yet
+   * When the manager has clicked Save
+   * Then no Saved cue shows until it answers that it saved.
+   */
+  it("shows the Saved cue only once the save has answered", async () => {
     vi.useFakeTimers();
-    const onSave = vi.fn();
+    let answer: (saved: boolean) => void = () => {};
+    const onSave = vi.fn(() => new Promise<boolean>((resolve) => (answer = resolve)));
+    const props = buildProps({ activeTactic: customTactic, isDirty: true, onSave });
+    const { rerender } = render(<TacticsCommandBar {...props} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "tactics.updateTactic" }));
+    rerender(<TacticsCommandBar {...props} isDirty={false} />);
+    expect(screen.queryByRole("button", { name: "tactics.tacticSaved" })).not.toBeInTheDocument();
+
+    await act(async () => answer(true));
+
+    expect(screen.getByRole("button", { name: "tactics.tacticSaved" })).toBeInTheDocument();
+  });
+
+  /**
+   * Given a save the backend refused
+   * When the answer lands
+   * Then no Saved cue shows: the tactic did not save.
+   */
+  it("shows no Saved cue when the save was refused", async () => {
+    vi.useFakeTimers();
+    const onSave = vi.fn().mockResolvedValue(false);
+    const props = buildProps({ activeTactic: customTactic, isDirty: true, onSave });
+    const { rerender } = render(<TacticsCommandBar {...props} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "tactics.updateTactic" }));
+    await act(async () => {});
+    rerender(<TacticsCommandBar {...props} isDirty={false} />);
+
+    expect(screen.queryByRole("button", { name: "tactics.tacticSaved" })).not.toBeInTheDocument();
+  });
+
+  /**
+   * Given a Saved cue from a first save, and the tactic edited again within the cue's time
+   * When the manager saves a second time and that save has not answered yet
+   * Then the old cue is gone while the second save is pending (it must not claim the new save).
+   */
+  it("drops the old Saved cue while a second save is pending", async () => {
+    vi.useFakeTimers();
+    const answers: Array<(saved: boolean) => void> = [];
+    const onSave = vi.fn(() => new Promise<boolean>((resolve) => answers.push(resolve)));
+    const props = buildProps({ activeTactic: customTactic, isDirty: true, onSave });
+    const { rerender } = render(<TacticsCommandBar {...props} />);
+    fireEvent.click(screen.getByRole("button", { name: "tactics.updateTactic" }));
+    await act(async () => answers[0](true));
+    rerender(<TacticsCommandBar {...props} isDirty={false} />);
+    expect(screen.getByRole("button", { name: "tactics.tacticSaved" })).toBeInTheDocument();
+
+    rerender(<TacticsCommandBar {...props} isDirty />);
+    fireEvent.click(screen.getByRole("button", { name: "tactics.updateTactic" }));
+    rerender(<TacticsCommandBar {...props} isDirty={false} />);
+
+    expect(screen.queryByRole("button", { name: "tactics.tacticSaved" })).not.toBeInTheDocument();
+    await act(async () => answers[1](true));
+    expect(screen.getByRole("button", { name: "tactics.tacticSaved" })).toBeInTheDocument();
+  });
+
+  /**
+   * Given two saves started before either answers
+   * When the older one is saved and the newer one is refused
+   * Then no Saved cue shows at any point: the older answer belongs to a save that has been
+   *      superseded, and the newer one did not save.
+   */
+  it("shows no Saved cue for overlapping saves when the newer one is refused", async () => {
+    vi.useFakeTimers();
+    const answers: Array<(saved: boolean) => void> = [];
+    const onSave = vi.fn(() => new Promise<boolean>((resolve) => answers.push(resolve)));
+    const props = buildProps({ activeTactic: customTactic, isDirty: true, onSave });
+    const { rerender } = render(<TacticsCommandBar {...props} />);
+    fireEvent.click(screen.getByRole("button", { name: "tactics.updateTactic" }));
+    fireEvent.click(screen.getByRole("button", { name: "tactics.updateTactic" }));
+    rerender(<TacticsCommandBar {...props} isDirty={false} />);
+
+    await act(async () => answers[0](true));
+    expect(screen.queryByRole("button", { name: "tactics.tacticSaved" })).not.toBeInTheDocument();
+    await act(async () => answers[1](false));
+    expect(screen.queryByRole("button", { name: "tactics.tacticSaved" })).not.toBeInTheDocument();
+  });
+
+  /**
+   * Given a save of tactic A that has not answered
+   * When the manager switches to another tactic, B, and A's answer then lands as saved
+   * Then no Saved cue shows on B.
+   */
+  it("shows no Saved cue on another tactic when a late save answers", async () => {
+    vi.useFakeTimers();
+    let answer: (saved: boolean) => void = () => {};
+    const onSave = vi.fn(() => new Promise<boolean>((resolve) => (answer = resolve)));
+    const otherTactic = { ...customTactic, id: "custom:other", name: "Other" };
+    const props = buildProps({
+      activeTactic: customTactic,
+      isDirty: true,
+      onSave,
+      tacticLibrary: [customTactic, otherTactic, presetTactic],
+    });
+    const { rerender } = render(<TacticsCommandBar {...props} />);
+    fireEvent.click(screen.getByRole("button", { name: "tactics.updateTactic" }));
+
+    rerender(<TacticsCommandBar {...props} activeTactic={otherTactic} isDirty={false} />);
+    await act(async () => answer(true));
+
+    expect(screen.queryByRole("button", { name: "tactics.tacticSaved" })).not.toBeInTheDocument();
+  });
+
+  /**
+   * Given a Saved cue showing
+   * When the screen is read by assistive technology
+   * Then the confirmation is in a polite live region, so it is announced.
+   */
+  it("announces the Saved cue in a polite live region", async () => {
+    vi.useFakeTimers();
+    const onSave = vi.fn().mockResolvedValue(true);
+    const props = buildProps({ activeTactic: customTactic, isDirty: true, onSave });
+    const { rerender } = render(<TacticsCommandBar {...props} />);
+    fireEvent.click(screen.getByRole("button", { name: "tactics.updateTactic" }));
+    await act(async () => {});
+    rerender(<TacticsCommandBar {...props} isDirty={false} />);
+
+    const liveRegion = screen.getByRole("button", { name: "tactics.tacticSaved" })
+      .nextElementSibling as HTMLElement;
+    expect(liveRegion).toHaveAttribute("aria-live", "polite");
+    expect(liveRegion).toHaveTextContent("tactics.tacticSaved");
+  });
+
+  it("clears the Saved cue immediately when new edits make the tactic dirty again mid-cue", async () => {
+    vi.useFakeTimers();
+    const onSave = vi.fn().mockResolvedValue(true);
     const props = buildProps({
       activeTactic: customTactic,
       isDirty: true,
@@ -118,6 +251,7 @@ describe("TacticsCommandBar", () => {
     const { rerender } = render(<TacticsCommandBar {...props} />);
 
     fireEvent.click(screen.getByRole("button", { name: "tactics.updateTactic" }));
+    await act(async () => {});
 
     // The save synced the tactic — parent re-renders with isDirty: false —
     // so the "Saved" cue becomes visible.

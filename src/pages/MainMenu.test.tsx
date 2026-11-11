@@ -71,7 +71,11 @@ vi.mock("../store/gameStore", () => ({
     }),
 }));
 
-vi.mock("../components/ui", () => ({
+vi.mock("../components/ui", async () => ({
+  // The real shell: the profile confirmation is a dialog, and its focus and Escape are under test.
+  Dialog: (
+    await vi.importActual<typeof import("../components/ui/Dialog")>("../components/ui/Dialog")
+  ).Dialog,
   Button: ({
     children,
     iconRight: _iconRight,

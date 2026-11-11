@@ -55,6 +55,15 @@ export interface TeamSeasonRecord {
   lost: number;
   goals_for: number;
   goals_against: number;
+  /** The league the table was in; blank on a record saved before it was kept. */
+  competition_id: string;
+}
+
+/** A league title in the world's past, as the backend names it. */
+export interface PastChampionData {
+  season: number;
+  team_id: string;
+  record: TeamSeasonRecord;
 }
 
 export type PlayerRole =
@@ -293,9 +302,25 @@ export interface PlayerMediaData {
   face?: string;
 }
 
+/** A step on the backend's one good-to-bad scale; each names a `tone-*` colour token. */
+export type RatedTone = "top" | "good" | "fair" | "low" | "bad";
+
+/** The band a player's condition is in, by the backend's one rule (fresh 75+, tiring 40 to 74,
+ * exhausted 25 to 39, critical below 25). */
+export type ConditionBand = "Fresh" | "Tiring" | "Exhausted" | "Critical";
+
+/** A condition as the backend says to show it: its band, the word for it and its tone. */
+export interface ConditionStatus {
+  band: ConditionBand;
+  label_key: string;
+  tone: RatedTone;
+}
+
 export interface PlayerData {
   /** Computed by the backend squad projection; never stored in a save. */
   match_day_eligible?: boolean;
+  /** Computed by the backend squad projection; never stored in a save. */
+  condition_status?: ConditionStatus;
   birth_country?: string | null;
   fitness?: number;
   id: string;
@@ -347,6 +372,8 @@ export interface PlayerData {
   wage: number;
   market_value: number;
   stats: PlayerSeasonStats;
+  /** This season's league matches alone; the division's awards rank by it. */
+  league_stats_by_competition?: Record<string, PlayerSeasonStats>;
   career: CareerEntry[];
   movement_history?: PlayerMovementEntry[];
   transfer_listed: boolean;
@@ -894,6 +921,11 @@ export interface GameStateData {
   emitted_events?: string[];
   legacy_tactics_imported?: boolean;
   legacy_world_cup_draw?: boolean;
+  /** The first date a completed home fixture is paid a gate for (`YYYY-MM-DD`); null until then. */
+  gate_settled_from?: string | null;
+  /** The day the last season ended (`YYYY-MM-DD`): a scout's report from before it is out of date.
+   *  Null until the career's first season end. */
+  last_season_rollover_on?: string | null;
   /** Sent by the backend; the frontend reads these through their own commands. */
   custom_tactics?: unknown[];
   scouted_players?: unknown[];

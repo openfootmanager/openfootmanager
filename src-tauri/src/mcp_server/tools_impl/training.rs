@@ -7,6 +7,7 @@ use mcp_results::training::{
 
 use crate::mcp_server::context::McpContext;
 use crate::mcp_server::tools_impl::helpers::{require_game, serde_label, user_team};
+use ofm_core::state::Career;
 use std::sync::Arc;
 
 // ─── training_get ───────────────────────────────────────────────────────────
@@ -57,7 +58,12 @@ pub fn training_set_focus_intensity(
     focus: String,
     intensity: String,
 ) -> Result<TrainingUpdated, String> {
-    crate::commands::squad::set_training_internal(&ctx.state_manager, &focus, &intensity)?;
+    crate::commands::squad::set_training_internal(
+        &ctx.state_manager,
+        Career::Active,
+        &focus,
+        &intensity,
+    )?;
 
     {
         use tauri::Emitter;
@@ -75,7 +81,11 @@ pub fn training_set_schedule(
     ctx: Arc<McpContext>,
     schedule: String,
 ) -> Result<TrainingScheduleUpdated, String> {
-    crate::commands::squad::set_training_schedule_internal(&ctx.state_manager, &schedule)?;
+    crate::commands::squad::set_training_schedule_internal(
+        &ctx.state_manager,
+        Career::Active,
+        &schedule,
+    )?;
 
     {
         use tauri::Emitter;
@@ -97,7 +107,11 @@ pub fn training_set_groups(
         .map_err(|e| format!("Invalid training groups JSON: {}", e))?;
 
     let group_count = groups.len();
-    crate::commands::squad::set_training_groups_internal(&ctx.state_manager, groups)?;
+    crate::commands::squad::set_training_groups_internal(
+        &ctx.state_manager,
+        Career::Active,
+        groups,
+    )?;
 
     {
         use tauri::Emitter;
@@ -118,6 +132,7 @@ pub fn training_set_player_focus(
 ) -> Result<PlayerTrainingFocusUpdated, String> {
     crate::commands::squad::set_player_training_focus_internal(
         &ctx.state_manager,
+        Career::Active,
         &player_id,
         focus.as_deref(),
     )?;

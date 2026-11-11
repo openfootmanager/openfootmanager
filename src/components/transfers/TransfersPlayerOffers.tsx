@@ -193,31 +193,38 @@ export function LoanOfferRecord({ state, offer, player }: LoanOfferRecordProps) 
   );
 }
 
-export function PlayerOffersCell({
+/** The offers that concern the club on one player, with the actions on each: a cell's or a card's body. */
+export function PlayerOffersList({
   state,
   hasOffersForThisPlayer,
   transferOffersForThisPlayer,
   player,
   loanOffersForThisPlayer,
 }: PlayerOffersCellProps) {
-  const { view, t } = state;
+  const { t } = state;
   return (
-    view === "offers" && (
+    <div className="flex flex-col gap-1">
+      {!hasOffersForThisPlayer ? (
+        <span className="text-xs text-gray-500 dark:text-gray-300">{t("transfers.none")}</span>
+      ) : (
+        <>
+          {transferOffersForThisPlayer.map((offer) => (
+            <TransferOfferRecord key={offer.id} state={state} offer={offer} player={player} />
+          ))}
+          {loanOffersForThisPlayer.map((offer) => (
+            <LoanOfferRecord key={offer.id} state={state} offer={offer} player={player} />
+          ))}
+        </>
+      )}
+    </div>
+  );
+}
+
+export function PlayerOffersCell(props: PlayerOffersCellProps) {
+  return (
+    props.state.view === "offers" && (
       <td className="py-2.5 px-4">
-        <div className="flex flex-col gap-1">
-          {!hasOffersForThisPlayer ? (
-            <span className="text-xs text-gray-500 dark:text-gray-300">{t("transfers.none")}</span>
-          ) : (
-            <>
-              {transferOffersForThisPlayer.map((offer) => (
-                <TransferOfferRecord key={offer.id} state={state} offer={offer} player={player} />
-              ))}
-              {loanOffersForThisPlayer.map((offer) => (
-                <LoanOfferRecord key={offer.id} state={state} offer={offer} player={player} />
-              ))}
-            </>
-          )}
-        </div>
+        <PlayerOffersList {...props} />
       </td>
     )
   );

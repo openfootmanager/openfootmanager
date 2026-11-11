@@ -49,16 +49,28 @@ and a dark value in the `.dark` block below it, so **a component that uses a rol
 | `hover` | the surface under the pointer |
 | `chrome` | the sidebar and the match band; dark in both themes |
 | `overlay` | the backdrop behind a dialog |
+| `card-band`, `shadow-card` | an entity card's status band, a step off the panel, and its lift |
+| `kit`, `kit-wash`, `kit-hairline` | a club's kit on an entity card: the stripe, the header washed in it (`--kit-wash-mix` of the kit over the panel: 14% light, 26% dark) and a faint diagonal in its second colour. They read the `--kit` and `--kit-2` variables `kitStyle()` (`src/lib`) sets from the backend's team colours, so no component holds a colour |
 | `fg`, `fg-muted`, `fg-subtle` | text: strong, secondary, quiet (placeholders, disabled) |
 | `line`, `line-strong` | borders and dividers |
 | `focus` | the focus ring |
-| `on-brand` | text and icons on the brand fill (`primary-700`), on chrome, on the turf |
+| `on-brand` | text and icons on the brand fill (`primary-700`), the selected fill, chrome, the turf |
+| `selected-fill` | a control that is on or chosen: a switch that is on, a checked box, a `strong` segmented option, a count badge; it carries `on-brand` text |
+| `selected`, `selected-tint` | the text (and check mark) and background of the chosen option in a list: `Select`, `DatePicker`, the comboboxes; `selected` also draws the selected tab's underline and an `outlined` segmented option's ring |
 | `positive`, `warning`, `danger`, `info` | status text; each also has `-tint` (a background) and `-solid` (a bar or dot) |
 | `tone-top`, `tone-good`, `tone-fair`, `tone-low`, `tone-bad` | the scale for rated values (§4), with `-tint` and `-solid` |
 
 Brand palettes (`primary-*`, `accent-*`, `navy-*`) stay for brand moments: the Continue button,
 the selected navigation item, a logo strip. The raw Tailwind palette (`gray-500`, `red-400`,
 `white`, …) isn't used in a finished folder (§7).
+
+A control that is on or chosen uses the `selected` role, not the brand green: one place to change
+how "chosen" looks (maintainer, 22 Oct). It covers controls inside pages; the sidebar's selected
+item stays a brand moment. A chosen state is never `positive` either: `positive` means good news
+(maintainer, 28 Oct). In light it is the same green as `primary-700`. In dark
+the fill is a lighter green (3.1:1 against the panel, where `primary-700` was 2.8:1), still dark
+enough for white text at 4.9:1. A list's keyboard-active option is marked with `ring-focus`, since
+it is where focus is, not what is chosen.
 
 **Readability is tested, not hoped for.** `src/designTokens.test.ts` checks that every text role
 reaches 4.5:1 on every surface it sits on, and that the focus ring reaches 3:1, in light, dark,
@@ -68,7 +80,7 @@ before measuring.
 Two rules follow from what those numbers allow:
 
 - **A `-solid` colour carries no text.** Solids are for bars, dots and fills; white on them falls
-  under 4.5:1. Text on a fill goes on `primary-700` or `chrome`, in `on-brand`.
+  under 4.5:1. Text on a fill goes on `primary-700`, `selected-fill` or `chrome`, in `on-brand`.
 - **A line is never the only signal.** `line` is decorative: in high contrast light it is 2.5:1
   against the page. A border may group or separate things, but whatever it marks (a selected
   row, an error, a highlighted team) also needs text, an icon, a weight or a tint.
@@ -97,8 +109,12 @@ Two rules follow from what those numbers allow:
 | `h-row` / `min-h-row` | 40px, 32px when compact | list and table rows |
 | `h-panel-header` | 40px, 36px when compact | a panel's header |
 | `h-toolbar` | 48px, 40px when compact | the page toolbar |
+| `w-sidebar-rail` | 3.5rem | the sidebar's icon rail |
+| `w-sidebar-compact` / `w-sidebar-standard` / `w-sidebar-wide` | 13 / 16 / 17.75rem | the open sidebar, by Settings › Sidebar width; `sidebarLayout.ts` reckons with the same values |
 | `max-w-page` | 80rem | the page width, applied once by the workspace |
 | `@split` | 36rem | the container breakpoint for two panels |
+
+Rows are `h-row`, 40px, or 32px when compact; there is no taller row token (maintainer, 22 Oct).
 
 A container breakpoint is in rem, so it moves with the UI scale. In a 960×640 window at normal
 scale `@split` is 576px and fits the 655px workspace, so two panels show; at extra large it is
@@ -120,17 +136,23 @@ drawn in the style guide.
 | a chip or label | `Badge` |
 | a modal | `Dialog` (named, focus-trapped, closes on Escape) |
 | a drop-down | `Select` |
-| a tick box | `Checkbox` |
+| a tick box | `Checkbox`, for a choice that is submitted later |
+| an on/off setting that takes effect at once | `Switch`, a WAI-ARIA switch named by its row's label (`labelledBy`) or its own translated `label`; the state shows by more than the thumb's position |
 | a date | `DatePicker` |
 | a progress or condition bar | `ProgressBar` |
 | a player, club or country | `PlayerAvatar`, `TeamLogo`, `CountryFlag`, `TeamLocation` |
 | an injury | `InjuryBadge` |
+| an unread count or a mark on a nav item (a circle for one digit, 99+ at most) | `UnreadBadge` |
 | a kit | `JerseyIcon` |
 | a player on the pitch | `PitchToken` |
+| a list as a table (players, clubs, staff) | `DataTable`: column definitions; `aria-sort` headers that ask to sort (it never sorts the rows); rows of `h-row` whose name is the open button (Enter opens; a click on the row too, but not on its action column); a row's menu on right-click (`onRowContextMenu`) as well as on its action button; a `selected` (a chosen row, such as a starter) or `danger` edge accent; empty and loading states; under 48rem the `drawer` columns fold into the row's details (never the first column, which keeps the accent and, failing a primary, the name). It draws no panel: put it in a `Card` |
+| a list shown as a table or as cards | `ViewSwitch`, at the end of the list's `PageToolbar`: a `SegmentedControl` of Table and Cards bound to the one global setting, `AppSettings.list_view` (`table` by default), so whatever the player picks on one list is how every list opens (maintainer, 21 Oct) |
+| a player's condition | `ConditionMeter`: the backend's band word (`condition_status`) in its tone, a bar in the same tone and the percentage; without the band, a neutral bar and no word |
+| a player, club, manager or staff member as a card | `EntityCard`: the shell of every list's card view. The kit stripe and washed header; the face, the name and one meta line; the hero number on the right; then (full size) the status band and two facts. The name is the card's one button (its heading's), and everything else stays outside it, so a screen reader reads the meta line, status and facts; a click on the card's body opens it too. `compact` is the identity row alone, for a message or side panel |
+| a player's overall rating | `RatingChip`: the number alone in its tier's tone (the backend's tier, from `useRatingTiers`), named "Overall 79, tier A" for a screen reader and as a tooltip; `sm` for a row, `md` for a card |
 
-More primitives arrive as the migration goes on: empty and loading states,
-stat tile, data table, search field, toggle, the rated-value chip, and player, match and club
-cards. Each one gets a row here and a place in the style guide in the PR that adds it.
+More primitives arrive as the migration goes on: empty and loading states outside a table, stat
+tile, search field, toggle, and player, match and club cards. Each one gets a row here and a place in the style guide in the PR that adds it.
 
 ## 4. Rated values
 
@@ -139,32 +161,43 @@ form) is coloured by **tone**: `top`, `good`, `fair`, `neutral` (no colour), `lo
 decides the tone**, the way `ofm_core::player_tier` decides S, A and B, and the frontend only
 paints it. A TypeScript file never compares a number against a threshold to pick a colour.
 
+**The game rates; it doesn't advise.** There is no style-fit verdict and no "best position for
+this formation" badge on a player who isn't starting (maintainer, 22 Oct): picking the team is the
+manager's job. A position badge says where a player can play, not where they should.
+
 A tone never stands alone: there is always a letter, a word or the number next to it. A value
 the game doesn't know (an unscouted attribute, a match not yet rated) shows "–" in `fg-subtle`,
 never a grey number that could read as a low value.
 
-Condition will have words as well as tones, from one rule in `ofm_core` that will also drive the
-staff warnings and the squad's fitness counts, so the words, the tones and the counts always
-agree. The maintainer chose these bands; the rule doesn't exist yet (today's fitness status splits
-only at 40 and 25), and this section is updated when it lands:
+Condition has words as well as tones, from one rule in `ofm_core`
+(`training::fitness_warnings::fitness_status`) that also drives the staff warnings and the
+squad's fitness counts, so the words, the tones and the counts always agree. The backend sends
+each player's band as `condition_status`; `ConditionMeter` draws it. The maintainer chose these
+bands:
 
 | Condition | Word | Tone |
 |---|---|---|
 | 75 and over | Fresh | `good` |
-| 40–74 | Tiring | `neutral` |
+| 40–74 | Tiring | `fair` |
 | 25–39 | Exhausted | `low` |
 | under 25 | Critical | `bad` |
 
 ## 5. Layout rules
 
-1. The dashboard workspace owns the scroll and applies `max-w-page` once.
+1. The dashboard workspace owns the scroll and applies `max-w-page` once. A tab listed in
+   `tabFillsWorkspace` (`src/components/dashboard/dashboardTabContentModel.ts`) fills the workspace
+   instead: the page never scrolls for it, and its own regions scroll. Tactics is the one such tab
+   (maintainer, 4 Nov 2026); adding another is the maintainer's call.
 2. The header shows the page's title; no page repeats it.
 3. One primary action per page, at the right end of its toolbar. The header's Continue is the
    game-wide forward action.
 4. Every match stage uses `MatchScreenLayout`.
 5. At the 960×640 minimum window, at every UI scale: no sideways scroll and nothing clipped.
    Vertical scroll is fine.
-6. At most two panels side by side, and one below `@split`.
+6. At most two panels side by side, and one below `@split`. The Tactics workbench is the exception:
+   its instructions panel sits beside the lineup where the workbench is 72rem or wider, and below
+   that rests as a rail and opens as a drawer (a `Dialog`: Escape, a Tab trap, focus back to the
+   rail) (maintainer, 4 Nov 2026).
 
 ## 6. Adding a token
 
@@ -179,14 +212,24 @@ only at 40 and 25), and this section is updated when it lands:
 
 ## 7. Enforcement
 
-`src/designSystem.test.ts` checks six rules in every folder listed in its `FINISHED_FOLDERS`:
+`src/designSystem.test.ts` checks seven rules (1 to 6, and 8) in every folder listed in its `FINISHED_FOLDERS`:
 role type sizes only, no colour literal (except SVG artwork whose colours are data), no raw palette
-class, a full-screen overlay only through `Dialog`, no `on-brand` text on a `-solid` fill, and one
+class, a full-screen overlay only through `Dialog`, no `on-brand` text on a `-solid` fill, one
 focus ring (`ring-focus`, on `focus-visible`, never plain `focus` or another colour, offset in the
-surface behind the control: `page`, `panel`, `sunken` or `chrome`). Each
+surface behind the control: `page`, `panel`, `sunken` or `chrome`), and the brand green
+(`primary-*`) only in the brand files its `BRAND_FILES` lists, each with its reason. Each
 rule has a fixture that breaks it. A folder joins the list in the PR that brings it up to
 standard, so the list only ever names finished work, never a known violation; when every folder
-is in, the list goes. What a test can't see (uppercase, one primary action per page, colour as
+is in, the list goes.
+
+Rule 7, one home per vocabulary, runs over its own list, `VOCABULARY_FOLDERS`, which grows as each
+round-4 page moves onto the primitives:
+- no colour map keyed by a position, a tier letter or a condition band;
+- no rated value (`condition`, `ovr`, `potential`, `morale`, `reputation`) compared with a number in
+  a component, because the backend picks a rated value's tone;
+- no import of a helper whose primitive has landed (`RETIRED_HELPERS`).
+
+What a test can't see (uppercase, one primary action per page, colour as
 the only signal) is for review: the `ui-accessibility-reviewer` agent checks it.
 
 ## 8. Screenshots for a PR
@@ -198,11 +241,27 @@ window the game opens at) and 960×640 (its minimum).
   Chrome, for example
   `google-chrome --headless=new --window-size=1280,3300 --screenshot=out.png "http://localhost:1420/style-guide.html?theme=dark"`.
 - **A page:** the page harness mounts the real dashboard on a small generated career, with the
-  backend mocked, in the same dev page: `/style-guide.html?page=squad` (or `page=home`), with the
-  same theme, density, scale and contrast options. Screenshot it the same way.
+  backend mocked, in the same dev page: `/style-guide.html?page=squad`, with the same theme,
+  density, scale and contrast options. The pages are `home`, `squad`, and the world lists
+  `players`, `teams`, `managers` and `staff` (`HARNESS_PAGES` in
+  `src/dev/pageHarness/harnessPage.ts`). Screenshot them the same way.
+  - `?page=profile` opens a player's profile, and `&player=` picks how the club knows him: `own`
+    (default), `rival` (a division rival), `scouted` (a scout's report), `unknown` or `retired`
+    (`HARNESS_PROFILES`). The answers follow `ofm_core::player_knowledge` (`profileCases.ts`): a
+    rival's wage is hidden, a scouted player's rounded, a stranger's public facts only. Only the own
+    player has a season (five matches, stats in every cell); the others show the empty sections, so
+    the check has not measured them populated. The layout check measures each of the five.
   - The career is `src/dev/pageHarness/fixture.generated.ts`: one eight-club league from a fixed
-    seed, begun the way the app begins one, plus each command's answer for it. Regenerate it with
-    `npm run fixture:pages` (the generator is `src-tauri/crates/ofm_core/examples/page_fixture.rs`).
+    seed, begun the way the app begins one, plus each command's answer for it. A command that
+    takes a query (the Players page's, the Teams directory's) is answered only for the query the
+    fixture was generated for, so a search or another page shows as unanswered rather than
+    getting the opening page. It is generated, never committed: `npm run fixture:pages` writes it
+    (the generator is `src-tauri/crates/ofm_core/examples/page_fixture.rs`), CI's frontend job runs
+    that before its checks, and `npm test`, `npm run test:watch`, `npm run build`, `npm run knip`
+    (so `npm run preflight`) and `npm run dev` (so `npm run tauri dev`) run it first when the file
+    is missing (`scripts/ensure-page-fixture.mjs`). Run it again yourself after changing what it
+    is generated from; `npm exec -- vitest run <file>` skips the guard, so generate it once first.
+    `scripts/check-untracked-generated.sh` fails CI if it is ever tracked again.
   - Every value in it `satisfies` the frontend type its command returns, so `npm run build` fails
     when the backend's shape and the frontend's type stop agreeing.
   - A command the page asks for that the fixture doesn't answer fails, and is listed in

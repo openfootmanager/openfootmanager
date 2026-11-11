@@ -13,8 +13,9 @@ use domain::world_history::WorldHistoryArchive;
 
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeSet, HashMap, HashSet};
+use ts_rs::TS;
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub enum ObjectiveType {
     LeaguePosition,
     Wins,
@@ -22,7 +23,7 @@ pub enum ObjectiveType {
     FinancialStability,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
 pub struct BoardObjective {
     pub id: String,
     pub description: String,
@@ -31,7 +32,7 @@ pub struct BoardObjective {
     pub met: bool,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
 pub struct ScoutingAssignment {
     pub id: String,
     pub scout_id: String,
@@ -41,21 +42,38 @@ pub struct ScoutingAssignment {
 
 /// What a finished scouting job revealed about a player, as of `scouted_on`.
 /// The attributes are a snapshot: they do not follow the player's later changes.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
 pub struct ScoutedPlayer {
     pub player_id: String,
     pub scouted_on: String,
     pub attributes: PlayerAttributes,
+    /// The scout's opinion of his potential on `scouted_on`: a range that held the true value that
+    /// day, narrower for a better judge (`potential_opinion`). Like the attributes beside it, it is
+    /// a snapshot: after a season end the player has developed, and the report reads as out of date.
+    /// None for a report written before reports carried one; such a player shows no opinion until
+    /// he is scouted again.
+    #[serde(default)]
+    pub potential: Option<PotentialRange>,
+    /// Who wrote the report, kept with it: a scout who has since left can't be looked up.
+    #[serde(default)]
+    pub scout_name: Option<String>,
 }
 
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+/// A range of potential ratings, both ends inclusive, on the 1-99 scale.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+pub struct PotentialRange {
+    pub low: u8,
+    pub high: u8,
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub enum YouthScoutingRegion {
     #[default]
     Domestic,
     International,
 }
 
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub enum YouthScoutingObjective {
     #[default]
     Balanced,
@@ -63,7 +81,7 @@ pub enum YouthScoutingObjective {
     ReadySoon,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
 pub struct YouthScoutingAssignment {
     pub id: String,
     pub scout_id: String,
@@ -83,7 +101,7 @@ pub struct DayStart {
     pub bracket_fixtures: std::collections::HashSet<(String, String)>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
 pub struct Game {
     pub clock: GameClock,
     pub manager: Manager,
@@ -172,6 +190,19 @@ pub struct Game {
     /// is copied in once more, then marked. Persistence is `game_meta.legacy_tactics_imported`.
     #[serde(default)]
     pub legacy_tactics_imported: bool,
+    /// The first date a completed home fixture is paid a gate for (`YYYY-MM-DD`). Fixed by the
+    /// first settlement (`finances::gate`), so a save from before per-fixture gates is not paid for
+    /// the fixtures it had already played. `None` until then. Persistence is
+    /// `game_meta.gate_settled_from`.
+    #[serde(default)]
+    pub gate_settled_from: Option<String>,
+    /// The day the last season ended (ISO date): every player aged then, and the season's growth
+    /// applied. A scout's report taken before it no longer describes the player. `None` until this
+    /// career's first season end; a save from before the field takes it from its last league season
+    /// on load (`end_of_season::backfill_last_season_rollover`). Persistence is
+    /// `game_meta.last_season_rollover_on`.
+    #[serde(default)]
+    pub last_season_rollover_on: Option<String>,
     /// Names the career this game was installed as (`StateManager::next_career_token`). It travels
     /// to the screen with the game, and a command that writes on the screen's behalf hands it back
     /// to be checked against the active game inside the write. Not saved: a loaded game is
@@ -227,6 +258,29 @@ pub struct Game {
 }
 
 impl Game {
+    /// The manager in charge of `club_id`: one of the AI managers, or the user's own. None for a
+    /// club without one, or an id no club has.
+    pub fn manager_of_club(&self, club_id: &str) -> Option<&Manager> {
+        let manager_id = self
+            .teams
+            .iter()
+            .find(|team| team.id == club_id)?
+            .manager_id
+            .as_deref()?;
+        self.manager_by_id(manager_id)
+    }
+
+    /// The manager with `manager_id`. The user's own record first: the managers list holds a copy
+    /// of him too, which can lag behind the live one until it is synced.
+    pub fn manager_by_id(&self, manager_id: &str) -> Option<&Manager> {
+        if self.manager.id == manager_id {
+            return Some(&self.manager);
+        }
+        self.managers
+            .iter()
+            .find(|manager| manager.id == manager_id)
+    }
+
     pub fn new(
         clock: GameClock,
         manager: Manager,
@@ -268,6 +322,8 @@ impl Game {
             retired_managers: Vec::new(),
             custom_tactics: Vec::new(),
             legacy_tactics_imported: false,
+            gate_settled_from: None,
+            last_season_rollover_on: None,
             career_token: 0,
             archived_messages: Vec::new(),
             emitted_events: BTreeSet::new(),
@@ -366,6 +422,11 @@ impl Game {
         let Some(team_id) = self.manager.team_id.as_deref() else {
             return false;
         };
+        Self::club_takes_part_in(competition, team_id)
+    }
+
+    /// Membership is public and independent of whether the manager has taken a club yet.
+    pub(crate) fn club_takes_part_in(competition: &League, team_id: &str) -> bool {
         competition
             .standings
             .iter()
@@ -374,16 +435,24 @@ impl Game {
     }
 
     pub(crate) fn user_competition_index(&self) -> Option<usize> {
+        self.manager
+            .team_id
+            .as_deref()
+            .and_then(|club_id| self.club_competition_index(club_id))
+    }
+
+    /// The same competition hiring will mirror, before or after the manager joins the club.
+    pub(crate) fn club_competition_index(&self, club_id: &str) -> Option<usize> {
         self.competitions
             .iter()
             .position(|competition| {
                 competition.kind == CompetitionType::League
-                    && self.user_club_takes_part_in(competition)
+                    && Self::club_takes_part_in(competition, club_id)
             })
             .or_else(|| {
                 self.competitions
                     .iter()
-                    .position(|competition| self.user_club_takes_part_in(competition))
+                    .position(|competition| Self::club_takes_part_in(competition, club_id))
             })
     }
 

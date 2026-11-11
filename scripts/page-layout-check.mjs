@@ -2,7 +2,8 @@
 // Loads the dev style guide and the page harness's pages in headless Chrome at the windows,
 // scales and languages that have broken layouts before, and reports any page that scrolls
 // sideways, reaches past the window's right edge, asks for a command the fixture can't answer,
-// or renders nothing. Round 2's layout rule: no sideways scroll at 960×640, at any UI scale.
+// or renders nothing. Round 2's layout rule: no sideways scroll at 960×640, at any UI scale. A
+// harness page must not scroll down either: the app's pages scroll inside their panels.
 //
 //   npm run dev                              # in another terminal
 //   node scripts/page-layout-check.mjs [http://localhost:1420]
@@ -24,10 +25,33 @@ const WINDOWS = [
   { width: 960, height: 640, scale: "xlarge", lang: "de" },
 ];
 
+/** The harness's pages (HARNESS_PAGES in src/dev/pageHarness/harnessPage.ts; a test holds them equal). */
+const PAGES = ["home", "squad", "players", "teams", "managers", "staff"];
+
+/**
+ * The player profile, which looks different for each way the club can know a player (HARNESS_PROFILES
+ * in the same file; a test holds them equal): measured in each, at every window.
+ */
+const PROFILES = ["own", "rival", "scouted", "unknown", "retired"];
+
+/**
+ * The lists whose cards draw on the shared card shell, measured in their cards view too: a card that
+ * lets its contents out stretches the page, as the cards' screen-reader text did before the card
+ * was positioned.
+ */
+const CARD_VIEWS = ["players", "squad", "teams"];
+const CARD_WINDOWS = WINDOWS.filter((window) => window.scale === "normal" && window.lang === "en");
+
 /** Every page at every window; `page: undefined` is the style guide itself. */
-export const CASES = [undefined, "home", "squad"].flatMap((page) =>
-  WINDOWS.map((window) => ({ page, ...window })),
-);
+export const CASES = [
+  ...[undefined, ...PAGES].flatMap((page) => WINDOWS.map((window) => ({ page, ...window }))),
+  ...PROFILES.flatMap((player) =>
+    WINDOWS.map((window) => ({ page: "profile", player, ...window })),
+  ),
+  ...CARD_VIEWS.flatMap((page) =>
+    CARD_WINDOWS.map((window) => ({ page, view: "cards", ...window })),
+  ),
+];
 
 /** Why this Node can't run the check, or null when it can. */
 export function nodeProblem(webSocket, version) {
@@ -36,11 +60,65 @@ export function nodeProblem(webSocket, version) {
     : `page-layout-check needs Node 22 or later for the built-in WebSocket; you have ${version}`;
 }
 
+/**
+ * The faces the app bundles (App.css's @fontsource imports and its Cyrillic @font-face blocks; a
+ * test holds the two equal). A width measured while one of them hadn't loaded is the width of
+ * whatever system font stood in, which is why two machines got different numbers: so every case
+ * first loads each of these, and fails if one doesn't.
+ *
+ * A face scoped by `unicode-range` (the Cyrillic ones) only loads for text in its range, so its
+ * entry names a `script` and a `sample` in it; the Latin faces are loaded with the default sample.
+ */
+export const REQUIRED_FACES = [
+  ...[400, 500, 600, 700].map((weight) => ({ family: "Inter", weight })),
+  ...[600, 700].map((weight) => ({ family: "Barlow Condensed", weight })),
+  ...[400, 500, 600, 700].map((weight) => ({
+    family: "Inter",
+    weight,
+    script: "cyrillic",
+    sample: "Яё",
+  })),
+  ...[400, 500, 600, 700].map((weight) => ({
+    family: "Inter",
+    weight,
+    script: "cyrillic-ext",
+    sample: "Ѡ",
+  })),
+  ...[600, 700].map((weight) => ({
+    family: "Fira Sans Extra Condensed",
+    weight,
+    script: "cyrillic",
+    sample: "Яё",
+  })),
+];
+
 /** What is wrong with one measured case; empty when it passes. */
-export function judge({ scrollWidth, innerWidth, unanswered, pastEdge, rendered }) {
+export function judge({
+  page,
+  scrollWidth,
+  innerWidth,
+  scrollHeight,
+  innerHeight,
+  unanswered,
+  pastEdge,
+  rendered,
+  faces,
+}) {
   const problems = [];
+  // The weight asked for, not just any: the browser stands the nearest weight it has in for one it
+  // lacks, and a 600 drawn in place of a 700 has other widths.
+  for (const { family, weight, script, loadedWeights } of faces) {
+    if (!loadedWeights.includes(String(weight)))
+      problems.push(
+        `font not loaded: ${family} ${weight}${script ? ` ${script}` : ""} (a system fallback drew it)`,
+      );
+  }
   if (scrollWidth > innerWidth) {
     problems.push(`the page scrolls sideways (${scrollWidth} > ${innerWidth})`);
+  }
+  // The style guide is a long document; a harness page is the app, whose panels do the scrolling.
+  if (page && scrollHeight > innerHeight) {
+    problems.push(`the page scrolls down (${scrollHeight} > ${innerHeight})`);
   }
   if (pastEdge.length > 0) problems.push(`past the right edge: ${pastEdge.join(", ")}`);
   if (unanswered.length > 0) problems.push(`unanswered commands: ${unanswered.join(", ")}`);
@@ -48,21 +126,75 @@ export function judge({ scrollWidth, innerWidth, unanswered, pastEdge, rendered 
   return problems;
 }
 
+/**
+ * Loads each face and reports the weights it loaded at. Runs in the page (its source is sent
+ * there), on `document.fonts`. `load()` resolves to the faces it loaded: none means no bundled face
+ * matched, and a system font drew that text (`check()` can't tell: it answers true for a family it
+ * has never heard of). A request that errors (the dev server refusing the font file) is a face that
+ * didn't load, so the case names it instead of the error ending the run. The sample includes German
+ * letters, the check's longest labels.
+ */
+export async function loadFaces(fonts, faces) {
+  // Whether a loaded face is the one scoped to the sample's script, and not an unscoped face of the
+  // same family that also covers it (a rangeless import claims every character, so `load()` returns
+  // it for Cyrillic text too and would vouch for a Cyrillic face that did not match). It lives in
+  // here because this function's source is what is sent to the page.
+  const scopedTo = (face, sample) => {
+    const range = String(face.unicodeRange ?? "")
+      .replace(/\s/g, "")
+      .toUpperCase();
+    if (range === "" || range === "U+0-10FFFF") return false;
+    const point = sample.codePointAt(0);
+    return range.split(",").some((part) => {
+      const [low, high = low] = part
+        .replace(/^U\+/, "")
+        .split("-")
+        .map((hex) => Number.parseInt(hex, 16));
+      return point >= low && point <= high;
+    });
+  };
+  return Promise.all(
+    faces.map(async ({ family, weight, script, sample }) => {
+      const loaded = await fonts
+        .load(`${weight} 16px "${family}"`, sample ?? "Aa ÄÖÜß")
+        .catch(() => []);
+      const ofScript = script ? loaded.filter((face) => scopedTo(face, sample)) : loaded;
+      return {
+        family,
+        weight,
+        ...(script ? { script } : {}),
+        loadedWeights: ofScript.map((face) => face.weight),
+      };
+    }),
+  );
+}
+
+// The first wait lets the harness mount and its answers land; the fonts are waited for after.
 const MEASURE = `(async () => {
   await new Promise((resolve) => setTimeout(resolve, 2500));
+  const faces = await (${loadFaces.toString()})(document.fonts, ${JSON.stringify(REQUIRED_FACES)});
+  await document.fonts.ready;
   const harness = window.__pageHarness;
   return JSON.stringify({
+    faces,
+    loadedFaces: [...new Set([...document.fonts].filter((face) => face.status === "loaded").map((face) => face.family + " " + face.weight))],
+    userAgent: navigator.userAgent,
+    devicePixelRatio: window.devicePixelRatio,
     scrollWidth: document.documentElement.scrollWidth,
     innerWidth: window.innerWidth,
+    scrollHeight: document.documentElement.scrollHeight,
+    innerHeight: window.innerHeight,
     unanswered: harness ? harness.unanswered : [],
     pastEdge: harness ? harness.pastEdge() : [],
     rendered: (document.getElementById("root")?.childElementCount ?? 0) > 0,
   });
 })()`;
 
-function caseUrl(base, { page, scale, lang }) {
+function caseUrl(base, { page, player, view, scale, lang }) {
   const query = new URLSearchParams({ theme: "light", scale, lang });
   if (page) query.set("page", page);
+  if (player) query.set("player", player);
+  if (view) query.set("view", view);
   return `${base}/style-guide.html?${query}`;
 }
 
@@ -144,6 +276,10 @@ async function main(base) {
       "--disable-gpu",
       "--no-sandbox",
       "--remote-debugging-port=0",
+      // Pinned so a width doesn't depend on the machine: no hinting (it rounds glyph advances to the
+      // pixel grid, and machines hint differently), and one device pixel per CSS pixel.
+      "--font-render-hinting=none",
+      "--force-device-scale-factor=1",
       `--user-data-dir=${profile}`,
       "about:blank",
     ],
@@ -158,9 +294,16 @@ async function main(base) {
   let failed = 0;
   try {
     const { socket, call } = await connect(await devtools(profile, chrome));
-    for (const testCase of CASES) {
-      const problems = judge(await measure(call, base, testCase));
-      const label = `${testCase.page ?? "style guide"} ${testCase.width}×${testCase.height} ${testCase.scale} ${testCase.lang}`;
+    for (const [index, testCase] of CASES.entries()) {
+      const measured = await measure(call, base, testCase);
+      if (index === 0) {
+        // What the numbers were measured with, so two runs can be compared.
+        console.log(`browser: ${measured.userAgent}`);
+        console.log(`device pixel ratio: ${measured.devicePixelRatio}`);
+        console.log(`fonts loaded: ${measured.loadedFaces.join(", ")}`);
+      }
+      const problems = judge({ ...measured, page: testCase.page });
+      const label = `${testCase.page ?? "style guide"}${testCase.player ? ` (${testCase.player})` : ""}${testCase.view ? ` (${testCase.view})` : ""} ${testCase.width}×${testCase.height} ${testCase.scale} ${testCase.lang}`;
       console.log(
         `${problems.length === 0 ? "ok  " : "FAIL"} ${label}${problems.length ? `: ${problems.join("; ")}` : ""}`,
       );

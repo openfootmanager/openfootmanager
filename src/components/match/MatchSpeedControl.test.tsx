@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 import { MatchSpeedControl } from "./MatchSpeedControl";
 
 vi.mock("react-i18next", () => ({
+  initReactI18next: { type: "3rdParty", init: () => undefined },
   useTranslation: () => ({
     t: (key: string, options?: Record<string, string>) =>
       options?.speed ? `${key}(${options.speed})` : key,
@@ -56,6 +57,17 @@ describe("MatchSpeedControl", () => {
   });
 
   /**
+   * Given a screen whose step is not a minute (the penalty shootout steps one kick)
+   * When the control renders paused with its own step words
+   * Then the step button carries those words, not "Step 1 minute".
+   */
+  it("names the step for what it steps", () => {
+    renderControl({ paused: true, stepLabel: "Next kick" });
+    expect(screen.getByRole("button", { name: "Next kick" })).toBeEnabled();
+    expect(screen.queryByRole("button", { name: "match.step1Min" })).not.toBeInTheDocument();
+  });
+
+  /**
    * Given a paused match
    * When the control renders
    * Then the speed it resumes at stays outlined, not filled (that means playing) and not a faint
@@ -64,7 +76,7 @@ describe("MatchSpeedControl", () => {
   it("outlines the pace a paused match resumes at, and Step is a row tall", () => {
     renderControl({ paused: true, pace: "fast" });
     const fast = screen.getByRole("radio", { name: "match.fast" });
-    expect(fast).toHaveClass("ring-positive-solid");
+    expect(fast).toHaveClass("ring-selected");
     expect(fast).not.toHaveClass("bg-primary-700");
     expect(screen.getByRole("button", { name: "match.step1Min" })).toHaveClass("h-row");
   });

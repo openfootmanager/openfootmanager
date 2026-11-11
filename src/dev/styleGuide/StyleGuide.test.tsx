@@ -27,10 +27,13 @@ function themeTokens(): string[] {
 /** The components index.ts exports: hooks and types are not drawn, so they are left out. */
 function exportedComponents(): string[] {
   const index = SOURCES["../../components/ui/index.ts"];
-  return [...index.matchAll(/^export \{([^}]+)\}/gm)]
-    .flatMap((match) => match[1].split(","))
-    .map((name) => name.trim().replace(/^default as /, ""))
-    .filter((name) => /^[A-Z]/.test(name));
+  return (
+    [...index.matchAll(/^export \{([^}]+)\}/gm)]
+      .flatMap((match) => match[1].split(","))
+      .map((name) => name.trim().replace(/^default as /, ""))
+      // Components are PascalCase; an exported constant (TONE_TEXT) is drawn through one, not as one.
+      .filter((name) => /^[A-Z][a-z]/.test(name))
+  );
 }
 
 describe("style guide", () => {
@@ -99,7 +102,9 @@ describe("style guide", () => {
    */
   it("reads every option from the URL", () => {
     expect(
-      readStyleGuideOptions("?theme=dark&density=compact&scale=xlarge&contrast=high&dialog=open"),
+      readStyleGuideOptions(
+        "?theme=dark&density=compact&scale=xlarge&contrast=high&dialog=open&view=cards",
+      ),
     ).toEqual({
       theme: "dark",
       density: "compact",
@@ -107,13 +112,15 @@ describe("style guide", () => {
       highContrast: true,
       rootFontSize: "20px",
       dialogOpen: true,
+      listView: "cards",
     });
   });
 
   /** Given an empty or nonsense URL, then the guide falls back to light, comfortable, normal. */
   it("falls back to the defaults for unknown values", () => {
-    expect(readStyleGuideOptions("?theme=sepia&scale=huge")).toMatchObject({
+    expect(readStyleGuideOptions("?theme=sepia&scale=huge&view=grid")).toMatchObject({
       theme: "light",
+      listView: "table",
       density: "comfortable",
       scale: "normal",
       rootFontSize: "16px",

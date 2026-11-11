@@ -1,4 +1,6 @@
 import { useSquadFitness } from "../hooks/useSquadFitness";
+import { prefetchFamiliarity, useFamiliarityRevision } from "../hooks/useFamiliarity";
+import { usePositionTable } from "../hooks/usePositionGroups";
 import { routeForActiveCareer } from "../services/careerService";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { applyExtraTranslations } from "../lib/extraTranslations";
@@ -18,6 +20,7 @@ import DashboardOverlays from "../components/dashboard/DashboardOverlays";
 import FiredModal from "../components/dashboard/FiredModal";
 import DashboardSidebar from "../components/dashboard/DashboardSidebar";
 import DashboardWorkspaceContent from "../components/dashboard/DashboardWorkspaceContent";
+import { useRetiredPlayer } from "../components/playerProfile/useRetiredPlayer";
 import {
   createDashboardProfileNavigationState,
   goBackDashboardProfile,
@@ -97,9 +100,14 @@ const TAB_TRANSLATION_KEYS: Record<string, string> = {
 interface DashboardProps {
   /** The tab it opens on. The app always opens on Home; the dev page harness mounts other pages. */
   initialTab?: string;
+  /** A player whose profile it opens on; the dev page harness mounts one. */
+  initialPlayerId?: string;
 }
 
-export default function Dashboard({ initialTab = "Home" }: DashboardProps): JSX.Element {
+export default function Dashboard({
+  initialTab = "Home",
+  initialPlayerId,
+}: DashboardProps): JSX.Element {
   const navigate = useNavigate();
   const {
     hasActiveGame,
@@ -112,7 +120,11 @@ export default function Dashboard({ initialTab = "Home" }: DashboardProps): JSX.
     markClean,
   } = useGameStore();
   const { t } = useTranslation();
-  const { settings, loaded: settingsLoaded, loadSettings } = useSettingsStore();
+  const positionTable = usePositionTable();
+  // Asked for at mount, next to the position table, so the squad and tactics screens find it there.
+  const familiarityRevision = useFamiliarityRevision();
+  useEffect(() => prefetchFamiliarity(familiarityRevision), [familiarityRevision]);
+  const { settings, loaded: settingsLoaded, loadSettings, updateSettings } = useSettingsStore();
   const latestGameStateRef = useRef<GameStateData | null>(null);
   latestGameStateRef.current = gameState ?? null;
 
@@ -123,9 +135,13 @@ export default function Dashboard({ initialTab = "Home" }: DashboardProps): JSX.
   const [isSaving, setIsSaving] = useState(false);
   const [saveFlash, setSaveFlash] = useState(false);
   const [saveError, setSaveError] = useState<unknown>(null);
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  // Counts the pages chosen from the sidebar's drawer: the drawer closes, and the page's heading
+  // takes the focus so a keyboard player lands on the page, not back on the sidebar. A count, not a
+  // flag, so choosing the page already open asks again, and nothing is left owed to a later
+  // navigation that didn't come from the drawer.
+  const [drawerChoices, setDrawerChoices] = useState(0);
   const [profileNavigation, setProfileNavigation] = useState(() =>
-    createDashboardProfileNavigationState(initialTab),
+    createDashboardProfileNavigationState(initialTab, initialPlayerId ?? null),
   );
   const [showExitConfirm, setShowExitConfirm] = useState(false);
   const [isExitingToMenu, setIsExitingToMenu] = useState(false);
@@ -348,6 +364,7 @@ export default function Dashboard({ initialTab = "Home" }: DashboardProps): JSX.
     settingsLoaded,
     isUnemployed ?? false,
     settings.continue_to_next_event,
+    setSaveError,
   );
 
   const handleSave = useCallback(async () => {
@@ -421,9 +438,16 @@ export default function Dashboard({ initialTab = "Home" }: DashboardProps): JSX.
 
   const currentModeMeta = MODE_META[matchMode];
 
-  function handleNavClick(tab: string): void {
+  function handleNavClick(tab: string, options?: { fromDrawer: boolean }): void {
+    if (options?.fromDrawer) setDrawerChoices((count) => count + 1);
     setProfileNavigation((currentState) => navigateDashboardProfiles(currentState, tab));
   }
+
+  // After the render that shows the chosen page, so its heading is the one focused.
+  useEffect(() => {
+    if (drawerChoices === 0) return;
+    document.querySelector<HTMLElement>("[data-page-title]")?.focus();
+  }, [drawerChoices]);
 
   function handleNavigate(tab: string, context?: DashboardNavigateContext): void {
     setProfileNavigation((currentState) => navigateDashboardProfiles(currentState, tab, context));
@@ -499,6 +523,14 @@ export default function Dashboard({ initialTab = "Home" }: DashboardProps): JSX.
     gameState?.manager.team_id ?? "",
     gameState?.clock.current_date ?? "",
   );
+  // A profile opened on a player who is in no roster is a retired one: fetched once here, for the
+  // page and for the top bar's title.
+  const openPlayerId = profileNavigation.selectedPlayerId;
+  const retiredPlayer = useRetiredPlayer(
+    openPlayerId !== null && !gameState?.players.some((player) => player.id === openPlayerId)
+      ? openPlayerId
+      : null,
+  );
 
   if (!gameState) {
     return (
@@ -524,6 +556,7 @@ export default function Dashboard({ initialTab = "Home" }: DashboardProps): JSX.
     financeVerdict?.teamId === gameState.manager.team_id ? financeVerdict.snapshot : null;
   const dashboardAlerts = getDashboardAlerts(
     gameState,
+    positionTable,
     hasMatchToday,
     t,
     currentFinanceVerdict,
@@ -534,7 +567,7 @@ export default function Dashboard({ initialTab = "Home" }: DashboardProps): JSX.
     ? t(TAB_TRANSLATION_KEYS[profileNavigation.activeTab])
     : profileNavigation.activeTab;
   const headerTitle =
-    openProfileTitle(profileNavigation, gameState) ??
+    openProfileTitle(profileNavigation, gameState, retiredPlayer) ??
     (profileNavigation.selectedPlayerId !== null ? t("common.player") : activeTabLabel);
   const dashboardTabContentModel = createDashboardTabContentModel({
     activeTab: profileNavigation.activeTab,
@@ -556,10 +589,12 @@ export default function Dashboard({ initialTab = "Home" }: DashboardProps): JSX.
     <div className="flex min-h-screen bg-page">
       <DashboardSidebar
         activeTab={profileNavigation.activeTab}
-        collapsed={isSidebarCollapsed}
+        width={settings.sidebar_width}
+        behaviour={settings.sidebar_behaviour}
+        collapsed={settings.sidebar_collapsed}
         onNavClick={handleNavClick}
         onToggleCollapse={() => {
-          setIsSidebarCollapsed((currentValue) => !currentValue);
+          void updateSettings({ sidebar_collapsed: !settings.sidebar_collapsed });
         }}
         unreadMessagesCount={unreadMessagesCount}
         todayHasMatch={hasMatchToday}
@@ -654,6 +689,7 @@ export default function Dashboard({ initialTab = "Home" }: DashboardProps): JSX.
           dashboardAlerts={dashboardAlerts}
           gameState={gameState}
           profileNavigation={profileNavigation}
+          retiredPlayer={retiredPlayer}
           dashboardTabContentModel={dashboardTabContentModel}
           onNavigate={handleNavigate}
           onSelectPlayer={selectPlayer}

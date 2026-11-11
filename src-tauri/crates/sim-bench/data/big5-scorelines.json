@@ -1,0 +1,112 @@
+{
+  "source": {
+    "name": "openfootball/football.json",
+    "url": "https://github.com/openfootball/football.json",
+    "licence": "CC0-1.0",
+    "commit": "4e4146c901b62bcafa1b6deabb7e4a3fccdc9b1f",
+    "commit_date": "2026-08-26T05:25:10Z"
+  },
+  "population": {
+    "competitions": [
+      "English Premier League",
+      "Spanish La Liga",
+      "German Bundesliga",
+      "Italian Serie A",
+      "French Ligue 1"
+    ],
+    "seasons": [
+      "2014-15",
+      "2015-16",
+      "2016-17",
+      "2017-18",
+      "2018-19",
+      "2021-22",
+      "2022-23",
+      "2023-24"
+    ],
+    "excluded_seasons": {
+      "2019-20": "played behind closed doors; Ligue 1 abandoned at 279/380",
+      "2020-21": "played largely behind closed doors"
+    },
+    "league_seasons": 40,
+    "matches": 14534
+  },
+  "band_rule": "10th-90th percentile of the per-league-season values, stored at full precision. Fixed before the first number was computed.",
+  "metrics": [
+    {
+      "key": "goals_per_game",
+      "label": "Goals/game",
+      "unit": "per_game",
+      "low": 2.554736842105263,
+      "high": 3.123202614379085,
+      "observed": {
+        "min": 2.4921,
+        "p10": 2.5547,
+        "median": 2.7092,
+        "p90": 3.1232,
+        "max": 3.2789,
+        "pooled_mean": 2.7555
+      }
+    },
+    {
+      "key": "clean_sheets_home_pct",
+      "label": "Clean sheets (home)",
+      "unit": "percent",
+      "low": 27.21327829377365,
+      "high": 35.837977296181634,
+      "observed": {
+        "min": 23.4211,
+        "p10": 27.2133,
+        "median": 32.1973,
+        "p90": 35.838,
+        "max": 38.4211,
+        "pooled_mean": 31.8632
+      }
+    },
+    {
+      "key": "clean_sheets_away_pct",
+      "label": "Clean sheets (away)",
+      "unit": "percent",
+      "low": 18.26797385620915,
+      "high": 25,
+      "observed": {
+        "min": 16.6667,
+        "p10": 18.268,
+        "median": 23.2895,
+        "p90": 25,
+        "max": 26.5789,
+        "pooled_mean": 22.7329
+      }
+    },
+    {
+      "key": "both_teams_scored_pct",
+      "label": "Both teams scored",
+      "unit": "percent",
+      "low": 48.31578947368421,
+      "high": 59.18300653594772,
+      "observed": {
+        "min": 46.3158,
+        "p10": 48.3158,
+        "median": 51.4474,
+        "p90": 59.183,
+        "max": 61.7647,
+        "pooled_mean": 52.5114
+      }
+    },
+    {
+      "key": "home_win_pct",
+      "label": "Home win %",
+      "unit": "percent",
+      "low": 41.78947368421053,
+      "high": 48.421052631578945,
+      "observed": {
+        "min": 38.9474,
+        "p10": 41.7895,
+        "median": 45.1806,
+        "p90": 48.4211,
+        "max": 49.2105,
+        "pooled_mean": 44.9635
+      }
+    }
+  ]
+}

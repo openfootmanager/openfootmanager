@@ -9,6 +9,7 @@ pub mod messages;
 pub mod package_csv;
 pub mod package_editor;
 pub mod portraits;
+pub mod position;
 pub mod profiles;
 pub mod report;
 pub mod retirees;
@@ -37,8 +38,10 @@ pub use package_csv::{export_players_csv, export_teams_csv};
 pub use package_editor::{
     build_ofm, copy_package_asset, create_package_project, create_world_project,
     extract_ofm_for_editing, read_file_as_data_url, read_package_project, save_package_project,
+    validate_package_project,
 };
 pub use portraits::*;
+pub use position::*;
 pub use profiles::*;
 pub use retirees::*;
 pub use season::*;
@@ -51,3 +54,6 @@ pub use stats::*;
 pub use time::*;
 pub use transfers::*;
 pub use world::*;
+
+#[cfg(test)]
+pub(crate) mod wrapper_testkit;

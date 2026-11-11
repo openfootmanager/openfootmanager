@@ -5,6 +5,7 @@ import { invoke } from "@tauri-apps/api/core";
 import type { GameStateData, PlayerData, StaffData, TeamData } from "../../store/gameStore";
 import YouthAcademyTab from "./YouthAcademyTab";
 import { createSeasonContext } from "../../test-utils/factories";
+import { i18nReady } from "../../i18n";
 
 vi.mock("../../hooks/useRatingTiers", async () => {
   const { cannedRatingTiersModule } = await import("../../test-utils/ratingTiers");
@@ -82,6 +83,7 @@ vi.mock("react-i18next", () => ({
     },
     i18n: { language: "en" },
   }),
+  initReactI18next: { type: "3rdParty", init: () => undefined },
 }));
 
 vi.mock("../TraitBadge", () => ({
@@ -313,6 +315,7 @@ describe("YouthAcademyTab", () => {
 
     await waitFor(() => {
       expect(mockedInvoke).toHaveBeenCalledWith("set_player_squad_role", {
+        careerToken: 0,
         playerId: "player-young-senior",
         squadRole: "Youth",
       });
@@ -392,6 +395,7 @@ describe("YouthAcademyTab", () => {
 
     await waitFor(() => {
       expect(mockedInvoke).toHaveBeenCalledWith("start_youth_scouting", {
+        careerToken: 0,
         scoutId: "staff-1",
         region: "Domestic",
         objective: "Balanced",
@@ -399,6 +403,46 @@ describe("YouthAcademyTab", () => {
       });
       expect(onGameUpdate).toHaveBeenCalledWith(gameState);
     });
+  });
+
+  /**
+   * Given the backend refuses a youth search because a matching one is already active
+   * When the manager starts it
+   * Then the banner reads the sentence, not the raw translation key.
+   */
+  it("shows a refused youth search as a sentence, not a key", async () => {
+    await i18nReady;
+    const scout = createScout();
+    const gameState = {
+      ...createGameState([
+        createPlayer({ id: "p", squad_role: "Youth", date_of_birth: "2008-01-01" }),
+      ]),
+      staff: [scout],
+    };
+    mockedInvoke.mockImplementation(async (command: string) => {
+      if (command === "get_squad") return gameState.players.filter((p) => p.team_id === "team-1");
+      if (command === "get_staff")
+        return {
+          team_staff: [scout],
+          available_staff: [],
+          scouting_assignments: [],
+          youth_scouting_assignments: [],
+        };
+      if (command === "start_youth_scouting") {
+        throw "be.error.scouting.youthSearchAlreadyActive";
+      }
+      return gameState;
+    });
+
+    render(
+      <YouthAcademyTab gameState={gameState} onGameUpdate={vi.fn()} onSelectPlayer={vi.fn()} />,
+    );
+    fireEvent.click(await screen.findByRole("button", { name: "Start youth search" }));
+
+    expect(
+      await screen.findByText("A matching youth recruitment search is already active"),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/be\.error\./)).not.toBeInTheDocument();
   });
 
   it("shows youth prospects only and routes row selection", async () => {
@@ -431,6 +475,38 @@ describe("YouthAcademyTab", () => {
     fireEvent.click(screen.getByText("Rising Star"));
 
     expect(onSelectPlayer).toHaveBeenCalledWith("player-young");
+  });
+
+  /**
+   * Given a youth prospect in the academy's list
+   * When his actions menu is opened from its button and closed with Escape
+   * Then the button says so through aria-expanded, open and then closed again.
+   */
+  it("says on a prospect's actions button whether his menu is open", async () => {
+    const youthPlayer = createPlayer({
+      id: "player-young",
+      full_name: "Rising Star",
+      date_of_birth: "2008-01-01",
+      squad_role: "Youth",
+    });
+    const state = createGameState([youthPlayer]);
+    mockedInvoke.mockImplementation(async (command: string) => {
+      if (command === "get_squad") return state.players.filter((p) => p.team_id === "team-1");
+      if (command === "get_staff") return makeEmptyStaffSlice();
+      return state;
+    });
+
+    render(<YouthAcademyTab gameState={state} onSelectPlayer={vi.fn()} />);
+    const button = await screen.findByRole("button", { name: "common.playerActions" });
+    expect(button).toHaveAttribute("aria-expanded", "false");
+
+    fireEvent.click(button);
+    expect(await screen.findByRole("menu")).toBeInTheDocument();
+    expect(button).toHaveAttribute("aria-expanded", "true");
+
+    fireEvent.keyDown(document.activeElement ?? document.body, { key: "Escape" });
+    await waitFor(() => expect(screen.queryByRole("menu")).toBeNull());
+    expect(button).toHaveAttribute("aria-expanded", "false");
   });
 
   // Regression (issue #250): the prospects list is rendered from the cached
@@ -558,6 +634,7 @@ describe("YouthAcademyTab", () => {
 
     await waitFor(() => {
       expect(mockedInvoke).toHaveBeenCalledWith("set_player_squad_role", {
+        careerToken: 0,
         playerId: "player-young",
         squadRole: "Senior",
       });

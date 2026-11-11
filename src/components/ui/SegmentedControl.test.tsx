@@ -76,11 +76,11 @@ describe("SegmentedControl", () => {
 
   /**
    * Given the strong emphasis (a setting the player watches, like the match speed),
-   * then the chosen option is filled with the brand colour; given the quiet one, it is raised.
+   * then the chosen option is filled with the selected fill; given the quiet one, it is raised.
    */
   it("fills the chosen option when strong and raises it when quiet", () => {
     const { unmount } = render(<Harness emphasis="strong" />);
-    expect(screen.getByRole("radio", { name: "Normal" })).toHaveClass("bg-primary-700");
+    expect(screen.getByRole("radio", { name: "Normal" })).toHaveClass("bg-selected-fill");
     unmount();
     render(<Harness emphasis="quiet" />);
     expect(screen.getByRole("radio", { name: "Normal" })).toHaveClass("bg-panel");
@@ -109,8 +109,8 @@ describe("SegmentedControl", () => {
   it("outlines the chosen option when outlined", () => {
     render(<Harness emphasis="outlined" />);
     const normal = screen.getByRole("radio", { name: "Normal" });
-    expect(normal).toHaveClass("ring-2", "ring-inset", "ring-positive-solid", "text-positive");
-    expect(normal).not.toHaveClass("bg-primary-700");
+    expect(normal).toHaveClass("ring-2", "ring-inset", "ring-selected", "text-selected");
+    expect(normal).not.toHaveClass("bg-selected-fill");
   });
 
   /** Given a group that must not wrap, when the arrows reach an end, then the choice stays there. */

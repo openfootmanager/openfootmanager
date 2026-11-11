@@ -1,11 +1,14 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
+import { getManagerStanding } from "../../services/managersService";
+
 import type { GameStateData, TeamData } from "../../store/gameStore";
 import ManagerTab from "./ManagerTab";
 import { createSeasonContext } from "../../test-utils/factories";
 
 vi.mock("react-i18next", () => ({
+  initReactI18next: { type: "3rdParty", init: () => undefined },
   useTranslation: () => ({
     t: (key: string, params?: Record<string, string | number>) => {
       if (key === "manager.born") return "Born";
@@ -25,6 +28,8 @@ vi.mock("react-i18next", () => ({
       if (key === "manager.boardSatisfied") return "Board satisfied";
       if (key === "manager.boardConcerns") return "Board concerns";
       if (key === "manager.boardThreat") return "Board threat";
+      if (key === "manager.boardWarned") return "The board has warned you";
+      if (key === "manager.boardFinalWarning") return "You are on a final warning";
       if (key === "manager.fanAdore") return "Fans adore";
       if (key === "manager.fanBehind") return "Fans behind you";
       if (key === "manager.fanMixed") return "Fans mixed";
@@ -43,6 +48,12 @@ vi.mock("react-i18next", () => ({
     },
     i18n: { language: "en" },
   }),
+}));
+
+vi.mock("../../services/managersService", () => ({
+  getManagerStanding: vi.fn(() =>
+    Promise.resolve({ board: "very_pleased", fans: "behind", warning: "none" }),
+  ),
 }));
 
 function createTeam(overrides: Partial<TeamData> = {}): TeamData {
@@ -153,5 +164,88 @@ describe("ManagerTab", () => {
     fireEvent.click(screen.getByRole("menuitem", { name: "View team" }));
 
     expect(onSelectTeam).toHaveBeenCalledWith("team-0");
+  });
+
+  /**
+   * Given a board on 27, which the backend reads as concerned (it only warns at 25), and fans it
+   *      reads as mixed
+   * When the Manager tab shows the board and the fans
+   * Then it shows the backend's words: concerns, not a threat (the tab called anything below 30 a
+   *      threat)
+   */
+  it("shows the board's and the fans' mood in the backend's words", async () => {
+    vi.mocked(getManagerStanding).mockResolvedValueOnce({
+      board: "concerned",
+      fans: "mixed",
+      warning: "none",
+    });
+    const gameState = createGameState(true);
+    gameState.manager = { ...gameState.manager, satisfaction: 27, fan_approval: 45 };
+
+    render(<ManagerTab gameState={gameState} />);
+
+    expect(await screen.findByText("Board concerns")).toBeInTheDocument();
+    expect(screen.getByText("Fans mixed")).toBeInTheDocument();
+    expect(screen.queryByText("Board threat")).not.toBeInTheDocument();
+  });
+
+  /**
+   * Given a manager the board has put on a final warning
+   * When the Manager tab shows the board
+   * Then it says he is on a final warning, beside the board's mood
+   */
+  it("says when the board has put the manager on a final warning", async () => {
+    vi.mocked(getManagerStanding).mockResolvedValueOnce({
+      board: "under_threat",
+      fans: "restless",
+      warning: "final_warning",
+    });
+    const gameState = createGameState(true);
+    gameState.manager = { ...gameState.manager, satisfaction: 15, fan_approval: 30 };
+
+    render(<ManagerTab gameState={gameState} />);
+
+    expect(await screen.findByText("You are on a final warning")).toBeInTheDocument();
+    expect(screen.queryByText("The board has warned you")).not.toBeInTheDocument();
+  });
+
+  /**
+   * Given a manager the board has warned once
+   * When the Manager tab shows the board
+   * Then it says the board has warned him, and never that it is his final warning
+   */
+  it("says when the board has warned the manager once", async () => {
+    vi.mocked(getManagerStanding).mockResolvedValueOnce({
+      board: "under_threat",
+      fans: "mixed",
+      warning: "warned",
+    });
+    const gameState = createGameState(true);
+    gameState.manager = { ...gameState.manager, satisfaction: 24, fan_approval: 45 };
+
+    render(<ManagerTab gameState={gameState} />);
+
+    expect(await screen.findByText("The board has warned you")).toBeInTheDocument();
+    expect(screen.queryByText("You are on a final warning")).not.toBeInTheDocument();
+  });
+
+  /**
+   * Given a manager whose board is satisfied and holds no warning against him
+   * When the Manager tab shows the board
+   * Then no warning line is shown
+   */
+  it("shows no warning when the board holds none", async () => {
+    vi.mocked(getManagerStanding).mockResolvedValueOnce({
+      board: "satisfied",
+      fans: "behind",
+      warning: "none",
+    });
+    const gameState = createGameState(true);
+
+    render(<ManagerTab gameState={gameState} />);
+
+    expect(await screen.findByText("Board satisfied")).toBeInTheDocument();
+    expect(screen.queryByText("You are on a final warning")).not.toBeInTheDocument();
+    expect(screen.queryByText("The board has warned you")).not.toBeInTheDocument();
   });
 });

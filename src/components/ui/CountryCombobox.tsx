@@ -293,13 +293,9 @@ export function CountryCombobox({ label, value, onChange, placeholder }: Country
                         }}
                         className={`flex w-full items-center justify-between px-3 py-2 text-body transition-colors ${
                           value === entry.code
-                            ? "bg-primary-50 dark:bg-primary-500/10 text-primary-600 dark:text-primary-400"
+                            ? "bg-selected-tint text-selected"
                             : "text-fg hover:bg-hover"
-                        } ${
-                          index === active
-                            ? "ring-2 ring-inset ring-primary-400 dark:ring-primary-500"
-                            : ""
-                        }`}
+                        } ${index === active ? "ring-2 ring-inset ring-focus" : ""}`}
                       >
                         <span className="flex items-center gap-2">
                           <resources.CountryFlag
@@ -311,7 +307,7 @@ export function CountryCombobox({ label, value, onChange, placeholder }: Country
                           <span>{entry.name}</span>
                         </span>
                         {value === entry.code && (
-                          <Check className="h-4 w-4 flex-shrink-0 text-primary-500" />
+                          <Check className="h-4 w-4 flex-shrink-0 text-selected" />
                         )}
                       </button>
                     ))}
@@ -320,7 +316,7 @@ export function CountryCombobox({ label, value, onChange, placeholder }: Country
               </>
             ) : (
               <div className="flex min-h-16 items-center justify-center p-3">
-                <div className="h-5 w-5 motion-safe:animate-spin rounded-full border-2 border-primary-500 border-t-transparent" />
+                <div className="h-5 w-5 motion-safe:animate-spin rounded-full border-2 border-fg-subtle border-t-transparent" />
               </div>
             )}
           </div>

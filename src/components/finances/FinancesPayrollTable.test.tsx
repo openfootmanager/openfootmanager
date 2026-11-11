@@ -4,6 +4,7 @@ import { createPlayer } from "../../test-utils/factories";
 import FinancesPayrollTable from "./FinancesPayrollTable";
 
 vi.mock("react-i18next", () => ({
+  initReactI18next: { type: "3rdParty", init: () => undefined },
   useTranslation: () => ({
     t: (key: string, params?: Record<string, string | number>) => {
       if (key === "finances.until") return `Until ${params?.year}`;

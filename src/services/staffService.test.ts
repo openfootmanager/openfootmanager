@@ -19,9 +19,7 @@ describe("staffService", () => {
     mockedInvoke.mockResolvedValueOnce(response);
 
     await expect(hireStaff("staff-1")).resolves.toBe(response);
-    expect(mockedInvoke).toHaveBeenCalledWith("hire_staff", {
-      staffId: "staff-1",
-    });
+    expect(mockedInvoke).toHaveBeenCalledWith("hire_staff", { careerToken: 0, staffId: "staff-1" });
   });
 
   it("calls the release staff backend command", async () => {
@@ -30,6 +28,7 @@ describe("staffService", () => {
 
     await expect(releaseStaff("staff-2")).resolves.toBe(response);
     expect(mockedInvoke).toHaveBeenCalledWith("release_staff", {
+      careerToken: 0,
       staffId: "staff-2",
     });
   });

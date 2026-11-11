@@ -1,6 +1,9 @@
 import i18n from "../i18n";
+import { reportIfKeyShaped } from "../i18n/missingKeys";
+import { extractErrorMessage } from "./errorText";
 import { formatExactMoney, formatPreciseCompact } from "../lib/helpers";
 import { formatDate } from "../lib/dateFormatting";
+import { formatOrdinal } from "../lib/ordinal";
 import { countryName } from "../lib/countries";
 import { competitionDisplayName } from "../lib/competitionName";
 import { useSettingsStore } from "../store/settingsStore";
@@ -37,24 +40,16 @@ function resolve(
   return resolved;
 }
 
+/**
+ * Whether a string the backend sent is a translation key we have text for. It may as well be plain
+ * text (a name, a money figure), so `exists` is asked rather than `t`; a key-shaped string that has
+ * no text is a missing key shown raw, and is reported for the dev log and the test gate.
+ */
 function isTranslationKey(value: string): boolean {
-  return value.includes(".") && i18n.t(value) !== value;
-}
-
-function extractErrorMessage(error: unknown): string {
-  if (typeof error === "string") return error;
-  if (error instanceof Error) return error.message;
-
-  if (
-    error &&
-    typeof error === "object" &&
-    "message" in error &&
-    typeof (error as { message?: unknown }).message === "string"
-  ) {
-    return (error as { message: string }).message;
-  }
-
-  return "";
+  if (!value.includes(".")) return false;
+  if (i18n.exists(value)) return true;
+  reportIfKeyShaped(i18n.language, value);
+  return false;
 }
 
 function parseBackendMessage(message: string): {
@@ -256,18 +251,24 @@ function resolveParamValues(
 ): Record<string, string> | undefined {
   if (!params) return params;
   const resolved = { ...params };
+  // A finishing place travels as a bare number; the ordinal ("21st", "5.º", "5.") is the
+  // language's own form of it, written by the one formatter (`formatOrdinal`), never an English
+  // suffix from the backend. Templates that want it say `{{ordinal}}`.
+  if (resolved.ordinal === undefined && /^\d+$/.test(resolved.position ?? "")) {
+    resolved.ordinal = formatOrdinal(Number(resolved.position), i18n.language, (key, options) =>
+      i18n.t(key, options),
+    );
+  }
   for (const [legacy, current] of Object.entries(LEGACY_PARAM_NAMES)) {
     if (legacy in resolved && !(current in resolved)) {
       resolved[current] = resolved[legacy];
     }
   }
   for (const [key, value] of Object.entries(resolved)) {
-    if (value.includes(".")) {
-      const attempted = i18n.t(value);
-      if (attempted !== value) {
-        resolved[key] = attempted;
-        continue;
-      }
+    // A param may be a key (a position group) or a plain value (a name, a money figure).
+    if (isTranslationKey(value)) {
+      resolved[key] = i18n.t(value);
+      continue;
     }
 
     resolved[key] = resolveDateParamValue(
@@ -626,11 +627,41 @@ function normalizeTransferRoundupParams(
 }
 
 /**
+ * A promotion or relegation names the division the club moved to. A generated division is stored
+ * under an English template name ("Germany Second Division"); the notice also carries its name key,
+ * country and season, so it reads as every other screen names it. Without a key the stored name
+ * stands.
+ */
+function normalizeDivisionName(
+  msg: MessageData,
+  params?: Record<string, string>,
+): Record<string, string> | undefined {
+  const isDivisionChange =
+    msg.subject_key === "be.msg.promotion.subject" ||
+    msg.subject_key === "be.msg.relegation.subject";
+  if (!isDivisionChange || !params?.divisionKey) return params;
+
+  const season = Number(params.divisionSeason);
+  return {
+    ...params,
+    division: competitionDisplayName(
+      {
+        name: params.division,
+        name_key: params.divisionKey,
+        country_id: params.divisionCountry ?? null,
+        season: Number.isFinite(season) ? season : undefined,
+      },
+      (key, options) => i18n.t(key, options),
+    ),
+  };
+}
+
+/**
  * Resolve all translatable fields on a message, returning a copy with resolved strings.
  */
 export function resolveMessage(msg: MessageData): MessageData {
   const inferredParams = msg.i18n_params ?? inferLegacyDelegatedRenewalsParams(msg);
-  const p = resolveParamValues(inferredParams);
+  const p = resolveParamValues(normalizeDivisionName(msg, inferredParams));
   const resolved = {
     ...msg,
     i18n_params: inferredParams,

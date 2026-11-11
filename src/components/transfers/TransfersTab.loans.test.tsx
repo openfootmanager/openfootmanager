@@ -22,14 +22,20 @@ vi.mock("@tauri-apps/api/core", () => ({
   isTauri: vi.fn(() => false),
 }));
 
-vi.mock("../../utils/backendI18n", () => ({
-  resolveBackendError: (error: unknown) => {
-    const message = error instanceof Error ? error.message : String(error);
-    return message.startsWith("be.error.transfers.loanBorrowerCannotAffordWages")
-      ? "The borrowing club cannot afford this wage share. Its weekly wage budget is €40,000."
-      : message;
-  },
-}));
+vi.mock("../../utils/backendI18n", async () => {
+  const { transferTestTranslation } = await import("./TransfersTab.testFixtures");
+  return {
+    resolveBackendError: (error: unknown) => {
+      const message = error instanceof Error ? error.message : String(error);
+      if (message.startsWith("be.error.transfers.loanBorrowerCannotAffordWages")) {
+        return "The borrowing club cannot afford this wage share. Its weekly wage budget is €40,000.";
+      }
+      // The file's own texts for the keys it provokes (the banners use this one resolver).
+      const translated = transferTestTranslation(message);
+      return translated === message ? message : translated;
+    },
+  };
+});
 
 vi.mock("react-i18next", () => ({
   useTranslation: () => ({ t: transferTestTranslation, i18n: { language: "en" } }),
@@ -187,6 +193,7 @@ describe("TransfersTab", (): void => {
 
     await waitFor((): void => {
       expect(mockedInvoke).toHaveBeenCalledWith("make_loan_offer", {
+        careerToken: 0,
         playerId: "loan-buy-target",
         endDate: "2027-06-30",
         wageContributionPct: 75,
@@ -241,6 +248,7 @@ describe("TransfersTab", (): void => {
 
     await waitFor((): void => {
       expect(mockedInvoke).toHaveBeenCalledWith("respond_to_loan_offer", {
+        careerToken: 0,
         playerId: "loan-owned",
         offerId: "loan-offer-1",
         accept: true,
@@ -396,6 +404,7 @@ describe("TransfersTab", (): void => {
 
     await waitFor((): void => {
       expect(mockedInvoke).toHaveBeenCalledWith("counter_loan_offer", {
+        careerToken: 0,
         playerId: "loan-counter-owned",
         offerId: "loan-offer-counter",
         endDate: "2027-01-28",
@@ -461,6 +470,7 @@ describe("TransfersTab", (): void => {
 
     await waitFor((): void => {
       expect(mockedInvoke).toHaveBeenCalledWith("exercise_loan_buy_option", {
+        careerToken: 0,
         playerId: "loan-buy-player",
       });
     });
@@ -492,6 +502,7 @@ describe("TransfersTab", (): void => {
 
     await waitFor((): void => {
       expect(mockedInvoke).toHaveBeenCalledWith("toggle_transfer_list", {
+        careerToken: 0,
         playerId: "player-1",
       });
       expect(onGameUpdate).toHaveBeenCalledWith(gameState);

@@ -64,6 +64,10 @@ pub struct DiagnosticsReport {
     /// This is the number that actually changes a decision: a career database is the largest
     /// thing in the bundle by a wide margin, and it is the one part the player chooses.
     pub save_bytes: Option<u64>,
+    /// JSON cells of the active save that did not read when it was loaded, kept as they were in its
+    /// `unreadable_records` table (`db::json_column`): where each is, never its text, which stays in
+    /// the save the player may choose to attach.
+    pub unreadable_records: Vec<db::json_column::UnreadableCell>,
 }
 
 fn log_dir(app_handle: &tauri::AppHandle) -> Option<PathBuf> {
@@ -98,6 +102,7 @@ fn collect(
     has_active_save: bool,
     crash_on_previous_run: bool,
     save_bytes: Option<u64>,
+    unreadable_records: Vec<db::json_column::UnreadableCell>,
 ) -> DiagnosticsReport {
     let log_files = log_dir(app_handle)
         .map(|dir| {
@@ -128,7 +133,24 @@ fn collect(
         has_active_save,
         log_files,
         save_bytes,
+        unreadable_records: redact_cells(redactor, unreadable_records),
     }
+}
+
+/// The kept cells as the report carries them. A row id is whatever the save keyed the row by, a
+/// name or a path among them, so it goes through the redactor like every other string here; the
+/// table and column are the game's own names.
+fn redact_cells(
+    redactor: &Redactor,
+    cells: Vec<db::json_column::UnreadableCell>,
+) -> Vec<db::json_column::UnreadableCell> {
+    cells
+        .into_iter()
+        .map(|cell| db::json_column::UnreadableCell {
+            row_id: redactor.apply(&cell.row_id),
+            ..cell
+        })
+        .collect()
 }
 
 /// Size of the active save on disk, or `None` when there is no career or no file behind it.
@@ -140,6 +162,25 @@ fn active_save_bytes(state: &StateManager, save_manager: &SaveManagerState) -> O
     let manager = save_manager.0.lock().ok()?;
     let path = manager.save_db_path(&save_id)?;
     std::fs::metadata(path).ok().map(|meta| meta.len())
+}
+
+/// The active save's cells that did not read on load; none when no career is open.
+fn active_save_unreadable_records(
+    state: &StateManager,
+    save_manager: &SaveManagerState,
+) -> Vec<db::json_column::UnreadableCell> {
+    let Some(save_id) = state.get_save_id() else {
+        return Vec::new();
+    };
+    let Some(path) = save_manager
+        .0
+        .lock()
+        .ok()
+        .and_then(|manager| manager.save_db_path(&save_id))
+    else {
+        return Vec::new();
+    };
+    db::json_column::unreadable_cells_in_save(&path)
 }
 
 #[tauri::command]
@@ -155,6 +196,7 @@ pub fn collect_diagnostics(
         state.get_save_id().is_some(),
         previous_crash.0.is_some(),
         active_save_bytes(&state, &save_manager),
+        active_save_unreadable_records(&state, &save_manager),
     )
 }
 
@@ -295,6 +337,7 @@ fn snapshot_diagnostics(
         state.get_save_id().is_some(),
         crash_on_previous_run,
         active_save_bytes(state, save_manager),
+        active_save_unreadable_records(state, save_manager),
     );
     (redactor, diagnostics)
 }
@@ -1083,6 +1126,27 @@ mod tests {
         assert_eq!(out[0], "it died loading ~/saves/a.db");
         assert!(!out[1].contains("srobot"), "{out:?}");
         assert_eq!(out[2], "logs at ~/today.log");
+    }
+
+    /// Given a kept cell whose row id holds the player's home path
+    /// When the report lists it
+    /// Then the row id comes out redacted, and the table and column as they were
+    #[test]
+    fn a_kept_cells_row_id_is_redacted() {
+        let redactor = Redactor::new(Some("/home/srobot"), Some("srobot"), None);
+        let cells = vec![db::json_column::UnreadableCell {
+            table: "players".to_owned(),
+            row_id: "/home/srobot/mods/p1".to_owned(),
+            column: "career".to_owned(),
+        }];
+
+        let listed = redact_cells(&redactor, cells);
+
+        assert_eq!(listed[0].row_id, "~/mods/p1");
+        assert_eq!(
+            (listed[0].table.as_str(), listed[0].column.as_str()),
+            ("players", "career")
+        );
     }
 
     #[test]

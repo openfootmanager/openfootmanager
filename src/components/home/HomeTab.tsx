@@ -83,6 +83,7 @@ export default function HomeTab({
   const fitness = useSquadFitness(gameState);
   const avgCondition =
     fitness?.average_condition != null ? Math.round(fitness.average_condition) : null;
+  const avgConditionTone = fitness?.average_status?.tone ?? null;
   const exhaustedCount = fitness?.exhausted_count ?? 0;
   const resolveInjuryName = (injuryName: string): string => {
     if (injuryName.includes(".")) {
@@ -260,6 +261,7 @@ export default function HomeTab({
             <HomeNextOpponentCard nextOpponent={nextOpponent} lang={lang} onNavigate={onNavigate} />
             <HomeSquadOverviewCard
               avgCondition={avgCondition}
+              avgConditionTone={avgConditionTone}
               avgOvr={avgOvr}
               exhaustedCount={exhaustedCount}
               scheduleIcon={schedIcons.icon}

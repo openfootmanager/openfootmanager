@@ -31,6 +31,7 @@ import {
   sortByPositionGroup,
   type MatchScenarioId,
 } from "./SubPanel.helpers";
+import { usePositionTable } from "../../hooks/usePositionGroups";
 
 const CompareBar = ({ label, valA, valB }: { label: string; valA: number; valB: number }) => {
   const diff = valB - valA;
@@ -74,6 +75,7 @@ export function SubPanel({
   onClose: () => void;
 }) {
   const { t } = useTranslation();
+  const positions = usePositionTable();
   const [selectedOff, setSelectedOff] = useState<string | null>(null);
   const [selectedBench, setSelectedBench] = useState<string | null>(null);
   const [queuedSwaps, setQueuedSwaps] = useState<SubstitutionSwap[]>([]);
@@ -118,6 +120,7 @@ export function SubPanel({
     bench.filter(
       (p) => !subbedOffIds.has(p.id) && !subbedOnIds.has(p.id) && !queuedOnIds.has(p.id),
     ),
+    positions,
   );
   const selectedPlayer = selectedOff ? team.players.find((p) => p.id === selectedOff) : null;
   const comparedPlayer = selectedBench ? availableBench.find((p) => p.id === selectedBench) : null;
@@ -401,6 +404,7 @@ export function SubPanel({
                   <tbody>
                     {sortByPositionGroup(
                       team.players.filter((p) => !snapshot.sent_off.includes(p.id)),
+                      positions,
                     ).map((p) => {
                       const isSelected = selectedOff === p.id;
                       const isSubOn = subbedOnIds.has(p.id);

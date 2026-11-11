@@ -1,9 +1,12 @@
 mod indices;
 mod projection;
+pub(crate) use indices::index_players_by_team as players_by_club;
+pub(crate) use projection::average_rating;
 
 use super::search_text::{contains_folded, fold_needle};
 use crate::game::Game;
 use crate::nations::region_for_code;
+use crate::player_knowledge::KnowledgeView;
 use indices::{domestic_leagues, index_league_membership, index_players_by_team};
 use projection::project_card;
 use serde::{Deserialize, Serialize};
@@ -49,10 +52,24 @@ type LeagueKey = (String, String, Option<String>, Option<String>, Option<u32>);
 pub struct TeamCard {
     pub team: TeamCardTeam,
     pub roster_size: usize,
-    pub avg_ovr: u8,
+    /// The squad's average rating, for the manager's own club and his division rivals only; none
+    /// for any other club (see `KnowledgeView::knows_squad_at`).
+    pub avg_ovr: Option<u8>,
     pub total_value: u64,
     pub league_pos: u32,
     pub standing: Option<TeamStanding>,
+    /// The club's last five results as "W", "D" or "L", oldest first, as the club keeps them
+    /// (`Team::form`). Results are public, so every club's card carries its form.
+    pub form: Vec<String>,
+    /// The club's manager; none for a club without one.
+    pub manager: Option<TeamCardManager>,
+}
+
+/// Who manages a club, as its card names him.
+#[derive(Debug, Serialize, PartialEq, Eq)]
+pub struct TeamCardManager {
+    pub id: String,
+    pub name: String,
 }
 
 #[derive(Debug, Serialize, PartialEq, Eq)]
@@ -70,7 +87,7 @@ pub struct TeamCardTeam {
     pub media: TeamCardMedia,
 }
 
-#[derive(Debug, Serialize, PartialEq, Eq)]
+#[derive(Debug, Serialize, PartialEq, Eq, ts_rs::TS)]
 pub struct TeamCardColors {
     pub primary: String,
     pub secondary: String,
@@ -113,10 +130,28 @@ pub fn query_club_league_standing(game: &Game, club_id: &str) -> Option<ClubLeag
     })
 }
 
+/// The card the clubs directory shows for one club, for the team profile; none for an id no club
+/// has. The same projection as the directory, so the two never disagree.
+pub fn query_team_card(game: &Game, club_id: &str) -> Option<TeamCard> {
+    let team = game.teams.iter().find(|team| team.id == club_id)?;
+    let players_by_team = index_players_by_team(&game.players);
+    let leagues = domestic_leagues(game);
+    let (_, standing_by_team) = index_league_membership(&leagues);
+    let view = KnowledgeView::of(game);
+    Some(project_card(
+        team,
+        &players_by_team,
+        &standing_by_team,
+        &view,
+        game.manager_of_club(club_id),
+    ))
+}
+
 pub fn query_directory(game: &Game, query: &TeamsDirectoryQuery) -> TeamsDirectory {
     let players_by_team = index_players_by_team(&game.players);
     let leagues = domestic_leagues(game);
     let (league_by_team, standing_by_team) = index_league_membership(&leagues);
+    let view = KnowledgeView::of(game);
 
     let needle = query
         .search
@@ -165,7 +200,16 @@ pub fn query_directory(game: &Game, query: &TeamsDirectoryQuery) -> TeamsDirecto
                 )
             });
 
-        let card = project_card(team, &players_by_team, &standing_by_team);
+        let card = project_card(
+            team,
+            &players_by_team,
+            &standing_by_team,
+            &view,
+            // From the team in hand, not `manager_of_club`, which would look the club up again.
+            team.manager_id
+                .as_deref()
+                .and_then(|manager_id| game.manager_by_id(manager_id)),
+        );
 
         regions
             .entry(region_id)

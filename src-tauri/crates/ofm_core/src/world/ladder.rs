@@ -21,10 +21,7 @@ use crate::game::Game;
 pub fn domestic_tables_by_country(game: &Game) -> BTreeMap<&str, Vec<&League>> {
     let mut tables_by_country: BTreeMap<&str, Vec<&League>> = BTreeMap::new();
     for competition in &game.competitions {
-        if competition.rules.format != CompetitionFormat::LeagueTable
-            || competition.kind != CompetitionType::League
-            || competition.scope != CompetitionScope::Domestic
-        {
+        if !is_ladder_table(competition) {
             continue;
         }
         if let Some(country) = competition.country_id.as_deref() {
@@ -35,6 +32,19 @@ pub fn domestic_tables_by_country(game: &Game) -> BTreeMap<&str, Vec<&League>> {
         }
     }
     tables_by_country
+}
+
+/// Whether `competition` is a rung of a domestic pyramid: the country's own league competition,
+/// played as a table, and so a league season. A cup is not a rung even when it draws from the same
+/// clubs, and neither is a regional side-competition (which is why Brazil's state cups, `Cup` /
+/// `Regional` / `GroupAndKnockout`, cannot reach the ladder or trip the pyramid's overlap check),
+/// a continental competition or a World Cup qualifying group in the same format. The one
+/// definition: the ladder, promotion and relegation, the season-end payouts and history ranking,
+/// and the managers' records all ask it.
+pub fn is_ladder_table(competition: &League) -> bool {
+    competition.rules.format == CompetitionFormat::LeagueTable
+        && competition.kind == CompetitionType::League
+        && competition.scope == CompetitionScope::Domestic
 }
 
 /// Each ladder table's participant count, keyed by id: the "authored size" that

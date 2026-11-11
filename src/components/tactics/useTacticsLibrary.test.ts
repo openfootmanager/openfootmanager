@@ -1,5 +1,5 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
-import { invoke } from "@tauri-apps/api/core";
+import { type InvokeArgs, invoke } from "@tauri-apps/api/core";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { type GameStateData, useGameStore } from "../../store/gameStore";
@@ -23,9 +23,10 @@ function renderLibrary(gameState: GameStateData | null) {
       formation: "4-4-2",
       activePlayStyle: "Balanced",
       initialPreset: null,
-      onFormationChange: vi.fn(),
-      onPlayStyleChange: vi.fn(),
       onApplyPreset: vi.fn(),
+      onGameUpdate: vi.fn(),
+      onWriteError: vi.fn(),
+      onWriteSaved: vi.fn(),
     }),
   );
 }
@@ -99,7 +100,7 @@ describe("useTacticsLibrary custom tactics and the save", () => {
     mockedInvoke.mockReset();
     mockedInvoke.mockImplementation(async (command: string, args?: unknown) => {
       if (command === "list_custom_tactics") return list.promise;
-      if (command === "save_custom_tactic") {
+      if (command === "save_current_tactic") {
         saved.push((args as { tactic: { id: string } }).tactic);
         return structuredClone(saved);
       }
@@ -126,7 +127,7 @@ describe("useTacticsLibrary custom tactics and the save", () => {
     mockedInvoke.mockReset();
     mockedInvoke.mockImplementation(async (command: string, args?: unknown) => {
       if (command === "list_custom_tactics") return [];
-      if (command === "save_custom_tactic") {
+      if (command === "save_current_tactic") {
         saved.push((args as { tactic: { id: string } }).tactic);
         saves += 1;
         const snapshot = structuredClone(saved);
@@ -149,7 +150,7 @@ describe("useTacticsLibrary custom tactics and the save", () => {
   });
 
   const saveCalls = () =>
-    mockedInvoke.mock.calls.filter(([command]) => command === "save_custom_tactic");
+    mockedInvoke.mock.calls.filter(([command]) => command === "save_current_tactic");
 
   /**
    * Given a tactic waiting behind the first load, and the player leaves the screen while another
@@ -185,7 +186,7 @@ describe("useTacticsLibrary custom tactics and the save", () => {
     mockedInvoke.mockReset();
     mockedInvoke.mockImplementation(async (command: string) => {
       if (command === "list_custom_tactics") return list.promise;
-      if (command === "save_custom_tactic") return [];
+      if (command === "save_current_tactic") return [];
       return { modified: false };
     });
     const { result, unmount } = renderLibrary(careerGame);
@@ -226,9 +227,10 @@ describe("useTacticsLibrary custom tactics and the save", () => {
           formation: "4-4-2",
           activePlayStyle: "Balanced",
           initialPreset: null,
-          onFormationChange: vi.fn(),
-          onPlayStyleChange: vi.fn(),
           onApplyPreset: vi.fn(),
+          onGameUpdate: vi.fn(),
+          onWriteError: vi.fn(),
+          onWriteSaved: vi.fn(),
         }),
       { initialProps: { game: careerGame } },
     );
@@ -291,7 +293,7 @@ describe("useTacticsLibrary custom tactics and the save", () => {
     act(() => useGameStore.getState().clearGame());
     await act(async () => list.resolve([]));
 
-    expect(saveCalls()).toHaveLength(0);
+    expect(callsTo("save_custom_tactic")).toHaveLength(0);
     localStorage.clear();
   });
 });
@@ -314,7 +316,7 @@ const savedTactic = {
 };
 
 /** A backend holding `list`, with the legacy import pending or not, recording what is called. */
-function backendWith(list: unknown[], pending: boolean, failSaves = false) {
+function backendWith(list: unknown[], pending: boolean, failSaves = false, failApply = false) {
   const current = [...list];
   mockedInvoke.mockReset();
   mockedInvoke.mockImplementation(async (command: string, args?: unknown) => {
@@ -325,11 +327,15 @@ function backendWith(list: unknown[], pending: boolean, failSaves = false) {
         return pending;
       case "mark_legacy_tactics_imported":
         return undefined;
-      case "save_custom_tactic": {
+      case "save_custom_tactic":
+      case "save_current_tactic": {
         if (failSaves) throw new Error("disk full");
         current.push((args as { tactic: unknown }).tactic);
         return [...current];
       }
+      case "apply_custom_tactic":
+        if (failApply) throw new Error("refused");
+        return appliedGame;
       case "delete_custom_tactic": {
         const id = (args as { id: string }).id;
         const at = current.findIndex((tactic) => (tactic as { id: string }).id === id);
@@ -341,6 +347,9 @@ function backendWith(list: unknown[], pending: boolean, failSaves = false) {
     }
   });
 }
+
+/** The game the faked backend answers an applied saved tactic with. */
+const appliedGame = { ...careerGame, clock: { ...careerGame.clock, current_date: "2026-08-02" } };
 
 const callsTo = (command: string) =>
   mockedInvoke.mock.calls.filter(([called]) => called === command);
@@ -408,8 +417,6 @@ describe("useTacticsLibrary deleting and the old browser library", () => {
    */
   it("deleting the applied tactic leaves the team's setup as it is", async () => {
     backendWith([savedTactic], false);
-    const onFormationChange = vi.fn();
-    const onPlayStyleChange = vi.fn();
     const onApplyPreset = vi.fn();
     const { result } = renderHook(() =>
       useTacticsLibrary({
@@ -417,9 +424,10 @@ describe("useTacticsLibrary deleting and the old browser library", () => {
         formation: "4-4-2",
         activePlayStyle: "Balanced",
         initialPreset: null,
-        onFormationChange,
-        onPlayStyleChange,
         onApplyPreset,
+        onGameUpdate: vi.fn(),
+        onWriteError: vi.fn(),
+        onWriteSaved: vi.fn(),
       }),
     );
     await waitFor(() => expect(customIds(result)).toEqual(["custom:mine"]));
@@ -440,8 +448,8 @@ describe("useTacticsLibrary deleting and the old browser library", () => {
     expect(result.current.activeTactic.id).not.toBe("custom:mine");
     expect(result.current.activeTactic.formation).toBe("4-4-2");
     expect(result.current.activeTactic.playStyle).toBe("Balanced");
-    expect(onFormationChange).not.toHaveBeenCalled();
-    expect(onPlayStyleChange).not.toHaveBeenCalled();
+    // Only the apply asked for before the delete: deleting applies nothing.
+    expect(callsTo("apply_custom_tactic")).toHaveLength(1);
     expect(onApplyPreset).not.toHaveBeenCalled();
   });
 
@@ -474,14 +482,312 @@ describe("useTacticsLibrary deleting and the old browser library", () => {
     const { result } = renderLibrary(game);
     await waitFor(() => expect(callsTo("mark_legacy_tactics_imported")).toHaveLength(1));
     act(() => result.current.handleCreateCustomTactic());
-    await waitFor(() => expect(callsTo("save_custom_tactic").length).toBeGreaterThan(1));
+    await waitFor(() => expect(callsTo("save_current_tactic")).toHaveLength(1));
 
     for (const [, args] of [
       ...callsTo("save_custom_tactic"),
+      ...callsTo("save_current_tactic"),
       ...callsTo("mark_legacy_tactics_imported"),
     ]) {
       expect(args).toMatchObject({ careerToken: 42 });
     }
     localStorage.clear();
+  });
+});
+
+describe("useTacticsLibrary saving and applying the whole tactic (#1189)", () => {
+  /**
+   * Given a career with no old library to copy
+   * When the player makes a tactic
+   * Then it is saved as the team's tactic as it stands, under the new id and name, and not as a
+   *      bare formation and style.
+   */
+  it("saves a made tactic as the team's whole tactic", async () => {
+    backendWith([], false);
+    const { result } = renderLibrary(careerGame);
+    await waitFor(() => expect(callsTo("list_custom_tactics")).toHaveLength(1));
+
+    act(() => result.current.handleCreateCustomTactic());
+
+    await waitFor(() => expect(callsTo("save_current_tactic")).toHaveLength(1));
+    const [, args] = callsTo("save_current_tactic")[0];
+    expect(args).toMatchObject({
+      careerToken: 0,
+      tactic: { id: expect.stringMatching(/^custom:/), name: "tactics.customTacticNumber" },
+    });
+    expect(callsTo("save_custom_tactic")).toHaveLength(0);
+  });
+
+  /**
+   * Given a setup the player saves as a tactic
+   * When the save answers
+   * Then Save resolves true if the backend accepted it and false if it refused it, so the screen
+   *      shows "Saved" only for a save that held.
+   */
+  it.each([
+    [false, true],
+    [true, false],
+  ])("resolves the save with %s refused: %s", async (failSaves, accepted) => {
+    backendWith([], false, failSaves);
+    const { result } = renderLibrary(careerGame);
+    await waitFor(() => expect(callsTo("list_custom_tactics")).toHaveLength(1));
+
+    let outcome: boolean | undefined;
+    await act(async () => {
+      outcome = await result.current.handleSaveTactic();
+    });
+
+    expect(outcome).toBe(accepted);
+  });
+
+  /**
+   * Given a save that refuses a made tactic
+   * When the player makes one
+   * Then the screen is told (once), and the library goes back to what the save holds.
+   */
+  it("reports a refused tactic save to the screen and restores the library", async () => {
+    backendWith([], false, true);
+    const onWriteError = vi.fn();
+    const onWriteSaved = vi.fn();
+    const { result } = renderHook(() =>
+      useTacticsLibrary({
+        gameState: careerGame,
+        formation: "4-4-2",
+        activePlayStyle: "Balanced",
+        initialPreset: null,
+        onApplyPreset: vi.fn(),
+        onGameUpdate: vi.fn(),
+        onWriteError,
+        onWriteSaved,
+      }),
+    );
+    await waitFor(() => expect(callsTo("list_custom_tactics")).toHaveLength(1));
+
+    act(() => result.current.handleCreateCustomTactic());
+
+    await waitFor(() => expect(onWriteError).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(customIds(result)).toEqual([]));
+    expect(onWriteSaved).not.toHaveBeenCalled();
+  });
+
+  /**
+   * Given a tactic save and its recovery reload both fail
+   * When the player saves a tactic
+   * Then the previous library is restored and the save failure is reported.
+   */
+  it("restores the library when both the save and recovery reload fail", async () => {
+    let lists = 0;
+    const failure = new Error("disk full");
+    mockedInvoke.mockReset();
+    mockedInvoke.mockImplementation(async (command: string) => {
+      if (command === "list_custom_tactics") {
+        if (++lists > 1) throw new Error("reload failed");
+        return [savedTactic];
+      }
+      if (command === "legacy_tactics_import_pending") return false;
+      if (command === "save_current_tactic") throw failure;
+      return { modified: false };
+    });
+    const onWriteError = vi.fn();
+    const { result } = renderHook(() =>
+      useTacticsLibrary({
+        gameState: careerGame,
+        formation: "4-4-2",
+        activePlayStyle: "Balanced",
+        initialPreset: null,
+        onApplyPreset: vi.fn(),
+        onGameUpdate: vi.fn(),
+        onWriteError,
+        onWriteSaved: vi.fn(),
+      }),
+    );
+    await waitFor(() => expect(customIds(result)).toEqual([savedTactic.id]));
+
+    let outcome: boolean | undefined;
+    await act(async () => {
+      outcome = await result.current.handleSaveTactic();
+    });
+
+    expect(outcome).toBe(false);
+    expect(onWriteError).toHaveBeenCalledWith(failure);
+    expect(customIds(result)).toEqual([savedTactic.id]);
+  });
+
+  /**
+   * Given two creates queued while the first save is pending
+   * When both saves and both recovery reloads fail
+   * Then neither unconfirmed tactic remains in the library.
+   */
+  it("restores the confirmed library after consecutive failed creates", async () => {
+    const firstSave = deferred<void>();
+    let lists = 0;
+    let saves = 0;
+    mockedInvoke.mockReset();
+    mockedInvoke.mockImplementation(async (command: string) => {
+      if (command === "list_custom_tactics") {
+        if (++lists > 1) throw new Error("reload failed");
+        return [];
+      }
+      if (command === "legacy_tactics_import_pending") return false;
+      if (command === "save_current_tactic") {
+        if (++saves === 1) await firstSave.promise;
+        throw new Error("save failed");
+      }
+      return { modified: false };
+    });
+    const { result } = renderLibrary(careerGame);
+    await waitFor(() => expect(callsTo("legacy_tactics_import_pending")).toHaveLength(1));
+
+    act(() => result.current.handleCreateCustomTactic());
+    await waitFor(() => expect(saves).toBe(1));
+    act(() => result.current.handleCreateCustomTactic());
+    expect(customIds(result)).toHaveLength(2);
+    await act(async () => firstSave.resolve());
+
+    await waitFor(() => expect(lists).toBe(3));
+    await waitFor(() => expect(customIds(result)).toEqual([]));
+  });
+
+  /**
+   * Given a save that accepts a made tactic
+   * When the player makes one
+   * Then the screen is told a write saved (so it drops an earlier alert), and no error is reported.
+   */
+  it("tells the screen when a tactic save is accepted", async () => {
+    backendWith([], false);
+    const onWriteError = vi.fn();
+    const onWriteSaved = vi.fn();
+    const { result } = renderHook(() =>
+      useTacticsLibrary({
+        gameState: careerGame,
+        formation: "4-4-2",
+        activePlayStyle: "Balanced",
+        initialPreset: null,
+        onApplyPreset: vi.fn(),
+        onGameUpdate: vi.fn(),
+        onWriteError,
+        onWriteSaved,
+      }),
+    );
+    await waitFor(() => expect(callsTo("list_custom_tactics")).toHaveLength(1));
+
+    act(() => result.current.handleCreateCustomTactic());
+
+    await waitFor(() => expect(onWriteSaved).toHaveBeenCalledTimes(1));
+    expect(onWriteError).not.toHaveBeenCalled();
+  });
+
+  /**
+   * Given a saved tactic in the library
+   * When the player picks it
+   * Then the backend applies it whole, the screen takes the game the backend answers with, and
+   *      the tactic is the one shown as active.
+   */
+  it("applies a saved tactic through the backend and shows the game it returns", async () => {
+    backendWith([savedTactic], false);
+    const onGameUpdate = vi.fn();
+    const onApplyPreset = vi.fn();
+    const { result } = renderHook(() =>
+      useTacticsLibrary({
+        gameState: careerGame,
+        formation: "4-4-2",
+        activePlayStyle: "Balanced",
+        initialPreset: null,
+        onApplyPreset,
+        onGameUpdate,
+        onWriteError: vi.fn(),
+        onWriteSaved: vi.fn(),
+      }),
+    );
+    await waitFor(() => expect(customIds(result)).toEqual(["custom:mine"]));
+
+    await act(async () => {
+      await result.current.applyTacticSelection(result.current.tacticLibrary[0]);
+    });
+
+    expect(mockedInvoke).toHaveBeenCalledWith("apply_custom_tactic", {
+      id: "custom:mine",
+      careerToken: 0,
+    });
+    expect(onGameUpdate).toHaveBeenCalledWith(appliedGame);
+    expect(onApplyPreset).not.toHaveBeenCalled();
+    expect(result.current.activeTactic.id).toBe("custom:mine");
+  });
+
+  /**
+   * Given a saved tactic being applied, and the career replaced (the game left) before the answer
+   * When the backend's answer arrives
+   * Then the screen doesn't take it: the old career's game must not replace the one now open, and
+   *      the tactic isn't shown as active (review, #1234).
+   */
+  it("ignores an applied tactic's answer that arrives after the career changed", async () => {
+    backendWith([savedTactic], false);
+    const answer = deferred<unknown>();
+    const fallback = mockedInvoke.getMockImplementation();
+    mockedInvoke.mockImplementation(async (command: string, args?: InvokeArgs) =>
+      command === "apply_custom_tactic" ? answer.promise : fallback?.(command, args),
+    );
+    const onGameUpdate = vi.fn();
+    const { result } = renderHook(() =>
+      useTacticsLibrary({
+        gameState: careerGame,
+        formation: "4-4-2",
+        activePlayStyle: "Balanced",
+        initialPreset: null,
+        onApplyPreset: vi.fn(),
+        onGameUpdate,
+        onWriteError: vi.fn(),
+        onWriteSaved: vi.fn(),
+      }),
+    );
+    await waitFor(() => expect(customIds(result)).toEqual(["custom:mine"]));
+
+    let applying: Promise<void> = Promise.resolve();
+    act(() => {
+      applying = result.current.applyTacticSelection(result.current.tacticLibrary[0]);
+    });
+    act(() => useGameStore.getState().clearGame());
+    await act(async () => {
+      answer.resolve(appliedGame);
+      await applying;
+    });
+
+    expect(onGameUpdate).not.toHaveBeenCalled();
+    expect(result.current.activeTactic.id).not.toBe("custom:mine");
+  });
+
+  /**
+   * Given a saved tactic the backend refuses to apply
+   * When the player picks it
+   * Then the screen keeps the game it had and does not show the tactic as active.
+   */
+  it("keeps the current setup when the backend refuses to apply a saved tactic", async () => {
+    backendWith([savedTactic], false, false, true);
+    const onGameUpdate = vi.fn();
+    const onWriteError = vi.fn();
+    const { result } = renderHook(() =>
+      useTacticsLibrary({
+        gameState: careerGame,
+        formation: "4-4-2",
+        activePlayStyle: "Balanced",
+        initialPreset: null,
+        onApplyPreset: vi.fn(),
+        onGameUpdate,
+        onWriteError,
+        onWriteSaved: vi.fn(),
+      }),
+    );
+    await waitFor(() => expect(customIds(result)).toEqual(["custom:mine"]));
+    vi.spyOn(console, "error").mockImplementation(() => {});
+
+    await act(async () => {
+      await result.current.applyTacticSelection(result.current.tacticLibrary[0]);
+    });
+
+    expect(callsTo("apply_custom_tactic")).toHaveLength(1);
+    expect(onGameUpdate).not.toHaveBeenCalled();
+    // The screen is told, so the manager sees it did not save.
+    expect(onWriteError).toHaveBeenCalledTimes(1);
+    expect(result.current.activeTactic.id).not.toBe("custom:mine");
   });
 });

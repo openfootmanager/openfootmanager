@@ -115,10 +115,8 @@ function deriveSessionState(state: GameStateData): SessionState {
 
 // Re-export all types so existing imports from gameStore keep working
 export type {
-  TeamSeasonRecord,
   TeamMatchRolesData,
   TeamData,
-  PlayerSeasonStats,
   CareerEntry,
   PlayerMovementEntry,
   PlayerMovementKind,

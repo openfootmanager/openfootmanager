@@ -129,7 +129,7 @@ impl LiveMatchState {
         if self.home_score == self.away_score {
             // Go to penalty shootout
             self.phase = MatchPhase::PenaltyShootout;
-            self.penalty_state = super::PenaltyShootoutState::default();
+            self.begin_penalty_shootout();
 
             let evt = MatchEvent::new(
                 self.current_minute,
@@ -167,6 +167,12 @@ impl LiveMatchState {
         match self.possession {
             Side::Home => self.home_possession_ticks += 1,
             Side::Away => self.away_possession_ticks += 1,
+        }
+
+        for side in [Side::Home, Side::Away] {
+            if let Some(id) = self.goalkeeper_in_goal(side).map(|p| p.id.clone()) {
+                *self.minutes_in_goal.entry(id).or_default() += 1;
+            }
         }
 
         // Deplete stamina for all on-pitch players

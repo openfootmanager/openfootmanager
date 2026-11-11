@@ -14,6 +14,7 @@ import { condBgColor } from "../../lib/playerConditionDisplay";
 import { getPositionColor } from "../../lib/positionColors";
 import { PlayerAvatar } from "./PlayerAvatar";
 import JerseyIcon from "./JerseyIcon";
+import { FamiliarityDot, type PositionFamiliarity } from "./PositionBadge";
 
 /** How well a player fits the slot they occupy — drives the avatar ring colour. */
 export type PitchFitTone = "exact" | "adapted" | "out" | "empty";
@@ -84,16 +85,20 @@ export function usePitchTokenFocus() {
   };
 }
 
+/** Only a slot he should not be in rings the disc; a natural or adapted one stays quiet. */
 function fitRingClass(fitTone: PitchFitTone): string {
+  return fitTone === "out" ? "ring-2 ring-warning-solid" : "ring-1 ring-on-brand/25";
+}
+
+/** What the badge's dot says; `empty` has no verdict, so no dot. */
+function dotFamiliarity(fitTone: PitchFitTone): PositionFamiliarity {
   switch (fitTone) {
-    case "exact":
-      return "ring-2 ring-success-400";
     case "adapted":
-      return "ring-2 ring-accent-400";
+      return "adapted";
     case "out":
-      return "ring-2 ring-danger-solid";
+      return "out";
     default:
-      return "ring-1 ring-on-brand/25";
+      return "natural";
   }
 }
 
@@ -247,10 +252,13 @@ export function PitchToken({
           </div>
         )}
         <div className="absolute -right-1.5 -top-1.5 z-10">
-          <span
-            className={`rounded-full ${position ? getPositionColor(position) : "bg-chrome"} px-2 py-0.5 text-caption font-heading font-bold uppercase leading-4 text-on-brand ring-1 ring-on-brand/40`}
-          >
-            {positionAbbr}
+          <span className="relative">
+            <span
+              className={`rounded-full ${position ? getPositionColor(position) : "bg-chrome"} px-2 py-0.5 text-caption font-heading font-bold uppercase leading-4 text-on-brand ring-1 ring-on-brand/40`}
+            >
+              {positionAbbr}
+            </span>
+            <FamiliarityDot familiarity={dotFamiliarity(fitTone)} />
           </span>
         </div>
         {hidePortrait ? (

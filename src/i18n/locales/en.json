@@ -299,10 +299,60 @@
     }
   },
   "teamSelect": {
-    "title": "Choose Your Club",
+    "title": "Choose your club",
     "subtitle": "Select the team you want to manage",
     "confirming": "Confirming...",
     "manage": "Manage {{name}}",
+    "steps": {
+      "label": "New career steps",
+      "manager": "Manager",
+      "world": "World",
+      "generation": "Generation",
+      "club": "Club",
+      "done": "completed"
+    },
+    "back": "Back to world generation",
+    "simulation": "Simulation",
+    "manageNone": "Manage",
+    "scope": {
+      "title": "What the world simulates",
+      "subtitle": "Choose which regions and competitions the game simulates in full. More of them make each day take longer.",
+      "sectionStart": "1 · Where you start",
+      "sectionRegions": "2 · Regions simulated",
+      "sectionCompetitions": "3 · Competitions",
+      "regionMeta": "{{countries}} · {{clubs}} clubs",
+      "simulate": "Simulate {{name}}",
+      "needs": "Needs {{regions}}",
+      "add": "Add {{regions}}",
+      "groupCount": "{{on}} of {{total}}",
+      "groupSimulated": "{{on}} of {{total}} simulated",
+      "needOne": "Switch on at least one competition.",
+      "summary": "{{regions}} regions · {{competitions}} competitions simulated",
+      "clubs": "{{clubs}} clubs in the simulated regions",
+      "apply": "Apply"
+    },
+    "rail": {
+      "label": "Countries and leagues",
+      "countries": "Countries"
+    },
+    "table": {
+      "label": "Clubs",
+      "club": "Club",
+      "transfers": "Transfers",
+      "wages": "Wages / wk",
+      "stadium": "Stadium"
+    },
+    "card": {
+      "label": "Chosen club",
+      "emptyTitle": "No club chosen yet",
+      "emptyHint": "Pick a club from the list to see its squad, budgets and what the board expects.",
+      "boardExpects": "Board expects",
+      "transferBudget": "Transfer budget",
+      "wageBudget": "Wage budget",
+      "balance": "Balance",
+      "stadium": "Stadium",
+      "founded": "founded {{year}}"
+    },
     "reputation": "Reputation",
     "squad": "Squad",
     "finances": "Finances",
@@ -312,21 +362,22 @@
     "repStrong": "Strong",
     "repAverage": "Average",
     "repDeveloping": "Developing",
+    "expectations": {
+      "title": "Challenge for the title",
+      "continental": "Push for continental football",
+      "topHalf": "Top half",
+      "midTable": "Mid-table",
+      "survival": "Avoid relegation"
+    },
     "failedToSelectTeam": "Failed to select team: {{error}}",
     "homeRegion": "Home Region",
     "homeCountry": "Home Country",
-    "allCountries": "All countries",
-    "simulationScope": "Simulation Scope",
     "otherClubs": "Other clubs",
     "searchClubs": "Search clubs…",
     "clubCount": "{{n}} clubs",
     "noClubsMatch": "No clubs match your search.",
-    "simulatedRegions": "Simulated Regions",
-    "simulatedCompetitions": "Simulated Competitions",
     "homeBadge": "Home",
-    "yourClub": "your club",
     "yourClubBadge": "Your Club",
-    "requiresRegions": "Requires {{regions}}",
     "selectedClub": "Selected Club",
     "formation": "Formation",
     "overall": "Overall",
@@ -337,7 +388,6 @@
     "clubCompetitionsAlwaysSimulated": "Your club's competitions are always simulated, even if you switch off other regions or tournaments.",
     "selectClubPrompt": "Select a club to inspect its squad and competitions.",
     "playersCount": "{{count}} players",
-    "scopeSummary": "{{regionsCount}} simulated regions and {{competitionsCount}} simulated competitions will be loaded.",
     "regionLabels": {
       "north-america": "North America",
       "central-america": "Central America",
@@ -360,13 +410,6 @@
       "InternationalClub": "International Club",
       "InternationalNation": "International Nation",
       "FriendlyCup": "Friendly Cup"
-    },
-    "scopeMessages": {
-      "homeRegionAlwaysActive": "Your playable region always stays active.",
-      "regionRequiredByCompetition": "{{competition}} is part of {{club}}'s schedule, so {{region}} must remain active.",
-      "regionRemovedDisablesCompetitions": "{{region}} was removed from the simulation scope, so dependent competitions were switched off too.",
-      "clubCompetitionLocked": "{{competition}} is on {{club}}'s schedule and will always be simulated.",
-      "autoEnabledRegions": "{{competition}} needs {{regions}}, so those regions were enabled automatically."
     }
   },
   "youthAcademy": {
@@ -404,6 +447,12 @@
       "B": "B"
     },
     "ordinal": {
+      "place": {
+        "one": "{{n}}st",
+        "two": "{{n}}nd",
+        "few": "{{n}}rd",
+        "other": "{{n}}th"
+      },
       "one": "{{n}}st",
       "two": "{{n}}nd",
       "few": "{{n}}rd",
@@ -412,14 +461,27 @@
     "currentWage": "Current Wage",
     "loading": "Loading...",
     "loadingGameState": "Loading game state...",
+    "detailsFor": "Details for {{name}}",
+    "overallRating": "Overall {{value}}",
+    "overallRatingTier": "Overall {{value}}, tier {{tier}}",
+    "namedRating": "{{name}} {{value}}",
+    "namedRatingTier": "{{name}} {{value}}, tier {{tier}}",
+    "listViewLabel": "Show as",
+    "listViewTable": "Table",
+    "listViewCards": "Cards",
     "noResults": "No results found.",
-    "place": {
-      "1": "1st",
-      "2": "2nd",
-      "3": "3rd",
-      "other": "{{n}}th"
-    },
     "pts": "Pts",
+    "playedFull": "Played",
+    "wonFull": "Won",
+    "drawnFull": "Drawn",
+    "lostFull": "Lost",
+    "ptsFull": "Points",
+    "recentForm": "Recent form",
+    "formResult": {
+      "W": "W",
+      "D": "D",
+      "L": "L"
+    },
     "played": "P",
     "won": "W",
     "drawn": "D",
@@ -621,7 +683,14 @@
     "listView": "List",
     "radarView": "Radar",
     "competition": "Competition",
-    "confirmDelete": "Confirm delete"
+    "confirmDelete": "Confirm delete",
+    "firstPage": "First page",
+    "previousPage": "Previous page",
+    "nextPage": "Next page",
+    "lastPage": "Last page",
+    "sortBy": "Sort by",
+    "sortAscending": "Ascending",
+    "lineupLoading": "The squad is still loading, so lineup changes are not available yet."
   },
   "teamSelection": {
     "title": "Choose Your Club",
@@ -670,8 +739,8 @@
     "coverageNeedsAttention": "{{count}} role groups need cover",
     "coverageBadge": "XI {{starters}}/{{required}} · Bench {{bench}}",
     "bestRole": "Best role",
-    "formationFit": "Familiarity",
     "startingXi": "Starting XI",
+    "notMatchDayEligible": "Not available for selection",
     "starter": "Starter",
     "benchOption": "Bench",
     "naturalFit": "Natural position",
@@ -734,6 +803,12 @@
     "unsavedChanges": "Unsaved changes",
     "currentPlanCard": "Current plan",
     "phaseBlueprint": "Phase blueprint",
+    "instructionsPanel": {
+      "title": "Team instructions",
+      "show": "Show team instructions",
+      "hide": "Hide team instructions",
+      "openAt": "Show team instructions: {{section}}"
+    },
     "phaseLabels": {
       "withBall": "With Ball",
       "withoutBall": "Without Ball",
@@ -1045,6 +1120,7 @@
     "youthSearches": "youth searches",
     "hireStaff": "Hire staff member",
     "best": "Best",
+    "staffActions": "Staff actions for {{name}}",
     "roles": {
       "AssistantManager": "Assistant Manager",
       "Coach": "Coach",
@@ -1081,6 +1157,8 @@
     "transferBudget": "Transfer Budget",
     "seasonIncome": "Season Income",
     "seasonExpenses": "Season Expenses",
+    "moneyIn": "Money in",
+    "moneyOut": "Money out",
     "perWeekSuffix": "/wk",
     "snapshotLoadFailed": "Could not load the club finances.",
     "perYearSuffix": "/yr",
@@ -1226,6 +1304,8 @@
     "boardSatisfied": "The board is satisfied with your performance.",
     "boardConcerns": "The board has concerns about results.",
     "boardThreat": "Your position is under serious threat.",
+    "boardWarned": "The board has warned you.",
+    "boardFinalWarning": "You are on a final warning.",
     "board": "Board",
     "fans": "Fans",
     "born": "Born",
@@ -1242,6 +1322,15 @@
     "employed": "Employed",
     "unemployed": "Unemployed",
     "reputation": "Reputation",
+    "reputationBand": {
+      "world_class": "World class",
+      "established": "Established",
+      "great": "Great",
+      "good": "Good",
+      "average": "Average",
+      "below_average": "Below average",
+      "unknown": "Unknown"
+    },
     "winRate": "Win rate",
     "matches": "Matches",
     "currentClub": "Current club",
@@ -1509,6 +1598,7 @@
     "yourTeam": "Your Team",
     "squad": "Squad",
     "avgOvr": "Avg OVR",
+    "manager": "Manager",
     "rep": "Rep",
     "est": "Est."
   },
@@ -1613,10 +1703,52 @@
     }
   },
   "playerProfile": {
+    "sections": "Profile sections",
+    "overview": {
+      "axes": {
+        "pace": "PAC",
+        "shooting": "SHO",
+        "dribbling": "DRI",
+        "passing": "PAS",
+        "vision": "VIS",
+        "composure": "COM",
+        "strength": "STR",
+        "aerial": "AER",
+        "handling": "HAN",
+        "reflexes": "REF",
+        "agility": "AGI",
+        "stamina": "STA"
+      },
+      "now": "Now",
+      "details": "Details",
+      "previousMatches": "Previous matches",
+      "allMatches": "All matches",
+      "traits": "Traits",
+      "born": "Born",
+      "squadRole": "Squad role",
+      "squadSenior": "Senior squad",
+      "squadYouth": "Youth academy",
+      "contractUntil": "until {{date}}",
+      "keyFor": "Key for a {{position}}",
+      "radarLabel": "Attribute radar: {{values}}",
+      "seasonExtras": "Discipline and clean sheets"
+    },
+    "overall": "Overall",
+    "ratingUnknown": "Your club does not know his rating",
+    "retired": "Retired",
+    "retiredOn": "Retired on {{date}}",
+    "lastClub": "Last club: {{club}}",
+    "tabs": {
+      "overview": "Overview",
+      "attributes": "Attributes",
+      "career": "Career",
+      "contract": "Contract"
+    },
     "contractInfo": "Contract & Info",
     "dateOfBirth": "Date of Birth",
     "noContract": "No contract",
     "weeklyWage": "Weekly Wage",
+    "approximateWage": "about {{wage}}",
     "annualWage": "Annual Wage",
     "yearsRemaining": "Years Remaining",
     "contractRisk": "Contract Risk",
@@ -1736,7 +1868,27 @@
     "renewalProjectionTitle": "Projected financial impact",
     "renewalProjectionWageBill": "Weekly wage bill {{before}} → {{after}}",
     "renewalProjectionBudgetUsage": "Wage budget use {{before}}% → {{after}}%",
-    "renewalProjectionRunway": "Cash runway {{before}} → {{after}}"
+    "renewalProjectionRunway": "Cash runway {{before}} → {{after}}",
+    "potentialOpinion": {
+      "scoutsOpinion": "Scout's opinion",
+      "coachesOpinion": "Coaches' opinion",
+      "bandS": "Could become one of the best",
+      "bandA": "Could become a first-team regular",
+      "bandB": "Could be a useful squad player",
+      "bandRest": "Unlikely to go much further",
+      "range": "Potential {{low}}–{{high}}",
+      "confident": "Confident",
+      "fairlySure": "Fairly sure",
+      "unsure": "Unsure",
+      "guess": "A guess",
+      "byScout": "Scouted by {{scout}} on {{date}}"
+    },
+    "positions": {
+      "title": "Positions",
+      "wherePlayed": "where you play him"
+    },
+    "loadFailed": "Couldn't load",
+    "retryWage": "Retry loading the wage"
   },
   "teamProfile": {
     "clubInfo": "Club Information",
@@ -1809,9 +1961,11 @@
     "confirmAdvanceDesc": "Ask for confirmation before advancing a day",
     "continueToNextEvent": "Continue Skips to Next Event",
     "continueToNextEventDesc": "Continue rolls forward until your next match, a blocker, a transfer deadline, or important news",
+    "skipShootoutPicker": "Skip the Penalty Order Picker",
+    "skipShootoutPickerDesc": "Start penalty shootouts in the automatic order, without asking you to set it",
     "savesData": "Saves & Data",
     "autoSave": "Auto-Save",
-    "autoSaveDesc": "Automatically save your game after each day",
+    "autoSaveDesc": "Automatically save your game every week",
     "exportWorld": "Export World Database",
     "exportWorldDesc": "Save the current world data as a shareable JSON file",
     "export": "Export",
@@ -1836,6 +1990,21 @@
     },
     "uiScale": "UI Scale",
     "uiScaleDesc": "Adjust font size and spacing for readability",
+    "sidebarWidth": "Sidebar width",
+    "sidebarWidthDesc": "How wide the open sidebar is. Wide fits every menu name on one line.",
+    "sidebarWidthOptions": {
+      "compact": "Compact",
+      "standard": "Standard",
+      "wide": "Wide"
+    },
+    "sidebarBehaviour": "Sidebar",
+    "sidebarBehaviourDesc": "How the sidebar opens. In a window too narrow for it, it opens over the page.",
+    "sidebarBehaviourOptions": {
+      "normal": "Normal",
+      "hover": "Expand on hover",
+      "click": "Expand on click",
+      "icons": "Icons only"
+    },
     "uiScaleOptions": {
       "small": "Small",
       "normal": "Normal",
@@ -1954,6 +2123,7 @@
     "step1Min": "Step 1 Minute",
     "teamControls": "Team Controls",
     "subs": "Subs",
+    "subsClosed": "Substitutions are closed after extra time",
     "formation": "Formation",
     "playStyle": "Play Style",
     "keyEvents": "Key Events",
@@ -2041,7 +2211,47 @@
       "suddenDeath": "Sudden Death",
       "shootoutScore": "Penalties: {{h}} – {{a}}",
       "homeKick": "Home kick coming...",
-      "awayKick": "Away kick coming..."
+      "awayKick": "Away kick coming...",
+      "kickScored": "Kick {{n}}, scored",
+      "kickMissed": "Kick {{n}}, missed",
+      "kickToCome": "Kick {{n}}, still to take",
+      "kickSheet": "Kick sheet",
+      "kickColumn": "Kick",
+      "sheetCaption": "Each round of the shootout: who kicked and how it went",
+      "scored": "Scored",
+      "missed": "Missed",
+      "toCome": "To come",
+      "notTaken": "Not taken",
+      "afterExtraTime": "{{home}} – {{away}} after extra time",
+      "kickAnnounceScored": "Kick {{n}}, {{team}}: {{kicker}} scores.",
+      "kickAnnounceMissed": "Kick {{n}}, {{team}}: {{kicker}} misses.",
+      "stepFailed": "The shootout couldn't go on. Try again.",
+      "nextKick": "Next kick",
+      "orderHeading": "Your penalty order",
+      "orderStep": "Step 1 of 2",
+      "orderHint": "Your penalty taker goes first, then the best shooters, with the keeper last. Drag a player, or pick one up with Space or Enter and move them with the arrow keys.",
+      "useAutoOrder": "Use auto order",
+      "startShootout": "Start the shootout",
+      "penTaker": "Pen taker",
+      "moving": "Moving",
+      "sitsOut": "Sits out",
+      "sitsOutNote": "Both sides take {{k}} kickers",
+      "sitsOutLine": "Sits out below this line: {{n}}. Both sides take {{k}} kickers.",
+      "moveKicker": "Move {{name}}, kick {{n}} of {{k}}",
+      "moveSitter": "Move {{name}}, sits out",
+      "liftedKick": "{{name}}, kick {{n}} of {{k}}. Arrow keys to move, Space to drop, Escape to put back.",
+      "liftedSitsOut": "{{name}}, sits out. Arrow keys to move, Space to drop, Escape to put back.",
+      "movedKick": "{{name}}, kick {{n}} of {{k}}",
+      "movedSitsOut": "{{name}} sits out",
+      "droppedKick": "{{name}} dropped at kick {{n}} of {{k}}.",
+      "droppedSitsOut": "{{name}} dropped: sits out.",
+      "putBackKick": "{{name}} put back at kick {{n}} of {{k}}.",
+      "putBackSitsOut": "{{name}} put back: sits out.",
+      "autoOrderRestored": "Back to the auto order.",
+      "columnShooting": "Shoot",
+      "columnComposure": "Comp",
+      "opponentOrderHidden": "The order of {{team}} stays hidden until each of their players steps up.",
+      "orderFailed": "Your order couldn't be set. Try again."
     },
     "fullTime": "Full Time",
     "ft": "FT",
@@ -2631,7 +2841,17 @@
     "compare": "Compare"
   },
   "be": {
+    "condition": {
+      "fresh": "Fresh",
+      "tiring": "Tiring",
+      "exhausted": "Exhausted",
+      "critical": "Critical"
+    },
     "error": {
+      "taskJoinFailed": "The simulation stopped unexpectedly. Please load your last save and try again.",
+      "autoSave": {
+        "failed": "Auto-save could not save your game. Your progress since the last save is not stored yet: save it yourself, and check that the disk has free space."
+      },
       "squadFloor": {
         "wouldLeaveShort": "This player cannot leave: the squad would fall below the minimum a club must keep. Position group affected: {{group}}.",
         "wouldLeaveSeniorsShort": "This player cannot leave: the club would be left with fewer than {{floor}} senior players, the minimum a club must keep."
@@ -2709,6 +2929,11 @@
         "maxSubstitutionsReached": "Maximum substitutions reached",
         "preMatchSwapTooLate": "Pre-match swaps are only allowed before kick-off",
         "cannotSubstituteSentOffPlayer": "Cannot substitute a sent-off player",
+        "noSubstitutionsForShootout": "No substitutions once extra time is over: the shootout is taken by the players on the pitch at the final whistle.",
+        "shootoutOrderNotNow": "The shootout order can only be set after extra time, before the first kick.",
+        "shootoutOrderNotYourSide": "You can only set your own side's shootout order.",
+        "notYourSide": "You can only give orders to your own team.",
+        "shootoutOrderNotEligible": "The shootout order must list each of your eligible players exactly once.",
         "playerNotOnPitch": "Player not on pitch",
         "playerAlreadySubstitutedOff": "Player has already been substituted off",
         "playerNotOnBench": "Player not on bench",
@@ -2727,6 +2952,7 @@
         "missingSchema": "A package file is missing its \"schema\" field.",
         "worldExportNotPackage": "This folder is an exported world save, not a package project. Exported worlds use a different format and cannot be edited here.",
         "notAProjectDirectory": "This is not a package project folder. Pick the folder that contains the package's package.json — or, for an installed .ofm package, use \"Open .ofm File\".",
+        "saveWouldDropItem": "Not saved: {{file}} holds an entry the editor can't read and can't keep in JSON. Fix that entry in the file, then save again.",
         "unknownSchema": "Unknown schema \"{{schema}}\".",
         "invalidEntity": "A \"{{schema}}\" entry is invalid: {{detail}}",
         "duplicateWorld": "The package already has a manifest in \"{{first}}\"; a package can have only one \"world\" file.",
@@ -2775,6 +3001,8 @@
       },
       "competitionDef": {
         "invalidCalendar": "Invalid competition calendar: check the division family, tier, phase and closing date.",
+        "invalidSeasonMonth": "Season start month {{month}} is not valid (it must be 1–12).",
+        "invalidSeasonDay": "Season start day {{day}} is not a valid day of the start month.",
         "invalidEmbedded": "This world's competition definitions are invalid and could not be loaded.",
         "invalidStandalone": "The selected competition definition file is invalid.",
         "parseFailed": "The competition definition file could not be read as JSON.",
@@ -2798,6 +3026,7 @@
         "bothParticipantSources": "Provide either an explicit list or a selector, not both.",
         "tooFewParticipants": "At least two participants are required.",
         "unknownTeam": "Unknown team \"{{team}}\".",
+        "duplicateTeam": "Team \"{{team}}\" is listed more than once.",
         "selectorMissingCountry": "This selector needs a country.",
         "selectorCountTooSmall": "This selector needs a count of at least 2.",
         "selectorMissingRegion": "This selector needs a region.",
@@ -2870,6 +3099,7 @@
         "cannotBidOnOwnPlayer": "Cannot bid on your own player",
         "playerHasNoTeam": "Player has no team",
         "insufficientFunds": "Insufficient funds",
+        "buyerCannotAffordFee": "The buying club can no longer afford this fee, so the deal cannot go through.",
         "transferBudgetTooLow": "Transfer budget too low",
         "playerNotOwnedByUser": "Player not found or not yours",
         "offerNotPending": "Offer not found or not pending",
@@ -2879,6 +3109,7 @@
         "loanCounterMustImproveTerms": "Loan counter must improve the current offer",
         "playerNotLoanListed": "Player is not listed for loan",
         "playerAlreadyLoaned": "Player is already out on loan",
+        "playerAlreadySold": "This player has already been sold. The transfer goes through when the window opens.",
         "invalidLoanEndDate": "Loan end date must be between 30 days and one year from today",
         "invalidLoanWageContribution": "Loan wage contribution must be between 0% and 100%",
         "invalidLoanBuyOption": "Loan buy option must be greater than zero",
@@ -2916,7 +3147,11 @@
         "invalidFormation": "That formation isn't one the game knows.",
         "invalidPlayStyle": "That play style isn't one the game knows.",
         "notFound": "That tactic no longer exists."
-      }
+      },
+      "anotherClubsSquad": "That squad belongs to another club.",
+      "startingXiPlayerNotEligible": "A player in this lineup is not eligible to start for your club.",
+      "startingXiDuplicatePlayer": "A player appears twice in this lineup.",
+      "startingXiWrongSize": "The starting eleven must have exactly eleven players, or every eligible player if the club has fewer."
     },
     "sender": {
       "boardOfDirectors": "Board of Directors",
@@ -3036,16 +3271,16 @@
       },
       "seasonPayout": {
         "subject": "Season {{season}} Prize Money Awarded",
-        "body": "The board has confirmed a prize payout of {{amount}} for your {{position}}-place league finish. The amount has been added to the club balance.",
-        "ledgerDescription": "Season {{season}} prize money for {{position}}{{suffix}} place"
+        "body": "The board has confirmed a prize payout of {{amount}} for your {{ordinal}}-place league finish. The amount has been added to the club balance.",
+        "ledgerDescription": "Season {{season}} prize money for {{ordinal}} place"
       },
       "seasonReview": {
         "subject": "Season {{season}} Review",
         "body": {
           "champion": "Congratulations! {{team}} are league champions! What an incredible achievement.\n\nThe board is absolutely delighted with your performance. You finished on {{points}} points.\n\nWe look forward to defending the title next season.",
-          "topFour": "A solid season for {{team}}. You finished in {{position}}{{suffix}} place with {{points}} points.\n\nThe board is satisfied with the campaign. Let's push for the title next season.",
-          "midTable": "{{team}} finished the season in {{position}}{{suffix}} place with {{points}} points.\n\nA mid-table finish. The board expects improvement next season. We need to be more competitive.",
-          "lowerHalf": "A disappointing season for {{team}}. Finishing {{position}}{{suffix}} with only {{points}} points is below expectations.\n\nThe board is concerned. Significant improvement will be needed next season, or your position may come under review."
+          "topFour": "A solid season for {{team}}. You finished in {{ordinal}} place with {{points}} points.\n\nThe board is satisfied with the campaign. Let's push for the title next season.",
+          "midTable": "{{team}} finished the season in {{ordinal}} place with {{points}} points.\n\nA mid-table finish. The board expects improvement next season. We need to be more competitive.",
+          "lowerHalf": "A disappointing season for {{team}}. Finishing {{ordinal}} with only {{points}} points is below expectations.\n\nThe board is concerned. Significant improvement will be needed next season, or your position may come under review."
         }
       },
       "promotion": {
@@ -3394,6 +3629,7 @@
         },
         "notes": {
           "managerBlocked": "You told me not to reopen contract talks yet.",
+          "markedLetExpire": "You marked this contract to run down, so I didn't open talks.",
           "completed": "I was able to close this one without needing you to step in.",
           "completedToKeepSquadFloor": "Done, over the board's wage policy. The board allowed it because without this player we would fall below the minimum squad.",
           "beyondLimits": "Their camp want around {{wage}}/wk for {{years}} years, which is beyond the delegation limits.",
@@ -3435,6 +3671,12 @@
       "scoutReport": {
         "subject": "Scout Report: {{player}}",
         "body": "Your scout {{scout}} has completed their assessment of {{player}}. Full report available in the scouting section."
+      },
+      "scoutingCancelled": {
+        "subject": "Scouting assignment cancelled",
+        "body": "The scout you sent to watch {{player}} has left the club, so no report will come. Send another scout if you still want one.",
+        "bodyWithoutPlayer": "The scout you sent to watch a player has left the club, and that player is no longer on our books, so no report will come.",
+        "youthBody": "The scout you sent on a youth search has left the club, so the search has been called off. Start a new one with another scout if you still want it."
       },
       "boardWarning": {
         "subject": "Board Concern — Performance Review",
@@ -3499,6 +3741,15 @@
         "bodyWithOption": "{{player}} will move on loan from {{parent}} to {{borrower}} from {{start}} until {{end}}. {{borrower}} will cover {{contribution}}% of the wages. Purchase option: {{fee}}.",
         "bodyNoOption": "{{player}} will move on loan from {{parent}} to {{borrower}} from {{start}} until {{end}}. {{borrower}} will cover {{contribution}}% of the wages. No purchase option."
       },
+      "loanRegistrationFailed": {
+        "subject": "Loan cancelled: {{player}}",
+        "body": "The agreed loan of {{player}} from {{parent}} to {{borrower}}, due to start on {{start}}, cannot go ahead: the player is no longer under contract to {{parent}}.",
+        "bodyRequirementNotMet": "The agreed loan of {{player}} from {{parent}} to {{borrower}} could not start on {{start}}: one of the conditions it was agreed under, such as room in {{borrower}}'s wage budget or the length of the player's contract, no longer holds."
+      },
+      "talksClosedBySale": {
+        "subject": "Signed elsewhere: {{player}}",
+        "body": "{{buyer}} have signed {{player}} for {{fee}}. Your open talks for him have been withdrawn."
+      },
       "loanOffer": {
         "subject": "Loan Offer for {{player}}",
         "body": "{{team}} want to take {{player}} on loan until {{endDate}} and cover {{wageContribution}}% of the wages. Purchase option: {{buyOption}}. Review the offer in the Transfers tab.",
@@ -3523,6 +3774,10 @@
       "matchesMoved": {
         "subject": "Fixtures rescheduled",
         "body": "Some of your matches have been moved so that your players keep their rest and the international breaks are respected:\n{{matches}}"
+      },
+      "savedDataSetAside": {
+        "subject": "Some saved data was set aside",
+        "body": "Part of this save couldn't be read when it loaded. It has been set aside rather than lost, and your career carries on. If something looks missing, a bug report ({{settings}} → {{reportBug}}, with the save attached) lets us look at it."
       }
     },
     "news": {
@@ -3636,7 +3891,9 @@
       "weeklyDigest": {
         "headline": "Weekly Digest — Week of {{weekStart}}",
         "bodyNoTopScorer": "The latest weekly digest is here. {{leader}} lead the table, and {{storylineCount}} storyline(s) are shaping the division this week.",
-        "bodyWithTopScorer": "The latest weekly digest is here. {{leader}} lead the table, while {{topScorer}} heads the scoring charts with {{topScorerGoals}} goal(s). {{storylineCount}} storyline(s) are shaping the division this week."
+        "bodyWithTopScorer": "The latest weekly digest is here. {{leader}} lead the table, while {{topScorer}} heads the scoring charts with {{topScorerGoals}} goal(s). {{storylineCount}} storyline(s) are shaping the division this week.",
+        "bodyNoTopScorerNoStorylines": "The latest weekly digest is here. {{leader}} lead the table.",
+        "bodyWithTopScorerNoStorylines": "The latest weekly digest is here. {{leader}} lead the table, while {{topScorer}} heads the scoring charts with {{topScorerGoals}} goal(s)."
       },
       "preseasonDigest": {
         "headline": "Preseason Digest — Week of {{weekStart}}",
@@ -3703,7 +3960,8 @@
       "package": {
         "countryWithoutRegion": "This package defines the country \"{{name}}\" ({{code}}) outside the game's nation list and puts it in no confederation, so its clubs are filed under Europe. Give it a confederation to place it.",
         "freeAgentFieldIgnored": "Player \"{{id}}\" has no club, so is a free agent with no contract: \"{{field}}\" is ignored. Give the player a club to use it, or remove the field.",
-        "repeatedNamePool": "The name pool for {{country}} was already given in {{first}}; this file's pool replaces it. Keep one of them, or give them different countries."
+        "repeatedNamePool": "The name pool for {{country}} was already given in {{first}}; this file's pool replaces it. Keep one of them, or give them different countries.",
+        "namePoolIncomplete": "The name pool for {{country}} has first names but no surnames, or surnames but no first names, so it is not used: players from {{country}} get the game's own names. Give it both."
       }
     }
   },
@@ -3925,6 +4183,12 @@
     "winRate": "Win rate"
   },
   "worldEditor": {
+    "previewPlaceholder": {
+      "team": "New Team",
+      "player": "New Player",
+      "competition": "New Competition"
+    },
+    "estimatedRating": "est.",
     "positionGroupFilter": {
       "Goalkeeper": "All goalkeepers",
       "Defender": "All defenders",

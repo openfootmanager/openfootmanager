@@ -18,7 +18,6 @@ import { makeTeamFallback } from "./helpers";
 import {
   isPlayerExactForSlot,
   isPlayerOutOfPosition,
-  normalisePosition,
   translatePositionAbbreviation,
 } from "../squad/SquadTab.helpers";
 import { PhaseBlueprintPanel } from "../tactics/PhaseBlueprintPanel";
@@ -28,6 +27,8 @@ import type { PlayerRole, TacticsPhaseSettings } from "../../store/types";
 import { PitchToken, Select, TeamLogo, ThemeToggle, type PitchFitTone } from "../ui";
 import { ChevronRight, Crown, Footprints, CornerDownRight, CircleDot, Wand2 } from "lucide-react";
 import { naturalPositionOf } from "../../lib/positions";
+import { usePositionTable } from "../../hooks/usePositionGroups";
+import { currentCareerToken, invokeForCareer } from "../../services/careerInvoke";
 
 interface PreMatchSetupProps {
   snapshot: MatchSnapshot;
@@ -48,6 +49,7 @@ export default function PreMatchSetup({
 }: PreMatchSetupProps) {
   const tierOf = useRatingTiers();
   const { t } = useTranslation();
+  const positionTable = usePositionTable();
   const [selectedStarterId, setSelectedStarterId] = useState<string | null>(null);
   const [isAutoSelecting, setIsAutoSelecting] = useState(false);
   const [activeTab, setActiveTab] = useState<"team" | "opponent">("team");
@@ -133,10 +135,11 @@ export default function PreMatchSetup({
       : slotPosition
         ? isPlayerExactForSlot(sp, slotPosition)
           ? "exact"
-          : isPlayerOutOfPosition(sp, slotPosition)
+          : isPlayerOutOfPosition(sp, slotPosition, positionTable)
             ? "out"
             : "adapted"
-        : normalisePosition(naturalPositionOf(sp)) === player.position
+        : // Until the table arrives every group is unknown and would read as out of position.
+          !positionTable.loaded || positionTable.groupOf(naturalPositionOf(sp)) === player.position
           ? "exact"
           : "out";
     const displayPosition = slotPosition ?? player.position;
@@ -239,7 +242,7 @@ export default function PreMatchSetup({
 
   const handleFormationChange = async (formation: string) => {
     try {
-      const snap = await invoke<MatchSnapshot>("apply_match_command", {
+      const snap = await invokeForCareer<MatchSnapshot>("apply_match_command", {
         command: { ChangeFormation: { side: userSide, formation } },
       });
       onUpdateSnapshot(snap);
@@ -250,7 +253,7 @@ export default function PreMatchSetup({
 
   const handlePlayStyleChange = async (playStyle: string) => {
     try {
-      const snap = await invoke<MatchSnapshot>("apply_match_command", {
+      const snap = await invokeForCareer<MatchSnapshot>("apply_match_command", {
         command: { ChangePlayStyle: { side: userSide, play_style: playStyle } },
       });
       onUpdateSnapshot(snap);
@@ -262,7 +265,7 @@ export default function PreMatchSetup({
   const handleSwap = async (benchPlayerId: string) => {
     if (!selectedStarterId) return;
     try {
-      const snap = await invoke<MatchSnapshot>("apply_match_command", {
+      const snap = await invokeForCareer<MatchSnapshot>("apply_match_command", {
         command: {
           PreMatchSwap: {
             side: userSide,
@@ -288,7 +291,7 @@ export default function PreMatchSetup({
     const cmdKey = commandMap[role];
     if (!cmdKey) return;
     try {
-      const snap = await invoke<MatchSnapshot>("apply_match_command", {
+      const snap = await invokeForCareer<MatchSnapshot>("apply_match_command", {
         command: { [cmdKey]: { side: userSide, player_id: playerId } },
       });
       onUpdateSnapshot(snap);
@@ -298,12 +301,13 @@ export default function PreMatchSetup({
   };
 
   const handleAutoSelect = async () => {
+    if (!positionTable.loaded) return;
     setIsAutoSelecting(true);
     try {
       const pool = [...userTeam.players, ...userBench];
       const idealIds = new Set<string>();
 
-      for (const pos of ["Goalkeeper", "Defender", "Midfielder", "Forward"]) {
+      for (const pos of positionTable.lines()) {
         const candidates = pool
           .filter((p) => p.position === pos)
           .sort((a, b) => b.ovr * (b.condition / 100) - a.ovr * (a.condition / 100));
@@ -328,16 +332,22 @@ export default function PreMatchSetup({
       const toRemove = [...currentIds].filter((id) => !idealIds.has(id));
 
       let snap: MatchSnapshot | null = null;
+      // Every swap belongs to the career the manager asked in; read it once, not per swap.
+      const careerToken = currentCareerToken();
       for (let i = 0; i < Math.min(toAdd.length, toRemove.length); i++) {
-        snap = await invoke<MatchSnapshot>("apply_match_command", {
-          command: {
-            PreMatchSwap: {
-              side: userSide,
-              player_off_id: toRemove[i],
-              player_on_id: toAdd[i],
+        snap = await invokeForCareer<MatchSnapshot>(
+          "apply_match_command",
+          {
+            command: {
+              PreMatchSwap: {
+                side: userSide,
+                player_off_id: toRemove[i],
+                player_on_id: toAdd[i],
+              },
             },
           },
-        });
+          careerToken,
+        );
       }
       if (snap) onUpdateSnapshot(snap);
     } catch (err) {
@@ -378,7 +388,7 @@ export default function PreMatchSetup({
       .sort((a, b) => b.score - a.score);
   };
 
-  const positions = ["Goalkeeper", "Defender", "Midfielder", "Forward"];
+  const positions = positionTable.lines();
   const oppPositions = positions.filter((pos) => oppTeam.players.some((p) => p.position === pos));
 
   const renderSetPieces = () => (

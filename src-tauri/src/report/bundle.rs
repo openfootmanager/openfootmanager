@@ -357,7 +357,7 @@ mod tests {
         let mut out = Vec::new();
         for i in 0..archive.len() {
             let mut entry = archive.by_index(i).expect("entry");
-            let name = entry.name().to_owned();
+            let name = entry.name().expect("entry name").into_owned();
             let mut contents = String::new();
             use std::io::Read;
             // Binary entries (the save) are not text; record the name with empty contents.

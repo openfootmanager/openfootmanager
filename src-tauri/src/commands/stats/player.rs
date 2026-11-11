@@ -241,7 +241,13 @@ fn build_history_overview(
     let Some(history_aggregates) = state.get_stats_state(|stats| {
         let mut records_by_player: HashMap<String, Vec<PlayerMatchStatsRecord>> = HashMap::new();
 
-        for record in &stats.player_matches {
+        // A friendly is not part of a player's season (`Fixture::is_competitive`), so its
+        // records are kept for the match history and left out of the totals.
+        for record in stats
+            .player_matches
+            .iter()
+            .filter(|record| record.competition.is_competitive())
+        {
             if peer_ids.contains(&record.player_id) {
                 records_by_player
                     .entry(record.player_id.clone())

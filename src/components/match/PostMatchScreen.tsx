@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { invoke } from "@tauri-apps/api/core";
 import { useTranslation } from "react-i18next";
 import type { GameStateData } from "../../store/gameStore";
 import {
@@ -26,6 +25,7 @@ import {
   FileText,
   Shield,
 } from "lucide-react";
+import { invokeForCareer } from "../../services/careerInvoke";
 
 interface PostMatchScreenProps {
   snapshot: MatchSnapshot;
@@ -183,7 +183,7 @@ export default function PostMatchScreen({
     setTalkPending(true);
     setTalkError(null);
     try {
-      const results = await invoke<
+      const results = await invokeForCareer<
         {
           player_id: string;
           player_name: string;

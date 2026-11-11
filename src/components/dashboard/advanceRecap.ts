@@ -1,6 +1,8 @@
 import type { AdvanceMatchResultData } from "../../services/advanceTimeService";
 import type { GameStateData } from "../../store/gameStore";
 import { getUserCompetition } from "../../lib/fixtures";
+import { resolveMessage, resolveNewsArticle } from "../../utils/backendI18n";
+import { needsAttention } from "../../utils/messagePriority";
 
 /** Match result enriched with the user's outcome (win/draw/loss) when they were involved. */
 export interface RecapMatch extends AdvanceMatchResultData {
@@ -17,13 +19,15 @@ export interface RecapTransfer {
   date: string;
 }
 
-/** A news/inbox line, carrying its i18n key so the modal resolves it via t(). */
+/**
+ * A news/inbox line, already in the player's language. It is resolved where it is built, through
+ * the same resolvers every other screen uses (`resolveNewsArticle`, `resolveMessage`): a param that
+ * is itself a key (an injury, a mood) is translated there, which `t(key, params)` would not do.
+ */
 export interface RecapHeadline {
   id: string;
   date: string;
   text: string;
-  textKey?: string;
-  params?: Record<string, string>;
   /** Message category (inbox items only) — used to resolve the icon. */
   category?: string;
 }
@@ -183,21 +187,17 @@ export function buildRecapWindow(
     .map((article) => ({
       id: article.id,
       date: article.date,
-      text: article.headline,
-      textKey: article.headline_key,
-      params: article.i18n_params,
+      text: resolveNewsArticle(article).headline,
     }));
 
   const inbox: RecapHeadline[] = (game.messages ?? [])
-    .filter((message) => inWindow(message.date) && message.priority === "High")
+    .filter((message) => inWindow(message.date) && needsAttention(message.priority))
     .sort((left, right) => right.date.localeCompare(left.date))
     .slice(0, MAX_PER_SECTION)
     .map((message) => ({
       id: message.id,
       date: message.date,
-      text: message.subject,
-      textKey: message.subject_key,
-      params: message.i18n_params,
+      text: resolveMessage(message).subject,
       category: message.category,
     }));
 

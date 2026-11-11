@@ -4,7 +4,7 @@ use crate::commands::round_summary::{build_round_summary_dto, RoundSummaryDto};
 use domain::league::FixtureStatus;
 use ofm_core::game::Game;
 use ofm_core::live_match_manager::{self, MatchMode};
-use ofm_core::state::StateManager;
+use ofm_core::state::{Career, StateManager};
 use ofm_core::turn::{build_cup_round_summaries, CupRoundSummary};
 use serde::{Deserialize, Serialize};
 
@@ -18,9 +18,17 @@ pub struct FinishLiveMatchResponse {
 
 type FinishedDay = (Game, Option<RoundSummaryDto>, Vec<CupRoundSummary>);
 
-pub fn finish_live_match(state: &StateManager) -> Result<FinishLiveMatchResponse, String> {
+pub fn finish_live_match(
+    state: &StateManager,
+    career: Career,
+) -> Result<FinishLiveMatchResponse, String> {
     let _operation = super::live_session::operation();
     info!("[cmd] finish_live_match");
+    // Checked before the session is taken, under the career lock `install_career` also holds, so
+    // a finish meant for another career leaves this one's match where it is.
+    state
+        .with_live_match(|session| career.check_token(session.career_token))
+        .ok_or("be.error.noActiveLiveMatch")??;
     let mut session = state
         .take_live_match()
         .ok_or("be.error.noActiveLiveMatch")?;
@@ -31,7 +39,7 @@ pub fn finish_live_match(state: &StateManager) -> Result<FinishLiveMatchResponse
     // report always describes a completed match.
     if !session.is_finished() {
         info!("[cmd] finish_live_match: match not finished, running to completion");
-        session.run_to_completion();
+        session.play_out_unmanaged();
     }
 
     let fixture_index = session.fixture_index;
@@ -55,8 +63,8 @@ pub fn finish_live_match(state: &StateManager) -> Result<FinishLiveMatchResponse
     // GUI/MCP write is never clobbered by a stale whole-game clone. Stats
     // captures are appended after the lock is released.
     let mut captures = Vec::new();
-    let (game, round_summary, cup_round_summaries) = state
-        .update_game(|game| -> Result<FinishedDay, String> {
+    let (game, round_summary, cup_round_summaries) =
+        state.update_game_for(career, |game| -> Result<FinishedDay, String> {
             // Check the authoritative competition before changing the legacy
             // mirror. A stale session must not replay a completed fixture or
             // leave the mirror pointing at a cup when finish is rejected.
@@ -152,8 +160,7 @@ pub fn finish_live_match(state: &StateManager) -> Result<FinishLiveMatchResponse
             let cup_round_summaries = build_cup_round_summaries(game, &played_on);
 
             Ok((game.clone(), round_summary, cup_round_summaries))
-        })
-        .ok_or("be.error.noActiveGameSession")??;
+        })??;
     for capture in captures {
         state.append_stats_state(capture);
     }
@@ -167,6 +174,7 @@ pub fn finish_live_match(state: &StateManager) -> Result<FinishLiveMatchResponse
 
 pub fn start_live_match_with_identity(
     state: &StateManager,
+    career: Career,
     fixture_index: usize,
     mode: &str,
     _allows_extra_time: bool,
@@ -188,18 +196,16 @@ pub fn start_live_match_with_identity(
     // GUI/MCP write is never clobbered; captures and the live session are
     // stored after the lock is released.
     let mut captures = Vec::new();
-    let (snapshot, session) = state
-        .update_game(|game| {
-            start_selected_fixture(
-                game,
-                fixture_index,
-                match_mode,
-                competition_id,
-                fixture_id,
-                &mut captures,
-            )
-        })
-        .ok_or("be.error.noActiveGameSession")??;
+    let (snapshot, session) = state.update_game_for(career, |game| {
+        start_selected_fixture(
+            game,
+            fixture_index,
+            match_mode,
+            competition_id,
+            fixture_id,
+            &mut captures,
+        )
+    })??;
     for capture in captures {
         state.append_stats_state(capture);
     }
@@ -349,18 +355,36 @@ fn start_selected_fixture(
 
 pub fn step_live_match(
     state: &StateManager,
+    career: Career,
     minutes: u16,
 ) -> Result<Vec<engine::MinuteResult>, String> {
     log::debug!("[cmd] step_live_match: minutes={}", minutes);
-    let results = state
-        .with_live_match(|session| {
-            if minutes <= 1 {
-                vec![session.step()]
-            } else {
-                session.step_many(minutes)
-            }
-        })
-        .ok_or_else(|| "be.error.noActiveLiveMatch".to_string())?;
+    // The step that kicks the match off takes the lifecycle gate, so a role save or a swap is
+    // wholly before or wholly after it. The phase is read and the step taken in one look at the
+    // session: a match already under way is stepped without the gate (it cannot un-start), and a
+    // match still waiting at kick-off is left alone, the gate is taken and the step retried under
+    // it, where nothing can replace the session (finishing and starting both hold the gate).
+    let mut gate = None;
+    let results = loop {
+        let stepped = state
+            .with_live_match(|session| {
+                career.check_token(session.career_token)?;
+                let waiting = session.match_state.phase() == engine::MatchPhase::PreKickOff;
+                if waiting && gate.is_none() {
+                    return Ok::<_, String>(None);
+                }
+                Ok(Some(if minutes <= 1 {
+                    vec![session.step()]
+                } else {
+                    session.step_many(minutes)
+                }))
+            })
+            .ok_or_else(|| "be.error.noActiveLiveMatch".to_string())??;
+        match stepped {
+            Some(results) => break results,
+            None => gate = Some(super::live_session::operation()),
+        }
+    };
 
     if let Some(last) = results.last() {
         info!(
@@ -378,11 +402,21 @@ pub fn step_live_match(
 
 pub fn apply_match_command(
     state: &StateManager,
+    career: Career,
     command: engine::MatchCommand,
 ) -> Result<engine::MatchSnapshot, String> {
     info!("[cmd] apply_match_command: {:?}", command);
+    // A swap or a change of shape moves players in the waiting match, and a role save reads the
+    // slots they fill: the lifecycle gate makes each a whole step against the other. The data
+    // locks stay one at a time.
+    let _operation = matches!(
+        command,
+        engine::MatchCommand::PreMatchSwap { .. } | engine::MatchCommand::ChangeFormation { .. }
+    )
+    .then(super::live_session::operation);
     let snapshot = state
         .with_live_match(|session| {
+            career.check_token(session.career_token)?;
             session.apply_command(command)?;
             Ok::<engine::MatchSnapshot, String>(session.snapshot())
         })
@@ -411,4 +445,41 @@ pub fn get_match_snapshot(state: &StateManager) -> Result<engine::MatchSnapshot,
     );
 
     Ok(snapshot)
+}
+
+/// Dials saved before kick-off also reach the match waiting to be played.
+pub fn follow_saved_dials_before_kick_off(state: &StateManager, game: &Game) -> Result<(), String> {
+    state
+        .with_live_match(|session| session.follow_saved_dials_before_kick_off(game))
+        .unwrap_or(Ok(()))
+}
+
+/// A save that rewrites the team's roles (a formation, an eleven, a tactic) also reaches the
+/// match waiting to be played: a role it drops is dropped there.
+pub fn follow_saved_roles_before_kick_off(state: &StateManager, game: &Game) -> Result<(), String> {
+    state
+        .with_live_match(|session| session.follow_saved_roles_before_kick_off(game))
+        .unwrap_or(Ok(()))
+}
+
+/// The slot the user's player fills in the match waiting at kick-off, with that match's career.
+/// Read before the game lock is taken, never inside it.
+pub fn user_slot_before_kick_off(
+    state: &StateManager,
+    player_id: &str,
+) -> Option<(u64, domain::player::Position)> {
+    state
+        .with_live_match(|session| session.user_slot_before_kick_off(player_id))
+        .flatten()
+}
+
+/// A starter's role saved before kick-off also reaches the match waiting to be played.
+pub fn follow_saved_role_before_kick_off(
+    state: &StateManager,
+    game: &Game,
+    player_id: &str,
+) -> Result<(), String> {
+    state
+        .with_live_match(|session| session.follow_saved_role_before_kick_off(game, player_id))
+        .unwrap_or(Ok(()))
 }

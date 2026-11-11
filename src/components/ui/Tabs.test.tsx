@@ -182,9 +182,9 @@ describe("Tabs", () => {
     expect(screen.getAllByRole("tab").map((tab) => tab.tabIndex)).toEqual([0, -1, -1]);
   });
 
-  /** Given the underline look, then the selected tab's underline is the positive colour (5.48:1). */
-  it("underlines the selected tab in the positive colour", () => {
+  /** Given the underline look, then the selected tab's underline is the selected colour (5.48:1). */
+  it("underlines the selected tab in the selected colour", () => {
     render(<Harness />);
-    expect(screen.getByRole("tab", { name: /Players/ })).toHaveClass("border-positive");
+    expect(screen.getByRole("tab", { name: /Players/ })).toHaveClass("border-selected");
   });
 });

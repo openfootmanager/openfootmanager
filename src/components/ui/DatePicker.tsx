@@ -264,7 +264,7 @@ export function DatePicker({ value, onChange, error, labelledBy }: DatePickerPro
           type="button"
           onClick={() => setMonthOpen(!monthOpen)}
           className={`w-full flex items-center justify-between bg-sunken border text-left rounded-lg p-3 outline-none transition-all focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 focus-visible:ring-offset-page ${
-            error ? "border-danger-solid" : monthOpen ? "border-primary-500" : "border-line-strong"
+            error ? "border-danger-solid" : monthOpen ? "border-focus" : "border-line-strong"
           }`}
         >
           <span className={month ? "text-fg" : "text-fg-subtle"}>{selectedMonthLabel}</span>
@@ -288,15 +288,11 @@ export function DatePicker({ value, onChange, error, labelledBy }: DatePickerPro
                   setMonthOpen(false);
                 }}
                 className={`w-full text-left px-3 py-2 text-body flex items-center justify-between transition-colors ${
-                  month === ""
-                    ? "bg-primary-50 dark:bg-primary-500/10 text-primary-600 dark:text-primary-400"
-                    : "text-fg-muted hover:bg-hover"
+                  month === "" ? "bg-selected-tint text-selected" : "text-fg-muted hover:bg-hover"
                 }`}
               >
                 <span>{t("date.noMonth")}</span>
-                {month === "" && (
-                  <Check className="w-4 h-4 text-primary-500 dark:text-primary-400" />
-                )}
+                {month === "" && <Check className="w-4 h-4 text-selected" />}
               </button>
               {months.map((m) => (
                 <button
@@ -316,13 +312,13 @@ export function DatePicker({ value, onChange, error, labelledBy }: DatePickerPro
                   }}
                   className={`w-full text-left px-3 py-2 text-body flex items-center justify-between transition-colors ${
                     month === m.value || month === m.value.padStart(2, "0")
-                      ? "bg-primary-50 dark:bg-primary-500/10 text-primary-600 dark:text-primary-400"
+                      ? "bg-selected-tint text-selected"
                       : "text-fg hover:bg-hover"
                   }`}
                 >
                   <span>{m.label}</span>
                   {(month === m.value || month === m.value.padStart(2, "0")) && (
-                    <Check className="w-4 h-4 text-primary-500 dark:text-primary-400" />
+                    <Check className="w-4 h-4 text-selected" />
                   )}
                 </button>
               ))}

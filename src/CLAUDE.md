@@ -48,11 +48,12 @@ and scale, at `/style-guide.html` on the dev server.
 |---|---|
 | `page`, `panel`, `sunken`, `hover`, `chrome`, `overlay` | Surfaces: the workspace, cards and tables, insets, a hovered row, the always-dark sidebar and match band, a modal backdrop |
 | `fg`, `fg-muted`, `fg-subtle`, `line`, `line-strong`, `focus`, `on-brand` | Text in three strengths, borders, the focus ring, text on the brand fill, chrome or turf (never on a `-solid`) |
+| `selected`, `selected-tint`, `selected-fill` | A control that is on or chosen: the chosen option's text and background in a list, and the fill of a switch that is on, a checked box, a strong segmented option or a count badge (carries `on-brand`) |
 | `positive`, `warning`, `danger`, `info` (+ `-tint`, `-solid`) | Status: text, background tint, bar or dot |
 | `tone-top`, `tone-good`, `tone-fair`, `tone-low`, `tone-bad` (+ `-tint`, `-solid`) | The one good-to-bad scale for rated values; the backend picks the tone |
 | `text-caption` 12 · `text-body` 14 · `text-lead` 16 · `text-heading` 18 · `text-title` 24 · `text-display` 32 | Type sizes by role, in rem |
 | `h-row`, `h-panel-header`, `h-toolbar`, `max-w-page`, `@split` | Row, header and toolbar heights (smaller under `.density-compact`), the page width, the two-panel container breakpoint |
-| `primary-*`, `accent-*`, `navy-*` | Brand: the Continue button, the selected nav item, logo strips |
+| `primary-*`, `accent-*`, `navy-*` | Brand: the Continue button, the selected nav item, logo strips. `primary-*` only in the files `designSystem.test.ts` lists in `BRAND_FILES` |
 | `font-heading` / `font-sans` | Barlow Condensed for headings / Inter for everything else |
 
 Rules:
@@ -72,7 +73,7 @@ Rules:
   state, table, tile or modal uses the primitive, never a copy.
 - `src/designSystem.test.ts` enforces these rules in every folder listed in its `FINISHED_FOLDERS`;
   a folder joins the list in the PR that brings it up to standard.
-- The font stacks include CJK fallbacks for `zh-CN`. Don't strip them when editing `@theme`.
+- The font stacks include CJK fallbacks for `zh-CN` and a Cyrillic condensed face (Fira Sans Extra Condensed) behind Barlow Condensed for `ru`. Don't strip them when editing `@theme`.
 
 ---
 

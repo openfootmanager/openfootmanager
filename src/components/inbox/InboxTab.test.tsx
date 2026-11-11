@@ -1,4 +1,5 @@
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { i18nReady } from "../../i18n";
 import { invoke } from "@tauri-apps/api/core";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import i18n from "../../i18n";
@@ -357,6 +358,7 @@ describe("InboxTab", (): void => {
 
     await waitFor((): void => {
       expect(mockedInvoke).toHaveBeenCalledWith("mark_message_read", {
+        careerToken: 0,
         messageId: "m1",
       });
     });
@@ -424,6 +426,7 @@ describe("InboxTab", (): void => {
 
     await waitFor((): void => {
       expect(mockedInvoke).toHaveBeenCalledWith("delete_message", {
+        careerToken: 0,
         messageId: "m1",
       });
     });
@@ -470,6 +473,7 @@ describe("InboxTab", (): void => {
 
     await waitFor((): void => {
       expect(mockedInvoke).toHaveBeenCalledWith("delete_messages", {
+        careerToken: 0,
         messageIds: ["m1", "m2"],
       });
     });
@@ -500,6 +504,7 @@ describe("InboxTab", (): void => {
 
     await waitFor((): void => {
       expect(mockedInvoke).toHaveBeenCalledWith("delete_messages", {
+        careerToken: 0,
         messageIds: ["m3", "m2", "m1"],
       });
     });
@@ -632,7 +637,10 @@ describe("InboxTab", (): void => {
     fireEvent.click(screen.getByTestId("inbox-confirm-delete"));
 
     await waitFor((): void => {
-      expect(mockedInvoke).toHaveBeenCalledWith("delete_messages", { messageIds: ["m1"] });
+      expect(mockedInvoke).toHaveBeenCalledWith("delete_messages", {
+        careerToken: 0,
+        messageIds: ["m1"],
+      });
     });
   });
 
@@ -724,6 +732,7 @@ describe("InboxTab", (): void => {
     await waitFor((): void => {
       expect(onNavigate).toHaveBeenCalledWith("Squad", undefined);
       expect(mockedInvoke).toHaveBeenCalledWith("resolve_message_action", {
+        careerToken: 0,
         messageId: "m1",
         actionId: "action-1",
         optionId: null,
@@ -1108,6 +1117,7 @@ describe("InboxTab", (): void => {
 
     await waitFor((): void => {
       expect(mockedInvoke).toHaveBeenCalledWith("resolve_message_action", {
+        careerToken: 0,
         messageId: "job_offer_team2_2025-01-01",
         actionId: "respond_team2",
         optionId: "accept",
@@ -1146,6 +1156,7 @@ describe("InboxTab", (): void => {
     expect(screen.queryByTestId("switch-club-confirm-modal")).not.toBeInTheDocument();
     await waitFor((): void => {
       expect(mockedInvoke).toHaveBeenCalledWith("resolve_message_action", {
+        careerToken: 0,
         messageId: "job_offer_team2_2025-01-01",
         actionId: "respond_team2",
         optionId: "decline",
@@ -1184,6 +1195,7 @@ describe("InboxTab", (): void => {
     expect(screen.queryByTestId("switch-club-confirm-modal")).not.toBeInTheDocument();
     await waitFor((): void => {
       expect(mockedInvoke).toHaveBeenCalledWith("resolve_message_action", {
+        careerToken: 0,
         messageId: "job_offer_team2_2025-01-01",
         actionId: "respond_team2",
         optionId: "accept",
@@ -1351,17 +1363,19 @@ describe("InboxTab", (): void => {
     });
 
     expect(screen.getByText("Lucas Flank")).toBeInTheDocument();
-    expect(screen.getByText("Left Back")).toBeInTheDocument();
+    // The badge names his natural position (Left Back) in its tooltip, not the coarse group (Defender).
+    expect(screen.getByTitle("Left Back")).toBeInTheDocument();
+    expect(screen.queryByTitle("Defender")).not.toBeInTheDocument();
   });
 
   /**
-   * Given a youth recruitment report with prospects whose ceilings are 77 (A), 76 (B) and 60 (the rest)
+   * Given a youth recruitment report with prospects whose true ceilings are 77 (A), 76 (B) and 60
    * When the report is read
-   * Then each ceiling is captioned with its backend tier's letter, and the rest has no caption.
+   * Then no ceiling shows, nor its tier's letter: the club has only the scout's opinion (B3d)
    */
-  it("captions a youth prospect's ceiling with its backend tier", async (): Promise<void> => {
+  it("never shows a youth prospect's true ceiling or its tier", async (): Promise<void> => {
     const prospect = (id: string, potential: number) =>
-      createProspect({ id, full_name: `Prospect ${potential}`, team_id: null, potential });
+      createProspect({ id, full_name: `Prospect ${id}`, team_id: null, potential });
     await renderInboxTab({
       gameState: createGameState([
         createMessage({
@@ -1382,9 +1396,12 @@ describe("InboxTab", (): void => {
       initialMessageId: "youth-tiers",
     });
 
-    expect(screen.getByText("A", { selector: "p" })).toBeInTheDocument();
-    expect(screen.getByText("B", { selector: "p" })).toBeInTheDocument();
-    expect(screen.queryByText("S", { selector: "p" })).not.toBeInTheDocument();
+    expect(screen.getByText("Prospect p-a")).toBeInTheDocument();
+    expect(screen.queryByText("A", { selector: "p" })).not.toBeInTheDocument();
+    expect(screen.queryByText("B", { selector: "p" })).not.toBeInTheDocument();
+    for (const ceiling of ["77", "76", "60"]) {
+      expect(screen.queryByText(new RegExp(`\\b${ceiling}\\b`))).not.toBeInTheDocument();
+    }
   });
 
   it("renders without crashing when gameState is null", async (): Promise<void> => {
@@ -1501,5 +1518,199 @@ describe("InboxTab", (): void => {
     expect(screen.getByRole("button", { name: "Sign to academy" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Shortlist" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Discard" })).toBeInTheDocument();
+  });
+
+  /**
+   * Given a player-event message with two responses, and the first answer still on its way
+   * When the manager clicks a response and then clicks again (the same or the other one)
+   * Then the backend is asked once and the response buttons are disabled until it answers: a
+   *      second click would apply the morale hit a second time.
+   */
+  it("asks the backend once while a response is in flight", async (): Promise<void> => {
+    const action: MessageAction = {
+      id: "respond",
+      label: "Respond",
+      action_type: {
+        ChooseOption: {
+          options: [
+            {
+              id: "no_renewal",
+              label: "Tell them you won't renew",
+              description: "Honest but brutal. Morale will tank.",
+            },
+            {
+              id: "reassure",
+              label: "Reassure them about renewal",
+              description: "Tell them you want them to stay. Big morale boost.",
+            },
+          ],
+        },
+      },
+      resolved: false,
+    };
+    const open = createGameState([
+      createMessage({ id: "contract_concern_p1", read: true, actions: [action] }),
+    ]);
+    let answer: (value: unknown) => void = () => {};
+    mockedInvoke.mockImplementation((command: string) => {
+      if (command === "resolve_message_action") {
+        return new Promise((resolve) => {
+          answer = resolve;
+        });
+      }
+      return Promise.resolve(command === "get_messages_page" ? open.messages : open);
+    });
+    await renderInboxTab({ gameState: open, initialMessageId: "contract_concern_p1" });
+    const resolveCalls = () =>
+      mockedInvoke.mock.calls.filter(([command]) => command === "resolve_message_action");
+
+    fireEvent.click(screen.getByText("Tell them you won't renew"));
+    fireEvent.click(screen.getByText("Tell them you won't renew"));
+    fireEvent.click(screen.getByText("Reassure them about renewal"));
+
+    expect(resolveCalls()).toHaveLength(1);
+    expect(screen.getByRole("button", { name: /won't renew/ })).toBeDisabled();
+    expect(screen.getByRole("button", { name: /Reassure them/ })).toBeDisabled();
+
+    await act(async () => {
+      answer({ game: open, effect: "", effect_i18n_key: null, effect_i18n_params: null });
+    });
+  });
+
+  /**
+   * Given a player-event message with two responses and the backend refusing the first
+   * When the manager clicks a response
+   * Then the refusal is shown as an alert in the player's language (no raw key), and the response
+   *      buttons are enabled again so the manager can answer.
+   */
+  it("shows a refused response and enables the buttons again", async (): Promise<void> => {
+    await i18nReady;
+    const action: MessageAction = {
+      id: "respond",
+      label: "Respond",
+      action_type: {
+        ChooseOption: {
+          options: [
+            {
+              id: "no_renewal",
+              label: "Tell them you won't renew",
+              description: "Honest but brutal. Morale will tank.",
+            },
+            {
+              id: "reassure",
+              label: "Reassure them about renewal",
+              description: "Tell them you want them to stay. Big morale boost.",
+            },
+          ],
+        },
+      },
+      resolved: false,
+    };
+    const open = createGameState([
+      createMessage({ id: "contract_concern_p1", read: true, actions: [action] }),
+    ]);
+    mockedInvoke.mockImplementation((command: string) => {
+      if (command === "resolve_message_action") {
+        return Promise.reject("be.error.careerChanged");
+      }
+      return Promise.resolve(command === "get_messages_page" ? open.messages : open);
+    });
+    await renderInboxTab({ gameState: open, initialMessageId: "contract_concern_p1" });
+
+    fireEvent.click(screen.getByText("Tell them you won't renew"));
+
+    const alert = await screen.findByRole("alert");
+    expect(alert).not.toHaveTextContent(/be\.error\./);
+    expect(alert).toHaveTextContent("The career changed before this could be saved.");
+    expect(screen.getByRole("button", { name: /won't renew/ })).toBeEnabled();
+    expect(screen.getByRole("button", { name: /Reassure them/ })).toBeEnabled();
+  });
+
+  /**
+   * Given a refusal shown for one message
+   * When the manager opens another message
+   * Then the refusal is gone: it belonged to the first message's buttons.
+   */
+  it("clears a refusal when another message is opened", async (): Promise<void> => {
+    await i18nReady;
+    const action: MessageAction = {
+      id: "respond",
+      label: "Respond",
+      action_type: {
+        ChooseOption: {
+          options: [
+            {
+              id: "no_renewal",
+              label: "Tell them you won't renew",
+              description: "Honest but brutal. Morale will tank.",
+            },
+          ],
+        },
+      },
+      resolved: false,
+    };
+    const open = createGameState([
+      createMessage({ id: "contract_concern_p1", read: true, subject: "First", actions: [action] }),
+      createMessage({ id: "other", read: true, subject: "Second" }),
+    ]);
+    mockedInvoke.mockImplementation((command: string) => {
+      if (command === "resolve_message_action") return Promise.reject("be.error.careerChanged");
+      return Promise.resolve(command === "get_messages_page" ? open.messages : open);
+    });
+    await renderInboxTab({ gameState: open, initialMessageId: "contract_concern_p1" });
+    fireEvent.click(screen.getByText("Tell them you won't renew"));
+    await screen.findByRole("alert");
+
+    fireEvent.click(screen.getByText("Second"));
+
+    await waitFor(() => expect(screen.queryByRole("alert")).toBeNull());
+  });
+
+  /**
+   * Given a response that was answered
+   * When the answer lands
+   * Then the other response buttons are enabled again (the next message's responses are not stuck).
+   */
+  it("enables the response buttons again once the answer lands", async (): Promise<void> => {
+    const options = [
+      {
+        id: "no_renewal",
+        label: "Tell them you won't renew",
+        description: "Honest but brutal. Morale will tank.",
+      },
+      {
+        id: "reassure",
+        label: "Reassure them about renewal",
+        description: "Tell them you want them to stay. Big morale boost.",
+      },
+    ];
+    const action: MessageAction = {
+      id: "respond",
+      label: "Respond",
+      action_type: { ChooseOption: { options } },
+      resolved: false,
+    };
+    const open = createGameState([
+      createMessage({ id: "contract_concern_p1", read: true, actions: [action] }),
+    ]);
+    // The answer leaves the action open (as when the backend keeps the conversation going).
+    mockedInvoke.mockImplementation((command: string) => {
+      if (command === "resolve_message_action") {
+        return Promise.resolve({
+          game: open,
+          effect: "",
+          effect_i18n_key: null,
+          effect_i18n_params: null,
+        });
+      }
+      return Promise.resolve(command === "get_messages_page" ? open.messages : open);
+    });
+    await renderInboxTab({ gameState: open, initialMessageId: "contract_concern_p1" });
+
+    fireEvent.click(screen.getByText("Tell them you won't renew"));
+
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: /Reassure them/ })).toBeEnabled(),
+    );
   });
 });

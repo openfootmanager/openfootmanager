@@ -6,10 +6,13 @@
 //! injury risk back to their clubs (full carry-back over the shared
 //! [`Player`](domain::player::Player) records).
 
+mod calendar;
+pub(crate) use calendar::settle_friendlies;
+
 use std::collections::HashMap;
 
 use chrono::{DateTime, Datelike, Utc};
-use domain::league::{Fixture, FixtureCompetition, FixtureStatus, GoalEvent, MatchResult};
+use domain::league::{FixtureStatus, GoalEvent, MatchResult};
 use domain::national_team::NationalTeam;
 use domain::player::Player;
 use rand::{Rng, RngExt};
@@ -96,9 +99,10 @@ pub fn international_blackout_dates(
 /// has its windows kept clear as much as this season's. National-team qualifying widens each
 /// window to its whole block.
 pub fn international_blackout_around(
-    competitions: &[domain::league::League],
+    game: &Game,
     today: chrono::NaiveDate,
 ) -> std::collections::BTreeSet<chrono::NaiveDate> {
+    let competitions = &game.competitions;
     let qualifying = competitions
         .iter()
         .any(crate::world_cup::is_world_cup_qualifying);
@@ -109,7 +113,7 @@ pub fn international_blackout_around(
         .max()
         .unwrap_or(today.year())
         .max(today.year());
-    (today.year() - 1..=last_fixture_year)
+    let mut blackout: std::collections::BTreeSet<_> = (today.year() - 1..=last_fixture_year)
         .filter_map(|year| chrono::NaiveDate::from_ymd_opt(year, 7, 1))
         .filter_map(|start| start.and_hms_opt(0, 0, 0))
         .flat_map(|start| {
@@ -118,7 +122,43 @@ pub fn international_blackout_around(
                 qualifying,
             )
         })
-        .collect()
+        .collect();
+    for (first, last) in competitions
+        .iter()
+        .filter_map(crate::world_cup::finals_period)
+    {
+        for offset in 0..=(last - first).num_days() {
+            if let Some(date) = first.checked_add_signed(chrono::Duration::days(offset)) {
+                blackout.insert(date);
+            }
+        }
+    }
+    let rest = crate::calendar_booking::MIN_GAP_DAYS - 1;
+    let horizon = today
+        .checked_sub_days(chrono::Days::new(rest as u64))
+        .unwrap_or(today);
+    for fixture in game
+        .national_teams
+        .iter()
+        .flat_map(|team| &team.fixtures)
+        .chain(
+            competitions
+                .iter()
+                .filter(|c| c.kind == domain::league::CompetitionType::InternationalNation)
+                .flat_map(|c| &c.fixtures),
+        )
+    {
+        if let Ok(date) = chrono::NaiveDate::parse_from_str(&fixture.date, "%Y-%m-%d")
+            && date >= horizon
+        {
+            for offset in -rest..=rest {
+                if let Some(day) = date.checked_add_signed(chrono::Duration::days(offset)) {
+                    blackout.insert(day);
+                }
+            }
+        }
+    }
+    blackout
 }
 
 /// Schedule one friendly per international window for every national team that
@@ -129,41 +169,8 @@ pub fn schedule_national_team_friendlies(
     window_dates: &[String],
     rng: &mut impl Rng,
 ) {
-    let mut eligible: Vec<usize> = national_teams
-        .iter()
-        .enumerate()
-        .filter(|(_, team)| !team.squad_player_ids.is_empty())
-        .map(|(index, _)| index)
-        .collect();
-    if eligible.len() < 2 {
-        return;
-    }
-    // In id order, not vector order: a save reloads national teams by name, so the order they
-    // are held in is not the order they were made in, and the shuffle below must not depend on it.
-    eligible.sort_by(|a, b| national_teams[*a].id.cmp(&national_teams[*b].id));
-
-    for (window_index, date) in window_dates.iter().enumerate() {
-        shuffle(&mut eligible, rng);
-        for pair in eligible.chunks(2) {
-            let [home_idx, away_idx] = pair else {
-                continue; // Odd team out sits this window.
-            };
-            let home_id = national_teams[*home_idx].id.clone();
-            let away_id = national_teams[*away_idx].id.clone();
-            let fixture = Fixture {
-                postponement: None,
-                id: format!("ntf-{window_index}-{home_id}-{away_id}"),
-                competition_id: INTERNATIONAL_FRIENDLY_COMPETITION_ID.to_string(),
-                matchday: window_index as u32 + 1,
-                date: date.clone(),
-                home_team_id: home_id,
-                away_team_id: away_id,
-                competition: FixtureCompetition::InternationalNation,
-                status: FixtureStatus::Scheduled,
-                result: None,
-            };
-            national_teams[*home_idx].fixtures.push(fixture);
-        }
+    for (home, fixture) in calendar::draw_friendlies(national_teams, window_dates, rng) {
+        national_teams[home].fixtures.push(fixture);
     }
 }
 
@@ -492,7 +499,7 @@ fn apply_carry_back(
         crate::player_wear::apply_match_wear(player, 90, rng);
         crate::player_wear::roll_match_injury(player, rng);
         if morale_delta != 0 {
-            player.morale = (player.morale as i16 + morale_delta).clamp(10, 100) as u8;
+            player.morale = crate::morale::apply_morale_change(player.morale, morale_delta);
         }
     }
 }
@@ -509,10 +516,45 @@ mod tests {
     use super::*;
     use crate::clock::GameClock;
     use chrono::TimeZone;
+    use domain::league::{Fixture, FixtureCompetition};
     use domain::manager::Manager;
     use domain::player::{Player, PlayerAttributes, Position};
     use rand::SeedableRng;
     use rand::rngs::StdRng;
+
+    /// Given an active World Cup, when its blackout is calculated, then club football is
+    /// kept clear throughout its scheduled group-stage dates, including gaps between matchdays.
+    #[test]
+    fn an_active_world_cup_reserves_its_tournament_dates() {
+        let mut game = empty_game();
+        let kickoff = Utc.with_ymd_and_hms(2026, 6, 20, 0, 0, 0).unwrap();
+        crate::world_cup::schedule_world_cup(&mut game, kickoff, &crate::world_cup::FORMAT_48);
+        let cup = game
+            .competitions
+            .iter()
+            .find(|c| crate::world_cup::is_world_cup_competition(c))
+            .expect("the finals exist");
+        let mut dates: Vec<_> = cup
+            .fixtures
+            .iter()
+            .map(|f| chrono::NaiveDate::parse_from_str(&f.date, "%Y-%m-%d").unwrap())
+            .collect();
+        dates.sort();
+        let first = *dates.first().expect("the finals have fixtures");
+        let last = *dates.last().unwrap();
+        assert!(last > first);
+        let blackout = international_blackout_around(&game, kickoff.date_naive());
+        // A 48-team finals has five knockout rounds; with the configured gaps and
+        // four ties per day, the final lands 19 days after the last group game.
+        let final_day = last + chrono::Duration::days(19);
+        for day in 0..=(final_day - first).num_days() {
+            let date = first + chrono::Duration::days(day);
+            assert!(
+                blackout.contains(&date),
+                "World Cup date {date} is not reserved"
+            );
+        }
+    }
 
     #[test]
     fn penalty_shootout_always_produces_a_winner() {
@@ -674,6 +716,44 @@ mod tests {
         assert_eq!(dates, sorted, "windows should already be chronological");
     }
 
+    /// Given old national history and a fixture on the oldest relevant rest date,
+    /// When the club blackout is built, then old dates are skipped and the boundary still blocks today.
+    #[test]
+    fn national_blackouts_skip_history_before_the_rest_horizon() {
+        let mut game = empty_game();
+        game.clock.current_date = Utc.with_ymd_and_hms(2031, 6, 11, 12, 0, 0).unwrap();
+        let mut team = make_national_team("nt-eng", "ENG", &["p1"]);
+        for (id, date) in [
+            ("old", "2020-01-01"),
+            ("outside-rest", "2031-06-08"),
+            ("boundary", "2031-06-09"),
+        ] {
+            team.fixtures.push(Fixture {
+                id: id.into(),
+                date: date.into(),
+                status: FixtureStatus::Completed,
+                competition_id: INTERNATIONAL_FRIENDLY_COMPETITION_ID.into(),
+                home_team_id: "nt-eng".into(),
+                away_team_id: "nt-fr".into(),
+                competition: FixtureCompetition::InternationalNation,
+                result: Some(MatchResult::default()),
+                ..Default::default()
+            });
+        }
+        game.national_teams.push(team);
+        let blackout = international_blackout_around(&game, game.clock.current_date.date_naive());
+        assert!(blackout.contains(&chrono::NaiveDate::from_ymd_opt(2031, 6, 11).unwrap()));
+        assert!(
+            !blackout.contains(&chrono::NaiveDate::from_ymd_opt(2020, 1, 1).unwrap()),
+            "old history must not enlarge the blackout"
+        );
+        assert!(
+            !blackout.contains(&chrono::NaiveDate::from_ymd_opt(2031, 6, 6).unwrap()),
+            "a fixture before the cutoff contributes no blackout dates"
+        );
+        assert_eq!(game.national_teams[0].fixtures.len(), 3);
+    }
+
     #[test]
     fn schedule_assigns_one_friendly_per_team_per_window() {
         let mut teams = vec![
@@ -716,7 +796,7 @@ mod tests {
     fn friendlies_do_not_depend_on_the_order_the_teams_are_held_in() {
         let teams = |ids: &[&str]| -> Vec<NationalTeam> {
             ids.iter()
-                .map(|id| make_national_team(id, &id.to_uppercase(), &["p1"]))
+                .map(|id| make_national_team(id, &id.to_uppercase(), &[id]))
                 .collect()
         };
         let ids = [
@@ -738,6 +818,63 @@ mod tests {
         };
 
         assert_eq!(pairings(teams(&ids)), pairings(teams(&reversed)));
+    }
+
+    /// Given a published friendly and four available nations, when the same windows are
+    /// scheduled twice, then only the missing pair is added and every identity stays unique.
+    #[test]
+    fn friendlies_fill_only_missing_nations_in_each_window() {
+        let mut teams = vec![
+            make_national_team("nt-eng", "ENG", &["p1"]),
+            make_national_team("nt-fra", "FR", &["p2"]),
+            make_national_team("nt-br", "BR", &["p3"]),
+            make_national_team("nt-ar", "AR", &["p4"]),
+        ];
+        teams[0].fixtures.push(Fixture {
+            id: "published".into(),
+            competition_id: INTERNATIONAL_FRIENDLY_COMPETITION_ID.into(),
+            date: "2031-06-09".into(),
+            home_team_id: "nt-eng".into(),
+            away_team_id: "nt-fra".into(),
+            competition: FixtureCompetition::InternationalNation,
+            ..Default::default()
+        });
+        let windows = vec!["2031-06-09".into()];
+        for _ in 0..2 {
+            schedule_national_team_friendlies(&mut teams, &windows, &mut StdRng::seed_from_u64(7));
+        }
+        let fixtures: Vec<_> = teams.iter().flat_map(|team| &team.fixtures).collect();
+        assert_eq!(
+            fixtures.len(),
+            2,
+            "one existing pairing and one missing pairing"
+        );
+        assert!(fixtures.iter().any(|f| f.id == "published"));
+        let participants: std::collections::HashSet<_> = fixtures
+            .iter()
+            .flat_map(|f| [&f.home_team_id, &f.away_team_id])
+            .collect();
+        assert_eq!(participants.len(), 4);
+    }
+
+    /// Given the same two nations playing the same window in consecutive years,
+    /// when the friendlies are scheduled, then both fixtures have durable distinct IDs.
+    #[test]
+    fn national_friendly_ids_are_unique_across_seasons() {
+        let mut teams = vec![
+            make_national_team("nt-eng", "ENG", &["p1"]),
+            make_national_team("nt-fr", "FR", &["p2"]),
+        ];
+        for year in [2031, 2032] {
+            schedule_national_team_friendlies(
+                &mut teams,
+                &[format!("{year}-09-09")],
+                &mut StdRng::seed_from_u64(7),
+            );
+        }
+        let fixtures: Vec<_> = teams.iter().flat_map(|t| &t.fixtures).collect();
+        assert_eq!(fixtures.len(), 2);
+        assert_ne!(fixtures[0].id, fixtures[1].id);
     }
 
     #[test]
@@ -827,5 +964,23 @@ mod tests {
             home_total > away_total,
             "a much stronger home side should outscore the weaker one (home {home_total} vs away {away_total})"
         );
+    }
+
+    /// Given two internationals at morale 3, below the floor of 10 that bad news stops at
+    /// When one plays in a defeat and the other in a win
+    /// Then the defeat leaves the first at 3, and the win lifts the second by its 2 to 5: neither
+    ///      is lifted to 10
+    #[test]
+    fn an_international_result_moves_a_very_unhappy_player_by_what_it_is_worth() {
+        let mut players = vec![make_player("lost", 70), make_player("won", 70)];
+        for player in &mut players {
+            player.morale = 3;
+        }
+        let mut rng = StdRng::seed_from_u64(3);
+
+        apply_carry_back(&mut players, &[0], 0, 1, &mut rng);
+        apply_carry_back(&mut players, &[1], 1, 0, &mut rng);
+
+        assert_eq!((players[0].morale, players[1].morale), (3, 5));
     }
 }

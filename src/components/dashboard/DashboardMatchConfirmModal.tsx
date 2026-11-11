@@ -1,12 +1,12 @@
 import { AlertCircle } from "lucide-react";
-import type { JSX } from "react";
+import { type JSX, useId } from "react";
 import { useTranslation } from "react-i18next";
 
 import { getFixtureDisplayLabel, getTeamName } from "../../lib/helpers";
 import type { FixtureData, TeamData } from "../../store/gameStore";
 import type { MatchModeType } from "../../hooks/useAdvanceTime";
+import { Dialog } from "../ui";
 import type { DashboardMatchModeMeta } from "./DashboardHeader";
-import DashboardModalFrame from "./DashboardModalFrame";
 
 interface DashboardMatchConfirmModalProps {
   matchMode: MatchModeType;
@@ -28,15 +28,19 @@ export default function DashboardMatchConfirmModal({
   competitionName,
 }: DashboardMatchConfirmModalProps): JSX.Element {
   const { t } = useTranslation();
+  const titleId = useId();
 
   return (
-    <DashboardModalFrame maxWidthClassName="max-w-md">
+    <Dialog labelledBy={titleId} onClose={onCancel} className="w-full max-w-md rounded-2xl p-6">
       <div className="mb-4 flex items-center gap-3">
         <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary-700 text-on-brand">
           {modeMeta.icon}
         </div>
         <div>
-          <h3 className="text-lg font-heading font-bold uppercase tracking-wide text-gray-900 dark:text-white">
+          <h3
+            id={titleId}
+            className="text-lg font-heading font-bold uppercase tracking-wide text-gray-900 dark:text-white"
+          >
             {t("continueMenu.matchDayTitle")}
           </h3>
           <p className="text-xs text-gray-500 dark:text-gray-400">{modeMeta.label}</p>
@@ -78,6 +82,6 @@ export default function DashboardMatchConfirmModal({
           {t("common.confirm")}
         </button>
       </div>
-    </DashboardModalFrame>
+    </Dialog>
   );
 }

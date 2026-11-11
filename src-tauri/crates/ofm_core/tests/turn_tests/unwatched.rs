@@ -159,17 +159,16 @@ fn a_squad_too_short_to_field_eleven_is_topped_up_from_the_injured() {
 }
 
 // ---------------------------------------------------------------------------
-// A dormant match is a scoreline, not a workout
+// A match in a competition nobody follows is still a matchday
 //
-// Competitions outside the player's active scope are resolved by a
-// scoreline-only model that charges nobody any condition. Their clubs have not
-// played ninety minutes in any physical sense, so the training ground's "you
-// played today" gate must not close on them — or they lose the day's recovery
-// every matchday and get nothing for it.
+// A club that plays on a day does not train that day, whichever competition the match is in and
+// whether or not the player follows it (#869). It used to be otherwise: a dormant match is resolved
+// by a scoreline that charges nobody any condition, so the training ground stayed open for its clubs
+// and they took the day's recovery. A club's calendar is the same either way.
 // ---------------------------------------------------------------------------
 
 #[test]
-fn a_club_in_a_dormant_competition_still_recovers_on_its_matchday() {
+fn a_club_in_a_dormant_competition_does_not_train_on_its_matchday() {
     let mut game = make_game_with_match();
     add_idle_club(&mut game, "dormant_home", 50);
     add_idle_club(&mut game, "dormant_away", 50);
@@ -200,7 +199,8 @@ fn a_club_in_a_dormant_competition_still_recovers_on_its_matchday() {
     game.competitions = vec![active, dormant];
     let before = condition_of(&game, "dormant_home");
 
-    // 2025-06-15 is a Sunday: a rest day on every schedule.
+    // 2025-06-15 is a Sunday: a rest day on every schedule, which restores condition for a club that
+    // is not playing.
     turn::process_day(&mut game);
 
     let dormant_played = game.competitions[1]
@@ -212,10 +212,9 @@ fn a_club_in_a_dormant_competition_still_recovers_on_its_matchday() {
         "the dormant fixture should have been resolved"
     );
     let after = condition_of(&game, "dormant_home");
-    assert!(
-        after.iter().zip(&before).all(|(now, was)| now > was),
-        "a scoreline-only match costs nothing, so its rest day must still restore: \
-         {before:?} -> {after:?}"
+    assert_eq!(
+        after, before,
+        "the club played today, so its training ground was closed and nothing was restored"
     );
 }
 

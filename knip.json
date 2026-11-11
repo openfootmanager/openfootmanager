@@ -7,6 +7,7 @@
     "src/dev/styleGuide/main.tsx"
   ],
   "project": ["src/**/*.{ts,tsx}", "scripts/**/*.mjs", ".github/scripts/**/*.mjs"],
+  "ignore": ["src/store/generated/**"],
   "ignoreDependencies": ["@fontsource/.*", "tailwindcss"],
   "ignoreBinaries": ["google-chrome"],
   "ignoreExportsUsedInFile": true

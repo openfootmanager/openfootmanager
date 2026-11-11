@@ -15,7 +15,7 @@ pub(crate) use observation::AiObservation;
 use crate::event::MatchEvent;
 use crate::report::MatchReport;
 use crate::types::{
-    MatchConfig, PlayStyle, PlayerData, PlayerRole, Side, TacticalDial, TeamData, Zone,
+    MatchConfig, PlayStyle, PlayerData, PlayerRole, Position, Side, TacticalDial, TeamData, Zone,
 };
 
 // ---------------------------------------------------------------------------
@@ -87,6 +87,31 @@ pub enum MatchCommand {
         side: Side,
         dial: TacticalDial,
     },
+    /// Set the order a side takes its shootout kicks in: every eligible player, reordered.
+    /// Accepted only once the shootout has started and before its first kick.
+    SetShootoutOrder {
+        side: Side,
+        player_ids: Vec<String>,
+    },
+}
+
+impl MatchCommand {
+    /// The side the command is for. Every command names one: a manager's orders go to a team.
+    pub fn side(&self) -> Side {
+        match self {
+            Self::Substitute { side, .. }
+            | Self::ChangeFormation { side, .. }
+            | Self::ChangePlayStyle { side, .. }
+            | Self::SetFreeKickTaker { side, .. }
+            | Self::SetCornerTaker { side, .. }
+            | Self::SetPenaltyTaker { side, .. }
+            | Self::SetCaptain { side, .. }
+            | Self::PreMatchSwap { side, .. }
+            | Self::ChangePlayerRole { side, .. }
+            | Self::ChangeTacticalDial { side, .. }
+            | Self::SetShootoutOrder { side, .. } => *side,
+        }
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -176,6 +201,21 @@ pub struct PenaltyShootoutSnapshot {
     pub home_scored: u8,
     pub away_scored: u8,
     pub sudden_death: bool,
+    /// A side's planned order, for the manager of that side only. The engine's own snapshot
+    /// never fills these: the live session fills in its user's side, so the opponent's order
+    /// stays hidden until each kick is taken.
+    #[serde(default)]
+    pub home_order: Option<ShootoutOrderSnapshot>,
+    #[serde(default)]
+    pub away_order: Option<ShootoutOrderSnapshot>,
+}
+
+/// One side's shootout order: everyone eligible to kick, in the order they will kick, and how
+/// many of them kick. The players after the first `kickers` sit out.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ShootoutOrderSnapshot {
+    pub player_ids: Vec<String>,
+    pub kickers: u8,
 }
 
 // ---------------------------------------------------------------------------
@@ -191,6 +231,14 @@ struct PenaltyShootoutState {
     home_scored: u8,
     away_scored: u8,
     sudden_death: bool,
+    /// Each side's order: the ids of everyone on the pitch at the final whistle, in the order
+    /// they kick. A manager may reorder it before the first kick.
+    home_order: Vec<String>,
+    away_order: Vec<String>,
+    /// How many of each order kick: the length of the shorter one. Kick `n` of a side is taken
+    /// by entry `n % kickers`, so everyone kicks once before anyone kicks twice, and the
+    /// entries after `kickers` sit out.
+    kickers: usize,
 }
 
 // ---------------------------------------------------------------------------
@@ -202,6 +250,8 @@ pub struct LiveMatchState {
     home: TeamData,
     away: TeamData,
     config: MatchConfig,
+    home_formation_slots: HashMap<String, Vec<(String, Position, bool)>>,
+    away_formation_slots: HashMap<String, Vec<(String, Position, bool)>>,
 
     // Match progress
     phase: MatchPhase,
@@ -217,6 +267,9 @@ pub struct LiveMatchState {
 
     // Events log
     events: Vec<MatchEvent>,
+    /// Events a command created between minutes. The live feed is built from each minute's
+    /// results, so they are handed to the next minute's results, once, as well as logged.
+    unreported_events: Vec<MatchEvent>,
 
     // Possession tracking
     home_possession_ticks: u32,
@@ -225,6 +278,9 @@ pub struct LiveMatchState {
     // Discipline
     yellows: HashMap<String, u8>,
     sent_off: HashSet<String>,
+
+    /// The minutes each player has stood in goal (`goalkeeper_in_goal`), for the clean sheet.
+    minutes_in_goal: HashMap<String, u8>,
 
     // Substitutions
     home_subs_made: u8,
@@ -235,6 +291,8 @@ pub struct LiveMatchState {
     // Bench players (available for substitution)
     home_bench: Vec<PlayerData>,
     away_bench: Vec<PlayerData>,
+    home_slot_roles: Option<Vec<Vec<crate::types::PlayerRole>>>,
+    away_slot_roles: Option<Vec<Vec<crate::types::PlayerRole>>>,
 
     // Set piece takers
     home_set_pieces: SetPieceTakers,
@@ -284,6 +342,8 @@ impl LiveMatchState {
             home,
             away,
             config,
+            home_formation_slots: HashMap::new(),
+            away_formation_slots: HashMap::new(),
             phase: MatchPhase::PreKickOff,
             current_minute: 0,
             home_score: 0,
@@ -291,16 +351,20 @@ impl LiveMatchState {
             ball_zone: Zone::Midfield,
             possession: Side::Home,
             events: Vec::with_capacity(300),
+            unreported_events: Vec::new(),
             home_possession_ticks: 0,
             away_possession_ticks: 0,
             yellows: HashMap::new(),
             sent_off: HashSet::new(),
+            minutes_in_goal: HashMap::new(),
             home_subs_made: 0,
             away_subs_made: 0,
             max_subs: 5,
             substitutions: Vec::new(),
             home_bench,
             away_bench,
+            home_slot_roles: None,
+            away_slot_roles: None,
             home_set_pieces: SetPieceTakers::default(),
             away_set_pieces: SetPieceTakers::default(),
             allows_extra_time,
@@ -317,6 +381,16 @@ impl LiveMatchState {
 
     /// Step one minute forward. Returns the events that occurred.
     pub fn step_minute<R: Rng>(&mut self, rng: &mut R) -> MinuteResult {
+        let mut result = self.play_phase(rng);
+        if !self.unreported_events.is_empty() {
+            let mut events = std::mem::take(&mut self.unreported_events);
+            events.append(&mut result.events);
+            result.events = events;
+        }
+        result
+    }
+
+    fn play_phase<R: Rng>(&mut self, rng: &mut R) -> MinuteResult {
         match self.phase {
             MatchPhase::PreKickOff => self.start_match(rng),
             MatchPhase::FirstHalf => self.play_minute(rng),
@@ -378,21 +452,23 @@ impl LiveMatchState {
                 dial.set_on(&mut self.team_mut(side).tactics);
                 Ok(())
             }
+            MatchCommand::SetShootoutOrder { side, player_ids } => {
+                self.set_shootout_order(side, player_ids)
+            }
             MatchCommand::ChangePlayerRole {
                 side,
                 player_id,
                 role,
             } => {
-                let player = self
-                    .team_mut(side)
-                    .players
-                    .iter_mut()
-                    .find(|p| p.id == player_id)
+                let players = &self.team_ref(side).players;
+                let index = players
+                    .iter()
+                    .position(|p| p.id == player_id)
                     .ok_or("be.error.liveMatch.playerNotOnPitch")?;
-                if !is_role_valid_for_position(role, player.position) {
+                if !self.slot_admits_role(side, index, players[index].position, role) {
                     return Err("be.error.roleNotValidForPosition".into());
                 }
-                player.role = role;
+                self.team_mut(side).players[index].role = role;
                 Ok(())
             }
         }
@@ -432,6 +508,9 @@ impl LiveMatchState {
             self.home.players.iter().chain(&self.home_bench).collect();
         let away_squad: Vec<&PlayerData> =
             self.away.players.iter().chain(&self.away_bench).collect();
+        for (id, stats) in report.player_stats.iter_mut() {
+            stats.minutes_in_goal = Some(self.minutes_in_goal.get(id).copied().unwrap_or(0));
+        }
         report.assign_ratings(&home_squad, &away_squad);
         report
     }
@@ -449,6 +528,11 @@ impl LiveMatchState {
     /// Current minute
     pub fn minute(&self) -> u8 {
         self.current_minute
+    }
+
+    /// The side on the pitch, in slot order: entry i of its players plays its formation's slot i.
+    pub fn team(&self, side: Side) -> &TeamData {
+        self.team_ref(side)
     }
 
     /// Get the bench for a side
@@ -475,51 +559,5 @@ impl LiveMatchState {
     pub fn test_set_score(&mut self, home: u8, away: u8) {
         self.home_score = home;
         self.away_score = away;
-    }
-}
-
-fn is_role_valid_for_position(role: PlayerRole, position: crate::types::Position) -> bool {
-    use crate::types::Position;
-    match position {
-        Position::Goalkeeper => matches!(
-            role,
-            PlayerRole::Standard | PlayerRole::BallPlayingKeeper | PlayerRole::SweeperKeeper
-        ),
-        Position::Defender => matches!(
-            role,
-            PlayerRole::Standard
-                | PlayerRole::Stopper
-                | PlayerRole::CoverCB
-                | PlayerRole::BallPlayingCB
-                | PlayerRole::AttackingFB
-                | PlayerRole::DefensiveFB
-                | PlayerRole::InvertedFB
-                | PlayerRole::WingBack
-        ),
-        Position::Midfielder => matches!(
-            role,
-            PlayerRole::Standard
-                | PlayerRole::AnchorMan
-                | PlayerRole::BallWinner
-                | PlayerRole::DeepLyingPlaymaker
-                | PlayerRole::BoxToBox
-                | PlayerRole::Carrilero
-                | PlayerRole::Mezzala
-                | PlayerRole::AdvancedPlaymaker
-                | PlayerRole::ShadowStriker
-                | PlayerRole::WideForward
-                | PlayerRole::InsideForward
-                | PlayerRole::InvertedWinger
-        ),
-        Position::Forward => matches!(
-            role,
-            PlayerRole::Standard
-                | PlayerRole::Poacher
-                | PlayerRole::TargetMan
-                | PlayerRole::DeepLyingForward
-                | PlayerRole::False9
-                | PlayerRole::PressingForward
-                | PlayerRole::CompleteForward
-        ),
     }
 }

@@ -1,15 +1,22 @@
-import { describe, it, expect, vi } from "vitest";
+import { beforeAll, describe, it, expect, vi } from "vitest";
+import { i18nReady } from "../i18n";
 import { render, screen, fireEvent } from "@testing-library/react";
 import ScoutPlayerCard from "./ScoutPlayerCard";
 import type { ScoutReportData } from "../store/gameStore";
 
-// Mock react-i18next — return keys as-is
+// Mock react-i18next — return keys as-is. The scout's words come from the backend's keys through the
+// real resolver, so they read as the locale writes them.
 vi.mock("react-i18next", () => ({
+  initReactI18next: { type: "3rdParty", init: () => undefined },
   useTranslation: () => ({
     t: (key: string) => key,
     i18n: { language: "en" },
   }),
 }));
+
+beforeAll(async () => {
+  await i18nReady;
+});
 
 function fullReport(overrides?: Partial<ScoutReportData>): ScoutReportData {
   return {
@@ -87,18 +94,18 @@ describe("ScoutPlayerCard", () => {
 
   it("renders rating badge", () => {
     render(<ScoutPlayerCard report={fullReport()} />);
-    expect(screen.getByText(/common\.scoutRatings\.good/)).toBeInTheDocument();
+    expect(screen.getByText(/Good/)).toBeInTheDocument();
     expect(screen.getByText(/~67/)).toBeInTheDocument();
   });
 
   it("renders potential badge", () => {
     render(<ScoutPlayerCard report={fullReport()} />);
-    expect(screen.getByText("common.scoutPotential.strong")).toBeInTheDocument();
+    expect(screen.getByText("Strong development potential")).toBeInTheDocument();
   });
 
   it("renders confidence badge", () => {
     render(<ScoutPlayerCard report={fullReport()} />);
-    expect(screen.getByText(/common\.scoutConfidence\.high/)).toBeInTheDocument();
+    expect(screen.getByText(/High/)).toBeInTheDocument();
   });
 
   it("shows condition when available", () => {

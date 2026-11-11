@@ -1,9 +1,10 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use ts_rs::TS;
 
 use crate::player::Player;
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, TS)]
 pub enum MessageCategory {
     Welcome,
     LeagueInfo,
@@ -22,7 +23,7 @@ pub enum MessageCategory {
     JobOffer,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, TS)]
 pub enum MessagePriority {
     Low,
     Normal,
@@ -30,7 +31,17 @@ pub enum MessagePriority {
     Urgent,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+impl MessagePriority {
+    /// Whether a message of this priority asks for the manager's attention when it arrives, so a
+    /// continue stops after the day it came: High and Urgent, by the maintainer's ruling (Urgent
+    /// is the more pressing of the two). An unread Urgent message is also listed as a time
+    /// blocker; that is a separate, Urgent-only rule.
+    pub fn needs_attention(&self) -> bool {
+        matches!(self, Self::High | Self::Urgent)
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
 pub struct MessageAction {
     pub id: String,
     pub label: String,
@@ -41,7 +52,7 @@ pub struct MessageAction {
     pub label_key: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
 pub enum ActionType {
     Acknowledge,
     NavigateTo { route: String },
@@ -49,7 +60,7 @@ pub enum ActionType {
     Dismiss,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
 pub struct ActionOption {
     pub id: String,
     pub label: String,
@@ -60,7 +71,7 @@ pub struct ActionOption {
     pub description_key: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
 pub struct InboxMessage {
     pub id: String,
     pub subject: String,
@@ -91,7 +102,7 @@ pub struct InboxMessage {
     pub i18n_params: HashMap<String, String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default, TS)]
 pub struct MessageContext {
     pub team_id: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -107,13 +118,29 @@ pub struct MessageContext {
     pub youth_search_objective: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub youth_prospects: Option<Vec<Player>>,
+    /// The reporting scout's opinion of each prospect's potential, written with the report. None
+    /// for a report written before reports carried one: its prospects show no opinion.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub youth_prospect_opinions: Option<Vec<ProspectOpinion>>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub scout_report: Option<ScoutReportData>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub delegated_renewal_report: Option<DelegatedRenewalReportData>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+/// A scout's opinion of a youth prospect's potential, as his youth scouting report gives it: a
+/// range on the 1-99 scale, both ends inclusive, and who judged it on which day. Kept as written,
+/// so the prospect's profile shows the same opinion once he is signed (`ofm_core::scouting`).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+pub struct ProspectOpinion {
+    pub prospect_id: String,
+    pub low: u8,
+    pub high: u8,
+    pub scout_name: String,
+    pub scouted_on: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
 pub struct DelegatedRenewalReportData {
     pub success_count: u32,
     pub failure_count: u32,
@@ -121,7 +148,7 @@ pub struct DelegatedRenewalReportData {
     pub cases: Vec<DelegatedRenewalCaseData>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
 pub struct DelegatedRenewalCaseData {
     pub player_id: String,
     pub player_name: String,
@@ -136,7 +163,7 @@ pub struct DelegatedRenewalCaseData {
     pub note_params: HashMap<String, String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
 pub struct ScoutReportData {
     pub player_id: String,
     pub player_name: String,
@@ -163,7 +190,7 @@ pub struct ScoutReportData {
     pub confidence_key: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
 pub struct ContextMatchResult {
     pub home_team_id: String,
     pub away_team_id: String,

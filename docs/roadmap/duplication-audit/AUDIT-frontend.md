@@ -209,6 +209,12 @@ both local formatters.
 
 ### A6. Scouting search badges every outfield player red — the PR #416 bug, one more copy
 
+> **Resolved by #1022** (and #986): every position badge now reads the group the backend names
+> (`get_position_groups`, through `PlayerPositionBadge`). `positionBadgeVariant` and
+> `lib/playerRating.ts` are deleted, so the locations below describe the code as it was. What is
+> left of the family is `lib/positionColors.ts` (the `PitchToken` pill and
+> `PackageEditor/helpers.ts`), `lib/positions.ts` and `SquadTab.helpers`.
+
 **Concept.** Position → badge colour.
 
 **Locations.**

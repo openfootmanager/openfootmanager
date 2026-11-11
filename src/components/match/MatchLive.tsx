@@ -37,6 +37,7 @@ import {
   Target,
   Flag,
 } from "lucide-react";
+import { invokeForCareer } from "../../services/careerInvoke";
 
 type ActivePanel = "events" | "stats" | "lineups";
 
@@ -115,6 +116,9 @@ export default function MatchLive({
   }, [gameState.players]);
 
   const isFinished = snapshot.phase === "Finished";
+  // The engine refuses substitutions from the final whistle of extra time on (#1043), so the control
+  // closes with it rather than opening a panel whose every change comes back refused.
+  const subsClosed = snapshot.phase === "ExtraTimeEnd" || snapshot.phase === "PenaltyShootout";
 
   // Reads only `lastResult` for phase transitions, which is sound because step_many stops on
   // entering any phase that needs the manager — so a half time, shootout or finish is always the
@@ -124,7 +128,7 @@ export default function MatchLive({
     async (minutes: number) => {
       if (transitioningRef.current) return;
       try {
-        const results = await invoke<MinuteResult[]>("step_live_match", { minutes });
+        const results = await invokeForCareer<MinuteResult[]>("step_live_match", { minutes });
         if (results.length > 0) {
           const lastResult = results[results.length - 1];
 
@@ -452,13 +456,20 @@ export default function MatchLive({
               <button
                 type="button"
                 onClick={() => setShowSubPanel(!showSubPanel)}
-                className="flex items-center gap-2 px-3 py-2 bg-gray-200 hover:bg-gray-300 dark:bg-navy-700 dark:hover:bg-navy-600 rounded-lg text-sm font-heading uppercase tracking-wider text-gray-700 dark:text-gray-300 transition-colors"
+                disabled={subsClosed}
+                aria-describedby={subsClosed ? "subs-closed-reason" : undefined}
+                className="flex items-center gap-2 px-3 py-2 bg-gray-200 hover:bg-gray-300 dark:bg-navy-700 dark:hover:bg-navy-600 rounded-lg text-sm font-heading uppercase tracking-wider text-gray-700 dark:text-gray-300 transition-colors disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <RefreshCw className="w-4 h-4" />
                 {t("match.subs")} (
                 {userSide === "Home" ? snapshot.home_subs_made : snapshot.away_subs_made}/
                 {snapshot.max_subs})
               </button>
+              {subsClosed && (
+                <p id="subs-closed-reason" className="text-caption text-fg-muted">
+                  {t("match.subsClosed")}
+                </p>
+              )}
               <div>
                 <p className="text-[10px] font-heading uppercase tracking-widest text-gray-600 dark:text-gray-500 mb-1">
                   {t("match.formation")}
@@ -565,7 +576,7 @@ export default function MatchLive({
       </div>
 
       {/* Substitution Modal */}
-      {showSubPanel && userSide && (
+      {showSubPanel && userSide && !subsClosed && (
         <SubPanel
           snapshot={snapshot}
           side={userSide}

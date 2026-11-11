@@ -266,25 +266,30 @@ export function TraitList({
   traits,
   size = "sm",
   max,
+  oneLine = false,
 }: {
   traits: string[];
   size?: "sm" | "xs";
   max?: number;
+  /** Keep the badges on one line, as a table row does. */
+  oneLine?: boolean;
 }) {
   if (!traits || traits.length === 0) {
     return null;
   }
 
   const displayed = max ? traits.slice(0, max) : traits;
-  const remaining = max && traits.length > max ? traits.length - max : 0;
+  const hidden = max ? traits.slice(max) : [];
 
   return (
-    <div className="flex flex-wrap gap-1">
+    <div className={`flex gap-1 ${oneLine ? "flex-nowrap" : "flex-wrap"}`}>
       {displayed.map((trait) => (
         <TraitBadge key={trait} trait={trait} size={size} />
       ))}
-      {remaining > 0 ? (
-        <span className="text-[10px] text-gray-500 font-heading self-center">+{remaining}</span>
+      {hidden.length > 0 ? (
+        <span className="self-center font-heading text-caption text-fg-muted">
+          +{hidden.length}
+        </span>
       ) : null}
     </div>
   );

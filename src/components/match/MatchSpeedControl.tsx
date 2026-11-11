@@ -36,6 +36,8 @@ interface MatchSpeedControlProps {
   onStep: () => void;
   /** Whether Space toggles the match; off while a dialog is open or the screen hands over. */
   enabled?: boolean;
+  /** The step button's words, where a step is not a minute (a shootout steps one kick). */
+  stepLabel?: string;
 }
 
 /**
@@ -51,6 +53,7 @@ export function MatchSpeedControl({
   onSelectPace,
   onStep,
   enabled = true,
+  stepLabel,
 }: MatchSpeedControlProps) {
   const { t } = useTranslation();
   const headingId = useId();
@@ -130,7 +133,7 @@ export function MatchSpeedControl({
         disabled={!paused}
         className="h-row w-full"
       >
-        {t("match.step1Min")}
+        {stepLabel ?? t("match.step1Min")}
       </Button>
     </div>
   );

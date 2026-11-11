@@ -45,7 +45,7 @@ jobs:
       # secret-exfiltration hole. The default checkout is the BASE branch; the review reads the
       # diff through the GitHub API.
       - name: Checkout repository
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 1
           # Don't leave GITHUB_TOKEN in the checkout's git config, where the Claude step could read it.
@@ -53,7 +53,7 @@ jobs:
 
       - name: Run Claude Code Review
         id: claude-review
-        uses: anthropics/claude-code-action@86d88e619d8e6caf07b5c3944dd14f441c533718 # v1
+        uses: anthropics/claude-code-action@d535f5172dec02b204866b393d6b20b9b2aaf98d # v1
         env:
           # The plugin's review agents are launched from the main session only; the cap stops
           # recursive delegation and spending.

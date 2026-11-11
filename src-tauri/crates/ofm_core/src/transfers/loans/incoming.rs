@@ -118,8 +118,10 @@ pub fn respond_to_loan_offer(
         .ok_or("be.error.noTeamAssigned")?;
     // Preserve ownership/active-loan validation before checking whether the offer is live.
     let player = owned_player(&game.players, &user_team_id, player_id)?;
-    if accept && player_has_active_or_pending_loan(player) {
-        return Err(ERR_PLAYER_ALREADY_LOANED.into());
+    // A sale agreed for the window is a move in hand as much as a loan is: accepting a loan on
+    // top of it scheduled both, and on opening day the loan wiped out the sale (#1205).
+    if accept {
+        ensure_no_move_in_hand(player)?;
     }
     let offer = pending_offer(player, offer_id)?;
     if accept {
@@ -316,9 +318,7 @@ pub fn counter_loan_offer(
         .ok_or("be.error.noTeamAssigned")?;
     // Preserve the original contract/reservation error order before resolving a pending offer.
     let player = owned_player(&game.players, &user_team_id, player_id)?;
-    if player_has_pending_registration(player) {
-        return Err(ERR_PLAYER_ALREADY_LOANED.into());
-    }
+    ensure_no_move_in_hand(player)?;
     validate_loan_end_before_contract(player, parsed_end_date)?;
     let offer = pending_offer(player, offer_id)?;
     validate_counter_improves(offer, &user_team_id, &terms)?;

@@ -28,7 +28,7 @@ impl OfmMcpHandler {
         app_handle: tauri::AppHandle,
     ) -> Self {
         // Build tool router, respecting disabled tools from config
-        let disabled = Self::collect_disabled_tools(&config);
+        let disabled = config.hidden_tools();
         let context = Arc::new(McpContext {
             state_manager,
             save_manager_state,
@@ -42,18 +42,6 @@ impl OfmMcpHandler {
             context,
             tool_router,
         }
-    }
-
-    /// Collect all disabled tool names from mode + denylist.
-    fn collect_disabled_tools(config: &McpConfig) -> Vec<String> {
-        let mut disabled: Vec<String> = config
-            .mode
-            .disabled_tools()
-            .iter()
-            .map(|s| s.to_string())
-            .collect();
-        disabled.extend(config.disabled_tools.clone());
-        disabled
     }
 }
 

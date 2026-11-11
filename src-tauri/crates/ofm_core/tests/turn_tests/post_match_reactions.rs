@@ -110,3 +110,66 @@ fn a_third_straight_win_lifts_the_whole_squad() {
         assert!((2..=5).contains(&lift), "{id}: lifted {lift}");
     }
 }
+
+fn with_team1_morale(mut game: Game, morale: u8) -> Game {
+    for player in game
+        .players
+        .iter_mut()
+        .filter(|player| player.team_id.as_deref() == Some("team1"))
+    {
+        player.morale = morale;
+    }
+    game
+}
+
+/// Given the user's squad on two straight defeats, once at morale 50 and once at morale 3
+/// When it loses a third time, which costs each player at 50 the result and the streak
+/// Then each player at 3 stays at 3: a defeat is no reason to lift anyone to 10
+#[test]
+fn a_defeat_never_lifts_a_player_whose_morale_is_below_ten() {
+    let mut steady = with_team1_morale(team1_with_form(&["L", "L"]), 50);
+    let mut unhappy = with_team1_morale(team1_with_form(&["L", "L"]), 3);
+
+    turn::apply_match_report(&mut steady, 0, "team1", "team2", &empty_report(0, 2));
+    turn::apply_match_report(&mut unhappy, 0, "team1", "team2", &empty_report(0, 2));
+
+    let steady_morale = morale_of(&steady, "team1");
+    assert!(!steady_morale.is_empty());
+    assert!(
+        steady_morale.iter().all(|(_, morale)| *morale < 50),
+        "{steady_morale:?}"
+    );
+    let unhappy_morale = morale_of(&unhappy, "team1");
+    assert!(
+        unhappy_morale.iter().all(|(_, morale)| *morale == 3),
+        "{unhappy_morale:?}"
+    );
+}
+
+/// Given the user's squad on two straight wins, once at morale 50 and once at morale 0
+/// When it wins a third time, on the same day
+/// Then each player at 0 gains exactly what the same player at 50 gains, not a jump to 10
+#[test]
+fn a_win_lifts_a_very_unhappy_player_by_what_it_lifts_anyone_else() {
+    let mut steady = with_team1_morale(team1_with_form(&["W", "W"]), 50);
+    let mut unhappy = with_team1_morale(team1_with_form(&["W", "W"]), 0);
+
+    turn::apply_match_report(&mut steady, 0, "team1", "team2", &empty_report(2, 0));
+    turn::apply_match_report(&mut unhappy, 0, "team1", "team2", &empty_report(2, 0));
+
+    let lifts: Vec<(String, i16, i16)> = morale_of(&steady, "team1")
+        .into_iter()
+        .zip(morale_of(&unhappy, "team1"))
+        .map(|((id, steady), (_, unhappy))| (id, i16::from(steady) - 50, i16::from(unhappy)))
+        .collect();
+    assert!(
+        lifts
+            .iter()
+            .any(|(_, from_50, _)| (1..10).contains(from_50)),
+        "the win must lift someone by less than 10 to tell the floor apart: {lifts:?}"
+    );
+    assert!(
+        lifts.iter().all(|(_, from_50, from_0)| from_50 == from_0),
+        "{lifts:?}"
+    );
+}

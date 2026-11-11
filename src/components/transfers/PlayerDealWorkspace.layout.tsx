@@ -3,18 +3,12 @@ import { ArrowLeft } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import type { PlayerData, TeamData } from "../../store/gameStore";
 import { countryName } from "../../lib/countries";
-import {
-  calcAge,
-  formatVal,
-  formatWeeklyWage,
-  getPlayerOvr,
-  getTeamName,
-  positionBadgeVariant,
-} from "../../lib/helpers";
-import { translatePositionAbbreviation } from "../squad/SquadTab.helpers";
-import { Badge, CountryFlag, PlayerAvatar } from "../ui";
+import { calcAge, formatVal, formatWeeklyWage, getTeamName } from "../../lib/helpers";
+import { type VisibleFigures, visibleRatingText, visibleWageText } from "../../lib/playerKnowledge";
+import { CountryFlag, PlayerAvatar } from "../ui";
 import type { DealKind } from "./PlayerDealWorkspace";
 import { naturalPositionOf } from "../../lib/positions";
+import PlayerPositionBadge from "../PlayerPositionBadge";
 
 export interface DealOption {
   kind: DealKind;
@@ -85,9 +79,7 @@ export function DealWorkspaceHeader({
               >
                 {player.full_name}
               </h2>
-              <Badge variant={positionBadgeVariant(naturalPositionOf(player))} size="sm">
-                {translatePositionAbbreviation(t, naturalPositionOf(player))}
-              </Badge>
+              <PlayerPositionBadge position={naturalPositionOf(player)} />
             </div>
             <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-gray-500 dark:text-gray-300">
               <span>{age}</span>
@@ -172,21 +164,23 @@ export function DealWorkspaceRoutes({
 
 export function DealWorkspaceFacts({
   player,
+  figures,
   myTeam,
   offeredWage,
 }: {
   player: PlayerData;
+  /** His rating and current wage as the club may see them. */
+  figures: VisibleFigures;
   myTeam: TeamData | null;
   offeredWage?: number | null;
 }) {
   const { t } = useTranslation();
-  const ovr = getPlayerOvr(player);
   return (
     <aside className="min-h-0 space-y-4 lg:overflow-y-auto">
       <div className="rounded-lg border border-gray-200 dark:border-navy-600 bg-white p-4  dark:bg-navy-800 ">
         <p className={factLabelClass()}>{t("common.ovr")}</p>
         <p className="mt-1 font-heading text-3xl font-bold tabular-nums text-primary-700 dark:text-primary-400">
-          {ovr}
+          {visibleRatingText(figures.ovr)}
         </p>
         <div className="mt-4 grid grid-cols-2 gap-3">
           <div>
@@ -195,7 +189,9 @@ export function DealWorkspaceFacts({
           </div>
           <div>
             <p className={factLabelClass()}>{t("common.currentWage")}</p>
-            <p className={`${factValueClass()} tabular-nums`}>{formatWeeklyWage(player.wage)}</p>
+            <p className={`${factValueClass()} tabular-nums`}>
+              {visibleWageText(figures.wage, formatWeeklyWage, t)}
+            </p>
           </div>
         </div>
         {offeredWage != null && offeredWage > 0 ? (

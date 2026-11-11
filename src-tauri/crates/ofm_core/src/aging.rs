@@ -79,12 +79,31 @@ fn retire_player(player: &mut Player, current_date: NaiveDate) {
     player.team_id = None;
     player.transfer_listed = false;
     player.loan_listed = false;
-    player.transfer_offers.clear();
+}
+
+/// A retiree's agreed transfers and loans end with his career: his offers are cleared, and the
+/// user, on either side of a deal, gets the letter a release would send (#1202, #1242).
+fn cancel_retirees_agreements(game: &mut Game, retirees: &[(usize, Option<String>)], today: &str) {
+    for (index, contract_club) in retirees {
+        let letters = crate::contracts::lapsed_registration_messages(
+            game,
+            *index,
+            contract_club.as_deref(),
+            today,
+        );
+        game.players[*index].transfer_offers.clear();
+        game.players[*index].loan_offers.clear();
+        for letter in letters {
+            crate::inbox::emit(game, letter);
+        }
+    }
 }
 
 pub fn apply_seasonal_aging(game: &mut Game, current_date: NaiveDate, season: u32) {
     let world_seed = game.seed;
-    for player in game.players.iter_mut() {
+    // Each retiree and the club he was under contract to, for the agreements his career ends.
+    let mut retirees: Vec<(usize, Option<String>)> = Vec::new();
+    for (index, player) in game.players.iter_mut().enumerate() {
         let age = domain::age::age_on_or_unknown(current_date, &player.date_of_birth);
         let mut stream = crate::seed::rng_for_seed(
             world_seed,
@@ -100,9 +119,11 @@ pub fn apply_seasonal_aging(game: &mut Game, current_date: NaiveDate, season: u3
             {
                 team.remove_player_references(&player.id);
             }
+            retirees.push((index, player.contract_club_id().map(str::to_string)));
             retire_player(player, current_date);
         }
     }
+    cancel_retirees_agreements(game, &retirees, &iso(current_date));
     crate::retirees::archive_retired_players(game, &iso(current_date), season);
 }
 
@@ -360,6 +381,71 @@ mod tests {
         assert_eq!(retirement_chance(&player, 34, date), 14);
     }
 
+    /// A 34-year-old at his club under contract to 2027, with 20 appearances and an unrated
+    /// season: a chance of 24, the age term alone.
+    fn contracted_veteran(id: &str) -> Player {
+        let mut player = make_player(id, "1992-01-01");
+        player.stage_contract_end(Some("2027-06-30".to_string()));
+        player.stats.appearances = 20;
+        player
+    }
+
+    fn the_season_end() -> NaiveDate {
+        NaiveDate::from_ymd_opt(2026, 5, 20).unwrap()
+    }
+
+    /// Given two contracted 34-year-olds, one with 9 appearances and one with 10,
+    /// When their retirement chance is read,
+    /// Then it is 32 and 24: fewer than ten appearances adds 8
+    #[test]
+    fn a_veteran_with_fewer_than_ten_appearances_is_likelier_to_retire() {
+        let mut nine = contracted_veteran("nine");
+        nine.stats.appearances = 9;
+        let mut ten = contracted_veteran("ten");
+        ten.stats.appearances = 10;
+
+        assert_eq!(
+            (
+                retirement_chance(&nine, 34, the_season_end()),
+                retirement_chance(&ten, 34, the_season_end())
+            ),
+            (32, 24)
+        );
+    }
+
+    /// Given a 34-year-old whose contract ended on 1 May
+    /// When his retirement chance is read on 20 May
+    /// Then it is 42: an expired contract adds 18
+    #[test]
+    fn an_out_of_contract_veteran_is_likelier_to_retire() {
+        let mut player = contracted_veteran("expired");
+        player.stage_contract_end(Some("2026-05-01".to_string()));
+
+        assert_eq!(retirement_chance(&player, 34, the_season_end()), 42);
+    }
+
+    /// Given a 34-year-old with no contract on record
+    /// When his retirement chance is read
+    /// Then it is 42: no contract adds the same 18 as an expired one
+    #[test]
+    fn a_veteran_with_no_contract_on_record_is_likelier_to_retire() {
+        let mut player = contracted_veteran("no-contract");
+        player.stage_contract_end(None);
+
+        assert_eq!(retirement_chance(&player, 34, the_season_end()), 42);
+    }
+
+    /// Given a 34-year-old under contract but with no club
+    /// When his retirement chance is read
+    /// Then it is 34: having no club adds 10
+    #[test]
+    fn a_veteran_without_a_club_is_likelier_to_retire() {
+        let mut player = contracted_veteran("clubless");
+        player.team_id = None;
+
+        assert_eq!(retirement_chance(&player, 34, the_season_end()), 34);
+    }
+
     /// A cohort of `count` players of `age` rated like `make_player`, with the given ceiling, in a
     /// game that has played one season of ageing: the mean change in rating of the players still on
     /// the roster afterwards (the retirees leave it, and are not part of the average).
@@ -403,6 +489,37 @@ mod tests {
         assert!(mean_change_after_a_season(17, 90, 80) > 2.0);
         // Flat-70 attributes, a ceiling at the rating: the mean change of the players who stay.
         assert!(mean_change_after_a_season(35, 70, 200) < -1.0);
+    }
+
+    /// Given a save written before ceilings followed decline, in which a 32-year-old rated 70
+    /// still carries a ceiling of 90,
+    /// When his next summer's ageing runs (no rewrite on load),
+    /// Then his ceiling has come down to his rating, and stays there the summer after.
+    #[test]
+    fn an_old_saves_veteran_loses_his_stale_ceiling_at_the_next_summer() {
+        let mut veteran = make_player("old-save", "1994-01-01");
+        veteran.stage_contract_end(Some("2031-06-30".to_string()));
+        veteran.potential = 90;
+        let mut game = make_game(vec![veteran]);
+        let date = game.clock.current_date.date_naive();
+        assert_eq!(
+            game.players[0].potential, 90,
+            "the save is loaded as it was"
+        );
+
+        apply_seasonal_aging(&mut game, date, 1);
+
+        let after = &game.players[0];
+        assert_eq!(
+            after.potential, after.ovr,
+            "ceiling came down with the rating"
+        );
+        let next = date + chrono::Months::new(12);
+        apply_seasonal_aging(&mut game, next, 2);
+        // He may retire in his second summer; if he plays on, his ceiling is still his rating.
+        if let Some(after) = game.players.first() {
+            assert_eq!(after.potential, after.ovr);
+        }
     }
 
     /// Given a cohort of 26-year-olds rated 70 with a ceiling of 85,

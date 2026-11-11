@@ -225,6 +225,43 @@ mod tests {
         assert!(results.iter().all(|r| !r.international));
     }
 
+    /// Given the user's club played during this advance, and two other clubs in its league did too
+    /// When the advance's results are collected
+    /// Then only the user's match is flagged as theirs
+    #[test]
+    fn only_the_user_clubs_match_is_flagged_as_theirs() {
+        let game = game_with_user_competition();
+
+        let results = collect_advance_results(&game, "2026-08-10");
+
+        let mut flags: Vec<(String, String, bool)> = results
+            .iter()
+            .map(|r| (r.home_team.clone(), r.away_team.clone(), r.involves_user))
+            .collect();
+        flags.sort();
+        assert_eq!(
+            flags,
+            vec![
+                ("away FC".to_string(), "y FC".to_string(), false),
+                ("home FC".to_string(), "x FC".to_string(), true),
+            ]
+        );
+    }
+
+    /// Given the user's club entered in a cup that keeps no table, and a cup tie it played during
+    ///       this advance
+    /// When the advance's results are collected
+    /// Then the tie is in the recap: being entered is enough, a table is not required
+    #[test]
+    fn a_competition_the_user_is_entered_in_without_a_table_is_still_recapped() {
+        let mut game = game_with_user_competition();
+        game.competitions[0].standings.clear();
+
+        let results = collect_advance_results(&game, "2026-08-10");
+
+        assert_eq!(results.len(), 2);
+    }
+
     #[test]
     fn ignores_competitions_the_user_is_not_in() {
         let mut game = game_with_user_competition();
@@ -321,6 +358,32 @@ mod tests {
         let results = collect_advance_results(&game, "2026-06-20");
 
         assert!(results.is_empty());
+    }
+
+    /// Given a national team's own fixtures, played the day before this advance began, on its
+    ///       first day and after it, and one still to be played
+    /// When the advance's results are collected
+    /// Then the ones played on the first day and after are listed, and nothing else
+    #[test]
+    fn includes_national_team_results_from_this_advance_only() {
+        let mut game = game_with_wc();
+        game.competitions.clear();
+        let mut unplayed = wc_fixture("later", "2026-06-20", "nt-bra", "nt-ger", 0, 0);
+        unplayed.status = FixtureStatus::Scheduled;
+        unplayed.result = None;
+        game.national_teams[0].fixtures = vec![
+            wc_fixture("before", "2026-06-11", "nt-bra", "nt-ger", 1, 0),
+            wc_fixture("on", "2026-06-12", "nt-bra", "nt-ger", 2, 0),
+            wc_fixture("after", "2026-06-14", "nt-ger", "nt-bra", 3, 0),
+            unplayed,
+        ];
+
+        let results = collect_advance_results(&game, "2026-06-12");
+
+        assert_eq!(
+            results.iter().map(|r| r.date.as_str()).collect::<Vec<_>>(),
+            vec!["2026-06-12", "2026-06-14"]
+        );
     }
 
     #[test]

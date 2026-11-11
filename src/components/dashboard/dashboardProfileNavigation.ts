@@ -19,12 +19,14 @@ export interface DashboardProfileNavigationState {
   navHistory: DashboardProfileHistoryEntry[];
 }
 
+/** `selectedPlayerId` opens that player's profile at once: the dev page harness starts on one. */
 export function createDashboardProfileNavigationState(
   activeTab: string,
+  selectedPlayerId: string | null = null,
 ): DashboardProfileNavigationState {
   return {
     activeTab,
-    selectedPlayerId: null,
+    selectedPlayerId,
     selectedPlayerOptions: null,
     selectedTeamId: null,
     initialMessageId: null,
@@ -182,12 +184,16 @@ interface ProfileSubjects {
 export function openProfileTitle(
   state: DashboardProfileNavigationState,
   world: ProfileSubjects,
+  /** The retired player fetched for the open profile, who is in no roster: the archive's person. */
+  retiree: { id: string; match_name: string } | null = null,
 ): string | null {
   if (state.selectedTeamId !== null) {
     return world.teams.find((team) => team.id === state.selectedTeamId)?.name ?? null;
   }
   if (state.selectedPlayerId !== null) {
-    return world.players.find((player) => player.id === state.selectedPlayerId)?.match_name ?? null;
+    const rostered = world.players.find((player) => player.id === state.selectedPlayerId);
+    if (rostered) return rostered.match_name;
+    return retiree?.id === state.selectedPlayerId ? retiree.match_name : null;
   }
   return null;
 }

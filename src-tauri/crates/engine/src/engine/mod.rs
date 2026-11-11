@@ -269,6 +269,8 @@ mod empty_squad_tests {
             aerial: 60,
             condition: 100,
             fitness: 100,
+            injury_risk: 1.0,
+            line_familiarity: [1.0; 4],
             ovr: 60,
             traits: vec![],
             role: crate::types::PlayerRole::Standard,

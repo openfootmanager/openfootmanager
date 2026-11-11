@@ -1,10 +1,20 @@
 use serde::{Deserialize, Serialize};
+use ts_rs::TS;
+
+/// The scale every manager's reputation is created on: the generator's opening draw (uniform over
+/// it), a stand-in's coaching-based standing and a retired player's.
+///
+/// `Manager::rating` still reads reputation over the 300–900 club scale. Moving it onto this one
+/// lifts every AI club's management quality and changes the match side (measured on #1167:
+/// substitutions down about 4.5% a season on three seeds), so it waits for the PR that gives
+/// reputation its season-to-season movement and its 100..=900 bounds.
+pub const CREATED_REPUTATION: std::ops::RangeInclusive<u32> = 200..=700;
 
 fn default_fan_approval() -> u8 {
     50
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
 pub struct Manager {
     pub id: String,
     pub first_name: String,
@@ -47,7 +57,7 @@ pub struct Manager {
     pub display_name: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default, TS)]
 pub struct ManagerCareerStats {
     pub matches_managed: u32,
     pub wins: u32,
@@ -57,7 +67,7 @@ pub struct ManagerCareerStats {
     pub best_finish: Option<u32>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
 pub struct ManagerCareerEntry {
     pub team_id: String,
     pub team_name: String,
@@ -160,6 +170,39 @@ impl Manager {
         ));
     }
 
+    /// His open stint at `team_id`: the career entry for his spell at that club now. None for a
+    /// club he is not in charge of, or a record kept from before stints were (an old save).
+    pub fn current_stint(&self, team_id: &str) -> Option<&ManagerCareerEntry> {
+        self.career_history
+            .iter()
+            .find(|entry| entry.team_id == team_id && entry.end_date.is_none())
+    }
+
+    /// The club of his most recent stint, open or closed: the last club he managed. None for a
+    /// manager with no stint on record (one who never had a club, or an old save's record).
+    ///
+    /// The latest start date wins. Two stints that start the same day are told apart by their
+    /// chronology: the open one is the later, then the one that ended later; if even that ties, the
+    /// one listed later (a history is appended to as it happens).
+    pub fn last_club(&self) -> Option<&str> {
+        self.career_history
+            .iter()
+            .max_by(|left, right| {
+                left.start_date
+                    .cmp(&right.start_date)
+                    .then_with(|| left.end_date.is_none().cmp(&right.end_date.is_none()))
+                    .then_with(|| left.end_date.cmp(&right.end_date))
+            })
+            .map(|entry| entry.team_id.as_str())
+    }
+
+    /// [`Self::current_stint`], to update.
+    pub fn current_stint_mut(&mut self, team_id: &str) -> Option<&mut ManagerCareerEntry> {
+        self.career_history
+            .iter_mut()
+            .find(|entry| entry.team_id == team_id && entry.end_date.is_none())
+    }
+
     pub fn fire(&mut self, date: &str) {
         if let Some(entry) = self
             .career_history
@@ -220,6 +263,41 @@ mod tests {
         )
     }
 
+    /// Given a manager whose career lists a later stint at "b" before an earlier one at "a", both
+    ///      closed, and a manager with no stint at all
+    /// When their last club is read
+    /// Then the first's is "b", the most recent by start date whatever the list order, and the
+    ///      second has none
+    #[test]
+    fn the_last_club_is_the_most_recent_stints() {
+        let mut m = manager();
+        let mut later = ManagerCareerEntry::open("b".into(), "B".into(), "2023-07-01".into());
+        later.end_date = Some("2025-03-01".into());
+        let mut earlier = ManagerCareerEntry::open("a".into(), "A".into(), "2019-07-01".into());
+        earlier.end_date = Some("2023-06-30".into());
+        m.career_history = vec![later, earlier];
+
+        assert_eq!(m.last_club(), Some("b"));
+        assert_eq!(manager().last_club(), None);
+    }
+
+    /// Given two stints that start the same day, the later one listed first: one closed at "a", one
+    ///      still open at "b"
+    /// When his last club is read
+    /// Then it is "b", the open stint, whatever the order of the list
+    #[test]
+    fn stints_starting_the_same_day_are_told_apart_by_which_is_open() {
+        let mut m = manager();
+        let open = ManagerCareerEntry::open("b".into(), "B".into(), "2024-07-01".into());
+        let mut closed = ManagerCareerEntry::open("a".into(), "A".into(), "2024-07-01".into());
+        closed.end_date = Some("2024-07-01".into());
+        m.career_history = vec![open.clone(), closed.clone()];
+        assert_eq!(m.last_club(), Some("b"));
+
+        m.career_history = vec![closed, open];
+        assert_eq!(m.last_club(), Some("b"));
+    }
+
     /// Given a manager with and without a known-as name (#557)
     /// When their display name is read
     /// Then it is the known-as name when set, else the full name, and a blank known-as is none.
@@ -235,6 +313,30 @@ mod tests {
         m.set_known_as(Some("   ".into()));
         assert_eq!(m.known_as, None);
         assert_eq!(m.display_name, "Test Manager");
+    }
+
+    /// Given a manager whose spell at "old" has ended and who now manages "new"
+    /// When his current stint is asked for at each club
+    /// Then "new" answers his open spell there, and "old" (closed) and "other" (never his) none
+    #[test]
+    fn the_current_stint_is_the_open_spell_at_that_club() {
+        let mut m = manager();
+        let mut old = ManagerCareerEntry::open("old".into(), "Old".into(), "2020-07-01".into());
+        old.end_date = Some("2024-05-30".into());
+        m.career_history.push(old);
+        m.career_history.push(ManagerCareerEntry::open(
+            "new".into(),
+            "New".into(),
+            "2024-07-01".into(),
+        ));
+
+        assert_eq!(
+            m.current_stint("new")
+                .map(|entry| entry.start_date.as_str()),
+            Some("2024-07-01")
+        );
+        assert!(m.current_stint("old").is_none());
+        assert!(m.current_stint("other").is_none());
     }
 
     #[test]

@@ -11,6 +11,11 @@ import PreMatchLineup from "./PreMatchLineup";
 import { ratingTierClass } from "../../lib/ratingTier";
 import type { EnginePlayerData, EngineTeamData } from "./types";
 
+vi.mock("../../hooks/usePositionGroups", async () => {
+  const { cannedPositionsModule } = await import("../../test-utils/positionTable");
+  return cannedPositionsModule();
+});
+
 vi.mock("../../hooks/useRatingTiers", async () => {
   const { cannedRatingTiersModule } = await import("../../test-utils/ratingTiers");
   return cannedRatingTiersModule();
@@ -18,6 +23,7 @@ vi.mock("../../hooks/useRatingTiers", async () => {
 
 // Mock react-i18next
 vi.mock("react-i18next", () => ({
+  initReactI18next: { type: "3rdParty", init: () => undefined },
   useTranslation: () => ({
     t: (key: string, arg?: unknown) => {
       if (typeof arg === "string") {

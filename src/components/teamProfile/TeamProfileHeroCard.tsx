@@ -1,5 +1,6 @@
 import { Calendar, Users } from "lucide-react";
 
+import { visibleRatingText } from "../../lib/playerKnowledge";
 import { Card, TeamLocation, TeamLogo } from "../ui";
 import type { TeamProfileTranslate } from "./TeamProfile.types";
 import { QuickStat } from "./TeamProfile.primitives";
@@ -9,6 +10,8 @@ import type { TeamData } from "../../store/gameStore";
 interface TeamProfileHeroCardProps {
   team: TeamData;
   viewModel: TeamProfileViewModel;
+  /** The squad's average rating as the backend gives it; null when the club may not see it. */
+  averageRating: number | null;
   locale: string;
   t: TeamProfileTranslate;
 }
@@ -16,6 +19,7 @@ interface TeamProfileHeroCardProps {
 export default function TeamProfileHeroCard({
   team,
   viewModel,
+  averageRating,
   locale,
   t,
 }: TeamProfileHeroCardProps) {
@@ -58,7 +62,7 @@ export default function TeamProfileHeroCard({
           </div>
 
           <div className="hidden md:grid grid-cols-2 gap-3">
-            <QuickHeroStat label={t("teams.avgOvr")} value={String(viewModel.avgOvr)} />
+            <QuickHeroStat label={t("teams.avgOvr")} value={visibleRatingText(averageRating)} />
             <QuickHeroStat
               label={t("manager.reputation")}
               value={String(team.reputation)}
@@ -76,7 +80,7 @@ export default function TeamProfileHeroCard({
       <div className="grid grid-cols-4 gap-px bg-gray-200 dark:bg-navy-600 md:hidden">
         <QuickStat
           label={t("teams.avgOvr")}
-          value={String(viewModel.avgOvr)}
+          value={visibleRatingText(averageRating)}
           color="text-primary-500"
         />
         <QuickStat label={t("teams.rep")} value={String(team.reputation)} color="text-accent-500" />

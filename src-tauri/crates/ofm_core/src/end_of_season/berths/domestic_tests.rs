@@ -3,8 +3,8 @@ use super::super::pyramid::apply_pyramid_promotion_relegation;
 use super::super::test_support::*;
 use super::*;
 use domain::league::{
-    Berth, BerthRule, CompetitionScope, CompetitionType, Fixture, FixtureCompetition,
-    FixtureStatus, League,
+    Berth, BerthRule, CompetitionFormat, CompetitionScope, CompetitionType, Fixture,
+    FixtureCompetition, FixtureStatus, League,
 };
 use std::collections::HashSet;
 
@@ -758,5 +758,94 @@ fn an_undeclared_feeder_region_includes_every_region_in_the_competition_set() {
     assert!(
         !field.contains(&"es-filler".to_string()),
         "the lower-reputation filler loses the spare place: {field:?}"
+    );
+}
+
+fn roster(game: &Game, id: &str) -> Vec<String> {
+    game.competitions
+        .iter()
+        .find(|competition| competition.id == id)
+        .expect(id)
+        .participant_ids
+        .clone()
+}
+
+/// Given the two-region pyramid, but with its central league played as groups and a knockout
+///       rather than a table, and both feeders' champions named in its berth field
+/// When the domestic berths are applied
+/// Then nobody moves: a berth only promotes into a domestic league played as a table, because
+///      only a table has bottom clubs to send down in exchange
+#[test]
+fn a_berth_into_a_non_table_domestic_league_moves_nobody() {
+    let mut game = two_region_central_pyramid();
+    game.competitions[0].rules.format = CompetitionFormat::GroupAndKnockout;
+    let before: Vec<Vec<String>> = ["central", "north", "south"]
+        .iter()
+        .map(|id| roster(&game, id))
+        .collect();
+    let fields = std::collections::HashMap::from([(
+        "central".to_string(),
+        vec!["n1".to_string(), "s1".to_string()],
+    )]);
+
+    apply_domestic_berth_promotion_relegation(&mut game, &fields);
+
+    let after: Vec<Vec<String>> = ["central", "north", "south"]
+        .iter()
+        .map(|id| roster(&game, id))
+        .collect();
+    assert_eq!(after, before);
+}
+
+/// Given a club registered on two feeder tables and top of both: the first feeds the top flight,
+///       the second feeds another league
+/// When the top flight's berth promotes it
+/// Then it leaves the feeder that promoted it, and stays registered with the other, whose berth
+///      points elsewhere
+#[test]
+fn a_club_on_two_tables_only_leaves_the_feeder_that_promoted_it() {
+    let top = division(
+        "top",
+        0,
+        "BR",
+        &[("t1", 40), ("t2", 30), ("t3", 20), ("t4", 10)],
+    );
+    let other = division(
+        "other",
+        0,
+        "BR",
+        &[("o1", 40), ("o2", 30), ("o3", 20), ("o4", 10)],
+    );
+    let mut first_feeder = division(
+        "feeder-a",
+        1,
+        "BR",
+        &[("x", 40), ("a2", 30), ("a3", 20), ("a4", 10)],
+    );
+    first_feeder.berths = vec![position_berth("top", 1, 1)];
+    let mut second_feeder = division(
+        "feeder-b",
+        1,
+        "BR",
+        &[("x", 40), ("b2", 30), ("b3", 20), ("b4", 10)],
+    );
+    second_feeder.berths = vec![position_berth("other", 1, 1)];
+    let mut game = empty_game();
+    game.competitions = vec![top, other, first_feeder, second_feeder];
+    let fields = std::collections::HashMap::from([("top".to_string(), vec!["x".to_string()])]);
+
+    apply_domestic_berth_promotion_relegation(&mut game, &fields);
+
+    assert_eq!(
+        [
+            roster(&game, "top"),
+            roster(&game, "feeder-a"),
+            roster(&game, "feeder-b"),
+        ],
+        [
+            ["t1", "t2", "t3", "x"].map(String::from).to_vec(),
+            ["a2", "a3", "a4", "t4"].map(String::from).to_vec(),
+            ["x", "b2", "b3", "b4"].map(String::from).to_vec(),
+        ]
     );
 }

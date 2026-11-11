@@ -88,9 +88,28 @@ pub fn ensure_competition_calendar(league: &mut League) -> bool {
     league.calendar = Some(CalendarMetadata {
         definition_id: league.id.clone(),
         edition_basis: basis,
+        league_legs: proven_single_round_robin(league).then_some(1),
         ..Default::default()
     });
     true
+}
+
+/// Whether a league table's saved edition proves it was authored as a single round robin: its
+/// league fixtures, generated all at once with the edition, number exactly one leg's worth. A save
+/// from between authored legs (13 Jun 2026) and stored ones (1 Oct 2026) needs this, or a
+/// `legs: 1` league never completes (#1177). Anything else stays unknown, which schedules and
+/// counts as the double round robin every older league was.
+fn proven_single_round_robin(league: &League) -> bool {
+    if league.rules.format != CompetitionFormat::LeagueTable {
+        return false;
+    }
+    let clubs = league.standings.len();
+    let league_fixtures = league
+        .fixtures
+        .iter()
+        .filter(|fixture| fixture.counts_for_league_standings())
+        .count();
+    clubs >= 2 && league_fixtures == clubs * (clubs - 1) / 2
 }
 
 /// The opener is the first match played for something: a friendly, a friendly cup or a preseason
@@ -297,6 +316,71 @@ mod tests {
             );
         }
     }
+    /// Whether validating a file holding just `def` reports an invalid calendar.
+    fn calendar_is_rejected(def: CompetitionDefinition) -> bool {
+        let file = crate::generator::CompetitionDefinitionFile {
+            format_version: 1,
+            competitions: vec![def],
+        };
+        let ctx = crate::generator::WorldValidationContext {
+            team_ids: ["a", "b", "c", "d"].into(),
+            country_codes: ["AR"].into(),
+            region_ids: Default::default(),
+        };
+        crate::generator::validate_definitions(&file, &ctx)
+            .iter()
+            .any(|error| error.code == "be.error.competitionDef.invalidCalendar")
+    }
+
+    /// Given the opening half of an Argentine split season: a domestic league table with a
+    ///       family, tier 1, and a window ending on 30 June
+    /// When its definition is validated
+    /// Then its calendar is accepted
+    #[test]
+    fn a_valid_split_season_division_calendar_validates_cleanly() {
+        assert!(!calendar_is_rejected(definition("LeagueTable")));
+    }
+
+    /// Given a domestic league table whose division plays one annual season, with no window end
+    /// When its definition is validated
+    /// Then its calendar is accepted: only a split season's half needs to say when it ends
+    #[test]
+    fn an_annual_division_without_a_window_end_validates_cleanly() {
+        let mut raw = serde_json::to_value(definition("LeagueTable")).unwrap();
+        raw["calendar"] = json!({"division":{"familyId":"ar-league","tier":1,"phase":"annual"}});
+        assert!(!calendar_is_rejected(serde_json::from_value(raw).unwrap()));
+    }
+
+    /// Given a domestic knockout cup that claims a division calendar, with a valid window end
+    /// When its definition is validated
+    /// Then its calendar is rejected: only a league table can be a division of a pyramid
+    #[test]
+    fn a_division_calendar_on_a_knockout_competition_is_rejected() {
+        let mut raw = serde_json::to_value(definition("Knockout")).unwrap();
+        raw["type"] = json!("Cup");
+        assert!(calendar_is_rejected(serde_json::from_value(raw).unwrap()));
+    }
+
+    /// Given a league table that claims a division calendar but is played at continental scope
+    /// When its definition is validated
+    /// Then its calendar is rejected: a division belongs to one country's domestic pyramid
+    #[test]
+    fn a_division_calendar_outside_domestic_scope_is_rejected() {
+        let mut raw = serde_json::to_value(definition("LeagueTable")).unwrap();
+        raw["scope"] = json!("Continental");
+        assert!(calendar_is_rejected(serde_json::from_value(raw).unwrap()));
+    }
+
+    /// Given the opening half of a split season with no window end
+    /// When its definition is validated
+    /// Then its calendar is rejected: a half must say when it ends
+    #[test]
+    fn a_split_season_half_without_a_window_end_is_rejected() {
+        let mut raw = serde_json::to_value(definition("LeagueTable")).unwrap();
+        raw["calendar"] = json!({"division":{"familyId":"ar-league","tier":1,"phase":"opening"}});
+        assert!(calendar_is_rejected(serde_json::from_value(raw).unwrap()));
+    }
+
     #[test]
     fn selector_calendar_uses_the_same_metadata_rule() {
         let mut raw = serde_json::to_value(definition("LeagueTable")).unwrap();

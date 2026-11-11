@@ -20,6 +20,7 @@ import PostMatchScreen from "../components/match/PostMatchScreen";
 import RoundDigestScreen from "../components/match/RoundDigestScreen";
 import PressConference from "../components/match/PressConference";
 import PenaltyShootoutScreen from "../components/match/PenaltyShootoutScreen";
+import { invokeForCareer } from "../services/careerInvoke";
 
 // ---------------------------------------------------------------------------
 // Multi-stage Match Day Orchestrator
@@ -155,7 +156,7 @@ export default function MatchSimulation() {
           // domestic league after a restart. Use stable fixture identity.
           // The backend derives extra-time eligibility from the fixture; the
           // argument is still required by the command signature.
-          const restoredSnapshot = await invoke<MatchSnapshot>("start_live_match", {
+          const restoredSnapshot = await invokeForCareer<MatchSnapshot>("start_live_match", {
             allowsExtraTime: false,
             fixtureIndex: routeState.fixtureIndex,
             competitionId: routeState.competitionId,
@@ -234,7 +235,7 @@ export default function MatchSimulation() {
 
     try {
       console.info("[MatchSimulation] finalizeMatch:start");
-      const response = await invoke<FinishLiveMatchResponse>("finish_live_match");
+      const response = await invokeForCareer<FinishLiveMatchResponse>("finish_live_match");
       console.info("[MatchSimulation] finalizeMatch:success", {
         hasRoundSummary: !!response.round_summary,
         hasUpdatedGame: !!response.game,

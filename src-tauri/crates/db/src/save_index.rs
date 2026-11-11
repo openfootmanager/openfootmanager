@@ -496,6 +496,9 @@ mod tests {
                 seed: 0,
                 legacy_world_cup_draw: false,
                 legacy_tactics_imported: false,
+                gate_settled_from: None,
+                last_season_rollover_on: None,
+                days_since_last_job_offer: None,
             },
         )
         .unwrap();
@@ -623,6 +626,9 @@ mod tests {
                 seed: 0,
                 legacy_world_cup_draw: false,
                 legacy_tactics_imported: false,
+                gate_settled_from: None,
+                last_season_rollover_on: None,
+                days_since_last_job_offer: None,
             },
         )
         .unwrap();

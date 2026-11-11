@@ -1,4 +1,10 @@
+#[path = "end_of_season_tests/player_statistics.rs"]
+mod player_statistics;
+#[path = "end_of_season_tests/season_story.rs"]
+mod season_story;
+
 use chrono::{TimeZone, Utc};
+use domain::competition_calendar::CalendarMetadata;
 use domain::league::{
     Berth, BerthRule, CompetitionFormat, CompetitionScope, CompetitionType, Fixture,
     FixtureCompetition, FixtureStatus, KnockoutRoundState, League, MatchResult, StandingEntry,
@@ -138,6 +144,8 @@ fn make_completed_season_game() -> Game {
         red_cards: 0,
         ..PlayerSeasonStats::default()
     };
+    p1.league_stats_by_competition
+        .insert("league1".into(), p1.stats.clone());
 
     let mut p2 = make_player("p2", "Rival", "team2", Position::Forward);
     p2.stats = PlayerSeasonStats {
@@ -152,6 +160,8 @@ fn make_completed_season_game() -> Game {
         red_cards: 0,
         ..PlayerSeasonStats::default()
     };
+    p2.league_stats_by_competition
+        .insert("league1".into(), p2.stats.clone());
 
     let fixtures = vec![
         make_completed_fixture("f1", "team1", "team2", 2, 1),
@@ -840,12 +850,16 @@ fn rollover_passes_continental_qualifiers_into_the_next_season() {
         goals: 20,
         ..PlayerSeasonStats::default()
     };
+    p1.league_stats_by_competition
+        .insert("eng-1".into(), p1.stats.clone());
     let mut p2 = make_player("p2", "Rival", "eng-b", Position::Forward);
     p2.stats = PlayerSeasonStats {
         appearances: 28,
         goals: 8,
         ..PlayerSeasonStats::default()
     };
+    p2.league_stats_by_competition
+        .insert("eng-1".into(), p2.stats.clone());
 
     let league = League {
         id: "eng-1".to_string(),
@@ -888,8 +902,11 @@ fn rollover_passes_continental_qualifiers_into_the_next_season() {
     );
 }
 
+/// Given a completed national friendly before a neutral-season rollover,
+/// When the new calendar is scheduled, then the old result stays intact and five future windows
+/// are added exactly once.
 #[test]
-fn process_end_of_season_reschedules_national_team_windows() {
+fn process_end_of_season_keeps_history_and_adds_future_national_windows() {
     use domain::national_team::NationalTeam;
 
     let mut game = make_completed_season_game();
@@ -909,7 +926,11 @@ fn process_end_of_season_reschedules_national_team_windows() {
         away_team_id: "nt-b".into(),
         competition: FixtureCompetition::InternationalNation,
         status: FixtureStatus::Completed,
-        result: None,
+        result: Some(MatchResult {
+            home_goals: 3,
+            away_goals: 1,
+            ..Default::default()
+        }),
     });
     let mut nt_b = NationalTeam::new("nt-b".into(), "B".into(), "BBB".into(), None);
     nt_b.squad_player_ids = vec!["p2".into()];
@@ -923,19 +944,35 @@ fn process_end_of_season_reschedules_national_team_windows() {
         .flat_map(|team| team.fixtures.iter())
         .collect();
 
-    assert!(!fixtures.is_empty(), "new national-team fixtures scheduled");
-    assert!(
-        !fixtures.iter().any(|f| f.id == "old-friendly"),
-        "last season's national-team fixtures are cleared"
+    assert_eq!(
+        fixtures.len(),
+        6,
+        "one historical match and five future windows"
     );
+    let old: Vec<_> = fixtures
+        .iter()
+        .filter(|fixture| fixture.id == "old-friendly")
+        .collect();
+    assert_eq!(old.len(), 1);
+    assert_eq!(old[0].status, FixtureStatus::Completed);
+    assert_eq!(old[0].date, "2026-09-09");
+    let result = old[0].result.as_ref().unwrap();
+    assert_eq!((result.home_goals, result.away_goals), (3, 1));
+    let future: Vec<_> = fixtures
+        .iter()
+        .filter(|fixture| fixture.id != "old-friendly")
+        .collect();
+    assert_eq!(future.len(), 5);
     assert!(
-        fixtures
+        future
             .iter()
-            .all(|f| f.status == FixtureStatus::Scheduled),
-        "rescheduled friendlies start the new season unplayed"
+            .all(|fixture| fixture.status == FixtureStatus::Scheduled && fixture.result.is_none())
     );
-    // Windows for the new season fall after the rollover date.
-    assert!(fixtures.iter().all(|f| f.date.as_str() > "2027-06-01"));
+    assert!(
+        future
+            .iter()
+            .all(|fixture| fixture.date.as_str() > "2027-06-01")
+    );
 }
 
 #[test]
@@ -1004,6 +1041,9 @@ fn process_end_of_season_records_history_and_prizes_for_every_division() {
         .expect("second-division history recorded");
     assert_eq!(team3_record.league_position, 1);
     assert_eq!(team3_record.season, 1);
+    // Each record names the division it was won in, so a second-division win is not a title.
+    assert_eq!(team3_record.competition_id, "eng-2");
+    assert_eq!(team1.history.last().unwrap().competition_id, "eng-1");
 
     // The second-division champion earns half the top-flight champion's prize.
     assert!(prize_money_total(team1) > 0);
@@ -1017,6 +1057,15 @@ fn process_end_of_season_records_history_and_prizes_for_every_division() {
 /// div2 = team3 (promoted), team4. The manager runs `user_team`.
 fn make_two_division_game(user_team: &str) -> Game {
     let mut game = make_completed_season_game();
+    for player in &mut game.players {
+        let stats = player
+            .league_stats_by_competition
+            .remove("league1")
+            .unwrap();
+        player
+            .league_stats_by_competition
+            .insert("eng-1".into(), stats);
+    }
     game.teams.push(make_team("team3", "Third FC"));
     game.teams.push(make_team("team4", "Fourth FC"));
     game.manager.team_id = Some(user_team.to_string());
@@ -1064,7 +1113,7 @@ fn relegated_user_receives_a_relegation_message() {
     process_end_of_season(&mut game);
 
     // Named by the edition the user's new division was renewed to, not by last season plus one.
-    let renewed_season = ofm_core::end_of_season::user_division(&game, "team2")
+    let renewed_season = ofm_core::end_of_season::club_league_table(&game, "team2")
         .expect("the user still has a division")
         .season;
     let msg = game
@@ -1093,7 +1142,7 @@ fn promoted_user_receives_a_promotion_message() {
 
     process_end_of_season(&mut game);
 
-    let renewed_season = ofm_core::end_of_season::user_division(&game, "team3")
+    let renewed_season = ofm_core::end_of_season::club_league_table(&game, "team3")
         .expect("the user still has a division")
         .season;
     let msg = game
@@ -1105,6 +1154,375 @@ fn promoted_user_receives_a_promotion_message() {
     assert_eq!(
         msg.i18n_params.get("division"),
         Some(&"ENG First Division".to_string())
+    );
+}
+
+/// Given a generated division (stored under its English template name, carrying a name key)
+/// When the user is promoted into it
+/// Then the notice also carries the key, country and edition, so the screen names the division in
+///      the player's language instead of the stored English name.
+#[test]
+fn promotion_message_carries_the_divisions_name_key_country_and_season() {
+    let mut game = make_two_division_game("team3");
+    for competition in game.competitions.iter_mut() {
+        if competition.name == "ENG First Division" {
+            competition.name_key = Some("tournaments.competitions.firstDivision".to_string());
+        }
+    }
+
+    process_end_of_season(&mut game);
+
+    let renewed = ofm_core::end_of_season::club_league_table(&game, "team3")
+        .expect("the user still has a division")
+        .season;
+    let msg = game
+        .messages
+        .iter()
+        .find(|m| m.id == format!("promotion_{renewed}"))
+        .expect("promoted user must be told");
+    assert_eq!(
+        msg.i18n_params.get("divisionKey"),
+        Some(&"tournaments.competitions.firstDivision".to_string())
+    );
+    assert_eq!(
+        msg.i18n_params.get("divisionCountry"),
+        Some(&"ENG".to_string())
+    );
+    assert_eq!(
+        msg.i18n_params.get("divisionSeason"),
+        Some(&renewed.to_string())
+    );
+    assert_eq!(
+        msg.i18n_params.get("division"),
+        Some(&"ENG First Division".to_string()),
+        "the stored name stays as the fallback"
+    );
+}
+
+/// Given a division with no name key (a hand-made one)
+/// When the user is promoted into it
+/// Then the notice carries only the stored name, as before.
+#[test]
+fn promotion_message_without_a_name_key_carries_no_key_params() {
+    let mut game = make_two_division_game("team3");
+
+    process_end_of_season(&mut game);
+
+    let renewed = ofm_core::end_of_season::club_league_table(&game, "team3")
+        .expect("the user still has a division")
+        .season;
+    let msg = game
+        .messages
+        .iter()
+        .find(|m| m.id == format!("promotion_{renewed}"))
+        .expect("promoted user must be told");
+    assert!(!msg.i18n_params.contains_key("divisionKey"));
+    assert!(!msg.i18n_params.contains_key("divisionCountry"));
+}
+
+/// The season preview article the rollover published, and the clubs it names.
+fn season_preview(game: &Game) -> (String, Vec<String>, String, String) {
+    let preview = game
+        .news
+        .iter()
+        .find(|article| article.category == domain::news::NewsCategory::SeasonPreview)
+        .expect("the rollover publishes a season preview");
+    let param = |name: &str| preview.i18n_params.get(name).cloned().unwrap_or_default();
+    let mut listed: Vec<String> = param("teamList").split(", ").map(str::to_string).collect();
+    listed.sort();
+    (
+        param("teamCount"),
+        listed,
+        param("favourite"),
+        param("darkHorse"),
+    )
+}
+
+/// Given a two-division world where the user's club stays in the first division and the second
+/// division's winner comes up; when the season rolls over; then the preview covers the user's
+/// division as it will be next season, not every club in the world (#1179).
+#[test]
+fn the_season_preview_covers_the_users_division_only() {
+    let mut game = make_two_division_game("team1");
+
+    process_end_of_season(&mut game);
+
+    let (count, listed, favourite, dark_horse) = season_preview(&game);
+    assert_eq!(count, "2");
+    assert_eq!(listed, ["Test FC", "Third FC"]);
+    assert!(
+        listed.contains(&favourite),
+        "favourite {favourite} is not in the division"
+    );
+    assert!(
+        listed.contains(&dark_horse),
+        "dark horse {dark_horse} is not in the division"
+    );
+}
+
+/// Given the user's club relegated to the second division; when the season rolls over; then the
+/// preview covers the division the club now plays in.
+#[test]
+fn a_relegated_users_season_preview_covers_the_division_they_drop_into() {
+    let mut game = make_two_division_game("team2");
+
+    process_end_of_season(&mut game);
+
+    let (count, listed, _, _) = season_preview(&game);
+    assert_eq!(count, "2");
+    assert_eq!(listed, ["Fourth FC", "Rival FC"]);
+}
+
+/// Given a world whose user's club plays in no league table, and no legacy league to fall back
+/// on; when the season rolls over; then no preview is published: the rollover has no division to
+/// summarise and stops before it, so there is never one of "0 teams".
+#[test]
+fn a_user_with_no_division_gets_no_season_preview() {
+    let mut game = make_two_division_game("team1");
+    game.teams.push(make_team("team9", "Tableless FC"));
+    game.manager.team_id = Some("team9".to_string());
+    game.league = None;
+
+    process_end_of_season(&mut game);
+
+    assert!(
+        game.news
+            .iter()
+            .all(|article| article.category != domain::news::NewsCategory::SeasonPreview)
+    );
+}
+
+/// The two-division world with the user's manager sacked from `last_club`: his stint there opened
+/// and closed as the game records it, and the `game.league` mirror synced as the game syncs it (with
+/// no club, from the first competition, the first division).
+fn sacked_from(last_club: &str) -> Game {
+    let mut game = make_two_division_game(last_club);
+    game.manager
+        .career_history
+        .push(domain::manager::ManagerCareerEntry::open(
+            last_club.to_string(),
+            last_club.to_string(),
+            "2024-07-01".to_string(),
+        ));
+    game.manager.fire("2025-03-01");
+    game.sync_legacy_league();
+    game
+}
+
+/// Given a manager sacked from Fourth FC, a second-division club, and the mirror on the first
+///      division (the world's first competition)
+/// When the season rolls over
+/// Then the preview covers the second division as it will be, Fourth FC's league, not the first
+///      division the mirror fell back to (#1270)
+#[test]
+fn a_sacked_managers_season_preview_covers_his_last_clubs_league() {
+    let mut game = sacked_from("team4");
+
+    process_end_of_season(&mut game);
+
+    let (count, listed, _, _) = season_preview(&game);
+    assert_eq!(count, "2");
+    assert_eq!(listed, ["Fourth FC", "Rival FC"]);
+}
+
+/// Given a manager sacked from Fourth FC, with the mirror on the first division
+/// When the season rolls over
+/// Then the season summary is of the second division, his last club's
+#[test]
+fn a_sacked_managers_season_summary_is_of_his_last_clubs_league() {
+    let mut game = sacked_from("team4");
+
+    let summary = process_end_of_season(&mut game);
+
+    assert_eq!(summary.league_name, "ENG Second Division");
+}
+
+/// Given a manager sacked from Fourth FC, with the mirror on the first division, and a
+///      first-division striker who outscores the second division
+/// When the season's awards are read for the awards screen
+/// Then the golden boot is the second division's, his last club's league
+#[test]
+fn a_sacked_managers_awards_are_his_last_clubs_league() {
+    let mut game = sacked_from("team4");
+    let mut lower = make_player("p4", "Lower Star", "team3", Position::Forward);
+    lower.stats = PlayerSeasonStats {
+        appearances: 10,
+        goals: 9,
+        avg_rating: 7.5,
+        rated_appearances: 10,
+        minutes_played: 900,
+        ..PlayerSeasonStats::default()
+    };
+    lower
+        .league_stats_by_competition
+        .insert("eng-2".into(), lower.stats.clone());
+    game.players.push(lower);
+
+    let awards = ofm_core::season_awards::user_division_season_awards(&game);
+
+    let top_scorer = awards
+        .golden_boot
+        .first()
+        .map(|winner| winner.player_name.clone());
+    assert_eq!(top_scorer.as_deref(), Some("Lower Star"));
+}
+
+/// Given a manager sacked from Third FC, the second division's winner, who goes up
+/// When the season rolls over
+/// Then the board sends him no promotion letter: the club is no longer his
+#[test]
+fn a_sacked_manager_hears_nothing_of_his_former_clubs_promotion() {
+    let mut game = sacked_from("team3");
+
+    process_end_of_season(&mut game);
+
+    assert!(
+        game.messages
+            .iter()
+            .all(|message| !message.id.contains("promot") && !message.id.contains("relegat")),
+        "{:?}",
+        game.messages.iter().map(|m| &m.id).collect::<Vec<_>>()
+    );
+}
+
+/// A world whose manager has never had a club (no club, no stint on record: the career stage
+/// "awaiting a club"), with the `game.league` mirror synced as the game syncs it, on the first
+/// division.
+fn never_employed() -> Game {
+    let mut game = make_two_division_game("team1");
+    game.manager.team_id = None;
+    game.manager.career_history.clear();
+    game.sync_legacy_league();
+    game
+}
+
+/// Given an unemployed manager with an older career but no recorded club
+/// When the world season rolls over
+/// Then no unrelated league schedule is announced.
+#[test]
+fn no_schedule_notice_without_a_followed_division() {
+    let mut game = never_employed();
+    game.manager.career_stats.matches_managed = 12;
+    process_end_of_season(&mut game);
+    assert!(
+        game.messages
+            .iter()
+            .all(|m| !m.id.starts_with("new_season_"))
+    );
+}
+
+/// Given an unemployed manager with an older career but no recorded club
+/// When a completed world season rolls over
+/// Then the summary retains the season number without exposing a league.
+#[test]
+fn no_followed_division_keeps_the_completed_season() {
+    let mut game = never_employed();
+    game.manager.career_stats.matches_managed = 12;
+    let season = game.competitions[0].season;
+    let mut cup = game.competitions[0].clone();
+    cup.rules.format = domain::league::CompetitionFormat::Knockout;
+    cup.season = season + 10;
+    game.league = Some(cup);
+    let summary = process_end_of_season(&mut game);
+    assert_eq!(summary.season, season);
+    assert!(summary.league_name.is_empty());
+}
+
+/// Given a manager who has never had a club, with the mirror on the first division
+/// When the season rolls over
+/// Then no preview is published and the summary is empty: he follows no league, and the screens
+///      show nothing of the first competition (maintainer, 8 Nov 2026)
+#[test]
+fn a_manager_who_never_had_a_club_is_shown_no_league() {
+    let mut game = never_employed();
+
+    let summary = process_end_of_season(&mut game);
+
+    assert!(
+        game.news
+            .iter()
+            .all(|article| article.category != domain::news::NewsCategory::SeasonPreview)
+    );
+    assert_eq!(summary.league_name, "");
+}
+
+/// Given a manager sacked from Fourth FC, and a manager who has never had a club
+/// When the season rolls over
+/// Then neither is sent the board's season review or a prize letter: they have no club to review,
+///      and the review would read "0th" for a club called nothing; and the awards ceremony article
+///      is not published for the never-employed one, who follows no league
+#[test]
+fn a_manager_with_no_club_is_sent_no_season_review_and_no_ceremony() {
+    for mut game in [sacked_from("team4"), never_employed()] {
+        process_end_of_season(&mut game);
+
+        let ids: Vec<&str> = game.messages.iter().map(|m| m.id.as_str()).collect();
+        assert!(
+            ids.iter()
+                .all(|id| !id.starts_with("season_end_") && !id.starts_with("season_payout_")),
+            "{ids:?}"
+        );
+    }
+    let mut game = never_employed();
+    process_end_of_season(&mut game);
+    assert!(
+        game.news
+            .iter()
+            .all(|article| !article.id.starts_with("season_awards_"))
+    );
+}
+
+/// Given a sacked manager whose last club is in no league table, in a world with competitions, and
+///      the mirror on the first division
+/// When the screens ask for his league
+/// Then there is none: not the mirror's first competition, which the club has nothing to do with
+#[test]
+fn a_followed_club_in_no_table_shows_no_league_in_a_modern_world() {
+    let mut game = make_two_division_game("team1");
+    game.teams.push(make_team("team9", "Tableless FC"));
+    game.manager
+        .career_history
+        .push(domain::manager::ManagerCareerEntry::open(
+            "team9".to_string(),
+            "Tableless FC".to_string(),
+            "2024-07-01".to_string(),
+        ));
+    game.manager.fire("2025-03-01");
+    game.sync_legacy_league();
+
+    assert!(ofm_core::end_of_season::user_division(&game).is_none());
+}
+
+/// Given a manager who has never had a club
+/// When the awards screen asks for the season's awards
+/// Then there are none: not the first competition's
+#[test]
+fn a_manager_who_never_had_a_club_is_shown_no_awards() {
+    let game = never_employed();
+
+    let awards = ofm_core::season_awards::user_division_season_awards(&game);
+
+    assert!(awards.golden_boot.is_empty());
+    assert!(awards.player_of_year.is_empty());
+}
+
+/// Given a manager who has never had a club
+/// When the season rolls over
+/// Then the world still rolls over: every competition moves on to the next season
+#[test]
+fn the_season_still_rolls_over_for_a_manager_who_never_had_a_club() {
+    let mut game = never_employed();
+    let seasons_before: Vec<u32> = game.competitions.iter().map(|c| c.season).collect();
+
+    process_end_of_season(&mut game);
+
+    let seasons_after: Vec<u32> = game.competitions.iter().map(|c| c.season).collect();
+    assert!(
+        seasons_before
+            .iter()
+            .zip(&seasons_after)
+            .all(|(before, after)| after > before),
+        "{seasons_before:?} -> {seasons_after:?}"
     );
 }
 
@@ -1121,6 +1539,9 @@ fn season_awards_are_scoped_to_the_users_division() {
         minutes_played: 1800,
         ..PlayerSeasonStats::default()
     };
+    lower_star
+        .league_stats_by_competition
+        .insert("eng-2".into(), lower_star.stats.clone());
     game.players.push(lower_star);
 
     let summary = process_end_of_season(&mut game);
@@ -1512,6 +1933,7 @@ fn summary_reflects_the_users_division_when_not_in_the_primary_competition() {
     let summary = process_end_of_season(&mut game);
 
     assert_eq!(summary.league_name, "ENG Second Division");
+    assert_eq!(summary.competition_id, "eng-2");
     assert_eq!(summary.user_position, 1);
     assert_eq!(summary.champion_id, "team3");
     assert_eq!(summary.total_teams, 2);
@@ -1952,11 +2374,196 @@ fn process_end_of_season_never_leaves_a_club_in_two_leagues() {
 
 #[test]
 fn expected_fixture_count_covers_odd_team_counts() {
-    // Double round robin always needs n * (n - 1) fixtures; odd leagues play
-    // it out with byes.
-    assert_eq!(expected_fixture_count(4), Some(12));
-    assert_eq!(expected_fixture_count(5), Some(20));
-    assert_eq!(expected_fixture_count(1), None);
+    // Each leg is n * (n - 1) / 2 fixtures; odd leagues play it out with byes.
+    assert_eq!(expected_fixture_count(4, 2), Some(12));
+    assert_eq!(expected_fixture_count(5, 2), Some(20));
+    assert_eq!(expected_fixture_count(4, 1), Some(6));
+    assert_eq!(expected_fixture_count(5, 1), Some(10));
+    assert_eq!(expected_fixture_count(1, 2), None);
+}
+
+/// The user's league of `club_count` clubs, scheduled over `legs` legs, every fixture played and
+/// won by the home side. `stored_legs` is what the league's calendar says it was authored with;
+/// `None` is a save from before it was stored. With `in_competitions`, the league is also the
+/// world's one competition, the path every new career takes; without, it sits only in the legacy
+/// `game.league` slot.
+fn round_robin_season_game(
+    club_count: usize,
+    legs: u8,
+    stored_legs: Option<u8>,
+    in_competitions: bool,
+) -> Game {
+    let mut game = make_completed_season_game();
+    for index in 3..=club_count {
+        game.teams
+            .push(make_team(&format!("team{index}"), &format!("Club {index}")));
+    }
+    let clubs: Vec<String> = (1..=club_count)
+        .map(|index| format!("team{index}"))
+        .collect();
+    let start = Utc.with_ymd_and_hms(2025, 8, 1, 0, 0, 0).unwrap();
+    let mut fixtures = ofm_core::schedule::build_round_robin_fixtures_with(
+        "league1",
+        &clubs,
+        start,
+        FixtureCompetition::League,
+        legs,
+        7,
+    );
+    let mut standings: Vec<StandingEntry> = clubs
+        .iter()
+        .map(|id| StandingEntry::new(id.clone()))
+        .collect();
+    for fixture in &mut fixtures {
+        fixture.status = FixtureStatus::Completed;
+        fixture.result = Some(MatchResult {
+            home_goals: 1,
+            away_goals: 0,
+            home_scorers: vec![],
+            away_scorers: vec![],
+            report: None,
+            home_penalties: None,
+            away_penalties: None,
+        });
+        for entry in &mut standings {
+            if entry.team_id == fixture.home_team_id {
+                entry.record_result(1, 0);
+            } else if entry.team_id == fixture.away_team_id {
+                entry.record_result(0, 1);
+            }
+        }
+    }
+    let league = game.league.as_mut().unwrap();
+    league.participant_ids = clubs;
+    league.fixtures = fixtures;
+    league.standings = standings;
+    league.calendar = stored_legs.map(|legs| CalendarMetadata {
+        league_legs: Some(legs),
+        ..CalendarMetadata::default()
+    });
+    if in_competitions {
+        game.competitions = vec![league.clone()];
+    }
+    game
+}
+
+fn single_round_robin_season_game(stored_legs: Option<u8>) -> Game {
+    round_robin_season_game(4, 1, stored_legs, false)
+}
+
+fn league_fixture_count(game: &Game) -> usize {
+    game.league
+        .as_ref()
+        .unwrap()
+        .fixtures
+        .iter()
+        .filter(|fixture| fixture.counts_for_league_standings())
+        .count()
+}
+
+/// Given the user's league authored as a single round robin of four clubs, all six fixtures
+/// played; when the season's end is checked and the season advanced; then it is complete and
+/// the career moves on (#1177: it waited for twelve fixtures that would never exist).
+#[test]
+fn a_single_round_robin_league_completes_when_every_fixture_is_played() {
+    let mut game = single_round_robin_season_game(Some(1));
+    assert_eq!(league_fixture_count(&game), 6);
+
+    assert!(is_season_complete(&game));
+    assert!(advance_to_next_season(&mut game).is_ok());
+}
+
+/// Given a finished single round robin; when the season rolls over; then the next season is
+/// scheduled as a single round robin again, not a double one.
+#[test]
+fn a_single_round_robin_league_is_rescheduled_as_a_single_round_robin() {
+    let mut game = single_round_robin_season_game(Some(1));
+
+    advance_to_next_season(&mut game).expect("the season should roll over");
+
+    assert_eq!(league_fixture_count(&game), 6);
+}
+
+/// Given a league with no stored legs (no calendar) holding one leg's fixtures, all played, as a
+/// save from before the legs were stored has it; when its season's end is checked as it stands, it
+/// is not complete: the default is the double round robin. When the load path gives it its
+/// calendar, as loading that save does; then the fixtures prove it single, the season is complete,
+/// and it comes back as a single round robin (#1177).
+#[test]
+fn a_save_from_before_stored_legs_proves_a_single_round_robin_on_load() {
+    let mut game = round_robin_season_game(4, 1, None, true);
+    assert!(!is_season_complete(&game));
+
+    for league in game.competitions.iter_mut().chain(game.league.as_mut()) {
+        ofm_core::calendar_identity::ensure_competition_calendar(league);
+    }
+    assert_eq!(
+        game.competitions[0].calendar.as_ref().unwrap().league_legs,
+        Some(1)
+    );
+
+    assert!(is_season_complete(&game));
+    advance_to_next_season(&mut game).expect("the season should roll over");
+    let league = &game.competitions[0];
+    assert_eq!(
+        league
+            .fixtures
+            .iter()
+            .filter(|fixture| fixture.counts_for_league_standings())
+            .count(),
+        6
+    );
+}
+
+/// Given a save from before the authored legs were stored, whose league holds a double round
+/// robin's twelve fixtures with one still to play; when the load path gives it its calendar and
+/// the season's end is checked; then its legs stay unknown, it is not complete, and once all
+/// twelve are played it rolls over into twelve again.
+#[test]
+fn a_league_with_no_stored_legs_and_a_double_round_robin_needs_all_of_it() {
+    let mut game = round_robin_season_game(4, 2, None, false);
+    if let Some(league) = game.league.as_mut() {
+        ofm_core::calendar_identity::ensure_competition_calendar(league);
+    }
+    assert_eq!(
+        game.league
+            .as_ref()
+            .unwrap()
+            .calendar
+            .as_ref()
+            .unwrap()
+            .league_legs,
+        None
+    );
+    let last = game.league.as_ref().unwrap().fixtures.len() - 1;
+    game.league.as_mut().unwrap().fixtures[last].status = FixtureStatus::Scheduled;
+    assert!(!is_season_complete(&game));
+
+    game.league.as_mut().unwrap().fixtures[last].status = FixtureStatus::Completed;
+    assert!(is_season_complete(&game));
+    advance_to_next_season(&mut game).expect("the season should roll over");
+    assert_eq!(league_fixture_count(&game), 12);
+}
+
+/// Given a five-club single round robin (each club has a bye) stored as `legs: 1`, held in the
+/// world's competitions as every new career's league is; when the season's end is checked and it
+/// rolls over; then it is complete and its ten fixtures come back as ten.
+#[test]
+fn a_single_round_robin_in_the_worlds_competitions_completes_with_an_odd_field() {
+    let mut game = round_robin_season_game(5, 1, Some(1), true);
+    assert_eq!(league_fixture_count(&game), 10);
+
+    assert!(is_season_complete(&game));
+    advance_to_next_season(&mut game).expect("the season should roll over");
+    let league = &game.competitions[0];
+    assert_eq!(
+        league
+            .fixtures
+            .iter()
+            .filter(|fixture| fixture.counts_for_league_standings())
+            .count(),
+        10
+    );
 }
 
 #[test]
@@ -2155,17 +2762,6 @@ fn player_career_entry_added() {
 }
 
 #[test]
-fn player_stats_reset() {
-    let mut game = make_completed_season_game();
-    process_end_of_season(&mut game);
-
-    let p1 = game.players.iter().find(|p| p.id == "p1").unwrap();
-    assert_eq!(p1.stats.appearances, 0);
-    assert_eq!(p1.stats.goals, 0);
-    assert_eq!(p1.stats.assists, 0);
-}
-
-#[test]
 fn season_end_ages_players_and_retires_out_of_contract_veterans() {
     let mut game = make_completed_season_game();
     let veteran = game
@@ -2235,11 +2831,88 @@ fn manager_career_stats_updated() {
     assert_eq!(game.manager.career_stats.losses, 0);
 }
 
+/// Given a finished season in which Rival FC (team2), managed by another manager, lost both matches
+/// When the season ends
+/// Then his record has that season too, not only the user's: two matches, two defeats, last place
+#[test]
+fn another_clubs_manager_has_his_season_on_his_record() {
+    let mut game = make_completed_season_game();
+    let mut rival_boss = Manager::new(
+        "mgr2".to_string(),
+        "Rival".to_string(),
+        "Boss".to_string(),
+        "1978-01-01".to_string(),
+        "England".to_string(),
+    );
+    rival_boss.hire("team2".to_string());
+    game.managers.push(rival_boss);
+    // A generated world's league, which the rollover can archive: its clubs, and a calendar that
+    // says it is a double round robin.
+    let league = game.league.as_mut().unwrap();
+    league.participant_ids = vec!["team1".to_string(), "team2".to_string()];
+    league.calendar = Some(domain::competition_calendar::CalendarMetadata {
+        league_legs: Some(2),
+        ..Default::default()
+    });
+    for fixture in &mut league.fixtures {
+        fixture.competition_id = league.id.clone();
+    }
+
+    process_end_of_season(&mut game);
+
+    let rival_boss = game.managers.iter().find(|m| m.id == "mgr2").unwrap();
+    assert_eq!(rival_boss.career_stats.matches_managed, 2);
+    assert_eq!(rival_boss.career_stats.losses, 2);
+    assert_eq!(rival_boss.career_stats.best_finish, Some(2));
+    assert_eq!(game.manager.career_stats.matches_managed, 2);
+}
+
 #[test]
 fn manager_trophy_awarded_for_first_place() {
     let mut game = make_completed_season_game();
     process_end_of_season(&mut game);
     assert_eq!(game.manager.career_stats.trophies, 1);
+}
+
+/// Given the user's manager also listed in `game.managers` (the managers list and a live match's
+///      AI profile read him there), in step with `game.manager`
+/// When his season is credited at the season's end
+/// Then the listed copy carries the same record and satisfaction, not last season's until the
+///      next day's sync
+#[test]
+fn the_users_listed_record_takes_his_season_too() {
+    let mut game = make_completed_season_game();
+    game.sync_user_manager_record();
+
+    process_end_of_season(&mut game);
+
+    // The record as the managers list shows it: totals, then each stint's club, end and matches.
+    let record = |manager: &Manager| {
+        let stats = &manager.career_stats;
+        (
+            (
+                stats.matches_managed,
+                stats.wins,
+                stats.draws,
+                stats.losses,
+                stats.trophies,
+                stats.best_finish,
+            ),
+            manager
+                .career_history
+                .iter()
+                .map(|stint| (stint.team_id.clone(), stint.end_date.clone(), stint.matches))
+                .collect::<Vec<_>>(),
+            manager.satisfaction,
+        )
+    };
+    let listed = game
+        .managers
+        .iter()
+        .find(|manager| manager.id == game.manager_id)
+        .expect("the user's manager is listed");
+    assert_eq!(record(listed), record(&game.manager));
+    assert_eq!(listed.career_stats.trophies, 1);
 }
 
 #[test]
@@ -2301,6 +2974,7 @@ fn manager_career_history_entry_updated_on_second_season() {
     let entry = &game.manager.career_history[0];
     assert_eq!(entry.matches, 12); // 10 + 2
     assert_eq!(entry.wins, 7); // 5 + 2
+    assert_eq!((entry.draws, entry.losses), (3, 2)); // a season without either adds none
     assert_eq!(entry.best_league_position, Some(1)); // improved from 3 to 1
 }
 
@@ -2434,6 +3108,9 @@ fn season_awards_article_not_added_when_no_marquee_winners() {
         player.stats.goals = 0;
         player.stats.assists = 0;
         player.stats.avg_rating = 0.0;
+        player
+            .league_stats_by_competition
+            .insert("league1".into(), player.stats.clone());
     }
     process_end_of_season(&mut game);
 
@@ -2472,7 +3149,7 @@ fn champion_receives_prize_money_and_ledger_entry() {
     assert_eq!(team1.financial_ledger[0].amount, 5_000_000);
     assert_eq!(
         team1.financial_ledger[0].description,
-        "be.msg.seasonPayout.ledgerDescription?season=1&position=1&suffix=st"
+        "be.msg.seasonPayout.ledgerDescription?season=1&position=1"
     );
 }
 
@@ -3646,12 +4323,14 @@ fn season_end_board_message_top_four_uses_correct_body_key() {
         "2nd-place finish should use topFour body key"
     );
     assert!(
-        msg.i18n_params.contains_key("position"),
-        "topFour key must include position param"
+        msg.i18n_params.get("position") == Some(&"2".to_string()),
+        "topFour position must be the bare number 2"
     );
+    // The place is a bare number: the frontend writes it as an ordinal in the player's language, so
+    // no English suffix ("2nd", "21th") is sent from here.
     assert!(
-        msg.i18n_params.contains_key("suffix"),
-        "topFour key must include suffix param"
+        !msg.i18n_params.contains_key("suffix"),
+        "topFour must not carry an English ordinal suffix"
     );
 }
 
@@ -3926,22 +4605,74 @@ fn scout_pool_is_topped_up_to_floor_after_season() {
     );
 }
 
+/// A player who retired this season, archived at `ovr` after thirteen seasons of thirty games:
+/// the career a generated world's history gives. Archived rather than pushed into `game.players`,
+/// because the season end re-derives a squad player's rating from his attributes before he retires.
+fn retired_this_season_after_thirteen_seasons(
+    game: &Game,
+    id: &str,
+    ovr: u8,
+) -> domain::retired_player::RetiredPlayer {
+    let mut player = make_retired_player(id);
+    player.ovr = ovr;
+    player.career = (1..=13)
+        .map(|season| domain::player::CareerEntry {
+            season,
+            team_id: "team1".to_string(),
+            team_name: "Test FC".to_string(),
+            appearances: 30,
+            goals: 0,
+            assists: 0,
+        })
+        .collect();
+    domain::retired_player::RetiredPlayer::from_player(
+        &player,
+        "2026-05-20",
+        game.league.as_ref().map_or(0, |league| league.season),
+    )
+}
+
+/// Given a star and a squad player who retired this season after thirteen seasons each, rated 85
+///      and 62
+/// When the season ends and they become manager candidates
+/// Then they start at 681 and 382, on the 200-700 scale every manager is created on and apart by
+///      their ability (#1160: both started at 900, above every manager the world opened with)
 #[test]
-fn retiree_manager_reputation_is_derived_from_ovr_and_career() {
+fn retirees_start_managing_on_the_created_scale_by_their_ability() {
     let mut game = make_completed_season_game();
-    game.players.push(make_retired_player("ovr_test"));
+    let star = retired_this_season_after_thirteen_seasons(&game, "star", 85);
+    let squad = retired_this_season_after_thirteen_seasons(&game, "squad", 62);
+    game.retired_players.extend([star, squad]);
 
     process_end_of_season(&mut game);
 
-    let mgr = game
-        .managers
+    let reputation_of = |id: &str| {
+        game.managers
+            .iter()
+            .find(|m| m.id == id)
+            .map(|m| (m.reputation, m.satisfaction, m.fan_approval))
+    };
+    assert_eq!(reputation_of("mgr_retired_star"), Some((681, 50, 50)));
+    assert_eq!(reputation_of("mgr_retired_squad"), Some((382, 50, 50)));
+}
+
+/// Given a Belgian retiree, when the season ends, then his scout identity is ready immediately.
+#[test]
+fn created_staff_have_football_identity_from_retirees() {
+    let mut game = make_completed_season_game();
+    let mut retired = retired_this_season_after_thirteen_seasons(&game, "identity", 70);
+    retired.nationality = "BE".into();
+    game.retired_players.push(retired);
+
+    process_end_of_season(&mut game);
+
+    let scout = game
+        .staff
         .iter()
-        .find(|m| m.id == "mgr_retired_ovr_test")
-        .expect("manager should exist");
-    assert!(mgr.reputation >= 200, "reputation should be >= 200");
-    assert!(mgr.reputation <= 900, "reputation should be <= 900");
-    assert_eq!(mgr.satisfaction, 50);
-    assert_eq!(mgr.fan_approval, 50);
+        .find(|s| s.id == "staff_retired_scout_identity")
+        .unwrap();
+    assert_eq!(scout.football_nation, "BE");
+    assert_eq!(scout.birth_country.as_deref(), Some("BE"));
 }
 
 #[test]

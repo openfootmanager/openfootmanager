@@ -30,6 +30,19 @@ pub fn generate_league(
     league
 }
 
+/// The legs a league table is played over: what its definition authored (`legs: 1` is a single
+/// round robin), stored in its calendar, or two, the double round robin every league was before
+/// legs could be authored. A save from before the legs were stored has them proven from its
+/// fixtures on load (`calendar_identity::ensure_competition_calendar`).
+pub fn league_table_legs(league: &League) -> u8 {
+    league
+        .calendar
+        .as_ref()
+        .and_then(|calendar| calendar.league_legs)
+        .filter(|legs| *legs > 0)
+        .unwrap_or(2)
+}
+
 /// Append a full double round-robin (home & away) for `team_ids` to `league`,
 /// spacing matchdays 7 days apart from `start_date`.
 fn append_round_robin_fixtures(
@@ -186,6 +199,7 @@ pub fn regenerate_league_for_season(league: &mut League, season: u32, start_date
         league.standings.iter().map(|s| s.team_id.clone()).collect()
     };
 
+    let legs = league_table_legs(league);
     league.participant_ids = team_ids.clone();
     league.season = season;
     crate::calendar_identity::record_regenerated_calendar(league, start_date);
@@ -196,7 +210,16 @@ pub fn regenerate_league_for_season(league: &mut League, season: u32, start_date
         .collect();
 
     if team_ids.len() >= 2 {
-        append_round_robin_fixtures(league, &team_ids, start_date);
+        // The legs it was authored with: a single round robin stays one (#1177).
+        let fixtures = build_round_robin_fixtures_with(
+            &league.id,
+            &team_ids,
+            start_date,
+            FixtureCompetition::League,
+            legs,
+            LEAGUE_MATCHDAY_GAP_DAYS.into(),
+        );
+        league.fixtures.extend(fixtures);
     }
 }
 
@@ -268,6 +291,17 @@ pub(crate) fn knockout_bye_count(entrants: usize) -> Option<usize> {
         .map(|size| size - entrants)
 }
 
+/// The number of byes, ties and occupied days in one knockout round.
+pub(crate) fn knockout_round_shape(
+    entrants: usize,
+    matches_per_day: u32,
+) -> Option<(usize, usize, usize)> {
+    let byes = knockout_bye_count(entrants)?;
+    let ties = entrants.checked_sub(byes)? / 2;
+    let days = ties.div_ceil(matches_per_day.max(1) as usize);
+    Some((byes, ties, days))
+}
+
 /// Seed the next knockout round of `cup` from `team_ids` (strongest first —
 /// any byes for a non-power-of-two field go to the leading seeds).
 pub fn seed_knockout_round(
@@ -287,7 +321,9 @@ pub fn seed_knockout_round(
     // When the entrant count is not a power of two, the strongest seeds (which
     // the caller passes first) receive a bye into the next round so the bracket
     // converges to a power of two.
-    let Some(byes) = knockout_bye_count(team_ids.len()) else {
+    let Some((byes, _, _)) =
+        knockout_round_shape(team_ids.len(), cup.rules.knockout_matches_per_day)
+    else {
         log::warn!(
             "[schedule] a knockout field of {} entrants cannot form a bracket",
             team_ids.len()
@@ -1286,6 +1322,49 @@ mod tests {
             max_md1 < min_md2,
             "matchday 1 should end before matchday 2 starts"
         );
+    }
+
+    /// Given a four-team group playing each other once, two matches a matchday, one match a day
+    /// When its fixtures are spread from 1 June
+    /// Then each matchday takes two days and the next starts after a free day: 1–2, 4–5 and
+    ///      7–8 June, so no side plays on consecutive days
+    #[test]
+    fn spread_fixture_dates_leaves_a_rest_day_between_matchdays() {
+        let start = Utc.with_ymd_and_hms(2026, 6, 1, 0, 0, 0).unwrap();
+        let teams: Vec<String> = (0..4).map(|i| format!("t{i}")).collect();
+        let mut fixtures =
+            build_round_robin_fixtures_with("c", &teams, start, FixtureCompetition::Cup, 1, 2);
+
+        spread_fixture_dates(&mut fixtures, start, 1);
+
+        let dates_of = |matchday: u32| -> Vec<String> {
+            let mut dates: Vec<String> = fixtures
+                .iter()
+                .filter(|fixture| fixture.matchday == matchday)
+                .map(|fixture| fixture.date.clone())
+                .collect();
+            dates.sort();
+            dates
+        };
+        assert_eq!(
+            [dates_of(1), dates_of(2), dates_of(3)],
+            [
+                ["2026-06-01", "2026-06-02"].map(String::from).to_vec(),
+                ["2026-06-04", "2026-06-05"].map(String::from).to_vec(),
+                ["2026-06-07", "2026-06-08"].map(String::from).to_vec(),
+            ]
+        );
+    }
+
+    /// Given an empty field, when a knockout round is seeded, then it is skipped without a panic
+    /// or an empty bracket round.
+    #[test]
+    fn an_empty_knockout_field_is_skipped() {
+        let mut cup = League::new("empty".into(), "Empty".into(), 2034, &[]);
+        let start = Utc.with_ymd_and_hms(2034, 7, 1, 0, 0, 0).unwrap();
+        seed_knockout_round(&mut cup, &[], start, FixtureCompetition::Cup);
+        assert!(cup.fixtures.is_empty());
+        assert!(cup.knockout_rounds.is_empty());
     }
 
     #[test]
