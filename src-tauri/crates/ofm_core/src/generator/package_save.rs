@@ -180,14 +180,17 @@ fn write_all(pending: Vec<Pending>) -> Result<(), String> {
     let mut targets: Vec<PathBuf> = Vec::new();
     for file in pending {
         let target = file.path.clone();
-        if let Err(error) = stage(file) {
-            // The half-written file of this one included. The error returned is the write's, not
-            // a cleanup's.
-            discard_staged(&target);
+        if let Err(failure) = stage(file) {
+            // The half-written file of this one included, but only if this save created it: a
+            // `.tmp` that was already there and could not be overwritten is somebody else's. The
+            // error returned is the write's, not a cleanup's.
+            if failure.created {
+                discard_staged(&target);
+            }
             for done in &targets {
                 discard_staged(done);
             }
-            return Err(error);
+            return Err(failure.error);
         }
         targets.push(target);
     }
@@ -218,14 +221,32 @@ fn discard_staged(target: &Path) {
 
 /// Write one file's contents beside its target, straight to disk rather than through a string the
 /// size of the file, and drop the value.
-fn stage(file: Pending) -> Result<(), String> {
+fn stage(file: Pending) -> Result<(), StageFailure> {
+    let not_created = |error: String| StageFailure {
+        error,
+        created: false,
+    };
+    let created = |error: String| StageFailure {
+        error,
+        created: true,
+    };
     if let Some(parent) = file.path.parent() {
-        std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+        std::fs::create_dir_all(parent).map_err(|e| not_created(e.to_string()))?;
     }
-    let out = std::fs::File::create(staging_path(&file.path)).map_err(|e| e.to_string())?;
+    // Created over whatever is there, as before: a stale `.tmp` left by a crash is replaced, not
+    // a reason to refuse every later save.
+    let out =
+        std::fs::File::create(staging_path(&file.path)).map_err(|e| not_created(e.to_string()))?;
     let mut out = std::io::BufWriter::new(out);
-    serde_json::to_writer_pretty(&mut out, &file.contents).map_err(|e| e.to_string())?;
-    std::io::Write::flush(&mut out).map_err(|e| e.to_string())
+    serde_json::to_writer_pretty(&mut out, &file.contents).map_err(|e| created(e.to_string()))?;
+    std::io::Write::flush(&mut out).map_err(|e| created(e.to_string()))
+}
+
+/// Why a file could not be staged, and whether this save had made its staging file by then. Only
+/// a file this save made is this save's to remove.
+struct StageFailure {
+    error: String,
+    created: bool,
 }
 
 /// A data file read for its layout only: its schema, and the id of each entity it declares. Every
@@ -1026,6 +1047,39 @@ mod tests {
         assert!(!staged_manifest, "the staged manifest is removed");
         assert_eq!(manifest, MANIFEST);
         assert_eq!(teams_after, teams_before);
+    }
+
+    /// Given a staging path that already holds something this save did not make and cannot
+    ///       overwrite (a symlink into a directory that does not exist; as root a read-only file
+    ///       would be overwritten anyway, a dangling link is refused for everyone)
+    /// When the package is saved
+    /// Then the save fails, and that entry is still there: only a staging file this save created
+    ///      is removed
+    #[cfg(unix)]
+    #[test]
+    fn a_staging_path_this_save_could_not_create_is_left_alone() {
+        let dir = package_dir(&[
+            ("package.json", MANIFEST),
+            ("teams/teams.json", &team_file(&["fc-a"])),
+        ]);
+        let strangers = dir.join("teams").join("teams.json.tmp");
+        std::os::unix::fs::symlink(dir.join("no-such-dir").join("nothing"), &strangers)
+            .expect("a link the save cannot create through");
+        let package = edited(&dir, |package| {
+            package.meta.as_mut().expect("meta sent").name = "Renamed".to_string()
+        });
+
+        let result = save_package_files(&dir, &package);
+        let still_there = std::fs::symlink_metadata(&strangers).is_ok();
+        let staged_manifest = dir.join("package.json.tmp").exists();
+        std::fs::remove_dir_all(&dir).ok();
+
+        assert!(result.is_err(), "the save reports the failed create");
+        assert!(
+            still_there,
+            "a staging path this save did not create is not removed"
+        );
+        assert!(!staged_manifest, "what this save did create is removed");
     }
 
     /// Given a package whose name pools for two countries live in two files
