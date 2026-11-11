@@ -220,7 +220,7 @@ export async function loadFaces(fonts, faces) {
  */
 export function collectRegions(doc, styleOf, fitSelector) {
   // CSS.escape lives in the page; a stand-in escapes what a selector needs where it does not exist.
-  const escape = (text) =>
+  const escapeCss = (text) =>
     typeof CSS !== "undefined" && CSS.escape ? CSS.escape(text) : text.replace(/[^\w-]/g, "\\$&");
   // A name that can be pasted into the page: an attribute selector for a labelled region, else its
   // tag and first classes, escaped.
@@ -232,7 +232,7 @@ export function collectRegions(doc, styleOf, fitSelector) {
       tag +
       [...element.classList]
         .slice(0, 2)
-        .map((name) => `.${escape(name)}`)
+        .map((name) => `.${escapeCss(name)}`)
         .join("")
     );
   };
