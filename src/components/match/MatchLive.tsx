@@ -553,7 +553,12 @@ export default function MatchLive({
             <h3 className="shrink-0 text-xs font-heading font-bold uppercase tracking-widest text-gray-500 dark:text-gray-400 mb-3">
               {t("match.keyEvents")}
             </h3>
-            <div className="min-h-0 flex-1 overflow-auto">
+            <section
+              aria-label={t("match.keyEvents")}
+              // biome-ignore lint/a11y/noNoninteractiveTabindex: the scrollable key events need a tab stop for keyboard scrolling in WebKit
+              tabIndex={0}
+              className="min-h-0 flex-1 overflow-auto overscroll-contain focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-focus"
+            >
               <div className="flex flex-col gap-1.5">
                 {importantEvents
                   .filter((e) =>
@@ -595,7 +600,7 @@ export default function MatchLive({
                   </p>
                 )}
               </div>
-            </div>
+            </section>
           </div>
         </aside>
       </div>

@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ThemeProvider } from "../../context/ThemeContext";
@@ -149,6 +149,54 @@ describe("MatchLive", () => {
     );
   });
   afterEach(() => vi.useRealTimers());
+
+  /**
+   * Given a long match with team controls and many key events
+   * When the sidebar is rendered
+   * Then only the event list flexes and scrolls, with a short-window fallback on the sidebar.
+   */
+  it("keeps the controls outside the independently scrolling key-event list", () => {
+    const goals: MatchEvent[] = Array.from({ length: 24 }, (_, minute) => ({
+      minute: minute + 1,
+      event_type: "Goal",
+      side: "Home",
+      zone: "Midfield",
+      player_id: null,
+      secondary_player_id: null,
+    }));
+    renderLive({ importantEvents: goals });
+    const sidebar = screen.getByRole("complementary");
+    const list = within(sidebar).getByRole("region", { name: "match.keyEvents" });
+    const heading = within(sidebar).getByRole("heading", { name: "match.keyEvents" });
+    const speedControls = within(sidebar).getByRole("button", { name: /^match\.pause/ });
+    const teamControls = within(sidebar).getByRole("heading", { name: "match.teamControls" });
+
+    // jsdom cannot measure flex layout; protect the sizing and overflow contract explicitly.
+    expect(sidebar).toHaveClass("flex", "flex-col", "overflow-y-auto");
+    expect(speedControls.parentElement?.parentElement).toHaveClass("shrink-0");
+    expect(teamControls.parentElement).toHaveClass("shrink-0");
+    expect(heading.parentElement).toBe(list.parentElement);
+    expect(heading).toHaveClass("shrink-0");
+    expect(list.parentElement).toHaveClass("flex-1", "min-h-40", "flex", "flex-col");
+    expect(list.parentElement).not.toHaveClass("shrink-0");
+    expect(list).toHaveClass("min-h-0", "flex-1", "overflow-auto");
+    expect(list).not.toContainElement(speedControls);
+    expect(list).not.toContainElement(teamControls);
+    expect(within(list).getByText("24'")).toBeInTheDocument();
+    expect(within(list).getByText("13'")).toBeInTheDocument();
+    expect(within(list).queryByText("12'")).toBeNull();
+  });
+
+  /** Given the key-events sidebar, when its list receives focus, then it is named and visibly focused. */
+  it("gives keyboard users a named focus target for scrolling key events", () => {
+    renderLive();
+    const list = screen.getByRole("region", { name: "match.keyEvents" });
+
+    expect(list).toHaveAttribute("tabindex", "0");
+    expect(list).toHaveClass("focus-visible:ring-2", "focus-visible:ring-focus");
+    act(() => list.focus());
+    expect(list).toHaveFocus();
+  });
 
   /**
    * Given the commentary's scrollable panel is at the bottom of its history
