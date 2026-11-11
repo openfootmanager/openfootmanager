@@ -5,6 +5,8 @@ import { invoke } from "@tauri-apps/api/core";
 import { i18nReady } from "../../i18n";
 import type { GameStateData, PlayerData } from "../../store/gameStore";
 import { createPlayer, createSeasonContext, createTeam } from "../../test-utils/factories";
+import { getRoleOptions } from "../../lib/playerRoles";
+import { naturalPositionOf } from "../../lib/positions";
 import PlayerProfile from "./PlayerProfile";
 
 // The shell of the profile: the name card above four tabs. What each tab holds is the business of the
@@ -322,17 +324,20 @@ describe("PlayerProfile shell", () => {
    * Then the backend is asked to set that role for him
    */
   it("sets the own player's tactical role from the Overview", async () => {
+    const player = createPlayer({ id: "player-1", team_id: "team-1" });
+    // The roles the select offers for him, in its order; the last is not his current "Standard".
+    const roles = getRoleOptions(naturalPositionOf(player), "Standard");
+    const chosen = roles[roles.length - 1];
+    expect(chosen).not.toBe("Standard");
     renderProfile();
 
     fireEvent.click(screen.getByRole("combobox", { name: "Role" }));
-    const options = screen.getAllByRole("option");
-    expect(options.length).toBeGreaterThan(1);
-    fireEvent.click(options[options.length - 1]);
+    fireEvent.click(screen.getAllByRole("option")[roles.length - 1]);
 
     await vi.waitFor(() =>
       expect(invoke).toHaveBeenCalledWith(
         "set_player_role",
-        expect.objectContaining({ playerId: "player-1" }),
+        expect.objectContaining({ playerId: "player-1", role: chosen }),
       ),
     );
   });
