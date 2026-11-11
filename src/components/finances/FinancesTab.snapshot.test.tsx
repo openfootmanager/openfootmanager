@@ -371,3 +371,19 @@ describe("FinancesTab backend snapshot", () => {
     await waitFor(() => expect(calls).toBe(2));
   });
 });
+
+/** Given a committed fee absent from a slim local player list, when a fresh career state arrives on the same date, then Finances refreshes its backend budget. */
+it("refreshes commitments when a fresh slim career state has the same finance key", async () => {
+  riskLevels.current = {};
+  mockedInvoke.mockReset();
+  mockedInvoke
+    .mockResolvedValueOnce(wireSnapshot())
+    .mockResolvedValueOnce(
+      wireSnapshot({ committed_transfer_fees: 80000, available_transfer_budget: 220000 }),
+    );
+  const gameState = createGameState({}, [], []);
+  const view = await renderFinances(<FinancesTab gameState={gameState} />);
+  expect(screen.getByText(/300/)).toBeInTheDocument();
+  view.rerender(<FinancesTab gameState={{ ...gameState }} />);
+  expect(await screen.findByText(/220/)).toBeInTheDocument();
+});
