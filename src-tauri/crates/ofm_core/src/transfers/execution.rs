@@ -577,6 +577,7 @@ type DueTransferRegistration = (String, String, String, u64);
 fn due_transfer_registrations(
     game: &Game,
     current_date: NaiveDate,
+    window_is_open: bool,
 ) -> Vec<DueTransferRegistration> {
     game.players
         .iter()
@@ -589,7 +590,9 @@ fn due_transfer_registrations(
                 let registration_date = offer.registration_date.as_deref()?;
                 let registration_date =
                     NaiveDate::parse_from_str(registration_date, "%Y-%m-%d").ok()?;
-                if registration_date > current_date {
+                if registration_date > current_date
+                    || (!window_is_open && registration_date == current_date)
+                {
                     return None;
                 }
 
@@ -604,15 +607,11 @@ fn due_transfer_registrations(
         .collect()
 }
 pub fn process_pending_transfer_registrations(game: &mut Game) {
-    if !transfer_window_is_open(game) {
-        expire_missed_transfer_registrations(game);
-        return;
-    }
-
+    let window_is_open = transfer_window_is_open(game);
     let current_date = game.clock.current_date.date_naive();
     let today = current_date.format("%Y-%m-%d").to_string();
     let user_team_id = game.manager.team_id.clone();
-    let due_registrations = due_transfer_registrations(game, current_date);
+    let due_registrations = due_transfer_registrations(game, current_date, window_is_open);
 
     for (player_id, offer_id, buyer_team_id, fee) in due_registrations {
         let player_snapshot = game
@@ -629,6 +628,12 @@ pub fn process_pending_transfer_registrations(game: &mut Game) {
         });
         use domain::player::TransferRegistrationFailureReason as Failure;
         let registration_result = (|| {
+            // A missed window is a registration failure too: it must carry the same saved
+            // reason and user notice as other failures, not silently release the commitment.
+            if !window_is_open {
+                return Err(Failure::RegistrationBlocked);
+            }
+
             let player = player_snapshot.as_ref().ok_or(Failure::PlayerUnavailable)?;
             if player_has_active_or_pending_loan(player) {
                 return Err(Failure::LoanConflict);

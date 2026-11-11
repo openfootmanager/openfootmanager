@@ -245,25 +245,6 @@ pub(crate) fn prune_closed_offers(game: &mut Game) {
     }
 }
 
-/// A due agreement that missed its registration window cannot hold funds until another window.
-pub(super) fn expire_missed_transfer_registrations(game: &mut Game) {
-    let today = game.clock.current_date.date_naive();
-    let stamp = today.format("%Y-%m-%d").to_string();
-    for player in &mut game.players {
-        for offer in &mut player.transfer_offers {
-            if offer.status == TransferOfferStatus::PendingRegistration
-                && offer
-                    .registration_date
-                    .as_deref()
-                    .and_then(|date| NaiveDate::parse_from_str(date, "%Y-%m-%d").ok())
-                    .is_some_and(|date| date < today)
-            {
-                close_transfer_offer(offer, TransferOfferStatus::Withdrawn, &stamp);
-            }
-        }
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
