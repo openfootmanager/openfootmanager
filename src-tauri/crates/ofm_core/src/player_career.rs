@@ -137,7 +137,7 @@ impl StatisticsSeason {
 }
 
 /// A career row and whether it is the stint he is on now.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct StintRow {
     pub entry: CareerEntry,
     pub in_progress: bool,
@@ -232,7 +232,7 @@ struct Placing {
 /// takes the first visit at its club after the one the row before it took: a stint with no
 /// appearance has no row, so the rows are a subsequence of the season's visits, not all of them.
 ///
-/// Only a club he visits twice in one season with a gap he played none of is ambiguous: the row
+/// Only a club he visits twice in one season with a gap he played none of is ambiguous (#1402): the row
 /// takes the first visit, which is right unless the first spell was the one with no appearance.
 fn place_rows(rows: &[StintRow], visits: &[Visit], seasons: &StatisticsSeason) -> Vec<Placing> {
     let mut cursors: HashMap<u32, usize> = HashMap::new();
@@ -839,7 +839,8 @@ mod tests {
     ///       with a single A row (the second spell's)
     /// When the career is built
     /// Then the row takes the first A visit: the known ambiguity (the rows carry no dates), which
-    ///      shows as the row sitting before the loan line instead of after it
+    ///      shows as the row sitting before the loan line instead of after it (order only, the figures
+    ///      are right; exact placement needs the stint's dates persisted, #1402)
     #[test]
     fn an_unplayed_first_spell_at_a_club_is_a_known_ambiguity() {
         let rows = [stint(2025, "a", 7, 2, 1)];
