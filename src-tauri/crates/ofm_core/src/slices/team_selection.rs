@@ -509,6 +509,89 @@ mod tests {
         }
     }
 
+    fn world_with_continental_berth(reputation: u32) -> Game {
+        use domain::league::{Berth, BerthRule, CompetitionScope, CompetitionType, League};
+        let mut game = world();
+        game.teams[0].reputation = reputation;
+        let club_ids: Vec<_> = (0..20)
+            .map(|index| {
+                if index == 0 {
+                    "north".into()
+                } else {
+                    format!("club{index}")
+                }
+            })
+            .collect();
+        let mut league = League::new("league".into(), "League".into(), 2026, &club_ids);
+        league.berths.push(Berth {
+            target: "continental".into(),
+            rule: BerthRule::PositionRange { from: 1, to: 5 },
+            fallback_to: None,
+        });
+        let mut continental = League::new("continental".into(), "Champions Cup".into(), 2026, &[]);
+        continental.kind = CompetitionType::ContinentalClub;
+        continental.scope = CompetitionScope::Continental;
+        game.competitions = vec![league, continental];
+        game
+    }
+
+    fn norths_opening_expectation(game: &Game) -> OpeningExpectation {
+        query_team_selection(game)
+            .clubs
+            .into_iter()
+            .find(|club| club.team_id == "north")
+            .unwrap()
+            .opening_expectation
+    }
+
+    /// Given a continental berth including first place, when the board's target becomes the title,
+    /// then the title label takes precedence over continental qualification.
+    #[test]
+    fn a_title_target_keeps_its_label_when_it_also_earns_a_continental_place() {
+        let mut game = world_with_continental_berth(650);
+        let qualifying = norths_opening_expectation(&game);
+        assert_eq!(qualifying.target_position, 5);
+        assert_eq!(qualifying.label_key, "teamSelect.expectations.continental");
+
+        game.teams[0].reputation = 800;
+        let title = norths_opening_expectation(&game);
+        assert_eq!(title.target_position, 1);
+        assert_eq!(title.label_key, "teamSelect.expectations.title");
+    }
+
+    /// Given a position target earning a continental berth, when the berth requires a cup win,
+    /// then reaching that league position no longer promises continental qualification.
+    #[test]
+    fn a_cup_winner_berth_does_not_promise_a_continental_place_for_league_position() {
+        let mut game = world_with_continental_berth(650);
+        assert_eq!(
+            norths_opening_expectation(&game).label_key,
+            "teamSelect.expectations.continental"
+        );
+
+        game.competitions[0].berths[0].rule = domain::league::BerthRule::CupWinner;
+        let expectation = norths_opening_expectation(&game);
+        assert_eq!(expectation.target_position, 5);
+        assert_eq!(expectation.label_key, "teamSelect.expectations.topHalf");
+    }
+
+    /// Given a position target earning a continental berth, when the berth requires a playoff win,
+    /// then reaching that league position no longer promises continental qualification.
+    #[test]
+    fn a_playoff_winner_berth_does_not_promise_a_continental_place_for_league_position() {
+        let mut game = world_with_continental_berth(650);
+        assert_eq!(
+            norths_opening_expectation(&game).label_key,
+            "teamSelect.expectations.continental"
+        );
+
+        game.competitions[0].berths[0].rule =
+            domain::league::BerthRule::PlayoffWinner { from: 1, to: 5 };
+        let expectation = norths_opening_expectation(&game);
+        assert_eq!(expectation.target_position, 5);
+        assert_eq!(expectation.label_key, "teamSelect.expectations.topHalf");
+    }
+
     /// Given a generated two-country world, when a career starts through its real bootstrap,
     /// then the opening preview and the first board objective name the same league target.
     #[test]
