@@ -2,7 +2,7 @@ import { formatDate } from "../../lib/dateFormatting";
 import type { PlayerData, TeamData } from "../../store/gameStore";
 import type { TOptions } from "i18next";
 import { weeklyWageAmount } from "../../lib/finance";
-import { formatVal, formatWeeklyWage } from "../../lib/helpers";
+import { formatVal, formatWeeklyWage, getContractYearsRemaining } from "../../lib/helpers";
 import { getAttributeValueClassName } from "../../lib/playerAttributeDisplay";
 import { resolveInjuryName } from "../../lib/injury";
 
@@ -180,4 +180,18 @@ export function buildPlayerAdvancedStats(player: PlayerData): PlayerAdvancedStat
  */
 export function formatProfileDay(day: string, language: string): string {
   return formatDate(day, language, { day: "numeric", month: "short", year: "numeric" });
+}
+
+type YearsLeftTranslate = (key: string, options?: Record<string, string | number>) => string;
+
+/**
+ * The years left on a contract as the sheet writes them, scaffold: the real wording replaces it.
+ */
+export function formatYearsLeft(
+  contractEnd: string,
+  currentDate: string,
+  _language: string,
+  _t: YearsLeftTranslate,
+): string {
+  return getContractYearsRemaining(contractEnd, currentDate);
 }
