@@ -4,9 +4,14 @@ import { Search } from "lucide-react";
 import { GeneratedAvatar } from "../../ui/GeneratedAvatar";
 import { useAssetDataUrl } from "../../../hooks/useAssetDataUrl";
 import { POSITION_COLOR, entityRowKey } from "./helpers";
-import { EntityListFooter, EntityListShell, EntityRow, ExportCsvButton } from "./shared";
-import { ENTITY_LIST_PAGE_SIZE, buildTeamNameMap, capRows } from "./entityList.helpers";
-import { useKeepRevealed } from "./entityList.reveal";
+import {
+  EntityListFooter,
+  EntityListShell,
+  EntityRow,
+  EntityRowList,
+  ExportCsvButton,
+} from "./shared";
+import { buildTeamNameMap } from "./entityList.helpers";
 import { filterPlayerRows, positionFilterGroups, type PositionFilter } from "./PlayersTab.helpers";
 import { Select } from "../../ui/Select";
 import type { PlayerDef, Position, TeamDef } from "./types";
@@ -82,31 +87,21 @@ export function PlayersTab({
   const [query, setQuery] = useState("");
 
   const [positionFilter, setPositionFilter] = useState<PositionFilter>("All");
-  const [visibleCount, setVisibleCount] = useState(ENTITY_LIST_PAGE_SIZE);
 
   const teamNames = useMemo(() => buildTeamNameMap(teams), [teams]);
   const { scoped, filtered } = useMemo(
     () => filterPlayerRows({ players, youthOnly, positionFilter, query, teamNames, positions }),
     [players, youthOnly, positionFilter, query, teamNames, positions],
   );
-  const { visible } = capRows(
-    filtered,
-    visibleCount,
-    ENTITY_LIST_PAGE_SIZE,
-    ({ i }) => i === selectedIndex,
-  );
-  useKeepRevealed(visible.length, visibleCount, setVisibleCount);
+  // Searching or filtering changes which rows the list holds: it goes back to its first.
+  const resetKey = `${query}\u0000${positionFilter}`;
 
-  // Reset here rather than in an effect: an effect would let the old, longer
-  // list render once before shrinking it, which is the cost being avoided.
   function handleQueryChange(next: string) {
     setQuery(next);
-    setVisibleCount(ENTITY_LIST_PAGE_SIZE);
   }
 
   function handlePositionFilterChange(next: string) {
     setPositionFilter(next as PositionFilter);
-    setVisibleCount(ENTITY_LIST_PAGE_SIZE);
   }
 
   return (
@@ -175,44 +170,44 @@ export function PlayersTab({
           </div>
         )
       }
-      footerSlot={
-        <EntityListFooter
-          shown={visible.length}
-          matches={filtered.length}
-          hasRecords={scoped.length > 0}
-          onLoadMore={() => setVisibleCount((n) => n + ENTITY_LIST_PAGE_SIZE)}
-        />
-      }
+      footerSlot={<EntityListFooter matches={filtered.length} hasRecords={scoped.length > 0} />}
     >
-      {visible.map(({ player, i }) => (
-        <EntityRow
-          key={entityRowKey(player.id, i)}
-          title={player.name || `${player.firstName} ${player.lastName}`.trim() || player.id}
-          subtitle={[
-            t(`common.positions.${player.position}`),
-            player.club ? (teamNames.get(player.club) ?? player.club) : null,
-          ]
-            .filter(Boolean)
-            .join(" · ")}
-          badge={
-            <PlayerAvatarCell
-              player={player}
-              posAbbr={t(`common.posAbbr.${player.position as Position}`, {
-                defaultValue: player.position.slice(0, 2).toUpperCase(),
-              })}
-              projectDir={projectDir}
-            />
-          }
-          onEdit={() => onEdit(i)}
-          onDelete={() => onDelete(i)}
-          onDuplicate={onDuplicate ? () => onDuplicate(i) : undefined}
-          duplicateLabel={t("worldEditor.duplicateEntity")}
-          editLabel={t("worldEditor.editPlayer")}
-          deleteLabel={t("worldEditor.deletePlayer")}
-          isSelected={selectedIndex === i}
-          onClick={onSelect ? () => onSelect(i) : undefined}
-        />
-      ))}
+      <EntityRowList
+        rows={filtered}
+        itemKey={({ player }) => entityRowKey(player)}
+        label={youthOnly ? t("worldEditor.sectionYouth") : t("worldEditor.sectionPlayers")}
+        selectedIndex={selectedIndex}
+        resetKey={resetKey}
+        onSelect={onSelect}
+        renderRow={({ player, i }) => (
+          <EntityRow
+            title={player.name || `${player.firstName} ${player.lastName}`.trim() || player.id}
+            subtitle={[
+              t(`common.positions.${player.position}`),
+              player.club ? (teamNames.get(player.club) ?? player.club) : null,
+            ]
+              .filter(Boolean)
+              .join(" · ")}
+            badge={
+              <PlayerAvatarCell
+                player={player}
+                posAbbr={t(`common.posAbbr.${player.position as Position}`, {
+                  defaultValue: player.position.slice(0, 2).toUpperCase(),
+                })}
+                projectDir={projectDir}
+              />
+            }
+            onEdit={() => onEdit(i)}
+            onDelete={() => onDelete(i)}
+            onDuplicate={onDuplicate ? () => onDuplicate(i) : undefined}
+            duplicateLabel={t("worldEditor.duplicateEntity")}
+            editLabel={t("worldEditor.editPlayer")}
+            deleteLabel={t("worldEditor.deletePlayer")}
+            isSelected={selectedIndex === i}
+            onClick={onSelect ? () => onSelect(i) : undefined}
+          />
+        )}
+      />
     </EntityListShell>
   );
 }

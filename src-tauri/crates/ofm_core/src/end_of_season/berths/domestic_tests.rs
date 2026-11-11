@@ -1,4 +1,6 @@
-use super::super::continental::{continental_qualified_entrants, resolve_continental_fields};
+use super::super::continental::{
+    continental_qualified_entrants, cup_champion, resolve_continental_fields,
+};
 use super::super::pyramid::apply_pyramid_promotion_relegation;
 use super::super::test_support::*;
 use super::*;
@@ -1020,4 +1022,95 @@ fn a_berth_winner_reaches_a_target_tied_with_a_tier_listed_after_it() {
 #[test]
 fn a_berth_winner_reaches_a_target_tied_with_a_tier_listed_before_it() {
     assert_the_berth_winner_reaches_the_tied_target(["top", "b-peer", "a-target", "feeder"]);
+}
+
+/// Two first divisions of one country at the same priority (a berth target, a sibling feeder or an
+/// older save can have them), each led by its own club, the Europe-limited cup listed first, and the
+/// divisions in the given order.
+fn two_equal_priority_first_divisions(ids_in_listing_order: [&str; 2]) -> Game {
+    let league = |id: &str| {
+        let leader = if id == "es-a" { "a1" } else { "b1" };
+        league_in_region(id, "ES", "europe", leader)
+    };
+    let mut game = empty_game();
+    game.competitions = vec![
+        continental_cup("euro", &["europe"]),
+        league(ids_in_listing_order[0]),
+        league(ids_in_listing_order[1]),
+    ];
+    game.teams.push(filler_club("es-filler", "ES", 10));
+    game
+}
+
+/// Given two first divisions of a country at the same priority, each led by its own club
+/// When continental qualification runs with them listed one way, and then the other
+/// Then the same clubs qualify both times: the division with the lower id is "the first
+///      division", not whichever the competition vector lists first (#1381).
+#[test]
+fn equal_priority_first_divisions_ignore_the_order_competitions_are_listed_in() {
+    let in_order = two_equal_priority_first_divisions(["es-a", "es-b"]);
+    let reversed = two_equal_priority_first_divisions(["es-b", "es-a"]);
+
+    let field = continental_qualified_entrants(&in_order, &in_order.competitions[0]);
+    let field_reversed = continental_qualified_entrants(&reversed, &reversed.competitions[0]);
+
+    assert_eq!(
+        field_reversed, field,
+        "the listing order changed who qualifies"
+    );
+    assert!(field.contains(&"a1".to_string()), "{field:?}");
+    assert!(!field.contains(&"b1".to_string()), "{field:?}");
+}
+
+/// A domestic cup of Spain for the 2027 edition, last season's edition (2026) in the archive won by
+/// "champ", and two Spanish first divisions at one priority: one still on 2026, one on 2027.
+fn cup_after_renewal_with_two_equal_priority_divisions(ids_in_listing_order: [&str; 2]) -> Game {
+    let division_on = |id: &str, season: u32| {
+        let mut league = division(id, 0, "ES", &[("x", 30)]);
+        league.season = season;
+        league
+    };
+    let mut cup = League::new("es-cup".to_string(), "Cup".to_string(), 2027, &[]);
+    cup.scope = CompetitionScope::Domestic;
+    cup.kind = CompetitionType::Cup;
+    cup.country_id = Some("ES".to_string());
+    let mut game = empty_game();
+    game.competitions = vec![cup];
+    for id in ids_in_listing_order {
+        game.competitions
+            .push(division_on(id, if id == "es-a" { 2026 } else { 2027 }));
+    }
+    game.edition_archive
+        .push(domain::edition_archive::CompletedEdition {
+            competition_id: "es-cup".to_string(),
+            season: 2026,
+            completed_on: "2026-05-30".to_string(),
+            champion_id: "champ".to_string(),
+            participant_ids: vec![],
+            standings: vec![],
+            groups: vec![],
+            knockout_rounds: vec![],
+            fixtures: vec![],
+        });
+    game
+}
+
+/// Given a renewed domestic cup, and two divisions of its country at the same priority that are on
+///       different seasons
+/// When its champion is read with the divisions listed one way, and then the other
+/// Then it is the same both times: the season being settled is the lower-id division's, not the
+///      first one listed (#1381).
+#[test]
+fn the_season_being_settled_ignores_the_order_equal_priority_divisions_are_listed_in() {
+    let in_order = cup_after_renewal_with_two_equal_priority_divisions(["es-a", "es-b"]);
+    let reversed = cup_after_renewal_with_two_equal_priority_divisions(["es-b", "es-a"]);
+
+    let champion = cup_champion(&in_order, &in_order.competitions[0]);
+    let champion_reversed = cup_champion(&reversed, &reversed.competitions[0]);
+
+    assert_eq!(
+        champion_reversed, champion,
+        "the listing order changed which edition is being settled"
+    );
+    assert_eq!(champion.as_deref(), Some("champ"));
 }
