@@ -250,6 +250,7 @@ describe("the player profile's ratings at his positions", () => {
               rating: 77,
               familiarity: "natural",
               deployed: false,
+              weights: [],
               key_attributes: [],
             },
             {
@@ -257,6 +258,7 @@ describe("the player profile's ratings at his positions", () => {
               rating: 61,
               familiarity: "out_of_position",
               deployed: true,
+              weights: [],
               key_attributes: [],
             },
           ],
@@ -297,6 +299,7 @@ describe("the player profile's ratings at his positions", () => {
               rating: 77,
               familiarity: "natural",
               deployed: false,
+              weights: [],
               key_attributes: [],
             },
             ...(startsAtRightBack
@@ -306,6 +309,7 @@ describe("the player profile's ratings at his positions", () => {
                     rating: 61,
                     familiarity: "out_of_position",
                     deployed: true,
+                    weights: [],
                     key_attributes: [],
                   },
                 ]

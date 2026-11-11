@@ -17,6 +17,7 @@ const answer = {
       rating: 77,
       familiarity: "natural",
       deployed: false,
+      weights: [],
       key_attributes: [],
     },
   ],
