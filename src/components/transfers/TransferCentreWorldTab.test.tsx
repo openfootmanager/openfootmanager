@@ -331,4 +331,33 @@ describe("TransferCentreWorldTab", () => {
 
     expect(screen.getByText("Alex Star")).toBeInTheDocument();
   });
+
+  /**
+   * Given an employed manager in a save with competitions, whose mirror (`game.league`) holds the
+   *       rumours the weekly news just generated while the competition's own copy does not (the
+   *       mirror is where they are written; a Monday advance with no user match returns it as is)
+   * When the world tab opens
+   * Then the rumours of the mirror show: the tab's source is the mirror, as before
+   */
+  it("shows an employed manager the rumours on the mirror, not a competition's stale copy", () => {
+    const state = createGameState();
+    state.competitions = [
+      {
+        id: "league-1",
+        name: "Premier Division",
+        season: 2026,
+        kind: "League",
+        scope: "Domestic",
+        participant_ids: ["team-1"],
+        fixtures: [],
+        standings: [{ team_id: "team-1" }],
+        transfer_log: [],
+        transfer_rumours: [],
+      },
+    ] as unknown as GameStateData["competitions"];
+
+    render(<TransferCentreWorldTab gameState={state} />);
+
+    expect(screen.getByText("Alex Star")).toBeInTheDocument();
+  });
 });
