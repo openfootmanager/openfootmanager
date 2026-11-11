@@ -236,8 +236,9 @@ pub fn match_finish(ctx: Arc<McpContext>) -> Result<MatchFinished, String> {
     })
 }
 
-/// Apply a team talk at half-time (or half-time of extra time). One talk per interval, and the
-/// game says how the match stands from the score: the agent chooses only the tone.
+/// Give a team talk at half-time (or half-time of extra time) of a live match, or once after the
+/// user's match has finished (after `match_finish`). One talk per moment, and the game says how the
+/// match stands from the score: the agent chooses only the tone.
 /// tone: "calm" | "motivational" | "assertive" | "aggressive" | "praise" | "disappointed"
 pub fn match_team_talk(ctx: Arc<McpContext>, tone: String) -> Result<TeamTalkApplied, String> {
     // Resolves the manager's team before the loop that adjusts morale, so an

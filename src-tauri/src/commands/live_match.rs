@@ -210,6 +210,7 @@ pub fn apply_team_talk_on(
     // The lifecycle lock a career install holds, across reading the moment, claiming it and
     // writing the morale: an install clears the claimed moments, so one that landed between two
     // talks would let both give the old career's half-time talk.
+    let _operation = crate::application::live_session::operation();
     let (moment, career) = team_talk_moment_of(state, career)?;
     give_team_talk_at(state, career, &moment, tone)
 }
