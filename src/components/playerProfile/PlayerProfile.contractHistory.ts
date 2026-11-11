@@ -58,7 +58,8 @@ export function buildContractHistory(
     if (!entry.contract) return;
     const previous = rows[rows.length - 1];
     const takesOverOn = entry.contract.start ?? entry.date;
-    if (previous?.end && takesOverOn && takesOverOn < previous.end) {
+    // Only an open contract is taken over: a released one was already closed, and says so itself.
+    if (!closed && previous?.end && takesOverOn && takesOverOn < previous.end) {
       previous.replacedOn = takesOverOn;
     }
     closed = false;

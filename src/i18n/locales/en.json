@@ -1921,7 +1921,8 @@
         "one": "{{years}} year",
         "many": "{{years}} years",
         "other": "{{years}} years"
-      }
+      },
+      "current": "Current"
     },
     "movementRenewedWith": "Renewed with {{club}}",
     "movementAtClub": "At {{club}}",

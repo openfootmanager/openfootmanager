@@ -1921,7 +1921,8 @@
         "one": "{{years}} yıl",
         "many": "{{years}} yıl",
         "other": "{{years}} yıl"
-      }
+      },
+      "current": "Geçerli"
     },
     "movementRenewedWith": "{{club}} ile yenilendi",
     "movementAtClub": "{{club}} kulübünde",

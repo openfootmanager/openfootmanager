@@ -1939,7 +1939,8 @@
         "one": "{{years}} anno",
         "many": "{{years}} anni",
         "other": "{{years}} anni"
-      }
+      },
+      "current": "Attuale"
     },
     "movementRenewedWith": "Rinnovato con {{club}}",
     "movementAtClub": "Presso {{club}}",

@@ -114,6 +114,20 @@ describe("PlayerProfileContractHistoryCard", () => {
   });
 
   /**
+   * Given the contract he is on now and one that is over
+   * When the card is drawn
+   * Then the current one also says so in words, since a tint alone is a colour-only signal, and
+   *      the other does not
+   */
+  it("says in words which contract is the current one", () => {
+    renderCard([RENEWED, EXPIRED]);
+
+    const [current, closed] = screen.getAllByRole("row").slice(1);
+    expect(within(current).getByText("playerProfile.contractSheet.current")).toBeInTheDocument();
+    expect(within(closed).queryByText("playerProfile.contractSheet.current")).toBeNull();
+  });
+
+  /**
    * Given each way a contract can have begun
    * When the card is drawn
    * Then each says how in words: a transfer with no known club, a free-agent signing and a first

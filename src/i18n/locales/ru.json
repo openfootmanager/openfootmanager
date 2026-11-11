@@ -1920,7 +1920,8 @@
         "one": "{{years}} года",
         "many": "{{years}} года",
         "other": "{{years}} года"
-      }
+      },
+      "current": "Действует"
     },
     "movementRenewedWith": "Продлил контракт с {{club}}",
     "movementAtClub": "В клубе {{club}}",
