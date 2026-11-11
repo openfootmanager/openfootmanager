@@ -548,4 +548,31 @@ describe("PlayerProfileOverview", () => {
 
     expect(screen.queryByRole("region", { name: "Traits" })).toBeNull();
   });
+
+  /**
+   * Given the Overview's cards, which hold screen-reader-only text (rating chips, the retry
+   *       descriptions)
+   * When a card is drawn
+   * Then it is positioned, so that text stays inside it: an unpositioned card lets its
+   *      absolutely placed text reach out to the page, and the page scrolls (the 960×640 layout
+   *      check of the profile)
+   */
+  it("positions each card so its screen-reader text cannot stretch the page", () => {
+    render(<PlayerProfileOverview {...props()} />);
+
+    for (const name of ["Now", "Details", "Previous matches", "Season Statistics", "Attributes"]) {
+      expect(screen.getByRole("region", { name })).toHaveClass("relative");
+    }
+  });
+
+  /**
+   * Given a player with traits
+   * When the Traits card is drawn
+   * Then it is as tall as its traits, not stretched to the height of the other columns
+   */
+  it("does not stretch the Traits card to fill its column", () => {
+    render(<PlayerProfileOverview {...props()} />);
+
+    expect(screen.getByRole("region", { name: "Traits" })).not.toHaveClass("flex-1");
+  });
 });
