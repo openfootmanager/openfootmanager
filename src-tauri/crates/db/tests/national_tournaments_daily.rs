@@ -84,7 +84,11 @@ fn tournament_game(active: bool) -> Game {
 }
 
 fn snapshot(game: &Game) -> (BTreeMap<String, serde_json::Value>, serde_json::Value) {
-    let cup = &game.competitions[0];
+    let cup = game
+        .competitions
+        .iter()
+        .find(|c| c.scope == CompetitionScope::Continental)
+        .unwrap();
     (
         cup.fixtures
             .iter()
@@ -608,14 +612,33 @@ fn complete_competing_tournaments(mut game: Game, live: bool) {
             .sum::<usize>(),
         12
     );
-    let competitions = serde_json::to_value(&game.competitions).unwrap();
-    let players = serde_json::to_value(&game.players).unwrap();
+    let competitions: BTreeMap<_, _> = game
+        .competitions
+        .iter()
+        .map(|c| (c.id.clone(), serde_json::to_value(c).unwrap()))
+        .collect();
+    let players: BTreeMap<_, _> = game
+        .players
+        .iter()
+        .map(|p| (p.id.clone(), serde_json::to_value(p).unwrap()))
+        .collect();
     let loaded = assert_fresh_load_keeps_tournament(&game);
     assert_eq!(
-        serde_json::to_value(&loaded.competitions).unwrap(),
+        loaded
+            .competitions
+            .iter()
+            .map(|c| (c.id.clone(), serde_json::to_value(c).unwrap()))
+            .collect::<BTreeMap<_, _>>(),
         competitions
     );
-    assert_eq!(serde_json::to_value(&loaded.players).unwrap(), players);
+    assert_eq!(
+        loaded
+            .players
+            .iter()
+            .map(|p| (p.id.clone(), serde_json::to_value(p).unwrap()))
+            .collect::<BTreeMap<_, _>>(),
+        players
+    );
 }
 
 /// Given an existing same-day continental/qualifying collision, When a normal day runs,
@@ -684,4 +707,20 @@ fn a_legacy_tournament_collision_is_repaired_without_replaying_wear() {
     assert_national_rest(&game);
     assert_eq!(ofm_core::catchup::repair_stranded_fixtures(&mut game), 0);
     complete_competing_tournaments(game, false);
+}
+
+/// Given unrelated continental group games earlier than a World Cup replay date,
+/// When the scoped World Cup adapter runs, Then it does not advance that continental calendar.
+#[test]
+fn a_world_cup_replay_keeps_unrelated_continental_dates() {
+    let mut game = competing_tournaments();
+    let fixtures = serde_json::to_value(&game.competitions[0].fixtures).unwrap();
+    assert_eq!(
+        ofm_core::world_cup::process_world_cup_fixtures_due(&mut game, "2033-03-01"),
+        0
+    );
+    assert_eq!(
+        serde_json::to_value(&game.competitions[0].fixtures).unwrap(),
+        fixtures
+    );
 }
