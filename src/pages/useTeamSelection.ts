@@ -11,6 +11,7 @@ import { prewarmManagerSquadPortraits } from "../services/portraitService";
 import { showError } from "../lib/errorDialog";
 import {
   activeRegionIds as scopeActiveRegionIds,
+  competitionRequiredRegions,
   enabledCompetitionIds as scopeEnabledCompetitionIds,
   lockedRegions,
   type ScopeDraft,
@@ -44,10 +45,11 @@ export function useTeamSelection({
   const [selectedHomeRegionId, setSelectedHomeRegionId] = useState<string | null>(null);
   const [selectedCountryCode, setSelectedCountryCode] = useState<string | null>(null);
   const [selectedLeagueId, setSelectedLeagueId] = useState<string | null>(null);
-  // The regions the player switched on in the simulation settings, as against the home region the
-  // country they browsed made current: only the second is dropped when another country is picked
-  // (the home region is simulated because it is home, not because it is in this set).
-  const [playerRegionIds, setPlayerRegionIds] = useState<ReadonlySet<string>>(new Set());
+  // The regions the player chose in the simulation dialog, once they have applied it. Until then it
+  // is null: nobody has touched the settings, and the career simulates what it always has, every
+  // competition and the regions they need (the game widened the old flow's home-only region list
+  // the same way). Applying the dialog makes the choice explicit, region by region.
+  const [playerRegionIds, setPlayerRegionIds] = useState<ReadonlySet<string> | null>(null);
   const [competitionSelection, setCompetitionSelection] = useState<CompetitionSelection>({});
   const [isConfirming, setIsConfirming] = useState(false);
   const { clubRatings, getTeamAvgOvr, getPlayerRating } = useTeamSelectionRatings(gameState);
@@ -226,10 +228,18 @@ export function useTeamSelection({
   // need, and the ones the player switched on; a competition is simulated when its regions are all
   // on and it is the club's or the player's choice. A blocked competition (a region off) is not sent
   // on to the game.
+  // The regions an untouched career simulates: those every competition switched on needs.
+  const defaultRegionIds = new Set(
+    competitions
+      .filter((competition) => competitionSelection[competition.id] !== false)
+      .flatMap(competitionRequiredRegions),
+  );
   const scopeDraft: ScopeDraft = {
     homeRegionId: selectedHomeRegionId,
     homeCountryCode: selectedCountryCode,
-    regions: Object.fromEntries(Array.from(playerRegionIds, (id) => [id, true])),
+    regions: Object.fromEntries(
+      Array.from(playerRegionIds ?? defaultRegionIds, (id) => [id, true]),
+    ),
     competitions: competitionSelection,
   };
   const activeRegionIds = scopeActiveRegionIds(

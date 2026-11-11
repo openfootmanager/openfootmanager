@@ -96,47 +96,39 @@ describe("useTeamSelection simulation scope", () => {
   });
 
   /**
-   * Given a world whose club has a domestic league at home and a continental cup that needs a
-   *       second region, and a free continental cup that needs a third
-   * When the screen opens with no club chosen
-   * Then only the home region is simulated and only the home league is: the cups need regions that
-   *      are off, so they are blocked, not sent on.
+   * Given a world with a home league, a cup that needs a second region and another that needs a
+   *       third, and nobody has touched the simulation settings
+   * When the screen opens, with and without a club chosen
+   * Then the career simulates what it always has: every competition, and every region they need.
+   *      The redesign changes the screen, not what an untouched career simulates.
    */
-  it("simulates the home region and what it holds before a club is chosen", () => {
+  it("simulates every competition and the regions they need until the settings are touched", () => {
     const { result } = renderController({ pick: false });
 
     expect(result.current.selectedHomeRegionId).toBe("europe");
-    expect(result.current.activeRegionIds).toEqual(["europe"]);
-    expect(result.current.enabledCompetitionIds).toEqual(["epl"]);
+    expect(result.current.activeRegionIds).toEqual(["asia", "europe", "south_america"]);
+    expect(result.current.enabledCompetitionIds).toEqual(["epl", "intl", "asia_cup"]);
+
+    act(() => result.current.setSelectedTeamId("team-1"));
+    expect(result.current.activeRegionIds).toEqual(["asia", "europe", "south_america"]);
+    expect(result.current.enabledCompetitionIds).toEqual(["epl", "intl", "asia_cup"]);
   });
 
   /**
-   * Given the same world
-   * When the club is chosen
-   * Then the region its cup needs is simulated too, and the cup: the club's competitions are always
-   *      simulated, and the region the free cup needs stays off, so that cup stays blocked.
+   * Given the dialog is applied with only the locked regions on, then with the third region on, then
+   *       with that cup unchosen
+   * When the competitions to simulate are worked out each time
+   * Then a competition whose region is off is blocked and not simulated; with its region on it is
+   *      simulated again; and once the player has unchosen it, it is not.
    */
-  it("simulates the regions and competitions the chosen club's own need", () => {
+  it("applies the dialog's draft: a region off blocks its competition, on brings it back", () => {
     const { result } = renderController();
 
+    act(() => result.current.applyScope({ ...result.current.scopeDraft, regions: {} }));
     expect(result.current.activeRegionIds).toEqual(["europe", "south_america"]);
     expect(result.current.enabledCompetitionIds).toEqual(["epl", "intl"]);
-  });
 
-  /**
-   * Given the dialog's draft is applied with the third region on, then with the free cup unchosen
-   * When the competitions to simulate are worked out
-   * Then the free cup is simulated once its region is on, and not once the player has unchosen it.
-   */
-  it("applies the dialog's draft: a region switched on, and a competition unchosen", () => {
-    const { result } = renderController();
-
-    act(() =>
-      result.current.applyScope({
-        ...result.current.scopeDraft,
-        regions: { asia: true },
-      }),
-    );
+    act(() => result.current.applyScope({ ...result.current.scopeDraft, regions: { asia: true } }));
     expect(result.current.activeRegionIds).toEqual(["asia", "europe", "south_america"]);
     expect(result.current.enabledCompetitionIds).toEqual(["epl", "intl", "asia_cup"]);
 
@@ -150,14 +142,37 @@ describe("useTeamSelection simulation scope", () => {
   });
 
   /**
-   * Given a club chosen and the third region off, so the free cup is blocked
+   * Given a club chosen and the settings untouched
    * When the career is started
-   * Then `select_team` is sent the regions and only the competitions simulated: the blocked cup is
-   *      not among them, which is the one place a stale rule would reach the game.
+   * Then `select_team` is sent every competition and every region they need, which is what the old
+   *      flow's career simulated (it sent every competition and the game widened its home-only
+   *      region list to the regions they need).
    */
-  it("sends select_team only the regions and competitions simulated", async () => {
+  it("sends select_team the full default set when the settings are untouched", async () => {
     vi.mocked(invoke).mockResolvedValue({ manager: { display_name: "Sam Boss" } });
     const { result } = renderController();
+
+    await act(async () => {
+      await result.current.handleConfirm();
+    });
+
+    expect(invoke).toHaveBeenCalledWith("select_team", {
+      teamId: "team-1",
+      activeRegionIds: ["asia", "europe", "south_america"],
+      activeCompetitionIds: ["epl", "intl", "asia_cup"],
+    });
+  });
+
+  /**
+   * Given a club chosen and the dialog applied with the third region off, so that cup is blocked
+   * When the career is started
+   * Then `select_team` is sent only what is simulated: the blocked cup is not among them. It is the
+   *      one place a stale rule would reach the game.
+   */
+  it("sends select_team only the regions and competitions simulated after the player's changes", async () => {
+    vi.mocked(invoke).mockResolvedValue({ manager: { display_name: "Sam Boss" } });
+    const { result } = renderController();
+    act(() => result.current.applyScope({ ...result.current.scopeDraft, regions: {} }));
 
     await act(async () => {
       await result.current.handleConfirm();
@@ -273,44 +288,62 @@ describe("useTeamSelection countries", () => {
   });
 
   /**
-   * Given a player who only browsed from the European home region to a South American country
+   * Given settings nobody has touched, in a world with a competition in each of two regions
    * When the South American country is picked
-   * Then the European region is no longer simulated: the home region follows the country, and a
-   *      region merely browsed through does not slow every day down.
+   * Then both regions are still simulated, as the career always has: nothing is dropped because the
+   *      home region moved.
    */
-  it("stops simulating the region it leaves when the player only browsed", () => {
+  it("changes nothing a career simulates when the home region moves and the settings are untouched", () => {
     const gameState = buildTwoRegionGameState();
     const externals = { setGameState: vi.fn(), setGameActive: vi.fn(), navigate: vi.fn() };
     const { result } = renderHook(() => useTeamSelection({ gameState, ...externals }));
+    expect(result.current.activeRegionIds).toEqual(["europe", "south_america"]);
+
+    act(() => result.current.handleSelectCountry("BR"));
+
+    expect(result.current.activeRegionIds).toEqual(["europe", "south_america"]);
+    expect(result.current.enabledCompetitionIds).toEqual(["gb1", "br1"]);
+  });
+
+  /**
+   * Given a player who applied the settings with only the home region on, then browsed to a South
+   *       American country
+   * When the home region moves
+   * Then the European region is no longer simulated, and its competition is blocked: the home
+   *      region follows the country, and a region that was only home is not kept.
+   */
+  it("stops simulating the region it leaves once the player has chosen their regions", () => {
+    const gameState = buildTwoRegionGameState();
+    const externals = { setGameState: vi.fn(), setGameActive: vi.fn(), navigate: vi.fn() };
+    const { result } = renderHook(() => useTeamSelection({ gameState, ...externals }));
+    act(() => result.current.applyScope({ ...result.current.scopeDraft, regions: {} }));
     expect(result.current.activeRegionIds).toEqual(["europe"]);
 
     act(() => result.current.handleSelectCountry("BR"));
 
     expect(result.current.activeRegionIds).toEqual(["south_america"]);
+    expect(result.current.enabledCompetitionIds).toEqual(["br1"]);
   });
 
   /**
-   * Given a player who switched the South American region on in the simulation settings, and then
-   *       picked a South American country and went back to a European one
+   * Given a player who chose the South American region in the settings, and then went to a South
+   *       American country and back to a European one
    * When the home region moves away from South America
-   * Then South America stays simulated: the player asked for it, and only a region they did not
-   *      ask for is dropped.
+   * Then South America stays simulated: the player chose it, and only a region that was just home
+   *      is dropped.
    */
-  it("keeps simulating a region the player switched on themselves", () => {
+  it("keeps simulating a region the player chose themselves", () => {
     const gameState = buildTwoRegionGameState();
     const externals = { setGameState: vi.fn(), setGameActive: vi.fn(), navigate: vi.fn() };
     const { result } = renderHook(() => useTeamSelection({ gameState, ...externals }));
 
     act(() =>
-      result.current.applyScope({
-        ...result.current.scopeDraft,
-        regions: { south_america: true },
-      }),
+      result.current.applyScope({ ...result.current.scopeDraft, regions: { south_america: true } }),
     );
     act(() => result.current.handleSelectCountry("BR"));
     act(() => result.current.handleSelectCountry("GB"));
 
-    expect([...result.current.activeRegionIds].sort()).toEqual(["europe", "south_america"]);
+    expect(result.current.activeRegionIds).toEqual(["europe", "south_america"]);
   });
 });
 
