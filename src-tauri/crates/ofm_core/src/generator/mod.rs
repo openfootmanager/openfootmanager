@@ -3431,11 +3431,20 @@ mod tests {
 
         assert!(process_available_staff_market(&mut game));
 
-        assert!(
-            unemployed_scouts(&game) >= 5,
-            "{}",
-            unemployed_scouts(&game)
-        );
+        assert_eq!(unemployed_scouts(&game), 5);
+    }
+
+    /// Given a market holding eight unemployed scouts, above the floor of six for three clubs
+    /// When it rotates
+    /// Then it holds exactly six: the standard batch topped up to the floor, no more. The pool is
+    ///      not kept at eight (that is the cap's job), nor does it fall below the floor.
+    #[test]
+    fn a_rotation_caps_the_kept_scouts_at_the_floor() {
+        let mut game = market_of_three_clubs_with_scouts(8);
+
+        assert!(process_available_staff_market(&mut game));
+
+        assert_eq!(unemployed_scouts(&game), 6);
     }
 
     /// Given a market that never had the floor applied (one scout, as a new world starts)
