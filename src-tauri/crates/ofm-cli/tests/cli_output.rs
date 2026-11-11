@@ -139,19 +139,28 @@ fn a_successful_base_check_does_not_say_the_clubs_were_not_checked() {
     assert!(stdout(&on_base).contains("Valid"), "{}", stdout(&on_base));
 }
 
-/// Given a legit patch and a ghost-club patch, each packed as a `.ofm`, and the base packed too
-/// When `validate <archive> --base <base archive>` runs on each
-/// Then the legit archive passes and the ghost archive fails: the flag is not ignored for an
-///      archive.
+/// Given a patch archive naming a club its base archive defines
+/// When `validate <archive> --base <base archive>` runs
+/// Then it passes.
 #[test]
-fn validate_checks_a_patch_archive_on_its_base_too() {
-    let base = archive_of(&base_database("archive-base"));
+fn validate_passes_a_patch_archive_on_its_base() {
+    let base = archive_of(&base_database("archive-base-a"));
     let legit = archive_of(&patch_signing_for("archive-legit", "base-fc"));
+
+    let output = validate(&legit, &[&base]);
+
+    assert_eq!(output.status.code(), Some(0), "{}", stdout(&output));
+}
+
+/// Given a patch archive naming a club nothing defines
+/// When `validate <archive> --base <base archive>` runs
+/// Then it fails: the flag is not ignored for an archive.
+#[test]
+fn validate_fails_a_ghost_club_patch_archive_on_its_base() {
+    let base = archive_of(&base_database("archive-base-b"));
     let ghost = archive_of(&patch_signing_for("archive-ghost", "ghost-fc"));
 
-    let legit_out = validate(&legit, &[&base]);
-    let ghost_out = validate(&ghost, &[&base]);
+    let output = validate(&ghost, &[&base]);
 
-    assert_eq!(legit_out.status.code(), Some(0), "{}", stdout(&legit_out));
-    assert_eq!(ghost_out.status.code(), Some(1), "{}", stdout(&ghost_out));
+    assert_eq!(output.status.code(), Some(1), "{}", stdout(&output));
 }

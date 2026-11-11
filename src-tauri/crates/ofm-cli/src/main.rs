@@ -1000,23 +1000,40 @@ mod tests {
         );
     }
 
-    /// Given a patch naming a club its base defines, and another naming a club nothing defines
-    /// When `validate --base <the base>` runs on each
-    /// Then the first passes and the second fails: the answer the game's stack merge gives.
+    /// Given a patch naming a club its base defines
+    /// When `validate --base <the base>` runs
+    /// Then it passes: the club resolves in the stack, as in the game's merge.
     #[test]
-    fn validate_with_a_base_checks_a_patchs_clubs_as_the_game_does() {
-        let base = base_database("patch-base");
-        let legit = patch_naming("patch-legit", "base-fc");
-        let ghost = patch_naming("patch-ghost", "ghost-fc");
+    fn validate_with_a_base_passes_a_patch_naming_the_bases_club() {
+        let (base, legit) = (
+            base_database("patch-base-a"),
+            patch_naming("patch-legit", "base-fc"),
+        );
 
-        let legit_exit = cmd_validate(&legit, std::slice::from_ref(&base));
-        let ghost_exit = cmd_validate(&ghost, std::slice::from_ref(&base));
-        for dir in [&base, &legit, &ghost] {
+        let exit = cmd_validate(&legit, std::slice::from_ref(&base));
+        for dir in [&base, &legit] {
             std::fs::remove_dir_all(dir).ok();
         }
 
-        assert_eq!(legit_exit, 0, "a club the base defines resolves");
-        assert_eq!(ghost_exit, 1, "a club no package defines is refused");
+        assert_eq!(exit, 0, "a club the base defines resolves");
+    }
+
+    /// Given a patch naming a club nothing defines
+    /// When `validate --base <the base>` runs
+    /// Then it fails: the answer the game's stack merge gives.
+    #[test]
+    fn validate_with_a_base_fails_a_patch_naming_a_club_no_package_defines() {
+        let (base, ghost) = (
+            base_database("patch-base-b"),
+            patch_naming("patch-ghost", "ghost-fc"),
+        );
+
+        let exit = cmd_validate(&ghost, std::slice::from_ref(&base));
+        for dir in [&base, &ghost] {
+            std::fs::remove_dir_all(dir).ok();
+        }
+
+        assert_eq!(exit, 1, "a club no package defines is refused");
     }
 
     /// Given a patch package and a database package

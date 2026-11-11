@@ -6,6 +6,7 @@ pub mod file_format;
 mod generation;
 pub mod package;
 mod package_save;
+mod package_stack;
 mod package_warnings;
 pub mod scaffold;
 mod staff_bell;
@@ -20,14 +21,15 @@ pub use generation::ReputationScale;
 pub use package::{
     ConfederationDef, ConflictSeverity, CountryDef, MAX_ARCHIVE_BYTES, PackageError, PackageInfo,
     PackageLock, PlayerCareerEntryDef, PlayerDef, RESERVED_PACKAGE_ID, StackConflict, StaffDef,
-    WorldMetaDef, WorldPackage, authored_reputations, check_world_package_on_bases,
-    extract_package_assets, hash_package_file, is_manifest_metadata_error, is_unreadable,
-    is_valid_package_id, load_world_package, load_world_package_as_world, load_world_package_files,
-    load_world_package_from_ofm, merge_world_packages, qualify_package_asset_paths,
-    read_logo_from_ofm, read_package_manifest_from_ofm, validate_manifest, validate_package,
-    validate_package_stack, validate_references,
+    WorldMetaDef, WorldPackage, authored_reputations, extract_package_assets, hash_package_file,
+    is_manifest_metadata_error, is_unreadable, is_valid_package_id, load_world_package,
+    load_world_package_as_world, load_world_package_files, load_world_package_from_ofm,
+    merge_world_packages, qualify_package_asset_paths, read_logo_from_ofm,
+    read_package_manifest_from_ofm, validate_manifest, validate_package, validate_package_stack,
+    validate_references,
 };
 pub use package_save::{EditedPackage, save_package_files};
+pub use package_stack::check_world_package_on_bases;
 pub use package_warnings::{package_warnings, stack_checked_warnings};
 pub use scaffold::{
     EntityKind, entity_template, manifest_json, names_json, new_package_meta, scaffold_package,
