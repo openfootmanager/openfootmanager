@@ -99,7 +99,11 @@ fn season_advance_for_state(
 /// The club an award names, as the agent reads it. A winner at no club has no name stored (the
 /// screens word it in the player's language), so the agent, who reads English, is told so.
 fn award_team_label(team_name: &str) -> String {
-    team_name.to_string()
+    if team_name.is_empty() {
+        "Free Agent".to_string()
+    } else {
+        team_name.to_string()
+    }
 }
 
 pub fn season_get_awards(ctx: Arc<McpContext>) -> Result<SeasonAwards, String> {

@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { localizeCompetitionName } from "../../lib/competitionName";
-import { storedTeamLabel } from "../../lib/team";
+import { FREE_AGENT_TEAM_KEY, storedTeamLabel } from "../../lib/team";
 import { Briefcase, Star, Trophy } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
@@ -224,7 +224,13 @@ function resolvePlayerWinner(
     gameState.players.find((player) => {
       return player.full_name === playerName || player.match_name === playerName;
     })?.id ?? null;
-  const teamId = gameState.teams.find((team) => team.name === teamName)?.id ?? null;
+  // The param says "no club" (the key, the old literal or nothing), not the label it was worded
+  // as: a real club can carry the same name as the label, and must not be linked to.
+  const hasNoClub =
+    teamParam !== undefined && storedTeamLabel(teamParam, (key) => key) === FREE_AGENT_TEAM_KEY;
+  const teamId = hasNoClub
+    ? null
+    : (gameState.teams.find((team) => team.name === teamName)?.id ?? null);
   const value =
     prefix === "goldenBoot" ? (params.goldenBootGoals ?? "-") : (params.potyRating ?? "-");
 
