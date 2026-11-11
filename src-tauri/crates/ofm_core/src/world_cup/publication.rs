@@ -78,3 +78,21 @@ pub(super) fn announce_qualifying(game: &mut Game, wc_year: i32, nations: usize,
         );
     }
 }
+
+pub(super) fn qualifying_competition(wc_year: i32) -> League {
+    let competition_id = format!("{QUALIFYING_COMPETITION_PREFIX}{wc_year}");
+    let mut competition = League::new(
+        competition_id.clone(),
+        format!("World Cup Qualifying {wc_year}"),
+        wc_year as u32,
+        &[],
+    );
+    competition.kind = CompetitionType::InternationalNation;
+    competition.scope = CompetitionScope::International;
+    competition.rules.format = CompetitionFormat::LeagueTable;
+    competition.standings.clear();
+    competition.priority = 9_000;
+    competition.name_key = Some("tournaments.competitions.worldCupQualifying".to_string());
+
+    competition
+}

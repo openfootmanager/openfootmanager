@@ -993,19 +993,8 @@ pub fn schedule_world_cup_qualifying(game: &mut Game, wc_year: i32, window_dates
         legs,
     } = publication::qualifying_windows(wc_year, window_dates);
 
-    let competition_id = format!("{QUALIFYING_COMPETITION_PREFIX}{wc_year}");
-    let mut competition = League::new(
-        competition_id.clone(),
-        format!("World Cup Qualifying {wc_year}"),
-        wc_year as u32,
-        &[],
-    );
-    competition.kind = CompetitionType::InternationalNation;
-    competition.scope = CompetitionScope::International;
-    competition.rules.format = CompetitionFormat::LeagueTable;
-    competition.standings.clear();
-    competition.priority = 9_000;
-    competition.name_key = Some("tournaments.competitions.worldCupQualifying".to_string());
+    let mut competition = publication::qualifying_competition(wc_year);
+    let competition_id = competition.id.clone();
 
     let base_date = crate::schedule::date_str_to_utc(&window_dates[0]).unwrap_or_else(Utc::now);
 
