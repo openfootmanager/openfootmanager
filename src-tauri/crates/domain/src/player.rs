@@ -81,9 +81,10 @@ pub struct Player {
     // Career history
     pub career: Vec<CareerEntry>,
     /// The season in progress split by club, closed at every move and resolved into `career` rows
-    /// at the rollover. No screen reads it, so it is left out of the TypeScript type, and out of
-    /// the JSON while it holds nothing (the typed page fixture is made of fresh players).
-    #[serde(default, skip_serializing_if = "SeasonStints::is_untouched")]
+    /// at the rollover. It is saved in its own SQLite column (`player_repo`), not through this
+    /// serializer, and no screen reads it: like the archives on `Game`, the wire never carries it,
+    /// so the TypeScript type and the JSON agree. A JSON player (a legacy save) has none.
+    #[serde(skip)]
     #[ts(skip)]
     pub season_stints: SeasonStints,
     /// Every move and every contract. Flattened so the wire and the saves keep their

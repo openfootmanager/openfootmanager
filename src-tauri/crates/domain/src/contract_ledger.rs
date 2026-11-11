@@ -1438,15 +1438,12 @@ mod tests {
         );
     }
 
-    /// Given a player who has not moved this season
+    /// Given a player who has moved this season, with a closed stint
     /// When he is written as JSON
-    /// Then there is no `season_stints` key (the typed page fixture is made of such players); and
-    ///      once a stint is closed the key is written, and reads back as it was.
+    /// Then there is no `season_stints` key: the stints are saved in their own column, and the
+    ///      wire (which the TypeScript type describes) never carries them.
     #[test]
-    fn stints_are_written_only_when_there_is_something_to_keep() {
-        let fresh = serde_json::to_value(with_season(3, 1, 0)).unwrap();
-        assert!(fresh.get("season_stints").is_none());
-
+    fn stints_are_not_on_the_wire() {
         let mut moved = with_season(10, 4, 2);
         moved
             .record_movement(leaving(
@@ -1455,10 +1452,10 @@ mod tests {
                 Some("buyer"),
             ))
             .unwrap();
-        let written = serde_json::to_value(&moved).unwrap();
-        assert!(written.get("season_stints").is_some());
-        let read_back: Player = serde_json::from_value(written).unwrap();
+        assert!(!moved.season_stints.closed.is_empty());
 
-        assert_eq!(read_back.season_stints, moved.season_stints);
+        let written = serde_json::to_value(&moved).unwrap();
+
+        assert!(written.get("season_stints").is_none());
     }
 }
