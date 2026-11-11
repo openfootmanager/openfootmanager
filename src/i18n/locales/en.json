@@ -1704,7 +1704,7 @@
   "playerProfile": {
     "sections": "Profile sections",
     "attributesTab": {
-      "hint": "Highlighted: what the game weighs most for a {{position}}, his natural position · dots = how much each counts there",
+      "key": "Key attribute",
       "average": "average {{value}}",
       "weight": "weight {{count}} of 3",
       "scouted": "Scouted"

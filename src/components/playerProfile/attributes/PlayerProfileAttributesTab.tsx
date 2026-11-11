@@ -87,41 +87,38 @@ function ReadableAttributes({
         <div className="text-caption text-fg-muted">
           {ratings.status === "failed" ? <ProfileLoadFailed t={t} onRetry={ratings.retry} /> : null}
           {ratings.status === "loading" ? t("common.loading") : null}
-          {natural
-            ? t("playerProfile.attributesTab.hint", {
-                position: t(`common.positions.${natural.position}`, natural.position),
-              })
-            : null}
         </div>
       </div>
-      <div className="grid grid-cols-1 @container md:grid-cols-3">
-        {columns.map((column) => (
-          <div
-            key={column.label}
-            className="flex min-w-0 flex-col border-line md:border-r last:border-r-0"
-          >
-            <div className="flex items-center justify-between border-b border-line bg-sunken px-3.5 py-1.5">
-              <h4 className="font-heading text-body font-bold uppercase tracking-label text-fg-muted">
-                {column.label}
-              </h4>
-              <span className="text-caption tabular-nums text-fg-muted">
-                {t("playerProfile.attributesTab.average", { value: column.average })}
-              </span>
+      <div className="@container">
+        <div data-columns className="grid grid-cols-1 @[56rem]:grid-cols-3">
+          {columns.map((column) => (
+            <div
+              key={column.label}
+              className="flex min-w-0 flex-col border-line @[56rem]:border-r last:border-r-0"
+            >
+              <div className="flex items-center justify-between border-b border-line bg-sunken px-3.5 py-1.5">
+                <h4 className="font-heading text-body font-bold uppercase tracking-label text-fg-muted">
+                  {column.label}
+                </h4>
+                <span className="text-caption tabular-nums text-fg-muted">
+                  {t("playerProfile.attributesTab.average", { value: column.average })}
+                </span>
+              </div>
+              {/* biome-ignore lint/a11y/noRedundantRoles: WebKit drops a list's semantics under list-style: none, so the role is restated. */}
+              <ul role="list" className="m-0 list-none p-0">
+                {column.attrs.map((attr) => (
+                  <AttributeLine
+                    key={attr.key}
+                    attr={attr}
+                    dots={natural ? clampDots(importance.get(attr.key) ?? 0) : null}
+                    isKey={keyAttributes.has(attr.key)}
+                    tier={tierOf(attr.value)}
+                  />
+                ))}
+              </ul>
             </div>
-            {/* biome-ignore lint/a11y/noRedundantRoles: WebKit drops a list's semantics under list-style: none, so the role is restated. */}
-            <ul role="list" className="m-0 list-none p-0">
-              {column.attrs.map((attr) => (
-                <AttributeLine
-                  key={attr.key}
-                  attr={attr}
-                  dots={natural ? clampDots(importance.get(attr.key) ?? 0) : null}
-                  isKey={keyAttributes.has(attr.key)}
-                  tier={tierOf(attr.value)}
-                />
-              ))}
-            </ul>
-          </div>
-        ))}
+          ))}
+        </div>
       </div>
       <div className="flex flex-wrap items-center gap-x-6 gap-y-2 border-t border-line bg-sunken px-4 py-2.5">
         <div className="min-w-0 flex-1">{potentialOpinion}</div>
@@ -162,7 +159,10 @@ function AttributeLine({
         isKey ? "bg-selected-tint font-semibold" : ""
       }`}
     >
-      <span className="truncate">{attr.name}</span>
+      <span className="truncate">
+        {attr.name}
+        {isKey ? <span className="sr-only">{t("playerProfile.attributesTab.key")}</span> : null}
+      </span>
       {dots === null ? (
         <span aria-hidden="true" className="w-[1.375rem]" />
       ) : (

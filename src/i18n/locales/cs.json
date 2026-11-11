@@ -1704,7 +1704,7 @@
   "playerProfile": {
     "sections": "Sekce profilu",
     "attributesTab": {
-      "hint": "Zvýrazněno: co hra na pozici {{position}}, jeho přirozené, váží nejvíce · tečky = jak moc každý atribut tam znamená",
+      "key": "Klíčový atribut",
       "average": "průměr {{value}}",
       "weight": "váha {{count}} ze 3",
       "scouted": "Skautováno"

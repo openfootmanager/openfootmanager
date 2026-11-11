@@ -1704,7 +1704,7 @@
   "playerProfile": {
     "sections": "Bagian profil",
     "attributesTab": {
-      "hint": "Disorot: yang paling dihitung gim untuk posisi {{position}}, posisi alaminya · titik = seberapa besar tiap atribut berpengaruh di sana",
+      "key": "Atribut kunci",
       "average": "rata-rata {{value}}",
       "weight": "bobot {{count}} dari 3",
       "scouted": "Diskaut"

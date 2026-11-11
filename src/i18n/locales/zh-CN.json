@@ -1704,7 +1704,7 @@
   "playerProfile": {
     "sections": "个人资料分区",
     "attributesTab": {
-      "hint": "高亮：游戏在{{position}}（其天然位置）上最看重的属性 · 圆点 = 各项在该位置的重要程度",
+      "key": "关键属性",
       "average": "平均 {{value}}",
       "weight": "权重 {{count}}/3",
       "scouted": "球探报告"
