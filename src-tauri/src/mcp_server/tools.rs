@@ -449,7 +449,7 @@ pub fn build_tool_router(context: &Arc<McpContext>, disabled: &[String]) -> OfmT
     );
     real_tool!(
         "info_news",
-        "Recent news articles",
+        "Recent news articles (headline and body)",
         tools_impl::info::info_news
     );
     real_tool!(
@@ -1265,7 +1265,7 @@ pub fn build_tool_router(context: &Arc<McpContext>, disabled: &[String]) -> OfmT
     // inbox_get_messages
     custom_tool!(
         "inbox_get_messages",
-        "Get messages (filterable by category, read status)",
+        "Get messages in words (subject, body, sender), filterable by category and read status. Each message lists its actions with the action and option ids inbox_resolve_action takes",
         build_schema(
             &[
                 ("category", "string", "Filter by message category"),
@@ -1325,7 +1325,7 @@ pub fn build_tool_router(context: &Arc<McpContext>, disabled: &[String]) -> OfmT
     // inbox_resolve_action
     custom_tool!(
         "inbox_resolve_action",
-        "Resolve a message action (job offers, events, etc.)",
+        "Resolve a message action (job offers, events, etc.): pass the message_id, action_id and, for a choice, option_id that inbox_get_messages lists",
         build_schema(
             &[
                 ("message_id", "string", "Message ID"),
@@ -2009,7 +2009,7 @@ pub fn tool_catalog() -> Vec<(&'static str, &'static str, &'static str)> {
             "Financial overview with budget breakdown",
             "Information",
         ),
-        ("info_news", "Recent news articles", "Information"),
+        ("info_news", "Recent news articles with their text", "Information"),
         (
             "info_season_context",
             "Season phase and transfer window status",
@@ -2167,7 +2167,11 @@ pub fn tool_catalog() -> Vec<(&'static str, &'static str, &'static str)> {
             "Contracts",
         ),
         // Inbox
-        ("inbox_get_messages", "Get inbox messages", "Inbox"),
+        (
+            "inbox_get_messages",
+            "Get inbox messages with their text and the action and option ids to resolve them",
+            "Inbox",
+        ),
         (
             "inbox_get_archived",
             "Get archived (older, read) inbox messages",
@@ -2179,7 +2183,7 @@ pub fn tool_catalog() -> Vec<(&'static str, &'static str, &'static str)> {
         ("inbox_clear_old", "Clear old messages", "Inbox"),
         (
             "inbox_resolve_action",
-            "Resolve an inbox action item",
+            "Resolve an inbox action item (ids come from inbox_get_messages)",
             "Inbox",
         ),
         // Club

@@ -1,3 +1,4 @@
+mod backend_text;
 pub mod config;
 pub mod context;
 mod formatting;
