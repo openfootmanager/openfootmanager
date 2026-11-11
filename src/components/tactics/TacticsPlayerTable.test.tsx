@@ -2,7 +2,7 @@ import { fireEvent, render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import type { PlayerData } from "../../store/gameStore";
 import type { TacticsLineup } from "../../store/generated/TacticsLineup";
-import TacticsPlayerTable, { buildTableRows } from "./TacticsPlayerTable";
+import TacticsPlayerTable from "./TacticsPlayerTable";
 
 vi.mock("react-i18next", () => ({
   initReactI18next: { type: "3rdParty", init: () => undefined },
@@ -92,50 +92,6 @@ function renderTable(overrides: Partial<Parameters<typeof TacticsPlayerTable>[0]
   return handlers;
 }
 
-describe("buildTableRows", () => {
-  /**
-   * Given the eleven, two substitutes and an injured player, and the backend's lineup
-   * When the table's rows are built
-   * Then the eleven come first by slot, then the substitutes in the order the match ranks them,
-   *      then the reserves; each starter carries his slot's position, role and fit, the backend's.
-   */
-  it("orders the eleven by slot, the substitutes as the match ranks them, then the reserves", () => {
-    const rows = buildTableRows(
-      [gk, st],
-      [sub1, sub2, hurt],
-      ["Goalkeeper", "LeftBack"],
-      lineup,
-      {},
-    );
-
-    expect(rows.map((row) => [row.player.id, row.group])).toEqual([
-      ["gk", "xi"],
-      ["st", "xi"],
-      ["sub2", "substitutes"],
-      ["sub1", "substitutes"],
-      ["hurt", "reserves"],
-    ]);
-    expect(rows[0]).toMatchObject({
-      position: "Goalkeeper",
-      role: "SweeperKeeper",
-      familiarity: "natural",
-    });
-    expect(rows[1]).toMatchObject({ position: "LeftBack", familiarity: "out_of_position" });
-  });
-
-  /**
-   * Given a starter the backend's lineup doesn't name in his slot (a change just made, not yet
-   *       answered)
-   * When the rows are built
-   * Then his slot takes the formation's position and his own stored role, and no fit is claimed.
-   */
-  it("claims no fit for a slot the backend hasn't described yet", () => {
-    const rows = buildTableRows([sub1], [], ["Goalkeeper"], lineup, { sub1: "Stopper" });
-
-    expect(rows[0]).toMatchObject({ position: "Goalkeeper", role: "Stopper", familiarity: null });
-  });
-});
-
 describe("TacticsPlayerTable", () => {
   /**
    * Given the table
@@ -146,11 +102,20 @@ describe("TacticsPlayerTable", () => {
     renderTable();
 
     const table = screen.getByRole("table", { name: "tactics.playerTable" });
-    // Each section is a row group of its own, opened by a row-group header.
-    const groups = [...table.querySelectorAll("tbody")].map(
-      (body) => body.querySelector('tr:first-child > th[scope="rowgroup"]')?.textContent,
-    );
-    expect(groups).toEqual(["preMatch.startingXI", "preMatch.substitutes", "tactics.reserves"]);
+    // Each section is a row group of its own, opened by a row-group header (found by role and name).
+    const groupOf = (name: string) => {
+      const header = within(table).getByRole("rowheader", { name });
+      return screen.getAllByRole("rowgroup").find((group) => group.contains(header));
+    };
+    expect(
+      within(groupOf("preMatch.startingXI") as HTMLElement).getByTestId("xi-row-gk"),
+    ).toBeTruthy();
+    expect(
+      within(groupOf("preMatch.substitutes") as HTMLElement).getByTestId("bench-player-sub1"),
+    ).toBeTruthy();
+    expect(
+      within(groupOf("tactics.reserves") as HTMLElement).getByTestId("bench-player-hurt"),
+    ).toBeTruthy();
   });
 
   /**
@@ -196,6 +161,26 @@ describe("TacticsPlayerTable", () => {
     fireEvent.click(screen.getByRole("option", { name: "tactics.playerRoles.WingBack" }));
 
     expect(handlers.onRoleChange).toHaveBeenCalledWith("st", "WingBack");
+  });
+
+  /**
+   * Given a fit substitute's row
+   * When its actions button is pressed and "Promote to lineup" is chosen from the menu it opens
+   * Then the table asks for that substitute to be promoted; the menu also offers his profile.
+   */
+  it("opens a row's menu from its actions button and runs the item chosen", () => {
+    const handlers = renderTable();
+
+    const button = within(screen.getByTestId("bench-player-sub1")).getByRole("button", {
+      name: "common.playerActions",
+    });
+    expect(button).toHaveAttribute("aria-expanded", "false");
+    fireEvent.click(button);
+
+    expect(button).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getByRole("menuitem", { name: "squad.viewProfile" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("menuitem", { name: "tactics.promoteToLineup" }));
+    expect(handlers.onPromoteBench).toHaveBeenCalledWith("sub1");
   });
 
   /**

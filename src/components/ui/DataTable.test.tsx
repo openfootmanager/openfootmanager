@@ -369,23 +369,25 @@ describe("DataTable", () => {
    *      column headers stay the only column headers.
    */
   it("opens each group of rows with a row-group header in a body of its own", () => {
-    const { container } = renderTable({
+    renderTable({
       groupOf: (p) =>
         p.starter
           ? { key: "xi", title: "Starting eleven" }
           : { key: "bench", title: "Substitutes" },
     });
 
-    const bodies = [...container.querySelectorAll("tbody")];
-    expect(bodies).toHaveLength(2);
-    const headers = bodies.map((body) =>
-      body.querySelector('tr:first-child > th[scope="rowgroup"]'),
-    );
-    expect(headers.map((th) => th?.textContent)).toEqual(["Starting eleven", "Substitutes"]);
-    expect(headers[0]).toHaveAttribute("colspan", "3");
-    expect(bodies[0]).toHaveTextContent("Anderson");
-    expect(bodies[0]).not.toHaveTextContent("Navarro");
-    expect(bodies[1]).toHaveTextContent("Navarro");
+    // Found by role and name: the header is a row header, spanning the table, in a row group of its own.
+    const xi = screen.getByRole("rowheader", { name: "Starting eleven" });
+    const bench = screen.getByRole("rowheader", { name: "Substitutes" });
+    expect(xi).toHaveAttribute("colspan", "3");
+    const groupOf = (header: HTMLElement) =>
+      within(
+        screen.getAllByRole("rowgroup").find((group) => group.contains(header)) as HTMLElement,
+      );
+    expect(groupOf(xi).getByText("Anderson")).toBeInTheDocument();
+    expect(groupOf(xi).queryByText("Navarro")).toBeNull();
+    expect(groupOf(bench).getByText("Navarro")).toBeInTheDocument();
+    expect(groupOf(bench).queryByText("Anderson")).toBeNull();
     // Not a column header: only the header row's cells are.
     expect(screen.getAllByRole("columnheader").every((th) => !th.getAttribute("colspan"))).toBe(
       true,

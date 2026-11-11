@@ -8,6 +8,7 @@ import { resolveTranslatedErrorMessage } from "../../utils/errorMessage";
 
 import TacticsPitch from "./TacticsPitch";
 import TacticsPlayerTable from "./TacticsPlayerTable";
+import { effectivePlayerRoles } from "./TacticsTab.helpers";
 import TacticsSetPieces from "./TacticsSetPieces";
 import TacticsWorkbench from "./TacticsWorkbench";
 import TacticsCommandBar from "./TacticsCommandBar";
@@ -88,6 +89,10 @@ export default function TacticsTab({
     lineup,
     familiarity,
   } = useTacticsLineup({ gameState, onGameUpdate, onWriteError });
+
+  // The roles shown in the table and on the pitch: the match's own (the lineup's), not a stored one
+  // a move to another slot left stale.
+  const effectiveRoles = effectivePlayerRoles(lineup, team?.player_roles);
 
   // A role chosen in the table or on the pitch: one write, and a refusal is shown, not only logged.
   function changePlayerRole(playerId: string, role: PlayerRole) {
@@ -204,7 +209,7 @@ export default function TacticsTab({
               others={bench}
               slotPositions={slotPositionsByIndex(pitchSlots)}
               lineup={lineup}
-              playerRoles={team?.player_roles}
+              playerRoles={effectiveRoles}
               matchRoles={effectiveMatchRoles}
               selectedPlayerId={selectedPlayerId}
               comparePlayerId={comparePlayerId}
@@ -238,7 +243,7 @@ export default function TacticsTab({
             hoveredSlot={hoveredSlot}
             matchRoles={effectiveMatchRoles}
             onRoleChange={changePlayerRole}
-            playerRoles={team?.player_roles}
+            playerRoles={effectiveRoles}
             tacticsPhase={team?.tactics_phase}
             onAssignBestFit={(playerId) => {
               void handleAssignBestFit(playerId);

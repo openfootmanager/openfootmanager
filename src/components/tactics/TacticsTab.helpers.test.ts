@@ -4,7 +4,12 @@ import { createPositionTable } from "../../lib/positionTable";
 import type { FamiliarityTable } from "../../hooks/useFamiliarity";
 import type { Familiarity } from "../../store/generated/Familiarity";
 import { cannedPositionTable } from "../../test-utils/positionTable";
-import { buildTacticsRoster, countOutOfPositionPlayers } from "./TacticsTab.helpers";
+import type { TacticsLineup } from "../../store/generated/TacticsLineup";
+import {
+  buildTacticsRoster,
+  countOutOfPositionPlayers,
+  effectivePlayerRoles,
+} from "./TacticsTab.helpers";
 
 const makePlayer = (
   id: string,
@@ -125,5 +130,40 @@ describe("the tactics roster and its lists, by the backend's position table", ()
       ).toBe(1);
       expect(countOutOfPositionPlayers(xi, slots, cannedPositionTable())).toBe(0);
     });
+  });
+});
+
+describe("effectivePlayerRoles", () => {
+  const lineup: TacticsLineup = {
+    formation: "4-4-2",
+    eleven: [
+      { position: "Goalkeeper", player_id: "gk", role: "SweeperKeeper", familiarity: "natural" },
+      { position: "LeftBack", player_id: "st", role: "Standard", familiarity: "out_of_position" },
+    ],
+    substitutes: [],
+    reserves: [],
+  };
+
+  /**
+   * Given a striker whose stored role is Poacher, now standing at left-back where the backend's
+   *       lineup says he plays Standard, and a bench player with a stored role
+   * When the roles the screen shows are worked out
+   * Then the starter's is the lineup's (so the table and the pitch agree on what the match plays),
+   *      and the bench player keeps his stored one.
+   */
+  it("shows the role the match will play, not a stale stored one", () => {
+    const roles = effectivePlayerRoles(lineup, { st: "Poacher", gk: "Standard", sub: "Stopper" });
+
+    expect(roles).toEqual({ st: "Standard", gk: "SweeperKeeper", sub: "Stopper" });
+  });
+
+  /**
+   * Given no lineup yet from the backend
+   * When the roles are worked out
+   * Then the stored roles stand as they are.
+   */
+  it("falls back to the stored roles until the lineup has answered", () => {
+    expect(effectivePlayerRoles(null, { st: "Poacher" })).toEqual({ st: "Poacher" });
+    expect(effectivePlayerRoles(null, undefined)).toBeUndefined();
   });
 });
