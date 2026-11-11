@@ -1,3 +1,8 @@
+#[path = "contracts_tests/renewal_feedback.rs"]
+mod renewal_feedback;
+#[path = "contracts_tests/renewal_terms.rs"]
+mod renewal_terms;
+
 use chrono::{TimeZone, Utc};
 use domain::manager::Manager;
 use domain::player::{
@@ -9,14 +14,16 @@ use domain::staff::{Staff, StaffAttributes, StaffRole};
 use domain::team::{FinancialTransactionKind, Team};
 use ofm_core::clock::GameClock;
 use ofm_core::contracts::{
-    DelegatedRenewalOptions, DelegatedRenewalResultStatus, RenewalDecision, RenewalOffer,
-    clear_contract_exit_intent, delegate_renewals, evaluate_renewal_offer, has_let_expire_intent,
+    ContractWarningStage, DelegatedRenewalOptions, DelegatedRenewalResultStatus, RenewalDecision,
+    RenewalOffer, clear_contract_exit_intent, contract_warning_stages, delegate_renewals,
+    evaluate_renewal_offer, free_agent_opening_offer, has_let_expire_intent,
     offer_free_agent_contract, preview_contract_termination, project_free_agent_contract_impact,
     project_renewal_financial_impact, propose_renewal, set_contract_exit_intent,
     terminate_contract_now,
 };
 use ofm_core::finances::calc_wages;
 use ofm_core::game::Game;
+use proptest::prelude::*;
 
 fn default_attrs() -> PlayerAttributes {
     PlayerAttributes {
@@ -381,7 +388,7 @@ fn terminate_contract_now_releases_player_and_charges_severance() {
     let message = game
         .messages
         .iter()
-        .find(|message| message.id == "contract_terminated_player-1")
+        .find(|message| message.id == "contract_terminated_player-1_2026-08-01_1")
         .expect("termination should create an inbox message");
     assert_eq!(
         message.subject_key.as_deref(),
@@ -755,6 +762,154 @@ fn free_agent_offer_rejects_contracts_longer_than_five_years() {
     assert!(matches!(outcome.decision, RenewalDecision::Rejected));
     assert_eq!(game.players[0].team_id, None);
     assert_eq!(game.players[0].contract_end(), None);
+}
+
+/// Given a 26-year-old free agent valued at 1,210,000, content (morale 75), with no contract left,
+///       and a manager at a club of reputation 50
+/// When the manager opens contract talks with him
+/// Then the opening offer is the wage he expects from that club: his 7,000 reference wage raised
+///      for his age, his value and his having no contract (7,000 x 1.05 x 1.10 x 1.10, rounded
+///      up to 9,000), for the three years a player his age expects
+#[test]
+fn a_free_agents_opening_offer_is_the_wage_he_expects_from_the_managers_club() {
+    let mut game = make_free_agent_game();
+    game.players[0].market_value = 1_210_000;
+
+    let offer = free_agent_opening_offer(&game, "free-agent-1").expect("opening offer");
+
+    assert_eq!(
+        offer,
+        RenewalOffer {
+            weekly_wage: 9_000,
+            contract_years: 3,
+        }
+    );
+}
+
+/// A free agent whose demands stack: young, valued at 2,000,000, unhappy, out of contract, and
+/// approached by a small club. His reference wage is 10,000; what he expects there is 16,000, so
+/// anything under 10,400 (65% of that) insults him.
+fn demanding_free_agent_game() -> Game {
+    let mut game = make_free_agent_game();
+    game.players[0].market_value = 2_000_000;
+    game.players[0].morale = 50;
+    game.teams[0].reputation = 39;
+    game
+}
+
+/// Given a free agent who expects 16,000 a week from the manager's club, and is insulted below
+///       10,400 (the maintainer's ruling, 29 Oct 2026: the opener is what he expects, never under
+///       the insult floor)
+/// When the manager opens contract talks with him
+/// Then the opening offer is the 16,000 he expects, not his 10,000 reference wage
+#[test]
+fn a_free_agents_opening_offer_is_never_below_the_wage_that_would_insult_him() {
+    let game = demanding_free_agent_game();
+
+    let offer = free_agent_opening_offer(&game, "free-agent-1").expect("opening offer");
+
+    assert_eq!(offer.weekly_wage, 16_000);
+}
+
+/// Given the same demanding free agent
+/// When the manager sends the opening offer as it stands
+/// Then the player does not break off talks at the insult
+#[test]
+fn sending_the_opening_offer_does_not_block_talks() {
+    let mut game = demanding_free_agent_game();
+    let offer = free_agent_opening_offer(&game, "free-agent-1").expect("opening offer");
+
+    let outcome = offer_free_agent_contract(&mut game, "free-agent-1", offer).expect("an answer");
+
+    assert_ne!(outcome.session_status, RenewalSessionStatus::Blocked);
+}
+
+proptest! {
+    #![proptest_config(ProptestConfig { cases: 256, failure_persistence: None, ..ProptestConfig::default() })]
+
+    /// Given any free agent (age 16 to 40, any morale, valued anywhere up to 80,000,000) and a
+    ///       manager at a club of any reputation
+    /// When the manager sends the opening offer as it stands
+    /// Then the player never breaks off talks at the insult; the board may still refuse the wage
+    #[test]
+    fn the_opening_offer_never_insults_any_free_agent(
+        birth_year in 1986..=2010_i32,
+        morale in 0..=100_u8,
+        market_value in 0..=80_000_000_u64,
+        club_reputation in 0..=1000_u32,
+    ) {
+        let mut game = make_free_agent_game();
+        game.players[0].date_of_birth = format!("{birth_year}-03-15");
+        game.players[0].morale = morale;
+        game.players[0].market_value = market_value;
+        game.teams[0].reputation = club_reputation;
+        let offer = free_agent_opening_offer(&game, "free-agent-1").expect("opening offer");
+
+        match offer_free_agent_contract(&mut game, "free-agent-1", offer) {
+            Ok(outcome) => prop_assert_ne!(outcome.session_status, RenewalSessionStatus::Blocked),
+            Err(error) => prop_assert!(
+                error.starts_with("be.error.contracts.boardWagePolicy"),
+                "only the board's wage policy may refuse the opening offer, not: {error}"
+            ),
+        }
+    }
+}
+
+/// Given a 34-year-old free agent valued at 50,000, whose value is worth less than the floor wage
+/// When the manager opens contract talks with him
+/// Then the opening offer is the 500 floor rounded up to 1,000, for one year
+#[test]
+fn an_old_cheap_free_agents_opening_offer_is_the_floor_wage_for_one_year() {
+    let mut game = make_free_agent_game();
+    game.players[0].market_value = 50_000;
+    game.players[0].date_of_birth = "1992-01-01".to_string();
+
+    let offer = free_agent_opening_offer(&game, "free-agent-1").expect("opening offer");
+
+    assert_eq!(
+        offer,
+        RenewalOffer {
+            weekly_wage: 1_000,
+            contract_years: 1,
+        }
+    );
+}
+
+/// Given a player under contract at a club
+/// When an opening free-agent offer is asked for him
+/// Then there is none: he is not a free agent
+#[test]
+fn a_player_at_a_club_has_no_free_agent_opening_offer() {
+    let game = make_game();
+
+    let error = free_agent_opening_offer(&game, "player-1").expect_err("not a free agent");
+
+    assert_eq!(error, "be.error.contracts.playerNotFreeAgent");
+}
+
+/// Given a retired player without a club
+/// When an opening free-agent offer is asked for him
+/// Then there is none: a retired player signs for nobody
+#[test]
+fn a_retired_player_has_no_free_agent_opening_offer() {
+    let mut game = make_free_agent_game();
+    game.players[0].retired = true;
+
+    let error = free_agent_opening_offer(&game, "free-agent-1").expect_err("retired");
+
+    assert_eq!(error, "be.error.contracts.playerNotFreeAgent");
+}
+
+/// Given no player with the id asked for
+/// When an opening free-agent offer is asked for
+/// Then the player is reported not found
+#[test]
+fn an_unknown_player_has_no_free_agent_opening_offer() {
+    let game = make_free_agent_game();
+
+    let error = free_agent_opening_offer(&game, "nobody").expect_err("unknown player");
+
+    assert_eq!(error, "be.error.playerNotFound");
 }
 
 #[test]
@@ -1527,4 +1682,435 @@ fn a_retired_player_cannot_be_signed_and_nothing_is_written() {
 
     assert!(refused.is_err());
     assert!(game.players[0].movement_history.is_empty());
+}
+
+/// Given players whose contracts end 400, 365, 181, 180, 90, 30 and 0 days from the game date (1 Aug
+///       2026), one already expired, and a player id the game does not have
+/// When the warning stages are asked for
+/// Then each carries the stage the daily warnings use (a year, six months, three months, the final
+///      weeks), a contract beyond a year or already over has none, and the unknown id is left out
+#[test]
+fn the_warning_stages_are_the_ones_the_daily_warnings_use() {
+    let mut game = make_game();
+    let ends = [
+        ("far", "2027-09-05"),
+        ("year", "2027-08-01"),
+        ("just-over-six", "2027-01-29"),
+        ("six", "2027-01-28"),
+        ("three", "2026-10-30"),
+        ("final", "2026-08-31"),
+        ("today", "2026-08-01"),
+        ("expired", "2026-07-27"),
+    ];
+    game.players = ends
+        .iter()
+        .map(|(id, end)| make_player_with(id, 1_000, end))
+        .collect();
+    let mut ids: Vec<String> = ends.iter().map(|(id, _)| id.to_string()).collect();
+    ids.push("nobody".to_string());
+
+    let stages = contract_warning_stages(&game, &ids);
+
+    let stage = |id: &str| stages.get(id).copied();
+    assert_eq!(stage("far"), Some(None));
+    assert_eq!(
+        stage("year"),
+        Some(Some(ContractWarningStage::TwelveMonths))
+    );
+    assert_eq!(
+        stage("just-over-six"),
+        Some(Some(ContractWarningStage::TwelveMonths))
+    );
+    assert_eq!(stage("six"), Some(Some(ContractWarningStage::SixMonths)));
+    assert_eq!(
+        stage("three"),
+        Some(Some(ContractWarningStage::ThreeMonths))
+    );
+    assert_eq!(stage("final"), Some(Some(ContractWarningStage::FinalWeeks)));
+    assert_eq!(stage("today"), Some(None));
+    assert_eq!(stage("expired"), Some(None));
+    assert_eq!(stage("nobody"), None);
+}
+
+// ---------------------------------------------------------------------------
+// Who hears about an expired contract.
+//
+// The release runs for every club's players, so the message has to be decided
+// per player: a manager is told about their own squad, never about the rest of
+// the world.
+// ---------------------------------------------------------------------------
+
+fn make_rival_team() -> Team {
+    let mut team = make_team();
+    team.id = "team-2".to_string();
+    team.name = "Beta United".to_string();
+    team.short_name = "BET".to_string();
+    team.manager_id = None;
+    team
+}
+
+fn expiry_messages(game: &Game) -> Vec<&domain::message::InboxMessage> {
+    game.messages
+        .iter()
+        .filter(|message| message.id.starts_with("contract_expired_"))
+        .collect()
+}
+
+/// Given an AI club whose player's contract has run out,
+/// when the day's expiries are processed,
+/// then the player is released and the user's inbox stays empty.
+#[test]
+fn an_ai_clubs_expired_contract_sends_the_user_nothing() {
+    let mut game = make_game();
+    game.teams.push(make_rival_team());
+    let mut rival_player = make_player_with("rival-1", 5_000, "2026-06-30");
+    rival_player.team_id = Some("team-2".to_string());
+    game.players = vec![rival_player];
+
+    ofm_core::contracts::process_contract_expiries(&mut game);
+
+    assert_eq!(
+        game.players[0].team_id, None,
+        "the AI club still releases the player"
+    );
+    assert!(
+        expiry_messages(&game).is_empty(),
+        "another club's expiry is not the user's mail"
+    );
+}
+
+/// Given one of the user's players whose contract has run out,
+/// when the day's expiries are processed twice,
+/// then one message names the day it happened and the ledger records it.
+#[test]
+fn the_users_expired_contract_is_sent_once_through_the_ledger() {
+    let mut game = make_game();
+    game.players[0].stage_contract_end(Some("2026-06-30".to_string()));
+
+    ofm_core::contracts::process_contract_expiries(&mut game);
+    ofm_core::contracts::process_contract_expiries(&mut game);
+
+    let sent = expiry_messages(&game);
+    assert_eq!(sent.len(), 1);
+    assert_eq!(sent[0].id, "contract_expired_player-1_2026-08-01_1");
+    assert_eq!(
+        sent[0].i18n_params.get("team").map(String::as_str),
+        Some("Alpha FC")
+    );
+    assert!(
+        game.emitted_events
+            .contains("contract_expired_player-1_2026-08-01_1"),
+        "the send is recorded in the ledger, not only in the mailbox"
+    );
+}
+
+/// Given a player on loan at the user's club from an AI club,
+/// when the parent contract runs out,
+/// then the user is told, because the player leaves the user's squad.
+#[test]
+fn a_loanee_whose_parent_contract_expires_is_reported_to_the_borrower() {
+    let mut game = make_game();
+    game.teams.push(make_rival_team());
+    let mut loanee = make_player_with("loanee-1", 5_000, "2026-06-30");
+    loanee.team_id = Some("team-1".to_string());
+    loanee.active_loan = Some(ActiveLoan {
+        parent_team_id: "team-2".to_string(),
+        loan_team_id: "team-1".to_string(),
+        start_date: "2026-01-01".to_string(),
+        end_date: "2026-12-31".to_string(),
+        wage_contribution_pct: 100,
+        buy_option_fee: None,
+        loan_start_minutes: 0,
+        loan_start_appearances: 0,
+        development_reported_minutes: 0,
+        development_reported_appearances: 0,
+    });
+    game.players = vec![loanee];
+
+    ofm_core::contracts::process_contract_expiries(&mut game);
+
+    assert_eq!(game.players[0].team_id, None);
+    assert_eq!(expiry_messages(&game).len(), 1);
+}
+
+/// Given a player released at expiry who later re-signs and runs out again,
+/// when the second expiry is processed on a later day,
+/// then the user is told again: the ledger key names the release, not the player.
+#[test]
+fn a_player_who_expires_again_after_re_signing_is_reported_again() {
+    let mut game = make_game();
+    game.players[0].stage_contract_end(Some("2026-06-30".to_string()));
+    ofm_core::contracts::process_contract_expiries(&mut game);
+
+    game.players[0].team_id = Some("team-1".to_string());
+    game.players[0].stage_contract_end(Some("2027-06-30".to_string()));
+    game.clock = GameClock::new(Utc.with_ymd_and_hms(2027, 7, 1, 12, 0, 0).unwrap());
+    ofm_core::contracts::process_contract_expiries(&mut game);
+
+    let ids: Vec<&str> = expiry_messages(&game)
+        .iter()
+        .map(|message| message.id.as_str())
+        .collect();
+    assert_eq!(
+        ids,
+        vec![
+            "contract_expired_player-1_2026-08-01_1",
+            "contract_expired_player-1_2027-07-01_2"
+        ]
+    );
+}
+
+/// Given the user terminates a contract,
+/// when the release is recorded,
+/// then the message goes through the ledger under a key naming that release.
+#[test]
+fn a_terminated_contract_is_sent_through_the_ledger() {
+    let mut game = make_squad_game();
+    give_squad_depth(&mut game);
+
+    terminate_contract_now(&mut game, "player-1").expect("termination succeeds");
+
+    assert!(
+        game.emitted_events
+            .contains("contract_terminated_player-1_2026-08-01_1")
+    );
+    assert!(
+        game.messages
+            .iter()
+            .any(|message| message.id == "contract_terminated_player-1_2026-08-01_1")
+    );
+}
+
+/// Given the user terminates a player, re-signs them and terminates them again the same day,
+/// when the second release is recorded,
+/// then the user is told about both: the key names the release, not the day.
+#[test]
+fn a_second_termination_on_the_same_day_is_reported_too() {
+    let mut game = make_squad_game();
+    give_squad_depth(&mut game);
+    terminate_contract_now(&mut game, "player-1").expect("first termination succeeds");
+
+    let player = game
+        .players
+        .iter_mut()
+        .find(|player| player.id == "player-1")
+        .unwrap();
+    player.team_id = Some("team-1".to_string());
+    player.stage_contract_end(Some("2026-10-15".to_string()));
+    player.stage_wage(12_000);
+    terminate_contract_now(&mut game, "player-1").expect("second termination succeeds");
+
+    let terminated: Vec<&str> = game
+        .messages
+        .iter()
+        .filter(|message| message.id.starts_with("contract_terminated_player-1_"))
+        .map(|message| message.id.as_str())
+        .collect();
+    assert_eq!(
+        terminated,
+        vec![
+            "contract_terminated_player-1_2026-08-01_1",
+            "contract_terminated_player-1_2026-08-01_2"
+        ]
+    );
+}
+
+// --- Delegated renewals outside the routine success -------------------------------------------
+
+fn delegate(
+    game: &mut Game,
+    player_ids: Option<Vec<String>>,
+    max_wage_increase_pct: u32,
+) -> Result<ofm_core::contracts::DelegatedRenewalReport, String> {
+    delegate_renewals(
+        game,
+        DelegatedRenewalOptions {
+            player_ids,
+            max_wage_increase_pct,
+            max_contract_years: 3,
+        },
+    )
+}
+
+fn only_player_1() -> Option<Vec<String>> {
+    Some(vec!["player-1".to_string()])
+}
+
+fn assistant_rated(level: u8) -> Staff {
+    let mut assistant = make_assistant_manager();
+    assistant.attributes.coaching = level;
+    assistant.attributes.judging_ability = level;
+    assistant.attributes.judging_potential = level;
+    assistant
+}
+
+/// The counts (success, stalled, failure) and the one case's status and note.
+fn sole_case(
+    report: &ofm_core::contracts::DelegatedRenewalReport,
+) -> (u32, u32, u32, DelegatedRenewalResultStatus, Option<&str>) {
+    assert_eq!(report.cases.len(), 1, "one player, one case");
+    let case = &report.cases[0];
+    (
+        report.success_count,
+        report.stalled_count,
+        report.failure_count,
+        case.status.clone(),
+        case.note_key.as_deref(),
+    )
+}
+
+/// Given team-1's assistant, and a team-2 player whose contract also ends within the year
+/// When the manager delegates every renewal due
+/// Then only team-1's player-1 is handled; the other club's player is left as he was
+#[test]
+fn the_assistant_only_renews_his_own_clubs_players() {
+    let mut game = make_game();
+    game.staff.push(make_assistant_manager());
+    let mut theirs = make_player_with("theirs", 12_000, "2026-10-15");
+    theirs.team_id = Some("team-2".to_string());
+    game.players.push(theirs);
+
+    let report = delegate(&mut game, None, 35).expect("a report");
+
+    let handled: Vec<&str> = report
+        .cases
+        .iter()
+        .map(|case| case.player_id.as_str())
+        .collect();
+    assert_eq!(handled, vec!["player-1"]);
+    let theirs = game.players.iter().find(|p| p.id == "theirs").unwrap();
+    assert_eq!(
+        (theirs.wage(), theirs.contract_end()),
+        (12_000, Some("2026-10-15"))
+    );
+}
+
+/// Given team-1 has a coach but no assistant manager, and team-2 has an assistant manager
+/// When the manager delegates player-1's renewal
+/// Then it is refused: only the club's own assistant manager can take it on
+#[test]
+fn delegation_needs_the_clubs_own_assistant_manager() {
+    let mut game = make_game();
+    let mut coach = make_assistant_manager();
+    coach.id = "coach".to_string();
+    coach.role = StaffRole::Coach;
+    let mut elsewhere = make_assistant_manager();
+    elsewhere.id = "elsewhere".to_string();
+    elsewhere.team_id = Some("team-2".to_string());
+    game.staff = vec![coach, elsewhere];
+
+    let result = delegate(&mut game, only_player_1(), 35);
+
+    assert_eq!(
+        result.err().as_deref(),
+        Some("be.error.contracts.noAssistantManagerAssigned")
+    );
+}
+
+/// Given player-1 wants 14,000 a week, on 12,000, and the assistant may not raise his wage at all
+/// When the manager delegates his renewal
+/// Then it stalls beyond the assistant's limits, counted once
+#[test]
+fn a_renewal_beyond_the_assistants_limits_is_reported_as_stalled() {
+    let mut game = make_game();
+    game.staff.push(make_assistant_manager());
+
+    let report = delegate(&mut game, only_player_1(), 0).expect("a report");
+
+    assert_eq!(
+        sole_case(&report),
+        (
+            0,
+            1,
+            0,
+            DelegatedRenewalResultStatus::Stalled,
+            Some("be.msg.delegatedRenewals.notes.beyondLimits")
+        )
+    );
+}
+
+/// Given a club whose wage bill (player-1's 12,000) is exactly its budget, with squad depth to
+///       spare, and an assistant the player would sign for at 14,000
+/// When the manager delegates player-1's renewal
+/// Then it stalls on the board's wage policy, counted once: 14,000 is past the 13,200 the
+///      board allows a club within its budget
+#[test]
+fn a_renewal_the_board_will_not_fund_is_stalled_by_the_wage_policy() {
+    let mut game = make_game();
+    game.staff.push(make_assistant_manager());
+    give_squad_depth(&mut game);
+    game.teams[0].wage_budget = 12_000;
+
+    let report = delegate(&mut game, only_player_1(), 35).expect("a report");
+
+    assert_eq!(
+        sole_case(&report),
+        (
+            0,
+            1,
+            0,
+            DelegatedRenewalResultStatus::Stalled,
+            Some("be.msg.delegatedRenewals.notes.boardWagePolicy")
+        )
+    );
+    assert_eq!(
+        (game.players[0].wage(), game.players[0].contract_end()),
+        (12_000, Some("2026-10-15")),
+        "a stalled renewal leaves the contract as it was"
+    );
+}
+
+/// Given an assistant rated 20 throughout, so player-1 scores him 87 (20 + 16 + 37 + 14)
+/// When the manager delegates player-1's renewal
+/// Then the player would rather talk to the manager: the case stalls and talks stay open
+#[test]
+fn a_player_the_assistant_scores_between_72_and_94_is_left_for_the_manager() {
+    let mut game = make_game();
+    game.staff.push(assistant_rated(20));
+
+    let report = delegate(&mut game, only_player_1(), 35).expect("a report");
+
+    assert_eq!(
+        sole_case(&report),
+        (
+            0,
+            1,
+            0,
+            DelegatedRenewalResultStatus::Stalled,
+            Some("be.msg.delegatedRenewals.notes.prefersManager")
+        )
+    );
+    assert_eq!(
+        game.players[0]
+            .morale_core
+            .renewal_state
+            .as_ref()
+            .map(|state| state.status.clone()),
+        Some(RenewalSessionStatus::Open)
+    );
+}
+
+/// Given an assistant rated 10 throughout, and player-1 with no trust in the manager and morale
+///       20, so he scores the assistant 34
+/// When the manager delegates his renewal
+/// Then the player refuses: the case fails over the relationship, counted once
+#[test]
+fn a_player_the_assistant_scores_below_72_refuses_him() {
+    let mut game = make_game();
+    game.staff.push(assistant_rated(10));
+    game.players[0].morale_core.manager_trust = 0;
+    game.players[0].morale = 20;
+
+    let report = delegate(&mut game, only_player_1(), 35).expect("a report");
+
+    assert_eq!(
+        sole_case(&report),
+        (
+            0,
+            0,
+            1,
+            DelegatedRenewalResultStatus::Failed,
+            Some("be.msg.delegatedRenewals.notes.relationshipBlocked")
+        )
+    );
 }

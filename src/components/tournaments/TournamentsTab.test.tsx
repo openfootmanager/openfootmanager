@@ -4,12 +4,14 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { FixtureData, GameStateData, PlayerData, TeamData } from "../../store/gameStore";
 import TournamentsTab from "./TournamentsTab";
+import { createSeasonContext } from "../../test-utils/factories";
 
 vi.mock("@tauri-apps/api/core", () => ({
   invoke: vi.fn(),
 }));
 
 vi.mock("react-i18next", () => ({
+  initReactI18next: { type: "3rdParty", init: () => undefined },
   useTranslation: () => ({
     t: (key: string, params?: Record<string, string | number>) => {
       if (key === "tournaments.noActive") return "No active tournament";
@@ -159,6 +161,8 @@ function createPlayer(overrides: Partial<PlayerData> = {}): PlayerData {
 
 function createFixture(overrides: Partial<FixtureData> = {}): FixtureData {
   return {
+    competitive: true,
+    advancing_team_id: null,
     id: "fixture-1",
     matchday: 1,
     date: "2026-08-01",
@@ -178,6 +182,19 @@ function createFixture(overrides: Partial<FixtureData> = {}): FixtureData {
 
 function createGameState(withLeague = true): GameStateData {
   return {
+    // What the backend sends for a season under way on 10 August: the window is still open.
+    season_context: createSeasonContext({
+      phase: "InSeason",
+      season_start: "2026-08-01",
+      season_end: "2027-05-31",
+      transfer_window: {
+        status: "Open",
+        opens_on: "2026-07-02",
+        closes_on: "2026-08-31",
+        days_until_opens: null,
+        days_remaining: 21,
+      },
+    }),
     clock: {
       current_date: "2026-08-10T00:00:00Z",
       start_date: "2026-07-01T00:00:00Z",

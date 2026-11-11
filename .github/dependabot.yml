@@ -1,0 +1,24 @@
+# Dependabot keeps the workflows' actions current. They are pinned by full commit SHA (a tag can be
+# moved to new code; a SHA cannot), and a pin nobody updates goes stale and misses security fixes,
+# so it is paired with this weekly update.
+#
+# github-actions only, on purpose. npm and cargo are updated by hand, through the lockfiles and the
+# pinned toolchain, where a bump is a decision with its own tests.
+# Dependabot rewrites a SHA pin and keeps its trailing "# vN" comment, so the style stays.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    # One PR a week for every action, not one per action.
+    groups:
+      github-actions:
+        patterns:
+          - "*"
+    # The rust-toolchain ref is the Rust version itself: scripts/check-toolchain-pin.sh fails unless
+    # every workflow's ref agrees with rust-toolchain.toml, so a Rust bump changes them together, by hand.
+    ignore:
+      - dependency-name: dtolnay/rust-toolchain
+    commit-message:
+      prefix: ci

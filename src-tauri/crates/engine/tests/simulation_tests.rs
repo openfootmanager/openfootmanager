@@ -14,6 +14,8 @@ fn make_player(id: &str, name: &str, position: Position, skill: u8) -> PlayerDat
         ovr: skill,
         condition: 90,
         fitness: 75,
+        injury_risk: 1.0,
+        line_familiarity: [1.0; 4],
         pace: skill,
         stamina: skill,
         strength: skill,

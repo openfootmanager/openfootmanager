@@ -19,8 +19,9 @@ pub fn scout_send(
     // `send_scout` validates fully before its single push, so an error path
     // leaves the game untouched even though `update_game` cannot roll back.
     ctx.state_manager
-        .update_game(|game| ofm_core::scouting::send_scout(game, &scout_id, &player_id))
-        .ok_or_else(|| "be.error.noActiveGameSession".to_string())??;
+        .update_game_for(ofm_core::state::Career::Active, |game| {
+            ofm_core::scouting::send_scout(game, &scout_id, &player_id)
+        })??;
 
     let scout_name = ctx
         .state_manager
@@ -125,7 +126,7 @@ pub fn scout_youth_start(
     // Validates fully before its single push, so the error path leaves the game
     // untouched even though `update_game` cannot roll back.
     ctx.state_manager
-        .update_game(|game| {
+        .update_game_for(ofm_core::state::Career::Active, |game| {
             ofm_core::scouting::start_youth_scouting(
                 game,
                 &scout_id,
@@ -133,8 +134,7 @@ pub fn scout_youth_start(
                 objective,
                 target_position,
             )
-        })
-        .ok_or_else(|| "be.error.noActiveGameSession".to_string())??;
+        })??;
 
     {
         use tauri::Emitter;
@@ -198,8 +198,9 @@ pub fn scout_youth_cancel(
     // failure afterwards. That is still safe to run in place — when it errors,
     // the retain matched nothing and removed nothing.
     ctx.state_manager
-        .update_game(|game| ofm_core::scouting::cancel_youth_scouting(game, &assignment_id))
-        .ok_or_else(|| "be.error.noActiveGameSession".to_string())??;
+        .update_game_for(ofm_core::state::Career::Active, |game| {
+            ofm_core::scouting::cancel_youth_scouting(game, &assignment_id)
+        })??;
 
     {
         use tauri::Emitter;
@@ -220,10 +221,9 @@ pub fn scout_youth_reassign(
 ) -> Result<YouthScoutingReassigned, String> {
     // Validates fully before the one field it assigns.
     ctx.state_manager
-        .update_game(|game| {
+        .update_game_for(ofm_core::state::Career::Active, |game| {
             ofm_core::scouting::reassign_youth_scouting(game, &assignment_id, &scout_id)
-        })
-        .ok_or_else(|| "be.error.noActiveGameSession".to_string())??;
+        })??;
 
     {
         use tauri::Emitter;

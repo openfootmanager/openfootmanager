@@ -26,16 +26,18 @@ Review what changed. Read the surrounding component when the hunk alone is not e
 ## The design system
 
 Tailwind v4 keeps its configuration **in CSS**: the `@theme` block in `src/App.css` is the only
-place colours and fonts are defined.
+place colours, type sizes and layout sizes are defined. The token table and the rules are in
+`src/CLAUDE.md` §2; read them before reviewing. In short:
 
-| Family | Use |
-|---|---|
-| `primary-50…900` | Emerald green — primary actions, positive state |
-| `accent-50…900` | Gold (`accent-400` = `#ffd60a`) — highlights, awards, emphasis |
-| `success-400/500/600` | Success-specific green |
-| `navy-900/800/700/600` | Dark-mode surfaces, deepest to lightest |
-| `font-heading` | Barlow Condensed — headings, usually `uppercase tracking-wider` |
-| `font-sans` | Inter — body |
+- **Role colours** (`bg-panel`, `text-fg-muted`, `border-line`, `text-danger`, `bg-tone-good-tint`,
+  `text-on-brand`, …) switch with dark mode and high contrast by themselves and need **no**
+  `dark:` partner.
+- **Role type sizes** (`text-caption` 12 … `text-display` 32) are the only sizes. Nothing under
+  12px, no px literal, no inline `fontSize`. Uppercase only on headings, buttons, badges and tabs.
+- **Brand** (`primary-*`, `accent-*`, `navy-*`) only for brand moments.
+- `src/designSystem.test.ts` enforces the mechanical part in the folders listed in its
+  `FINISHED_FOLDERS`. Your review covers what it can't: uppercase use, one primary action per
+  page, colour as the only signal, and folders not yet on the list.
 
 `src/components/ui/Button.tsx` is the reference implementation for variants, sizes, focus, and
 disabled states.
@@ -59,12 +61,16 @@ disabled states.
 - CJK font fallbacks stripped from `@theme` — `zh-CN` needs them.
 
 ### Theme parity
-- **Every colour utility needs a `dark:` partner.** `bg-white` with no `dark:bg-navy-800`,
-  `text-gray-700` with no `dark:text-gray-300`. A missing pair means invisible or glaring content
-  in one theme.
-- Borders, shadows, dividers, and placeholder text are the ones people forget.
-- Focus rings need `dark:focus:ring-offset-navy-800` — the offset colour must match the surface, or
-  the ring renders against the wrong background.
+- **New code uses role tokens**, which need no `dark:` partner. Flag a raw palette class
+  (`bg-white`, `text-gray-700`) in new or changed code: it should be a role token.
+- In a folder that hasn't been migrated yet, an unchanged raw palette class still needs its
+  `dark:` partner (`bg-white` with `dark:bg-navy-800`); a missing pair means invisible or glaring
+  content in one theme. Borders, shadows, dividers and placeholder text are the ones people forget.
+- Focus rings use `focus-visible:ring-focus focus-visible:ring-offset-page` (rule 6 of
+  `src/designSystem.test.ts` enforces it in finished folders), or in an unmigrated folder
+  `dark:focus:ring-offset-navy-800`. A ring in any other colour (a brand `ring-primary-*`, an
+  `accent` ring) is a finding: it misses 3:1 on some surface. A control drawn on a sunken surface
+  may take that surface's offset (`ring-offset-sunken`).
 
 ### Keyboard and focus
 - `focus:outline-none` with **nothing visible put back**. Removing focus visibility is a bug, not a

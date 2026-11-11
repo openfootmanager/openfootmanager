@@ -4,6 +4,38 @@ import { Globe } from "lucide-react";
 import { Select } from "./Select";
 
 describe("Select", () => {
+  /**
+   * Given a select inside a modal dialog, and another outside any dialog
+   * When each is opened
+   * Then the first's option list is drawn inside the dialog, so a screen reader and the dialog's Tab
+   *      trap keep it (a list outside an aria-modal dialog is unreachable and inert), and the
+   *      second's is drawn in the page body as before.
+   */
+  it("draws its option list inside the dialog it is in, and in the body otherwise", () => {
+    const { unmount } = render(
+      <div role="dialog" aria-label="Settings" data-testid="dialog">
+        <Select defaultValue="en" aria-label="In dialog">
+          <option value="en">English</option>
+          <option value="pt">Português</option>
+        </Select>
+      </div>,
+    );
+    fireEvent.click(screen.getByRole("combobox", { name: "In dialog" }));
+    expect(screen.getByTestId("dialog")).toContainElement(screen.getByRole("listbox"));
+    unmount();
+
+    render(
+      <div data-testid="page">
+        <Select defaultValue="en" aria-label="Outside">
+          <option value="en">English</option>
+          <option value="pt">Português</option>
+        </Select>
+      </div>,
+    );
+    fireEvent.click(screen.getByRole("combobox", { name: "Outside" }));
+    expect(screen.getByTestId("page")).not.toContainElement(screen.getByRole("listbox"));
+  });
+
   it("renders the selected option label", () => {
     render(
       <Select value="en" aria-label="Language">
@@ -61,7 +93,7 @@ describe("Select", () => {
     );
 
     const combobox = screen.getByRole("combobox", { name: "Language" });
-    expect(combobox.className).toContain("bg-gray-100");
+    expect(combobox.className).toContain("bg-sunken");
     expect(combobox.className).toContain("my-select");
     expect(document.querySelector("svg")).toBeInTheDocument();
   });

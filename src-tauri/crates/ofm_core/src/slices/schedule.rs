@@ -258,6 +258,44 @@ mod tests {
         }
     }
 
+    /// Given a matchday played today and the next one scheduled for next week
+    /// When the schedule is queried on the day of the first
+    /// Then the matchday already played is listed as past: a group is upcoming only while it
+    ///      still has a match to play
+    #[test]
+    fn a_matchday_played_today_is_listed_as_past() {
+        let fixtures = vec![
+            make_completed_fixture("f1", 1, "2026-08-15", "user-team", "other-team", 2, 1),
+            make_fixture(
+                "f2",
+                2,
+                "2026-08-22",
+                "other-team",
+                "user-team",
+                FixtureStatus::Scheduled,
+            ),
+        ];
+        let game = make_game(fixtures, "2026-08-15", "user-team");
+        let slice = query_schedule(
+            &game,
+            &ScheduleQuery {
+                competition_id: "league-1".to_string(),
+            },
+        )
+        .unwrap();
+
+        let ids = |groups: &[MatchdayGroup]| -> Vec<String> {
+            groups
+                .iter()
+                .flat_map(|group| group.fixtures.iter().map(|fixture| fixture.id.clone()))
+                .collect()
+        };
+        assert_eq!(
+            (ids(&slice.past_groups), ids(&slice.upcoming_groups)),
+            (vec!["f1".to_string()], vec!["f2".to_string()])
+        );
+    }
+
     /// Given a round with one match played three days after the others, when the schedule is queried,
     /// then the round is two groups, each carrying its own date.
     #[test]

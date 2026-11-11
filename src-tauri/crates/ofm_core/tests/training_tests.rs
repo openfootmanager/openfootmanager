@@ -10,10 +10,14 @@ use ofm_core::training;
 
 #[path = "training_tests/determinism.rs"]
 mod determinism;
+#[path = "training_tests/fitness.rs"]
+mod fitness;
 #[path = "training_tests/fixtures.rs"]
 mod fixtures;
 #[path = "training_tests/recovery.rs"]
 mod recovery;
+#[path = "training_tests/warnings.rs"]
+mod warnings;
 
 use fixtures::*;
 

@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { invoke } from "@tauri-apps/api/core";
 import { useTranslation } from "react-i18next";
 import type { GameStateData } from "../../store/gameStore";
 import {
@@ -8,6 +7,7 @@ import {
   getTeamTalkOptions,
   type TeamTalkTone,
 } from "./types";
+import MatchEventSideBadge from "./MatchEventSideBadge";
 import { getEventDisplay, getPlayerName, makeTeamFallback } from "./helpers";
 import { getTalkIcon } from "./TeamTalkIcons";
 import { Badge, TeamLogo, ThemeToggle } from "../ui";
@@ -25,6 +25,7 @@ import {
   FileText,
   Shield,
 } from "lucide-react";
+import { invokeForCareer } from "../../services/careerInvoke";
 
 interface PostMatchScreenProps {
   snapshot: MatchSnapshot;
@@ -114,6 +115,8 @@ export default function PostMatchScreen({
 
   const homeFullTeam = gameState.teams.find((t) => t.id === snapshot.home_team.id);
   const awayFullTeam = gameState.teams.find((t) => t.id === snapshot.away_team.id);
+  const homeTeam = homeFullTeam ?? makeTeamFallback(snapshot.home_team.name);
+  const awayTeam = awayFullTeam ?? makeTeamFallback(snapshot.away_team.name);
   const homeTeamColor = homeFullTeam?.colors?.primary || "#10b981";
   const awayTeamColor = awayFullTeam?.colors?.primary || "#6366f1";
 
@@ -180,7 +183,7 @@ export default function PostMatchScreen({
     setTalkPending(true);
     setTalkError(null);
     try {
-      const results = await invoke<
+      const results = await invokeForCareer<
         {
           player_id: string;
           player_name: string;
@@ -275,7 +278,7 @@ export default function PostMatchScreen({
           <div className="flex items-center justify-center gap-10">
             <div className="flex items-center gap-4">
               <TeamLogo
-                team={homeFullTeam ?? makeTeamFallback(snapshot.home_team.name)}
+                team={homeTeam}
                 className="w-14 h-14 rounded-xl flex items-center justify-center font-heading font-bold text-lg overflow-hidden"
                 imageClassName="h-10 w-10 object-contain drop-shadow"
                 style={{
@@ -316,7 +319,7 @@ export default function PostMatchScreen({
                 {snapshot.away_team.name}
               </p>
               <TeamLogo
-                team={awayFullTeam ?? makeTeamFallback(snapshot.away_team.name)}
+                team={awayTeam}
                 className="w-14 h-14 rounded-xl flex items-center justify-center font-heading font-bold text-lg overflow-hidden"
                 imageClassName="h-10 w-10 object-contain drop-shadow"
                 style={{
@@ -618,11 +621,11 @@ export default function PostMatchScreen({
                         <span className={`${display.color} font-medium truncate flex-1`}>
                           {getPlayerName(snapshot, evt.player_id)}
                         </span>
-                        <Badge variant={evt.side === "Home" ? "primary" : "accent"} size="sm">
-                          {evt.side === "Home"
-                            ? snapshot.home_team.name.substring(0, 3)
-                            : snapshot.away_team.name.substring(0, 3)}
-                        </Badge>
+                        <MatchEventSideBadge
+                          side={evt.side}
+                          homeTeam={homeTeam}
+                          awayTeam={awayTeam}
+                        />
                       </div>
                     );
                   })}

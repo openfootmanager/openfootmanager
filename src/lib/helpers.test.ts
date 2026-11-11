@@ -3,7 +3,6 @@ import {
   getTeamName,
   getTeamShort,
   findNextFixture,
-  getContractRiskLevel,
   formatMatchDate,
   formatDate,
   formatDateFull,
@@ -13,7 +12,6 @@ import {
   formatVal,
   formatWeeklyAmount,
   getPlayerOvr,
-  positionBadgeVariant,
 } from "./helpers";
 import type { TeamData, FixtureData, PlayerData } from "../store/gameStore";
 import { useGameStore, type GameStateData } from "../store/gameStore";
@@ -109,6 +107,8 @@ const makePlayer = (overrides: Partial<PlayerData> = {}): PlayerData => ({
 });
 
 const makeFixture = (overrides: Partial<FixtureData> = {}): FixtureData => ({
+  competitive: true,
+  advancing_team_id: null,
   id: "fix_1",
   matchday: 1,
   date: "2026-08-01",
@@ -263,20 +263,6 @@ describe("calcAge", () => {
   });
 });
 
-describe("getContractRiskLevel", () => {
-  it("marks contracts expiring within 180 days as critical", () => {
-    expect(getContractRiskLevel("2026-12-28", "2026-07-01")).toBe("critical");
-  });
-
-  it("marks contracts expiring within 365 days as warning", () => {
-    expect(getContractRiskLevel("2027-06-30", "2026-07-01")).toBe("warning");
-  });
-
-  it("marks longer contracts as stable", () => {
-    expect(getContractRiskLevel("2027-07-02", "2026-07-01")).toBe("stable");
-  });
-});
-
 describe("formatVal", () => {
   it("formats millions", () => {
     expect(formatVal(5000000)).toBe("€5M");
@@ -319,22 +305,6 @@ describe("formatExactMoney", () => {
 describe("formatWeeklyAmount", () => {
   it("appends the weekly unit to a formatted amount", () => {
     expect(formatWeeklyAmount("€10K")).toBe("€10K/wk");
-  });
-});
-
-describe("positionBadgeVariant", () => {
-  it("returns correct variant for each position", () => {
-    expect(positionBadgeVariant("Goalkeeper")).toBe("accent");
-    expect(positionBadgeVariant("Defender")).toBe("primary");
-    expect(positionBadgeVariant("CenterBack")).toBe("primary");
-    expect(positionBadgeVariant("Midfielder")).toBe("success");
-    expect(positionBadgeVariant("AttackingMidfielder")).toBe("success");
-    expect(positionBadgeVariant("Forward")).toBe("danger");
-    expect(positionBadgeVariant("Striker")).toBe("danger");
-  });
-
-  it("returns 'primary' for unknown position", () => {
-    expect(positionBadgeVariant("Unknown")).toBe("primary");
   });
 });
 

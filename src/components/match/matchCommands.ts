@@ -1,6 +1,5 @@
-import { invoke } from "@tauri-apps/api/core";
-
 import type { MatchSnapshot } from "./types";
+import { currentCareerToken, invokeForCareer } from "../../services/careerInvoke";
 
 // Tauri does not order independent invokes, so two quick changes could be answered newest first and
 // the older snapshot would overwrite the newer. Every in-play command goes through one chain, so
@@ -20,7 +19,11 @@ export function resetMatchCommands(): void {
  * rejects only its own caller; the commands behind it still go out.
  */
 export function sendMatchCommand(command: Record<string, unknown>): Promise<MatchSnapshot> {
-  const send = () => invoke<MatchSnapshot>("apply_match_command", { command });
+  // The token of the career the command was asked in, not the one showing when its turn comes:
+  // a command queued behind a slow one must not land in a career installed meanwhile.
+  const careerToken = currentCareerToken();
+  const send = () =>
+    invokeForCareer<MatchSnapshot>("apply_match_command", { command }, careerToken);
   const result = chain.then(send, send);
   chain = result.catch(() => undefined);
   return result;

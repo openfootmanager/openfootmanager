@@ -13,7 +13,7 @@ const GAME_PERSISTENCE_WRITE_ERROR: &str = "be.error.gamePersistence.writeFailed
 /// repeat (an edited or merged save, or ids kept before they were trimmed) is reduced by
 /// `one_tactic_per_id`, which keeps the last copy at the place it last stood.
 pub fn replace_custom_tactics(conn: &Connection, tactics: &[CustomTactic]) -> Result<(), String> {
-    let tactics = one_tactic_per_id(tactics.to_vec());
+    let tactics = one_tactic_per_id(tactics);
     let records = tactics
         .iter()
         .map(|tactic| {
@@ -44,7 +44,7 @@ pub fn load_custom_tactics(conn: &Connection) -> Result<Vec<CustomTactic>, Strin
             serde_json::from_str(&json).map_err(|_| GAME_PERSISTENCE_LOAD_ERROR.to_string())
         })
         .collect::<Result<Vec<_>, _>>()
-        .map(one_tactic_per_id)
+        .map(|tactics| one_tactic_per_id(&tactics))
 }
 
 #[cfg(test)]
@@ -60,6 +60,7 @@ mod tests {
             formation: "4-4-2".into(),
             play_style: "Balanced".into(),
             source_preset_name: None,
+            contents: None,
         }
     }
 
@@ -111,6 +112,70 @@ mod tests {
             .map(|t| (t.id.as_str(), t.name.as_str()))
             .collect();
         assert_eq!(seen, [("b", "Other"), ("a", "new")]);
+    }
+
+    /// Given a row written before tactics held their contents (no `contents` key in its JSON)
+    /// When it is loaded
+    /// Then it loads, as the tactic it was, with no contents: an old save keeps its tactics.
+    #[test]
+    fn a_tactic_saved_before_it_held_contents_still_loads() {
+        let db = GameDatabase::open_in_memory().unwrap();
+        db.conn()
+            .execute(
+                "INSERT INTO custom_tactics (tactic_id, position, record_json) VALUES (?1, ?2, ?3)",
+                params![
+                    "old",
+                    0_i64,
+                    r#"{"id":"old","name":"Old","description":"","formation":"4-3-3","playStyle":"Counter","sourcePresetName":null}"#
+                ],
+            )
+            .unwrap();
+
+        let loaded = load_custom_tactics(db.conn()).unwrap();
+
+        assert_eq!(loaded.len(), 1);
+        assert_eq!(loaded[0].formation, "4-3-3");
+        assert_eq!(loaded[0].contents, None);
+    }
+
+    /// Given a tactic holding tuned dials, an eleven with a role, and named takers
+    /// When it is stored and read back from the table
+    /// Then every part comes back as it was (#1189).
+    #[test]
+    fn a_tactics_contents_survive_the_save() {
+        use domain::custom_tactic::{SavedSlot, TacticContents};
+        use domain::team::{
+            BuildUpStyle, DefensiveLine, MatchRoles, PlayerRole, TacticsPhaseSettings,
+        };
+
+        let db = GameDatabase::open_in_memory().unwrap();
+        let mut whole = tactic("whole", "Whole");
+        whole.contents = Some(TacticContents {
+            instructions: TacticsPhaseSettings {
+                build_up_style: BuildUpStyle::Short,
+                defensive_line: DefensiveLine::High,
+                ..TacticsPhaseSettings::default()
+            },
+            slots: vec![
+                SavedSlot {
+                    player_id: "keeper".into(),
+                    role: Some(PlayerRole::SweeperKeeper),
+                },
+                SavedSlot {
+                    player_id: "back".into(),
+                    role: None,
+                },
+            ],
+            match_roles: MatchRoles {
+                captain: Some("back".into()),
+                corner_taker: Some("keeper".into()),
+                ..MatchRoles::default()
+            },
+        });
+
+        replace_custom_tactics(db.conn(), std::slice::from_ref(&whole)).unwrap();
+
+        assert_eq!(load_custom_tactics(db.conn()).unwrap(), vec![whole]);
     }
 
     /// Given a list holding "a" and a padded twin "a "

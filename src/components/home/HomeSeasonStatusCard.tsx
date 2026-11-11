@@ -37,8 +37,10 @@ export default function HomeSeasonStatusCard({
           {t("season.preseasonStatus")}
         </div>
       </CardHeader>
-      <CardBody>
-        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+      {/* Laid out by the card's own width: a window breakpoint and a minimum width put the tiles
+          past the window's edge in a narrow workspace (960 at extra-large text). */}
+      <CardBody className="@container">
+        <div className="flex flex-col gap-4 @3xl:flex-row @3xl:items-center @3xl:justify-between">
           <div className="flex flex-col gap-2">
             <div className="flex flex-wrap items-center gap-2">
               <Badge variant="accent" size="sm">
@@ -50,7 +52,7 @@ export default function HomeSeasonStatusCard({
             </div>
             <p className="text-sm text-gray-700 dark:text-gray-300">{t("season.preseasonFocus")}</p>
           </div>
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 md:min-w-[22rem]">
+          <div data-season-tiles className="grid grid-cols-1 gap-3 @md:grid-cols-2">
             <div className="rounded-xl bg-gray-50 px-4 py-3 dark:bg-navy-700/50">
               <p className="text-[10px] font-heading font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500">
                 {t("season.opener")}

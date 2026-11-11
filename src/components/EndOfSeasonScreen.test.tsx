@@ -1,19 +1,35 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import french from "../i18n/locales/fr.json";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { invoke } from "@tauri-apps/api/core";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { GameStateData, SeasonAwardsData } from "../store/gameStore";
-import EndOfSeasonScreen from "./EndOfSeasonScreen";
+import { useState } from "react";
+import EndOfSeasonScreen, { type SeasonTransition } from "./EndOfSeasonScreen";
+import type { GameStateData } from "../store/gameStore";
+import { createAwards, createEndOfSeasonGame } from "../test-utils/endOfSeason";
 
 const setShowFiredModal = vi.fn();
+const locale = vi.hoisted(() => ({ language: "en" }));
 
 vi.mock("@tauri-apps/api/core", () => ({
   invoke: vi.fn(),
 }));
 
 vi.mock("react-i18next", () => ({
+  initReactI18next: { type: "3rdParty", init: () => undefined },
   useTranslation: () => ({
     t: (key: string, params?: Record<string, string | number>) => {
+      if (locale.language === "fr" && key.startsWith("common.ordinal.place.")) {
+        const forms: Record<string, string> = french.common.ordinal.place;
+        return (forms[key.slice(key.lastIndexOf(".") + 1)] ?? key).replace(
+          "{{n}}",
+          String(params?.n),
+        );
+      }
+      if (locale.language === "ru" && key.startsWith("common.ordinal.")) {
+        return `${params?.n}-${key.includes(".place.") ? "е" : "й"}`;
+      }
+      key = key.replace("common.ordinal.place.", "common.ordinal.");
       if (key === "endOfSeason.seasonComplete") return "Season complete";
       if (key === "endOfSeason.seasonLine") return `Season ${params?.season} ${params?.league}`;
       if (key === "endOfSeason.position") return "Position";
@@ -23,6 +39,9 @@ vi.mock("react-i18next", () => ({
       if (key === "endOfSeason.startNextSeason") return "Start next season";
       if (key === "endOfSeason.statsArchived") return "Stats archived";
       if (key === "endOfSeason.continueDashboard") return "Continue to dashboard";
+      if (key === "tournaments.competitions.firstDivision")
+        return `${params?.country} Erste Division`;
+      if (key === "nations.de") return "Deutschland";
       if (key === "awardsCeremony.title") return "Awards Ceremony";
       if (key === "awardsCeremony.subtitle") return `Season ${params?.season} in ${params?.league}`;
       if (key === "awardsCeremony.managerOfSeason") return "Manager of the Season";
@@ -35,13 +54,14 @@ vi.mock("react-i18next", () => ({
       if (key === "common.lost") return "L";
       if (key === "common.gf") return "GF";
       if (key === "common.ga") return "GA";
-      if (key === "common.place.1") return "1st";
-      if (key === "common.place.2") return "2nd";
-      if (key === "common.place.3") return "3rd";
-      if (key === "common.place.other") return `${params?.n}th`;
+      // The language's ordinal forms (English here), picked by `formatOrdinal`.
+      if (key === "common.ordinal.one") return `${params?.n}st`;
+      if (key === "common.ordinal.two") return `${params?.n}nd`;
+      if (key === "common.ordinal.few") return `${params?.n}rd`;
+      if (key === "common.ordinal.other") return `${params?.n}th`;
       return key;
     },
-    i18n: { language: "en" },
+    i18n: locale,
   }),
 }));
 
@@ -49,173 +69,151 @@ vi.mock("../store/gameStore", async () => {
   const actual = await vi.importActual<typeof import("../store/gameStore")>("../store/gameStore");
   return {
     ...actual,
-    useGameStore: (selector: (state: { setShowFiredModal: typeof setShowFiredModal }) => unknown) =>
-      selector({ setShowFiredModal }),
+    useGameStore: Object.assign(
+      (selector: (state: { setShowFiredModal: typeof setShowFiredModal }) => unknown) =>
+        selector({ setShowFiredModal }),
+      // The service layer reads the career token from the store's current game.
+      { getState: () => ({ gameState: null }) },
+    ),
   };
 });
 
-function createAwards(): SeasonAwardsData {
-  return {
-    golden_boot: [
-      {
-        player_id: "player-1",
-        player_name: "Victor Vale",
-        team_id: "team-1",
-        team_name: "Alpha FC",
-        value: 24,
-      },
-    ],
-    assist_king: [],
-    player_of_year: [
-      {
-        player_id: "player-1",
-        player_name: "Victor Vale",
-        team_id: "team-1",
-        team_name: "Alpha FC",
-        value: 7.8,
-      },
-    ],
-    clean_sheet_king: [],
-    most_appearances: [],
-    young_player: [],
-    manager_of_season: [
-      {
-        manager_id: "manager-1",
-        manager_name: "Jane Doe",
-        team_id: "team-1",
-        team_name: "Alpha FC",
-        value: 79,
-        win_rate: 66,
-      },
-    ],
-  };
-}
-
-function createGameState(): GameStateData {
-  return {
-    clock: {
-      current_date: "2026-05-20T00:00:00Z",
-      start_date: "2025-07-01T00:00:00Z",
-    },
-    manager: {
-      display_name: "Jane Doe",
-      id: "manager-1",
-      first_name: "Jane",
-      last_name: "Doe",
-      date_of_birth: "1980-01-01",
-      nationality: "ENG",
-      football_nation: "ENG",
-      reputation: 72,
-      satisfaction: 63,
-      fan_approval: 61,
-      team_id: "team-1",
-      career_stats: {
-        matches_managed: 38,
-        wins: 25,
-        draws: 8,
-        losses: 5,
-        trophies: 2,
-        best_finish: 1,
-      },
-      career_history: [],
-    },
-    managers: [],
-    teams: [
-      {
-        id: "team-1",
-        name: "Alpha FC",
-        short_name: "ALP",
-        country: "ENG",
-        city: "London",
-        stadium_name: "Alpha Ground",
-        stadium_capacity: 30000,
-        finance: 1000000,
-        manager_id: "manager-1",
-        reputation: 650,
-        wage_budget: 500000,
-        transfer_budget: 750000,
-        season_income: 0,
-        season_expenses: 0,
-        formation: "4-3-3",
-        play_style: "Balanced",
-        training_focus: "General",
-        training_intensity: "Balanced",
-        training_schedule: "Balanced",
-        founded_year: 1900,
-        colors: { primary: "#000000", secondary: "#ffffff" },
-        starting_xi_ids: [],
-        form: [],
-        history: [],
-      },
-      {
-        id: "team-2",
-        name: "Beta FC",
-        short_name: "BET",
-        country: "ENG",
-        city: "Manchester",
-        stadium_name: "Beta Ground",
-        stadium_capacity: 28000,
-        finance: 1000000,
-        manager_id: "manager-2",
-        reputation: 620,
-        wage_budget: 500000,
-        transfer_budget: 750000,
-        season_income: 0,
-        season_expenses: 0,
-        formation: "4-3-3",
-        play_style: "Balanced",
-        training_focus: "General",
-        training_intensity: "Balanced",
-        training_schedule: "Balanced",
-        founded_year: 1902,
-        colors: { primary: "#111111", secondary: "#eeeeee" },
-        starting_xi_ids: [],
-        form: [],
-        history: [],
-      },
-    ],
-    players: [],
-    staff: [],
-    messages: [],
-    news: [],
-    league: {
-      id: "league-1",
-      name: "Premier League",
-      season: 6,
-      standings: [
-        {
-          team_id: "team-1",
-          played: 38,
-          won: 25,
-          drawn: 8,
-          lost: 5,
-          goals_for: 72,
-          goals_against: 30,
-          points: 83,
-        },
-        {
-          team_id: "team-2",
-          played: 38,
-          won: 22,
-          drawn: 9,
-          lost: 7,
-          goals_for: 65,
-          goals_against: 35,
-          points: 75,
-        },
-      ],
-      fixtures: [],
-      transfer_log: [],
-    },
-    scouting_assignments: [],
-    board_objectives: [],
-  };
-}
-
 describe("EndOfSeasonScreen", () => {
+  beforeEach(() => vi.mocked(invoke).mockReset());
+  /** Given a pending division read, when the review loads, then rollover waits until the read completes. */
+  it("disables the next season while the division is loading", async () => {
+    const game = createEndOfSeasonGame();
+    let finishRead: (value: GameStateData["league"]) => void = () => {};
+    vi.mocked(invoke).mockReturnValueOnce(
+      new Promise((resolve) => {
+        finishRead = resolve;
+      }),
+    );
+    render(
+      <EndOfSeasonScreen
+        gameState={game}
+        onGameUpdate={vi.fn()}
+        transition={null}
+        onTransitionChange={vi.fn()}
+      />,
+    );
+    const button = screen.getByRole("button", { name: "Start next season" });
+    expect(button).toBeDisabled();
+    fireEvent.click(button);
+    expect(invoke).not.toHaveBeenCalledWith("advance_to_next_season", expect.anything());
+    await act(async () => finishRead(game.league));
+    expect(button).toBeEnabled();
+  });
+
+  /** Given a failed division read, when its error is shown, then rollover remains available. */
+  it("allows the next season after the division read fails", async () => {
+    const game = createEndOfSeasonGame();
+    vi.mocked(invoke)
+      .mockRejectedValueOnce(new Error("offline"))
+      .mockResolvedValueOnce({ game, summary: { league_name: "", season: 6 } });
+    render(
+      <EndOfSeasonScreen
+        gameState={game}
+        onGameUpdate={vi.fn()}
+        transition={null}
+        onTransitionChange={vi.fn()}
+      />,
+    );
+    expect(await screen.findByRole("alert")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "common.retry" })).toBeEnabled();
+    const button = screen.getByRole("button", { name: "Start next season" });
+    expect(button).toBeEnabled();
+    fireEvent.click(button);
+    await waitFor(() =>
+      expect(invoke).toHaveBeenCalledWith("advance_to_next_season", { careerToken: 0 }),
+    );
+  });
+  /** Given a failed division read, when retried, then the followed division is shown. */
+  it("reports and retries a failed division read", async () => {
+    const game = createEndOfSeasonGame();
+    vi.mocked(invoke)
+      .mockRejectedValueOnce(new Error("offline"))
+      .mockResolvedValueOnce(game.league);
+    render(
+      <EndOfSeasonScreen
+        gameState={game}
+        onGameUpdate={vi.fn()}
+        transition={null}
+        onTransitionChange={vi.fn()}
+      />,
+    );
+    expect(await screen.findByRole("alert")).toHaveTextContent("errors.title");
+    fireEvent.click(screen.getByRole("button", { name: "common.retry" }));
+    expect(await screen.findByText(/Premier League/)).toBeInTheDocument();
+  });
+  /** Given a clubless manager with no recorded club, when reviewing the season, then no division is shown. */
+  it("shows no division details when no division is followed", async () => {
+    const game = createEndOfSeasonGame();
+    game.manager.team_id = null;
+    vi.mocked(invoke).mockResolvedValue(null);
+    render(
+      <EndOfSeasonScreen
+        gameState={game}
+        onGameUpdate={vi.fn()}
+        transition={null}
+        onTransitionChange={vi.fn()}
+      />,
+    );
+
+    expect(await screen.findByText("Season complete")).toBeInTheDocument();
+    await waitFor(() =>
+      expect(invoke).toHaveBeenCalledWith("get_followed_division", {
+        careerToken: game.career_token ?? 0,
+      }),
+    );
+    await waitFor(() => expect(screen.queryByRole("status")).not.toBeInTheDocument());
+    expect(screen.queryByText(/Premier League/)).not.toBeInTheDocument();
+    expect(screen.queryByText("Final standings")).not.toBeInTheDocument();
+    expect(screen.queryByText("Alpha FC")).not.toBeInTheDocument();
+  });
+
+  /** Given a sacked manager following a different division from the mirror, when reviewing, then show the backend's division. */
+  it("shows the sacked managers followed division", async () => {
+    const game = createEndOfSeasonGame();
+    game.manager.team_id = null;
+    game.manager.career_history = [
+      {
+        team_id: "team-2",
+        team_name: "Beta FC",
+        start_date: "2025-01-01",
+        end_date: "2026-01-01",
+        matches: 10,
+        wins: 4,
+        draws: 3,
+        losses: 3,
+        best_league_position: 2,
+      },
+    ];
+    const followed = {
+      ...game.league!,
+      id: "league-2",
+      name: "Second Division",
+      standings: [game.league!.standings[1]!],
+    };
+    vi.mocked(invoke).mockResolvedValue(followed);
+    render(
+      <EndOfSeasonScreen
+        gameState={game}
+        onGameUpdate={vi.fn()}
+        transition={null}
+        onTransitionChange={vi.fn()}
+      />,
+    );
+
+    expect(await screen.findByText(/Second Division/)).toBeInTheDocument();
+    expect(screen.getByText("Final standings")).toBeInTheDocument();
+    expect(screen.getAllByText("Beta FC").length).toBeGreaterThan(0);
+    expect(screen.queryByText(/Premier League/)).not.toBeInTheDocument();
+  });
   it("shows the awards ceremony after advancing to the next season", async () => {
-    vi.mocked(invoke).mockResolvedValue({
-      game: createGameState(),
+    const game = createEndOfSeasonGame();
+    const result = {
+      game: createEndOfSeasonGame(),
       summary: {
         season: 6,
         league_name: "Premier League",
@@ -235,17 +233,196 @@ describe("EndOfSeasonScreen", () => {
         total_teams: 2,
         season_awards: createAwards(),
       },
-    });
+    };
+    vi.mocked(invoke).mockImplementation(async (command) =>
+      command === "get_followed_division" ? game.league : result,
+    );
 
     const onGameUpdate = vi.fn();
 
-    render(<EndOfSeasonScreen gameState={createGameState()} onGameUpdate={onGameUpdate} />);
+    // The dashboard holds the transition; this stands in for it.
+    function Holder() {
+      const [transition, setTransition] = useState<SeasonTransition | null>(null);
+      return (
+        <EndOfSeasonScreen
+          gameState={game}
+          onGameUpdate={onGameUpdate as (game: GameStateData) => void}
+          transition={transition}
+          onTransitionChange={setTransition}
+        />
+      );
+    }
+    render(<Holder />);
 
-    fireEvent.click(screen.getByRole("button", { name: "Start next season" }));
+    const button = screen.getByRole("button", { name: "Start next season" });
+    await waitFor(() => expect(button).toBeEnabled());
+    fireEvent.click(button);
 
     expect(await screen.findByText("Awards Ceremony")).toBeInTheDocument();
     expect(screen.getAllByText("Manager of the Season").length).toBeGreaterThan(0);
     expect(screen.getByText("Jane Doe")).toBeInTheDocument();
     expect(onGameUpdate).toHaveBeenCalled();
+  });
+
+  /** Given a summary for a keyed German division, when the ceremony opens, then its subtitle is localized. */
+  it("shows the localized division in the ceremony subtitle", () => {
+    const game = createEndOfSeasonGame();
+    game.competitions = [
+      {
+        ...game.league!,
+        id: "league-de",
+        name: "Germany First Division",
+        name_key: "tournaments.competitions.firstDivision",
+        country_id: "DE",
+      },
+    ];
+    const transition: SeasonTransition = {
+      step: "ceremony",
+      summary: {
+        season: 6,
+        league_name: "Germany First Division",
+        competition_id: "league-de",
+        champion_id: "team-1",
+        champion_name: "Alpha FC",
+        user_position: 1,
+        user_points: 83,
+        user_won: 25,
+        user_drawn: 8,
+        user_lost: 5,
+        user_goals_for: 72,
+        user_goals_against: 30,
+        golden_boot_player: "Victor Vale",
+        golden_boot_goals: 24,
+        poty_player: "Victor Vale",
+        poty_rating: 7.8,
+        total_teams: 2,
+        season_awards: createAwards(),
+      },
+    };
+    render(
+      <EndOfSeasonScreen
+        gameState={game}
+        onGameUpdate={vi.fn()}
+        transition={transition}
+        onTransitionChange={vi.fn()}
+      />,
+    );
+    expect(screen.getByText("Season 6 in Deutschland Erste Division")).toBeInTheDocument();
+  });
+
+  /**
+   * Given a club that finished 21st of 21 (an English ordinal ending that is not "th")
+   * When the review is drawn
+   * Then the place reads "21st", not "21th".
+   */
+  it("writes a 21st-place finish as 21st", async () => {
+    const game = createEndOfSeasonGame();
+    const rival = game.league!.standings[1]!;
+    game.league!.standings = [
+      ...Array.from({ length: 20 }, (_, index) => ({
+        ...rival,
+        team_id: `rival-${index}`,
+        points: 90 - index,
+      })),
+      { ...game.league!.standings[0]!, points: 1 },
+    ];
+    vi.mocked(invoke).mockResolvedValue(game.league);
+    function Holder() {
+      const [transition, setTransition] = useState<SeasonTransition | null>(null);
+      return (
+        <EndOfSeasonScreen
+          gameState={game}
+          onGameUpdate={vi.fn()}
+          transition={transition}
+          onTransitionChange={setTransition}
+        />
+      );
+    }
+
+    render(<Holder />);
+
+    expect(await screen.findByText("21st")).toBeInTheDocument();
+    expect(screen.queryByText("21th")).not.toBeInTheDocument();
+  });
+
+  /** Given a French club in 21st place, when the review renders, then it uses French ordinal rules. */
+  it("writes a French 21st-place finish", async () => {
+    locale.language = "fr";
+    try {
+      const game = createEndOfSeasonGame();
+      const rival = game.league!.standings[1]!;
+      game.league!.standings = [
+        ...Array.from({ length: 20 }, (_, index) => ({
+          ...rival,
+          team_id: `rival-${index}`,
+          points: 90 - index,
+        })),
+        { ...game.league!.standings[0]!, points: 1 },
+      ];
+      vi.mocked(invoke).mockResolvedValue(game.league);
+      render(
+        <EndOfSeasonScreen
+          gameState={game}
+          onGameUpdate={vi.fn()}
+          transition={null}
+          onTransitionChange={vi.fn()}
+        />,
+      );
+      expect(await screen.findByText("21e")).toBeInTheDocument();
+    } finally {
+      locale.language = "en";
+    }
+  });
+
+  /** Given a second-place Russian club, when the review renders, then its place is neuter. */
+  it("writes a Russian finishing place in the neuter form", async () => {
+    locale.language = "ru";
+    try {
+      const game = createEndOfSeasonGame();
+      game.league!.standings[0]!.points = 1;
+      game.league!.standings[1]!.points = 90;
+      vi.mocked(invoke).mockResolvedValue(game.league);
+      render(
+        <EndOfSeasonScreen
+          gameState={game}
+          onGameUpdate={vi.fn()}
+          transition={null}
+          onTransitionChange={vi.fn()}
+        />,
+      );
+      expect(await screen.findByText("2-е")).toBeInTheDocument();
+    } finally {
+      locale.language = "en";
+    }
+  });
+
+  /**
+   * Given a manager with no club (unemployed) when the season ends
+   * When the review is drawn
+   * Then there is no club summary at all: no "0th" place and no blank club name, and the league's
+   *      final standings and champions still show.
+   */
+  it("shows the review without a club summary for an unemployed manager", async () => {
+    const game = createEndOfSeasonGame();
+    game.manager.team_id = null;
+    vi.mocked(invoke).mockResolvedValue(game.league);
+    function Holder() {
+      const [transition, setTransition] = useState<SeasonTransition | null>(null);
+      return (
+        <EndOfSeasonScreen
+          gameState={game}
+          onGameUpdate={vi.fn()}
+          transition={transition}
+          onTransitionChange={setTransition}
+        />
+      );
+    }
+
+    render(<Holder />);
+
+    expect(screen.getByText("Season complete")).toBeInTheDocument();
+    expect(await screen.findByText("Final standings")).toBeInTheDocument();
+    expect(screen.queryByText("0th")).not.toBeInTheDocument();
+    expect(screen.queryByText("Position")).not.toBeInTheDocument();
   });
 });

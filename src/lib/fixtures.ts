@@ -48,12 +48,8 @@ export function getFixtureCompetitionName(
   return competition ? competitionDisplayName(competition, t) : undefined;
 }
 
-export function isCompetitiveFixture(fixture: FixtureData): boolean {
-  return !fixture.competition || !["Friendly", "PreseasonTournament"].includes(fixture.competition);
-}
-
 export function getCompetitiveFixtures(fixtures: FixtureData[]): FixtureData[] {
-  return fixtures.filter(isCompetitiveFixture);
+  return fixtures.filter((fixture) => fixture.competitive);
 }
 
 export function findNextFixture(fixtures: FixtureData[], teamId: string): FixtureData | undefined {

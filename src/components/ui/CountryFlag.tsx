@@ -61,7 +61,7 @@ export function CountryFlag({
         title={describedLabel}
         className={[
           classes,
-          "rounded border border-white/15 bg-black/10 px-1 py-0.5 font-heading text-[0.65em] font-bold leading-none tracking-wide",
+          "rounded border border-line bg-sunken px-1 py-0.5 font-heading text-caption font-bold leading-none tracking-wide",
         ].join(" ")}
       >
         {normalisedCode}

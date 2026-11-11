@@ -1,12 +1,12 @@
 import { AlertCircle } from "lucide-react";
-import type { JSX } from "react";
+import { type JSX, useId } from "react";
 import { useTranslation } from "react-i18next";
 
 import type { BlockerModal } from "../../hooks/useAdvanceTime.helpers";
 import type { BlockerData } from "../../services/advanceTimeService";
 import { resolveBackendText } from "../../utils/backendI18n";
 import { getBlockerTabLabel } from "../../utils/blockerUtils";
-import DashboardModalFrame from "./DashboardModalFrame";
+import { Dialog } from "../ui";
 
 interface DashboardBlockerModalProps {
   blockerModal: BlockerModal;
@@ -44,15 +44,19 @@ export default function DashboardBlockerModal({
   onNavigate,
 }: DashboardBlockerModalProps): JSX.Element {
   const { t } = useTranslation();
+  const titleId = useId();
 
   return (
-    <DashboardModalFrame maxWidthClassName="max-w-md">
+    <Dialog labelledBy={titleId} onClose={onClose} className="w-full max-w-md rounded-2xl p-6">
       <div className="mb-4 flex items-center gap-3">
         <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-500/20">
           <AlertCircle className="h-5 w-5 text-amber-500" />
         </div>
         <div>
-          <h3 className="text-lg font-heading font-bold uppercase tracking-wide text-gray-900 dark:text-white">
+          <h3
+            id={titleId}
+            className="text-lg font-heading font-bold uppercase tracking-wide text-gray-900 dark:text-white"
+          >
             {t("notifications.attentionRequired")}
           </h3>
           <p className="text-xs text-gray-500 dark:text-gray-400">
@@ -93,6 +97,6 @@ export default function DashboardBlockerModal({
           </button>
         )}
       </div>
-    </DashboardModalFrame>
+    </Dialog>
   );
 }

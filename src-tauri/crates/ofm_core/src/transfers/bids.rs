@@ -95,6 +95,58 @@ pub(crate) fn latest_negotiation_with_club<'a>(
         })
 }
 
+/// What the bid panel shows of the user's negotiation over a player, from the same rule the next
+/// bid is judged by ([`latest_negotiation_with_club`], [`talks_are_broken_off`]): the screen presents
+/// this and holds no copy of the cooldown.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct BidNegotiationStatus {
+    /// The offer the next bid continues, or the broken-off talks; none when the next bid starts
+    /// over at round one.
+    pub offer_id: Option<String>,
+    /// Whether the next bid continues that negotiation. False for broken-off talks (the owner
+    /// refuses to talk) and when there is no negotiation.
+    pub continues_talks: bool,
+    /// For broken-off talks: the day the owner will talk again.
+    #[serde(default)]
+    pub talks_resume_on: Option<String>,
+}
+
+pub fn bid_negotiation_status(
+    game: &Game,
+    player_id: &str,
+) -> Result<BidNegotiationStatus, String> {
+    let user_team_id = game
+        .manager
+        .team_id
+        .as_deref()
+        .ok_or_else(|| "be.error.noTeamAssigned".to_string())?;
+    let player = game
+        .players
+        .iter()
+        .find(|player| player.id == player_id)
+        .ok_or_else(|| "be.error.playerNotFound".to_string())?;
+    let today = game.clock.current_date.date_naive();
+
+    let offer = latest_negotiation_with_club(player, user_team_id, today);
+    let broken_off = talks_are_broken_off(offer);
+    let talks_resume_on = offer.filter(|_| broken_off).and_then(|offer| {
+        let closed = offer.closed_on.as_deref().unwrap_or(&offer.date);
+        NaiveDate::parse_from_str(closed, "%Y-%m-%d")
+            .ok()
+            .map(|day| {
+                (day + Duration::days(REBID_COOLDOWN_DAYS))
+                    .format("%Y-%m-%d")
+                    .to_string()
+            })
+    });
+
+    Ok(BidNegotiationStatus {
+        offer_id: offer.map(|offer| offer.id.clone()),
+        continues_talks: offer.is_some() && !broken_off,
+        talks_resume_on,
+    })
+}
+
 fn closed_within_cooldown(
     player: &domain::player::Player,
     offer: &domain::player::TransferOffer,
@@ -490,7 +542,7 @@ pub fn make_transfer_bid(
 
         if register_immediately {
             execute_transfer(game, player_id, &user_team_id, &owner_team_id, fee)?;
-            finalize_successful_transfer_offer(game, player_id, &offer_id)?;
+            close_open_offers_after_sale(game, player_id, &user_team_id, fee, Some(&offer_id))?;
         } else {
             reserve_player_for_pending_transfer(game, player_id, &offer_id)?;
         }
@@ -670,6 +722,12 @@ pub fn respond_to_offer(
         ensure_buyer_can_pay_standard_wage(game, player_id, &from_team_id)?;
     }
     if accept && register_immediately {
+        // The bid was affordable when it was made; cash and budget can have gone since, to
+        // wages or another purchase. The rule the deferred registration and the user's own bids
+        // already apply (#1203).
+        if !transfer_buyer_can_register(game, &from_team_id, fee) {
+            return Err("be.error.transfers.buyerCannotAffordFee".to_string());
+        }
         ensure_transfer_cash_postable(game, &from_team_id, &user_team_id, fee)?;
     }
 
@@ -700,7 +758,7 @@ pub fn respond_to_offer(
     if accept {
         if register_immediately {
             execute_transfer(game, player_id, &from_team_id, &user_team_id, fee)?;
-            finalize_successful_transfer_offer(game, player_id, offer_id)?;
+            close_open_offers_after_sale(game, player_id, &from_team_id, fee, Some(offer_id))?;
         } else {
             reserve_player_for_pending_transfer(game, player_id, offer_id)?;
         }
@@ -835,7 +893,13 @@ pub fn counter_offer(
                 &user_team_id,
                 requested_fee,
             )?;
-            finalize_successful_transfer_offer(game, player_id, offer_id)?;
+            close_open_offers_after_sale(
+                game,
+                player_id,
+                &buyer_team_id,
+                requested_fee,
+                Some(offer_id),
+            )?;
         } else {
             reserve_player_for_pending_transfer(game, player_id, offer_id)?;
         }
@@ -959,6 +1023,64 @@ mod acceptance_tests {
         bid(true);
     }
 
+    /// Given the user owns the player, with a bid from another club open besides the one the user
+    ///      accepts, When the user sells him, Then the other bid is withdrawn and no "talks ended
+    ///      by a purchase" letter is sent: the user is the seller, and the withdrawn bid was not
+    ///      the user's (#1256).
+    #[test]
+    fn the_user_selling_a_player_gets_no_talks_closed_letter() {
+        let mut game = acceptance_game("team1", false);
+        let accepted = incoming_transfer(&mut game);
+        game.players[0].transfer_offers.push(
+            serde_json::from_value(serde_json::json!({
+                "id": "rival-bid", "from_team_id": "team3", "fee": 500_000,
+                "wage_offered": 0, "status": "Pending", "date": "2026-01-10"
+            }))
+            .unwrap(),
+        );
+
+        respond_to_offer(&mut game, "player-award", &accepted, true).unwrap();
+
+        assert_eq!(game.players[0].team_id.as_deref(), Some("team2"));
+        let rival = game.players[0]
+            .transfer_offers
+            .iter()
+            .find(|offer| offer.id == "rival-bid")
+            .unwrap();
+        assert_eq!(rival.status, TransferOfferStatus::Withdrawn);
+        assert!(!game.messages.iter().any(|message| {
+            message.subject_key.as_deref() == Some("be.msg.talksClosedBySale.subject")
+        }));
+    }
+
+    /// Given the user has an open loan request for team2's player, When the user then buys him
+    ///      outright, Then the request is withdrawn and no "talks ended by a purchase" letter is
+    ///      sent: it was the user's own purchase that ended them (#1256).
+    #[test]
+    fn the_users_own_purchase_ends_their_loan_request_without_a_letter() {
+        let mut game = acceptance_game("team2", false);
+        game.players[0].loan_offers.push(
+            serde_json::from_value(serde_json::json!({
+                "id": "own-loan-request", "from_team_id": "team1", "parent_team_id": "team2",
+                "start_date": "2026-01-12", "end_date": "2026-06-30",
+                "wage_contribution_pct": 50, "status": "Pending", "date": "2026-01-10"
+            }))
+            .unwrap(),
+        );
+
+        let outcome = make_transfer_bid(&mut game, "player-award", 2_000_001).unwrap();
+
+        assert_eq!(outcome.decision, TransferNegotiationDecision::Accepted);
+        assert_eq!(game.players[0].team_id.as_deref(), Some("team1"));
+        assert_eq!(
+            game.players[0].loan_offers[0].status,
+            domain::player::LoanOfferStatus::Withdrawn
+        );
+        assert!(!game.messages.iter().any(|message| {
+            message.subject_key.as_deref() == Some("be.msg.talksClosedBySale.subject")
+        }));
+    }
+
     fn incoming(deferred: bool, counter: bool) {
         let mut game = acceptance_game("team1", deferred);
         let id = incoming_transfer(&mut game);
@@ -1006,6 +1128,70 @@ mod acceptance_tests {
     #[test]
     fn an_accepted_deferred_counter_notifies_the_seller() {
         incoming(true, true);
+    }
+
+    /// The user's accepting an AI bid of 600,000 while the window is open, after the bidder's
+    /// money has dropped: `cash` and `budget` are what team2 holds now. The state before, the
+    /// call's result, and the state after.
+    fn accept_after_the_buyer_can_no_longer_pay(
+        cash: i64,
+        budget: i64,
+    ) -> (Game, Result<(), String>, Game) {
+        let mut game = acceptance_game("team1", false);
+        let id = incoming_transfer(&mut game);
+        let buyer = game
+            .teams
+            .iter_mut()
+            .find(|team| team.id == "team2")
+            .unwrap();
+        buyer.finance = cash;
+        buyer.transfer_budget = budget;
+        let before = game.clone();
+        let result = respond_to_offer(&mut game, "player-award", &id, true);
+        (before, result, game)
+    }
+
+    fn assert_nothing_moved(before: &Game, after: &Game) {
+        let team = |game: &Game, id: &str| {
+            let team = game.teams.iter().find(|team| team.id == id).unwrap();
+            (team.finance, team.transfer_budget)
+        };
+        assert_eq!(after.players[0].team_id.as_deref(), Some("team1"));
+        assert_eq!(
+            after.players[0].transfer_offers[0].status,
+            TransferOfferStatus::Pending
+        );
+        assert_eq!(team(after, "team1"), team(before, "team1"));
+        assert_eq!(team(after, "team2"), team(before, "team2"));
+        assert!(after.messages.is_empty());
+    }
+
+    /// Given an AI club's bid on the user's player in an open window, and the club's cash since
+    /// fallen below the fee; when the user accepts; then the acceptance is refused and nothing
+    /// moves (#1203: the buyer was debited into negative cash, and the user paid in money that
+    /// did not exist).
+    #[test]
+    fn accepting_a_bid_the_buyer_has_no_cash_for_is_refused() {
+        let (before, result, after) = accept_after_the_buyer_can_no_longer_pay(500_000, 5_000_000);
+
+        assert_eq!(
+            result,
+            Err("be.error.transfers.buyerCannotAffordFee".to_string())
+        );
+        assert_nothing_moved(&before, &after);
+    }
+
+    /// Given the same bid, the club's cash ample but its transfer budget since spent below the
+    /// fee; when the user accepts; then the acceptance is refused and nothing moves.
+    #[test]
+    fn accepting_a_bid_the_buyer_has_no_budget_for_is_refused() {
+        let (before, result, after) = accept_after_the_buyer_can_no_longer_pay(5_000_000, 500_000);
+
+        assert_eq!(
+            result,
+            Err("be.error.transfers.buyerCannotAffordFee".to_string())
+        );
+        assert_nothing_moved(&before, &after);
     }
 
     /// Given an incoming bid, when declined, then no agreement notice is sent.

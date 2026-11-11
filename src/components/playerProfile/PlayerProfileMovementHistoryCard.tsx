@@ -6,6 +6,8 @@ type TranslateFn = (key: string, options?: Record<string, string | number>) => s
 
 interface PlayerProfileMovementHistoryCardProps {
   movementHistory: PlayerMovementEntry[];
+  /** Whether the club may see his wages: only its own player's contracts name one. */
+  showsWages: boolean;
   t: TranslateFn;
 }
 
@@ -90,6 +92,7 @@ function contractSpan(entry: PlayerMovementEntry, t: TranslateFn): string | null
 
 export default function PlayerProfileMovementHistoryCard({
   movementHistory,
+  showsWages,
   t,
 }: PlayerProfileMovementHistoryCardProps) {
   // Newest first. Entries on the same day keep the order they happened in, which is
@@ -147,7 +150,7 @@ export default function PlayerProfileMovementHistoryCard({
                       </span>
                     ) : null}
                     {span ? <span>{span}</span> : null}
-                    {entry.contract ? (
+                    {showsWages && entry.contract ? (
                       <span>
                         {t("playerProfile.movementWage", {
                           wage: formatExactMoney(entry.contract.weekly_wage),

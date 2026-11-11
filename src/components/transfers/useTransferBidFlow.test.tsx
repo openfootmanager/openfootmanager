@@ -4,17 +4,28 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { GameStateData, PlayerData, TeamData } from "../../store/gameStore";
 import {
+  type BidNegotiationStatusData,
+  getBidNegotiationStatus,
   makeTransferBid,
   previewTransferBidFinancialImpact,
 } from "../../services/transfersService";
 import { useTransferBidFlow } from "./useTransferBidFlow";
+import { createSeasonContext } from "../../test-utils/factories";
 
 vi.mock("../../services/transfersService", () => ({
+  getBidNegotiationStatus: vi.fn(),
   makeTransferBid: vi.fn(),
   previewTransferBidFinancialImpact: vi.fn(),
 }));
 
 const mockedMakeTransferBid = vi.mocked(makeTransferBid);
+const mockedNegotiationStatus = vi.mocked(getBidNegotiationStatus);
+
+const noNegotiation: BidNegotiationStatusData = {
+  offer_id: null,
+  continues_talks: false,
+  talks_resume_on: null,
+};
 const mockedPreviewTransferBidFinancialImpact = vi.mocked(previewTransferBidFinancialImpact);
 
 function createTeam(overrides: Partial<TeamData> = {}): TeamData {
@@ -123,6 +134,7 @@ function createPlayer(overrides: Partial<PlayerData> = {}): PlayerData {
 
 function createGameState(players: PlayerData[] = [createPlayer()]): GameStateData {
   return {
+    season_context: createSeasonContext(),
     clock: {
       current_date: "2026-08-01T12:00:00Z",
       start_date: "2026-07-01T12:00:00Z",
@@ -187,6 +199,10 @@ function HookHarness({
     setBidAmount,
     openBidNegotiation,
     handleMakeBid,
+    activeBidOffer,
+    hasExistingOffer,
+    talksResumeOn,
+    bidFeedback,
   } = useTransferBidFlow({ gameState });
 
   return (
@@ -203,6 +219,10 @@ function HookHarness({
       <button type="button" onClick={() => void handleMakeBid()}>
         Submit
       </button>
+      <output aria-label="live-round">{activeBidOffer?.negotiation_round ?? "none"}</output>
+      <output aria-label="feedback">{bidFeedback?.headline_key ?? "none"}</output>
+      <output aria-label="has-existing">{String(hasExistingOffer)}</output>
+      <output aria-label="resume-on">{talksResumeOn ?? "none"}</output>
       <output aria-label="submit-disabled">{String(bidSubmitDisabled)}</output>
       <output aria-label="bid-result">{bidResult ?? "idle"}</output>
     </div>
@@ -237,6 +257,8 @@ describe("useTransferBidFlow", (): void => {
     mockedMakeTransferBid.mockReset();
     mockedPreviewTransferBidFinancialImpact.mockReset();
     mockedPreviewTransferBidFinancialImpact.mockResolvedValue(previewAnswer());
+    mockedNegotiationStatus.mockReset();
+    mockedNegotiationStatus.mockResolvedValue(noNegotiation);
   });
 
   /**
@@ -269,6 +291,184 @@ describe("useTransferBidFlow", (): void => {
     expect(screen.getByLabelText("submit-disabled")).toHaveTextContent("true");
   });
 
+  /**
+   * Given the bid panel is open on a player and a bid then advances the negotiation
+   * When the game state the screen shows is a newer one with a later round on that player
+   * Then the panel reads the live player: it shows the later round, not the one it opened with.
+   */
+  it("reads the live player, not the one it was opened with", async (): Promise<void> => {
+    const offer = (round: number) => ({
+      id: "offer-1",
+      from_team_id: "team-1",
+      fee: 1200000,
+      wage_offered: 0,
+      last_manager_fee: null,
+      negotiation_round: round,
+      suggested_counter_fee: null,
+      status: "Pending" as const,
+      date: "2026-08-01",
+    });
+    mockedNegotiationStatus.mockResolvedValue({
+      offer_id: "offer-1",
+      continues_talks: true,
+      talks_resume_on: null,
+    });
+    const opened = createPlayer({ transfer_offers: [offer(1)] });
+    const { rerender } = render(
+      <HookHarness gameState={createGameState([opened])} target={opened} />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Open" }));
+    await waitFor(() => expect(screen.getByLabelText("live-round")).toHaveTextContent("1"));
+
+    const later = createPlayer({ transfer_offers: [offer(3)] });
+    rerender(<HookHarness gameState={createGameState([later])} target={opened} />);
+
+    await waitFor(() => expect(screen.getByLabelText("live-round")).toHaveTextContent("3"));
+  });
+
+  /**
+   * Given the player has an old rejected offer from the user's club that the backend does not
+   *       continue (it names no negotiation)
+   * When the panel opens
+   * Then it shows no negotiation: the next bid starts over, as the engine will have it.
+   */
+  it("shows no negotiation when the backend names none, whatever offers the player holds", async (): Promise<void> => {
+    const oldRefusal = createPlayer({
+      transfer_offers: [
+        {
+          id: "old",
+          from_team_id: "team-1",
+          fee: 1000000,
+          wage_offered: 0,
+          last_manager_fee: null,
+          negotiation_round: 4,
+          suggested_counter_fee: null,
+          status: "Rejected",
+          date: "2026-05-01",
+        },
+      ],
+    });
+    render(<HookHarness gameState={createGameState([oldRefusal])} target={oldRefusal} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Open" }));
+    await waitFor(() => expect(mockedNegotiationStatus).toHaveBeenCalled());
+    await act(async () => {});
+
+    expect(screen.getByLabelText("live-round")).toHaveTextContent("none");
+  });
+
+  /**
+   * Given the backend names a live offer, and separately a refused one it still continues
+   * When the panel opens
+   * Then "resume the negotiation" is offered only for the live offer.
+   */
+  it("offers to resume only a live negotiation", async (): Promise<void> => {
+    const offerWith = (status: "Pending" | "Rejected") => ({
+      id: "offer-1",
+      from_team_id: "team-1",
+      fee: 1000000,
+      wage_offered: 0,
+      last_manager_fee: null,
+      negotiation_round: 2,
+      suggested_counter_fee: null,
+      status,
+      date: "2026-08-01",
+    });
+    const check = async (status: "Pending" | "Rejected", expected: string) => {
+      mockedNegotiationStatus.mockResolvedValue({
+        offer_id: "offer-1",
+        continues_talks: true,
+        talks_resume_on: null,
+      });
+      const target = createPlayer({ transfer_offers: [offerWith(status)] });
+      render(<HookHarness gameState={createGameState([target])} target={target} />);
+      fireEvent.click(screen.getByRole("button", { name: "Open" }));
+      await waitFor(() => expect(screen.getByLabelText("live-round")).toHaveTextContent("2"));
+      expect(screen.getByLabelText("has-existing")).toHaveTextContent(expected);
+      cleanup();
+    };
+
+    await check("Pending", "true");
+    await check("Rejected", "false");
+  });
+
+  /**
+   * Given the backend says talks are broken off until a day
+   * When the panel opens
+   * Then the day is exposed and submitting is disabled.
+   */
+  it("exposes the day broken-off talks resume and blocks submitting", async (): Promise<void> => {
+    mockedNegotiationStatus.mockResolvedValue({
+      offer_id: null,
+      continues_talks: false,
+      talks_resume_on: "2026-08-28",
+    });
+    const target = createPlayer();
+    render(<HookHarness gameState={createGameState([target])} target={target} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Open" }));
+
+    await waitFor(() => expect(screen.getByLabelText("resume-on")).toHaveTextContent("2026-08-28"));
+    expect(screen.getByLabelText("submit-disabled")).toHaveTextContent("true");
+  });
+
+  /**
+   * Given broken-off talks, where the backend still names the broken round-4 offer and a day
+   *       talks can resume
+   * When the panel opens
+   * Then it pre-fills nothing and shows no resumed feedback: "a new bid carries the talks on"
+   *      would sit beside "talks can resume on …".
+   */
+  it("pre-fills nothing for broken-off talks", async (): Promise<void> => {
+    mockedNegotiationStatus.mockResolvedValue({
+      offer_id: "broken",
+      continues_talks: false,
+      talks_resume_on: "2026-08-28",
+    });
+    const target = createPlayer({
+      market_value: 2000000,
+      transfer_offers: [
+        {
+          id: "broken",
+          from_team_id: "team-1",
+          fee: 900000,
+          wage_offered: 0,
+          last_manager_fee: 900000,
+          negotiation_round: 4,
+          suggested_counter_fee: 1150000,
+          status: "Rejected",
+          date: "2026-07-20",
+          closed_on: "2026-07-29",
+        },
+      ],
+    });
+    render(<HookHarness gameState={createGameState([target])} target={target} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Open" }));
+    await waitFor(() => expect(screen.getByLabelText("resume-on")).toHaveTextContent("2026-08-28"));
+    await act(async () => {});
+
+    expect(screen.getByLabelText("feedback")).toHaveTextContent("none");
+    expect(screen.getByLabelText("live-round")).toHaveTextContent("4");
+    expect((screen.getByLabelText("Bid amount") as HTMLInputElement).value).toBe("2.0");
+  });
+
+  /**
+   * Given the panel is open on a player and the user opens the same player again
+   * When the panel opens a second time
+   * Then the backend is asked again: opening clears what the panel knew, so it must refill it.
+   */
+  it("asks the backend again every time the panel is opened", async (): Promise<void> => {
+    const target = createPlayer();
+    render(<HookHarness gameState={createGameState([target])} target={target} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Open" }));
+    await waitFor(() => expect(mockedNegotiationStatus).toHaveBeenCalledTimes(1));
+    fireEvent.click(screen.getByRole("button", { name: "Open" }));
+
+    await waitFor(() => expect(mockedNegotiationStatus).toHaveBeenCalledTimes(2));
+  });
+
   it("does not submit a bid when the computed fee is invalid", async (): Promise<void> => {
     const target = createPlayer();
     const gameState = createGameState([target]);
@@ -289,6 +489,70 @@ describe("useTransferBidFlow", (): void => {
     await waitFor((): void => {
       expect(mockedMakeTransferBid).not.toHaveBeenCalled();
     });
+  });
+
+  /**
+   * Given the panel opened on a player with no negotiation, and a bid that the club counters
+   * When the game update that carries the new offer arrives and the backend names it
+   * Then the bid's own feedback stays: the generic "resumed negotiation" feedback is for an offer
+   *      found on opening, not one the user has just made.
+   */
+  it("keeps a bid's own feedback when the game update brings its offer", async (): Promise<void> => {
+    const target = createPlayer();
+    const before = createGameState([target]);
+    mockedMakeTransferBid.mockResolvedValue({
+      decision: "counter_offer",
+      suggested_fee: 1150000,
+      is_terminal: false,
+      feedback: {
+        mood: "firm",
+        headline_key: "transfers.transferFeedbackCounterHeadline",
+        detail_key: "transfers.transferFeedbackCounterDetail",
+        tension: 60,
+        patience: 50,
+        round: 2,
+        params: { fee: "1150000" },
+      },
+      game: before,
+    });
+    const { rerender } = render(<HookHarness gameState={before} target={target} />);
+    fireEvent.click(screen.getByRole("button", { name: "Open" }));
+    await waitFor(() => expect(mockedNegotiationStatus).toHaveBeenCalled());
+    fireEvent.click(screen.getByRole("button", { name: "Submit" }));
+    await waitFor(() =>
+      expect(screen.getByLabelText("feedback")).toHaveTextContent(
+        "transfers.transferFeedbackCounterHeadline",
+      ),
+    );
+
+    // The game update arrives carrying the offer the bid just made, and the backend names it.
+    mockedNegotiationStatus.mockResolvedValue({
+      offer_id: "offer-new",
+      continues_talks: true,
+      talks_resume_on: null,
+    });
+    const updated = createPlayer({
+      transfer_offers: [
+        {
+          id: "offer-new",
+          from_team_id: "team-1",
+          fee: 1000000,
+          wage_offered: 0,
+          last_manager_fee: 1000000,
+          negotiation_round: 2,
+          suggested_counter_fee: 1150000,
+          status: "Pending",
+          date: "2026-08-01",
+        },
+      ],
+    });
+    rerender(<HookHarness gameState={createGameState([updated])} target={target} />);
+    await waitFor(() => expect(screen.getByLabelText("live-round")).toHaveTextContent("2"));
+    await act(async () => {});
+
+    expect(screen.getByLabelText("feedback")).toHaveTextContent(
+      "transfers.transferFeedbackCounterHeadline",
+    );
   });
 
   it("keeps the acceptance state visible so the modal does not auto-close", async (): Promise<void> => {

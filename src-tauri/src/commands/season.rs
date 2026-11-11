@@ -2,7 +2,7 @@ use log::info;
 use std::sync::Arc;
 use tauri::State;
 
-use ofm_core::state::StateManager;
+use ofm_core::state::{Career, StateManager};
 
 #[tauri::command]
 pub fn check_season_complete(state: State<'_, Arc<StateManager>>) -> Result<bool, String> {
@@ -15,18 +15,25 @@ pub fn check_season_complete(state: State<'_, Arc<StateManager>>) -> Result<bool
 #[tauri::command]
 pub fn advance_to_next_season(
     state: State<'_, Arc<StateManager>>,
+    career_token: u64,
 ) -> Result<serde_json::Value, String> {
-    advance_to_next_season_internal(&state)
+    advance_to_next_season_internal(&state, Career::Token(career_token))
 }
 
-pub fn advance_to_next_season_internal(state: &StateManager) -> Result<serde_json::Value, String> {
+pub fn advance_to_next_season_internal(
+    state: &StateManager,
+    career: Career,
+) -> Result<serde_json::Value, String> {
     let _operation = crate::application::live_session::idle_operation(state)?;
     info!("[cmd] advance_to_next_season");
     state
-        .update_game(|game| {
+        .update_game_for(career, |game| {
+            // "fired" is a dismissal this rollover made, as advance_one_day reads it: a manager
+            // already out of work must not be shown the sacking letter again (#1208).
+            let was_employed = game.manager.team_id.is_some();
             let summary = ofm_core::end_of_season::advance_to_next_season(game)?;
 
-            if game.manager.team_id.is_none() {
+            if was_employed && game.manager.team_id.is_none() {
                 Ok(serde_json::json!({
                     "action": "fired",
                     "game": game,
@@ -39,7 +46,7 @@ pub fn advance_to_next_season_internal(state: &StateManager) -> Result<serde_jso
                 }))
             }
         })
-        .unwrap_or_else(|| Err("be.error.noActiveGameSession".to_string()))
+        .and_then(|response| response)
 }
 
 #[tauri::command]
@@ -48,22 +55,33 @@ pub fn get_season_awards(
 ) -> Result<ofm_core::season_awards::SeasonAwards, String> {
     log::debug!("[cmd] get_season_awards");
     state
-        .get_game(|game| {
-            // The awards screen shows the race within the user's own division.
-            let user_team_id = game.manager.team_id.clone().unwrap_or_default();
-            match ofm_core::end_of_season::user_division(game, &user_team_id) {
-                Some(division) => {
-                    ofm_core::season_awards::compute_division_season_awards(game, division)
-                }
-                None => ofm_core::season_awards::compute_season_awards(game),
-            }
-        })
+        .get_game(ofm_core::season_awards::user_division_season_awards)
         .ok_or_else(|| "be.error.noActiveGameSession".to_string())
+}
+
+#[tauri::command]
+pub fn get_followed_division(
+    state: State<'_, Arc<StateManager>>,
+    career_token: u64,
+) -> Result<Option<domain::league::League>, String> {
+    get_followed_division_internal(&state, Career::Token(career_token))
+}
+
+fn get_followed_division_internal(
+    state: &StateManager,
+    career: Career,
+) -> Result<Option<domain::league::League>, String> {
+    state
+        .get_game(|game| {
+            career.check(game)?;
+            Ok(ofm_core::end_of_season::user_division(game).cloned())
+        })
+        .unwrap_or_else(|| Err("be.error.noActiveGameSession".to_string()))
 }
 
 #[cfg(test)]
 pub(crate) mod tests {
-    use super::advance_to_next_season_internal;
+    use super::{advance_to_next_season_internal, get_followed_division_internal};
     use chrono::{TimeZone, Utc};
     use domain::league::{
         Fixture, FixtureCompetition, FixtureStatus, League, MatchResult, StandingEntry,
@@ -73,6 +91,7 @@ pub(crate) mod tests {
     use domain::team::Team;
     use ofm_core::clock::GameClock;
     use ofm_core::game::{BoardObjective, Game, ObjectiveType};
+    use ofm_core::state::Career;
     use ofm_core::state::StateManager;
 
     pub(crate) fn completed_checkpoint() -> Game {
@@ -134,6 +153,9 @@ pub(crate) mod tests {
                 player.stats.appearances = 2;
                 player.stats.goals = if team == "home" { 3 } else { 1 };
                 player
+                    .league_stats_by_competition
+                    .insert("league".into(), player.stats.clone());
+                player
             })
             .collect();
         let fixtures = [
@@ -192,13 +214,90 @@ pub(crate) mod tests {
         game
     }
 
+    /// Given a manager without a club or career history, when reading the review division,
+    /// then the unrelated mirror is not returned.
+    #[test]
+    fn review_division_is_empty_without_a_followed_club() {
+        let mut game = completed_checkpoint();
+        game.manager.team_id = None;
+        game.manager.career_history.clear();
+        let state = StateManager::new();
+        state.set_game(game);
+        assert!(get_followed_division_internal(&state, Career::Active)
+            .unwrap()
+            .is_none());
+    }
+
+    /// Given a sacked manager whose former club is in another division, when reading the review,
+    /// then the former club's division is returned instead of the mirror.
+    #[test]
+    fn review_division_follows_the_sacked_managers_last_club() {
+        let mut game = completed_checkpoint();
+        let mut former_division = game.league.clone().unwrap();
+        former_division.id = "former".into();
+        former_division.participant_ids = vec!["away".into()];
+        game.competitions[0].participant_ids = vec!["home".into()];
+        game.competitions[0]
+            .standings
+            .retain(|entry| entry.team_id == "home");
+        game.competitions.push(former_division);
+        game.manager
+            .career_history
+            .push(domain::manager::ManagerCareerEntry::open(
+                "away".into(),
+                "Away FC".into(),
+                "2024-01-01".into(),
+            ));
+        game.manager.fire("2025-01-01");
+        let state = StateManager::new();
+        state.set_game(game);
+        assert_eq!(
+            get_followed_division_internal(&state, Career::Active)
+                .unwrap()
+                .unwrap()
+                .id,
+            "former"
+        );
+    }
+
+    /// Given a screen from a replaced career, when it reads the division, then the read is refused.
+    #[test]
+    fn review_division_rejects_a_replaced_career() {
+        let mut game = completed_checkpoint();
+        game.career_token = 2;
+        let state = StateManager::new();
+        state.set_game(game);
+        assert_eq!(
+            get_followed_division_internal(&state, Career::Token(1)).unwrap_err(),
+            "be.error.careerChanged"
+        );
+    }
+
+    /// Given a finished season in career B (token 2) and a screen holding career A's token (1)
+    /// When the screen asks to roll the season over
+    /// Then it is refused with the career-changed key and B's season is not rolled over.
+    #[test]
+    fn rolling_the_season_over_for_a_replaced_career_is_refused() {
+        let state = StateManager::new();
+        let mut game = completed_checkpoint();
+        game.career_token = 2;
+        state.set_game(game);
+        let before = serde_json::to_value(state.get_game(|g| g.clone()).unwrap()).unwrap();
+
+        let result = advance_to_next_season_internal(&state, Career::Token(1));
+
+        assert_eq!(result.err(), Some("be.error.careerChanged".to_string()));
+        let after = serde_json::to_value(state.get_game(|g| g.clone()).unwrap()).unwrap();
+        assert_eq!(after, before);
+    }
+
     /// Given all required fixtures completed, when the shared command rolls over,
     /// then the season increments, the table and player stats reset, and fixtures regenerate.
     #[test]
     fn season_advance_rolls_the_season_over() {
         let state = StateManager::new();
         state.set_game(completed_checkpoint());
-        let response = advance_to_next_season_internal(&state).unwrap();
+        let response = advance_to_next_season_internal(&state, Career::Active).unwrap();
         assert_eq!(response["summary"]["season"], 2025);
         let after = state.get_game(Clone::clone).unwrap();
         let league = &after.competitions[0];
@@ -236,7 +335,7 @@ pub(crate) mod tests {
         let before = serde_json::to_value(&game).unwrap();
         state.set_game(game);
         assert_eq!(
-            advance_to_next_season_internal(&state).unwrap_err(),
+            advance_to_next_season_internal(&state, Career::Active).unwrap_err(),
             "be.error.seasonNotComplete"
         );
         assert_eq!(
@@ -253,12 +352,12 @@ pub(crate) mod tests {
     fn rolling_over_twice_is_refused() {
         let state = StateManager::new();
         state.set_game(completed_checkpoint());
-        advance_to_next_season_internal(&state).unwrap();
+        advance_to_next_season_internal(&state, Career::Active).unwrap();
         let before = state
             .get_game(|game| serde_json::to_value(game).unwrap())
             .unwrap();
         assert_eq!(
-            advance_to_next_season_internal(&state).unwrap_err(),
+            advance_to_next_season_internal(&state, Career::Active).unwrap_err(),
             "be.error.seasonNotComplete"
         );
         assert_eq!(
@@ -285,10 +384,41 @@ pub(crate) mod tests {
             met: false,
         });
         state.set_game(game);
-        let response = advance_to_next_season_internal(&state).unwrap();
+        let response = advance_to_next_season_internal(&state, Career::Active).unwrap();
         assert_eq!(response["action"], "fired");
         assert_eq!(response["summary"]["season"], 2025);
         assert_eq!(response["game"]["competitions"][0]["season"], 2026);
+        assert!(response["game"]["manager"]["team_id"].is_null());
+    }
+
+    /// Given a finished season and a manager already out of work before it ends; when the season
+    /// rolls over; then the response does not say he was fired: the rollover dismissed nobody
+    /// (#1208: he was shown the sacking letter for his old club again, every season).
+    #[test]
+    fn an_unemployed_manager_rolling_the_season_over_is_not_fired_again() {
+        let state = StateManager::new();
+        let mut game = completed_checkpoint();
+        // Sacked as the game records it: a stint at his club, closed. A manager with no stint at all
+        // has never had a club and is shown no league (#1270).
+        let club = game.manager.team_id.clone().unwrap();
+        game.manager
+            .career_history
+            .push(domain::manager::ManagerCareerEntry::open(
+                club.clone(),
+                club,
+                "2024-07-01".to_string(),
+            ));
+        game.manager.fire("2025-03-01");
+        state.set_game(game);
+
+        let response = advance_to_next_season_internal(&state, Career::Active).unwrap();
+
+        assert!(
+            response.get("action").is_none(),
+            "{:?}",
+            response.get("action")
+        );
+        assert_eq!(response["summary"]["season"], 2025);
         assert!(response["game"]["manager"]["team_id"].is_null());
     }
 
@@ -311,8 +441,8 @@ pub(crate) mod tests {
         let tool = StateManager::new();
         command.set_game(first);
         tool.set_game(second);
-        let command_result = advance_to_next_season_internal(&command).unwrap();
-        let tool_result = advance_to_next_season_internal(&tool).unwrap();
+        let command_result = advance_to_next_season_internal(&command, Career::Active).unwrap();
+        let tool_result = advance_to_next_season_internal(&tool, Career::Active).unwrap();
         let ids = |result: &serde_json::Value| {
             result["game"]["competitions"][0]["fixtures"]
                 .as_array()

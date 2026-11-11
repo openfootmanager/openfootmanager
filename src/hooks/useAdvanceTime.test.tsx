@@ -21,6 +21,7 @@ const mockedInvoke = vi.mocked(invoke);
 function HookHarness(props: {
   defaultMatchMode?: "live" | "spectator" | "delegate";
   hasMatchToday: boolean;
+  onAutoSaveFailed?: (error: string) => void;
 }): JSX.Element {
   const [, setGameState] = useState<GameStateData | null>(null);
   const {
@@ -35,6 +36,8 @@ function HookHarness(props: {
     props.defaultMatchMode,
     true,
     false,
+    false,
+    props.onAutoSaveFailed,
   );
 
   return (
@@ -98,6 +101,7 @@ describe("useAdvanceTime", (): void => {
 
     await waitFor((): void => {
       expect(mockedInvoke).toHaveBeenCalledWith("advance_time_with_mode", {
+        careerToken: 0,
         mode: "live",
       });
     });
@@ -156,6 +160,7 @@ describe("useAdvanceTime", (): void => {
     await waitFor((): void => {
       expect(mockedInvoke).toHaveBeenNthCalledWith(1, "check_blocking_actions");
       expect(mockedInvoke).toHaveBeenNthCalledWith(2, "advance_time_with_mode", {
+        careerToken: 0,
         mode: "live",
       });
     });
@@ -213,5 +218,65 @@ describe("useAdvanceTime", (): void => {
         mockedInvoke.mock.calls.filter(([command]) => command === "skip_to_match_day"),
       ).toHaveLength(1);
     });
+  });
+
+  // Given a weekly auto-save that could not be written
+  // When the Continue button advances without the digest
+  // Then the screen is handed the auto-save error once (#1181 review)
+  it("passes a Continue's auto-save failure on to the screen", async (): Promise<void> => {
+    const onAutoSaveFailed = vi.fn();
+    mockedInvoke.mockResolvedValueOnce([]).mockResolvedValueOnce({
+      action: "advanced",
+      game: { clock: { current_date: "2026-07-06", start_date: "2026-07-01" } },
+      auto_save_error: "be.error.autoSave.failed",
+    });
+
+    render(
+      <HookHarness
+        hasMatchToday={false}
+        defaultMatchMode="live"
+        onAutoSaveFailed={onAutoSaveFailed}
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Continue" }));
+
+    await waitFor((): void => {
+      expect(onAutoSaveFailed).toHaveBeenCalledWith("be.error.autoSave.failed");
+    });
+    expect(onAutoSaveFailed).toHaveBeenCalledTimes(1);
+  });
+
+  // Given the same
+  // When the skip to the next match day crosses the week
+  // Then the screen is handed the auto-save error once
+  it("passes a skip's auto-save failure on to the screen", async (): Promise<void> => {
+    const onAutoSaveFailed = vi.fn();
+    mockedInvoke.mockImplementation(async (command: string) => {
+      if (command === "check_blocking_actions") return [];
+      if (command === "skip_to_match_day") {
+        return {
+          action: "arrived",
+          days_skipped: 6,
+          results: [],
+          game: { clock: { current_date: "2026-07-07T00:00:00Z" } },
+          auto_save_error: "be.error.autoSave.failed",
+        };
+      }
+      throw new Error(`unexpected command ${command}`);
+    });
+
+    render(
+      <HookHarness
+        hasMatchToday={false}
+        defaultMatchMode="live"
+        onAutoSaveFailed={onAutoSaveFailed}
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Skip" }));
+
+    await waitFor((): void => {
+      expect(onAutoSaveFailed).toHaveBeenCalledWith("be.error.autoSave.failed");
+    });
+    expect(onAutoSaveFailed).toHaveBeenCalledTimes(1);
   });
 });

@@ -1,3 +1,4 @@
+use crate::json_column::{self, Cell};
 use domain::league::{
     CompletedTransfer, Fixture, FixtureStatus, League, StandingEntry, TransferRumour,
 };
@@ -172,9 +173,17 @@ pub fn load_league(conn: &Connection) -> Result<Option<League>, String> {
             let competition_str: String = row.get(5)?;
             let status_str: String = row.get(6)?;
             let result_json: Option<String> = row.get(7)?;
+            let id: String = row.get(0)?;
             Ok(Fixture {
                 postponement: None,
-                id: row.get(0)?,
+                // A result that does not parse reads as none and is kept in unreadable_records,
+                // never silently lost (`json_column`).
+                result: json_column::read_optional(
+                    conn,
+                    Cell::new("fixtures", &id, "result"),
+                    result_json.as_deref(),
+                ),
+                id,
                 competition_id: league_id.clone(),
                 matchday: row.get(1)?,
                 date: row.get(2)?,
@@ -182,7 +191,6 @@ pub fn load_league(conn: &Connection) -> Result<Option<League>, String> {
                 away_team_id: row.get(4)?,
                 competition: parse_fixture_competition(&competition_str),
                 status: parse_fixture_status(&status_str),
-                result: result_json.and_then(|j| serde_json::from_str(&j).ok()),
             })
         })
         .map_err(|_| GAME_PERSISTENCE_LOAD_ERROR.to_string())?;

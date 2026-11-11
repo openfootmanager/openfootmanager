@@ -11,9 +11,7 @@ describe("DashboardOverlays", () => {
       <DashboardOverlays
         blockerModal={null}
         currentModeMeta={{
-          buttonColorClass: "bg-primary-500",
           desc: "Play the match",
-          dropdownColorClass: "bg-primary-500",
           icon: null,
           label: "Live",
         }}
@@ -33,6 +31,8 @@ describe("DashboardOverlays", () => {
         showMatchConfirm={true}
         teams={[]}
         todayMatchFixture={{
+          competitive: true,
+          advancing_team_id: null,
           id: "cup-match",
           competition_id: "cup-1",
           competition: "Cup",

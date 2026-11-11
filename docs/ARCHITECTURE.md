@@ -165,6 +165,30 @@ This is registered as Tauri managed state and accessed by all commands via `Stat
 
 **Key pattern**: Commands acquire the mutex, clone the `Game` for return, and release the lock. Mutations happen inside the lock scope.
 
+### Screen writes and the career check
+
+A request a screen sends can arrive after another career has been installed (a load, a new game,
+an agent switching careers). So every screen command that changes the active game carries the
+career token the screen was given, and the check is made **inside the write**:
+
+- `Game::career_token` is stamped by `install_career` (from `StateManager::next_career_token`, never
+  repeated, never 0) and travels to the screen with the game. It is not saved. A live match carries
+  its career's token too (`LiveMatchSession::career_token`).
+- `ofm_core::state::Career` is `Active` (an agent or in-process caller acting on whichever career is
+  open) or `Token(u64)` (a screen). `StateManager::update_game_for(career, f)` runs `f` only if the
+  token is the active game's, under the same lock, and otherwise returns `be.error.careerChanged`.
+  `mutate_active_game_for` (commands) and `persist_active_game` take a `Career` the same way.
+- Screen commands take `career_token: u64` and pass `Career::Token(..)`. **MCP tools pass
+  `Career::Active`**: an agent acts on the active career by definition and holds no token.
+- On the frontend `invokeForCareer` (`src/services/careerInvoke.ts`) adds `careerToken` from the
+  store's game to every command in `SCREEN_WRITE_COMMANDS`.
+
+Enforced by tests, not convention: `src-tauri/tests/screen_writes.rs` fails if production code calls
+`update_game`, `set_game` or `clear_game` outside the two places that install or close a career,
+or if a `#[tauri::command]` writes for `Career::Active`; and
+`src/services/careerInvoke.architecture.test.ts` fails if the TypeScript list differs from the Rust
+commands that take a `career_token`, or if any source calls one of them with a bare `invoke`.
+
 ### Frontend State
 
 Two Zustand stores:
@@ -184,12 +208,13 @@ All frontend↔backend communication goes through Tauri's `invoke()` mechanism. 
 |---------|-----------|---------|-------------|
 | `list_world_databases` | — | `Vec<WorldDatabaseInfo>` | Scan for available world databases |
 | `start_new_game` | first_name, last_name, dob, nationality, world_source? | — | Create game, generate or load world |
+| `validate_manager_dob` | dob, start_year, start_phase | `Option<String>` | The translation key of what is wrong with a manager's date of birth on the day a generated-world career opens (1 June in a World Cup summer, else 1 July, plus 120 days mid-season), or null. The one age rule `start_new_game` applies; the create-manager form shows the answer. A historical package can set its own opening date, so `start_new_game` still has the last word |
 | `choose_team` | team_id | `Game` | Assign manager to a team |
 | `get_active_game` | — | `GameStateData` | Get current game state |
 | `get_career_stage` | — | `awaitingClub` \| `unemployed` \| `employed` | Decided in Rust (`career_stage`): a manager with no club who has never held one is awaiting a club, so the menu and dashboard send them to team selection; a sacked manager stays on the dashboard |
 | `advance_time` | — | `Game` | Advance one day |
 | `advance_time_with_mode` | mode | `{action, game?, snapshot?}` | Advance with match mode preference |
-| `skip_to_match_day` | — | `Game` | Fast-forward to next fixture |
+| `skip_to_match_day` | — | `{ action, game, days_skipped, results }`, plus `blockers` when `action` is `blocked`, and `reached_match_day` and `date` when it is `arrived` | Fast-forward day by day until a day the user's club has a match in any competition, stopping before it; `fired` if the board sacks him on the way, `blocked` after a day that brings a blocker, `arrived` on the match day or after 60 days without one (`reached_match_day` says which). The MCP `time_skip_to_match_day` runs this same skip |
 | `save_game` | — | — | Persist current game |
 | `load_game` | save_id | — | Load a saved game |
 | `exit_to_menu` | — | — | Save and clear active game |
@@ -209,18 +234,40 @@ All frontend↔backend communication goes through Tauri's `invoke()` mechanism. 
 | Command | Parameters | Returns | Description |
 |---------|-----------|---------|-------------|
 | `get_club_league_standing` | team_id | The club's league table, position and standing, or null | Any club, not only the manager's; in a split season the half the year is on; cups have no table |
-| `get_scouted_report` | player_id | The scout's dated attribute snapshot with `out_of_date`, or null | Out of date means scouted before the current season started; decided in Rust |
+| `get_team_card` | team_id | The club's card from the clubs directory (`slices::teams::query_team_card`), or null for an id no club has | `avg_ovr` is null for a club outside the manager's division (`KnowledgeView::knows_squad_at`), so the team profile and the directory show the same average or the same "–" |
+| `get_team_selection_ratings` | — | Every club's squad, best rated first, with its average by the club card's rule (`slices::team_selection`) | Only before a career begins (no club, no career behind him); an empty list once one has, when the knowledge rule decides what the manager sees |
+| `get_scouted_report` | player_id | The scout's dated attribute snapshot with `out_of_date`, or null | Out of date means scouted before the last season rollover (`Game::last_season_rollover_on`), when every player aged and the season's growth applied; decided in Rust |
+| `get_player_knowledge` | player_ids | Per player: `own`, `known` (a club in the manager's division), `scouted` (with `scouted_on` and `current`) or `unknown` (a player the club has not scouted); an id that matches no player is omitted from the answer | The one rule for what the manager's club knows about a player (`ofm_core::player_knowledge`); screens hide what it does not know. The serialized `Game` still carries every value |
+| `get_visible_wage` | player_id | `exact` (the club's own player), `approximate` (a scouted player: two significant figures) or `hidden`, each with `weekly` where shown; null for an id no player has | `ofm_core::player_knowledge::visible_wage`; for one player's profile only, never a list |
+| `get_potential_opinion` | player_id | The club's opinion of his potential: `low`–`high` (a range that held the true value on the day it was formed: today for the coaches, the report's day for a scout), `band` (the tier of its middle), `certainty` (`confident`, `fairly_sure`, `unsure`, `guess`: the judge's eye, read off the range's width) and `source` (`scout` with `scout_name`, `scouted_on` and `current`: false for a report from before the last season end, shown as an old report; or `coaches`); null when the club holds none | `ofm_core::player_knowledge::potential_opinion`: the coaches' live opinion of a player who has trained with the club for 42 days, otherwise the range a scout wrote into his report (v062). Never the true potential, and never on a list |
+| `get_youth_prospect_opinions` | message_id | The reporting scout's opinion of each prospect in a youth scouting report, by prospect id, in `get_potential_opinion`'s shape (always a `scout` source); empty for a report written before reports carried opinions | `ofm_core::player_knowledge::youth_prospect_opinions`: the range the scout gave each prospect when the report was written (`MessageContext.youth_prospect_opinions`), read as a scout report. Signing a prospect hands the same opinion to his scout report |
+| `get_position_ratings` | player_id | What he is worth at each position he plays: `source` (`live`, or `report` with `scouted_on` and `current`) and `rows` of `position`, `rating`, `familiarity` (`natural`, `can_play`, `out_of_position`), `deployed`, `key_attributes` (`attribute`, `value`) and `weights` (`attribute`, `weight`: what the game weighs at that position, in percent, the same for every player there): natural first, then alternates, then (own player only) the slot he is played in; null for a player the club knows nothing of | `ofm_core::position_ratings::position_ratings`, through the knowledge rule: live attributes for the club's own player and a division rival, the report's for a scouted one. The key attributes are `player_rating::key_attributes`, the list the rating's critical penalty reads. The weights are `player_rating::position_weights`, the table `ovr_from_attributes` is computed from, so the profile shows what the rating is built from. No "fit" verdict (maintainer, 21 Oct) |
+| `get_tactics_lineup` | (none) | The side the manager's club will field: `formation`; `eleven`, slot by slot, of `position`, `player_id`, the `role` he plays there (his own if the slot admits it, else `Standard`) and his `familiarity` there; `substitutes`, the bench as the match builds it (every other available player, best first); `reserves`, everyone else at the club. Player details come from `get_squad`. No club is `be.error.noTeamAssigned` | `ofm_core::tactics_lineup::tactics_lineup`, which reads `turn::squad::match_day_selection`, the selection the kick-off uses, so the Tactics screen shows the side that will play |
+| `get_familiarity` | (none) | How each of the manager's club's players stands at every position: `players` of `player_id` and `by_position`, a map from the 17 position names to `natural`, `can_play` or `out_of_position`. Only the club's own players; no club is `be.error.noTeamAssigned` | `ofm_core::familiarity_projection::familiarity_projection`, which calls `player_rating::familiarity` for each (player, position): no screen reads it yet: the squad and tactics screens still grade locally, and slices 2-4 of #589 connect them (slice 4 rewrites this row) |
+| `get_manager_standing` | (none) | `board` (`very_pleased`, `satisfied`, `concerned`, `under_threat`) `fans` (`adore`, `behind`, `mixed`, `restless`, `unrest`) and `warning` (`none`, `warned`, `final_warning`: the board's warning on record, which lapses once the board is satisfied again, at 50, the same constant as the `satisfied` band) for the user's manager | `ofm_core::manager_standing`: the board is under threat at or below `firing`'s warning threshold (25), where the board actually warns; the Manager tab shows these words instead of picking them from the numbers |
+| `get_managers_page` | status (`all`, `employed`, `unemployed`) | `managers`: every active manager (`id`, `display_name`, `nationality`, `club` `{id, name}` or null, `interim`, `reputation` `{value, band, tone}`, `record` `{matches, trophies}`), by club name then name, those between jobs last; `vacancies`: every club with no manager (`club_id`, `club_name`, `club_reputation`) | `ofm_core::slices::managers::query_managers_page`. The band is `manager_reputation::ReputationBand` (seven words: World class ≥670, Established, Great, Good, Average, Below average, Unknown <250) and its `RatedTone`; managers retired into the archive are not listed. The record is public, so there is no knowledge gate |
 | `get_squad` | team_id | Player rows with `match_day_eligible` | Complete club roster with computed match-day eligibility; youth call-ups retain their academy role |
 | `set_formation` | formation | `Game` | Change team formation |
 | `set_play_style` | play_style | `Game` | Change play style |
 | `apply_tactic_preset` | formation, play_style | `Game` | Pick a tactic preset: formation + play style, and reset the phase blueprint to that style's default |
 | `list_custom_tactics` | - | `CustomTactic[]` | The tactics the player saved (career-scoped, in the save) |
-| `save_custom_tactic` | tactic | `CustomTactic[]` | Add a saved tactic, or replace the one with the same id; returns the library |
-| `delete_custom_tactic` | id | `CustomTactic[]` | Remove a saved tactic; returns what is left |
+| `save_custom_tactic` | tactic, careerToken | `CustomTactic[]` | Add a saved tactic, or replace the one with the same id; returns the library |
+| `save_current_tactic` | tactic, careerToken | `CustomTactic[]` | Save the team's tactic as it stands, whole (#1189: formation, style, every instruction, the eleven slot by slot with their roles, the set-piece takers), under the draft's id and name; returns the library |
+| `apply_custom_tactic` | id, careerToken | `Game` | Put a saved tactic on the team: its formation and style, and for a tactic that holds them its instructions, eleven, roles and takers. A player who has left gives his slot and his armband back to the team's current choice |
+| `rename_custom_tactic` | id, name, careerToken | `CustomTactic[]` | Rename a saved tactic, keeping all it holds; returns the library |
+| `delete_custom_tactic` | id, careerToken | `CustomTactic[]` | Remove a saved tactic; returns what is left. Every write here is refused with `be.error.careerChanged` when `careerToken` (`Game.career_token`, stamped by `install_career`) is not the active career's |
+| `legacy_tactics_import_pending` | - | `bool` | Whether the old browser library still has to be copied into this career |
+| `mark_legacy_tactics_imported` | careerToken | - | Record that it has been copied in; it never is again |
 | `get_tactics_blueprint_status` | — | `{ modified }` | Whether the user's phase dials differ from the blueprint their play style implies (`blueprint_for`); feeds the Tactics unsaved-changes badge |
 | `set_training` | focus, intensity | `Game` | Set training focus and intensity |
 | `set_training_schedule` | schedule | `Game` | Set weekly training schedule |
 | `get_training_focus_attributes` | - | `TrainingFocusAttributes[]` | Which attributes each training focus trains, for outfield players and for goalkeepers; the same table the daily gains use |
+| `get_position_groups` | - | `{ position, group }[]` (17 entries) | The group (`Goalkeeper`, `Defender`, `Midfielder`, `Forward`) of every position, from `ofm_core::position_group` over `Position::to_group_position`, the one rule. Needs no game; feeds `PositionBadge`'s tone through `usePositionGroups` |
+| `get_rating_tiers` | - | `PlayerTier[]` (100 entries) | The tier (`S` 81+, `A` 77-80, `B` 70-76, `Rest`) of every rating from 0 to 99, from `ofm_core::player_tier`, the one rule. Needs no game, so the package editor reads it too; the frontend colours a rating by looking it up (`useRatingTiers`) |
+| `get_hall_of_fame_legends` | - | `HallOfFameLegend[]` | The retired players of the world's archive, ranked by league titles, appearances, goals, then name. A title is a season at a club that won its country's top flight (`ofm_core::hall_of_fame`); a record with a blank or unresolvable `competition_id` keeps the old reading, first place |
+| `get_hall_of_fame_champions` | - | `PastChampion[]` | Every league title in the world's past, latest season first, then more wins, then club name. A title is first place in tier 0 of the country's ladder (`ofm_core::hall_of_fame`); a record with a blank or unresolvable `competition_id` keeps the old reading, first place |
+| `get_retired_player` | player_id | `Player` | A retiree's profile, read from the archive |
+| `get_free_agent_opening_offer` | player_id | `{ weekly_wage, contract_years }` | The terms the contract form opens on for a free agent: the wage he expects from the manager's club, for the years a player his age expects (`expected_wage` and `expected_contract_years` in `ofm_core::contracts`). Never under the wage that would insult him; the manager may still offer less. Rejects a player at a club, a retired one, an unknown id, or a manager with no club |
 | `hire_staff` | staff_id | `Game` | Hire an unattached staff member |
 | `release_staff` | staff_id | `Game` | Release a staff member |
 
@@ -349,7 +396,7 @@ The UI follows a **"Matchday" broadcast-quality** design language:
 
 - **Colors**: Emerald green primary (#10b981), gold accent (#ffd60a), dark navy backgrounds
 - **Typography**: Barlow Condensed (headings, uppercase tracking) + Inter (body)
-- **Fonts**: Bundled locally via `@fontsource` packages (no CDN)
+- **Fonts**: Bundled locally via `@fontsource` packages (no CDN). Inter covers Latin, Latin-ext and Cyrillic; Barlow Condensed has no Cyrillic, so headings fall back to Fira Sans Extra Condensed for Russian, which `src/i18n/fontCoverage.test.ts` pins. Chinese is not bundled: it falls through to the system CJK face.
 - **Dark/Light**: Full theme support with system detection
 
 ---
@@ -469,7 +516,8 @@ Four commands in `src-tauri/src/commands/package_editor.rs` expose package autho
 |---------|-------------|
 | `create_package_project` | `mkdir` + write `package.json` manifest + empty stub files for each entity type |
 | `read_package_project` | `load_world_package(dir)` → return `PackageProjectData` (meta, confederations, countries, teams, players, names, competitions, issues) |
-| `save_package_project` | Atomically overwrite all entity files: `package.json`, `confederations/`, `countries/`, `teams/`, `players/`, `names/`, `competitions/` (write to temp → rename) |
+| `validate_package_project` | same loading and refusals as `read_package_project`, returns only `issues` and `warnings` (no entities); the editor's Validate button |
+| `save_package_project` | Takes one `SavePackageRequest` (`dir` plus each collection as optional): a collection left out is untouched on disk, one sent empty is written empty. Writes only what was sent (write to temp → rename, as a set) and returns a receipt of the collections written, which the editor marks clean |
 | `build_ofm` | Save → validate → `export_directory_to_ofm(dir, output)` |
 
 All entity types (`WorldMetaDef`, `ConfederationDef`, `CountryDef`, `TeamDef`, `PlayerDef`, `NamesDefinition`, `CompetitionDefinition`) are passed directly through Tauri's invoke boundary — they are the same types `ofm_core` uses internally, so no translation layer is needed.

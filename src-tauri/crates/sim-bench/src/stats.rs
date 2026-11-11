@@ -293,7 +293,11 @@ impl BenchStats {
     }
 
     /// Serialisable summary for JSON output.
-    pub fn to_json(&self, goal_conversion_base: f64) -> JsonSummary {
+    pub fn to_json(
+        &self,
+        goal_conversion_base: f64,
+        targets: Vec<crate::targets::Verdict>,
+    ) -> JsonSummary {
         JsonSummary {
             games: self.games,
             outcomes: OutcomeJson {
@@ -348,6 +352,7 @@ impl BenchStats {
                 total_time_secs: self.total_time_secs,
                 games_per_sec: self.games_per_sec(),
             },
+            targets,
         }
     }
 }
@@ -363,6 +368,7 @@ pub struct JsonSummary {
     pub goal_sources: GoalSourcesJson,
     pub possession: PossessionJson,
     pub performance: PerfJson,
+    pub targets: Vec<crate::targets::Verdict>,
 }
 
 #[derive(Serialize)]

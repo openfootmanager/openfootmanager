@@ -2,31 +2,30 @@ use log::info;
 use std::sync::Arc;
 use tauri::State;
 
+use crate::application::auto_save;
 use crate::application::time_advancement::advance_time_with_mode as advance_time_with_mode_service;
 pub use crate::application::time_advancement::AdvanceTimeWithModeResponse;
-use crate::application::time_blockers::compute_blocking_actions as compute_blocking_actions_service;
+use crate::application::time_blockers::stopping_blockers;
 use ofm_core::advance_results::collect_advance_results;
 use ofm_core::game::Game;
-use ofm_core::state::StateManager;
+use ofm_core::state::{Career, StateManager};
 
-pub fn advance_time_internal(state: &StateManager) -> Result<Game, String> {
+pub fn advance_time_internal(state: &StateManager, career: Career) -> Result<Game, String> {
     let _operation = crate::application::live_session::idle_operation(state)?;
     // Process the day in place (no upfront clone of the whole world) and clone
     // only once for the response. Captures are appended after the game lock is
     // released to avoid holding two state locks at once.
     let mut captures = Vec::new();
-    let advanced = state
-        .update_game(|game| {
-            info!(
-                "[cmd] advance_time: date={}",
-                game.clock.current_date.format("%Y-%m-%d")
-            );
-            ofm_core::turn::process_day_with_capture(game, &mut |capture| {
-                captures.push(capture);
-            });
-            game.clone()
-        })
-        .ok_or("be.error.noActiveGameSession".to_string())?;
+    let advanced = state.update_game_for(career, |game| {
+        info!(
+            "[cmd] advance_time: date={}",
+            game.clock.current_date.format("%Y-%m-%d")
+        );
+        ofm_core::turn::process_day_with_capture(game, &mut |capture| {
+            captures.push(capture);
+        });
+        game.clone()
+    })?;
 
     for capture in captures {
         state.append_stats_state(capture);
@@ -37,9 +36,10 @@ pub fn advance_time_internal(state: &StateManager) -> Result<Game, String> {
 
 pub fn advance_time_with_mode_internal(
     state: &StateManager,
+    career: Career,
     mode: &str,
 ) -> Result<AdvanceTimeWithModeResponse, String> {
-    advance_time_with_mode_service(state, mode)
+    advance_time_with_mode_service(state, career, mode)
 }
 
 /// Advance time with a specific match mode.
@@ -49,18 +49,34 @@ pub fn advance_time_with_mode_internal(
 ///
 /// Runs on a blocking worker so the day's simulation never freezes the webview.
 #[tauri::command]
-pub async fn advance_time_with_mode(
+pub async fn advance_time_with_mode<R: tauri::Runtime>(
     state: State<'_, Arc<StateManager>>,
+    saves: State<'_, Arc<crate::SaveManagerState>>,
+    app_handle: tauri::AppHandle<R>,
     mode: String,
+    career_token: u64,
 ) -> Result<AdvanceTimeWithModeResponse, String> {
     let state = state.inner().clone();
-    run_off_thread(move || advance_time_with_mode_internal(&state, &mode)).await
+    let saves = saves.inner().clone();
+    run_off_thread(move || {
+        let career = Career::Token(career_token);
+        let before = auto_save::game_date(&state);
+        let mut response = advance_time_with_mode_internal(&state, career, &mode)?;
+        let enabled = || crate::commands::settings::auto_save_enabled(&app_handle);
+        response.auto_save_error =
+            auto_save::save_if_a_new_week(&state, &saves.0, enabled, before, career).error();
+        Ok(response)
+    })
+    .await
 }
 
 #[tauri::command]
-pub async fn advance_time(state: State<'_, Arc<StateManager>>) -> Result<Game, String> {
+pub async fn advance_time(
+    state: State<'_, Arc<StateManager>>,
+    career_token: u64,
+) -> Result<Game, String> {
     let state = state.inner().clone();
-    run_off_thread(move || advance_time_internal(&state)).await
+    run_off_thread(move || advance_time_internal(&state, Career::Token(career_token))).await
 }
 
 /// Run blocking simulation work on Tauri's blocking thread pool so the webview
@@ -72,11 +88,10 @@ where
 {
     tauri::async_runtime::spawn_blocking(work)
         .await
-        .map_err(|err| format!("be.error.taskJoinFailed: {err}"))?
-}
-
-pub fn compute_blocking_actions(game: &Game) -> Vec<serde_json::Value> {
-    compute_blocking_actions_service(game)
+        .map_err(|err| {
+            log::error!("Simulation worker failed: {err}");
+            "be.error.taskJoinFailed".to_string()
+        })?
 }
 
 #[tauri::command]
@@ -88,7 +103,7 @@ pub fn check_blocking_actions(
         .get_game(|g| g.clone())
         .ok_or("be.error.noActiveGameSession")?;
 
-    let blockers = compute_blocking_actions(&game);
+    let blockers = stopping_blockers(&game);
     info!(
         "[cmd] check_blocking_actions: date={}, blocker_count={}",
         game.clock.current_date.format("%Y-%m-%d"),
@@ -98,14 +113,30 @@ pub fn check_blocking_actions(
 }
 
 #[tauri::command]
-pub async fn skip_to_match_day(
+pub async fn skip_to_match_day<R: tauri::Runtime>(
     state: State<'_, Arc<StateManager>>,
+    saves: State<'_, Arc<crate::SaveManagerState>>,
+    app_handle: tauri::AppHandle<R>,
+    career_token: u64,
 ) -> Result<serde_json::Value, String> {
     let state = state.inner().clone();
-    run_off_thread(move || skip_to_match_day_internal(&state)).await
+    let saves = saves.inner().clone();
+    run_off_thread(move || {
+        let career = Career::Token(career_token);
+        let before = auto_save::game_date(&state);
+        let mut response = skip_to_match_day_internal(&state, career)?;
+        let enabled = || crate::commands::settings::auto_save_enabled(&app_handle);
+        auto_save::save_if_a_new_week(&state, &saves.0, enabled, before, career)
+            .note_on(&mut response);
+        Ok(response)
+    })
+    .await
 }
 
-pub fn skip_to_match_day_internal(state: &StateManager) -> Result<serde_json::Value, String> {
+pub fn skip_to_match_day_internal(
+    state: &StateManager,
+    career: Career,
+) -> Result<serde_json::Value, String> {
     let _operation = crate::application::live_session::idle_operation(state)?;
     info!("[cmd] skip_to_match_day");
     // Precondition: manager must be employed at entry — guarantees that any later
@@ -147,66 +178,64 @@ pub fn skip_to_match_day_internal(state: &StateManager) -> Result<serde_json::Va
         }
 
         let mut captures = Vec::new();
-        let step = state
-            .update_game(|game| {
-                let today = game.clock.current_date.format("%Y-%m-%d").to_string();
+        let step = state.update_game_for(career, |game| {
+            let today = game.clock.current_date.format("%Y-%m-%d").to_string();
 
-                // Stop on the user's match day so it can be played interactively
-                // rather than auto-simulated. Detect it across the user's
-                // competitions (the source of truth) — not the legacy `league`
-                // mirror, which misses cups.
-                if game.user_has_scheduled_match_on(&today) {
-                    info!(
-                        "[cmd] skip_to_match_day: found match_day={}, days_skipped={}",
-                        today, days_skipped
-                    );
-                    return Step::MatchDay;
-                }
+            // Stop on the user's match day so it can be played interactively
+            // rather than auto-simulated. Detect it across the user's
+            // competitions (the source of truth) — not the legacy `league`
+            // mirror, which misses cups.
+            if game.user_has_scheduled_match_on(&today) {
+                info!(
+                    "[cmd] skip_to_match_day: found match_day={}, days_skipped={}",
+                    today, days_skipped
+                );
+                return Step::MatchDay;
+            }
 
-                ofm_core::turn::process_day_with_capture(game, &mut |capture| {
-                    captures.push(capture);
-                });
+            ofm_core::turn::process_day_with_capture(game, &mut |capture| {
+                captures.push(capture);
+            });
 
-                // Detect a firing that happened *during* this skip. Because the
-                // function errors out above when the manager starts unemployed,
-                // seeing `team_id.is_none()` here can only mean a real
-                // employed → unemployed transition.
-                if game.manager.team_id.is_none() {
-                    info!(
-                        "[cmd] skip_to_match_day: manager fired after {} days",
-                        days_skipped + 1
-                    );
-                    let results = collect_advance_results(game, &start_date);
-                    return Step::Terminal(serde_json::json!({
-                        "action": "fired",
-                        "game": game.clone(),
-                        "days_skipped": days_skipped + 1,
-                        "results": results
-                    }));
-                }
+            // Detect a firing that happened *during* this skip. Because the
+            // function errors out above when the manager starts unemployed,
+            // seeing `team_id.is_none()` here can only mean a real
+            // employed → unemployed transition.
+            if game.manager.team_id.is_none() {
+                info!(
+                    "[cmd] skip_to_match_day: manager fired after {} days",
+                    days_skipped + 1
+                );
+                let results = collect_advance_results(game, &start_date);
+                return Step::Terminal(serde_json::json!({
+                    "action": "fired",
+                    "game": game.clone(),
+                    "days_skipped": days_skipped + 1,
+                    "results": results
+                }));
+            }
 
-                // After processing, check if blocking actions arose
-                let blockers = compute_blocking_actions(game);
-                if !blockers.is_empty() {
-                    info!(
-                        "[cmd] skip_to_match_day: blocked_after_days={}, date={}, blocker_count={}",
-                        days_skipped + 1,
-                        game.clock.current_date.format("%Y-%m-%d"),
-                        blockers.len()
-                    );
-                    let results = collect_advance_results(game, &start_date);
-                    return Step::Terminal(serde_json::json!({
-                        "action": "blocked",
-                        "game": game.clone(),
-                        "blockers": blockers,
-                        "days_skipped": days_skipped + 1,
-                        "results": results
-                    }));
-                }
+            // After processing, check if blocking actions arose
+            let blockers = stopping_blockers(game);
+            if !blockers.is_empty() {
+                info!(
+                    "[cmd] skip_to_match_day: blocked_after_days={}, date={}, blocker_count={}",
+                    days_skipped + 1,
+                    game.clock.current_date.format("%Y-%m-%d"),
+                    blockers.len()
+                );
+                let results = collect_advance_results(game, &start_date);
+                return Step::Terminal(serde_json::json!({
+                    "action": "blocked",
+                    "game": game.clone(),
+                    "blockers": blockers,
+                    "days_skipped": days_skipped + 1,
+                    "results": results
+                }));
+            }
 
-                Step::Advanced
-            })
-            .ok_or("be.error.noActiveGameSession")?;
+            Step::Advanced
+        })?;
         for capture in captures {
             state.append_stats_state(capture);
         }
@@ -227,12 +256,23 @@ pub fn skip_to_match_day_internal(state: &StateManager) -> Result<serde_json::Va
         game.clock.current_date.format("%Y-%m-%d")
     );
     let results = collect_advance_results(&game, &start_date);
+    let date = game.clock.current_date.format("%Y-%m-%d").to_string();
     Ok(serde_json::json!({
         "action": "arrived",
+        "reached_match_day": arrived_on_the_match_day(&game),
+        "date": date,
         "game": game,
         "days_skipped": days_skipped,
         "results": results
     }))
+}
+
+/// Whether the skip ended on the user's match day, rather than out of days (the 60-day limit). Read
+/// from the game the skip ends on, under its idle operation, never from the loop's own flag: the
+/// 60th day can be the match day, and the loop stops on the limit before it checks it.
+fn arrived_on_the_match_day(game: &Game) -> bool {
+    let today = game.clock.current_date.format("%Y-%m-%d").to_string();
+    game.user_has_scheduled_match_on(&today)
 }
 
 /// Advance exactly one day, surfacing what happened so the frontend can build a
@@ -244,77 +284,78 @@ pub fn skip_to_match_day_internal(state: &StateManager) -> Result<serde_json::Va
 ///   - `blocked`    — action-required blocker exists; game state unchanged
 ///   - `fired`      — manager was dismissed during today's processing
 ///   - `advanced`   — quiet day processed successfully; game state updated
-pub fn advance_one_day_internal(state: &StateManager) -> Result<serde_json::Value, String> {
+pub fn advance_one_day_internal(
+    state: &StateManager,
+    career: Career,
+) -> Result<serde_json::Value, String> {
     let _operation = crate::application::live_session::idle_operation(state)?;
     // The whole check-process-respond sequence runs under the game lock
     // (update_game) so a concurrent GUI/MCP write is never clobbered by a
     // stale clone written back afterwards.
     let mut captures = Vec::new();
-    let response = state
-        .update_game(|game| {
-            let today = game.clock.current_date.format("%Y-%m-%d").to_string();
-            info!("[cmd] advance_one_day: date={}", today);
+    let response = state.update_game_for(career, |game| {
+        let today = game.clock.current_date.format("%Y-%m-%d").to_string();
+        info!("[cmd] advance_one_day: date={}", today);
 
-            if game.user_has_scheduled_match_on(&today) {
-                info!("[cmd] advance_one_day: match_day={}", today);
-                return serde_json::json!({
-                    "action": "match_day",
-                    "game": game.clone(),
-                    "date": today,
-                    "results": []
-                });
-            }
-
-            let blockers = compute_blocking_actions(game);
-            if !blockers.is_empty() {
-                info!(
-                    "[cmd] advance_one_day: blocked date={} count={}",
-                    today,
-                    blockers.len()
-                );
-                return serde_json::json!({
-                    "action": "blocked",
-                    "game": game.clone(),
-                    "date": today,
-                    "blockers": blockers,
-                    "results": []
-                });
-            }
-
-            // Unlike the multi-day handlers there is no employment guard at
-            // entry — this is the unemployed manager's only way to advance
-            // time — so "fired" must mean a transition during today's
-            // processing, not a dismissal from an earlier day.
-            let was_employed = game.manager.team_id.is_some();
-            ofm_core::turn::process_day_with_capture(game, &mut |capture| {
-                captures.push(capture);
+        if game.user_has_scheduled_match_on(&today) {
+            info!("[cmd] advance_one_day: match_day={}", today);
+            return serde_json::json!({
+                "action": "match_day",
+                "game": game.clone(),
+                "date": today,
+                "results": []
             });
+        }
 
-            if was_employed && game.manager.team_id.is_none() {
-                info!("[cmd] advance_one_day: manager fired on date={}", today);
-                let results = collect_advance_results(game, &today);
-                return serde_json::json!({
-                    "action": "fired",
-                    "game": game.clone(),
-                    "date": today,
-                    "results": results
-                });
-            }
-
-            let results = collect_advance_results(game, &today);
+        let blockers = stopping_blockers(game);
+        if !blockers.is_empty() {
             info!(
-                "[cmd] advance_one_day: advanced from={} to={}",
+                "[cmd] advance_one_day: blocked date={} count={}",
                 today,
-                game.clock.current_date.format("%Y-%m-%d")
+                blockers.len()
             );
-            serde_json::json!({
-                "action": "advanced",
+            return serde_json::json!({
+                "action": "blocked",
+                "game": game.clone(),
+                "date": today,
+                "blockers": blockers,
+                "results": []
+            });
+        }
+
+        // Unlike the multi-day handlers there is no employment guard at
+        // entry — this is the unemployed manager's only way to advance
+        // time — so "fired" must mean a transition during today's
+        // processing, not a dismissal from an earlier day.
+        let was_employed = game.manager.team_id.is_some();
+        ofm_core::turn::process_day_with_capture(game, &mut |capture| {
+            captures.push(capture);
+        });
+
+        if was_employed && game.manager.team_id.is_none() {
+            info!("[cmd] advance_one_day: manager fired on date={}", today);
+            let results = collect_advance_results(game, &today);
+            return serde_json::json!({
+                "action": "fired",
                 "game": game.clone(),
                 "date": today,
                 "results": results
-            })
+            });
+        }
+
+        let results = collect_advance_results(game, &today);
+        info!(
+            "[cmd] advance_one_day: advanced from={} to={}",
+            today,
+            game.clock.current_date.format("%Y-%m-%d")
+        );
+        serde_json::json!({
+            "action": "advanced",
+            "game": game.clone(),
+            "date": today,
+            "results": results
         })
-        .ok_or("be.error.noActiveGameSession")?;
+    })?;
     for capture in captures {
         state.append_stats_state(capture);
     }
@@ -322,41 +363,60 @@ pub fn advance_one_day_internal(state: &StateManager) -> Result<serde_json::Valu
 }
 
 #[tauri::command]
-pub async fn advance_one_day(
+pub async fn advance_one_day<R: tauri::Runtime>(
     state: State<'_, Arc<StateManager>>,
+    saves: State<'_, Arc<crate::SaveManagerState>>,
+    app_handle: tauri::AppHandle<R>,
+    career_token: u64,
 ) -> Result<serde_json::Value, String> {
     let state = state.inner().clone();
-    run_off_thread(move || advance_one_day_internal(&state)).await
+    let saves = saves.inner().clone();
+    run_off_thread(move || {
+        let career = Career::Token(career_token);
+        let before = auto_save::game_date(&state);
+        let mut response = advance_one_day_internal(&state, career)?;
+        let enabled = || crate::commands::settings::auto_save_enabled(&app_handle);
+        auto_save::save_if_a_new_week(&state, &saves.0, enabled, before, career)
+            .note_on(&mut response);
+        Ok(response)
+    })
+    .await
 }
 
-fn count_high_priority_messages(game: &Game) -> usize {
+fn messages_needing_attention(game: &Game) -> std::collections::HashSet<(String, bool)> {
     game.messages
         .iter()
-        .filter(|message| message.priority == domain::message::MessagePriority::High)
-        .count()
+        .filter(|message| message.priority.needs_attention())
+        .map(|message| (message.id.clone(), message.read))
+        .collect()
 }
 
 /// Whether the day just processed produced something the user should pause on:
-/// a transfer deadline, the window opening, or a fresh high-priority inbox item.
+/// a transfer deadline, the window opening, or a fresh High or Urgent inbox item.
 /// (Match days and blockers are handled separately in the loop.)
 fn continue_reached_attention_event(
     transfer_status: &domain::season::TransferWindowStatus,
     opens_on: Option<&str>,
     today: &str,
-    high_priority_before: usize,
-    high_priority_after: usize,
+    attention_before: &std::collections::HashSet<(String, bool)>,
+    attention_after: &std::collections::HashSet<(String, bool)>,
 ) -> bool {
     *transfer_status == domain::season::TransferWindowStatus::DeadlineDay
         || opens_on == Some(today)
-        || high_priority_after > high_priority_before
+        || attention_after.iter().any(|(id, read)| {
+            !attention_before.contains(&(id.clone(), *read))
+                && (!read || !attention_before.contains(&(id.clone(), false)))
+        })
 }
 
 #[tauri::command]
 pub async fn advance_to_next_event(
     state: State<'_, Arc<StateManager>>,
+    career_token: u64,
 ) -> Result<serde_json::Value, String> {
     let state = state.inner().clone();
-    run_off_thread(move || advance_to_next_event_internal(&state)).await
+    run_off_thread(move || advance_to_next_event_internal(&state, Career::Token(career_token)))
+        .await
 }
 
 /// Roll the clock forward day by day until the next thing the user should see:
@@ -364,7 +424,10 @@ pub async fn advance_to_next_event(
 /// opening, or a new high-priority inbox item (capped at 60 days). Mirrors
 /// `skip_to_match_day` but with the broader stop conditions of an opt-in
 /// "smart Continue".
-pub fn advance_to_next_event_internal(state: &StateManager) -> Result<serde_json::Value, String> {
+pub fn advance_to_next_event_internal(
+    state: &StateManager,
+    career: Career,
+) -> Result<serde_json::Value, String> {
     let _operation = crate::application::live_session::idle_operation(state)?;
     info!("[cmd] advance_to_next_event");
     // Require an employed manager at entry so a later `team_id.is_none()` in the
@@ -398,58 +461,56 @@ pub fn advance_to_next_event_internal(state: &StateManager) -> Result<serde_json
         }
 
         let mut captures = Vec::new();
-        let step = state
-            .update_game(|game| {
-                let today = game.clock.current_date.format("%Y-%m-%d").to_string();
+        let step = state.update_game_for(career, |game| {
+            let today = game.clock.current_date.format("%Y-%m-%d").to_string();
 
-                // Stop *on* the user's match day so it can be played interactively
-                // rather than auto-simulated — detected across the user's competitions.
-                if game.user_has_scheduled_match_on(&today) {
-                    return Step::MatchDay;
-                }
+            // Stop *on* the user's match day so it can be played interactively
+            // rather than auto-simulated — detected across the user's competitions.
+            if game.user_has_scheduled_match_on(&today) {
+                return Step::MatchDay;
+            }
 
-                let high_priority_before = count_high_priority_messages(game);
+            let attention_before = messages_needing_attention(game);
 
-                ofm_core::turn::process_day_with_capture(game, &mut |capture| {
-                    captures.push(capture);
-                });
+            ofm_core::turn::process_day_with_capture(game, &mut |capture| {
+                captures.push(capture);
+            });
 
-                if game.manager.team_id.is_none() {
-                    let results = collect_advance_results(game, &start_date);
-                    return Step::Terminal(serde_json::json!({
-                        "action": "fired",
-                        "game": game.clone(),
-                        "days_skipped": days_skipped + 1,
-                        "results": results
-                    }));
-                }
+            if game.manager.team_id.is_none() {
+                let results = collect_advance_results(game, &start_date);
+                return Step::Terminal(serde_json::json!({
+                    "action": "fired",
+                    "game": game.clone(),
+                    "days_skipped": days_skipped + 1,
+                    "results": results
+                }));
+            }
 
-                let blockers = compute_blocking_actions(game);
-                if !blockers.is_empty() {
-                    let results = collect_advance_results(game, &start_date);
-                    return Step::Terminal(serde_json::json!({
-                        "action": "blocked",
-                        "game": game.clone(),
-                        "blockers": blockers,
-                        "days_skipped": days_skipped + 1,
-                        "results": results
-                    }));
-                }
+            let blockers = stopping_blockers(game);
+            if !blockers.is_empty() {
+                let results = collect_advance_results(game, &start_date);
+                return Step::Terminal(serde_json::json!({
+                    "action": "blocked",
+                    "game": game.clone(),
+                    "blockers": blockers,
+                    "days_skipped": days_skipped + 1,
+                    "results": results
+                }));
+            }
 
-                let new_today = game.clock.current_date.format("%Y-%m-%d").to_string();
-                if continue_reached_attention_event(
-                    &game.season_context.transfer_window.status,
-                    game.season_context.transfer_window.opens_on.as_deref(),
-                    &new_today,
-                    high_priority_before,
-                    count_high_priority_messages(game),
-                ) {
-                    return Step::AdvancedThenStop;
-                }
+            let new_today = game.clock.current_date.format("%Y-%m-%d").to_string();
+            if continue_reached_attention_event(
+                &game.season_context.transfer_window.status,
+                game.season_context.transfer_window.opens_on.as_deref(),
+                &new_today,
+                &attention_before,
+                &messages_needing_attention(game),
+            ) {
+                return Step::AdvancedThenStop;
+            }
 
-                Step::Advanced
-            })
-            .ok_or("be.error.noActiveGameSession")?;
+            Step::Advanced
+        })?;
         for capture in captures {
             state.append_stats_state(capture);
         }
@@ -484,9 +545,8 @@ pub fn advance_to_next_event_internal(state: &StateManager) -> Result<serde_json
 
 #[cfg(test)]
 mod tests {
-    use super::{
-        advance_time_with_mode_internal, compute_blocking_actions, continue_reached_attention_event,
-    };
+    use super::{advance_time_with_mode_internal, continue_reached_attention_event};
+    use crate::application::time_blockers::compute_blocking_actions;
     use chrono::{TimeZone, Utc};
     use domain::league::{Fixture, FixtureCompetition, FixtureStatus};
     use domain::manager::Manager;
@@ -502,6 +562,20 @@ mod tests {
     use ofm_core::game::Game;
     use ofm_core::state::StateManager;
     use serde_json::Value;
+
+    /// Given a simulation worker that panics, when it is joined, then the error is a translation key.
+    #[test]
+    fn panicking_simulation_returns_a_translation_key() {
+        let result =
+            tauri::async_runtime::block_on(super::run_off_thread(|| -> Result<(), String> {
+                panic!("simulation failed")
+            }));
+        assert_eq!(result, Err("be.error.taskJoinFailed".to_string()));
+        let english: Value =
+            serde_json::from_str(include_str!("../../../src/i18n/locales/en.json"))
+                .expect("English locale is valid JSON");
+        assert!(english["be"]["error"]["taskJoinFailed"].is_string());
+    }
 
     fn default_attrs() -> PlayerAttributes {
         PlayerAttributes {
@@ -746,6 +820,85 @@ mod tests {
         message
     }
 
+    /// Given a read transfer digest, when a second club's offer replaces it,
+    /// then Continue stops for the reopened digest even though its ID is unchanged.
+    #[test]
+    fn continue_stops_when_a_transfer_digest_is_reopened_by_another_offer() {
+        let mut game = make_game(11);
+        let digest = ofm_core::messages::transfer_interest_digest_message;
+        let mut first = digest("player", "Player", 1, "First club", 100, "2025-06-15");
+        first.read = true;
+        game.messages = vec![first];
+        let before = super::messages_needing_attention(&game);
+        game.messages[0] = digest("player", "Player", 2, "Second club", 200, "2025-06-16");
+        assert!(!game.messages[0].read);
+        assert!(continue_reached_attention_event(
+            &TransferWindowStatus::Closed,
+            None,
+            "2025-06-16",
+            &before,
+            &super::messages_needing_attention(&game),
+        ));
+    }
+
+    /// Given an unread high-priority offer, when it is resolved and marked read,
+    /// then Continue does not stop for that already-seen offer.
+    #[test]
+    fn continue_does_not_stop_when_an_unread_offer_is_marked_read() {
+        let mut game = make_game(11);
+        game.messages = vec![make_message("job-offer", MessagePriority::High, false)];
+        let before = super::messages_needing_attention(&game);
+        game.messages[0].read = true;
+        assert!(!continue_reached_attention_event(
+            &TransferWindowStatus::Closed,
+            None,
+            "2025-06-16",
+            &before,
+            &super::messages_needing_attention(&game),
+        ));
+    }
+
+    /// Given old attention mail and an exhausted squad on the first, when Continue processes
+    /// the day, then it stops for the new urgent warning even though old mail is archived.
+    #[test]
+    fn continue_stops_for_new_urgent_mail_when_old_attention_mail_is_archived() {
+        let mut game = make_game(22);
+        game.seed = 1;
+        game.clock = GameClock::new(Utc.with_ymd_and_hms(2025, 10, 1, 12, 0, 0).unwrap());
+        for player in game.players.iter_mut().skip(11) {
+            player.condition = 1;
+        }
+        let mut high = make_message("old-high", MessagePriority::High, true);
+        high.date = "2025-01-01".to_string();
+        let mut urgent = make_message("old-urgent", MessagePriority::Urgent, true);
+        urgent.date = "2025-01-01".to_string();
+        game.messages = vec![high, urgent];
+        for index in 0..50 {
+            let mut old = make_message(&format!("old-{index}"), MessagePriority::High, true);
+            old.date = "2025-01-01".to_string();
+            game.messages.push(old);
+        }
+        let state = StateManager::new();
+        state.set_game(game);
+        state.set_stats_state(StatsState::default());
+
+        let result =
+            super::advance_to_next_event_internal(&state, ofm_core::state::Career::Active).unwrap();
+        state
+            .get_game(|game| {
+                assert!(game.archived_messages.iter().any(|m| m.id == "old-high"));
+                assert!(game.archived_messages.iter().any(|m| m.id == "old-urgent"));
+                assert!(game
+                    .messages
+                    .iter()
+                    .any(|m| m.id == "fitness_warn_2025-10-01"
+                        && m.priority == MessagePriority::Urgent));
+            })
+            .unwrap();
+        assert_eq!(result["days_skipped"], 1);
+        assert_eq!(result["action"], "arrived", "{}", result["blockers"]);
+    }
+
     fn blocker_by_id<'a>(blockers: &'a [Value], id: &str) -> Option<&'a Value> {
         blockers
             .iter()
@@ -780,33 +933,71 @@ mod tests {
             &TransferWindowStatus::DeadlineDay,
             None,
             "2026-08-31",
-            0,
-            0,
+            &Default::default(),
+            &Default::default(),
         ));
         // The window's opening day stops.
         assert!(continue_reached_attention_event(
             &TransferWindowStatus::Open,
             Some("2026-07-01"),
             "2026-07-01",
-            0,
-            0,
+            &Default::default(),
+            &Default::default(),
         ));
         // A freshly arrived high-priority message stops.
         assert!(continue_reached_attention_event(
             &TransferWindowStatus::Closed,
             None,
             "2026-07-05",
-            1,
-            2,
+            &[("old".to_string(), false)].into_iter().collect(),
+            &[("old".to_string(), false), ("new".to_string(), false)]
+                .into_iter()
+                .collect(),
         ));
         // A quiet day mid-window with no new mail keeps rolling.
         assert!(!continue_reached_attention_event(
             &TransferWindowStatus::Open,
             Some("2026-07-01"),
             "2026-07-10",
-            3,
-            3,
+            &[("old".to_string(), false)].into_iter().collect(),
+            &[("old".to_string(), false)].into_iter().collect(),
         ));
+    }
+
+    /// Whether a continue stops after a quiet day on which one unread message of `priority`
+    /// arrived, compared by ID before and after the day.
+    fn continue_stops_for_new_mail_of(priority: MessagePriority) -> bool {
+        let mut game = make_game(11);
+        game.messages.clear();
+        let before = super::messages_needing_attention(&game);
+        game.messages
+            .push(make_message("arrived-today", priority, false));
+        continue_reached_attention_event(
+            &TransferWindowStatus::Closed,
+            None,
+            "2025-06-16",
+            &before,
+            &super::messages_needing_attention(&game),
+        )
+    }
+
+    /// Given a continue rolling through quiet days
+    /// When an Urgent message arrives, as a High one would
+    /// Then the continue stops after that day, as it does for High: Urgent is the more pressing
+    ///      of the two, and it used to roll straight past it (maintainer ruling: High or Urgent).
+    #[test]
+    fn urgent_mail_stops_a_continue_as_high_mail_does() {
+        assert!(continue_stops_for_new_mail_of(MessagePriority::High));
+        assert!(continue_stops_for_new_mail_of(MessagePriority::Urgent));
+    }
+
+    /// Given the same
+    /// When a Normal or a Low message arrives
+    /// Then the continue keeps rolling.
+    #[test]
+    fn normal_and_low_mail_do_not_stop_a_continue() {
+        assert!(!continue_stops_for_new_mail_of(MessagePriority::Normal));
+        assert!(!continue_stops_for_new_mail_of(MessagePriority::Low));
     }
 
     #[test]
@@ -815,7 +1006,8 @@ mod tests {
         state.set_game(make_game_with_matchday());
         state.set_stats_state(StatsState::default());
 
-        let advanced = super::advance_time_internal(&state).unwrap();
+        let advanced =
+            super::advance_time_internal(&state, ofm_core::state::Career::Active).unwrap();
         let stats = state.get_stats_state(|current| current.clone()).unwrap();
 
         assert_eq!(
@@ -830,6 +1022,550 @@ mod tests {
         );
         assert_eq!(stats.team_matches.len(), 2);
         assert_eq!(stats.player_matches[0].fixture_id, "fixture-1");
+    }
+
+    /// Given career B is active and a screen still holds career A's token
+    /// When the screen's Continue arrives through the command
+    /// Then it is refused with the career-changed key and the date has not moved.
+    #[test]
+    fn the_continue_command_for_a_replaced_career_is_refused_and_the_date_stays() {
+        use crate::commands::wrapper_testkit::WrapperApp;
+        let app = WrapperApp::new(make_game(11), false);
+        let date = |app: &WrapperApp| app.state().get_game(|g| g.clock.current_date).unwrap();
+        let before = date(&app);
+
+        let refused = tauri::async_runtime::block_on(super::advance_one_day(
+            app.state(),
+            app.saves(),
+            app.handle(),
+            app.token + 1,
+        ));
+
+        assert_eq!(refused, Err("be.error.careerChanged".to_string()));
+        assert_eq!(date(&app), before);
+    }
+
+    /// The saved career's date after the screen's Continue goes through `command` on a saved
+    /// career that opens on Sunday 15 June 2025, with Auto-Save at its default (on).
+    fn saved_date_after_a_continue(command: &str) -> chrono::NaiveDate {
+        use crate::commands::wrapper_testkit::WrapperApp;
+        let app = WrapperApp::new(make_game(11), true);
+        let outcome = match command {
+            "advance_one_day" => tauri::async_runtime::block_on(super::advance_one_day(
+                app.state(),
+                app.saves(),
+                app.handle(),
+                app.token,
+            ))
+            .map(|_| ()),
+            _ => tauri::async_runtime::block_on(super::advance_time_with_mode(
+                app.state(),
+                app.saves(),
+                app.handle(),
+                "delegate".to_string(),
+                app.token,
+            ))
+            .map(|_| ()),
+        };
+        assert_eq!(outcome, Ok(()), "{command}");
+        app.saved_game().clock.current_date.date_naive()
+    }
+
+    /// Given a saved career on a Sunday with Auto-Save on
+    /// When the screen's day-by-day Continue (advance_one_day) brings Monday
+    /// Then the save on disk reads Monday: the command saved the week it crossed (#1181).
+    #[test]
+    fn the_day_by_day_continue_saves_the_week_it_crosses() {
+        assert_eq!(
+            saved_date_after_a_continue("advance_one_day"),
+            chrono::NaiveDate::from_ymd_opt(2025, 6, 16).unwrap()
+        );
+    }
+
+    /// Given the same
+    /// When the screen's Continue goes through advance_time_with_mode
+    /// Then the save on disk reads Monday too.
+    #[test]
+    fn the_mode_continue_saves_the_week_it_crosses() {
+        assert_eq!(
+            saved_date_after_a_continue("advance_time_with_mode"),
+            chrono::NaiveDate::from_ymd_opt(2025, 6, 16).unwrap()
+        );
+    }
+
+    /// Given a saved career on a Sunday whose save has since been deleted
+    /// When the screen's day-by-day Continue brings Monday
+    /// Then the day still advances, and the response carries the auto-save error the screen shows.
+    #[test]
+    fn the_day_by_day_continue_reports_a_week_it_could_not_save() {
+        use crate::commands::wrapper_testkit::WrapperApp;
+        let app = WrapperApp::new(make_game(11), true);
+        let save_id = app.save_id.clone().expect("built with a save");
+        app.saves()
+            .0
+            .lock()
+            .expect("save manager")
+            .delete_save(&save_id)
+            .expect("delete the save");
+
+        let response = tauri::async_runtime::block_on(super::advance_one_day(
+            app.state(),
+            app.saves(),
+            app.handle(),
+            app.token,
+        ))
+        .expect("the day advances");
+
+        assert_eq!(response["auto_save_error"], "be.error.autoSave.failed");
+        assert_eq!(
+            app.state()
+                .get_game(|game| game.clock.current_date.date_naive())
+                .unwrap(),
+            chrono::NaiveDate::from_ymd_opt(2025, 6, 16).unwrap()
+        );
+    }
+
+    /// Given a saved career on Sunday 15 June 2025 with Auto-Save on
+    /// When the screen's skip to the next match day (skip_to_match_day) moves the game on
+    /// Then the save on disk reads the day the skip stopped on: any later day is a new week, and
+    ///      this command saves it through its own call, not the other two commands' (#1181 review).
+    #[test]
+    fn the_skip_to_match_day_saves_the_week_it_crosses() {
+        use crate::commands::wrapper_testkit::WrapperApp;
+        let app = WrapperApp::new(make_game(11), true);
+
+        tauri::async_runtime::block_on(super::skip_to_match_day(
+            app.state(),
+            app.saves(),
+            app.handle(),
+            app.token,
+        ))
+        .expect("the skip runs");
+
+        let stopped_on = app
+            .state()
+            .get_game(|game| game.clock.current_date.date_naive())
+            .unwrap();
+        assert!(stopped_on > chrono::NaiveDate::from_ymd_opt(2025, 6, 15).unwrap());
+        assert_eq!(app.saved_game().clock.current_date.date_naive(), stopped_on);
+    }
+
+    /// Given a game with nobody injured, and one where two starters are injured
+    /// When the user skips to their next match day, and when they continue to the next event
+    /// Then the injured game stops after a day with the injured-XI blocker listed (days_skipped 1),
+    ///      and whatever stops the healthy game over the days, it is never an informational blocker:
+    ///      the unread-urgent-mail blocker does not stop time.
+    #[test]
+    fn skipping_and_continuing_stop_on_a_blocker_and_only_then() {
+        use ofm_core::state::Career;
+        let blocker_ids = |outcome: &Value| -> Vec<String> {
+            outcome["blockers"]
+                .as_array()
+                .map(|blockers| {
+                    blockers
+                        .iter()
+                        .map(|blocker| blocker["id"].as_str().unwrap().to_string())
+                        .collect()
+                })
+                .unwrap_or_default()
+        };
+        let blocker_severities = |outcome: &Value| -> Vec<String> {
+            outcome["blockers"]
+                .as_array()
+                .into_iter()
+                .flatten()
+                .map(|blocker| blocker["severity"].as_str().unwrap().to_string())
+                .collect()
+        };
+        let blocked_game = || {
+            let mut game = make_game(11);
+            for player_id in ["p2", "p5"] {
+                let player = game.players.iter_mut().find(|p| p.id == player_id).unwrap();
+                player.injury = Some(Injury {
+                    name: "Hamstring".to_string(),
+                    days_remaining: 7,
+                });
+            }
+            game
+        };
+        let run = |game: Game, advance: fn(&StateManager, Career) -> Result<Value, String>| {
+            let state = StateManager::new();
+            state.set_game(game);
+            advance(&state, Career::Active).expect("the advance answers")
+        };
+
+        for advance in [
+            super::skip_to_match_day_internal as fn(&StateManager, Career) -> Result<Value, String>,
+            super::advance_to_next_event_internal,
+        ] {
+            let blocked = run(blocked_game(), advance);
+            assert_eq!(blocked["action"], "blocked", "{blocked}");
+            assert_eq!(blocked["days_skipped"], 1, "{blocked}");
+            assert!(
+                blocker_ids(&blocked).contains(&"injured_xi".to_string()),
+                "{blocked}"
+            );
+
+            // The healthy game meets real blockers within days (injuries, a thin XI); whatever
+            // stops it, it is never the informational mail.
+            let healthy = run(make_game(11), advance);
+            assert!(
+                blocker_severities(&healthy).iter().all(|s| s != "info"),
+                "an informational blocker stopped time: {healthy}"
+            );
+        }
+    }
+
+    /// Given a healthy game whose only blocker is unread urgent mail, which is informational
+    /// When the blocker check runs, the user continues one day, skips, or continues to the next event
+    /// Then the check lists nothing, the single day is advanced, and neither multi-day advance is
+    ///      ever stopped by the mail (a real blocker may stop them later, but never an "info" one).
+    #[test]
+    fn unread_urgent_mail_alone_never_stops_time() {
+        use crate::commands::wrapper_testkit::WrapperApp;
+        use ofm_core::state::Career;
+        let mail_only = || {
+            let mut game = make_game(11);
+            game.messages = vec![make_message("urgent-1", MessagePriority::Urgent, false)];
+            game
+        };
+        assert!(
+            blocker_by_id(&compute_blocking_actions(&mail_only()), "urgent_messages").is_some(),
+            "the fixture should have the informational blocker"
+        );
+
+        let app = WrapperApp::new(mail_only(), false);
+        let listed = super::check_blocking_actions(app.state()).expect("the check answers");
+        assert_eq!(listed, serde_json::json!([]), "{listed}");
+
+        let state = StateManager::new();
+        state.set_game(mail_only());
+        let one_day = super::advance_one_day_internal(&state, Career::Active).expect("one day");
+        assert_eq!(one_day["action"], "advanced", "{one_day}");
+
+        for advance in [
+            super::skip_to_match_day_internal as fn(&StateManager, Career) -> Result<Value, String>,
+            super::advance_to_next_event_internal,
+        ] {
+            let state = StateManager::new();
+            state.set_game(mail_only());
+            let outcome = advance(&state, Career::Active).expect("the advance answers");
+            for blocker in outcome["blockers"].as_array().into_iter().flatten() {
+                assert_ne!(blocker["severity"], "info", "{outcome}");
+            }
+        }
+    }
+
+    /// Given a game with an injured pair of starters and unread urgent mail
+    /// When the UI's blocker check and the MCP blocker tool read it
+    /// Then both list the same blockers with the same severities and tabs (the injured XI, and no
+    ///      informational mail), and the MCP flags a live match on its own.
+    #[cfg(feature = "mcp")]
+    #[test]
+    fn the_mcp_blockers_are_the_ones_the_ui_gets() {
+        use crate::commands::wrapper_testkit::WrapperApp;
+        use crate::mcp_server::tools_impl::time::blockers_of;
+        let mut game = make_game(11);
+        for player_id in ["p2", "p5"] {
+            let player = game.players.iter_mut().find(|p| p.id == player_id).unwrap();
+            player.injury = Some(Injury {
+                name: "Hamstring".to_string(),
+                days_remaining: 7,
+            });
+        }
+        game.messages = vec![make_message("urgent-1", MessagePriority::Urgent, false)];
+        let app = WrapperApp::new(game.clone(), false);
+        let ui = super::check_blocking_actions(app.state()).expect("the check answers");
+        let ui: Vec<(String, String, String)> = ui
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|b| {
+                let field = |name: &str| b[name].as_str().unwrap().to_string();
+                (field("id"), field("severity"), field("tab"))
+            })
+            .collect();
+
+        let mcp = blockers_of(&game, false);
+        let mcp_list: Vec<(String, String, String)> = mcp
+            .blockers
+            .iter()
+            .map(|b| (b.id.clone(), b.severity.clone(), b.tab.clone()))
+            .collect();
+
+        assert!(!ui.is_empty(), "the fixture should have a real blocker");
+        assert!(ui.iter().any(|(id, ..)| id == "injured_xi"), "{ui:?}");
+        assert!(
+            ui.iter().all(|(_, severity, _)| severity != "info"),
+            "{ui:?}"
+        );
+        assert_eq!(mcp_list, ui);
+        assert!(!mcp.live_match_in_progress);
+        assert!(blockers_of(&game, true).live_match_in_progress);
+    }
+
+    /// Given an injured pair of starters, and a game with only unread urgent mail
+    /// When the MCP advance gate is asked, and the MCP skip is run on the injured game
+    /// Then the gate refuses the injured game naming `injured_xi` and lets the mail-only game
+    ///      through, and the skip returns Blocked with `injured_xi` before it advances a day.
+    #[cfg(feature = "mcp")]
+    #[test]
+    fn the_mcp_advance_and_skip_stop_on_a_real_blocker_and_not_on_mail() {
+        use crate::mcp_server::tools_impl::time::{advance_gate, skip_to_match_day_in};
+        use mcp_results::time::SkipToMatchDay;
+        let injured = || {
+            let mut game = make_game(11);
+            for player_id in ["p2", "p5"] {
+                let player = game.players.iter_mut().find(|p| p.id == player_id).unwrap();
+                player.injury = Some(Injury {
+                    name: "Hamstring".to_string(),
+                    days_remaining: 7,
+                });
+            }
+            game
+        };
+        let mut mail_only = make_game(11);
+        mail_only.messages = vec![make_message("urgent-1", MessagePriority::Urgent, false)];
+
+        let refused = advance_gate(&injured()).expect_err("an injured XI stops time");
+        let state = StateManager::new();
+        let before = injured();
+        let date = before.clock.current_date;
+        state.set_game(before);
+        let skipped = skip_to_match_day_in(&state).expect("the skip answers");
+
+        assert!(refused.contains("injured_xi"), "{refused}");
+        assert!(advance_gate(&mail_only).is_ok());
+        match skipped {
+            SkipToMatchDay::Blocked {
+                days_advanced,
+                blockers,
+            } => {
+                assert_eq!(days_advanced, 0);
+                assert!(
+                    blockers.iter().any(|b| b.id == "injured_xi"),
+                    "{blockers:?}"
+                );
+            }
+            other => panic!("expected the skip to be blocked, got {other:?}"),
+        }
+        assert_eq!(state.get_game(|g| g.clock.current_date), Some(date));
+    }
+
+    /// Given a clean game whose next match is thirty days away, in a world whose dice bring a
+    ///       blocker inside that month (the day's training injury at the user's club, which empties
+    ///       a spot of his eleven: found over a few seeds, because which day it falls on is the
+    ///       dice's business, not this test's)
+    /// When the MCP skip runs
+    /// Then it stops after the first day that brings a real blocker, with that blocker listed,
+    ///      having advanced exactly that many days: the screen's skip loop stops there too.
+    #[cfg(feature = "mcp")]
+    #[test]
+    fn the_mcp_skip_stops_after_the_day_that_brings_a_blocker() {
+        use crate::application::time_blockers::stopping_blockers;
+        use crate::mcp_server::tools_impl::time::skip_to_match_day_in;
+        use mcp_results::time::SkipToMatchDay;
+
+        let skip_in_world = |seed: u64| {
+            let mut game = make_game_with_matchday();
+            game.seed = seed;
+            let start = game.clock.current_date;
+            let far = (start + chrono::Duration::days(30))
+                .format("%Y-%m-%d")
+                .to_string();
+            game.league.as_mut().unwrap().fixtures[0].date = far;
+            assert!(
+                stopping_blockers(&game).is_empty(),
+                "the game should start clean"
+            );
+            let state = StateManager::new();
+            state.set_game(game);
+            let outcome = skip_to_match_day_in(&state).expect("the skip answers");
+            let moved = state.get_game(|g| g.clock.current_date - start).unwrap();
+            (outcome, moved)
+        };
+        let (outcome, moved) = (0..50)
+            .map(skip_in_world)
+            .find(|(outcome, _)| {
+                matches!(outcome, SkipToMatchDay::Blocked { days_advanced, .. } if (1..30).contains(days_advanced))
+            })
+            .expect("no seed of fifty brought a blocker inside the month");
+
+        let SkipToMatchDay::Blocked {
+            days_advanced,
+            blockers,
+        } = outcome
+        else {
+            panic!("a blocker should have stopped the skip");
+        };
+        assert!(!blockers.is_empty());
+        assert!(
+            blockers.iter().all(|b| b.severity != "info"),
+            "{blockers:?}"
+        );
+        assert_eq!(moved.num_days(), i64::from(days_advanced));
+    }
+
+    /// Given a manager on a warning whose board stands at 5, and his next match thirty days away
+    /// When the MCP skip runs
+    /// Then the board sacks him on the first day and the skip ends there, fired after one day,
+    ///      the manager out of work
+    #[cfg(feature = "mcp")]
+    #[test]
+    fn the_mcp_skip_reports_a_sacking_on_the_way() {
+        use crate::mcp_server::tools_impl::time::skip_to_match_day_in;
+        use mcp_results::time::SkipToMatchDay;
+        let mut game = make_game_with_matchday();
+        let far = (game.clock.current_date + chrono::Duration::days(30))
+            .format("%Y-%m-%d")
+            .to_string();
+        game.league.as_mut().unwrap().fixtures[0].date = far;
+        game.manager.satisfaction = 5;
+        game.manager.warning_stage = 1;
+        let state = StateManager::new();
+        state.set_game(game);
+
+        let outcome = skip_to_match_day_in(&state).expect("the skip answers");
+
+        assert_eq!(outcome, SkipToMatchDay::Fired { days_advanced: 1 });
+        let employed = state.get_game(|g| g.manager.team_id.clone()).unwrap();
+        assert_eq!(employed, None);
+    }
+
+    /// A game whose user's club has a cup tie `cup_in_days` from today, in `game.competitions` only
+    /// (the `game.league` mirror never holds a cup), and its next league match twenty days away.
+    #[cfg(feature = "mcp")]
+    fn state_with_a_cup_tie_in(cup_in_days: i64) -> (StateManager, chrono::DateTime<chrono::Utc>) {
+        let mut game = make_game_with_matchday();
+        let start = game.clock.current_date;
+        let date_in = |days: i64| {
+            (start + chrono::Duration::days(days))
+                .format("%Y-%m-%d")
+                .to_string()
+        };
+        let mut league = game.league.clone().expect("the game has a league");
+        league.fixtures[0].date = date_in(20);
+        let mut cup = league.clone();
+        cup.id = "cup-1".to_string();
+        cup.fixtures[0].id = "cup-tie".to_string();
+        cup.fixtures[0].competition_id = "cup-1".to_string();
+        cup.fixtures[0].competition = FixtureCompetition::Cup;
+        cup.fixtures[0].date = date_in(cup_in_days);
+        game.league = Some(league.clone());
+        game.competitions = vec![league, cup];
+        let state = StateManager::new();
+        state.set_game(game);
+        (state, start)
+    }
+
+    /// The game's date and the cup tie's status.
+    #[cfg(feature = "mcp")]
+    fn clock_and_cup_tie(state: &StateManager) -> (chrono::DateTime<chrono::Utc>, FixtureStatus) {
+        state
+            .get_game(|g| {
+                (
+                    g.clock.current_date,
+                    g.competitions[1].fixtures[0].status.clone(),
+                )
+            })
+            .expect("a game")
+    }
+
+    /// Given a cup tie for the user's club today, and his next league match twenty days away
+    /// When the MCP skip runs
+    /// Then it stops at once on the match day, as the screen's skip does, and the cup tie is still
+    ///      to be played (#1193: it aimed at the league match in the mirror and simulated the cup
+    ///      tie on the way)
+    #[cfg(feature = "mcp")]
+    #[test]
+    fn the_mcp_skip_stops_on_a_cup_tie_instead_of_playing_it() {
+        use crate::mcp_server::tools_impl::time::skip_to_match_day_in;
+        use mcp_results::time::SkipToMatchDay;
+        let (state, start) = state_with_a_cup_tie_in(0);
+
+        let outcome = skip_to_match_day_in(&state).expect("the skip answers");
+
+        assert_eq!(outcome, SkipToMatchDay::MatchDayToday {});
+        assert_eq!(clock_and_cup_tie(&state), (start, FixtureStatus::Scheduled));
+    }
+
+    /// Given the game's date is the user's match day, and then a date with no match of his
+    /// When the skip's arrival is read
+    /// Then it reached the match day on the first and not on the second: a skip whose 60th day is
+    ///      its match day arrived on it (15076519 told the agent it had not reached a match)
+    #[test]
+    fn a_skip_ending_on_the_users_match_day_arrived_on_it_whichever_day_it_is() {
+        let mut game = make_game_with_matchday();
+        let today = game.clock.current_date.format("%Y-%m-%d").to_string();
+        game.league.as_mut().unwrap().fixtures[0].date = today;
+        game.competitions = vec![game.league.clone().unwrap()];
+        assert!(super::arrived_on_the_match_day(&game));
+
+        game.clock.advance_days(1);
+        assert!(!super::arrived_on_the_match_day(&game));
+    }
+
+    /// Given a cup tie for the user's club tomorrow, and his next league match twenty days away
+    /// When the MCP skip runs
+    /// Then it skips one day and stops on the cup tie's day with the tie still to be played (#1193:
+    ///      it aimed at the league match in the mirror and played the cup tie on the way)
+    #[cfg(feature = "mcp")]
+    #[test]
+    fn the_mcp_skip_stops_on_the_day_of_a_cup_tie_before_the_league_match() {
+        use crate::mcp_server::tools_impl::time::skip_to_match_day_in;
+        use mcp_results::time::SkipToMatchDay;
+        let (state, start) = state_with_a_cup_tie_in(1);
+        let tomorrow = start + chrono::Duration::days(1);
+
+        let outcome = skip_to_match_day_in(&state).expect("the skip answers");
+
+        assert_eq!(
+            outcome,
+            SkipToMatchDay::Skipped {
+                days_advanced: 1,
+                target_date: tomorrow.format("%Y-%m-%d").to_string(),
+            }
+        );
+        assert_eq!(
+            clock_and_cup_tie(&state),
+            (tomorrow, FixtureStatus::Scheduled)
+        );
+    }
+
+    /// Given career B is active (token 2) and a screen still holds career A's token (1)
+    /// When each way of advancing time arrives with A's token
+    /// Then each is refused with the career-changed key and career B's clock, messages and stats
+    ///      are untouched; with B's own token (or Active) the same call advances.
+    #[test]
+    fn an_advance_meant_for_a_replaced_career_writes_nothing_to_the_new_one() {
+        use ofm_core::state::Career;
+        let state = StateManager::new();
+        let mut career_b = make_game_with_matchday();
+        career_b.career_token = 2;
+        let started = career_b.clock.current_date;
+        state.set_game(career_b);
+        state.set_stats_state(StatsState::default());
+        let stale = Career::Token(1);
+        let refused = |result: Result<(), String>| {
+            assert_eq!(result, Err("be.error.careerChanged".to_string()));
+        };
+
+        refused(super::advance_time_internal(&state, stale).map(|_| ()));
+        refused(super::advance_time_with_mode_internal(&state, stale, "delegate").map(|_| ()));
+        refused(super::advance_time_with_mode_internal(&state, stale, "live").map(|_| ()));
+        refused(super::skip_to_match_day_internal(&state, stale).map(|_| ()));
+        refused(super::advance_one_day_internal(&state, stale).map(|_| ()));
+        refused(super::advance_to_next_event_internal(&state, stale).map(|_| ()));
+
+        assert_eq!(
+            state.get_game(|game| game.clock.current_date),
+            Some(started)
+        );
+        let stats = state.get_stats_state(|current| current.clone()).unwrap();
+        assert!(stats.player_matches.is_empty() && stats.team_matches.is_empty());
+        assert!(state.take_live_match().is_none());
+        let advanced = super::advance_time_internal(&state, Career::Token(2)).unwrap();
+        assert!(advanced.clock.current_date > started);
     }
 
     #[test]
@@ -1314,7 +2050,8 @@ mod tests {
         state.set_game(make_round_summary_game());
 
         let response =
-            advance_time_with_mode_internal(&state, "live").expect("live advance response");
+            advance_time_with_mode_internal(&state, ofm_core::state::Career::Active, "live")
+                .expect("live advance response");
 
         assert_eq!(response.action, "live_match");
         assert_eq!(response.competition_id.as_deref(), Some("league1"));
@@ -1331,7 +2068,8 @@ mod tests {
         state.set_game(make_round_summary_game());
 
         let response =
-            advance_time_with_mode_internal(&state, "delegate").expect("delegate advance response");
+            advance_time_with_mode_internal(&state, ofm_core::state::Career::Active, "delegate")
+                .expect("delegate advance response");
 
         assert_eq!(response.action, "advanced");
         let round_summary = response.round_summary.expect("round summary");
@@ -1347,7 +2085,8 @@ mod tests {
         // checks game.competitions, not the legacy game.league mirror.
         state.set_game(make_game_with_competition_matchday());
 
-        let result = super::advance_one_day_internal(&state).expect("advance_one_day result");
+        let result = super::advance_one_day_internal(&state, ofm_core::state::Career::Active)
+            .expect("advance_one_day result");
 
         assert_eq!(
             result.get("action").and_then(Value::as_str),
@@ -1377,7 +2116,8 @@ mod tests {
         }
         state.set_game(game);
 
-        let result = super::advance_one_day_internal(&state).expect("advance_one_day result");
+        let result = super::advance_one_day_internal(&state, ofm_core::state::Career::Active)
+            .expect("advance_one_day result");
 
         assert_eq!(
             result.get("action").and_then(Value::as_str),
@@ -1393,7 +2133,8 @@ mod tests {
         // No match today, no blockers.
         state.set_game(make_game(11));
 
-        let result = super::advance_one_day_internal(&state).expect("advance_one_day result");
+        let result = super::advance_one_day_internal(&state, ofm_core::state::Career::Active)
+            .expect("advance_one_day result");
 
         assert_eq!(
             result.get("action").and_then(Value::as_str),
@@ -1423,7 +2164,8 @@ mod tests {
         game.manager.fire("2025-06-10");
         state.set_game(game);
 
-        let result = super::advance_one_day_internal(&state).expect("advance_one_day result");
+        let result = super::advance_one_day_internal(&state, ofm_core::state::Career::Active)
+            .expect("advance_one_day result");
 
         assert_eq!(
             result.get("action").and_then(Value::as_str),
@@ -1435,5 +2177,1379 @@ mod tests {
             game.clock.current_date.date_naive().to_string(),
             "2025-06-16"
         );
+    }
+
+    // -----------------------------------------------------------------------
+    // A dial saved before kick-off reaches the match waiting to be played
+    // -----------------------------------------------------------------------
+
+    /// The user's side as the live session holds it (the engine's own copy of the team, which
+    /// is what the match is played with), and the match's phase.
+    fn user_side_and_phase(state: &StateManager) -> (engine::MatchPhase, engine::TeamData) {
+        let snapshot = state
+            .with_live_match(|session| session.snapshot())
+            .expect("a live match session exists after a live advance");
+        let side = [snapshot.home_team, snapshot.away_team]
+            .into_iter()
+            .find(|team| team.id == "team1")
+            .expect("the user's club is one of the two sides");
+        (snapshot.phase, side)
+    }
+
+    /// The user's side while the match still waits at kick-off.
+    fn user_side_before_kick_off(state: &StateManager) -> engine::TeamData {
+        let (phase, side) = user_side_and_phase(state);
+        assert_eq!(phase, engine::MatchPhase::PreKickOff);
+        side
+    }
+
+    /// The round-summary game with the user's fixture turned round, so team1 plays away.
+    fn make_round_summary_game_away() -> Game {
+        let mut game = make_round_summary_game();
+        for league in game.league.iter_mut().chain(game.competitions.iter_mut()) {
+            for fixture in league.fixtures.iter_mut().filter(|f| f.id == "fix1") {
+                std::mem::swap(&mut fixture.home_team_id, &mut fixture.away_team_id);
+            }
+        }
+        game
+    }
+
+    /// What the pre-match screen does when the user raises the defensive line.
+    fn set_defensive_line_high(state: &StateManager) {
+        crate::commands::squad::set_tactics_phase_internal(
+            state,
+            ofm_core::state::Career::Active,
+            crate::commands::squad::TacticsPhasePatch {
+                defensive_line: Some("High".to_string()),
+                ..Default::default()
+            },
+        )
+        .expect("the dial is stored on the user's team");
+    }
+
+    /// Given an active career whose user team has a live match waiting at kick-off (built by
+    /// the live advance, as on match day),
+    /// When the user raises the defensive line to High on the pre-match screen,
+    /// Then the match about to be played uses a high defensive line.
+    #[test]
+    fn a_dial_changed_before_kick_off_reaches_the_match() {
+        let state = StateManager::new();
+        state.set_game(make_round_summary_game());
+        advance_time_with_mode_internal(&state, ofm_core::state::Career::Active, "live")
+            .expect("live advance response");
+        assert_ne!(
+            user_side_before_kick_off(&state).tactics.defensive_line,
+            engine::DefensiveLine::High,
+            "the fixture must start from a different line, or the test proves nothing"
+        );
+
+        set_defensive_line_high(&state);
+
+        let stored_line = state
+            .get_game(|game| game.teams[0].tactics_phase.defensive_line.clone())
+            .expect("active game");
+        assert_eq!(stored_line, domain::team::DefensiveLine::High);
+        assert_eq!(
+            user_side_before_kick_off(&state).tactics.defensive_line,
+            engine::DefensiveLine::High,
+            "the live session must play with the defensive line set before kick-off"
+        );
+    }
+
+    /// Given an active career whose user team plays away, with the match waiting at kick-off,
+    /// When the user raises the defensive line on the pre-match screen,
+    /// Then the away side of the match plays with the high line.
+    #[test]
+    fn a_dial_changed_before_kick_off_reaches_an_away_match() {
+        let state = StateManager::new();
+        state.set_game(make_round_summary_game_away());
+        advance_time_with_mode_internal(&state, ofm_core::state::Career::Active, "live")
+            .expect("live advance response");
+        let away_id = state
+            .with_live_match(|session| session.snapshot().away_team.id)
+            .expect("a live match session exists");
+        assert_eq!(
+            away_id, "team1",
+            "the fixture must put the user's club away"
+        );
+        assert_ne!(
+            user_side_before_kick_off(&state).tactics.defensive_line,
+            engine::DefensiveLine::High
+        );
+
+        set_defensive_line_high(&state);
+
+        assert_eq!(
+            user_side_before_kick_off(&state).tactics.defensive_line,
+            engine::DefensiveLine::High
+        );
+    }
+
+    /// Given an active career whose user team already has a high defensive line on the eve of
+    /// match day,
+    /// When the live advance builds the match session,
+    /// Then the session carries it: so a failure in the tests above is the missing hand-over to
+    /// a session already built, not the domain-to-engine mapping of the dial.
+    #[test]
+    fn a_dial_set_before_the_session_is_built_reaches_the_match() {
+        let state = StateManager::new();
+        state.set_game(make_round_summary_game());
+        set_defensive_line_high(&state);
+
+        advance_time_with_mode_internal(&state, ofm_core::state::Career::Active, "live")
+            .expect("live advance response");
+
+        assert_eq!(
+            user_side_before_kick_off(&state).tactics.defensive_line,
+            engine::DefensiveLine::High
+        );
+    }
+
+    /// Given a user team whose live match has already kicked off,
+    /// When the user saves a high defensive line on the team,
+    /// Then the match in play keeps its line: once it has started, only the live commands
+    /// change it.
+    #[test]
+    fn a_dial_saved_after_kick_off_leaves_the_match_alone() {
+        let state = StateManager::new();
+        state.set_game(make_round_summary_game());
+        advance_time_with_mode_internal(&state, ofm_core::state::Career::Active, "live")
+            .expect("live advance response");
+        crate::application::live_match::step_live_match(&state, ofm_core::state::Career::Active, 1)
+            .expect("the match kicks off");
+        let (phase, side) = user_side_and_phase(&state);
+        assert_ne!(
+            phase,
+            engine::MatchPhase::PreKickOff,
+            "the match must have started"
+        );
+        let line_at_kick_off = side.tactics.defensive_line;
+        assert_ne!(line_at_kick_off, engine::DefensiveLine::High);
+
+        set_defensive_line_high(&state);
+
+        let (_, side) = user_side_and_phase(&state);
+        assert_eq!(side.tactics.defensive_line, line_at_kick_off);
+    }
+
+    // -----------------------------------------------------------------------
+    // A role saved before kick-off reaches the match waiting to be played
+    // -----------------------------------------------------------------------
+
+    fn user_goalkeeper_role_before_kick_off(state: &StateManager) -> engine::PlayerRole {
+        user_side_before_kick_off(state)
+            .players
+            .into_iter()
+            .find(|player| player.id == "a-gk")
+            .expect("the user's goalkeeper starts")
+            .role
+    }
+
+    fn set_goalkeeper_role(state: &StateManager, role: Option<&str>) {
+        crate::commands::squad::set_player_role_internal(
+            state,
+            ofm_core::state::Career::Active,
+            "a-gk".to_string(),
+            role.map(str::to_string),
+        )
+        .expect("a goalkeeper may take a keeper's role, or none");
+    }
+
+    /// Given an active career whose user team has a live match waiting at kick-off,
+    /// When the user makes the goalkeeper a Sweeper Keeper on the pre-match screen, through the
+    /// function the `set_player_role` command calls,
+    /// Then the match about to be played has him as a Sweeper Keeper.
+    #[test]
+    fn a_role_changed_before_kick_off_reaches_the_match() {
+        let state = StateManager::new();
+        state.set_game(make_round_summary_game());
+        advance_time_with_mode_internal(&state, ofm_core::state::Career::Active, "live")
+            .expect("live advance response");
+        assert_ne!(
+            user_goalkeeper_role_before_kick_off(&state),
+            engine::PlayerRole::SweeperKeeper,
+            "the fixture must start from a different role, or the test proves nothing"
+        );
+
+        set_goalkeeper_role(&state, Some("SweeperKeeper"));
+
+        let stored_role = state
+            .get_game(|game| game.teams[0].player_roles.get("a-gk").cloned())
+            .expect("active game");
+        assert_eq!(stored_role, Some(domain::team::PlayerRole::SweeperKeeper));
+        assert_eq!(
+            user_goalkeeper_role_before_kick_off(&state),
+            engine::PlayerRole::SweeperKeeper,
+            "the live session must play with the role set before kick-off"
+        );
+    }
+
+    /// Given a match waiting at kick-off whose goalkeeper was made a Sweeper Keeper on the
+    /// pre-match screen,
+    /// When the user clears his role,
+    /// Then he goes into the match on the Standard role.
+    #[test]
+    fn a_role_cleared_before_kick_off_leaves_the_match_on_standard() {
+        let state = StateManager::new();
+        state.set_game(make_round_summary_game());
+        advance_time_with_mode_internal(&state, ofm_core::state::Career::Active, "live")
+            .expect("live advance response");
+        set_goalkeeper_role(&state, Some("SweeperKeeper"));
+        assert_eq!(
+            user_goalkeeper_role_before_kick_off(&state),
+            engine::PlayerRole::SweeperKeeper
+        );
+
+        set_goalkeeper_role(&state, None);
+
+        assert_eq!(
+            user_goalkeeper_role_before_kick_off(&state),
+            engine::PlayerRole::Standard
+        );
+    }
+
+    /// A live match waiting at kick-off in which a spare forward, benched in the saved team, has
+    /// been swapped into the left-back slot on the pre-match screen. Returns his id.
+    fn forward_swapped_into_left_back(state: &StateManager) -> String {
+        let mut game = make_round_summary_game();
+        game.players.push(make_player(
+            "a-fwd-spare",
+            "a Fwd Spare",
+            "team1",
+            Position::Forward,
+        ));
+        state.set_game(game);
+        advance_time_with_mode_internal(state, ofm_core::state::Career::Active, "live")
+            .expect("live advance response");
+        let (forward_on_bench, left_back) = state
+            .with_live_match(|session| {
+                let snapshot = session.snapshot();
+                let bench_forward = snapshot
+                    .home_bench
+                    .iter()
+                    .find(|player| player.position == engine::Position::Forward)
+                    .map(|player| player.id.clone())
+                    .expect("a forward waits on the bench");
+                // 4-4-2: the goalkeeper, then the left-back.
+                (bench_forward, snapshot.home_team.players[1].id.clone())
+            })
+            .expect("a live match session exists");
+        crate::application::live_match::apply_match_command(
+            state,
+            ofm_core::state::Career::Active,
+            engine::MatchCommand::PreMatchSwap {
+                side: engine::Side::Home,
+                player_off_id: left_back,
+                player_on_id: forward_on_bench.clone(),
+            },
+        )
+        .expect("the swap is made before kick-off");
+        forward_on_bench
+    }
+
+    fn role_in_the_waiting_match(state: &StateManager, player_id: &str) -> engine::PlayerRole {
+        user_side_before_kick_off(state)
+            .players
+            .iter()
+            .find(|player| player.id == player_id)
+            .expect("he starts")
+            .role
+    }
+
+    /// Given a match waiting at kick-off where a spare forward, benched in the saved team, has
+    /// been swapped into the left-back slot on the pre-match screen (his live picker offers him
+    /// the full-back roles),
+    /// When the user saves him as an Attacking Full-Back,
+    /// Then the save succeeds and he plays the left-back slot as one: the role is judged by the
+    /// slot he fills in the match, not by the saved team's bench.
+    #[test]
+    fn a_role_his_new_slot_admits_is_saved_after_a_swap() {
+        let state = StateManager::new();
+        let swapped_in = forward_swapped_into_left_back(&state);
+
+        crate::commands::squad::set_player_role_internal(
+            &state,
+            ofm_core::state::Career::Active,
+            swapped_in.clone(),
+            Some("AttackingFB".to_string()),
+        )
+        .expect("the left-back slot admits an Attacking Full-Back");
+
+        assert_eq!(
+            role_in_the_waiting_match(&state, &swapped_in),
+            engine::PlayerRole::AttackingFB
+        );
+    }
+
+    /// Given the same swapped-in forward,
+    /// When the user saves him as a Poacher, which a left-back slot does not admit,
+    /// Then the save is refused: the picker for the slot he fills would not have offered it,
+    /// and he plays on the Standard role.
+    #[test]
+    fn a_role_his_new_slot_refuses_is_refused_after_a_swap() {
+        let state = StateManager::new();
+        let swapped_in = forward_swapped_into_left_back(&state);
+
+        let refused = crate::commands::squad::set_player_role_internal(
+            &state,
+            ofm_core::state::Career::Active,
+            swapped_in.clone(),
+            Some("Poacher".to_string()),
+        );
+
+        assert_eq!(
+            refused.err().as_deref(),
+            Some("be.error.roleNotValidForPosition")
+        );
+        assert_eq!(
+            role_in_the_waiting_match(&state, &swapped_in),
+            engine::PlayerRole::Standard
+        );
+    }
+
+    fn forward_waiting_on_bench_but_saved_at_left_back() -> (StateManager, String) {
+        let state = StateManager::new();
+        let forward = forward_swapped_into_left_back(&state);
+        let left_back = state
+            .with_live_match(|session| {
+                session
+                    .snapshot()
+                    .home_bench
+                    .iter()
+                    .find(|p| p.position == engine::Position::Defender)
+                    .unwrap()
+                    .id
+                    .clone()
+            })
+            .unwrap();
+        state
+            .update_game(|game| {
+                game.teams[0].starting_xi_ids.resize(11, String::new());
+                game.teams[0].starting_xi_ids[1] = forward.clone();
+            })
+            .unwrap();
+        crate::application::live_match::apply_match_command(
+            &state,
+            ofm_core::state::Career::Active,
+            engine::MatchCommand::PreMatchSwap {
+                side: engine::Side::Home,
+                player_off_id: forward.clone(),
+                player_on_id: left_back,
+            },
+        )
+        .unwrap();
+        (state, forward)
+    }
+
+    /// Given a forward saved at left-back but on the waiting bench, when Poacher is saved,
+    /// then his natural position admits it and the saved and waiting roles both change.
+    #[test]
+    fn a_waiting_bench_players_natural_role_can_be_saved() {
+        let (state, forward) = forward_waiting_on_bench_but_saved_at_left_back();
+        crate::commands::squad::set_player_role_internal(
+            &state,
+            ofm_core::state::Career::Active,
+            forward.clone(),
+            Some("Poacher".into()),
+        )
+        .unwrap();
+        assert_eq!(
+            state
+                .get_game(|game| game.teams[0].player_roles.get(&forward).cloned())
+                .unwrap(),
+            Some(domain::team::PlayerRole::Poacher)
+        );
+        assert_eq!(
+            state
+                .with_live_match(|session| session
+                    .snapshot()
+                    .home_bench
+                    .iter()
+                    .find(|p| p.id == forward)
+                    .unwrap()
+                    .role)
+                .unwrap(),
+            engine::PlayerRole::Poacher
+        );
+    }
+
+    /// Given a benched forward who is saved at left-back and plays Poacher, when AttackingFB is
+    /// saved, then it is refused and both the saved and waiting roles remain Poacher.
+    #[test]
+    fn a_waiting_bench_player_refuses_a_role_his_natural_position_rejects() {
+        let (state, forward) = forward_waiting_on_bench_but_saved_at_left_back();
+        crate::commands::squad::set_player_role_internal(
+            &state,
+            ofm_core::state::Career::Active,
+            forward.clone(),
+            Some("Poacher".into()),
+        )
+        .unwrap();
+        let refused = crate::commands::squad::set_player_role_internal(
+            &state,
+            ofm_core::state::Career::Active,
+            forward.clone(),
+            Some("AttackingFB".into()),
+        );
+        assert_eq!(
+            refused.err().as_deref(),
+            Some("be.error.roleNotValidForPosition")
+        );
+        assert_eq!(
+            state
+                .get_game(|game| game.teams[0].player_roles.get(&forward).cloned())
+                .unwrap(),
+            Some(domain::team::PlayerRole::Poacher)
+        );
+        assert_eq!(
+            state
+                .with_live_match(|session| session
+                    .snapshot()
+                    .home_bench
+                    .iter()
+                    .find(|p| p.id == forward)
+                    .unwrap()
+                    .role)
+                .unwrap(),
+            engine::PlayerRole::Poacher
+        );
+    }
+
+    /// Given the same swapped-in forward, in a match that belongs to another career than the
+    /// game now open (the game was swapped for another while the match waited),
+    /// When the user saves him as an Attacking Full-Back,
+    /// Then the role is judged by the saved team, where he is a benched forward, and refused:
+    /// another career's match says nothing about this game's slots.
+    #[test]
+    fn a_role_is_judged_by_the_saved_team_when_the_waiting_match_is_another_careers() {
+        let state = StateManager::new();
+        let swapped_in = forward_swapped_into_left_back(&state);
+        state
+            .update_game(|game| game.career_token += 1)
+            .expect("a game is open");
+
+        let refused = crate::commands::squad::set_player_role_internal(
+            &state,
+            ofm_core::state::Career::Active,
+            swapped_in,
+            Some("AttackingFB".to_string()),
+        );
+
+        assert_eq!(
+            refused.err().as_deref(),
+            Some("be.error.roleNotValidForPosition")
+        );
+    }
+
+    // -----------------------------------------------------------------------
+    // A saved role the team drops, and the gate a role save and a swap pass through
+    // -----------------------------------------------------------------------
+
+    /// A live match waiting at kick-off whose team holds an Attacking Full-Back for a benched
+    /// forward whose natural position, made centre-back in the game, refuses it (as a
+    /// stale save can carry), and that the match has been told about. Returns his id.
+    fn benched_centre_back_holding_a_role_his_position_refuses(state: &StateManager) -> String {
+        // The spare forward is how `forward_swapped_into_left_back` gets a player onto the bench.
+        let mut game = make_round_summary_game();
+        game.players.push(make_player(
+            "a-fwd-spare",
+            "a Fwd Spare",
+            "team1",
+            Position::Forward,
+        ));
+        state.set_game(game);
+        advance_time_with_mode_internal(state, ofm_core::state::Career::Active, "live")
+            .expect("live advance response");
+        let benched_forward = state
+            .with_live_match(|session| {
+                session
+                    .snapshot()
+                    .home_bench
+                    .iter()
+                    .find(|player| player.position == engine::Position::Forward)
+                    .map(|player| player.id.clone())
+            })
+            .flatten()
+            .expect("a forward waits on the bench");
+        let game = state
+            .update_game(|game| {
+                game.players
+                    .iter_mut()
+                    .find(|player| player.id == benched_forward)
+                    .expect("he is on the user's team")
+                    .natural_position = Position::CenterBack;
+                game.teams
+                    .iter_mut()
+                    .find(|team| team.id == "team1")
+                    .expect("the user's team")
+                    .player_roles
+                    .insert(
+                        benched_forward.clone(),
+                        domain::team::PlayerRole::AttackingFB,
+                    );
+                game.clone()
+            })
+            .expect("a game is open");
+        crate::application::live_match::follow_saved_role_before_kick_off(
+            state,
+            &game,
+            &benched_forward,
+        )
+        .expect("the match is told");
+        benched_forward
+    }
+
+    fn swap_into_left_back(state: &StateManager, player_on_id: &str) {
+        let left_back = state
+            .with_live_match(|session| session.snapshot().home_team.players[1].id.clone())
+            .expect("a live match session exists");
+        crate::application::live_match::apply_match_command(
+            state,
+            ofm_core::state::Career::Active,
+            engine::MatchCommand::PreMatchSwap {
+                side: engine::Side::Home,
+                player_off_id: left_back,
+                player_on_id: player_on_id.to_string(),
+            },
+        )
+        .expect("the swap is made before kick-off");
+    }
+
+    /// Given a team that holds a role for a benched centre-back his position refuses,
+    /// When `change` rewrites the team's roles (it reconciles them and drops that one) and the
+    /// manager then swaps him into the left-back slot,
+    /// Then he plays the slot on Standard: the match was told the role is gone, not left holding it.
+    fn assert_a_dropped_role_is_not_restored_by_a_swap(change: impl FnOnce(&StateManager)) {
+        let state = StateManager::new();
+        let spare = benched_centre_back_holding_a_role_his_position_refuses(&state);
+        change(&state);
+
+        swap_into_left_back(&state, &spare);
+
+        assert_eq!(
+            role_in_the_waiting_match(&state, &spare),
+            engine::PlayerRole::Standard
+        );
+    }
+
+    /// Given a saved role on a waiting bench player, when his contract is terminated and he is
+    /// swapped into a compatible slot, then the removed role is not restored in the session.
+    #[test]
+    fn a_terminated_players_saved_role_is_removed_from_the_waiting_match() {
+        let mut game = make_round_summary_game();
+        game.teams[0].starting_xi_ids = game
+            .players
+            .iter()
+            .filter(|p| p.team_id.as_deref() == Some("team1"))
+            .map(|p| p.id.clone())
+            .collect();
+        for (id, position) in [
+            ("spare-gk", Position::Goalkeeper),
+            ("spare-def", Position::Defender),
+            ("spare-def2", Position::Defender),
+            ("spare-mid", Position::Midfielder),
+            ("spare-mid2", Position::Midfielder),
+            ("spare-fwd", Position::Forward),
+        ] {
+            game.players.push(make_player(id, id, "team1", position));
+        }
+        let target = game
+            .players
+            .iter_mut()
+            .find(|p| p.id == "spare-def")
+            .unwrap();
+        target.stage_contract_end(Some("2027-06-15".into()));
+        target.stage_wage(1000);
+        game.teams[0]
+            .player_roles
+            .insert("spare-def".into(), domain::team::PlayerRole::AttackingFB);
+        let state = StateManager::new();
+        state.set_game(game);
+        advance_time_with_mode_internal(&state, ofm_core::state::Career::Active, "live").unwrap();
+        let bench_role = state
+            .with_live_match(|session| {
+                session
+                    .snapshot()
+                    .home_bench
+                    .iter()
+                    .find(|p| p.id == "spare-def")
+                    .unwrap()
+                    .role
+            })
+            .unwrap();
+        assert_eq!(bench_role, engine::PlayerRole::AttackingFB);
+        crate::commands::contracts::terminate_contract_now_internal(
+            &state,
+            ofm_core::state::Career::Active,
+            "spare-def",
+        )
+        .unwrap();
+        assert!(!state
+            .get_game(|game| game.teams[0].player_roles.contains_key("spare-def"))
+            .unwrap());
+        assert_eq!(
+            waiting_bench_role(&state, "spare-def", engine::Side::Home),
+            engine::PlayerRole::Standard
+        );
+        swap_into_left_back(&state, "spare-def");
+        assert_eq!(
+            role_in_the_waiting_match(&state, "spare-def"),
+            engine::PlayerRole::Standard
+        );
+    }
+
+    fn waiting_match_with_transfer_targets() -> StateManager {
+        let mut game = make_round_summary_game();
+        for team_id in ["team1", "team2"] {
+            let team = game.teams.iter_mut().find(|t| t.id == team_id).unwrap();
+            team.starting_xi_ids = game
+                .players
+                .iter()
+                .filter(|p| p.team_id.as_deref() == Some(team_id))
+                .map(|p| p.id.clone())
+                .collect();
+            team.finance = 20_000_000;
+            team.transfer_budget = 20_000_000;
+            team.reputation = if team_id == "team1" { 700 } else { 350 };
+            for (suffix, position) in [
+                ("gk", Position::Goalkeeper),
+                ("def", Position::Defender),
+                ("def2", Position::Defender),
+                ("mid", Position::Midfielder),
+                ("mid2", Position::Midfielder),
+                ("fwd", Position::Forward),
+            ] {
+                let id = format!("spare-{team_id}-{suffix}");
+                let mut player = make_player(&id, &id, team_id, position);
+                player.stage_contract_end(Some("2028-06-30".into()));
+                player.stage_wage(1_000);
+                player.market_value = 1_000_000;
+                player.morale = 35;
+                player.stats.appearances = 1;
+                if suffix == "def" {
+                    team.player_roles
+                        .insert(id.clone(), domain::team::PlayerRole::AttackingFB);
+                    if team_id == "team1" {
+                        player.transfer_offers.push(domain::player::TransferOffer {
+                            id: "offer-1".into(),
+                            from_team_id: "team2".into(),
+                            fee: 1_050_000,
+                            wage_offered: 0,
+                            last_manager_fee: None,
+                            negotiation_round: 1,
+                            suggested_counter_fee: None,
+                            status: domain::player::TransferOfferStatus::Pending,
+                            date: "2025-06-15".into(),
+                            registration_date: None,
+                            closed_on: None,
+                            registration_failure_reason: None,
+                        });
+                    }
+                }
+                game.players.push(player);
+            }
+        }
+        let state = StateManager::new();
+        state.set_game(game);
+        advance_time_with_mode_internal(&state, ofm_core::state::Career::Active, "live").unwrap();
+        state
+            .update_game(|game| {
+                game.season_context.transfer_window.status =
+                    domain::season::TransferWindowStatus::Open
+            })
+            .unwrap();
+        state
+    }
+
+    fn waiting_bench_role(
+        state: &StateManager,
+        player_id: &str,
+        side: engine::Side,
+    ) -> engine::PlayerRole {
+        state
+            .with_live_match(|session| {
+                let snapshot = session.snapshot();
+                let bench = if side == engine::Side::Home {
+                    snapshot.home_bench
+                } else {
+                    snapshot.away_bench
+                };
+                bench
+                    .iter()
+                    .find(|player| player.id == player_id)
+                    .unwrap()
+                    .role
+            })
+            .unwrap()
+    }
+
+    /// Given an opponent's saved bench role, when the player is bought immediately, then both copies are cleared.
+    #[test]
+    fn purchasing_an_opponents_bench_player_clears_his_waiting_role() {
+        let state = waiting_match_with_transfer_targets();
+        let id = "spare-team2-def";
+        assert_eq!(
+            waiting_bench_role(&state, id, engine::Side::Away),
+            engine::PlayerRole::AttackingFB
+        );
+        crate::application::live_session::ROLE_INITIAL_SNAPSHOTS.with(|count| count.set(0));
+        crate::application::live_session::ROLE_HANDOFF_PROJECTIONS.with(|count| count.set(0));
+        let result = crate::commands::transfers::make_transfer_bid_internal(
+            &state,
+            ofm_core::state::Career::Active,
+            id,
+            1_050_000,
+        )
+        .unwrap();
+        crate::application::live_session::ROLE_INITIAL_SNAPSHOTS
+            .with(|count| assert_eq!(count.get(), 1));
+        crate::application::live_session::ROLE_HANDOFF_PROJECTIONS
+            .with(|count| assert_eq!(count.get(), 1));
+        assert_eq!(
+            result.decision,
+            ofm_core::transfers::TransferNegotiationDecision::Accepted
+        );
+        assert!(!result.game.teams[1].player_roles.contains_key(id));
+        assert_eq!(
+            waiting_bench_role(&state, id, engine::Side::Away),
+            engine::PlayerRole::Standard
+        );
+    }
+
+    /// Given the user's saved bench role, when his sale is accepted, then both copies are cleared.
+    #[test]
+    fn selling_a_user_bench_player_clears_his_waiting_role() {
+        let state = waiting_match_with_transfer_targets();
+        let id = "spare-team1-def";
+        assert_eq!(
+            waiting_bench_role(&state, id, engine::Side::Home),
+            engine::PlayerRole::AttackingFB
+        );
+        let game = crate::commands::transfers::respond_to_offer_internal(
+            &state,
+            ofm_core::state::Career::Active,
+            id,
+            "offer-1",
+            true,
+        )
+        .unwrap();
+        assert!(!game.teams[0].player_roles.contains_key(id));
+        assert_eq!(
+            waiting_bench_role(&state, id, engine::Side::Home),
+            engine::PlayerRole::Standard
+        );
+    }
+
+    /// Given a session-only role, when another player is sold, then the session choice survives.
+    #[test]
+    fn selling_a_bench_player_preserves_an_unrelated_session_choice() {
+        let state = waiting_match_with_transfer_targets();
+        let id = state
+            .with_live_match(|session| {
+                session
+                    .snapshot()
+                    .home_team
+                    .players
+                    .last()
+                    .unwrap()
+                    .id
+                    .clone()
+            })
+            .unwrap();
+        crate::application::live_match::apply_match_command(
+            &state,
+            ofm_core::state::Career::Active,
+            engine::MatchCommand::ChangePlayerRole {
+                side: engine::Side::Home,
+                player_id: id.clone(),
+                role: engine::PlayerRole::Poacher,
+            },
+        )
+        .unwrap();
+        crate::commands::transfers::respond_to_offer_internal(
+            &state,
+            ofm_core::state::Career::Active,
+            "spare-team1-def",
+            "offer-1",
+            true,
+        )
+        .unwrap();
+        assert_eq!(
+            role_in_the_waiting_match(&state, &id),
+            engine::PlayerRole::Poacher
+        );
+    }
+
+    /// Given a session-only role on a bench player, when his contract ends, then the waiting
+    /// session drops the role immediately and does not restore it on a later swap.
+    #[test]
+    fn terminating_a_player_clears_his_session_only_role() {
+        let state = waiting_match_with_transfer_targets();
+        let target = "spare-team1-def2";
+        let left_back = state
+            .with_live_match(|session| session.snapshot().home_team.players[1].id.clone())
+            .unwrap();
+        swap_into_left_back(&state, target);
+        crate::application::live_match::apply_match_command(
+            &state,
+            ofm_core::state::Career::Active,
+            engine::MatchCommand::ChangePlayerRole {
+                side: engine::Side::Home,
+                player_id: target.into(),
+                role: engine::PlayerRole::AttackingFB,
+            },
+        )
+        .unwrap();
+        swap_into_left_back(&state, &left_back);
+        assert_eq!(
+            waiting_bench_role(&state, target, engine::Side::Home),
+            engine::PlayerRole::AttackingFB
+        );
+        assert!(!state
+            .get_game(|game| game.teams[0].player_roles.contains_key(target))
+            .unwrap());
+        crate::commands::contracts::terminate_contract_now_internal(
+            &state,
+            ofm_core::state::Career::Active,
+            target,
+        )
+        .unwrap();
+        assert_eq!(
+            waiting_bench_role(&state, target, engine::Side::Home),
+            engine::PlayerRole::Standard
+        );
+        swap_into_left_back(&state, target);
+        assert_eq!(
+            role_in_the_waiting_match(&state, target),
+            engine::PlayerRole::Standard
+        );
+    }
+
+    /// Given a saved tactic with a Standard role, when a session-only role is chosen and the
+    /// tactic is applied, then the tactic restores Standard for that player.
+    #[test]
+    fn a_saved_tactics_standard_role_replaces_a_session_only_choice() {
+        let state = waiting_match_with_transfer_targets();
+        let target = state
+            .with_live_match(|session| session.snapshot().home_team.players[1].id.clone())
+            .unwrap();
+        let tactic = domain::custom_tactic::CustomTactic {
+            id: "standard".into(),
+            name: "Standard".into(),
+            description: String::new(),
+            formation: "4-4-2".into(),
+            play_style: "Balanced".into(),
+            source_preset_name: None,
+            contents: None,
+        };
+        crate::commands::custom_tactics::save_current_tactic_internal(
+            &state,
+            &tactic,
+            ofm_core::state::Career::Active,
+        )
+        .unwrap();
+        crate::application::live_match::apply_match_command(
+            &state,
+            ofm_core::state::Career::Active,
+            engine::MatchCommand::ChangePlayerRole {
+                side: engine::Side::Home,
+                player_id: target.clone(),
+                role: engine::PlayerRole::AttackingFB,
+            },
+        )
+        .unwrap();
+        crate::commands::custom_tactics::apply_custom_tactic_internal(
+            &state,
+            "standard",
+            ofm_core::state::Career::Active,
+        )
+        .unwrap();
+        assert_eq!(
+            role_in_the_waiting_match(&state, &target),
+            engine::PlayerRole::Standard
+        );
+        swap_into_left_back(&state, "spare-team1-def2");
+        swap_into_left_back(&state, &target);
+        assert_eq!(
+            role_in_the_waiting_match(&state, &target),
+            engine::PlayerRole::Standard
+        );
+    }
+
+    fn save_standard_tactic_with_session_role() -> (StateManager, String) {
+        let state = waiting_match_with_transfer_targets();
+        let target = state
+            .with_live_match(|session| session.snapshot().home_team.players[1].id.clone())
+            .unwrap();
+        let tactic = domain::custom_tactic::CustomTactic {
+            id: "standard".into(),
+            name: "Standard".into(),
+            description: String::new(),
+            formation: "4-4-2".into(),
+            play_style: "Balanced".into(),
+            source_preset_name: None,
+            contents: None,
+        };
+        crate::commands::custom_tactics::save_current_tactic_internal(
+            &state,
+            &tactic,
+            ofm_core::state::Career::Active,
+        )
+        .unwrap();
+        crate::application::live_match::apply_match_command(
+            &state,
+            ofm_core::state::Career::Active,
+            engine::MatchCommand::ChangePlayerRole {
+                side: engine::Side::Home,
+                player_id: target.clone(),
+                role: engine::PlayerRole::AttackingFB,
+            },
+        )
+        .unwrap();
+        (state, target)
+    }
+
+    /// Given a Standard saved tactic and a session role, when its id has spaces, then the
+    /// hand-off finds the same tactic that the save applies.
+    #[test]
+    fn a_tactic_id_with_spaces_still_hands_off_its_standard_role() {
+        let (state, target) = save_standard_tactic_with_session_role();
+        crate::commands::custom_tactics::apply_custom_tactic_internal(
+            &state,
+            " standard ",
+            ofm_core::state::Career::Active,
+        )
+        .unwrap();
+        assert_eq!(
+            role_in_the_waiting_match(&state, &target),
+            engine::PlayerRole::Standard
+        );
+    }
+
+    /// Given a tactic with an invalid duplicate lineup, when it is applied, then a session role
+    /// on the unchanged lineup is not overwritten by the rejected saved slots.
+    #[test]
+    fn a_rejected_saved_lineup_does_not_overwrite_a_session_role() {
+        let (state, target) = save_standard_tactic_with_session_role();
+        state
+            .update_game(|game| {
+                let slots = &mut game.custom_tactics[0].contents.as_mut().unwrap().slots;
+                slots[2].player_id = slots[1].player_id.clone();
+            })
+            .unwrap();
+        crate::commands::custom_tactics::apply_custom_tactic_internal(
+            &state,
+            "standard",
+            ofm_core::state::Career::Active,
+        )
+        .unwrap();
+        assert_eq!(
+            role_in_the_waiting_match(&state, &target),
+            engine::PlayerRole::AttackingFB
+        );
+    }
+
+    /// The eleven the waiting match starts, which is a valid eleven to save.
+    fn current_eleven(state: &StateManager) -> Vec<String> {
+        state
+            .with_live_match(|session| {
+                session
+                    .snapshot()
+                    .home_team
+                    .players
+                    .iter()
+                    .map(|player| player.id.clone())
+                    .collect()
+            })
+            .expect("a live match session exists")
+    }
+
+    /// Given the scenario above, changed by saving the same starting eleven.
+    #[test]
+    fn a_role_the_starting_eleven_save_drops_is_not_restored_by_a_swap() {
+        assert_a_dropped_role_is_not_restored_by_a_swap(|state| {
+            let eleven = current_eleven(state);
+            crate::commands::squad::set_starting_xi_internal(
+                state,
+                ofm_core::state::Career::Active,
+                eleven,
+            )
+            .expect("the eleven is saved");
+        });
+    }
+
+    /// Given the scenario above, changed by saving a formation.
+    #[test]
+    fn a_role_the_formation_save_drops_is_not_restored_by_a_swap() {
+        assert_a_dropped_role_is_not_restored_by_a_swap(|state| {
+            crate::commands::squad::set_formation_internal(
+                state,
+                ofm_core::state::Career::Active,
+                "4-4-2",
+            )
+            .expect("the formation is saved");
+        });
+    }
+
+    /// Given the scenario above, changed by applying a tactic preset.
+    #[test]
+    fn a_role_the_tactic_preset_drops_is_not_restored_by_a_swap() {
+        assert_a_dropped_role_is_not_restored_by_a_swap(|state| {
+            crate::commands::squad::apply_tactic_preset_internal(
+                state,
+                ofm_core::state::Career::Active,
+                "4-4-2",
+                "Balanced",
+            )
+            .expect("the preset is applied");
+        });
+    }
+
+    /// Given the scenario above, changed by applying a saved custom tactic.
+    #[test]
+    fn a_role_the_custom_tactic_drops_is_not_restored_by_a_swap() {
+        assert_a_dropped_role_is_not_restored_by_a_swap(|state| {
+            let tactic = domain::custom_tactic::CustomTactic {
+                id: "mine".to_string(),
+                name: "Mine".to_string(),
+                description: String::new(),
+                formation: "4-4-2".to_string(),
+                play_style: "Balanced".to_string(),
+                source_preset_name: None,
+                contents: None,
+            };
+            crate::commands::custom_tactics::save_current_tactic_internal(
+                state,
+                &tactic,
+                ofm_core::state::Career::Active,
+            )
+            .expect("the tactic is saved");
+            crate::commands::custom_tactics::apply_custom_tactic_internal(
+                state,
+                "mine",
+                ofm_core::state::Career::Active,
+            )
+            .expect("the tactic is applied");
+        });
+    }
+
+    /// Runs `call` on another thread while this one holds the lifecycle gate, and reports whether
+    /// it finished before and after the gate was released.
+    fn finishes_only_after_the_gate_is_released<F>(
+        state: std::sync::Arc<StateManager>,
+        call: F,
+    ) -> (bool, bool)
+    where
+        F: FnOnce(&StateManager) + Send + 'static,
+    {
+        let operation = crate::application::live_session::operation();
+        let (done_tx, done_rx) = std::sync::mpsc::channel();
+        let handle = std::thread::spawn(move || {
+            call(&state);
+            done_tx.send(()).unwrap();
+        });
+        let finished_while_held = done_rx
+            .recv_timeout(std::time::Duration::from_millis(300))
+            .is_ok();
+        drop(operation);
+        let finished_after_release = done_rx
+            .recv_timeout(std::time::Duration::from_secs(30))
+            .is_ok();
+        handle.join().unwrap();
+        (finished_while_held, finished_after_release)
+    }
+
+    /// Given a lifecycle operation in flight,
+    /// When a role is saved for a player of the waiting match,
+    /// Then the save queues behind the operation, and completes once it is released: the read of
+    /// his slot, the save and the hand-off to the match are one step against a kick-off or a swap.
+    #[test]
+    fn a_role_save_waits_for_a_lifecycle_operation_in_flight() {
+        let state = std::sync::Arc::new(StateManager::new());
+        let swapped_in = forward_swapped_into_left_back(&state);
+
+        let (while_held, after_release) =
+            finishes_only_after_the_gate_is_released(state, move |state| {
+                crate::commands::squad::set_player_role_internal(
+                    state,
+                    ofm_core::state::Career::Active,
+                    swapped_in,
+                    Some("AttackingFB".to_string()),
+                )
+                .expect("the role is saved");
+            });
+
+        assert!(!while_held, "the save ran inside a held operation");
+        assert!(after_release, "the save never completed once released");
+    }
+
+    /// Given a lifecycle operation in flight,
+    /// When a pre-match swap is made,
+    /// Then the swap queues behind the operation and completes once it is released.
+    #[test]
+    fn a_pre_match_swap_waits_for_a_lifecycle_operation_in_flight() {
+        let state = std::sync::Arc::new(StateManager::new());
+        let spare = benched_centre_back_holding_a_role_his_position_refuses(&state);
+
+        let (while_held, after_release) =
+            finishes_only_after_the_gate_is_released(state, move |state| {
+                swap_into_left_back(state, &spare);
+            });
+
+        assert!(!while_held, "the swap ran inside a held operation");
+        assert!(after_release, "the swap never completed once released");
+    }
+
+    /// Runs `call` against a game at rest (after `setup`) while a lifecycle operation is held.
+    /// It must not have finished, nor changed what `observe` reads, while the gate is held; once
+    /// the gate is released it completes and `observe` reads something different.
+    fn assert_a_bulk_role_write_waits_for_the_gate<F>(
+        setup: fn(&StateManager),
+        call: F,
+        observe: fn(&StateManager) -> String,
+    ) where
+        F: FnOnce(&StateManager) + Send + 'static,
+    {
+        let state = std::sync::Arc::new(StateManager::new());
+        state.set_game(make_round_summary_game());
+        setup(&state);
+        let before = observe(&state);
+        let worker_state = state.clone();
+        let operation = crate::application::live_session::operation();
+        let (done_tx, done_rx) = std::sync::mpsc::channel();
+        let handle = std::thread::spawn(move || {
+            call(&worker_state);
+            done_tx.send(()).unwrap();
+        });
+
+        let finished_while_held = done_rx
+            .recv_timeout(std::time::Duration::from_millis(300))
+            .is_ok();
+        let seen_while_held = observe(&state);
+        drop(operation);
+        let finished_after_release = done_rx
+            .recv_timeout(std::time::Duration::from_secs(30))
+            .is_ok();
+        handle.join().unwrap();
+
+        assert!(
+            !finished_while_held,
+            "the write ran inside a held operation"
+        );
+        assert_eq!(seen_while_held, before, "the write landed before the gate");
+        assert!(
+            finished_after_release,
+            "the write never completed once released"
+        );
+        assert_ne!(observe(&state), before, "the write changed nothing");
+    }
+
+    fn no_setup(_: &StateManager) {}
+
+    fn formation_of_the_user_team(state: &StateManager) -> String {
+        state
+            .get_game(|game| {
+                game.teams
+                    .iter()
+                    .find(|team| team.id == "team1")
+                    .map(|team| format!("{}/{:?}", team.formation, team.play_style))
+                    .unwrap_or_default()
+            })
+            .unwrap_or_default()
+    }
+
+    fn starting_eleven_of_the_user_team(state: &StateManager) -> String {
+        state
+            .get_game(|game| {
+                game.teams
+                    .iter()
+                    .find(|team| team.id == "team1")
+                    .map(|team| team.starting_xi_ids.join(","))
+                    .unwrap_or_default()
+            })
+            .unwrap_or_default()
+    }
+
+    /// Given a lifecycle operation in flight, when the formation is saved,
+    /// then the save queues behind it: commit and hand-off to the waiting match are one step
+    /// against a role save.
+    #[test]
+    fn a_formation_save_waits_for_a_lifecycle_operation_in_flight() {
+        assert_a_bulk_role_write_waits_for_the_gate(
+            no_setup,
+            |state| {
+                crate::commands::squad::set_formation_internal(
+                    state,
+                    ofm_core::state::Career::Active,
+                    "3-5-2",
+                )
+                .expect("the formation is saved");
+            },
+            formation_of_the_user_team,
+        );
+    }
+
+    /// The same for a tactic preset.
+    #[test]
+    fn a_tactic_preset_waits_for_a_lifecycle_operation_in_flight() {
+        assert_a_bulk_role_write_waits_for_the_gate(
+            no_setup,
+            |state| {
+                crate::commands::squad::apply_tactic_preset_internal(
+                    state,
+                    ofm_core::state::Career::Active,
+                    "3-5-2",
+                    "Defensive",
+                )
+                .expect("the preset is applied");
+            },
+            formation_of_the_user_team,
+        );
+    }
+
+    /// The same for a starting eleven.
+    #[test]
+    fn a_starting_eleven_save_waits_for_a_lifecycle_operation_in_flight() {
+        // The club's eleven healthy seniors, in an order no fixture starts from.
+        assert_a_bulk_role_write_waits_for_the_gate(
+            no_setup,
+            |state| {
+                let eleven = [
+                    "a-gk", "a-fwd1", "a-fwd0", "a-mid3", "a-mid2", "a-mid1", "a-mid0", "a-def3",
+                    "a-def2", "a-def1", "a-def0",
+                ]
+                .map(String::from)
+                .to_vec();
+                crate::commands::squad::set_starting_xi_internal(
+                    state,
+                    ofm_core::state::Career::Active,
+                    eleven,
+                )
+                .expect("the eleven is saved");
+            },
+            starting_eleven_of_the_user_team,
+        );
+    }
+
+    /// The same for applying a saved custom tactic.
+    #[test]
+    fn a_custom_tactic_applied_waits_for_a_lifecycle_operation_in_flight() {
+        // A tactic saved with a 3-5-2 team, then the team put back to 4-4-2: applying it changes
+        // the formation again.
+        fn save_a_three_five_two_tactic(state: &StateManager) {
+            let career = ofm_core::state::Career::Active;
+            crate::commands::squad::set_formation_internal(state, career, "3-5-2")
+                .expect("the formation is saved");
+            let tactic = domain::custom_tactic::CustomTactic {
+                id: "mine".to_string(),
+                name: "Mine".to_string(),
+                description: String::new(),
+                formation: "3-5-2".to_string(),
+                play_style: "Balanced".to_string(),
+                source_preset_name: None,
+                contents: None,
+            };
+            crate::commands::custom_tactics::save_current_tactic_internal(state, &tactic, career)
+                .expect("the tactic is saved");
+            crate::commands::squad::set_formation_internal(state, career, "4-4-2")
+                .expect("the formation is put back");
+        }
+        assert_a_bulk_role_write_waits_for_the_gate(
+            save_a_three_five_two_tactic,
+            |state| {
+                crate::commands::custom_tactics::apply_custom_tactic_internal(
+                    state,
+                    "mine",
+                    ofm_core::state::Career::Active,
+                )
+                .expect("the tactic is applied");
+            },
+            formation_of_the_user_team,
+        );
+    }
+
+    fn waiting_match_state() -> std::sync::Arc<StateManager> {
+        let state = std::sync::Arc::new(StateManager::new());
+        state.set_game(make_round_summary_game());
+        advance_time_with_mode_internal(&state, ofm_core::state::Career::Active, "live")
+            .expect("live advance response");
+        state
+    }
+
+    /// Given a live match waiting at kick-off and a lifecycle operation in flight,
+    /// When the match is stepped (the kick-off),
+    /// Then the step queues behind the operation and the match kicks off once it is released: a
+    /// role saved while the gate was held is in the match when it starts.
+    #[test]
+    fn the_kick_off_waits_for_a_lifecycle_operation_in_flight() {
+        let state = waiting_match_state();
+        let watcher = state.clone();
+
+        let (while_held, after_release) =
+            finishes_only_after_the_gate_is_released(state, |state| {
+                crate::application::live_match::step_live_match(
+                    state,
+                    ofm_core::state::Career::Active,
+                    1,
+                )
+                .expect("the match kicks off");
+            });
+
+        assert!(!while_held, "the kick-off ran inside a held operation");
+        assert!(after_release, "the kick-off never completed once released");
+        let (phase, _) = user_side_and_phase(&watcher);
+        assert_ne!(
+            phase,
+            engine::MatchPhase::PreKickOff,
+            "the match kicked off"
+        );
+    }
+
+    /// Given a live match waiting at kick-off and a lifecycle operation in flight,
+    /// When the formation is changed on the pre-match screen,
+    /// Then the change queues behind the operation and completes once it is released.
+    #[test]
+    fn a_pre_match_formation_change_waits_for_a_lifecycle_operation_in_flight() {
+        let state = waiting_match_state();
+
+        let (while_held, after_release) =
+            finishes_only_after_the_gate_is_released(state, |state| {
+                crate::application::live_match::apply_match_command(
+                    state,
+                    ofm_core::state::Career::Active,
+                    engine::MatchCommand::ChangeFormation {
+                        side: engine::Side::Home,
+                        formation: "3-5-2".to_string(),
+                    },
+                )
+                .expect("the shape is changed before kick-off");
+            });
+
+        assert!(!while_held, "the change ran inside a held operation");
+        assert!(after_release, "the change never completed once released");
+    }
+
+    /// Given a match already under way and a lifecycle operation in flight,
+    /// When the match is stepped,
+    /// Then the step does not wait: only the kick-off needs the gate, and a step in play is
+    /// neither a role save's nor a swap's concern.
+    #[test]
+    fn a_step_in_play_does_not_wait_for_a_lifecycle_operation() {
+        let state = waiting_match_state();
+        crate::application::live_match::step_live_match(&state, ofm_core::state::Career::Active, 1)
+            .expect("the match kicks off");
+
+        // The helper reads the completion once while the gate is held, so a call that finishes
+        // then has nothing left to report after the release: only the first figure counts here.
+        let (while_held, _) = finishes_only_after_the_gate_is_released(state, |state| {
+            crate::application::live_match::step_live_match(
+                state,
+                ofm_core::state::Career::Active,
+                1,
+            )
+            .expect("the match plays a minute");
+        });
+
+        assert!(while_held, "a step in play was held up by the operation");
     }
 }

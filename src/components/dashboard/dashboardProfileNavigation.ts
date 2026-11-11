@@ -19,12 +19,14 @@ export interface DashboardProfileNavigationState {
   navHistory: DashboardProfileHistoryEntry[];
 }
 
+/** `selectedPlayerId` opens that player's profile at once: the dev page harness starts on one. */
 export function createDashboardProfileNavigationState(
   activeTab: string,
+  selectedPlayerId: string | null = null,
 ): DashboardProfileNavigationState {
   return {
     activeTab,
-    selectedPlayerId: null,
+    selectedPlayerId,
     selectedPlayerOptions: null,
     selectedTeamId: null,
     initialMessageId: null,
@@ -170,4 +172,28 @@ export function hasDashboardProfileHistory(state: DashboardProfileNavigationStat
   return (
     state.navHistory.length > 0 || state.selectedPlayerId !== null || state.selectedTeamId !== null
   );
+}
+
+interface ProfileSubjects {
+  players: ReadonlyArray<{ id: string; match_name: string }>;
+  teams: ReadonlyArray<{ id: string; name: string }>;
+}
+
+// A club profile wins over a player one, as in DashboardWorkspaceContent, which shows the club
+// when both are selected.
+export function openProfileTitle(
+  state: DashboardProfileNavigationState,
+  world: ProfileSubjects,
+  /** The retired player fetched for the open profile, who is in no roster: the archive's person. */
+  retiree: { id: string; match_name: string } | null = null,
+): string | null {
+  if (state.selectedTeamId !== null) {
+    return world.teams.find((team) => team.id === state.selectedTeamId)?.name ?? null;
+  }
+  if (state.selectedPlayerId !== null) {
+    const rostered = world.players.find((player) => player.id === state.selectedPlayerId);
+    if (rostered) return rostered.match_name;
+    return retiree?.id === state.selectedPlayerId ? retiree.match_name : null;
+  }
+  return null;
 }

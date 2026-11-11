@@ -58,10 +58,7 @@
   "validation": {
     "required": "{{field}} wajib diisi",
     "maxLength": "{{field}} tidak boleh melebihi {{max}} karakter",
-    "minStartYear": "Tahun mulai harus {{min}} atau setelahnya",
-    "minAge": "Manajer minimal berusia {{min}} tahun — ubah tanggal lahir untuk melanjutkan.",
-    "invalidDate": "Tanggal tidak valid",
-    "invalidDob": "Tanggal lahir tidak valid"
+    "minStartYear": "Tahun mulai harus {{min}} atau setelahnya"
   },
   "worldSelect": {
     "title": "Pilih Dunia",
@@ -173,6 +170,7 @@
     "digestSimulating": "Memproses...",
     "digestMatchDay": "Hari Pertandingan",
     "digestMatchDayDesc": "Pertandingan siap dimainkan.",
+    "matchModeMenu": "Pilih mode pertandingan",
     "digestReturnHome": "Kembali ke Beranda",
     "digestBlocked": "Perlu Tindakan",
     "digestBlockedDesc": "Beberapa masalah memerlukan perhatian sebelum melanjutkan.",
@@ -305,6 +303,56 @@
     "subtitle": "Pilih tim yang ingin dikelola",
     "confirming": "Mengonfirmasi...",
     "manage": "Kelola {{name}}",
+    "steps": {
+      "label": "Langkah karier baru",
+      "manager": "Manajer",
+      "world": "Dunia",
+      "generation": "Pembuatan",
+      "club": "Klub",
+      "done": "selesai"
+    },
+    "back": "Kembali ke pembuatan dunia",
+    "simulation": "Simulasi",
+    "manageNone": "Kelola",
+    "scope": {
+      "title": "Apa yang disimulasikan dunia",
+      "subtitle": "Pilih wilayah dan kompetisi yang disimulasikan penuh oleh game. Semakin banyak, semakin lama setiap harinya.",
+      "sectionStart": "1 · Tempat kamu mulai",
+      "sectionRegions": "2 · Wilayah yang disimulasikan",
+      "sectionCompetitions": "3 · Kompetisi",
+      "regionMeta": "{{countries}} · {{clubs}} klub",
+      "simulate": "Simulasikan {{name}}",
+      "needs": "Butuh {{regions}}",
+      "add": "Tambah {{regions}}",
+      "groupCount": "{{on}} dari {{total}}",
+      "groupSimulated": "{{on}} dari {{total}} disimulasikan",
+      "needOne": "Aktifkan setidaknya satu kompetisi.",
+      "summary": "{{regions}} wilayah · {{competitions}} kompetisi disimulasikan",
+      "clubs": "{{clubs}} klub di wilayah yang disimulasikan",
+      "apply": "Terapkan"
+    },
+    "rail": {
+      "label": "Negara dan liga",
+      "countries": "Negara"
+    },
+    "table": {
+      "label": "Klub",
+      "club": "Klub",
+      "transfers": "Transfer",
+      "wages": "Gaji / minggu",
+      "stadium": "Stadion"
+    },
+    "card": {
+      "label": "Klub terpilih",
+      "emptyTitle": "Belum ada klub terpilih",
+      "emptyHint": "Pilih klub dari daftar untuk melihat skuad, anggaran, dan target manajemen.",
+      "boardExpects": "Target manajemen",
+      "transferBudget": "Anggaran transfer",
+      "wageBudget": "Anggaran gaji",
+      "balance": "Saldo",
+      "stadium": "Stadion",
+      "founded": "didirikan {{year}}"
+    },
     "reputation": "Reputasi",
     "squad": "Skuad",
     "finances": "Keuangan",
@@ -314,21 +362,22 @@
     "repStrong": "Kuat",
     "repAverage": "Cukup",
     "repDeveloping": "Berkembang",
+    "expectations": {
+      "title": "Bersaing memperebutkan gelar",
+      "continental": "Mengejar kompetisi antarklub benua",
+      "topHalf": "Separuh atas klasemen",
+      "midTable": "Papan tengah",
+      "survival": "Hindari degradasi"
+    },
     "failedToSelectTeam": "Gagal memilih tim: {{error}}",
     "homeRegion": "Wilayah Asal",
     "homeCountry": "Negara Asal",
-    "allCountries": "Semua negara",
-    "simulationScope": "Cakupan Simulasi",
     "otherClubs": "Klub lainnya",
     "searchClubs": "Cari klub…",
     "clubCount": "{{n}} klub",
     "noClubsMatch": "Tidak ada klub yang cocok dengan pencarian.",
-    "simulatedRegions": "Wilayah yang Disimulasikan",
-    "simulatedCompetitions": "Kompetisi yang Disimulasikan",
     "homeBadge": "Asal",
-    "yourClub": "klub kamu",
     "yourClubBadge": "Klub Kamu",
-    "requiresRegions": "Membutuhkan {{regions}}",
     "selectedClub": "Klub Terpilih",
     "formation": "Formasi",
     "overall": "Keseluruhan",
@@ -339,7 +388,6 @@
     "clubCompetitionsAlwaysSimulated": "Kompetisi klub kamu selalu disimulasikan, meskipun wilayah atau turnamen lain dimatikan.",
     "selectClubPrompt": "Pilih klub untuk memeriksa skuad dan kompetisinya.",
     "playersCount": "{{count}} pemain",
-    "scopeSummary": "{{regionsCount}} wilayah dan {{competitionsCount}} kompetisi yang disimulasikan akan dimuat.",
     "regionLabels": {
       "north-america": "Amerika Utara",
       "central-america": "Amerika Tengah",
@@ -362,13 +410,6 @@
       "InternationalClub": "Klub Internasional",
       "InternationalNation": "Tim Nasional Internasional",
       "FriendlyCup": "Piala Persahabatan"
-    },
-    "scopeMessages": {
-      "homeRegionAlwaysActive": "Wilayah yang dapat dimainkan selalu aktif.",
-      "regionRequiredByCompetition": "{{competition}} bagian dari jadwal {{club}}, jadi {{region}} harus tetap aktif.",
-      "regionRemovedDisablesCompetitions": "{{region}} dihapus dari cakupan simulasi, sehingga kompetisi yang bergantung padanya ikut dimatikan.",
-      "clubCompetitionLocked": "{{competition}} ada di jadwal {{club}} dan akan selalu disimulasikan.",
-      "autoEnabledRegions": "{{competition}} membutuhkan {{regions}}, sehingga wilayah tersebut diaktifkan secara otomatis."
     }
   },
   "youthAcademy": {
@@ -397,15 +438,21 @@
     "traits": "Traits",
     "condition": "Kondisi",
     "delegateToYouthAcademy": "Delegasikan ke akademi",
-    "promoteToSeniorSquad": "Naikkan ke skuad senior",
-    "potWorldClass": "Kelas Dunia",
-    "potExcellent": "Luar Biasa",
-    "potPromising": "Menjanjikan",
-    "potDecent": "Cukup Baik",
-    "potLimited": "Terbatas"
+    "promoteToSeniorSquad": "Naikkan ke skuad senior"
   },
   "common": {
+    "ratingTier": {
+      "S": "S",
+      "A": "A",
+      "B": "B"
+    },
     "ordinal": {
+      "place": {
+        "one": "ke-{{n}}",
+        "two": "ke-{{n}}",
+        "few": "ke-{{n}}",
+        "other": "ke-{{n}}"
+      },
       "one": "ke-{{n}}",
       "two": "ke-{{n}}",
       "few": "ke-{{n}}",
@@ -414,14 +461,27 @@
     "currentWage": "Gaji Saat Ini",
     "loading": "Memuat...",
     "loadingGameState": "Memuat status permainan...",
+    "detailsFor": "Detail {{name}}",
+    "overallRating": "Keseluruhan {{value}}",
+    "overallRatingTier": "Keseluruhan {{value}}, tingkat {{tier}}",
+    "namedRating": "{{name}} {{value}}",
+    "namedRatingTier": "{{name}} {{value}}, tingkat {{tier}}",
+    "listViewLabel": "Tampilkan sebagai",
+    "listViewTable": "Tabel",
+    "listViewCards": "Kartu",
     "noResults": "Tidak ada hasil ditemukan.",
-    "place": {
-      "1": "ke-1",
-      "2": "ke-2",
-      "3": "ke-3",
-      "other": "ke-{{n}}"
-    },
     "pts": "Poin",
+    "playedFull": "Main",
+    "wonFull": "Menang",
+    "drawnFull": "Seri",
+    "lostFull": "Kalah",
+    "ptsFull": "Poin",
+    "recentForm": "Performa terkini",
+    "formResult": {
+      "W": "M",
+      "D": "S",
+      "L": "K"
+    },
     "played": "M",
     "won": "M",
     "drawn": "S",
@@ -623,7 +683,14 @@
     "listView": "Daftar",
     "radarView": "Radar",
     "competition": "Kompetisi",
-    "confirmDelete": "Konfirmasi penghapusan"
+    "confirmDelete": "Konfirmasi penghapusan",
+    "firstPage": "Halaman pertama",
+    "previousPage": "Halaman sebelumnya",
+    "nextPage": "Halaman berikutnya",
+    "lastPage": "Halaman terakhir",
+    "sortBy": "Urutkan berdasarkan",
+    "sortAscending": "Naik",
+    "lineupLoading": "Skuad masih dimuat, jadi perubahan susunan pemain belum tersedia."
   },
   "teamSelection": {
     "title": "Pilih Klub",
@@ -672,21 +739,15 @@
     "coverageNeedsAttention": "{{count}} kelompok peran perlu pengisi",
     "coverageBadge": "XI {{starters}}/{{required}} · Cadangan {{bench}}",
     "bestRole": "Peran terbaik",
-    "formationFit": "Kecocokan formasi",
     "startingXi": "Starting XI",
-    "styleFit": "Kecocokan gaya",
+    "notMatchDayEligible": "Tidak tersedia untuk dipilih",
     "starter": "Starter",
     "benchOption": "Cadangan",
-    "naturalFit": "Kecocokan alami",
-    "adaptedFit": "Kecocokan adaptif",
+    "naturalFit": "Posisi alami",
+    "adaptedFit": "Bisa bermain di sana",
     "needsCover": "Perlu pengisi",
     "makeStarter": "Jadikan pemain utama",
     "sendToBench": "Kirim ke bangku cadangan",
-    "styleFitValues": {
-      "strong": "Kecocokan gaya: Kuat",
-      "good": "Kecocokan gaya: Baik",
-      "risky": "Kecocokan gaya: Berisiko"
-    },
     "noBench": "Tidak ada pemain cadangan.",
     "viewProfile": "Lihat profil",
     "swapPlayer": "Tukar pemain",
@@ -728,6 +789,10 @@
     "myTactics": "Taktik Saya",
     "newTactic": "Taktik Baru",
     "duplicateTactic": "Duplikat",
+    "deleteTactic": "Hapus",
+    "deleteTacticTitle": "Hapus taktik ini?",
+    "deleteTacticBody": "“{{name}}” akan dihapus dari pustaka. Tim tetap memakai formasi dan gaya bermain saat ini.",
+    "deleteTacticConfirm": "Hapus",
     "resetTactic": "Atur ulang ke default",
     "saveAsTactic": "Simpan sebagai taktik",
     "updateTactic": "Perbarui taktik",
@@ -738,6 +803,12 @@
     "unsavedChanges": "Perubahan belum disimpan",
     "currentPlanCard": "Rencana saat ini",
     "phaseBlueprint": "Cetak biru fase",
+    "instructionsPanel": {
+      "title": "Instruksi tim",
+      "show": "Tampilkan instruksi tim",
+      "hide": "Sembunyikan instruksi tim",
+      "openAt": "Tampilkan instruksi tim: {{section}}"
+    },
     "phaseLabels": {
       "withBall": "Dengan Bola",
       "withoutBall": "Tanpa Bola",
@@ -856,7 +927,7 @@
     "clearSelection": "Hapus pilihan",
     "compareWithSelected": "Bandingkan dengan yang dipilih",
     "selectForSwap": "Pilih untuk ditukar",
-    "assignBestFit": "Tetapkan ke slot paling cocok",
+    "assignBestFit": "Tetapkan posisi terbaik",
     "moveToBench": "Pindah ke bangku cadangan",
     "promoteToLineup": "Naikkan ke Starting XI",
     "makeCaptain": "Jadikan kapten",
@@ -885,11 +956,10 @@
     "positionSelector": "Slot taktis",
     "playablePositions": "Posisi",
     "slotFit": "Kecocokan slot",
-    "styleFit": "Kecocokan gaya",
     "responsibilities": "Tanggung jawab",
     "noSpecialRoles": "Tidak ada peran khusus",
-    "naturalFit": "Kecocokan alami",
-    "adaptedFit": "Peran adaptif",
+    "naturalFit": "Posisi alami",
+    "adaptedFit": "Bisa bermain di sana",
     "moraleLevels": {
       "superb": "Luar Biasa",
       "veryGood": "Sangat Baik",
@@ -903,11 +973,6 @@
       "sharp": "Prima",
       "managing": "Menjaga",
       "risk": "Berisiko"
-    },
-    "styleFitLevels": {
-      "strong": "Kecocokan kuat",
-      "good": "Kecocokan baik",
-      "risky": "Kecocokan berisiko"
     },
     "tokenStates": {
       "ready": "Siap",
@@ -1055,6 +1120,7 @@
     "youthSearches": "pencarian pemain muda",
     "hireStaff": "Rekrut staf",
     "best": "Terbaik",
+    "staffActions": "Tindakan staf untuk {{name}}",
     "roles": {
       "AssistantManager": "Asisten Manajer",
       "Coach": "Pelatih",
@@ -1091,6 +1157,8 @@
     "transferBudget": "Anggaran Transfer",
     "seasonIncome": "Pendapatan Musim",
     "seasonExpenses": "Pengeluaran Musim",
+    "moneyIn": "Uang masuk",
+    "moneyOut": "Uang keluar",
     "perWeekSuffix": "/mg",
     "snapshotLoadFailed": "Tidak dapat memuat keuangan klub.",
     "perYearSuffix": "/th",
@@ -1236,6 +1304,8 @@
     "boardSatisfied": "Manajemen puas dengan performa kamu.",
     "boardConcerns": "Manajemen memiliki kekhawatiran tentang hasil.",
     "boardThreat": "Posisi kamu berada di bawah ancaman serius.",
+    "boardWarned": "Manajemen telah memberimu peringatan.",
+    "boardFinalWarning": "Kamu sedang dalam peringatan terakhir.",
     "board": "Manajemen",
     "fans": "Suporter",
     "born": "Lahir",
@@ -1252,6 +1322,15 @@
     "employed": "Bekerja",
     "unemployed": "Menganggur",
     "reputation": "Reputasi",
+    "reputationBand": {
+      "world_class": "Kelas dunia",
+      "established": "Mapan",
+      "great": "Hebat",
+      "good": "Baik",
+      "average": "Cukup",
+      "below_average": "Di bawah rata-rata",
+      "unknown": "Tidak dikenal"
+    },
     "winRate": "Persentase Kemenangan",
     "matches": "Pertandingan",
     "currentClub": "Klub Saat Ini",
@@ -1430,6 +1509,9 @@
     "resumeNegotiationHint": "Negosiasi masih berlangsung dengan klub ini.",
     "resumeNegotiationHeadline": "Klub lain menunggu langkah kamu berikutnya.",
     "resumeNegotiationDetail": "Sinyal terakhir mereka mengarah ke {{fee}}.",
+    "resumeRefusedHeadline": "Mereka menolak tawaran terakhir kamu.",
+    "resumeRefusedDetail": "Tawaran baru melanjutkan negosiasi dari sini. Sinyal terakhir mereka mengarah ke {{fee}}.",
+    "talksResumeOn": "Negosiasi dapat dilanjutkan pada {{date}}.",
     "transferFeedbackAcceptedHeadline": "Klub lain siap untuk berbisnis.",
     "transferFeedbackAcceptedDetail": "Nomor kamu masuk dalam zona nyaman mereka, sehingga percakapan berjalan cepat.",
     "transferFeedbackScheduledHeadline": "Kesepakatan tercapai untuk jendela registrasi berikutnya.",
@@ -1516,6 +1598,7 @@
     "yourTeam": "Tim Kamu",
     "squad": "Skuad",
     "avgOvr": "Rata-rata OVR",
+    "manager": "Manajer",
     "rep": "Reputasi",
     "est": "Berdiri"
   },
@@ -1619,10 +1702,52 @@
     }
   },
   "playerProfile": {
+    "sections": "Bagian profil",
+    "overview": {
+      "axes": {
+        "pace": "KEC",
+        "shooting": "TEM",
+        "dribbling": "DRI",
+        "passing": "UMP",
+        "vision": "VIS",
+        "composure": "KET",
+        "strength": "KEK",
+        "aerial": "UDA",
+        "handling": "MEN",
+        "reflexes": "REF",
+        "agility": "KEL",
+        "stamina": "STA"
+      },
+      "now": "Sekarang",
+      "details": "Detail",
+      "previousMatches": "Pertandingan sebelumnya",
+      "allMatches": "Semua pertandingan",
+      "traits": "Sifat",
+      "born": "Lahir",
+      "squadRole": "Peran di skuad",
+      "squadSenior": "Tim utama",
+      "squadYouth": "Akademi",
+      "contractUntil": "hingga {{date}}",
+      "keyFor": "Kunci untuk posisi {{position}}",
+      "radarLabel": "Radar atribut: {{values}}",
+      "seasonExtras": "Disiplin dan clean sheet"
+    },
+    "overall": "Keseluruhan",
+    "ratingUnknown": "Klubmu tidak mengetahui peringkatnya",
+    "retired": "Pensiun",
+    "retiredOn": "Pensiun pada {{date}}",
+    "lastClub": "Klub terakhir: {{club}}",
+    "tabs": {
+      "overview": "Ikhtisar",
+      "attributes": "Atribut",
+      "career": "Karier",
+      "contract": "Kontrak"
+    },
     "contractInfo": "Kontrak & Info",
     "dateOfBirth": "Tanggal Lahir",
     "noContract": "Tanpa kontrak",
     "weeklyWage": "Gaji Mingguan",
+    "approximateWage": "sekitar {{wage}}",
     "annualWage": "Gaji Tahunan",
     "yearsRemaining": "Sisa Tahun",
     "contractRisk": "Risiko Kontrak",
@@ -1742,7 +1867,27 @@
     "renewalProjectionTitle": "Perkiraan dampak finansial",
     "renewalProjectionWageBill": "Beban gaji mingguan {{before}} → {{after}}",
     "renewalProjectionBudgetUsage": "Penggunaan anggaran gaji {{before}}% → {{after}}%",
-    "renewalProjectionRunway": "Jarak kas {{before}} → {{after}}"
+    "renewalProjectionRunway": "Jarak kas {{before}} → {{after}}",
+    "potentialOpinion": {
+      "scoutsOpinion": "Pendapat pemandu bakat",
+      "coachesOpinion": "Pendapat staf pelatih",
+      "bandS": "Bisa menjadi salah satu yang terbaik",
+      "bandA": "Bisa menjadi pemain inti",
+      "bandB": "Bisa menjadi pemain pelapis yang berguna",
+      "bandRest": "Kecil kemungkinan berkembang jauh lagi",
+      "range": "Potensi {{low}}–{{high}}",
+      "confident": "Yakin",
+      "fairlySure": "Cukup yakin",
+      "unsure": "Kurang yakin",
+      "guess": "Tebakan",
+      "byScout": "Diamati oleh {{scout}} pada {{date}}"
+    },
+    "positions": {
+      "title": "Posisi",
+      "wherePlayed": "tempat kamu memainkannya"
+    },
+    "loadFailed": "Gagal memuat",
+    "retryWage": "Coba muat gaji lagi"
   },
   "teamProfile": {
     "clubInfo": "Informasi Klub",
@@ -1815,9 +1960,11 @@
     "confirmAdvanceDesc": "Minta konfirmasi sebelum melanjutkan satu hari",
     "continueToNextEvent": "Lanjut Melompat ke Peristiwa Berikutnya",
     "continueToNextEventDesc": "Lanjut berjalan maju hingga pertandingan berikutnya, hambatan, batas tenggat transfer, atau berita penting",
+    "skipShootoutPicker": "Lewati Pemilih Urutan Penalti",
+    "skipShootoutPickerDesc": "Mulai adu penalti dengan urutan otomatis tanpa memintamu mengaturnya",
     "savesData": "Simpanan & Data",
     "autoSave": "Simpan Otomatis",
-    "autoSaveDesc": "Simpan permainan secara otomatis setelah setiap hari",
+    "autoSaveDesc": "Simpan permainan secara otomatis setiap minggu",
     "exportWorld": "Ekspor Database Dunia",
     "exportWorldDesc": "Simpan data dunia saat ini sebagai file JSON yang dapat dibagikan",
     "export": "Ekspor",
@@ -1842,6 +1989,21 @@
     },
     "uiScale": "Skala UI",
     "uiScaleDesc": "Sesuaikan ukuran huruf dan jarak agar mudah dibaca",
+    "sidebarWidth": "Lebar bilah sisi",
+    "sidebarWidthDesc": "Seberapa lebar bilah sisi saat terbuka. “Lebar” menampilkan setiap nama menu dalam satu baris.",
+    "sidebarWidthOptions": {
+      "compact": "Ringkas",
+      "standard": "Standar",
+      "wide": "Lebar"
+    },
+    "sidebarBehaviour": "Bilah sisi",
+    "sidebarBehaviourDesc": "Cara bilah sisi terbuka. Jika jendela terlalu sempit, bilah sisi terbuka di atas halaman.",
+    "sidebarBehaviourOptions": {
+      "normal": "Normal",
+      "hover": "Buka saat diarahkan",
+      "click": "Buka dengan klik",
+      "icons": "Hanya ikon"
+    },
     "uiScaleOptions": {
       "small": "Kecil",
       "normal": "Normal",
@@ -1960,6 +2122,7 @@
     "step1Min": "Langkah 1 Menit",
     "teamControls": "Kontrol Tim",
     "subs": "Pergantian",
+    "subsClosed": "Pergantian pemain ditutup setelah perpanjangan waktu",
     "formation": "Formasi",
     "playStyle": "Gaya Bermain",
     "keyEvents": "Peristiwa Penting",
@@ -2002,7 +2165,6 @@
     "alreadyQueued": "Sudah masuk antrean pergantian",
     "substitutionsPartlyMade": "{{applied}} dari {{total}} pergantian dilakukan",
     "substitutionRefused": "Pergantian ditolak: {{off}} diganti {{on}}. {{reason}}",
-    "playerRoles": "Peran pemain",
     "roleFor": "Peran {{player}}",
     "roleChangeRefused": "Peran {{player}} tidak dapat diubah. {{reason}}",
     "noBenchAvailable": "Tidak ada pemain cadangan tersedia",
@@ -2048,7 +2210,47 @@
       "suddenDeath": "Sudden Death",
       "shootoutScore": "Penalti: {{h}} – {{a}}",
       "homeKick": "Tendangan tim kandang menyusul...",
-      "awayKick": "Tendangan tim tandang menyusul..."
+      "awayKick": "Tendangan tim tandang menyusul...",
+      "kickScored": "Tendangan {{n}}, gol",
+      "kickMissed": "Tendangan {{n}}, gagal",
+      "kickToCome": "Tendangan {{n}}, belum diambil",
+      "kickSheet": "Lembar adu penalti",
+      "kickColumn": "Tendangan",
+      "sheetCaption": "Setiap ronde adu penalti: siapa yang menendang dan hasilnya",
+      "scored": "Gol",
+      "missed": "Gagal",
+      "toCome": "Belum",
+      "notTaken": "Tidak diambil",
+      "afterExtraTime": "{{home}} – {{away}} setelah perpanjangan waktu",
+      "kickAnnounceScored": "Tendangan {{n}}, {{team}}: {{kicker}} mencetak gol.",
+      "kickAnnounceMissed": "Tendangan {{n}}, {{team}}: {{kicker}} gagal.",
+      "stepFailed": "Adu penalti tidak dapat dilanjutkan. Coba lagi.",
+      "nextKick": "Tendangan berikutnya",
+      "orderHeading": "Urutan penaltimu",
+      "orderStep": "Langkah 1 dari 2",
+      "orderHint": "Eksekutor penaltimu menendang pertama, lalu penembak terbaik, dengan kiper terakhir. Seret pemain, atau angkat dengan Spasi atau Enter lalu pindahkan dengan tombol panah.",
+      "useAutoOrder": "Pakai urutan otomatis",
+      "startShootout": "Mulai adu penalti",
+      "penTaker": "Eksekutor",
+      "moving": "Dipindah",
+      "sitsOut": "Tidak menendang",
+      "sitsOutNote": "Kedua tim memakai {{k}} penendang",
+      "sitsOutLine": "Tidak menendang di bawah garis ini: {{n}}. Kedua tim memakai {{k}} penendang.",
+      "moveKicker": "Pindahkan {{name}}, tendangan {{n}} dari {{k}}",
+      "moveSitter": "Pindahkan {{name}}, tidak menendang",
+      "liftedKick": "{{name}}, tendangan {{n}} dari {{k}}. Panah untuk memindah, Spasi untuk meletakkan, Escape untuk mengembalikan.",
+      "liftedSitsOut": "{{name}}, tidak menendang. Panah untuk memindah, Spasi untuk meletakkan, Escape untuk mengembalikan.",
+      "movedKick": "{{name}}, tendangan {{n}} dari {{k}}",
+      "movedSitsOut": "{{name}} tidak menendang",
+      "droppedKick": "{{name}} diletakkan di tendangan {{n}} dari {{k}}.",
+      "droppedSitsOut": "{{name}} diletakkan: tidak menendang.",
+      "putBackKick": "{{name}} dikembalikan ke tendangan {{n}} dari {{k}}.",
+      "putBackSitsOut": "{{name}} dikembalikan: tidak menendang.",
+      "autoOrderRestored": "Kembali ke urutan otomatis.",
+      "columnShooting": "Tmb.",
+      "columnComposure": "Ten.",
+      "opponentOrderHidden": "Urutan {{team}} tetap tersembunyi sampai setiap pemainnya maju ke titik penalti.",
+      "orderFailed": "Urutanmu tidak dapat diatur. Coba lagi."
     },
     "fullTime": "Waktu Penuh",
     "ft": "FT",
@@ -2107,6 +2309,7 @@
     "roundSummaryUnavailable": "Ringkasan pekan tidak tersedia.",
     "otherMatches": "Pertandingan Lain",
     "otherMatchesToday": "Pertandingan Lain Hari Ini",
+    "elsewhereInYourLeague": "Di tempat lain di liga kamu",
     "otherMatchesUnavailable": "Konteks pertandingan lain belum tersedia untuk laga ini.",
     "viewDetails": "Lihat detail",
     "matchDetails": "Detail Pertandingan",
@@ -2295,7 +2498,7 @@
     "preMatchPrep": "Persiapan Sebelum Pertandingan",
     "startingLineup": "Susunan Awal",
     "setPiecesCaptain": "Bola Mati & Kapten",
-    "formationFit": "Kecocokan Formasi",
+    "formationFit": "Formasi",
     "selecting": "Memilih...",
     "autoSelectXI": "Pilih Otomatis XI Terbaik",
     "startingXI": "Starting XI",
@@ -2592,7 +2795,11 @@
     "pts": "poin",
     "cupPenalties": "({{home}}–{{away}} lewat adu penalti)",
     "cupAdvances": "{{team}} lolos ke babak berikutnya",
-    "cupTiesPending": "Beberapa pertandingan masih akan dimainkan"
+    "cupTiesPending": "Beberapa pertandingan masih akan dimainkan",
+    "resume": "Lanjutkan",
+    "pausedResumesAt": "Dijeda · lanjut dengan {{speed}}",
+    "playingAt": "Berjalan dengan {{speed}}",
+    "spaceKey": "Spasi"
   },
   "endOfSeason": {
     "seasonComplete": "Musim Selesai",
@@ -2633,12 +2840,23 @@
     "compare": "Bandingkan"
   },
   "be": {
+    "condition": {
+      "fresh": "Bugar",
+      "tiring": "Mulai lelah",
+      "exhausted": "Kelelahan",
+      "critical": "Kritis"
+    },
     "error": {
+      "taskJoinFailed": "Simulasi berhenti secara tak terduga. Muat simpanan terakhirmu dan coba lagi.",
+      "autoSave": {
+        "failed": "Simpan otomatis tidak bisa menyimpan permainanmu. Kemajuanmu sejak penyimpanan terakhir belum tersimpan: simpan sendiri, dan periksa apakah disk masih punya ruang kosong."
+      },
       "squadFloor": {
         "wouldLeaveShort": "Pemain ini tidak bisa pergi: skuad akan turun di bawah batas minimum yang harus dipertahankan klub. Lini terdampak: {{group}}.",
         "wouldLeaveSeniorsShort": "Pemain ini tidak bisa pergi: klub akan tinggal memiliki kurang dari {{floor}} pemain di tim utama, batas minimum yang harus dipertahankan klub."
       },
       "noActiveGameSession": "Tidak ada sesi permainan yang aktif",
+      "careerChanged": "Karier berubah sebelum ini sempat disimpan.",
       "noActiveSaveSession": "Tidak ada sesi penyimpanan yang aktif",
       "saveNotFound": "Penyimpanan '{{saveId}}' tidak ditemukan.",
       "saveManagerUnavailable": "Data penyimpanan untuk sementara tidak tersedia.",
@@ -2710,6 +2928,11 @@
         "maxSubstitutionsReached": "Pergantian pemain maksimum tercapai",
         "preMatchSwapTooLate": "Pergantian pra-pertandingan hanya diizinkan sebelum kick-off",
         "cannotSubstituteSentOffPlayer": "Tidak dapat mengganti pemain yang dikeluarkan",
+        "noSubstitutionsForShootout": "Tidak ada pergantian pemain setelah babak tambahan selesai: adu penalti diambil oleh pemain yang ada di lapangan saat peluit akhir.",
+        "shootoutOrderNotNow": "Urutan penendang hanya bisa diatur setelah babak tambahan, sebelum tendangan pertama.",
+        "shootoutOrderNotYourSide": "Kamu hanya bisa mengatur urutan penendang timmu sendiri.",
+        "notYourSide": "Kamu hanya bisa memberi instruksi kepada timmu sendiri.",
+        "shootoutOrderNotEligible": "Urutan penendang harus memuat setiap pemainmu yang berhak menendang tepat satu kali.",
         "playerNotOnPitch": "Pemain tidak berada di lapangan",
         "playerAlreadySubstitutedOff": "Pemain sudah diganti",
         "playerNotOnBench": "Pemain tidak berada di bangku cadangan",
@@ -2728,6 +2951,7 @@
         "missingSchema": "Berkas paket kekurangan bidang \"schema\".",
         "worldExportNotPackage": "Folder ini adalah dunia yang diekspor, bukan proyek paket. Dunia yang diekspor menggunakan format berbeda dan tidak dapat diedit di sini.",
         "notAProjectDirectory": "Ini bukan folder proyek paket. Pilih folder yang berisi package.json paket tersebut — atau, untuk paket .ofm yang terpasang, gunakan \"Buka File .ofm\".",
+        "saveWouldDropItem": "Tidak disimpan: {{file}} berisi entri yang tidak bisa dibaca maupun dipertahankan editor dalam JSON. Perbaiki entri itu di berkas, lalu simpan lagi.",
         "unknownSchema": "Skema \"{{schema}}\" tidak dikenal.",
         "invalidEntity": "Entri \"{{schema}}\" tidak valid: {{detail}}",
         "duplicateWorld": "Paket sudah memiliki manifes di \"{{first}}\"; sebuah paket hanya boleh memiliki satu berkas \"world\".",
@@ -2776,6 +3000,8 @@
       },
       "competitionDef": {
         "invalidCalendar": "Kalender kompetisi tidak valid: periksa kelompok divisi, tingkat, fase, dan tanggal penutupan.",
+        "invalidSeasonMonth": "Bulan mulai musim {{month}} tidak valid (harus 1–12).",
+        "invalidSeasonDay": "Hari mulai musim {{day}} bukan hari yang valid pada bulan mulai.",
         "invalidEmbedded": "Definisi kompetisi dunia ini tidak valid dan tidak dapat dimuat.",
         "invalidStandalone": "Berkas definisi kompetisi yang dipilih tidak valid.",
         "parseFailed": "Berkas definisi kompetisi tidak dapat dibaca sebagai JSON.",
@@ -2799,6 +3025,7 @@
         "bothParticipantSources": "Berikan daftar eksplisit atau pemilih, tidak keduanya.",
         "tooFewParticipants": "Setidaknya dua peserta diperlukan.",
         "unknownTeam": "Tim \"{{team}}\" tidak dikenal.",
+        "duplicateTeam": "Tim \"{{team}}\" tercantum lebih dari sekali.",
         "selectorMissingCountry": "Pemilih ini membutuhkan negara.",
         "selectorCountTooSmall": "Pemilih ini membutuhkan jumlah minimal 2.",
         "selectorMissingRegion": "Pemilih ini membutuhkan wilayah.",
@@ -2871,6 +3098,7 @@
         "cannotBidOnOwnPlayer": "Tidak dapat menawar pemain sendiri",
         "playerHasNoTeam": "Pemain tidak memiliki tim",
         "insufficientFunds": "Dana tidak mencukupi",
+        "buyerCannotAffordFee": "Klub pembeli tidak lagi sanggup membayar biaya ini, jadi transfer tidak bisa terjadi.",
         "transferBudgetTooLow": "Anggaran transfer terlalu rendah",
         "playerNotOwnedByUser": "Pemain tidak ditemukan atau bukan milik kamu",
         "offerNotPending": "Tawaran tidak ditemukan atau tidak tertunda",
@@ -2880,6 +3108,7 @@
         "loanCounterMustImproveTerms": "Tawaran balasan pinjaman harus memperbaiki tawaran saat ini",
         "playerNotLoanListed": "Pemain tidak terdaftar untuk dipinjamkan",
         "playerAlreadyLoaned": "Pemain sudah dipinjamkan",
+        "playerAlreadySold": "Pemain ini sudah dijual. Transfer akan terjadi saat jendela transfer dibuka.",
         "invalidLoanEndDate": "Tanggal akhir pinjaman harus antara 30 hari dan satu tahun dari hari ini",
         "invalidLoanWageContribution": "Kontribusi gaji pinjaman harus antara 0% dan 100%",
         "invalidLoanBuyOption": "Opsi pembelian pinjaman harus lebih besar dari nol",
@@ -2917,7 +3146,11 @@
         "invalidFormation": "Formasi itu tidak dikenal permainan.",
         "invalidPlayStyle": "Gaya bermain itu tidak dikenal permainan.",
         "notFound": "Taktik itu sudah tidak ada."
-      }
+      },
+      "anotherClubsSquad": "Skuad itu milik klub lain.",
+      "startingXiPlayerNotEligible": "Salah satu pemain dalam susunan ini tidak dapat menjadi starter untuk klubmu.",
+      "startingXiDuplicatePlayer": "Seorang pemain muncul dua kali dalam susunan ini.",
+      "startingXiWrongSize": "Starting eleven harus berisi tepat sebelas pemain, atau semua pemain yang memenuhi syarat jika klub memiliki lebih sedikit."
     },
     "sender": {
       "boardOfDirectors": "Dewan Direksi",
@@ -3395,6 +3628,7 @@
         },
         "notes": {
           "managerBlocked": "Kamu meminta saya untuk belum membuka kembali pembicaraan kontrak.",
+          "markedLetExpire": "Kamu menandai kontrak ini untuk dibiarkan habis, jadi saya tidak membuka pembicaraan.",
           "completed": "Saya berhasil menyelesaikan yang satu ini tanpa perlu kamu turun tangan.",
           "completedToKeepSquadFloor": "Beres, melampaui kebijakan gaji manajemen. Manajemen mengizinkannya karena tanpa pemain ini kita akan turun di bawah skuad minimum.",
           "beyondLimits": "Mereka menginginkan sekitar {{wage}}/minggu untuk {{years}} tahun, yang melebihi batas pendelegasian.",
@@ -3436,6 +3670,12 @@
       "scoutReport": {
         "subject": "Laporan Scout: {{player}}",
         "body": "Scout kamu {{scout}} telah menyelesaikan penilaiannya terhadap {{player}}. Laporan lengkap tersedia di bagian scouting."
+      },
+      "scoutingCancelled": {
+        "subject": "Tugas scout dibatalkan",
+        "body": "Scout yang kamu kirim untuk memantau {{player}} sudah meninggalkan klub, jadi tidak akan ada laporan. Kirim scout lain jika kamu masih membutuhkannya.",
+        "bodyWithoutPlayer": "Scout yang kamu kirim untuk memantau seorang pemain sudah meninggalkan klub, dan pemain itu tidak lagi tercatat, jadi tidak akan ada laporan.",
+        "youthBody": "Scout yang kamu kirim untuk mencari pemain muda sudah meninggalkan klub, jadi pencarian dibatalkan. Mulai pencarian baru dengan scout lain jika kamu masih membutuhkannya."
       },
       "boardWarning": {
         "subject": "Kekhawatiran Manajemen — Tinjauan Performa",
@@ -3500,6 +3740,15 @@
         "bodyWithOption": "{{player}} akan dipinjamkan dari {{parent}} ke {{borrower}} mulai {{start}} hingga {{end}}. {{borrower}} akan menanggung {{contribution}}% gaji. Opsi pembelian: {{fee}}.",
         "bodyNoOption": "{{player}} akan dipinjamkan dari {{parent}} ke {{borrower}} mulai {{start}} hingga {{end}}. {{borrower}} akan menanggung {{contribution}}% gaji. Tanpa opsi pembelian."
       },
+      "loanRegistrationFailed": {
+        "subject": "Peminjaman dibatalkan: {{player}}",
+        "body": "Peminjaman {{player}} yang disepakati dari {{parent}} ke {{borrower}}, yang dijadwalkan mulai {{start}}, tidak bisa berjalan: pemain itu tidak lagi terikat kontrak dengan {{parent}}.",
+        "bodyRequirementNotMet": "Peminjaman {{player}} yang disepakati dari {{parent}} ke {{borrower}} tidak bisa dimulai pada {{start}}: salah satu syarat kesepakatannya, seperti ruang dalam anggaran gaji {{borrower}} atau masa kontrak pemain, tidak lagi terpenuhi."
+      },
+      "talksClosedBySale": {
+        "subject": "Direkrut klub lain: {{player}}",
+        "body": "{{buyer}} telah merekrut {{player}} seharga {{fee}}. Negosiasi terbukamu untuknya telah ditarik."
+      },
       "loanOffer": {
         "subject": "Tawaran Pinjaman untuk {{player}}",
         "body": "{{team}} ingin meminjam {{player}} hingga {{endDate}} dan menanggung {{wageContribution}}% dari gaji. Opsi pembelian: {{buyOption}}. Tinjau tawaran di tab Transfer.",
@@ -3524,6 +3773,10 @@
       "matchesMoved": {
         "subject": "Jadwal pertandingan diubah",
         "body": "Beberapa pertandingan kamu dipindahkan agar para pemain kamu tetap mendapat waktu istirahat dan jeda internasional dihormati:\n{{matches}}"
+      },
+      "savedDataSetAside": {
+        "subject": "Sebagian data simpanan disisihkan",
+        "body": "Sebagian dari simpanan ini tidak dapat dibaca saat dimuat. Bagian itu disisihkan, bukan hilang, dan kariermu tetap berlanjut. Jika ada yang terasa hilang, laporan bug ({{settings}} → {{reportBug}}, dengan simpanan terlampir) membantu kami memeriksanya."
       }
     },
     "news": {
@@ -3560,6 +3813,10 @@
         "reportPreseason": {
           "title": "{{home}} {{homeGoals}} - {{awayGoals}} {{away}}: Laporan Turnamen Pramusim",
           "body": "Dalam laga turnamen pramusim, {{home}} {{homeGoals}} - {{awayGoals}} {{away}}. Kedua tim menggunakan laga ini untuk mengasah ketajaman sebelum musim kompetitif dimulai.{{scorersSection}}"
+        },
+        "reportCompetition": {
+          "title": "{{home}} {{homeGoals}} - {{awayGoals}} {{away}}: Laporan Pertandingan ({{competition}})",
+          "body": "{{competition}}: pertandingan berakhir {{home}} {{homeGoals}} - {{awayGoals}} {{away}}.{{scorersSection}}"
         }
       },
       "roundup": {
@@ -3633,7 +3890,9 @@
       "weeklyDigest": {
         "headline": "Ringkasan Mingguan — Pekan {{weekStart}}",
         "bodyNoTopScorer": "Ringkasan mingguan terbaru telah hadir. {{leader}} memimpin klasemen, dan {{storylineCount}} alur cerita mewarnai divisi ini pekan ini.",
-        "bodyWithTopScorer": "Ringkasan mingguan terbaru telah hadir. {{leader}} memimpin klasemen, sementara {{topScorer}} memuncaki daftar pencetak gol dengan {{topScorerGoals}} gol. {{storylineCount}} alur cerita mewarnai divisi ini pekan ini."
+        "bodyWithTopScorer": "Ringkasan mingguan terbaru telah hadir. {{leader}} memimpin klasemen, sementara {{topScorer}} memuncaki daftar pencetak gol dengan {{topScorerGoals}} gol. {{storylineCount}} alur cerita mewarnai divisi ini pekan ini.",
+        "bodyNoTopScorerNoStorylines": "Ringkasan mingguan terbaru telah hadir. {{leader}} memimpin klasemen.",
+        "bodyWithTopScorerNoStorylines": "Ringkasan mingguan terbaru telah hadir. {{leader}} memimpin klasemen, sementara {{topScorer}} memuncaki daftar pencetak gol dengan {{topScorerGoals}} gol."
       },
       "preseasonDigest": {
         "headline": "Ringkasan Pramusim — Pekan {{weekStart}}",
@@ -3700,7 +3959,8 @@
       "package": {
         "countryWithoutRegion": "Paket ini mendefinisikan negara \"{{name}}\" ({{code}}) di luar daftar negara permainan dan tidak menempatkannya di konfederasi mana pun, sehingga klubnya dikelompokkan di Eropa. Berikan konfederasi untuknya.",
         "freeAgentFieldIgnored": "Pemain \"{{id}}\" tidak punya klub, sehingga menjadi pemain bebas tanpa kontrak: \"{{field}}\" diabaikan. Berikan klub untuknya agar dipakai, atau hapus kolom itu.",
-        "repeatedNamePool": "Kumpulan nama untuk {{country}} sudah diberikan di {{first}}; kumpulan di berkas ini menggantikannya. Simpan salah satu saja, atau berikan ke negara yang berbeda."
+        "repeatedNamePool": "Kumpulan nama untuk {{country}} sudah diberikan di {{first}}; kumpulan di berkas ini menggantikannya. Simpan salah satu saja, atau berikan ke negara yang berbeda.",
+        "namePoolIncomplete": "Kumpulan nama untuk {{country}} punya nama depan tetapi tanpa nama keluarga, atau sebaliknya, sehingga tidak dipakai: pemain dari {{country}} mendapat nama bawaan game. Isi keduanya."
       }
     }
   },
@@ -3922,6 +4182,12 @@
     "winRate": "Persentase kemenangan"
   },
   "worldEditor": {
+    "previewPlaceholder": {
+      "team": "Tim baru",
+      "player": "Pemain baru",
+      "competition": "Kompetisi baru"
+    },
+    "estimatedRating": "perk.",
     "positionGroupFilter": {
       "Goalkeeper": "Semua penjaga gawang",
       "Defender": "Semua bek",

@@ -2,8 +2,10 @@ import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import type { GameStateData } from "../store/gameStore";
 import NextMatchDisplay from "./NextMatchDisplay";
+import { createSeasonContext } from "../test-utils/factories";
 
 vi.mock("react-i18next", () => ({
+  initReactI18next: { type: "3rdParty", init: () => undefined },
   useTranslation: () => ({
     t: (key: string) => (key === "tournaments.competitions.nationalCup" ? "Copa Nacional" : key),
   }),
@@ -11,6 +13,7 @@ vi.mock("react-i18next", () => ({
 
 function createGameState(): GameStateData {
   return {
+    season_context: createSeasonContext(),
     clock: {
       current_date: "2026-07-10T12:00:00Z",
       start_date: "2026-07-01T12:00:00Z",
@@ -101,6 +104,8 @@ function createGameState(): GameStateData {
       standings: [],
       fixtures: [
         {
+          competitive: false,
+          advancing_team_id: null,
           id: "friendly-1",
           matchday: 0,
           date: "2026-07-17",
@@ -161,6 +166,8 @@ function completedTwoClubLeague(): GameStateData {
       },
     ],
     fixtures: [1, 2].map((matchday) => ({
+      competitive: true,
+      advancing_team_id: null,
       id: `league-${matchday}`,
       matchday,
       date: `2026-08-0${matchday}`,

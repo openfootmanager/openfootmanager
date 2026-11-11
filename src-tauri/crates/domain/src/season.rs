@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
+use ts_rs::TS;
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default, TS)]
 pub enum SeasonPhase {
     #[default]
     Preseason,
@@ -8,7 +9,7 @@ pub enum SeasonPhase {
     PostSeason,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default, TS)]
 pub enum TransferWindowStatus {
     #[default]
     Closed,
@@ -16,7 +17,7 @@ pub enum TransferWindowStatus {
     DeadlineDay,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default, TS)]
 #[serde(default)]
 pub struct TransferWindowContext {
     pub status: TransferWindowStatus,
@@ -26,7 +27,7 @@ pub struct TransferWindowContext {
     pub days_remaining: Option<i64>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default, TS)]
 #[serde(default)]
 pub struct SeasonContext {
     pub phase: SeasonPhase,

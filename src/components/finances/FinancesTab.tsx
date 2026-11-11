@@ -1,19 +1,20 @@
 import { useEffect, useState } from "react";
-import { invoke } from "@tauri-apps/api/core";
 import { FinanceCashFlowChart } from "./FinanceCashFlowChart";
+import { useContractRiskLevels } from "../../hooks/useContractWarningStages";
 import type { GameStateData, PlayerSelectionOptions, TeamData } from "../../store/gameStore";
 import { Card, CardHeader, CardBody, Badge, ProgressBar, Button, Checkbox } from "../ui";
 import {
+  contractExpiryLabel,
   formatExactMoney,
   formatVal,
   formatWeeklyAmount,
   formatWeeklyWage,
   getContractRiskBadgeVariant,
-  getContractRiskLevel,
   getContractYearsRemaining,
 } from "../../lib/helpers";
 import { weeklyWageAmount } from "../../lib/finance";
 import { getFinanceSnapshot, type FinanceSnapshotData } from "../../services/financeService";
+import { invokeForCareer } from "../../services/careerInvoke";
 import { useTranslation } from "react-i18next";
 import { resolveBackendError, resolveMessage } from "../../utils/backendI18n";
 import {
@@ -165,7 +166,7 @@ function FinancesTabLoaded({
   onGameUpdate,
   onSelectPlayer,
 }: FinancesTabLoadedProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [delegatedRenewalsSummary, setDelegatedRenewalsSummary] = useState<string | null>(null);
   // What the manager has switched off, not what is switched on: everyone at risk is selected until
@@ -249,9 +250,10 @@ function FinancesTabLoaded({
         days: recoveryPreviews.marketingCampaign.cooldownDays,
       })
     : null;
+  const contractRiskLevel = useContractRiskLevels(roster, gameState.clock.current_date);
   const contractRiskPlayers = roster
     .map((player) => {
-      const riskLevel = getContractRiskLevel(player.contract_end, gameState.clock.current_date);
+      const riskLevel = contractRiskLevel(player.id);
 
       return {
         player,
@@ -291,7 +293,7 @@ function FinancesTabLoaded({
     setFacilityUpgradeError(null);
     setActionLoading(facility);
     try {
-      const updated = await invoke<GameStateData>("upgrade_facility", {
+      const updated = await invokeForCareer<GameStateData>("upgrade_facility", {
         facility,
       });
       onGameUpdate?.(updated);
@@ -312,7 +314,7 @@ function FinancesTabLoaded({
     setActionLoading(loadingKey);
 
     try {
-      const response = await invoke<BoardSupportResponseData>("request_board_support");
+      const response = await invokeForCareer<BoardSupportResponseData>("request_board_support");
       onGameUpdate?.(response.game);
       setBoardSupportFeedback({
         tone: "success",
@@ -339,7 +341,7 @@ function FinancesTabLoaded({
     setActionLoading(loadingKey);
 
     try {
-      const response = await invoke<SponsorPitchResponseData>("request_sponsor_pitch");
+      const response = await invokeForCareer<SponsorPitchResponseData>("request_sponsor_pitch");
       onGameUpdate?.(response.game);
       setSponsorPitchFeedback({
         tone: "success",
@@ -366,7 +368,9 @@ function FinancesTabLoaded({
     setActionLoading(loadingKey);
 
     try {
-      const response = await invoke<MarketingCampaignResponseData>("request_marketing_campaign");
+      const response = await invokeForCareer<MarketingCampaignResponseData>(
+        "request_marketing_campaign",
+      );
       onGameUpdate?.(response.game);
       setMarketingCampaignFeedback({
         tone: "success",
@@ -398,7 +402,7 @@ function FinancesTabLoaded({
     setDelegatedRenewalsSummary(null);
 
     try {
-      const result = await invoke<DelegatedRenewalResponseData>("delegate_renewals", {
+      const result = await invokeForCareer<DelegatedRenewalResponseData>("delegate_renewals", {
         playerIds: selectedRiskPlayers.map(({ player }) => player.id),
         maxWageIncreasePct: 35,
         maxContractYears: 3,
@@ -426,7 +430,7 @@ function FinancesTabLoaded({
     const loadingKey = `sponsor:${messageId}:${optionId}`;
     setActionLoading(loadingKey);
     try {
-      const result = await invoke<ResolveMessageActionResult>("resolve_message_action", {
+      const result = await invokeForCareer<ResolveMessageActionResult>("resolve_message_action", {
         messageId,
         actionId,
         optionId,
@@ -569,12 +573,14 @@ function FinancesTabLoaded({
               </p>
             </div>
           </div>
-          {(myTeam.financial_ledger?.length ?? 0) > 0 && (
+          {financeSnapshot.cashFlow.length > 0 && (
             <div className="mt-4">
               <FinanceCashFlowChart
-                ledger={myTeam.financial_ledger ?? []}
-                incomeLabel={t("finances.seasonIncome")}
-                expensesLabel={t("finances.seasonExpenses")}
+                weeks={financeSnapshot.cashFlow}
+                // The weeks hold every movement, transfer and loan fees included, which the season
+                // figures beside them leave out: so the series are money in and out, not the season's.
+                incomeLabel={t("finances.moneyIn")}
+                expensesLabel={t("finances.moneyOut")}
               />
             </div>
           )}
@@ -697,9 +703,9 @@ function FinancesTabLoaded({
                             {player.full_name}
                           </p>
                           <p className="text-xs text-gray-600 dark:text-gray-400">
-                            {t("finances.contractExpiresOn", {
-                              date: player.contract_end,
-                            })}
+                            {player.contract_end
+                              ? contractExpiryLabel(player.contract_end, i18n.language, t)
+                              : null}
                           </p>
                           <p className="text-xs text-gray-600 dark:text-gray-400">
                             {t("playerProfile.yearsRemaining")}:{" "}

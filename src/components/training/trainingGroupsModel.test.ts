@@ -7,6 +7,7 @@ import {
   reassignPlayerTrainingGroup,
   sortTrainingRoster,
 } from "./trainingGroupsModel";
+import { cannedPositionTable } from "../../test-utils/positionTable";
 
 function createPlayer(overrides: Partial<PlayerData> = {}): PlayerData {
   return {
@@ -128,7 +129,7 @@ describe("trainingGroupsModel", () => {
       }),
     ];
 
-    expect(sortTrainingRoster(roster).map((player) => player.id)).toEqual([
+    expect(sortTrainingRoster(roster, cannedPositionTable()).map((player) => player.id)).toEqual([
       "gk",
       "def",
       "mid",
@@ -162,7 +163,7 @@ describe("trainingGroupsModel", () => {
       }),
     ];
 
-    expect(sortTrainingRoster(roster).map((player) => player.id)).toEqual([
+    expect(sortTrainingRoster(roster, cannedPositionTable()).map((player) => player.id)).toEqual([
       "keeper",
       "centre-back",
       "striker",

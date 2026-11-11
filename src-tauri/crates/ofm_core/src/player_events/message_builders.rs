@@ -294,7 +294,7 @@ pub(crate) fn takeover_contract_review_message(
 
 #[cfg(test)]
 mod tests {
-    use super::{low_morale_message, takeover_contract_review_message};
+    use super::{contract_concern_message, low_morale_message, takeover_contract_review_message};
     use domain::message::ActionType;
 
     #[test]
@@ -389,6 +389,24 @@ mod tests {
         assert_eq!(
             final_month.body_key.as_deref(),
             Some("be.msg.takeoverContractReview.bodyFinalMonth")
+        );
+    }
+
+    /// Given contracts 150 and 45 days from ending
+    /// When the contract concern message is written
+    /// Then it says 5 and 2 months: the months left, rounded up
+    #[test]
+    fn contract_concern_message_states_the_months_left_rounded_up() {
+        let months = |days| {
+            contract_concern_message("concern", "p", "P", days, "2026-07-01")
+                .i18n_params
+                .get("months")
+                .cloned()
+        };
+
+        assert_eq!(
+            (months(150), months(45)),
+            (Some("5".to_string()), Some("2".to_string()))
         );
     }
 }

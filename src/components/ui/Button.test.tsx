@@ -47,17 +47,17 @@ describe("Button", () => {
 
   it("applies md size by default", () => {
     render(<Button>Med</Button>);
-    expect(screen.getByRole("button").className).toContain("text-sm");
+    expect(screen.getByRole("button").className).toContain("text-body");
   });
 
   it("applies sm size", () => {
     render(<Button size="sm">Small</Button>);
-    expect(screen.getByRole("button").className).toContain("text-xs");
+    expect(screen.getByRole("button").className).toContain("text-caption");
   });
 
   it("applies lg size", () => {
     render(<Button size="lg">Large</Button>);
-    expect(screen.getByRole("button").className).toContain("text-base");
+    expect(screen.getByRole("button").className).toContain("text-lead");
   });
 
   it("renders icon on the left when provided", () => {

@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { useTranslation } from "react-i18next";
 
 import type { GameStateData, PlayerData } from "../../store/gameStore";
 import { resolveTranslatedErrorMessage } from "../../utils/errorMessage";
@@ -41,10 +40,20 @@ export function useContractActionsFlow({
   player,
   onGameUpdate,
 }: UseContractActionsFlowArgs): UseContractActionsFlowResult {
-  const { t } = useTranslation();
-
   const [contractActionSubmitting, setContractActionSubmitting] = useState(false);
-  const [contractActionError, setContractActionError] = useState<string | null>(null);
+  // The error belongs to the player the action failed for. The page reuses this instance when
+  // another player is opened, so it is cleared on every change of player, and a failure that
+  // arrives later (its closure holds the old player) is tagged with that player and not shown for
+  // this one.
+  const [failure, setFailure] = useState<{ playerId: string; message: string } | null>(null);
+  const [shownPlayerId, setShownPlayerId] = useState(player.id);
+  if (shownPlayerId !== player.id) {
+    setShownPlayerId(player.id);
+    setFailure(null);
+  }
+  const contractActionError = failure?.playerId === player.id ? failure.message : null;
+  const setContractActionError = (message: string | null) =>
+    setFailure(message === null ? null : { playerId: player.id, message });
   const [terminationPreview, setTerminationPreview] =
     useState<ContractTerminationPreviewData | null>(null);
   const [showTerminationModal, setShowTerminationModal] = useState(false);
@@ -64,7 +73,7 @@ export function useContractActionsFlow({
     try {
       await action();
     } catch (error) {
-      setContractActionError(resolveTranslatedErrorMessage(error, t));
+      setContractActionError(resolveTranslatedErrorMessage(error));
     } finally {
       setContractActionSubmitting(false);
     }

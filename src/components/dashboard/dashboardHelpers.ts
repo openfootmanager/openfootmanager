@@ -1,3 +1,5 @@
+import type { SquadFitness } from "../../services/squadService";
+import type { PositionTable } from "../../lib/positionTable";
 import type { FixtureData, GameStateData, PlayerData, TeamData } from "../../store/gameStore";
 import { formatVal } from "../../lib/helpers";
 import { competitionDisplayName } from "../../lib/competitionName";
@@ -111,14 +113,18 @@ export function getDashboardSearchResults(
 
 export function getDashboardAlerts(
   gameState: GameStateData,
+  positionTable: PositionTable,
   hasMatchToday: boolean,
   t: DashboardAlertTranslator,
   financeSnapshot?: DashboardFinanceVerdict | null,
+  fitness?: SquadFitness | null,
 ): DashboardAlert[] {
   const alerts: DashboardAlert[] = [];
   const myTeam = gameState.teams.find((team) => team.id === gameState.manager.team_id);
   const roster = myTeam ? gameState.players.filter((player) => player.team_id === myTeam.id) : [];
-  const exhaustedCount = roster.filter((player) => player.condition < 25).length;
+  // Players in a critical state, as the backend counts them (injured players are not in the squad
+  // that can play).
+  const exhaustedCount = fitness?.critical_count ?? 0;
   const urgentUnreadCount = gameState.messages.filter((message) => {
     return (
       !message.read &&
@@ -128,7 +134,7 @@ export function getDashboardAlerts(
   }).length;
   const savedStartingXi = myTeam?.starting_xi_ids ?? [];
   const effectiveStartingXi = myTeam
-    ? buildStartingXIIds(roster, savedStartingXi, myTeam.formation)
+    ? buildStartingXIIds(roster, savedStartingXi, myTeam.formation, positionTable)
     : [];
   const xiPlayersOnRoster = effectiveStartingXi.filter((playerId) => {
     return roster.some((player) => player.id === playerId);

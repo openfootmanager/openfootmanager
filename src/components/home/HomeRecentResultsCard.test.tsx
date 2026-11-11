@@ -6,6 +6,7 @@ import type { HomeRecentResult } from "./HomeTab.helpers";
 import HomeRecentResultsCard from "./HomeRecentResultsCard";
 
 vi.mock("react-i18next", () => ({
+  initReactI18next: { type: "3rdParty", init: () => undefined },
   useTranslation: () => ({
     t: (key: string) => {
       if (key === "dashboard.schedule") return "Schedule";
@@ -51,6 +52,8 @@ function createTeam(overrides: Partial<TeamData> = {}): TeamData {
 function createRecentResult(): HomeRecentResult {
   return {
     fixture: {
+      competitive: true,
+      advancing_team_id: null,
       id: "fixture-1",
       matchday: 1,
       date: "2025-01-10",

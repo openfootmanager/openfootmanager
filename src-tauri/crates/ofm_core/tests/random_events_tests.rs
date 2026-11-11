@@ -1,3 +1,10 @@
+#[path = "random_events_tests/injuries.rs"]
+mod injuries;
+#[path = "random_events_tests/rates.rs"]
+mod rates;
+#[path = "random_events_tests/targets.rs"]
+mod targets;
+
 use chrono::{TimeZone, Utc};
 use domain::league::{
     Fixture, FixtureCompetition, FixtureStatus, League, MatchResult, StandingEntry,
@@ -12,6 +19,7 @@ use domain::team::{SponsorshipBonusCriterion, Team};
 use ofm_core::clock::GameClock;
 use ofm_core::game::Game;
 use ofm_core::random_events::{apply_event_response, check_random_events, rival_interest_weight};
+use ofm_core::training::roll_training_injuries;
 use std::collections::HashMap;
 
 // ---------------------------------------------------------------------------
@@ -112,6 +120,49 @@ fn make_game_with_league() -> Game {
         ..Default::default()
     });
     game
+}
+
+/// The game's date `days` from now, as fixtures store it.
+fn date_in(game: &Game, days: i64) -> String {
+    (game.clock.current_date.date_naive() + chrono::Duration::days(days))
+        .format("%Y-%m-%d")
+        .to_string()
+}
+
+/// A league holding these fixtures and nothing else.
+fn league_of(fixtures: Vec<Fixture>) -> League {
+    League {
+        id: "league1".to_string(),
+        name: "Test League".to_string(),
+        season: 1,
+        fixtures,
+        ..Default::default()
+    }
+}
+
+fn fixture(id: &str, date: String, home: &str, away: &str, status: FixtureStatus) -> Fixture {
+    Fixture {
+        id: id.to_string(),
+        matchday: 1,
+        date,
+        home_team_id: home.to_string(),
+        away_team_id: away.to_string(),
+        competition: FixtureCompetition::League,
+        status,
+        ..Default::default()
+    }
+}
+
+/// The user's next match, three days from the game's current date.
+fn a_match_in_three_days(game: &mut Game) {
+    let date = date_in(game, 3);
+    game.league = Some(league_of(vec![fixture(
+        "next",
+        date,
+        "team1",
+        "team2",
+        FixtureStatus::Scheduled,
+    )]));
 }
 
 fn assert_choose_option_keys(message: &InboxMessage) {
@@ -222,13 +273,13 @@ fn check_random_events_sponsor_offer_has_correct_structure() {
 }
 
 #[test]
-fn check_random_events_training_injury_applies_injury() {
+fn a_training_injury_reported_in_the_inbox_is_applied_to_the_player() {
     let mut game = make_game();
     // Remove the league so no match-day exclusion applies
     game.league = None;
     // Run many days
     for _ in 0..2000 {
-        check_random_events(&mut game);
+        roll_training_injuries(&mut game);
         game.clock.advance_days(1);
     }
     let injury_msgs: Vec<&InboxMessage> = game
@@ -244,6 +295,46 @@ fn check_random_events_training_injury_applies_injury() {
             "A training injury event should apply the injury to the player"
         );
     }
+}
+
+/// Given a squad training for four thousand days, each injured player healed once his injury is
+///      read
+/// When the day's training injuries roll
+/// Then a knee bruise or a minor strain lasts 1-2 days, as after a match, and a moderate injury (an
+///      ankle sprain, a hamstring tear) turns up: the injuries come from the shared match bands,
+///      not training's old flat 3-14 days over five names
+#[test]
+fn training_injuries_come_from_the_shared_injury_bands() {
+    let mut game = make_game();
+    game.league = None;
+    let mut moderate = 0;
+    let mut slight = 0;
+    for _ in 0..4000 {
+        roll_training_injuries(&mut game);
+        for player in &mut game.players {
+            let Some(injury) = player.injury.take() else {
+                continue;
+            };
+            match injury.name.as_str() {
+                "common.injuries.kneeBruise" | "common.injuries.minorMuscleStrain" => {
+                    slight += 1;
+                    assert!(
+                        (1..=2).contains(&injury.days_remaining),
+                        "{} for {} days",
+                        injury.name,
+                        injury.days_remaining
+                    );
+                }
+                "common.injuries.ankleLigamentSprain" | "common.injuries.hamstringTear" => {
+                    moderate += 1;
+                }
+                _ => {}
+            }
+        }
+        game.clock.advance_days(1);
+    }
+    assert!(slight > 0, "no slight training injury in 4000 days");
+    assert!(moderate > 0, "no moderate training injury in 4000 days");
 }
 
 #[test]
@@ -626,7 +717,7 @@ fn injury_news_article_created_for_notable_player() {
     game.league = None;
     // Run many days to trigger training injuries
     for _ in 0..2000 {
-        check_random_events(&mut game);
+        roll_training_injuries(&mut game);
         // Clear injury messages so the same player can be injured again next day
         game.messages
             .retain(|m| !m.id.starts_with("training_injury_"));
@@ -644,34 +735,6 @@ fn injury_news_article_created_for_notable_player() {
     assert!(
         !injury_news.is_empty(),
         "A notable player (market_value = 1_000_000, above the 500K threshold) should generate InjuryNews articles"
-    );
-}
-
-#[test]
-fn injury_news_article_not_created_for_non_notable_player() {
-    let mut game = make_game();
-    // Ensure no player is notable: all have default market_value = 0 and empty starting_xi
-    for p in &mut game.players {
-        p.market_value = 0;
-    }
-    game.league = None;
-    for _ in 0..2000 {
-        check_random_events(&mut game);
-        game.messages
-            .retain(|m| !m.id.starts_with("training_injury_"));
-        for p in &mut game.players {
-            p.injury = None;
-        }
-        game.clock.advance_days(1);
-    }
-    let injury_news_count = game
-        .news
-        .iter()
-        .filter(|a| a.id.starts_with("injury_news_"))
-        .count();
-    assert_eq!(
-        injury_news_count, 0,
-        "Non-notable players should not generate InjuryNews articles"
     );
 }
 
@@ -1009,6 +1072,38 @@ fn apply_fan_listen_boosts_morale() {
     assert!(boosted, "Listening to fans should boost morale");
 }
 
+/// Given a squad at morale 0
+/// When the manager listens to the fans' petition, news worth 1 to 3 to each player
+/// Then each player gains 1 to 3, not the jump to 10 a floor would give him
+#[test]
+fn listening_to_the_fans_lifts_a_very_unhappy_squad_by_what_it_is_worth() {
+    let mut game = make_game();
+    for p in &mut game.players {
+        p.morale = 0;
+    }
+    game.messages.push(fan_petition_msg());
+
+    apply_event_response(
+        &mut game,
+        "fan_petition_2025-06-15",
+        "respond",
+        "listen_fans",
+    )
+    .expect("the response applies");
+
+    let squad: Vec<u8> = game
+        .players
+        .iter()
+        .filter(|p| p.team_id.as_deref() == Some("team1"))
+        .map(|p| p.morale)
+        .collect();
+    assert!(!squad.is_empty());
+    assert!(
+        squad.iter().all(|morale| (1..=3).contains(morale)),
+        "{squad:?}"
+    );
+}
+
 #[test]
 fn apply_fan_ignore_resolves() {
     let mut game = make_game();
@@ -1119,6 +1214,47 @@ fn apply_rival_open_to_offers_drops_morale() {
     assert!(game.players[0].morale < 80, "Morale should decrease");
 }
 
+/// Given a player whose morale is already 3, below the floor of 10 that bad news stops at
+/// When the manager tells a rival club he is open to offers for him
+/// Then the bad news leaves him at 3: it is no reason to lift him to 10
+#[test]
+fn telling_a_rival_a_very_unhappy_player_is_available_never_lifts_his_morale() {
+    let mut game = make_game();
+    game.players[0].morale = 3;
+    game.messages.push(rival_interest_msg("p0"));
+
+    apply_event_response(
+        &mut game,
+        "rival_interest_2025-06-15",
+        "respond",
+        "open_to_offers",
+    )
+    .expect("the response applies");
+
+    assert_eq!(game.players[0].morale, 3);
+}
+
+/// Given a player at morale 0
+/// When the manager tells a rival club he is not for sale, news worth 3 to 8 morale
+/// Then he gains 3 to 8, not the jump to 10 a floor would give him
+#[test]
+fn a_very_unhappy_player_told_he_is_not_for_sale_gains_only_what_the_news_is_worth() {
+    let mut game = make_game();
+    game.players[0].morale = 0;
+    game.messages.push(rival_interest_msg("p0"));
+
+    apply_event_response(
+        &mut game,
+        "rival_interest_2025-06-15",
+        "respond",
+        "not_for_sale",
+    )
+    .expect("the response applies");
+
+    let morale = game.players[0].morale;
+    assert!((3..=8).contains(&morale), "morale {morale}");
+}
+
 #[test]
 fn apply_rival_no_comment_resolves() {
     let mut game = make_game();
@@ -1156,25 +1292,6 @@ fn apply_unknown_message_type_returns_none() {
 // ---------------------------------------------------------------------------
 
 #[test]
-fn training_injury_skipped_on_match_day() {
-    let mut game = make_game_with_league();
-    // Today has a scheduled match, so training injuries should not occur
-    let initial_injuries = game.players.iter().filter(|p| p.injury.is_some()).count();
-    // Run 100 times on the same match day
-    for _ in 0..100 {
-        // Reset messages to allow re-check
-        game.messages
-            .retain(|m| !m.id.starts_with("training_injury_"));
-        check_random_events(&mut game);
-    }
-    let final_injuries = game.players.iter().filter(|p| p.injury.is_some()).count();
-    assert_eq!(
-        initial_injuries, final_injuries,
-        "No training injuries on match day"
-    );
-}
-
-#[test]
 fn already_injured_players_excluded_from_training_injury() {
     let mut game = make_game();
     game.league = None;
@@ -1186,7 +1303,7 @@ fn already_injured_players_excluded_from_training_injury() {
         });
     }
     for _ in 0..500 {
-        check_random_events(&mut game);
+        roll_training_injuries(&mut game);
         game.clock.advance_days(1);
     }
     let injury_msgs = game
@@ -1276,10 +1393,6 @@ fn check_random_events_all_message_types_generated() {
         .messages
         .iter()
         .any(|m| m.id.starts_with("rival_interest_"));
-    let has_injury = game
-        .messages
-        .iter()
-        .any(|m| m.id.starts_with("training_injury_"));
 
     assert!(
         has_sponsor,
@@ -1301,10 +1414,6 @@ fn check_random_events_all_message_types_generated() {
     assert!(
         has_rival,
         "Should generate rival interest messages over 5000 days"
-    );
-    assert!(
-        has_injury,
-        "Should generate training injury messages over 5000 days"
     );
 }
 
@@ -1374,7 +1483,7 @@ fn unfit_players_get_more_training_injuries() {
         let mut injury_count = 0;
         for _ in 0..3000 {
             let before = game.players[0].injury.is_some();
-            check_random_events(&mut game);
+            roll_training_injuries(&mut game);
             let after = game.players[0].injury.is_some();
             if !before && after {
                 injury_count += 1;

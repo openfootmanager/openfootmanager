@@ -6,12 +6,23 @@ import {
   navigateDashboardProfiles,
   openDashboardSearchPlayer,
   openDashboardSearchTeam,
+  openProfileTitle,
   resetDashboardToTab,
   selectDashboardPlayer,
   selectDashboardTeam,
 } from "./dashboardProfileNavigation";
 
 describe("dashboardProfileNavigation", () => {
+  /** Given a player to open on, when the state is created, then that profile is the one selected. */
+  it("can start on a player's profile", () => {
+    expect(createDashboardProfileNavigationState("Players", "player-9")).toMatchObject({
+      activeTab: "Players",
+      selectedPlayerId: "player-9",
+      navHistory: [],
+    });
+    expect(createDashboardProfileNavigationState("Players").selectedPlayerId).toBeNull();
+  });
+
   it("resets to a tab and clears selected profiles and history", () => {
     const state = {
       ...createDashboardProfileNavigationState("Inbox"),
@@ -100,5 +111,78 @@ describe("dashboardProfileNavigation", () => {
 
     const teamFromSearch = openDashboardSearchTeam(withPlayerOpen, "team-9");
     expect(goBackDashboardProfile(teamFromSearch).selectedPlayerId).toBe("player-1");
+  });
+
+  const world = {
+    players: [{ id: "player-1", match_name: "J. Smith" }],
+    teams: [{ id: "team-2", name: "Beta FC" }],
+  };
+
+  /**
+   * Given a player's profile opened from the Squad tab
+   * When the header asks what is open
+   * Then it gets the player's name, not the tab's
+   */
+  it("names an open player profile by the player", () => {
+    const state = selectDashboardPlayer(createDashboardProfileNavigationState("Squad"), "player-1");
+
+    expect(openProfileTitle(state, world)).toBe("J. Smith");
+  });
+
+  /**
+   * Given a club's profile opened from a player's profile
+   * When the header asks what is open
+   * Then it gets the club, which is what the screen shows
+   */
+  it("names an open club profile by the club, even with a player behind it", () => {
+    const withPlayer = selectDashboardPlayer(
+      createDashboardProfileNavigationState("Squad"),
+      "player-1",
+    );
+    const state = { ...selectDashboardTeam(withPlayer, "team-2"), selectedPlayerId: "player-1" };
+
+    expect(openProfileTitle(state, world)).toBe("Beta FC");
+  });
+
+  /**
+   * Given a profile whose player is no longer in the world (a retired player)
+   * When the header asks what is open
+   * Then there is no name to give
+   */
+  it("has no name for a profile whose player is not in the world", () => {
+    const state = selectDashboardPlayer(
+      createDashboardProfileNavigationState("Squad"),
+      "retired-9",
+    );
+
+    expect(openProfileTitle(state, world)).toBeNull();
+  });
+
+  /**
+   * Given no profile is open
+   * When the header asks what is open
+   * Then nothing is, and the tab names the screen
+   */
+  it("has no name when no profile is open", () => {
+    expect(openProfileTitle(createDashboardProfileNavigationState("Squad"), world)).toBeNull();
+  });
+
+  /**
+   * Given a retired player's profile, who is no player of the world but was fetched from the archive
+   * When the header asks what is open
+   * Then it gets his name, not nothing: a retiree reads as himself in the top bar
+   */
+  it("names an open retired player by his name", () => {
+    const state = selectDashboardPlayer(
+      createDashboardProfileNavigationState("Players"),
+      "retired-1",
+    );
+
+    expect(openProfileTitle(state, world, { id: "retired-1", match_name: "O. Timer" })).toBe(
+      "O. Timer",
+    );
+    // A retiree fetched for another player is not this one.
+    expect(openProfileTitle(state, world, { id: "retired-2", match_name: "X. Other" })).toBeNull();
+    expect(openProfileTitle(state, world)).toBeNull();
   });
 });

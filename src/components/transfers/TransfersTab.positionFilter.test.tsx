@@ -11,6 +11,11 @@ await translations.init({
   resources: { en: { translation: en } },
   interpolation: { escapeValue: false },
 });
+vi.mock("../../hooks/usePositionGroups", async () => {
+  const { cannedPositionsModule } = await import("../../test-utils/positionTable");
+  return cannedPositionsModule();
+});
+
 vi.mock("react-i18next", async (importOriginal) => ({
   ...(await importOriginal<typeof import("react-i18next")>()),
   useTranslation: () => ({ t: translations.t.bind(translations), i18n: translations }),

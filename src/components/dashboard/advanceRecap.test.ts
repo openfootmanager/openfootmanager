@@ -1,4 +1,8 @@
-import { describe, expect, it } from "vitest";
+import { createSeasonContext } from "../../test-utils/factories";
+import { takeMissingKeys } from "../../i18n/missingKeys";
+import { beforeAll, describe, expect, it } from "vitest";
+
+import { i18nReady } from "../../i18n";
 
 import type { GameStateData } from "../../store/gameStore";
 import type { AdvanceMatchResultData } from "../../services/advanceTimeService";
@@ -9,6 +13,10 @@ import {
   nextDay,
   toDatePart,
 } from "./advanceRecap";
+
+beforeAll(async () => {
+  await i18nReady;
+});
 
 function createGame(overrides: Partial<GameStateData> = {}): GameStateData {
   return {
@@ -26,6 +34,7 @@ function createGame(overrides: Partial<GameStateData> = {}): GameStateData {
     news: [],
     messages: [],
     league: null,
+    season_context: createSeasonContext(),
     // The helper only reads the fields above; cast the partial fixture.
     ...overrides,
   } as unknown as GameStateData;
@@ -141,10 +150,10 @@ describe("advanceRecap", (): void => {
     const recap = buildAdvanceRecap(game, "2026-07-01", []);
 
     expect(recap.news.map((article) => article.id)).toEqual(["injury"]);
-    expect(recap.news[0]).toMatchObject({
-      textKey: "news.injury",
-      params: { player: "John Star" },
-    });
+    // A key the app has no text for falls back to the headline the backend sent.
+    expect(recap.news[0].text).toBe("Star out injured");
+    // `news.injury` is a key the fixture has no text for on purpose.
+    expect(takeMissingKeys()).toEqual(["news.injury"]);
   });
 
   it("keeps completed loan move news in the advance recap", (): void => {
@@ -189,15 +198,46 @@ describe("advanceRecap", (): void => {
       "loan-news-player-1-team-2-team-1-2026-07-01",
     ]);
     expect(recap.news[0]).toMatchObject({
-      textKey: "be.news.loanMove.headline",
-      params: {
-        player: "John Star",
-        fromTeam: "Rival FC",
-        toTeam: "User FC",
-        endDate: "2027-01-01",
-      },
+      text: "John Star joins User FC on loan",
     });
     expect(recap.hasEvents).toBe(true);
+  });
+
+  /**
+   * Given a press-conference article, whose headline needs a quote that only the news resolver
+   *       builds (the backend sends `quotesData`, a list of quote keys, not a `quote` param)
+   * When the advance recap is built
+   * Then its headline carries the translated quote: a bare t(headline_key, params) would draw it
+   *      with the quote missing.
+   */
+  it("draws a press-conference headline with the quote the resolver builds", (): void => {
+    const game = createGame({
+      news: [
+        {
+          id: "press-conference",
+          headline: "",
+          body: "",
+          date: "2026-07-01",
+          category: "Editorial",
+          team_ids: [],
+          player_ids: [],
+          read: false,
+          headline_key: "be.news.pressConference.headlinePressConf",
+          i18n_params: {
+            team: "User FC",
+            quotesData: JSON.stringify([
+              { key: "match.press.result.responses.win.humble.text", fallback: "", params: {} },
+            ]),
+          },
+        },
+      ],
+    } as unknown as Partial<GameStateData>);
+
+    const recap = buildAdvanceRecap(game, "2026-07-01", []);
+
+    expect(recap.news[0].text).toBe(
+      'Press Conference: "The players worked hard. We prepared well and executed the game plan." — User FC boss',
+    );
   });
 
   it("collects only high-priority inbox items from the advance", (): void => {
@@ -235,7 +275,35 @@ describe("advanceRecap", (): void => {
     const recap = buildAdvanceRecap(game, "2026-07-01", []);
 
     expect(recap.inbox.map((item) => item.id)).toEqual(["digest"]);
-    expect(recap.inbox[0].textKey).toBe("be.msg.transferInterest.subject");
+    expect(recap.inbox[0].text).toBe("Transfer interest in John Star");
+  });
+
+  /**
+   * Given an Urgent inbox message (the top priority) and a Normal one, both dated in the advance
+   * When the recap and its attention events are built
+   * Then the Urgent one is in the digest and pauses the advance, as a High one does.
+   */
+  it("treats an Urgent inbox item as at least High: it is listed and it pauses", (): void => {
+    const message = (id: string, priority: string) => ({
+      id,
+      subject: `Subject ${id}`,
+      body: "",
+      sender: "",
+      sender_role: "",
+      date: "2026-07-01",
+      read: false,
+      category: "System",
+      priority,
+      actions: [],
+    });
+    const game = createGame({
+      messages: [message("urgent", "Urgent"), message("normal", "Normal")],
+    } as unknown as Partial<GameStateData>);
+
+    const recap = buildAdvanceRecap(game, "2026-07-01", []);
+
+    expect(recap.inbox.map((item) => item.id)).toEqual(["urgent"]);
+    expect(detectAttentionEvents(game, recap)).toContain("highPriorityInbox");
   });
 
   it("reads transfer_log from competitions, not the deprecated league mirror", (): void => {
@@ -341,7 +409,7 @@ describe("advanceRecap", (): void => {
 
     const onTheDay = entryFor("2026-06-11", "2026-06-12");
     expect(onTheDay.news).toHaveLength(1);
-    expect(onTheDay.news[0].textKey).toBe("be.news.worldCupKickoff.headline");
+    expect(onTheDay.news[0].text).toBe("The 2026 World Cup Begins");
 
     const dayAfter = entryFor("2026-06-12", "2026-06-13");
     expect(dayAfter.news).toEqual([]);
@@ -359,6 +427,7 @@ describe("advanceRecap", (): void => {
           read: false,
           priority: "High",
           category: "LeagueInfo",
+          actions: [],
         },
         {
           id: "same-day-msg",
@@ -368,6 +437,7 @@ describe("advanceRecap", (): void => {
           read: false,
           priority: "High",
           category: "LeagueInfo",
+          actions: [],
         },
       ],
       league: {

@@ -190,6 +190,7 @@ If everything is correct:
 | `be.error.package.missingId` | An entity has an empty `id` field | Add a unique id string to the entity |
 | `be.error.package.duplicateId` | Two entities of the same type share an id | Rename one of them |
 | `be.error.competitionDef.tooFewParticipants` | `explicit` list has fewer than 2 entries | Add more teams |
+| `be.error.competitionDef.duplicateTeam` | `explicit` list names the same team twice | Remove the repeat |
 | `be.error.package.invalidEntity` | JSON/YAML is malformed or missing required fields | Check the schema for required fields |
 
 ---
@@ -205,6 +206,8 @@ This validates first, then creates `my-first-league.ofm` in your current directo
 ```bash
 ofm-cli pack my-first-league --output ~/Downloads/my-first-league.ofm
 ```
+
+Build packages with `ofm-cli pack` or the World Editor's **Build .ofm** button. If you zip one by hand, use standard (Deflate) compression or none (Store); the game refuses entries compressed any other way.
 
 ---
 

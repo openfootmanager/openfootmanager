@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 import HomeSeasonStatusCard from "./HomeSeasonStatusCard";
 
 vi.mock("react-i18next", () => ({
+  initReactI18next: { type: "3rdParty", init: () => undefined },
   useTranslation: () => ({
     t: (key: string, params?: Record<string, string | number>) => {
       if (key === "season.preseasonStatus") return "Preseason Status";
@@ -42,5 +43,34 @@ describe("HomeSeasonStatusCard", () => {
     expect(screen.getByText("Starts on Jan 12")).toBeInTheDocument();
     expect(screen.getByText("Starts in 5 days")).toBeInTheDocument();
     expect(screen.getByText("Window closes in 3 days")).toBeInTheDocument();
+  });
+
+  /**
+   * Given the card in a narrow workspace (a 960 window at extra-large text, sidebar open)
+   * When it lays out its two tiles
+   * Then it goes side by side by its own width, not the window's, and asks for no minimum width:
+   * a window breakpoint and a 22rem minimum pushed the tiles past the window's edge. jsdom can't
+   * evaluate a container query, so this pins the classes; the layout check measures the result.
+   */
+  it("lays its tiles out by its own width, with no minimum", () => {
+    render(
+      <HomeSeasonStatusCard
+        phase="Preseason"
+        seasonStartLabel="Jan 12"
+        daysUntilSeasonStart={5}
+        transferWindowStatus="Open"
+        transferWindowVariant="success"
+        transferWindowSummary="Window closes in 3 days"
+        transferWindowOpensOn={null}
+        transferWindowClosesOn="2025-01-15"
+        lang="en"
+      />,
+    );
+
+    const tiles = screen.getByText("Opener").closest("[data-season-tiles]");
+    expect(tiles).not.toBeNull();
+    expect(tiles?.className).not.toMatch(/(^|\s)md:/);
+    expect(tiles?.className).not.toMatch(/min-w-\[/);
+    expect(tiles?.closest(".\\@container")).not.toBeNull();
   });
 });

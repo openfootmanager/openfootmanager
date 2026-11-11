@@ -1,19 +1,21 @@
 use log::info;
 use serde::Serialize;
+use std::collections::HashMap;
 use std::sync::Arc;
 use tauri::State;
 
 use domain::negotiation::NegotiationFeedback;
 use domain::player::RenewalSessionStatus;
 use ofm_core::contracts::{
-    ContractTerminationPreview, ContractTerminationResult, DelegatedRenewalOptions,
-    DelegatedRenewalReport, RenewalDecision, RenewalFinancialProjection, RenewalOffer,
+    ContractTerminationPreview, ContractTerminationResult, ContractWarningStage,
+    DelegatedRenewalOptions, DelegatedRenewalReport, RenewalDecision, RenewalFinancialProjection,
+    RenewalOffer,
 };
 use ofm_core::game::Game;
 use ofm_core::squad_safety::SquadSafetyReport;
-use ofm_core::state::StateManager;
+use ofm_core::state::{Career, StateManager};
 
-use crate::commands::util::mutate_active_game;
+use crate::commands::util::mutate_active_game_for;
 
 #[derive(Debug, Clone, Serialize)]
 pub struct RenewalCommandResponse {
@@ -89,8 +91,15 @@ pub async fn propose_renewal(
     player_id: String,
     weekly_wage: u32,
     contract_years: u32,
+    career_token: u64,
 ) -> Result<RenewalCommandResponse, String> {
-    propose_renewal_internal(&state, &player_id, weekly_wage, contract_years)
+    propose_renewal_internal(
+        &state,
+        Career::Token(career_token),
+        &player_id,
+        weekly_wage,
+        contract_years,
+    )
 }
 
 #[tauri::command]
@@ -99,9 +108,11 @@ pub async fn delegate_renewals(
     player_ids: Option<Vec<String>>,
     max_wage_increase_pct: u32,
     max_contract_years: u32,
+    career_token: u64,
 ) -> Result<DelegatedRenewalCommandResponse, String> {
     delegate_renewals_internal(
         &state,
+        Career::Token(career_token),
         player_ids,
         max_wage_increase_pct,
         max_contract_years,
@@ -123,8 +134,23 @@ pub async fn offer_free_agent_contract(
     player_id: String,
     weekly_wage: u32,
     contract_years: u32,
+    career_token: u64,
 ) -> Result<FreeAgentContractCommandResponse, String> {
-    offer_free_agent_contract_internal(&state, &player_id, weekly_wage, contract_years)
+    offer_free_agent_contract_internal(
+        &state,
+        Career::Token(career_token),
+        &player_id,
+        weekly_wage,
+        contract_years,
+    )
+}
+
+#[tauri::command]
+pub async fn get_free_agent_opening_offer(
+    state: State<'_, Arc<StateManager>>,
+    player_id: String,
+) -> Result<RenewalOffer, String> {
+    get_free_agent_opening_offer_internal(&state, &player_id)
 }
 
 #[tauri::command]
@@ -141,16 +167,18 @@ pub async fn set_contract_exit_intent(
     state: State<'_, Arc<StateManager>>,
     player_id: String,
     reason: Option<String>,
+    career_token: u64,
 ) -> Result<ContractExitIntentCommandResponse, String> {
-    set_contract_exit_intent_internal(&state, &player_id, reason)
+    set_contract_exit_intent_internal(&state, Career::Token(career_token), &player_id, reason)
 }
 
 #[tauri::command]
 pub async fn clear_contract_exit_intent(
     state: State<'_, Arc<StateManager>>,
     player_id: String,
+    career_token: u64,
 ) -> Result<ContractExitIntentCommandResponse, String> {
-    clear_contract_exit_intent_internal(&state, &player_id)
+    clear_contract_exit_intent_internal(&state, Career::Token(career_token), &player_id)
 }
 
 #[tauri::command]
@@ -165,12 +193,14 @@ pub async fn preview_contract_termination(
 pub async fn terminate_contract_now(
     state: State<'_, Arc<StateManager>>,
     player_id: String,
+    career_token: u64,
 ) -> Result<ContractTerminationCommandResponse, String> {
-    terminate_contract_now_internal(&state, &player_id)
+    terminate_contract_now_internal(&state, Career::Token(career_token), &player_id)
 }
 
 pub fn propose_renewal_internal(
     state: &StateManager,
+    career: Career,
     player_id: &str,
     weekly_wage: u32,
     contract_years: u32,
@@ -182,7 +212,7 @@ pub fn propose_renewal_internal(
 
     // propose_renewal validates (team/player) before mutating wage/contract.
     state
-        .update_game(|game| {
+        .update_game_for(career, |game| {
             let outcome = ofm_core::contracts::propose_renewal(
                 game,
                 player_id,
@@ -202,11 +232,12 @@ pub fn propose_renewal_internal(
                 feedback: outcome.feedback,
             })
         })
-        .unwrap_or_else(|| Err("be.error.noActiveGameSession".to_string()))
+        .and_then(|response| response)
 }
 
 pub fn delegate_renewals_internal(
     state: &StateManager,
+    career: Career,
     player_ids: Option<Vec<String>>,
     max_wage_increase_pct: u32,
     max_contract_years: u32,
@@ -219,7 +250,7 @@ pub fn delegate_renewals_internal(
     // delegate_renewals collects per-player results into a report rather than
     // erroring mid-iteration, so in-place mutation is safe.
     state
-        .update_game(|game| {
+        .update_game_for(career, |game| {
             let report = ofm_core::contracts::delegate_renewals(
                 game,
                 DelegatedRenewalOptions {
@@ -233,7 +264,7 @@ pub fn delegate_renewals_internal(
                 report,
             })
         })
-        .unwrap_or_else(|| Err("be.error.noActiveGameSession".to_string()))
+        .and_then(|response| response)
 }
 
 pub fn preview_renewal_financial_impact_internal(
@@ -257,6 +288,7 @@ pub fn preview_renewal_financial_impact_internal(
 
 pub fn offer_free_agent_contract_internal(
     state: &StateManager,
+    career: Career,
     player_id: &str,
     weekly_wage: u32,
     contract_years: u32,
@@ -268,7 +300,7 @@ pub fn offer_free_agent_contract_internal(
 
     // offer_free_agent_contract validates (team/player/free-agent) before mutating.
     state
-        .update_game(|game| {
+        .update_game_for(career, |game| {
             let outcome = ofm_core::contracts::offer_free_agent_contract(
                 game,
                 player_id,
@@ -288,7 +320,7 @@ pub fn offer_free_agent_contract_internal(
                 feedback: outcome.feedback,
             })
         })
-        .unwrap_or_else(|| Err("be.error.noActiveGameSession".to_string()))
+        .and_then(|response| response)
 }
 
 pub fn preview_free_agent_contract_impact_internal(
@@ -310,14 +342,29 @@ pub fn preview_free_agent_contract_impact_internal(
     Ok(FreeAgentContractProjectionCommandResponse { projection })
 }
 
+pub fn get_free_agent_opening_offer_internal(
+    state: &StateManager,
+    player_id: &str,
+) -> Result<RenewalOffer, String> {
+    info!(
+        "[cmd] get_free_agent_opening_offer: player_id={}",
+        player_id
+    );
+
+    state
+        .get_game(|game| ofm_core::contracts::free_agent_opening_offer(game, player_id))
+        .ok_or_else(|| "be.error.noActiveGameSession".to_string())?
+}
+
 pub fn set_contract_exit_intent_internal(
     state: &StateManager,
+    career: Career,
     player_id: &str,
     reason: Option<String>,
 ) -> Result<ContractExitIntentCommandResponse, String> {
     info!("[cmd] set_contract_exit_intent: player_id={}", player_id);
 
-    mutate_active_game(state, |game| {
+    mutate_active_game_for(state, career, |game| {
         ofm_core::contracts::set_contract_exit_intent(game, player_id, reason)
     })
     .map(|game| ContractExitIntentCommandResponse { game })
@@ -325,14 +372,34 @@ pub fn set_contract_exit_intent_internal(
 
 pub fn clear_contract_exit_intent_internal(
     state: &StateManager,
+    career: Career,
     player_id: &str,
 ) -> Result<ContractExitIntentCommandResponse, String> {
     info!("[cmd] clear_contract_exit_intent: player_id={}", player_id);
 
-    mutate_active_game(state, |game| {
+    mutate_active_game_for(state, career, |game| {
         ofm_core::contracts::clear_contract_exit_intent(game, player_id)
     })
     .map(|game| ContractExitIntentCommandResponse { game })
+}
+
+#[tauri::command]
+pub fn get_contract_warning_stages(
+    state: State<'_, Arc<StateManager>>,
+    player_ids: Vec<String>,
+) -> Result<HashMap<String, Option<ContractWarningStage>>, String> {
+    get_contract_warning_stages_internal(&state, &player_ids)
+}
+
+/// The stage each of `player_ids`' contracts is in for the daily warnings (`None` when none applies),
+/// so a badge and a warning can never disagree. An id no player has is left out of the answer.
+pub fn get_contract_warning_stages_internal(
+    state: &StateManager,
+    player_ids: &[String],
+) -> Result<HashMap<String, Option<ContractWarningStage>>, String> {
+    state
+        .get_game(|game| ofm_core::contracts::contract_warning_stages(game, player_ids))
+        .ok_or_else(|| "be.error.noActiveGameSession".to_string())
 }
 
 pub fn preview_contract_termination_internal(
@@ -353,30 +420,34 @@ pub fn preview_contract_termination_internal(
 
 pub fn terminate_contract_now_internal(
     state: &StateManager,
+    career: Career,
     player_id: &str,
 ) -> Result<ContractTerminationCommandResponse, String> {
-    info!("[cmd] terminate_contract_now: player_id={}", player_id);
+    crate::application::live_session::player_role_operation(state, player_id, || {
+        info!("[cmd] terminate_contract_now: player_id={}", player_id);
 
-    // terminate_contract_now previews and checks squad safety before mutating.
-    state
-        .update_game(|game| {
-            let ContractTerminationResult {
-                severance_cost,
-                squad_safety,
-            } = ofm_core::contracts::terminate_contract_now(game, player_id)?;
-            Ok(ContractTerminationCommandResponse {
-                game: game.clone(),
-                severance_cost,
-                squad_safety,
+        // terminate_contract_now previews and checks squad safety before mutating.
+        state
+            .update_game_for(career, |game| {
+                let ContractTerminationResult {
+                    severance_cost,
+                    squad_safety,
+                } = ofm_core::contracts::terminate_contract_now(game, player_id)?;
+                Ok(ContractTerminationCommandResponse {
+                    game: game.clone(),
+                    severance_cost,
+                    squad_safety,
+                })
             })
-        })
-        .unwrap_or_else(|| Err("be.error.noActiveGameSession".to_string()))
+            .and_then(|response| response)
+    })
 }
 
 #[cfg(test)]
 mod tests {
     use super::{
         clear_contract_exit_intent_internal, delegate_renewals_internal,
+        get_contract_warning_stages_internal, get_free_agent_opening_offer_internal,
         offer_free_agent_contract_internal, preview_contract_termination_internal,
         preview_free_agent_contract_impact_internal, preview_renewal_financial_impact_internal,
         propose_renewal_internal, set_contract_exit_intent_internal,
@@ -394,6 +465,7 @@ mod tests {
     use ofm_core::clock::GameClock;
     use ofm_core::contracts::RenewalDecision;
     use ofm_core::game::Game;
+    use ofm_core::state::Career;
     use ofm_core::state::StateManager;
     use std::fs;
     use std::path::{Path, PathBuf};
@@ -574,12 +646,46 @@ mod tests {
         game
     }
 
+    /// Given career B is active (token 2) and a screen holds career A's token (1)
+    /// When a renewal, a free-agent offer, an exit intent and a termination arrive with A's token
+    /// Then each is refused with the career-changed key and career B's contracts are untouched.
+    #[test]
+    fn contract_writes_for_a_replaced_career_are_refused() {
+        let state = StateManager::new();
+        let mut game = make_game();
+        game.career_token = 2;
+        state.set_game(game);
+        let before = serde_json::to_value(state.get_game(|g| g.clone()).unwrap()).unwrap();
+        let stale = Career::Token(1);
+
+        let refusals = [
+            propose_renewal_internal(&state, stale, "player-1", 10_000, 2).map(|_| ()),
+            delegate_renewals_internal(&state, stale, None, 35, 3).map(|_| ()),
+            offer_free_agent_contract_internal(&state, stale, "player-1", 10_000, 2).map(|_| ()),
+            set_contract_exit_intent_internal(
+                &state,
+                stale,
+                "player-1",
+                Some("let_expire".to_string()),
+            )
+            .map(|_| ()),
+            terminate_contract_now_internal(&state, stale, "player-1").map(|_| ()),
+        ];
+
+        for refusal in refusals {
+            assert_eq!(refusal, Err("be.error.careerChanged".to_string()));
+        }
+        let after = serde_json::to_value(state.get_game(|g| g.clone()).unwrap()).unwrap();
+        assert_eq!(after, before);
+    }
+
     #[test]
     fn propose_renewal_internal_returns_response_and_updates_state() {
         let state = StateManager::new();
         state.set_game(make_game());
 
-        let response = propose_renewal_internal(&state, "player-1", 15_000, 3).expect("response");
+        let response = propose_renewal_internal(&state, Career::Active, "player-1", 15_000, 3)
+            .expect("response");
 
         assert!(matches!(response.outcome, RenewalDecision::Accepted));
         assert!(response.is_terminal);
@@ -607,9 +713,14 @@ mod tests {
         let state = StateManager::new();
         state.set_game(make_game());
 
-        let response =
-            delegate_renewals_internal(&state, Some(vec!["player-1".to_string()]), 35, 3)
-                .expect("response");
+        let response = delegate_renewals_internal(
+            &state,
+            Career::Active,
+            Some(vec!["player-1".to_string()]),
+            35,
+            3,
+        )
+        .expect("response");
 
         assert_eq!(response.report.success_count, 1);
         assert_eq!(response.report.failure_count, 0);
@@ -653,7 +764,8 @@ mod tests {
         );
         state.set_save_id(save_id.clone());
 
-        let response = propose_renewal_internal(&state, "player-1", 15_000, 3).expect("response");
+        let response = propose_renewal_internal(&state, Career::Active, "player-1", 15_000, 3)
+            .expect("response");
         assert!(matches!(response.outcome, RenewalDecision::Accepted));
 
         let persisted_before_manual_save = save_manager
@@ -703,9 +815,14 @@ mod tests {
         );
         state.set_save_id(save_id.clone());
 
-        let response =
-            delegate_renewals_internal(&state, Some(vec!["player-1".to_string()]), 35, 3)
-                .expect("delegated renewal should succeed");
+        let response = delegate_renewals_internal(
+            &state,
+            Career::Active,
+            Some(vec!["player-1".to_string()]),
+            35,
+            3,
+        )
+        .expect("delegated renewal should succeed");
         assert_eq!(response.report.success_count, 1);
 
         let persisted_before_manual_save = save_manager
@@ -758,13 +875,42 @@ mod tests {
         assert!(response.projection.policy_allows);
     }
 
+    /// Given an active game in which the player's contract ends in 30 days
+    /// When the warning stages are asked for that player and for an id the game does not have
+    /// Then the player has the final-weeks stage and the unknown id is left out; with no active
+    ///      game the command says so.
+    #[test]
+    fn get_contract_warning_stages_internal_answers_from_the_active_game() {
+        let state = StateManager::new();
+        let ids = ["player-1".to_string(), "nobody".to_string()];
+        assert_eq!(
+            get_contract_warning_stages_internal(&state, &ids)
+                .err()
+                .as_deref(),
+            Some("be.error.noActiveGameSession")
+        );
+
+        let mut game = make_game();
+        game.players[0].stage_contract_end(Some("2026-08-31".to_string()));
+        state.set_game(game);
+
+        let stages = get_contract_warning_stages_internal(&state, &ids).expect("stages");
+
+        assert_eq!(
+            stages.get("player-1"),
+            Some(&Some(ofm_core::contracts::ContractWarningStage::FinalWeeks))
+        );
+        assert_eq!(stages.len(), 1);
+    }
+
     #[test]
     fn offer_free_agent_contract_internal_returns_response_and_updates_state() {
         let state = StateManager::new();
         state.set_game(make_free_agent_game());
 
         let response =
-            offer_free_agent_contract_internal(&state, "player-1", 4_000, 3).expect("response");
+            offer_free_agent_contract_internal(&state, Career::Active, "player-1", 4_000, 3)
+                .expect("response");
 
         assert!(matches!(response.outcome, RenewalDecision::Accepted));
         assert_eq!(response.session_status, "agreed");
@@ -799,6 +945,35 @@ mod tests {
         assert!(response.projection.policy_allows);
     }
 
+    /// Given an active game with a free agent
+    /// When the screen asks for the opening offer to him
+    /// Then it gets exactly the terms `ofm_core` opens free-agent talks with
+    #[test]
+    fn get_free_agent_opening_offer_internal_returns_the_core_offer() {
+        let game = make_free_agent_game();
+        let expected = ofm_core::contracts::free_agent_opening_offer(&game, "player-1")
+            .expect("core opening offer");
+        let state = StateManager::new();
+        state.set_game(game);
+
+        let offer = get_free_agent_opening_offer_internal(&state, "player-1").expect("offer");
+
+        assert_eq!(offer, expected);
+    }
+
+    /// Given no active game
+    /// When the screen asks for an opening offer
+    /// Then it is told there is no game session
+    #[test]
+    fn get_free_agent_opening_offer_internal_needs_an_active_game() {
+        let state = StateManager::new();
+
+        let error =
+            get_free_agent_opening_offer_internal(&state, "player-1").expect_err("no active game");
+
+        assert_eq!(error, "be.error.noActiveGameSession");
+    }
+
     #[test]
     fn preview_free_agent_contract_impact_internal_rejects_retired_players() {
         let state = StateManager::new();
@@ -815,8 +990,9 @@ mod tests {
         let state = StateManager::new();
         state.set_game(make_retired_free_agent_game());
 
-        let error = offer_free_agent_contract_internal(&state, "player-1", 4_000, 3)
-            .expect_err("retired players should be rejected");
+        let error =
+            offer_free_agent_contract_internal(&state, Career::Active, "player-1", 4_000, 3)
+                .expect_err("retired players should be rejected");
 
         assert_eq!(error, "be.error.contracts.playerNotFreeAgent");
     }
@@ -850,8 +1026,8 @@ mod tests {
         let state = StateManager::new();
         state.set_game(make_game());
 
-        let marked =
-            set_contract_exit_intent_internal(&state, "player-1", None).expect("intent response");
+        let marked = set_contract_exit_intent_internal(&state, Career::Active, "player-1", None)
+            .expect("intent response");
         let marked_player = marked
             .game
             .players
@@ -865,8 +1041,8 @@ mod tests {
             .and_then(|state| state.exit_intent.as_ref())
             .is_some());
 
-        let cleared =
-            clear_contract_exit_intent_internal(&state, "player-1").expect("clear response");
+        let cleared = clear_contract_exit_intent_internal(&state, Career::Active, "player-1")
+            .expect("clear response");
         let cleared_player = cleared
             .game
             .players
@@ -890,8 +1066,8 @@ mod tests {
             preview_contract_termination_internal(&state, "player-1").expect("preview response");
         assert!(preview.preview.squad_safety.can_field_matchday_squad);
 
-        let response =
-            terminate_contract_now_internal(&state, "player-1").expect("termination response");
+        let response = terminate_contract_now_internal(&state, Career::Active, "player-1")
+            .expect("termination response");
         assert_eq!(response.severance_cost, 132_000);
         assert!(response.squad_safety.can_field_matchday_squad);
         let player = response
@@ -917,5 +1093,77 @@ mod tests {
             entry.kind == PlayerMovementKind::Released
                 && entry.from_team_name.as_deref() == Some("Alpha FC")
         }));
+    }
+    /// Given a saved role between matches, when the player is released, then no match snapshot is built.
+    #[test]
+    fn a_between_match_termination_does_not_build_a_match_snapshot() {
+        let state = StateManager::new();
+        let mut game = make_squad_game();
+        game.teams[0]
+            .player_roles
+            .insert("player-1".into(), domain::team::PlayerRole::Poacher);
+        state.set_game(game);
+        crate::application::live_session::ROLE_INITIAL_SNAPSHOTS.with(|count| count.set(0));
+        crate::application::live_session::ROLE_HANDOFF_PROJECTIONS.with(|count| count.set(0));
+        terminate_contract_now_internal(&state, Career::Active, "player-1").unwrap();
+        assert!(!state
+            .get_game(|game| game.teams[0].player_roles.contains_key("player-1"))
+            .unwrap());
+        crate::application::live_session::ROLE_INITIAL_SNAPSHOTS
+            .with(|count| assert_eq!(count.get(), 0, "no initial role snapshot between matches"));
+        crate::application::live_session::ROLE_HANDOFF_PROJECTIONS
+            .with(|count| assert_eq!(count.get(), 0, "no waiting match needs a snapshot"));
+    }
+
+    /// Given a lifecycle operation in progress, when a contract is terminated, then the
+    /// termination waits for the operation to finish before it can write the game.
+    #[test]
+    fn terminating_a_contract_waits_for_the_live_session_gate() {
+        let state = std::sync::Arc::new(StateManager::new());
+        state.set_game(make_squad_game());
+        let operation = crate::application::live_session::operation();
+        let (started_tx, started_rx) = std::sync::mpsc::channel();
+        let (done_tx, done_rx) = std::sync::mpsc::channel();
+        let worker = state.clone();
+        let handle = std::thread::spawn(move || {
+            crate::application::live_session::GATE_ATTEMPT
+                .with(|hook| *hook.borrow_mut() = Some(started_tx));
+            let result = terminate_contract_now_internal(&worker, Career::Active, "player-1");
+            done_tx.send(result.is_ok()).unwrap();
+        });
+        let reached_gate = started_rx
+            .recv_timeout(std::time::Duration::from_secs(2))
+            .is_ok();
+        let while_held = done_rx
+            .recv_timeout(std::time::Duration::from_millis(300))
+            .ok();
+        let club_while_held = state
+            .get_game(|game| {
+                game.players
+                    .iter()
+                    .find(|player| player.id == "player-1")
+                    .unwrap()
+                    .team_id
+                    .clone()
+            })
+            .unwrap();
+        drop(operation);
+        let after_release = while_held.or_else(|| {
+            done_rx
+                .recv_timeout(std::time::Duration::from_secs(30))
+                .ok()
+        });
+        handle.join().unwrap();
+        assert!(reached_gate, "termination must attempt the lifecycle gate");
+        assert_eq!(club_while_held.as_deref(), Some("team-1"));
+        assert_eq!(
+            while_held, None,
+            "termination must wait behind the lifecycle gate"
+        );
+        assert_eq!(
+            after_release,
+            Some(true),
+            "termination completes after release"
+        );
     }
 }

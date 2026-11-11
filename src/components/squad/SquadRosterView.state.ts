@@ -2,8 +2,6 @@ export type SquadListSortKey =
   | "jersey"
   | "name"
   | "pos"
-  | "fit"
-  | "style"
   | "age"
   | "condition"
   | "morale"

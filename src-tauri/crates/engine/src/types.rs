@@ -103,6 +103,12 @@ impl PlayerRole {
         Self::CompleteForward,
     ];
 
+    /// Whether a player in `position`'s group may be given this role: the one rule, which the
+    /// live role command asks.
+    pub fn suits(self, position: Position) -> bool {
+        self == Self::Standard || self.position_groups().contains(&position)
+    }
+
     /// The position groups whose players may be given this role. The wide roles
     /// are open to wide midfielders and to wingers; `Standard` suits everyone
     /// and is left out.
@@ -152,6 +158,20 @@ pub struct PlayerData {
     /// Long-term physical shape (0-100). Multiplies stamina depletion rate in-match.
     #[serde(default = "default_fitness")]
     pub fitness: u8,
+    /// How much likelier than the match's injury probability a foul is to injure this player.
+    /// The engine does not decide it: the caller does, from whatever makes a player fragile (for
+    /// a club match, ofm_core's fitness table). 1.0 is the match's own probability.
+    #[serde(default = "default_injury_risk")]
+    pub injury_risk: f64,
+    /// What playing in each line costs this player, as a factor on his match rating, in the order
+    /// goalkeeper, defence, midfield, attack. The engine applies the entry for the line he is in
+    /// now (`position`), so a substitution or a change of shape that moves him carries its own
+    /// cost. The caller decides the factors (for a club match, ofm_core's familiarity table);
+    /// all 1.0 is a player at home in every line. Both engines' line averages apply it, and the
+    /// live engine's duels; the instant engine's duels do not, since its callers (sim-bench, the
+    /// sim lab) build synthetic players at 1.0.
+    #[serde(default = "default_line_familiarity")]
+    pub line_familiarity: [f64; 4],
 
     // Physical
     pub pace: u8,
@@ -200,11 +220,40 @@ fn default_engine_attr() -> u8 {
     50
 }
 
+/// What a midfielder brings to the midfield battle.
+fn midfield_skill(p: &PlayerData) -> u8 {
+    ((p.passing as u16 + p.vision as u16 + p.decisions as u16 + p.stamina as u16) / 4) as u8
+}
+
 fn default_fitness() -> u8 {
     75
 }
 
+fn default_injury_risk() -> f64 {
+    1.0
+}
+
+fn default_line_familiarity() -> [f64; 4] {
+    [1.0; 4]
+}
+
 impl PlayerData {
+    /// The factor on this player's match rating for the line he is in now.
+    pub fn familiarity_factor(&self) -> f64 {
+        self.familiarity_in(self.position)
+    }
+
+    /// The factor on this player's match rating were he to play in `line`.
+    pub fn familiarity_in(&self, line: Position) -> f64 {
+        let entry = match line {
+            Position::Goalkeeper => 0,
+            Position::Defender => 1,
+            Position::Midfielder => 2,
+            Position::Forward => 3,
+        };
+        self.line_familiarity[entry]
+    }
+
     /// Overall rating (simple mean of core 11 attributes).
     pub fn overall(&self) -> f64 {
         (self.pace as f64
@@ -343,7 +392,43 @@ pub enum TacticalDial {
     BreakSpeed(BreakSpeed),
 }
 
+impl TacticsConfig {
+    /// All nine dials of this plan, each set as the plan has it. A tenth dial will not compile
+    /// until it is listed here.
+    pub fn dials(&self) -> [TacticalDial; 9] {
+        let TacticsConfig {
+            pressing_intensity,
+            defensive_line,
+            width,
+            build_up_style,
+            marking_style,
+            tempo,
+            defensive_shape,
+            counter_press_duration,
+            break_speed,
+        } = self.clone();
+        [
+            TacticalDial::PressingIntensity(pressing_intensity),
+            TacticalDial::DefensiveLine(defensive_line),
+            TacticalDial::Width(width),
+            TacticalDial::BuildUpStyle(build_up_style),
+            TacticalDial::MarkingStyle(marking_style),
+            TacticalDial::Tempo(tempo),
+            TacticalDial::DefensiveShape(defensive_shape),
+            TacticalDial::CounterPressDuration(counter_press_duration),
+            TacticalDial::BreakSpeed(break_speed),
+        ]
+    }
+}
+
 impl TacticalDial {
+    /// Whether this setting plays differently from the dial's others. Slow break speed plays as
+    /// Medium does. Every other setting changes the match, Long build-up and non-zonal marking
+    /// included, though today they only cost.
+    pub fn has_match_effect(self) -> bool {
+        !matches!(self, TacticalDial::BreakSpeed(BreakSpeed::Slow))
+    }
+
     /// Turn this one dial, leaving the other eight where they are.
     pub fn set_on(self, tactics: &mut TacticsConfig) {
         match self {
@@ -387,7 +472,11 @@ impl TeamData {
         if players.is_empty() {
             return 40.0; // fallback
         }
-        players.iter().map(|p| attr_fn(p) as f64).sum::<f64>() / players.len() as f64
+        players
+            .iter()
+            .map(|p| attr_fn(p) as f64 * p.familiarity_factor())
+            .sum::<f64>()
+            / players.len() as f64
     }
 
     /// Composite defense rating (from defenders + goalkeeper).
@@ -403,11 +492,48 @@ impl TeamData {
         def_avg * 0.7 + gk_avg * 0.3
     }
 
+    /// A line's strength with players off the pitch: the attribute summed over the line's
+    /// players still on it, divided by the places they must cover. A player who has left the
+    /// pitch leaves an empty place that weighs the line down until a change of shape takes it
+    /// away. The places are the line's slots in the side's shape, never more than the line has
+    /// players, so a line with nobody off is its plain average whatever the shape says. Each
+    /// player counts at his familiarity with the line, as in `position_attr_avg`.
+    pub fn line_strength(
+        &self,
+        pos: Position,
+        attr_fn: fn(&PlayerData) -> u8,
+        off_the_pitch: &dyn Fn(&str) -> bool,
+        slots: usize,
+    ) -> f64 {
+        let line: Vec<_> = self.players.iter().filter(|p| p.position == pos).collect();
+        let on_the_pitch: Vec<_> = line
+            .iter()
+            .copied()
+            .filter(|p| !off_the_pitch(&p.id))
+            .collect();
+        let places = slots.min(line.len()).max(on_the_pitch.len());
+        if places == 0 {
+            return 40.0; // fallback
+        }
+        on_the_pitch
+            .iter()
+            .map(|p| attr_fn(p) as f64 * p.familiarity_factor())
+            .sum::<f64>()
+            / places as f64
+    }
+
+    /// The composite midfield rating with players off the pitch (see `line_strength`).
+    pub fn midfield_rating_on_the_pitch(
+        &self,
+        off_the_pitch: &dyn Fn(&str) -> bool,
+        slots: usize,
+    ) -> f64 {
+        self.line_strength(Position::Midfielder, midfield_skill, off_the_pitch, slots)
+    }
+
     /// Composite midfield rating.
     pub fn midfield_rating(&self) -> f64 {
-        self.position_attr_avg(Position::Midfielder, |p| {
-            ((p.passing as u16 + p.vision as u16 + p.decisions as u16 + p.stamina as u16) / 4) as u8
-        })
+        self.position_attr_avg(Position::Midfielder, midfield_skill)
     }
 
     /// Composite attack rating (from forwards + midfielders).
@@ -464,12 +590,22 @@ impl Default for MatchConfig {
     fn default() -> Self {
         Self {
             home_advantage: 1.08,
-            shot_accuracy_base: 0.35,
-            goal_conversion_base: 0.36,
+            // Calibrated (#1132): a shot finds the target as often as the Premier League's
+            // 45% of unblocked shots (premierleague.com/news/4027257), and the share of those
+            // scored is set so a season of the shipped world lands in #1001's goals band
+            // (`engine/tests/shot_rate_tests.rs`). Set again after #1139's world (0.28 gave 3.1
+            // goals a game and home clean sheets under the band); below 0.25 away clean sheets
+            // leave theirs. Measure again when the world's quality moves (#1078, the academy).
+            shot_accuracy_base: 0.245,
+            goal_conversion_base: 0.25,
             fatigue_per_minute: 0.20,
             foul_probability: 0.40,
-            yellow_card_probability: 0.11,
-            red_card_probability: 0.04,
+            // Calibrated against CIES Football Observatory Monthly Report n°57 (Big Five: 3.39 to
+            // 5.27 yellows and 0.12 to 0.27 reds a match; cited, not derived), with the booked
+            // player's caution in `shared::BOOKED_CARD_FACTOR`: the shipped world shows about 4.0
+            // yellows and 0.21 reds a match (`engine/tests/card_rate_tests.rs`).
+            yellow_card_probability: 0.20,
+            red_card_probability: 0.02,
             penalty_probability: 0.50,
             stoppage_time_max: 4,
             injury_probability: 0.03,

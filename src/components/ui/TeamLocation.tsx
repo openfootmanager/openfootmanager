@@ -18,7 +18,7 @@ export function TeamLocation({
   locale = "en",
   className = "",
   iconClassName = "w-4 h-4",
-  flagClassName = "text-sm leading-none",
+  flagClassName = "text-body leading-none",
   textClassName = "",
 }: TeamLocationProps) {
   const label = countryName(countryCode, locale);

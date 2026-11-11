@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
+use ts_rs::TS;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
 pub struct Player {
     pub id: String,
     pub match_name: String,
@@ -69,8 +70,12 @@ pub struct Player {
     // frontend and the save columns keep the shape they always had.
     pub market_value: u64,
 
-    // Season stats
+    // Season stats: every competitive match (`ofm_core::turn::post_match`).
     pub stats: PlayerSeasonStats,
+    /// This season's league matches, keyed by the competition where they were played.
+    /// Transfers preserve the entries; each division ranks only its own matches.
+    #[serde(default)]
+    pub league_stats_by_competition: std::collections::BTreeMap<String, PlayerSeasonStats>,
 
     // Career history
     pub career: Vec<CareerEntry>,
@@ -103,13 +108,13 @@ pub struct Player {
     pub jersey_number: Option<u8>,
 }
 
-#[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize, TS)]
 pub struct PlayerMedia {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub face: Option<String>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize, TS)]
 pub enum Position {
     #[default]
     Goalkeeper,
@@ -132,6 +137,29 @@ pub enum Position {
 }
 
 impl Position {
+    /// Every position, so a table over positions cannot miss one. A new variant breaks the
+    /// exhaustive match in `position_all_lists_every_variant_once`; add it to that match, to its
+    /// `VARIANTS` constant and to this list.
+    pub const ALL: [Position; 17] = [
+        Position::Goalkeeper,
+        Position::Defender,
+        Position::Midfielder,
+        Position::Forward,
+        Position::RightBack,
+        Position::CenterBack,
+        Position::LeftBack,
+        Position::RightWingBack,
+        Position::LeftWingBack,
+        Position::DefensiveMidfielder,
+        Position::CentralMidfielder,
+        Position::AttackingMidfielder,
+        Position::RightMidfielder,
+        Position::LeftMidfielder,
+        Position::RightWinger,
+        Position::LeftWinger,
+        Position::Striker,
+    ];
+
     /// Every role a player in this position may be given, `Standard` first.
     ///
     /// This is the canonical backend table. It lived in the Tauri command layer,
@@ -240,11 +268,48 @@ impl Position {
         self.valid_roles().contains(role)
     }
 
+    /// Whether this is one of the four coarse positions an older save wrote (`Defender`,
+    /// `Midfielder`, `Forward`) or `Goalkeeper`, which is in the set on purpose although a keeper
+    /// was never coarse.
+    ///
+    /// `Player::natural_position` is `#[serde(default)]` and `Position`'s default is `Goalkeeper`,
+    /// so a save from before the field existed loads every player as a natural goalkeeper. Counting
+    /// `Goalkeeper` here is what makes the load-time identity upgrade
+    /// (`ofm_core::player_identity::needs_identity_upgrade`) and `primary_position` read his
+    /// `position` instead of trusting that default. Dropping it would turn those players into
+    /// keepers, so a caller that wants only the three outfield buckets must say so (match them
+    /// explicitly, as `critical_penalty` does), not reuse this.
     pub fn is_legacy_bucket(&self) -> bool {
         matches!(
             self,
             Position::Goalkeeper | Position::Defender | Position::Midfielder | Position::Forward
         )
+    }
+
+    /// Where the position sits in a squad list: goalkeeper first, then the back line, midfield and
+    /// attack, so a list sorted by it reads in pitch order. Each legacy bucket takes the round
+    /// number at the start of its line (Defender 20, CenterBack 21 ...), so an unmigrated player
+    /// stays next to his granular teammates instead of scattering to the end.
+    pub fn sort_rank(&self) -> u32 {
+        match self {
+            Position::Goalkeeper => 10,
+            Position::Defender => 20,
+            Position::CenterBack => 21,
+            Position::LeftBack => 22,
+            Position::RightBack => 23,
+            Position::LeftWingBack => 24,
+            Position::RightWingBack => 25,
+            Position::Midfielder => 30,
+            Position::DefensiveMidfielder => 31,
+            Position::CentralMidfielder => 32,
+            Position::AttackingMidfielder => 33,
+            Position::LeftMidfielder => 34,
+            Position::RightMidfielder => 35,
+            Position::Forward => 40,
+            Position::LeftWinger => 41,
+            Position::RightWinger => 42,
+            Position::Striker => 43,
+        }
     }
 
     pub fn to_group_position(&self) -> Position {
@@ -270,7 +335,7 @@ impl Position {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default, TS)]
 pub enum Footedness {
     Left,
     #[default]
@@ -278,14 +343,14 @@ pub enum Footedness {
     Both,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default, TS)]
 pub enum SquadRole {
     #[default]
     Senior,
     Youth,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct PlayerAttributes {
     // Physical
     pub pace: u8,
@@ -323,6 +388,82 @@ pub struct PlayerAttributes {
     pub aerial: u8,
 }
 
+/// The name of one of a player's attributes: the [`PlayerAttributes`] field it reads, spelled as
+/// that field is (and so as the screens' `common.attributes.*` labels are).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+pub enum AttributeKey {
+    Pace,
+    Stamina,
+    Strength,
+    Agility,
+    Passing,
+    Shooting,
+    Tackling,
+    Dribbling,
+    Defending,
+    Positioning,
+    Vision,
+    Decisions,
+    Composure,
+    Aggression,
+    Teamwork,
+    Leadership,
+    Handling,
+    Reflexes,
+    Aerial,
+}
+
+impl AttributeKey {
+    /// Every attribute, in the order `PlayerAttributes` declares them.
+    pub const ALL: [AttributeKey; 19] = [
+        AttributeKey::Pace,
+        AttributeKey::Stamina,
+        AttributeKey::Strength,
+        AttributeKey::Agility,
+        AttributeKey::Passing,
+        AttributeKey::Shooting,
+        AttributeKey::Tackling,
+        AttributeKey::Dribbling,
+        AttributeKey::Defending,
+        AttributeKey::Positioning,
+        AttributeKey::Vision,
+        AttributeKey::Decisions,
+        AttributeKey::Composure,
+        AttributeKey::Aggression,
+        AttributeKey::Teamwork,
+        AttributeKey::Leadership,
+        AttributeKey::Handling,
+        AttributeKey::Reflexes,
+        AttributeKey::Aerial,
+    ];
+
+    /// This attribute's value in `attributes`.
+    pub fn value_in(self, attributes: &PlayerAttributes) -> u8 {
+        match self {
+            AttributeKey::Pace => attributes.pace,
+            AttributeKey::Stamina => attributes.stamina,
+            AttributeKey::Strength => attributes.strength,
+            AttributeKey::Agility => attributes.agility,
+            AttributeKey::Passing => attributes.passing,
+            AttributeKey::Shooting => attributes.shooting,
+            AttributeKey::Tackling => attributes.tackling,
+            AttributeKey::Dribbling => attributes.dribbling,
+            AttributeKey::Defending => attributes.defending,
+            AttributeKey::Positioning => attributes.positioning,
+            AttributeKey::Vision => attributes.vision,
+            AttributeKey::Decisions => attributes.decisions,
+            AttributeKey::Composure => attributes.composure,
+            AttributeKey::Aggression => attributes.aggression,
+            AttributeKey::Teamwork => attributes.teamwork,
+            AttributeKey::Leadership => attributes.leadership,
+            AttributeKey::Handling => attributes.handling,
+            AttributeKey::Reflexes => attributes.reflexes,
+            AttributeKey::Aerial => attributes.aerial,
+        }
+    }
+}
+
 fn default_attr() -> u8 {
     50
 }
@@ -333,7 +474,8 @@ fn default_attr() -> u8 {
 pub const WEAK_FOOT_MIN: u8 = 1;
 pub const WEAK_FOOT_MAX: u8 = 5;
 
-fn default_weak_foot() -> u8 {
+/// Default used when a save predates weak-foot ratings.
+pub fn default_weak_foot() -> u8 {
     2
 }
 
@@ -341,38 +483,38 @@ fn default_fitness() -> u8 {
     75
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
 pub struct Injury {
     pub name: String,
     pub days_remaining: u32,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, TS)]
 pub enum PlayerIssueCategory {
     Contract,
     PlayingTime,
     Morale,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, TS)]
 pub struct PlayerIssue {
     pub category: PlayerIssueCategory,
     pub severity: u8,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default, TS)]
 #[serde(default)]
 pub struct RecentTreatmentMemory {
     pub action_key: String,
     pub times_recently_used: u8,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, TS)]
 pub enum PlayerPromiseKind {
     PlayingTime,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default, TS)]
 pub enum RenewalSessionStatus {
     #[default]
     Idle,
@@ -382,7 +524,7 @@ pub enum RenewalSessionStatus {
     Stalled,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default, TS)]
 pub enum RenewalSessionOutcome {
     #[default]
     None,
@@ -393,7 +535,7 @@ pub enum RenewalSessionOutcome {
     Stalled,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, TS)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum ContractExitIntent {
     LetExpire {
@@ -403,7 +545,7 @@ pub enum ContractExitIntent {
     },
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, TS)]
 #[serde(default)]
 pub struct ContractRenewalState {
     pub status: RenewalSessionStatus,
@@ -429,7 +571,7 @@ impl Default for ContractRenewalState {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, TS)]
 #[serde(default)]
 pub struct PlayerPromise {
     pub kind: PlayerPromiseKind,
@@ -445,7 +587,7 @@ impl Default for PlayerPromise {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, TS)]
 #[serde(default)]
 pub struct PlayerMoraleCore {
     pub manager_trust: u8,
@@ -493,7 +635,7 @@ fn default_loan_offer_date() -> String {
     String::new()
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default, TS)]
 #[serde(default)]
 pub struct PlayerSeasonStats {
     pub appearances: u32,
@@ -516,7 +658,7 @@ pub struct PlayerSeasonStats {
     pub fouls_committed: u32,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct CareerEntry {
     pub season: u32,
     pub team_id: String,
@@ -526,7 +668,7 @@ pub struct CareerEntry {
     pub assists: u32,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, TS)]
 #[serde(rename_all = "snake_case")]
 pub enum PlayerMovementKind {
     PermanentTransfer,
@@ -543,7 +685,7 @@ pub enum PlayerMovementKind {
     InitialContract,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, TS)]
 pub struct PlayerMovementEntry {
     pub date: String,
     pub kind: PlayerMovementKind,
@@ -586,7 +728,7 @@ impl PlayerMovementEntry {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
 pub struct TransferOffer {
     pub id: String,
     pub from_team_id: String,
@@ -615,7 +757,7 @@ pub struct TransferOffer {
     pub closed_on: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, TS)]
 pub enum TransferOfferStatus {
     Pending,
     PendingRegistration,
@@ -624,7 +766,7 @@ pub enum TransferOfferStatus {
     Withdrawn,
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, TS)]
 pub enum TransferRegistrationFailureReason {
     InsufficientFunds,
     LoanConflict,
@@ -632,7 +774,7 @@ pub enum TransferRegistrationFailureReason {
     RegistrationBlocked,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
 pub struct LoanOffer {
     pub id: String,
     pub from_team_id: String,
@@ -666,7 +808,15 @@ pub struct LoanOffer {
     pub closed_on: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+impl LoanOffer {
+    /// Whether `team_id` is a party to this loan: the club borrowing the player
+    /// (`from_team_id`) or the club lending him (`parent_team_id`).
+    pub fn involves(&self, team_id: &str) -> bool {
+        self.from_team_id == team_id || self.parent_team_id == team_id
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, TS)]
 pub enum LoanOfferStatus {
     Pending,
     PendingRegistration,
@@ -675,7 +825,7 @@ pub enum LoanOfferStatus {
     Withdrawn,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, TS)]
 pub struct ActiveLoan {
     pub parent_team_id: String,
     pub loan_team_id: String,
@@ -694,7 +844,7 @@ pub struct ActiveLoan {
     pub development_reported_appearances: u32,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, TS)]
 pub enum PlayerTrait {
     // Physical
     Speedster, // pace >= 85
@@ -842,6 +992,7 @@ impl Player {
             potential: 0,
             market_value: 0,
             stats: PlayerSeasonStats::default(),
+            league_stats_by_competition: Default::default(),
             career: Vec::new(),
             movement_history: Default::default(),
             training_focus: None,
@@ -859,6 +1010,123 @@ impl Player {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Given a loan from "lender" to "borrower"
+    /// When each club, and a third, is asked whether it is a party to it
+    /// Then the borrower and the lender are, and the third club is not
+    #[test]
+    fn a_loan_involves_its_borrower_and_its_lender_only() {
+        let loan: LoanOffer = serde_json::from_value(serde_json::json!({
+            "id": "loan", "from_team_id": "borrower", "parent_team_id": "lender",
+            "start_date": "2026-01-12", "end_date": "2026-06-30", "wage_contribution_pct": 50
+        }))
+        .unwrap();
+
+        assert!(loan.involves("borrower"));
+        assert!(loan.involves("lender"));
+        assert!(!loan.involves("third"));
+    }
+
+    /// Given an attribute block whose nineteen values all differ
+    /// When each attribute name is written and read from it
+    /// Then the names are exactly the block's own field names, each once, and each reads its own
+    ///      field: a name the screens look up as a label always names a real attribute
+    #[test]
+    fn every_attribute_name_is_a_field_of_the_attribute_block_and_reads_it() {
+        let names: Vec<String> = AttributeKey::ALL
+            .iter()
+            .map(|key| {
+                serde_json::to_value(key)
+                    .unwrap()
+                    .as_str()
+                    .unwrap()
+                    .to_string()
+            })
+            .collect();
+        let values: serde_json::Map<String, serde_json::Value> = names
+            .iter()
+            .enumerate()
+            .map(|(index, name)| (name.clone(), serde_json::Value::from(index as u8 + 1)))
+            .collect();
+        let attributes: PlayerAttributes =
+            serde_json::from_value(serde_json::Value::Object(values.clone())).unwrap();
+        let fields = serde_json::to_value(&attributes).unwrap();
+        let mut field_names: Vec<&String> = fields.as_object().unwrap().keys().collect();
+        let mut sorted_names: Vec<&String> = names.iter().collect();
+        field_names.sort();
+        sorted_names.sort();
+
+        assert_eq!(sorted_names, field_names);
+        for (key, name) in AttributeKey::ALL.iter().zip(&names) {
+            assert_eq!(
+                serde_json::Value::from(key.value_in(&attributes)),
+                values[name],
+                "{name}"
+            );
+        }
+    }
+
+    /// Given every position,
+    /// When its sort rank is read,
+    /// Then the ranks are all different, a position ranks inside the band of its group (the bucket's
+    ///      round number up to nine more), and the keeper is first and the striker last.
+    #[test]
+    fn sort_rank_puts_each_position_in_its_groups_band_in_pitch_order() {
+        let mut ranks: Vec<u32> = Position::ALL.iter().map(Position::sort_rank).collect();
+        ranks.sort_unstable();
+        ranks.dedup();
+        assert_eq!(ranks.len(), Position::ALL.len());
+
+        for position in Position::ALL {
+            let band_start = position.to_group_position().sort_rank();
+            assert!(
+                (band_start..band_start + 10).contains(&position.sort_rank()),
+                "{position:?}"
+            );
+        }
+        assert_eq!(Position::Goalkeeper.sort_rank(), 10);
+        assert_eq!(
+            Position::ALL.iter().map(Position::sort_rank).max(),
+            Some(43)
+        );
+        assert!(Position::Defender.sort_rank() < Position::Midfielder.sort_rank());
+        assert!(Position::Midfielder.sort_rank() < Position::Forward.sort_rank());
+    }
+
+    /// Given the list of every position and an exhaustive numbering of the enum's variants,
+    /// When the list is checked against it,
+    /// Then the list has one entry per number: a variant added to the enum breaks the numbering
+    ///      until it gets one, and the list is short until it is added to it too.
+    #[test]
+    fn position_all_lists_every_variant_once() {
+        const VARIANTS: usize = 17;
+        fn number(position: &Position) -> usize {
+            match position {
+                Position::Goalkeeper => 0,
+                Position::Defender => 1,
+                Position::Midfielder => 2,
+                Position::Forward => 3,
+                Position::RightBack => 4,
+                Position::CenterBack => 5,
+                Position::LeftBack => 6,
+                Position::RightWingBack => 7,
+                Position::LeftWingBack => 8,
+                Position::DefensiveMidfielder => 9,
+                Position::CentralMidfielder => 10,
+                Position::AttackingMidfielder => 11,
+                Position::RightMidfielder => 12,
+                Position::LeftMidfielder => 13,
+                Position::RightWinger => 14,
+                Position::LeftWinger => 15,
+                Position::Striker => 16,
+            }
+        }
+
+        let mut numbers: Vec<usize> = Position::ALL.iter().map(number).collect();
+        numbers.sort_unstable();
+
+        assert_eq!(numbers, (0..VARIANTS).collect::<Vec<_>>());
+    }
 
     fn sample_attributes() -> PlayerAttributes {
         PlayerAttributes {

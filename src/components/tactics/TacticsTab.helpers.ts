@@ -1,12 +1,11 @@
 import { getPlayerOvr } from "../../lib/helpers";
 import { isFirstTeamSquadPlayer } from "../../lib/playerSquad";
-import { naturalPositionOf, normalisePosition, positionGroupRank } from "../../lib/positions";
+import { naturalPositionOf } from "../../lib/positions";
+import type { FamiliarityTable } from "../../hooks/useFamiliarity";
+import type { PositionTable } from "../../lib/positionTable";
 import type { PlayerData } from "../../store/gameStore";
 import {
-  buildPitchRows,
-  buildStartingXIIds,
   type PitchSlotRow,
-  comparePlayersForSlot,
   getPreferredPositions,
   isPlayerOutOfPosition,
   positionCode,
@@ -67,6 +66,7 @@ export const TACTICS_PRESETS: TacticsPresetDefinition[] = [
 ];
 
 interface TacticsPlayerSortContext {
+  positionTable: PositionTable;
   section: SquadSection;
   sortDir: SortDirection;
   sortKey: SortKey;
@@ -75,62 +75,26 @@ interface TacticsPlayerSortContext {
 
 interface TacticsPlayerFilterContext {
   playerSearch: string;
+  positionTable: PositionTable;
   positionFilter: string;
   section: SquadSection;
   xiActivePosition: Map<string, string>;
 }
 
-interface ResolveStartingXiIdsOptions {
-  availablePlayers: PlayerData[];
-  formation: string;
-  pendingStartingXiIds: string[] | null;
-  playersById: Map<string, PlayerData>;
-  savedStartingXiIds: string[];
-}
-
-export function buildTacticsRoster(players: PlayerData[], teamId: string): PlayerData[] {
+export function buildTacticsRoster(
+  players: PlayerData[],
+  teamId: string,
+  positionTable: PositionTable,
+): PlayerData[] {
   return players
     .filter((player) => player.team_id === teamId && isFirstTeamSquadPlayer(player))
     .sort((leftPlayer, rightPlayer) => {
       return (
-        positionGroupRank(leftPlayer.position) - positionGroupRank(rightPlayer.position) ||
+        positionTable.lineRankOf(leftPlayer.position) -
+          positionTable.lineRankOf(rightPlayer.position) ||
         getPlayerOvr(rightPlayer) - getPlayerOvr(leftPlayer)
       );
     });
-}
-
-export function resolveStartingXiIds({
-  availablePlayers,
-  formation,
-  pendingStartingXiIds,
-  playersById,
-  savedStartingXiIds,
-}: ResolveStartingXiIdsOptions): string[] {
-  const baseIds = buildStartingXIIds(availablePlayers, savedStartingXiIds, formation);
-  const slotPositions = buildPitchRows(formation).flatMap((row) => row.positions);
-
-  if (!pendingStartingXiIds || pendingStartingXiIds.length === 0) {
-    return baseIds;
-  }
-
-  const validPendingIds = pendingStartingXiIds.filter((id) => playersById.has(id));
-  const usedPlayerIds = new Set(validPendingIds);
-  const fillPlayerIds: string[] = [];
-
-  while (validPendingIds.length + fillPlayerIds.length < 11) {
-    const slotPosition = slotPositions[validPendingIds.length + fillPlayerIds.length];
-    const bestPlayer = availablePlayers
-      .filter((player) => !usedPlayerIds.has(player.id))
-      .sort((leftPlayer, rightPlayer) =>
-        comparePlayersForSlot(leftPlayer, rightPlayer, slotPosition),
-      )[0];
-
-    if (!bestPlayer) break;
-    fillPlayerIds.push(bestPlayer.id);
-    usedPlayerIds.add(bestPlayer.id);
-  }
-
-  return [...validPendingIds, ...fillPlayerIds].slice(0, 11);
 }
 
 export function getSectionPlayerPosition(
@@ -149,7 +113,7 @@ export function sortTacticsPlayers(
   players: PlayerData[],
   context: TacticsPlayerSortContext,
 ): PlayerData[] {
-  const { section, sortDir, sortKey, xiActivePosition } = context;
+  const { positionTable, section, sortDir, sortKey, xiActivePosition } = context;
   const sortedPlayers = [...players].sort((leftPlayer, rightPlayer) => {
     const leftPosition = getSectionPlayerPosition(leftPlayer, section, xiActivePosition);
     const rightPosition = getSectionPlayerPosition(rightPlayer, section, xiActivePosition);
@@ -157,7 +121,7 @@ export function sortTacticsPlayers(
     switch (sortKey) {
       case "pos":
         return (
-          positionGroupRank(leftPosition) - positionGroupRank(rightPosition) ||
+          positionTable.lineRankOf(leftPosition) - positionTable.lineRankOf(rightPosition) ||
           getPlayerOvr(rightPlayer) - getPlayerOvr(leftPlayer)
         );
       case "name":
@@ -184,8 +148,8 @@ export function matchesTacticsPlayerFilters(
   player: PlayerData,
   context: TacticsPlayerFilterContext,
 ): boolean {
-  const { playerSearch, positionFilter, section, xiActivePosition } = context;
-  const currentPosition = normalisePosition(
+  const { playerSearch, positionFilter, positionTable, section, xiActivePosition } = context;
+  const currentPosition = positionTable.groupOf(
     getSectionPlayerPosition(player, section, xiActivePosition),
   );
   const preferredPositions = getPreferredPositions(player);
@@ -232,11 +196,13 @@ export function filterAndSortTacticsPlayers(
 export function countOutOfPositionPlayers(
   startingPlayers: PlayerData[],
   xiActivePosition: Map<string, string>,
+  positionTable: PositionTable,
+  familiarity?: FamiliarityTable,
 ): number {
   return startingPlayers.filter((player) => {
     const currentPosition = xiActivePosition.get(player.id) ?? player.position;
 
-    return isPlayerOutOfPosition(player, currentPosition);
+    return isPlayerOutOfPosition(player, currentPosition, positionTable, familiarity);
   }).length;
 }
 

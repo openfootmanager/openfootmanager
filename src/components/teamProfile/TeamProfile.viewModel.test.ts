@@ -2,7 +2,9 @@ import { describe, expect, it } from "vitest";
 
 import type { GameStateData, PlayerData, TeamData } from "../../store/gameStore";
 import type { ClubLeagueStanding } from "./TeamProfile.types";
+import { cannedPositionTable } from "../../test-utils/positionTable";
 import { buildTeamProfileViewModel } from "./TeamProfile.viewModel";
+import { createSeasonContext } from "../../test-utils/factories";
 
 function createTeam(overrides: Partial<TeamData> = {}): TeamData {
   return {
@@ -96,6 +98,7 @@ function createPlayer(overrides: Partial<PlayerData> = {}): PlayerData {
 
 function createGameState(overrides: Partial<GameStateData> = {}): GameStateData {
   return {
+    season_context: createSeasonContext(),
     clock: {
       current_date: "2026-08-10T00:00:00Z",
       start_date: "2026-07-01T00:00:00Z",
@@ -183,14 +186,18 @@ describe("TeamProfile.viewModel", () => {
   it("builds a sorted roster and derived team summary", () => {
     const gameState = createGameState();
 
-    const viewModel = buildTeamProfileViewModel(createTeam(), gameState, null);
+    const viewModel = buildTeamProfileViewModel(
+      createTeam(),
+      gameState,
+      null,
+      cannedPositionTable(),
+    );
 
     expect(viewModel.roster.map((player) => player.id)).toEqual([
       "goalkeeper",
       "midfielder",
       "forward",
     ]);
-    expect(viewModel.avgOvr).toBeGreaterThan(0);
     expect(viewModel.totalWages).toBe(36000);
     expect(viewModel.totalValue).toBe(1050000);
     expect(viewModel.manager?.id).toBe("manager-1");
@@ -224,7 +231,12 @@ describe("TeamProfile.viewModel", () => {
       }),
     ];
 
-    const viewModel = buildTeamProfileViewModel(createTeam(), gameState, null);
+    const viewModel = buildTeamProfileViewModel(
+      createTeam(),
+      gameState,
+      null,
+      cannedPositionTable(),
+    );
 
     expect(viewModel.roster.map((player) => player.id)).toEqual([
       "keeper",
@@ -271,7 +283,7 @@ describe("TeamProfile.viewModel", () => {
       ],
     });
 
-    const viewModel = buildTeamProfileViewModel(team, gameState, null);
+    const viewModel = buildTeamProfileViewModel(team, gameState, null, cannedPositionTable());
 
     expect(viewModel.roster.map((player) => player.id)).toEqual(["owned-player", "loaned-in"]);
     expect(viewModel.totalWages).toBe(33000);
@@ -298,7 +310,12 @@ describe("TeamProfile.viewModel", () => {
    * Then it shows the backend's position and record, whatever the game state's own league holds
    */
   it("shows the backend's league position and standing", () => {
-    const viewModel = buildTeamProfileViewModel(createTeam(), createGameState(), backendStanding);
+    const viewModel = buildTeamProfileViewModel(
+      createTeam(),
+      createGameState(),
+      backendStanding,
+      cannedPositionTable(),
+    );
 
     expect(viewModel.leaguePos).toBe(4);
     expect(viewModel.standings?.points).toBe(20);
@@ -310,7 +327,12 @@ describe("TeamProfile.viewModel", () => {
    * Then there is no league position and no standing
    */
   it("shows no league position when the backend has none", () => {
-    const viewModel = buildTeamProfileViewModel(createTeam(), createGameState(), null);
+    const viewModel = buildTeamProfileViewModel(
+      createTeam(),
+      createGameState(),
+      null,
+      cannedPositionTable(),
+    );
 
     expect(viewModel.leaguePos).toBe(0);
     expect(viewModel.standings).toBeNull();

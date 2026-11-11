@@ -8,11 +8,16 @@ import type { MatchSnapshot, RoundSummary } from "./types";
 vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
 
 vi.mock("react-i18next", () => ({
+  initReactI18next: { type: "3rdParty", init: () => undefined },
   useTranslation: () => ({
     t: (key: string, params?: Record<string, string | number>) => {
       if (key === "schedule.matchday") return `Matchday ${params?.number}`;
       if (key === "match.assist") return `assist: ${params?.name}`;
       if (key === "match.subFor") return `for ${params?.name}`;
+      if (key === "tournaments.competitions.firstDivision")
+        return `${params?.country} Erste Division`;
+      if (key === "tournaments.competitions.nationalCup") return `${params?.country} Pokal`;
+      if (key === "nations.de") return "Deutschland";
       return key;
     },
   }),
@@ -298,6 +303,8 @@ const defaultProps = {
   currentFixture: {
     id: "fix1",
     competition: "League" as const,
+    competitive: true,
+    advancing_team_id: null,
     home_team_id: "team1",
     away_team_id: "team2",
     date: "2026-08-10",
@@ -313,7 +320,6 @@ const defaultProps = {
     matchday: 1,
   },
   userSide: "Home" as const,
-  isLeagueFixture: true,
   roundSummary: makeRoundSummary(),
   onPressConference: vi.fn(),
   onFinish: vi.fn(),
@@ -325,6 +331,67 @@ describe("RoundDigestScreen", () => {
 
     expect(screen.getByText(/Matchday 1/)).toBeInTheDocument();
     expect(screen.getByText("match.roundSummary")).toBeInTheDocument();
+  });
+
+  /**
+   * Given a league stored under its English template name, and the competition carrying that name
+   *       with its name key and country
+   * When the digest heading is drawn
+   * Then the league is named as the player's language names it, not by the stored English name.
+   */
+  it("names the league in the heading through its name key", () => {
+    const base = makeGameState();
+    const gameState: GameStateData = {
+      ...base,
+      league: { ...base.league!, name: "Germany First Division" },
+      competitions: [
+        {
+          ...base.league!,
+          name: "Germany First Division",
+          name_key: "tournaments.competitions.firstDivision",
+          country_id: "DE",
+        },
+      ],
+    };
+
+    render(<RoundDigestScreen {...defaultProps} gameState={gameState} />);
+
+    expect(screen.getByText("Matchday 1 — Deutschland Erste Division")).toBeInTheDocument();
+    expect(screen.queryByText(/Germany First Division/)).not.toBeInTheDocument();
+  });
+
+  /** Given a German keyed cup, when its round is shown in the digest, then the heading is localized. */
+  it("shows the localized cup heading in the digest", () => {
+    const base = makeGameState();
+    const gameState: GameStateData = {
+      ...base,
+      competitions: [
+        {
+          ...base.league!,
+          id: "cup-de",
+          name: "Germany National Cup",
+          name_key: "tournaments.competitions.nationalCup",
+          country_id: "DE",
+        },
+      ],
+    };
+    render(
+      <RoundDigestScreen
+        {...defaultProps}
+        gameState={gameState}
+        cupRoundSummaries={[
+          {
+            competition_id: "cup-de",
+            competition_name: "Germany National Cup",
+            round_name: "",
+            is_complete: true,
+            pending_fixture_count: 0,
+            results: [],
+          },
+        ]}
+      />,
+    );
+    expect(screen.getByRole("heading", { name: "Deutschland Pokal" })).toBeInTheDocument();
   });
 
   it("renders the hero result card with score and win badge", () => {
@@ -345,11 +412,39 @@ describe("RoundDigestScreen", () => {
   });
 
   it("does not render standings or top scorers for a friendly", () => {
-    render(<RoundDigestScreen {...defaultProps} isLeagueFixture={false} roundSummary={null} />);
+    render(<RoundDigestScreen {...defaultProps} roundSummary={null} />);
 
     expect(screen.queryByText("tournaments.leagueTable")).not.toBeInTheDocument();
     expect(screen.queryByText("tournaments.topScorers")).not.toBeInTheDocument();
     expect(screen.getAllByText("match.otherMatches").length).toBeGreaterThan(0);
+  });
+
+  /**
+   * Given a cup day on which the user's league also played (the backend sent that league round)
+   * When the digest shows the match the user played, a cup tie that is not in the league round
+   * Then it shows the cup result, and the league round and table beneath it as "elsewhere in your
+   *      league", with no league position beside the cup result.
+   */
+  it("shows a cup result with the league round and table elsewhere in the league", () => {
+    const cupTie = {
+      ...defaultProps.currentFixture,
+      id: "cup-tie",
+      competition: "Cup" as const,
+    };
+
+    render(<RoundDigestScreen {...defaultProps} currentFixture={cupTie} />);
+
+    expect(screen.getByText("match.yourResult")).toBeInTheDocument();
+    expect(screen.getByText("match.elsewhereInYourLeague")).toBeInTheDocument();
+    expect(screen.getByText("tournaments.leagueTable")).toBeInTheDocument();
+    expect(screen.queryByText(/match\.pts/)).not.toBeInTheDocument();
+    expect(screen.queryByText("match.roundSummary")).not.toBeInTheDocument();
+  });
+
+  it("does not label the league round as elsewhere when the user played in it", () => {
+    render(<RoundDigestScreen {...defaultProps} />);
+
+    expect(screen.queryByText("match.elsewhereInYourLeague")).not.toBeInTheDocument();
   });
 
   it("renders position context with points when standings are available", () => {

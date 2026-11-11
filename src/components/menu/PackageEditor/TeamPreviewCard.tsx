@@ -59,7 +59,11 @@ export function TeamPreviewCard({ team, logoDataUrl }: TeamPreviewCardProps) {
         {/* Name */}
         <div>
           <p className="font-heading font-bold text-sm uppercase tracking-wide text-gray-900 dark:text-white leading-tight">
-            {team.name || <span className="text-gray-400 italic">New Team</span>}
+            {team.name || (
+              <span className="text-gray-400 italic">
+                {t("worldEditor.previewPlaceholder.team")}
+              </span>
+            )}
           </p>
 
           <div className="flex items-center justify-between text-[11px]">

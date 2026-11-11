@@ -13,7 +13,19 @@ export interface AppSettings {
   continue_to_next_event: boolean;
   ui_scale: "small" | "normal" | "large" | "xlarge";
   high_contrast: boolean;
+  /** The open sidebar's width. */
+  sidebar_width: "compact" | "standard" | "wide";
+  /** How the sidebar opens: as today, on hover, on a click, or never (icons only). */
+  sidebar_behaviour: "normal" | "hover" | "click" | "icons";
+  /** Whether the player folded the sidebar to its icon rail. */
+  sidebar_collapsed: boolean;
+  /** Whether a shootout starts in the automatic penalty order, without the order picker. */
+  skip_shootout_picker: boolean;
+  /** How every list opens: one choice for the whole game, not one per page. */
+  list_view: ListView;
 }
+
+export type ListView = "table" | "cards";
 
 export interface CurrencyDefinition {
   code: AppSettings["currency"];
@@ -21,7 +33,7 @@ export interface CurrencyDefinition {
   exchange_rate: number;
 }
 
-interface SettingsResponse {
+export interface SettingsResponse {
   settings: Partial<AppSettings>;
   currency: CurrencyDefinition;
   supported_currencies: CurrencyDefinition[];
@@ -39,6 +51,11 @@ const DEFAULT_SETTINGS: AppSettings = {
   continue_to_next_event: false,
   ui_scale: "normal",
   high_contrast: false,
+  sidebar_width: "standard",
+  sidebar_behaviour: "normal",
+  sidebar_collapsed: false,
+  skip_shootout_picker: false,
+  list_view: "table",
 };
 
 const DEFAULT_CURRENCY: CurrencyDefinition = {
@@ -88,35 +105,64 @@ interface SettingsStore {
   updateSettings: (partial: Partial<AppSettings>) => Promise<void>;
 }
 
+/**
+ * What `updateSettings` changed while `get_settings` was in flight, or null when no load is
+ * pending. The load's answer is older than these, so it must not overwrite them: a view the
+ * player picked a moment after the screen opened would otherwise flip back.
+ */
+let changedDuringLoad: Partial<AppSettings> | null = null;
+
+/**
+ * The load in flight, if any. Several screens ask for the settings while they are not loaded
+ * (and StrictMode asks twice), so overlapping calls share one request: a second request would
+ * reset what the first had recorded, and the first answer would stop the recording early.
+ */
+let inFlightLoad: Promise<void> | null = null;
+
 export const useSettingsStore = create<SettingsStore>((set, get) => ({
   settings: mergeWithDefaultSettings(),
   currency: DEFAULT_CURRENCY,
   supportedCurrencies: indexSupportedCurrencies(),
   loaded: false,
 
-  loadSettings: async () => {
-    try {
-      const response = await invoke<SettingsResponse>("get_settings");
-      const settings = mergeWithDefaultSettings(response.settings);
-      const supportedCurrencies = indexSupportedCurrencies(response.supported_currencies);
+  loadSettings: () => {
+    if (inFlightLoad) return inFlightLoad;
+    changedDuringLoad = {};
+    const load = (async () => {
+      try {
+        const response = await invoke<SettingsResponse>("get_settings");
+        const settings = mergeWithDefaultSettings({ ...response.settings, ...changedDuringLoad });
+        const supportedCurrencies = indexSupportedCurrencies(response.supported_currencies);
 
-      set({
-        settings,
-        currency: resolveCurrency(settings.currency, supportedCurrencies),
-        supportedCurrencies,
-        loaded: true,
-      });
-    } catch {
-      set({
-        settings: mergeWithDefaultSettings(),
-        currency: DEFAULT_CURRENCY,
-        supportedCurrencies: indexSupportedCurrencies(),
-        loaded: true,
-      });
-    }
+        set({
+          settings,
+          currency: resolveCurrency(settings.currency, supportedCurrencies),
+          supportedCurrencies,
+          loaded: true,
+        });
+      } catch {
+        set({
+          settings: mergeWithDefaultSettings(changedDuringLoad ?? {}),
+          currency: DEFAULT_CURRENCY,
+          supportedCurrencies: indexSupportedCurrencies(),
+          loaded: true,
+        });
+      }
+    })();
+    // Assigned before the load can settle, and cleared from a handler attached after, so a load
+    // that fails at once cannot leave a settled promise standing in for the next one.
+    inFlightLoad = load;
+    void load.finally(() => {
+      if (inFlightLoad === load) {
+        inFlightLoad = null;
+        changedDuringLoad = null;
+      }
+    });
+    return load;
   },
 
   updateSettings: async (partial) => {
+    if (changedDuringLoad) Object.assign(changedDuringLoad, partial);
     const previousState = get();
     const previousSettings = previousState.settings;
     const merged = mergeWithDefaultSettings({ ...previousSettings, ...partial });
@@ -126,6 +172,12 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
     try {
       await persistSettings(merged);
     } catch (err) {
+      // A change that was not saved must not be re-applied by a load that is still in flight.
+      if (changedDuringLoad) {
+        for (const key of Object.keys(partial) as (keyof AppSettings)[]) {
+          if (changedDuringLoad[key] === partial[key]) delete changedDuringLoad[key];
+        }
+      }
       set({
         settings: previousSettings,
         currency: previousState.currency,

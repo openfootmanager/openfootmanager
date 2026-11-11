@@ -6,7 +6,13 @@ import { getAttributeValueClassName } from "../../lib/playerAttributeDisplay";
 import type { PlayerData } from "../../store/gameStore";
 
 // Mock react-i18next
+vi.mock("../../hooks/usePositionGroups", async () => {
+  const { cannedPositionsModule } = await import("../../test-utils/positionTable");
+  return cannedPositionsModule();
+});
+
 vi.mock("react-i18next", () => ({
+  initReactI18next: { type: "3rdParty", init: () => undefined },
   useTranslation: () => ({ t: (key: string) => key }),
 }));
 

@@ -1,13 +1,23 @@
 #!/usr/bin/env bash
 #
 # Mutates the Rust production lines a branch changes, and prints the result for the PR body.
-# The /preflight mutants step (a trial, 13 to 27 Oct 2026; see .claude/skills/preflight/SKILL.md).
+# The /preflight mutants step (see .claude/skills/preflight/SKILL.md; kept after its 13-27 Oct
+# 2026 trial, with the glue list, the size cap and the survivor re-check below).
 #
 # Usage: scripts/mutants-in-diff.sh [base]      base defaults to upstream/develop
+#        scripts/mutants-in-diff.sh --check-exclusions
+#                          check that every glue entry still names a function, and run nothing
 #
 #   CARGO                  the cargo command (default cargo). On a shared machine, wrap the whole run in
 #                          one lock instead of passing a build-slot wrapper here: a run lasts hours.
 #   MUTANTS_IN_DIFF_PATCH  a patch to use instead of `git diff base...HEAD` (relative to src-tauri/)
+#   MUTANTS_IN_DIFF_ONLY   a file of mutant names (a previous run's missed and timed-out lists):
+#                          mutate only those, wherever their lines have moved. For re-checking
+#                          survivors after a fix.
+#   MUTANTS_IN_DIFF_MAX    the most mutants run on this machine (default 60); over it, the step says
+#                          so and runs nothing, for the diff to be sharded in the cloud
+#   MUTANTS_IN_DIFF_SHARD  k/n: run shard k (0 to n-1) of the diff's mutants, for a cloud run
+#   MUTANTS_IN_DIFF_EXCLUSIONS  the glue list (default scripts/mutants-in-diff.exclusions)
 #   MUTANTS_TIMEOUT        cap on the whole run, as for timeout(1); default 180m
 #
 # Exits 0 with the result (survivors are the result, not a failure), and non-zero when the run
@@ -22,12 +32,102 @@
 
 set -uo pipefail
 
-base="${1:-upstream/develop}"
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 read -ra cargo <<< "${CARGO:-cargo}"
 
 root="$(git rev-parse --show-toplevel)" || exit 1
 cd "$root" || exit 1
+
+# The characters the regex crate (cargo-mutants' `--re`) treats as metacharacters, escaped, the
+# same set as `regex::escape`. `<` and `>` stay bare: `\<` and `\>` are word boundaries there.
+regex_escape() {
+    sed -e 's/[][\.+*?(){}|^$#&~-]/\\&/g'
+}
+
+# Every mutant of one function: its whole body replaced, or an operator inside it. cargo-mutants
+# names a method or a function in an inline module by its path (`Club::answer`,
+# `<impl Display for Club>::answer`, `inner::answer`), so any path may come before the name.
+function_pattern() {
+    local path fn
+    path="$(regex_escape <<< "$1")" fn="$2"
+    printf '^%s:[0-9]+:[0-9]+: (replace (.*::)?%s( ->| with )|.* in (.*::)?%s$)' "$path" "$fn" "$fn"
+}
+
+# Fills `excluded` with one `--exclude-re` per glue function, and fails, naming the entry, when an
+# entry no longer names a function in its file.
+excluded=()
+collect_exclusions() {
+    local list="${MUTANTS_IN_DIFF_EXCLUSIONS:-$here/mutants-in-diff.exclusions}"
+    local path fn _why file name
+    [ -f "$list" ] || { echo "mutants-in-diff: no glue list at $list" >&2; return 1; }
+    # `|| [ -n "$path" ]`: a last line with no newline after it is still an entry.
+    while read -r path fn _why || [ -n "$path" ]; do
+        case "$path" in ''|'#'*) continue ;; esac
+        if ! [[ "$fn" =~ ^[A-Za-z_][A-Za-z0-9_]*$ ]] || [ ! -f "src-tauri/$path" ] ||
+            ! grep -Eq "fn $fn[<(]" "src-tauri/$path"; then
+            echo "mutants-in-diff: the glue entry '$path $fn' no longer names a function;" >&2
+            echo "update $list rather than let the exclusion lapse." >&2
+            return 1
+        fi
+        excluded+=(--exclude-re "$(function_pattern "$path" "$fn")")
+    done < "$list"
+    # A Tauri command whose body only calls the `_internal` beside it is glue: the command takes a
+    # `tauri::State` that no test can build, and the `_internal` is what is tested and mutated.
+    # Before the call it may log, and it may hand the call to `run_off_thread`; any other statement
+    # or block is work of its own, and that command stays in.
+    for file in src-tauri/src/commands/*.rs; do
+        [ -f "$file" ] || continue
+        while read -r name; do
+            grep -Eq "fn ${name}_internal[<(]" "$file" &&
+                excluded+=(--exclude-re "$(function_pattern "${file#src-tauri/}" "$name")")
+        done < <(awk '
+            # Whether the call whose `(` is at `open` passes its arguments through untouched and
+            # is followed by exactly `tail`. An argument may be a name, a borrow or a field, or
+            # one of those converted (`.clone()`, `.as_deref()` and the like); anything else, or
+            # parentheses that never balance, is work the command does itself.
+            function forwards_call(text, open, tail,   i, depth, c, args) {
+                depth = 0
+                for (i = open; i <= length(text); i++) {
+                    c = substr(text, i, 1)
+                    if (c == "(") depth++
+                    else if (c == ")" && --depth == 0) break
+                }
+                if (depth != 0 || substr(text, i + 1) != tail) return 0
+                args = substr(text, open + 1, i - open - 1)
+                gsub(/\.(clone|inner|as_deref|as_str|as_ref)\(\)/, "", args)
+                return args ~ /^[&A-Za-z0-9_,.]*$/
+            }
+            function only_forwards(text, name,   call, wrapped) {
+                while (sub(/^(log::)?(trace|debug|info|warn|error)!\("([^"\\]|\\.)*"(,&?[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_]*(\(\))?)*)*\);/, "", text)) {}
+                sub(/^letstate=state\.inner\(\)\.clone\(\);/, "", text)
+                call = name "_internal("
+                wrapped = "run_off_thread(move||" call
+                # The call is the whole body: nothing may follow it but the off-thread wrapper.
+                if (index(text, call) == 1) return forwards_call(text, length(call), "")
+                if (index(text, wrapped) == 1)
+                    return forwards_call(text, length(wrapped), ").await")
+                return 0
+            }
+            /#\[tauri::command\]/ { command = 1; name = ""; next }
+            command && name == "" && match($0, /fn [A-Za-z_][A-Za-z0-9_]*/) {
+                name = substr($0, RSTART + 3, RLENGTH - 3) }
+            command && name != "" && !body && /\{[[:space:]]*$/ { body = 1; text = ""; next }
+            body && /^}/ {
+                if (only_forwards(text, name)) print name
+                command = 0; body = 0; next }
+            body { gsub(/[[:space:]]/, ""); text = text $0 }' "$file")
+    done
+    # The last command without an `_internal` leaves a failing status; that is not a failure.
+    return 0
+}
+
+if [ "${1:-}" = "--check-exclusions" ]; then
+    collect_exclusions || exit 1
+    echo "mutants-in-diff: the glue list holds; $(( ${#excluded[@]} / 2 )) functions are excluded"
+    exit 0
+fi
+
+base="${1:-upstream/develop}"
 
 # --in-place edits src-tauri/ one mutant at a time; a tree with uncommitted work would mix the
 # two, and the restore below would throw that work away.
@@ -55,18 +155,88 @@ while read -r path; do
     fi
 done < <(sed -n 's#^+++ b/##p' "$patch")
 
-listed="$(cd src-tauri && "${cargo[@]}" mutants --workspace --in-diff "$patch" --list)" || exit 1
+collect_exclusions || exit 1
+
+# A re-check after fixes: only the survivors named, each anchored to its file and mutation but not
+# its line, since a fix above it moves it.
+only=()
+wanted=()
+if [ -n "${MUTANTS_IN_DIFF_ONLY:-}" ]; then
+    while IFS= read -r name || [ -n "$name" ]; do
+        [[ "$name" =~ ^([^:]+):[0-9]+:[0-9]+:\ (.+)$ ]] || continue
+        wanted+=("${BASH_REMATCH[1]}: ${BASH_REMATCH[2]}")
+        only+=(--re "^$(regex_escape <<< "${BASH_REMATCH[1]}"):[0-9]+:[0-9]+: $(regex_escape <<< "${BASH_REMATCH[2]}")\$")
+    done < "$MUTANTS_IN_DIFF_ONLY"
+    if [ "${#only[@]}" -eq 0 ]; then
+        echo "mutants-in-diff: $MUTANTS_IN_DIFF_ONLY names no mutant to re-check." >&2
+        exit 1
+    fi
+fi
+
+# A cap that is not a whole number would make the count comparison below an error, which `if`
+# reads as false: every diff would run, however big.
+max="${MUTANTS_IN_DIFF_MAX:-60}"
+if ! [[ "$max" =~ ^[0-9]+$ ]]; then
+    echo "mutants-in-diff: MUTANTS_IN_DIFF_MAX is '$max'; it must be a whole number of mutants." >&2
+    exit 1
+fi
+
+# One cloud shard of a diff too big for this machine: the same diff and exclusions, split by
+# cargo-mutants itself so the shards between them cover every mutant once.
+shard=()
+if [ -n "${MUTANTS_IN_DIFF_SHARD:-}" ]; then
+    if ! [[ "$MUTANTS_IN_DIFF_SHARD" =~ ^([0-9]+)/([0-9]+)$ ]] ||
+        [ "${BASH_REMATCH[1]}" -ge "${BASH_REMATCH[2]}" ]; then
+        echo "mutants-in-diff: MUTANTS_IN_DIFF_SHARD is '$MUTANTS_IN_DIFF_SHARD'; it must be k/n" \
+            "with k from 0 to n-1." >&2
+        exit 1
+    fi
+    shard=(--shard "$MUTANTS_IN_DIFF_SHARD")
+fi
+
+listed="$(cd src-tauri && "${cargo[@]}" mutants --workspace --in-diff "$patch" \
+    "${excluded[@]}" "${only[@]}" "${shard[@]}" --list)" || exit 1
+# A survivor whose function or mutation has changed since the first run matches nothing now. The
+# run would go ahead without it and its counts would read as the whole re-check, so name it and
+# stop. A shard lists only its share, so a shard checks against the whole listing.
+if [ "${#wanted[@]}" -gt 0 ]; then
+    whole="$listed"
+    if [ "${#shard[@]}" -gt 0 ]; then
+        whole="$(cd src-tauri && "${cargo[@]}" mutants --workspace --in-diff "$patch" \
+            "${excluded[@]}" "${only[@]}" --list)" || exit 1
+    fi
+    present="$(printf '%s\n' "$whole" | sed -E 's/^([^:]+):[0-9]+:[0-9]+: /\1: /')"
+    unmatched=()
+    for name in "${wanted[@]}"; do
+        grep -Fxq -- "$name" <<< "$present" || unmatched+=("$name")
+    done
+    if [ "${#unmatched[@]}" -gt 0 ]; then
+        echo "mutants-in-diff: these survivors match no mutant on the diff now; the code they" \
+            "named has changed, so triage each by hand:" >&2
+        printf '  %s\n' "${unmatched[@]}" >&2
+        exit 1
+    fi
+fi
 count="$(printf '%s' "$listed" | grep -c .)"
 if [ "$count" -eq 0 ]; then
     echo "Mutants on the diff: 0 mutants (the branch changes no Rust production line)"
+    exit 0
+fi
+# Measured in the trial: a 130-mutant diff never finished on the shared machine (two memory kills
+# in three attempts); three cloud shards did it in about 35 minutes each. A re-check is exempt, and
+# so is a cloud shard: the cap is for this machine.
+if [ "${#only[@]}" -eq 0 ] && [ "${#shard[@]}" -eq 0 ] && [ "$count" -gt "$max" ]; then
+    echo "Mutants on the diff: not run locally: $count mutants is over the local cap of $max;" \
+        "run it sharded in the cloud (MUTANTS_IN_DIFF_SHARD=k/n, one run per shard), or note it" \
+        "here as not run"
     exit 0
 fi
 echo "mutants-in-diff: $count mutants on the diff; about a minute each on a busy machine." >&2
 
 started=$SECONDS
 (cd src-tauri && CARGO_INCREMENTAL=1 timeout --signal=INT "${MUTANTS_TIMEOUT:-180m}" \
-    "${cargo[@]}" mutants --workspace --in-diff "$patch" --in-place --profile mutants \
-    --timeout 300 --output "$out")
+    "${cargo[@]}" mutants --workspace --in-diff "$patch" "${excluded[@]}" "${only[@]}" \
+    "${shard[@]}" --in-place --profile mutants --timeout 300 --output "$out")
 status=$?
 minutes=$(( (SECONDS - started + 59) / 60 ))
 

@@ -1,4 +1,5 @@
 use crate::game::Game;
+use crate::morale::apply_morale_change;
 use domain::team::{Sponsorship, SponsorshipBonusCriterion};
 use rand::RngExt;
 use std::collections::HashMap;
@@ -160,7 +161,7 @@ pub fn apply_event_response(
                 let mut rng = game.rng_today(&format!("response/{message_id}/{option_id}"));
                 for p in game.players.iter_mut() {
                     if p.team_id.as_deref() == Some(&user_team_id) {
-                        p.morale = (p.morale as i16 + rng.random_range(1..=3)).clamp(10, 100) as u8;
+                        p.morale = apply_morale_change(p.morale, rng.random_range(1..=3));
                     }
                 }
                 if let Some(msg) = game.messages.iter_mut().find(|m| m.id == message_id) {
@@ -210,7 +211,7 @@ pub fn apply_event_response(
                 if let Some(pid) = &player_id
                     && let Some(p) = game.players.iter_mut().find(|p| p.id == *pid)
                 {
-                    p.morale = (p.morale as i16 + rng.random_range(3..=8)).clamp(10, 100) as u8;
+                    p.morale = apply_morale_change(p.morale, rng.random_range(3..=8));
                 }
                 if let Some(msg) = game.messages.iter_mut().find(|m| m.id == message_id) {
                     for a in msg.actions.iter_mut() {
@@ -228,7 +229,7 @@ pub fn apply_event_response(
                 if let Some(pid) = &player_id
                     && let Some(p) = game.players.iter_mut().find(|p| p.id == *pid)
                 {
-                    p.morale = (p.morale as i16 - rng.random_range(3..=8)).clamp(10, 100) as u8;
+                    p.morale = apply_morale_change(p.morale, -rng.random_range(3..=8));
                 }
                 if let Some(msg) = game.messages.iter_mut().find(|m| m.id == message_id) {
                     for a in msg.actions.iter_mut() {

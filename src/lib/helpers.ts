@@ -1,4 +1,3 @@
-export { positionBadgeVariant } from "./playerRating";
 export { getPlayerOvr } from "./playerOvr";
 export {
   getTeamName,
@@ -29,8 +28,8 @@ export {
   formatMatchDate,
 } from "./dateFormatting";
 export {
+  contractExpiryLabel,
   getContractRiskBadgeVariant,
-  getContractRiskLevel,
   getContractYearsRemaining,
 } from "./contractUtils";
 export {

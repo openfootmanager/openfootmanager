@@ -1,5 +1,6 @@
+import { i18nReady } from "../../i18n";
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type {
   GameStateData,
@@ -11,6 +12,11 @@ import type {
 } from "../../store/gameStore";
 import { marketPageOf } from "../transfers/TransfersTab.testFixtures";
 import ScoutingTab from "./ScoutingTab";
+import { createSeasonContext } from "../../test-utils/factories";
+
+beforeAll(async () => {
+  await i18nReady;
+});
 
 const invokeMock = vi.fn();
 
@@ -18,11 +24,13 @@ vi.mock("@tauri-apps/api/core", () => ({
   invoke: (...args: unknown[]) => invokeMock(...args),
 }));
 
-vi.mock("../../utils/backendI18n", () => ({
+vi.mock("../../utils/backendI18n", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../../utils/backendI18n")>()),
   resolveBackendError: (error: unknown) => (error instanceof Error ? error.message : String(error)),
 }));
 
 vi.mock("react-i18next", () => ({
+  initReactI18next: { type: "3rdParty", init: () => undefined },
   useTranslation: () => ({
     t: (key: string, params?: Record<string, string | number>) => {
       if (key === "scouting.title") return "Scouting";
@@ -227,6 +235,7 @@ function createGameState(options?: {
   players?: PlayerData[];
 }): GameStateData {
   return {
+    season_context: createSeasonContext(),
     clock: {
       current_date: "2026-08-10T00:00:00Z",
       start_date: "2026-07-01T00:00:00Z",
@@ -317,6 +326,7 @@ describe("ScoutingTab", () => {
 
     await waitFor(() => {
       expect(invokeMock).toHaveBeenCalledWith("send_scout", {
+        careerToken: 0,
         scoutId: "staff-1",
         playerId: "player-1",
       });
@@ -449,6 +459,7 @@ describe("ScoutingTab", () => {
 
     await waitFor(() => {
       expect(invokeMock).toHaveBeenCalledWith("start_youth_scouting", {
+        careerToken: 0,
         scoutId: "staff-1",
         region: "Domestic",
         objective: "Balanced",
@@ -498,6 +509,7 @@ describe("ScoutingTab", () => {
 
     await waitFor(() => {
       expect(invokeMock).toHaveBeenCalledWith("cancel_youth_scouting", {
+        careerToken: 0,
         assignmentId: "ysa-1",
       });
       expect(onGameUpdate).toHaveBeenCalledWith(updatedState);
@@ -616,6 +628,7 @@ describe("ScoutingTab", () => {
 
     await waitFor(() => {
       expect(invokeMock).toHaveBeenCalledWith("make_transfer_bid", {
+        careerToken: 0,
         playerId: "player-1",
         fee: 300000,
       });

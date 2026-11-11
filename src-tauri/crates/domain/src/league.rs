@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
+use ts_rs::TS;
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default, TS)]
 pub enum CompetitionType {
     #[default]
     League,
@@ -11,7 +12,7 @@ pub enum CompetitionType {
     FriendlyCup,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default, TS)]
 pub enum CompetitionScope {
     #[default]
     Domestic,
@@ -20,7 +21,7 @@ pub enum CompetitionScope {
     International,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default, TS)]
 pub enum CompetitionFormat {
     #[default]
     LeagueTable,
@@ -38,7 +39,7 @@ fn default_group_size() -> u32 {
     DEFAULT_GROUP_SIZE
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, TS)]
 #[serde(default)]
 pub struct CompetitionRules {
     pub format: CompetitionFormat,
@@ -86,7 +87,7 @@ impl Default for CompetitionRules {
 
 /// One group of a group-and-knockout competition: a mini league table whose
 /// top finishers advance to the knockout rounds.
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default, TS)]
 #[serde(default)]
 pub struct GroupState {
     pub id: String,
@@ -96,7 +97,7 @@ pub struct GroupState {
     pub standings: Vec<StandingEntry>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default, TS)]
 #[serde(default)]
 pub struct KnockoutRoundState {
     pub id: String,
@@ -112,7 +113,7 @@ pub struct KnockoutRoundState {
 /// season's results (e.g. "league finishers 1–4 enter the Champions Cup").
 /// Authored on competition definitions; carried on the runtime competition so
 /// it can be evaluated at season rollover.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct Berth {
     /// Competition id the qualifying club(s) enter.
@@ -127,7 +128,7 @@ pub struct Berth {
 }
 
 /// How a [`Berth`] selects qualifying clubs from the source competition.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, TS)]
 #[serde(tag = "kind", rename_all = "camelCase")]
 pub enum BerthRule {
     /// League finishers in the inclusive 1-based range `[from, to]`.
@@ -139,7 +140,7 @@ pub enum BerthRule {
     PlayoffWinner { from: u32, to: u32 },
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[serde(default)]
 pub struct League {
     pub id: String,
@@ -221,7 +222,7 @@ impl Default for League {
 
 pub type CompetitionState = League;
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, TS)]
 pub struct CompletedTransfer {
     pub date: String,
     pub from_team_id: String,
@@ -230,7 +231,7 @@ pub struct CompletedTransfer {
     pub fee: u64,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, TS)]
 pub struct TransferRumour {
     pub id: String,
     pub date: String,
@@ -240,7 +241,7 @@ pub struct TransferRumour {
     pub team_name: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default, TS)]
 pub enum FixtureCompetition {
     #[default]
     League,
@@ -253,8 +254,23 @@ pub enum FixtureCompetition {
     PreseasonTournament,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+impl FixtureCompetition {
+    /// Whether a match of this competition is played for something: everything but a friendly, a
+    /// friendly cup and a preseason tournament. `Fixture::is_competitive` asks it, and so does
+    /// anything that holds only a competition (a stats record).
+    pub fn is_competitive(&self) -> bool {
+        !matches!(
+            self,
+            FixtureCompetition::Friendly
+                | FixtureCompetition::FriendlyCup
+                | FixtureCompetition::PreseasonTournament
+        )
+    }
+}
+
+#[derive(Debug, Clone, Deserialize, TS)]
 #[serde(default)]
+#[ts(as = "FixtureWire<'static>")]
 pub struct Fixture {
     pub id: String,
     pub competition_id: String,
@@ -270,14 +286,73 @@ pub struct Fixture {
     pub postponement: Option<Postponement>,
 }
 
+/// A fixture as every serializer writes it, the save's JSON included: its fields plus
+/// `competitive` and `advancing_team_id`, which are computed (from `competition`, from `result`)
+/// so no screen decides them again. `Deserialize` ignores both on the way back in, so a saved
+/// fixture loads with or without them. `advancing_team_id` is the side a knockout tie sends on, so
+/// a screen reads it for knockout fixtures only. The TypeScript `Fixture` is generated from this
+/// struct (`Fixture`'s `#[ts(as)]` takes its shape), so it describes exactly what is written.
+/// That route cannot be flattened: a `#[serde(flatten)]` fixture would fail the generator.
+#[derive(Serialize, TS)]
+// The struct name the hand-written serializer used. JSON ignores it; other formats need not.
+#[serde(rename = "Fixture")]
+struct FixtureWire<'a> {
+    id: &'a str,
+    competition_id: &'a str,
+    matchday: u32,
+    date: &'a str,
+    home_team_id: &'a str,
+    away_team_id: &'a str,
+    competition: &'a FixtureCompetition,
+    status: &'a FixtureStatus,
+    result: Option<&'a MatchResult>,
+    postponement: Option<&'a Postponement>,
+    competitive: bool,
+    advancing_team_id: Option<&'a str>,
+}
+
+/// The destructuring makes a new `Fixture` field a compile error here, so it cannot be dropped
+/// from every save unnoticed.
+impl Serialize for Fixture {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        let Fixture {
+            id,
+            competition_id,
+            matchday,
+            date,
+            home_team_id,
+            away_team_id,
+            competition,
+            status,
+            result,
+            postponement,
+        } = self;
+        FixtureWire {
+            id,
+            competition_id,
+            matchday: *matchday,
+            date,
+            home_team_id,
+            away_team_id,
+            competition,
+            status,
+            result: result.as_ref(),
+            postponement: postponement.as_ref(),
+            competitive: self.is_competitive(),
+            advancing_team_id: self.advancing_team_id(),
+        }
+        .serialize(serializer)
+    }
+}
+
 /// Where a moved match was first scheduled and why it moved.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, TS)]
 pub struct Postponement {
     pub original_date: String,
     pub reason: RescheduleReason,
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, TS)]
 pub enum RescheduleReason {
     InternationalWindow,
     CupTie,
@@ -285,14 +360,14 @@ pub enum RescheduleReason {
     LeagueClash,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, TS)]
 pub enum FixtureStatus {
     Scheduled,
     InProgress,
     Completed,
 }
 
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, TS)]
 pub struct MatchResult {
     pub home_goals: u8,
     pub away_goals: u8,
@@ -359,13 +434,13 @@ mod match_result_tests {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
 pub struct GoalEvent {
     pub player_id: String,
     pub minute: u8,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, TS)]
 pub struct CompactMatchReport {
     pub total_minutes: u8,
     pub home_stats: CompactTeamMatchStats,
@@ -373,7 +448,7 @@ pub struct CompactMatchReport {
     pub events: Vec<CompactMatchEvent>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, TS)]
 pub struct CompactTeamMatchStats {
     pub possession_pct: u8,
     pub shots: u16,
@@ -384,7 +459,7 @@ pub struct CompactTeamMatchStats {
     pub red_cards: u8,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, TS)]
 pub struct CompactMatchEvent {
     pub minute: u8,
     pub event_type: String,
@@ -393,7 +468,7 @@ pub struct CompactMatchEvent {
     pub secondary_player_id: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
 pub struct StandingEntry {
     pub team_id: String,
     pub played: u32,
@@ -442,6 +517,13 @@ impl StandingEntry {
 impl Fixture {
     pub fn counts_for_league_standings(&self) -> bool {
         matches!(self.competition, FixtureCompetition::League)
+    }
+
+    /// Whether the match is played for something: everything but a friendly, a friendly cup and a
+    /// preseason tournament. The one statement of it (the cup summaries, the completion proof and
+    /// the screens all ask it).
+    pub fn is_competitive(&self) -> bool {
+        self.competition.is_competitive()
     }
 
     /// The team advancing from this knockout fixture once a result is
@@ -549,6 +631,133 @@ impl Default for Fixture {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Given a fixture of each competition kind
+    /// When it is asked whether it is competitive
+    /// Then a friendly, a friendly cup and a preseason tournament are not, and every other kind is.
+    #[test]
+    fn only_friendlies_and_preseason_tournaments_are_not_competitive() {
+        let kinds = [
+            (FixtureCompetition::League, true),
+            (FixtureCompetition::Cup, true),
+            (FixtureCompetition::ContinentalClub, true),
+            (FixtureCompetition::InternationalClub, true),
+            (FixtureCompetition::InternationalNation, true),
+            (FixtureCompetition::Friendly, false),
+            (FixtureCompetition::FriendlyCup, false),
+            (FixtureCompetition::PreseasonTournament, false),
+        ];
+        for (competition, expected) in kinds {
+            let kind = format!("{competition:?}");
+            let fixture = Fixture {
+                competition,
+                ..Default::default()
+            };
+            assert_eq!(fixture.is_competitive(), expected, "{kind}");
+        }
+    }
+
+    /// Given a friendly cup fixture and a league fixture
+    /// When they are serialised for the screens
+    /// Then each carries `competitive`, the backend's answer, so no screen decides it again.
+    #[test]
+    fn a_serialised_fixture_says_whether_it_is_competitive() {
+        let friendly_cup = Fixture {
+            competition: FixtureCompetition::FriendlyCup,
+            ..Default::default()
+        };
+
+        assert_eq!(
+            serde_json::to_value(&friendly_cup).unwrap()["competitive"],
+            false
+        );
+        assert_eq!(
+            serde_json::to_value(Fixture::default()).unwrap()["competitive"],
+            true
+        );
+    }
+
+    fn knockout_fixture(home_goals: u8, away_goals: u8, penalties: Option<(u8, u8)>) -> Fixture {
+        Fixture {
+            home_team_id: "home".to_string(),
+            away_team_id: "away".to_string(),
+            competition: FixtureCompetition::Cup,
+            result: Some(MatchResult {
+                home_goals,
+                away_goals,
+                home_penalties: penalties.map(|(home, _)| home),
+                away_penalties: penalties.map(|(_, away)| away),
+                ..Default::default()
+            }),
+            ..Default::default()
+        }
+    }
+
+    /// Given a knockout tie level after extra time that the away side wins on penalties, a tie the
+    ///       home side wins on goals, and a fixture with no result yet
+    /// When they are serialised for the screens
+    /// Then each carries `advancing_team_id`: the shootout winner, the goals winner, and null.
+    #[test]
+    fn a_serialised_fixture_names_the_side_that_advances() {
+        let on_penalties = knockout_fixture(1, 1, Some((3, 4)));
+        let on_goals = knockout_fixture(2, 1, None);
+        let unplayed = Fixture::default();
+
+        assert_eq!(
+            serde_json::to_value(&on_penalties).unwrap()["advancing_team_id"],
+            "away"
+        );
+        assert_eq!(
+            serde_json::to_value(&on_goals).unwrap()["advancing_team_id"],
+            "home"
+        );
+        assert!(serde_json::to_value(&unplayed).unwrap()["advancing_team_id"].is_null());
+    }
+
+    /// Given a played, postponed knockout fixture with every field set
+    /// When it is serialised
+    /// Then the JSON is exactly what screens and saves have always read, keys in the same order.
+    #[test]
+    fn a_serialised_fixture_keeps_its_exact_shape() {
+        let fixture = Fixture {
+            id: "fx-1".to_string(),
+            competition_id: "eng-cup".to_string(),
+            matchday: 3,
+            date: "2026-11-07".to_string(),
+            postponement: Some(Postponement {
+                original_date: "2026-10-10".to_string(),
+                reason: RescheduleReason::InternationalWindow,
+            }),
+            status: FixtureStatus::Completed,
+            ..knockout_fixture(1, 1, Some((3, 4)))
+        };
+
+        assert_eq!(
+            serde_json::to_string(&fixture).unwrap(),
+            concat!(
+                r#"{"id":"fx-1","competition_id":"eng-cup","matchday":3,"date":"2026-11-07","#,
+                r#""home_team_id":"home","away_team_id":"away","competition":"Cup","#,
+                r#""status":"Completed","result":{"home_goals":1,"away_goals":1,"#,
+                r#""home_scorers":[],"away_scorers":[],"report":null,"home_penalties":3,"#,
+                r#""away_penalties":4},"postponement":{"original_date":"2026-10-10","#,
+                r#""reason":"InternationalWindow"},"competitive":true,"advancing_team_id":"away"}"#,
+            )
+        );
+    }
+
+    /// Given a fixture saved before the field existed, or carrying it
+    /// When it is read back
+    /// Then it loads either way: the answers are computed, never stored.
+    #[test]
+    fn a_fixture_loads_with_or_without_the_competitive_field() {
+        let written = serde_json::to_string(&Fixture::default()).unwrap();
+        let mut old: serde_json::Value = serde_json::from_str(&written).unwrap();
+        old.as_object_mut().unwrap().remove("competitive");
+        old.as_object_mut().unwrap().remove("advancing_team_id");
+
+        assert!(serde_json::from_str::<Fixture>(&written).is_ok());
+        assert!(serde_json::from_value::<Fixture>(old).is_ok());
+    }
 
     #[test]
     fn old_competition_rules_default_to_four_clubs_per_group() {

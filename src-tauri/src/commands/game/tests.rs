@@ -780,3 +780,84 @@ fn a_package_career_records_the_seed_its_world_was_built_from() {
     assert_eq!(game.seed, seed);
     assert_ne!(load().0.generation_seed, Some(seed));
 }
+
+/// Given a clubless career that has not been saved, installed as the active game
+/// When the player picks a club
+/// Then the game handed back to the screen carries the token of the career that was installed,
+///      not 0: the tactics writes that follow send that token and would all be refused otherwise.
+#[test]
+fn select_team_hands_the_screen_the_installed_careers_token() {
+    use crate::application::career::install_career;
+    let dir = tempfile::tempdir().unwrap();
+    let mut save_manager = db::save_manager::SaveManager::init(dir.path()).unwrap();
+    let state = ofm_core::state::StateManager::new();
+    let mut game = make_bootstrap_test_game();
+    game.manager.team_id = None;
+    install_career(&state, game, sample_stats_state(), None);
+
+    let shown =
+        super::select_team_internal(&state, &mut save_manager, "team1", None, None).unwrap();
+
+    let installed = state.get_game(|game| game.career_token).unwrap();
+    assert_ne!(installed, 0);
+    assert_eq!(shown.career_token, installed);
+}
+
+/// Given a freshly built game and the package lockfile it was built from
+/// When it is installed as the new career
+/// Then the game handed back to the screen carries the installed career's token and the lockfile.
+#[test]
+fn a_new_game_handed_to_the_screen_carries_the_installed_careers_token() {
+    let state = ofm_core::state::StateManager::new();
+    let lock = ofm_core::generator::PackageLock {
+        id: "pack".to_string(),
+        version: "1".to_string(),
+        hash: "h".to_string(),
+    };
+
+    let shown = super::install_new_game(
+        &state,
+        (make_bootstrap_test_game(), sample_stats_state()),
+        vec![lock.clone()],
+    );
+
+    let installed = state.get_game(|game| game.career_token).unwrap();
+    assert_ne!(installed, 0);
+    assert_eq!(shown.career_token, installed);
+    assert_eq!(shown.package_lockfile, vec![lock]);
+}
+
+/// Given an active career saved once, then changed in memory
+/// When the screen's Save arrives through the command with the career's own token
+/// Then the save on disk holds the change.
+#[test]
+fn save_game_writes_the_active_career_to_its_save() {
+    let app = crate::commands::wrapper_testkit::WrapperApp::new(make_bootstrap_test_game(), true);
+    app.state()
+        .update_game(|game| game.manager.first_name = "Renamed".to_string())
+        .expect("game");
+    assert_ne!(app.saved_game().manager.first_name, "Renamed");
+
+    let saved =
+        tauri::async_runtime::block_on(super::save_game(app.state(), app.saves(), app.token));
+
+    assert_eq!(saved, Ok(()));
+    assert_eq!(app.saved_game().manager.first_name, "Renamed");
+}
+
+/// Given career B is active and a screen still holds career A's token
+/// When that screen's Save arrives
+/// Then it is refused with the career-changed key and the save on disk is not touched.
+#[test]
+fn save_game_for_a_replaced_career_is_refused_and_writes_nothing() {
+    let app = crate::commands::wrapper_testkit::WrapperApp::new(make_bootstrap_test_game(), true);
+    app.state()
+        .update_game(|game| game.manager.first_name = "Renamed".to_string())
+        .expect("game");
+    let stale = app.token + 1;
+
+    let refused = tauri::async_runtime::block_on(super::save_game(app.state(), app.saves(), stale));
+
+    assert_eq!(refused, Err("be.error.careerChanged".to_string()));
+    assert_ne!(app.saved_game().manager.first_name, "Renamed");
+}

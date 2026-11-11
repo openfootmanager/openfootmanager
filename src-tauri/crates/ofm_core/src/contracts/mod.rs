@@ -37,7 +37,8 @@ pub use self::opening::*;
 pub use self::renewals::*;
 pub use self::termination::*;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
 pub enum ContractWarningStage {
     TwelveMonths,
     SixMonths,
