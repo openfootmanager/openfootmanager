@@ -1,8 +1,7 @@
-import type { JSX } from "react";
+import { type JSX, useId } from "react";
 import { useTranslation } from "react-i18next";
 
-import DashboardModalFrame from "./dashboard/DashboardModalFrame";
-import { Button } from "./ui";
+import { Button, Dialog } from "./ui";
 
 interface SwitchClubConfirmModalProps {
   open: boolean;
@@ -22,16 +21,26 @@ export default function SwitchClubConfirmModal({
   onConfirm,
 }: SwitchClubConfirmModalProps): JSX.Element | null {
   const { t } = useTranslation();
+  const titleId = useId();
 
   if (!open) {
     return null;
   }
 
   return (
-    <DashboardModalFrame maxWidthClassName="max-w-md">
+    <Dialog
+      labelledBy={titleId}
+      // While the switch runs, Cancel is disabled, and Escape asks for nothing either.
+      onClose={busy ? undefined : onCancel}
+      busy={busy}
+      className="w-full max-w-md rounded-2xl p-6"
+    >
       <div className="space-y-4" data-testid="switch-club-confirm-modal">
         <div>
-          <h3 className="text-lg font-heading font-bold text-gray-900 dark:text-gray-100">
+          <h3
+            id={titleId}
+            className="text-lg font-heading font-bold text-gray-900 dark:text-gray-100"
+          >
             {t("jobs.switchConfirmTitle")}
           </h3>
           <p className="mt-2 text-sm text-gray-600 dark:text-gray-300">
@@ -56,6 +65,6 @@ export default function SwitchClubConfirmModal({
           </Button>
         </div>
       </div>
-    </DashboardModalFrame>
+    </Dialog>
   );
 }

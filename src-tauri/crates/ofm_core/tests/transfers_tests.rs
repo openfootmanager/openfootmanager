@@ -2,6 +2,10 @@
 mod bid_money;
 #[path = "transfers_tests/loans.rs"]
 mod loans;
+#[path = "transfers_tests/market.rs"]
+mod market;
+#[path = "transfers_tests/negotiation.rs"]
+mod negotiation;
 
 use chrono::{TimeZone, Utc};
 use domain::league::{CompetitionType, League};

@@ -1,3 +1,4 @@
+import { localizeCompetitionName, type NamedCompetition } from "../../lib/competitionName";
 import { useId } from "react";
 import { useTranslation } from "react-i18next";
 import { localizedRoundName } from "../tournaments/TournamentsTab.helpers";
@@ -5,15 +6,22 @@ import type { CupRoundSummary } from "./types";
 
 interface CupRoundSectionProps {
   summary: CupRoundSummary;
+  competitions?: readonly NamedCompetition[];
 }
 
 /** The user's cup ties of the day, shown beside the league round on a cup day. */
-export default function CupRoundSection({ summary }: CupRoundSectionProps) {
+export default function CupRoundSection({ summary, competitions }: CupRoundSectionProps) {
   const { t } = useTranslation();
   const headingId = useId();
+  const name = localizeCompetitionName(
+    summary.competition_name,
+    competitions,
+    t,
+    summary.competition_id,
+  );
   const heading = summary.round_name
-    ? `${summary.competition_name} · ${localizedRoundName(t, summary.round_name)}`
-    : summary.competition_name;
+    ? `${name} · ${localizedRoundName(t, summary.round_name)}`
+    : name;
 
   return (
     <section

@@ -5,6 +5,7 @@ import type { NewsArticle, TeamData } from "../../store/gameStore";
 import HomeLatestNewsCard from "./HomeLatestNewsCard";
 
 vi.mock("react-i18next", () => ({
+  initReactI18next: { type: "3rdParty", init: () => undefined },
   useTranslation: () => ({
     t: (key: string) => {
       if (key === "home.allNews") return "All News";

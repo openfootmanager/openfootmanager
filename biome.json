@@ -17,7 +17,8 @@
       "!docs/modding/examples",
       "!package-lock.json",
       "!**/*.svg",
-      "!**/*.generated.*"
+      "!**/*.generated.*",
+      "!src/store/generated"
     ]
   },
   "formatter": {

@@ -1,15 +1,51 @@
 use crate::game::Game;
-use crate::player_rating::formation_slots;
-use domain::player::{Footedness, Player, Position};
+use crate::player_rating::{formation_slots, natural_ovr};
+use domain::player::{Footedness, Player, Position, default_weak_foot};
 use std::collections::HashMap;
 
 pub fn upgrade_game_player_identities(game: &mut Game) -> bool {
+    upgrade_game_identities(game, false)
+}
+
+/// Backfills weak foot for saves created before the field existed.
+pub fn backfill_game_player_weak_feet(game: &mut Game) -> bool {
+    let mut changed = upgrade_game_player_identities(game);
+    for player in &mut game.players {
+        let weak_foot = infer_weak_foot(player, &player.alternate_positions, player.footedness);
+        if player.weak_foot != weak_foot {
+            player.weak_foot = weak_foot;
+            changed = true;
+        }
+    }
+    changed
+}
+
+/// A saved weak foot is authoritative, even when other identity fields need upgrading.
+pub fn upgrade_loaded_player_identities(game: &mut Game) -> bool {
+    upgrade_game_identities(game, true)
+}
+
+fn upgrade_game_identities(game: &mut Game, preserve_weak_foot: bool) -> bool {
     let slot_map = build_assigned_slot_map(game);
     let mut changed = false;
 
+    let on = game.clock.current_date.date_naive();
+
     for player in &mut game.players {
-        if upgrade_player_identity(player, slot_map.get(&player.id)) {
+        // Zero marks a field absent from an old save, not a playable weak-foot rating.
+        let missing_weak_foot = preserve_weak_foot && player.weak_foot == 0;
+        if missing_weak_foot {
+            player.weak_foot = default_weak_foot();
             changed = true;
+        }
+        if upgrade_identity(
+            player,
+            slot_map.get(&player.id),
+            preserve_weak_foot && !missing_weak_foot,
+        ) {
+            changed = true;
+            // The upgrade re-rated him, and the wonderkid tag is a function of his rating.
+            crate::player_rating::reconcile_wonderkid_trait(player, on);
         }
     }
 
@@ -17,6 +53,14 @@ pub fn upgrade_game_player_identities(game: &mut Game) -> bool {
 }
 
 pub fn upgrade_player_identity(player: &mut Player, assigned_slot: Option<&Position>) -> bool {
+    upgrade_identity(player, assigned_slot, false)
+}
+
+fn upgrade_identity(
+    player: &mut Player,
+    assigned_slot: Option<&Position>,
+    preserve_weak_foot: bool,
+) -> bool {
     if !needs_identity_upgrade(player) {
         return false;
     }
@@ -24,7 +68,11 @@ pub fn upgrade_player_identity(player: &mut Player, assigned_slot: Option<&Posit
     let natural_position = infer_natural_position(player, assigned_slot);
     let alternate_positions = infer_alternate_positions(player, &natural_position, assigned_slot);
     let footedness = infer_footedness(player, &natural_position, assigned_slot);
-    let weak_foot = infer_weak_foot(player, &alternate_positions, footedness);
+    let weak_foot = if preserve_weak_foot {
+        player.weak_foot
+    } else {
+        infer_weak_foot(player, &alternate_positions, footedness)
+    };
 
     let changed = player.natural_position != natural_position
         || player.alternate_positions != alternate_positions
@@ -35,7 +83,32 @@ pub fn upgrade_player_identity(player: &mut Player, assigned_slot: Option<&Posit
     player.alternate_positions = alternate_positions;
     player.footedness = footedness;
     player.weak_foot = weak_foot;
+    // The rating is the one the formula gives at the natural position, which is what the daily
+    // refresh computes: a generated player was rated at his coarse slot position, and left so he
+    // would jump (about 1.4 points on average) the first time the game refreshed him.
+    //
+    // A player with no rating at all (a save from before ratings existed) is left to the loader's
+    // age-based backfill, which also draws his ceiling.
+    let rated_changed = refresh_rating_to_natural_position(player);
 
+    changed || rated_changed
+}
+
+/// Sets `player.ovr` to the formula's rating at his natural position and floors a ceiling he
+/// already has at it, as the daily refresh does. `true` when either changed.
+fn refresh_rating_to_natural_position(player: &mut Player) -> bool {
+    if player.ovr == 0 {
+        return false;
+    }
+    let rated = natural_ovr(player).round() as u8;
+    let ceiling = if player.potential == 0 {
+        0
+    } else {
+        player.potential.max(rated)
+    };
+    let changed = player.ovr != rated || player.potential != ceiling;
+    player.ovr = rated;
+    player.potential = ceiling;
     changed
 }
 
@@ -44,6 +117,11 @@ fn needs_identity_upgrade(player: &Player) -> bool {
     // player's group). Only trigger re-inference when the granular fields
     // — natural_position or alternate_positions — still hold a legacy value,
     // meaning the initial upgrade hasn't run for this player yet.
+    //
+    // `is_legacy_bucket` includes the goalkeeper on purpose: `natural_position` defaults to it, so
+    // a save from before the field existed arrives here as a natural keeper and is re-inferred
+    // from `position`. A real keeper is re-inferred to the same position, which changes nothing.
+    // See `Position::is_legacy_bucket`.
     //
     // Previously this also checked `player.position.is_legacy_bucket()`,
     // which is always true by design and made the upgrade re-run on every
@@ -495,6 +573,123 @@ mod tests {
         )
     }
 
+    /// Given a generated defender whose stored overall was set at his coarse position (here
+    ///       deliberately far from what his attributes score),
+    /// When he is given his specific natural position,
+    /// Then his stored overall is what the rating formula computes for that position, so the
+    ///      first rating refresh has nothing to change.
+    #[test]
+    fn upgrading_a_players_identity_refreshes_his_overall_to_the_natural_position() {
+        let attrs = PlayerAttributes {
+            pace: 86,
+            stamina: 84,
+            strength: 66,
+            agility: 74,
+            passing: 62,
+            shooting: 40,
+            tackling: 78,
+            dribbling: 63,
+            defending: 73,
+            positioning: 68,
+            vision: 55,
+            decisions: 64,
+            composure: 61,
+            aggression: 66,
+            teamwork: 72,
+            leadership: 50,
+            handling: 20,
+            reflexes: 20,
+            aerial: 48,
+        };
+        let mut player = make_player("stale-rb", Position::Defender, attrs);
+        player.ovr = 50;
+        player.potential = 50;
+
+        upgrade_player_identity(&mut player, Some(&Position::RightBack));
+
+        let natural = crate::player_rating::natural_ovr(&player).round() as u8;
+        assert_ne!(
+            natural, 50,
+            "the fixture must tell the stale value from the formula's"
+        );
+        assert_eq!(player.ovr, natural);
+        assert!(
+            player.potential >= player.ovr,
+            "a ceiling is never below the rating"
+        );
+    }
+
+    /// Given a goalkeeper (whose specific position is his coarse one) with a stale stored overall,
+    /// When his identity is upgraded,
+    /// Then his overall is corrected and the call reports a change, so a save loader persists it.
+    #[test]
+    fn a_rating_correction_alone_is_reported_as_a_change() {
+        let attrs = PlayerAttributes {
+            pace: 50,
+            stamina: 60,
+            strength: 60,
+            agility: 70,
+            passing: 55,
+            shooting: 30,
+            tackling: 30,
+            dribbling: 30,
+            defending: 40,
+            positioning: 70,
+            vision: 55,
+            decisions: 66,
+            composure: 62,
+            aggression: 50,
+            teamwork: 60,
+            leadership: 50,
+            handling: 78,
+            reflexes: 80,
+            aerial: 72,
+        };
+        let mut player = make_player("stale-gk", Position::Goalkeeper, attrs);
+        let formula = crate::player_rating::natural_ovr(&player).round() as u8;
+        player.ovr = formula.saturating_sub(7);
+
+        let changed = upgrade_player_identity(&mut player, None);
+
+        assert_eq!(player.ovr, formula);
+        assert!(changed, "a corrected rating must be reported");
+    }
+
+    /// Given a legacy player with no rating and no ceiling,
+    /// When his identity is upgraded,
+    /// Then both stay unset, so the loader's age-based backfill draws his ceiling.
+    #[test]
+    fn a_player_with_no_rating_yet_keeps_it_unset() {
+        let attrs = PlayerAttributes {
+            pace: 70,
+            stamina: 70,
+            strength: 70,
+            agility: 70,
+            passing: 70,
+            shooting: 70,
+            tackling: 70,
+            dribbling: 70,
+            defending: 70,
+            positioning: 70,
+            vision: 70,
+            decisions: 70,
+            composure: 70,
+            aggression: 70,
+            teamwork: 70,
+            leadership: 70,
+            handling: 20,
+            reflexes: 20,
+            aerial: 60,
+        };
+        let mut player = make_player("pre-rating", Position::Midfielder, attrs);
+        player.ovr = 0;
+        player.potential = 0;
+
+        upgrade_player_identity(&mut player, None);
+
+        assert_eq!((player.ovr, player.potential), (0, 0));
+    }
+
     #[test]
     fn upgrade_player_identity_infers_granular_defender_profile() {
         let attrs = PlayerAttributes {
@@ -652,6 +847,72 @@ mod tests {
                 .iter()
                 .all(|position| !position.is_legacy_bucket()),
             "alternates should be fully granular after upgrade",
+        );
+    }
+
+    /// Given a 19-year-old with an S-tier ceiling whose stored overall was stale-high (so he did
+    ///       not qualify as a wonderkid), and whose rating at his natural position is much lower,
+    /// When the game's players are given their identities,
+    /// Then his wonderkid tag follows his new rating: he is tagged, as the rule says.
+    #[test]
+    fn re_rating_a_player_at_career_open_reconciles_his_wonderkid_tag() {
+        let start = Utc.with_ymd_and_hms(2026, 7, 1, 0, 0, 0).unwrap();
+        let attrs = PlayerAttributes {
+            pace: 62,
+            stamina: 62,
+            strength: 62,
+            agility: 62,
+            passing: 62,
+            shooting: 62,
+            tackling: 62,
+            dribbling: 62,
+            defending: 62,
+            positioning: 62,
+            vision: 62,
+            decisions: 62,
+            composure: 62,
+            aggression: 62,
+            teamwork: 62,
+            leadership: 62,
+            handling: 20,
+            reflexes: 20,
+            aerial: 62,
+        };
+        let mut prospect = make_player("prospect", Position::Midfielder, attrs);
+        prospect.date_of_birth = "2007-03-01".to_string();
+        prospect.team_id = Some("team-1".to_string());
+        prospect.ovr = 80;
+        prospect.potential = 85;
+        prospect
+            .traits
+            .retain(|t| *t != domain::player::PlayerTrait::Wonderkid);
+        let mut game = Game::new(
+            GameClock::new(start),
+            make_manager(),
+            vec![make_team()],
+            vec![prospect],
+            vec![],
+            vec![],
+        );
+
+        upgrade_game_player_identities(&mut game);
+
+        let player = &game.players[0];
+        let age = domain::age::playing_age(start.date_naive(), &player.date_of_birth);
+        assert!(
+            player.ovr < 71,
+            "the fixture must re-rate him well below his ceiling"
+        );
+        assert!(crate::player_rating::qualifies_for_wonderkid(
+            age,
+            player.potential,
+            player.ovr
+        ));
+        assert!(
+            player
+                .traits
+                .contains(&domain::player::PlayerTrait::Wonderkid),
+            "his tag must follow his new rating"
         );
     }
 

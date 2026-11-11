@@ -1,4 +1,6 @@
 import "@testing-library/jest-dom/vitest";
+import { afterEach } from "vitest";
+import { takeMissingKeys } from "./i18n/missingKeys";
 
 // Polyfill localStorage for jsdom environment in Node 22+.
 // Node 24+ removed the built-in localStorage implementation and now requires
@@ -34,3 +36,13 @@ if (typeof localStorage === "undefined" || localStorage === null) {
     configurable: true,
   });
 }
+
+// A key no locale has renders to the player as its raw name. The real i18n instance reports each
+// one it was asked for; the test that rendered it fails here, naming the key. A test that is
+// meant to ask for an absent key drains the report itself (`takeMissingKeys()`).
+afterEach(() => {
+  const missing = takeMissingKeys();
+  if (missing.length > 0) {
+    throw new Error(`Rendered translation keys that no locale has: ${missing.join(", ")}`);
+  }
+});

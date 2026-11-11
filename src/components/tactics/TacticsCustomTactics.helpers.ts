@@ -97,6 +97,13 @@ function readStoredList(storage: StorageLike, key: string): TacticsLibraryEntry[
   }
 }
 
+/** The library as the save holds it after an import, and whether nothing is left to retry. */
+export interface LegacyImport {
+  tactics: CustomTactic[];
+  /** False when a save failed part way: the rest must be tried again, so it is not marked done. */
+  complete: boolean;
+}
+
 /**
  * Copies an old browser library into the save.
  *
@@ -107,9 +114,11 @@ function readStoredList(storage: StorageLike, key: string): TacticsLibraryEntry[
  * the order they were made in is kept; one the save holds is skipped, so a reload, a retry or a
  * second career cannot import it twice. A name longer than the save keeps is shortened. A tactic
  * the game still refuses (a shape it cannot lay out) is left out of the save and stays where it
- * is, in the browser's storage; a failed save stops the import for another try.
+ * is, in the browser's storage; a failed save stops the import for another try, and the result
+ * says it is not complete.
  *
- * Returns the library as the save now holds it.
+ * The import runs once per career (the save records it), so a tactic deleted afterwards is not
+ * copied back; the caller decides whether it still has to run.
  */
 export async function importLegacyTactics(
   managerId: string,
@@ -117,10 +126,12 @@ export async function importLegacyTactics(
   saved: readonly CustomTactic[],
   save: (tactic: CustomTactic) => Promise<CustomTactic[]>,
   storage: StorageLike | null = getDefaultStorage(),
-): Promise<CustomTactic[]> {
+): Promise<LegacyImport> {
   let current = [...saved];
+  // No storage to read is not "nothing to import": the library may be there, so the career is not
+  // marked done and the import is tried again. A library read and found empty is complete.
   if (!storage) {
-    return current;
+    return { tactics: current, complete: false };
   }
 
   const known = new Set(current.map((tactic) => tactic.id.trim()));
@@ -142,11 +153,11 @@ export async function importLegacyTactics(
       if (typeof error === "string" && error.startsWith(REFUSED_PREFIX)) {
         continue;
       }
-      return current;
+      return { tactics: current, complete: false };
     }
   }
 
-  return current;
+  return { tactics: current, complete: true };
 }
 
 function fitName(name: string): string {

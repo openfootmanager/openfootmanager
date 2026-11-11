@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use domain::player::Player;
-use ofm_core::hall_of_fame::HallOfFameLegend;
+use ofm_core::hall_of_fame::{HallOfFameLegend, PastChampion};
 use ofm_core::state::StateManager;
 use tauri::State;
 
@@ -13,6 +13,14 @@ pub fn get_hall_of_fame_legends_internal(
 ) -> Result<Vec<HallOfFameLegend>, String> {
     state
         .get_game(ofm_core::hall_of_fame::hall_of_fame_legends)
+        .ok_or_else(|| NO_ACTIVE_GAME.to_string())
+}
+
+pub fn get_hall_of_fame_champions_internal(
+    state: &StateManager,
+) -> Result<Vec<PastChampion>, String> {
+    state
+        .get_game(ofm_core::hall_of_fame::hall_of_fame_champions)
         .ok_or_else(|| NO_ACTIVE_GAME.to_string())
 }
 
@@ -31,6 +39,15 @@ pub fn get_hall_of_fame_legends(
     state: State<'_, Arc<StateManager>>,
 ) -> Result<Vec<HallOfFameLegend>, String> {
     get_hall_of_fame_legends_internal(&state)
+}
+
+/// Every league title in the world's past, latest first: the backend names the champions, so no
+/// screen reads "first place" as a title.
+#[tauri::command]
+pub fn get_hall_of_fame_champions(
+    state: State<'_, Arc<StateManager>>,
+) -> Result<Vec<PastChampion>, String> {
+    get_hall_of_fame_champions_internal(&state)
 }
 
 #[tauri::command]
@@ -75,6 +92,39 @@ mod tests {
 
         assert_eq!(legends.len(), 1);
         assert_eq!(legends[0].full_name, "Ada Old");
+    }
+
+    /// Given a game with a club that won a title in the past, when the champions are requested,
+    /// then that title is listed with its club and season.
+    #[test]
+    fn the_hall_of_fame_lists_a_past_title() {
+        let mut game = completed_checkpoint();
+        game.teams[0].history.push(domain::team::TeamSeasonRecord {
+            season: 2038,
+            league_position: 1,
+            played: 38,
+            won: 30,
+            drawn: 4,
+            lost: 4,
+            goals_for: 80,
+            goals_against: 30,
+            competition_id: String::new(),
+        });
+        let state = StateManager::new();
+        state.set_game(game);
+
+        let champions = get_hall_of_fame_champions_internal(&state).unwrap();
+
+        assert_eq!(champions.len(), 1);
+        assert_eq!(champions[0].season, 2038);
+    }
+
+    /// Given no game, when the champions are requested, then the session error comes back.
+    #[test]
+    fn the_champions_need_a_game() {
+        let error = get_hall_of_fame_champions_internal(&StateManager::new()).unwrap_err();
+
+        assert_eq!(error, "be.error.noActiveGameSession");
     }
 
     /// Given no game, when the Hall of Fame is requested, then the session error comes back.

@@ -1,6 +1,14 @@
 import { describe, expect, it } from "vitest";
 import type { PlayerData } from "../../store/gameStore";
-import { resolveStartingXiIds } from "./TacticsTab.helpers";
+import { createPositionTable } from "../../lib/positionTable";
+import type { FamiliarityTable } from "../../hooks/useFamiliarity";
+import type { Familiarity } from "../../store/generated/Familiarity";
+import { cannedPositionTable } from "../../test-utils/positionTable";
+import {
+  buildTacticsRoster,
+  countOutOfPositionPlayers,
+  filterAndSortTacticsPlayers,
+} from "./TacticsTab.helpers";
 
 const makePlayer = (
   id: string,
@@ -63,77 +71,91 @@ const makePlayer = (
   ...overrides,
 });
 
-describe("resolveStartingXiIds", () => {
-  it("prefers exact slot matches when filling pending tactics slots", () => {
-    const availablePlayers = [
-      makePlayer("gk", "Goalkeeper"),
-      makePlayer("lb", "Left Back", {
-        natural_position: "Left Back",
-        attributes: {
-          pace: 55,
-          stamina: 55,
-          strength: 55,
-          agility: 55,
-          passing: 55,
-          shooting: 40,
-          tackling: 68,
-          dribbling: 50,
-          defending: 68,
-          positioning: 62,
-          vision: 52,
-          decisions: 58,
-          composure: 56,
-          aggression: 58,
-          teamwork: 60,
-          leadership: 50,
-          handling: 10,
-          reflexes: 10,
-          aerial: 10,
-        },
-      }),
-      makePlayer("cb1", "Center Back", {
-        natural_position: "Center Back",
-        attributes: {
-          pace: 70,
-          stamina: 70,
-          strength: 74,
-          agility: 62,
-          passing: 62,
-          shooting: 42,
-          tackling: 78,
-          dribbling: 52,
-          defending: 80,
-          positioning: 74,
-          vision: 58,
-          decisions: 70,
-          composure: 68,
-          aggression: 71,
-          teamwork: 68,
-          leadership: 60,
-          handling: 10,
-          reflexes: 10,
-          aerial: 10,
-        },
-      }),
-      makePlayer("cb2", "Center Back"),
-      makePlayer("rb", "Right Back", { natural_position: "Right Back" }),
-      makePlayer("m1", "Midfielder"),
-      makePlayer("m2", "Midfielder"),
-      makePlayer("m3", "Midfielder"),
-      makePlayer("m4", "Midfielder"),
-      makePlayer("f1", "Forward"),
-      makePlayer("f2", "Forward"),
-    ];
-    const playersById = new Map(availablePlayers.map((player) => [player.id, player]));
+describe("the tactics roster and its lists, by the backend's position table", () => {
+  const roster = () => [
+    makePlayer("fwd", "Striker", { team_id: "t1", match_day_eligible: true }),
+    makePlayer("gk", "Goalkeeper", { team_id: "t1", match_day_eligible: true }),
+    makePlayer("def", "CenterBack", { team_id: "t1", match_day_eligible: true }),
+  ];
 
-    const ids = resolveStartingXiIds({
-      availablePlayers,
-      formation: "4-4-2",
-      pendingStartingXiIds: ["gk"],
-      playersById,
-      savedStartingXiIds: [],
+  /**
+   * Given a squad listed in no particular order
+   * When the tactics roster is built with the loaded table
+   * Then the lines run keeper, defence, attack: the order is the table's, not the input's.
+   */
+  it("orders the roster by the table's lines", () => {
+    const ids = buildTacticsRoster(roster(), "t1", cannedPositionTable()).map((p) => p.id);
+
+    expect(ids).toEqual(["gk", "def", "fwd"]);
+  });
+
+  /**
+   * Given the same lists and a loaded table
+   * When the XI list is sorted by position
+   * Then it runs keeper, defence, attack too.
+   */
+  it("sorts a list by position along the table's lines", () => {
+    const positionTable = cannedPositionTable();
+    const sorted = filterAndSortTacticsPlayers(
+      roster(),
+      {
+        playerSearch: "",
+        positionFilter: "All",
+        positionTable,
+        section: "bench",
+        xiActivePosition: new Map(),
+      },
+      {
+        positionTable,
+        section: "bench",
+        sortDir: "asc",
+        sortKey: "pos",
+        xiActivePosition: new Map(),
+      },
+    );
+
+    expect(sorted.map((p) => p.id)).toEqual(["gk", "def", "fwd"]);
+  });
+
+  /**
+   * Given a defender put in the forward line, with the table loaded and not loaded
+   * When the out-of-position players are counted
+   * Then he is counted once loaded, and nobody is counted before the table arrives.
+   */
+  it("counts out-of-position starters only once the table has loaded", () => {
+    const xi = [makePlayer("def", "CenterBack", { team_id: "t1" })];
+    const slots = new Map([["def", "Striker"]]);
+
+    expect(countOutOfPositionPlayers(xi, slots, cannedPositionTable())).toBe(1);
+    expect(countOutOfPositionPlayers(xi, slots, createPositionTable([]))).toBe(0);
+  });
+
+  describe("when the screen reads the backend's familiarity", () => {
+    // A table that says what the test says per player, whatever his own positions are: it proves
+    // the helpers read the table and do not grade the player themselves.
+    const byPlayer = (words: Record<string, Familiarity>): FamiliarityTable => ({
+      loaded: true,
+      familiarityOf: (playerId) => words[playerId] ?? null,
     });
 
-    expect(ids[1]).toBe("lb");
+    /**
+     * Given a centre back in his own slot whom the backend calls out of position there
+     * When the out-of-position players are counted with that table
+     * Then he is counted: the backend's word wins over his positions.
+     */
+    it("counts what the backend calls out of position", () => {
+      const xi = [makePlayer("cb", "CenterBack", { team_id: "t1" })];
+      const slots = new Map([["cb", "CenterBack"]]);
+
+      expect(
+        countOutOfPositionPlayers(
+          xi,
+          slots,
+          cannedPositionTable(),
+          byPlayer({ cb: "out_of_position" }),
+        ),
+      ).toBe(1);
+      expect(countOutOfPositionPlayers(xi, slots, cannedPositionTable())).toBe(0);
+    });
   });
 });

@@ -1,7 +1,14 @@
 import { render, screen, fireEvent } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { beforeAll, describe, expect, it, vi } from "vitest";
 
-import type { AdvanceRecap, DigestEntry, RecapMatch } from "./advanceRecap";
+import { i18nReady } from "../../i18n";
+import type { GameStateData, MessageData } from "../../store/gameStore";
+import {
+  type AdvanceRecap,
+  buildAdvanceRecap,
+  type DigestEntry,
+  type RecapMatch,
+} from "./advanceRecap";
 import DashboardSimulatingModal from "./DashboardSimulatingModal";
 
 // jsdom has no scrollIntoView; the modal auto-scrolls the feed on new entries.
@@ -74,6 +81,31 @@ describe("DashboardSimulatingModal penalty shootouts", () => {
   });
 });
 
+describe("DashboardSimulatingModal result badge", () => {
+  /**
+   * Given the club's own match in the digest, won, drawn and lost
+   * When the digest is drawn
+   * Then each badge shows the locale's one-letter form result (not the standings column header)
+   *      and is read as the result's word, in role tokens that have a dark pair.
+   */
+  it.each([
+    ["win", "common.formResult.W", "match.victory", "text-positive"],
+    ["draw", "common.formResult.D", "match.draw", "text-fg-muted"],
+    ["loss", "common.formResult.L", "match.defeat", "text-danger"],
+  ] as const)("badges a %s with the form letter and word", (userResult, letter, word, tone) => {
+    render(
+      <DashboardSimulatingModal
+        digestEntries={[entryWith([match({ involves_user: true, userResult })])]}
+      />,
+    );
+
+    const badge = screen.getByText(letter).parentElement;
+    expect(badge).toHaveTextContent(word);
+    expect(badge?.className).toContain(tone);
+    expect(badge?.className).not.toMatch(/(?:bg|text)-(?:red|gray|primary)-\d/);
+  });
+});
+
 describe("DashboardSimulatingModal batch resume", () => {
   it("presents a crunching batch behind a kept feed as in-progress without Close or Stop", () => {
     render(
@@ -122,5 +154,71 @@ describe("DashboardSimulatingModal attention-event stop", () => {
 
     fireEvent.click(screen.getByText("dashboard.digestClose"));
     expect(onDismiss).toHaveBeenCalledOnce();
+  });
+});
+
+describe("DashboardSimulatingModal backend text", () => {
+  beforeAll(async () => {
+    await i18nReady;
+  });
+
+  function digestOf(messages: Partial<MessageData>[]): DigestEntry {
+    const game = {
+      clock: { current_date: "2026-07-02T00:00:00Z", start_date: "2026-07-01T00:00:00Z" },
+      manager: { team_id: "team-1" },
+      teams: [{ id: "team-1", name: "User FC" }],
+      players: [],
+      news: [],
+      messages: messages.map((message, index) => ({
+        id: `m${index}`,
+        date: "2026-07-01",
+        priority: "High",
+        category: "Medical",
+        body: "",
+        sender: "",
+        sender_role: "",
+        read: false,
+        actions: [],
+        ...message,
+      })),
+      league: null,
+    } as unknown as GameStateData;
+    return { date: "2026-07-01", recap: buildAdvanceRecap(game, "2026-07-01", []) };
+  }
+
+  /**
+   * Given a match injury and a dressing-room mood report, whose params are themselves keys
+   *       (common.injuries.hamstringTear, common.moods.excellent), both important enough for the digest
+   * When the digest is drawn
+   * Then each line reads as the player would read it, with the key-valued params translated, and no
+   *      raw key appears.
+   */
+  it("translates the params of an inbox subject that are themselves keys", () => {
+    const entry = digestOf([
+      {
+        subject: "Match injury",
+        subject_key: "be.msg.matchInjury.subject",
+        i18n_params: { player: "John Star", injury: "common.injuries.hamstringTear", days: "21" },
+      },
+      {
+        subject: "Mood",
+        subject_key: "be.msg.moodReport.subject",
+        i18n_params: { mood: "common.moods.excellent" },
+      },
+    ]);
+
+    // At the recap layer, which the mocked t above does not touch: on develop these read the
+    // untranslated subjects, and a resolver that left the param raw would read "(common.injuries...)".
+    expect(entry.recap.inbox.map((item) => item.text)).toEqual([
+      "Match injury — John Star (Hamstring tear)",
+      "Dressing Room Report — Mood: Excellent",
+    ]);
+
+    render(<DashboardSimulatingModal digestEntries={[entry]} onDismiss={vi.fn()} />);
+
+    expect(screen.getByText("Match injury — John Star (Hamstring tear)")).toBeInTheDocument();
+    expect(screen.getByText("Dressing Room Report — Mood: Excellent")).toBeInTheDocument();
+    // The params' own keys, not the modal's own chrome (its Close button is mocked to its key).
+    expect(screen.queryByText(/common\.(injuries|moods)/)).not.toBeInTheDocument();
   });
 });

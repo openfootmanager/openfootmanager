@@ -178,12 +178,14 @@ fn draw_recruits(game: &Game, team_index: usize, plan: &IntakePlan, date: NaiveD
         &date.format("%Y-%m-%d").to_string(),
     );
     let team = &game.teams[team_index];
+    let reputations = crate::generator::ReputationScale::of_clubs(&game.teams);
     plan.groups
         .iter()
         .filter_map(|group| {
             let age = rng.random_range(INTAKE_AGES);
             let recruit = crate::generator::generate_youth_intake_recruit(
                 team,
+                &reputations,
                 group,
                 age,
                 date.year() as u32,

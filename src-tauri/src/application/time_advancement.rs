@@ -5,7 +5,7 @@ use crate::commands::round_summary::{build_round_summary_dto, RoundSummaryDto};
 use ofm_core::advance_results::{collect_advance_results, AdvanceMatchResult};
 use ofm_core::game::Game;
 use ofm_core::live_match_manager::{self, MatchMode};
-use ofm_core::state::StateManager;
+use ofm_core::state::{Career, StateManager};
 use ofm_core::turn::{build_cup_round_summaries, CupRoundSummary};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -26,6 +26,9 @@ pub struct AdvanceTimeWithModeResponse {
     /// Matches finished during this advance (user's competitions + nationals).
     #[serde(default)]
     pub results: Vec<AdvanceMatchResult>,
+    /// Set when a weekly auto-save was due and could not be written (#1181): the screen shows it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub auto_save_error: Option<String>,
 }
 
 /// Where the user's fixture due today is: which competition to swap into the legacy slot, and the
@@ -93,6 +96,7 @@ fn scheduled_user_fixture_index(game: &Game, today: &str) -> Option<(Option<usiz
 
 pub fn advance_time_with_mode(
     state: &StateManager,
+    career: Career,
     mode: &str,
 ) -> Result<AdvanceTimeWithModeResponse, String> {
     let _operation = super::live_session::idle_operation(state)?;
@@ -104,9 +108,9 @@ pub fn advance_time_with_mode(
     // stored only after the game lock is released, so the two state mutexes
     // are never held at once.
     let mut captures = Vec::new();
-    let (response, session_out) = state
-        .update_game(|game| advance_day_in_mode(game, mode, &mut captures))
-        .ok_or("be.error.noActiveGameSession")??;
+    let (response, session_out) = state.update_game_for(career, |game| {
+        advance_day_in_mode(game, mode, &mut captures)
+    })??;
 
     for capture in captures {
         state.append_stats_state(capture);
@@ -234,6 +238,7 @@ fn advance_live_matchday(
             round_summary,
             cup_round_summaries: build_cup_round_summaries(game, today),
             results: Vec::new(),
+            auto_save_error: None,
         },
         session,
     ))
@@ -308,6 +313,7 @@ fn advanced_day_response(
         round_summary,
         cup_round_summaries: build_cup_round_summaries(game, today),
         results,
+        auto_save_error: None,
     }
 }
 
@@ -591,7 +597,8 @@ mod tests {
         let state = StateManager::new();
         state.set_game(game);
 
-        advance_time_with_mode(&state, "live").expect("the live match starts");
+        advance_time_with_mode(&state, ofm_core::state::Career::Active, "live")
+            .expect("the live match starts");
 
         let signed = state
             .get_game(|game| {
@@ -636,7 +643,7 @@ mod tests {
         let state = StateManager::new();
         state.set_game(game);
 
-        let outcome = advance_time_with_mode(&state, "live");
+        let outcome = advance_time_with_mode(&state, ofm_core::state::Career::Active, "live");
 
         assert!(
             outcome.is_err(),

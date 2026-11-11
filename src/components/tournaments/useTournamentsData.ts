@@ -7,7 +7,6 @@ import {
   type CompetitionsView,
   type PlayerNameEntry,
 } from "../../services/competitionsService";
-import { resolveSeasonContext } from "../../lib/seasonContext";
 
 interface UseTournamentsDataResult {
   teamNames: Record<string, string>;
@@ -74,7 +73,7 @@ export function useTournamentsData(gameState: GameStateData): UseTournamentsData
   const playerNames = competitionsView?.player_names ?? {};
 
   const userTeamId = competitionsView?.manager_team_id ?? gameState.manager.team_id;
-  const seasonContext = resolveSeasonContext(gameState);
+  const seasonContext = gameState.season_context;
   const isPreseason = seasonContext.phase === "Preseason";
 
   // Derive active competitions from slice; fall back to gameState while loading.

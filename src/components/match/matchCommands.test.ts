@@ -1,6 +1,8 @@
 import { invoke } from "@tauri-apps/api/core";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import type { GameStateData } from "../../store/gameStore";
+import { useGameStore } from "../../store/gameStore";
 import { resetMatchCommands, sendMatchCommand } from "./matchCommands";
 import type { MatchSnapshot } from "./types";
 
@@ -84,5 +86,27 @@ describe("sendMatchCommand", () => {
     const inMatchB = sendMatchCommand({ ChangePlayStyle: { side: "Home", play_style: "B" } });
 
     await expect(inMatchB).resolves.toEqual(snapshot("b"));
+  });
+
+  /**
+   * Given a command queued behind a slow one in career 7, and the screen then showing career 8
+   * When the queued command's turn comes
+   * Then it goes out with career 7's token, the one it was asked in.
+   */
+  it("sends the token of the career a command was asked in, not the one showing at its turn", async () => {
+    const first = deferred<MatchSnapshot>();
+    mockedInvoke.mockReturnValueOnce(first.promise).mockResolvedValue(snapshot("queued"));
+    useGameStore.setState({ gameState: { career_token: 7 } as unknown as GameStateData });
+
+    const slow = sendMatchCommand({ ChangePlayStyle: { side: "Home", play_style: "A" } });
+    const queued = sendMatchCommand({ ChangeFormation: { side: "Home", formation: "4-3-3" } });
+    useGameStore.setState({ gameState: { career_token: 8 } as unknown as GameStateData });
+    first.resolve(snapshot("slow"));
+    await Promise.all([slow, queued]);
+
+    expect(mockedInvoke).toHaveBeenNthCalledWith(2, "apply_match_command", {
+      command: { ChangeFormation: { side: "Home", formation: "4-3-3" } },
+      careerToken: 7,
+    });
   });
 });

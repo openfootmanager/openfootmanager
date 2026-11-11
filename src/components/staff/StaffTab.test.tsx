@@ -1,8 +1,11 @@
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { describe, expect, it, vi, beforeEach } from "vitest";
 
 import type { GameStateData, StaffData, TeamData } from "../../store/gameStore";
+import type { RatingTier } from "../../services/squadService";
+import { useSettingsStore } from "../../store/settingsStore";
 import StaffTab from "./StaffTab";
+import { createSeasonContext } from "../../test-utils/factories";
 
 const invokeMock = vi.fn();
 
@@ -11,6 +14,7 @@ vi.mock("@tauri-apps/api/core", () => ({
 }));
 
 vi.mock("react-i18next", () => ({
+  initReactI18next: { type: "3rdParty", init: () => undefined },
   useTranslation: () => ({
     t: (key: string, params?: Record<string, string | number>, fallback?: string) => {
       if (key === "finances.perWeekSuffix") return "/wk";
@@ -28,6 +32,15 @@ vi.mock("react-i18next", () => ({
       if (key === "staff.youthSearch") return "youth search";
       if (key === "staff.youthSearches") return "youth searches";
       if (key === "common.age") return "Age";
+      if (key === "common.overallRating") return `Overall ${params?.value}`;
+      if (key === "common.overallRatingTier")
+        return `Overall ${params?.value}, tier ${params?.tier}`;
+      if (key.startsWith("common.ratingTier.")) return key.replace("common.ratingTier.", "");
+      // German's word, so a hard-coded English "OVR" on the page fails the tests that read it.
+      if (key === "common.ovr") return "GES";
+      if (key === "common.listViewTable") return "Table";
+      if (key === "common.listViewCards") return "Cards";
+      if (key === "staff.staffActions") return `Staff actions for ${params?.name}`;
       if (key === "staff.best") return "Best";
       if (key.startsWith("staff.roles.")) return key.replace("staff.roles.", "");
       if (key.startsWith("staff.attrs.")) return key.replace("staff.attrs.", "");
@@ -94,6 +107,7 @@ function createStaff(overrides: Partial<StaffData> = {}): StaffData {
 
 function createGameState(staff: StaffData[]): GameStateData {
   return {
+    season_context: createSeasonContext(),
     clock: {
       current_date: "2026-08-10T00:00:00Z",
       start_date: "2026-07-01T00:00:00Z",
@@ -133,23 +147,41 @@ function createGameState(staff: StaffData[]): GameStateData {
   };
 }
 
+/**
+ * The backend's staff slice: each row is the member with the rating the game computes for his
+ * role (ofm_core's staff_rating), 50 unless a test names one.
+ */
 function makeStaffSlice(
   staff: StaffData[],
   overrides: Partial<{
     scouting_assignments: unknown[];
     youth_scouting_assignments: unknown[];
+    ratings: Record<string, number>;
+    tiers: Record<string, RatingTier>;
   }> = {},
 ) {
+  const row = (member: StaffData) => ({
+    ...member,
+    rating: overrides.ratings?.[member.id] ?? 50,
+    tier: overrides.tiers?.[member.id] ?? "Rest",
+  });
   return {
-    team_staff: staff.filter((s) => s.team_id),
-    available_staff: staff.filter((s) => !s.team_id),
+    team_staff: staff.filter((s) => s.team_id).map(row),
+    available_staff: staff.filter((s) => !s.team_id).map(row),
     scouting_assignments: overrides.scouting_assignments ?? [],
     youth_scouting_assignments: overrides.youth_scouting_assignments ?? [],
   };
 }
 
+function setListView(view: "table" | "cards") {
+  useSettingsStore.setState({
+    settings: { ...useSettingsStore.getState().settings, list_view: view },
+  });
+}
+
 describe("StaffTab", () => {
   beforeEach(() => {
+    setListView("cards");
     invokeMock.mockReset();
     const defaultStaff = [createStaff()];
     invokeMock.mockImplementation(async (command: string) => {
@@ -158,24 +190,24 @@ describe("StaffTab", () => {
     });
   });
 
-  it("rates a specialist on the attribute their role actually uses", async () => {
-    // A flat average over all four attributes made an elite physio read as
-    // mediocre: the engine only consumes `physiotherapy` for physios
-    // (training.rs), yet coaching and scouting dragged the number down.
+  /**
+   * Given a physio whose attributes, mixed any way here, would not make 77, and the backend's
+   *       slice rating him 77
+   * When his card is drawn
+   * Then it shows 77: the rating is the game's (ofm_core's staff_rating, one rule per role,
+   *      tested in Rust), never a formula of the page's own.
+   */
+  it("shows the rating the backend sends for each member", async () => {
     const physio = createStaff({
       id: "staff-physio",
       first_name: "Pat",
       last_name: "Physio",
       role: "Physio",
-      attributes: {
-        coaching: 30,
-        judgingAbility: 30,
-        judgingPotential: 30,
-        physiotherapy: 90,
-      },
+      attributes: { coaching: 30, judgingAbility: 30, judgingPotential: 30, physiotherapy: 90 },
     });
     invokeMock.mockImplementation(async (command: string) => {
-      if (command === "get_staff") return makeStaffSlice([physio]);
+      if (command === "get_staff")
+        return makeStaffSlice([physio], { ratings: { "staff-physio": 77 } });
       return createGameState([physio]);
     });
 
@@ -187,106 +219,289 @@ describe("StaffTab", () => {
       />,
     );
 
-    const card = await screen.findByTestId("staff-card-staff-physio");
-    expect(within(card).getByText("90 OVR")).toBeInTheDocument();
+    expect(await screen.findByText("Overall 77")).toBeInTheDocument();
   });
 
-  it("weights an assistant manager the way the engine does", async () => {
-    // delegated_renewals.rs scores assistants as
-    // (coaching*4 + judgingAbility*3 + judgingPotential*3) / 10.
+  /**
+   * Given a coach and an assistant whom the backend both rates 80, and tiers as the game does
+   *       among their own roles: B for the coach (coaches' B starts at 75, A at 83), S for the
+   *       assistant (assistants' S starts at 79)
+   * When their cards are drawn
+   * Then each 80 is painted in its own tier's tone and its tier is said in words: the page holds
+   *      no cut-off of its own, so one number reads two ways.
+   */
+  it("paints each member's rating in his tier among his role, as the backend sends it", async () => {
+    const coach = createStaff({
+      id: "staff-coach",
+      role: "Coach",
+      attributes: { coaching: 80, judgingAbility: 40, judgingPotential: 40, physiotherapy: 30 },
+    });
     const assistant = createStaff({
       id: "staff-assistant",
-      first_name: "Ash",
-      last_name: "Assistant",
       role: "AssistantManager",
-      attributes: {
-        coaching: 80,
-        judgingAbility: 60,
-        judgingPotential: 40,
-        physiotherapy: 10,
-      },
+      attributes: { coaching: 80, judgingAbility: 80, judgingPotential: 80, physiotherapy: 30 },
     });
     invokeMock.mockImplementation(async (command: string) => {
-      if (command === "get_staff") return makeStaffSlice([assistant]);
-      return createGameState([assistant]);
+      if (command === "get_staff")
+        return makeStaffSlice([coach, assistant], {
+          ratings: { "staff-coach": 80, "staff-assistant": 80 },
+          tiers: { "staff-coach": "B", "staff-assistant": "S" },
+        });
+      return createGameState([coach, assistant]);
     });
 
     render(
       <StaffTab
-        gameState={createGameState([assistant])}
+        gameState={createGameState([coach, assistant])}
         onGameUpdate={() => {}}
         onNavigate={() => {}}
       />,
     );
 
-    const card = await screen.findByTestId("staff-card-staff-assistant");
-    // (80*4 + 60*3 + 40*3) / 10 = 62 — physiotherapy must not count.
-    expect(within(card).getByText("62 OVR")).toBeInTheDocument();
+    const coachChip = (await screen.findByText("Overall 80, tier B")).parentElement;
+    expect(coachChip).toHaveClass("bg-tone-fair-tint", "text-tone-fair");
+    const assistantChip = screen.getByText("Overall 80, tier S").parentElement;
+    expect(assistantChip).toHaveClass("bg-tone-top-tint", "text-tone-top");
   });
 
-  it("averages both judging attributes for a scout", async () => {
-    // The scout branch weights judgingAbility and judgingPotential equally;
-    // divergent values catch either key being dropped or mis-weighted, which
-    // an equal pair would hide.
-    const scout = createStaff({
-      id: "staff-scout",
-      first_name: "Sam",
-      last_name: "Scout",
-      role: "Scout",
-      attributes: {
-        coaching: 20,
-        judgingAbility: 80,
-        judgingPotential: 60,
-        physiotherapy: 10,
-      },
-    });
+  /**
+   * Given a coach whose row carries a rating but no tier
+   * When his card is drawn
+   * Then the card shows the dash, not the number in a tone the page would have had to pick: the
+   *      chip only ever paints the backend's tier.
+   */
+  it("shows a dash for a rating whose tier did not arrive", async () => {
+    const coach = createStaff({ id: "staff-coach", role: "Coach" });
     invokeMock.mockImplementation(async (command: string) => {
-      if (command === "get_staff") return makeStaffSlice([scout]);
-      return createGameState([scout]);
+      if (command === "get_staff")
+        return {
+          team_staff: [{ ...coach, rating: 88 }],
+          available_staff: [],
+          scouting_assignments: [],
+          youth_scouting_assignments: [],
+        };
+      return createGameState([coach]);
     });
 
     render(
       <StaffTab
-        gameState={createGameState([scout])}
+        gameState={createGameState([coach])}
         onGameUpdate={() => {}}
         onNavigate={() => {}}
       />,
     );
 
-    const card = await screen.findByTestId("staff-card-staff-scout");
-    // (80 + 60) / 2 = 70 — coaching and physiotherapy must not count.
-    expect(within(card).getByText("70 OVR")).toBeInTheDocument();
+    expect(await screen.findByText("– GES")).toBeInTheDocument();
+    expect(screen.queryByText(/^Overall 88/)).toBeNull();
   });
 
-  it("falls back to an even split for a role it does not recognise", async () => {
-    // Borrowing Coach's weighting would rate an unknown role on coaching
-    // alone; an even split is the honest "no opinion" answer.
-    const odd = createStaff({
-      id: "staff-odd",
-      first_name: "Ola",
-      last_name: "Other",
-      // Cast deliberately: the role arrives from the backend at runtime, where
-      // the union type is erased, so a role added there outruns this type.
-      role: "Nutritionist" as StaffData["role"],
-      attributes: {
-        coaching: 40,
-        judgingAbility: 60,
-        judgingPotential: 80,
-        physiotherapy: 20,
-      },
-    });
+  /**
+   * Given the backend's slice not yet answered, so the page draws the game state's staff, which
+   *       carry no rating
+   * When a card is drawn
+   * Then its rating reads "–" rather than a number worked out here.
+   */
+  it("shows no rating before the backend's slice arrives", () => {
+    const coach = createStaff({ id: "staff-coach" });
+    invokeMock.mockImplementation(() => new Promise(() => {}));
+
+    render(
+      <StaffTab
+        gameState={createGameState([coach])}
+        onGameUpdate={() => {}}
+        onNavigate={() => {}}
+      />,
+    );
+
+    expect(screen.getByText("– GES")).toBeInTheDocument();
+  });
+
+  /**
+   * Given an available coach the backend rates 64, and a hire that returns the new game state
+   *       (whose staff carry no rating)
+   * When he is hired
+   * Then his card still shows 64: the page asks the backend for the slice again rather than
+   *      rebuilding it from the game state and losing every rating.
+   */
+  it("keeps each member's rating after a hire", async () => {
+    const free = createStaff({ id: "staff-free", team_id: null });
+    const hired = { ...free, team_id: "team-1" };
+    let hiredYet = false;
     invokeMock.mockImplementation(async (command: string) => {
-      if (command === "get_staff") return makeStaffSlice([odd]);
-      return createGameState([odd]);
+      if (command === "hire_staff") {
+        hiredYet = true;
+        return createGameState([hired]);
+      }
+      if (command === "get_staff") {
+        return makeStaffSlice([hiredYet ? hired : free], { ratings: { "staff-free": 64 } });
+      }
+      return createGameState([free]);
     });
 
     render(
-      <StaffTab gameState={createGameState([odd])} onGameUpdate={() => {}} onNavigate={() => {}} />,
+      <StaffTab
+        gameState={createGameState([free])}
+        onGameUpdate={() => {}}
+        onNavigate={() => {}}
+      />,
     );
+    fireEvent.click(await screen.findByRole("button", { name: /Available 1/i }));
+    fireEvent.click(screen.getByRole("button", { name: "Hire staff" }));
 
-    const card = await screen.findByTestId("staff-card-staff-odd");
-    // (40 + 60 + 80 + 20) / 4 = 50 — not coaching's 40.
-    expect(within(card).getByText("50 OVR")).toBeInTheDocument();
+    await waitFor(() => expect(hiredYet).toBe(true));
+    fireEvent.click(await screen.findByRole("button", { name: /My Staff 1/i }));
+    expect(await screen.findByText("Overall 64")).toBeInTheDocument();
+  });
+
+  /**
+   * Given two free agents hired one after the other, before the first hire's refresh answers
+   * When the second refresh (both hired) answers first, and the first (one hired) answers last
+   * Then the page keeps the newer list, both on the staff, rather than the older snapshot that
+   *      arrived late.
+   */
+  /**
+   * Given the page's first staff fetch still out, so the page draws the game state's staff
+   * When a free agent is hired, its refresh answers (him on the staff), and only then the first
+   *      fetch answers with the list from before the hire
+   * Then the page keeps the hire: the first fetch is older than the hire's refresh, so it is
+   *      dropped as a late refresh would be.
+   */
+  it("keeps a hire when the page's first fetch answers after it", async () => {
+    const free = createStaff({ id: "free", display_name: "Fred Free", team_id: null });
+    const hired = { ...free, team_id: "team-1" };
+    let answerFirstFetch: ((slice: unknown) => void) | null = null;
+    invokeMock.mockImplementation((command: string) => {
+      if (command === "get_staff") {
+        if (!answerFirstFetch) {
+          return new Promise((resolve) => {
+            answerFirstFetch = resolve;
+          });
+        }
+        return Promise.resolve(makeStaffSlice([hired]));
+      }
+      return Promise.resolve(createGameState([hired]));
+    });
+
+    render(
+      <StaffTab
+        gameState={createGameState([free])}
+        onGameUpdate={() => {}}
+        onNavigate={() => {}}
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: /Available 1/i }));
+    fireEvent.click(screen.getByRole("button", { name: "Hire staff" }));
+    expect(await screen.findByRole("button", { name: /My Staff 1/i })).toBeInTheDocument();
+
+    await act(async () => {
+      answerFirstFetch?.(makeStaffSlice([free]));
+    });
+
+    expect(screen.getByRole("button", { name: /My Staff 1/i })).toBeInTheDocument();
+  });
+
+  /**
+   * Given the page open on one club, its staff fetch still out, when the manager moves to another
+   *       club
+   * When the new club's fetch answers, and only then the old club's
+   * Then the page shows the new club's staff: the old club's late answer is dropped.
+   */
+  it("shows the new club's staff when the old club's fetch answers after a move", async () => {
+    const oldCoach = createStaff({ id: "old", display_name: "Olly Old", team_id: "team-1" });
+    const newCoach = createStaff({ id: "new", display_name: "Nina New", team_id: "team-2" });
+    let answerOldClub: ((slice: unknown) => void) | null = null;
+    invokeMock.mockImplementation((command: string, args?: { teamId?: string }) => {
+      if (command === "get_staff" && args?.teamId === "team-1") {
+        return new Promise((resolve) => {
+          answerOldClub = resolve;
+        });
+      }
+      if (command === "get_staff") return Promise.resolve(makeStaffSlice([newCoach]));
+      return Promise.resolve(createGameState([]));
+    });
+    const atClub = (teamId: string, staff: StaffData[]) => {
+      const state = createGameState(staff);
+      return { ...state, manager: { ...state.manager, team_id: teamId } };
+    };
+
+    const { rerender } = render(
+      <StaffTab
+        gameState={atClub("team-1", [oldCoach])}
+        onGameUpdate={() => {}}
+        onNavigate={() => {}}
+      />,
+    );
+    rerender(
+      <StaffTab
+        gameState={atClub("team-2", [newCoach])}
+        onGameUpdate={() => {}}
+        onNavigate={() => {}}
+      />,
+    );
+    expect(await screen.findByText("Nina New")).toBeInTheDocument();
+
+    await act(async () => {
+      if (!answerOldClub) throw new Error("the old club's staff fetch was never sent");
+      answerOldClub(makeStaffSlice([oldCoach]));
+    });
+
+    expect(screen.getByText("Nina New")).toBeInTheDocument();
+    expect(screen.queryByText("Olly Old")).toBeNull();
+  });
+
+  it("keeps the newest staff list when an older refresh answers last", async () => {
+    const first = createStaff({ id: "first", display_name: "First Free", team_id: null });
+    const second = createStaff({ id: "second", display_name: "Second Free", team_id: null });
+    const hired = (member: StaffData) => ({ ...member, team_id: "team-1" });
+    const refreshes: ((slice: unknown) => void)[] = [];
+    let opened = false;
+    invokeMock.mockImplementation((command: string) => {
+      if (command === "get_staff") {
+        if (!opened) {
+          opened = true;
+          return Promise.resolve(makeStaffSlice([first, second]));
+        }
+        return new Promise((resolve) => refreshes.push(resolve));
+      }
+      return Promise.resolve(createGameState([first, second]));
+    });
+
+    render(
+      <StaffTab
+        gameState={createGameState([first, second])}
+        onGameUpdate={() => {}}
+        onNavigate={() => {}}
+      />,
+    );
+    fireEvent.click(await screen.findByRole("button", { name: /Available 2/i }));
+    const [hireFirst, hireSecond] = screen.getAllByRole("button", { name: "Hire staff" });
+    fireEvent.click(hireFirst);
+    await waitFor(() => expect(refreshes).toHaveLength(1));
+    fireEvent.click(hireSecond);
+    await waitFor(() => expect(refreshes).toHaveLength(2));
+
+    await act(async () => {
+      refreshes[1](makeStaffSlice([hired(first), hired(second)]));
+    });
+    await act(async () => {
+      refreshes[0](makeStaffSlice([hired(first), second]));
+    });
+
+    expect(screen.getByRole("button", { name: /My Staff 2/i })).toBeInTheDocument();
+  });
+
+  /**
+   * Given the Staff page
+   * When a screen reader reaches its search box
+   * Then the box is named "Search staff", not left to a placeholder that disappears once typed in
+   *      and that not every screen reader reads.
+   */
+  it("names its search box for a screen reader", async () => {
+    render(<StaffTab gameState={createGameState([createStaff()])} />);
+
+    const searchBox = await screen.findByRole("textbox", { name: "Search staff" });
+    // A placeholder alone can stand in for a name in some readers; the label is what holds.
+    expect(searchBox).toHaveAttribute("aria-label", "Search staff");
   });
 
   it("switches to available staff and filters by role and search", async () => {
@@ -354,7 +569,7 @@ describe("StaffTab", () => {
     fireEvent.click(screen.getByTitle("Hire staff"));
 
     await waitFor(() => {
-      expect(invokeMock).toHaveBeenCalledWith("hire_staff", { staffId: "staff-2" });
+      expect(invokeMock).toHaveBeenCalledWith("hire_staff", { careerToken: 0, staffId: "staff-2" });
       expect(onGameUpdate).toHaveBeenCalledWith(updatedState);
     });
   });
@@ -384,7 +599,7 @@ describe("StaffTab", () => {
     fireEvent.click(within(screen.getByRole("menu")).getByRole("menuitem", { name: "Hire staff" }));
 
     await waitFor(() => {
-      expect(invokeMock).toHaveBeenCalledWith("hire_staff", { staffId: "staff-2" });
+      expect(invokeMock).toHaveBeenCalledWith("hire_staff", { careerToken: 0, staffId: "staff-2" });
       expect(onGameUpdate).toHaveBeenCalledWith(updatedState);
     });
   });
@@ -409,7 +624,10 @@ describe("StaffTab", () => {
     );
 
     await waitFor(() => {
-      expect(invokeMock).toHaveBeenCalledWith("release_staff", { staffId: "staff-1" });
+      expect(invokeMock).toHaveBeenCalledWith("release_staff", {
+        careerToken: 0,
+        staffId: "staff-1",
+      });
       expect(onGameUpdate).toHaveBeenCalledWith(updatedState);
     });
   });
@@ -425,7 +643,7 @@ describe("StaffTab", () => {
     invokeMock.mockImplementation(async (command: string) => {
       if (command === "get_staff") {
         return {
-          team_staff: [staffCamelCase],
+          team_staff: [{ ...staffCamelCase, rating: 63, tier: "Rest" }],
           available_staff: [],
           scouting_assignments: [],
           youth_scouting_assignments: [],
@@ -437,10 +655,9 @@ describe("StaffTab", () => {
     render(<StaffTab gameState={createGameState([])} />);
 
     const card = await screen.findByTestId("staff-card-staff-1");
-    // A Coach is rated on `coaching` alone, so OVR is 63. The camelCase guard
-    // rests on the attribute assertions below rather than on this number —
-    // `coaching` is a single word and cannot regress the way the judging keys did.
-    expect(within(card).getByText("63 OVR")).toBeInTheDocument();
+    // The backend rates him 63. The camelCase guard rests on the attribute
+    // assertions below, not on this number.
+    expect(within(card).getByText("Overall 63")).toBeInTheDocument();
     expect(within(card).getByText("52")).toBeInTheDocument();
     expect(within(card).getByText("71")).toBeInTheDocument();
     expect(within(card).getByText(/judgingPotential \(71\)/)).toBeInTheDocument();
@@ -540,5 +757,202 @@ describe("StaffTab", () => {
       fireEvent.change(screen.getByPlaceholderText("Search staff"), { target: { value: query } });
       expect(screen.getByText("Cafu")).toBeInTheDocument();
     }
+  });
+});
+
+/**
+ * The club's three staff: a physio rated 90, a coach 70 and a scout 40, coaching 80, 85 and 20, and
+ * paid 3000, 1000 and 2000, so each column gives its own order.
+ */
+function clubOfThree(): StaffData[] {
+  return [
+    createStaff({
+      id: "coach",
+      wage: 1000,
+      display_name: "Cara Coach",
+      role: "Coach",
+      attributes: { coaching: 85, judgingAbility: 40, judgingPotential: 40, physiotherapy: 30 },
+    }),
+    createStaff({
+      id: "physio",
+      wage: 3000,
+      display_name: "Pat Physio",
+      role: "Physio",
+      attributes: { coaching: 80, judgingAbility: 30, judgingPotential: 30, physiotherapy: 88 },
+    }),
+    createStaff({
+      id: "scout",
+      wage: 2000,
+      display_name: "Sam Scout",
+      role: "Scout",
+      attributes: { coaching: 20, judgingAbility: 40, judgingPotential: 40, physiotherapy: 10 },
+    }),
+  ];
+}
+
+const CLUB_RATINGS = { coach: 70, physio: 90, scout: 40 };
+
+/** The staff table's rows, top down, by the member each names. */
+function staffOrder(): string[] {
+  const names = ["Cara Coach", "Pat Physio", "Sam Scout", "Fred Free"];
+  return within(screen.getByRole("table"))
+    .getAllByRole("row")
+    .slice(1)
+    .map((row) => names.find((name) => row.textContent?.includes(name)) ?? "?");
+}
+
+function renderClub(staff: StaffData[] = clubOfThree(), tiers: Record<string, RatingTier> = {}) {
+  invokeMock.mockImplementation(async (command: string) => {
+    if (command === "get_staff") return makeStaffSlice(staff, { ratings: CLUB_RATINGS, tiers });
+    return createGameState(staff);
+  });
+  render(
+    <StaffTab gameState={createGameState(staff)} onGameUpdate={() => {}} onNavigate={() => {}} />,
+  );
+}
+
+describe("StaffTab as a table", () => {
+  beforeEach(() => {
+    setListView("table");
+    invokeMock.mockReset();
+  });
+
+  /**
+   * Given the club's physio, coach and scout, rated 90, 70 and 40 by the backend
+   * When the Staff page opens in the table view (the default)
+   * Then they are one table, highest rating first, each row showing the backend's rating.
+   */
+  it("lists the club's staff as a table, highest rating first", async () => {
+    renderClub();
+
+    await waitFor(() => expect(staffOrder()).toEqual(["Pat Physio", "Cara Coach", "Sam Scout"]));
+    const physioRow = within(screen.getByRole("table"))
+      .getAllByRole("row")
+      .find((row) => row.textContent?.includes("Pat Physio"));
+    expect(physioRow?.textContent).toContain("90");
+  });
+
+  /**
+   * Given the club's physio, whom the backend tiers S among physios, and its scout, the rest
+   * When the table is drawn
+   * Then each row's rating is painted in the tone of the tier the backend sent, with the tier in
+   *      words, as the card paints it.
+   */
+  it("paints each row's rating in his tier among his role, as the backend sends it", async () => {
+    renderClub(clubOfThree(), { physio: "S", scout: "Rest" });
+
+    const physioChip = (await screen.findByText("Overall 90, tier S")).parentElement;
+    expect(physioChip).toHaveClass("bg-tone-top-tint", "text-tone-top");
+    const scoutChip = screen.getByText("Overall 40").parentElement;
+    expect(scoutChip).toHaveClass("bg-sunken", "text-fg-muted");
+  });
+
+  /**
+   * Given the club's physio, whose row carries his rating of 90 but no tier
+   * When the table is drawn
+   * Then his rating cell shows the dash, not a chip in a tone the page would have had to pick.
+   */
+  it("shows a dash in the table for a rating whose tier did not arrive", async () => {
+    const staff = clubOfThree();
+    invokeMock.mockImplementation(async (command: string) => {
+      if (command === "get_staff")
+        return {
+          team_staff: staff.map((member) => ({
+            ...member,
+            rating: (CLUB_RATINGS as Record<string, number>)[member.id],
+          })),
+          available_staff: [],
+          scouting_assignments: [],
+          youth_scouting_assignments: [],
+        };
+      return createGameState(staff);
+    });
+    render(
+      <StaffTab gameState={createGameState(staff)} onGameUpdate={() => {}} onNavigate={() => {}} />,
+    );
+
+    await waitFor(() => expect(staffOrder()).toHaveLength(3));
+    expect(screen.queryByText(/^Overall 90/)).toBeNull();
+    const physioRow = within(screen.getByRole("table"))
+      .getAllByRole("row")
+      .find((row) => row.textContent?.includes("Pat Physio"));
+    expect(physioRow?.textContent).toContain("–");
+  });
+
+  /**
+   * Given the table in rating order
+   * When the coaching header is pressed
+   * Then the staff run from the best coach (the coach 85, the physio 80, the scout 20): an
+   *      attribute starts from the best.
+   */
+  it("sorts by an attribute, best first", async () => {
+    renderClub();
+    await waitFor(() => expect(staffOrder()).toHaveLength(3));
+
+    fireEvent.click(screen.getByRole("button", { name: "coaching" }));
+
+    expect(staffOrder()).toEqual(["Cara Coach", "Pat Physio", "Sam Scout"]);
+  });
+
+  /**
+   * Given a member of the club's staff in the table
+   * When his row's actions button is pressed and Release is chosen
+   * Then the menu is the card's, and the release goes to the backend for him.
+   */
+  it("releases a member from his row's actions menu", async () => {
+    renderClub();
+    await waitFor(() => expect(staffOrder()).toHaveLength(3));
+
+    fireEvent.click(screen.getByRole("button", { name: "Staff actions for Cara Coach" }));
+    fireEvent.click(
+      within(screen.getByRole("menu")).getByRole("menuitem", { name: "Release staff" }),
+    );
+
+    await waitFor(() =>
+      expect(invokeMock).toHaveBeenCalledWith("release_staff", {
+        careerToken: 0,
+        staffId: "coach",
+      }),
+    );
+  });
+
+  /**
+   * Given a free agent on the hiring market
+   * When the Available list's row actions button is pressed and Hire is chosen
+   * Then the hire goes to the backend for him.
+   */
+  it("hires a free agent from his row's actions menu", async () => {
+    const free = createStaff({ id: "free", display_name: "Fred Free", team_id: null });
+    renderClub([...clubOfThree(), free]);
+
+    fireEvent.click(await screen.findByRole("button", { name: /Available 1/i }));
+    fireEvent.click(screen.getByRole("button", { name: "Staff actions for Fred Free" }));
+    fireEvent.click(within(screen.getByRole("menu")).getByRole("menuitem", { name: "Hire staff" }));
+
+    await waitFor(() =>
+      expect(invokeMock).toHaveBeenCalledWith("hire_staff", { careerToken: 0, staffId: "free" }),
+    );
+  });
+
+  /**
+   * Given the Staff page as a table
+   * When Cards is picked on the view switch
+   * Then the staff are drawn as cards, and the choice is saved as the one list view every list
+   *      opens with.
+   */
+  it("switches to cards from the view switch and saves the choice", async () => {
+    renderClub();
+    await waitFor(() => expect(staffOrder()).toHaveLength(3));
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("radio", { name: "Cards" }));
+    });
+
+    expect(useSettingsStore.getState().settings.list_view).toBe("cards");
+    expect(invokeMock).toHaveBeenCalledWith("save_settings", {
+      settings: expect.objectContaining({ list_view: "cards" }),
+    });
+    expect(screen.queryByRole("table")).toBeNull();
+    expect(screen.getByTestId("staff-card-coach")).toBeInTheDocument();
   });
 });

@@ -59,9 +59,11 @@ impl MatchReport {
             .collect();
 
         for (id, stats) in self.player_stats.iter_mut() {
-            stats.rating = appearances
-                .get(id.as_str())
-                .map_or(0.0, |appearance| rate(stats, appearance));
+            let appearance = appearances.get(id.as_str());
+            stats.rating = appearance.map_or(0.0, |appearance| rate(stats, appearance));
+            stats.clean_sheet = appearance.is_some_and(|appearance| {
+                appearance.kept_clean_sheet && in_goal_for_most_of_it(stats, appearance)
+            });
         }
     }
 }
@@ -115,10 +117,11 @@ fn passing_score(stats: &PlayerMatchStats, share: f32) -> f32 {
     (accuracy - 0.78) * 3.0 * involvement
 }
 
-/// The engine counts a second yellow as a second `yellow_cards`, never as a
-/// `red_cards`, and only a dismissal can produce two in one match.
+/// The report records a second yellow as two `yellow_cards` and a `red_cards`, and only a
+/// dismissal can produce two yellows in one match. The sending-off is punished once, as a
+/// straight red, and the yellow that caused it is not punished again.
 fn card_penalty(stats: &PlayerMatchStats) -> f32 {
-    let sent_off_on_a_second_yellow = stats.red_cards == 0 && stats.yellow_cards >= 2;
+    let sent_off_on_a_second_yellow = stats.yellow_cards >= 2;
     if sent_off_on_a_second_yellow {
         RED_PENALTY
     } else {
@@ -126,14 +129,36 @@ fn card_penalty(stats: &PlayerMatchStats) -> f32 {
     }
 }
 
+/// Whether this player shared in a clean sheet: his side conceded none, and he was on for most
+/// of the match. The bonus a defender's mark gets for one; the keeper's own is
+/// `in_goal_for_most_of_it`.
+fn shared_clean_sheet(stats: &PlayerMatchStats, appearance: &Appearance) -> bool {
+    appearance.kept_clean_sheet && stats.minutes_played >= MIN_CLEAN_SHEET_MINUTES
+}
+
+/// Whether he stood in goal for most of the match: by the minutes the match tracked, whoever
+/// he is (an outfielder sent in goal after the keeper was sent off counts), and where it did
+/// not track them, by a goalkeeper's minutes on the pitch.
+fn in_goal_for_most_of_it(stats: &PlayerMatchStats, appearance: &Appearance) -> bool {
+    match stats.minutes_in_goal {
+        Some(minutes) => minutes >= MIN_CLEAN_SHEET_MINUTES,
+        None => {
+            appearance.position == Position::Goalkeeper
+                && stats.minutes_played >= MIN_CLEAN_SHEET_MINUTES
+        }
+    }
+}
+
 fn clean_sheet_bonus(stats: &PlayerMatchStats, appearance: &Appearance) -> f32 {
-    if !appearance.kept_clean_sheet || stats.minutes_played < MIN_CLEAN_SHEET_MINUTES {
+    if !shared_clean_sheet(stats, appearance) {
         return 0.0;
     }
+    if in_goal_for_most_of_it(stats, appearance) {
+        return GOALKEEPER_CLEAN_SHEET_BONUS;
+    }
     match appearance.position {
-        Position::Goalkeeper => GOALKEEPER_CLEAN_SHEET_BONUS,
         Position::Defender => DEFENDER_CLEAN_SHEET_BONUS,
-        Position::Midfielder | Position::Forward => 0.0,
+        Position::Goalkeeper | Position::Midfielder | Position::Forward => 0.0,
     }
 }
 
@@ -158,6 +183,81 @@ mod tests {
 
     fn mid(stats: &PlayerMatchStats) -> f32 {
         rate(stats, &appearance(Position::Midfielder))
+    }
+
+    fn kept(position: Position) -> Appearance {
+        Appearance {
+            kept_clean_sheet: true,
+            ..appearance(position)
+        }
+    }
+
+    /// Given a side that conceded none,
+    /// When a player on for exactly the minimum, one minute less, or a player whose side
+    /// conceded is judged,
+    /// Then only the first shared in the clean sheet.
+    #[test]
+    fn a_clean_sheet_is_shared_only_by_a_player_on_for_most_of_it() {
+        let keeper = kept(Position::Goalkeeper);
+        assert!(shared_clean_sheet(&stats(MIN_CLEAN_SHEET_MINUTES), &keeper));
+        assert!(!shared_clean_sheet(
+            &stats(MIN_CLEAN_SHEET_MINUTES - 1),
+            &keeper
+        ));
+        assert!(!shared_clean_sheet(
+            &stats(90),
+            &appearance(Position::Goalkeeper)
+        ));
+    }
+
+    fn in_goal(minutes_in_goal: u8) -> PlayerMatchStats {
+        PlayerMatchStats {
+            minutes_played: 90,
+            minutes_in_goal: Some(minutes_in_goal),
+            ..Default::default()
+        }
+    }
+
+    /// What a clean sheet adds to the mark of a player of `position` with these stats.
+    fn clean_sheet_mark(stats: &PlayerMatchStats, position: Position) -> f32 {
+        rate(stats, &kept(position)) - rate(stats, &appearance(position))
+    }
+
+    /// Given a clean sheet and an outfielder who stood in goal for 60 minutes, or for 59 (literal
+    /// inputs: the boundary itself is what is pinned, not a constant read back),
+    /// When both are rated,
+    /// Then the first gets the goalkeeper's bonus and the second only what his position gets (a
+    /// defender's, or nothing for a midfielder): the bonus follows the minutes in goal.
+    #[test]
+    fn the_clean_sheet_bonus_follows_the_minutes_in_goal() {
+        let goalkeepers = clean_sheet_mark(&in_goal(60), Position::Defender);
+        let defender = clean_sheet_mark(&in_goal(59), Position::Defender);
+        let midfielder = clean_sheet_mark(&in_goal(59), Position::Midfielder);
+
+        assert!((goalkeepers - GOALKEEPER_CLEAN_SHEET_BONUS).abs() < 1e-5);
+        assert!((defender - DEFENDER_CLEAN_SHEET_BONUS).abs() < 1e-5);
+        assert!(midfielder.abs() < 1e-5);
+    }
+
+    /// Given tracked minutes in goal at the threshold and one minute under it,
+    /// When it is asked whether he stood in goal for most of the match,
+    /// Then it is yes at the threshold and no under it, for an outfielder and for a keeper alike;
+    /// the clean-sheet flag is that and his side's clean sheet (`assign_ratings`).
+    #[test]
+    fn standing_in_goal_for_most_of_it_starts_at_the_threshold() {
+        for position in [Position::Defender, Position::Goalkeeper] {
+            let there = appearance(position);
+            assert!(in_goal_for_most_of_it(&in_goal(60), &there));
+            assert!(!in_goal_for_most_of_it(&in_goal(59), &there));
+        }
+    }
+
+    /// Given a clean sheet and a goalkeeper-listed player who never stood in goal,
+    /// When he is rated,
+    /// Then he gets no bonus: being listed as a keeper is not being in goal.
+    #[test]
+    fn a_listed_keeper_who_was_never_in_goal_gets_no_clean_sheet_bonus() {
+        assert!(clean_sheet_mark(&in_goal(0), Position::Goalkeeper).abs() < 1e-5);
     }
 
     /// Given a full match with nothing notable, When rated, Then it sits at the base.
@@ -309,6 +409,9 @@ mod tests {
     }
 
     /// Given absurd extremes, When rated, Then the mark stays on the 1-10 scale.
+    ///
+    /// The dreadful one is sent off on a second yellow (two yellows and a red, punished once as
+    /// a red) after thirty fouls.
     #[test]
     fn ratings_stay_inside_the_scale() {
         let mut heroic = stats(90);
@@ -317,7 +420,7 @@ mod tests {
         let mut dreadful = stats(90);
         dreadful.red_cards = 1;
         dreadful.yellow_cards = 2;
-        dreadful.fouls_committed = 12;
+        dreadful.fouls_committed = 30;
         let won = Appearance {
             result_bonus: 0.3,
             ..appearance(Position::Forward)
@@ -367,5 +470,19 @@ mod tests {
         };
         assert_eq!(rated(MIN_RATED_MINUTES), 0.0);
         assert!(rated(90) > 0.0);
+    }
+
+    /// Given a player sent off on a second yellow, recorded as two yellows and a red,
+    /// When rated,
+    /// Then his mark is a straight red's: the sending-off is punished once, and the yellow that
+    /// caused it is not punished again.
+    #[test]
+    fn a_second_yellow_dismissal_is_rated_as_a_straight_red() {
+        let mut straight_red = stats(60);
+        straight_red.red_cards = 1;
+        let mut second_yellow = stats(60);
+        second_yellow.yellow_cards = 2;
+        second_yellow.red_cards = 1;
+        assert_eq!(mid(&second_yellow), mid(&straight_red));
     }
 }

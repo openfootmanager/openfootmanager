@@ -1,8 +1,7 @@
-import type { JSX } from "react";
+import { type JSX, useId } from "react";
 import { useTranslation } from "react-i18next";
 
-import DashboardModalFrame from "../dashboard/DashboardModalFrame";
-import { Button } from "../ui";
+import { Button, Dialog } from "../ui";
 import type { DeleteModalState } from "./inboxHelpers";
 
 interface InboxDeleteConfirmModalProps {
@@ -19,6 +18,7 @@ export default function InboxDeleteConfirmModal({
   onConfirm,
 }: InboxDeleteConfirmModalProps): JSX.Element | null {
   const { t } = useTranslation();
+  const titleId = useId();
 
   if (!deleteModalState) {
     return null;
@@ -34,10 +34,19 @@ export default function InboxDeleteConfirmModal({
       : t("inbox.deleteSelectedBody", { count: deleteModalState.messageIds.length });
 
   return (
-    <DashboardModalFrame maxWidthClassName="max-w-md">
+    <Dialog
+      labelledBy={titleId}
+      // While the delete runs, Cancel is disabled, and Escape asks for nothing either.
+      onClose={isDeleting ? undefined : onCancel}
+      busy={isDeleting}
+      className="w-full max-w-md rounded-2xl p-6"
+    >
       <div className="space-y-4" data-testid="inbox-delete-confirm-modal">
         <div>
-          <h3 className="text-lg font-heading font-bold text-gray-900 dark:text-gray-100">
+          <h3
+            id={titleId}
+            className="text-lg font-heading font-bold text-gray-900 dark:text-gray-100"
+          >
             {title}
           </h3>
           <p className="mt-2 text-sm text-gray-600 dark:text-gray-300">{message}</p>
@@ -64,6 +73,6 @@ export default function InboxDeleteConfirmModal({
           </Button>
         </div>
       </div>
-    </DashboardModalFrame>
+    </Dialog>
   );
 }

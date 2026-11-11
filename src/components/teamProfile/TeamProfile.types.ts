@@ -6,7 +6,6 @@ export interface TeamProfileProps {
   team: TeamData;
   gameState: GameStateData;
   isOwnTeam: boolean;
-  onClose: () => void;
   onSelectPlayer?: (id: string) => void;
 }
 
@@ -32,7 +31,6 @@ export type LeagueStanding = ClubLeagueStanding["standing"];
 
 export interface TeamProfileViewModel {
   roster: PlayerData[];
-  avgOvr: number;
   totalWages: number;
   totalValue: number;
   manager: GameStateData["manager"] | null;

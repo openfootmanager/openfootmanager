@@ -1,5 +1,5 @@
 import type { JSX } from "react";
-import { useEffect, useRef } from "react";
+import { useEffect, useId, useRef } from "react";
 import {
   AlertTriangle,
   ArrowRightLeft,
@@ -20,7 +20,7 @@ import { getCategoryIcon } from "../inbox/inboxHelpers";
 import { formatVal } from "../../lib/valueFormatting";
 import { resolveBackendText } from "../../utils/backendI18n";
 import { getBlockerTabLabel } from "../../utils/blockerUtils";
-import DashboardModalFrame from "./DashboardModalFrame";
+import { Dialog, FormResultMark, formResultOf } from "../ui";
 
 interface DashboardSimulatingModalProps {
   // Digest-mode props (optional — omit for a plain single-advance spinner)
@@ -50,24 +50,9 @@ const EVENT_LABEL_KEYS: Record<AttentionEventKind, string> = {
 };
 
 function ResultBadge({ result }: { result: RecapMatch["userResult"] }): JSX.Element | null {
-  const { t } = useTranslation();
   if (!result) return null;
-  const styles = {
-    win: "bg-primary-100 text-primary-700 dark:bg-primary-900/40 dark:text-primary-300",
-    draw: "bg-gray-100 text-gray-600 dark:bg-navy-700 dark:text-gray-400",
-    loss: "bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300",
-  } as const;
-  const labels = {
-    win: t("common.won"),
-    draw: t("common.drawn"),
-    loss: t("common.lost"),
-  } as const;
   return (
-    <span
-      className={`shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded uppercase ${styles[result]}`}
-    >
-      {labels[result]}
-    </span>
+    <FormResultMark result={formResultOf(result)} className="shrink-0 px-1.5 py-0.5 uppercase" />
   );
 }
 
@@ -239,17 +224,13 @@ function DigestDayRow({ entry }: { entry: DigestEntry }): JSX.Element {
         ))}
 
         {recap.news.map((article, i) => (
-          <NewsCard
-            key={article.id}
-            text={article.textKey ? t(article.textKey, article.params ?? {}) : article.text}
-            idx={newsOffset + i}
-          />
+          <NewsCard key={article.id} text={article.text} idx={newsOffset + i} />
         ))}
 
         {recap.inbox.map((item, i) => (
           <InboxCard
             key={item.id}
-            text={item.textKey ? t(item.textKey, item.params ?? {}) : item.text}
+            text={item.text}
             category={item.category}
             idx={inboxOffset + i}
           />
@@ -272,6 +253,7 @@ export default function DashboardSimulatingModal({
   onResume,
 }: DashboardSimulatingModalProps): JSX.Element {
   const { t } = useTranslation();
+  const titleId = useId();
   const listEndRef = useRef<HTMLDivElement>(null);
   const isDigestMode =
     digestEntries !== undefined || isDigestRunning === true || stopReason != null;
@@ -284,26 +266,36 @@ export default function DashboardSimulatingModal({
 
   // Plain single-advance spinner (no digest data yet)
   if (!isDigestMode) {
+    // A single day is advancing and can't be stopped: no onClose, so Escape asks for nothing.
     return (
-      <DashboardModalFrame maxWidthClassName="max-w-sm">
+      <Dialog labelledBy={titleId} busy className="w-full max-w-sm rounded-2xl p-6">
         <div className="flex flex-col items-center text-center">
           <div className="flex h-14 w-14 items-center justify-center rounded-full bg-primary-100 text-primary-600 dark:bg-primary-500/15 dark:text-primary-300">
             <Loader2 className="h-7 w-7 animate-spin" />
           </div>
-          <h3 className="mt-4 text-lg font-heading font-bold uppercase tracking-wide text-gray-900 dark:text-white">
+          <h3
+            id={titleId}
+            className="mt-4 text-lg font-heading font-bold uppercase tracking-wide text-gray-900 dark:text-white"
+          >
             {t("dashboard.simulating")}
           </h3>
           <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
             {t("dashboard.simulatingMessage")}
           </p>
         </div>
-      </DashboardModalFrame>
+      </Dialog>
     );
   }
 
-  // Digest mode: scrollable feed with action buttons at the bottom
+  // Digest mode: scrollable feed with action buttons at the bottom. While the advance runs, Escape
+  // asks for nothing (Stop is the way to end it); once it has stopped, Escape closes it.
   return (
-    <DashboardModalFrame maxWidthClassName="max-w-2xl">
+    <Dialog
+      labelledBy={titleId}
+      onClose={isInProgress ? undefined : onDismiss}
+      busy={isInProgress}
+      className="w-full max-w-2xl rounded-2xl p-6"
+    >
       <div className="flex flex-col" style={{ maxHeight: "80vh" }}>
         {/* Header */}
         <div className="flex items-center gap-3 pb-4 border-b border-gray-200 dark:border-navy-700 shrink-0">
@@ -314,7 +306,10 @@ export default function DashboardSimulatingModal({
               <CheckCircle2 className="h-5 w-5" />
             )}
           </div>
-          <h3 className="flex-1 text-base font-heading font-bold uppercase tracking-wide text-gray-900 dark:text-white">
+          <h3
+            id={titleId}
+            className="flex-1 text-base font-heading font-bold uppercase tracking-wide text-gray-900 dark:text-white"
+          >
             {isInProgress ? t("dashboard.digestAdvancing") : t("dashboard.digestDone")}
           </h3>
           {isRunning && onStop && (
@@ -533,6 +528,6 @@ export default function DashboardSimulatingModal({
           </div>
         )}
       </div>
-    </DashboardModalFrame>
+    </Dialog>
   );
 }

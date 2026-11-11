@@ -10,6 +10,8 @@ fn player(id: &str, position: Position, skill: u8) -> PlayerData {
         ovr: skill,
         condition: 90,
         fitness: 75,
+        injury_risk: 1.0,
+        line_familiarity: [1.0; 4],
         pace: skill,
         stamina: skill,
         strength: skill,
@@ -229,4 +231,194 @@ fn a_substitute_who_came_on_and_the_player_he_replaced_are_both_rated() {
         report.player_stats["home_Midfielder_0"].rating > 0.0,
         "went off"
     );
+}
+
+/// A live match from `seed` in which the home keeper is replaced at 85 minutes by a reserve
+/// keeper, played to the end.
+fn keeper_replaced_at_85(seed: u64) -> MatchReport {
+    let mut live = LiveMatchState::new(
+        team("home", 70),
+        team("away", 70),
+        MatchConfig::default(),
+        vec![player("home_reserve_gk", Position::Goalkeeper, 70)],
+        vec![],
+        false,
+    );
+    let mut rng = StdRng::seed_from_u64(seed);
+    while live.minute() < 85 {
+        live.step_minute(&mut rng);
+    }
+    live.apply_command(MatchCommand::Substitute {
+        side: Side::Home,
+        player_off_id: "home_Goalkeeper_0".to_string(),
+        player_on_id: "home_reserve_gk".to_string(),
+    })
+    .expect("the substitution is legal");
+    while !live.is_finished() {
+        live.step_minute(&mut rng);
+    }
+    live.into_report()
+}
+
+/// Given a live match in which the home keeper is replaced at 85 minutes by a reserve keeper,
+/// and the away side does not score (the first such seed: the report counts its goals from the
+/// match's events, so a score set by hand would not reach it),
+/// When the report is drawn up,
+/// Then the keeper who played 85 minutes kept the clean sheet and the reserve did not.
+#[test]
+fn the_keeper_in_goal_for_most_of_a_clean_sheet_keeps_it() {
+    let report = (1..=200)
+        .map(keeper_replaced_at_85)
+        .find(|report| report.away_goals == 0)
+        .expect("in 200 seeds the away side fails to score at least once");
+
+    assert!(report.player_stats["home_Goalkeeper_0"].clean_sheet);
+    assert!(!report.player_stats["home_reserve_gk"].clean_sheet);
+    assert!(
+        !report.player_stats["home_Defender_0"].clean_sheet,
+        "a keeper's flag only"
+    );
+}
+
+/// A live match from `seed` in which `side`'s keeper is sent off before kick-off with no
+/// reserve keeper, so the first player left on the pitch goes in goal; played to the end.
+/// Returns the report and the id of the outfielder who stood in goal.
+fn keeper_sent_off_before_kick_off(side: Side, seed: u64) -> (MatchReport, String) {
+    let mut live = LiveMatchState::new(
+        team("home", 70),
+        team("away", 70),
+        MatchConfig::default(),
+        vec![],
+        vec![],
+        false,
+    );
+    let keeper = match side {
+        Side::Home => "home_Goalkeeper_0",
+        Side::Away => "away_Goalkeeper_0",
+    };
+    live.test_send_off(keeper);
+    let in_goal = live
+        .team(side)
+        .players
+        .iter()
+        .find(|player| player.id != keeper)
+        .map(|player| player.id.clone())
+        .expect("an outfielder is left to go in goal");
+    let mut rng = StdRng::seed_from_u64(seed);
+    while !live.is_finished() {
+        live.step_minute(&mut rng);
+    }
+    (live.into_report(), in_goal)
+}
+
+/// Given a live match in which the home keeper is sent off before kick-off, an outfielder goes
+/// in goal for the whole match, and the away side does not score (the first such seed),
+/// When the report is drawn up,
+/// Then the outfielder in goal kept the clean sheet and the keeper sent off did not: it goes to
+/// whoever stood in goal, not to whoever is listed as a keeper.
+#[test]
+fn an_outfielder_in_goal_for_most_of_a_clean_sheet_keeps_it() {
+    let (report, in_goal) = (1..=400)
+        .map(|seed| keeper_sent_off_before_kick_off(Side::Home, seed))
+        .find(|(report, _)| report.away_goals == 0)
+        .expect("in 400 seeds the away side fails to score at least once");
+
+    assert!(report.player_stats[&in_goal].clean_sheet);
+    assert!(!report.player_stats["home_Goalkeeper_0"].clean_sheet);
+}
+
+/// The same for the away side: its keeper is sent off, an outfielder goes in goal, and the home
+/// side does not score.
+#[test]
+fn an_away_outfielder_in_goal_for_most_of_a_clean_sheet_keeps_it() {
+    let (report, in_goal) = (1..=400)
+        .map(|seed| keeper_sent_off_before_kick_off(Side::Away, seed))
+        .find(|(report, _)| report.home_goals == 0)
+        .expect("in 400 seeds the home side fails to score at least once");
+
+    assert!(report.player_stats[&in_goal].clean_sheet);
+    assert!(!report.player_stats["away_Goalkeeper_0"].clean_sheet);
+}
+
+/// A live match from `seed` between two equal sides, played to the end.
+fn plain_match(seed: u64) -> MatchReport {
+    let mut live = LiveMatchState::new(
+        team("home", 70),
+        team("away", 70),
+        MatchConfig::default(),
+        vec![],
+        vec![],
+        false,
+    );
+    let mut rng = StdRng::seed_from_u64(seed);
+    while !live.is_finished() {
+        live.step_minute(&mut rng);
+    }
+    live.into_report()
+}
+
+/// Given matches in which one side scores and the other does not,
+/// When the reports are drawn up,
+/// Then the keeper of the side that conceded none has the clean sheet and the other keeper does
+/// not, whichever side that is: each side's flag follows the goals against it.
+#[test]
+fn only_the_keeper_of_the_side_that_conceded_none_keeps_a_clean_sheet() {
+    let home_kept = (1..=300)
+        .map(plain_match)
+        .find(|report| report.away_goals == 0 && report.home_goals > 0)
+        .expect("in 300 seeds the home side wins a match to nil");
+    assert!(home_kept.player_stats["home_Goalkeeper_0"].clean_sheet);
+    assert!(!home_kept.player_stats["away_Goalkeeper_0"].clean_sheet);
+
+    let away_kept = (1..=300)
+        .map(plain_match)
+        .find(|report| report.home_goals == 0 && report.away_goals > 0)
+        .expect("in 300 seeds the away side wins a match to nil");
+    assert!(away_kept.player_stats["away_Goalkeeper_0"].clean_sheet);
+    assert!(!away_kept.player_stats["home_Goalkeeper_0"].clean_sheet);
+}
+
+/// Given a live match in which the away keeper is sent off before kick-off, an outfielder goes
+/// in goal for the whole match, and the home side scores (the first such seed),
+/// When the report is drawn up,
+/// Then the outfielder in goal has no clean sheet: the minutes in goal are not enough, his side
+/// must have conceded none.
+#[test]
+fn an_outfielder_in_goal_who_concedes_keeps_no_clean_sheet() {
+    let (report, in_goal) = (1..=400)
+        .map(|seed| keeper_sent_off_before_kick_off(Side::Away, seed))
+        .find(|(report, _)| report.home_goals > 0)
+        .expect("in 400 seeds the home side scores at least once");
+
+    assert!(report.player_stats[&in_goal].minutes_in_goal.unwrap_or(0) >= 60);
+    assert!(!report.player_stats[&in_goal].clean_sheet);
+}
+
+/// A goalless report in which one outfielder of the home side stood in goal for
+/// `minutes_in_goal` of his 90 minutes, rated; whether he has the clean sheet.
+fn clean_sheet_after(minutes_in_goal: u8) -> bool {
+    let mut report = MatchReport::from_events(Vec::new(), 0, 0, 0);
+    report.player_stats.insert(
+        "home_stand_in".to_string(),
+        PlayerMatchStats {
+            minutes_played: 90,
+            minutes_in_goal: Some(minutes_in_goal),
+            ..Default::default()
+        },
+    );
+    let stand_in = player("home_stand_in", Position::Defender, 70);
+
+    report.assign_ratings(&[&stand_in], &[]);
+
+    report.player_stats["home_stand_in"].clean_sheet
+}
+
+/// Given a goalless match and an outfielder who stood in goal for 60 minutes, or for 59,
+/// When the report is rated,
+/// Then he has the clean sheet at 60 and not at 59: the threshold, with literal inputs, is the
+/// rule's own (changing the constant fails this).
+#[test]
+fn the_clean_sheet_needs_sixty_minutes_in_goal() {
+    assert!(clean_sheet_after(60));
+    assert!(!clean_sheet_after(59));
 }

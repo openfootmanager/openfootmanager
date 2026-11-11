@@ -937,6 +937,99 @@ fn only_another_cups_ties_push_a_cups_predicted_round() {
     assert_eq!(dates, BTreeSet::from([march(5)]));
 }
 
+/// Given a knockout cup whose final has been played
+/// When the clubs still alive in it are asked for
+/// Then there are none: a finished cup claims no more dates
+#[test]
+fn a_cup_whose_final_is_played_has_no_one_left_to_shadow() {
+    let mut cup = knockout(
+        "cup",
+        1,
+        vec![
+            vec![
+                fx("cup", "s1", march(1), "a", "b", Kind::Cup),
+                fx("cup", "s2", march(1), "c", "d", Kind::Cup),
+            ],
+            vec![fx("cup", "f1", march(4), "a", "c", Kind::Cup)],
+        ],
+        &[true, true],
+    );
+    for fixture in &mut cup.fixtures {
+        fixture.status = FixtureStatus::Completed;
+    }
+
+    assert!(shadows::alive_clubs(&cup).is_empty());
+}
+
+/// Given a knockout cup whose first-round ties are scheduled but whose bracket has no round
+/// state yet (a hand-authored or older cup), and a league match that has to move off a tie's eve
+/// When the calendar is reconciled
+/// Then every entrant is still in the cup, so the league match stays clear of its next round
+#[test]
+fn an_undrawn_knockout_cup_still_keeps_its_next_round_clear() {
+    let mut cup = competition(
+        "cup",
+        1,
+        vec![
+            fx("cup", "c1", march(1), "a", "b", Kind::Cup),
+            fx("cup", "c2", march(1), "c", "d", Kind::Cup),
+        ],
+    );
+    cup.rules.format = CompetitionFormat::Knockout;
+    cup.rules.knockout_round_gap_days = 3;
+    cup.rules.knockout_matches_per_day = 4;
+    cup.participant_ids = ["a", "b", "c", "d"].map(String::from).to_vec();
+    let league = competition(
+        "league",
+        2,
+        vec![fx("league", "l1", march(2), "a", "x", Kind::League)],
+    );
+    let mut world = vec![cup, league];
+
+    run(&mut world);
+
+    // 4 March is the first day three clear of a's tie, but the next round may claim it.
+    assert_eq!(date_of(&world, "league", "l1"), march(7));
+}
+
+/// Given a cup with its quarterfinals played on 20 February and its semifinals on 1 March, a played
+/// league match, and a semifinalist's league match the day after its quarterfinal
+/// When the calendar is reconciled
+/// Then the final is predicted from the semifinals, so nothing claims 23 February and the league
+///      match moves there, the first day three clear of the quarterfinal
+#[test]
+fn a_cups_rounds_are_predicted_from_its_settled_dates() {
+    let quarterfinals = vec![
+        fx("cup", "q1", day(2033, 2, 20), "a", "b", Kind::Cup),
+        fx("cup", "q2", day(2033, 2, 20), "c", "d", Kind::Cup),
+        fx("cup", "q3", day(2033, 2, 20), "e", "f", Kind::Cup),
+        fx("cup", "q4", day(2033, 2, 20), "g", "h", Kind::Cup),
+    ];
+    let semifinals = vec![
+        fx("cup", "s1", march(1), "a", "c", Kind::Cup),
+        fx("cup", "s2", march(1), "e", "g", Kind::Cup),
+    ];
+    let mut cup = knockout("cup", 1, vec![quarterfinals, semifinals], &[true, false]);
+    for fixture in cup.fixtures.iter_mut().filter(|f| f.id.starts_with('q')) {
+        fixture.status = FixtureStatus::Completed;
+    }
+    let mut played = fx("league", "l0", day(2033, 2, 10), "y", "z", Kind::League);
+    played.status = FixtureStatus::Completed;
+    let league = competition(
+        "league",
+        2,
+        vec![
+            played,
+            fx("league", "l1", day(2033, 2, 21), "a", "x", Kind::League),
+        ],
+    );
+    let mut world = vec![cup, league];
+
+    run(&mut world);
+
+    assert_eq!(date_of(&world, "league", "l1"), day(2033, 2, 23));
+}
+
 /// Given a world with a clash and a long played history, when the plan is made, then it is exactly
 /// the plan of the world without the history: history beyond the rest window is not looked at,
 /// which is what keeps the daily sweep cheap.

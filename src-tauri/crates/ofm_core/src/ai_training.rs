@@ -530,6 +530,47 @@ mod tests {
     // Style-biased rotation on healthy squad
     // -----------------------------------------------------------------------
 
+    /// Given a club that plays 5-3-2 whose defenders are tired and whose midfielders are fresh,
+    /// When the AI plans its training,
+    /// Then it reads the eleven its own formation fields, five defenders in it: a 4-4-2 reading
+    /// of the same players would have found them fitter, and kept the session harder.
+    #[test]
+    fn the_likely_eleven_is_the_one_the_clubs_formation_fields() {
+        let mut game = make_game_with_two_teams("user", "ai", PlayStyle::Balanced, 80);
+        game.players
+            .retain(|player| player.team_id.as_deref() != Some("ai"));
+        let mut add = |id: String, position: Position, condition: u8| {
+            let mut player = make_player(&id, "ai", condition);
+            player.position = position.clone();
+            player.natural_position = position;
+            game.players.push(player);
+        };
+        add("keeper".to_string(), Position::Goalkeeper, 40);
+        for index in 0..6 {
+            add(format!("defender-{index}"), Position::CenterBack, 20);
+        }
+        for index in 0..4 {
+            add(
+                format!("midfielder-{index}"),
+                Position::CentralMidfielder,
+                70,
+            );
+        }
+        for index in 0..4 {
+            add(format!("forward-{index}"), Position::Striker, 40);
+        }
+        game.teams
+            .iter_mut()
+            .find(|t| t.id == "ai")
+            .unwrap()
+            .formation = "5-3-2".to_string();
+
+        apply_ai_training_policies(&mut game, 0);
+
+        let ai = game.teams.iter().find(|t| t.id == "ai").unwrap();
+        assert_eq!(ai.training_intensity, TrainingIntensity::Low);
+    }
+
     #[test]
     fn balanced_style_rotates_through_all_five_focuses() {
         let focuses: Vec<TrainingFocus> = (0..5)

@@ -4,6 +4,11 @@ import { describe, expect, it, vi } from "vitest";
 import { PlayerRolesPanel } from "./PlayerRolesPanel";
 import type { EnginePlayerData, RoleChangeOutcome } from "./types";
 
+vi.mock("../../hooks/usePositionGroups", async () => {
+  const { cannedPositionsModule } = await import("../../test-utils/positionTable");
+  return cannedPositionsModule();
+});
+
 vi.mock("react-i18next", () => ({
   initReactI18next: { type: "3rdParty", init: () => {} },
   useTranslation: () => ({

@@ -7,6 +7,10 @@ publish = false
 [dependencies]
 serde = { version = "1.0.228", features = ["derive"] }
 chrono = { version = "0.4.44", default-features = false }
+# Pinned exactly: `src-tauri/tests/wire_types.rs` byte-compares what it generates with the
+# TypeScript checked in at `src/store/generated/`, so a release that changes its output has to
+# arrive in a PR that regenerates those files, never through a lockfile refresh.
+ts-rs = "=12.0.1"
 
 [dev-dependencies]
 serde_json = "1"

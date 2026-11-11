@@ -1,6 +1,6 @@
-//! Signing free agents: the affordability projection, the signing flow that puts
-//! a contract-less player on the manager's books, and the announcement message.
-//! Byte-faithful extraction from the original contracts.rs.
+//! Signing free agents: the offer talks open on, the affordability projection, the
+//! signing flow that puts a contract-less player on the manager's books, and the
+//! announcement message.
 
 use super::*;
 
@@ -9,25 +9,8 @@ pub fn project_free_agent_contract_impact(
     player_id: &str,
     offered_wage: u32,
 ) -> Result<RenewalFinancialProjection, String> {
-    let manager_team_id = game
-        .manager
-        .team_id
-        .clone()
-        .ok_or(ERR_NO_TEAM_ASSIGNED.to_string())?;
-    let team = game
-        .teams
-        .iter()
-        .find(|candidate| candidate.id == manager_team_id)
-        .ok_or(ERR_MANAGED_TEAM_NOT_FOUND.to_string())?;
-    let player = game
-        .players
-        .iter()
-        .find(|candidate| candidate.id == player_id)
-        .ok_or(ERR_PLAYER_NOT_FOUND.to_string())?;
-
-    if player.retired || player.team_id.is_some() {
-        return Err(ERR_PLAYER_NOT_FREE_AGENT.to_string());
-    }
+    let team = managed_team(game)?;
+    let player = free_agent(game, player_id)?;
 
     Ok(project_contract_offer_financial_impact(
         game,
@@ -37,33 +20,48 @@ pub fn project_free_agent_contract_impact(
     ))
 }
 
-pub fn offer_free_agent_contract(
-    game: &mut Game,
-    player_id: &str,
-    offer: RenewalOffer,
-) -> Result<RenewalOutcome, String> {
-    let manager_team_id = game
-        .manager
-        .team_id
-        .clone()
-        .ok_or(ERR_NO_TEAM_ASSIGNED.to_string())?;
+/// The terms the manager's first offer to a free agent starts from: the wage he expects from the
+/// manager's club, for the years a player his age expects. Never under the wage that would insult
+/// him, which is a share of what he expects (the maintainer's ruling, 29 Oct 2026); the manager
+/// may still offer less and take the risk. The screen asks for these rather than working out a
+/// wage or a length of its own.
+pub fn free_agent_opening_offer(game: &Game, player_id: &str) -> Result<RenewalOffer, String> {
+    let team = managed_team(game)?;
+    let player = free_agent(game, player_id)?;
+    let today = game.clock.current_date.date_naive();
+    Ok(RenewalOffer {
+        weekly_wage: expected_wage(player, team, today),
+        contract_years: expected_contract_years(player, today),
+    })
+}
 
-    let team = game
-        .teams
-        .iter()
-        .find(|candidate| candidate.id == manager_team_id)
-        .ok_or(ERR_MANAGED_TEAM_NOT_FOUND.to_string())?
-        .clone();
+fn free_agent<'game>(game: &'game Game, player_id: &str) -> Result<&'game Player, String> {
+    free_agent_index(game, player_id).map(|index| &game.players[index])
+}
 
-    let player_index = game
+/// Where the free agent sits in `game.players`: an index, so the signing can change him.
+fn free_agent_index(game: &Game, player_id: &str) -> Result<usize, String> {
+    let index = game
         .players
         .iter()
         .position(|candidate| candidate.id == player_id)
         .ok_or(ERR_PLAYER_NOT_FOUND.to_string())?;
 
-    if game.players[player_index].retired || game.players[player_index].team_id.is_some() {
+    let player = &game.players[index];
+    if player.retired || player.team_id.is_some() {
         return Err(ERR_PLAYER_NOT_FREE_AGENT.to_string());
     }
+
+    Ok(index)
+}
+
+pub fn offer_free_agent_contract(
+    game: &mut Game,
+    player_id: &str,
+    offer: RenewalOffer,
+) -> Result<RenewalOutcome, String> {
+    let team = managed_team(game)?.clone();
+    let player_index = free_agent_index(game, player_id)?;
 
     let current_date = game.clock.current_date.date_naive();
     let cooled_off = cool_stale_renewal_session(&mut game.players[player_index], current_date);

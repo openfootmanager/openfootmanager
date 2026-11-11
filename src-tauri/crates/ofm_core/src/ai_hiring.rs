@@ -1,5 +1,8 @@
+use std::collections::HashMap;
+
 use crate::game::Game;
 use chrono::{Datelike, NaiveDate};
+use domain::league::FixtureStatus;
 use domain::manager::{Manager, ManagerCareerEntry};
 use domain::staff::{Staff, StaffRole};
 
@@ -52,13 +55,13 @@ fn next_seeded_manager_id(game: &Game, team_id: &str, source_staff: &Staff) -> S
 /// Deliberately not the club's reputation, which is what this used to take: a
 /// manager carried a standing they had not earned, and being at a big club was
 /// itself what made them well regarded. `coaching` is the attribute that most
-/// directly says "can run a football team", mapped onto the same `200..=700`
-/// band `generate_random_unemployed_manager` draws from so that a stand-in and
+/// directly says "can run a football team", mapped onto `CREATED_REPUTATION`, the
+/// band `generate_random_unemployed_manager` draws from, so that a stand-in and
 /// a manager off the market are comparable.
 fn stand_in_manager_reputation(source_staff: &Staff) -> u32 {
-    const FLOOR: u32 = 200;
     const PER_POINT: u32 = 5;
-    FLOOR + u32::from(source_staff.attributes.coaching.min(100)) * PER_POINT
+    domain::manager::CREATED_REPUTATION.start()
+        + u32::from(source_staff.attributes.coaching.min(100)) * PER_POINT
 }
 
 /// A stable id for a club's invented manager, in the shape of the stand-in ids.
@@ -174,7 +177,9 @@ fn ai_manager_satisfaction(form: &[String]) -> u8 {
     satisfaction.clamp(0, 100) as u8
 }
 
-fn recent_loss_to_user_penalty(game: &Game, team_id: &str) -> i32 {
+/// A defeat to the user's club in the last fortnight, if it came after the manager took charge
+/// (`since`, an ISO date): his predecessor's defeat is not his.
+fn recent_loss_to_user_penalty(game: &Game, team_id: &str, since: Option<&str>) -> i32 {
     let Some(user_team_id) = game.manager.team_id.as_deref() else {
         return 0;
     };
@@ -187,6 +192,7 @@ fn recent_loss_to_user_penalty(game: &Game, team_id: &str) -> i32 {
     let recent_loss = league.fixtures.iter().any(|fixture| {
         if !fixture.counts_for_league_standings()
             || fixture.status != domain::league::FixtureStatus::Completed
+            || since.is_some_and(|since| played_before_he_took_charge(&fixture.date, since))
         {
             return false;
         }
@@ -225,6 +231,78 @@ fn recent_loss_to_user_penalty(game: &Game, team_id: &str) -> i32 {
     } else {
         0
     }
+}
+
+/// The day a manager took charge of his current club: the start of his open stint there. None for
+/// a manager out of work, or a record without one (an old save).
+pub(crate) fn took_charge_on(manager: &Manager) -> Option<&str> {
+    let club = manager.team_id.as_deref()?;
+    manager
+        .current_stint(club)
+        .map(|entry| entry.start_date.as_str())
+}
+
+/// Whether a match on `date` was played before the manager took charge on `since`. Both are ISO
+/// dates, which order as strings. A match on the day he took charge was played before it: a club
+/// appoints at the end of the day, after its matches.
+fn played_before_he_took_charge(date: &str, since: &str) -> bool {
+    date <= since
+}
+
+/// The dates of every league match each club has played through the match engine: the matches its
+/// `form` records, so the count and the form cover the same matches. `turn::post_match` writes
+/// form for league fixtures only, and only for a match the engine played, which keeps a report. A
+/// fixture settled by scoreline alone (a dormant league, a stranded fixture repaired) has no report
+/// and writes no form; nor does a cup tie. Counting either would pull one of the predecessor's
+/// results into the new manager's window.
+fn finished_match_dates(game: &Game) -> HashMap<&str, Vec<&str>> {
+    let mut dates: HashMap<&str, Vec<&str>> = HashMap::new();
+    for fixture in game
+        .competitions
+        .iter()
+        .flat_map(|competition| &competition.fixtures)
+        .filter(|fixture| {
+            fixture.status == FixtureStatus::Completed
+                && fixture.counts_for_league_standings()
+                && fixture
+                    .result
+                    .as_ref()
+                    .is_some_and(|result| result.report.is_some())
+        })
+    {
+        for team_id in [fixture.home_team_id.as_str(), fixture.away_team_id.as_str()] {
+            dates
+                .entry(team_id)
+                .or_default()
+                .push(fixture.date.as_str());
+        }
+    }
+    dates
+}
+
+/// The club's results under its current manager: its latest `form`, cut to the matches it has
+/// finished since he took charge (league matches, as form is). A manager with no open stint is judged
+/// on the whole form.
+///
+/// The board judges the manager on his own results. It used to read the club's last five whoever
+/// had played them, so the assistant who covered after a sacking inherited the run that got his
+/// predecessor sacked and was sacked in turn two days later, again and again until the club won
+/// (#1164).
+fn results_in_charge<'a>(
+    form: &'a [String],
+    club_match_dates: Option<&[&str]>,
+    since: Option<&str>,
+) -> &'a [String] {
+    let Some(since) = since else {
+        return form;
+    };
+    let matches_in_charge = club_match_dates.map_or(0, |dates| {
+        dates
+            .iter()
+            .filter(|date| !played_before_he_took_charge(date, since))
+            .count()
+    });
+    &form[form.len().saturating_sub(matches_in_charge)..]
 }
 
 fn team_has_manager_history(game: &Game, team_id: &str) -> bool {
@@ -356,33 +434,44 @@ pub fn update_ai_manager_satisfaction(game: &mut Game) {
         game.manager_id.clone()
     };
 
-    for index in 0..game.managers.len() {
-        if game.managers[index].id == user_manager_id {
-            continue;
-        }
+    let match_dates = finished_match_dates(game);
+    let judged: Vec<(usize, u8)> = game
+        .managers
+        .iter()
+        .enumerate()
+        .filter(|(_, manager)| manager.id != user_manager_id)
+        .filter_map(|(index, manager)| {
+            let team_id = manager.team_id.as_deref()?;
+            let team = game.teams.iter().find(|team| team.id == team_id)?;
+            let since = took_charge_on(manager);
+            let results = results_in_charge(
+                &team.form,
+                match_dates.get(team_id).map(Vec::as_slice),
+                since,
+            );
+            let base_satisfaction = i32::from(ai_manager_satisfaction(results));
+            let adjusted_satisfaction = (base_satisfaction
+                - recent_loss_to_user_penalty(game, team_id, since))
+            .clamp(0, 100) as u8;
+            Some((index, adjusted_satisfaction))
+        })
+        .collect();
 
-        let Some(team_id) = game.managers[index].team_id.clone() else {
-            continue;
-        };
-        let Some(team) = game.teams.iter().find(|team| team.id == team_id) else {
-            continue;
-        };
-
-        let base_satisfaction = i32::from(ai_manager_satisfaction(&team.form));
-        let adjusted_satisfaction =
-            (base_satisfaction - recent_loss_to_user_penalty(game, &team_id)).clamp(0, 100) as u8;
-
-        game.managers[index].satisfaction = adjusted_satisfaction;
+    for (index, satisfaction) in judged {
+        game.managers[index].satisfaction = satisfaction;
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{process_vacant_ai_clubs, seed_ai_managers, update_ai_manager_satisfaction};
+    use super::{
+        BASE_AI_MANAGER_SATISFACTION, process_vacant_ai_clubs, seed_ai_managers,
+        update_ai_manager_satisfaction,
+    };
     use crate::clock::GameClock;
     use crate::game::Game;
     use chrono::{TimeZone, Utc};
-    use domain::league::{Fixture, FixtureStatus, League, MatchResult};
+    use domain::league::{Fixture, FixtureCompetition, FixtureStatus, League, MatchResult};
     use domain::manager::Manager;
     use domain::message::{ActionType, InboxMessage, MessageAction, MessageContext};
     use domain::staff::{Staff, StaffAttributes, StaffRole};
@@ -485,6 +574,86 @@ mod tests {
             ],
             vec![],
         )
+    }
+
+    /// The club's manager took charge on `date` (his open stint's start).
+    fn in_charge_since(game: &mut Game, team_id: &str, date: &str) {
+        let manager = game
+            .managers
+            .iter_mut()
+            .find(|manager| manager.team_id.as_deref() == Some(team_id))
+            .expect("the club has a manager");
+        let stint = manager
+            .career_history
+            .iter_mut()
+            .find(|entry| entry.end_date.is_none())
+            .expect("the manager has an open stint");
+        stint.start_date = date.to_string();
+    }
+
+    /// A report as the match engine keeps one for a match it played.
+    fn engine_report() -> domain::league::CompactMatchReport {
+        let stats = domain::league::CompactTeamMatchStats {
+            possession_pct: 50,
+            shots: 10,
+            shots_on_target: 4,
+            fouls: 10,
+            corners: 5,
+            yellow_cards: 1,
+            red_cards: 0,
+        };
+        domain::league::CompactMatchReport {
+            total_minutes: 90,
+            home_stats: stats.clone(),
+            away_stats: stats,
+            events: vec![],
+        }
+    }
+
+    /// The club played a league match through the engine on `date` against a club the user does not
+    /// manage, and its form records the result ("W" or "L"), as `turn::post_match` writes form for
+    /// a league match the engine played.
+    fn finished_a_match(game: &mut Game, team_id: &str, date: &str, result: &str) {
+        if game.competitions.is_empty() {
+            game.competitions.push(League {
+                id: "league".to_string(),
+                name: "League".to_string(),
+                season: 1,
+                ..Default::default()
+            });
+        }
+        let won = result == "W";
+        game.competitions[0].fixtures.push(Fixture {
+            id: format!("{team_id}-{date}"),
+            date: date.to_string(),
+            home_team_id: team_id.to_string(),
+            away_team_id: "elsewhere".to_string(),
+            status: FixtureStatus::Completed,
+            result: Some(MatchResult {
+                home_goals: u8::from(won),
+                away_goals: u8::from(!won),
+                home_scorers: vec![],
+                away_scorers: vec![],
+                report: Some(engine_report()),
+                home_penalties: None,
+                away_penalties: None,
+            }),
+            ..Fixture::default()
+        });
+        game.teams
+            .iter_mut()
+            .find(|team| team.id == team_id)
+            .expect("the club exists")
+            .form
+            .push(result.to_string());
+    }
+
+    fn satisfaction_at(game: &Game, team_id: &str) -> u8 {
+        game.managers
+            .iter()
+            .find(|manager| manager.team_id.as_deref() == Some(team_id))
+            .expect("the club has a manager")
+            .satisfaction
     }
 
     fn on_record(game: &mut Game, id: &str) {
@@ -812,17 +981,10 @@ mod tests {
     fn update_ai_manager_satisfaction_penalizes_heavy_losing_run() {
         let mut game = make_game();
         seed_ai_managers(&mut game);
-
-        game.teams
-            .iter_mut()
-            .find(|team| team.id == "team2")
-            .unwrap()
-            .form = vec![
-            "L".to_string(),
-            "L".to_string(),
-            "L".to_string(),
-            "L".to_string(),
-        ];
+        in_charge_since(&mut game, "team2", "2026-06-01");
+        for date in ["2026-06-05", "2026-06-12", "2026-06-19", "2026-06-26"] {
+            finished_a_match(&mut game, "team2", date, "L");
+        }
 
         update_ai_manager_satisfaction(&mut game);
 
@@ -841,12 +1003,9 @@ mod tests {
     fn update_ai_manager_satisfaction_penalizes_recent_loss_to_user_more_heavily() {
         let mut baseline_game = make_game();
         seed_ai_managers(&mut baseline_game);
-        baseline_game
-            .teams
-            .iter_mut()
-            .find(|team| team.id == "team2")
-            .unwrap()
-            .form = vec!["W".to_string(), "L".to_string()];
+        in_charge_since(&mut baseline_game, "team2", "2026-06-01");
+        finished_a_match(&mut baseline_game, "team2", "2026-06-10", "W");
+        finished_a_match(&mut baseline_game, "team2", "2026-06-20", "L");
 
         let mut rivalry_game = baseline_game.clone();
         let league = League {
@@ -897,6 +1056,227 @@ mod tests {
         assert!(
             rivalry < baseline,
             "A recent defeat to the user should hit AI manager satisfaction harder than the same form alone"
+        );
+    }
+
+    /// Given a club that lost its last five matches, and a manager who took charge the day after
+    ///      the fifth
+    /// When the board judges its managers, and then decides whom to warn or sack
+    /// Then he keeps the standing a new manager starts with (50), and is neither warned nor
+    ///      sacked: his predecessor's results are not his (#1164: he was sacked two days in)
+    #[test]
+    fn a_new_manager_is_not_judged_on_his_predecessors_results() {
+        let mut game = make_game();
+        seed_ai_managers(&mut game);
+        for date in [
+            "2026-06-02",
+            "2026-06-06",
+            "2026-06-10",
+            "2026-06-14",
+            "2026-06-18",
+        ] {
+            finished_a_match(&mut game, "team2", date, "L");
+        }
+        in_charge_since(&mut game, "team2", "2026-06-19");
+
+        update_ai_manager_satisfaction(&mut game);
+        crate::firing::check_manager_firing(&mut game);
+
+        let manager = game
+            .managers
+            .iter()
+            .find(|manager| manager.team_id.as_deref() == Some("team2"))
+            .expect("the club still has its manager");
+        assert_eq!(
+            (manager.satisfaction, manager.warning_stage),
+            (BASE_AI_MANAGER_SATISFACTION as u8, 0)
+        );
+    }
+
+    /// Given a club that lost its last five league matches, and a manager who took charge after
+    ///      them and has played one cup tie since
+    /// When the board judges him
+    /// Then he keeps 50: the cup tie is not in the club's form, so it does not pull one of his
+    ///      predecessor's league defeats into his window
+    #[test]
+    fn a_cup_tie_does_not_pull_a_predecessors_result_into_his_window() {
+        let mut game = make_game();
+        seed_ai_managers(&mut game);
+        for date in [
+            "2026-06-02",
+            "2026-06-06",
+            "2026-06-10",
+            "2026-06-14",
+            "2026-06-18",
+        ] {
+            finished_a_match(&mut game, "team2", date, "L");
+        }
+        in_charge_since(&mut game, "team2", "2026-06-19");
+        game.competitions[0].fixtures.push(Fixture {
+            id: "team2-cup-tie".to_string(),
+            date: "2026-06-24".to_string(),
+            home_team_id: "team2".to_string(),
+            away_team_id: "elsewhere".to_string(),
+            competition: FixtureCompetition::Cup,
+            status: FixtureStatus::Completed,
+            result: Some(MatchResult {
+                home_goals: 1,
+                away_goals: 0,
+                home_scorers: vec![],
+                away_scorers: vec![],
+                report: None,
+                home_penalties: None,
+                away_penalties: None,
+            }),
+            ..Fixture::default()
+        });
+
+        update_ai_manager_satisfaction(&mut game);
+
+        assert_eq!(
+            satisfaction_at(&game, "team2"),
+            BASE_AI_MANAGER_SATISFACTION as u8
+        );
+    }
+
+    /// Given a manager from an old save, with no open stint on record, whose club lost its last
+    ///      four league matches
+    /// When the board judges him
+    /// Then he is judged on the club's whole form, as before stints were kept: four defeats and the
+    ///      losing-run penalty take him to 0
+    #[test]
+    fn a_manager_without_an_open_stint_is_judged_on_the_whole_form() {
+        let mut game = make_game();
+        seed_ai_managers(&mut game);
+        for date in ["2026-06-05", "2026-06-12", "2026-06-19", "2026-06-26"] {
+            finished_a_match(&mut game, "team2", date, "L");
+        }
+        game.managers
+            .iter_mut()
+            .find(|manager| manager.team_id.as_deref() == Some("team2"))
+            .expect("the club has a manager")
+            .career_history
+            .clear();
+
+        update_ai_manager_satisfaction(&mut game);
+
+        assert_eq!(satisfaction_at(&game, "team2"), 0);
+    }
+
+    /// Given a club that lost its last five league matches through the engine, and a manager who took
+    ///      charge after them and whose first league match was settled by scoreline (a dormant
+    ///      league: no report, no form entry)
+    /// When the board judges him
+    /// Then he keeps 50: the settled match is not in the form, so it does not pull one of his
+    ///      predecessor's defeats into his window
+    #[test]
+    fn a_match_settled_by_scoreline_does_not_pull_a_predecessors_result_into_his_window() {
+        let mut game = make_game();
+        seed_ai_managers(&mut game);
+        for date in [
+            "2026-06-02",
+            "2026-06-06",
+            "2026-06-10",
+            "2026-06-14",
+            "2026-06-18",
+        ] {
+            finished_a_match(&mut game, "team2", date, "L");
+        }
+        in_charge_since(&mut game, "team2", "2026-06-19");
+        game.competitions[0].fixtures.push(Fixture {
+            id: "team2-settled".to_string(),
+            date: "2026-06-24".to_string(),
+            home_team_id: "team2".to_string(),
+            away_team_id: "elsewhere".to_string(),
+            status: FixtureStatus::Completed,
+            result: Some(MatchResult {
+                home_goals: 0,
+                away_goals: 1,
+                home_scorers: vec![],
+                away_scorers: vec![],
+                report: None,
+                home_penalties: None,
+                away_penalties: None,
+            }),
+            ..Fixture::default()
+        });
+
+        update_ai_manager_satisfaction(&mut game);
+
+        assert_eq!(
+            satisfaction_at(&game, "team2"),
+            BASE_AI_MANAGER_SATISFACTION as u8
+        );
+    }
+
+    /// Given a club that lost three matches under its last manager and two under the new one
+    /// When the board judges him
+    /// Then only his two count: 50 - 2×12 = 26
+    #[test]
+    fn a_manager_is_judged_on_the_matches_since_he_took_charge() {
+        let mut game = make_game();
+        seed_ai_managers(&mut game);
+        for date in ["2026-06-02", "2026-06-06", "2026-06-10"] {
+            finished_a_match(&mut game, "team2", date, "L");
+        }
+        in_charge_since(&mut game, "team2", "2026-06-12");
+        for date in ["2026-06-15", "2026-06-20"] {
+            finished_a_match(&mut game, "team2", date, "L");
+        }
+
+        update_ai_manager_satisfaction(&mut game);
+
+        assert_eq!(satisfaction_at(&game, "team2"), 26);
+    }
+
+    /// Given a club that lost a league match to the user's club a week ago, in the league's own
+    ///      record and in its mirror, before its manager took charge
+    /// When the board judges him
+    /// Then neither the defeat nor the rivalry penalty counts against him: he has played nobody
+    ///      yet and stays at 50 (counting it in his results would be 38; the penalty, 40)
+    #[test]
+    fn a_defeat_to_the_user_before_he_took_charge_is_not_his() {
+        let mut game = make_game();
+        seed_ai_managers(&mut game);
+        let defeat = Fixture {
+            id: "fixture-user-rival".to_string(),
+            matchday: 1,
+            date: "2026-06-24".to_string(),
+            home_team_id: "team2".to_string(),
+            away_team_id: "team1".to_string(),
+            status: FixtureStatus::Completed,
+            result: Some(MatchResult {
+                home_goals: 0,
+                away_goals: 1,
+                home_scorers: vec![],
+                away_scorers: vec![],
+                report: Some(engine_report()),
+                home_penalties: None,
+                away_penalties: None,
+            }),
+            ..Fixture::default()
+        };
+        let league = League {
+            id: "league-1".to_string(),
+            name: "Test League".to_string(),
+            season: 1,
+            fixtures: vec![defeat],
+            ..Default::default()
+        };
+        game.competitions = vec![league.clone()];
+        game.league = Some(league);
+        game.teams
+            .iter_mut()
+            .find(|team| team.id == "team2")
+            .expect("the club exists")
+            .form = vec!["L".to_string()];
+        in_charge_since(&mut game, "team2", "2026-06-25");
+
+        update_ai_manager_satisfaction(&mut game);
+
+        assert_eq!(
+            satisfaction_at(&game, "team2"),
+            BASE_AI_MANAGER_SATISFACTION as u8
         );
     }
 
@@ -1206,6 +1586,246 @@ mod tests {
                 .last()
                 .and_then(|e| e.end_date.as_deref()),
             Some(today.as_str())
+        );
+    }
+
+    /// An AI manager's standing from a form written as a string of results, e.g. "WDL".
+    fn standing(results: &str) -> i32 {
+        let form: Vec<String> = results.chars().map(String::from).collect();
+        i32::from(super::ai_manager_satisfaction(&form))
+    }
+
+    /// Given an AI club with no results yet, as every club is after the season's reset
+    /// When its manager's standing is worked out
+    /// Then it is the 50 they were appointed with: an empty form is not a losing run
+    #[test]
+    fn an_ai_manager_with_no_results_yet_keeps_the_standing_they_were_appointed_with() {
+        assert_eq!(standing(""), 50);
+    }
+
+    /// Given a form of one win
+    /// When the manager's standing is worked out
+    /// Then it is 8 better than with no results
+    #[test]
+    fn a_win_lifts_an_ai_managers_standing_by_eight() {
+        assert_eq!(standing("W") - standing(""), 8);
+    }
+
+    /// Given a form of one draw
+    /// When the manager's standing is worked out
+    /// Then it is 1 better than with no results
+    #[test]
+    fn a_draw_lifts_an_ai_managers_standing_by_one() {
+        assert_eq!(standing("D") - standing(""), 1);
+    }
+
+    /// Given a form of one defeat
+    /// When the manager's standing is worked out
+    /// Then it is 12 worse than with no results
+    #[test]
+    fn a_defeat_costs_an_ai_manager_twelve() {
+        assert_eq!(standing("L") - standing(""), -12);
+    }
+
+    /// Given four straight wins
+    /// When the manager's standing is worked out
+    /// Then it is 32 better than with no results: four wins, and no losing-run penalty
+    #[test]
+    fn four_straight_wins_earn_no_losing_run_penalty() {
+        assert_eq!(standing("WWWW") - standing(""), 32);
+    }
+
+    /// A completed match played on 1 July 2026, the fixture's day.
+    fn played(home: &str, away: &str, home_goals: u8, away_goals: u8) -> Fixture {
+        Fixture {
+            id: format!("{home}-v-{away}"),
+            matchday: 1,
+            date: "2026-07-01".to_string(),
+            home_team_id: home.to_string(),
+            away_team_id: away.to_string(),
+            status: FixtureStatus::Completed,
+            result: Some(MatchResult {
+                home_goals,
+                away_goals,
+                ..MatchResult::default()
+            }),
+            ..Fixture::default()
+        }
+    }
+
+    /// The AI club team2's rivalry penalty on 1 July 2026, with these matches in the league.
+    fn rivalry_penalty_with(fixtures: Vec<Fixture>) -> i32 {
+        let mut game = make_game();
+        game.league = Some(League {
+            fixtures,
+            ..Default::default()
+        });
+        super::recent_loss_to_user_penalty(&game, "team2", None)
+    }
+
+    /// The game on 1 July 2026 with a completed league match that day: the AI club, team2, away
+    /// at the user's club, team1.
+    fn rival_away_at_the_user(home_goals: u8, away_goals: u8) -> Game {
+        let mut game = make_game();
+        game.league = Some(League {
+            fixtures: vec![played("team1", "team2", home_goals, away_goals)],
+            ..Default::default()
+        });
+        game
+    }
+
+    /// Given the AI club beaten 1-0 away at the user's club today
+    /// When its rivalry penalty is worked out
+    /// Then it is 10: a defeat to the user counts away from home too
+    #[test]
+    fn an_ai_club_beaten_away_by_the_user_is_penalised() {
+        assert_eq!(
+            super::recent_loss_to_user_penalty(&rival_away_at_the_user(1, 0), "team2", None),
+            10
+        );
+    }
+
+    /// Given the AI club held 1-1 away at the user's club today
+    /// When its rivalry penalty is worked out
+    /// Then it is 0: a draw is not a defeat
+    #[test]
+    fn an_ai_club_held_to_a_draw_away_at_the_user_is_not_penalised() {
+        assert_eq!(
+            super::recent_loss_to_user_penalty(&rival_away_at_the_user(1, 1), "team2", None),
+            0
+        );
+    }
+
+    /// Given a vacant AI club with an assistant, whose stand-in id and the one after it are both
+    ///       on record
+    /// When the vacancy is filled
+    /// Then the stand-in takes the third: `mgr_team2_staff2_3`
+    #[test]
+    fn a_third_stand_in_takes_the_next_free_id_after_two_on_record() {
+        let mut game = make_game();
+        on_record(&mut game, "mgr_team2_staff2");
+        on_record(&mut game, "mgr_team2_staff2_2");
+        vacant_long_enough(&mut game, "team2");
+
+        let game = within_five_seconds(game, process_vacant_ai_clubs);
+
+        assert_eq!(
+            manager_id_of(&game, "team2").as_deref(),
+            Some("mgr_team2_staff2_3")
+        );
+    }
+
+    /// Given a vacant AI club with no assistant, whose invented manager's id and the one after it
+    ///       are both on record
+    /// When the vacancy is filled
+    /// Then the invented manager takes the third: `mgr_team2_3`
+    #[test]
+    fn a_third_invented_manager_takes_the_next_free_id_after_two_on_record() {
+        let mut game = make_game();
+        game.staff
+            .retain(|member| member.team_id.as_deref() != Some("team2"));
+        on_record(&mut game, "mgr_team2");
+        on_record(&mut game, "mgr_team2_2");
+        vacant_long_enough(&mut game, "team2");
+
+        let game = within_five_seconds(game, process_vacant_ai_clubs);
+
+        assert_eq!(
+            manager_id_of(&game, "team2").as_deref(),
+            Some("mgr_team2_3")
+        );
+    }
+
+    /// Runs `step` on `game` in a thread and hands the game back, failing the test if the step has
+    /// not finished within five seconds.
+    ///
+    /// The id loops search upward until they find a free id, so a regression that stops them
+    /// advancing hangs rather than fails, and `cargo test` has no timeout of its own: the suite
+    /// would sit until CI's job limit. This turns such a hang into a named failure. A step that
+    /// panics instead is re-raised with its own message, not reported as a hang. A thread left
+    /// spinning dies with the test process.
+    fn within_five_seconds(mut game: Game, step: fn(&mut Game)) -> Game {
+        let (sender, receiver) = std::sync::mpsc::channel();
+        let worker = std::thread::spawn(move || {
+            step(&mut game);
+            let _ = sender.send(game);
+        });
+        match receiver.recv_timeout(std::time::Duration::from_secs(5)) {
+            Ok(game) => game,
+            Err(std::sync::mpsc::RecvTimeoutError::Timeout) => panic!(
+                "the step did not finish within five seconds: an id search may have stopped advancing"
+            ),
+            Err(std::sync::mpsc::RecvTimeoutError::Disconnected) => match worker.join() {
+                Err(panic) => std::panic::resume_unwind(panic),
+                Ok(()) => panic!("the step returned without handing the game back"),
+            },
+        }
+    }
+
+    /// Given a step that panics with its own message
+    /// When it runs under the five-second guard
+    /// Then the test fails with that message at once, not with the guard's "did not finish"
+    #[test]
+    #[should_panic(expected = "a step that fails on its own")]
+    fn a_step_that_panics_fails_with_its_own_message_not_as_a_hang() {
+        within_five_seconds(make_game(), |_| panic!("a step that fails on its own"));
+    }
+
+    /// Given a vacant AI club whose assistant has coaching 60
+    /// When the assistant steps up
+    /// Then the stand-in's reputation is 500: 200, plus 5 a point of coaching
+    #[test]
+    fn a_stand_ins_reputation_comes_from_their_coaching() {
+        let mut game = make_game();
+        vacant_long_enough(&mut game, "team2");
+
+        process_vacant_ai_clubs(&mut game);
+
+        let stand_in = manager_id_of(&game, "team2").expect("the assistant stepped up");
+        let reputation = game
+            .managers
+            .iter()
+            .find(|manager| manager.id == stand_in)
+            .map(|manager| manager.reputation);
+        assert_eq!(reputation, Some(500));
+    }
+
+    /// Given the AI club held 1-1 at home by the user's club today
+    /// When its rivalry penalty is worked out
+    /// Then it is 0: a draw is not a defeat at home either
+    #[test]
+    fn an_ai_club_held_to_a_draw_at_home_by_the_user_is_not_penalised() {
+        assert_eq!(
+            rivalry_penalty_with(vec![played("team2", "team1", 1, 1)]),
+            0
+        );
+    }
+
+    /// Given the AI club beaten 1-0 away by the user's club today, in the cup
+    /// When its rivalry penalty is worked out
+    /// Then it is 0: only league defeats to the user count
+    #[test]
+    fn a_cup_defeat_to_the_user_carries_no_rivalry_penalty() {
+        let cup_tie = Fixture {
+            competition: domain::league::FixtureCompetition::Cup,
+            ..played("team1", "team2", 1, 0)
+        };
+
+        assert_eq!(rivalry_penalty_with(vec![cup_tie]), 0);
+    }
+
+    /// Given the AI club beaten today by a third club, once at home and once away, and never by
+    ///       the user
+    /// When its rivalry penalty is worked out
+    /// Then it is 0: only a defeat to the user's club counts
+    #[test]
+    fn a_defeat_to_another_club_carries_no_rivalry_penalty() {
+        assert_eq!(
+            rivalry_penalty_with(vec![
+                played("team2", "team3", 0, 1),
+                played("team3", "team2", 1, 0),
+            ]),
+            0
         );
     }
 }

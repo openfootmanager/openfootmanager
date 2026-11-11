@@ -35,6 +35,9 @@ pub(crate) struct PlayerSnap {
     pub aerial: u8,
     pub traits: Vec<String>,
     pub role: PlayerRole,
+    pub injury_risk: f64,
+    /// The factor on this player's match rating for the line he was picked from.
+    pub familiarity: f64,
 }
 
 impl PlayerSnap {
@@ -69,6 +72,8 @@ impl PlayerSnap {
             aerial: 0,
             traits: Vec::new(),
             role: PlayerRole::Standard,
+            injury_risk: 1.0,
+            familiarity: 1.0,
         }
     }
 
@@ -96,6 +101,18 @@ impl PlayerSnap {
             aerial: p.aerial,
             traits: p.traits.clone(),
             role: p.role,
+            injury_risk: p.injury_risk,
+            familiarity: p.familiarity_factor(),
+        }
+    }
+
+    /// `p` picked to play in `line`, at his factor there. Picked from his own line this is
+    /// `from`; picked from another (an outfielder in goal, a midfielder up front because no
+    /// forward is left), he keeps his own attributes but plays out of position.
+    pub(crate) fn playing_in(p: &PlayerData, line: Position) -> Self {
+        Self {
+            familiarity: p.familiarity_in(line),
+            ..Self::from(p)
         }
     }
 
@@ -151,10 +168,20 @@ pub(crate) fn snap_from_squad<R: Rng>(
         &candidates
     };
     if !pool.is_empty() {
-        return Some(PlayerSnap::from(pool[rng.random_range(0..pool.len())]));
+        let picked = pool[rng.random_range(0..pool.len())];
+        return Some(PlayerSnap::playing_in(picked, preferred));
     }
     // Everyone available has been sent off: anyone on the teamsheet will do.
-    players.first().map(PlayerSnap::from)
+    players
+        .first()
+        .map(|player| PlayerSnap::playing_in(player, preferred))
+}
+
+/// The share of his skill a player brings at `condition` (0 to 100): all of it fresh, about 80%
+/// half spent, 60% at nothing left. The live match plays him at it, and the AI weighs a
+/// substitute by it.
+pub(crate) fn condition_factor(condition: f64) -> f64 {
+    0.6 + 0.4 * (condition / 100.0)
 }
 
 pub(crate) fn trait_bonus(snap: &PlayerSnap, context: TraitContext) -> f64 {
@@ -284,7 +311,7 @@ pub(crate) fn consulted_phases(position: Position) -> &'static [PlayStylePhase] 
         Position::Goalkeeper => &[],
         Position::Defender => &[PlayStylePhase::Defense],
         Position::Midfielder => &[PlayStylePhase::Midfield, PlayStylePhase::Defense],
-        Position::Forward => &[PlayStylePhase::Attack],
+        Position::Forward => &[PlayStylePhase::Attack, PlayStylePhase::Press],
     }
 }
 
@@ -298,6 +325,46 @@ pub(crate) fn role_modifier(position: Position, role: PlayerRole, phase: PlaySty
     } else {
         1.0
     }
+}
+
+/// The share of a forward's Press entry above Standard that reaches his side's press. The press
+/// is the midfield's work (`effective_press` reads its line), and the front line starts it, so a
+/// Pressing Forward (1.15) adds 3.75% and two add 7.5%.
+const FORWARD_PRESS_SHARE: f64 = 0.25;
+
+/// What a side's forwards add to its press, from their roles: 1.0 for a front line on Standard.
+pub(crate) fn forward_press_factor<'a>(forwards: impl Iterator<Item = &'a PlayerData>) -> f64 {
+    1.0 + forwards
+        .map(|forward| {
+            (role_modifier(Position::Forward, forward.role, PlayStylePhase::Press) - 1.0)
+                * FORWARD_PRESS_SHARE
+        })
+        .sum::<f64>()
+}
+
+/// What a role costs a player in condition each minute: a Pressing Forward runs more, at the
+/// aggressive press's rate (`tactics_pressing_fatigue`). The live engine's alone, which is the
+/// one that tracks each player's condition. Only while the line he plays admits the role
+/// (`PlayerRole::suits`, the rule the press reads the front line by): a striker moved into
+/// midfield by a change of shape no longer presses, so he no longer pays for it.
+pub(crate) fn role_fatigue(role: PlayerRole, position: Position) -> f64 {
+    match role {
+        PlayerRole::PressingForward if role.suits(position) => 1.08,
+        _ => 1.0,
+    }
+}
+
+/// Whether the engine plays `role` differently from Standard for a player in `position`'s line:
+/// some phase that line is consulted on has an entry for it, or the AI's substitutions prefer
+/// it. Read off the table the resolvers use and the preference the AI reads, so a role starts to
+/// count here the moment either reads it. `Standard` is the baseline the others are measured
+/// from, and counts as itself.
+pub fn role_has_match_effect(role: PlayerRole, position: Position) -> bool {
+    role == PlayerRole::Standard
+        || consulted_phases(position)
+            .iter()
+            .any(|phase| role_attribute_modifier(role, *phase) != 1.0)
+        || crate::ai::substitution_reads_role(role, position)
 }
 
 /// Returns a multiplier (0.88–1.20) applied to the player's effective skill
@@ -579,6 +646,12 @@ pub(crate) fn home_mod(side: Side, config: &MatchConfig) -> f64 {
     }
 }
 
+/// A booked player is carded at this share of the usual chance: he goes into a tackle knowing a
+/// second yellow sends him off, and a referee weighs a second caution harder. Without it, the
+/// real yellow-card rate would send off about twice the real number of players on a second
+/// yellow, since fouls fall on the few players in each duel.
+pub(crate) const BOOKED_CARD_FACTOR: f64 = 0.2;
+
 #[cfg(test)]
 mod phase_modifier_tests {
     /// Given every role and the phases its position is consulted on,
@@ -793,5 +866,128 @@ mod phase_modifier_tests {
         );
         let fast = tactics_break_speed_counter(&cfg(|c| c.break_speed = BreakSpeed::Fast));
         assert!(0.0 < fast && fast < 1.0);
+    }
+}
+
+#[cfg(test)]
+mod emergency_keeper_tests {
+    use super::snap_from_squad;
+    use crate::types::{PlayerData, PlayerRole, Position};
+    use rand::SeedableRng;
+    use rand::rngs::StdRng;
+    use std::collections::HashSet;
+
+    fn player(id: &str, position: Position) -> PlayerData {
+        PlayerData {
+            id: id.to_string(),
+            name: id.to_string(),
+            position,
+            ovr: 70,
+            condition: 100,
+            fitness: 100,
+            injury_risk: 1.0,
+            // Natural in his own line; in goal, half the player he is (a factor no real cost
+            // reaches, so only the goalkeeping entry can produce it).
+            line_familiarity: [0.5, 1.0, 1.0, 1.0],
+            pace: 70,
+            stamina: 70,
+            strength: 70,
+            agility: 70,
+            passing: 70,
+            shooting: 70,
+            tackling: 70,
+            dribbling: 70,
+            defending: 70,
+            positioning: 70,
+            vision: 70,
+            decisions: 70,
+            composure: 70,
+            aggression: 70,
+            teamwork: 70,
+            leadership: 70,
+            handling: 70,
+            reflexes: 70,
+            aerial: 70,
+            traits: vec![],
+            role: PlayerRole::Standard,
+        }
+    }
+
+    /// Given a side with no goalkeeper, only defenders who are half the player in goal,
+    /// When a resolver asks for its goalkeeper,
+    /// Then the defender who goes in keeps his own attributes but plays at his goalkeeping
+    /// factor: out of position, not in his own line.
+    #[test]
+    fn a_keeper_picked_from_the_outfield_plays_at_his_goalkeeping_factor() {
+        let players = vec![
+            player("d1", Position::Defender),
+            player("d2", Position::Defender),
+        ];
+        let mut rng = StdRng::seed_from_u64(1);
+
+        let keeper = snap_from_squad(&players, &HashSet::new(), Position::Goalkeeper, &mut rng)
+            .expect("someone goes in goal");
+
+        assert_eq!(keeper.familiarity, 0.5);
+    }
+
+    /// Given the same side with every player sent off,
+    /// When a resolver still asks for its goalkeeper (the last resort, anyone on the teamsheet),
+    /// Then that player too plays at his goalkeeping factor.
+    #[test]
+    fn a_keeper_picked_as_the_last_resort_plays_at_his_goalkeeping_factor() {
+        let players = vec![player("d1", Position::Defender)];
+        let sent_off: HashSet<String> = ["d1".to_string()].into();
+        let mut rng = StdRng::seed_from_u64(1);
+
+        let keeper = snap_from_squad(&players, &sent_off, Position::Goalkeeper, &mut rng)
+            .expect("the teamsheet still names someone");
+
+        assert_eq!(keeper.familiarity, 0.5);
+    }
+}
+
+#[cfg(test)]
+mod forward_press_factor_tests {
+    use super::forward_press_factor;
+    use crate::test_support::{player, same};
+    use crate::types::{PlayerData, PlayerRole, Position};
+
+    fn forward_as(role: PlayerRole) -> PlayerData {
+        let mut forward = player("fwd", Position::Forward);
+        forward.role = role;
+        forward
+    }
+
+    /// Given no forwards, or a front line on Standard,
+    /// When what they add to the press is read,
+    /// Then it adds nothing: 1.0.
+    #[test]
+    fn a_front_line_on_standard_adds_nothing_to_the_press() {
+        let standard = [
+            forward_as(PlayerRole::Standard),
+            forward_as(PlayerRole::Standard),
+        ];
+
+        assert_eq!(forward_press_factor(std::iter::empty()), 1.0);
+        assert_eq!(forward_press_factor(standard.iter()), 1.0);
+    }
+
+    /// Given one Pressing Forward (a Press entry of 1.15), and two,
+    /// When what they add to the press is read,
+    /// Then each adds a quarter of his entry above Standard: 3.75% for one, 7.5% for two.
+    #[test]
+    fn each_pressing_forward_adds_a_quarter_of_his_press_entry() {
+        let one = [
+            forward_as(PlayerRole::PressingForward),
+            forward_as(PlayerRole::Standard),
+        ];
+        let two = [
+            forward_as(PlayerRole::PressingForward),
+            forward_as(PlayerRole::PressingForward),
+        ];
+
+        assert!(same(forward_press_factor(one.iter()), 1.0375));
+        assert!(same(forward_press_factor(two.iter()), 1.075));
     }
 }

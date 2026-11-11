@@ -1,7 +1,8 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use ts_rs::TS;
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, TS)]
 pub enum NewsCategory {
     MatchReport,
     LeagueRoundup,
@@ -14,7 +15,7 @@ pub enum NewsCategory {
     Editorial,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
 pub struct NewsArticle {
     pub id: String,
     pub headline: String,
@@ -43,7 +44,7 @@ pub struct NewsArticle {
     pub i18n_params: HashMap<String, String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
 pub struct NewsMatchScore {
     pub home_team_id: String,
     pub away_team_id: String,

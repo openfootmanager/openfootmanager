@@ -74,7 +74,7 @@ export default function ScoutingTab({
     patchQuery: patchScoutableQuery,
     slice: scoutableSlice,
     refetch: refetchScoutable,
-  } = usePlayersPage(SCOUTABLE_QUERY, t);
+  } = usePlayersPage(SCOUTABLE_QUERY);
   // Sending a scout, a hire or a day passing changes who can be scouted: ask again whenever the
   // game the screen shows is a new one (not on first render, which has just asked).
   const shownGame = useRef(gameState);
@@ -95,6 +95,7 @@ export default function ScoutingTab({
     activeBidOffer,
     myTeam,
     hasExistingOffer,
+    talksResumeOn,
     bidSubmitDisabled,
     openBidNegotiation,
     closeBidNegotiation,
@@ -169,7 +170,7 @@ export default function ScoutingTab({
       onGameUpdate(updated);
     } catch (err) {
       console.error("Failed to send scout:", err);
-      setPlayerSearchError(resolveTranslatedErrorMessage(getErrorMessage(err), t));
+      setPlayerSearchError(resolveTranslatedErrorMessage(getErrorMessage(err)));
     } finally {
       setSending(null);
     }
@@ -190,7 +191,7 @@ export default function ScoutingTab({
       setSelectedYouthScoutId("");
     } catch (err) {
       console.error("Failed to start youth scouting:", err);
-      setYouthSearchError(resolveTranslatedErrorMessage(err, t));
+      setYouthSearchError(resolveTranslatedErrorMessage(err));
     } finally {
       setStartingYouthSearch(false);
     }
@@ -203,7 +204,7 @@ export default function ScoutingTab({
       onGameUpdate(updated);
     } catch (err) {
       console.error("Failed to cancel youth scouting:", err);
-      setYouthSearchError(resolveTranslatedErrorMessage(err, t));
+      setYouthSearchError(resolveTranslatedErrorMessage(err));
     }
   };
 
@@ -214,7 +215,7 @@ export default function ScoutingTab({
       onGameUpdate(updated);
     } catch (err) {
       console.error("Failed to reassign youth scouting:", err);
-      setYouthSearchError(resolveTranslatedErrorMessage(err, t));
+      setYouthSearchError(resolveTranslatedErrorMessage(err));
     }
   };
 
@@ -337,6 +338,7 @@ export default function ScoutingTab({
           bidFeedback={bidFeedback}
           activeBidOffer={activeBidOffer}
           hasExistingOffer={hasExistingOffer}
+          talksResumeOn={talksResumeOn}
           bidResult={bidResult}
           bidLoading={bidLoading}
           bidSubmitDisabled={bidSubmitDisabled}

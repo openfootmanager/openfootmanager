@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { ArrowRightLeft, Gavel, UserPlus } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import type { VisibleFigures } from "../../lib/playerKnowledge";
 import type { PlayerData, TeamData } from "../../store/gameStore";
 import { getPlayerDealBlocker } from "./TransfersTab.model";
 import {
@@ -16,6 +17,8 @@ export type DealKind = "transfer" | "loan" | "contract";
 
 interface PlayerDealWorkspaceProps {
   player: PlayerData;
+  /** His rating and current wage as the club may see them (the market page's projection). */
+  figures: VisibleFigures;
   teams: TeamData[];
   myTeam: TeamData | null;
   transferWindowBlocksRegistration: boolean;
@@ -35,6 +38,7 @@ interface PlayerDealWorkspaceProps {
 
 export default function PlayerDealWorkspace({
   player,
+  figures,
   teams,
   myTeam,
   transferWindowBlocksRegistration,
@@ -144,7 +148,12 @@ export default function PlayerDealWorkspace({
               renderDealPanel(selectedKind)
             )}
           </section>
-          <DealWorkspaceFacts player={player} myTeam={myTeam} offeredWage={offeredWage} />
+          <DealWorkspaceFacts
+            player={player}
+            figures={figures}
+            myTeam={myTeam}
+            offeredWage={offeredWage}
+          />
         </div>
       </div>
     </div>

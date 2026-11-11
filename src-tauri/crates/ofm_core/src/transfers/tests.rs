@@ -1,9 +1,9 @@
 use super::evaluate_transfer_market;
 use crate::clock::GameClock;
 use crate::game::Game;
-use chrono::{TimeZone, Utc};
+use chrono::{NaiveDate, TimeZone, Utc};
 use domain::manager::Manager;
-use domain::player::{Player, PlayerAttributes, Position, TransferOfferStatus};
+use domain::player::{LoanOfferStatus, Player, PlayerAttributes, Position, TransferOfferStatus};
 use domain::season::TransferWindowStatus;
 use domain::team::Team;
 
@@ -344,4 +344,264 @@ fn a_club_that_just_sold_is_held_to_the_wage_bill_it_has_after_the_sale() {
         "the first sale did not happen"
     );
     assert_eq!(club_of("sold-by-c").as_deref(), Some("a"));
+}
+
+/// Given a buyer whose wage bill leaves room for a modest player but not for the dearest one,
+/// and two bargains at one club, the dearer listed first and so the top-scored,
+/// When the sweep reaches the buyer,
+/// Then it signs the modest one: the board's refusal of the dear one is seen when the buyer picks,
+///      not after it has spent its one approach on him. Read as an empty bill, the dear one
+///      would pass that check, be picked, and be refused at the signing.
+#[test]
+fn a_buyer_moves_on_from_a_target_its_board_would_refuse() {
+    let mut game = make_game();
+    game.players.clear();
+    game.teams = vec![
+        make_team("team1", "Alpha FC", 700),
+        make_team("a", "Atlas FC", 700),
+        make_team("c", "Cobra FC", 700),
+    ];
+    for club in ["a", "c"] {
+        game.players.extend(full_squad(club));
+    }
+    let mut dear = bargain("dear", "c", 20_000);
+    dear.market_value = 3_000_000;
+    let modest = bargain("modest", "c", 20_000);
+    let wage_for_a = |game: &Game, player: &Player| {
+        i64::from(
+            super::execution::buyers_standard_terms(game, player, "a")
+                .expect("the buyer can be given a standard contract")
+                .1,
+        )
+    };
+    let (dear_wage, modest_wage) = (wage_for_a(&game, &dear), wage_for_a(&game, &modest));
+    assert!(
+        dear_wage > modest_wage,
+        "the dear target must cost more to pay"
+    );
+
+    // The budget puts the soft cap (110%) just above the dear wage, so on an empty bill he passes;
+    // the bill is then set so exactly the modest wage still fits under the cap and the dear one
+    // does not.
+    let budget = dear_wage * 100 / 110 + 1;
+    let cap = budget * 110 / 100;
+    let bill = cap - modest_wage;
+    assert!(
+        bill <= budget && bill + dear_wage > cap,
+        "the numbers must separate the two"
+    );
+    game.teams[1].wage_budget = budget;
+    game.teams[1].transfer_budget = 50_000_000;
+    game.teams[1].finance = 50_000_000;
+    let squad_bill = crate::finances::calc_wages(&game, "a");
+    let anchor_wage = u32::try_from(bill - squad_bill)
+        .expect("the squad alone must not already cost more than the bill the test sets");
+    game.players.push(squad_player(
+        "anchor",
+        "a",
+        Position::Midfielder,
+        anchor_wage,
+    ));
+    game.players.push(dear);
+    game.players.push(modest);
+    assert_eq!(crate::finances::calc_wages(&game, "a"), bill);
+
+    evaluate_transfer_market(&mut game);
+
+    let club_of = |id: &str| {
+        game.players
+            .iter()
+            .find(|player| player.id == id)
+            .and_then(|player| player.team_id.clone())
+    };
+    assert_eq!(club_of("dear").as_deref(), Some("c"));
+    assert_eq!(club_of("modest").as_deref(), Some("a"));
+}
+
+/// Club "a"'s listed bargain, with an open bid and an open loan request from `bidder`, after the
+/// day's market in which club "b" buys him.
+fn market_sale_with_open_talks_from(bidder: &str) -> Game {
+    let mut game = make_game();
+    game.players.clear();
+    game.teams = vec![
+        make_team("team1", "Alpha FC", 700),
+        make_team("b", "Beta FC", 700),
+        make_team("a", "Atlas FC", 700),
+        make_team("c", "Cobra FC", 700),
+    ];
+    game.teams[1].wage_budget = 50_000_000;
+    for club in ["b", "a"] {
+        game.players.extend(full_squad(club));
+    }
+    let mut wanted = bargain("wanted", "a", 20_000);
+    wanted.transfer_offers.push(
+        serde_json::from_value(serde_json::json!({
+            "id": "user-bid", "from_team_id": bidder, "fee": 900_000,
+            "wage_offered": 0, "status": "Pending", "date": "2026-01-10"
+        }))
+        .unwrap(),
+    );
+    wanted.loan_offers.push(
+        serde_json::from_value(serde_json::json!({
+            "id": "user-loan", "from_team_id": bidder, "parent_team_id": "a",
+            "start_date": "2026-01-12", "end_date": "2026-06-30",
+            "wage_contribution_pct": 50, "status": "Pending", "date": "2026-01-10"
+        }))
+        .unwrap(),
+    );
+    game.players.push(wanted);
+
+    evaluate_transfer_market(&mut game);
+    game
+}
+
+fn talks_closed_letters(game: &Game) -> Vec<&domain::message::InboxMessage> {
+    game.messages
+        .iter()
+        .filter(|message| {
+            message.subject_key.as_deref() == Some("be.msg.talksClosedBySale.subject")
+        })
+        .collect()
+}
+
+/// Given the user still negotiating with club "a" for its listed bargain, a bid and a loan request
+///      both open, When club "b" buys him in the day's market,
+/// Then both are withdrawn that day, as when the user's own deals complete: left open, the talks
+///      went on with "a" over a player now at "b" (#1251).
+#[test]
+fn a_sale_in_the_market_closes_the_other_open_talks_on_the_player() {
+    let game = market_sale_with_open_talks_from("team1");
+
+    let wanted = game.players.iter().find(|p| p.id == "wanted").unwrap();
+    assert_eq!(
+        wanted.team_id.as_deref(),
+        Some("b"),
+        "the sale did not happen"
+    );
+    let user_bid = wanted
+        .transfer_offers
+        .iter()
+        .find(|o| o.id == "user-bid")
+        .unwrap();
+    assert_eq!(user_bid.status, TransferOfferStatus::Withdrawn);
+    assert_eq!(user_bid.closed_on.as_deref(), Some("2026-01-12"));
+    let user_loan = wanted
+        .loan_offers
+        .iter()
+        .find(|o| o.id == "user-loan")
+        .unwrap();
+    assert_eq!(user_loan.status, LoanOfferStatus::Withdrawn);
+    assert_eq!(user_loan.closed_on.as_deref(), Some("2026-01-12"));
+}
+
+/// Given the same: the user's bid and loan request with "a" are open, When "b" buys the player,
+/// Then the user gets one letter for the sale, naming the player, the buying club and its fee:
+///      the talks used to vanish from the transfer screens without a word (#1256).
+#[test]
+fn the_user_is_told_once_when_another_clubs_purchase_ends_their_talks() {
+    let game = market_sale_with_open_talks_from("team1");
+
+    let letters = talks_closed_letters(&game);
+    assert_eq!(
+        letters.len(),
+        1,
+        "one letter for the sale, not one per approach"
+    );
+    let buyer = game.teams.iter().find(|team| team.id == "b").unwrap();
+    let wanted = game.players.iter().find(|p| p.id == "wanted").unwrap();
+    assert_eq!(letters[0].i18n_params["player"], wanted.full_name);
+    assert_eq!(letters[0].i18n_params["buyer"], "Beta FC");
+    assert_eq!(
+        letters[0].i18n_params["fee"],
+        (5_000_000 - buyer.transfer_budget).to_string()
+    );
+    assert_eq!(letters[0].context.player_id.as_deref(), Some("wanted"));
+    // The card is the club that signed him, not the user's own.
+    assert_eq!(letters[0].context.team_id.as_deref(), Some("b"));
+    assert_eq!(letters[0].context.team_name.as_deref(), Some("Beta FC"));
+}
+
+/// Given the open talks are another AI club's ("c"), When "b" buys the player,
+/// Then they are withdrawn and the user is told nothing: they were not the user's.
+#[test]
+fn another_clubs_talks_ended_by_a_purchase_send_the_user_no_letter() {
+    let game = market_sale_with_open_talks_from("c");
+
+    let wanted = game.players.iter().find(|p| p.id == "wanted").unwrap();
+    assert_eq!(
+        wanted.team_id.as_deref(),
+        Some("b"),
+        "the sale did not happen"
+    );
+    assert_eq!(
+        wanted.transfer_offers[0].status,
+        TransferOfferStatus::Withdrawn
+    );
+    assert!(talks_closed_letters(&game).is_empty());
+}
+
+/// A forward at "owner" with no contract end, so only morale, playing time, the clubs'
+/// reputations and the list decide how open he is to a move.
+fn mover(morale: u8, appearances: u32) -> Player {
+    let mut player = squad_player("mover", "owner", Position::Forward, 100);
+    player.stage_contract_end(None);
+    player.morale = morale;
+    player.stats.appearances = appearances;
+    player
+}
+
+fn openness_towards(player: &Player, buyer_reputation: u32) -> i32 {
+    super::player_move_openness_score(
+        NaiveDate::from_ymd_opt(2026, 8, 1).unwrap(),
+        player,
+        &make_team("owner", "Owner FC", 500),
+        &make_team("buyer", "Buyer FC", buyer_reputation),
+    )
+}
+
+/// Given an unlisted player with ten appearances, on morale 50 and with no contract end, and a
+///       buyer 100 above his club in reputation
+/// When his openness to the move is scored
+/// Then it is 25: 10 for middling morale and 15 for the step up, each counted once.
+#[test]
+fn a_middling_morale_and_a_step_up_make_a_player_somewhat_open_to_a_move() {
+    assert_eq!(openness_towards(&mover(50, 10), 600), 25);
+}
+
+/// Given a contented player (morale 70) with one appearance, and a buyer of his club's standing
+/// When his openness to the move is scored
+/// Then it is 15, all of it for the lack of playing time.
+#[test]
+fn a_player_without_games_is_open_to_a_move_for_that_alone() {
+    assert_eq!(openness_towards(&mover(70, 1), 500), 15);
+}
+
+/// Given a contented regular starter (morale 70, ten appearances), and a buyer 250 above his
+///       club in reputation
+/// When his openness to the move is scored
+/// Then it is 25, all of it for the big step up.
+#[test]
+fn a_big_step_up_makes_a_contented_player_open_to_a_move() {
+    assert_eq!(openness_towards(&mover(70, 10), 750), 25);
+}
+
+/// Given an unlisted fringe player valued 1,000,000 on a long contract, contented, with no
+///       games (15) and a buyer 250 above his club in reputation (25): openness exactly 40
+/// When his club sets its asking price
+/// Then it is 1,100,000: the 120% an unlisted player costs, less a tenth for his openness.
+#[test]
+fn an_open_player_lowers_the_asking_price_by_a_tenth() {
+    let mut player = mover(70, 0);
+    player.stage_contract_end(Some("2028-06-30".to_string()));
+    player.market_value = 1_000_000;
+    assert_eq!(openness_towards(&player, 750), 40);
+
+    let asking = super::minimum_acceptable_fee(
+        NaiveDate::from_ymd_opt(2026, 8, 1).unwrap(),
+        &player,
+        &make_team("owner", "Owner FC", 500),
+        &make_team("buyer", "Buyer FC", 750),
+    );
+
+    assert_eq!(asking, 1_100_000);
 }

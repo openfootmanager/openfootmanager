@@ -1,20 +1,17 @@
 import { describe, expect, it } from "vitest";
 import type { TFunction } from "i18next";
 
-import type { FixtureData, LeagueData } from "../store/types";
+import type { FixtureData, LeagueData, PlayerData } from "../store/types";
 import type { GameStateData } from "../store/gameStore";
-import { getPlayerOvr } from "../lib/helpers";
 import { createPlayer, createTeam } from "../test-utils/factories";
 import {
-  buildFallbackRegions,
-  competitionKindLabel,
-  competitionRequiredRegions,
-  competitionScopeLabel,
+  regionsFromCompetitions,
   likelyXi,
   sortCompetitions,
   teamCompetitions,
 } from "./TeamSelection.helpers";
 
+import type { ClubSquadRatings } from "../services/teamsService";
 const t = ((key: string, opts?: { defaultValue?: string }) =>
   opts?.defaultValue ?? key) as unknown as TFunction;
 
@@ -28,47 +25,6 @@ function league(overrides: Partial<LeagueData> = {}): LeagueData {
     ...overrides,
   };
 }
-
-describe("competitionScopeLabel / competitionKindLabel", () => {
-  it("returns null when no scope/kind is provided", () => {
-    expect(competitionScopeLabel(t, undefined)).toBeNull();
-    expect(competitionKindLabel(t, undefined)).toBeNull();
-  });
-
-  it("resolves the scope/kind translation with a defaultValue fallback", () => {
-    expect(competitionScopeLabel(t, "Domestic")).toBe("Domestic");
-    expect(competitionKindLabel(t, "Cup")).toBe("Cup");
-  });
-});
-
-describe("competitionRequiredRegions", () => {
-  it("adds the region_id for Domestic and Regional scopes", () => {
-    expect(competitionRequiredRegions(league({ scope: "Domestic", region_id: "europe" }))).toEqual([
-      "europe",
-    ]);
-    expect(competitionRequiredRegions(league({ scope: "Regional", region_id: "asia" }))).toEqual([
-      "asia",
-    ]);
-  });
-
-  it("does not add the region_id for Continental/International scopes", () => {
-    expect(
-      competitionRequiredRegions(league({ scope: "Continental", region_id: "europe" })),
-    ).toEqual([]);
-  });
-
-  it("merges and de-duplicates explicit required_region_ids with the scope region, sorted", () => {
-    expect(
-      competitionRequiredRegions(
-        league({
-          scope: "Domestic",
-          region_id: "europe",
-          required_region_ids: ["south_america", "europe"],
-        }),
-      ),
-    ).toEqual(["europe", "south_america"]);
-  });
-});
 
 describe("teamCompetitions", () => {
   it("matches competitions by participant_ids", () => {
@@ -88,30 +44,58 @@ describe("teamCompetitions", () => {
 });
 
 describe("likelyXi", () => {
-  it("returns the top 11 players sorted by descending overall", () => {
-    const players = Array.from({ length: 14 }, (_, index) =>
-      createPlayer({
-        id: `p${index}`,
-        attributes: {
-          ...createPlayer().attributes,
-          shooting: 40 + index,
-          passing: 40 + index,
-          pace: 40 + index,
-        },
-      }),
-    );
+  /** A club the backend rated, its players in the order given. */
+  function rated(ids: string[]): ClubSquadRatings {
+    return {
+      team_id: "t1",
+      average_rating: 70,
+      stadium_name: "Ground",
+      stadium_capacity: 20_000,
+      transfer_budget: 5_000_000,
+      weekly_wage_budget: 100_000,
+      balance: 1_000_000,
+      colors: { primary: "red", secondary: "white" },
+      founded_year: 1900,
+      competitions: [],
+      key_players: [],
+      reputation_key: "teamSelect.repAverage",
+      opening_expectation: { target_position: 10, label_key: "teamSelect.expectations.midTable" },
+      players: ids.map((id, index) => ({ player_id: id, ovr: 90 - index })),
+    };
+  }
+  const byId = (ids: string[]) =>
+    new Map(ids.map((id) => [id, createPlayer({ id })] as [string, PlayerData]));
 
-    const result = likelyXi(players);
+  /**
+   * Given a club of fourteen, rated best first by the backend
+   * When its likely eleven is read
+   * Then it is the first eleven, in the backend's order
+   */
+  it("is the backend's first eleven, in its order", () => {
+    const ids = Array.from({ length: 14 }, (_, index) => `p${index}`);
 
-    expect(result).toHaveLength(11);
-    for (let i = 1; i < result.length; i += 1) {
-      expect(getPlayerOvr(result[i - 1])).toBeGreaterThanOrEqual(getPlayerOvr(result[i]));
-    }
+    const result = likelyXi(rated(ids), byId(ids));
+
+    expect(result.map((player) => player.id)).toEqual(ids.slice(0, 11));
   });
 
-  it("returns all players when fewer than 11 are provided", () => {
-    const players = [createPlayer({ id: "a" }), createPlayer({ id: "b" })];
-    expect(likelyXi(players)).toHaveLength(2);
+  /**
+   * Given a club of two
+   * When its likely eleven is read
+   * Then it is both
+   */
+  it("is the whole squad when it has fewer than eleven", () => {
+    expect(likelyXi(rated(["a", "b"]), byId(["a", "b"]))).toHaveLength(2);
+  });
+
+  /**
+   * Given a rated player the game state no longer lists, and a club the backend has not rated
+   * When the likely eleven is read
+   * Then the missing player is left out, and an unrated club has none yet
+   */
+  it("leaves out a player it cannot find, and has none before the backend answers", () => {
+    expect(likelyXi(rated(["a", "gone"]), byId(["a"])).map((player) => player.id)).toEqual(["a"]);
+    expect(likelyXi(undefined, byId(["a"]))).toEqual([]);
   });
 });
 
@@ -136,7 +120,7 @@ describe("sortCompetitions", () => {
   });
 });
 
-describe("buildFallbackRegions", () => {
+describe("regionsFromCompetitions", () => {
   it("groups team countries by competition-declared region, with sorted country codes", () => {
     const gameState = {
       teams: [
@@ -152,7 +136,7 @@ describe("buildFallbackRegions", () => {
       league({ country_id: "BR", region_id: "south_america" }),
     ];
 
-    const regions = buildFallbackRegions(t, gameState, competitions);
+    const regions = regionsFromCompetitions(t, gameState, competitions);
     const byId = Object.fromEntries(regions.map((region) => [region.id, region.country_codes]));
 
     expect(byId.europe).toEqual(["ES", "FR"]);
@@ -170,7 +154,7 @@ describe("buildFallbackRegions", () => {
     } as unknown as GameStateData;
     const competitions = [league({ country_id: "ES", region_id: "europe" })];
 
-    const regions = buildFallbackRegions(t, gameState, competitions);
+    const regions = regionsFromCompetitions(t, gameState, competitions);
 
     expect(regions.map((region) => region.id)).toEqual(["europe"]);
     expect(regions.flatMap((region) => region.country_codes)).not.toContain("NG");

@@ -1,4 +1,5 @@
 import { useTranslation } from "react-i18next";
+import { resolveBackendText } from "../utils/backendI18n";
 
 import { Badge, ProgressBar } from "./ui";
 
@@ -45,10 +46,7 @@ export default function NegotiationFeedbackPanel({
             {t(titleKey)}
           </p>
           <p className="text-sm font-medium text-gray-900 dark:text-gray-100 mt-1">
-            {t(feedback.headline_key, {
-              ...(feedback.params ?? {}),
-              defaultValue: feedback.headline_key,
-            })}
+            {resolveBackendText(feedback.headline_key, "", feedback.params)}
           </p>
         </div>
         <Badge variant="neutral">{t(roundKey, { count: feedback.round })}</Badge>
@@ -56,10 +54,7 @@ export default function NegotiationFeedbackPanel({
 
       {feedback.detail_key ? (
         <p className="text-xs text-gray-600 dark:text-gray-300 leading-relaxed">
-          {t(feedback.detail_key, {
-            ...(feedback.params ?? {}),
-            defaultValue: feedback.detail_key,
-          })}
+          {resolveBackendText(feedback.detail_key, "", feedback.params)}
         </p>
       ) : null}
 

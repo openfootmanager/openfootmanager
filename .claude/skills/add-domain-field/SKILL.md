@@ -105,8 +105,12 @@ cargo test --manifest-path src-tauri/Cargo.toml --workspace
 
 ## 6. The frontend
 
-- Add the field to the matching TypeScript type (`src/store/types.ts` or the relevant service
-  types). Optional (`?`) if old saves may not have it.
+- If the type reaches the screens, regenerate its TypeScript and commit `src/store/generated/`:
+  `OFM_UPDATE_TS_TYPES=1 cargo test --manifest-path src-tauri/Cargo.toml --test wire_types`. A
+  new type on the field needs `#[derive(TS)]`. Never edit the generated files by hand (see
+  `src-tauri/CLAUDE.md`, "Wire types are generated").
+- Until the screens read the generated types (#589), also add the field to the matching
+  hand-written TypeScript type (`src/store/types.ts` or the relevant service types).
 - Any label, unit, or tooltip for it is a user-facing string → `/add-ui-string`, every locale.
 
 ---
@@ -124,4 +128,5 @@ cargo test --manifest-path src-tauri/Cargo.toml --workspace
 - [ ] `MIGRATION_COUNT` bumped
 - [ ] Non-default SQL round-trip and absent-field old-save default test, written first and seen failing
 - [ ] `cargo test --workspace` and `cargo clippy --workspace --all-targets` green
+- [ ] `src/store/generated/` regenerated (`OFM_UPDATE_TS_TYPES=1 … --test wire_types`) and committed
 - [ ] Frontend type updated; any new label translated into every locale

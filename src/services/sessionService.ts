@@ -10,6 +10,7 @@ import type {
   YouthScoutingAssignment,
 } from "../store/types";
 import { invoke } from "@tauri-apps/api/core";
+import { invokeForCareer } from "./careerInvoke";
 
 export function getActiveGame(): Promise<GameStateData> {
   return invoke("get_active_game");
@@ -20,7 +21,7 @@ export function getActiveSaveId(): Promise<string | null> {
 }
 
 export function saveGame(): Promise<void> {
-  return invoke("save_game");
+  return invokeForCareer("save_game");
 }
 
 export function exitToMenu(): Promise<void> {

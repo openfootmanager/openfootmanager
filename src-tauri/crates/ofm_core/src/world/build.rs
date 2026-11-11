@@ -80,6 +80,7 @@ pub fn build_game_from_world_data(
                         &format!("catchup/definitions/{}", comp.id),
                         &game_start.format("%Y-%m-%d").to_string(),
                     );
+                    // No game yet to pick a side in: each club is rated on its best eleven.
                     crate::catchup::simulate_past_fixtures(
                         comp,
                         &world.players,
@@ -113,6 +114,9 @@ pub fn build_game_from_world_data(
     } = world;
 
     let mut game = Game::new(clock, manager, teams, players, staff, vec![]);
+    // A career begun by this build owns no browser library of tactics; unmarked, it would copy in
+    // the library of another career begun the same year (same manager id and start date).
+    game.legacy_tactics_imported = true;
     // Stored on the game, which is the one place the day's dice come from.
     game.seed = seed;
     // In place before `generate_past_world_history` below, which seeds a roster-baseline world's
@@ -159,7 +163,7 @@ pub fn build_game_from_world_data(
             game.news = news;
             game.world_history = world_history;
             game.extra_translations = extra_translations;
-            crate::world::ensure_multi_competition_foundations(&mut game);
+            crate::world::foundations::ensure_snapshot_foundations(&mut game);
             crate::season_context::refresh_game_context(&mut game);
             (game, stats)
         }
@@ -226,6 +230,143 @@ mod tests {
         assert!(game.players.len() >= players);
         assert!(!game.competitions.is_empty());
         assert!(game.teams.iter().all(|team| team.history.len() == 2));
+    }
+
+    /// Given a resumed World Cup summer snapshot whose published club match clashes with a
+    /// window, when the world is built, then its move is marked and the manager is informed.
+    #[test]
+    fn a_resumed_snapshot_marks_a_match_moved_by_world_cup_setup() {
+        let sources = DefinitionSources::embedded_only();
+        let mut world = generate_world_data_seeded_with(5, &WorldGenConfig::compact(), &sources);
+        world.metadata.kind = crate::generator::WorldDataKind::HistoricalSnapshot;
+        world.competition_definitions = None;
+        let home = world.teams[0].id.clone();
+        let away = world.teams[1].id.clone();
+        let mut league =
+            domain::league::League::new("published".into(), "Published".into(), 2026, &[]);
+        league.fixtures.push(domain::league::Fixture {
+            id: "published-match".into(),
+            competition_id: league.id.clone(),
+            date: "2026-09-09".into(),
+            home_team_id: home.clone(),
+            away_team_id: away,
+            competition: domain::league::FixtureCompetition::League,
+            ..Default::default()
+        });
+        world.competitions = vec![league];
+        let mut manager = manager();
+        manager.hire(home);
+        let clock = GameClock::new(start_date_for_year(2026).unwrap());
+        let history = PastHistory {
+            start_year: 2026,
+            depth_years: 0,
+        };
+
+        let (game, _) =
+            build_game_from_world_data(clock, manager, history, world, ReputationBasis::Stored);
+
+        let fixture = game
+            .competitions
+            .iter()
+            .flat_map(|c| &c.fixtures)
+            .find(|f| f.id == "published-match")
+            .expect("the published match survives");
+        assert_ne!(fixture.date, "2026-09-09");
+        assert_eq!(
+            fixture
+                .postponement
+                .as_ref()
+                .map(|p| p.original_date.as_str()),
+            Some("2026-09-09")
+        );
+        assert_eq!(
+            game.messages
+                .iter()
+                .filter(|m| m.subject_key.as_deref() == Some("be.msg.matchesMoved.subject"))
+                .count(),
+            1
+        );
+    }
+
+    /// Given a saved world that already carries its past seasons (a historical snapshot),
+    /// When a game is built from it with a history depth (the default a new career asks for),
+    /// Then every club keeps exactly the history it was stored with: only a new world is given a
+    ///      generated past, and an old save is never rewritten.
+    #[test]
+    fn a_world_that_already_has_a_past_keeps_it() {
+        let sources = DefinitionSources::embedded_only();
+        let mut world = generate_world_data_seeded_with(5, &WorldGenConfig::compact(), &sources);
+        world.metadata.kind = crate::generator::WorldDataKind::HistoricalSnapshot;
+        for (index, team) in world.teams.iter_mut().enumerate() {
+            team.history = vec![domain::team::TeamSeasonRecord {
+                season: 2031,
+                league_position: (index % 7 + 1) as u32,
+                played: 38,
+                won: 10 + index as u32 % 5,
+                drawn: 8,
+                lost: 20 - index as u32 % 5,
+                goals_for: 40 + index as u32,
+                goals_against: 50,
+                competition_id: String::new(),
+            }];
+        }
+        let stored: Vec<String> = world
+            .teams
+            .iter()
+            .map(|team| format!("{:?}", team.history))
+            .collect();
+        let clock = GameClock::new(start_date_for_year(2033).unwrap());
+        let history = PastHistory {
+            start_year: 2033,
+            depth_years: 12,
+        };
+
+        let (game, _) =
+            build_game_from_world_data(clock, manager(), history, world, ReputationBasis::Stored);
+
+        let kept: Vec<String> = game
+            .teams
+            .iter()
+            .map(|team| format!("{:?}", team.history))
+            .collect();
+        assert_eq!(kept, stored);
+    }
+
+    /// Given any world, generated or imported
+    /// When a career is built from it
+    /// Then the career is marked as having imported the browser tactics already: a career begun by
+    ///      this build cannot own a browser library, and an unmarked one would copy in the library
+    ///      of another career begun the same year (same manager id and start date).
+    #[test]
+    fn a_career_built_from_a_world_never_imports_browser_tactics() {
+        let sources = DefinitionSources::embedded_only();
+        let clock = GameClock::new(start_date_for_year(2033).unwrap());
+        let history = PastHistory {
+            start_year: 2033,
+            depth_years: 0,
+        };
+        for imported in [false, true] {
+            let world = generate_world_data_seeded_with(5, &WorldGenConfig::compact(), &sources);
+            let (game, _) = if imported {
+                build_game_from_imported_world(
+                    clock.clone(),
+                    manager(),
+                    history,
+                    world,
+                    ReputationBasis::Stored,
+                )
+            } else {
+                build_game_from_world_data(
+                    clock.clone(),
+                    manager(),
+                    history,
+                    world,
+                    ReputationBasis::Stored,
+                )
+            };
+
+            assert!(game.legacy_tactics_imported, "imported world: {imported}");
+        }
     }
 
     /// Given a world that carries archived managers and retired players

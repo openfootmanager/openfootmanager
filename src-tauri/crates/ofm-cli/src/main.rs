@@ -909,6 +909,44 @@ mod tests {
         }
     }
 
+    /// Given a package whose league lists one of its three clubs twice
+    /// When `validate` runs
+    /// Then it fails, naming the file, the competition and the repeated club,
+    /// the same error the game and the package editor report
+    #[test]
+    fn validate_rejects_a_club_listed_twice_in_a_league() {
+        // Reuses the group-cup package's three clubs, swapping its cup for the league.
+        let dir = group_cup_package("repeated-club", 3, json!({"kind": "Knockout"}));
+        std::fs::remove_file(dir.join("cup.json")).expect("cup removed");
+        std::fs::write(
+            dir.join("league.json"),
+            json!({
+                "schema": "competition", "id": "authored-league", "name": "Authored League",
+                "type": "League", "scope": "Domestic", "format": {"kind": "LeagueTable"},
+                "participants": {"explicit": ["club-0", "club-1", "club-0", "club-2"]}
+            })
+            .to_string(),
+        )
+        .expect("league written");
+
+        let exit = cmd_validate(&dir);
+        let (_, errors) = load_world_package(&dir);
+        std::fs::remove_dir_all(&dir).ok();
+
+        assert_eq!(exit, 1, "a repeated club must fail validation");
+        let repeats: Vec<_> = errors
+            .iter()
+            .filter(|e| e.code == "be.error.competitionDef.duplicateTeam")
+            .collect();
+        assert_eq!(repeats.len(), 1, "specific error: {errors:?}");
+        assert_eq!(repeats[0].file, "league.json");
+        let text = issue_text(repeats[0]);
+        assert!(
+            text.contains("competition=authored-league") && text.contains("team=club-0"),
+            "{text}"
+        );
+    }
+
     /// Given seven clubs and a maximum of three, balanced groups of 3/2/2
     /// can supply two qualifiers each and one extra next-place finisher.
     #[test]

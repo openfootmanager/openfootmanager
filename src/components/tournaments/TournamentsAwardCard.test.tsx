@@ -5,6 +5,7 @@ import type { SeasonAwardEntryData, SeasonManagerAwardEntryData } from "../../st
 import TournamentsAwardCard from "./TournamentsAwardCard";
 
 vi.mock("react-i18next", () => ({
+  initReactI18next: { type: "3rdParty", init: () => undefined },
   useTranslation: () => ({
     t: (key: string) => {
       if (key === "common.viewTeam") return "View team";

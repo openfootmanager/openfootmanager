@@ -1,5 +1,6 @@
 mod application;
 mod atomic_file;
+mod build_info;
 mod commands;
 mod crash;
 mod main_window;
@@ -14,13 +15,20 @@ use db::save_manager::SaveManager;
 use ofm_core::state::StateManager;
 use std::sync::{Arc, Mutex};
 
-const SAVE_MANAGER_UNAVAILABLE_ERROR: &str = "be.error.saveManagerUnavailable";
+pub(crate) use db::save_manager::SAVE_MANAGER_UNAVAILABLE_ERROR;
 
 /// Tauri-managed wrapper around SaveManager.
 pub struct SaveManagerState(pub Mutex<SaveManager>);
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    // Before anything that needs a display or a file: a harness asks a binary what it was built
+    // from without starting it, so a stale build is refused whatever the display is doing.
+    if build_info::requested(std::env::args_os().skip(1)) {
+        println!("{}", build_info::build_version());
+        return;
+    }
+
     // First of all, so that everything below is covered — including plugin registration and the
     // graphics configuration, where a panic would otherwise leave nothing at all behind. The hook
     // has no file to write to yet; `setup` gives it one as soon as the app data directory
@@ -217,6 +225,7 @@ pub fn run() {
             get_nations,
             start_new_game,
             validate_competition_definitions,
+            validate_manager_dob,
             validate_world_package,
             inspect_world_package,
             export_world_database,
@@ -228,6 +237,8 @@ pub fn run() {
             get_career_stage,
             get_players_page,
             get_teams_directory,
+            get_team_card,
+            get_team_selection_ratings,
             get_schedule,
             get_news_feed,
             get_messages_page,
@@ -235,6 +246,15 @@ pub fn run() {
             get_session_state,
             get_club_league_standing,
             get_scouted_report,
+            get_player_knowledge,
+            get_visible_wage,
+            get_potential_opinion,
+            get_youth_prospect_opinions,
+            get_position_ratings,
+            get_familiarity,
+            get_tactics_lineup,
+            get_manager_standing,
+            get_managers_page,
             get_squad,
             get_staff,
             get_active_save_id,
@@ -250,22 +270,32 @@ pub fn run() {
             preview_renewal_financial_impact,
             offer_free_agent_contract,
             preview_free_agent_contract_impact,
+            get_free_agent_opening_offer,
             set_contract_exit_intent,
             clear_contract_exit_intent,
             preview_contract_termination,
+            get_contract_warning_stages,
             terminate_contract_now,
             set_formation,
             list_custom_tactics,
             save_custom_tactic,
+            save_current_tactic,
+            apply_custom_tactic,
+            rename_custom_tactic,
             delete_custom_tactic,
+            legacy_tactics_import_pending,
+            mark_legacy_tactics_imported,
             set_starting_xi,
             set_play_style,
             apply_tactic_preset,
             get_tactics_blueprint_status,
             set_team_match_roles,
             set_training,
+            get_squad_fitness,
+            get_position_groups,
             set_training_schedule,
             get_training_focus_attributes,
+            get_rating_tiers,
             set_training_groups,
             set_player_training_focus,
             set_player_squad_role,
@@ -289,6 +319,7 @@ pub fn run() {
             make_loan_offer,
             exercise_loan_buy_option,
             preview_transfer_bid_financial_impact,
+            get_bid_negotiation_status,
             respond_to_offer,
             respond_to_loan_offer,
             counter_loan_offer,
@@ -300,7 +331,9 @@ pub fn run() {
             check_season_complete,
             advance_to_next_season,
             get_season_awards,
+            get_followed_division,
             get_hall_of_fame_legends,
+            get_hall_of_fame_champions,
             get_retired_player,
             resolve_message_action,
             start_live_match,
@@ -337,6 +370,7 @@ pub fn run() {
             create_package_project,
             create_world_project,
             read_package_project,
+            validate_package_project,
             save_package_project,
             build_ofm,
             extract_ofm_for_editing,

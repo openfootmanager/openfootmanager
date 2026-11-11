@@ -3,12 +3,14 @@ import { Star } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 import { getPlayerOvr } from "../../lib/helpers";
+import type { FamiliarityTable } from "../../hooks/useFamiliarity";
+import type { PositionTable } from "../../lib/positionTable";
+import { usePositionTable } from "../../hooks/usePositionGroups";
 import type { PlayerData, TeamMatchRolesData } from "../../store/gameStore";
 import ContextMenu from "../ContextMenu";
 import { Badge, Card, PitchToken, Select, usePitchTokenFocus } from "../ui";
 import {
-  isPlayerExactForSlot,
-  isPlayerOutOfPosition,
+  getSquadTacticalFit,
   translatePositionAbbreviation,
   type DragState,
   type SquadSection,
@@ -19,6 +21,10 @@ import type { PlayerRole, TacticsPhaseSettings } from "../../store/types";
 import { getRoleOptions } from "../../lib/playerRoles";
 
 interface TacticsPitchProps {
+  /** The screen's one familiarity table, the one its count and its writers grade with. */
+  familiarity: FamiliarityTable;
+  /** The table, the familiarity and the squad's answer are all in: tokens state a fit only then. */
+  lineupReady: boolean;
   benchPlayers?: PlayerData[];
   dragState: DragState | null;
   formation: string;
@@ -45,7 +51,8 @@ interface TacticsPitchProps {
   onSlotDragOver: (event: DragEvent<HTMLElement>, slotIndex: number) => void;
   onSlotDragLeave: (slotIndex: number) => void;
   onSlotDrop: (event: DragEvent<HTMLElement>, slotIndex: number) => void;
-  outOfPositionCount: number;
+  /** Null until the lineup can be graded: the badge then claims no count. */
+  outOfPositionCount: number | null;
   pitchSlots: TacticsPitchSlot[];
   selectedPlayer: PlayerData | null;
   selectedPlayerId: string | null;
@@ -59,20 +66,30 @@ interface RoleMarker {
   toneClassName: string;
 }
 
-function getFitTone(player: PlayerData | null, slotPosition: string): FitTone {
-  if (!player) {
+function getFitTone(
+  player: PlayerData | null,
+  slotPosition: string,
+  positionTable: PositionTable,
+  familiarity: FamiliarityTable,
+  lineupReady: boolean,
+): FitTone {
+  // The tone waits on what the count waits on, so the pitch never states a verdict in one place
+  // and withholds it in another.
+  if (!player || !lineupReady) {
     return "empty";
   }
 
-  if (isPlayerExactForSlot(player, slotPosition)) {
-    return "exact";
+  // No grade (not loaded, or not the club's) is no verdict: the token says nothing of fit.
+  switch (getSquadTacticalFit(player, slotPosition, positionTable, familiarity)) {
+    case "natural":
+      return "exact";
+    case "out":
+      return "out";
+    case "adapted":
+      return "adapted";
+    default:
+      return "empty";
   }
-
-  if (isPlayerOutOfPosition(player, slotPosition)) {
-    return "out";
-  }
-
-  return "adapted";
 }
 
 function getRoleMarkers(
@@ -254,6 +271,8 @@ function TacticalOverlays({ phase }: { phase: TacticsPhaseSettings }): JSX.Eleme
 
 export default function TacticsPitch({
   dragState,
+  familiarity,
+  lineupReady,
   formation,
   matchRoles,
   onRoleChange,
@@ -279,6 +298,7 @@ export default function TacticsPitch({
   selectedPlayerId,
 }: TacticsPitchProps): JSX.Element {
   const { t } = useTranslation();
+  const positionTable = usePositionTable();
   const { focusedPlayerId, focusToken, blurToken, getDescriptionId } = usePitchTokenFocus();
   const draggedPlayerId = dragState?.playerId ?? null;
 
@@ -293,9 +313,11 @@ export default function TacticsPitch({
           <p className="mt-0.5 text-xs text-gray-400">{t("tactics.pitchInteractionHint")}</p>
         </div>
         <div className="flex flex-wrap items-center justify-end gap-2">
-          <Badge variant={outOfPositionCount > 0 ? "danger" : "success"} size="sm">
-            {outOfPositionCount} {t("squad.outOfPosition")}
-          </Badge>
+          {outOfPositionCount === null ? null : (
+            <Badge variant={outOfPositionCount > 0 ? "danger" : "success"} size="sm">
+              {outOfPositionCount} {t("squad.outOfPosition")}
+            </Badge>
+          )}
           <span className="rounded-full bg-success-500/15 px-2.5 py-1 text-[10px] font-heading font-bold uppercase tracking-widest text-success-300">
             {t("tactics.naturalFit")}
           </span>
@@ -424,7 +446,13 @@ export default function TacticsPitch({
 
             {pitchSlots.map((slot) => {
               const player = slot.player;
-              const fitTone = getFitTone(player, slot.position);
+              const fitTone = getFitTone(
+                player,
+                slot.position,
+                positionTable,
+                familiarity,
+                lineupReady,
+              );
               const isHovered = hoveredSlot === slot.index;
 
               return (

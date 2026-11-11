@@ -415,13 +415,20 @@ pub fn evaluate_transfer_market(game: &mut Game) {
             &candidate.owner_team_id,
             candidate.fee,
         )
+        .and_then(|()| {
+            close_open_offers_after_sale(game, &candidate.player_id, &buyer_id, candidate.fee, None)
+        })
         .is_ok()
         {
             moved_player_ids.insert(candidate.player_id);
             completed_ai_transfers += 1;
-            for club in [&candidate.owner_team_id, &buyer_id] {
-                wage_bills.insert(club.clone(), calc_wages(game, club));
-            }
+            // Only the seller is recounted: a club that has just bought has had its turn (each
+            // club is a buyer once a sweep), so its new bill is never read again today, while
+            // the seller may still buy and is held to the bill it has after the sale.
+            wage_bills.insert(
+                candidate.owner_team_id.clone(),
+                calc_wages(game, &candidate.owner_team_id),
+            );
         }
     }
 }

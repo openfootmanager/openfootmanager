@@ -1,3 +1,6 @@
+import type { TeamSelectionRatings } from "../store/generated/TeamSelectionRatings";
+export type { TeamSelectionRatings } from "../store/generated/TeamSelectionRatings";
+export type { ClubSquadRatings } from "../store/generated/ClubSquadRatings";
 import { invoke } from "@tauri-apps/api/core";
 
 export const UNGROUPED_LEAGUE_ID = "__ungrouped";
@@ -39,13 +42,24 @@ export interface TeamStanding {
   points: number;
 }
 
+/** Who manages a club, as its card names him. */
+export interface TeamCardManager {
+  id: string;
+  name: string;
+}
+
 export interface TeamCard {
   team: TeamCardTeam;
   roster_size: number;
-  avg_ovr: number;
+  /** Null for a club outside the manager's division: the club does not know that squad. */
+  avg_ovr: number | null;
   total_value: number;
   league_pos: number;
   standing: TeamStanding | null;
+  /** The club's last five results as "W", "D" or "L", oldest first. Results are public. */
+  form: string[];
+  /** Null for a club without a manager. */
+  manager: TeamCardManager | null;
 }
 
 export interface LeagueGroup {
@@ -68,4 +82,13 @@ export interface TeamsDirectory {
 
 export function fetchTeamsDirectory(query: TeamsDirectoryQuery): Promise<TeamsDirectory> {
   return invoke<TeamsDirectory>("get_teams_directory", { query });
+}
+
+export function fetchTeamSelectionRatings(): Promise<TeamSelectionRatings> {
+  return invoke<TeamSelectionRatings>("get_team_selection_ratings");
+}
+
+/** One club's card, as the directory shows it; null for an id no club has. */
+export function fetchTeamCard(teamId: string): Promise<TeamCard | null> {
+  return invoke<TeamCard | null>("get_team_card", { teamId });
 }

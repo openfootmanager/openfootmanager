@@ -6,20 +6,41 @@ use ofm_core::{game::Game, state::StateManager};
 /// Ordinary same-career writers also use `set_game`, so reset the transient
 /// session only here. Sharing the lifecycle lock prevents a concurrent start
 /// or finish from publishing the previous career's session or result afterward.
+///
+/// The game is stamped with a fresh career token, which is returned so a caller that hands the game
+/// to the screen straight away (a new game, a chosen club) hands it the stamped one.
 pub(crate) fn install_career(
     state: &StateManager,
-    game: Game,
+    mut game: Game,
     stats: StatsState,
     save_id: Option<String>,
-) {
+) -> u64 {
     let _operation = super::live_session::operation();
     drop(state.take_live_match());
+    let career_token = state.next_career_token();
+    game.career_token = career_token;
     state.set_game(game);
     state.set_stats_state(stats);
     match save_id {
         Some(id) => state.set_save_id(id),
         None => state.clear_save_id(),
     }
+    career_token
+}
+
+/// [`install_career`] for a game that goes to the screen straight away (a new game, a chosen
+/// club): returns the game as the screen must hold it, carrying the installed career's token.
+/// A screen holding the unstamped game would send token 0 with every tactics write and have each
+/// refused as another career's.
+pub(crate) fn install_career_for_screen(
+    state: &StateManager,
+    game: Game,
+    stats: StatsState,
+    save_id: Option<String>,
+) -> Game {
+    let mut shown = game.clone();
+    shown.career_token = install_career(state, game, stats, save_id);
+    shown
 }
 
 /// The active game together with the save it belongs to, read under the career lock
@@ -50,6 +71,33 @@ mod tests {
             "England".to_string(),
         );
         Game::new(clock, manager, vec![], vec![], vec![], vec![])
+    }
+
+    /// Given two careers installed one after the other
+    /// When each is read back
+    /// Then each game carries its own token, the one install_career returned, and they differ.
+    #[test]
+    fn each_installed_career_is_stamped_with_a_token_of_its_own() {
+        let state = StateManager::new();
+
+        let first = install_career(
+            &state,
+            game_managed_by("Alice"),
+            StatsState::default(),
+            None,
+        );
+        let first_seen = state.get_game(|game| game.career_token).unwrap();
+        let second = install_career(
+            &state,
+            game_managed_by("Beatrix"),
+            StatsState::default(),
+            None,
+        );
+        let second_seen = state.get_game(|game| game.career_token).unwrap();
+
+        assert_eq!((first_seen, second_seen), (first, second));
+        assert_ne!(first, second);
+        assert_ne!(first, 0);
     }
 
     /// Given career A is installed and a load of career B is mid-install, holding the career lock

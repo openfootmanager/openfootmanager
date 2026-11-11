@@ -5,9 +5,32 @@ import { invoke } from "@tauri-apps/api/core";
 import type { GameStateData, MessageData, PlayerData, TeamData } from "../../store/gameStore";
 import { resolveBackendError } from "../../utils/backendI18n";
 import FinancesTab from "./FinancesTab";
+import { createSeasonContext } from "../../test-utils/factories";
+
+// What the backend's contract warning stages read as on a badge, by player id; a test says which
+// players are at risk. The hook that asks for them has its own test.
+const riskLevels = vi.hoisted(() => ({
+  current: {} as Record<string, "critical" | "warning" | "stable">,
+}));
+
+vi.mock("../../hooks/useContractWarningStages", () => ({
+  useContractRiskLevels: () => (playerId: string) => riskLevels.current[playerId] ?? "stable",
+}));
 
 vi.mock("@tauri-apps/api/core", () => ({
   invoke: vi.fn(),
+}));
+
+// The weeks the tab hands the cash-flow chart, captured: the chart has its own test, and jsdom
+// draws no recharts to read them from.
+const chartWeeks = vi.hoisted(() => ({ current: undefined as unknown, labels: [] as string[] }));
+
+vi.mock("./FinanceCashFlowChart", () => ({
+  FinanceCashFlowChart: (props: { weeks: unknown; incomeLabel: string; expensesLabel: string }) => {
+    chartWeeks.current = props.weeks;
+    chartWeeks.labels = [props.incomeLabel, props.expensesLabel];
+    return <div data-testid="cash-flow-chart" />;
+  },
 }));
 
 vi.mock("react-i18next", async () => {
@@ -158,6 +181,7 @@ function wireSnapshot(
       runway_status: "stable",
       overall_status: "stable",
       marketing_campaign_cooldown_days_remaining: 0,
+      cash_flow: [],
       ...overrides,
     },
   };
@@ -323,6 +347,7 @@ function createGameState(
   players: PlayerData[] = [createPlayer()],
 ): GameStateData {
   return {
+    season_context: createSeasonContext(),
     clock: {
       current_date: "2025-01-20T00:00:00Z",
       start_date: "2025-01-01T00:00:00Z",
@@ -367,6 +392,7 @@ function createGameState(
 
 describe("FinancesTab facilities", () => {
   beforeEach(() => {
+    riskLevels.current = { "player-critical": "critical", "player-warning": "warning" };
     mockedInvoke.mockReset();
     mockedInvoke.mockImplementation((command) => {
       if (command === "get_finance_snapshot") {
@@ -432,6 +458,7 @@ describe("FinancesTab facilities", () => {
 
     await waitFor(() => {
       expect(mockedInvoke).toHaveBeenCalledWith("upgrade_facility", {
+        careerToken: 0,
         facility: "Medical",
       });
     });
@@ -501,6 +528,7 @@ describe("FinancesTab facilities", () => {
 
     await waitFor(() => {
       expect(mockedInvoke).toHaveBeenCalledWith("resolve_message_action", {
+        careerToken: 0,
         messageId: "sponsor_2025-06-15",
         actionId: "respond",
         optionId: "accept",
@@ -541,6 +569,7 @@ describe("FinancesTab facilities", () => {
             runway_status: "watch",
             overall_status: "critical",
             marketing_campaign_cooldown_days_remaining: 0,
+            cash_flow: [],
           },
           previews: {
             sponsor_pitch: {
@@ -572,7 +601,7 @@ describe("FinancesTab facilities", () => {
     fireEvent.click(screen.getByRole("button", { name: "Pitch Sponsor" }));
 
     await waitFor(() => {
-      expect(mockedInvoke).toHaveBeenCalledWith("request_sponsor_pitch");
+      expect(mockedInvoke).toHaveBeenCalledWith("request_sponsor_pitch", { careerToken: 0 });
     });
 
     expect(onGameUpdate).toHaveBeenCalledWith(updatedState);
@@ -611,6 +640,7 @@ describe("FinancesTab facilities", () => {
             runway_status: "critical",
             overall_status: "critical",
             marketing_campaign_cooldown_days_remaining: 0,
+            cash_flow: [],
           },
           previews: {
             marketing_campaign: {
@@ -644,7 +674,7 @@ describe("FinancesTab facilities", () => {
     fireEvent.click(screen.getByRole("button", { name: "Launch Campaign" }));
 
     await waitFor(() => {
-      expect(mockedInvoke).toHaveBeenCalledWith("request_marketing_campaign");
+      expect(mockedInvoke).toHaveBeenCalledWith("request_marketing_campaign", { careerToken: 0 });
     });
 
     expect(onGameUpdate).toHaveBeenCalledWith(updatedState);
@@ -682,6 +712,7 @@ describe("FinancesTab facilities", () => {
             runway_status: "critical",
             overall_status: "critical",
             marketing_campaign_cooldown_days_remaining: 0,
+            cash_flow: [],
           },
           previews: {
             board_support: {
@@ -752,6 +783,7 @@ describe("FinancesTab facilities", () => {
             runway_status: "critical",
             overall_status: "critical",
             marketing_campaign_cooldown_days_remaining: 9,
+            cash_flow: [],
           },
         });
       }
@@ -889,8 +921,8 @@ describe("FinancesTab facilities", () => {
     expect(screen.getAllByText("Ben Warning").length).toBeGreaterThan(0);
     expect(screen.getByText("Critical")).toBeInTheDocument();
     expect(screen.getByText("Warning")).toBeInTheDocument();
-    expect(screen.getByText("Expires 2025-04-30")).toBeInTheDocument();
-    expect(screen.getByText("Expires 2025-10-15")).toBeInTheDocument();
+    expect(screen.getByText("Expires April 30, 2025")).toBeInTheDocument();
+    expect(screen.getByText("Expires October 15, 2025")).toBeInTheDocument();
     expect(screen.getByText("€60,000/wk at risk")).toBeInTheDocument();
     expect(screen.getAllByRole("button", { name: "Renew Contract" })).toHaveLength(2);
 
@@ -1009,6 +1041,7 @@ describe("FinancesTab facilities", () => {
 
     await waitFor(() => {
       expect(mockedInvoke).toHaveBeenCalledWith("delegate_renewals", {
+        careerToken: 0,
         playerIds: ["player-critical", "player-warning"],
         maxWageIncreasePct: 35,
         maxContractYears: 3,
@@ -1080,6 +1113,7 @@ describe("FinancesTab facilities", () => {
 
     await waitFor(() => {
       expect(mockedInvoke).toHaveBeenCalledWith("delegate_renewals", {
+        careerToken: 0,
         playerIds: ["player-critical"],
         maxWageIncreasePct: 35,
         maxContractYears: 3,
@@ -1132,6 +1166,48 @@ describe("FinancesTab team guard", () => {
 describe("FinancesTab backend snapshot", () => {
   beforeEach(() => {
     mockedInvoke.mockReset();
+  });
+
+  /**
+   * Given a club whose old financial ledger is empty (wages, gates and sponsorship never reach it)
+   *       and a backend snapshot carrying two weeks of cash flow from the cash journal
+   * When the tab renders
+   * Then the chart is drawn from the snapshot's weeks, as the backend sent them (#1204).
+   */
+  it("draws the cash-flow chart from the snapshot's weeks, not the old ledger", async () => {
+    chartWeeks.current = undefined;
+    mockedInvoke.mockResolvedValue(
+      wireSnapshot({
+        cash_flow: [
+          { week_start: "2025-01-06", income: 25000, expenses: 40000 },
+          { week_start: "2025-01-13", income: 310000, expenses: 40000 },
+        ],
+      }),
+    );
+
+    await renderFinances(<FinancesTab gameState={createGameState({ financial_ledger: [] })} />);
+
+    expect(screen.getByTestId("cash-flow-chart")).toBeInTheDocument();
+    expect(chartWeeks.current).toEqual([
+      { weekStart: "2025-01-06", income: 25000, expenses: 40000 },
+      { weekStart: "2025-01-13", income: 310000, expenses: 40000 },
+    ]);
+    // Its weeks hold transfer and loan fees too, which the season figures leave out, so its series
+    // are money in and out, not the season's income and expenses (review, #1232).
+    expect(chartWeeks.labels).toEqual(["finances.moneyIn", "finances.moneyOut"]);
+  });
+
+  /**
+   * Given a backend snapshot with no weeks of cash flow (a club whose money has not moved yet)
+   * When the tab renders
+   * Then no chart is drawn, rather than an empty one.
+   */
+  it("draws no cash-flow chart before any money has moved", async () => {
+    mockedInvoke.mockResolvedValue(wireSnapshot());
+
+    await renderFinances(<FinancesTab gameState={createGameState()} />);
+
+    expect(screen.queryByTestId("cash-flow-chart")).not.toBeInTheDocument();
   });
 
   /**

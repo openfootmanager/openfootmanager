@@ -1,6 +1,6 @@
 use crate::game::Game;
 use crate::turn::round_summary::RoundResultSummary;
-use domain::league::{CompetitionFormat, Fixture, FixtureCompetition, FixtureStatus, League};
+use domain::league::{CompetitionFormat, Fixture, FixtureStatus, League};
 use serde::{Deserialize, Serialize};
 
 /// One cup tie that was played: the shared result row, how a level score was settled, and who went through.
@@ -35,15 +35,6 @@ fn cups_the_user_plays_in<'a>(
         competition.rules.format != CompetitionFormat::LeagueTable
             && competition.participant_ids.iter().any(|id| id == team_id)
     })
-}
-
-fn is_competitive(fixture: &Fixture) -> bool {
-    !matches!(
-        fixture.competition,
-        FixtureCompetition::Friendly
-            | FixtureCompetition::FriendlyCup
-            | FixtureCompetition::PreseasonTournament
-    )
 }
 
 fn tie_result(game: &Game, competition: &League, fixture: &Fixture) -> Option<CupTieResult> {
@@ -93,7 +84,7 @@ pub fn build_cup_round_summaries(game: &Game, date: &str) -> Vec<CupRoundSummary
             let fixtures: Vec<&Fixture> = competition
                 .fixtures
                 .iter()
-                .filter(|fixture| fixture.date == date && is_competitive(fixture))
+                .filter(|fixture| fixture.date == date && fixture.is_competitive())
                 .collect();
             if fixtures.is_empty() {
                 return None;
@@ -120,7 +111,7 @@ mod tests {
     use super::*;
     use crate::clock::GameClock;
     use chrono::{TimeZone, Utc};
-    use domain::league::{KnockoutRoundState, MatchResult};
+    use domain::league::{FixtureCompetition, KnockoutRoundState, MatchResult};
     use domain::manager::Manager;
 
     fn fixture(id: &str, date: &str, home: &str, away: &str, played: Option<(u8, u8)>) -> Fixture {
@@ -180,6 +171,18 @@ mod tests {
             .iter()
             .map(|r| r.result.fixture_id.as_str())
             .collect()
+    }
+
+    /// Given a day on which the cup holds only a friendly-cup tie
+    /// When the summary is built
+    /// Then there is none: a friendly cup is not competitive, so it is no cup round.
+    #[test]
+    fn a_friendly_cup_tie_is_not_a_cup_round() {
+        let mut tie = fixture("t1", "2033-03-08", "a", "b", Some((2, 1)));
+        tie.competition = FixtureCompetition::FriendlyCup;
+        let game = game_with_cup(vec![tie], "a");
+
+        assert!(build_cup_round_summaries(&game, "2033-03-08").is_empty());
     }
 
     /// Given a cup day with the user's club in the cup, when the summary is built, then it lists every

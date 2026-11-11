@@ -2,6 +2,7 @@ mod ai_path;
 mod builder;
 mod html;
 mod stats;
+mod targets;
 mod terminal;
 
 use std::path::PathBuf;
@@ -238,6 +239,10 @@ fn main() {
     }
 
     bench_stats.total_time_secs = start.elapsed().as_secs_f64();
+    let verdicts = targets::evaluate(&bench_stats).unwrap_or_else(|error| {
+        eprintln!("calibration table: {error}");
+        std::process::exit(1);
+    });
 
     // ── Terminal output ────────────────────────────────────────────────────────
     if cli.verbose {
@@ -253,7 +258,7 @@ fn main() {
             goal_conversion_base: config.goal_conversion_base,
             seed: Some(base_seed),
         };
-        terminal::print_report(&bench_stats, &run_cfg);
+        terminal::print_report(&bench_stats, &run_cfg, &verdicts);
     }
 
     // ── HTML output ───────────────────────────────────────────────────────────
@@ -270,13 +275,13 @@ fn main() {
             goal_conversion_base: config.goal_conversion_base,
             seed: Some(base_seed),
         };
-        let content = html::generate_html(&bench_stats, &run_cfg);
+        let content = html::generate_html(&bench_stats, &run_cfg, &verdicts);
         std::fs::write(html_path, content).expect("Failed to write HTML report");
         eprintln!("HTML report → {}", html_path.display());
     }
 
     // ── JSON output ───────────────────────────────────────────────────────────
-    let json_summary = bench_stats.to_json(config.goal_conversion_base);
+    let json_summary = bench_stats.to_json(config.goal_conversion_base, verdicts);
     let json = serde_json::to_string_pretty(&json_summary).expect("JSON serialization failed");
 
     if let Some(ref out_path) = cli.out {

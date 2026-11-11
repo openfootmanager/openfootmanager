@@ -10,15 +10,23 @@ interface ThemeContextValue {
 
 export const ThemeContext = createContext<ThemeContextValue | null>(null);
 
-function getInitialTheme(): Theme {
-  const stored = localStorage.getItem("ofm-theme");
+const APP_THEME_KEY = "ofm-theme";
+
+function getInitialTheme(storageKey: string): Theme {
+  const stored = localStorage.getItem(storageKey);
   if (stored === "light" || stored === "dark") return stored;
   if (window.matchMedia("(prefers-color-scheme: dark)").matches) return "dark";
   return "dark"; // Default to dark for the Matchday aesthetic
 }
 
-export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [theme, setTheme] = useState<Theme>(getInitialTheme);
+interface ThemeProviderProps {
+  children: ReactNode;
+  /** Where the choice is kept. The dev style guide keeps its own, so it never changes the app's. */
+  storageKey?: string;
+}
+
+export function ThemeProvider({ children, storageKey = APP_THEME_KEY }: ThemeProviderProps) {
+  const [theme, setTheme] = useState<Theme>(() => getInitialTheme(storageKey));
 
   useEffect(() => {
     const root = document.documentElement;
@@ -27,8 +35,8 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     } else {
       root.classList.remove("dark");
     }
-    localStorage.setItem("ofm-theme", theme);
-  }, [theme]);
+    localStorage.setItem(storageKey, theme);
+  }, [theme, storageKey]);
 
   const toggleTheme = () => setTheme((prev) => (prev === "dark" ? "light" : "dark"));
 

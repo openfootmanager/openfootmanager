@@ -61,13 +61,14 @@ instruction-sync integration tests. Frontend architecture/file-size tests join `
 programme PR 8. Until each exists, inspect those rules manually and mark them **review-only**;
 do not run a missing target or count a zero-test selection as a pass.
 
-## 3a. Mutants on the diff (trial until 27 Oct 2026)
+## 3a. Mutants on the diff
 
 Coverage says a line ran; it does not say a test would notice the line being wrong. On 13 Oct 2026
 `contracts/renewals.rs` had 89% line coverage and a 29% mutation score. This step mutates only the
-Rust production lines your branch changes and reports which mutants your tests miss. It is a
-two-week trial, from 13 to 27 Oct 2026: there is no baseline file and no CI gate. On 27 Oct the
-results pasted in PR bodies decide whether it stays.
+Rust production lines your branch changes and reports which mutants your tests miss. There is no
+baseline file and no CI gate. It was a trial from 13 to 27 Oct 2026, and the maintainer kept it
+(28 Oct). In 11 of the 24 PRs that ran it, it found a real untested line that no reviewer had
+flagged.
 
 Run it on any branch that touches `src-tauri/`. Use cargo-mutants 25.3.1, the version
 `mutation-tests.yml` pins (`cargo install --locked cargo-mutants@25.3.1`). From the repository
@@ -81,7 +82,9 @@ On a machine shared with other agents, wrap **the whole run** in one lock of its
 pass a build-slot wrapper as `CARGO`. A run lasts from twenty minutes to hours, and a build-slot
 wrapper would hold one of the machine's build slots for all of it: two such runs at once starved
 every other build on 13 Oct 2026. One mutants run at a time, with few build jobs, leaves the
-build slots to everyone else.
+build slots to everyone else. A run the script expects to take over 30 minutes (it prints the
+count; about a minute each) waits for bug-fix work: don't start it while a bug-fix branch is
+waiting for the lock. Run it in a quiet or reserved window, or in the cloud.
 
 The script prints the counts line and one line per missed or timed-out mutant; that output is what
 goes in the PR body. What it does, and why:
@@ -110,6 +113,23 @@ goes in the PR body. What it does, and why:
 - Each mutant is tested with its own crate's tests. Exit 2 (some missed) and exit 3 (some timed
   out) are results; the script exits 0 for both and lists the survivors. Any other failure means
   no evidence: report the step as not run.
+- **Glue no unit test can observe is not mutated.** In the trial it was the only source of false
+  alarms: every one of its mutants survived and buried the real findings. That covers a Tauri
+  command that only forwards to its `_internal` (the `_internal` is still mutated), and the
+  entries in `scripts/mutants-in-diff.exclusions`: `lib.rs run`, the MCP tool catalogue and
+  router, and sim-bench's report printers. The list says why each one is glue. Before every run,
+  the script checks each entry still names a function, and refuses if one has gone, so a rename
+  cannot quietly drop an exclusion. `scripts/mutants-in-diff.sh --check-exclusions` runs just that
+  check, and its test does it on every PR. Add an entry only for a function whose mutants no test
+  can see, with the PR that found it.
+- **Over 60 mutants, it does not run here.** A 130-mutant diff never finished on the shared
+  machine in the trial (two memory kills in three attempts), and three cloud shards did it in
+  about 35 minutes each. Over the cap the script prints `Mutants on the diff: not run locally: …`
+  and runs nothing. Paste that line, and either run the diff sharded in the cloud or leave it
+  noted as not run. For a shard, run the script itself with `MUTANTS_IN_DIFF_SHARD=k/n` (k from 0
+  to n-1, one run per shard), not `cargo mutants --shard` by hand: the script keeps the diff and
+  the glue exclusions, and a bare `cargo mutants` mutates the whole workspace. The cap does not
+  apply to a shard. `MUTANTS_IN_DIFF_MAX` changes the cap for one run.
 
 Paste the result into the PR body, with a triage after each surviving or timed-out mutant:
 
@@ -122,6 +142,22 @@ Mutants on the diff: 14 caught, 2 missed, 0 timed out, 1 unviable (6 min)
 "Real gap, test added" means you wrote the test and re-ran it with the mutant applied by hand, and
 it failed. "Equivalent" needs a reason a reviewer can check. A survivor you cannot place in either
 category is a finding: say so rather than leaving it out.
+
+After adding tests, re-check **only the survivors**, not the whole diff. A full rerun costs the
+whole run again, and in the trial two PRs skipped it because the lock was busy. Pass the previous
+run's missed and timed-out lists:
+
+```bash
+out="$(git rev-parse --git-path mutants-in-diff)/mutants.out"
+survivors="$(mktemp)"   # a file of your own: other agents re-check on this machine too
+cat "$out/missed.txt" "$out/timeout.txt" > "$survivors"
+# (copy them first: every run starts by clearing that directory)
+MUTANTS_IN_DIFF_ONLY="$survivors" scripts/mutants-in-diff.sh
+```
+
+Each name is matched by its file and mutation, not its line, so a test or a fix above it does
+not lose it. A survivor whose code has changed since, so that it matches no mutant now, stops the
+re-check with its name: triage it by hand. Paste the re-check's counts line under the first.
 
 ## 4. Review evidence
 

@@ -1,13 +1,13 @@
 use domain::player::{Player, PlayerAttributes, Position};
-use domain::staff::{Staff, StaffAttributes, StaffRole};
-use domain::team::PlayStyle;
+use domain::staff::{Staff, StaffRole};
+use domain::team::{PlayStyle, Team};
 use rand::{Rng, RngExt};
 
 use super::authored_player::{is_valid_date_of_birth, resolve_authored_contract};
 use super::definitions::{NamePool, NamesDefinition};
 use crate::nations;
 use crate::player_rating::{
-    generate_potential, move_attributes_to, natural_ovr, ovr_from_attributes,
+    WONDERKID_MAX_AGE, generate_potential, move_attributes_to, natural_ovr, ovr_from_attributes,
     refresh_player_derived, roll_growth_headroom,
 };
 
@@ -145,8 +145,7 @@ pub(super) fn pick_name_from_def(
 
     for candidate in candidate_codes {
         if let Some(pool) = names_def.pools.get(candidate)
-            && !pool.first_names.is_empty()
-            && !pool.last_names.is_empty()
+            && pool.is_usable()
         {
             let first = pool.first_names[rng.random_range(0..pool.first_names.len())].clone();
             let last = pool.last_names[rng.random_range(0..pool.last_names.len())].clone();
@@ -202,7 +201,7 @@ fn fallback_pool<'a>(
     names_def: &'a NamesDefinition,
     rng: &mut impl Rng,
 ) -> Option<&'a NamePool> {
-    let usable = |pool: &NamePool| !pool.first_names.is_empty() && !pool.last_names.is_empty();
+    let usable = NamePool::is_usable;
     let region_of = |code: &str| nations::nation_by_code(code).map(|nation| nation.region_id);
 
     let mut candidates: Vec<(&String, &NamePool)> = Vec::new();
@@ -473,65 +472,459 @@ pub(super) fn senior_slot(slot: usize) -> usize {
     }
 }
 
-/// The mean rating of the attributes the generator rolls.
-const ROLLED_RATING_MEAN: f64 = 67.6;
 /// Where the generated ceilings centre. Young players open below their ceiling, so the ceilings
 /// sit above the mean rating a world should open at (about 68).
-const CEILING_MEAN: f64 = 69.6;
-/// How much of the rolled spread the ceilings keep. Lifting the centre alone would push the S tier
-/// past its 1 to 3% target, so the bell is narrowed as it is lifted.
-const CEILING_SPREAD: f64 = 0.80;
+///
+/// 70.1 since the ceiling follows a falling player's rating (#869): that rule takes the room
+/// veterans used to train into, and S by rating settled at 0.8 to 0.9% of seniors, under its 1%
+/// floor. +0.5 on the centre (it was 69.6) brought the shipped world back to S 1.0 to 1.8% and A
+/// 5.9 to 8.2% in every one of 20 seasons on two seeds.
+const CEILING_MEAN: f64 = 70.1;
 
-/// The ceiling a rolled rating becomes: the same ranking, on the bell the world is meant to have.
-fn shaped_ceiling(rolled: f64) -> u8 {
-    (CEILING_MEAN + CEILING_SPREAD * (rolled - ROLLED_RATING_MEAN))
+/// The spread (standard deviation) of the ceilings a world holds at 25, once every ceiling has
+/// stopped drifting.
+const CEILING_SD: f64 = 5.0;
+
+/// How far apart the opening clubs' playing standards are, as the standard deviation (in rating
+/// points) of the shift each club's reputation gives its players' ceilings. The within-club spread
+/// is narrowed by the same variance, so the world as a whole keeps the bell it had (S and A shares,
+/// mean) while the stars gather at the big clubs.
+const BETWEEN_CLUB_SD: f64 = 2.25;
+/// How much tighter a club's own players are drawn than the variance split alone leaves them. A
+/// world made of clubs with different standards has fatter tails than one bell of the same
+/// variance, so without this the S tier and the wonderkids would come out more often than the
+/// maintainer's targets allow.
+const WITHIN_CLUB_TIGHTEN: f64 = 0.8;
+/// A club's standard score is capped here, so one outlier reputation cannot buy a squad of stars.
+const REPUTATION_Z_CAP: f64 = 2.5;
+/// Lifts every club's players a little, to pay for the unattached pool sitting below them, so the
+/// world's mean rating stays where it was. 1.2 with the national pool at -2 (run g1-24): 1.5 left
+/// the opening mean at 70.0 to 70.1 and the world's S above 3% on seed 2.
+const CLUB_LIFT: f64 = 1.2;
+/// Where the unattached pool's ceilings centre, below the world's: a player no club has signed is
+/// mostly one no club wanted.
+const FREE_AGENT_SHIFT: f64 = -3.0;
+/// The fraction of the world's spread a national-team top-up keeps. A nation short of players at
+/// career open gets free agents (signable by any club) rolled with a tight spread: they must fill
+/// a squad, not seed the market with stars the clubs were meant to hold. They are about 15% of the
+/// world's players and over half of its free agents, so the figure matters: at the world's
+/// centre (shift 0, spread 0.6) the free agents held 11 to 13% of the world's A tier and up to
+/// 5.9% of its S (the targets are 10% and 5%), and a tighter spread alone barely moved it
+/// (spread 0.4: 10.3 to 12.1%), run g1-22.
+const NATIONAL_POOL_SPREAD_KEPT: f64 = 0.5;
+/// Where a national-team top-up's ceilings centre relative to the world's. Not the unattached
+/// pool's -3, and not the world's centre either: -2 is the first shift at which the free agents
+/// hold 6.4 and 7.6% of the world's A tier and 1.4 and 2.1% of its S, with the opening mean at
+/// 69.7 to 69.8 (run g1-24; shift -1 leaves A at 8.4 to 10.3% and the S above 3% in the world).
+const NATIONAL_POOL_SHIFT: f64 = -2.0;
+/// A player young enough to be a wonderkid keeps this fraction of his club's spread, and
+/// [`YOUNG_SHIFT_KEPT`] of its shift: the stars gather at the big clubs among the grown players,
+/// but the young high-ceiling tail is the one the maintainer wants rare, and a mixture of club
+/// standards would otherwise fatten exactly that tail. Both are 1.0 for the opening squads now that
+/// the standard score is centred on the world's own reputations: the wonderkid rate (0.32% and
+/// 0.27%, against 0.34% and 0.30% without this change) needs no damping there. They remain knobs
+/// for a younger feature that does (the academy intake).
+const YOUNG_SPREAD_KEPT: f64 = 1.0;
+const YOUNG_SHIFT_KEPT: f64 = 1.0;
+/// The fraction of a club's standard shift its academy's recruits take: all of it. Measured over 20
+/// seasons on seeds 1 to 4 of the shipped world (run ofm-perf-acad10-measure, on #1078's merged
+/// head 9f4c4796, four seeds pooled or averaged):
+/// - the top fifth of clubs holds 62 / 64 / 54% of the S-tier seniors at seasons 5 / 10 / 20 (the
+///   worst seed 49 / 60 / 49%), against 61 / 41 / 20% with no academy standard (worst 49 / 34 / 16%);
+/// - S-tier seniors at season 20: 525 over the four seeds against 519, and the S share is 1.25%
+///   against 1.23%; the A share is 6.79% against 6.83%;
+/// - wonderkids are 0.159% of everyone at season 20 against 0.149% (0.124% against 0.169% at
+///   season 10), under the 0.20% the maintainer allows.
+///
+/// Three-quarters of the shift (0.75) let the top fifth's share fall to 44% by season 20. The full
+/// shift does not crowd the young tail into the big clubs, because the recruit's spread gives back
+/// the shift's variance (`absorbed_shift_variance`), so the world's intake keeps its bell.
+const ACADEMY_SHIFT_KEPT: f64 = 1.0;
+
+/// How club reputations are spread in the world being generated: the centre and spread that turn
+/// a club's reputation into a standard score. Computed from the world's own clubs, not fixed: a
+/// package world (a historical league, a modder's one) has its own spread, and fixed figures
+/// would only move the mis-centring there.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct ReputationScale {
+    mean: f64,
+    sd: f64,
+    /// The mean of the clubs' capped scores ([`REPUTATION_Z_CAP`]). 0 unless the cap clips a skewed
+    /// world: nine clubs at 100 and one at 1000 have one at the cap and nine near -0.3, which
+    /// average to -0.05 rather than 0. An academy shift is taken from this centre, so clipping
+    /// redistributes the intake across clubs and does not move it.
+    capped_mean: f64,
+    /// The variance of the clubs' capped scores: 1 unless the cap clips (or the clubs do not differ,
+    /// when it is 0). It is the share of the shift's variance the clubs actually add.
+    capped_variance: f64,
+}
+
+impl ReputationScale {
+    #[cfg(test)]
+    pub(super) fn new(mean: f64, sd: f64) -> Self {
+        Self {
+            mean,
+            sd,
+            capped_mean: 0.0,
+            capped_variance: if sd < 1.0 { 0.0 } else { 1.0 },
+        }
+    }
+
+    /// The scale of a running world made of `clubs`, at the reputations they hold now: the one
+    /// rule for which clubs a recruit's standard is measured against, shared by the annual intake
+    /// and a youth scout's prospects.
+    pub fn of_clubs(clubs: &[Team]) -> Self {
+        Self::of_reputations(clubs.iter().map(|club| club.reputation))
+    }
+
+    /// The scale of a world whose clubs hold `reputations`, each known rather than drawn from a
+    /// range.
+    pub(super) fn of_reputations(reputations: impl IntoIterator<Item = u32>) -> Self {
+        Self::of_ranges(
+            reputations
+                .into_iter()
+                .map(|reputation| [reputation, reputation]),
+        )
+    }
+
+    /// The scale of a world whose clubs draw their reputation uniformly from `ranges` (one range
+    /// per club, `[low, high]` in either order): the mean of the clubs' expected reputations, and
+    /// the spread that adds the ranges' own variance to the variance between clubs.
+    pub(super) fn of_ranges(ranges: impl IntoIterator<Item = [u32; 2]>) -> Self {
+        let clubs: Vec<(f64, f64)> = ranges
+            .into_iter()
+            .map(|[a, b]| {
+                let (low, high) = (f64::from(a.min(b)), f64::from(a.max(b)));
+                ((low + high) / 2.0, (high - low).powi(2) / 12.0)
+            })
+            .collect();
+        if clubs.is_empty() {
+            return Self {
+                mean: 0.0,
+                sd: 0.0,
+                capped_mean: 0.0,
+                capped_variance: 0.0,
+            };
+        }
+        let count = clubs.len() as f64;
+        let mean = clubs.iter().map(|(centre, _)| centre).sum::<f64>() / count;
+        let variance = clubs
+            .iter()
+            .map(|(centre, own)| own + (centre - mean).powi(2))
+            .sum::<f64>()
+            / count;
+        let mut scale = Self {
+            mean,
+            sd: variance.sqrt(),
+            capped_mean: 0.0,
+            capped_variance: 0.0,
+        };
+        // The moments of the capped scores, taken at each club's expected reputation: exact for
+        // clubs whose reputation is known, which is every running world's.
+        let capped: Vec<f64> = clubs
+            .iter()
+            .map(|(centre, _)| scale.capped_score(centre.round() as u32))
+            .collect();
+        scale.capped_mean = capped.iter().sum::<f64>() / count;
+        scale.capped_variance = capped
+            .iter()
+            .map(|score| (score - scale.capped_mean).powi(2))
+            .sum::<f64>()
+            / count;
+        scale
+    }
+
+    /// `reputation` in standard deviations from the world's mean; 0 when the clubs do not differ.
+    fn standard_score(&self, reputation: u32) -> f64 {
+        if self.sd < 1.0 {
+            return 0.0;
+        }
+        (f64::from(reputation) - self.mean) / self.sd
+    }
+
+    /// [`Self::standard_score`], capped at [`REPUTATION_Z_CAP`].
+    fn capped_score(&self, reputation: u32) -> f64 {
+        self.standard_score(reputation)
+            .clamp(-REPUTATION_Z_CAP, REPUTATION_Z_CAP)
+    }
+}
+
+/// The bell a player's ceiling is drawn from when it is not the single world-wide one.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub(super) struct Standard {
+    /// Rating points the bell's centre sits above (or below) the world's.
+    shift: f64,
+    /// The fraction of the rolled spread the bell keeps.
+    spread_kept: f64,
+    /// The variance (rating points squared) this bell's shift adds across clubs, which its
+    /// spread gives back at the player's own age, so the clubs' bells together make the one they
+    /// share. It is taken from the bell as it is at that age, narrowed for the ceiling drift still
+    /// to come: taken from the full bell, the drift would later widen it again and every season's
+    /// intake would add stars. Zero for a bell whose `spread_kept` already pays for its shift.
+    absorbed_shift_variance: f64,
+}
+
+impl Standard {
+    /// The share of the rolled spread left once the clubs' own spread has taken its variance.
+    fn within_club_spread() -> f64 {
+        (1.0 - (BETWEEN_CLUB_SD / CEILING_SD).powi(2)).sqrt() * WITHIN_CLUB_TIGHTEN
+    }
+}
+
+/// How far above the opening players' centre the youth intake's ceilings sit. The settled world is
+/// made by the intake (everyone alive after about 15 seasons was an intake recruit), and the opening
+/// cohort it replaces carries less of the A tier on a normal bell than the old light-tailed one did,
+/// so an intake on the opening's own centre settles below the band #965 set (S 1.0 to 1.8%, A 5.9
+/// to 8.2%). Measured over 20 seasons on two seeds of the shipped world with the spread kept at
+/// 0.95, on the engine of the day: 1.0 misses A at season 10 (5.79%, run qm-9b, floor 5.9%); 1.2
+/// held on an earlier develop (run qm-10a) but missed A at season 10 once the engine changes of
+/// 1 Nov landed (5.82% and 5.86%, runs qm-13 and qm-14); 1.3 holds every checkpoint (A 5.91 to
+/// 8.17%, run qm-15); 1.4 reached 8.20% by season 20 (run qm-10b). A at season 10 (5.91%) and
+/// season 20 (8.17%) sit within 0.03 of the band's edges.
+const INTAKE_CEILING_OFFSET: f64 = 1.3;
+/// The share of the opening's pre-drift bell the intake keeps (the ceiling's `spread_kept`, applied
+/// before the development drift still to come is added, as for every player). A 16-year-old
+/// recruit therefore settles at about 0.96 of the opening's spread, not 0.95: the drift variance is
+/// the same for both and weighs a little more against the narrower bell. The value was chosen by
+/// measurement on this formula, not derived: the offset alone raises the settled wonderkid rate, and
+/// 0.95 holds it to 0.11 to 0.16% at offset 1.3 (run qm-15; 0.09 to 0.19% at 1.2, run qm-10a)
+/// against 0.06 to 0.13% on the old bell, at a cost of about 0.1 points of S.
+const INTAKE_SPREAD_KEPT: f64 = 0.95;
+
+/// How a generated player is rolled besides his slot: the age to fix, and the bell his ceiling is
+/// drawn from.
+#[derive(Debug, Clone, Copy, Default, PartialEq)]
+pub(super) struct PlayerRoll {
+    /// `None` draws the age from the slot (17 to 21 for a youth-reserved slot, 17 to 35 otherwise).
+    pub age: Option<u32>,
+    /// `None` is the single world-wide bell.
+    pub standard: Option<Standard>,
+}
+
+impl PlayerRoll {
+    /// A player on the world-wide bell, of `age` (or the slot's age).
+    #[cfg(test)]
+    pub(super) fn unscaled(age: Option<u32>) -> Self {
+        Self {
+            age,
+            standard: None,
+        }
+    }
+
+    /// A player of a club of `reputation`, at the slot's age.
+    pub(super) fn for_club(reputation: u32, scale: &ReputationScale) -> Self {
+        Self {
+            age: None,
+            standard: Some(Standard {
+                shift: CLUB_LIFT + BETWEEN_CLUB_SD * scale.capped_score(reputation),
+                spread_kept: Standard::within_club_spread(),
+                absorbed_shift_variance: 0.0,
+            }),
+        }
+    }
+
+    /// A youngster joining the academy of a club of `reputation`, of `age` (or the slot's age),
+    /// in a world whose clubs' reputations are spread as `scale` says.
+    ///
+    /// The scale is the world's as it stands at the intake, not at its opening: a club that has
+    /// risen recruits as the big club it now is. He is drawn on the intake's bell
+    /// ([`INTAKE_CEILING_OFFSET`], [`INTAKE_SPREAD_KEPT`]) moved by [`ACADEMY_SHIFT_KEPT`] of the
+    /// club's standard shift, and by
+    /// none of [`CLUB_LIFT`], which pays for the opening free-agent pool and would inflate the
+    /// world every season. His spread gives back the variance the shift takes, at his age, so
+    /// across clubs of every standing the academies together keep the intake's bell, mean and
+    /// tails alike: the best prospects gather at the big clubs, but there are no more of them.
+    pub(super) fn for_academy(reputation: u32, age: Option<u32>, scale: &ReputationScale) -> Self {
+        let shift_spread = ACADEMY_SHIFT_KEPT * BETWEEN_CLUB_SD;
+        Self {
+            age,
+            standard: Some(Standard {
+                shift: INTAKE_CEILING_OFFSET
+                    + shift_spread * (scale.capped_score(reputation) - scale.capped_mean),
+                spread_kept: INTAKE_SPREAD_KEPT,
+                absorbed_shift_variance: shift_spread.powi(2) * scale.capped_variance,
+            }),
+        }
+    }
+
+    /// A national-team top-up: a free agent [`NATIONAL_POOL_SHIFT`] points below the world's
+    /// centre (two points, the maintainer's 2 Nov ruling) with a tight spread, at the slot's age.
+    pub(super) fn for_national_pool() -> Self {
+        Self {
+            age: None,
+            standard: Some(Standard {
+                shift: NATIONAL_POOL_SHIFT,
+                spread_kept: NATIONAL_POOL_SPREAD_KEPT,
+                absorbed_shift_variance: 0.0,
+            }),
+        }
+    }
+
+    /// A player no club has signed, at the slot's age.
+    pub(super) fn for_unattached() -> Self {
+        Self {
+            age: None,
+            standard: Some(Standard {
+                shift: FREE_AGENT_SHIFT,
+                spread_kept: Standard::within_club_spread(),
+                absorbed_shift_variance: 0.0,
+            }),
+        }
+    }
+
+    /// The bell the world's academies make together, of `age` (or the slot's age): every
+    /// [`Self::for_academy`] recruit pooled over clubs of every standing. The tests compare the
+    /// academies against it.
+    #[cfg(test)]
+    pub(super) fn for_intake(age: Option<u32>) -> Self {
+        Self {
+            age,
+            standard: Some(Standard {
+                shift: INTAKE_CEILING_OFFSET,
+                spread_kept: INTAKE_SPREAD_KEPT,
+                absorbed_shift_variance: 0.0,
+            }),
+        }
+    }
+}
+
+/// The z grid [`ROLLED_AT_Z`] is tabulated on: -3.5 to 3.5 in steps of 0.25.
+const ROLLED_Z_MIN: f64 = -3.5;
+const ROLLED_Z_STEP: f64 = 0.25;
+
+/// For each position group (goalkeeper, defender, midfielder, forward), the rolled rating
+/// `ovr_from_attributes` gives at the standard-normal quantile of each grid point of
+/// [`ROLLED_Z_MIN`] and [`ROLLED_Z_STEP`].
+///
+/// A rolled rating is a weighted mean of bounded uniform draws, so its tail is lighter than a
+/// normal's (the S tier, in the tail, came out at 0.56 to 0.72 of a normal bell's share). Mapping a
+/// rolled rating through this table to the z of a standard normal gives ceilings a true normal
+/// bell, so a shift of the bell (a club's standard) moves the tail as normal maths says.
+///
+/// Baked from four million seeded draws per group; regenerate with
+/// `cargo test --release -p ofm_core --lib print_the_rolled_quantile_table -- --ignored --nocapture`
+/// whenever `roll_attributes` or the rating formula change, and paste the four `TABLE` lines here.
+const ROLLED_AT_Z: [[f64; 29]; 4] = [
+    // Goalkeeper
+    [
+        51.100, 52.200, 53.350, 54.530, 55.750, 57.000, 58.310, 59.660, 61.060, 62.530, 64.050,
+        65.600, 67.180, 68.770, 70.360, 71.950, 73.530, 75.100, 76.630, 78.130, 79.580, 80.950,
+        82.250, 83.470, 84.630, 85.710, 86.720, 87.640, 88.490,
+    ],
+    // Defender
+    [
+        48.300, 49.420, 50.620, 51.880, 53.220, 54.640, 56.100, 57.600, 59.140, 60.680, 62.260,
+        63.840, 65.420, 67.000, 68.580, 70.140, 71.680, 73.200, 74.700, 76.160, 77.600, 78.980,
+        80.320, 81.620, 82.860, 84.040, 85.120, 86.180, 87.120,
+    ],
+    // Midfielder
+    [
+        46.130, 47.290, 48.510, 49.790, 51.150, 52.580, 54.070, 55.600, 57.170, 58.780, 60.390,
+        62.020, 63.650, 65.270, 66.890, 68.480, 70.060, 71.610, 73.130, 74.620, 76.070, 77.470,
+        78.840, 80.150, 81.430, 82.650, 83.810, 84.930, 85.980,
+    ],
+    // Forward
+    [
+        44.420, 45.580, 46.800, 48.060, 49.440, 50.900, 52.420, 54.000, 55.640, 57.320, 59.060,
+        60.800, 62.560, 64.320, 66.080, 67.800, 69.520, 71.180, 72.820, 74.400, 75.920, 77.380,
+        78.780, 80.120, 81.380, 82.580, 83.740, 84.820, 85.860,
+    ],
+];
+
+/// The standard-normal z a rolled rating of `group` stands at: its place in [`ROLLED_AT_Z`], read
+/// by linear interpolation, and extended past the table's ends at the end slopes.
+fn rolled_to_z(group: &Position, rolled: f64) -> f64 {
+    // Every variant is listed, so a new position cannot silently take the forwards' row.
+    let row = match group {
+        Position::Goalkeeper => 0,
+        Position::Defender
+        | Position::RightBack
+        | Position::CenterBack
+        | Position::LeftBack
+        | Position::RightWingBack
+        | Position::LeftWingBack => 1,
+        Position::Midfielder
+        | Position::DefensiveMidfielder
+        | Position::CentralMidfielder
+        | Position::AttackingMidfielder
+        | Position::RightMidfielder
+        | Position::LeftMidfielder => 2,
+        Position::Forward | Position::RightWinger | Position::LeftWinger | Position::Striker => 3,
+    };
+    let table = &ROLLED_AT_Z[row];
+    let last = table.len() - 1;
+    if rolled <= table[0] {
+        return ROLLED_Z_MIN - (table[0] - rolled) / (table[1] - table[0]) * ROLLED_Z_STEP;
+    }
+    if rolled >= table[last] {
+        let z_max = ROLLED_Z_MIN + last as f64 * ROLLED_Z_STEP;
+        return z_max + (rolled - table[last]) / (table[last] - table[last - 1]) * ROLLED_Z_STEP;
+    }
+    let upper = table.partition_point(|value| *value <= rolled);
+    let lower = upper - 1;
+    let fraction = (rolled - table[lower]) / (table[upper] - table[lower]);
+    ROLLED_Z_MIN + (lower as f64 + fraction) * ROLLED_Z_STEP
+}
+
+/// The ceiling a rolled rating becomes for a player of `group` and `age` on the opening's bell, or
+/// on `standard`'s moved one: the same ranking, on the
+/// normal bell the world is meant to have at 25. A young player's ceiling will still drift
+/// (`development`), so he is drawn from a bell narrower by the variance that drift will add; by 25
+/// everyone's ceiling follows one bell, and a teenager's ceiling stays a good guide to where he
+/// ends up.
+///
+/// The centre is not raised for the drift's small pull down: a player closes the gap to his
+/// ceiling by 19 to 21, after which his rating holds the ceiling up, so the pull is mostly absorbed
+/// (measured on the shipped world: ceilings of 72.2 at 16 are 72.4 at 25).
+fn shaped_ceiling(group: &Position, rolled: f64, age: u32, standard: Option<Standard>) -> u8 {
+    let (_, drift_variance) = crate::development::ceiling_drift_still_to_come(age);
+    let narrowing = (1.0 - drift_variance / CEILING_SD.powi(2)).max(0.0).sqrt();
+    let Standard {
+        shift,
+        spread_kept,
+        absorbed_shift_variance,
+    } = standard.unwrap_or(Standard {
+        shift: 0.0,
+        spread_kept: 1.0,
+        absorbed_shift_variance: 0.0,
+    });
+    let spread_kept = spread_kept
+        * spread_left_after(
+            absorbed_shift_variance,
+            narrowing * CEILING_SD * spread_kept,
+        );
+    // A player young enough to be a wonderkid keeps only part of his standard's shift and spread.
+    let (shift, spread_kept) = if age <= WONDERKID_MAX_AGE {
+        (shift * YOUNG_SHIFT_KEPT, spread_kept * YOUNG_SPREAD_KEPT)
+    } else {
+        (shift, spread_kept)
+    };
+    (CEILING_MEAN + shift + narrowing * CEILING_SD * spread_kept * rolled_to_z(group, rolled))
         .round()
         .clamp(1.0, 99.0) as u8
 }
 
-/// A generated player for squad slot `index`. `age` fixes his age; `None`
-/// draws it from the slot (17–21 for a youth-reserved slot, 17–35 otherwise),
-/// exactly as before the parameter existed, so every seeded world — all of
-/// which pass `None` — is unchanged by it.
-pub(super) fn generate_random_player_from_def(
-    team_id: &str,
-    index: usize,
-    nationality: &str,
-    opening_year: u32,
-    age: Option<u32>,
-    names_def: &NamesDefinition,
-    rng: &mut impl Rng,
-) -> Player {
-    let (first_name, last_name) = pick_name_from_def(nationality, names_def, rng);
-    let full_name = format!("{} {}", first_name, last_name);
-    let match_name = last_name.clone();
+/// The share of a bell of spread `bell_sd` (rating points) left once `shift_variance` is taken
+/// from it, so that a bell moved by a shift of that variance across clubs and narrowed by this
+/// share adds up, over the clubs, to the bell it was taken from.
+fn spread_left_after(shift_variance: f64, bell_sd: f64) -> f64 {
+    if shift_variance <= 0.0 {
+        return 1.0;
+    }
+    if bell_sd <= 0.0 {
+        return 0.0;
+    }
+    (1.0 - shift_variance / bell_sd.powi(2)).max(0.0).sqrt()
+}
 
-    let position = position_for_slot(index);
-
-    let p_id = seeded_id(rng);
-    let nationality = nationality.to_string();
-
-    // Reserve one slot per position group (GK + back line + midfield + attack) as
-    // youth-aged so scouted youth recruits land at a consistent age across positions
-    // and clubs can open with real academy prospects instead of an empty youth squad.
-    let age = age.unwrap_or_else(|| {
-        if is_youth_reserved_slot(index) {
-            rng.random_range(17..22)
-        } else {
-            rng.random_range(17..36)
-        }
-    });
-    let birth_year = opening_year.saturating_sub(age);
-    let birth_month = rng.random_range(1..13);
-    let birth_day = rng.random_range(1..29);
-    let dob = format!("{:04}-{:02}-{:02}", birth_year, birth_month, birth_day);
-
-    let group = position.to_group_position();
+/// The attributes a generated player of a position group is rolled with: each drawn uniformly from a
+/// range that depends on the group. The player at his best; his rating and ceiling follow from them.
+fn roll_attributes(group: &Position, rng: &mut impl Rng) -> PlayerAttributes {
     let is_gk = matches!(group, Position::Goalkeeper);
     let is_def = matches!(group, Position::Defender);
     let is_fwd = matches!(group, Position::Forward);
 
-    let mut attributes = PlayerAttributes {
+    PlayerAttributes {
         pace: rng.random_range(40..95),
         stamina: rng.random_range(40..95),
         strength: rng.random_range(40..95),
@@ -583,13 +976,60 @@ pub(super) fn generate_random_player_from_def(
         } else {
             rng.random_range(30..75)
         },
-    };
+    }
+}
+
+/// A generated player for squad slot `index`. `roll` says how he is rolled beyond the slot: his
+/// age (`None` draws it from the slot, 17–21 for a youth-reserved slot and 17–35 otherwise) and
+/// the bell of his ceiling. `PlayerRoll::unscaled(None)` is the opening's bell with the slot's age.
+pub(super) fn generate_random_player_from_def(
+    team_id: &str,
+    index: usize,
+    nationality: &str,
+    opening_year: u32,
+    roll: PlayerRoll,
+    names_def: &NamesDefinition,
+    rng: &mut impl Rng,
+) -> Player {
+    let (first_name, last_name) = pick_name_from_def(nationality, names_def, rng);
+    let full_name = format!("{} {}", first_name, last_name);
+    let match_name = last_name.clone();
+
+    let position = position_for_slot(index);
+
+    let p_id = seeded_id(rng);
+    let nationality = nationality.to_string();
+
+    // Reserve one slot per position group (GK + back line + midfield + attack) as
+    // youth-aged so scouted youth recruits land at a consistent age across positions
+    // and clubs can open with real academy prospects instead of an empty youth squad.
+    let age = roll.age.unwrap_or_else(|| {
+        if is_youth_reserved_slot(index) {
+            rng.random_range(17..22)
+        } else {
+            rng.random_range(17..36)
+        }
+    });
+    let birth_year = opening_year.saturating_sub(age);
+    let birth_month = rng.random_range(1..13);
+    let birth_day = rng.random_range(1..29);
+    let dob = format!("{:04}-{:02}-{:02}", birth_year, birth_month, birth_day);
+
+    let group = position.to_group_position();
+    let is_gk = matches!(group, Position::Goalkeeper);
+
+    let mut attributes = roll_attributes(&group, rng);
 
     // The attributes just rolled are the player at his best: they set his ceiling, and a player
     // who has years of growth left is lowered from it by the headroom for his age. Ceiling
     // first, rating second, so the whole world's ceilings follow one bell and a teenager is an
     // earlier version of a prime-age player rather than a better one.
-    let ceiling = shaped_ceiling(ovr_from_attributes(&attributes, &position));
+    let ceiling = shaped_ceiling(
+        &group,
+        ovr_from_attributes(&attributes, &position),
+        age,
+        roll.standard,
+    );
     let headroom = roll_growth_headroom(age, rng);
     move_attributes_to(&mut attributes, &position, ceiling.saturating_sub(headroom));
     // Size market value and wage from the same position-weighted rating the
@@ -708,32 +1148,7 @@ pub(super) fn generate_random_staff_from_def(
         rng.random_range(1..29)
     );
 
-    let attributes = match &role {
-        StaffRole::AssistantManager => StaffAttributes {
-            coaching: rng.random_range(50..90),
-            judging_ability: rng.random_range(50..85),
-            judging_potential: rng.random_range(40..80),
-            physiotherapy: rng.random_range(20..50),
-        },
-        StaffRole::Coach => StaffAttributes {
-            coaching: rng.random_range(55..95),
-            judging_ability: rng.random_range(40..75),
-            judging_potential: rng.random_range(30..70),
-            physiotherapy: rng.random_range(20..45),
-        },
-        StaffRole::Scout => StaffAttributes {
-            coaching: rng.random_range(20..50),
-            judging_ability: rng.random_range(60..95),
-            judging_potential: rng.random_range(55..95),
-            physiotherapy: rng.random_range(10..30),
-        },
-        StaffRole::Physio => StaffAttributes {
-            coaching: rng.random_range(10..40),
-            judging_ability: rng.random_range(20..50),
-            judging_potential: rng.random_range(15..45),
-            physiotherapy: rng.random_range(60..95),
-        },
-    };
+    let attributes = super::staff_bell::club_staff_attributes(&role, rng);
 
     let mut s = Staff::new(seeded_id(rng), first_name, last_name, dob, role, attributes);
     s.nationality = nationality.to_string();
@@ -758,15 +1173,11 @@ pub(super) fn generate_random_staff_unattached_from_def(
         rng.random_range(1..29)
     );
 
-    let attributes = StaffAttributes {
-        coaching: rng.random_range(30..80),
-        judging_ability: rng.random_range(30..80),
-        judging_potential: rng.random_range(25..75),
-        physiotherapy: rng.random_range(25..75),
-    };
+    let attributes = super::staff_bell::free_agent_staff_attributes(&role, rng);
 
     let mut s = Staff::new(seeded_id(rng), first_name, last_name, dob, role, attributes);
     s.nationality = nationality.to_string();
+    crate::football_identity::initialize_unattached_staff_identity(&mut s);
     s
 }
 
@@ -1272,7 +1683,7 @@ pub(super) fn generate_random_unemployed_manager(
         rng.random_range(1u32..13u32),
         rng.random_range(1u32..29u32)
     );
-    let reputation = rng.random_range(200u32..=700u32);
+    let reputation = rng.random_range(domain::manager::CREATED_REPUTATION);
 
     let mut mgr = domain::manager::Manager::new(
         seeded_id(rng),
@@ -1328,7 +1739,7 @@ mod tests {
                     n % 23,
                     "ENG",
                     2026,
-                    None,
+                    PlayerRoll::unscaled(None),
                     &names_def,
                     &mut rng,
                 );
@@ -1343,15 +1754,62 @@ mod tests {
     /// Then the mean maps to the bell's centre and a distance from it is kept at the spread.
     #[test]
     fn a_rolled_rating_is_shaped_onto_the_ceiling_bell() {
+        // The grid point z = 0 is index 14; z = +-2 are indices 22 and 6.
+        for (row, group) in [
+            Position::Goalkeeper,
+            Position::Defender,
+            Position::Midfielder,
+            Position::Forward,
+        ]
+        .iter()
+        .enumerate()
+        {
+            let centre = CEILING_MEAN.round() as u8;
+            assert_eq!(
+                shaped_ceiling(group, ROLLED_AT_Z[row][14], 25, None),
+                centre
+            );
+            let two_sd = (2.0 * CEILING_SD).round() as u8;
+            assert_eq!(
+                shaped_ceiling(group, ROLLED_AT_Z[row][22], 25, None),
+                centre + two_sd
+            );
+            assert_eq!(
+                shaped_ceiling(group, ROLLED_AT_Z[row][6], 25, None),
+                centre - two_sd
+            );
+        }
+    }
+
+    /// Given the rolled rating two standard deviations up for a teenager and for a prime-age player,
+    /// When it is shaped onto the ceiling bell,
+    /// Then the teenager's ceiling is closer to the centre (his bell is narrower) and the centre
+    /// itself is the same.
+    #[test]
+    fn a_teenagers_ceiling_bell_is_narrower_than_a_prime_players() {
+        let group = Position::Midfielder;
+        let prime = shaped_ceiling(&group, ROLLED_AT_Z[2][24], 25, None);
+        let teenager = shaped_ceiling(&group, ROLLED_AT_Z[2][24], 16, None);
+        assert!(teenager < prime, "{teenager} vs {prime}");
         assert_eq!(
-            shaped_ceiling(ROLLED_RATING_MEAN),
-            CEILING_MEAN.round() as u8
+            shaped_ceiling(&group, ROLLED_AT_Z[2][14], 16, None),
+            shaped_ceiling(&group, ROLLED_AT_Z[2][14], 25, None)
         );
-        let above = shaped_ceiling(ROLLED_RATING_MEAN + 10.0);
-        let below = shaped_ceiling(ROLLED_RATING_MEAN - 10.0);
-        let centre = CEILING_MEAN.round() as u8;
-        assert_eq!(above - centre, (10.0 * CEILING_SPREAD).round() as u8);
-        assert_eq!(centre - below, (10.0 * CEILING_SPREAD).round() as u8);
+    }
+
+    /// Given a rolled rating between two grid points of the table, and one beyond each end,
+    /// When it is mapped to a z,
+    /// Then the z is interpolated between the points, and beyond the ends it keeps rising.
+    #[test]
+    fn the_rolled_rating_map_interpolates_and_extends_past_the_table() {
+        let group = Position::Defender;
+        let (low, high) = (ROLLED_AT_Z[1][14], ROLLED_AT_Z[1][15]);
+
+        let half = rolled_to_z(&group, (low + high) / 2.0);
+        assert!((half - 0.125).abs() < 1e-9, "{half}");
+        assert!(rolled_to_z(&group, ROLLED_AT_Z[1][28] + 3.0) > 3.5);
+        assert!(rolled_to_z(&group, ROLLED_AT_Z[1][0] - 3.0) < -3.5);
+        assert!(rolled_to_z(&group, 60.0) < rolled_to_z(&group, 61.0));
     }
 
     /// Given generated teenagers (18 or younger),
@@ -1397,10 +1855,10 @@ mod tests {
 
     /// Given the same generated world,
     /// When the average ceiling of its teenagers is compared with the average rating of its veterans,
-    /// Then they match: a teenager's ceiling is drawn from the bell a veteran's rating is, not
-    /// from that bell plus his headroom.
+    /// Then they match: a teenager's ceiling is where a veteran's rating ends up, not that plus his
+    /// headroom.
     #[test]
-    fn a_teenagers_ceiling_is_drawn_from_the_same_bell_as_a_veterans_rating() {
+    fn a_teenagers_ceiling_is_where_a_veterans_rating_ends_up() {
         let world = generated_players(360);
         let mean = |values: Vec<u8>| {
             values.iter().map(|v| f64::from(*v)).sum::<f64>() / values.len() as f64
@@ -1494,6 +1952,394 @@ mod tests {
             (0.045..=0.09).contains(&a),
             "A ceilings are {:.1}%",
             a * 100.0
+        );
+    }
+
+    /// Seniors rolled for one club standing: `count` players of the slot layout, at the reputation.
+    fn club_seniors(reputation: u32, count: usize, seed: u64) -> Vec<f64> {
+        use rand::SeedableRng;
+        let names_def = super::super::definitions::default_names_definition();
+        let mut rng = rand::rngs::StdRng::seed_from_u64(seed);
+        (0..count)
+            .map(|n| {
+                generate_random_player_from_def(
+                    "club-id",
+                    senior_slot(n % 23),
+                    "ENG",
+                    2026,
+                    PlayerRoll {
+                        age: Some(27),
+                        ..PlayerRoll::for_club(reputation, &ReputationScale::new(500.0, 150.0))
+                    },
+                    &names_def,
+                    &mut rng,
+                )
+            })
+            .map(|player| f64::from(player.ovr))
+            .collect()
+    }
+
+    fn normal_cdf(z: f64) -> f64 {
+        // Abramowitz and Stegun 7.1.26 (|error| < 1.5e-7).
+        let x = z.abs() / std::f64::consts::SQRT_2;
+        let t = 1.0 / (1.0 + 0.327_591_1 * x);
+        let poly = t
+            * (0.254_829_592
+                + t * (-0.284_496_736
+                    + t * (1.421_413_741 + t * (-1.453_152_027 + t * 1.061_405_429))));
+        let erf = 1.0 - poly * (-x * x).exp();
+        if z >= 0.0 {
+            0.5 * (1.0 + erf)
+        } else {
+            0.5 * (1.0 - erf)
+        }
+    }
+
+    /// Prints the table `ROLLED_AT_Z` is baked from: for each position group, the rolled rating at
+    /// the standard-normal quantiles of a z grid from -3.5 to 3.5 in steps of 0.25, from four
+    /// million seeded draws of [`roll_attributes`] rated by `ovr_from_attributes`.
+    ///
+    /// `cargo test --release -p ofm_core --lib print_the_rolled_quantile_table -- --ignored --nocapture`
+    #[test]
+    #[ignore = "prints the baked quantile table; run it to regenerate the table"]
+    fn print_the_rolled_quantile_table() {
+        use rand::SeedableRng;
+        const SAMPLES: usize = 4_000_000;
+
+        for (index, group) in [
+            Position::Goalkeeper,
+            Position::Defender,
+            Position::Midfielder,
+            Position::Forward,
+        ]
+        .iter()
+        .enumerate()
+        {
+            let mut rng = rand::rngs::StdRng::seed_from_u64(0x0F51_0000 + index as u64);
+            let mut rolled: Vec<f64> = (0..SAMPLES)
+                .map(|_| ovr_from_attributes(&roll_attributes(group, &mut rng), group))
+                .collect();
+            rolled.sort_by(f64::total_cmp);
+            let cells: Vec<String> = (0..29)
+                .map(|step| {
+                    let p = normal_cdf(-3.5 + 0.25 * step as f64);
+                    let position = (p * SAMPLES as f64 - 0.5).clamp(0.0, (SAMPLES - 1) as f64);
+                    let (low, fraction) = (position.floor() as usize, position.fract());
+                    let high = (low + 1).min(SAMPLES - 1);
+                    let value = rolled[low] * (1.0 - fraction) + rolled[high] * fraction;
+                    format!("{value:.3}")
+                })
+                .collect();
+            eprintln!("TABLE {group:?}: [{}],", cells.join(", "));
+        }
+    }
+
+    /// Given generated players aged 28, whose ceiling is their rating (no headroom left),
+    /// When the share of ceilings 2.0 and 2.5 standard deviations above the mean is counted,
+    /// Then each is within 15% of what a normal bell of the same mean and spread has there: the S
+    ///      tier sits in this tail, and a bell that is light in it makes every shift fall short.
+    #[test]
+    fn the_ceiling_bell_has_a_normal_tail() {
+        use rand::SeedableRng;
+        const PLAYERS: usize = 160_000;
+        let names_def = super::super::definitions::default_names_definition();
+        let mut rng = rand::rngs::StdRng::seed_from_u64(0x7A11);
+        let ceilings: Vec<f64> = (0..PLAYERS)
+            .map(|n| {
+                f64::from(
+                    generate_random_player_from_def(
+                        "club-id",
+                        senior_slot(n % 23),
+                        "ENG",
+                        2026,
+                        PlayerRoll::unscaled(Some(28)),
+                        &names_def,
+                        &mut rng,
+                    )
+                    .potential,
+                )
+            })
+            .collect();
+        let mean = ceilings.iter().sum::<f64>() / PLAYERS as f64;
+        let sd = (ceilings.iter().map(|c| (c - mean).powi(2)).sum::<f64>() / PLAYERS as f64).sqrt();
+
+        for z in [2.0, 2.5] {
+            // Ceilings are whole numbers: compare the share at or above the first whole number
+            // past the line with the normal's share of that whole number's interval.
+            let line = (mean + z * sd).ceil();
+            let observed = ceilings.iter().filter(|c| **c >= line).count() as f64 / PLAYERS as f64;
+            let normal = 1.0 - normal_cdf((line - 0.5 - mean) / sd);
+            let ratio = observed / normal;
+            assert!(
+                (0.85..=1.15).contains(&ratio),
+                "{z} sd above the mean ({mean:.2}, sd {sd:.2}): {:.3}% of ceilings against {:.3}% for a normal bell (ratio {ratio:.2})",
+                observed * 100.0,
+                normal * 100.0
+            );
+        }
+    }
+
+    /// Ceilings of `count` players of age 28 (no headroom: rating is ceiling) rolled with `roll`.
+    fn ceilings_rolled_with(roll: PlayerRoll, count: usize, seed: u64) -> Vec<f64> {
+        use rand::SeedableRng;
+        let names_def = super::super::definitions::default_names_definition();
+        let mut rng = rand::rngs::StdRng::seed_from_u64(seed);
+        (0..count)
+            .map(|n| {
+                f64::from(
+                    generate_random_player_from_def(
+                        "club-id",
+                        senior_slot(n % 23),
+                        "ENG",
+                        2026,
+                        roll,
+                        &names_def,
+                        &mut rng,
+                    )
+                    .potential,
+                )
+            })
+            .collect()
+    }
+
+    fn mean(values: &[f64]) -> f64 {
+        values.iter().sum::<f64>() / values.len() as f64
+    }
+
+    /// Given the same slots rolled for a club of high reputation and one of low reputation,
+    /// When the players' ratings are averaged,
+    /// Then the bigger club's players are better, by about the gap between the clubs' standards.
+    #[test]
+    fn a_bigger_clubs_players_are_better() {
+        let big = mean(&club_seniors(800, 2000, 7));
+        let small = mean(&club_seniors(200, 2000, 7));
+
+        assert!(big - small > 6.0, "{big:.1} against {small:.1}");
+    }
+
+    /// Given two clubs of the same reputation,
+    /// When the same seed rolls their players,
+    /// Then they are the same players: the standard is a function of the reputation alone.
+    #[test]
+    fn a_clubs_standard_is_a_function_of_its_reputation() {
+        assert_eq!(club_seniors(640, 50, 3), club_seniors(640, 50, 3));
+    }
+
+    /// Given a club far above every other reputation,
+    /// When its standard is read,
+    /// Then it is the same as a club at the cap, so one outlier cannot buy a squad of stars.
+    #[test]
+    fn an_outlier_reputation_does_not_run_away() {
+        let scale = ReputationScale::new(500.0, 150.0);
+        assert_eq!(
+            PlayerRoll::for_club(2000, &scale).standard,
+            PlayerRoll::for_club(1000, &scale).standard
+        );
+    }
+
+    /// The shift of an academy of each club of a world holding `reputations`, as the intake takes it.
+    fn academy_shifts(reputations: &[u32]) -> (Vec<f64>, f64) {
+        let scale = ReputationScale::of_reputations(reputations.iter().copied());
+        let standards: Vec<Standard> = reputations
+            .iter()
+            .map(|&reputation| {
+                PlayerRoll::for_academy(reputation, Some(16), &scale)
+                    .standard
+                    .expect("an academy has a standard")
+            })
+            .collect();
+        let variance = standards[0].absorbed_shift_variance;
+        (
+            standards
+                .iter()
+                .map(|standard| standard.shift - INTAKE_CEILING_OFFSET)
+                .collect(),
+            variance,
+        )
+    }
+
+    /// Given a skewed world: nine clubs at reputation 100 and one at 1000, which the cap clips
+    /// When the clubs' academy shifts are taken together
+    /// Then they average to nothing: the cap redistributes the intake across clubs, it does not move
+    ///      the pooled ceiling (it moved it by about 0.11 points before the shifts were recentred)
+    #[test]
+    fn capped_academy_shifts_average_to_nothing_in_a_skewed_world() {
+        let mut reputations = vec![100; 9];
+        reputations.push(1000);
+
+        let (shifts, _) = academy_shifts(&reputations);
+
+        let centre = shifts.iter().sum::<f64>() / shifts.len() as f64;
+        assert!(centre.abs() < 1e-9, "the pooled shift is {centre}");
+        assert!(
+            shifts[9] > 0.0 && shifts[0] < 0.0,
+            "the big club still leads: {shifts:?}"
+        );
+    }
+
+    /// Given a world whose clubs all hold the same reputation
+    /// When an academy's standard is read
+    /// Then it adds no shift and absorbs no variance: nothing was added across clubs, so the
+    ///      recruits' spread keeps all of the intake's
+    #[test]
+    fn clubs_that_do_not_differ_absorb_no_variance() {
+        let (shifts, absorbed) = academy_shifts(&[640, 640, 640, 640]);
+
+        assert!(shifts.iter().all(|shift| shift.abs() < 1e-9), "{shifts:?}");
+        assert_eq!(absorbed, 0.0);
+    }
+
+    /// Given a skewed world that the cap clips: nine clubs at reputation 100 and one at 1000
+    /// When an academy's standard is read
+    /// Then it absorbs exactly the variance the clubs' capped shifts add (the population variance of
+    ///      those shifts), which is strictly between none and the shift's whole variance: a rule that
+    ///      absorbed it all whenever the clubs differ, or none of it, would fail
+    #[test]
+    fn a_clipped_world_absorbs_the_variance_its_capped_shifts_add() {
+        let mut reputations = vec![100; 9];
+        reputations.push(1000);
+
+        let (shifts, absorbed) = academy_shifts(&reputations);
+
+        let centre = shifts.iter().sum::<f64>() / shifts.len() as f64;
+        let added = shifts
+            .iter()
+            .map(|shift| (shift - centre).powi(2))
+            .sum::<f64>()
+            / shifts.len() as f64;
+        let whole = (ACADEMY_SHIFT_KEPT * BETWEEN_CLUB_SD).powi(2);
+        assert!(
+            (absorbed - added).abs() < 1e-9,
+            "absorbed {absorbed}, added {added}"
+        );
+        assert!(
+            absorbed > 0.0 && absorbed < whole - 1e-6,
+            "{absorbed} against {whole}"
+        );
+    }
+
+    /// Given a world whose reputations the cap does not reach
+    /// When an academy's standard is read
+    /// Then it absorbs the shift's whole variance, as before: only a clipped world changes
+    #[test]
+    fn an_unclipped_world_absorbs_the_whole_shift_variance() {
+        let reputations: Vec<u32> = (0..40).map(|club| 300 + club * 10).collect();
+
+        let (_, absorbed) = academy_shifts(&reputations);
+
+        let whole = (ACADEMY_SHIFT_KEPT * BETWEEN_CLUB_SD).powi(2);
+        assert!(
+            (absorbed - whole).abs() < 1e-9,
+            "{absorbed} against {whole}"
+        );
+    }
+
+    /// Given a world whose clubs all share one pinned reputation,
+    /// When a club's standard score is read,
+    /// Then it is 0: clubs that do not differ get no standard to spread.
+    #[test]
+    fn a_world_of_equal_clubs_has_no_standard_to_spread() {
+        let scale = ReputationScale::of_ranges([[640, 640], [640, 640], [640, 640]]);
+
+        assert_eq!(scale.standard_score(640), 0.0);
+        assert_eq!(scale.standard_score(900), 0.0);
+    }
+
+    /// Given a default-range world (clubs anywhere in 300 to 900) and a package world whose clubs
+    ///       all sit in 800 to 900,
+    /// When the same reputation of 850 is scored in each,
+    /// Then it is above the first world's mean and at the second world's: the scale is the world's
+    ///      own, not one world's figures applied to every world.
+    #[test]
+    fn the_scale_follows_the_world_being_generated() {
+        let broad = ReputationScale::of_ranges([[300, 900]; 40]);
+        let elite = ReputationScale::of_ranges([[800, 900]; 40]);
+
+        assert!(broad.standard_score(850) > 0.5);
+        assert!(elite.standard_score(850).abs() < 1e-9);
+    }
+
+    /// Given clubs whose midpoints differ and whose own ranges add spread,
+    /// When the scale is built,
+    /// Then its spread is the root of the variance between the midpoints plus the ranges' own.
+    #[test]
+    fn the_scale_adds_the_ranges_own_variance_to_the_variance_between_clubs() {
+        // Midpoints 400 and 600 (variance between: 100^2); each range 200 wide (200^2 / 12 own).
+        let scale = ReputationScale::of_ranges([[300, 500], [500, 700]]);
+
+        let expected = (100.0_f64.powi(2) + 200.0_f64.powi(2) / 12.0).sqrt();
+        assert!((scale.standard_score(500) - 0.0).abs() < 1e-9);
+        assert!((scale.standard_score(600) - 100.0 / expected).abs() < 1e-9);
+    }
+
+    /// Given a roll with no club standard,
+    /// When the player is generated,
+    /// Then his ceiling is the world-wide bell it always was.
+    #[test]
+    fn a_roll_without_a_club_standard_keeps_the_world_wide_bell() {
+        assert_eq!(PlayerRoll::unscaled(Some(30)).standard, None);
+        assert_eq!(PlayerRoll::default().age, None);
+    }
+
+    fn mean_and_sd(values: &[f64]) -> (f64, f64) {
+        let mean = values.iter().sum::<f64>() / values.len() as f64;
+        let variance = values.iter().map(|v| (v - mean).powi(2)).sum::<f64>() / values.len() as f64;
+        (mean, variance.sqrt())
+    }
+
+    /// Given the same slots rolled on the opening's bell and as national-team top-ups, both fixed
+    ///       at 28 so that rating is ceiling,
+    /// When their ceilings are compared,
+    /// Then the top-ups sit the pool's shift below the world's centre (not the unattached pool's
+    ///      -3) with only the kept fraction of the spread, so almost none reaches the S tier.
+    #[test]
+    fn a_national_top_up_is_a_tight_modest_pool_not_the_unattached_discount() {
+        let world = ceilings_rolled_with(PlayerRoll::unscaled(Some(28)), 80_000, 41);
+        let pool_roll = PlayerRoll {
+            age: Some(28),
+            ..PlayerRoll::for_national_pool()
+        };
+        let pool = ceilings_rolled_with(pool_roll, 80_000, 41);
+
+        let ((world_mean, world_sd), (pool_mean, pool_sd)) =
+            (mean_and_sd(&world), mean_and_sd(&pool));
+        let stars = pool.iter().filter(|c| **c >= 81.0).count() as f64 / pool.len() as f64;
+
+        assert!(
+            ((pool_mean - world_mean) - NATIONAL_POOL_SHIFT).abs() < 0.2,
+            "{world_mean:.2} and {pool_mean:.2}"
+        );
+        assert!(
+            ((pool_sd / world_sd) - NATIONAL_POOL_SPREAD_KEPT).abs() < 0.04,
+            "spreads {world_sd:.2} and {pool_sd:.2}"
+        );
+        assert!(
+            stars < 0.003,
+            "{:.2}% of top-ups reach the S tier",
+            stars * 100.0
+        );
+    }
+
+    /// Given the same slots rolled once on the opening's bell and once as youth intake recruits,
+    ///       both fixed at 28 so that rating is ceiling,
+    /// When their ceilings are compared,
+    /// Then the intake's centre is higher by the intake offset and its spread is the kept fraction
+    ///      of the opening's.
+    #[test]
+    fn the_intake_is_rolled_on_its_own_centre_and_spread() {
+        let opening = ceilings_rolled_with(PlayerRoll::unscaled(Some(28)), 80_000, 31);
+        let intake = ceilings_rolled_with(PlayerRoll::for_intake(Some(28)), 80_000, 31);
+
+        let ((opening_mean, opening_sd), (intake_mean, intake_sd)) =
+            (mean_and_sd(&opening), mean_and_sd(&intake));
+
+        assert!(
+            ((intake_mean - opening_mean) - INTAKE_CEILING_OFFSET).abs() < 0.15,
+            "centres {opening_mean:.2} and {intake_mean:.2}"
+        );
+        assert!(
+            ((intake_sd / opening_sd) - INTAKE_SPREAD_KEPT).abs() < 0.04,
+            "spreads {opening_sd:.2} and {intake_sd:.2}"
         );
     }
 

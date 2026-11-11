@@ -6,29 +6,40 @@ import type { DashboardAlert } from "./dashboardHelpers";
 interface DashboardAlertsProps {
   alerts: DashboardAlert[];
   onNavigate: (tab: string) => void;
+  /**
+   * The list sits above a tab that fills the workspace, which has no scroll of its own to carry it:
+   * cap the list at about three alerts and scroll it, so six of them cannot squeeze that tab to a
+   * strip at a small window or a large UI scale.
+   */
+  scrolls?: boolean;
 }
 
-function getAlertButtonClassName(severity: DashboardAlert["severity"]): string {
-  const baseClassName =
-    "flex items-center gap-2 rounded-lg border px-4 py-2 text-xs font-heading font-bold uppercase tracking-wider transition-all";
+// The alert is a sentence, so it reads in sentence case; the tint says how urgent, the icon and
+// words say what.
+const ALERT_BASE =
+  "flex items-center gap-2 rounded-lg border border-line px-4 py-2 text-body font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 focus-visible:ring-offset-page";
 
+function getAlertButtonClassName(severity: DashboardAlert["severity"]): string {
   if (severity === "warn") {
-    return `${baseClassName} border-amber-500/20 bg-amber-500/10 text-amber-600 hover:bg-amber-500/20 dark:text-amber-400`;
+    return `${ALERT_BASE} bg-warning-tint text-warning hover:border-warning-solid`;
   }
 
-  return `${baseClassName} border-blue-500/20 bg-blue-500/10 text-blue-600 hover:bg-blue-500/20 dark:text-blue-400`;
+  return `${ALERT_BASE} bg-info-tint text-info hover:border-info-solid`;
 }
 
 export default function DashboardAlerts({
   alerts,
   onNavigate,
+  scrolls = false,
 }: DashboardAlertsProps): JSX.Element | null {
   if (alerts.length === 0) {
     return null;
   }
 
   return (
-    <div className="mb-4 flex flex-col gap-1.5">
+    <div
+      className={`mb-4 flex flex-col gap-1.5 ${scrolls ? "max-h-24 shrink-0 overflow-y-auto" : ""}`}
+    >
       {alerts.map((alert) => (
         <button
           type="button"
@@ -36,9 +47,9 @@ export default function DashboardAlerts({
           onClick={() => onNavigate(alert.tab)}
           className={getAlertButtonClassName(alert.severity)}
         >
-          <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+          <AlertCircle className="h-4 w-4 shrink-0" />
           <span className="flex-1 text-left">{alert.text}</span>
-          <ChevronRight className="h-3 w-3" />
+          <ChevronRight className="h-4 w-4 shrink-0" />
         </button>
       ))}
     </div>

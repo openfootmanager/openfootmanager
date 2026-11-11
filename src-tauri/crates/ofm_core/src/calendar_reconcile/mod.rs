@@ -391,8 +391,8 @@ fn book_all_shadows<'a>(
 
 /// Writes a plan into the competitions. `mark_postponed` records the original date and reason on
 /// each moved fixture (kept from the first move); generation passes false because those dates
-/// were never shown to the player. Returns how many fixtures changed.
-pub fn apply(plan: &Plan, competitions: &mut [League], mark_postponed: bool) -> usize {
+/// were never shown to the player.
+pub fn apply(plan: &Plan, competitions: &mut [League], mark_postponed: bool) {
     apply_marking(plan, competitions, |_| mark_postponed)
 }
 
@@ -401,8 +401,7 @@ pub fn apply_marking(
     plan: &Plan,
     competitions: &mut [League],
     mut mark_postponed: impl FnMut(&Move) -> bool,
-) -> usize {
-    let mut changed = 0;
+) {
     for planned in &plan.moves {
         let marks = mark_postponed(planned);
         let Some(fixture) =
@@ -417,15 +416,12 @@ pub fn apply_marking(
             });
         }
         fixture.date = planned.to.format("%Y-%m-%d").to_string();
-        changed += 1;
     }
     for (competition_id, fixture_id) in &plan.dropped_friendlies {
         if let Some(competition) = competitions.iter_mut().find(|c| &c.id == competition_id) {
             competition.fixtures.retain(|f| &f.id != fixture_id);
-            changed += 1;
         }
     }
-    changed
 }
 
 fn find_fixture<'a>(

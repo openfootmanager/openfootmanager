@@ -160,7 +160,7 @@ pub(crate) fn termination_severance_cost(player: &Player, current_date: NaiveDat
 }
 
 pub(crate) fn contract_terminated_message(
-    player_id: &str,
+    release_id: &str,
     player_name: &str,
     team_name: &str,
     severance_cost: i64,
@@ -172,7 +172,7 @@ pub(crate) fn contract_terminated_message(
     i18n_params.insert("severance".to_string(), severance_cost.to_string());
 
     InboxMessage::new(
-        format!("contract_terminated_{}", player_id),
+        format!("contract_terminated_{release_id}"),
         String::new(),
         String::new(),
         String::new(),

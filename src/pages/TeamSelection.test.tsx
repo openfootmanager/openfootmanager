@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { GameStateData, LeagueData } from "../store/gameStore";
@@ -13,19 +13,33 @@ vi.mock("react-router-dom", () => ({
   useNavigate: () => vi.fn(),
 }));
 
+vi.mock("../hooks/useRatingTiers", async () => {
+  const { cannedRatingTiersModule } = await import("../test-utils/ratingTiers");
+  return cannedRatingTiersModule();
+});
+
+vi.mock("../hooks/usePositionGroups", async () => {
+  const { cannedPositionsModule } = await import("../test-utils/positionTable");
+  return cannedPositionsModule();
+});
+
 vi.mock("../services/portraitService", () => ({
   prewarmManagerSquadPortraits: vi.fn(),
 }));
 
 vi.mock("../store/gameStore", () => ({ useGameStore: vi.fn() }));
 
+// One `t` for every render, as react-i18next gives: a fresh function each time would make anything
+// memoised on it (the derived regions) a new value on every render.
+const translate = vi.hoisted(
+  () => (key: string, params?: Record<string, string | number>) =>
+    params?.defaultValue !== undefined ? String(params.defaultValue) : key,
+);
+const i18nState = vi.hoisted(() => ({ language: "en" }));
+
 vi.mock("react-i18next", () => ({
   initReactI18next: { type: "3rdParty", init: () => {} },
-  useTranslation: () => ({
-    t: (key: string, params?: Record<string, string | number>) =>
-      params?.defaultValue !== undefined ? String(params.defaultValue) : key,
-    i18n: { language: "en" },
-  }),
+  useTranslation: () => ({ t: translate, i18n: i18nState }),
 }));
 
 // jsdom doesn't implement matchMedia, which ThemeProvider reads on mount.
@@ -62,13 +76,24 @@ function league(overrides: Partial<LeagueData> = {}): LeagueData {
 
 function buildGameState(): GameStateData {
   return {
-    teams: [createTeam({ id: "team-1", name: "Alpha FC", country: "GB" })],
+    teams: [
+      createTeam({ id: "team-1", name: "Alpha FC", short_name: "ALP", country: "GB" }),
+      createTeam({ id: "team-2", name: "Bravo Town", short_name: "BRV", country: "GB" }),
+    ],
     players: [createPlayer({ id: "p1", team_id: "team-1" })],
-    regions: [{ id: "europe", name: "Europe", country_codes: ["GB"] }],
-    competitions: [league()],
+    competitions: [league({ participant_ids: ["team-1", "team-2"] })],
     league: null,
+    clock: { current_date: "2026-07-01", start_date: "2026-07-01" },
     manager: { first_name: "Sam", last_name: "Boss" },
   } as unknown as GameStateData;
+}
+
+function renderPage() {
+  render(
+    <ThemeProvider>
+      <TeamSelection />
+    </ThemeProvider>,
+  );
 }
 
 describe("TeamSelection", () => {
@@ -80,22 +105,114 @@ describe("TeamSelection", () => {
     } as unknown as ReturnType<typeof useGameStore>);
   });
 
-  it("renders the scope panel, the club grid, and the selected-team sidebar", () => {
-    render(
-      <ThemeProvider>
-        <TeamSelection />
-      </ThemeProvider>,
+  /**
+   * Given a world with two clubs in one league
+   * When the screen opens
+   * Then the steps, the country and league rail and the clubs' table are drawn; no club is chosen,
+   *      so the card says so and Manage is disabled; and the simulation dialog is closed.
+   */
+  it("opens with no club chosen and Manage disabled", () => {
+    renderPage();
+
+    expect(screen.getByRole("heading", { level: 1, name: "teamSelect.title" })).toBeInTheDocument();
+    expect(screen.getByRole("list", { name: "teamSelect.steps.label" })).toBeInTheDocument();
+    expect(screen.getByRole("navigation", { name: "teamSelect.rail.label" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Alpha FC" })).toHaveAttribute(
+      "aria-pressed",
+      "false",
     );
+    expect(screen.getByRole("button", { name: "Bravo Town" })).toBeInTheDocument();
 
-    // Page chrome + scope panel
-    expect(screen.getByText("teamSelect.title")).toBeInTheDocument();
-    expect(screen.getByText("teamSelect.simulationScope")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "teamSelect.manageNone" })).toBeDisabled();
+    // A disabled button says why: no club is chosen yet.
+    expect(
+      screen.getByRole("button", { name: "teamSelect.manageNone" }),
+    ).toHaveAccessibleDescription("teamSelect.card.emptyTitle");
+    const card = screen.getByRole("complementary", { name: "teamSelect.card.label" });
+    expect(within(card).getByText("teamSelect.card.emptyTitle")).toBeInTheDocument();
+    expect(screen.queryByRole("dialog")).toBeNull();
+  });
 
-    // Club grid renders the team; sidebar auto-selects the first team, so the
-    // club name appears in both the card and the sidebar header.
-    expect(screen.getAllByText("Alpha FC").length).toBeGreaterThanOrEqual(2);
+  /**
+   * Given the screen with no club chosen
+   * When a club is pressed in the table
+   * Then Manage names that club and is enabled, and the chosen-club card shows it.
+   */
+  it("enables Manage and shows the card once a club is chosen", () => {
+    renderPage();
 
-    // Confirm button reflects the auto-selected club.
-    expect(screen.getByText("teamSelect.manage")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Alpha FC" }));
+
+    expect(screen.getByRole("button", { name: "Alpha FC" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    expect(screen.getByRole("button", { name: "teamSelect.manage" })).toBeEnabled();
+    const card = screen.getByRole("complementary", { name: "teamSelect.card.label" });
+    expect(within(card).getByRole("heading", { name: "Alpha FC" })).toBeInTheDocument();
+    expect(within(card).queryByText("teamSelect.card.emptyTitle")).toBeNull();
+  });
+
+  /**
+   * Given the simulation settings closed
+   * When the header's Simulation button is pressed
+   * Then the simulation dialog opens, naming the home region and the regions and competitions to
+   *      simulate; Cancel closes it, and the settings are as they were.
+   */
+  it("opens the simulation dialog from the header, and Cancel closes it", () => {
+    renderPage();
+
+    fireEvent.click(screen.getByRole("button", { name: "teamSelect.simulation" }));
+
+    const dialog = screen.getByRole("dialog", { name: "teamSelect.scope.title" });
+    expect(within(dialog).getByRole("switch", { name: "Europe" })).toBeChecked();
+
+    fireEvent.click(within(dialog).getByRole("button", { name: "common.cancel" }));
+    expect(screen.queryByRole("dialog")).toBeNull();
+  });
+
+  /**
+   * Given the simulation dialog open, with a setting changed (the only competition unchecked)
+   * When it is dismissed, by Cancel, by the close button, or by Escape, and then reopened
+   * Then the setting is as it was (the competition is checked again), and each time focus returned
+   *      to the Simulation button that opened it: a dismissal discards the draft, however it is made.
+   */
+  it.each([
+    ["Cancel", () => fireEvent.click(screen.getByRole("button", { name: "common.cancel" }))],
+    [
+      "the close button",
+      () => fireEvent.click(screen.getByRole("button", { name: "common.close" })),
+    ],
+    ["Escape", () => fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape" })],
+  ])("discards the draft and returns focus when dismissed by %s", (_name, dismiss) => {
+    renderPage();
+    const opener = screen.getByRole("button", { name: "teamSelect.simulation" });
+    opener.focus();
+    fireEvent.click(opener);
+    const competition = () => screen.getByRole("checkbox", { name: "teamSelect.scope.simulate" });
+    expect(competition()).toBeChecked();
+    fireEvent.click(competition());
+    expect(competition()).not.toBeChecked();
+
+    dismiss();
+
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(opener).toHaveFocus();
+    fireEvent.click(opener);
+    expect(competition()).toBeChecked();
+  });
+
+  /**
+   * Given the dialog open
+   * When Apply is pressed
+   * Then the dialog closes and the screen goes on with the settings applied.
+   */
+  it("closes the dialog when Apply is pressed", () => {
+    renderPage();
+    fireEvent.click(screen.getByRole("button", { name: "teamSelect.simulation" }));
+
+    fireEvent.click(screen.getByRole("button", { name: "teamSelect.scope.apply" }));
+
+    expect(screen.queryByRole("dialog")).toBeNull();
   });
 });

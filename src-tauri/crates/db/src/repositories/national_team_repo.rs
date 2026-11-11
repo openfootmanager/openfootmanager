@@ -1,3 +1,4 @@
+use crate::json_column::{self, Cell};
 use domain::national_team::NationalTeam;
 use rusqlite::{Connection, params};
 
@@ -52,12 +53,19 @@ pub fn load_national_teams(conn: &Connection) -> Result<Vec<NationalTeam>, Strin
         .query_map([], |row| {
             let squad_player_ids_json: String = row.get(4)?;
             let fixtures_json: String = row.get(7)?;
+            let id: String = row.get(0)?;
             Ok(NationalTeam {
-                id: row.get(0)?,
+                // A squad that does not parse reads as empty and is kept in unreadable_records,
+                // never silently lost (`json_column`).
+                squad_player_ids: json_column::read(
+                    conn,
+                    Cell::new("national_teams", &id, "squad_player_ids_json"),
+                    &squad_player_ids_json,
+                ),
+                id,
                 name: row.get(1)?,
                 football_nation: row.get(2)?,
                 region_id: row.get(3)?,
-                squad_player_ids: serde_json::from_str(&squad_player_ids_json).unwrap_or_default(),
                 manager_name: row.get(5)?,
                 reputation: row.get::<_, i64>(6).unwrap_or(500) as u32,
                 fixtures: super::stored_fixtures::parse_fixtures(7, &fixtures_json)?,

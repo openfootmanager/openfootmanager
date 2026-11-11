@@ -10,20 +10,25 @@ import {
   type LoanPeriodOptionId,
   parseTransferFeeInput,
 } from "./TransfersTab.helpers";
-import type { TFunction } from "i18next";
 interface Input {
+  gameState: GameStateData;
   loanRegistrationDate: string;
   onGameUpdate: ((game: GameStateData) => void) | undefined;
-  t: TFunction<"translation", undefined>;
   transferWindowBlocksRegistration: boolean;
 }
 export function useLoanOfferFlow({
+  gameState,
   loanRegistrationDate,
   onGameUpdate,
-  t,
   transferWindowBlocksRegistration,
 }: Input) {
-  const [loanTarget, setLoanTarget] = useState<PlayerData | null>(null);
+  // The id, not the player: read from the game state each render, so the dialog sees the player
+  // as the game now has him rather than as he was when it opened.
+  const [loanTargetId, setLoanTargetId] = useState<string | null>(null);
+  const loanTarget =
+    loanTargetId === null
+      ? null
+      : (gameState.players.find((player) => player.id === loanTargetId) ?? null);
   const [loanPeriodId, setLoanPeriodId] = useState<LoanPeriodOptionId | "">(
     getDefaultLoanPeriodId(loanRegistrationDate, null),
   );
@@ -41,7 +46,7 @@ export function useLoanOfferFlow({
     buyOptionFee?: number | null;
   } | null>(null);
   const openLoanOffer = (player: PlayerData) => {
-    setLoanTarget(player);
+    setLoanTargetId(player.id);
     setLoanPeriodId(getDefaultLoanPeriodId(loanRegistrationDate, player.contract_end));
     setLoanWageContributionPct(100);
     setLoanBuyOptionEnabled(false);
@@ -51,7 +56,7 @@ export function useLoanOfferFlow({
     setLoanSuggestedTerms(null);
   };
   const closeLoanOffer = () => {
-    setLoanTarget(null);
+    setLoanTargetId(null);
     setLoanPeriodId(getDefaultLoanPeriodId(loanRegistrationDate, null));
     setLoanWageContributionPct(100);
     setLoanBuyOptionEnabled(false);
@@ -107,7 +112,7 @@ export function useLoanOfferFlow({
       if (onGameUpdate) onGameUpdate(response.game);
     } catch (err: unknown) {
       setLoanResult("error");
-      setLoanError(resolveTranslatedErrorMessage(getErrorMessage(err), t));
+      setLoanError(resolveTranslatedErrorMessage(getErrorMessage(err)));
     } finally {
       setLoanLoading(false);
     }

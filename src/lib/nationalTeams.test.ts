@@ -9,6 +9,8 @@ import {
 
 function ntFixture(overrides: Partial<FixtureData> = {}): FixtureData {
   return {
+    competitive: true,
+    advancing_team_id: null,
     id: "ntf-1",
     competition_id: "international-friendlies",
     matchday: 1,

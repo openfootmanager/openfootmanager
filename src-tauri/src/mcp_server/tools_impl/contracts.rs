@@ -7,6 +7,7 @@ use mcp_results::contracts::{
 
 use crate::mcp_server::context::McpContext;
 use crate::mcp_server::tools_impl::helpers::{require_game, serde_label};
+use ofm_core::state::Career;
 use std::sync::Arc;
 
 // ─── contract_propose_renewal ───────────────────────────────────────────────
@@ -27,6 +28,7 @@ pub fn contract_propose_renewal(
 
     let response = crate::commands::contracts::propose_renewal_internal(
         &ctx.state_manager,
+        Career::Active,
         &player_id,
         weekly_wage,
         contract_years,
@@ -72,6 +74,7 @@ pub fn contract_delegate_renewals(
 ) -> Result<RenewalsDelegated, String> {
     let response = crate::commands::contracts::delegate_renewals_internal(
         &ctx.state_manager,
+        Career::Active,
         player_ids,
         max_wage_increase_pct,
         max_contract_years,
@@ -120,6 +123,7 @@ pub fn contract_set_exit_intent(
 ) -> Result<ExitIntentSet, String> {
     crate::commands::contracts::set_contract_exit_intent_internal(
         &ctx.state_manager,
+        Career::Active,
         &player_id,
         reason,
     )?;
@@ -153,6 +157,7 @@ pub fn contract_clear_exit_intent(
 ) -> Result<ExitIntentCleared, String> {
     crate::commands::contracts::clear_contract_exit_intent_internal(
         &ctx.state_manager,
+        Career::Active,
         &player_id,
     )?;
 
@@ -196,7 +201,11 @@ pub fn contract_terminate(
         .map(|p| p.match_name.clone())
         .unwrap_or_else(|| player_id.clone());
 
-    crate::commands::contracts::terminate_contract_now_internal(&ctx.state_manager, &player_id)?;
+    crate::commands::contracts::terminate_contract_now_internal(
+        &ctx.state_manager,
+        Career::Active,
+        &player_id,
+    )?;
 
     {
         use tauri::Emitter;

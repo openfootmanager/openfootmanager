@@ -17,7 +17,7 @@ use std::collections::{HashMap, HashSet};
 
 pub(crate) fn build_team_with_bench(game: &Game, team_id: &str) -> (TeamData, Vec<PlayerData>) {
     let club = crate::match_day_eligibility::club_players(&game.players, team_id);
-    build_team_with_bench_from(game, team_id, &club)
+    build_team_with_bench_from(game, team_id, &club, None)
 }
 
 /// [`build_team_with_bench`] for a caller that already holds the club's players (`club`), so a
@@ -26,12 +26,12 @@ pub(crate) fn build_team_with_bench_from(
     game: &Game,
     team_id: &str,
     club: &[&domain::player::Player],
+    lookups: Option<&super::matchday_lookups::MatchdayLookups>,
 ) -> (TeamData, Vec<PlayerData>) {
     let team = game.teams.iter().find(|t| t.id == team_id);
-    let (name, formation, play_style, tactics, saved_xi_ids) = match team {
+    let (name, play_style, tactics) = match team {
         Some(t) => (
             t.name.clone(),
-            t.formation.clone(),
             match t.play_style {
                 domain::team::PlayStyle::Attacking => PlayStyle::Attacking,
                 domain::team::PlayStyle::Defensive => PlayStyle::Defensive,
@@ -41,86 +41,36 @@ pub(crate) fn build_team_with_bench_from(
                 _ => PlayStyle::Balanced,
             },
             domain_to_engine_tactics(&t.tactics_phase),
-            t.starting_xi_ids.as_slice(),
         ),
         None => (
             "Unknown".into(),
-            "4-4-2".into(),
             PlayStyle::Balanced,
             TacticsConfig::default(),
-            &[] as &[String],
         ),
     };
 
-    let eligible = crate::match_day_eligibility::eligible_among(club);
-    let available_players: Vec<_> = eligible
-        .iter()
-        .copied()
-        .filter(|p| p.injury.is_none())
-        .collect();
     let player_roles = team.map(|t| &t.player_roles);
     // `deployed` is the granular slot the player occupies; `None` for the bench,
     // where the player's own position is used instead. The engine's coarse
     // position is derived from this so a player fielded out of position (e.g. a
     // striker at centre-back) is simulated in the position they actually play.
-    // A role counts only where the position a player is playing admits it: his
-    // slot if he starts, his natural position on the bench — the same rule the
-    // player's own role command enforces. Stored roles can outlive it: AI roles
-    // are chosen against a coarse bucket (`Forward` admits `WideForward`, a
-    // striker's slot does not), and anyone's can go stale when the side changes.
     let convert_player = |p: &domain::player::Player, deployed: Option<&DomainPosition>| {
         let playing_at = deployed.unwrap_or(&p.natural_position);
-        let role = player_roles
-            .and_then(|roles| roles.get(&p.id))
-            .filter(|role| playing_at.admits_role(role))
-            .map(domain_to_engine_role)
-            .unwrap_or(EnginePlayerRole::Standard);
+        let role = domain_to_engine_role(&effective_role(player_roles, p, playing_at));
         to_engine_player(p, role, deployed)
     };
 
-    // The user manages their own XI by hand (saved_xi_ids); AI clubs are managed
-    // by a reputation-driven policy that picks a first-choice XI and rotates for
-    // load management. Gate on the user team explicitly, NOT on "saved XI empty",
-    // so the human's early-career auto-built XI stays reputation-independent.
-    let is_user_team = game.manager.team_id.as_deref() == Some(team_id);
-    let mut starting_players = if is_user_team {
-        select_starting_xi(saved_xi_ids, &available_players, &formation)
-    } else {
-        let quality = team_management_quality(game, team);
-        // The same club must name the same side however often this is called for
-        // one fixture, so the manager's misjudgements are seeded from the club and
-        // the date rather than rolled fresh. A new matchday is a new judgement.
-        let seed = selection_seed(
-            team_id,
-            &game.clock.current_date.format("%Y-%m-%d").to_string(),
-        );
-        let load = fixture_load(game, team_id);
-        ai_select_starting_xi(&available_players, &formation, quality, seed, load)
-    };
-    // Both select_starting_xi and ai_select_starting_xi return a slot-aligned XI
-    // (entry i plays formation slot i), so the list index is the deployed slot.
+    let selection = match_day_selection(game, team_id, club, lookups);
+    let formation = selection.formation;
     let slots = formation_slots(&formation);
-    fill_from_the_treatment_room(&eligible, &slots, &mut starting_players);
-    let used_ids: HashSet<String> = starting_players
-        .iter()
-        .map(|player| player.id.clone())
-        .collect();
-    let starting_xi = starting_players
+    let starting_xi = selection
+        .eleven
         .into_iter()
         .enumerate()
         .map(|(slot_index, p)| convert_player(p, slots.get(slot_index)))
         .collect();
-
-    let mut bench_domain: Vec<&domain::player::Player> = available_players
-        .into_iter()
-        .filter(|player| !used_ids.contains(&player.id))
-        .collect();
-    bench_domain.sort_by(|left, right| {
-        natural_ovr(right)
-            .partial_cmp(&natural_ovr(left))
-            .unwrap_or(std::cmp::Ordering::Equal)
-    });
-    let bench = bench_domain
+    let bench = selection
+        .bench
         .into_iter()
         .map(|p| convert_player(p, None))
         .collect();
@@ -135,6 +85,90 @@ pub(crate) fn build_team_with_bench_from(
     };
 
     (team_data, bench)
+}
+
+/// Who plays and who waits for `team_id`'s next match, as the match picks them: the eleven slot
+/// by slot (entry `i` plays formation slot `i`) and the bench, best first. The kick-off and the
+/// Tactics screen's lineup projection both read this, so the screen shows the side that will play.
+pub(crate) struct MatchDaySelection<'a> {
+    /// The formation the eleven lines up in: the club's own, or 4-4-2 for a club with none. The one
+    /// default every reader of the selection shares.
+    pub(crate) formation: String,
+    pub(crate) eleven: Vec<&'a domain::player::Player>,
+    pub(crate) bench: Vec<&'a domain::player::Player>,
+}
+
+/// [`MatchDaySelection`] for `team_id`, from `club` (the club's players).
+pub(crate) fn match_day_selection<'a>(
+    game: &Game,
+    team_id: &str,
+    club: &[&'a domain::player::Player],
+    lookups: Option<&super::matchday_lookups::MatchdayLookups>,
+) -> MatchDaySelection<'a> {
+    let team = game.teams.iter().find(|t| t.id == team_id);
+    let formation = team.map_or("4-4-2", |t| t.formation.as_str());
+    let saved_xi_ids = team.map_or(&[] as &[String], |t| t.starting_xi_ids.as_slice());
+    let eligible = crate::match_day_eligibility::eligible_among(club);
+    let available_players: Vec<_> = eligible
+        .iter()
+        .copied()
+        .filter(|p| p.injury.is_none())
+        .collect();
+
+    // The user manages their own XI by hand (saved_xi_ids); AI clubs are managed
+    // by a reputation-driven policy that picks a first-choice XI and rotates for
+    // load management. Gate on the user team explicitly, NOT on "saved XI empty",
+    // so the human's early-career auto-built XI stays reputation-independent.
+    let is_user_team = game.manager.team_id.as_deref() == Some(team_id);
+    let mut eleven = if is_user_team {
+        select_starting_xi(saved_xi_ids, &available_players, formation)
+    } else {
+        let quality = team_management_quality(game, team);
+        // The same club must name the same side however often this is called for
+        // one fixture, so the manager's misjudgements are seeded from the club and
+        // the date rather than rolled fresh. A new matchday is a new judgement.
+        let seed = selection_seed(
+            team_id,
+            &game.clock.current_date.format("%Y-%m-%d").to_string(),
+        );
+        let load = fixture_load_among(game, team_id, lookups);
+        ai_select_starting_xi(&available_players, formation, quality, seed, load)
+    };
+    // Both select_starting_xi and ai_select_starting_xi return a slot-aligned XI
+    // (entry i plays formation slot i), so the list index is the deployed slot.
+    fill_from_the_treatment_room(&eligible, &formation_slots(formation), &mut eleven);
+    let used_ids: HashSet<&str> = eleven.iter().map(|player| player.id.as_str()).collect();
+    let mut bench: Vec<&domain::player::Player> = available_players
+        .into_iter()
+        .filter(|player| !used_ids.contains(player.id.as_str()))
+        .collect();
+    bench.sort_by(|left, right| {
+        natural_ovr(right)
+            .partial_cmp(&natural_ovr(left))
+            .unwrap_or(std::cmp::Ordering::Equal)
+    });
+    MatchDaySelection {
+        formation: formation.to_string(),
+        eleven,
+        bench,
+    }
+}
+
+/// The role `player` plays where he is playing (`playing_at`: his slot if he starts, his natural
+/// position on the bench). A stored role counts only where that position admits it, the same rule
+/// the player's own role command enforces; stored roles can outlive it (AI roles are chosen against
+/// a coarse bucket, and anyone's can go stale when the side changes), and then he plays the
+/// position's standard role.
+pub(crate) fn effective_role(
+    roles: Option<&HashMap<String, domain::team::PlayerRole>>,
+    player: &domain::player::Player,
+    playing_at: &DomainPosition,
+) -> domain::team::PlayerRole {
+    roles
+        .and_then(|roles| roles.get(&player.id))
+        .filter(|role| playing_at.admits_role(role))
+        .cloned()
+        .unwrap_or_default()
 }
 
 /// Replace, in place, only the saved starters the pool policy benches (youth outside the
@@ -453,6 +487,46 @@ const CONGESTED_WITHIN_DAYS: i64 = 4;
 /// every match in the world, and a populated world holds tens of thousands of
 /// fixtures.
 pub(crate) fn fixture_load(game: &Game, team_id: &str) -> FixtureLoad {
+    load_of(
+        fixtures_due_soon(game)
+            .any(|fixture| fixture.home_team_id == team_id || fixture.away_team_id == team_id),
+    )
+}
+
+/// [`fixture_load`] for a matchday that has already found the clubs with a match soon
+/// (`lookups`); `None` asks the fixtures themselves.
+pub(crate) fn fixture_load_among(
+    game: &Game,
+    team_id: &str,
+    lookups: Option<&super::matchday_lookups::MatchdayLookups>,
+) -> FixtureLoad {
+    match lookups {
+        Some(lookups) => load_of(lookups.is_congested(team_id)),
+        None => fixture_load(game, team_id),
+    }
+}
+
+fn load_of(plays_again_soon: bool) -> FixtureLoad {
+    if plays_again_soon {
+        FixtureLoad::Congested
+    } else {
+        FixtureLoad::Normal
+    }
+}
+
+/// Every club that plays again within [`CONGESTED_WITHIN_DAYS`], found in one pass over the
+/// world's fixtures. A matchday asks the question of two clubs per match, and a populated world
+/// holds tens of thousands of fixtures, so it asks once and reads the answer; it asks again when
+/// a match it applied added fixtures (a knockout round's successor).
+pub(crate) fn clubs_with_a_match_soon(game: &Game) -> HashSet<String> {
+    fixtures_due_soon(game)
+        .flat_map(|fixture| [&fixture.home_team_id, &fixture.away_team_id])
+        .cloned()
+        .collect()
+}
+
+/// The scheduled fixtures in the next [`CONGESTED_WITHIN_DAYS`] days, in every competition in play.
+fn fixtures_due_soon(game: &Game) -> impl Iterator<Item = &domain::league::Fixture> {
     use domain::league::FixtureStatus;
 
     let today = game.clock.current_date;
@@ -463,6 +537,7 @@ pub(crate) fn fixture_load(game: &Game, team_id: &str) -> FixtureLoad {
                 .to_string()
         })
         .collect();
+    let (first_day, last_day) = (soon[0].clone(), soon[soon.len() - 1].clone());
     // Both collections, not the usual "competitions, else the legacy slot". A
     // side is picked *during* simulation, and `simulate_competition_day_with_capture`
     // moves the competition being played out of `game.competitions` into
@@ -472,24 +547,17 @@ pub(crate) fn fixture_load(game: &Game, team_id: &str) -> FixtureLoad {
     // Outside simulation the legacy slot mirrors one of the competitions, and a
     // fixture seen twice cannot change an `any`.
     //
-    // Only competitions in the active scope count: a dormant one is resolved by a
-    // scoreline-only model that charges nobody any condition, so its next round
-    // is no reason to rest a player for this one.
-    let plays_again_soon = game
-        .competitions
+    // Every competition counts, followed or not: one calendar rule for every club (#869), as
+    // in training's matchday and taper. A dormant match is still settled by scoreline and costs
+    // no condition today, but it is a match the club plays.
+    game.competitions
         .iter()
         .chain(game.league.iter())
-        .filter(|competition| game.competition_in_active_scope(competition))
         .flat_map(|competition| competition.fixtures.iter())
+        // The window test comes first and costs two string comparisons.
+        .filter(move |fixture| fixture.date >= first_day && fixture.date <= last_day)
+        .filter(move |fixture| soon.contains(&fixture.date))
         .filter(|fixture| fixture.status == FixtureStatus::Scheduled)
-        .filter(|fixture| soon.contains(&fixture.date))
-        .any(|fixture| fixture.home_team_id == team_id || fixture.away_team_id == team_id);
-
-    if plays_again_soon {
-        FixtureLoad::Congested
-    } else {
-        FixtureLoad::Normal
-    }
 }
 
 /// One club's judgement for one matchday. Derived rather than rolled, so asking
@@ -763,6 +831,65 @@ pub(crate) fn domain_to_engine_tactics(t: &domain::team::TacticsPhaseSettings) -
     }
 }
 
+/// What the fitness table's multiplier averages over the fouls of a club season, so that dividing
+/// by it keeps the season's club-match injuries where they were and only their spread follows
+/// fitness.
+///
+/// Measured on the shipped world, one season with every competition played, at develop 63f8e244
+/// (31 Oct 2026): 12,623 engine injury events with the raw table against 11,088 without it, over
+/// seeds 1 and 2 (1.1329 and 1.1440 apart). It sits above the table's average over squads' days
+/// (about 1.06), which suggests the players who are fouled are less fit than the squad as a
+/// whole. It is calibrated against today's fitness distribution (91% of club players' days at
+/// fitness 70 to 89), so measure it again with `season-harness --test measure_club_injuries`, whose
+/// header gives the procedure, if the table, the engine's injury probability, or anything that
+/// moves players' fitness (training, condition, recovery) changes.
+const CLUB_MATCH_MEAN_INJURY_MULTIPLIER: f64 = 1.1384;
+
+fn admitted_engine_roles(position: &DomainPosition) -> impl Iterator<Item = EnginePlayerRole> + '_ {
+    position.valid_roles().iter().map(domain_to_engine_role)
+}
+
+/// Check an engine role against the domain position at the bridge.
+pub(crate) fn slot_admits_engine_role(position: &DomainPosition, role: EnginePlayerRole) -> bool {
+    admitted_engine_roles(position).any(|candidate| candidate == role)
+}
+
+/// When a short-handed lineup no longer matches a granular slot's line, use the simulated
+/// line's domain position rather than admitting roles for a line the player does not occupy.
+pub(crate) fn slot_at_simulated_line(slot: &DomainPosition, line: Position) -> DomainPosition {
+    if engine_line(slot) == line {
+        return slot.clone();
+    }
+    match line {
+        Position::Goalkeeper => DomainPosition::Goalkeeper,
+        Position::Defender => DomainPosition::Defender,
+        Position::Midfielder => DomainPosition::Midfielder,
+        Position::Forward => DomainPosition::Forward,
+    }
+}
+
+pub(crate) fn admitted_roles_for_formation(
+    formation: &str,
+    lines: &[Position],
+) -> Vec<Vec<EnginePlayerRole>> {
+    formation_slots(formation)
+        .iter()
+        .zip(lines)
+        .map(|(slot, line)| admitted_engine_roles(&slot_at_simulated_line(slot, *line)).collect())
+        .collect()
+}
+
+/// The engine line a position plays in.
+pub(crate) fn engine_line(position: &DomainPosition) -> Position {
+    match position.to_group_position() {
+        DomainPosition::Goalkeeper => Position::Goalkeeper,
+        DomainPosition::Defender => Position::Defender,
+        DomainPosition::Midfielder => Position::Midfielder,
+        DomainPosition::Forward => Position::Forward,
+        _ => Position::Midfielder,
+    }
+}
+
 fn to_engine_player(
     p: &domain::player::Player,
     role: EnginePlayerRole,
@@ -771,17 +898,7 @@ fn to_engine_player(
     // Fall back to the player's natural position (not `p.position`, which on
     // legacy saves can still hold a stale coarse bucket written by the old
     // set_formation stat-ranking).
-    let group = deployed
-        .cloned()
-        .unwrap_or_else(|| p.natural_position.clone())
-        .to_group_position();
-    let pos = match group {
-        DomainPosition::Goalkeeper => Position::Goalkeeper,
-        DomainPosition::Defender => Position::Defender,
-        DomainPosition::Midfielder => Position::Midfielder,
-        DomainPosition::Forward => Position::Forward,
-        _ => Position::Midfielder,
-    };
+    let pos = engine_line(deployed.unwrap_or(&p.natural_position));
 
     PlayerData {
         id: p.id.clone(),
@@ -790,6 +907,10 @@ fn to_engine_player(
         ovr: p.ovr,
         condition: p.condition,
         fitness: p.fitness,
+        // Match fitness as it stands before the match: its wear is applied afterwards.
+        injury_risk: crate::player_wear::injury_multiplier_from_fitness(p.fitness)
+            / CLUB_MATCH_MEAN_INJURY_MULTIPLIER,
+        line_familiarity: familiarity::line_familiarity(p, deployed),
         pace: p.attributes.pace,
         stamina: p.attributes.stamina,
         strength: p.attributes.strength,
@@ -886,6 +1007,9 @@ pub(crate) fn set_piece_takers_among(
 
     (captain, penalty, free_kick, corner)
 }
+
+mod familiarity;
+pub(crate) use familiarity::{line_familiarity, slot_factor};
 
 #[cfg(test)]
 mod tests;
@@ -1000,7 +1124,7 @@ pub(crate) mod match_day_pool_tests {
             ..Default::default()
         });
         // The public kickoff preparation must reconcile what the next save stores.
-        crate::live_match_manager::prepare_kick_off(&mut game, 0);
+        crate::live_match_manager::prepare_kick_off(&mut game, 0, None);
         let (team, bench) = build_team_with_bench(&game, "club");
         let starters: Vec<String> = team.players.iter().map(|p| p.id.clone()).collect();
         assert_eq!(starters.len(), 11);
@@ -1023,6 +1147,63 @@ pub(crate) mod match_day_pool_tests {
         );
         let loaded: Game = serde_json::from_str(&serde_json::to_string(&game).unwrap()).unwrap();
         assert_eq!(loaded.teams[0].starting_xi_ids, starters);
+    }
+
+    /// Given an AI club that signs free agents at kick-off, When the kick-off is prepared with
+    /// the matchday's lookups, Then the same players are signed as without them and the lookups
+    /// find the club's new players afterwards.
+    #[test]
+    fn a_kick_off_prepared_with_lookups_signs_as_without_and_the_lookups_follow() {
+        use crate::turn::matchday_lookups::MatchdayLookups;
+        let mut game = match_day_game(false, 18, 0);
+        // One keeper short, and no midfielders or forwards at all.
+        for (index, position) in [
+            DomainPos::Goalkeeper,
+            DomainPos::CentralMidfielder,
+            DomainPos::CentralMidfielder,
+            DomainPos::CentralMidfielder,
+            DomainPos::CentralMidfielder,
+            DomainPos::Striker,
+            DomainPos::Striker,
+        ]
+        .into_iter()
+        .enumerate()
+        {
+            let mut agent = mk_pos(&format!("agent-{index}"), position, 60, 100);
+            agent.team_id = None;
+            game.players.push(agent);
+        }
+        game.league = Some(domain::league::League {
+            fixtures: vec![domain::league::Fixture {
+                home_team_id: "club".into(),
+                away_team_id: "ghost".into(),
+                ..Default::default()
+            }],
+            ..Default::default()
+        });
+        let mut without = game.clone();
+        let mut with = game;
+        let mut lookups = MatchdayLookups::of(&with);
+
+        crate::live_match_manager::prepare_kick_off(&mut without, 0, None);
+        crate::live_match_manager::prepare_kick_off(&mut with, 0, Some(&mut lookups));
+
+        let teams = |game: &Game| -> Vec<Option<String>> {
+            game.players.iter().map(|p| p.team_id.clone()).collect()
+        };
+        assert_eq!(teams(&with), teams(&without));
+        assert!(
+            teams(&with)
+                .iter()
+                .filter(|t| t.as_deref() == Some("club"))
+                .count()
+                > 18,
+            "the club signed nobody, so this proves nothing"
+        );
+        assert_eq!(
+            lookups.club(&with, "club"),
+            crate::match_day_eligibility::club_positions(&with.players, "club")
+        );
     }
 
     /// Given a saved XI whose senior starter is injured on match day
@@ -1050,7 +1231,7 @@ pub(crate) mod match_day_pool_tests {
             ..Default::default()
         });
 
-        crate::live_match_manager::prepare_kick_off(&mut game, 0);
+        crate::live_match_manager::prepare_kick_off(&mut game, 0, None);
 
         assert_eq!(game.teams[0].starting_xi_ids, saved);
     }

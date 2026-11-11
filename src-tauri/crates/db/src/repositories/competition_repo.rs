@@ -1,3 +1,4 @@
+use crate::json_column::{self, Cell};
 use domain::league::{
     CompetitionRules, CompetitionScope, CompetitionState, CompetitionType, GroupState,
     KnockoutRoundState, StandingEntry,
@@ -129,6 +130,10 @@ pub fn load_competitions(conn: &Connection) -> Result<Vec<CompetitionState>, Str
 
     let rows = stmt
         .query_map([], |row| {
+            let id: String = row.get(0)?;
+            // A JSON column that does not parse reads as its default and is kept in
+            // unreadable_records, never silently lost (`json_column`).
+            let cell = |column: &'static str| Cell::new("competitions", &id, column);
             let required_region_ids_json: String = row.get(7)?;
             let participant_ids_json: String = row.get(8)?;
             let rules_json: String = row.get(9)?;
@@ -157,29 +162,52 @@ pub fn load_competitions(conn: &Connection) -> Result<Vec<CompetitionState>, Str
                             )
                         })?
                         .flatten(),
-                id: row.get(0)?,
+                id: id.clone(),
                 name: row.get(1)?,
                 kind: parse_competition_type(&row.get::<_, String>(2)?),
                 scope: parse_competition_scope(&row.get::<_, String>(3)?),
                 season: row.get(4)?,
                 region_id: row.get(5)?,
                 country_id: row.get(6)?,
-                required_region_ids: serde_json::from_str(&required_region_ids_json)
-                    .unwrap_or_default(),
-                participant_ids: serde_json::from_str(&participant_ids_json).unwrap_or_default(),
-                rules: serde_json::from_str::<CompetitionRules>(&rules_json).unwrap_or_default(),
+                required_region_ids: json_column::read(
+                    conn,
+                    cell("required_region_ids_json"),
+                    &required_region_ids_json,
+                ),
+                participant_ids: json_column::read(
+                    conn,
+                    cell("participant_ids_json"),
+                    &participant_ids_json,
+                ),
+                rules: json_column::read::<CompetitionRules>(conn, cell("rules_json"), &rules_json),
                 fixtures: super::stored_fixtures::parse_fixtures(10, &fixtures_json)?,
-                standings: serde_json::from_str::<Vec<StandingEntry>>(&standings_json)
-                    .unwrap_or_default(),
-                groups: serde_json::from_str::<Vec<GroupState>>(&groups_json).unwrap_or_default(),
-                knockout_rounds: serde_json::from_str::<Vec<KnockoutRoundState>>(
+                standings: json_column::read::<Vec<StandingEntry>>(
+                    conn,
+                    cell("standings_json"),
+                    &standings_json,
+                ),
+                groups: json_column::read::<Vec<GroupState>>(
+                    conn,
+                    cell("groups_json"),
+                    &groups_json,
+                ),
+                knockout_rounds: json_column::read::<Vec<KnockoutRoundState>>(
+                    conn,
+                    cell("knockout_rounds_json"),
                     &knockout_rounds_json,
-                )
-                .unwrap_or_default(),
-                transfer_log: serde_json::from_str(&transfer_log_json).unwrap_or_default(),
-                transfer_rumours: serde_json::from_str(&transfer_rumours_json).unwrap_or_default(),
+                ),
+                transfer_log: json_column::read(
+                    conn,
+                    cell("transfer_log_json"),
+                    &transfer_log_json,
+                ),
+                transfer_rumours: json_column::read(
+                    conn,
+                    cell("transfer_rumours_json"),
+                    &transfer_rumours_json,
+                ),
                 priority: row.get::<_, i64>(16).unwrap_or_default() as u32,
-                berths: serde_json::from_str(&berths_json).unwrap_or_default(),
+                berths: json_column::read(conn, cell("berths_json"), &berths_json),
                 season_start_month: row.get::<_, i64>(18).unwrap_or(8) as u8,
                 season_start_day: row.get::<_, i64>(19).unwrap_or(1) as u8,
                 name_key: row.get(21)?,
@@ -675,6 +703,96 @@ mod tests {
             assert_eq!(serde_json::to_value(&loaded[0].fixtures).unwrap(), fixtures);
         }
     }
+    fn basis_after_load(league: League) -> serde_json::Value {
+        let db = GameDatabase::open_in_memory().unwrap();
+        replace_competitions(db.conn(), &[league]).unwrap();
+        let loaded = load_competitions(db.conn()).unwrap();
+        serde_json::to_value(&loaded[0]).unwrap()["calendar"]["edition_basis"].clone()
+    }
+
+    fn with_extra_fixture(
+        mut league: League,
+        competition: domain::league::FixtureCompetition,
+        date: &str,
+    ) -> League {
+        let mut extra = league.fixtures[0].clone();
+        extra.id = "extra".into();
+        extra.date = date.into();
+        extra.competition = competition;
+        league.fixtures.push(extra);
+        league
+    }
+
+    /// Given an old save with no stored calendar whose season opens on its authored date, and a
+    /// friendly-cup tie and a preseason-tournament match dated before it,
+    /// when it is loaded,
+    /// then the opener is the first competitive match, so the ordinal is verified.
+    #[test]
+    fn a_friendly_cup_or_preseason_match_before_the_opener_does_not_hide_it() {
+        use domain::league::FixtureCompetition::{FriendlyCup, PreseasonTournament};
+        for competition in [FriendlyCup, PreseasonTournament] {
+            let league = with_extra_fixture(
+                legacy_division(5, "2030-08-01"),
+                competition.clone(),
+                "2030-07-20",
+            );
+
+            assert_eq!(
+                basis_after_load(league),
+                serde_json::json!({"kind":"legacyOrdinal","season_at_opener":5,"opener_year":2030}),
+                "{competition:?}"
+            );
+        }
+    }
+
+    /// Given an old save whose first competitive match is not on the authored date, and a
+    /// preseason-tournament match that is,
+    /// when it is loaded,
+    /// then the preseason match does not verify the opener: the basis stays unresolved.
+    #[test]
+    fn a_preseason_match_on_the_authored_date_does_not_verify_the_opener() {
+        use domain::league::FixtureCompetition::{FriendlyCup, PreseasonTournament};
+        for competition in [FriendlyCup, PreseasonTournament] {
+            let league = with_extra_fixture(
+                legacy_division(5, "2030-08-15"),
+                competition.clone(),
+                "2030-08-01",
+            );
+
+            assert_eq!(
+                basis_after_load(league),
+                serde_json::json!({"kind":"unresolved"}),
+                "{competition:?}"
+            );
+        }
+    }
+
+    /// Given a save that already stored its basis, as every save loaded since the calendar was
+    /// added has,
+    /// when it is loaded again,
+    /// then the stored basis stands, whatever the fixtures would now verify.
+    #[test]
+    fn a_stored_basis_is_never_recomputed_from_the_fixtures() {
+        let db = GameDatabase::open_in_memory().unwrap();
+        let league = with_extra_fixture(
+            legacy_division(5, "2030-08-01"),
+            domain::league::FixtureCompetition::PreseasonTournament,
+            "2030-07-20",
+        );
+        replace_competitions(db.conn(), &[league]).unwrap();
+        let mut loaded = load_competitions(db.conn()).unwrap();
+        loaded[0].calendar.as_mut().unwrap().edition_basis =
+            domain::competition_calendar::EditionBasis::Unresolved;
+        replace_competitions(db.conn(), &loaded).unwrap();
+
+        let reloaded = load_competitions(db.conn()).unwrap();
+
+        assert_eq!(
+            serde_json::to_value(&reloaded[0]).unwrap()["calendar"]["edition_basis"],
+            serde_json::json!({"kind":"unresolved"})
+        );
+    }
+
     #[test]
     fn ambiguous_legacy_edition_is_recorded_as_unresolved() {
         let db = GameDatabase::open_in_memory().unwrap();

@@ -1,6 +1,5 @@
 use crate::game::Game;
 use crate::matchday::LeagueRoundContext;
-use crate::player_rating::{effective_rating_for_assignment, formation_slots, natural_ovr};
 use domain::league::{Fixture, FixtureStatus, StandingEntry, sort_standings};
 use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
@@ -184,8 +183,9 @@ fn build_notable_upset(game: &Game, fixtures: &[&Fixture]) -> Option<NotableUpse
                 return None;
             }
 
-            let home_strength = team_strength(game, &fixture.home_team_id);
-            let away_strength = team_strength(game, &fixture.away_team_id);
+            // The one team-strength rule, which the scoreline is drawn from too.
+            let home_strength = crate::catchup::club_strength(game, &fixture.home_team_id, None);
+            let away_strength = crate::catchup::club_strength(game, &fixture.away_team_id, None);
 
             let (
                 favorite_team_id,
@@ -330,51 +330,6 @@ fn round_goal_counts(fixtures: &[&Fixture]) -> HashMap<String, u32> {
     }
 
     counts
-}
-
-fn team_strength(game: &Game, team_id: &str) -> f64 {
-    let team = game.teams.iter().find(|team| team.id == team_id);
-    match team {
-        Some(team) if !team.starting_xi_ids.is_empty() => {
-            let slots = formation_slots(&team.formation);
-            let rated_players: Vec<f64> = team
-                .starting_xi_ids
-                .iter()
-                .enumerate()
-                .filter_map(|(index, player_id)| {
-                    let player = game.players.iter().find(|player| &player.id == player_id)?;
-                    let slot = slots
-                        .get(index)
-                        .cloned()
-                        .unwrap_or_else(|| player.natural_position.clone());
-                    Some(effective_rating_for_assignment(player, &slot))
-                })
-                .collect();
-
-            if rated_players.is_empty() {
-                0.0
-            } else {
-                rated_players.iter().sum::<f64>() / rated_players.len() as f64
-            }
-        }
-        _ => {
-            let selected_players = game
-                .players
-                .iter()
-                .filter(|player| player.team_id.as_deref() == Some(team_id))
-                .collect::<Vec<_>>();
-
-            if selected_players.is_empty() {
-                0.0
-            } else {
-                selected_players
-                    .iter()
-                    .map(|player| natural_ovr(player))
-                    .sum::<f64>()
-                    / selected_players.len() as f64
-            }
-        }
-    }
 }
 
 #[cfg(test)]

@@ -4,12 +4,17 @@ import { describe, expect, it, vi } from "vitest";
 import type { GameStateData, ManagerData, PlayerData, TeamData } from "../../store/gameStore";
 import type { SeasonAwardsData } from "../../store/types";
 import AwardsCeremonyScreen from "./AwardsCeremonyScreen";
+import { createSeasonContext } from "../../test-utils/factories";
 
 vi.mock("react-i18next", () => ({
+  initReactI18next: { type: "3rdParty", init: () => undefined },
   useTranslation: () => ({
     t: (key: string, params?: Record<string, string | number>) => {
       if (key === "awardsCeremony.title") return "Awards Ceremony";
       if (key === "awardsCeremony.subtitle") return `Season ${params?.season} in ${params?.league}`;
+      if (key === "tournaments.competitions.firstDivision")
+        return `${params?.country} Erste Division`;
+      if (key === "nations.de") return "Deutschland";
       if (key === "awardsCeremony.managerOfSeason") return "Manager of the Season";
       if (key === "awardsCeremony.goldenBoot") return "Golden Boot";
       if (key === "awardsCeremony.playerOfYear") return "Player of the Year";
@@ -145,6 +150,7 @@ function createManager(overrides: Partial<ManagerData> = {}): ManagerData {
 
 function createGameState(): GameStateData {
   return {
+    season_context: createSeasonContext(),
     clock: {
       current_date: "2026-08-10T00:00:00Z",
       start_date: "2026-07-01T00:00:00Z",
@@ -214,6 +220,39 @@ describe("AwardsCeremonyScreen", () => {
     expect(screen.getAllByText("Manager of the Season").length).toBeGreaterThan(0);
     expect(screen.getByText("Jane Doe")).toBeInTheDocument();
     expect(screen.getAllByText("Victor Vale").length).toBeGreaterThan(0);
+  });
+
+  /**
+   * Given the awards of a season in a league stored under its English template name
+   * When the ceremony subtitle is drawn
+   * Then the league is named through the competition's name key and country, as every screen does.
+   */
+  it("names the league in the subtitle through its name key", () => {
+    const base = createGameState();
+    const gameState = {
+      ...base,
+      competitions: [
+        {
+          id: "league-de",
+          name: "Germany First Division",
+          name_key: "tournaments.competitions.firstDivision",
+          country_id: "DE",
+          season: 6,
+        },
+      ],
+    } as unknown as GameStateData;
+
+    render(
+      <AwardsCeremonyScreen
+        season={6}
+        leagueName="Germany First Division"
+        competitionId="league-de"
+        gameState={gameState}
+        awards={createAwards()}
+      />,
+    );
+
+    expect(screen.getByText("Season 6 in Deutschland Erste Division")).toBeInTheDocument();
   });
 
   it("routes winner interactions and renders ceremony actions", () => {

@@ -1,0 +1,391 @@
+import { fireEvent, render, screen, within } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
+
+import { DataTable, type DataTableColumn } from "./DataTable";
+
+vi.mock("react-i18next", () => ({
+  useTranslation: () => ({
+    t: (key: string, params?: Record<string, string>) =>
+      params?.name ? `${key}:${params.name}` : key,
+  }),
+}));
+
+interface Player {
+  id: string;
+  name: string;
+  age: number;
+  morale: number;
+  starter: boolean;
+}
+
+const PLAYERS: Player[] = [
+  { id: "p1", name: "Anderson", age: 31, morale: 72, starter: true },
+  { id: "p2", name: "Navarro", age: 33, morale: 55, starter: false },
+];
+
+const COLUMNS: DataTableColumn<Player>[] = [
+  { key: "name", header: "Name", cell: (p) => p.name, primary: true, sortable: true },
+  { key: "age", header: "Age", cell: (p) => p.age, numeric: true, sortable: true },
+  { key: "morale", header: "Morale", cell: (p) => p.morale, numeric: true, drawer: true },
+];
+
+function renderTable(props: Partial<Parameters<typeof DataTable<Player>>[0]> = {}) {
+  return render(
+    <DataTable
+      label="Squad"
+      columns={COLUMNS}
+      rows={PLAYERS}
+      rowKey={(p) => p.id}
+      rowName={(p) => p.name}
+      {...props}
+    />,
+  );
+}
+
+describe("DataTable", () => {
+  /**
+   * Given a column marked `wrap` and a club with a long name
+   * When the table is drawn
+   * Then that cell may wrap and break a long word, and so is not held to one line; a cell that
+   *      is not marked stays on one line. jsdom does no layout, so the classes are what is checked.
+   */
+  it("lets a wrap column's cells wrap and keeps every other cell on one line", () => {
+    renderTable({
+      columns: [{ ...COLUMNS[0], wrap: true }, COLUMNS[1]],
+      rows: [{ ...PLAYERS[0], name: "Northbridge Athletic Football Club" }],
+    });
+
+    const nameCell = screen.getByText("Northbridge Athletic Football Club").closest("td");
+    expect(nameCell).toHaveClass("whitespace-normal", "[overflow-wrap:anywhere]");
+    expect(nameCell).not.toHaveClass("whitespace-nowrap");
+    expect(screen.getByText("31").closest("td")).toHaveClass("whitespace-nowrap");
+  });
+
+  /**
+   * Given a table to choose a row from, with one row chosen
+   * When it is drawn
+   * Then each row's open button says whether it is the chosen one (`aria-pressed`), so the choice
+   *      is not a colour alone; a table that does not choose sets no `aria-pressed`.
+   */
+  it("says which row is chosen from its open button", () => {
+    renderTable({ onOpen: vi.fn(), rowPressed: (player) => player.id === "p2" });
+
+    expect(screen.getByRole("button", { name: "Navarro" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: "Anderson" })).toHaveAttribute(
+      "aria-pressed",
+      "false",
+    );
+  });
+
+  it("sets no aria-pressed on a table that does not choose", () => {
+    renderTable({ onOpen: vi.fn() });
+
+    expect(screen.getByRole("button", { name: "Anderson" })).not.toHaveAttribute("aria-pressed");
+  });
+
+  /**
+   * Given a table whose cells carry text only a screen reader reads (a starter's "Starting XI" on
+   *       Squad's names, the action column's header), which `sr-only` places absolutely
+   * When the table is drawn
+   * Then its scrolling box is the positioned box that text sits in, so it stays inside the table
+   *      rather than stretching the page: Squad's table grew a 1280×800 page to 1237px. jsdom does
+   *      no layout, so the class is what can be checked here.
+   */
+  it("is the positioned box its screen-reader-only text sits in", () => {
+    renderTable();
+    const scroller = screen.getByRole("table", { name: "Squad" }).parentElement;
+    expect(scroller).toHaveClass("relative", "overflow-x-auto");
+  });
+
+  /**
+   * Given a list of players
+   * When it is drawn as a table
+   * Then it is a table named for the list, with a header per column and a row per player.
+   */
+  it("is a named table with a header per column and a row per item", () => {
+    renderTable();
+    const table = screen.getByRole("table", { name: "Squad" });
+    expect(
+      within(table)
+        .getAllByRole("columnheader")
+        .map((th) => th.textContent),
+    ).toEqual(expect.arrayContaining(["Name", "Age", "Morale"]));
+    expect(within(table).getByRole("row", { name: /Anderson/ })).toBeInTheDocument();
+    expect(within(table).getByRole("row", { name: /Navarro/ })).toBeInTheDocument();
+  });
+
+  /**
+   * Given the list sorted by age, oldest first
+   * When a screen reader reads the headers
+   * Then the age header says it is sorted descending, and the other headers carry no sort.
+   */
+  it("says which column it is sorted by, on that column's header", () => {
+    renderTable({ sort: { key: "age", direction: "desc" }, onSortChange: vi.fn() });
+    expect(screen.getByRole("columnheader", { name: "Age" })).toHaveAttribute(
+      "aria-sort",
+      "descending",
+    );
+    expect(screen.getByRole("columnheader", { name: "Name" })).not.toHaveAttribute("aria-sort");
+  });
+
+  /**
+   * Given a sortable column and one that isn't
+   * When the player presses the sortable header
+   * Then the table asks to sort by it (it never sorts the rows itself); the other header is no
+   * button at all.
+   */
+  it("asks to sort by a sortable column, and offers no button on the others", () => {
+    const onSortChange = vi.fn();
+    renderTable({ sort: { key: "name", direction: "asc" }, onSortChange });
+    fireEvent.click(
+      within(screen.getByRole("columnheader", { name: "Age" })).getByRole("button", {
+        name: "Age",
+      }),
+    );
+    expect(onSortChange).toHaveBeenCalledWith("age");
+    expect(
+      within(screen.getByRole("columnheader", { name: "Morale" })).queryByRole("button"),
+    ).toBeNull();
+  });
+
+  /**
+   * Given a sortable header and one that is not
+   * When their padding is read
+   * Then the sortable header's padding is on its button, which fills the cell, so a click in the
+   *      cell's padding sorts (jsdom has no layout to click on); the other header keeps its own.
+   *      The padding is not on both, which would double it.
+   */
+  it("gives a sortable header's padding to its button, so the whole cell sorts", () => {
+    renderTable({ sort: { key: "name", direction: "asc" }, onSortChange: vi.fn() });
+
+    const age = screen.getByRole("columnheader", { name: "Age" });
+    expect(age.className).not.toMatch(/(?:^|\s)(?:first:)?p[xl]-/);
+    expect(within(age).getByRole("button", { name: "Age" })).toHaveClass("w-full", "px-2", "h-8");
+
+    const morale = screen.getByRole("columnheader", { name: "Morale" });
+    expect(morale).toHaveClass("px-2");
+  });
+
+  /**
+   * Given the first column of a table, sortable
+   * When its header is read
+   * Then its button keeps the wider left padding the first cell has, so the names line up.
+   */
+  it("keeps the first sortable header's wider left padding on its button", () => {
+    renderTable({ sort: { key: "name", direction: "asc" }, onSortChange: vi.fn() });
+
+    const name = screen.getByRole("columnheader", { name: "Name" });
+    expect(within(name).getByRole("button", { name: "Name" })).toHaveClass("pl-3.5");
+  });
+
+  /**
+   * Given rows that open a profile
+   * When the player activates a row's name (a click, or Enter on it) or clicks elsewhere on the row
+   * Then that row is opened; a control in the row's action cell does its own job without opening
+   * the row.
+   */
+  it("opens a row from its name or the row, but not from the row's own action", () => {
+    const onOpen = vi.fn();
+    const onMenu = vi.fn();
+    renderTable({
+      onOpen,
+      rowAction: {
+        header: "Actions",
+        cell: (p) => (
+          <button type="button" onClick={() => onMenu(p.id)}>
+            Menu for {p.name}
+          </button>
+        ),
+      },
+    });
+    expect(screen.getByRole("columnheader", { name: "Actions" })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Anderson" }));
+    expect(onOpen).toHaveBeenLastCalledWith(PLAYERS[0]);
+
+    const navarro = screen.getByRole("row", { name: /Navarro/ });
+    fireEvent.click(within(navarro).getByText("33"));
+    expect(onOpen).toHaveBeenLastCalledWith(PLAYERS[1]);
+
+    onOpen.mockClear();
+    fireEvent.click(screen.getByRole("button", { name: "Menu for Navarro" }));
+    expect(onMenu).toHaveBeenCalledWith("p2");
+    expect(onOpen).not.toHaveBeenCalled();
+
+    // The action cell's own padding, around its control, is the action's too.
+    const actionCell = screen.getByRole("button", { name: "Menu for Navarro" }).closest("td");
+    fireEvent.click(actionCell as HTMLElement);
+    expect(onOpen).not.toHaveBeenCalled();
+  });
+
+  /** Given rows that open nothing, then a row's name is plain text, not a button. */
+  it("draws no open button when rows open nothing", () => {
+    renderTable();
+    expect(screen.queryByRole("button", { name: "Anderson" })).toBeNull();
+    expect(screen.getByText("Anderson")).toBeInTheDocument();
+  });
+
+  /**
+   * Given columns that fold away in a narrow window
+   * When the player opens a row's details
+   * Then the details button says whose they are and whether they are open, and the details show
+   * each folded column's name and value.
+   */
+  it("shows the folded columns in a row's details", () => {
+    renderTable();
+    const toggle = screen.getByRole("button", { name: "common.detailsFor:Anderson" });
+    expect(toggle).toHaveAttribute("aria-expanded", "false");
+    // What the toggle controls exists while closed too, hidden.
+    const closed = document.getElementById(toggle.getAttribute("aria-controls") ?? "");
+    expect(closed).not.toBeNull();
+    expect(closed).not.toBeVisible();
+
+    fireEvent.click(toggle);
+
+    expect(toggle).toHaveAttribute("aria-expanded", "true");
+    const details = document.getElementById(toggle.getAttribute("aria-controls") ?? "");
+    expect(details).not.toBeNull();
+    expect(details).toHaveTextContent("Morale");
+    expect(details).toHaveTextContent("72");
+  });
+
+  /**
+   * Given a table whose columns name none as primary (or whose primary column folds away)
+   * When it is drawn with rows that open and a folded column
+   * Then its first column that never folds holds the open button and the details toggle, so a
+   * keyboard can still open a row and reach the folded column.
+   */
+  it("puts the open button and details in the first unfolded column when none is primary", () => {
+    const onOpen = vi.fn();
+    const columns: DataTableColumn<Player>[] = [
+      { key: "name", header: "Name", cell: (p) => p.name },
+      { key: "age", header: "Age", cell: (p) => p.age, numeric: true },
+      { key: "morale", header: "Morale", cell: (p) => p.morale, numeric: true, drawer: true },
+    ];
+    renderTable({ columns, onOpen });
+
+    fireEvent.click(screen.getByRole("button", { name: "Anderson" }));
+    expect(onOpen).toHaveBeenCalledWith(PLAYERS[0]);
+    expect(screen.getByRole("button", { name: "common.detailsFor:Anderson" })).toBeInTheDocument();
+  });
+
+  /** Given no folded columns, then rows have no details button. */
+  it("offers no details without folded columns", () => {
+    renderTable({ columns: COLUMNS.map((column) => ({ ...column, drawer: false })) });
+    expect(screen.queryByRole("button", { name: /common.detailsFor/ })).toBeNull();
+  });
+
+  /**
+   * Given no rows
+   * When the table is drawn
+   * Then the headers stay, and the empty message says there is nothing to show.
+   */
+  it("says when there is nothing to show", () => {
+    renderTable({ rows: [], empty: "No players match" });
+    expect(screen.getAllByRole("columnheader").length).toBeGreaterThan(0);
+    expect(screen.getByText("No players match")).toBeInTheDocument();
+  });
+
+  /** Given rows still loading, then the table says it is busy and shows the loading word. */
+  it("says it is busy while loading", () => {
+    renderTable({ rows: [], loading: true });
+    expect(screen.getByRole("table", { name: "Squad" })).toHaveAttribute("aria-busy", "true");
+    expect(screen.getByText("common.loading")).toBeInTheDocument();
+  });
+
+  /**
+   * Given rows with a menu
+   * When the player right-clicks a row
+   * Then the table hands that row and the pointer's place to the menu, and the browser's own menu
+   * stays shut; without a handler, the browser's menu is left alone.
+   */
+  it("hands a right-click on a row to the row's menu", () => {
+    const onRowContextMenu = vi.fn();
+    renderTable({ onRowContextMenu });
+    const navarro = screen.getByRole("row", { name: /Navarro/ });
+    const event = new MouseEvent("contextmenu", { bubbles: true, cancelable: true, clientX: 40 });
+    within(navarro).getByText("33").dispatchEvent(event);
+    expect(onRowContextMenu).toHaveBeenCalledTimes(1);
+    expect(onRowContextMenu.mock.calls[0][0]).toBe(PLAYERS[1]);
+    expect(onRowContextMenu.mock.calls[0][1]).toMatchObject({ clientX: 40 });
+    expect(event.defaultPrevented).toBe(true);
+  });
+
+  /** Given no menu handler, then a right-click is the browser's. */
+  it("leaves a right-click alone when rows have no menu", () => {
+    renderTable();
+    const event = new MouseEvent("contextmenu", { bubbles: true, cancelable: true });
+    within(screen.getByRole("row", { name: /Navarro/ }))
+      .getByText("33")
+      .dispatchEvent(event);
+    expect(event.defaultPrevented).toBe(false);
+  });
+
+  /**
+   * Given a table whose every column asks to fold away in a narrow window
+   * When it is drawn
+   * Then the first column stays: it still holds the row's open button and its details toggle, so a
+   * narrow table never hides a row with no way to reach it.
+   */
+  it("keeps the first column when every column asks to fold", () => {
+    const allFolding = COLUMNS.map((column) => ({ ...column, primary: false, drawer: true }));
+    renderTable({ columns: allFolding, onOpen: vi.fn() });
+    const nameButton = screen.getByRole("button", { name: "Anderson" });
+    expect(nameButton.closest("td")).not.toHaveClass("@max-3xl:hidden");
+    expect(screen.getByRole("button", { name: "common.detailsFor:Anderson" })).toBeInTheDocument();
+    // The first column is in the row, so its details hold only the others.
+    const details = document.getElementById(
+      screen
+        .getByRole("button", { name: "common.detailsFor:Anderson" })
+        .getAttribute("aria-controls") ?? "",
+    );
+    expect(within(details as HTMLElement).queryByText("Name")).not.toBeInTheDocument();
+    expect(within(details as HTMLElement).getByText("Age")).toBeInTheDocument();
+  });
+
+  /**
+   * Given rows with an accent and a first column that asks to fold
+   * When the table is narrow
+   * Then the first column stays, so the accent on its edge never folds away with it.
+   */
+  it("keeps the accented first column when it asks to fold", () => {
+    const firstFolds = [{ ...COLUMNS[1], drawer: true }, COLUMNS[0], COLUMNS[2]];
+    renderTable({ columns: firstFolds, rowAccent: (p) => (p.starter ? "selected" : null) });
+    const firstCell = within(screen.getByRole("row", { name: /Anderson/ })).getByText("31");
+    expect(firstCell.closest("td")).toHaveClass("border-l-selected");
+    expect(firstCell.closest("td")).not.toHaveClass("@max-3xl:hidden");
+    expect(screen.getByRole("columnheader", { name: "Age" })).not.toHaveClass("@max-3xl:hidden");
+  });
+
+  /**
+   * Given starters, then their rows carry the starter accent, and the others don't. The edge is
+   * the selected role (a chosen row is never "positive", maintainer 28 Oct), in its text strength.
+   */
+  it("marks a row with its accent", () => {
+    renderTable({ rowAccent: (p) => (p.starter ? "selected" : null) });
+    expect(screen.getByRole("row", { name: /Anderson/ })).toHaveAttribute(
+      "data-accent",
+      "selected",
+    );
+    expect(screen.getByRole("row", { name: /Navarro/ })).not.toHaveAttribute("data-accent");
+    const edge = within(screen.getByRole("row", { name: /Anderson/ })).getAllByRole("cell")[0];
+    expect(edge).toHaveClass("border-l-selected");
+    expect(edge).not.toHaveClass("border-l-positive");
+  });
+
+  /**
+   * Given a name cell with something beside the name (a flag, an injury badge)
+   * When the table is drawn with rows that open
+   * Then that sits beside the row's open button, not inside it, so a screen reader still reads it.
+   */
+  it("draws the name's aside beside its open button", () => {
+    renderTable({
+      onOpen: vi.fn(),
+      primaryAside: (p) => <span role="img" aria-label={`Flag of ${p.name}`} />,
+    });
+    const row = screen.getByRole("row", { name: /Anderson/ });
+    const flag = within(row).getByRole("img", { name: "Flag of Anderson" });
+    expect(flag.closest("button")).toBeNull();
+    expect(within(row).getByRole("button", { name: "Anderson" })).toBeInTheDocument();
+  });
+});

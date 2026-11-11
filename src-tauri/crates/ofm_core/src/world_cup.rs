@@ -3,17 +3,28 @@
 //! from the strongest national pools in the world; nations without enough
 //! players get squads synthesised as free agents, so any world can stage it.
 
+mod daily_policy;
+mod playoffs;
+pub(crate) use daily_policy::after_matches as apply_world_cup_match_policies;
+pub use daily_policy::world_cup_champion;
+#[cfg(test)]
+use playoffs::playoff_winners_of;
+pub(crate) use playoffs::stage_world_cup_playoff_if_ready;
+use playoffs::{
+    announce_inter_confed_playoff, decided_playoff_winners, resolve_inter_confed_playoff,
+};
+
 use std::collections::{BTreeMap, HashMap};
 
 use chrono::{DateTime, Datelike, Utc};
 use domain::league::{
     CompetitionFormat, CompetitionScope, CompetitionType, FixtureCompetition, FixtureStatus,
-    GroupState, League, MatchResult, StandingEntry,
+    GroupState, League, StandingEntry,
 };
-use domain::message::{InboxMessage, MessageCategory, MessagePriority};
 use domain::national_team::NationalTeam;
 use domain::news::{NewsArticle, NewsCategory};
-use domain::world_history::{WorldCupChampionRecord, WorldCupHostRecord};
+#[cfg(test)]
+use domain::world_history::WorldCupHostRecord;
 use rand::seq::SliceRandom;
 use rand::{Rng, RngExt};
 
@@ -71,6 +82,36 @@ pub fn is_world_cup_summer(year: i32) -> bool {
 pub fn is_world_cup_competition(competition: &League) -> bool {
     competition.kind == CompetitionType::InternationalNation
         && competition.scope == CompetitionScope::International
+}
+
+/// The finals' planned last day, including knockout rounds not yet drawn. Actual round dates
+/// take precedence as they appear, so postponements update the reservation.
+pub(crate) fn finals_period(cup: &League) -> Option<(chrono::NaiveDate, chrono::NaiveDate)> {
+    if !is_world_cup_competition(cup) || is_world_cup_qualifying(cup) || is_world_cup_playoff(cup) {
+        return None;
+    }
+    let dates: Vec<_> = cup
+        .fixtures
+        .iter()
+        .filter_map(|f| chrono::NaiveDate::parse_from_str(&f.date, "%Y-%m-%d").ok())
+        .collect();
+    let first = *dates.iter().min()?;
+    let mut last = *dates.iter().max()?;
+    let mut entrants = match cup.knockout_rounds.last() {
+        Some(round) => round.fixture_ids.len() + round.bye_team_ids.len(),
+        None => crate::group_stage::knockout_qualifiers(cup).len(),
+    };
+    while entrants >= 2 {
+        let (byes, ties, days) =
+            crate::schedule::knockout_round_shape(entrants, cup.rules.knockout_matches_per_day)?;
+        if ties == 0 || days == 0 {
+            break;
+        }
+        let offset = i64::from(cup.rules.knockout_round_gap_days) + i64::try_from(days - 1).ok()?;
+        last = last.checked_add_signed(chrono::Duration::days(offset))?;
+        entrants = byes + ties;
+    }
+    Some((first, last))
 }
 
 /// Player OVRs per nation, strongest first.
@@ -278,6 +319,13 @@ fn group_admits(group: &[String], code: &str, regions: &HashMap<String, String>)
 /// Place each team of one pot into a distinct group (one per group) without
 /// breaching the confederation cap, by backtracking. Returns whether it found a
 /// full assignment.
+///
+/// A team is only placed when the groups after it can still each take one of the teams left,
+/// so the search never backs out of a dead end it could have seen coming. That used to be
+/// unbounded: a pot the caps cannot place was searched through every order the earlier groups
+/// allow, up to g! for g groups (12! is about 4.8 × 10⁸ for a 48-team field), on each of the
+/// draw's 64 reshuffles. The check only prunes branches with no complete placement, so the
+/// placement found is the one the full search found, and a seed draws the same groups.
 fn place_pot(
     pot: &[String],
     used: &mut [bool],
@@ -292,13 +340,71 @@ fn place_pot(
         if used[i] || !group_admits(&groups[group_index], code, regions) {
             continue;
         }
-        groups[group_index].push(code.clone());
         used[i] = true;
-        if place_pot(pot, used, group_index + 1, groups, regions) {
-            return true;
+        if can_fill_groups_from(pot, used, group_index + 1, groups, regions) {
+            groups[group_index].push(code.clone());
+            if place_pot(pot, used, group_index + 1, groups, regions) {
+                return true;
+            }
+            groups[group_index].pop();
         }
         used[i] = false;
-        groups[group_index].pop();
+    }
+    false
+}
+
+/// Whether the pot's unused teams can fill every group from `first_group` on, one team each,
+/// within the cap: a perfect matching between those groups and those teams. Each group takes
+/// exactly one team from a pot, so whether a team fits a group depends only on what the group
+/// already holds, and Kuhn's augmenting paths decide it in polynomial time.
+fn can_fill_groups_from(
+    pot: &[String],
+    used: &[bool],
+    first_group: usize,
+    groups: &[Vec<String>],
+    regions: &HashMap<String, String>,
+) -> bool {
+    let open_groups: Vec<usize> = (first_group..groups.len()).collect();
+    let free_teams: Vec<usize> = (0..pot.len()).filter(|&team| !used[team]).collect();
+    if free_teams.len() < open_groups.len() {
+        return false;
+    }
+    let fits: Vec<Vec<usize>> = open_groups
+        .iter()
+        .map(|&group| {
+            (0..free_teams.len())
+                .filter(|&slot| group_admits(&groups[group], &pot[free_teams[slot]], regions))
+                .collect()
+        })
+        .collect();
+    let mut team_taken_by: Vec<Option<usize>> = vec![None; free_teams.len()];
+    (0..open_groups.len()).all(|group| {
+        let mut visited = vec![false; free_teams.len()];
+        claim_a_team(group, &fits, &mut team_taken_by, &mut visited)
+    })
+}
+
+/// Kuhn's augmenting step: give `group` a team that fits it, moving the team's current group
+/// to another fitting team if it has one.
+fn claim_a_team(
+    group: usize,
+    fits: &[Vec<usize>],
+    team_taken_by: &mut [Option<usize>],
+    visited: &mut [bool],
+) -> bool {
+    for &team in &fits[group] {
+        if visited[team] {
+            continue;
+        }
+        visited[team] = true;
+        let reassigned = match team_taken_by[team] {
+            None => true,
+            Some(holder) => claim_a_team(holder, fits, team_taken_by, visited),
+        };
+        if reassigned {
+            team_taken_by[team] = Some(group);
+            return true;
+        }
     }
     false
 }
@@ -1148,307 +1254,6 @@ fn rank_confederation_finishers(groups: &[Vec<StandingEntry>]) -> Vec<String> {
     finishers
 }
 
-/// Resolve a single playoff tie through the national-team knockout engine
-/// (regulation → extra time → penalties); returns the advancing nation code.
-fn play_playoff_tie(game: &mut Game, home: &str, away: &str, rng: &mut impl Rng) -> String {
-    let home_id = national_team_id_for(game, home);
-    let away_id = national_team_id_for(game, away);
-    let (home_goals, away_goals, _, _, home_pens, away_pens) =
-        crate::national_team::play_national_knockout_match(game, &home_id, &away_id, rng);
-    let home_advances = if home_goals != away_goals {
-        home_goals > away_goals
-    } else {
-        home_pens.unwrap_or(0) >= away_pens.unwrap_or(0)
-    };
-    if home_advances {
-        home.to_string()
-    } else {
-        away.to_string()
-    }
-}
-
-/// The inter-confederation playoff: `entrants` (ranking order) contest the final
-/// [`INTER_CONFED_PLAYOFF_SPOTS`] berths. The top seeds bye to the finals; the
-/// rest play a preliminary round; the final winners qualify.
-fn resolve_inter_confed_playoff(
-    game: &mut Game,
-    entrants: &[String],
-    rng: &mut impl Rng,
-) -> Vec<String> {
-    let spots = INTER_CONFED_PLAYOFF_SPOTS;
-    if entrants.len() <= spots {
-        return entrants.to_vec();
-    }
-    let ranked = ranked_field(game, entrants);
-    let seeds: Vec<String> = ranked.iter().take(spots).cloned().collect();
-    let rest: Vec<String> = ranked.iter().skip(spots).cloned().collect();
-
-    // Preliminary round: strongest of the rest against weakest.
-    let mut prelim_winners: Vec<String> = Vec::new();
-    let half = rest.len() / 2;
-    for i in 0..half {
-        prelim_winners.push(play_playoff_tie(
-            game,
-            &rest[i],
-            &rest[rest.len() - 1 - i],
-            rng,
-        ));
-    }
-    if rest.len() % 2 == 1 {
-        prelim_winners.push(rest[half].clone());
-    }
-
-    // Finals: each seed faces a preliminary winner.
-    let mut qualifiers: Vec<String> = Vec::new();
-    for (index, seed) in seeds.iter().enumerate() {
-        match prelim_winners.get(index) {
-            Some(opponent) => qualifiers.push(play_playoff_tie(game, seed, opponent, rng)),
-            None => qualifiers.push(seed.clone()),
-        }
-    }
-    qualifiers.truncate(spots);
-    qualifiers
-}
-
-/// Announce the inter-confederation playoff qualifiers to the world.
-fn announce_inter_confed_playoff(game: &mut Game, year: u32, winners: &[String]) {
-    if winners.is_empty() {
-        return;
-    }
-    let news_id = format!("world_cup_playoff_{year}");
-    if game.news.iter().any(|article| article.id == news_id) {
-        return;
-    }
-    let mut params = std::collections::HashMap::new();
-    params.insert("year".to_string(), year.to_string());
-    let names: Vec<String> = winners
-        .iter()
-        .map(|code| nations::nation_display_name(code))
-        .collect();
-    params.insert("nations".to_string(), names.join(", "));
-    let date = game.clock.current_date.format("%Y-%m-%d").to_string();
-    game.news.push(
-        NewsArticle::new(
-            news_id,
-            String::new(),
-            String::new(),
-            String::new(),
-            date,
-            NewsCategory::Editorial,
-        )
-        .with_i18n(
-            "be.news.worldCupPlayoff.headline",
-            "be.news.worldCupPlayoff.body",
-            "be.source.footballHerald",
-            params,
-        ),
-    );
-}
-
-/// The playoff's two qualifiers (nation codes), once its finals round — two
-/// parallel ties, no byes — has been played. `None` while it is undecided.
-fn playoff_winners_of(cup: &League) -> Option<Vec<String>> {
-    if cup.knockout_rounds.len() < 2 {
-        return None;
-    }
-    let finals = cup.knockout_rounds.last()?;
-    if !finals.completed || !finals.bye_team_ids.is_empty() {
-        return None;
-    }
-    let mut winners = Vec::new();
-    for fixture_id in &finals.fixture_ids {
-        let fixture = cup
-            .fixtures
-            .iter()
-            .find(|fixture| &fixture.id == fixture_id)?;
-        winners.push(nation_code_of_national_team(fixture.advancing_team_id()?));
-    }
-    (winners.len() == INTER_CONFED_PLAYOFF_SPOTS).then_some(winners)
-}
-
-/// The qualifiers of `year`'s inter-confederation playoff competition, when it
-/// was staged and has been decided.
-fn decided_playoff_winners(game: &Game, year: u32) -> Option<Vec<String>> {
-    let cup = game
-        .competitions
-        .iter()
-        .find(|competition| is_world_cup_playoff(competition) && competition.season == year)?;
-    playoff_winners_of(cup)
-}
-
-/// Advance the inter-confederation playoff once its current round is fully
-/// played. Unlike a standard bracket it crowns no single champion: completing
-/// the preliminaries seeds two parallel finals — each bye seed against a
-/// preliminary winner, the top seed meeting the winner of the weaker-seeded
-/// tie — and completing the finals simply decides the two berths, with no
-/// further round.
-fn advance_world_cup_playoff(cup: &mut League) {
-    let rounds_before = cup.knockout_rounds.len();
-    crate::schedule::advance_knockout_round_with(cup, |winners, seeds| {
-        if seeds.is_empty() {
-            return None; // the finals: berths decided, the bracket ends here
-        }
-        let mut order: Vec<String> = Vec::new();
-        for (seed, winner) in seeds.iter().zip(winners.iter().rev()) {
-            order.push(seed.clone());
-            order.push(winner.clone());
-        }
-        (!order.is_empty()).then_some(order)
-    });
-    // The freshly seeded round is the pair of parallel finals.
-    if cup.knockout_rounds.len() > rounds_before
-        && let Some(finals) = cup.knockout_rounds.last_mut()
-    {
-        finals.name = "Final".to_string();
-    }
-}
-
-/// Stage the inter-confederation playoff as a real, visible knockout in the
-/// campaign's final international window once every qualifying group has
-/// finished. Only a full campaign gets one — it completes in the March window
-/// with the June window free — and only in the real six-entrant shape (two
-/// seeds bye to the finals, four contest the preliminaries); a compressed
-/// campaign, or a degenerate world, resolves its playoff synthetically at the
-/// rollover instead.
-fn stage_world_cup_playoff_if_ready(game: &mut Game, today: &str) {
-    // The cheap gates run first: this is called on every day that simulates a
-    // qualifying fixture, and sorting every group's standings below is only
-    // worth it once the campaign has actually finished.
-    if game.competitions.iter().any(is_world_cup_playoff) {
-        return;
-    }
-    let Some(year) = game
-        .competitions
-        .iter()
-        .find(|competition| is_world_cup_qualifying(competition))
-        .map(|competition| competition.season)
-    else {
-        return;
-    };
-    let all_played = game
-        .competitions
-        .iter()
-        .filter(|competition| is_world_cup_qualifying(competition))
-        .all(|competition| {
-            competition
-                .fixtures
-                .iter()
-                .all(|fixture| fixture.status != FixtureStatus::Scheduled)
-        });
-    if !all_played {
-        return;
-    }
-    // The playoff owns the campaign's last window (June of the cup year); a
-    // campaign still running by then has no room for a scheduled bracket.
-    let Some(playoff_date) = season_window_dates(year as i32 - 1).pop() else {
-        return;
-    };
-    if today >= playoff_date.as_str() {
-        return;
-    }
-    let Some((year, groups_by_confed, entrants_by_confed)) =
-        qualifying_groups_by_confederation(game)
-    else {
-        return;
-    };
-    // Quotas and the playoff only exist at 48-team scale.
-    if entrants_by_confed.values().sum::<usize>() < FORMAT_48.field {
-        return;
-    }
-
-    let host = host_for_year(game, year as i32);
-    let outcome = split_qualifying_outcome(
-        game,
-        &groups_by_confed,
-        &entrants_by_confed,
-        host.as_deref(),
-    );
-    let ranked = ranked_field(game, &outcome.playoff_entrants);
-    if ranked.len() != INTER_CONFED_PLAYOFF_SPOTS + 4 {
-        return;
-    }
-    let entrant_ids: Vec<String> = {
-        let seeds = &ranked[..INTER_CONFED_PLAYOFF_SPOTS];
-        let rest = &ranked[INTER_CONFED_PLAYOFF_SPOTS..];
-        // Seeds first (they bye to the finals), then the preliminaries pair
-        // the strongest of the rest against the weakest.
-        let order = [
-            seeds[0].clone(),
-            seeds[1].clone(),
-            rest[0].clone(),
-            rest[3].clone(),
-            rest[1].clone(),
-            rest[2].clone(),
-        ];
-        order
-            .iter()
-            .map(|code| national_team_id_for(game, code))
-            .collect()
-    };
-
-    let competition_id = format!("{PLAYOFF_COMPETITION_PREFIX}{year}");
-    let mut cup = League::new(
-        competition_id.clone(),
-        format!("World Cup Play-off {year}"),
-        year,
-        &[],
-    );
-    cup.kind = CompetitionType::InternationalNation;
-    cup.scope = CompetitionScope::International;
-    cup.rules.format = CompetitionFormat::Knockout;
-    cup.rules.knockout_round_gap_days = KNOCKOUT_GAP_DAYS;
-    cup.rules.knockout_matches_per_day = 2;
-    cup.standings.clear();
-    cup.priority = 9_500;
-    cup.name_key = Some("tournaments.competitions.worldCupPlayoff".to_string());
-    cup.participant_ids = entrant_ids.clone();
-
-    let prelim_start = crate::schedule::date_str_to_utc(&playoff_date).unwrap_or_else(Utc::now);
-    crate::schedule::seed_knockout_round(
-        &mut cup,
-        &entrant_ids,
-        prelim_start,
-        FixtureCompetition::InternationalNation,
-    );
-    if let Some(preliminaries) = cup.knockout_rounds.last_mut() {
-        preliminaries.name = "Semifinal".to_string();
-    }
-
-    crate::calendar_identity::ensure_competition_calendar(&mut cup);
-    game.competitions.push(cup);
-    if !game.active_competition_ids.is_empty() {
-        game.active_competition_ids.push(competition_id);
-    }
-
-    // News: the playoff line-up is set.
-    let news_id = format!("world_cup_playoff_draw_{year}");
-    if !game.news.iter().any(|article| article.id == news_id) {
-        let mut params = std::collections::HashMap::new();
-        params.insert("year".to_string(), year.to_string());
-        let names: Vec<String> = ranked
-            .iter()
-            .map(|code| nations::nation_display_name(code))
-            .collect();
-        params.insert("nations".to_string(), names.join(", "));
-        game.news.push(
-            NewsArticle::new(
-                news_id,
-                String::new(),
-                String::new(),
-                String::new(),
-                today.to_string(),
-                NewsCategory::Editorial,
-            )
-            .with_i18n(
-                "be.news.worldCupPlayoffDraw.headline",
-                "be.news.worldCupPlayoffDraw.body",
-                "be.source.footballHerald",
-                params,
-            ),
-        );
-    }
-}
-
 /// Fast-forward every World Cup qualifying and playoff fixture still scheduled
 /// when the cup-summer rollover arrives. Club seasons can finish in mid-May,
 /// before the campaign's June dates play out, and the finals field must be
@@ -1649,316 +1454,19 @@ pub fn qualified_field_from_game(
     Some(field)
 }
 
-/// Simulate every World Cup fixture due on `today` with the national-team
-/// engine (carry-back included), progressing groups and knockout rounds, and
-/// announcing the champion when the final is decided. Returns the number of
-/// fixtures simulated.
+/// Play only World Cup fixtures. Qualifying catch-up uses this scoped adapter; the daily
+/// world and load repair use the shared processor for every national tournament instead.
 pub fn process_world_cup_fixtures_due(game: &mut Game, today: &str) -> usize {
-    let competition_indices: Vec<usize> = game
-        .competitions
-        .iter()
-        .enumerate()
-        .filter(|(_, competition)| is_world_cup_competition(competition))
-        .map(|(index, _)| index)
-        .collect();
-
-    let mut simulated = 0;
-    for competition_index in competition_indices {
-        let due: Vec<usize> = game.competitions[competition_index]
-            .fixtures
-            .iter()
-            .enumerate()
-            .filter(|(_, fixture)| {
-                fixture.date == today && fixture.status == FixtureStatus::Scheduled
-            })
-            .map(|(fixture_index, _)| fixture_index)
-            .collect();
-
-        // A champion is crowned by a result, so the announcement belongs to the
-        // day a fixture was played. Re-deriving it on every other day of the
-        // eleven months the tournament lingers in `competitions` is what made
-        // the announcement re-fire the moment its message left the inbox.
-        let played_today = !due.is_empty();
-
-        for fixture_index in due {
-            let (home_id, away_id, fixture_id) = {
-                let fixture = &game.competitions[competition_index].fixtures[fixture_index];
-                (
-                    fixture.home_team_id.clone(),
-                    fixture.away_team_id.clone(),
-                    fixture.id.clone(),
-                )
-            };
-            // The tie's own stream, named by its two sides like every other match stage, so
-            // what a tie does never depends on which other ties were played before it that day.
-            let mut rng = game.rng_for(&format!("world-cup/{home_id}/{away_id}"), today);
-            // Knockout ties must produce a winner: extra time, then penalties.
-            let is_knockout = game.competitions[competition_index]
-                .knockout_rounds
-                .iter()
-                .any(|round| round.fixture_ids.contains(&fixture_id));
-            let (
-                home_goals,
-                away_goals,
-                home_scorers,
-                away_scorers,
-                home_penalties,
-                away_penalties,
-            ) = if is_knockout {
-                crate::national_team::play_national_knockout_match(
-                    game, &home_id, &away_id, &mut rng,
-                )
-            } else {
-                let (home_goals, away_goals, home_scorers, away_scorers) =
-                    crate::national_team::play_national_match(game, &home_id, &away_id, &mut rng);
-                (
-                    home_goals,
-                    away_goals,
-                    home_scorers,
-                    away_scorers,
-                    None,
-                    None,
-                )
-            };
-
-            let competition = &mut game.competitions[competition_index];
-            let fixture = &mut competition.fixtures[fixture_index];
-            fixture.status = FixtureStatus::Completed;
-            fixture.result = Some(MatchResult {
-                home_goals,
-                away_goals,
-                home_scorers,
-                away_scorers,
-                report: None,
-                home_penalties,
-                away_penalties,
-            });
-            crate::group_stage::process_completed_fixture(competition, fixture_index);
-            // The playoff bracket stops at two parallel finals instead of
-            // converging on a champion, so it advances through its own logic.
-            if is_world_cup_playoff(competition) {
-                advance_world_cup_playoff(competition);
-            } else {
-                crate::schedule::advance_knockout_competition_round(competition);
-            }
-            game.world_history.apply_national_result(
-                &nation_code_of_national_team(&home_id),
-                &nation_code_of_national_team(&away_id),
-                home_goals,
-                away_goals,
-                home_penalties.is_some(),
-            );
-            simulated += 1;
-        }
-
-        if !played_today {
-            continue;
-        }
-
-        // The next host is drawn once per tournament, from a stream of its own.
-        let mut host_rng = game.rng_for(
-            &format!("world-cup/host/{}", game.competitions[competition_index].id),
-            today,
-        );
-        announce_champion_if_decided(game, competition_index, today, &mut host_rng);
-        // The playoff's completion is news the moment its finals are played.
-        let competition = &game.competitions[competition_index];
-        if is_world_cup_playoff(competition)
-            && let Some(winners) = playoff_winners_of(competition)
-        {
-            let year = competition.season;
-            announce_inter_confed_playoff(game, year, &winners);
-        }
-    }
-
-    // A full campaign that just finished (all groups decided by the March
-    // window) stages the inter-confederation playoff in the free June window.
-    if simulated > 0 {
-        stage_world_cup_playoff_if_ready(game, today);
-    }
-    simulated
+    crate::national_tournament::process_selected_fixtures_due(game, today, is_world_cup_competition)
 }
 
-/// The tournament winner, once the final has been played.
-pub fn world_cup_champion(competition: &League) -> Option<String> {
-    let last_round = competition.knockout_rounds.last()?;
-    if !last_round.completed || last_round.fixture_ids.len() != 1 {
-        return None;
+/// The inter-confederation playoff has two parallel finals, rather than a single champion.
+pub(crate) fn advance_special_round(competition: &mut League) -> bool {
+    if !is_world_cup_competition(competition) || !is_world_cup_playoff(competition) {
+        return false;
     }
-    let final_fixture = competition
-        .fixtures
-        .iter()
-        .find(|fixture| last_round.fixture_ids.contains(&fixture.id))?;
-    let result = final_fixture.result.as_ref()?;
-    Some(if result.advancing_is_home() {
-        final_fixture.home_team_id.clone()
-    } else {
-        final_fixture.away_team_id.clone()
-    })
-}
-
-fn announce_champion_if_decided(
-    game: &mut Game,
-    competition_index: usize,
-    today: &str,
-    rng: &mut impl Rng,
-) {
-    let competition = &game.competitions[competition_index];
-    let Some(champion_id) = world_cup_champion(competition) else {
-        return;
-    };
-    let year = competition.season;
-    let msg_id = format!("world_cup_champion_{year}");
-    if crate::inbox::already_emitted(game, &msg_id) {
-        return;
-    }
-
-    let (nation, nation_code) = game
-        .national_teams
-        .iter()
-        .find(|team| team.id == champion_id)
-        .map(|team| (team.name.clone(), team.football_nation.clone()))
-        .unwrap_or((champion_id.clone(), String::new()));
-
-    // The game world's highest honour goes into the hall of fame.
-    game.world_history
-        .record_world_cup_champion(WorldCupChampionRecord {
-            year,
-            nation_code,
-            nation_name: nation.clone(),
-        });
-
-    let mut params = std::collections::HashMap::new();
-    params.insert("nation".to_string(), nation);
-    params.insert("year".to_string(), year.to_string());
-
-    let announcement_params = params.clone();
-    crate::inbox::emit_once(game, &msg_id, || {
-        InboxMessage::new(
-            msg_id.clone(),
-            String::new(),
-            String::new(),
-            String::new(),
-            today.to_string(),
-        )
-        .with_category(MessageCategory::LeagueInfo)
-        .with_priority(MessagePriority::High)
-        .with_sender_role("")
-        .with_i18n(
-            "be.msg.worldCupChampion.subject",
-            "be.msg.worldCupChampion.body",
-            announcement_params,
-        )
-        .with_sender_i18n("be.sender.intlLiaison", "be.role.intlLiaison")
-    });
-
-    // Front-page news for everyone, participant or not.
-    let news_id = format!("world_cup_champion_news_{year}");
-    if !game.news.iter().any(|article| article.id == news_id) {
-        game.news.push(
-            NewsArticle::new(
-                news_id,
-                String::new(),
-                String::new(),
-                String::new(),
-                today.to_string(),
-                NewsCategory::Editorial,
-            )
-            .with_i18n(
-                "be.news.worldCupChampion.headline",
-                "be.news.worldCupChampion.body",
-                "be.source.footballHerald",
-                params,
-            ),
-        );
-    }
-
-    // With the champion crowned, the bid race for a future edition is decided.
-    award_next_world_cup_host(game, year, today, rng);
-}
-
-/// After a World Cup ends, award the next edition whose host is not already
-/// known (real-world hosts stand for their years). A handful of strong nations
-/// that have not hosted recently form a shortlist; one is chosen at random.
-/// Both the bid race and the award make the news, and the host is stored so it
-/// auto-qualifies and is seeded into Pot 1 of that tournament's draw.
-fn award_next_world_cup_host(game: &mut Game, played_year: u32, today: &str, rng: &mut impl Rng) {
-    let next_year = played_year + 4;
-    if host_for_year(game, next_year as i32).is_some() {
-        return;
-    }
-    // Hosts used within the last ~24 years are off the table.
-    let mut recent: std::collections::HashSet<String> = std::collections::HashSet::new();
-    for year in next_year.saturating_sub(24)..next_year {
-        if let Some(code) = host_for_year(game, year as i32) {
-            recent.insert(code);
-        }
-    }
-    let candidates: Vec<String> = nations::NATION_CATALOG
-        .iter()
-        .map(|nation| nation.code.to_string())
-        .filter(|code| !recent.contains(code))
-        .collect();
-    let shortlist = ranked_field(game, &candidates);
-    if shortlist.is_empty() {
-        return;
-    }
-    let shortlist_len = shortlist.len().min(4);
-    let chosen = shortlist[rng.random_range(0..shortlist_len)].clone();
-    let nation_name = nations::nation_display_name(&chosen);
-
-    game.world_history
-        .record_world_cup_host(WorldCupHostRecord {
-            year: next_year,
-            nation_code: chosen,
-            nation_name: nation_name.clone(),
-        });
-
-    let bid_id = format!("world_cup_host_bid_{next_year}");
-    if !game.news.iter().any(|article| article.id == bid_id) {
-        let mut params = std::collections::HashMap::new();
-        params.insert("count".to_string(), shortlist_len.to_string());
-        params.insert("year".to_string(), next_year.to_string());
-        game.news.push(
-            NewsArticle::new(
-                bid_id,
-                String::new(),
-                String::new(),
-                String::new(),
-                today.to_string(),
-                NewsCategory::Editorial,
-            )
-            .with_i18n(
-                "be.news.worldCupHostBid.headline",
-                "be.news.worldCupHostBid.body",
-                "be.source.footballHerald",
-                params,
-            ),
-        );
-    }
-
-    let host_id = format!("world_cup_host_{next_year}");
-    if !game.news.iter().any(|article| article.id == host_id) {
-        let mut params = std::collections::HashMap::new();
-        params.insert("nation".to_string(), nation_name);
-        params.insert("year".to_string(), next_year.to_string());
-        game.news.push(
-            NewsArticle::new(
-                host_id,
-                String::new(),
-                String::new(),
-                String::new(),
-                today.to_string(),
-                NewsCategory::Editorial,
-            )
-            .with_i18n(
-                "be.news.worldCupHostChosen.headline",
-                "be.news.worldCupHostChosen.body",
-                "be.source.footballHerald",
-                params,
-            ),
-        );
-    }
+    playoffs::advance_world_cup_playoff(competition);
+    true
 }
 
 #[cfg(test)]
@@ -1984,6 +1492,90 @@ mod tests {
             "England".to_string(),
         );
         Game::new(clock, manager, vec![], vec![], vec![], vec![])
+    }
+
+    /// Given a World Cup group stage, when its first knockout round is drawn at the normal gap,
+    /// then the projected final day is unchanged for each supported finals format.
+    #[test]
+    fn finals_reservation_is_stable_when_the_bracket_is_drawn() {
+        for format in [&FORMAT_16, &FORMAT_32, &FORMAT_48] {
+            let mut game = empty_game();
+            schedule_world_cup(&mut game, kickoff(2030), format);
+            let cup = game
+                .competitions
+                .iter_mut()
+                .find(|c| is_world_cup_competition(c))
+                .unwrap();
+            let before = finals_period(cup).expect("the finals have dates");
+            let participants = crate::group_stage::knockout_qualifiers(cup);
+            assert!(participants.len() >= 2);
+            let last_group = cup.fixtures.iter().map(|f| f.date.as_str()).max().unwrap();
+            let next = crate::schedule::date_str_to_utc(last_group).unwrap()
+                + chrono::Duration::days(i64::from(cup.rules.knockout_round_gap_days));
+            crate::schedule::seed_knockout_round(
+                cup,
+                &participants,
+                next,
+                FixtureCompetition::InternationalNation,
+            );
+            assert_eq!(
+                finals_period(cup),
+                Some(before),
+                "field size {}",
+                format.field
+            );
+        }
+    }
+
+    /// Given a drawn first knockout round, when its latest tie is postponed, then the projected
+    /// final and the shared blackout both extend by the same delay.
+    #[test]
+    fn a_postponed_knockout_tie_extends_the_finals_blackout() {
+        let mut game = empty_game();
+        schedule_world_cup(&mut game, kickoff(2030), &FORMAT_48);
+        let cup = game
+            .competitions
+            .iter_mut()
+            .find(|c| is_world_cup_competition(c))
+            .unwrap();
+        let entrants = crate::group_stage::knockout_qualifiers(cup);
+        let last_group = cup.fixtures.iter().map(|f| f.date.as_str()).max().unwrap();
+        let first_round = crate::schedule::date_str_to_utc(last_group).unwrap()
+            + chrono::Duration::days(i64::from(cup.rules.knockout_round_gap_days));
+        crate::schedule::seed_knockout_round(
+            cup,
+            &entrants,
+            first_round,
+            FixtureCompetition::InternationalNation,
+        );
+        let initial = finals_period(cup).unwrap();
+        let last_id = cup
+            .knockout_rounds
+            .last()
+            .unwrap()
+            .fixture_ids
+            .iter()
+            .max_by_key(|id| {
+                cup.fixtures
+                    .iter()
+                    .find(|f| &f.id == *id)
+                    .unwrap()
+                    .date
+                    .clone()
+            })
+            .unwrap()
+            .clone();
+        let fixture = cup.fixtures.iter_mut().find(|f| f.id == last_id).unwrap();
+        let old_date = chrono::NaiveDate::parse_from_str(&fixture.date, "%Y-%m-%d").unwrap();
+        fixture.date = (old_date + chrono::Duration::days(5)).to_string();
+        let revised = finals_period(cup).unwrap();
+        assert_eq!(revised.0, initial.0);
+        assert_eq!(revised.1, initial.1 + chrono::Duration::days(5));
+        let blackout =
+            crate::national_team::international_blackout_around(&game, kickoff(2030).date_naive());
+        for offset in 1..=5 {
+            assert!(blackout.contains(&(initial.1 + chrono::Duration::days(offset))));
+        }
     }
 
     /// Every World Cup competition in the live game must already hold exactly what the
@@ -3293,5 +2885,128 @@ mod tests {
                 "settled winner {winner} is in the field"
             );
         }
+    }
+
+    fn codes(prefix: &str, count: usize) -> Vec<String> {
+        (0..count).map(|n| format!("{prefix}{n}")).collect()
+    }
+
+    fn regions_of(teams: &[(&[String], &str)]) -> HashMap<String, String> {
+        teams
+            .iter()
+            .flat_map(|(codes, region)| codes.iter().map(|code| (code.clone(), region.to_string())))
+            .collect()
+    }
+
+    /// Given thirteen empty groups but the last, which already holds an Asian side, and a pot of
+    ///       thirteen Asian sides, which the one-per-confederation cap cannot place
+    /// When the pot is placed
+    /// Then the search gives up within moments, rather than trying every one of the 13! orders
+    ///      the first twelve groups allow before finding the last one full every time
+    #[test]
+    fn a_pot_the_confederation_caps_cannot_place_is_given_up_on_quickly() {
+        let pot = codes("AS", 13);
+        let seeded = vec!["ASX".to_string()];
+        let regions = regions_of(&[(&pot, "asia"), (&seeded, "asia")]);
+        let mut groups: Vec<Vec<String>> = vec![Vec::new(); 13];
+        groups[12].push("ASX".to_string());
+        let (sender, receiver) = std::sync::mpsc::channel();
+
+        std::thread::spawn(move || {
+            let mut used = vec![false; pot.len()];
+            let placed = place_pot(&pot, &mut used, 0, &mut groups, &regions);
+            let _ = sender.send(placed);
+        });
+
+        let placed = receiver
+            .recv_timeout(std::time::Duration::from_secs(5))
+            .expect("the search for an impossible pot was still running after five seconds");
+        assert!(!placed);
+    }
+
+    /// Given twelve groups, all but the first already holding an Asian side, and a pot of eleven
+    ///       African sides and one Asian side, the Asian side last
+    /// When the pot is placed
+    /// Then it is placed with one team in every group, the Asian side in the first group: the
+    ///      only placement there is, behind 11 × 10! orders that start with an African side there
+    #[test]
+    fn a_pot_whose_only_placement_comes_last_in_search_order_is_still_placed() {
+        let africa = codes("AF", 11);
+        let asia = codes("AS", 12);
+        let regions = regions_of(&[(&africa, "africa"), (&asia, "asia")]);
+        let mut pot = africa.clone();
+        pot.push(asia[0].clone());
+        let mut groups: Vec<Vec<String>> = (0..12)
+            .map(|group| {
+                if group == 0 {
+                    Vec::new()
+                } else {
+                    vec![asia[group].clone()]
+                }
+            })
+            .collect();
+        let mut used = vec![false; pot.len()];
+
+        let placed = place_pot(&pot, &mut used, 0, &mut groups, &regions);
+
+        assert!(placed);
+        assert_eq!(groups[0], vec![asia[0].clone()]);
+        assert!(groups[1..].iter().all(|group| group.len() == 2));
+    }
+
+    /// Given three groups, the third already holding an African side, and a pot of a European, an
+    ///       Asian and an African side, in that order
+    /// When the pot is placed
+    /// Then the European goes first, as the full search would put him: Europe to the first group,
+    ///      Africa to the second, Asia to the third. Placing the European first leaves the African
+    ///      only the second group and the Asian the third, so a feasibility check that cannot move
+    ///      an already-matched team (or forgets which it has tried) wrongly prunes that branch,
+    ///      and the draw stops being the one a seed always drew
+    #[test]
+    fn the_feasibility_check_keeps_every_branch_the_full_search_would_take() {
+        let europe = codes("EU", 1);
+        let asia = codes("AS", 1);
+        let africa = codes("AF", 2);
+        let regions = regions_of(&[(&europe, "europe"), (&asia, "asia"), (&africa, "africa")]);
+        let pot = vec![europe[0].clone(), asia[0].clone(), africa[0].clone()];
+        let mut groups = vec![Vec::new(), Vec::new(), vec![africa[1].clone()]];
+        let mut used = vec![false; pot.len()];
+
+        let placed = place_pot(&pot, &mut used, 0, &mut groups, &regions);
+
+        assert!(placed);
+        assert_eq!(
+            groups,
+            vec![
+                vec![europe[0].clone()],
+                vec![africa[0].clone()],
+                vec![africa[1].clone(), asia[0].clone()],
+            ]
+        );
+    }
+
+    /// Given three groups, the second and third already holding an Asian side, and a pot of two
+    ///       African sides and one Asian one, in that order
+    /// When the pot is placed
+    /// Then it is placed, by backtracking out of the first choices: the Asian side goes to the
+    ///      first group, the only one that can take it, and every group keeps to the cap
+    #[test]
+    fn a_pot_that_needs_backtracking_is_still_placed_within_the_caps() {
+        let africa = codes("AF", 2);
+        let asia = codes("AS", 3);
+        let regions = regions_of(&[(&africa, "africa"), (&asia, "asia")]);
+        let pot = vec![africa[0].clone(), africa[1].clone(), asia[0].clone()];
+        let mut groups = vec![Vec::new(), vec![asia[1].clone()], vec![asia[2].clone()]];
+        let mut used = vec![false; pot.len()];
+
+        let placed = place_pot(&pot, &mut used, 0, &mut groups, &regions);
+
+        assert!(placed);
+        assert_eq!(groups[0], vec![asia[0].clone()]);
+        assert!(
+            groups
+                .iter()
+                .all(|group| group.iter().filter(|code| regions[*code] == "asia").count() <= 1)
+        );
     }
 }

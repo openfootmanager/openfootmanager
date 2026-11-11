@@ -3,10 +3,11 @@ use ofm_core::currency::{self, CurrencyDefinition};
 use std::sync::Arc;
 use tauri::Manager as TauriManager;
 
+use crate::SAVE_MANAGER_UNAVAILABLE_ERROR;
+
 const SETTINGS_LOAD_FAILED_ERROR: &str = "be.error.settings.loadFailed";
 const SETTINGS_PARSE_FAILED_ERROR: &str = "be.error.settings.parseFailed";
 const SETTINGS_SAVE_FAILED_ERROR: &str = "be.error.settings.saveFailed";
-const SAVE_MANAGER_UNAVAILABLE_ERROR: &str = "be.error.saveManagerUnavailable";
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct AppSettings {
@@ -27,6 +28,22 @@ pub struct AppSettings {
     /// event (user match, blocker, transfer deadline, high-priority inbox).
     #[serde(default)]
     pub continue_to_next_event: bool,
+    /// The open sidebar's width: "compact" | "standard" | "wide".
+    #[serde(default = "default_sidebar_width")]
+    pub sidebar_width: String,
+    /// How the sidebar opens: "normal" | "hover" | "click" | "icons".
+    #[serde(default = "default_sidebar_behaviour")]
+    pub sidebar_behaviour: String,
+    /// Whether the player folded the sidebar to its icon rail, remembered across launches.
+    #[serde(default)]
+    pub sidebar_collapsed: bool,
+    /// When true, a shootout starts in the automatic penalty order without showing the picker.
+    #[serde(default)]
+    pub skip_shootout_picker: bool,
+    /// How every list (players, clubs, managers, staff) opens: "table" | "cards". One choice for
+    /// the whole game, not one per page (maintainer, 21 Oct).
+    #[serde(default = "default_list_view")]
+    pub list_view: String,
 }
 
 #[derive(Debug, Clone, serde::Serialize)]
@@ -43,6 +60,41 @@ fn default_ui_scale() -> String {
     "normal".to_string()
 }
 
+const SIDEBAR_WIDTHS: [&str; 3] = ["compact", "standard", "wide"];
+const SIDEBAR_BEHAVIOURS: [&str; 4] = ["normal", "hover", "click", "icons"];
+
+fn default_sidebar_width() -> String {
+    "standard".to_string()
+}
+fn default_sidebar_behaviour() -> String {
+    "normal".to_string()
+}
+
+const LIST_VIEWS: [&str; 2] = ["table", "cards"];
+
+fn default_list_view() -> String {
+    "table".to_string()
+}
+
+/// Like the sidebar's, a list view this build doesn't know falls back to the table.
+fn normalize_list_view(settings: &mut AppSettings) {
+    if !LIST_VIEWS.contains(&settings.list_view.as_str()) {
+        settings.list_view = default_list_view();
+    }
+}
+
+/// A sidebar value this build doesn't know (one written by a newer build, or edited by hand)
+/// falls back to its default. The fields are strings, so such a value parses anyway; this keeps
+/// the frontend from ever receiving one outside its TypeScript union.
+fn normalize_sidebar(settings: &mut AppSettings) {
+    if !SIDEBAR_WIDTHS.contains(&settings.sidebar_width.as_str()) {
+        settings.sidebar_width = default_sidebar_width();
+    }
+    if !SIDEBAR_BEHAVIOURS.contains(&settings.sidebar_behaviour.as_str()) {
+        settings.sidebar_behaviour = default_sidebar_behaviour();
+    }
+}
+
 impl Default for AppSettings {
     fn default() -> Self {
         Self {
@@ -57,6 +109,11 @@ impl Default for AppSettings {
             ui_scale: "normal".to_string(),
             high_contrast: false,
             continue_to_next_event: false,
+            sidebar_width: default_sidebar_width(),
+            sidebar_behaviour: default_sidebar_behaviour(),
+            sidebar_collapsed: false,
+            skip_shootout_picker: false,
+            list_view: default_list_view(),
         }
     }
 }
@@ -76,6 +133,8 @@ fn normalize_loaded_settings(mut settings: AppSettings) -> AppSettings {
     settings.currency = currency::normalize_currency_code(&settings.currency)
         .unwrap_or(currency::DEFAULT_CURRENCY_CODE)
         .to_string();
+    normalize_sidebar(&mut settings);
+    normalize_list_view(&mut settings);
     settings
 }
 
@@ -83,11 +142,17 @@ fn validate_settings(mut settings: AppSettings) -> Result<AppSettings, String> {
     settings.currency = currency::normalize_currency_code(&settings.currency)
         .ok_or("be.error.settings.invalidCurrency".to_string())?
         .to_string();
+    normalize_sidebar(&mut settings);
+    normalize_list_view(&mut settings);
     Ok(settings)
 }
 
-fn settings_path(
-    app_handle: &tauri::AppHandle,
+/// The settings file in the app's data directory: written by the Settings screen and read by the
+/// advance commands' auto-save check, which must look in the same place.
+const SETTINGS_FILE: &str = "settings.json";
+
+fn settings_path<R: tauri::Runtime>(
+    app_handle: &tauri::AppHandle<R>,
     error_key: &str,
 ) -> Result<std::path::PathBuf, String> {
     let dir = app_handle
@@ -95,7 +160,27 @@ fn settings_path(
         .app_data_dir()
         .map_err(|_| error_key.to_string())?;
     std::fs::create_dir_all(&dir).map_err(|_| error_key.to_string())?;
-    Ok(dir.join("settings.json"))
+    Ok(dir.join(SETTINGS_FILE))
+}
+
+/// Whether the player's Auto-Save setting is on, for the advance commands (#1181): the saved
+/// setting, or the default (on) when there is no settings file yet or it cannot be read.
+pub(crate) fn auto_save_enabled<R: tauri::Runtime>(app_handle: &tauri::AppHandle<R>) -> bool {
+    // Read only: unlike settings_path, this never creates the app's data directory.
+    let stored = app_handle
+        .path()
+        .app_data_dir()
+        .ok()
+        .and_then(|dir| std::fs::read_to_string(dir.join(SETTINGS_FILE)).ok());
+    auto_save_from(stored.as_deref())
+}
+
+fn auto_save_from(stored: Option<&str>) -> bool {
+    stored
+        .and_then(|json| serde_json::from_str::<AppSettings>(json).ok())
+        .map_or(AppSettings::default().auto_save, |settings| {
+            settings.auto_save
+        })
 }
 
 #[tauri::command]
@@ -143,7 +228,26 @@ pub fn clear_all_saves(
 
 #[cfg(test)]
 mod tests {
-    use super::{normalize_loaded_settings, response_for_settings, validate_settings, AppSettings};
+
+    /// Given no settings file, a file with Auto-Save off, and one that does not read; when the
+    /// advance asks whether to auto-save; then on (the default), off, and on again (#1181).
+    #[test]
+    fn auto_save_follows_the_saved_setting_and_defaults_to_on() {
+        let off = serde_json::to_string(&AppSettings {
+            auto_save: false,
+            ..AppSettings::default()
+        })
+        .unwrap();
+
+        assert!(auto_save_from(None));
+        assert!(!auto_save_from(Some(&off)));
+        assert!(auto_save_from(Some("not json")));
+    }
+
+    use super::{
+        auto_save_from, normalize_loaded_settings, response_for_settings, validate_settings,
+        AppSettings,
+    };
 
     fn make_settings(currency: &str) -> AppSettings {
         AppSettings {
@@ -171,6 +275,144 @@ mod tests {
         let result = validate_settings(make_settings("CAD"));
 
         assert_eq!(result.unwrap_err(), "be.error.settings.invalidCurrency");
+    }
+
+    /// Given a settings file written before the sidebar settings existed
+    /// When it is loaded
+    /// Then the sidebar is today's: standard width, normal behaviour, not folded.
+    #[test]
+    fn a_settings_file_from_before_the_sidebar_settings_opens_todays_sidebar() {
+        let json = r#"{"theme":"dark","language":"en","currency":"EUR","default_match_mode":"live",
+            "auto_save":true,"match_speed":"normal","show_match_commentary":true,
+            "confirm_advance":false,"ui_scale":"normal","high_contrast":false}"#;
+
+        let settings: AppSettings = serde_json::from_str(json).expect("an older settings file");
+
+        assert_eq!(settings.sidebar_width, "standard");
+        assert_eq!(settings.sidebar_behaviour, "normal");
+        assert!(!settings.sidebar_collapsed);
+    }
+
+    /// Given a settings file with sidebar values this build doesn't know (written by a newer build)
+    /// When it is loaded, or saved
+    /// Then each falls back to its default rather than failing the whole file.
+    #[test]
+    fn an_unknown_sidebar_value_falls_back_to_its_default() {
+        let unknown = AppSettings {
+            sidebar_width: "enormous".to_string(),
+            sidebar_behaviour: "teleport".to_string(),
+            ..AppSettings::default()
+        };
+
+        let loaded = normalize_loaded_settings(unknown.clone());
+        assert_eq!(loaded.sidebar_width, "standard");
+        assert_eq!(loaded.sidebar_behaviour, "normal");
+
+        let saved = validate_settings(unknown).expect("an unknown sidebar value is not an error");
+        assert_eq!(saved.sidebar_width, "standard");
+        assert_eq!(saved.sidebar_behaviour, "normal");
+    }
+
+    /// Given a compact sidebar that expands on click and that the player folded
+    /// When the settings are written and read back
+    /// Then all three survive, and a known value is left as it is.
+    #[test]
+    fn the_sidebar_settings_survive_a_save_and_a_load() {
+        let chosen = AppSettings {
+            sidebar_width: "compact".to_string(),
+            sidebar_behaviour: "click".to_string(),
+            sidebar_collapsed: true,
+            ..AppSettings::default()
+        };
+
+        let json = serde_json::to_string(&validate_settings(chosen).expect("valid")).expect("json");
+        let read: AppSettings = serde_json::from_str(&json).expect("read back");
+        let read = normalize_loaded_settings(read);
+
+        assert_eq!(read.sidebar_width, "compact");
+        assert_eq!(read.sidebar_behaviour, "click");
+        assert!(read.sidebar_collapsed);
+    }
+
+    /// Given a settings file written before the shootout picker setting existed
+    /// When it is loaded
+    /// Then the picker is not skipped: a shootout asks for the penalty order, as it does by default.
+    #[test]
+    fn a_settings_file_from_before_the_shootout_picker_setting_shows_the_picker() {
+        let json = r#"{"theme":"dark","language":"en","currency":"EUR","default_match_mode":"live",
+            "auto_save":true,"match_speed":"normal","show_match_commentary":true,
+            "confirm_advance":false,"ui_scale":"normal","high_contrast":false,
+            "continue_to_next_event":false,"sidebar_width":"standard",
+            "sidebar_behaviour":"normal","sidebar_collapsed":false}"#;
+
+        let settings: AppSettings = serde_json::from_str(json).expect("an older settings file");
+
+        assert!(!settings.skip_shootout_picker);
+    }
+
+    /// Given a player who chose to skip the shootout picker
+    /// When the settings are written and read back
+    /// Then the choice survives, so the next shootout uses the automatic order without asking.
+    #[test]
+    fn skipping_the_shootout_picker_survives_a_save_and_a_load() {
+        let chosen = AppSettings {
+            skip_shootout_picker: true,
+            ..AppSettings::default()
+        };
+
+        let json = serde_json::to_string(&validate_settings(chosen).expect("valid")).expect("json");
+        let read: AppSettings = serde_json::from_str(&json).expect("read back");
+        let read = normalize_loaded_settings(read);
+
+        assert!(read.skip_shootout_picker);
+    }
+
+    /// Given a settings file written before lists could be shown as cards
+    /// When it is loaded
+    /// Then every list opens as a table, as it always has.
+    #[test]
+    fn a_settings_file_from_before_the_list_view_opens_lists_as_tables() {
+        let json = r#"{"theme":"dark","language":"en","currency":"EUR","default_match_mode":"live",
+            "auto_save":true,"match_speed":"normal","show_match_commentary":true,
+            "confirm_advance":false,"ui_scale":"normal","high_contrast":false}"#;
+
+        let settings: AppSettings = serde_json::from_str(json).expect("an older settings file");
+
+        assert_eq!(settings.list_view, "table");
+    }
+
+    /// Given a list view this build doesn't know (written by a newer build, or edited by hand)
+    /// When the settings are loaded, or saved
+    /// Then lists open as tables rather than the frontend receiving a value outside its union.
+    #[test]
+    fn an_unknown_list_view_falls_back_to_the_table() {
+        let unknown = AppSettings {
+            list_view: "carousel".to_string(),
+            ..AppSettings::default()
+        };
+
+        assert_eq!(
+            normalize_loaded_settings(unknown.clone()).list_view,
+            "table"
+        );
+        let saved = validate_settings(unknown).expect("an unknown list view is not an error");
+        assert_eq!(saved.list_view, "table");
+    }
+
+    /// Given a player who chose cards for every list
+    /// When the settings are written and read back
+    /// Then lists still open as cards.
+    #[test]
+    fn the_list_view_survives_a_save_and_a_load() {
+        let chosen = AppSettings {
+            list_view: "cards".to_string(),
+            ..AppSettings::default()
+        };
+
+        let json = serde_json::to_string(&validate_settings(chosen).expect("valid")).expect("json");
+        let read: AppSettings = serde_json::from_str(&json).expect("read back");
+
+        assert_eq!(normalize_loaded_settings(read).list_view, "cards");
     }
 
     #[test]

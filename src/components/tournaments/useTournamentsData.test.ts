@@ -1,3 +1,4 @@
+import { createSeasonContext } from "../../test-utils/factories";
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { act, renderHook, waitFor } from "@testing-library/react";
 
@@ -8,10 +9,6 @@ import type { CompetitionsView } from "../../services/competitionsService";
 
 vi.mock("../../services/competitionsService", () => ({
   fetchCompetitionsView: vi.fn(),
-}));
-
-vi.mock("../../lib/seasonContext", () => ({
-  resolveSeasonContext: () => ({ phase: "Preseason", season_start: null }),
 }));
 
 const mockedFetch = vi.mocked(fetchCompetitionsView);
@@ -37,6 +34,7 @@ function gameState(over: Partial<GameStateData> = {}): GameStateData {
     players: [],
     competitions: [competition("league-1")],
     active_competition_ids: ["league-1"],
+    season_context: createSeasonContext(),
     ...over,
   } as unknown as GameStateData;
 }

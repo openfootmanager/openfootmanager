@@ -45,7 +45,11 @@ export function CompetitionPreviewCard({ competition, logoDataUrl }: Competition
         {/* Name */}
         <div>
           <p className="font-heading font-bold text-sm uppercase tracking-wide text-gray-900 dark:text-white leading-tight">
-            {competition.name || <span className="text-gray-400 italic">New Competition</span>}
+            {competition.name || (
+              <span className="text-gray-400 italic">
+                {t("worldEditor.previewPlaceholder.competition")}
+              </span>
+            )}
           </p>
           {competition.id && (
             <p className="text-[10px] text-gray-400 dark:text-gray-500 font-mono mt-0.5">

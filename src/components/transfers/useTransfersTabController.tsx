@@ -20,21 +20,20 @@ export function useTransfersTabController({
   const { myTeam, closeBidNegotiation, openBidNegotiation, bidLoading } = transferBidFlow;
   const transferMarket = useTransferMarket({ gameState, userTeamId, t, myTeam });
   const loanOfferFlow = useLoanOfferFlow({
+    gameState,
     loanRegistrationDate,
     onGameUpdate,
-    t,
     transferWindowBlocksRegistration,
   });
   const { loanLoading, openLoanOffer, closeLoanOffer } = loanOfferFlow;
   const loanCounterFlow = useLoanCounterFlow({
     loanRegistrationDate,
     onGameUpdate,
-    t,
     transferWindowBlocksRegistration,
   });
   const transferCounterFlow = useTransferCounterFlow({ onGameUpdate, t });
   const transferResponses = useTransferResponses({ onGameUpdate });
-  const transferActions = useTransferActions({ gameState, userTeamId, onGameUpdate, t });
+  const transferActions = useTransferActions({ gameState, userTeamId, onGameUpdate });
   const dealWorkspaceFlow = useDealWorkspaceFlow({
     gameState,
     onGameUpdate,

@@ -1,36 +1,12 @@
-import {
-  Activity,
-  Briefcase,
-  Calendar,
-  DollarSign,
-  Heart,
-  RotateCcw,
-  TrendingUp,
-  Trash2,
-  TimerOff,
-  UserPlus,
-} from "lucide-react";
-import {
-  formatDate,
-  getContractRiskBadgeVariant,
-  getContractYearsRemaining,
-} from "../../lib/helpers";
-import { formatPlayerWage, formatPlayerMarketValue } from "./PlayerProfile.helpers";
-import { Badge, Button, Card, CardBody, CardHeader } from "../ui";
+import { Calendar, RotateCcw, Trash2, TimerOff, UserPlus } from "lucide-react";
+import { getContractYearsRemaining } from "../../lib/helpers";
+import { Button, Card, CardBody, CardHeader } from "../ui";
 
 type TranslateFn = (key: string, options?: Record<string, string | number>) => string;
 
 interface PlayerProfileContractCardProps {
-  dateOfBirth: string;
   contractEnd: string | null;
   currentDate: string;
-  condition: number;
-  morale: number;
-  marketValue: number;
-  wage: number;
-  language: string;
-  contractRiskLevel: "critical" | "warning" | "stable";
-  contractRiskLabel: string;
   isOwnClub: boolean;
   isFreeAgent?: boolean;
   hasLetExpireIntent: boolean;
@@ -44,16 +20,8 @@ interface PlayerProfileContractCardProps {
 }
 
 export default function PlayerProfileContractCard({
-  dateOfBirth,
   contractEnd,
   currentDate,
-  condition,
-  morale,
-  marketValue,
-  wage,
-  language,
-  contractRiskLevel,
-  contractRiskLabel,
   isOwnClub,
   isFreeAgent,
   hasLetExpireIntent,
@@ -72,51 +40,8 @@ export default function PlayerProfileContractCard({
         <div className="flex flex-col gap-3">
           <InfoRow
             icon={<Calendar className="w-4 h-4" />}
-            label={t("playerProfile.dateOfBirth")}
-            value={formatDate(dateOfBirth, language)}
-          />
-          <InfoRow
-            icon={<Briefcase className="w-4 h-4" />}
-            label={t("common.contract")}
-            value={
-              contractEnd
-                ? t("finances.contractExpiresOn", { date: contractEnd })
-                : t("playerProfile.noContract")
-            }
-          />
-          <InfoRow
-            icon={<Calendar className="w-4 h-4" />}
             label={t("playerProfile.yearsRemaining")}
             value={getContractYearsRemaining(contractEnd, currentDate)}
-          />
-          <InfoRow
-            icon={<Briefcase className="w-4 h-4" />}
-            label={t("playerProfile.contractRisk")}
-            value={
-              <Badge variant={getContractRiskBadgeVariant(contractRiskLevel)}>
-                {contractRiskLabel}
-              </Badge>
-            }
-          />
-          <InfoRow
-            icon={<DollarSign className="w-4 h-4" />}
-            label={t("finances.marketValue")}
-            value={formatPlayerMarketValue(marketValue)}
-          />
-          <InfoRow
-            icon={<TrendingUp className="w-4 h-4" />}
-            label={t("playerProfile.weeklyWage")}
-            value={formatPlayerWage(wage)}
-          />
-          <InfoRow
-            icon={<Heart className="w-4 h-4" />}
-            label={t("common.condition")}
-            value={`${condition}%`}
-          />
-          <InfoRow
-            icon={<Activity className="w-4 h-4" />}
-            label={t("common.morale")}
-            value={`${morale}%`}
           />
         </div>
         {isOwnClub ? (
