@@ -578,7 +578,16 @@ fn complete_competing_tournaments(mut game: Game, live: bool) {
                     "a played fixture must retain its result"
                 );
             }
+            if fixture.date > date {
+                assert_eq!(
+                    fixture.status,
+                    FixtureStatus::Scheduled,
+                    "future matches must wait"
+                );
+            }
             if fixture.status == FixtureStatus::Completed {
+                assert!(fixture.result.is_some());
+                assert!(fixture.date <= date);
                 results.insert(
                     fixture.id.clone(),
                     serde_json::to_value(&fixture.result).unwrap(),
@@ -689,6 +698,49 @@ fn competing_national_squads_do_not_double_book_a_shared_player() {
         game.competitions[1].fixtures[0].status,
         FixtureStatus::Completed
     );
+    for _ in 0..7 {
+        let today = game.clock.current_date.format("%Y-%m-%d").to_string();
+        ofm_core::turn::process_day(&mut game);
+        let moved = game.competitions[0]
+            .fixtures
+            .iter()
+            .find(|f| f.id == tie.id)
+            .unwrap();
+        if moved.status == FixtureStatus::Completed {
+            assert!(moved.result.is_some());
+            assert_eq!(moved.date, today);
+            let player_id = &game.national_teams[0].squad_player_ids[0];
+            let mut appearances: Vec<_> = game
+                .competitions
+                .iter()
+                .flat_map(|c| &c.fixtures)
+                .filter(|f| f.status == FixtureStatus::Completed && f.date.as_str() >= "2033-02-04")
+                .filter(|f| {
+                    game.national_teams.iter().any(|n| {
+                        n.squad_player_ids.contains(player_id)
+                            && (n.id == f.home_team_id || n.id == f.away_team_id)
+                    })
+                })
+                .map(|f| chrono::NaiveDate::parse_from_str(&f.date, "%Y-%m-%d").unwrap())
+                .collect();
+            appearances.sort();
+            assert_eq!(
+                appearances.len(),
+                2,
+                "qualifier and deferred tie must both apply one appearance"
+            );
+            assert!((appearances[1] - appearances[0]).num_days() >= 3);
+            let players = serde_json::to_value(&game.players).unwrap();
+            assert_eq!(
+                ofm_core::national_tournament::process_fixtures_due(&mut game, &today),
+                0
+            );
+            assert_eq!(serde_json::to_value(&game.players).unwrap(), players);
+            assert_fresh_load_keeps_tournament(&game);
+            return;
+        }
+    }
+    panic!("the shared-player tie must eventually play");
 }
 
 /// Given a legacy save with both tournament fixtures still due yesterday, When load repair replays it,
