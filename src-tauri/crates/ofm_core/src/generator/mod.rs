@@ -482,6 +482,48 @@ fn available_staff_count(staff: &[Staff]) -> usize {
         .count()
 }
 
+fn unemployed_scout_count(staff: &[Staff]) -> usize {
+    staff
+        .iter()
+        .filter(|s| s.team_id.is_none() && matches!(s.role, StaffRole::Scout))
+        .count()
+}
+
+/// How many unemployed managers and scouts the market is kept at: two per club, so the player always
+/// has candidates to consider.
+fn market_floor(team_count: usize) -> usize {
+    team_count * 2
+}
+
+/// Adds unemployed scouts until the market holds `target`; never removes any.
+fn top_up_unemployed_scouts(
+    staff: &mut Vec<Staff>,
+    target: usize,
+    market_year: u32,
+    rng: &mut impl rand::Rng,
+) {
+    let have = unemployed_scout_count(staff);
+    if have >= target {
+        return;
+    }
+    let (names_def, country_codes) = create_staff_generator_context();
+    for _ in 0..target - have {
+        let nationality = if country_codes.is_empty() {
+            "ENG".to_string()
+        } else {
+            let idx = rng.random_range(0..country_codes.len());
+            country_codes[idx].clone()
+        };
+        staff.push(generate_random_staff_unattached_from_def(
+            StaffRole::Scout,
+            &nationality,
+            market_year,
+            &names_def,
+            &mut *rng,
+        ));
+    }
+}
+
 fn replace_available_staff_market(
     staff: &mut Vec<Staff>,
     teams: &[Team],
@@ -581,7 +623,13 @@ pub fn process_available_staff_market(game: &mut crate::game::Game) -> bool {
         return false;
     }
 
+    // The rotation deals the standard batch, which holds three scouts: it must not undo the
+    // season-end floor (#474). The pool it held, up to the floor, is what it leaves: before any
+    // floor has applied that is the standard batch alone, and a pool hired down below the floor
+    // is not shrunk further. The market is one pool, so this is the same for the user and the AI.
+    let scouts_to_keep = unemployed_scout_count(&game.staff).min(market_floor(game.teams.len()));
     replace_available_staff_market(&mut game.staff, &game.teams, current_year, &mut rng);
+    top_up_unemployed_scouts(&mut game.staff, scouts_to_keep, current_year, &mut rng);
     game.available_staff_market_last_activity_date = Some(today);
     true
 }
@@ -596,8 +644,7 @@ pub fn replenish_manager_and_scout_market(game: &mut crate::game::Game) {
     // the running clock rather than the year the world opened in.
     let market_year = game.clock.current_date.year() as u32;
     let mut rng = game.rng_today("manager-scout-market");
-    let team_count = game.teams.len();
-    let floor = team_count * 2;
+    let floor = market_floor(game.teams.len());
 
     let user_manager_id = if game.manager_id.is_empty() {
         game.manager.id.clone()
@@ -633,32 +680,7 @@ pub fn replenish_manager_and_scout_market(game: &mut crate::game::Game) {
     }
 
     // --- Scouts ---
-    let unemployed_scout_count = game
-        .staff
-        .iter()
-        .filter(|s| s.team_id.is_none() && matches!(s.role, StaffRole::Scout))
-        .count();
-
-    if unemployed_scout_count < floor {
-        let needed = floor - unemployed_scout_count;
-        let (names_def, country_codes) = create_staff_generator_context();
-        for _ in 0..needed {
-            let nationality = if country_codes.is_empty() {
-                "ENG".to_string()
-            } else {
-                let idx = rng.random_range(0..country_codes.len());
-                country_codes[idx].clone()
-            };
-            let scout = generate_random_staff_unattached_from_def(
-                StaffRole::Scout,
-                &nationality,
-                market_year,
-                &names_def,
-                &mut rng,
-            );
-            game.staff.push(scout);
-        }
-    }
+    top_up_unemployed_scouts(&mut game.staff, floor, market_year, &mut rng);
 }
 
 // ---------------------------------------------------------------------------
