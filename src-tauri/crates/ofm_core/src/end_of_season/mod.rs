@@ -1,3 +1,4 @@
+mod career_history;
 mod club_league;
 mod player_statistics;
 use crate::game::Game;
@@ -1090,29 +1091,7 @@ pub fn process_end_of_season(game: &mut Game) -> EndOfSeasonSummary {
     }
 
     // 5. Record player career entries and reset stats
-    for player in game.players.iter_mut() {
-        if player.stats.appearances > 0 {
-            // A season at no club stores no name: the screens say "free agent" in the player's
-            // language, and an older save's stored English literal is read the same way by its
-            // empty team id.
-            let team_name = player
-                .team_id
-                .as_ref()
-                .and_then(|tid| game.teams.iter().find(|t| &t.id == tid))
-                .map(|t| t.name.clone())
-                .unwrap_or_default();
-            let team_id = player.team_id.clone().unwrap_or_default();
-
-            player.career.push(domain::player::CareerEntry {
-                season,
-                team_id,
-                team_name,
-                appearances: player.stats.appearances,
-                goals: player.stats.goals,
-                assists: player.stats.assists,
-            });
-        }
-    }
+    career_history::record_season_career_entries(game, season);
 
     apply_season_end_squad_turnover(game, game.clock.current_date.date_naive(), season);
 
