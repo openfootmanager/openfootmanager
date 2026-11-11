@@ -22,12 +22,59 @@ export interface ContractHistoryRow {
 }
 
 /**
- * The contracts a player has had, newest first, from his movement ledger. Scaffold: the real
- * builder replaces it.
+ * The contracts a player has had, newest first, from his movement ledger.
+ *
+ * A row is a ledger entry that makes a contract. A release (`released`) closes the contract
+ * before it; a renewal signed before the older contract ran out leaves the older one with the day
+ * it was replaced. Entries on the same day keep the order they were recorded in, so the later one
+ * is listed above the earlier. An unknown start stays null.
  */
 export function buildContractHistory(
-  _movements: PlayerMovementEntry[],
-  _today: string,
+  movements: PlayerMovementEntry[],
+  today: string,
 ): ContractHistoryRow[] {
-  return [];
+  const ledger = movements
+    .map((entry, index) => ({ entry, index }))
+    .sort(
+      (left, right) => left.entry.date.localeCompare(right.entry.date) || left.index - right.index,
+    )
+    .map(({ entry }) => entry);
+  const rows: ContractHistoryRow[] = [];
+  let closed = false;
+
+  ledger.forEach((entry, position) => {
+    if (entry.kind === "released") {
+      const last = rows[rows.length - 1];
+      if (last && !closed) {
+        last.endedBy = entry.release_reason ?? null;
+        last.inForce = false;
+        closed = true;
+      }
+      return;
+    }
+    if (!entry.contract) return;
+    const previous = rows[rows.length - 1];
+    const takesOverOn = entry.contract.start ?? entry.date;
+    if (previous && previous.end && takesOverOn && takesOverOn < previous.end) {
+      previous.replacedOn = takesOverOn;
+    }
+    closed = false;
+    rows.push({
+      key: `${entry.date}-${entry.kind}-${position}`,
+      clubName: entry.to_team_name || entry.to_team_id || "",
+      start: entry.contract.start ?? null,
+      end: entry.contract.end ?? null,
+      weeklyWage: entry.contract.weekly_wage,
+      source: entry.contract.source,
+      endedBy: null,
+      replacedOn: null,
+      inForce: false,
+    });
+  });
+
+  const current = rows[rows.length - 1];
+  if (current && !closed && (current.end === null || current.end >= today)) {
+    current.inForce = true;
+  }
+  return rows.reverse();
 }

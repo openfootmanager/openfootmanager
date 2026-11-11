@@ -8,14 +8,8 @@ import PlayerProfileMovementHistoryCard from "./PlayerProfileMovementHistoryCard
 const t = (key: string, options?: Record<string, string | number>) =>
   options ? `${key} ${JSON.stringify(options)}` : key;
 
-function renderCard(movementHistory: PlayerMovementEntry[], showsWages = true) {
-  return render(
-    <PlayerProfileMovementHistoryCard
-      movementHistory={movementHistory}
-      showsWages={showsWages}
-      t={t}
-    />,
-  );
+function renderCard(movementHistory: PlayerMovementEntry[]) {
+  return render(<PlayerProfileMovementHistoryCard movementHistory={movementHistory} t={t} />);
 }
 
 const renewal: PlayerMovementEntry = {
@@ -31,78 +25,11 @@ const renewal: PlayerMovementEntry = {
   },
 };
 
-describe("PlayerProfileMovementHistoryCard contract terms", () => {
-  it("shows a contract's start, end and wage on its entry", () => {
-    renderCard([renewal]);
+describe("PlayerProfileMovementHistoryCard moves", () => {
+  it("shows an entry with no date as an unknown date, not as today", () => {
+    renderCard([{ date: "", kind: "initial_contract", to_team_id: "team-1" }]);
 
-    expect(screen.getByText("playerProfile.movementRenewal")).toBeInTheDocument();
-    expect(
-      screen.getByText(
-        'playerProfile.movementContractRange {"start":"2026-01-10","end":"2029-06-30"}',
-      ),
-    ).toBeInTheDocument();
-    expect(screen.getByText(/playerProfile\.movementWage/)).toHaveTextContent("9,000");
-  });
-
-  /**
-   * Given a rival's renewal on 9,000 a week, and a club that may not see his wages
-   * When his movement history renders
-   * Then the entry keeps its contract dates but names no wage
-   */
-  it("leaves the wage off an entry when the club may not see his wages", () => {
-    renderCard([renewal], false);
-
-    expect(
-      screen.getByText(
-        'playerProfile.movementContractRange {"start":"2026-01-10","end":"2029-06-30"}',
-      ),
-    ).toBeInTheDocument();
-    expect(screen.queryByText(/playerProfile\.movementWage/)).not.toBeInTheDocument();
-    expect(screen.queryByText(/9,000/)).not.toBeInTheDocument();
-  });
-
-  it("shows an unknown start as an end alone, not as a blank or as today", () => {
-    renderCard([
-      {
-        ...renewal,
-        kind: "initial_contract",
-        contract: { start: null, end: "2028-06-30", weekly_wage: 7000, source: "initial" },
-      },
-    ]);
-
-    expect(
-      screen.getByText('playerProfile.movementContractUntil {"end":"2028-06-30"}'),
-    ).toBeInTheDocument();
-    expect(screen.queryByText(/movementContractRange/)).not.toBeInTheDocument();
-  });
-
-  it("says when a contract was carried over from a save that predates the history", () => {
-    renderCard([
-      {
-        date: "",
-        kind: "initial_contract",
-        to_team_id: "team-1",
-        contract: { start: null, end: "2028-06-30", weekly_wage: 7000, source: "legacy_migrated" },
-      },
-    ]);
-
-    expect(screen.getByText("playerProfile.movementLegacyContract")).toBeInTheDocument();
     expect(screen.getByText("playerProfile.movementDateUnknown")).toBeInTheDocument();
-  });
-
-  it("names why a player was released", () => {
-    renderCard([
-      { date: "2026-06-30", kind: "released", from_team_id: "team-1", release_reason: "expired" },
-      {
-        date: "2026-03-01",
-        kind: "released",
-        from_team_id: "team-1",
-        release_reason: "terminated",
-      },
-    ]);
-
-    expect(screen.getByText("playerProfile.movementReleasedExpired")).toBeInTheDocument();
-    expect(screen.getByText("playerProfile.movementReleasedTerminated")).toBeInTheDocument();
   });
 
   it("still renders an entry that carries no contract, exactly as before", () => {

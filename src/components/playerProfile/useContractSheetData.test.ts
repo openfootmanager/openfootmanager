@@ -256,4 +256,20 @@ describe("useContractSheetData", () => {
       ]),
     );
   });
+
+  /**
+   * Given a backend that answers a preview with no figures in it (a malformed or partial answer)
+   * When the hook reads it
+   * Then it is a failed answer, never an answered one with nothing in it for the sheet to read
+   */
+  it("treats an answer with no figures as failed", async () => {
+    invokeMock.mockImplementation(async () => ({}));
+
+    const { result } = renderHook(() =>
+      useContractSheetData({ player: player(), active: true, ownsContract: true, refreshKey: "a" }),
+    );
+
+    await waitFor(() => expect(result.current.termination.status).toBe("failed"));
+    await waitFor(() => expect(result.current.projection.status).toBe("failed"));
+  });
 });

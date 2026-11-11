@@ -6,11 +6,13 @@ import type { PlayerRole } from "../../store/types";
 import { TabPanel, Tabs } from "../ui";
 import { visibleWageText } from "../../lib/playerKnowledge";
 import { isGoalkeeper } from "./PlayerProfile.attributes";
+import { buildContractHistory } from "./PlayerProfile.contractHistory";
 import { formatPlayerWage } from "./PlayerProfile.helpers";
 import type { buildPlayerProfileRelationship } from "./PlayerProfile.viewModel";
 import PlayerProfileAdvancedStatsCard from "./PlayerProfileAdvancedStatsCard";
 import PlayerProfileCareerHistoryCard from "./PlayerProfileCareerHistoryCard";
-import PlayerProfileContractCard from "./PlayerProfileContractCard";
+import PlayerProfileContractHistoryCard from "./PlayerProfileContractHistoryCard";
+import PlayerProfileContractSheet from "./PlayerProfileContractSheet";
 import PlayerProfilePotentialOpinion from "./PlayerProfilePotentialOpinion";
 import PlayerProfileAttributesTab from "./attributes/PlayerProfileAttributesTab";
 import PlayerProfileMovementHistoryCard from "./PlayerProfileMovementHistoryCard";
@@ -19,6 +21,7 @@ import ProfileLoadFailed from "./ProfileLoadFailed";
 import type { usePlayerProfileData } from "./usePlayerProfileData";
 import type { PlayerProfileActions } from "./usePlayerProfileActions";
 import type { PlayerProfileKnowledge } from "./usePlayerProfileKnowledge";
+import { useContractSheetData } from "./useContractSheetData";
 
 /** The profile's sections, in tab order. */
 export const PROFILE_TABS = ["overview", "attributes", "career", "contract"] as const;
@@ -58,6 +61,17 @@ export default function PlayerProfileTabs({
   const hidden = (id: ProfileTab) => tab !== id;
   const { isManagerOwnedProfile, isFreeAgent, hasLetExpireIntent } = relationship;
   const { opinionAnswer, potentialOpinion } = knowledge;
+  const exactWeeklyWage =
+    knowledge.visibleWage.kind === "exact" ? knowledge.visibleWage.weekly : null;
+  // Asked for only while this tab is the open one: hidden tabs stay mounted, and the previews are
+  // the backend's work. They are asked again when the contract, the wage or the day changes under
+  // the sheet.
+  const contractSheet = useContractSheetData({
+    player,
+    active: tab === "contract",
+    ownsContract: isManagerOwnedProfile,
+    refreshKey: [currentDate, player.contract_end, player.wage, hasLetExpireIntent].join("|"),
+  });
   const opinion =
     opinionAnswer.status === "failed" ? (
       <ProfileLoadFailed t={t} onRetry={opinionAnswer.retry} />
@@ -129,11 +143,7 @@ export default function PlayerProfileTabs({
 
         <PlayerProfileCareerHistoryCard career={player.career} t={t} />
 
-        <PlayerProfileMovementHistoryCard
-          movementHistory={player.movement_history ?? []}
-          showsWages={knowledge.visibleWage.kind === "exact"}
-          t={t}
-        />
+        <PlayerProfileMovementHistoryCard movementHistory={player.movement_history ?? []} t={t} />
       </TabPanel>
 
       <TabPanel
@@ -142,18 +152,25 @@ export default function PlayerProfileTabs({
         hidden={hidden("contract")}
         className="flex flex-col gap-5"
       >
-        <PlayerProfileContractCard
-          contractEnd={player.contract_end}
+        <PlayerProfileContractSheet
+          player={player}
           currentDate={currentDate}
-          isOwnClub={isManagerOwnedProfile}
+          isOwnContract={isManagerOwnedProfile}
           isFreeAgent={isFreeAgent}
           hasLetExpireIntent={hasLetExpireIntent}
+          exactWeeklyWage={exactWeeklyWage}
+          data={contractSheet}
           actionSubmitting={actions.contract.contractActionSubmitting}
           onOpenRenewal={actions.renewal.openRenewalModal}
           onMarkLetExpire={() => void actions.contract.handleMarkLetExpire()}
           onClearLetExpire={() => void actions.contract.handleClearLetExpire()}
           onOpenTermination={() => void actions.contract.openTerminationModal()}
           onOpenFreeAgentContract={() => actions.freeAgent.openFreeAgentContract(player)}
+          t={t}
+        />
+        <PlayerProfileContractHistoryCard
+          rows={buildContractHistory(player.movement_history ?? [], currentDate.slice(0, 10))}
+          showsWages={exactWeeklyWage !== null}
           t={t}
         />
       </TabPanel>

@@ -64,7 +64,9 @@ describe("PlayerProfileContractHistoryCard", () => {
     render(<PlayerProfileContractHistoryCard rows={[RENEWED]} showsWages={false} t={t} />);
 
     expect(screen.queryByText(/10,000/)).toBeNull();
-    expect(screen.queryByRole("columnheader", { name: "playerProfile.contractWage" })).toBeNull();
+    expect(
+      screen.queryByRole("columnheader", { name: "playerProfile.contractSheet.weeklyWage" }),
+    ).toBeNull();
     expect(
       screen.getByText(
         'playerProfile.movementContractRange {"start":"2031-07-01","end":"2033-06-30"}',

@@ -1,4 +1,4 @@
-import type { PlayerMovementEntry, PlayerMovementKind, ReleaseReason } from "../../store/gameStore";
+import type { PlayerMovementEntry, PlayerMovementKind } from "../../store/gameStore";
 import { formatExactMoney } from "../../lib/helpers";
 import { Badge, Card, CardBody, CardHeader } from "../ui";
 
@@ -6,8 +6,6 @@ type TranslateFn = (key: string, options?: Record<string, string | number>) => s
 
 interface PlayerProfileMovementHistoryCardProps {
   movementHistory: PlayerMovementEntry[];
-  /** Whether the club may see his wages: only its own player's contracts name one. */
-  showsWages: boolean;
   t: TranslateFn;
 }
 
@@ -21,11 +19,6 @@ const MOVEMENT_LABEL_KEYS: Record<PlayerMovementKind, string> = {
   renewal: "playerProfile.movementRenewal",
   retired: "playerProfile.movementRetired",
   initial_contract: "playerProfile.movementInitialContract",
-};
-
-const RELEASE_REASON_KEYS: Record<ReleaseReason, string> = {
-  expired: "playerProfile.movementReleasedExpired",
-  terminated: "playerProfile.movementReleasedTerminated",
 };
 
 const MOVEMENT_BADGE_VARIANTS: Record<
@@ -74,25 +67,8 @@ function movementDirection(entry: PlayerMovementEntry, t: TranslateFn): string {
   return "";
 }
 
-/** The contract's span in words. An unknown start is left out, never replaced by a date. */
-function contractSpan(entry: PlayerMovementEntry, t: TranslateFn): string | null {
-  const contract = entry.contract;
-  if (!contract) return null;
-  if (contract.start && contract.end) {
-    return t("playerProfile.movementContractRange", { start: contract.start, end: contract.end });
-  }
-  if (contract.end) {
-    return t("playerProfile.movementContractUntil", { end: contract.end });
-  }
-  if (contract.start) {
-    return t("playerProfile.movementContractFrom", { start: contract.start });
-  }
-  return null;
-}
-
 export default function PlayerProfileMovementHistoryCard({
   movementHistory,
-  showsWages,
   t,
 }: PlayerProfileMovementHistoryCardProps) {
   // Newest first. Entries on the same day keep the order they happened in, which is
@@ -112,7 +88,6 @@ export default function PlayerProfileMovementHistoryCard({
           <div className="flex flex-col gap-3">
             {sortedHistory.map((entry, index) => {
               const direction = movementDirection(entry, t);
-              const span = contractSpan(entry, t);
 
               return (
                 <div
@@ -148,20 +123,6 @@ export default function PlayerProfileMovementHistoryCard({
                           date: entry.loan_end_date,
                         })}
                       </span>
-                    ) : null}
-                    {span ? <span>{span}</span> : null}
-                    {showsWages && entry.contract ? (
-                      <span>
-                        {t("playerProfile.movementWage", {
-                          wage: formatExactMoney(entry.contract.weekly_wage),
-                        })}
-                      </span>
-                    ) : null}
-                    {entry.contract?.source === "legacy_migrated" ? (
-                      <span>{t("playerProfile.movementLegacyContract")}</span>
-                    ) : null}
-                    {entry.release_reason ? (
-                      <span>{t(RELEASE_REASON_KEYS[entry.release_reason])}</span>
                     ) : null}
                   </div>
                 </div>

@@ -577,7 +577,7 @@ describe("PlayerProfile contract surfaces", () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByText("Contract Info")).toBeInTheDocument();
+      expect(screen.getByText("playerProfile.contractSheet.his")).toBeInTheDocument();
     });
     expect(screen.queryByRole("button", { name: "Submit Offer" })).toBeNull();
     expect(invoke).not.toHaveBeenCalledWith("preview_contract_termination", expect.anything());
@@ -703,7 +703,7 @@ describe("PlayerProfile contract surfaces", () => {
     render(<PlayerProfile player={player} gameState={gameState} isOwnClub />);
 
     // The Contract tab holds the years left and the actions; the date and its risk are in Details.
-    expect(screen.getByText("Contract Info")).toBeInTheDocument();
+    expect(screen.getByText("playerProfile.contractSheet.his")).toBeInTheDocument();
     expect(screen.getByText(/until .*October 15, 2026/)).toBeInTheDocument();
     expect(screen.getByText("Years Remaining")).toBeInTheDocument();
     expect(screen.queryByText("Contract Risk")).toBeNull();
@@ -1652,8 +1652,13 @@ describe("PlayerProfile contract surfaces", () => {
     const terminate = screen.getByRole("button", { name: "Terminate Now" });
     expect(terminate).toBeDisabled();
 
+    // The sheet loads one preview with the tab; a click on the locked button asks for no second one.
+    const previewsAsked = () =>
+      vi.mocked(invoke).mock.calls.filter(([command]) => command === "preview_contract_termination")
+        .length;
+    const askedBeforeTheClick = previewsAsked();
     fireEvent.click(terminate);
-    expect(invoke).not.toHaveBeenCalledWith("preview_contract_termination", expect.anything());
+    expect(previewsAsked()).toBe(askedBeforeTheClick);
 
     releaseExitIntent?.();
     await waitFor(() => {
@@ -2084,7 +2089,10 @@ describe("PlayerProfile shows only what the club knows", () => {
   }
 
   // The movement history's wage on a contract, which only the club's own player shows.
-  const showsMovementWage = () => screen.queryByText("playerProfile.movementWage") !== null;
+  // The wage of the contracts he has had is a column of the Contract tab's history table, which is
+  // there only when the club may see his wage (the Movement cards no longer print a contract).
+  const showsMovementWage = () =>
+    screen.queryByText("playerProfile.contractSheet.weeklyWage", { selector: "th" }) !== null;
 
   function renderProfile(player: PlayerData) {
     render(
