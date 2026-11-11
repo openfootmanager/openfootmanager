@@ -17,7 +17,7 @@ transfer_budget: number,
 /**
  * Integer euros per week, as held by the club.
  */
-wage_budget: number, 
+weekly_wage_budget: number, 
 /**
  * Cash on hand in integer euros; may be negative.
  */

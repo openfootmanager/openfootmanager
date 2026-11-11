@@ -96,7 +96,7 @@ describe("likelyXi", () => {
       stadium_name: "Ground",
       stadium_capacity: 20_000,
       transfer_budget: 5_000_000,
-      wage_budget: 100_000,
+      weekly_wage_budget: 100_000,
       balance: 1_000_000,
       colors: { primary: "red", secondary: "white" },
       founded_year: 1900,

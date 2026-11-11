@@ -43,7 +43,7 @@ pub struct ClubSquadRatings {
     pub transfer_budget: i64,
     /// Integer euros per week, as held by the club.
     #[serde(default)]
-    pub wage_budget: i64,
+    pub weekly_wage_budget: i64,
     /// Cash on hand in integer euros; may be negative.
     #[serde(default)]
     pub balance: i64,
@@ -136,7 +136,7 @@ fn project_club(game: &Game, team: &Team, squad: &[&Player]) -> ClubSquadRatings
         stadium_name: team.stadium_name.clone(),
         stadium_capacity: team.stadium_capacity,
         transfer_budget: team.transfer_budget,
-        wage_budget: team.wage_budget,
+        weekly_wage_budget: team.wage_budget,
         balance: team.finance,
         colors: TeamCardColors {
             primary: team.colors.primary.clone(),
