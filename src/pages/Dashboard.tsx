@@ -20,6 +20,7 @@ import DashboardOverlays from "../components/dashboard/DashboardOverlays";
 import FiredModal from "../components/dashboard/FiredModal";
 import DashboardSidebar from "../components/dashboard/DashboardSidebar";
 import DashboardWorkspaceContent from "../components/dashboard/DashboardWorkspaceContent";
+import { useRetiredPlayer } from "../components/playerProfile/useRetiredPlayer";
 import {
   createDashboardProfileNavigationState,
   goBackDashboardProfile,
@@ -522,6 +523,14 @@ export default function Dashboard({
     gameState?.manager.team_id ?? "",
     gameState?.clock.current_date ?? "",
   );
+  // A profile opened on a player who is in no roster is a retired one: fetched once here, for the
+  // page and for the top bar's title.
+  const openPlayerId = profileNavigation.selectedPlayerId;
+  const retiredPlayer = useRetiredPlayer(
+    openPlayerId !== null && !gameState?.players.some((player) => player.id === openPlayerId)
+      ? openPlayerId
+      : null,
+  );
 
   if (!gameState) {
     return (
@@ -558,7 +567,7 @@ export default function Dashboard({
     ? t(TAB_TRANSLATION_KEYS[profileNavigation.activeTab])
     : profileNavigation.activeTab;
   const headerTitle =
-    openProfileTitle(profileNavigation, gameState) ??
+    openProfileTitle(profileNavigation, gameState, retiredPlayer) ??
     (profileNavigation.selectedPlayerId !== null ? t("common.player") : activeTabLabel);
   const dashboardTabContentModel = createDashboardTabContentModel({
     activeTab: profileNavigation.activeTab,
@@ -680,6 +689,7 @@ export default function Dashboard({
           dashboardAlerts={dashboardAlerts}
           gameState={gameState}
           profileNavigation={profileNavigation}
+          retiredPlayer={retiredPlayer}
           dashboardTabContentModel={dashboardTabContentModel}
           onNavigate={handleNavigate}
           onSelectPlayer={selectPlayer}

@@ -1,9 +1,9 @@
-import { renderHook, waitFor } from "@testing-library/react";
+import { act, renderHook, waitFor } from "@testing-library/react";
 import { invoke } from "@tauri-apps/api/core";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createPlayer } from "../../test-utils/factories";
-import type { PlayerRecentMatchEntry } from "./PlayerProfileRecentMatchesCard";
+import type { PlayerRecentMatchEntry } from "./PlayerProfile.helpers";
 import { usePlayerProfileData } from "./usePlayerProfileData";
 
 vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
@@ -176,5 +176,85 @@ describe("usePlayerProfileData", () => {
     rerender({ player: second, currentDate: "2026-08-10" });
 
     await waitFor(() => expect(result.current.recentMatches).toEqual([]));
+  });
+
+  /**
+   * Given a profile that has just opened, whose match history has not answered
+   * When it is read
+   * Then the history is "loading", not an empty list that reads as "no matches"
+   */
+  it("reports the match history as loading until it answers", async () => {
+    historyAnswers([]);
+    const { result } = renderHook(() =>
+      usePlayerProfileData({ player: createPlayer({ id: "p-1" }), currentDate: "2026-08-01" }),
+    );
+
+    expect(result.current.recentMatchesStatus).toBe("loading");
+    await waitFor(() => expect(result.current.recentMatchesStatus).toBe("answered"));
+    expect(result.current.recentMatches).toEqual([]);
+  });
+
+  /**
+   * Given a history request that fails on the first try
+   * When the profile opens, and the manager retries
+   * Then it is "failed" (never an empty "answered"), and after the retry it holds the matches
+   */
+  it("reports a failed match history, and answers after a retry", async () => {
+    historyAnswers(new Error("ipc"), [recentMatch("f-1")]);
+    const { result } = renderHook(() =>
+      usePlayerProfileData({ player: createPlayer({ id: "p-1" }), currentDate: "2026-08-01" }),
+    );
+
+    await waitFor(() => expect(result.current.recentMatchesStatus).toBe("failed"));
+    expect(result.current.recentMatches).toEqual([]);
+
+    act(() => result.current.retryRecentMatches());
+
+    await waitFor(() => expect(result.current.recentMatchesStatus).toBe("answered"));
+    expect(result.current.recentMatches.map((match) => match.fixture_id)).toEqual(["f-1"]);
+  });
+
+  /**
+   * Given a list already shown for a player
+   * When a refresh of it fails
+   * Then the list stays and is still "answered": a failed refresh is not a failed history
+   */
+  it("keeps an answered history when a refresh fails", async () => {
+    historyAnswers([recentMatch("f-1")], new Error("ipc"));
+    const { result, rerender } = renderHook(
+      ({ date }) =>
+        usePlayerProfileData({ player: createPlayer({ id: "p-1" }), currentDate: date }),
+      { initialProps: { date: "2026-08-01" } },
+    );
+    await waitFor(() => expect(result.current.recentMatchesStatus).toBe("answered"));
+
+    rerender({ date: "2026-08-02" });
+    await waitFor(() => expect(historyCalls()).toBe(2));
+
+    expect(result.current.recentMatchesStatus).toBe("answered");
+    expect(result.current.recentMatches).toHaveLength(1);
+  });
+
+  /**
+   * Given a history that answered with no matches
+   * When a refresh of it fails (the player has played since)
+   * Then it is "failed", with a retry: an empty answer is not a list worth keeping, and the card
+   *      must not go on saying there are no matches
+   */
+  it("reports a failed refresh when the only answer held was an empty list", async () => {
+    historyAnswers([], new Error("ipc"), [recentMatch("f-1")]);
+    const { result, rerender } = renderHook(
+      ({ date }) =>
+        usePlayerProfileData({ player: createPlayer({ id: "p-1" }), currentDate: date }),
+      { initialProps: { date: "2026-08-01" } },
+    );
+    await waitFor(() => expect(result.current.recentMatchesStatus).toBe("answered"));
+
+    rerender({ date: "2026-08-02" });
+
+    await waitFor(() => expect(result.current.recentMatchesStatus).toBe("failed"));
+    act(() => result.current.retryRecentMatches());
+    await waitFor(() => expect(result.current.recentMatchesStatus).toBe("answered"));
+    expect(result.current.recentMatches).toHaveLength(1);
   });
 });

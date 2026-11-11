@@ -107,7 +107,7 @@ const calls = (command: string) =>
 
 /** Opens the profile on the tab that holds what a test is about: the opinion and the positions are
  *  on Attributes, the wage on Contract. */
-const renderProfile = (tab: "Attributes" | "Contract" = "Attributes") => {
+const renderProfile = (tab: "Overview" | "Attributes" | "Contract" = "Attributes") => {
   const player = createPlayer({ id: "player-1", team_id: "team-1" });
   render(<PlayerProfile player={player} gameState={gameWith(player)} isOwnClub />);
   fireEvent.click(screen.getByRole("tab", { name: tab }));
@@ -158,9 +158,9 @@ describe("a profile answer that fails to load", () => {
         : answer?.(command, args as never),
     );
 
-    renderProfile("Contract");
+    renderProfile("Overview");
 
-    const wageRow = screen.getByText("Weekly Wage").parentElement as HTMLElement;
+    const wageRow = screen.getByText("Wage").parentElement as HTMLElement;
     await waitFor(() => expect(wageRow).toHaveTextContent(/12/));
     expect(calls("get_potential_opinion")).toBe(1);
     expect(calls("get_position_ratings")).toBe(1);
@@ -178,11 +178,12 @@ describe("a profile answer that fails to load", () => {
 
     renderProfile();
 
-    expect(await screen.findByText("Couldn't load")).toBeInTheDocument();
+    // On the Attributes tab and in the Overview's Details, which is a hidden panel now.
+    expect(await screen.findAllByText("Couldn't load")).toHaveLength(2);
     fireEvent.click(screen.getByRole("button", { name: "Retry" }));
 
     expect(await screen.findByRole("region", { name: "Coaches' opinion" })).toBeInTheDocument();
-    expect(screen.queryByText("Couldn't load")).not.toBeInTheDocument();
+    expect(screen.queryAllByText("Couldn't load")).toHaveLength(0);
     expect(calls("get_potential_opinion")).toBe(2);
   });
 
@@ -196,7 +197,8 @@ describe("a profile answer that fails to load", () => {
 
     renderProfile();
 
-    expect(await screen.findByText("Couldn't load")).toBeInTheDocument();
+    // The Overview's attributes card and the Attributes tab each say so.
+    expect(await screen.findAllByText("Couldn't load")).toHaveLength(2);
     fireEvent.click(screen.getByRole("button", { name: "Retry" }));
 
     expect(await screen.findByRole("region", { name: "Positions" })).toBeInTheDocument();
@@ -211,9 +213,9 @@ describe("a profile answer that fails to load", () => {
   it("retries a failed wage from the contract row", async () => {
     backendWhere("get_visible_wage");
 
-    renderProfile("Contract");
+    renderProfile("Overview");
 
-    const wageRow = screen.getByText("Weekly Wage").parentElement as HTMLElement;
+    const wageRow = screen.getByText("Wage").parentElement as HTMLElement;
     const rowRetry = await within(wageRow).findByRole("button", { name: "Retry" });
     expect(rowRetry).toHaveAccessibleDescription("Retry loading the wage");
     expect(wageRow).toHaveTextContent("Couldn't load");
@@ -235,7 +237,7 @@ describe("a profile answer that fails to load", () => {
   it("names the wage retry by the text it shows", async () => {
     backendWhere("get_visible_wage");
 
-    renderProfile("Contract");
+    renderProfile("Overview");
 
     const retries = await screen.findAllByRole("button", { description: "Retry loading the wage" });
     expect(retries.length).toBe(1);
