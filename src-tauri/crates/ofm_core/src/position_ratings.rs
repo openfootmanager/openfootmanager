@@ -11,7 +11,7 @@ use crate::game::Game;
 use crate::player_knowledge::{PlayerKnowledge, player_knowledge};
 use crate::player_rating::{
     Familiarity, canonical_position, deployed_position, familiarity, key_attributes,
-    ovr_from_attributes, position_weights, primary_position,
+    ovr_from_attributes, position_weights, primary_position, weight_importance,
 };
 
 /// One attribute a position cannot do without, and the player's value in it.
@@ -461,6 +461,7 @@ mod tests {
                 .map(|(attribute, weight)| AttributeWeight {
                     attribute: *attribute,
                     weight: *weight,
+                    importance: weight_importance(*weight),
                 })
                 .collect();
             assert_eq!(

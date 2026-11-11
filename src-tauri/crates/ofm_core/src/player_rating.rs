@@ -1001,6 +1001,40 @@ mod tests {
         }
     }
 
+    /// Given weights across the range the tables hold (4 to 28 percent), and one the position does
+    ///       not weigh
+    /// When each is turned into an importance
+    /// Then 16 and more is 3, 8 to 15 is 2, 1 to 7 is 1 and none is 0: the one place the three
+    ///      steps are cut, which the profile's weight dots read and never recompute
+    #[test]
+    fn a_weight_is_one_to_three_in_importance_and_none_is_zero() {
+        assert_eq!(weight_importance(28), 3);
+        assert_eq!(weight_importance(16), 3);
+        assert_eq!(weight_importance(15), 2);
+        assert_eq!(weight_importance(8), 2);
+        assert_eq!(weight_importance(7), 1);
+        assert_eq!(weight_importance(4), 1);
+        assert_eq!(weight_importance(1), 1);
+        assert_eq!(weight_importance(0), 0);
+    }
+
+    /// Given every position
+    /// When the importance of each attribute it weighs is read
+    /// Then the heaviest attribute of a position is always 3 and none is 0: a position's table has
+    ///      something that matters most
+    #[test]
+    fn every_position_has_a_most_important_attribute_and_weighs_nothing_at_zero() {
+        for position in Position::ALL {
+            let weights = position_weights(&position);
+            let heaviest = weights.iter().map(|(_, weight)| *weight).max().unwrap();
+            assert_eq!(weight_importance(heaviest), 3, "{position:?}");
+            assert!(
+                weights.iter().all(|(_, weight)| weight_importance(*weight) >= 1),
+                "{position:?}"
+            );
+        }
+    }
+
     /// Given a legacy bucket (Defender, Midfielder, Forward)
     /// When its weights are read
     /// Then they are those of the granular position it reads as, as its key attributes are
