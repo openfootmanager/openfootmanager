@@ -1,3 +1,4 @@
+use crate::career_stints::SeasonStints;
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
@@ -80,10 +81,11 @@ pub struct Player {
     // Career history
     pub career: Vec<CareerEntry>,
     /// The season in progress split by club, closed at every move and resolved into `career` rows
-    /// at the rollover. Not on the wire: no screen reads it.
-    #[serde(default)]
+    /// at the rollover. No screen reads it, so it is left out of the TypeScript type, and out of
+    /// the JSON while it holds nothing (the typed page fixture is made of fresh players).
+    #[serde(default, skip_serializing_if = "SeasonStints::is_untouched")]
     #[ts(skip)]
-    pub season_stints: crate::career_stints::SeasonStints,
+    pub season_stints: SeasonStints,
     /// Every move and every contract. Flattened so the wire and the saves keep their
     /// keys: it reads and writes `movement_history`, `wage`, `contract_start` and
     /// `contract_end` itself.

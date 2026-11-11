@@ -61,6 +61,12 @@ impl StintTally {
 }
 
 impl SeasonStints {
+    /// Nothing recorded yet: the state of every player at the start of a season, and of one
+    /// loaded from a save that predates stints.
+    pub fn is_untouched(&self) -> bool {
+        *self == Self::default()
+    }
+
     /// He leaves `team_id`: what he did there since he arrived is kept, and the next club's
     /// stint starts from his totals now. A spell with no appearance is not kept.
     pub fn close(&mut self, stats: &PlayerSeasonStats, team_id: &str, team_name: &str) {
