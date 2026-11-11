@@ -1354,8 +1354,10 @@ describe("TacticsTab", () => {
 
     const tableRole = await screen.findByRole("combobox", { name: /tactics.playerRoleLabel: M4/ });
     const pitchRole = within(screen.getByTestId("pitch-player-m4")).getByRole("combobox");
-    await waitFor(() => expect(tableRole).toHaveTextContent("tactics.playerRoles.Standard"));
-    expect(pitchRole).toHaveTextContent("Standard");
+    // Each select is a button showing only its selected option's label (the options are drawn when it
+    // opens), so the whole text is the selected role: exactly Standard, once the lineup has loaded.
+    await waitFor(() => expect(tableRole).toHaveTextContent(/^tactics\.playerRoles\.Standard$/));
+    expect(pitchRole).toHaveTextContent(/^Standard$/);
     expect(pitchRole).not.toHaveTextContent("Poacher");
   });
 
