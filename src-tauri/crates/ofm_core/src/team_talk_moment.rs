@@ -245,4 +245,91 @@ mod tests {
 
         assert_eq!(post_match_moment(&game), None);
     }
+
+    fn level_after_goals_won_on_penalties(
+        id: &str,
+        home: &str,
+        away: &str,
+        pens: (u8, u8),
+    ) -> Fixture {
+        Fixture {
+            id: id.to_string(),
+            date: "2026-05-20".to_string(),
+            home_team_id: home.to_string(),
+            away_team_id: away.to_string(),
+            result: Some(MatchResult {
+                home_goals: 1,
+                away_goals: 1,
+                home_penalties: Some(pens.0),
+                away_penalties: Some(pens.1),
+                ..MatchResult::default()
+            }),
+            ..Fixture::default()
+        }
+    }
+
+    /// Given a knockout tie level at 1-1 and won 5-4 on penalties by the home side
+    /// When the post-match moment is asked for the home side's manager, then the away side's
+    /// Then it reads as won for the winner of the shootout and lost for the loser, as the
+    ///      post-match tab judges it, not as a draw
+    #[test]
+    fn a_shootout_decides_the_post_match_context_of_a_level_tie() {
+        let as_winner = game_managing(
+            "me",
+            vec![level_after_goals_won_on_penalties(
+                "f1",
+                "me",
+                "them",
+                (5, 4),
+            )],
+        );
+        let as_loser = game_managing(
+            "me",
+            vec![level_after_goals_won_on_penalties(
+                "f2",
+                "them",
+                "me",
+                (5, 4),
+            )],
+        );
+
+        assert_eq!(
+            post_match_moment(&as_winner).map(|moment| moment.context),
+            Some("winning")
+        );
+        assert_eq!(
+            post_match_moment(&as_loser).map(|moment| moment.context),
+            Some("losing")
+        );
+    }
+
+    /// Given a tie level at 1-1 with no shootout, and one where the goals decide though a shootout
+    ///       tally is on the result
+    /// When the post-match moment is asked for
+    /// Then the first is a draw, and the second follows the goals: penalties only break a level tie
+    #[test]
+    fn penalties_only_break_a_level_tie() {
+        let level = game_managing("me", vec![played("f1", "2026-05-20", "me", "them", (1, 1))]);
+        let mut decided_by_goals = game_managing(
+            "me",
+            vec![level_after_goals_won_on_penalties(
+                "f2",
+                "me",
+                "them",
+                (0, 3),
+            )],
+        );
+        if let Some(result) = decided_by_goals.competitions[0].fixtures[0].result.as_mut() {
+            result.home_goals = 2;
+        }
+
+        assert_eq!(
+            post_match_moment(&level).map(|moment| moment.context),
+            Some("drawing")
+        );
+        assert_eq!(
+            post_match_moment(&decided_by_goals).map(|moment| moment.context),
+            Some("winning")
+        );
+    }
 }
