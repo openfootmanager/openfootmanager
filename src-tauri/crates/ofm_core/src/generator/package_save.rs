@@ -7,7 +7,7 @@ use std::path::{Path, PathBuf};
 use serde::Deserialize;
 use serde::Serialize;
 use serde::de::{self, DeserializeOwned, Deserializer, IgnoredAny, MapAccess, SeqAccess, Visitor};
-use serde_json::{Value, json};
+use serde_json::{Map, Value};
 
 use super::competition_def::CompetitionDefinition;
 use super::definitions::{NamePool, NamesDefinition, TeamDef};
@@ -157,36 +157,42 @@ impl Pending {
             contents,
         }
     }
+}
 
-    /// The sibling a file is staged in: its own name plus `.tmp`, so two targets never share one
-    /// (`a.json` and `a.yaml` both have a stem `a`), and the loader, which reads only `.json`,
-    /// `.yaml` and `.yml` files, never reads it.
-    fn staging(&self) -> PathBuf {
-        let mut name = self.path.clone().into_os_string();
-        name.push(".tmp");
-        PathBuf::from(name)
-    }
+/// The sibling a file is staged in: its own name plus `.tmp`, so two targets never share one
+/// (`a.json` and `a.yaml` both have a stem `a`), and the loader, which reads only `.json`,
+/// `.yaml` and `.yml` files, never reads it.
+fn staging_path(target: &Path) -> PathBuf {
+    let mut name = target.to_path_buf().into_os_string();
+    name.push(".tmp");
+    PathBuf::from(name)
 }
 
 /// Write `pending` as a set: stage every file, then rename each into place. If staging fails, the
 /// files staged so far are removed and no target has changed. (A rename that fails after that,
 /// which only the filesystem can cause, leaves the files before it renamed.)
+///
+/// Each file's value is consumed as it is staged, so a large collection's tree is gone before the
+/// next file is built and never waits for the renames.
 fn write_all(pending: Vec<Pending>) -> Result<(), String> {
-    let mut staged: Vec<&Pending> = Vec::new();
-    for file in &pending {
+    let mut targets: Vec<PathBuf> = Vec::new();
+    for file in pending {
+        let target = file.path.clone();
         if let Err(error) = stage(file) {
-            for done in &staged {
-                std::fs::remove_file(done.staging()).ok();
+            // The half-written file of this one included.
+            std::fs::remove_file(staging_path(&target)).ok();
+            for done in &targets {
+                std::fs::remove_file(staging_path(done)).ok();
             }
             return Err(error);
         }
-        staged.push(file);
+        targets.push(target);
     }
-    for (index, file) in pending.iter().enumerate() {
-        if let Err(error) = std::fs::rename(file.staging(), &file.path) {
+    for (index, target) in targets.iter().enumerate() {
+        if let Err(error) = std::fs::rename(staging_path(target), target) {
             // The `.json.tmp` siblings left behind would be archived into a built `.ofm`.
-            for rest in &pending[index..] {
-                std::fs::remove_file(rest.staging()).ok();
+            for rest in &targets[index..] {
+                std::fs::remove_file(staging_path(rest)).ok();
             }
             return Err(error.to_string());
         }
@@ -194,12 +200,16 @@ fn write_all(pending: Vec<Pending>) -> Result<(), String> {
     Ok(())
 }
 
-fn stage(file: &Pending) -> Result<(), String> {
+/// Write one file's contents beside its target, straight to disk rather than through a string the
+/// size of the file, and drop the value.
+fn stage(file: Pending) -> Result<(), String> {
     if let Some(parent) = file.path.parent() {
         std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
     }
-    let text = serde_json::to_string_pretty(&file.contents).map_err(|e| e.to_string())?;
-    std::fs::write(file.staging(), text).map_err(|e| e.to_string())
+    let out = std::fs::File::create(staging_path(&file.path)).map_err(|e| e.to_string())?;
+    let mut out = std::io::BufWriter::new(out);
+    serde_json::to_writer_pretty(&mut out, &file.contents).map_err(|e| e.to_string())?;
+    std::io::Write::flush(&mut out).map_err(|e| e.to_string())
 }
 
 /// A data file read for its layout only: its schema, and the id of each entity it declares. Every
@@ -500,8 +510,15 @@ impl Collection<'_> {
             if let Some(read) = on_disk.iter().find(|read| read.file == file) {
                 items.extend(unreadable_items::<T>(&path, file, &read.ids, &held)?);
             }
-            let contents = json!({"schema": self.kind.schema_name(), "items": items});
-            pending.push(Pending { path, contents });
+            // Built in place, the items moved in: `json!` serializes what it is given by reference,
+            // which copied the whole tree (a third of a large package's save).
+            let mut object = Map::new();
+            object.insert("schema".to_string(), Value::from(self.kind.schema_name()));
+            object.insert("items".to_string(), Value::Array(items));
+            pending.push(Pending {
+                path,
+                contents: Value::Object(object),
+            });
         }
         Ok(pending)
     }
@@ -883,6 +900,53 @@ mod tests {
             pt.contains("Portuguese names") && !pt.contains("Brazilian"),
             "{pt}"
         );
+    }
+
+    /// Given a package whose clubs live in two files, one of them also holding an item the loader
+    ///       could not read
+    /// When the clubs are saved
+    /// Then each file holds exactly what it always held: `{"items": [...], "schema": ...}` pretty
+    ///      printed with the keys sorted (the order a JSON value keeps), the held clubs first and the
+    ///      carried-over item last, and no trailing newline. How the writer builds the text is its
+    ///      own business; these bytes are what authors diff and the loader reads
+    #[test]
+    fn a_saved_file_has_the_bytes_it_always_had() {
+        let dir = package_dir(&[
+            ("package.json", MANIFEST),
+            (
+                "teams/a.json",
+                &team_file(&["fc-b", "fc-a"]).replace("]}", r#",{"id":"fc-odd","name":5}]}"#),
+            ),
+            ("teams/b.json", &team_file(&["fc-c"])),
+        ]);
+        let package = edited(&dir, |package| {
+            let teams = package.teams.as_mut().expect("teams sent");
+            teams[0].name = "Renamed".to_string();
+        });
+        let held = package.teams.clone().expect("teams sent");
+
+        save_package_files(&dir, &package).expect("the save succeeds");
+        let read = |file: &str| std::fs::read_to_string(dir.join(file)).expect("readable");
+        let (a, b) = (read("teams/a.json"), read("teams/b.json"));
+        std::fs::remove_dir_all(&dir).ok();
+
+        let value = |ids: &[&str], carried: Vec<Value>| {
+            let mut items: Vec<Value> = held
+                .iter()
+                .filter(|team| ids.contains(&team.id.as_str()))
+                .map(|team| serde_json::to_value(team).expect("serializes"))
+                .collect();
+            items.extend(carried);
+            serde_json::to_string_pretty(&json!({"schema": "team", "items": items}))
+                .expect("serializes")
+        };
+        assert_eq!(
+            a,
+            value(&["fc-a", "fc-b"], vec![json!({"id": "fc-odd", "name": 5})])
+        );
+        assert_eq!(b, value(&["fc-c"], Vec::new()));
+        assert!(a.starts_with("{\n  \"items\": ["), "keys are sorted: {a}");
+        assert!(!a.ends_with('\n'), "no trailing newline");
     }
 
     /// Given a package whose manifest is renamed in the editor, and a teams file whose staging
