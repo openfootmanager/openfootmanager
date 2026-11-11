@@ -187,10 +187,10 @@ The `initialize` result's `serverInfo.version` is the package version plus the s
 |------|-------------|
 | `contract_propose_renewal` | Propose contract renewal. Returns negotiation feedback with suggested wage/years. |
 | `contract_delegate_renewals` | Delegate renewals to assistant with budget constraints |
-| `contract_preview_renewal` | Preview renewal financial impact |
+| `contract_preview_renewal` | Preview renewal financial impact: wage bills, cash runway, and whether wage policy allows the offer |
 | `contract_set_exit_intent` | Mark a contract to expire (let player leave on free transfer) |
 | `contract_clear_exit_intent` | Remove exit intent from a contract |
-| `contract_preview_termination` | Preview cost of terminating a contract |
+| `contract_preview_termination` | Preview the severance cost of terminating a contract and the squad-safety report |
 | `contract_terminate` | Terminate a contract immediately (costs compensation) |
 
 ### Inbox (7 tools)
