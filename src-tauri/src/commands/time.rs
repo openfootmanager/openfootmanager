@@ -1352,7 +1352,10 @@ mod tests {
         assert_eq!(state.get_game(|g| g.clock.current_date), Some(date));
     }
 
-    /// Given a clean game whose next match is thirty days away
+    /// Given a clean game whose next match is thirty days away, in a world whose dice bring a
+    ///       blocker inside that month (the day's training injury at the user's club, which empties
+    ///       a spot of his eleven: found over a few seeds, because which day it falls on is the
+    ///       dice's business, not this test's)
     /// When the MCP skip runs
     /// Then it stops after the first day that brings a real blocker, with that blocker listed,
     ///      having advanced exactly that many days: the screen's skip loop stops there too.
@@ -1362,35 +1365,44 @@ mod tests {
         use crate::application::time_blockers::stopping_blockers;
         use crate::mcp_server::tools_impl::time::skip_to_match_day_in;
         use mcp_results::time::SkipToMatchDay;
-        let mut game = make_game_with_matchday();
-        let start = game.clock.current_date;
-        let far = (start + chrono::Duration::days(30))
-            .format("%Y-%m-%d")
-            .to_string();
-        game.league.as_mut().unwrap().fixtures[0].date = far;
-        assert!(
-            stopping_blockers(&game).is_empty(),
-            "the game should start clean"
-        );
-        let state = StateManager::new();
-        state.set_game(game);
 
-        let outcome = skip_to_match_day_in(&state).expect("the skip answers");
+        let skip_in_world = |seed: u64| {
+            let mut game = make_game_with_matchday();
+            game.seed = seed;
+            let start = game.clock.current_date;
+            let far = (start + chrono::Duration::days(30))
+                .format("%Y-%m-%d")
+                .to_string();
+            game.league.as_mut().unwrap().fixtures[0].date = far;
+            assert!(
+                stopping_blockers(&game).is_empty(),
+                "the game should start clean"
+            );
+            let state = StateManager::new();
+            state.set_game(game);
+            let outcome = skip_to_match_day_in(&state).expect("the skip answers");
+            let moved = state.get_game(|g| g.clock.current_date - start).unwrap();
+            (outcome, moved)
+        };
+        let (outcome, moved) = (0..50)
+            .map(skip_in_world)
+            .find(|(outcome, _)| {
+                matches!(outcome, SkipToMatchDay::Blocked { days_advanced, .. } if (1..30).contains(days_advanced))
+            })
+            .expect("no seed of fifty brought a blocker inside the month");
 
         let SkipToMatchDay::Blocked {
             days_advanced,
             blockers,
         } = outcome
         else {
-            panic!("a blocker should have stopped the skip, got {outcome:?}");
+            panic!("a blocker should have stopped the skip");
         };
-        assert!((1..30).contains(&days_advanced), "{days_advanced}");
         assert!(!blockers.is_empty());
         assert!(
             blockers.iter().all(|b| b.severity != "info"),
             "{blockers:?}"
         );
-        let moved = state.get_game(|g| g.clock.current_date - start).unwrap();
         assert_eq!(moved.num_days(), i64::from(days_advanced));
     }
 

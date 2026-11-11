@@ -558,8 +558,7 @@ fn a_career_after_two_seasons_has_no_calendar_repairs() {
     let rolled = rolled_over();
     let game = &rolled.calendar_game;
     let today = game.clock.current_date.date_naive();
-    let blackout =
-        ofm_core::national_team::international_blackout_around(&game.competitions, today);
+    let blackout = ofm_core::national_team::international_blackout_around(game, today);
     let mut checked = 0;
     for fixture in game.competitions.iter().flat_map(|c| &c.fixtures) {
         if fixture.status != FixtureStatus::Scheduled

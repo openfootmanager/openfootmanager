@@ -303,6 +303,39 @@
     "subtitle": "Yönetmek istediğin takımı seç",
     "confirming": "Onaylanıyor...",
     "manage": "{{name}} takımını yönet",
+    "steps": {
+      "label": "Yeni kariyer adımları",
+      "manager": "Menajer",
+      "world": "Dünya",
+      "generation": "Oluşturma",
+      "club": "Kulüp",
+      "done": "tamamlandı"
+    },
+    "back": "Dünya oluşturmaya dön",
+    "simulation": "Simülasyon",
+    "manageNone": "Yönet",
+    "rail": {
+      "label": "Ülkeler ve ligler",
+      "countries": "Ülkeler"
+    },
+    "table": {
+      "label": "Kulüpler",
+      "club": "Kulüp",
+      "transfers": "Transferler",
+      "wages": "Maaşlar / hafta",
+      "stadium": "Stadyum"
+    },
+    "card": {
+      "label": "Seçilen kulüp",
+      "emptyTitle": "Henüz kulüp seçilmedi",
+      "emptyHint": "Kadrosunu, bütçelerini ve yönetimin beklentisini görmek için listeden bir kulüp seçin.",
+      "boardExpects": "Yönetim bekliyor",
+      "transferBudget": "Transfer bütçesi",
+      "wageBudget": "Maaş bütçesi",
+      "balance": "Bakiye",
+      "stadium": "Stadyum",
+      "founded": "{{year}} yılında kuruldu"
+    },
     "reputation": "İtibar",
     "squad": "Kadro",
     "finances": "Finans",

@@ -482,108 +482,141 @@ fn footedness_penalty(player: &Player, slot_position: &Position) -> f64 {
     }
 }
 
-fn weighted_score(attrs: &PlayerAttributes, position: &Position) -> f64 {
+// How much of a position's rating each attribute is worth, in percent: the one table the rating
+// (`weighted_score`) is read from and the profile shows (`position_weights`). Each adds up to 100.
+const GOALKEEPER: [(AttributeKey, u8); 7] = [
+    (AttributeKey::Handling, 28),
+    (AttributeKey::Reflexes, 28),
+    (AttributeKey::Aerial, 14),
+    (AttributeKey::Positioning, 10),
+    (AttributeKey::Decisions, 10),
+    (AttributeKey::Composure, 5),
+    (AttributeKey::Strength, 5),
+];
+
+const FULL_BACK: [(AttributeKey, u8); 8] = [
+    (AttributeKey::Pace, 18),
+    (AttributeKey::Stamina, 16),
+    (AttributeKey::Tackling, 17),
+    (AttributeKey::Defending, 16),
+    (AttributeKey::Positioning, 12),
+    (AttributeKey::Passing, 10),
+    (AttributeKey::Dribbling, 6),
+    (AttributeKey::Decisions, 5),
+];
+
+const CENTRE_BACK: [(AttributeKey, u8); 7] = [
+    (AttributeKey::Defending, 24),
+    (AttributeKey::Tackling, 18),
+    (AttributeKey::Positioning, 18),
+    (AttributeKey::Strength, 14),
+    (AttributeKey::Aerial, 12),
+    (AttributeKey::Decisions, 8),
+    (AttributeKey::Composure, 6),
+];
+
+const WING_BACK: [(AttributeKey, u8); 8] = [
+    (AttributeKey::Pace, 18),
+    (AttributeKey::Stamina, 18),
+    (AttributeKey::Tackling, 14),
+    (AttributeKey::Defending, 12),
+    (AttributeKey::Passing, 13),
+    (AttributeKey::Dribbling, 11),
+    (AttributeKey::Vision, 7),
+    (AttributeKey::Decisions, 7),
+];
+
+const DEFENSIVE_MIDFIELD: [(AttributeKey, u8); 8] = [
+    (AttributeKey::Tackling, 18),
+    (AttributeKey::Positioning, 18),
+    (AttributeKey::Decisions, 16),
+    (AttributeKey::Passing, 14),
+    (AttributeKey::Defending, 12),
+    (AttributeKey::Stamina, 10),
+    (AttributeKey::Vision, 7),
+    (AttributeKey::Strength, 5),
+];
+
+const CENTRAL_MIDFIELD: [(AttributeKey, u8); 8] = [
+    (AttributeKey::Passing, 20),
+    (AttributeKey::Vision, 16),
+    (AttributeKey::Decisions, 16),
+    (AttributeKey::Stamina, 12),
+    (AttributeKey::Dribbling, 10),
+    (AttributeKey::Positioning, 9),
+    (AttributeKey::Teamwork, 9),
+    (AttributeKey::Tackling, 8),
+];
+
+const ATTACKING_MIDFIELD: [(AttributeKey, u8); 8] = [
+    (AttributeKey::Vision, 20),
+    (AttributeKey::Passing, 18),
+    (AttributeKey::Dribbling, 16),
+    (AttributeKey::Decisions, 14),
+    (AttributeKey::Shooting, 10),
+    (AttributeKey::Positioning, 8),
+    (AttributeKey::Composure, 8),
+    (AttributeKey::Pace, 6),
+];
+
+const WIDE_MIDFIELD: [(AttributeKey, u8); 8] = [
+    (AttributeKey::Pace, 17),
+    (AttributeKey::Stamina, 16),
+    (AttributeKey::Passing, 15),
+    (AttributeKey::Dribbling, 14),
+    (AttributeKey::Vision, 10),
+    (AttributeKey::Decisions, 10),
+    (AttributeKey::Positioning, 10),
+    (AttributeKey::Tackling, 8),
+];
+
+const WINGER: [(AttributeKey, u8); 8] = [
+    (AttributeKey::Pace, 22),
+    (AttributeKey::Dribbling, 22),
+    (AttributeKey::Passing, 14),
+    (AttributeKey::Shooting, 12),
+    (AttributeKey::Vision, 10),
+    (AttributeKey::Decisions, 8),
+    (AttributeKey::Positioning, 6),
+    (AttributeKey::Stamina, 6),
+];
+
+const STRIKER: [(AttributeKey, u8); 8] = [
+    (AttributeKey::Shooting, 26),
+    (AttributeKey::Positioning, 18),
+    (AttributeKey::Decisions, 14),
+    (AttributeKey::Pace, 12),
+    (AttributeKey::Dribbling, 10),
+    (AttributeKey::Strength, 8),
+    (AttributeKey::Composure, 8),
+    (AttributeKey::Aerial, 4),
+];
+
+/// What the game weighs at `position`, attribute by attribute, in percent and summing to 100: the
+/// table `ovr_from_attributes` rates a player there by, so what a screen shows of it is what the
+/// rating is built from. A legacy bucket reads as its granular position, as `canonical_position`
+/// maps it.
+pub fn position_weights(position: &Position) -> &'static [(AttributeKey, u8)] {
     match position {
-        Position::Goalkeeper => weighted_average(&[
-            (attrs.handling, 28),
-            (attrs.reflexes, 28),
-            (attrs.aerial, 14),
-            (attrs.positioning, 10),
-            (attrs.decisions, 10),
-            (attrs.composure, 5),
-            (attrs.strength, 5),
-        ]),
-        Position::RightBack | Position::LeftBack => weighted_average(&[
-            (attrs.pace, 18),
-            (attrs.stamina, 16),
-            (attrs.tackling, 17),
-            (attrs.defending, 16),
-            (attrs.positioning, 12),
-            (attrs.passing, 10),
-            (attrs.dribbling, 6),
-            (attrs.decisions, 5),
-        ]),
-        Position::CenterBack => weighted_average(&[
-            (attrs.defending, 24),
-            (attrs.tackling, 18),
-            (attrs.positioning, 18),
-            (attrs.strength, 14),
-            (attrs.aerial, 12),
-            (attrs.decisions, 8),
-            (attrs.composure, 6),
-        ]),
-        Position::RightWingBack | Position::LeftWingBack => weighted_average(&[
-            (attrs.pace, 18),
-            (attrs.stamina, 18),
-            (attrs.tackling, 14),
-            (attrs.defending, 12),
-            (attrs.passing, 13),
-            (attrs.dribbling, 11),
-            (attrs.vision, 7),
-            (attrs.decisions, 7),
-        ]),
-        Position::DefensiveMidfielder => weighted_average(&[
-            (attrs.tackling, 18),
-            (attrs.positioning, 18),
-            (attrs.decisions, 16),
-            (attrs.passing, 14),
-            (attrs.defending, 12),
-            (attrs.stamina, 10),
-            (attrs.vision, 7),
-            (attrs.strength, 5),
-        ]),
-        Position::CentralMidfielder => weighted_average(&[
-            (attrs.passing, 20),
-            (attrs.vision, 16),
-            (attrs.decisions, 16),
-            (attrs.stamina, 12),
-            (attrs.dribbling, 10),
-            (attrs.positioning, 9),
-            (attrs.teamwork, 9),
-            (attrs.tackling, 8),
-        ]),
-        Position::AttackingMidfielder => weighted_average(&[
-            (attrs.vision, 20),
-            (attrs.passing, 18),
-            (attrs.dribbling, 16),
-            (attrs.decisions, 14),
-            (attrs.shooting, 10),
-            (attrs.positioning, 8),
-            (attrs.composure, 8),
-            (attrs.pace, 6),
-        ]),
-        Position::RightMidfielder | Position::LeftMidfielder => weighted_average(&[
-            (attrs.pace, 17),
-            (attrs.stamina, 16),
-            (attrs.passing, 15),
-            (attrs.dribbling, 14),
-            (attrs.vision, 10),
-            (attrs.decisions, 10),
-            (attrs.positioning, 10),
-            (attrs.tackling, 8),
-        ]),
-        Position::RightWinger | Position::LeftWinger => weighted_average(&[
-            (attrs.pace, 22),
-            (attrs.dribbling, 22),
-            (attrs.passing, 14),
-            (attrs.shooting, 12),
-            (attrs.vision, 10),
-            (attrs.decisions, 8),
-            (attrs.positioning, 6),
-            (attrs.stamina, 6),
-        ]),
-        Position::Striker => weighted_average(&[
-            (attrs.shooting, 26),
-            (attrs.positioning, 18),
-            (attrs.decisions, 14),
-            (attrs.pace, 12),
-            (attrs.dribbling, 10),
-            (attrs.strength, 8),
-            (attrs.composure, 8),
-            (attrs.aerial, 4),
-        ]),
-        Position::Defender | Position::Midfielder | Position::Forward => unreachable!(),
+        Position::Goalkeeper => &GOALKEEPER,
+        Position::RightBack | Position::LeftBack => &FULL_BACK,
+        Position::CenterBack | Position::Defender => &CENTRE_BACK,
+        Position::RightWingBack | Position::LeftWingBack => &WING_BACK,
+        Position::DefensiveMidfielder => &DEFENSIVE_MIDFIELD,
+        Position::CentralMidfielder | Position::Midfielder => &CENTRAL_MIDFIELD,
+        Position::AttackingMidfielder => &ATTACKING_MIDFIELD,
+        Position::RightMidfielder | Position::LeftMidfielder => &WIDE_MIDFIELD,
+        Position::RightWinger | Position::LeftWinger => &WINGER,
+        Position::Striker | Position::Forward => &STRIKER,
     }
+}
+
+fn weighted_score(attrs: &PlayerAttributes, position: &Position) -> f64 {
+    position_weights(position)
+        .iter()
+        .map(|(key, weight)| key.value_in(attrs) as f64 * *weight as f64)
+        .sum::<f64>()
+        / 100.0
 }
 
 /// The three attributes a player in `position` cannot do without: a weakness in any of them costs
@@ -630,14 +663,6 @@ fn critical_penalty(attrs: &PlayerAttributes, position: &Position) -> f64 {
     } else {
         (45 - critical_min) as f64 * 0.6
     }
-}
-
-fn weighted_average(values: &[(u8, i32)]) -> f64 {
-    values
-        .iter()
-        .map(|(value, weight)| *value as f64 * *weight as f64)
-        .sum::<f64>()
-        / 100.0
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -785,6 +810,208 @@ mod tests {
                     player.natural_position
                 );
             }
+        }
+    }
+
+    /// The average the old inline weights were read through, kept for the oracle below.
+    fn weighted_average(values: &[(u8, i32)]) -> f64 {
+        values
+            .iter()
+            .map(|(value, weight)| *value as f64 * *weight as f64)
+            .sum::<f64>()
+            / 100.0
+    }
+
+    /// `weighted_score` before its weights became `position_weights`, kept verbatim as the oracle
+    /// the refactor is held to.
+    fn weighted_score_before(attrs: &PlayerAttributes, position: &Position) -> f64 {
+        match position {
+            Position::Goalkeeper => weighted_average(&[
+                (attrs.handling, 28),
+                (attrs.reflexes, 28),
+                (attrs.aerial, 14),
+                (attrs.positioning, 10),
+                (attrs.decisions, 10),
+                (attrs.composure, 5),
+                (attrs.strength, 5),
+            ]),
+            Position::RightBack | Position::LeftBack => weighted_average(&[
+                (attrs.pace, 18),
+                (attrs.stamina, 16),
+                (attrs.tackling, 17),
+                (attrs.defending, 16),
+                (attrs.positioning, 12),
+                (attrs.passing, 10),
+                (attrs.dribbling, 6),
+                (attrs.decisions, 5),
+            ]),
+            Position::CenterBack => weighted_average(&[
+                (attrs.defending, 24),
+                (attrs.tackling, 18),
+                (attrs.positioning, 18),
+                (attrs.strength, 14),
+                (attrs.aerial, 12),
+                (attrs.decisions, 8),
+                (attrs.composure, 6),
+            ]),
+            Position::RightWingBack | Position::LeftWingBack => weighted_average(&[
+                (attrs.pace, 18),
+                (attrs.stamina, 18),
+                (attrs.tackling, 14),
+                (attrs.defending, 12),
+                (attrs.passing, 13),
+                (attrs.dribbling, 11),
+                (attrs.vision, 7),
+                (attrs.decisions, 7),
+            ]),
+            Position::DefensiveMidfielder => weighted_average(&[
+                (attrs.tackling, 18),
+                (attrs.positioning, 18),
+                (attrs.decisions, 16),
+                (attrs.passing, 14),
+                (attrs.defending, 12),
+                (attrs.stamina, 10),
+                (attrs.vision, 7),
+                (attrs.strength, 5),
+            ]),
+            Position::CentralMidfielder => weighted_average(&[
+                (attrs.passing, 20),
+                (attrs.vision, 16),
+                (attrs.decisions, 16),
+                (attrs.stamina, 12),
+                (attrs.dribbling, 10),
+                (attrs.positioning, 9),
+                (attrs.teamwork, 9),
+                (attrs.tackling, 8),
+            ]),
+            Position::AttackingMidfielder => weighted_average(&[
+                (attrs.vision, 20),
+                (attrs.passing, 18),
+                (attrs.dribbling, 16),
+                (attrs.decisions, 14),
+                (attrs.shooting, 10),
+                (attrs.positioning, 8),
+                (attrs.composure, 8),
+                (attrs.pace, 6),
+            ]),
+            Position::RightMidfielder | Position::LeftMidfielder => weighted_average(&[
+                (attrs.pace, 17),
+                (attrs.stamina, 16),
+                (attrs.passing, 15),
+                (attrs.dribbling, 14),
+                (attrs.vision, 10),
+                (attrs.decisions, 10),
+                (attrs.positioning, 10),
+                (attrs.tackling, 8),
+            ]),
+            Position::RightWinger | Position::LeftWinger => weighted_average(&[
+                (attrs.pace, 22),
+                (attrs.dribbling, 22),
+                (attrs.passing, 14),
+                (attrs.shooting, 12),
+                (attrs.vision, 10),
+                (attrs.decisions, 8),
+                (attrs.positioning, 6),
+                (attrs.stamina, 6),
+            ]),
+            Position::Striker => weighted_average(&[
+                (attrs.shooting, 26),
+                (attrs.positioning, 18),
+                (attrs.decisions, 14),
+                (attrs.pace, 12),
+                (attrs.dribbling, 10),
+                (attrs.strength, 8),
+                (attrs.composure, 8),
+                (attrs.aerial, 4),
+            ]),
+            Position::Defender | Position::Midfielder | Position::Forward => unreachable!(),
+        }
+    }
+
+    /// Given every granular position and attribute blocks that reach every branch of the penalty
+    /// When the weighted score is read through `position_weights`
+    /// Then it is what it was before, to the last bit, so no rating in the game moves
+    #[test]
+    fn the_weighted_score_is_unchanged_by_reading_its_weights_from_a_table() {
+        for attrs in characterization_blocks() {
+            for position in Position::ALL {
+                if matches!(
+                    position,
+                    Position::Defender | Position::Midfielder | Position::Forward
+                ) {
+                    continue;
+                }
+                assert_eq!(
+                    weighted_score(&attrs, &position),
+                    weighted_score_before(&attrs, &position),
+                    "{position:?} {attrs:?}"
+                );
+            }
+        }
+    }
+
+    /// Given every position, the legacy buckets included
+    /// When the attributes it weighs are read
+    /// Then each is named once, with a weight, and the weights add up to 100: the score divides
+    ///      by 100, so a table that does not add up would rate every player there too high or low
+    #[test]
+    fn every_position_weighs_each_attribute_once_and_the_weights_add_up_to_a_hundred() {
+        for position in Position::ALL {
+            let weights = position_weights(&position);
+            let mut keys: Vec<_> = weights.iter().map(|(key, _)| *key).collect();
+            keys.sort_by_key(|key| format!("{key:?}"));
+            keys.dedup();
+            assert_eq!(
+                keys.len(),
+                weights.len(),
+                "{position:?} repeats an attribute"
+            );
+            assert!(
+                weights.iter().all(|(_, weight)| *weight > 0),
+                "{position:?}"
+            );
+            assert_eq!(
+                weights
+                    .iter()
+                    .map(|(_, weight)| u32::from(*weight))
+                    .sum::<u32>(),
+                100,
+                "{position:?}"
+            );
+        }
+    }
+
+    /// Given every position
+    /// When its three key attributes (the ones whose weakness costs rating) are read against what
+    ///      it weighs
+    /// Then each is one the position weighs: the two lists cannot disagree about what matters
+    #[test]
+    fn a_positions_key_attributes_are_among_the_attributes_it_weighs() {
+        for position in Position::ALL {
+            let weighed: Vec<_> = position_weights(&position)
+                .iter()
+                .map(|(key, _)| *key)
+                .collect();
+            for key in key_attributes(&position) {
+                assert!(
+                    weighed.contains(&key),
+                    "{position:?} does not weigh its key {key:?}"
+                );
+            }
+        }
+    }
+
+    /// Given a legacy bucket (Defender, Midfielder, Forward)
+    /// When its weights are read
+    /// Then they are those of the granular position it reads as, as its key attributes are
+    #[test]
+    fn a_legacy_bucket_weighs_what_its_granular_position_does() {
+        for bucket in [Position::Defender, Position::Midfielder, Position::Forward] {
+            assert_eq!(
+                position_weights(&bucket),
+                position_weights(&canonical_position(&bucket)),
+                "{bucket:?}"
+            );
         }
     }
 

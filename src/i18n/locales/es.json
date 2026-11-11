@@ -303,6 +303,39 @@
     "subtitle": "Selecciona el equipo que quieres dirigir",
     "confirming": "Confirmando...",
     "manage": "Dirigir {{name}}",
+    "steps": {
+      "label": "Pasos de la nueva carrera",
+      "manager": "Entrenador",
+      "world": "Mundo",
+      "generation": "Generación",
+      "club": "Club",
+      "done": "completado"
+    },
+    "back": "Volver a la generación del mundo",
+    "simulation": "Simulación",
+    "manageNone": "Dirigir",
+    "rail": {
+      "label": "Países y ligas",
+      "countries": "Países"
+    },
+    "table": {
+      "label": "Clubes",
+      "club": "Club",
+      "transfers": "Fichajes",
+      "wages": "Salarios / sem.",
+      "stadium": "Estadio"
+    },
+    "card": {
+      "label": "Club elegido",
+      "emptyTitle": "Aún no has elegido club",
+      "emptyHint": "Elige un club de la lista para ver su plantilla, sus presupuestos y lo que espera la directiva.",
+      "boardExpects": "La directiva espera",
+      "transferBudget": "Presupuesto de fichajes",
+      "wageBudget": "Presupuesto salarial",
+      "balance": "Saldo",
+      "stadium": "Estadio",
+      "founded": "fundado en {{year}}"
+    },
     "reputation": "Reputación",
     "squad": "Plantilla",
     "finances": "Finanzas",
