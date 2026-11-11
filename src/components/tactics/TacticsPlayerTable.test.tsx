@@ -5,6 +5,7 @@ import type { TacticsLineup } from "../../store/generated/TacticsLineup";
 import TacticsPlayerTable, { buildTableRows } from "./TacticsPlayerTable";
 
 vi.mock("react-i18next", () => ({
+  initReactI18next: { type: "3rdParty", init: () => undefined },
   useTranslation: () => ({
     t: (key: string, fallback?: string | Record<string, unknown>) => {
       if (typeof fallback === "string") return fallback;

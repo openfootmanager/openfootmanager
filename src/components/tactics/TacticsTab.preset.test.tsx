@@ -372,7 +372,7 @@ describe("TacticsTab preset selection", { timeout: TACTICS_TAB_CASE_TIMEOUT_MS }
       "set_player_role",
       async () => {
         const select = (await screen.findAllByRole("combobox")).find((control) =>
-          control.getAttribute("aria-label")?.startsWith("Player role:"),
+          control.getAttribute("aria-label")?.startsWith("Role:"),
         ) as HTMLElement;
         fireEvent.click(select);
         fireEvent.click(screen.getAllByRole("option")[1]);
