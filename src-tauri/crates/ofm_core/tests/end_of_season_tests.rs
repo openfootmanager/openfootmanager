@@ -1293,8 +1293,10 @@ fn a_user_with_no_division_gets_no_season_preview() {
 }
 
 /// The two-division world with the user's manager sacked from `last_club`: his stint there opened
-/// and closed as the game records it, and the `game.league` mirror synced as the game syncs it (with
-/// no club, from the first competition, the first division).
+/// and closed as the game records it, and the `game.league` mirror put back on the first division,
+/// the world's first competition. The game now syncs a sacked manager's mirror to his last club's
+/// league (#1296), but the end-of-season screens must follow that club by themselves, not through the
+/// mirror (a mirror that is stale, as the turn loop leaves it between syncs, must not change them).
 fn sacked_from(last_club: &str) -> Game {
     let mut game = make_two_division_game(last_club);
     game.manager
@@ -1306,6 +1308,7 @@ fn sacked_from(last_club: &str) -> Game {
         ));
     game.manager.fire("2025-03-01");
     game.sync_legacy_league();
+    game.league = game.competitions.first().cloned();
     game
 }
 
