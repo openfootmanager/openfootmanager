@@ -624,7 +624,19 @@ fn complete_competing_tournaments(mut game: Game, live: bool) {
     let competitions: BTreeMap<_, _> = game
         .competitions
         .iter()
-        .map(|c| (c.id.clone(), serde_json::to_value(c).unwrap()))
+        .map(|c| {
+            (
+                c.id.clone(),
+                serde_json::to_value((
+                    &c.fixtures,
+                    &c.standings,
+                    &c.groups,
+                    &c.knockout_rounds,
+                    c.priority,
+                ))
+                .unwrap(),
+            )
+        })
         .collect();
     let players: BTreeMap<_, _> = game
         .players
@@ -636,7 +648,17 @@ fn complete_competing_tournaments(mut game: Game, live: bool) {
         loaded
             .competitions
             .iter()
-            .map(|c| (c.id.clone(), serde_json::to_value(c).unwrap()))
+            .map(|c| (
+                c.id.clone(),
+                serde_json::to_value((
+                    &c.fixtures,
+                    &c.standings,
+                    &c.groups,
+                    &c.knockout_rounds,
+                    c.priority
+                ))
+                .unwrap()
+            ))
             .collect::<BTreeMap<_, _>>(),
         competitions
     );
