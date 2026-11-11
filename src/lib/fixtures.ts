@@ -109,6 +109,13 @@ function competitionIncludesTeam(competition: LeagueData, teamId: string): boole
   );
 }
 
+/** Whether he has a club now or has had one: a manager who never has has no league to follow. */
+export function hasEverManaged(
+  manager: Pick<GameStateData["manager"], "team_id" | "career_history"> | undefined,
+): boolean {
+  return (manager?.team_id ?? null) !== null || (manager?.career_history?.length ?? 0) > 0;
+}
+
 // The manager's own domestic league — the source of truth for the league-table
 // cards. In the multi-competition world this lives in `gameState.competitions`;
 // the legacy `gameState.league` is kept only as a fallback for old saves.
@@ -121,7 +128,7 @@ export function getUserCompetition(
   gameState: Pick<GameStateData, "competitions" | "league" | "manager">,
 ): LeagueData | null {
   const teamId = gameState.manager?.team_id ?? null;
-  if (teamId === null && (gameState.manager?.career_history?.length ?? 0) === 0) {
+  if (!hasEverManaged(gameState.manager)) {
     return null;
   }
   const competitions = gameState.competitions ?? [];

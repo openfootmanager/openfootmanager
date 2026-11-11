@@ -1,4 +1,4 @@
-import { getUserCompetition } from "../../lib/fixtures";
+import { hasEverManaged } from "../../lib/fixtures";
 import { ArrowLeftRight, CalendarDays, Building2, TrendingUp, UserRound } from "lucide-react";
 import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
@@ -38,7 +38,10 @@ export default function TransferCentreWorldTab({
   onSelectTeam,
 }: TransferCentreWorldTabProps) {
   const { t, i18n } = useTranslation();
-  const league = getUserCompetition(gameState);
+  // The mirror is where weekly news writes the rumours and the turn loop the deals, so it is the
+  // source; a manager who has never had a club has no league to follow, and the mirror (kept on the
+  // first competition for the season's rollover) must not be shown to him (#1296).
+  const league = hasEverManaged(gameState.manager) ? gameState.league : null;
   const rumours = sortByDateDesc(league?.transfer_rumours ?? []);
   const completedDeals = sortByDateDesc(league?.transfer_log ?? []);
   const playersById = playerMap(gameState.players);
