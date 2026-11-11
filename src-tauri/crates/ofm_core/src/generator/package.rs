@@ -2722,7 +2722,7 @@ mod tests {
     }
 
     /// A database package defining one club, "base-fc".
-    fn base_database() -> PathBuf {
+    fn base_with_one_club() -> PathBuf {
         let dir = temp_package();
         write(
             &dir,
@@ -2765,7 +2765,7 @@ mod tests {
     ///      stack merge gives.
     #[test]
     fn a_patch_checked_on_its_base_passes_and_a_ghost_club_is_refused() {
-        let base = base_database();
+        let base = base_with_one_club();
         let legit = patch_with_player_at("base-fc");
         let ghost = patch_with_player_at("ghost-fc");
 
