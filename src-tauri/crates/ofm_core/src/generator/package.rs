@@ -1992,6 +1992,10 @@ pub fn extract_archive_safely(
     extract_archive_entries(ofm_path, dest_dir, |_| true)
 }
 
+fn extract_package_definitions(ofm_path: &Path, dest_dir: &Path) -> Result<Vec<PackageError>, String> {
+    extract_archive_safely(ofm_path, dest_dir)
+}
+
 /// Extract only the package's `assets/` tree.
 ///
 /// Asset files are carried into the archive by `pack` but are never read by the
@@ -2303,6 +2307,26 @@ pub fn read_logo_from_ofm(archive_path: &Path, logo_path: &str) -> Option<String
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Given a package with artwork, when definitions are extracted, then artwork is not written.
+    #[test]
+    fn extracting_package_definitions_does_not_write_artwork() {
+        use std::io::Write;
+        let temp = temp_package();
+        let archive = temp.join("world.ofm");
+        let mut zip = zip::ZipWriter::new(std::fs::File::create(&archive).unwrap());
+        let options = zip::write::SimpleFileOptions::default();
+        zip.start_file("package.json", options).unwrap();
+        zip.write_all(br#"{"schema":"world","id":"a","name":"A"}"#).unwrap();
+        zip.start_file("assets/portrait.png", options).unwrap();
+        zip.write_all(b"artwork").unwrap();
+        zip.finish().unwrap();
+        let dest = temp.join("out");
+        extract_package_definitions(&archive, &dest).unwrap();
+        assert!(dest.join("package.json").exists());
+        assert!(!dest.join("assets/portrait.png").exists());
+        std::fs::remove_dir_all(temp).unwrap();
+    }
 
     #[test]
     fn world_meta_def_round_trips_fallback_league_config() {
