@@ -68,11 +68,6 @@ export function formatPlayerWage(weeklyWage: number): string {
   return formatWeeklyWage(weeklyWageAmount(weeklyWage));
 }
 
-/** The compact form for the profile's header tiles. */
-export function formatPlayerWageCompact(weeklyWage: number): string {
-  return formatWeeklyWage(weeklyWage, "compact");
-}
-
 export function getAttributeColorClass(value: number): string {
   return getAttributeValueClassName(value);
 }

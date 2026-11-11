@@ -84,11 +84,20 @@ describe("RatingChip", () => {
     expect(screen.queryByText(/Overall/)).not.toBeInTheDocument();
   });
 
-  /** Given the larger size, then the chip is the taller one; the default is the row's size. */
-  it("comes in two sizes", () => {
+  /**
+   * Given each size, then the chip grows with it: the row's by default, a card's, and a name
+   * card's display size, which keeps the tier's tone.
+   */
+  it("comes in three sizes", () => {
     const { rerender } = render(<RatingChip value={79} tier="A" />);
     expect(screen.getByTitle("Overall 79, tier A")).toHaveClass("h-5");
     rerender(<RatingChip value={79} tier="A" size="md" />);
     expect(screen.getByTitle("Overall 79, tier A")).toHaveClass("h-6");
+    rerender(<RatingChip value={79} tier="A" size="display" />);
+    expect(screen.getByTitle("Overall 79, tier A")).toHaveClass(
+      "h-16",
+      "text-display",
+      "bg-tone-good-tint",
+    );
   });
 });

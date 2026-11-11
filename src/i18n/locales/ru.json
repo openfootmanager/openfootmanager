@@ -314,6 +314,23 @@
     "back": "Назад к созданию мира",
     "simulation": "Симуляция",
     "manageNone": "Возглавить",
+    "scope": {
+      "title": "Что симулирует мир",
+      "subtitle": "Выберите, какие регионы и соревнования игра симулирует полностью. Чем их больше, тем дольше проходит каждый день.",
+      "sectionStart": "1 · Где вы начинаете",
+      "sectionRegions": "2 · Симулируемые регионы",
+      "sectionCompetitions": "3 · Турниры",
+      "regionMeta": "{{countries}} · клубов: {{clubs}}",
+      "simulate": "Симулировать: {{name}}",
+      "needs": "Требуется: {{regions}}",
+      "add": "Добавить: {{regions}}",
+      "groupCount": "{{on}} из {{total}}",
+      "groupSimulated": "Симулируется {{on}} из {{total}}",
+      "needOne": "Включите хотя бы один турнир.",
+      "summary": "Регионов: {{regions}} · симулируемых турниров: {{competitions}}",
+      "clubs": "Клубов в симулируемых регионах: {{clubs}}",
+      "apply": "Применить"
+    },
     "rail": {
       "label": "Страны и лиги",
       "countries": "Страны"
@@ -348,18 +365,12 @@
     "failedToSelectTeam": "Не удалось выбрать команду: {{error}}.",
     "homeRegion": "Домашний регион",
     "homeCountry": "Домашняя страна",
-    "allCountries": "Все страны",
-    "simulationScope": "Объём симуляции",
     "otherClubs": "Другие клубы",
     "searchClubs": "Поиск клубов…",
     "clubCount": "Клубов: {{n}}",
     "noClubsMatch": "Нет клубов по вашему запросу.",
-    "simulatedRegions": "Симулируемые регионы",
-    "simulatedCompetitions": "Симулируемые турниры",
     "homeBadge": "Дом",
-    "yourClub": "вашего клуба",
     "yourClubBadge": "Ваш клуб",
-    "requiresRegions": "Требуются регионы: {{regions}}",
     "selectedClub": "Выбранный клуб",
     "formation": "Схема",
     "overall": "Общий уровень",
@@ -370,7 +381,6 @@
     "clubCompetitionsAlwaysSimulated": "Турниры вашего клуба всегда симулируются, даже если отключены другие регионы или соревнования.",
     "selectClubPrompt": "Выберите клуб, чтобы посмотреть состав и турниры.",
     "playersCount": "{{count}} игроков",
-    "scopeSummary": "Будут загружены {{regionsCount}} симулируемых регионов и {{competitionsCount}} симулируемых турниров.",
     "regionLabels": {
       "north-america": "Северная Америка",
       "central-america": "Центральная Америка",
@@ -393,13 +403,6 @@
       "InternationalClub": "Международный клубный турнир",
       "InternationalNation": "Международный турнир сборных",
       "FriendlyCup": "Товарищеский кубок"
-    },
-    "scopeMessages": {
-      "homeRegionAlwaysActive": "Ваш игровой регион всегда остаётся активным.",
-      "regionRequiredByCompetition": "{{competition}} входит в календарь {{club}}, поэтому регион {{region}} должен оставаться активным.",
-      "regionRemovedDisablesCompetitions": "Регион {{region}} был убран из области симуляции, поэтому зависимые турниры тоже были отключены.",
-      "clubCompetitionLocked": "{{competition}} есть в календаре {{club}} и всегда будет симулироваться.",
-      "autoEnabledRegions": "Для {{competition}} нужны регионы {{regions}}, поэтому они были включены автоматически."
     }
   },
   "youthAcademy": {
@@ -1692,6 +1695,15 @@
     }
   },
   "playerProfile": {
+    "sections": "Разделы профиля",
+    "overall": "Общий",
+    "ratingUnknown": "Ваш клуб не знает его рейтинг",
+    "tabs": {
+      "overview": "Обзор",
+      "attributes": "Атрибуты",
+      "career": "Карьера",
+      "contract": "Контракт"
+    },
     "contractInfo": "Контракт и информация",
     "dateOfBirth": "Дата рождения",
     "noContract": "Без контракта",

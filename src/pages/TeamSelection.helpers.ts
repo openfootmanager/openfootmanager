@@ -4,20 +4,6 @@ import type { GameStateData, LeagueData, PlayerData, WorldRegionData } from "../
 import type { ClubSquadRatings } from "../services/teamsService";
 import { buildRegionLabel } from "../lib/teamRegions";
 
-export function competitionScopeLabel(t: TFunction, scope?: string): string | null {
-  if (!scope) {
-    return null;
-  }
-  return t(`teamSelect.scopes.${scope}`, { defaultValue: scope });
-}
-
-export function competitionKindLabel(t: TFunction, kind?: string): string | null {
-  if (!kind) {
-    return null;
-  }
-  return t(`teamSelect.kinds.${kind}`, { defaultValue: kind });
-}
-
 /**
  * The regions a new career can be scoped to: each region a competition declares for a club's
  * country, with the countries it covers. The game itself carries no region list.
@@ -51,17 +37,6 @@ export function regionsFromCompetitions(
       country_codes: Array.from(countryCodes).sort(),
     }))
     .sort((left, right) => left.name.localeCompare(right.name));
-}
-
-export function competitionRequiredRegions(competition: LeagueData): string[] {
-  const regionIds = new Set(competition.required_region_ids ?? []);
-  if (
-    (competition.scope === "Domestic" || competition.scope === "Regional") &&
-    competition.region_id
-  ) {
-    regionIds.add(competition.region_id);
-  }
-  return Array.from(regionIds).sort();
 }
 
 export function teamCompetitions(teamId: string, competitions: LeagueData[]): LeagueData[] {

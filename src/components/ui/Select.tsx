@@ -568,7 +568,9 @@ export function Select({
                 })}
               </div>
             </div>,
-            document.body,
+            // Inside the dialog the select is in, if it is in one: a list drawn outside an
+            // aria-modal dialog is out of reach of its Tab trap and hidden from a screen reader.
+            wrapperRef.current?.closest<HTMLElement>('[role="dialog"]') ?? document.body,
           )
         : null}
     </div>
