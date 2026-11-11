@@ -99,7 +99,7 @@ describe("PlayerProfile renewal helpers", () => {
   it("maps renewal statuses to their display class names", () => {
     expect(getRenewalStatusClassName("accepted")).toBe("text-positive");
     expect(getRenewalStatusClassName("rejected")).toBe("text-danger");
-    expect(getRenewalStatusClassName("counter_offer")).toBe("text-accent-600 dark:text-accent-400");
+    expect(getRenewalStatusClassName("counter_offer")).toBe("text-warning");
     expect(getRenewalStatusClassName("idle")).toBe("text-fg-muted");
   });
 

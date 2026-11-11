@@ -135,6 +135,10 @@ describe("the player profile's cases", () => {
     expect(loaned.playerPatch?.active_loan).toMatchObject({ parent_team_id: USER_CLUB });
     expect(loaned.playerPatch?.active_loan?.loan_team_id).not.toBe(USER_CLUB);
     expect(profileCase("own").playerPatch).toBeUndefined();
+    // The club's coaches watch a player they have loaned out no longer, so there is no opinion of
+    // his potential for the loaned player (`player_knowledge`); the injured one keeps his.
+    expect(loaned.opinion).toBeNull();
+    expect(injured.opinion).not.toBeNull();
   });
 
   /**

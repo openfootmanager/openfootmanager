@@ -141,6 +141,8 @@ const KNOWLEDGE_SHOWS: Record<HarnessProfile, (view: ReturnType<typeof within>) 
   },
   loaned: (view) => {
     expect(view.getByText(/^On loan at /)).toBeInTheDocument();
+    // No opinion of his potential while he is away (the coaches see him no more).
+    expect(view.queryByText("Coaches' opinion")).toBeNull();
   },
   // A division rival: his attributes are known, his condition, morale and wage are not.
   rival: (view) => {
