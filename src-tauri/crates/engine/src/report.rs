@@ -393,41 +393,42 @@ fn populate_minutes_played(
     tracked_player_ids: &[String],
     player_stats: &mut HashMap<String, PlayerMatchStats>,
 ) {
-    let mut minutes_by_player: HashMap<String, u8> = tracked_player_ids
+    let mut intervals: HashMap<String, (u8, u8)> = tracked_player_ids
         .iter()
         .cloned()
-        .map(|player_id| (player_id, total_minutes))
+        .map(|player_id| (player_id, (0, total_minutes)))
         .collect();
 
     for event in events {
         match event.event_type {
             EventType::Substitution => {
                 if let Some(ref player_off_id) = event.secondary_player_id {
-                    minutes_by_player
-                        .insert(player_off_id.clone(), event.minute.min(total_minutes));
+                    let interval = intervals
+                        .entry(player_off_id.clone())
+                        .or_insert((0, total_minutes));
+                    interval.1 = interval.1.min(event.minute.min(total_minutes));
                 }
                 if let Some(ref player_on_id) = event.player_id {
-                    minutes_by_player.insert(
+                    intervals.insert(
                         player_on_id.clone(),
-                        total_minutes.saturating_sub(event.minute),
+                        (event.minute.min(total_minutes), total_minutes),
                     );
                 }
             }
             EventType::RedCard | EventType::SecondYellow => {
                 if let Some(ref player_id) = event.player_id {
-                    let dismissed_at = event.minute.min(total_minutes);
-                    minutes_by_player
+                    intervals
                         .entry(player_id.clone())
-                        .and_modify(|minutes| *minutes = (*minutes).min(dismissed_at))
-                        .or_insert(dismissed_at);
+                        .and_modify(|interval| interval.1 = interval.1.min(event.minute))
+                        .or_insert((0, event.minute.min(total_minutes)));
                 }
             }
             _ => {}
         }
     }
 
-    for (player_id, minutes_played) in minutes_by_player {
-        player_stats.entry(player_id).or_default().minutes_played = minutes_played;
+    for (player_id, (entry, exit)) in intervals {
+        player_stats.entry(player_id).or_default().minutes_played = exit.saturating_sub(entry);
     }
 }
 
@@ -437,6 +438,73 @@ mod tests {
 
     fn event(minute: u8, event_type: EventType, side: Side, player: &str) -> MatchEvent {
         MatchEvent::new(minute, event_type, side, Zone::attacking_box(side)).with_player(player)
+    }
+
+    fn substitution(minute: u8, on: &str, off: &str) -> MatchEvent {
+        event(minute, EventType::Substitution, Side::Home, on).with_secondary(off)
+    }
+
+    fn reported_minutes(events: Vec<MatchEvent>, player: &str) -> u8 {
+        MatchReport::from_events_with_players(events, 0, 0, 90, vec![player.to_string()])
+            .player_stats[player]
+            .minutes_played
+    }
+
+    /// Given a substitute sent off five minutes after entering, when reported, then credit five minutes.
+    #[test]
+    fn substitute_sent_off_only_plays_until_dismissal() {
+        assert_eq!(
+            reported_minutes(
+                vec![
+                    substitution(60, "sub", "starter"),
+                    event(65, EventType::RedCard, Side::Home, "sub")
+                ],
+                "sub"
+            ),
+            5
+        );
+    }
+
+    /// Given a substitute later replaced, when reported, then credit only his time on the pitch.
+    #[test]
+    fn substitute_replaced_only_plays_until_exit() {
+        assert_eq!(
+            reported_minutes(
+                vec![
+                    substitution(60, "sub", "starter"),
+                    substitution(80, "other", "sub")
+                ],
+                "sub"
+            ),
+            20
+        );
+    }
+
+    /// Given a starter replaced at 60, when reported, then credit 60 minutes.
+    #[test]
+    fn starter_replaced_plays_until_exit() {
+        assert_eq!(
+            reported_minutes(vec![substitution(60, "sub", "starter")], "starter"),
+            60
+        );
+    }
+
+    /// Given a starter sent off at 65, when reported, then credit 65 minutes.
+    #[test]
+    fn starter_sent_off_plays_until_dismissal() {
+        assert_eq!(
+            reported_minutes(
+                vec![event(65, EventType::SecondYellow, Side::Home, "starter")],
+                "starter"
+            ),
+            65
+        );
+    }
+
+    /// Given a starter still playing at full time, when reported, then credit the whole match.
+    #[test]
+    fn starter_remaining_plays_the_whole_match() {
+        assert_eq!(reported_minutes(vec![], "starter"), 90);
     }
 
     // Regression: shootout kicks used to be counted as match goals, inflating
