@@ -62,7 +62,7 @@ export default function PlayerProfileContractHistoryCard({
       <CardHeader>{t("playerProfile.contractsHad")}</CardHeader>
       <CardBody>
         {rows.length > 0 ? (
-          <table className="w-full text-body">
+          <table aria-label={t("playerProfile.contractsHad")} className="w-full text-body">
             <thead className="sr-only">
               <tr>
                 <th scope="col">{t("playerProfile.contractSpanHeading")}</th>
@@ -78,7 +78,7 @@ export default function PlayerProfileContractHistoryCard({
                       {spanText(row, language, t)}
                     </td>
                     <td className="min-w-0 py-2 pr-3 align-top">
-                      {onOpenTeam && row.clubId ? (
+                      {onOpenTeam && row.clubId && row.clubName ? (
                         <button
                           type="button"
                           onClick={() => onOpenTeam(row.clubId ?? "")}
@@ -87,7 +87,9 @@ export default function PlayerProfileContractHistoryCard({
                           {row.clubName}
                         </button>
                       ) : (
-                        <span className="font-semibold text-fg">{row.clubName}</span>
+                        <span className="font-semibold text-fg">
+                          {row.clubName || t("common.unknown")}
+                        </span>
                       )}
                       {row.inForce ? (
                         <span className="ml-2">

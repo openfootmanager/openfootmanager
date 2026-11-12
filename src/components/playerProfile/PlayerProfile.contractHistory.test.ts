@@ -349,6 +349,29 @@ describe("buildContractHistory", () => {
   });
 
   /**
+   * Given a transfer whose origin club is nowhere in the game and has no recorded name (only an id)
+   * When the history is built
+   * Then the row has no origin club, so the card says "transferred" with no club, never an opaque id
+   */
+  it("gives a transfer from an unknown club no origin rather than its id", () => {
+    const rows = buildContractHistory(
+      [
+        {
+          ...signing("2029-07-01", "North FC", {
+            start: "2029-07-01",
+            end: "2031-06-30",
+            weekly_wage: 7000,
+          }),
+          from_team_id: "club-gone-123",
+        },
+      ],
+      TODAY,
+    );
+
+    expect(rows[0].fromClubName).toBeNull();
+  });
+
+  /**
    * Given a contract closed by a termination in January 2031 and one closed by retirement
    * When the history is built
    * Then each row carries the day it was closed
