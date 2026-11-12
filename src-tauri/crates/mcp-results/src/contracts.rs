@@ -170,6 +170,10 @@ pub struct TerminationPreview {
     pub severance_cost: i64,
     #[serde(default)]
     pub squad_safety: SquadSafetyReport,
+    /// Why the squad floor would refuse this release: the same translation-key error
+    /// `contract_terminate` is refused with. `None` when the club keeps the floor.
+    #[serde(default)]
+    pub squad_floor_refusal: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -315,6 +319,7 @@ mod tests {
                 can_field_matchday_squad: true,
                 missing_reasons: vec![SquadSafetyIssue::IncompleteFormation],
             },
+            squad_floor_refusal: None,
         };
 
         let wire = serde_json::to_value(&result).unwrap();
@@ -328,6 +333,32 @@ mod tests {
         let text = result.to_string();
         assert!(text.contains("Severance Cost**: 12000"));
         assert!(text.contains("incomplete formation"));
+        // No floor refusal: nothing about the floor is said.
+        assert_eq!(wire["squad_floor_refusal"], serde_json::Value::Null);
+        assert!(!text.contains("Squad Floor"));
+    }
+
+    /// Given a release the squad floor would refuse (one of two senior goalkeepers)
+    /// When the preview is serialized and written out
+    /// Then the structured result carries the refusal key `contract_terminate` is refused with, and
+    ///      the text says the release would be refused and why, so an agent does not take it as fine.
+    #[test]
+    fn termination_preview_exposes_the_squad_floor_refusal_in_structured_and_text_results() {
+        let refusal = "be.error.squadFloor.wouldLeaveShort?group=common.positionGroups.Goalkeeper";
+        let result = TerminationPreview {
+            player_id: "gk-1".to_string(),
+            player_name: "Gil Keeper".to_string(),
+            severance_cost: 12_000,
+            squad_safety: SquadSafetyReport::default(),
+            squad_floor_refusal: Some(refusal.to_string()),
+        };
+
+        let wire = serde_json::to_value(&result).unwrap();
+        assert_eq!(wire["squad_floor_refusal"], refusal);
+        let text = result.to_string();
+        assert!(text.contains("Squad Floor"), "{text}");
+        assert!(text.contains("would be refused"), "{text}");
+        assert!(text.contains(refusal), "{text}");
     }
 
     /// Given an older payload, when it is deserialized, then newly added fields use defaults.
@@ -343,5 +374,6 @@ mod tests {
         assert_eq!(termination.player_name, "");
         assert_eq!(termination.severance_cost, 0);
         assert_eq!(termination.squad_safety.projected_roster_size, 0);
+        assert_eq!(termination.squad_floor_refusal, None);
     }
 }

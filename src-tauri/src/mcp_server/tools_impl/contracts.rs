@@ -239,6 +239,7 @@ fn termination_preview(
                 })
                 .collect(),
         },
+        squad_floor_refusal: None,
     }
 }
 
@@ -403,8 +404,40 @@ mod tests {
                     can_field_matchday_squad: false,
                     missing_reasons: vec![ResultSquadSafetyIssue::IncompleteFormation],
                 },
+                squad_floor_refusal: None,
             }
         );
+    }
+
+    /// Given a preview whose release the squad floor would refuse (one of two senior goalkeepers)
+    /// When it is mapped for the agent
+    /// Then the refusal is forwarded unchanged, the same key `contract_terminate` is refused with,
+    ///      so the agent is not shown a release that then fails
+    #[test]
+    fn termination_preview_forwards_the_squad_floor_refusal() {
+        let refusal = "be.error.squadFloor.wouldLeaveShort?group=common.positionGroups.Goalkeeper";
+        let result = termination_preview(
+            "gk-1".to_string(),
+            ContractTerminationPreviewCommandResponse {
+                preview: ContractTerminationPreview {
+                    player_id: "gk-1".to_string(),
+                    player_name: "Gil Keeper".to_string(),
+                    severance_cost: 12_000,
+                    squad_safety: SquadSafetyReport {
+                        team_id: "team-1".to_string(),
+                        projected_roster_size: 20,
+                        healthy_players: 18,
+                        healthy_goalkeepers: 2,
+                        effective_xi_size: 11,
+                        can_field_matchday_squad: true,
+                        missing_reasons: vec![],
+                    },
+                    squad_floor_refusal: Some(refusal.to_string()),
+                },
+            },
+        );
+
+        assert_eq!(result.squad_floor_refusal.as_deref(), Some(refusal));
     }
 }
 
