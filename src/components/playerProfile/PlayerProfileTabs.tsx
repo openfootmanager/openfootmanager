@@ -14,6 +14,7 @@ import PlayerProfileAdvancedStatsCard from "./PlayerProfileAdvancedStatsCard";
 import PlayerProfileCareerHistoryCard from "./PlayerProfileCareerHistoryCard";
 import PlayerProfileContractHistoryCard from "./PlayerProfileContractHistoryCard";
 import PlayerProfileContractSheet from "./PlayerProfileContractSheet";
+import PlayerProfileContractTimeline from "./PlayerProfileContractTimeline";
 import PlayerProfilePotentialOpinion from "./PlayerProfilePotentialOpinion";
 import PlayerProfileAttributesTab from "./attributes/PlayerProfileAttributesTab";
 import PlayerProfileMovementHistoryCard from "./PlayerProfileMovementHistoryCard";
@@ -181,13 +182,22 @@ export default function PlayerProfileTabs({
           contractRisk={contractRisk}
           lastSigned={contractHistory.find((row) => row.inForce) ?? null}
           below={
-            <PlayerProfileContractHistoryCard
-              rows={contractHistory}
-              showsWages={exactWeeklyWage !== null}
-              language={i18n.language}
-              onOpenTeam={onSelectTeam}
-              t={t}
-            />
+            <>
+              <PlayerProfileContractTimeline
+                rows={contractHistory}
+                showsWages={exactWeeklyWage !== null}
+                today={currentDate.slice(0, 10)}
+                language={i18n.language}
+                t={t}
+              />
+              <PlayerProfileContractHistoryCard
+                rows={contractHistory}
+                showsWages={exactWeeklyWage !== null}
+                language={i18n.language}
+                onOpenTeam={onSelectTeam}
+                t={t}
+              />
+            </>
           }
           data={contractSheet}
           actionSubmitting={actions.contract.contractActionSubmitting}

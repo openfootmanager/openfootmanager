@@ -1914,6 +1914,11 @@
       "renewClosedWhat": "Contract talks are closed. Reopen them to renew him.",
       "letExpireSetButton": "Set to expire",
       "replacedOn": "Replaced on {{date}}",
+      "overTime": "Contracts over time",
+      "overTimeNote": "Weekly wage on each contract. A dashed edge is a planned end that has not come yet.",
+      "overTimeNoteNoWage": "A dashed edge is a planned end that has not come yet.",
+      "overTimeLabel": "A timeline of his contracts, with today marked",
+      "today": "Today",
       "yearsLeft": {
         "one": "{{years}} year",
         "many": "{{years}} years",

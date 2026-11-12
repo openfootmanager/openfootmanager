@@ -1914,6 +1914,11 @@
       "renewClosedWhat": "Sözleşme görüşmeleri kapatıldı. Uzatmak için yeniden açın.",
       "letExpireSetButton": "Bitmesi için ayarlandı",
       "replacedOn": "{{date}} tarihinde değiştirildi",
+      "overTime": "Zaman içinde sözleşmeler",
+      "overTimeNote": "Her sözleşmedeki haftalık maaş. Kesik çizgili kenar, henüz gelmemiş planlı bir bitiştir.",
+      "overTimeNoteNoWage": "Kesik çizgili kenar, henüz gelmemiş planlı bir bitiştir.",
+      "overTimeLabel": "Sözleşmelerinin zaman çizelgesi, bugün işaretli",
+      "today": "Bugün",
       "yearsLeft": {
         "one": "{{years}} yıl",
         "many": "{{years}} yıl",
