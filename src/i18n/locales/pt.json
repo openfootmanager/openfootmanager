@@ -1863,6 +1863,8 @@
     "careerChartNoMove": "Sem transferência nesta época.",
     "careerChartClubs": "Clubes",
     "careerChartLoanClub": "{{club}} (empréstimo)",
+    "careerChartPrevious": "Época anterior",
+    "careerChartNext": "Época seguinte",
     "noCareer": "Sem historial de carreira — primeira temporada.",
     "movementHistory": "Historial de Movimentos",
     "noMovementHistory": "Ainda não há transferências ou empréstimos registados.",

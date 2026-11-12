@@ -274,7 +274,7 @@ describe("PlayerProfileCareerChart", () => {
     renderChart();
     const band = (index: number) => {
       const { container } = render(
-        <svg>
+        <svg role="img" aria-label="tick">
           {handed.tick?.({ x: 10, y: 20, index, payload: { value: handed.data[index].label } })}
         </svg>,
       );

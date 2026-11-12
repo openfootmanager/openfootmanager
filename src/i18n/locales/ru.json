@@ -1863,6 +1863,8 @@
     "careerChartNoMove": "В этом сезоне переходов не было.",
     "careerChartClubs": "Клубы",
     "careerChartLoanClub": "{{club}} (аренда)",
+    "careerChartPrevious": "Предыдущий сезон",
+    "careerChartNext": "Следующий сезон",
     "noCareer": "История карьеры пока пуста — это первый сезон.",
     "movementHistory": "История переходов",
     "noMovementHistory": "Трансферы и аренды пока не зафиксированы.",

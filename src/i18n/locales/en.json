@@ -1864,6 +1864,8 @@
     "careerChartNoMove": "No move this season.",
     "careerChartClubs": "Clubs",
     "careerChartLoanClub": "{{club}} (loan)",
+    "careerChartPrevious": "Previous season",
+    "careerChartNext": "Next season",
     "noCareer": "No career history yet — first season.",
     "movementHistory": "Movement History",
     "noMovementHistory": "No transfer or loan movement recorded yet.",

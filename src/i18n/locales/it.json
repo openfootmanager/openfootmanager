@@ -1882,6 +1882,8 @@
     "careerChartNoMove": "Nessun trasferimento in questa stagione.",
     "careerChartClubs": "Club",
     "careerChartLoanClub": "{{club}} (prestito)",
+    "careerChartPrevious": "Stagione precedente",
+    "careerChartNext": "Stagione successiva",
     "noCareer": "Nessuno storico carriera per ora — prima stagione.",
     "movementHistory": "Storico movimenti",
     "noMovementHistory": "Nessun trasferimento o prestito ancora registrato.",

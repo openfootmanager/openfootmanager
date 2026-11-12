@@ -1864,6 +1864,8 @@
     "careerChartNoMove": "Tidak ada kepindahan musim ini.",
     "careerChartClubs": "Klub",
     "careerChartLoanClub": "{{club}} (pinjaman)",
+    "careerChartPrevious": "Musim sebelumnya",
+    "careerChartNext": "Musim berikutnya",
     "noCareer": "Belum ada riwayat karier — musim pertama.",
     "movementHistory": "Riwayat Perpindahan",
     "noMovementHistory": "Belum ada riwayat transfer atau pinjaman.",

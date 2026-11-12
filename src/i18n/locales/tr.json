@@ -1864,6 +1864,8 @@
     "careerChartNoMove": "Bu sezon transfer yok.",
     "careerChartClubs": "Kulüpler",
     "careerChartLoanClub": "{{club}} (kiralık)",
+    "careerChartPrevious": "Önceki sezon",
+    "careerChartNext": "Sonraki sezon",
     "noCareer": "Henüz kariyer geçmişi yok — ilk sezon.",
     "movementHistory": "Transfer Geçmişi",
     "noMovementHistory": "Henüz kayıtlı transfer veya kiralama hareketi yok.",

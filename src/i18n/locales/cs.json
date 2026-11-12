@@ -1864,6 +1864,8 @@
     "careerChartNoMove": "V této sezóně žádný přestup.",
     "careerChartClubs": "Kluby",
     "careerChartLoanClub": "{{club}} (hostování)",
+    "careerChartPrevious": "Předchozí sezóna",
+    "careerChartNext": "Další sezóna",
     "noCareer": "Zatím žádná historie kariéry — první sezóna.",
     "movementHistory": "Historie přestupů",
     "noMovementHistory": "Zatím nebyly zaznamenány žádné přestupy ani hostování.",
