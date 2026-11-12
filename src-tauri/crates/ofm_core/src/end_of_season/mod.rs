@@ -768,7 +768,7 @@ fn manage_international_calendar(
 /// The division the season's rollover finishes on: the user's, else a world league, or the legacy
 /// mirror. A manager with no followed league still needs the world season to roll over; the mirror
 /// alone may point at a cup in a modern world.
-fn rollover_division(game: &Game) -> Option<&League> {
+pub(crate) fn rollover_division(game: &Game) -> Option<&League> {
     user_division(game)
         .or_else(|| {
             game.competitions
