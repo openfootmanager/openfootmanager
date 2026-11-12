@@ -20,7 +20,7 @@ use std::collections::HashMap;
 use chrono::{Datelike, NaiveDate};
 use domain::career_stints::SeasonStints;
 use domain::player::{
-    CareerEntry, Player, PlayerMovementEntry, PlayerMovementKind, PlayerSeasonStats,
+    ActiveLoan, CareerEntry, Player, PlayerMovementEntry, PlayerMovementKind, PlayerSeasonStats,
 };
 use serde::Serialize;
 use ts_rs::TS;
@@ -361,6 +361,7 @@ pub fn build_career(
     movements: &[PlayerMovementEntry],
     seasons: &StatisticsSeason,
     club_name: &dyn Fn(&str) -> Option<String>,
+    _active_loan: Option<&ActiveLoan>,
 ) -> PlayerCareer {
     let visits = visits_from(movements);
     let placings = place_rows(rows, &visits, seasons);
@@ -495,7 +496,13 @@ pub fn player_career(game: &Game, player: &Player) -> PlayerCareer {
         &club_id,
         &club_name,
     ));
-    build_career(&rows, &player.movement_history, &seasons, &name_of)
+    build_career(
+        &rows,
+        &player.movement_history,
+        &seasons,
+        &name_of,
+        player.active_loan.as_ref(),
+    )
 }
 
 #[cfg(test)]
@@ -562,7 +569,7 @@ mod tests {
         movements: &[PlayerMovementEntry],
         seasons: &StatisticsSeason,
     ) -> PlayerCareer {
-        build_career(rows, movements, seasons, &|_| None)
+        build_career(rows, movements, seasons, &|_| None, None)
     }
 
     /// The list read compactly: a season row as "2025 north 33" (" now" when in progress), a move
@@ -1118,6 +1125,7 @@ mod tests {
             &[entry],
             &calendar(8),
             &|id| (id == "north").then(|| "North FC".to_string()),
+            None,
         );
 
         let line = career.by_season.iter().find_map(|line| match line {
@@ -1195,5 +1203,122 @@ mod tests {
             }
         );
         assert_eq!(seasons.began_on(2025), day("2025-03-15"));
+    }
+
+    /// Given a season rolled over on 20 June 2026 (the real reset day, which the game knows), and
+    ///       the season before it, whose own reset day the game no longer holds (the rollover
+    ///       overwrites it), with a free signing on 10 July 2025 and a loan on 20 July 2025
+    /// When the career is built
+    /// Then the 2025 season begins on the calendar's start (1 August 2025), not on its lost reset
+    ///      day: the signing's row (on 10 July) is placed at 1 August, after the loan line. Known
+    ///      limitation, pinned as it is today; recovering the day needs the reset day stored with
+    ///      each career row (#1402)
+    #[test]
+    fn a_historical_season_begins_on_the_calendar_start_because_its_reset_day_is_not_kept() {
+        let seasons = StatisticsSeason {
+            current: 2026,
+            current_began_on: Some(day("2026-06-20")),
+            start_month: 8,
+            start_day: 1,
+        };
+        let rows = [stint(2025, "b", 4, 1, 0), stint(2025, "c", 2, 0, 1)];
+        let movements = [
+            moved(
+                "2025-07-10",
+                PlayerMovementKind::FreeAgentSigning,
+                None,
+                Some("b"),
+            ),
+            moved(
+                "2025-07-20",
+                PlayerMovementKind::LoanStart,
+                Some("b"),
+                Some("c"),
+            ),
+        ];
+
+        let career = career_of(&rows, &movements, &seasons);
+
+        assert_eq!(seasons.began_on(2025), day("2025-08-01"));
+        // Were the lost reset day (before 10 July) known, "2025 b 4" would sit below the loan line.
+        assert_eq!(
+            read(&career),
+            [
+                "2025 c 2",
+                "2025 b 4",
+                "move:LoanStart",
+                "move:FreeAgentSigning"
+            ]
+        );
+    }
+
+    /// Given a club he played at for years and left, a club he was at for one season, and a
+    ///       return to the first in that same last season
+    /// When the career is summed by club
+    /// Then the club he returned to is listed first: among clubs whose last season is the same,
+    ///      the latest stint decides before the first season does
+    #[test]
+    fn a_club_he_returned_to_lists_ahead_of_one_he_visited_once_in_the_same_last_season() {
+        let rows = [
+            stint(2020, "home", 30, 5, 1),
+            stint(2021, "home", 30, 6, 2),
+            stint(2022, "home", 30, 7, 3),
+            stint(2023, "visit", 10, 1, 0),
+            stint(2023, "home", 12, 2, 1),
+        ];
+
+        let career = career_of(&rows, &[], &calendar(8));
+
+        let clubs: Vec<&str> = career
+            .by_club
+            .iter()
+            .map(|club| club.club_id.as_str())
+            .collect();
+        assert_eq!(clubs, ["home", "visit"]);
+    }
+
+    /// Given a loanee from a save older than the ledger's loan entries: `active_loan` says he is at
+    ///       the borrower since 10 October 2026, but his ledger holds only his opening contract at
+    ///       the parent club
+    /// When the career is built
+    /// Then the stint at the borrower is a loan: the authoritative `active_loan` seeds the visit
+    ///      the ledger lacks, and the parent's spell ends the day the loan began
+    #[test]
+    fn a_loanee_the_ledger_has_no_loan_entry_for_is_seeded_from_his_active_loan() {
+        let rows = [
+            stint(2026, "parent", 5, 1, 0),
+            now(2026, "borrower", 3, 0, 1),
+        ];
+        let movements = [moved(
+            "2025-08-01",
+            PlayerMovementKind::InitialContract,
+            None,
+            Some("parent"),
+        )];
+        let loan = ActiveLoan {
+            parent_team_id: "parent".to_string(),
+            loan_team_id: "borrower".to_string(),
+            start_date: "2026-10-10".to_string(),
+            end_date: "2027-06-30".to_string(),
+            wage_contribution_pct: 50,
+            buy_option_fee: None,
+            loan_start_minutes: 0,
+            loan_start_appearances: 0,
+            development_reported_minutes: 0,
+            development_reported_appearances: 0,
+        };
+
+        let career = build_career(&rows, &movements, &calendar(8), &|_| None, Some(&loan));
+
+        assert!(season_row(&career, 2026, "borrower").on_loan);
+        assert!(!season_row(&career, 2026, "parent").on_loan);
+        assert_eq!(
+            read(&career),
+            [
+                "2026 borrower 3 now",
+                "2026 parent 5",
+                "move:InitialContract"
+            ]
+        );
     }
 }
