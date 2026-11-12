@@ -42,11 +42,11 @@ describe("the player profile's cases", () => {
   /**
    * Given the club's own player, and each other state
    * When their cases are built
-   * Then only the own player has played: five matches (a trend needs two) against rival clubs and
-   *      season totals above zero, so the layout check measures the populated sections; the others
-   *      show the empty ones
+   * Then only the own player has played five matches (a trend needs two) against rival clubs; the
+   *      own players and the division rival have season totals above zero, so the layout check
+   *      measures the populated sections, and the others show the empty ones
    */
-  it("gives the own players a season to measure, and the others none", () => {
+  it("gives the own players a match history, and the others none", () => {
     const own = profileCase("own");
     expect(own.recentMatches).toHaveLength(5);
     expect(own.recentMatches.every((match) => match.opponent_team_id !== USER_CLUB)).toBe(true);
@@ -55,8 +55,13 @@ describe("the player profile's cases", () => {
       (variant) => !["own", "keeper", "injured", "loaned"].includes(variant),
     )) {
       expect(profileCase(variant).recentMatches).toEqual([]);
+    }
+    for (const variant of HARNESS_PROFILES.filter(
+      (variant) => !["own", "keeper", "injured", "loaned", "rival"].includes(variant),
+    )) {
       expect(profileCase(variant).seasonStats.metrics.shots.total).toBe(0);
     }
+    expect(profileCase("rival").seasonStats.metrics.shots.total).toBeGreaterThan(0);
   });
 
   /**

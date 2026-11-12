@@ -1,6 +1,6 @@
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { StrictMode, useState } from "react";
-import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { invoke } from "@tauri-apps/api/core";
 import { i18nReady } from "../../i18n";
 import type { GameStateData, PlayerData, TeamData } from "../../store/gameStore";
@@ -173,6 +173,8 @@ const makeGame = (): GameStateData => ({
 let backend: GameStateData;
 /** The backend's verdict on whether the phase dials still equal the style's blueprint. */
 let blueprintModified = false;
+/** The measuring stand-in `narrowLineupRegion` installs, to put back. */
+let rectSpy: { mockRestore: () => void } | null = null;
 /** Commands the faked backend refuses with the career-changed error. */
 let refused = new Set<string>();
 /** The tactics the faked save holds, in the order made. */
@@ -297,6 +299,13 @@ describe("TacticsTab preset selection", { timeout: TACTICS_TAB_CASE_TIMEOUT_MS }
     await i18nReady;
   });
 
+  afterEach(() => {
+    // Only what narrowLineupRegion put in place: the file's other mocks are set once, above.
+    rectSpy?.mockRestore();
+    rectSpy = null;
+    vi.unstubAllGlobals();
+  });
+
   beforeEach(() => {
     localStorage.clear();
     resetTacticsLineupCache();
@@ -344,6 +353,85 @@ describe("TacticsTab preset selection", { timeout: TACTICS_TAB_CASE_TIMEOUT_MS }
     await waitFor(() => {
       expect(screen.getByRole("button", { name: "Choose tactic" })).toHaveTextContent("High Press");
     });
+  });
+
+  /** Makes the lineup region 600px wide, so the pitch is behind its Pitch button. */
+  function narrowLineupRegion() {
+    rectSpy = vi
+      .spyOn(HTMLElement.prototype, "getBoundingClientRect")
+      .mockImplementation(
+        () => ({ width: 600, height: 400, top: 0, left: 0, right: 600, bottom: 400 }) as DOMRect,
+      );
+    vi.stubGlobal(
+      "ResizeObserver",
+      class {
+        observe(): void {}
+        disconnect(): void {}
+      },
+    );
+  }
+
+  /** Opens the pitch panel of a narrow window and returns a pitch token's role control in it. */
+  async function openPitchPanelRoleControl() {
+    narrowLineupRegion();
+    fakeBackend();
+    render(<ControlledTacticsTab />);
+    fireEvent.click(await screen.findByRole("button", { name: "Pitch" }));
+    const panel = screen.getByRole("dialog", { name: "Pitch" });
+    // The pitch's role controls are the panel's comboboxes: any one will do.
+    return (await within(panel).findAllByRole("combobox"))[0];
+  }
+
+  /**
+   * Given the pitch panel open in a narrow window, with the real pitch's role controls in it
+   * When Enter and Space (which the control uses), then Tab and Escape are pressed on a role control
+   *      (Escape last: it closes the panel and detaches the control)
+   * Then Tab and Escape reach the window, where the dialog traps Tab and closes on Escape, and Enter
+   *      and Space do not, or the token under the control would be activated too.
+   */
+  it("lets Tab and Escape from a pitch role control reach the dialog, but not Enter or Space", async () => {
+    const control = await openPitchPanelRoleControl();
+    const seen: string[] = [];
+    const listener = (event: KeyboardEvent) => seen.push(event.key);
+    window.addEventListener("keydown", listener);
+
+    for (const key of [" ", "Enter", "Tab", "Escape"]) {
+      fireEvent.keyDown(control, { key });
+    }
+    window.removeEventListener("keydown", listener);
+
+    expect(seen).toEqual(["Tab", "Escape"]);
+  });
+
+  /**
+   * Given the pitch panel open, and a role control focused whose list is closed
+   * When Escape is pressed
+   * Then the panel closes, as Escape does anywhere in a dialog.
+   */
+  it("closes the pitch panel on Escape from a closed role control", async () => {
+    const control = await openPitchPanelRoleControl();
+    control.focus();
+
+    fireEvent.keyDown(control, { key: "Escape" });
+
+    expect(screen.queryByRole("dialog", { name: "Pitch" })).not.toBeInTheDocument();
+  });
+
+  /**
+   * Given the pitch panel open and the pointer over a token, so its summary is showing
+   * When Escape is pressed on the token's role control, twice
+   * Then the first dismisses the summary only (the token claims it), and the second closes the panel.
+   */
+  it("spends the first Escape on a token's summary and the second on the pitch panel", async () => {
+    const control = await openPitchPanelRoleControl();
+    fireEvent.mouseOver(control);
+    control.focus();
+
+    fireEvent.keyDown(control, { key: "Escape" });
+    expect(screen.getByRole("dialog", { name: "Pitch" })).toBeInTheDocument();
+
+    fireEvent.keyDown(control, { key: "Escape" });
+    expect(screen.queryByRole("dialog", { name: "Pitch" })).not.toBeInTheDocument();
   });
 
   /**

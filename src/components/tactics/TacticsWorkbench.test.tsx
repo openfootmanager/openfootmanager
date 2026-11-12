@@ -46,7 +46,8 @@ describe("TacticsWorkbench", () => {
   /**
    * Given a workbench with room for both (72rem or wider)
    * When it opens
-   * Then the instructions sit beside the lineup, and the lineup is its own scrolling region.
+   * Then the instructions sit beside the lineup, and the lineup is a region of its own that fills its
+   *      height and does not scroll (the table and the pitch inside it do).
    */
   it("puts the instructions beside the lineup where there is room", () => {
     measureAs(1300);
@@ -57,7 +58,11 @@ describe("TacticsWorkbench", () => {
       screen.getByRole("region", { name: "tactics.instructionsPanel.title" }),
     ).toBeInTheDocument();
     expect(screen.queryByRole("navigation")).not.toBeInTheDocument();
-    expect(screen.getByText("lineup").parentElement).toHaveClass("overflow-y-auto", "min-h-0");
+    // The lineup region never scrolls as a whole (the table inside it does): it clips and fills.
+    const region = screen.getByText("lineup").parentElement;
+    expect(region).toHaveClass("overflow-hidden", "min-h-0");
+    expect(region).not.toHaveClass("overflow-y-auto");
+    expect(region).toHaveAttribute("data-region", "tactics-lineup");
   });
 
   /**

@@ -203,8 +203,8 @@ describe("PlayerProfileOverview", () => {
     render(<PlayerProfileOverview {...props()} />);
     const details = within(screen.getByRole("region", { name: "Details" }));
 
-    expect(details.getByText(/March 14, 2002/)).toBeInTheDocument();
-    expect(details.getByText(/June 30, 2028/)).toBeInTheDocument();
+    expect(details.getByText(/14 March 2002/)).toBeInTheDocument();
+    expect(details.getByText(/30 June 2028/)).toBeInTheDocument();
     expect(details.getByText("Stable")).toBeInTheDocument();
     expect(details.getByText("€23k/wk")).toBeInTheDocument();
     expect(details.getByText("Potential opinion block")).toBeInTheDocument();

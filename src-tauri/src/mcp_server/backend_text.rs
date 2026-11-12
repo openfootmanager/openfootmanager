@@ -336,7 +336,8 @@ const MONEY_PARAMS: [&str; 13] = [
     "weeklyWages",
 ];
 
-/// A day the backend sends as `2026-08-01`, as English reads it: `August 1, 2026`.
+/// A day the backend sends as `2026-08-01`, as English reads it: `1 August 2026` (day-month-year,
+/// as `getLocale` writes English).
 fn date_param(key: &str, value: &str) -> String {
     if key != "start" && key != "end" {
         return value.to_string();
@@ -345,9 +346,9 @@ fn date_param(key: &str, value: &str) -> String {
     match NaiveDate::parse_from_str(day, "%Y-%m-%d") {
         Ok(date) if day.len() == 10 => {
             format!(
-                "{} {}, {}",
-                month_name(date.month()),
+                "{} {} {}",
                 date.day(),
+                month_name(date.month()),
                 date.year()
             )
         }

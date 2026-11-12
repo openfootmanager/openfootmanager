@@ -201,6 +201,9 @@ function tableColumns(
     {
       key: "positions",
       header: t("tactics.playablePositions"),
+      // Folded into the row's details in a narrow table: the compact set (number, position, name,
+      // role, morale, rating) is what fits the 592px the lineup has at the minimum window.
+      drawer: true,
       cell: (row) => {
         const [natural, ...alternates] = getPreferredPositions(row.player);
         return (
@@ -264,6 +267,7 @@ function tableColumns(
     {
       key: "condition",
       header: t("common.condition"),
+      drawer: true,
       cell: (row) => (
         <ConditionMeter value={row.player.condition} status={row.player.condition_status} />
       ),

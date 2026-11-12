@@ -17,6 +17,7 @@ import { useTranslation } from "react-i18next";
 import type { DigestStopReason } from "../../hooks/useDigestAdvance";
 import type { AttentionEventKind, DigestEntry, RecapMatch } from "./advanceRecap";
 import { getCategoryIcon } from "../inbox/inboxHelpers";
+import { formatDateShort } from "../../lib/dateFormatting";
 import { formatVal } from "../../lib/valueFormatting";
 import { resolveBackendText } from "../../utils/backendI18n";
 import { getBlockerTabLabel } from "../../utils/blockerUtils";
@@ -170,7 +171,7 @@ function InboxCard({
 }
 
 function DigestDayRow({ entry }: { entry: DigestEntry }): JSX.Element {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { recap } = entry;
   const hasContent =
     recap.matches.length > 0 ||
@@ -178,10 +179,9 @@ function DigestDayRow({ entry }: { entry: DigestEntry }): JSX.Element {
     recap.news.length > 0 ||
     recap.inbox.length > 0;
 
-  const formattedDate = new Intl.DateTimeFormat(undefined, {
-    day: "numeric",
-    month: "short",
-  }).format(new Date(`${entry.date}T00:00:00Z`));
+  // The game's language, through the project's one date formatter: the host's own locale would
+  // write an English game's day month-first on a US machine.
+  const formattedDate = formatDateShort(entry.date, i18n.language);
 
   // Declarative stagger offsets per section to avoid mutable counter in render
   const matchOffset = 0;

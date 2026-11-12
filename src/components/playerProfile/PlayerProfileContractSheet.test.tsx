@@ -129,14 +129,14 @@ describe("PlayerProfileContractSheet: his own player", () => {
     renderSheet();
 
     const row = (label: string) => screen.getByText(label).closest("div");
-    expect(row("playerProfile.contractSheet.ends")).toHaveTextContent("Jun 30, 2034");
+    expect(row("playerProfile.contractSheet.ends")).toHaveTextContent("30 Jun 2034");
     expect(row("playerProfile.contractSheet.timeLeft")).toHaveTextContent(
       'playerProfile.contractSheet.yearsLeft.other {"years":"3.0"}',
     );
     expect(row("playerProfile.contractSheet.timeLeft")).toHaveTextContent("Stable");
     expect(row("playerProfile.contractSheet.wage")).toHaveTextContent("€10,000");
     const lastSigned = row("playerProfile.contractSheet.lastSigned");
-    expect(lastSigned).toHaveTextContent("Jul 1, 2031");
+    expect(lastSigned).toHaveTextContent("1 Jul 2031");
     expect(lastSigned).toHaveTextContent("playerProfile.contractSheet.source.renewal");
   });
 
@@ -234,10 +234,10 @@ describe("PlayerProfileContractSheet: his own player", () => {
     });
 
     expect(renew).toHaveTextContent("€10,000");
-    expect(renew).toHaveTextContent("Jun 30, 2034");
+    expect(renew).toHaveTextContent("30 Jun 2034");
     expect(renew).toHaveTextContent("playerProfile.contractSheet.billAtThisWage");
     expect(expire).toHaveTextContent("playerProfile.contractSheet.leaveOn");
-    expect(expire).toHaveTextContent("Jun 30, 2034");
+    expect(expire).toHaveTextContent("30 Jun 2034");
     expect(terminate).toHaveTextContent("playerProfile.contractSheet.severance");
     expect(terminate).toHaveTextContent("250,000");
     expect(terminate).toHaveTextContent('"healthy":18');
@@ -336,7 +336,7 @@ describe("PlayerProfileContractSheet: his own player", () => {
     );
     expect(handlers.onClearLetExpire).toHaveBeenCalledTimes(1);
     expect(expire).toHaveTextContent("playerProfile.contractSheet.leavesOn");
-    expect(expire).toHaveTextContent("Jun 30, 2034");
+    expect(expire).toHaveTextContent("30 Jun 2034");
     expect(within(expire).getByRole("button")).toBeDisabled();
     expect(within(expire).getByRole("button")).toHaveTextContent(
       "playerProfile.contractSheet.letExpireSetButton",
@@ -460,7 +460,7 @@ describe("PlayerProfileContractSheet: another club's player and a free agent", (
       data: { termination: { status: "idle" }, projection: { status: "idle" }, retry: () => {} },
     });
 
-    expect(screen.getByText("Jun 30, 2034")).toBeInTheDocument();
+    expect(screen.getByText("30 Jun 2034")).toBeInTheDocument();
     expect(screen.getByText("the-contracts-he-has-had")).toBeInTheDocument();
     expect(screen.queryByText("playerProfile.contractSheet.wage")).toBeNull();
     expect(screen.queryByText(/billLabel/)).toBeNull();
