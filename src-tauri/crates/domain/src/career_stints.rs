@@ -5,9 +5,19 @@
 //! is closed at every move, from what he had done by then, and the rollover credits the club he
 //! is with only what he did since he arrived.
 
+use chrono::NaiveDate;
 use serde::{Deserialize, Serialize};
 
 use crate::player::{CareerEntry, PlayerSeasonStats};
+
+/// The `YYYY-MM-DD` day a movement's date names, or `None` when it names none. A date written with
+/// a time is cut to its day, so every day kept here has the one format.
+fn day_of(date: &str) -> Option<String> {
+    let day = date.get(..10)?;
+    NaiveDate::parse_from_str(day, "%Y-%m-%d")
+        .ok()
+        .map(|_| day.to_string())
+}
 
 /// Appearances, goals and assists: the three figures a career row carries.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -80,18 +90,23 @@ impl SeasonStints {
         stats: &PlayerSeasonStats,
         team_id: &str,
         team_name: &str,
-        _day: &str,
+        day: &str,
     ) {
         let now = StintTally::of(stats);
         let tally = now.since(self.stats_at_arrival);
+        let left_on = day_of(day);
         if tally.appearances > 0 {
             self.closed.push(ClosedStint {
                 team_id: team_id.to_string(),
                 team_name: team_name.to_string(),
                 tally,
-                ..Default::default()
+                from: self.since.clone(),
+                until: left_on.clone(),
             });
         }
+        // A spell with no appearance leaves no row, but the day he left it is the day the next
+        // club's stint began all the same.
+        self.since = left_on;
         self.stats_at_arrival = now;
     }
 
@@ -109,7 +124,8 @@ impl SeasonStints {
             team_id: current_team_id.to_string(),
             team_name: current_team_name.to_string(),
             tally: current,
-            ..Default::default()
+            from: self.since.clone(),
+            until: None,
         });
         self.closed
             .iter()
@@ -122,7 +138,11 @@ impl SeasonStints {
                 appearances: stint.tally.appearances,
                 goals: stint.tally.goals,
                 assists: stint.tally.assists,
-                ..Default::default()
+                from: stint.from,
+                until: stint.until,
+                // The season's reset day is the game's to say, not the player's: the rollover
+                // stamps it on the rows it writes.
+                season_began_on: None,
             })
             .collect()
     }
