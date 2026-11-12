@@ -183,47 +183,49 @@ export default function PlayerProfileCareerTable({
     <Card>
       {header(viewSwitch)}
       <CardBody className="px-0 pb-0">
-        <table aria-label={t(`${SECTION}.careerHistory`)} className="w-full text-body">
-          <thead>
-            <tr className="border-b border-line text-caption text-fg-muted">
-              <th scope="col" className="px-3 py-2 text-left font-normal">
-                {bySeason ? t(`${SECTION}.season`) : t("common.team")}
-              </th>
-              <th scope="col" className="px-3 py-2 text-left font-normal">
-                {bySeason ? t("common.team") : t(`${SECTION}.season`)}
-              </th>
-              <th scope="col" className="px-3 py-2 text-right font-normal">
-                {t(`${SECTION}.apps`)}
-              </th>
-              <th scope="col" className="px-3 py-2 text-right font-normal">
-                {t(`${SECTION}.goals`)}
-              </th>
-              <th scope="col" className="px-3 py-2 text-right font-normal">
-                {t(`${SECTION}.assists`)}
-              </th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-line">
-            {bySeason
-              ? value.by_season.map((line) =>
-                  line.kind === "season" ? (
-                    <SeasonRow key={line.key} row={line} onOpenTeam={onOpenTeam} t={t} />
-                  ) : (
-                    <MoveRow key={line.key} line={line} language={language} t={t} />
-                  ),
-                )
-              : value.by_club.map((club) => (
-                  <ClubRow key={club.key} club={club} onOpenTeam={onOpenTeam} t={t} />
-                ))}
-          </tbody>
-          <tfoot>
-            <tr className="border-t border-line-strong bg-sunken font-semibold text-fg">
-              <td className="px-3 py-2">{t(`${SECTION}.careerTotal`)}</td>
-              <td className="px-3 py-2" />
-              <Figures row={value.totals} />
-            </tr>
-          </tfoot>
-        </table>
+        <div className="overflow-x-auto">
+          <table aria-label={t(`${SECTION}.careerHistory`)} className="w-full text-body">
+            <thead>
+              <tr className="border-b border-line text-caption text-fg-muted">
+                <th scope="col" className="px-3 py-2 text-left font-normal">
+                  {bySeason ? t(`${SECTION}.season`) : t("common.team")}
+                </th>
+                <th scope="col" className="px-3 py-2 text-left font-normal">
+                  {bySeason ? t("common.team") : t(`${SECTION}.season`)}
+                </th>
+                <th scope="col" className="px-3 py-2 text-right font-normal">
+                  {t(`${SECTION}.apps`)}
+                </th>
+                <th scope="col" className="px-3 py-2 text-right font-normal">
+                  {t(`${SECTION}.goals`)}
+                </th>
+                <th scope="col" className="px-3 py-2 text-right font-normal">
+                  {t(`${SECTION}.assists`)}
+                </th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-line">
+              {bySeason
+                ? value.by_season.map((line) =>
+                    line.kind === "season" ? (
+                      <SeasonRow key={line.key} row={line} onOpenTeam={onOpenTeam} t={t} />
+                    ) : (
+                      <MoveRow key={line.key} line={line} language={language} t={t} />
+                    ),
+                  )
+                : value.by_club.map((club) => (
+                    <ClubRow key={club.key} club={club} onOpenTeam={onOpenTeam} t={t} />
+                  ))}
+            </tbody>
+            <tfoot>
+              <tr className="border-t border-line-strong bg-sunken font-semibold text-fg">
+                <td className="px-3 py-2">{t(`${SECTION}.careerTotal`)}</td>
+                <td className="px-3 py-2" />
+                <Figures row={value.totals} />
+              </tr>
+            </tfoot>
+          </table>
+        </div>
       </CardBody>
     </Card>
   );

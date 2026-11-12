@@ -544,8 +544,14 @@ function freeAgentCareer(player: PlayerData, lastClub: string | null): PlayerCar
   );
 }
 
-/** An archived retiree's career: his saved seasons, newest first, and nothing in progress. */
-function careerOfRetiree(entries: PlayerData["career"]): PlayerCareer {
+/**
+ * An archived retiree's career: his saved seasons and, from his archived movements, the dated line of
+ * his retirement; nothing in progress.
+ */
+function careerOfRetiree(
+  entries: PlayerData["career"],
+  history: PlayerMovementEntry[],
+): PlayerCareer {
   const rows: SeasonLine[] = [...entries]
     .sort((left, right) => right.season - left.season)
     .map((entry, index) => ({
@@ -560,7 +566,7 @@ function careerOfRetiree(entries: PlayerData["career"]): PlayerCareer {
       in_progress: false,
       on_loan: false,
     }));
-  return { by_season: rows, ...summed(rows) };
+  return careerFrom(rows, history);
 }
 
 /** The club's own player as the club sees him: known, his wage exact, with ratings and a season. */
@@ -720,32 +726,33 @@ export function profileCase(variant: HarnessProfile): ProfileCase {
         career: freeAgentCareer(freeAgent, rival.team_id),
         playerPatch: { movement_history: freeAgentHistory(freeAgent, rival.team_id) },
       };
-    case "retired":
+    case "retired": {
+      // He left from a rival club, as the archive records it.
+      const retiredMovements: PlayerMovementEntry[] = [
+        {
+          date: "2031-06-30",
+          kind: "retired",
+          from_team_id: rival.team_id,
+          from_team_name: gameState.teams.find((team) => team.id === rival.team_id)?.name ?? null,
+          to_team_id: null,
+          to_team_name: null,
+        },
+      ];
       // Not among the world's players: an id of its own, so the dashboard has to fetch him.
       return {
         ...none,
         playerId: `${retiree.id}-retired`,
         knowledge: null,
         wage: null,
-        career: careerOfRetiree(retiree.career),
+        career: careerOfRetiree(retiree.career, retiredMovements),
         retiredPlayer: {
           ...retiree,
           id: `${retiree.id}-retired`,
           retired: true,
           team_id: null,
-          // He left from a rival club, as the archive records it.
-          movement_history: [
-            {
-              date: "2031-06-30",
-              kind: "retired",
-              from_team_id: rival.team_id,
-              from_team_name:
-                gameState.teams.find((team) => team.id === rival.team_id)?.name ?? null,
-              to_team_id: null,
-              to_team_name: null,
-            },
-          ],
+          movement_history: retiredMovements,
         },
       };
+    }
   }
 }

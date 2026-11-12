@@ -114,13 +114,20 @@ describe("the harness's profile cases answer a career the way the backend does",
   /**
    * Given the archived retiree
    * When his career is read
-   * Then it is his saved seasons only, with no season in progress
+   * Then it is his saved seasons and the dated line of his retirement from his archived movements,
+   *      with no season in progress
    */
-  it("shows the retiree's saved seasons and nothing in progress", () => {
+  it("shows the retiree's saved seasons, the dated line of his retirement and nothing in progress", () => {
     const { career, retiredPlayer } = profileCase("retired");
 
     const rows = seasonRows(career as PlayerCareer);
     expect(rows).toHaveLength(retiredPlayer?.career.length ?? -1);
     expect(rows.some((row) => row.in_progress)).toBe(false);
+    const retired = moveLines(career as PlayerCareer).find((line) => line.movement === "retired");
+    expect(retired).toMatchObject({
+      date: "2031-06-30",
+      from_club_name: clubName(retiredPlayer?.movement_history?.[0]?.from_team_id),
+    });
+    expect(retired?.from_club_name).not.toBeNull();
   });
 });
