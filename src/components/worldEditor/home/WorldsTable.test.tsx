@@ -86,7 +86,7 @@ describe("WorldsTable", () => {
     expect(within(rows[1]).getByText("worldEditor.home.kindProject")).toBeInTheDocument();
     expect(within(rows[1]).getByText("412")).toBeInTheDocument();
     expect(within(rows[1]).getByText("9,860")).toBeInTheDocument();
-    expect(within(rows[1]).getByText("Nov 9, 2026")).toBeInTheDocument();
+    expect(within(rows[1]).getByText("9 Nov 2026")).toBeInTheDocument();
     expect(within(rows[1]).getByText("worldEditor.home.noIssues")).toBeInTheDocument();
 
     expect(within(rows[2]).getByText("worldEditor.home.installedVersion:1.2")).toBeInTheDocument();

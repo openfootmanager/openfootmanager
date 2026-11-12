@@ -419,7 +419,7 @@ describe("resolveMessage", () => {
 
     expect(result.subject).toBe("Transfer registration failed: Golden Boot");
     expect(result.body).toContain("Golden Boot to Alpha FC for £688,001");
-    expect(result.body).toContain("July 2, 2026");
+    expect(result.body).toContain("2 July 2026");
     expect(result.body).not.toContain("2026-07-02");
     expect(result.body).toContain("No transfer fee was paid.");
     expect(result.body).not.toContain("800001");
@@ -1423,7 +1423,7 @@ describe("resolveBackendText", () => {
 
     const result = resolveBackendText("test.kickoff?start=2026-08-01", "fallback");
 
-    expect(result).toBe("Kicks off on August 1, 2026");
+    expect(result).toBe("Kicks off on 1 August 2026");
   });
 
   // The English assertion above passes even if the locale never reaches
@@ -1465,10 +1465,10 @@ describe("resolveBackendText", () => {
     );
 
     expect(resolveBackendText("test.kickoff?start=2026-01-01", "fallback")).toBe(
-      "Kicks off on January 1, 2026",
+      "Kicks off on 1 January 2026",
     );
     expect(resolveBackendText("test.kickoff?start=2026-12-31", "fallback")).toBe(
-      "Kicks off on December 31, 2026",
+      "Kicks off on 31 December 2026",
     );
   });
 
@@ -1573,7 +1573,7 @@ describe("accepted deal messages", () => {
       dealMessage("be.msg.transferAgreed.body", "be.msg.transferAgreed.subject"),
     );
     expect(message.subject).toBe("Transfer agreed: Golden Boot");
-    expect(message.body).toContain("July 2, 2026");
+    expect(message.body).toContain("2 July 2026");
     expect(message.body).toContain("€800,001");
     expect(message.body).toContain("Beta FC");
     expect(message.body).toContain("Alpha FC");
@@ -1594,8 +1594,8 @@ describe("accepted deal messages", () => {
       dealMessage("be.msg.loanAgreed.bodyWithOption", "be.msg.loanAgreed.subject"),
     );
     expect(message.subject).toBe("Loan agreed: Golden Boot");
-    expect(message.body).toContain("July 2, 2026");
-    expect(message.body).toContain("December 20, 2026");
+    expect(message.body).toContain("2 July 2026");
+    expect(message.body).toContain("20 December 2026");
     expect(message.body).toContain("70%");
     expect(message.body).toContain("£688,001");
   });
@@ -1605,7 +1605,7 @@ describe("accepted deal messages", () => {
       dealMessage("be.msg.loanAgreed.bodyNoOption", "be.msg.loanAgreed.subject"),
     );
     expect(message.body).toContain("No purchase option");
-    expect(message.body).toContain("December 20, 2026");
+    expect(message.body).toContain("20 December 2026");
     expect(message.body).not.toContain("800");
   });
   // Given German settings, when a loan notice is read, then both dates follow the German locale.

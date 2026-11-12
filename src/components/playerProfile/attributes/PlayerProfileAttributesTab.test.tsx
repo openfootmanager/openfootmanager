@@ -238,7 +238,7 @@ describe("PlayerProfileAttributesTab", () => {
       <PlayerProfileAttributesTab {...props({ scoutedOn: "2031-05-12", scoutOutOfDate: true })} />,
     );
 
-    expect(card().getByText("Scouted").parentElement).toHaveTextContent(/May 12, 2031/);
+    expect(card().getByText("Scouted").parentElement).toHaveTextContent(/12 May 2031/);
     expect(card().getByText("Out of date")).toBeInTheDocument();
   });
 
