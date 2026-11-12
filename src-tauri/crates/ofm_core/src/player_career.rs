@@ -108,15 +108,15 @@ struct StatisticsSeason {
 }
 
 impl StatisticsSeason {
-    /// The calendar's start of `season`, with a day the month lacks (31 February) taken as the
-    /// month's last.
+    /// The calendar's start of `season`: the generator's own season-start rule
+    /// (`generator::competition_def::date_utc`), which takes a day the month lacks (31 February)
+    /// as the month's last and clamps an out-of-range month or day.
     fn calendar_start(&self, season: u32) -> NaiveDate {
-        let year = i32::try_from(season).unwrap_or(i32::MAX);
-        let month = u32::from(self.start_month.clamp(1, 12));
-        (1..=u32::from(self.start_day.clamp(1, 31)))
-            .rev()
-            .find_map(|day| NaiveDate::from_ymd_opt(year, month, day))
-            .unwrap_or(NaiveDate::MIN)
+        let year = i32::try_from(season)
+            .unwrap_or(i32::MAX)
+            .min(NaiveDate::MAX.year());
+        crate::generator::competition_def::date_utc(year, self.start_month, self.start_day)
+            .date_naive()
     }
 
     /// The first day `season`'s stats counted: the real reset day for the season in progress,
@@ -150,6 +150,22 @@ struct StintRow {
 
 fn parse_day(text: &str) -> Option<NaiveDate> {
     NaiveDate::parse_from_str(text.get(..10)?, "%Y-%m-%d").ok()
+}
+
+/// The names a stint at no club has been stored under: nothing (newer saves), or the English
+/// literal or the translation key an older save wrote (the screens' `storedTeamLabel` reads the
+/// same markers). The projection sends one form, nothing, so every no-club stint groups as one and
+/// the screen words it; a stint at a historical club known by name only keeps its name.
+fn is_no_club_marker(name: &str) -> bool {
+    matches!(name.trim(), "" | "Free Agent" | "common.freeAgent")
+}
+
+fn stored_club_name(entry: &CareerEntry) -> String {
+    if entry.team_id.is_empty() && is_no_club_marker(&entry.team_name) {
+        String::new()
+    } else {
+        entry.team_name.clone()
+    }
 }
 
 /// A spell at one club, from the day he arrived to the day he left (`None` while he is there).
@@ -188,6 +204,18 @@ fn open_visit(visits: &mut Vec<Visit>, club: Option<&str>, day: NaiveDate, on_lo
     }
 }
 
+/// The opening contract starts his first spell at its club, unless he is already there.
+fn open_first_visit(visits: &mut Vec<Visit>, club: Option<&str>, day: NaiveDate) {
+    let already_there = club.is_some_and(|club| {
+        visits
+            .iter()
+            .any(|visit| visit.club_id == club && visit.until.is_none())
+    });
+    if !already_there {
+        open_visit(visits, club, day, false);
+    }
+}
+
 /// The clubs he has been at, in order, from his ledger. Where he plays changes exactly when
 /// `changes_where_he_plays` says it does; a loan's purchase ends the loan without moving him, and
 /// the opening contract starts his first spell. An entry with no date cannot place a visit.
@@ -198,11 +226,16 @@ fn open_visit(visits: &mut Vec<Visit>, club: Option<&str>, day: NaiveDate, on_lo
 fn visits_from(movements: &[PlayerMovementEntry], active_loan: Option<&ActiveLoan>) -> Vec<Visit> {
     let mut visits = Vec::new();
     for entry in movements {
-        let Some(day) = parse_day(&entry.date) else {
-            continue;
-        };
         let from = entry.from_team_id.as_deref();
         let to = entry.to_team_id.as_deref();
+        let Some(day) = parse_day(&entry.date) else {
+            // A migrated save's opening contract has no date, but his first spell at that club is
+            // real and began before anything the ledger dates: seed it from the beginning of time.
+            if entry.kind == PlayerMovementKind::InitialContract {
+                open_first_visit(&mut visits, to, NaiveDate::MIN);
+            }
+            continue;
+        };
         if entry.kind.changes_where_he_plays() {
             close_open(&mut visits, from, day);
             open_visit(
@@ -212,14 +245,7 @@ fn visits_from(movements: &[PlayerMovementEntry], active_loan: Option<&ActiveLoa
                 entry.kind == PlayerMovementKind::LoanStart,
             );
         } else if entry.kind == PlayerMovementKind::InitialContract {
-            let already_there = to.is_some_and(|club| {
-                visits
-                    .iter()
-                    .any(|visit| visit.club_id == club && visit.until.is_none())
-            });
-            if !already_there {
-                open_visit(&mut visits, to, day, false);
-            }
+            open_first_visit(&mut visits, to, day);
         } else if entry.kind == PlayerMovementKind::LoanToBuy {
             close_open(&mut visits, to, day);
             open_visit(&mut visits, to, day, false);
@@ -396,7 +422,7 @@ fn build_career(
                 key: format!("{}-{}-{}", entry.season, entry.team_id, position),
                 season: entry.season,
                 club_id: entry.team_id.clone(),
-                club_name: entry.team_name.clone(),
+                club_name: stored_club_name(entry),
                 appearances: entry.appearances,
                 goals: entry.goals,
                 assists: entry.assists,
