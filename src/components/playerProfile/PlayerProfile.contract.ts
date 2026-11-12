@@ -28,7 +28,8 @@ const loanKey = (loan: PlayerData["active_loan"]): string =>
  * What the club-wide previews depend on, as one string: everything the club's wage bill and its
  * squad-safety verdict read. That is its playing squad (who is in it, wages, contract ends,
  * injuries), the players loaned out or in whose wage it pays a share of (the loan's clubs and
- * share), its staff and their wages (`calc_wages` counts them), and its wage budget. A signing, a
+ * share), its staff and their wages (`calc_wages` counts them), its wage budget, its formation
+ * (the squad-safety verdict reads it) and its cash (the runway reads it). A signing, a
  * release, a hire or a loan made while the sheet is open, by the manager elsewhere or by an agent
  * over MCP, changes it, so both previews are asked again; other clubs' people and the order of the
  * lists do not.
@@ -57,6 +58,6 @@ export function clubStateKey(game: ClubStateInputs, teamId: string | null): stri
   const staff = game.staff
     .filter((member) => member.team_id === teamId)
     .map((member) => `staff:${member.id}:${member.wage}`);
-  const budget = game.teams.find((team) => team.id === teamId)?.wage_budget ?? "";
-  return `${[...players, ...staff].sort().join("|")}#${budget}`;
+  const team = game.teams.find((candidate) => candidate.id === teamId);
+  return `${[...players, ...staff].sort().join("|")}#${team?.wage_budget ?? ""}#${team?.formation ?? ""}#${team?.finance ?? ""}`;
 }
