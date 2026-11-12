@@ -2895,15 +2895,17 @@ mod live_session_tests {
         assert_eq!(squad_morale(&state), new_career_morale);
     }
 
-    /// Given a match at half-time and the lifecycle lock held (a team talk in flight: it reads the
-    ///       moment, writes the morale and hands it to the match under that lock)
-    /// When a step that would start the second half is asked for meanwhile
-    /// Then the step is seen reaching the lock, does not return while it is held and leaves the match
-    ///      at half-time, and once the lock is let go it starts the second half: a talk's hand-over
-    ///      is wholly before the second half, never after it has begun with the old factors (#1213)
-    #[test]
-    fn a_step_out_of_half_time_waits_for_a_team_talk_in_flight() {
+    /// A step out of the interval `interval` is asked for while the lifecycle lock is held, as it is
+    /// by a team talk in flight (which reads the moment, writes the morale and hands it to the match
+    /// under that lock): the step is seen reaching the lock, does not return while it is held, leaves
+    /// the match in the interval, and once the lock is let go starts the next half (#1213).
+    fn assert_a_step_out_of_an_interval_waits_for_the_lock(interval: engine::MatchPhase) {
         let state = std::sync::Arc::new(state_at_half_time());
+        if interval != engine::MatchPhase::HalfTime {
+            state
+                .with_live_match(|session| session.match_state.test_set_phase(interval))
+                .unwrap();
+        }
         let talk = crate::application::live_session::operation();
         let (attempt_tx, attempt_rx) = std::sync::mpsc::channel();
         let (done_tx, done_rx) = std::sync::mpsc::channel();
@@ -2935,13 +2937,25 @@ mod live_session_tests {
             !returned_while_held,
             "the step returned while a talk held the lock"
         );
-        assert_eq!(phase_while_held, engine::MatchPhase::HalfTime);
+        assert_eq!(phase_while_held, interval);
         assert!(result.unwrap().is_ok());
-        assert_ne!(
-            phase_after,
-            engine::MatchPhase::HalfTime,
-            "the step ran after the lock"
-        );
+        assert_ne!(phase_after, interval, "the step ran after the lock");
+    }
+
+    /// Given a match at half-time and the lifecycle lock held (a team talk in flight)
+    /// When a step that would start the second half is asked for meanwhile
+    /// Then it waits for the lock and the match stays at half-time until it is let go
+    #[test]
+    fn a_step_out_of_half_time_waits_for_a_team_talk_in_flight() {
+        assert_a_step_out_of_an_interval_waits_for_the_lock(engine::MatchPhase::HalfTime);
+    }
+
+    /// Given a match at the extra-time interval and the lifecycle lock held (a team talk in flight)
+    /// When a step that would start the second half of extra time is asked for meanwhile
+    /// Then it waits for the lock and the match stays at the interval until it is let go
+    #[test]
+    fn a_step_out_of_the_extra_time_interval_waits_for_a_team_talk_in_flight() {
+        assert_a_step_out_of_an_interval_waits_for_the_lock(engine::MatchPhase::ExtraTimeHalfTime);
     }
 
     /// Given an idle saved career with changed finances, when returning to the menu,
