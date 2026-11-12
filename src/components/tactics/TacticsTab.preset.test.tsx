@@ -384,7 +384,7 @@ describe("TacticsTab preset selection", { timeout: TACTICS_TAB_CASE_TIMEOUT_MS }
     fireEvent.click(screen.getByRole("option", { name: /High Press/ }));
     await screen.findByRole("alert");
 
-    refused.clear();
+    knobs.refused.clear();
     fireEvent.click(screen.getByRole("button", { name: "Choose tactic" }));
     fireEvent.click(screen.getByRole("option", { name: /High Press/ }));
 

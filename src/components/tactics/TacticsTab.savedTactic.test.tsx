@@ -93,6 +93,12 @@ describe("TacticsTab saved tactic comparison", { timeout: TACTICS_TAB_CASE_TIMEO
     await chooseTheSavedTactic();
 
     expect(await screen.findByText("Unsaved changes")).toBeInTheDocument();
+    // Give an answer that was not held every chance to land: the question is still unanswered.
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    });
+    expect(knobs.savedTacticDifferencesAnswered).toBe(0);
+    expect(screen.getByText("Unsaved changes")).toBeInTheDocument();
     expect(screen.queryByText("Synced")).toBeNull();
     expect(screen.getByRole("button", { name: "Update tactic" })).toBeEnabled();
 

@@ -105,25 +105,23 @@ describe("useSavedTacticDiffers", () => {
   });
 
   /**
-   * Given a question that is later replaced by another
-   * When the first answer lands after the second question was asked
-   * Then it is dropped: only the answer to the latest question counts.
+   * Given a question that is replaced by another, whose answer (the same) has already landed
+   * When the first question's answer finally lands, saying a part differs
+   * Then it is dropped: the answer to the latest question stands.
    */
   it("drops a late answer to an older question", async () => {
     const first = held<TacticDifferences>();
-    const second = held<TacticDifferences>();
-    asked.mockReturnValueOnce(first.promise).mockReturnValueOnce(second.promise);
+    asked.mockReturnValueOnce(first.promise).mockResolvedValueOnce(NOTHING);
     const { result, rerender } = renderHook(
       ({ key }) => useSavedTacticDiffers("a", true, key, library),
       { initialProps: { key: "team-1" } },
     );
     rerender({ key: "team-2" });
+    await waitFor(() => expect(result.current).toBe(false));
 
-    await act(async () => first.resolve(NOTHING));
-    expect(result.current).toBe(true);
-    await act(async () => second.resolve({ ...NOTHING, eleven: true }));
+    await act(async () => first.resolve({ ...NOTHING, eleven: true }));
 
-    expect(result.current).toBe(true);
+    expect(result.current).toBe(false);
     expect(asked).toHaveBeenCalledTimes(2);
   });
 
