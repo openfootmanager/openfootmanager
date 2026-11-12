@@ -850,6 +850,8 @@
     "unsavedChanges": "Alterações não salvas",
     "currentPlanCard": "Plano atual",
     "phaseBlueprint": "Plano por fases",
+    "reserves": "Não relacionados",
+    "playerTable": "Jogadores",
     "instructionsPanel": {
       "title": "Instruções da equipe",
       "show": "Mostrar as instruções da equipe",
@@ -1936,6 +1938,11 @@
       "renewClosedWhat": "As negociações do contrato estão encerradas. Reabra para renová-lo.",
       "letExpireSetButton": "Definido para expirar",
       "replacedOn": "Substituído em {{date}}",
+      "overTime": "Contratos ao longo do tempo",
+      "overTimeNote": "Salário semanal de cada contrato. Uma borda tracejada é um fim previsto que ainda não chegou.",
+      "overTimeNoteNoWage": "Uma borda tracejada é um fim previsto que ainda não chegou.",
+      "overTimeLabel": "Linha do tempo dos contratos dele, com o dia de hoje marcado",
+      "today": "Hoje",
       "yearsLeft": {
         "one": "{{years}} ano",
         "many": "{{years}} anos",

@@ -25,7 +25,7 @@ const RELEASE_REASON_KEYS: Record<ReleaseReason | "retired", string> = {
 };
 
 /** The contract's span in words. An unknown start is left out, never replaced by a date. */
-function spanText(row: ContractHistoryRow, language: string, t: TranslateFn): string {
+export function spanText(row: ContractHistoryRow, language: string, t: TranslateFn): string {
   const start = row.start ? formatProfileDay(row.start, language) : null;
   const end = row.end ? formatProfileDay(row.end, language) : null;
   if (start && end) return t(`${SECTION}.range`, { start, end });

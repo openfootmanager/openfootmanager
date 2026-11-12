@@ -24,6 +24,7 @@ const FINISHED_FOLDERS = [
   "./components/playerProfile/PlayerProfileCareerTable.tsx",
   "./components/playerProfile/PlayerProfileCareerChart.tsx",
   "./components/playerProfile/careerParts.tsx",
+  "./components/playerProfile/PlayerProfileContractTimeline.tsx",
   "./components/playerProfile/PlayerProfileContractSummary.tsx",
   "./components/playerProfile/PlayerProfileContractDecisions.tsx",
   "./components/playerProfile/PlayerProfileWageBill.tsx",

@@ -850,6 +850,8 @@
     "unsavedChanges": "未保存的更改",
     "currentPlanCard": "当前计划",
     "phaseBlueprint": "阶段蓝图",
+    "reserves": "预备队",
+    "playerTable": "球员",
     "instructionsPanel": {
       "title": "球队指令",
       "show": "显示球队指令",
@@ -1936,6 +1938,11 @@
       "renewClosedWhat": "合同谈判已关闭。重新开启后才能续约。",
       "letExpireSetButton": "已设为到期",
       "replacedOn": "于 {{date}} 被取代",
+      "overTime": "合同时间线",
+      "overTimeNote": "每份合同的周薪。虚线边缘表示尚未到来的计划结束日期。",
+      "overTimeNoteNoWage": "虚线边缘表示尚未到来的计划结束日期。",
+      "overTimeLabel": "他的合同时间线，并标出今天",
+      "today": "今天",
       "yearsLeft": {
         "one": "{{years}} 年",
         "many": "{{years}} 年",
