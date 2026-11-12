@@ -29,6 +29,7 @@ import { setPlayerSquadRole, setStartingXi } from "../../services/squadService";
 import { toggleLoanList, toggleTransferList } from "../../services/transfersService";
 import { resolveTranslatedErrorMessage } from "../../utils/errorMessage";
 import { Button } from "../ui";
+import { terminationBlockedBy } from "./PlayerProfile.contract";
 
 interface PlayerProfileActionsMenuProps {
   player: PlayerData;
@@ -204,7 +205,7 @@ export default function PlayerProfileActionsMenu({
         label: t("playerProfile.terminateContract"),
         icon: <Trash2 className="w-4 h-4" />,
         danger: true,
-        disabled: !player.contract_end,
+        disabled: terminationBlockedBy(player) !== null,
         onClick: onOpenTermination,
       },
       buildDividerMenuItem(),

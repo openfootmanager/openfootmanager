@@ -1,5 +1,9 @@
 import type { PlayerAdvancedStatsSummary } from "../../components/playerProfile/PlayerProfile.helpers";
 import type { PlayerRecentMatchEntry } from "../../components/playerProfile/PlayerProfile.helpers";
+import type {
+  ContractTerminationPreviewData,
+  RenewalProjection,
+} from "../../services/contractService";
 import type { PlayerKnowledge, VisibleWage } from "../../services/scoutingService";
 import type { PositionRatings } from "../../store/generated/PositionRatings";
 import type { PotentialOpinion } from "../../store/generated/PotentialOpinion";
@@ -26,6 +30,15 @@ export interface ProfileCase {
   seasonStats: PlayerAdvancedStatsSummary;
   /** Laid over the world's player of this id, to show a state the generated career has none of. */
   playerPatch?: Partial<PlayerData>;
+  /**
+   * What the Contract tab's two previews answer, for a contract the club holds: the backend refuses
+   * both for another club's player, and the release preview for one on loan (so `termination` is
+   * `null` there). `null` for every state whose contract is not the club's.
+   */
+  contractPreviews?: {
+    termination: ContractTerminationPreviewData | null;
+    projection: RenewalProjection;
+  } | null;
 }
 
 const USER_CLUB = gameState.manager.team_id;
@@ -309,6 +322,48 @@ function freeAgentHistory(player: PlayerData, lastClub: string | null): PlayerMo
   ];
 }
 
+/**
+ * The Contract tab's previews for the club's own player: what releasing him costs (a year's wages
+ * over the weeks left, as a stand-in figure) and the club's wage bill from its players' wages. The
+ * numbers are the fixture's own, enough for the layout; the backend's are `ofm_core::contracts`.
+ */
+function contractPreviewsOf(player: PlayerData, canBeReleased: boolean) {
+  const wageBill = gameState.players
+    .filter((candidate) => candidate.team_id === USER_CLUB)
+    .reduce((sum, candidate) => sum + candidate.wage, 0);
+  const budget = gameState.teams.find((team) => team.id === USER_CLUB)?.wage_budget ?? wageBill;
+  return {
+    termination: canBeReleased
+      ? {
+          player_id: player.id,
+          player_name: player.match_name,
+          severance_cost: player.wage * 26,
+          squad_safety: {
+            team_id: USER_CLUB ?? "",
+            projected_roster_size: 24,
+            healthy_players: 18,
+            healthy_goalkeepers: 2,
+            effective_xi_size: 11,
+            can_field_matchday_squad: true,
+            missing_reasons: [],
+          },
+        }
+      : null,
+    projection: {
+      current_annual_wage_bill: wageBill,
+      projected_annual_wage_bill: wageBill,
+      annual_wage_budget: budget,
+      annual_soft_cap: Math.round(budget * 1.1),
+      current_weekly_wage_spend: wageBill,
+      projected_weekly_wage_spend: wageBill,
+      current_cash_runway_weeks: 38,
+      projected_cash_runway_weeks: 38,
+      currently_over_budget: wageBill > budget,
+      policy_allows: true,
+    },
+  };
+}
+
 /** The club's own player as the club sees him: known, his wage exact, with ratings and a season. */
 function ownCase(player: PlayerData, signedFrom: string | null): ProfileCase {
   return {
@@ -322,6 +377,7 @@ function ownCase(player: PlayerData, signedFrom: string | null): ProfileCase {
     recentMatches: fiveMatches(),
     seasonStats: A_SEASON,
     playerPatch: { movement_history: ownHistory(player, signedFrom) },
+    contractPreviews: contractPreviewsOf(player, true),
   };
 }
 
@@ -355,6 +411,7 @@ export function profileCase(variant: HarnessProfile): ProfileCase {
         recentMatches: fiveMatches(),
         seasonStats: A_SEASON,
         playerPatch: { movement_history: ownHistory(own, rival.team_id) },
+        contractPreviews: contractPreviewsOf(own, true),
       };
     case "keeper":
       return {
@@ -366,6 +423,7 @@ export function profileCase(variant: HarnessProfile): ProfileCase {
         positionRatings: positionRatingsOf(keeper, { kind: "live" }),
         recentMatches: fiveMatches(),
         seasonStats: A_SEASON,
+        contractPreviews: contractPreviewsOf(keeper, true),
       };
     case "injured":
       return {
@@ -382,6 +440,8 @@ export function profileCase(variant: HarnessProfile): ProfileCase {
         // The coaches watch a player the club has loaned out no longer, so no opinion of him
         // (`player_knowledge::trains_with_club_since`).
         opinion: null,
+        // The backend refuses to release a player who is on loan.
+        contractPreviews: contractPreviewsOf(loaned, false),
         // On loan from the user's club to a rival: the profile's loan banner.
         playerPatch: {
           movement_history: loanedHistory(loaned, rival.team_id),

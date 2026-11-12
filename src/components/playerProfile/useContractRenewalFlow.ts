@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
-import { invoke } from "@tauri-apps/api/core";
 import { useTranslation } from "react-i18next";
 
 import type { GameStateData, PlayerData } from "../../store/gameStore";
 import { resolveBackendText } from "../../utils/backendI18n";
 import { invokeForCareer } from "../../services/careerInvoke";
+import { previewRenewalProjection } from "../../services/contractService";
 import { resolveTranslatedErrorMessage } from "../../utils/errorMessage";
 import {
   type DelegatedRenewalCaseData,
@@ -195,10 +195,7 @@ export function useContractRenewalFlow({
 
     const loadProjection = async (): Promise<void> => {
       try {
-        const result = await invoke<RenewalProjectionData>("preview_renewal_financial_impact", {
-          playerId: player.id,
-          weeklyWage: renewalOfferedWage,
-        });
+        const result = await previewRenewalProjection(player.id, renewalOfferedWage);
 
         if (!cancelled) {
           setRenewalProjection(result.projection ?? null);

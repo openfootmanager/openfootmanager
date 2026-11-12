@@ -16,8 +16,16 @@ const FINISHED_FOLDERS = [
   "./components/playerProfile/PlayerProfileLoanStatusBanner.tsx",
   "./components/playerProfile/PlayerProfileInjuryBanner.tsx",
   "./components/playerProfile/PlayerProfileScoutAction.tsx",
-  "./components/playerProfile/PlayerProfileStatCard.tsx",
+  "./components/playerProfile/PlayerProfileAdvancedStatsCard.tsx",
   "./components/playerProfile/PlayerProfile.renewal.ts",
+  // The Contract tab's decision sheet and the list of contracts he has had.
+  "./components/playerProfile/PlayerProfileContractSheet.tsx",
+  "./components/playerProfile/PlayerProfileContractHistoryCard.tsx",
+  "./components/playerProfile/PlayerProfileContractTimeline.tsx",
+  "./components/playerProfile/PlayerProfileContractSummary.tsx",
+  "./components/playerProfile/PlayerProfileContractDecisions.tsx",
+  "./components/playerProfile/PlayerProfileWageBill.tsx",
+  "./components/playerProfile/contractSheetParts.tsx",
   // The dashboard shell. The rest of components/dashboard (its modals) joins with them, and these
   // four entries become the one folder.
   "./components/dashboard/DashboardAlerts.tsx",

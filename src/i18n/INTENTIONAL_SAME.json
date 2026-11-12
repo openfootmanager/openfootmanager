@@ -29,7 +29,9 @@
     "worldEditor.staffId",
     "common.ratingTier.S",
     "common.ratingTier.A",
-    "common.ratingTier.B"
+    "common.ratingTier.B",
+    "playerProfile.contractSheet.lastSignedValue",
+    "playerProfile.contractSheet.range"
   ],
   "de": [
     "teamSelect.simulation",

@@ -697,7 +697,7 @@ impl PlayerMovementKind {
     /// Whether the club he plays for changes with this movement. A loan's purchase makes the
     /// borrower his owner without moving him, and a renewal, a retirement and an opening
     /// contract do not move him either.
-    pub(crate) fn changes_where_he_plays(&self) -> bool {
+    pub fn changes_where_he_plays(&self) -> bool {
         matches!(
             self,
             Self::PermanentTransfer
