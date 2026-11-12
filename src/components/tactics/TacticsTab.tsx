@@ -6,9 +6,7 @@ import { useTranslation } from "react-i18next";
 import { setPlayerRole } from "../../services/squadService";
 import { resolveTranslatedErrorMessage } from "../../utils/errorMessage";
 
-import TacticsLineupFrame from "./TacticsLineupFrame";
-import TacticsPitch from "./TacticsPitch";
-import TacticsPlayerTable from "./TacticsPlayerTable";
+import TacticsLineupSection from "./TacticsLineupSection";
 import { effectivePlayerRoles } from "./TacticsTab.helpers";
 import TacticsSetPieces from "./TacticsSetPieces";
 import TacticsWorkbench from "./TacticsWorkbench";
@@ -16,13 +14,6 @@ import TacticsCommandBar from "./TacticsCommandBar";
 import TacticsCompareDialog from "./TacticsCompareDialog";
 import { useTacticsLibrary } from "./useTacticsLibrary";
 import { useTacticsLineup } from "./useTacticsLineup";
-
-/** Each slot's position by its index, whatever order the pitch draws them in. */
-function slotPositionsByIndex(slots: readonly { index: number; position: string }[]): string[] {
-  const positions: string[] = [];
-  for (const slot of slots) positions[slot.index] = slot.position;
-  return positions;
-}
 
 interface TacticsTabProps {
   gameState: GameStateData | null;
@@ -50,6 +41,7 @@ export default function TacticsTab({
     [onGameUpdateProp],
   );
 
+  const lineupState = useTacticsLineup({ gameState, onGameUpdate, onWriteError });
   const {
     team,
     formation,
@@ -57,39 +49,20 @@ export default function TacticsTab({
     initialPreset,
     roster,
     startingXI,
-    bench,
-    pitchSlots,
-    outOfPositionCount,
-    effectiveMatchRoles,
     autoSetPieces,
     selectedPlayer,
     comparePlayer,
-    selectedPlayerId,
-    comparePlayerId,
     canConfirmSwap,
-    dragState,
-    hoveredSlot,
     dragPreviewRef,
     handleFormationChange,
     handlePlayStyleChange,
     handleApplyTacticPreset,
-    handleAssignBestFit,
-    handlePromoteBenchPlayer,
-    handleDemoteStarter,
     clearLineupSelection,
-    handleDragStart,
-    handleSlotDragOver,
-    handleSlotDragLeave,
-    handleSlotDrop,
-    handleLineupPlayerClick,
     handleConfirmSwap,
-    resetDragState,
-    handleAssignMatchRole,
     handleTacticsPhaseChange,
     lineupReady,
     lineup,
-    familiarity,
-  } = useTacticsLineup({ gameState, onGameUpdate, onWriteError });
+  } = lineupState;
 
   // The roles shown in the table and on the pitch: the match's own (the lineup's), not a stored one
   // a move to another slot left stale.
@@ -202,80 +175,11 @@ export default function TacticsTab({
           />
         }
       >
-        <TacticsLineupFrame
-          table={
-            <TacticsPlayerTable
-              starters={startingXI}
-              others={bench}
-              slotPositions={slotPositionsByIndex(pitchSlots)}
-              lineup={lineup}
-              playerRoles={effectiveRoles}
-              matchRoles={effectiveMatchRoles}
-              selectedPlayerId={selectedPlayerId}
-              comparePlayerId={comparePlayerId}
-              onTacticalSelect={(playerId, section) => {
-                void handleLineupPlayerClick(playerId, section);
-              }}
-              onRoleChange={changePlayerRole}
-              onOpenPlayerProfile={onSelectPlayer}
-              onAssignMatchRole={(role, playerId) => {
-                void handleAssignMatchRole(role, playerId);
-              }}
-              onPromoteBench={(playerId) => {
-                void handlePromoteBenchPlayer(playerId);
-              }}
-              onDemoteStarter={(playerId) => {
-                void handleDemoteStarter(playerId);
-              }}
-              onClearSelection={clearLineupSelection}
-              onDragStart={handleDragStart}
-              onDragEnd={resetDragState}
-            />
-          }
-          pitch={
-            <TacticsPitch
-              familiarity={familiarity}
-              lineupReady={lineupReady}
-              dragState={dragState}
-              formation={formation}
-              comparePlayerId={comparePlayerId}
-              hoveredSlot={hoveredSlot}
-              matchRoles={effectiveMatchRoles}
-              onRoleChange={changePlayerRole}
-              playerRoles={effectiveRoles}
-              tacticsPhase={team?.tactics_phase}
-              onAssignBestFit={(playerId) => {
-                void handleAssignBestFit(playerId);
-              }}
-              onAssignMatchRole={(role, playerId) => {
-                void handleAssignMatchRole(role, playerId);
-              }}
-              onClearSelection={clearLineupSelection}
-              onDemoteStarter={(playerId) => {
-                void handleDemoteStarter(playerId);
-              }}
-              onDragEnd={resetDragState}
-              onDragStart={handleDragStart}
-              onLineupPlayerClick={(playerId, section) => {
-                void handleLineupPlayerClick(playerId, section);
-              }}
-              onOpenPlayerProfile={(playerId) => {
-                onSelectPlayer(playerId);
-              }}
-              onPromoteBench={(playerId) => {
-                void handlePromoteBenchPlayer(playerId);
-              }}
-              onSlotDragLeave={handleSlotDragLeave}
-              onSlotDragOver={handleSlotDragOver}
-              onSlotDrop={(event, slotIndex) => {
-                void handleSlotDrop(event, slotIndex);
-              }}
-              outOfPositionCount={outOfPositionCount}
-              pitchSlots={pitchSlots}
-              selectedPlayer={selectedPlayer}
-              selectedPlayerId={selectedPlayerId}
-            />
-          }
+        <TacticsLineupSection
+          state={lineupState}
+          playerRoles={effectiveRoles}
+          onRoleChange={changePlayerRole}
+          onSelectPlayer={onSelectPlayer}
         />
       </TacticsWorkbench>
 
