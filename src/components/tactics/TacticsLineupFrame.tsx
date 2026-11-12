@@ -5,7 +5,7 @@ import { useWidthAtLeast } from "../../hooks/useWidthAtLeast";
 import { Button, Dialog } from "../ui";
 
 /** The width at which the pitch sits beside the table: room for the table's compact columns and the pitch (20rem). */
-const PITCH_BESIDE_REM = 56;
+const PITCH_BESIDE_REM = 60;
 
 const PITCH_TITLE_ID = "tactics-pitch-title";
 
@@ -19,7 +19,7 @@ interface TacticsLineupFrameProps {
 /**
  * The lineup region of the Tactics workbench: the player table, and the pitch. It fills the height it
  * is given and never scrolls as a whole; the table and the pitch scroll inside themselves. Where
- * there is room for both (56rem or wider) the pitch sits beside the table; where there is not, the
+ * there is room for both (60rem or wider) the pitch sits beside the table; where there is not, the
  * table has the width and the pitch is behind a Pitch button that opens it as a panel over the table,
  * as the instructions rail does (maintainer, 11 Nov 2026).
  */

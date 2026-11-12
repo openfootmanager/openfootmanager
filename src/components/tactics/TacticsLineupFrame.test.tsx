@@ -32,7 +32,7 @@ describe("TacticsLineupFrame", () => {
   });
 
   /**
-   * Given a lineup region wide enough for the table and the pitch (56rem or wider)
+   * Given a lineup region wide enough for the table and the pitch (60rem or wider)
    * When it opens
    * Then the table and the pitch sit side by side and there is no Pitch button.
    */
