@@ -6,13 +6,18 @@ import { type GameStateData, useGameStore } from "../../store/gameStore";
 import { useTacticsLibrary } from "./useTacticsLibrary";
 
 vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
-vi.mock("react-i18next", () => ({
-  initReactI18next: { type: "3rdParty", init: () => {} },
-  useTranslation: () => ({
+// One `t` for every render, as the real hook gives: a new one each render would re-run the effect that
+// follows the active tactic's name, and repair a stale draft name that the test is after.
+vi.mock("react-i18next", () => {
+  const translation = {
     t: (key: string, fallback?: unknown) => (typeof fallback === "string" ? fallback : key),
     i18n: { language: "en" },
-  }),
-}));
+  };
+  return {
+    initReactI18next: { type: "3rdParty", init: () => {} },
+    useTranslation: () => translation,
+  };
+});
 
 const mockedInvoke = vi.mocked(invoke);
 
