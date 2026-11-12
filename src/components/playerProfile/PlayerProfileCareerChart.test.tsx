@@ -242,15 +242,15 @@ describe("PlayerProfileCareerChart", () => {
     renderChart();
 
     clickBar(2);
-    expect(readout().getByText("playerProfile.careerChartMovesBefore")).toBeInTheDocument();
+    expect(readout().getByText("playerProfile.careerChartMovesSince")).toBeInTheDocument();
     expect(readout().getByText(new RegExp(formatProfileDay("2024-07-01", "en")))).toHaveTextContent(
       'transferFrom {"club":"Ashford"}',
     );
     expect(readout().getByText(/€9,500,000/)).toBeInTheDocument();
 
     clickBar(3);
-    expect(readout().getByText("playerProfile.careerChartNoMove")).toBeInTheDocument();
-    expect(readout().queryByText("playerProfile.careerChartMovesBefore")).toBeNull();
+    expect(readout().getByText("playerProfile.careerChartNoMoveSince")).toBeInTheDocument();
+    expect(readout().queryByText("playerProfile.careerChartMovesSince")).toBeNull();
   });
 
   /**
@@ -377,5 +377,81 @@ describe("PlayerProfileCareerChart", () => {
 
     expect(screen.getByText("No data yet")).toBeInTheDocument();
     expect(screen.queryByRole("radiogroup")).toBeNull();
+  });
+
+  /**
+   * Given the first bar of a career that begins with an opening contract, and one with none
+   * When each is chosen
+   * Then the readout words the moves as "since joining" (the first bar has no previous spell to
+   *      count from), and says none since joining when there is none
+   */
+  it("words the first bar's moves as since joining", () => {
+    renderChart();
+    // The first bar (Ashford 2023/24) has no move listed below it.
+    clickBar(0);
+    expect(readout().getByText("playerProfile.careerChartNoMoveFirst")).toBeInTheDocument();
+
+    render(
+      <PlayerProfileCareerChart
+        career={{
+          ...CAREER,
+          by_season: [
+            season({ season: 2025, club_id: "a", key: "only" }),
+            {
+              kind: "move",
+              key: "first",
+              date: "2024-07-01",
+              movement: "initial_contract",
+              from_club_name: null,
+              to_club_name: "a",
+              fee: null,
+              loan_end: null,
+            },
+          ],
+        }}
+        language="en"
+        t={t}
+      />,
+    );
+    expect(screen.getAllByText("playerProfile.careerChartMovesFirst")).toHaveLength(1);
+  });
+
+  /**
+   * Given two 2025 rows at club A with a loan in October 2025 between them (a loan to a club he
+   *       never played for, so it has no row of its own)
+   * When the later row is chosen
+   * Then the loan is listed as a move since the previous spell, not as one "before this season":
+   *      it happened inside the season
+   */
+  it("words a mid-season move as since the previous spell", () => {
+    render(
+      <PlayerProfileCareerChart
+        career={{
+          ...CAREER,
+          by_season: [
+            season({ season: 2025, club_id: "a", key: "later" }),
+            {
+              kind: "move",
+              key: "loan",
+              date: "2025-10-01",
+              movement: "loan_start",
+              from_club_name: "A",
+              to_club_name: "B",
+              fee: null,
+              loan_end: "2026-01-05",
+            },
+            season({ season: 2025, club_id: "a", key: "first" }),
+          ],
+        }}
+        language="en"
+        t={t}
+      />,
+    );
+
+    // The latest bar is chosen at first: it is the later 2025 row.
+    const view = readout();
+    expect(view.getByText("playerProfile.careerChartMovesSince")).toBeInTheDocument();
+    expect(view.getByText(/loanTo/)).toBeInTheDocument();
+    expect(view.queryByText(/before this season/i)).toBeNull();
   });
 });
