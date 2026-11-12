@@ -146,9 +146,11 @@ export default function TacticsTab({
         onDelete={handleDeleteTactic}
         onDuplicate={handleDuplicateTactic}
         onFormationChange={(nextFormation) => {
+          presetChoice.invalidate();
           void handleFormationChange(nextFormation);
         }}
         onPlayStyleChange={(playStyle) => {
+          presetChoice.invalidate();
           void handlePlayStyleChange(playStyle);
         }}
         onSave={handleSaveTactic}

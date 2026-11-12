@@ -12,8 +12,8 @@ import type { TacticsLibraryEntry } from "./TacticPicker";
  * the result is the preset's, and an edit made while the lookup was out survives). A question the backend could not answer asks, so
  * nothing of the manager's is replaced on a guess.
  *
- * Only the latest choice counts: a lookup that answers after the manager chose something else is
- * dropped, and a question left open when the career changes is withdrawn, so an answer is never
+ * Only the latest choice counts: a lookup that answers after the manager chose something else, or
+ * edited the formation or play style the preset would write (`invalidate`), is dropped, and a question left open when the career changes is withdrawn, so an answer is never
  * applied to a choice or a career it was not asked in.
  *
  * `apply(tactic, keepInstructions)` does the writing: `keepInstructions` takes the preset's formation
@@ -25,6 +25,8 @@ export function usePresetChoice(
   /** The preset waiting for the manager's answer, if any. */
   pending: TacticsLibraryEntry | null;
   choose: (tactic: TacticsLibraryEntry) => Promise<void>;
+  /** The manager changed the setup a preset writes (the formation, the play style): a lookup still out is stale. */
+  invalidate: () => void;
   replaceInstructions: () => Promise<void>;
   keepInstructions: () => Promise<void>;
   cancel: () => void;
@@ -78,6 +80,9 @@ export function usePresetChoice(
   return {
     pending,
     choose,
+    invalidate: () => {
+      latestChoice.current += 1;
+    },
     replaceInstructions: () => answer(false),
     keepInstructions: () => answer(true),
     cancel: () => setPending(null),

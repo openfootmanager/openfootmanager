@@ -258,6 +258,40 @@ describe("TacticsTab preset question", { timeout: TACTICS_TAB_CASE_TIMEOUT_MS },
   });
 
   /**
+   * Given a preset chosen, and its lookup (nothing of the manager's to replace) still pending
+   * When the manager commits their own formation, or play style, edit before the lookup answers
+   * Then the answer does not apply the older preset over the newer edit: the edit stands.
+   */
+  it.each([
+    ["Formation", "4-3-3", "set_formation"],
+    ["Play style", "Attacking", "set_play_style"],
+  ])(
+    "does not apply a preset over a %s edit made while its lookup is pending",
+    async (control, option, command) => {
+      fakeBackend();
+      render(<ControlledTacticsTab />);
+      let release!: () => void;
+      knobs.blueprintStatusGate = new Promise<void>((resolve) => {
+        release = resolve;
+      });
+      mockedInvoke.mockClear();
+      pickHighPress();
+      await waitFor(() => expect(commandsCalled()).toContain("get_tactics_blueprint_status"));
+
+      fireEvent.click(screen.getByRole("combobox", { name: control }));
+      fireEvent.click(screen.getByRole("option", { name: option }));
+      await waitFor(() => expect(commandsCalled()).toContain(command));
+      await act(async () => {
+        release();
+        await waitFor(() => expect(knobs.blueprintStatusAnswered).toBe(1));
+      });
+
+      expect(commandsCalled()).not.toContain("apply_tactic_preset");
+      expect(screen.getByRole("combobox", { name: control })).toHaveTextContent(option);
+    },
+  );
+
+  /**
    * Given a preset chosen and its lookup pending
    * When the tab goes away (a tab switch), and then the lookup answers
    * Then nothing is applied: the choice went with the tab.
