@@ -22,7 +22,7 @@ interface TacticsWorkbenchProps {
   onTacticsPhaseChange: (patch: Partial<TacticsPhaseSettings>) => void;
   /** The set-piece takers' section body. */
   setPieces: ReactNode;
-  /** The lineup: the region beside the panel, which scrolls inside itself. */
+  /** The lineup: the region beside the panel; it fills its height and does not scroll (its table does). */
   children: ReactNode;
 }
 
@@ -85,7 +85,9 @@ export default function TacticsWorkbench({
       className={`grid min-h-0 w-full flex-1 gap-4 ${beside ? "grid-cols-[17rem_minmax(0,1fr)]" : "grid-cols-[3rem_minmax(0,1fr)]"}`}
     >
       <div className="min-h-0">{panel(beside)}</div>
-      <div className="min-h-0 overflow-y-auto">{children}</div>
+      <div data-region="tactics-lineup" className="min-h-0 overflow-hidden">
+        {children}
+      </div>
       {drawerOpen ? (
         <Dialog
           labelledBy={INSTRUCTIONS_TITLE_ID}

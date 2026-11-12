@@ -794,6 +794,7 @@
     "resetTactic": "Reset to defaults",
     "tacticBar": "Tactic",
     "tacticActions": "Tactic actions",
+    "pitch": "Pitch",
     "saveAsTactic": "Save as tactic",
     "updateTactic": "Update tactic",
     "tacticSaved": "Saved",

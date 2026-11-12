@@ -842,6 +842,7 @@
     "resetTactic": "Сбросить к исходным",
     "tacticBar": "Тактика",
     "tacticActions": "Действия с тактикой",
+    "pitch": "Поле",
     "saveAsTactic": "Сохранить как тактику",
     "updateTactic": "Обновить тактику",
     "tacticSaved": "Сохранено",

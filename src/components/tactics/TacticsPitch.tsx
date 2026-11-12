@@ -543,7 +543,12 @@ export default function TacticsPitch({
                                 <div
                                   draggable={false}
                                   onMouseDown={(e) => e.stopPropagation()}
-                                  onKeyDown={(e) => e.stopPropagation()}
+                                  // The token activates on Enter and Space, which the select uses to open
+                                  // and choose; Tab and Escape bubble on to the dialog around the pitch (a
+                                  // narrow window shows it as a panel), which traps Tab and closes on Escape.
+                                  onKeyDown={(e) => {
+                                    if (e.key === "Enter" || e.key === " ") e.stopPropagation();
+                                  }}
                                   className="w-full"
                                 >
                                   <Select
