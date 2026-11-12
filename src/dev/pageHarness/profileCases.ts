@@ -368,6 +368,7 @@ function contractPreviewsOf(player: PlayerData, canBeReleased: boolean) {
             can_field_matchday_squad: true,
             missing_reasons: [],
           },
+          squad_floor_refusal: null,
         }
       : null,
     projection: {

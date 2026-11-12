@@ -491,6 +491,45 @@ fn terminate_contract_now_blocks_when_the_squad_would_fall_below_the_floor() {
     assert_eq!(game.teams[0].finance, original_finance);
 }
 
+/// Given a club that releasing a defender would leave below the squad floor
+/// When the release is previewed
+/// Then the preview names the floor's refusal, and `terminate_contract_now`
+///      refuses with that same text, so the screen can disable Terminate up
+///      front instead of offering it and failing afterwards (#1398)
+#[test]
+fn preview_contract_termination_carries_the_squad_floor_refusal_the_release_would_get() {
+    let mut game = make_squad_game();
+
+    let preview = preview_contract_termination(&game, "player-3").expect("preview");
+    let refusal = terminate_contract_now(&mut game, "player-3").expect_err("termination fails");
+
+    assert_eq!(
+        preview.squad_floor_refusal.as_deref(),
+        Some("be.error.squadFloor.wouldLeaveShort?group=common.positionGroups.Defender")
+    );
+    assert_eq!(preview.squad_floor_refusal, Some(refusal));
+}
+
+/// Given a club of seventeen seniors, so that releasing a forward leaves sixteen (the floor is
+///       fifteen) and three forwards (the floor for the group is two)
+/// When the release is previewed
+/// Then the preview carries no floor refusal
+#[test]
+fn preview_contract_termination_has_no_floor_refusal_when_the_release_keeps_the_floor() {
+    let mut game = make_squad_game();
+    game.players.extend([
+        make_player_with_position("gk-2", Position::Goalkeeper),
+        make_player_with_position("player-12", Position::Defender),
+        make_player_with_position("player-13", Position::Midfielder),
+        make_player_with_position("player-14", Position::Forward),
+        make_player_with_position("player-15", Position::Midfielder),
+    ]);
+
+    let preview = preview_contract_termination(&game, "player-1").expect("preview");
+
+    assert_eq!(preview.squad_floor_refusal, None);
+}
+
 #[test]
 fn rejected_offer_leaves_state_unchanged() {
     let mut game = make_game();

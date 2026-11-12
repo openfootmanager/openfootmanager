@@ -190,7 +190,7 @@ The `initialize` result's `serverInfo.version` is the package version plus the s
 | `contract_preview_renewal` | Preview renewal financial impact: wage bills, cash runway, and whether wage policy allows the offer |
 | `contract_set_exit_intent` | Mark a contract to expire (let player leave on free transfer) |
 | `contract_clear_exit_intent` | Remove exit intent from a contract |
-| `contract_preview_termination` | Preview the severance cost of terminating a contract and the squad-safety report |
+| `contract_preview_termination` | Preview the severance cost of terminating a contract and the squad-safety report; `squad_floor_refusal` carries the error `contract_terminate` would be refused with when the release would break the squad floor |
 | `contract_terminate` | Terminate a contract immediately (costs compensation) |
 
 ### Inbox (7 tools)

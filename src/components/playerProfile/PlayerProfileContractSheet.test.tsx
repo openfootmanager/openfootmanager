@@ -48,6 +48,7 @@ const ANSWERED: ContractSheetData = {
         can_field_matchday_squad: true,
         missing_reasons: [],
       },
+      squad_floor_refusal: null,
     },
   },
   projection: {
@@ -416,6 +417,36 @@ describe("PlayerProfileContractSheet: his own player", () => {
     expect(
       screen.getByText('playerProfile.contractSheet.healthyValue {"healthy":9,"filled":9}'),
     ).toBeInTheDocument();
+  });
+
+  /**
+   * Given a release the squad floor would refuse (a matchday XI could still be fielded), the
+   *      refusal arriving as the backend's translation-key error
+   * When the sheet is drawn
+   * Then Terminate is disabled and the floor's own reason is shown in words before the click, not
+   *      the matchday warning, which does not apply (#1398)
+   */
+  it("disables Terminate with the squad floor's own reason", () => {
+    const safe = ANSWERED.termination;
+    if (safe.status !== "answered") throw new Error("the fixture answers the preview");
+    const belowFloor: ContractSheetData = {
+      ...ANSWERED,
+      termination: {
+        status: "answered",
+        value: {
+          ...safe.value,
+          squad_floor_refusal:
+            "be.error.squadFloor.wouldLeaveShort?group=common.positionGroups.Defender",
+        },
+      },
+    };
+    renderSheet({ data: belowFloor });
+
+    expect(screen.getByRole("button", { name: "playerProfile.terminateContract" })).toBeDisabled();
+    expect(
+      screen.getByText(/the squad would fall below the minimum a club must keep/),
+    ).toHaveTextContent("Defenders");
+    expect(screen.queryByText("playerProfile.terminationUnsafe")).toBeNull();
   });
 
   /**
