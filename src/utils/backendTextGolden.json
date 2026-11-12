@@ -496,6 +496,280 @@
         "body": "Plain body.",
         "source": "Wire"
       }
+    },
+    {
+      "name": "a roundup lays out its results and names the biggest winner",
+      "kind": "article",
+      "input": {
+        "id": "roundup_1",
+        "headline_key": "be.news.roundup.headline0",
+        "body_key": "be.news.roundup.body",
+        "source_key": "be.source.leagueWire",
+        "i18n_params": {
+          "matchday": "12",
+          "totalGoals": "9",
+          "matchCount": "3",
+          "results": "",
+          "resultsData": "[{\"home\":\"North\",\"home_goals\":4,\"away\":\"South\",\"away_goals\":1},{\"home\":\"East\",\"home_goals\":0,\"away\":\"West\",\"away_goals\":0},{\"home\":\"Hill\",\"home_goals\":2,\"away\":\"Vale\",\"away_goals\":2}]",
+          "biggestWinner": "North"
+        }
+      },
+      "expected": {
+        "headline": "Matchday 12 Round-Up: 9 Goals in Action-Packed Day",
+        "body": "Matchday 12 is in the books. Here are the full results:\n\n  North 4 - 1 South\n  East 0 - 0 West\n  Hill 2 - 2 Vale\n\n9 goals scored across 3 matches. North recorded the biggest win of the day.",
+        "source": "League Wire"
+      }
+    },
+    {
+      "name": "a roundup with no biggest winner leaves that sentence out",
+      "kind": "article",
+      "input": {
+        "id": "roundup_2",
+        "headline_key": "be.news.roundup.headline1",
+        "body_key": "be.news.roundup.body",
+        "source_key": "be.source.footballHerald",
+        "i18n_params": {
+          "matchday": "3",
+          "totalGoals": "0",
+          "matchCount": "1",
+          "results": "",
+          "resultsData": "[{\"home\":\"East\",\"home_goals\":0,\"away\":\"West\",\"away_goals\":0}]",
+          "biggestWinner": ""
+        }
+      },
+      "expected": {
+        "headline": "Premier Division Matchday 3: All the Results",
+        "body": "Matchday 3 is in the books. Here are the full results:\n\n  East 0 - 0 West\n\n0 goals scored across 1 matches.",
+        "source": "The Football Herald"
+      }
+    },
+    {
+      "name": "a preseason digest lays out its friendlies and one unbeaten club",
+      "kind": "article",
+      "input": {
+        "id": "preseason_1",
+        "headline_key": "be.news.preseasonDigest.headline",
+        "body_key": "be.news.preseasonDigest.bodyWithResults",
+        "source_key": "be.source.leagueChronicle",
+        "i18n_params": {
+          "weekStart": "2026-07-06",
+          "resultCount": "2",
+          "totalGoals": "5",
+          "results": "",
+          "resultsData": "[{\"home\":\"North\",\"home_goals\":3,\"away\":\"South\",\"away_goals\":1},{\"home\":\"East\",\"home_goals\":1,\"away\":\"West\",\"away_goals\":0}]",
+          "unbeatenLine": "",
+          "unbeatenTeamsData": "[\"North\"]"
+        }
+      },
+      "expected": {
+        "headline": "Preseason Digest — Week of 2026-07-06",
+        "body": "The latest preseason digest is here. 2 friendly result(s) were played across the division this week, producing 5 goal(s).\n\nResults:\n  North 3 - 1 South\n  East 1 - 0 West\n\nNorth remain unbeaten in preseason.",
+        "source": "League Chronicle"
+      }
+    },
+    {
+      "name": "a preseason digest with no friendlies names two unbeaten clubs",
+      "kind": "article",
+      "input": {
+        "id": "preseason_2",
+        "headline_key": "be.news.preseasonDigest.headline",
+        "body_key": "be.news.preseasonDigest.bodyNoResults",
+        "source_key": "be.source.leagueChronicle",
+        "i18n_params": {
+          "weekStart": "2026-07-13",
+          "resultCount": "0",
+          "totalGoals": "0",
+          "results": "",
+          "unbeatenLine": "",
+          "unbeatenTeamsData": "[\"North\",\"East\"]"
+        }
+      },
+      "expected": {
+        "headline": "Preseason Digest — Week of 2026-07-13",
+        "body": "The latest preseason digest is here. Training camps, selection decisions, and transfer business continue across the division as clubs prepare for opening day.\n\nNorth and East remain unbeaten in preseason.",
+        "source": "League Chronicle"
+      }
+    },
+    {
+      "name": "a preseason digest lists three or more unbeaten clubs as a sentence",
+      "kind": "article",
+      "input": {
+        "id": "preseason_3",
+        "headline_key": "be.news.preseasonDigest.headline",
+        "body_key": "be.news.preseasonDigest.bodyNoResults",
+        "source_key": "be.source.leagueChronicle",
+        "i18n_params": {
+          "weekStart": "2026-07-20",
+          "resultCount": "0",
+          "totalGoals": "0",
+          "results": "",
+          "unbeatenLine": "",
+          "unbeatenTeamsData": "[\"North\",\"East\",\"Hill\",\"Vale\"]"
+        }
+      },
+      "expected": {
+        "headline": "Preseason Digest — Week of 2026-07-20",
+        "body": "The latest preseason digest is here. Training camps, selection decisions, and transfer business continue across the division as clubs prepare for opening day.\n\nNorth, East, Hill, and Vale remain unbeaten in preseason.",
+        "source": "League Chronicle"
+      }
+    },
+    {
+      "name": "a standings update lays out its table",
+      "kind": "article",
+      "input": {
+        "id": "standings_1",
+        "headline_key": "be.news.standings.headline0",
+        "body_key": "be.news.standings.body",
+        "source_key": "be.source.leagueWire",
+        "i18n_params": {
+          "matchday": "8",
+          "leader": "North",
+          "standings": "",
+          "standingsData": "[{\"rank\":1,\"team\":\"North\",\"points\":19,\"goal_difference\":\"+9\"},{\"rank\":2,\"team\":\"East\",\"points\":17,\"goal_difference\":\"+4\"},{\"rank\":3,\"team\":\"Hill\",\"points\":14,\"goal_difference\":\"-1\"}]"
+        }
+      },
+      "expected": {
+        "headline": "North Lead the Way After Matchday 8",
+        "body": "After Matchday 8, North sit at the top of the Premier Division table.\n\nStandings:\n  1. North — 19 pts (GD: +9)\n  2. East — 17 pts (GD: +4)\n  3. Hill — 14 pts (GD: -1)",
+        "source": "League Wire"
+      }
+    },
+    {
+      "name": "a match report lists its scorers",
+      "kind": "article",
+      "input": {
+        "id": "report_1",
+        "headline_key": "be.news.matchReport.headline.homeWin.0",
+        "body_key": "be.news.matchReport.body0",
+        "source_key": "be.source.sportsGazette",
+        "i18n_params": {
+          "home": "North",
+          "away": "South",
+          "homeGoals": "2",
+          "awayGoals": "1",
+          "matchday": "5",
+          "winner": "North",
+          "loser": "South",
+          "scorers": "",
+          "scorersData": "[{\"player\":\"J. Doe\",\"minute\":12,\"team\":\"North\"},{\"player\":\"A. Roe\",\"minute\":55,\"team\":\"South\"},{\"player\":\"J. Doe\",\"minute\":88,\"team\":\"North\"}]"
+        }
+      },
+      "expected": {
+        "headline": "North 2 - 1 South: Hosts Triumph",
+        "body": "In Matchday 5 action, the match ended North 2 - 1 South. The result could have implications on the league standings as the season progresses.\n\nGoals: J. Doe (12', North), A. Roe (55', South), J. Doe (88', North)",
+        "source": "Sports Gazette"
+      }
+    },
+    {
+      "name": "a match report with no scorers has no goals section",
+      "kind": "article",
+      "input": {
+        "id": "report_2",
+        "headline_key": "be.news.matchReport.headline.draw.1",
+        "body_key": "be.news.matchReport.body1.noScorers",
+        "source_key": "be.source.matchDayPress",
+        "i18n_params": {
+          "home": "East",
+          "away": "West",
+          "homeGoals": "0",
+          "awayGoals": "0",
+          "matchday": "6",
+          "scorers": "",
+          "scorersData": "[]"
+        }
+      },
+      "expected": {
+        "headline": "East and West Share the Spoils",
+        "body": "The match ended East 0 - 0 West in a Matchday 6 clash. Both sides gave their all in an engaging contest.",
+        "source": "Match Day Press"
+      }
+    },
+    {
+      "name": "a friendly report lists its scorers in a goals section",
+      "kind": "article",
+      "input": {
+        "id": "report_3",
+        "headline_key": "be.news.matchReport.reportFriendly.title",
+        "body_key": "be.news.matchReport.reportFriendly.body",
+        "source_key": "be.source.footballHerald",
+        "i18n_params": {
+          "home": "North",
+          "away": "South",
+          "homeGoals": "1",
+          "awayGoals": "0",
+          "scorers": "",
+          "scorersSection": "",
+          "scorersData": "[{\"player\":\"J. Doe\",\"minute\":33,\"team\":\"North\"}]"
+        }
+      },
+      "expected": {
+        "headline": "North 1 - 0 South: Friendly report",
+        "body": "In friendly action, North 1 - 0 South. Both sides used the fixture to build sharpness before the competitive campaign.\n\nGoals: J. Doe (33', North)",
+        "source": "The Football Herald"
+      }
+    },
+    {
+      "name": "a press conference with several quotes lists them",
+      "kind": "article",
+      "input": {
+        "id": "press_1",
+        "headline_key": "be.news.pressConference.headlinePressConf",
+        "body_key": "be.news.pressConference.bodyMultiple",
+        "source_key": "be.source.leagueWire",
+        "i18n_params": {
+          "team": "North",
+          "result": "2-1",
+          "quote": "We never stopped believing",
+          "quotesData": "[{\"fallback\":\"We never stopped believing\"},{\"fallback\":\"The lads showed real character\"}]"
+        }
+      },
+      "expected": {
+        "headline": "Press Conference: \"We never stopped believing\" — North boss",
+        "body": "Speaking after the 2-1 result, the North manager addressed the press.\n\n• \"We never stopped believing\"\n• \"The lads showed real character\"\n\nThe conference covered the result, tactical approach, and what lies ahead for the team.",
+        "source": "League Wire"
+      }
+    },
+    {
+      "name": "a press conference with one quote shows it",
+      "kind": "article",
+      "input": {
+        "id": "press_2",
+        "headline_key": "be.news.pressConference.headlineManagerQuote",
+        "body_key": "be.news.pressConference.bodySingle",
+        "source_key": "be.source.leagueWire",
+        "i18n_params": {
+          "team": "South",
+          "result": "0-3",
+          "quote": "A tough afternoon",
+          "quotesData": "[{\"fallback\":\"A tough afternoon\"}]"
+        }
+      },
+      "expected": {
+        "headline": "South Manager: A tough afternoon",
+        "body": "The South manager spoke briefly after the 0-3 result.\n\n\"A tough afternoon\"",
+        "source": "League Wire"
+      }
+    },
+    {
+      "name": "a transfer roundup lays out its deals with the fee compact",
+      "kind": "article",
+      "input": {
+        "id": "roundup_deals_1",
+        "headline_key": "be.news.transferRoundup.headline",
+        "body_key": "be.news.transferRoundup.body",
+        "source_key": "be.source.transferIntelligence",
+        "i18n_params": {
+          "weekStart": "2026-08-03",
+          "transferCount": "2",
+          "deals": "",
+          "dealsData": "[{\"player\":\"J. Doe\",\"fromTeam\":\"North\",\"toTeam\":\"South\",\"fee\":\"12500000\"},{\"player\":\"A. Roe\",\"fromTeam\":\"East\",\"toTeam\":\"West\",\"fee\":\"800000\"}]"
+        }
+      },
+      "expected": {
+        "headline": "Transfer Roundup — Week of 2026-08-03",
+        "body": "The transfer market stayed busy this week. 2 completed deal(s) stood out across the division.\n\n  J. Doe: North -> South (€12.5M)\n  A. Roe: East -> West (€800K)",
+        "source": "Transfer Intelligence"
+      }
     }
   ]
 }
