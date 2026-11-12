@@ -1,4 +1,4 @@
-import type { PlayerData } from "../../store/gameStore";
+import type { PlayerData, StaffData, TeamData } from "../../store/gameStore";
 
 /** Why a contract cannot be ended now, when it cannot. */
 export type TerminationBlock = "no_contract" | "on_loan";
@@ -14,15 +14,20 @@ export function terminationBlockedBy(player: PlayerData): TerminationBlock | nul
   return null;
 }
 
+/** What the club-wide previews read from the game. */
+export interface ClubStateInputs {
+  players: PlayerData[];
+  staff: StaffData[];
+  teams: Pick<TeamData, "id" | "wage_budget">[];
+}
+
 /**
- * What the club-wide previews depend on, as one string: the club's own squad (who is in it, their
- * wages, contract ends, injuries and loans). A signing, a release or a renewal made while the sheet
- * is open (by the manager elsewhere, or an agent over MCP) changes it, so the wage bill and the
- * squad-safety verdict are asked again; players at other clubs and the order of the list do not.
+ * What the club-wide previews depend on, as one string. Scaffold: it still reads only the playing
+ * squad; the real key replaces it.
  */
-export function squadStateKey(players: PlayerData[], teamId: string | null): string {
+export function clubStateKey(game: ClubStateInputs, teamId: string | null): string {
   if (!teamId) return "";
-  return players
+  return game.players
     .filter((player) => player.team_id === teamId)
     .map((player) =>
       [
