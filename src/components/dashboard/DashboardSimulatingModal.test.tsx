@@ -82,23 +82,31 @@ describe("DashboardSimulatingModal penalty shootouts", () => {
 });
 
 describe("DashboardSimulatingModal digest date", () => {
-  afterEach(() => vi.restoreAllMocks());
+  const RealDateTimeFormat = Intl.DateTimeFormat;
+
+  /** A host whose own locale is American: a formatter asked for the "default" locale answers en-US. */
+  class UsHostDateTimeFormat extends RealDateTimeFormat {
+    constructor(locales?: string | string[], options?: Intl.DateTimeFormatOptions) {
+      super(locales ?? "en-US", options);
+    }
+  }
+  const useDateTimeFormat = (value: typeof Intl.DateTimeFormat) =>
+    Object.defineProperty(Intl, "DateTimeFormat", {
+      value,
+      configurable: true,
+      writable: true,
+    });
+
+  afterEach(() => useDateTimeFormat(RealDateTimeFormat));
 
   /**
-   * Given an English game on a host whose own locale is American (an Intl formatter asked for the
-   *       "default" locale answers en-US)
+   * Given an English game on a host whose own locale is American
    * When the digest of a day, 10 July 2026, is drawn
    * Then the day reads day-month ("10 Jul"), because the date is written in the game's language
    *      and never in the host's
    */
   it("writes the digest day in the game's language, not the host's", () => {
-    const Real = Intl.DateTimeFormat;
-    vi.spyOn(Intl, "DateTimeFormat").mockImplementation(function (
-      locales?: string | string[],
-      options?: Intl.DateTimeFormatOptions,
-    ) {
-      return new Real(locales ?? "en-US", options);
-    } as unknown as typeof Intl.DateTimeFormat);
+    useDateTimeFormat(UsHostDateTimeFormat);
 
     render(<DashboardSimulatingModal digestEntries={[entryWith([match()])]} />);
 
