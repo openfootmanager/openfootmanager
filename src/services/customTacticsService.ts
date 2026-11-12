@@ -23,6 +23,27 @@ export async function listCustomTactics(): Promise<CustomTactic[]> {
 }
 
 /**
+ * Which parts of the manager's tactic as it stands differ from the saved tactic `id`. The rule is the
+ * backend's (the tactic is the team's); the Tactics screen's unsaved badge reads it.
+ */
+export interface TacticDifferences {
+  formation: boolean;
+  playStyle: boolean;
+  /** Any of the team instructions. */
+  instructions: boolean;
+  /** Who starts, slot by slot. */
+  eleven: boolean;
+  /** A role a starter who is in both elevens holds in one and not the other. */
+  roles: boolean;
+  /** The captain, vice-captain or a set-piece taker. */
+  takers: boolean;
+}
+
+export async function getCustomTacticDifferences(id: string): Promise<TacticDifferences> {
+  return invoke<TacticDifferences>("get_custom_tactic_differences", { id });
+}
+
+/**
  * The writes below carry the career token the screen was given with the game. The backend refuses
  * them if another career is active by the time they arrive, so a request sent just before a career
  * switch cannot land in the new career.

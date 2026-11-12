@@ -177,6 +177,15 @@ let blueprintModified = false;
 let refused = new Set<string>();
 /** The tactics the faked save holds, in the order made. */
 let savedTactics: CustomTactic[] = [];
+/** What the faked backend says the manager's tactic differs from a saved one in. */
+let savedTacticDifferences = {
+  formation: false,
+  playStyle: false,
+  instructions: false,
+  eleven: false,
+  roles: false,
+  takers: false,
+};
 /** When set, the faked save answers `list_custom_tactics` only once this resolves. */
 let libraryListGate: Promise<void> | null = null;
 
@@ -201,6 +210,7 @@ function fakeBackend(failPreset = false) {
     if (command === "auto_select_set_pieces") {
       return { captain: "m1", penalty_taker: "f1", free_kick_taker: "m1", corner_taker: "d1" };
     }
+    if (command === "get_custom_tactic_differences") return { ...savedTacticDifferences };
     if (command === "list_custom_tactics") {
       if (libraryListGate) await libraryListGate;
       return structuredClone(savedTactics);
@@ -279,6 +289,14 @@ describe("TacticsTab preset selection", { timeout: TACTICS_TAB_CASE_TIMEOUT_MS }
     blueprintModified = false;
     savedTactics = [];
     libraryListGate = null;
+    savedTacticDifferences = {
+      formation: false,
+      playStyle: false,
+      instructions: false,
+      eleven: false,
+      roles: false,
+      takers: false,
+    };
     refused = new Set();
     backend = makeGame();
   });
@@ -335,6 +353,60 @@ describe("TacticsTab preset selection", { timeout: TACTICS_TAB_CASE_TIMEOUT_MS }
     await waitFor(() =>
       expect(screen.getByRole("button", { name: "Save as tactic" })).toBeEnabled(),
     );
+  });
+
+  /**
+   * Given a saved tactic whose shape, style and name match the team's, and a backend that says the
+   *       team's eleven differs from what the tactic holds
+   * When the saved tactic is chosen
+   * Then the badge reads "Unsaved changes" and Update tactic is on: the badge reads the whole
+   *      tactic, not only its formation, style and name.
+   */
+  it("shows unsaved changes when the backend says the eleven differs from the saved tactic", async () => {
+    seedSavedTactics([
+      {
+        id: "custom:saved",
+        name: "Saved custom",
+        description: "",
+        formation: "4-4-2",
+        playStyle: "Balanced",
+      },
+    ]);
+    savedTacticDifferences.eleven = true;
+    fakeBackend();
+    render(<ControlledTacticsTab />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Choose tactic" }));
+    fireEvent.click(await screen.findByRole("option", { name: /Saved custom/ }));
+
+    expect(await screen.findByText("Unsaved changes")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Update tactic" })).toBeEnabled();
+  });
+
+  /**
+   * Given the same saved tactic and a backend that says nothing differs
+   * When the saved tactic is chosen
+   * Then the badge reads "Synced" and Update tactic is off.
+   */
+  it("shows synced when the backend says nothing differs from the saved tactic", async () => {
+    seedSavedTactics([
+      {
+        id: "custom:saved",
+        name: "Saved custom",
+        description: "",
+        formation: "4-4-2",
+        playStyle: "Balanced",
+      },
+    ]);
+    fakeBackend();
+    render(<ControlledTacticsTab />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Choose tactic" }));
+    fireEvent.click(await screen.findByRole("option", { name: /Saved custom/ }));
+
+    await waitFor(() => expect(commandsCalled()).toContain("get_custom_tactic_differences"));
+    expect(await screen.findByText("Synced")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Update tactic" })).toBeDisabled();
   });
 
   /**
