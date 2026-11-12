@@ -8,13 +8,9 @@ import PlayerProfileMovementHistoryCard from "./PlayerProfileMovementHistoryCard
 const t = (key: string, options?: Record<string, string | number>) =>
   options ? `${key} ${JSON.stringify(options)}` : key;
 
-function renderCard(movementHistory: PlayerMovementEntry[], showsWages = true) {
+function renderCard(movementHistory: PlayerMovementEntry[]) {
   return render(
-    <PlayerProfileMovementHistoryCard
-      movementHistory={movementHistory}
-      showsWages={showsWages}
-      t={t}
-    />,
+    <PlayerProfileMovementHistoryCard movementHistory={movementHistory} language="en" t={t} />,
   );
 }
 
@@ -31,78 +27,11 @@ const renewal: PlayerMovementEntry = {
   },
 };
 
-describe("PlayerProfileMovementHistoryCard contract terms", () => {
-  it("shows a contract's start, end and wage on its entry", () => {
-    renderCard([renewal]);
+describe("PlayerProfileMovementHistoryCard moves", () => {
+  it("shows an entry with no date as an unknown date, not as today", () => {
+    renderCard([{ date: "", kind: "initial_contract", to_team_id: "team-1" }]);
 
-    expect(screen.getByText("playerProfile.movementRenewal")).toBeInTheDocument();
-    expect(
-      screen.getByText(
-        'playerProfile.movementContractRange {"start":"2026-01-10","end":"2029-06-30"}',
-      ),
-    ).toBeInTheDocument();
-    expect(screen.getByText(/playerProfile\.movementWage/)).toHaveTextContent("9,000");
-  });
-
-  /**
-   * Given a rival's renewal on 9,000 a week, and a club that may not see his wages
-   * When his movement history renders
-   * Then the entry keeps its contract dates but names no wage
-   */
-  it("leaves the wage off an entry when the club may not see his wages", () => {
-    renderCard([renewal], false);
-
-    expect(
-      screen.getByText(
-        'playerProfile.movementContractRange {"start":"2026-01-10","end":"2029-06-30"}',
-      ),
-    ).toBeInTheDocument();
-    expect(screen.queryByText(/playerProfile\.movementWage/)).not.toBeInTheDocument();
-    expect(screen.queryByText(/9,000/)).not.toBeInTheDocument();
-  });
-
-  it("shows an unknown start as an end alone, not as a blank or as today", () => {
-    renderCard([
-      {
-        ...renewal,
-        kind: "initial_contract",
-        contract: { start: null, end: "2028-06-30", weekly_wage: 7000, source: "initial" },
-      },
-    ]);
-
-    expect(
-      screen.getByText('playerProfile.movementContractUntil {"end":"2028-06-30"}'),
-    ).toBeInTheDocument();
-    expect(screen.queryByText(/movementContractRange/)).not.toBeInTheDocument();
-  });
-
-  it("says when a contract was carried over from a save that predates the history", () => {
-    renderCard([
-      {
-        date: "",
-        kind: "initial_contract",
-        to_team_id: "team-1",
-        contract: { start: null, end: "2028-06-30", weekly_wage: 7000, source: "legacy_migrated" },
-      },
-    ]);
-
-    expect(screen.getByText("playerProfile.movementLegacyContract")).toBeInTheDocument();
     expect(screen.getByText("playerProfile.movementDateUnknown")).toBeInTheDocument();
-  });
-
-  it("names why a player was released", () => {
-    renderCard([
-      { date: "2026-06-30", kind: "released", from_team_id: "team-1", release_reason: "expired" },
-      {
-        date: "2026-03-01",
-        kind: "released",
-        from_team_id: "team-1",
-        release_reason: "terminated",
-      },
-    ]);
-
-    expect(screen.getByText("playerProfile.movementReleasedExpired")).toBeInTheDocument();
-    expect(screen.getByText("playerProfile.movementReleasedTerminated")).toBeInTheDocument();
   });
 
   it("still renders an entry that carries no contract, exactly as before", () => {
@@ -185,5 +114,64 @@ describe("PlayerProfileMovementHistoryCard contract terms", () => {
     ]);
 
     expect(screen.getByText('playerProfile.movementTo {"to":"Alpha FC"}')).toBeInTheDocument();
+  });
+});
+
+describe("PlayerProfileMovementHistoryCard moves, not contracts", () => {
+  /**
+   * Given a renewal, a legacy contract and a release, whose contracts the Contract tab now lists
+   * When the movement history renders
+   * Then each entry says what moved and when (and the fee and loan end), and none repeats a
+   *      contract's span, wage, legacy label or release reason: nothing shows twice
+   */
+  it("leaves the contract terms and the release reason to the Contract tab", () => {
+    renderCard([
+      renewal,
+      {
+        date: "",
+        kind: "initial_contract",
+        to_team_id: "team-1",
+        to_team_name: "Alpha FC",
+        contract: { start: null, end: "2028-06-30", weekly_wage: 7000, source: "legacy_migrated" },
+      },
+      {
+        date: "2027-06-30",
+        kind: "released",
+        from_team_id: "team-1",
+        from_team_name: "Alpha FC",
+        release_reason: "expired",
+      },
+    ]);
+
+    expect(screen.getByText("playerProfile.movementRenewal")).toBeInTheDocument();
+    expect(screen.queryByText(/playerProfile\.movementContract/)).toBeNull();
+    expect(screen.queryByText(/playerProfile\.movementWage/)).toBeNull();
+    expect(screen.queryByText("playerProfile.movementLegacyContract")).toBeNull();
+    expect(screen.queryByText("playerProfile.movementReleasedExpired")).toBeNull();
+  });
+});
+
+describe("PlayerProfileMovementHistoryCard dates", () => {
+  /**
+   * Given a loan that began on 1 August 2025 and ends on 31 May 2026
+   * When the movement history renders in English
+   * Then the date of the move and the end of the loan are written as the language writes dates,
+   *      the same way the Contract tab writes its own, not as ISO days
+   */
+  it("writes a move's date and a loan's end the way the language writes dates", () => {
+    renderCard([
+      {
+        date: "2025-08-01",
+        kind: "loan_start",
+        from_team_name: "Beta FC",
+        to_team_name: "Alpha FC",
+        loan_end_date: "2026-05-31",
+      },
+    ]);
+
+    expect(screen.getByText("1 Aug 2025")).toBeInTheDocument();
+    expect(
+      screen.getByText('playerProfile.movementLoanUntil {"date":"31 May 2026"}'),
+    ).toBeInTheDocument();
   });
 });

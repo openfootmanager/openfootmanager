@@ -99,6 +99,16 @@ function profileHandlers(profile: HarnessProfile): CommandHandlers {
     get_potential_opinion: ({ playerId }) => about(playerId, answer.opinion),
     get_position_ratings: ({ playerId }) => about(playerId, answer.positionRatings),
     get_scouted_report: ({ playerId }) => about(playerId, answer.scoutedReport),
+    // The previews the Contract tab loads: the backend answers them for a contract the club holds
+    // (the release one not for a player on loan) and refuses them otherwise.
+    preview_contract_termination: ({ playerId }) => {
+      const termination = answer.contractPreviews?.termination;
+      return playerId === answer.playerId && termination ? { preview: termination } : UNANSWERED;
+    },
+    preview_renewal_financial_impact: ({ playerId }) => {
+      const projection = answer.contractPreviews?.projection;
+      return playerId === answer.playerId && projection ? { projection } : UNANSWERED;
+    },
     get_retired_player: ({ playerId }) => about(playerId, answer.retiredPlayer),
     get_player_stats_overview: ({ playerId }) => about(playerId, answer.seasonStats),
     // The page asks for its last `limit` matches, latest first.
