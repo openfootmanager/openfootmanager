@@ -21,7 +21,9 @@ function anyDifference(differences: TacticDifferences): boolean {
  * formation, style, instructions, eleven, roles or takers), as the backend says: the rule is
  * `tactic_differences` in ofm_core. Asked again whenever the team's tactic (`teamTacticKey`) or the
  * library (`library`, which changes when a save lands) changes; a late answer to an older question is
- * dropped. No saved tactic, no club, or an answer that does not come: nothing differs.
+ * dropped. No saved tactic or no club: nothing differs. A question the backend could not answer
+ * counts as a difference: the screen must not call the tactic synced (and switch Update off) on a
+ * guess, while a Save that changes nothing is harmless.
  */
 export function useSavedTacticDiffers(
   savedId: string | null,
@@ -43,7 +45,7 @@ export function useSavedTacticDiffers(
         if (!cancelled) setDiffers(Boolean(differences) && anyDifference(differences));
       })
       .catch(() => {
-        if (!cancelled) setDiffers(false);
+        if (!cancelled) setDiffers(true);
       });
     return () => {
       cancelled = true;

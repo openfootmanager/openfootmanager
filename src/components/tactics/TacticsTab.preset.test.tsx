@@ -186,6 +186,8 @@ let savedTacticDifferences = {
   roles: false,
   takers: false,
 };
+/** Whether the faked backend fails when asked how the tactic differs from a saved one. */
+let savedTacticDifferencesFail = false;
 /** When set, the faked save answers `list_custom_tactics` only once this resolves. */
 let libraryListGate: Promise<void> | null = null;
 /** When set, each `list_custom_tactics` waits for its own release, pushed here in the order asked. */
@@ -214,7 +216,10 @@ function fakeBackend(failPreset = false) {
     if (command === "auto_select_set_pieces") {
       return { captain: "m1", penalty_taker: "f1", free_kick_taker: "m1", corner_taker: "d1" };
     }
-    if (command === "get_custom_tactic_differences") return { ...savedTacticDifferences };
+    if (command === "get_custom_tactic_differences") {
+      if (savedTacticDifferencesFail) throw new Error("the save did not answer");
+      return { ...savedTacticDifferences };
+    }
     if (command === "list_custom_tactics") {
       if (libraryListGate) await libraryListGate;
       const releases = libraryListReleases;
@@ -299,6 +304,7 @@ describe("TacticsTab preset selection", { timeout: TACTICS_TAB_CASE_TIMEOUT_MS }
     blueprintModified = false;
     savedTactics = [];
     libraryListGate = null;
+    savedTacticDifferencesFail = false;
     savedTacticDifferences = {
       formation: false,
       playStyle: false,
@@ -385,6 +391,33 @@ describe("TacticsTab preset selection", { timeout: TACTICS_TAB_CASE_TIMEOUT_MS }
       },
     ]);
     savedTacticDifferences.eleven = true;
+    fakeBackend();
+    render(<ControlledTacticsTab />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Choose tactic" }));
+    fireEvent.click(await screen.findByRole("option", { name: /Saved custom/ }));
+
+    expect(await screen.findByText("Unsaved changes")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Update tactic" })).toBeEnabled();
+  });
+
+  /**
+   * Given a saved tactic and a backend that cannot say how the team's tactic differs from it
+   * When the saved tactic is chosen
+   * Then the badge does not call it synced: it reads "Unsaved changes" and Update tactic stays on,
+   *      so a failed question cannot switch saving off.
+   */
+  it("does not call a saved tactic synced when the backend cannot say how it differs", async () => {
+    seedSavedTactics([
+      {
+        id: "custom:saved",
+        name: "Saved custom",
+        description: "",
+        formation: "4-4-2",
+        playStyle: "Balanced",
+      },
+    ]);
+    savedTacticDifferencesFail = true;
     fakeBackend();
     render(<ControlledTacticsTab />);
 
