@@ -1,4 +1,4 @@
-import { act, within } from "@testing-library/react";
+import { act, fireEvent, within } from "@testing-library/react";
 import { clearMocks } from "@tauri-apps/api/mocks";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 
@@ -228,4 +228,81 @@ describe("the player profile's states", () => {
     },
     15_000,
   );
+});
+
+describe("the profile's Contract tab", () => {
+  const PREVIEWS = ["preview_contract_termination", "preview_renewal_financial_impact"];
+
+  async function mountProfile(variant: HarnessProfile) {
+    const root = document.createElement("div");
+    document.body.append(root);
+    await act(async () => {
+      mounted = await mountPageHarness(root, "profile", readStyleGuideOptions(""), "en", variant);
+    });
+    const settle = async () =>
+      act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, SETTLE_MS));
+      });
+    await settle();
+    return { root, settle };
+  }
+
+  /**
+   * Given the club's own player's profile, which opens on the Overview
+   * When it has settled, and then the Contract tab is selected
+   * Then the two previews the decision sheet shows (what releasing him costs, the club's wage
+   *      bill) were not asked for on the Overview and are asked for once the tab is open, and the
+   *      fixture answered both
+   */
+  it("asks for the contract previews only once the Contract tab is open", async () => {
+    const { root, settle } = await mountProfile("own");
+    const asked = () => window.__pageHarness?.calls ?? [];
+    expect(PREVIEWS.filter((command) => asked().includes(command))).toEqual([]);
+
+    fireEvent.click(within(root).getByRole("tab", { name: "Contract" }));
+    await settle();
+
+    expect(PREVIEWS.filter((command) => asked().includes(command))).toEqual(PREVIEWS);
+    expect(window.__pageHarness?.unanswered).toEqual([]);
+  });
+
+  /**
+   * Given a rival's player, and a free agent (whose contracts the manager does not hold)
+   * When the Contract tab is selected
+   * Then no preview is asked for: the backend refuses both for a contract that is not his own
+   */
+  it.each(["rival", "freeAgent"] as const)(
+    "asks for no contract preview about the %s player",
+    async (variant) => {
+      const { root, settle } = await mountProfile(variant);
+
+      fireEvent.click(within(root).getByRole("tab", { name: "Contract" }));
+      await settle();
+
+      expect(
+        PREVIEWS.filter((command) => (window.__pageHarness?.calls ?? []).includes(command)),
+      ).toEqual([]);
+    },
+  );
+
+  /**
+   * Given the club's own goalkeeper, whose only ledger entry is the contract the career opened
+   *       with (it names his club by id alone, as the game writes it)
+   * When the Contract tab is selected
+   * Then the contracts he has had name his club, and no internal club id is on the page
+   */
+  it("names the club of an opening contract, never its id", async () => {
+    const { root, settle } = await mountProfile("keeper");
+
+    fireEvent.click(within(root).getByRole("tab", { name: "Contract" }));
+    await settle();
+
+    const clubName = gameState.teams.find((team) => team.id === gameState.manager.team_id)?.name;
+    expect(clubName).toBeTruthy();
+    let history: HTMLElement | null = within(root).getByText("Contracts he has had");
+    while (history && !history.querySelector("table")) history = history.parentElement;
+    expect(history).not.toBeNull();
+    expect(history).toHaveTextContent(clubName ?? "");
+    expect(root.textContent).not.toMatch(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-/);
+  });
 });

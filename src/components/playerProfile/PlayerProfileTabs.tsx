@@ -1,16 +1,19 @@
 import { useId } from "react";
 import { useTranslation } from "react-i18next";
 
-import type { PlayerData } from "../../store/gameStore";
+import type { PlayerData, TeamData } from "../../store/gameStore";
 import type { PlayerRole } from "../../store/types";
 import { TabPanel, Tabs } from "../ui";
 import { visibleWageText } from "../../lib/playerKnowledge";
 import { isGoalkeeper } from "./PlayerProfile.attributes";
+import { buildContractHistory } from "./PlayerProfile.contractHistory";
+import { withClubNames } from "./PlayerProfile.movements";
 import { formatPlayerWage } from "./PlayerProfile.helpers";
 import type { buildPlayerProfileRelationship } from "./PlayerProfile.viewModel";
 import PlayerProfileAdvancedStatsCard from "./PlayerProfileAdvancedStatsCard";
 import PlayerProfileCareerHistoryCard from "./PlayerProfileCareerHistoryCard";
-import PlayerProfileContractCard from "./PlayerProfileContractCard";
+import PlayerProfileContractHistoryCard from "./PlayerProfileContractHistoryCard";
+import PlayerProfileContractSheet from "./PlayerProfileContractSheet";
 import PlayerProfilePotentialOpinion from "./PlayerProfilePotentialOpinion";
 import PlayerProfileAttributesTab from "./attributes/PlayerProfileAttributesTab";
 import PlayerProfileMovementHistoryCard from "./PlayerProfileMovementHistoryCard";
@@ -19,6 +22,7 @@ import ProfileLoadFailed from "./ProfileLoadFailed";
 import type { usePlayerProfileData } from "./usePlayerProfileData";
 import type { PlayerProfileActions } from "./usePlayerProfileActions";
 import type { PlayerProfileKnowledge } from "./usePlayerProfileKnowledge";
+import { useContractSheetData } from "./useContractSheetData";
 
 /** The profile's sections, in tab order. */
 export const PROFILE_TABS = ["overview", "attributes", "career", "contract"] as const;
@@ -37,6 +41,12 @@ interface PlayerProfileTabsProps {
   knowledge: PlayerProfileKnowledge;
   actions: PlayerProfileActions;
   contractRisk: { level: "critical" | "warning" | "stable"; label: string };
+  /** Opens a club (the contracts he has had link to theirs). */
+  onSelectTeam?: (id: string) => void;
+  /** The game's clubs: a ledger entry that names its club by id alone is named from them. */
+  teams: Pick<TeamData, "id" | "name">[];
+  /** Changes when anything the club-wide previews read does (`clubStateKey`): they ask again. */
+  clubKey: string;
 }
 
 /** The four tabs of the profile and what each holds. */
@@ -51,6 +61,9 @@ export default function PlayerProfileTabs({
   knowledge,
   actions,
   contractRisk,
+  onSelectTeam,
+  teams,
+  clubKey,
 }: PlayerProfileTabsProps) {
   const { t, i18n } = useTranslation();
   const tabsId = useId();
@@ -58,6 +71,21 @@ export default function PlayerProfileTabs({
   const hidden = (id: ProfileTab) => tab !== id;
   const { isManagerOwnedProfile, isFreeAgent, hasLetExpireIntent } = relationship;
   const { opinionAnswer, potentialOpinion } = knowledge;
+  const movements = withClubNames(player.movement_history ?? [], teams);
+  const contractHistory = buildContractHistory(movements, currentDate.slice(0, 10));
+  const exactWeeklyWage =
+    knowledge.visibleWage.kind === "exact" ? knowledge.visibleWage.weekly : null;
+  // Asked for only while this tab is the open one: hidden tabs stay mounted, and the previews are
+  // the backend's work. They are asked again when the contract, the wage, the day or the club's squad
+  // changes under the sheet.
+  const contractSheet = useContractSheetData({
+    player,
+    active: tab === "contract",
+    ownsContract: isManagerOwnedProfile,
+    refreshKey: [currentDate, player.contract_end, player.wage, hasLetExpireIntent, clubKey].join(
+      "|",
+    ),
+  });
   const opinion =
     opinionAnswer.status === "failed" ? (
       <ProfileLoadFailed t={t} onRetry={opinionAnswer.retry} />
@@ -130,8 +158,8 @@ export default function PlayerProfileTabs({
         <PlayerProfileCareerHistoryCard career={player.career} t={t} />
 
         <PlayerProfileMovementHistoryCard
-          movementHistory={player.movement_history ?? []}
-          showsWages={knowledge.visibleWage.kind === "exact"}
+          movementHistory={movements}
+          language={i18n.language}
           t={t}
         />
       </TabPanel>
@@ -142,12 +170,26 @@ export default function PlayerProfileTabs({
         hidden={hidden("contract")}
         className="flex flex-col gap-5"
       >
-        <PlayerProfileContractCard
-          contractEnd={player.contract_end}
+        <PlayerProfileContractSheet
+          player={player}
           currentDate={currentDate}
-          isOwnClub={isManagerOwnedProfile}
+          isOwnContract={isManagerOwnedProfile}
           isFreeAgent={isFreeAgent}
           hasLetExpireIntent={hasLetExpireIntent}
+          exactWeeklyWage={exactWeeklyWage}
+          language={i18n.language}
+          contractRisk={contractRisk}
+          lastSigned={contractHistory.find((row) => row.inForce) ?? null}
+          below={
+            <PlayerProfileContractHistoryCard
+              rows={contractHistory}
+              showsWages={exactWeeklyWage !== null}
+              language={i18n.language}
+              onOpenTeam={onSelectTeam}
+              t={t}
+            />
+          }
+          data={contractSheet}
           actionSubmitting={actions.contract.contractActionSubmitting}
           onOpenRenewal={actions.renewal.openRenewalModal}
           onMarkLetExpire={() => void actions.contract.handleMarkLetExpire()}
