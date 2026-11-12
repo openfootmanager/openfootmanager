@@ -8,7 +8,8 @@ import type { TacticsLibraryEntry } from "./TacticPicker";
  * Choosing a tactic from the picker. A saved tactic applies at once. A preset brings its own
  * instructions, so it asks first, but only when applying it would replace something: when the
  * manager's instructions already equal the preset's blueprint (the backend's rule, asked about the
- * preset's play style) it applies without asking. A question the backend could not answer asks, so
+ * preset's play style) it applies without asking, keeping the instructions (which are the same, so
+ * the result is the preset's, and an edit made while the lookup was out survives). A question the backend could not answer asks, so
  * nothing of the manager's is replaced on a guess.
  *
  * Only the latest choice counts: a lookup that answers after the manager chose something else is
@@ -37,8 +38,19 @@ export function usePresetChoice(
     setPending(null);
   }, [careerEpoch]);
 
+  // The choice goes with the tab: one still waiting for its lookup when the tab unmounts is dropped.
+  useEffect(
+    () => () => {
+      latestChoice.current += 1;
+    },
+    [],
+  );
+
   async function choose(tactic: TacticsLibraryEntry): Promise<void> {
     const thisChoice = ++latestChoice.current;
+    // Writes carry no career of their own, so a choice is also dropped if the career changed while
+    // its lookup was out, even though the tab stayed mounted.
+    const askedIn = useGameStore.getState().careerEpoch;
     setPending(null);
     if (tactic.type !== "preset") return apply(tactic, false);
     let wouldReplace = true;
@@ -50,8 +62,11 @@ export function usePresetChoice(
       wouldReplace = true;
     }
     if (thisChoice !== latestChoice.current) return;
+    if (useGameStore.getState().careerEpoch !== askedIn) return;
+    // Nothing to ask: the instructions already are the preset's. Kept all the same, so an edit the
+    // manager commits between the lookup and this write is not wiped by a whole-preset apply.
     if (wouldReplace) setPending(tactic);
-    else await apply(tactic, false);
+    else await apply(tactic, true);
   }
 
   async function answer(keepInstructions: boolean): Promise<void> {

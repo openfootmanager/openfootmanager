@@ -161,6 +161,8 @@ export const knobs = {
   blueprintStatusFailsForStyle: false,
   /** When set, the faked backend answers about a preset style's blueprint only once this resolves. */
   blueprintStatusGate: null as Promise<void> | null,
+  /** How many times the faked backend has answered about a preset style's blueprint. */
+  blueprintStatusAnswered: 0,
   /** Commands the faked backend refuses with the career-changed error. */
   refused: new Set<string>(),
   /** What the faked backend says the manager's tactic differs from a saved one in. */
@@ -197,6 +199,7 @@ export function resetHarness() {
   knobs.blueprintModified = false;
   knobs.blueprintStatusFailsForStyle = false;
   knobs.blueprintStatusGate = null;
+  knobs.blueprintStatusAnswered = 0;
   knobs.refused = new Set();
   knobs.savedTacticDifferences = {
     formation: false,
@@ -262,6 +265,7 @@ export function fakeBackend(failPreset = false) {
     if (command === "get_tactics_blueprint_status") {
       if (params.playStyle && knobs.blueprintStatusGate) await knobs.blueprintStatusGate;
       if (knobs.blueprintStatusFailsForStyle && params.playStyle) throw new Error("no answer");
+      if (params.playStyle) knobs.blueprintStatusAnswered += 1;
       return { modified: knobs.blueprintModified };
     }
     if (command === "set_tactics_phase") {

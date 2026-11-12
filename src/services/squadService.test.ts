@@ -19,6 +19,11 @@ describe("squadService", () => {
     mockedInvoke.mockReset();
   });
 
+  /**
+   * Given the backend's blueprint status
+   * When it is asked with no play style, and then with HighPress
+   * Then the first call names no style (the team's own) and the second names HighPress.
+   */
   it("asks about the team's own style's blueprint, or about a given style's", async () => {
     mockedInvoke.mockResolvedValue({ modified: true });
 

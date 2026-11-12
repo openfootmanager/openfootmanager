@@ -38,7 +38,7 @@ export default function TacticsPresetDialog({
       dismissOnBackdrop
       className="w-full max-w-md rounded-xl p-6"
     >
-      <h2 id="preset-replace-title" className="font-heading text-xl font-bold text-fg">
+      <h2 id="preset-replace-title" className="font-heading text-heading font-bold text-fg">
         {t("tactics.presetReplaceTitle")}
       </h2>
       <p id="preset-replace-body" className="mt-2 text-body text-fg-muted">

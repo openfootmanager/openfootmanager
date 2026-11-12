@@ -191,9 +191,11 @@ describe("TacticsTab preset question", { timeout: TACTICS_TAB_CASE_TIMEOUT_MS },
     fireEvent.click(screen.getByRole("option", { name: /Balanced Control/ }));
     await waitFor(() => expect(commandsCalled()).toContain("apply_tactic_preset"));
     knobs.blueprintModified = true;
-    release();
+    // The first lookup answers now, after the second choice was applied: wait for that answer to
+    // be given and for the screen to take it.
     await act(async () => {
-      await new Promise((resolve) => setTimeout(resolve, 50));
+      release();
+      await waitFor(() => expect(knobs.blueprintStatusAnswered).toBe(2));
     });
 
     expect(screen.queryByRole("dialog")).toBeNull();
@@ -219,6 +221,96 @@ describe("TacticsTab preset question", { timeout: TACTICS_TAB_CASE_TIMEOUT_MS },
     });
 
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+  });
+
+  /**
+   * Given a preset chosen while the backend says nothing of the manager's would be replaced, and
+   *       that answer still pending
+   * When the manager commits an instruction edit before the answer arrives
+   * Then the preset is applied keeping their instructions, so the edit is not wiped by a whole apply.
+   */
+  it("does not wipe an instruction edited while the preset's lookup is pending", async () => {
+    fakeBackend();
+    render(<ControlledTacticsTab />);
+    let release!: () => void;
+    knobs.blueprintStatusGate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    mockedInvoke.mockClear();
+    pickHighPress();
+    await waitFor(() => expect(commandsCalled()).toContain("get_tactics_blueprint_status"));
+
+    await tuneAnInstruction();
+    await act(async () => {
+      release();
+      await waitFor(() => expect(knobs.blueprintStatusAnswered).toBe(1));
+    });
+
+    await waitFor(() =>
+      expect(mockedInvoke).toHaveBeenCalledWith("apply_tactic_preset", {
+        careerToken: 0,
+        formation: "3-4-3",
+        keepInstructions: true,
+        playStyle: "HighPress",
+      }),
+    );
+    expect(await screen.findByText("Unsaved changes")).toBeInTheDocument();
+  });
+
+  /**
+   * Given a preset chosen and its lookup pending
+   * When the tab goes away and the career is replaced, and then the lookup answers
+   * Then nothing is applied: the choice was another career's.
+   */
+  it("applies nothing from a lookup answered after the tab left and the career changed", async () => {
+    fakeBackend();
+    const { unmount } = render(<ControlledTacticsTab />);
+    let release!: () => void;
+    knobs.blueprintStatusGate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    mockedInvoke.mockClear();
+    pickHighPress();
+    await waitFor(() => expect(commandsCalled()).toContain("get_tactics_blueprint_status"));
+
+    unmount();
+    act(() => {
+      useGameStore.setState((state) => ({ careerEpoch: state.careerEpoch + 1 }));
+    });
+    await act(async () => {
+      release();
+      await waitFor(() => expect(knobs.blueprintStatusAnswered).toBe(1));
+    });
+
+    expect(commandsCalled()).not.toContain("apply_tactic_preset");
+  });
+
+  /**
+   * Given a preset chosen and its lookup pending
+   * When the career is replaced while the tab stays mounted, and then the lookup answers
+   * Then nothing is applied and no question opens for it.
+   */
+  it("applies nothing from a lookup answered after the career changed under the tab", async () => {
+    fakeBackend();
+    render(<ControlledTacticsTab />);
+    let release!: () => void;
+    knobs.blueprintStatusGate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    mockedInvoke.mockClear();
+    pickHighPress();
+    await waitFor(() => expect(commandsCalled()).toContain("get_tactics_blueprint_status"));
+
+    act(() => {
+      useGameStore.setState((state) => ({ careerEpoch: state.careerEpoch + 1 }));
+    });
+    await act(async () => {
+      release();
+      await waitFor(() => expect(knobs.blueprintStatusAnswered).toBe(1));
+    });
+
+    expect(commandsCalled()).not.toContain("apply_tactic_preset");
+    expect(screen.queryByRole("dialog")).toBeNull();
   });
 
   /**

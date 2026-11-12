@@ -86,6 +86,7 @@ describe("TacticsTab preset selection", { timeout: TACTICS_TAB_CASE_TIMEOUT_MS }
       expect(mockedInvoke).toHaveBeenCalledWith("apply_tactic_preset", {
         careerToken: 0,
         formation: "3-4-3",
+        keepInstructions: true,
         playStyle: "HighPress",
       });
     });
@@ -422,6 +423,7 @@ describe("TacticsTab preset selection", { timeout: TACTICS_TAB_CASE_TIMEOUT_MS }
       expect(mockedInvoke).toHaveBeenCalledWith("apply_tactic_preset", {
         careerToken: 0,
         formation: "4-4-2",
+        keepInstructions: true,
         playStyle: "Balanced",
       }),
     );
