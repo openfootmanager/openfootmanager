@@ -37,6 +37,11 @@ describe("customTacticsService", () => {
     expect(mockedInvoke).toHaveBeenCalledWith("list_custom_tactics");
   });
 
+  /**
+   * Given a saved tactic and a backend that says only the eleven differs
+   * When the service asks how the team's tactic differs from it
+   * Then it calls get_custom_tactic_differences with the tactic's id and hands the answer back whole.
+   */
   it("asks the backend how the team's tactic differs from a saved one", async () => {
     const differences = {
       formation: false,

@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { getCustomTacticDifferences } from "../../services/customTacticsService";
+import type { TeamData } from "../../store/gameStore";
 import type { TacticDifferences } from "../../store/generated/TacticDifferences";
+import type { TacticsLibraryEntry } from "./TacticPicker";
 
 function anyDifference(differences: TacticDifferences): boolean {
   return (
@@ -61,4 +63,30 @@ export function useSavedTacticDiffers(
 
   if (!asking) return false;
   return answer?.key === question ? answer.differs : true;
+}
+
+/**
+ * Whether the manager's tactic differs from the active tactic, when that is a tactic the save holds
+ * (`savedTactics`); false for a preset, or for the unsaved setup that stands in when nothing else
+ * matches, which have nothing saved to differ from. Asked again whenever the team's tactic or the
+ * library changes.
+ */
+export function useActiveSavedTacticDiffers(
+  activeTactic: TacticsLibraryEntry,
+  savedTactics: TacticsLibraryEntry[],
+  team: TeamData | undefined,
+): boolean {
+  const savedId =
+    activeTactic.type === "custom" && savedTactics.some((entry) => entry.id === activeTactic.id)
+      ? activeTactic.id
+      : null;
+  const teamTacticKey = JSON.stringify([
+    team?.formation,
+    team?.play_style,
+    team?.tactics_phase,
+    team?.starting_xi_ids,
+    team?.player_roles,
+    team?.match_roles,
+  ]);
+  return useSavedTacticDiffers(savedId, team !== undefined, teamTacticKey, savedTactics);
 }
