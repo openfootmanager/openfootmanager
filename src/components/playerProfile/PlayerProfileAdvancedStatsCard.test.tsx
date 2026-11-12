@@ -138,7 +138,7 @@ describe("PlayerProfileAdvancedStatsCard rows", () => {
     const rows = screen.getAllByRole("listitem");
     expect(rows).toHaveLength(6);
     const shots = within(rows[0]);
-    expect(shots.getByText("playerProfile.shots")).toBeInTheDocument();
+    expect(shots.getByText("Shots")).toBeInTheDocument();
     expect(shots.getByText("20")).toBeInTheDocument();
     expect(shots.getByText('playerProfile.per90Value {"value":"4.00"}')).toBeInTheDocument();
     const passes = within(rows[2]);
@@ -175,18 +175,64 @@ describe("PlayerProfileAdvancedStatsCard rows", () => {
   });
 
   /**
-   * Given percentiles the backend computed for two stats and none for the rest
+   * Given a percentile of 2 for shots and none for the other stats
    * When the card renders
-   * Then a row with a percentile shows its ordinal and one without shows "-", and the card draws
-   *      no bar (no meter or progress bar): the ordinal is the backend's word, not a drawn guess
+   * Then the row with a percentile shows its ordinal and the rows without show "-"
    */
-  it("shows the backend's ordinal or a dash, and draws no bar", () => {
+  it("shows the backend's ordinal or a dash", () => {
     render(<PlayerProfileAdvancedStatsCard summary={SUMMARY} t={tShowing} />);
 
     const rows = screen.getAllByRole("listitem");
     expect(within(rows[0]).getByText("2nd")).toBeInTheDocument();
     expect(within(rows[1]).queryByText(/\d(st|nd|rd|th)$/)).toBeNull();
-    expect(screen.queryByRole("meter")).toBeNull();
-    expect(screen.queryByRole("progressbar")).toBeNull();
+    expect(within(rows[1]).getByText("-")).toBeInTheDocument();
+  });
+
+  /**
+   * Given a percentile of 2 for shots (the backend's number, where a high one always means he does
+   *       well) and none for the other five stats
+   * When the card renders
+   * Then shots has a named bar at exactly 2 (the number is not recomputed or rescaled), no other
+   *      row has a bar, and the bar is filled in one neutral colour: it is not painted good or bad
+   */
+  it("draws a named neutral bar at the backend's percentile only for a row that has one", () => {
+    render(<PlayerProfileAdvancedStatsCard summary={SUMMARY} t={tShowing} />);
+
+    const bars = screen.getAllByRole("progressbar");
+    expect(bars).toHaveLength(1);
+    const rows = screen.getAllByRole("listitem");
+    const bar = within(rows[0]).getByRole("progressbar", {
+      name: 'playerProfile.percentileBar {"stat":"Shots"}',
+    });
+    expect(bar).toHaveAttribute("aria-valuenow", "2");
+    const fill = bar.firstElementChild?.className ?? "";
+    expect(fill).toContain("bg-fg-subtle");
+    expect(fill).not.toMatch(/positive|warning|danger|success|tone-/);
+  });
+
+  /**
+   * Given a stat whose percentile the backend gave as 100 and one as 0
+   * When the card renders
+   * Then each bar carries that number as it is
+   */
+  it("passes the extremes through as they are", () => {
+    render(
+      <PlayerProfileAdvancedStatsCard
+        summary={{
+          ...SUMMARY,
+          metrics: {
+            ...SUMMARY.metrics,
+            shots: { total: 20, per90: 4, percentile: 100 },
+            shotsOnTarget: { total: 10, per90: 2, percentile: 0 },
+          },
+        }}
+        t={tShowing}
+      />,
+    );
+
+    const values = screen
+      .getAllByRole("progressbar")
+      .map((bar) => bar.getAttribute("aria-valuenow"));
+    expect(values).toEqual(["100", "0"]);
   });
 });
