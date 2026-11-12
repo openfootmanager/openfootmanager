@@ -23,8 +23,9 @@ import { resolveMessage, resolveNewsArticle } from "./backendI18n";
  *
  * (A run with the file missing writes it; under CI a missing or different file fails.)
  *
- * Not covered, on purpose: the params the frontend expands from structured JSON (roundups,
- * standings, scorers, press quotes), a division's or competition's display name, and country names.
+ * A news article's structured params (roundups, standings, scorers, press quotes, deals) are
+ * covered: the Rust resolver lays them out as the frontend does (`mcp_server/backend_text/news_params.rs`).
+ * Not covered yet: a division's or competition's display name, and country names (#1388, C).
  * The Rust resolver leaves those unexpanded and says so in its output (`details`).
  */
 
