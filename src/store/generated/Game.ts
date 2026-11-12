@@ -64,6 +64,14 @@ last_season_rollover_on: string | null,
  */
 career_token: number, 
 /**
+ * How many writes the active game has had since it was installed
+ * (`StateManager::update_game` adds one before every write). A screen holding a game from
+ * this career applies a snapshot only when its revision is not older, so a slow refetch
+ * never replaces a newer game. It orders snapshots of ONE career: compare it only together
+ * with `career_token`, which is per-process. Not saved: an installed game starts at 0.
+ */
+revision: number, 
+/**
  * Keys of events that have already been announced to the player.
  *
  * This is the sent-ledger. It exists because `messages` cannot serve as

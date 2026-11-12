@@ -915,6 +915,8 @@ export interface YouthScoutingAssignment {
 export interface GameStateData {
   /** Names the career this game was installed as; commands that write on the screen's behalf hand it back. */
   career_token?: number;
+  /** How many writes the game has had since it was installed; with `career_token`, it orders snapshots (`gameSnapshot.ts`). */
+  revision?: number;
   manager_id?: string;
   /** The seed the day's dice come from. A u64 in Rust: past 2^53 a JS number rounds it, so never compute with it. */
   seed?: number;

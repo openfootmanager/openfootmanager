@@ -209,6 +209,13 @@ pub struct Game {
     /// installed again and gets a fresh one. 0 for a game that was never installed (tests).
     #[serde(default)]
     pub career_token: u64,
+    /// How many writes the active game has had since it was installed
+    /// (`StateManager::update_game` adds one before every write). A screen holding a game from
+    /// this career applies a snapshot only when its revision is not older, so a slow refetch
+    /// never replaces a newer game. It orders snapshots of ONE career: compare it only together
+    /// with `career_token`, which is per-process. Not saved: an installed game starts at 0.
+    #[serde(default)]
+    pub revision: u64,
     /// Keys of events that have already been announced to the player.
     ///
     /// This is the sent-ledger. It exists because `messages` cannot serve as
@@ -325,6 +332,7 @@ impl Game {
             gate_settled_from: None,
             last_season_rollover_on: None,
             career_token: 0,
+            revision: 0,
             archived_messages: Vec::new(),
             emitted_events: BTreeSet::new(),
             extra_translations: std::collections::HashMap::new(),
