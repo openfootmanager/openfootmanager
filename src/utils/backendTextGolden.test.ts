@@ -534,6 +534,55 @@ const CASES: GoldenCase[] = [
     },
   },
   {
+    name: "a friendly report with no scorers has no goals section",
+    kind: "article",
+    input: {
+      id: "report_4",
+      headline_key: "be.news.matchReport.reportFriendly.title",
+      body_key: "be.news.matchReport.reportFriendly.body",
+      source_key: "be.source.footballHerald",
+      i18n_params: {
+        home: "East",
+        away: "West",
+        homeGoals: "0",
+        awayGoals: "0",
+        scorers: "",
+        scorersSection: "",
+        scorersData: "[]",
+      },
+    },
+  },
+  {
+    // The quotes are what the manager picked, as the backend stores them: the response's own key
+    // and params, and the text in the language it was written in (here Portuguese) as the fallback
+    // and as `quote`. The screen resolves each quote from its key, so the English is the key's.
+    name: "a press conference whose quotes carry response keys reads them in English, not in the fallback's language",
+    kind: "article",
+    input: {
+      id: "press_3",
+      headline_key: "be.news.pressConference.headlinePressConf",
+      body_key: "be.news.pressConference.bodyMultiple",
+      source_key: "be.source.leagueWire",
+      i18n_params: {
+        team: "North",
+        result: "2-1",
+        quote: "Os jogadores trabalharam muito. Preparámos bem e executámos o plano de jogo.",
+        quotesData: JSON.stringify([
+          {
+            key: "match.press.result.responses.win.humble.text",
+            fallback:
+              "Os jogadores trabalharam muito. Preparámos bem e executámos o plano de jogo.",
+          },
+          {
+            key: "match.press.playerFocus.responses.praise.text",
+            fallback: "J. Doe tem sido fantástico. É um jogador-chave para nós.",
+            params: { playerName: "J. Doe" },
+          },
+        ]),
+      },
+    },
+  },
+  {
     name: "a transfer roundup lays out its deals with the fee compact",
     kind: "article",
     input: {
