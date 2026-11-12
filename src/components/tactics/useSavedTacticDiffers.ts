@@ -1,9 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
-import {
-  getCustomTacticDifferences,
-  type TacticDifferences,
-} from "../../services/customTacticsService";
+import { getCustomTacticDifferences } from "../../services/customTacticsService";
+import type { TacticDifferences } from "../../store/generated/TacticDifferences";
 
 function anyDifference(differences: TacticDifferences): boolean {
   return (
@@ -21,9 +19,11 @@ function anyDifference(differences: TacticDifferences): boolean {
  * formation, style, instructions, eleven, roles or takers), as the backend says: the rule is
  * `tactic_differences` in ofm_core. Asked again whenever the team's tactic (`teamTacticKey`) or the
  * library (`library`, which changes when a save lands) changes; a late answer to an older question is
- * dropped. No saved tactic or no club: nothing differs. A question the backend could not answer
- * counts as a difference: the screen must not call the tactic synced (and switch Update off) on a
- * guess, while a Save that changes nothing is harmless.
+ * dropped.
+ *
+ * No saved tactic or no club: nothing differs. While a question is pending, or when the backend
+ * could not answer it, the tactic counts as differing: the screen must never call it synced (and
+ * switch Update and Reset off) on a guess, while a Save that changes nothing is harmless.
  */
 export function useSavedTacticDiffers(
   savedId: string | null,
@@ -31,26 +31,34 @@ export function useSavedTacticDiffers(
   teamTacticKey: string,
   library: unknown,
 ): boolean {
-  const [differs, setDiffers] = useState(false);
+  const [answer, setAnswer] = useState<{ key: string; differs: boolean } | null>(null);
+  // The library changes by identity when a save lands; a counter per identity puts that in the key.
+  const libraryCount = useRef(0);
+  const libraryRevision = useMemo(() => {
+    libraryCount.current += 1;
+    return libraryCount.current;
+  }, [library]);
+  const asking = savedId !== null && hasClub;
+  const question = `${savedId}|${teamTacticKey}|${libraryRevision}`;
 
   useEffect(() => {
-    if (!savedId || !hasClub) {
-      setDiffers(false);
-      return;
-    }
+    if (!asking || !savedId) return;
 
     let cancelled = false;
     getCustomTacticDifferences(savedId)
       .then((differences) => {
-        if (!cancelled) setDiffers(Boolean(differences) && anyDifference(differences));
+        if (!cancelled) {
+          setAnswer({ key: question, differs: Boolean(differences) && anyDifference(differences) });
+        }
       })
       .catch(() => {
-        if (!cancelled) setDiffers(true);
+        if (!cancelled) setAnswer({ key: question, differs: true });
       });
     return () => {
       cancelled = true;
     };
-  }, [savedId, hasClub, teamTacticKey, library]);
+  }, [asking, savedId, question]);
 
-  return differs;
+  if (!asking) return false;
+  return answer?.key === question ? answer.differs : true;
 }

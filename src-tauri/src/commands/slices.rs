@@ -185,8 +185,8 @@ pub async fn get_potential_opinion(
 }
 
 /// One player's career for his profile: his seasons at each club newest first with every move
-/// written where it happened, the same rows summed by club, and his totals; null for an id no
-/// active player has. The projection is `ofm_core::player_career`: the screen draws it as given.
+/// written where it happened, the same rows summed by club, and his totals; an archived retiree's
+/// is his saved seasons; null for an id neither an active player nor a retiree has. The projection is `ofm_core::player_career`: the screen draws it as given.
 #[tauri::command]
 pub async fn get_player_career(
     state: State<'_, Arc<StateManager>>,
@@ -201,10 +201,12 @@ fn get_player_career_internal(
 ) -> Result<Option<PlayerCareer>, String> {
     state
         .get_game(|game| {
-            game.players
-                .iter()
-                .find(|player| player.id == player_id)
-                .map(|player| player_career(game, player))
+            if let Some(player) = game.players.iter().find(|player| player.id == player_id) {
+                return Some(player_career(game, player));
+            }
+            // An archived retiree keeps his saved seasons: his profile still shows them.
+            ofm_core::retirees::find_retiree(game, player_id)
+                .map(|retiree| player_career(game, &retiree))
         })
         .ok_or_else(|| NO_ACTIVE_GAME.to_string())
 }
@@ -402,7 +404,8 @@ mod tests {
         );
     }
 
-    /// A live session holding one player, "p", with one closed season of 30 appearances.
+    /// A live session holding one player, "p", with one closed season of 30 appearances, and one
+    /// archived retiree, "r", with one of 20.
     fn session_with_a_career_player() -> StateManager {
         use chrono::TimeZone;
         use domain::manager::Manager;
@@ -439,8 +442,26 @@ mod tests {
             "1980-01-01".into(),
             "GB".into(),
         );
+        // An archived retiree, "r": not among the world's players, with a closed season of 20.
+        let mut retiree = Player::new(
+            "r".into(),
+            "R".into(),
+            "R".into(),
+            "1988-01-01".into(),
+            "GB".into(),
+            Position::Midfielder,
+            player.attributes.clone(),
+        );
+        retiree.career.push(CareerEntry {
+            season: 2030,
+            team_id: "porto".into(),
+            team_name: "Porto".into(),
+            appearances: 20,
+            goals: 5,
+            assists: 1,
+        });
         let state = StateManager::new();
-        state.set_game(ofm_core::game::Game::new(
+        let mut game = ofm_core::game::Game::new(
             ofm_core::clock::GameClock::new(
                 chrono::Utc.with_ymd_and_hms(2026, 9, 15, 12, 0, 0).unwrap(),
             ),
@@ -449,7 +470,14 @@ mod tests {
             vec![player],
             vec![],
             vec![],
-        ));
+        );
+        game.retired_players
+            .push(domain::retired_player::RetiredPlayer::from_player(
+                &retiree,
+                "2035-06-30",
+                2035,
+            ));
+        state.set_game(game);
         state
     }
 
@@ -464,6 +492,21 @@ mod tests {
 
         assert_eq!(career.totals.appearances, 30);
         assert_eq!(career.totals.goals, 4);
+    }
+
+    /// Given an archived retiree (no longer among the world's players) with a closed season
+    /// When the career adapter reads him
+    /// Then his career is his saved seasons, so a retiree's profile keeps its history, and no
+    ///      season is in progress for him
+    #[test]
+    fn the_career_adapter_reads_an_archived_retirees_seasons() {
+        let state = session_with_a_career_player();
+
+        let career = get_player_career_internal(&state, "r").unwrap().unwrap();
+
+        assert_eq!(career.totals.appearances, 20);
+        assert_eq!(career.totals.goals, 5);
+        assert_eq!(career.by_season.len(), 1);
     }
 
     /// Given a live session and an id no player has

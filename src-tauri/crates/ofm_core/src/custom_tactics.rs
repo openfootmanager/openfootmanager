@@ -6,6 +6,8 @@
 
 use std::collections::HashSet;
 
+use ts_rs::TS;
+
 use domain::custom_tactic::{CustomTactic, SavedSlot, TacticContents};
 use domain::team::{MatchRoles, PlayStyle, Team};
 
@@ -237,7 +239,7 @@ fn restore_eleven_and_roles(
 /// The parts of the manager's tactic that differ from a saved tactic: what the Tactics screen's
 /// unsaved-changes badge and its "replace my instructions?" question ask about. One flag per part,
 /// so a screen can name what changed and a test can pin each part on its own.
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, serde::Serialize)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, serde::Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct TacticDifferences {
     pub formation: bool,

@@ -235,15 +235,38 @@ fn give_team_talk_at(
         })
         .and_then(|talk| talk);
     match talk {
-        Ok(changes) => Ok(TeamTalkOutcome {
-            context: moment.context,
-            changes,
-        }),
+        Ok(changes) => {
+            hand_morale_to_the_match(state, career, &changes);
+            Ok(TeamTalkOutcome {
+                context: moment.context,
+                changes,
+            })
+        }
         Err(error) => {
             state.release_team_talk_moment(&moment.key);
             Err(error)
         }
     }
+}
+
+/// A talk's change of mood reaches the match in play: each player the talk moved plays the rest
+/// of it at the factor his new morale gives (`LiveMatchSession::refit_morale`). The game's lock
+/// is released by now and the session's is taken on its own, never both at once. A match of
+/// another career, or none (the talk after a match that is over), takes nothing.
+fn hand_morale_to_the_match(state: &StateManager, career: Career, changes: &[serde_json::Value]) {
+    let morales: Vec<(String, u8)> = changes
+        .iter()
+        .filter_map(|change| {
+            let id = change.get("player_id")?.as_str()?;
+            let morale = u8::try_from(change.get("new_morale")?.as_u64()?).ok()?;
+            Some((id.to_string(), morale))
+        })
+        .collect();
+    state.with_live_match(|session| {
+        if career.check_token(session.career_token).is_ok() {
+            session.refit_morale(&morales);
+        }
+    });
 }
 
 /// The moment a team talk would be given in now, how the match stands, and the career it was read
@@ -2872,6 +2895,69 @@ mod live_session_tests {
         assert_eq!(squad_morale(&state), new_career_morale);
     }
 
+    /// A step out of the interval `interval` is asked for while the lifecycle lock is held, as it is
+    /// by a team talk in flight (which reads the moment, writes the morale and hands it to the match
+    /// under that lock): the step is seen reaching the lock, does not return while it is held, leaves
+    /// the match in the interval, and once the lock is let go starts the next half (#1213).
+    fn assert_a_step_out_of_an_interval_waits_for_the_lock(interval: engine::MatchPhase) {
+        let state = std::sync::Arc::new(state_at_half_time());
+        if interval != engine::MatchPhase::HalfTime {
+            state
+                .with_live_match(|session| session.match_state.test_set_phase(interval))
+                .unwrap();
+        }
+        let talk = crate::application::live_session::operation();
+        let (attempt_tx, attempt_rx) = std::sync::mpsc::channel();
+        let (done_tx, done_rx) = std::sync::mpsc::channel();
+        let stepper = state.clone();
+        let handle = std::thread::spawn(move || {
+            crate::application::live_session::GATE_ATTEMPT
+                .with(|hook| *hook.borrow_mut() = Some(attempt_tx));
+            let result = live_match::step_live_match(&stepper, ofm_core::state::Career::Active, 1);
+            done_tx.send(result.map(|_| ())).unwrap();
+        });
+        let reached_the_lock = attempt_rx
+            .recv_timeout(std::time::Duration::from_secs(5))
+            .is_ok();
+        let returned_while_held = done_rx
+            .recv_timeout(std::time::Duration::from_millis(300))
+            .is_ok();
+        let phase_while_held = state
+            .with_live_match(|session| session.match_state.phase())
+            .unwrap();
+        drop(talk);
+        let result = done_rx.recv_timeout(std::time::Duration::from_secs(5));
+        handle.join().unwrap();
+        let phase_after = state
+            .with_live_match(|session| session.match_state.phase())
+            .unwrap();
+
+        assert!(reached_the_lock, "the step never took the lifecycle lock");
+        assert!(
+            !returned_while_held,
+            "the step returned while a talk held the lock"
+        );
+        assert_eq!(phase_while_held, interval);
+        assert!(result.unwrap().is_ok());
+        assert_ne!(phase_after, interval, "the step ran after the lock");
+    }
+
+    /// Given a match at half-time and the lifecycle lock held (a team talk in flight)
+    /// When a step that would start the second half is asked for meanwhile
+    /// Then it waits for the lock and the match stays at half-time until it is let go
+    #[test]
+    fn a_step_out_of_half_time_waits_for_a_team_talk_in_flight() {
+        assert_a_step_out_of_an_interval_waits_for_the_lock(engine::MatchPhase::HalfTime);
+    }
+
+    /// Given a match at the extra-time interval and the lifecycle lock held (a team talk in flight)
+    /// When a step that would start the second half of extra time is asked for meanwhile
+    /// Then it waits for the lock and the match stays at the interval until it is let go
+    #[test]
+    fn a_step_out_of_the_extra_time_interval_waits_for_a_team_talk_in_flight() {
+        assert_a_step_out_of_an_interval_waits_for_the_lock(engine::MatchPhase::ExtraTimeHalfTime);
+    }
+
     /// Given an idle saved career with changed finances, when returning to the menu,
     /// then the changes reach a fresh save reader before the active state is cleared.
     #[test]
@@ -3066,5 +3152,112 @@ mod live_session_tests {
             Some(KEY)
         );
         assert_eq!(checkpoint(&state), before);
+    }
+
+    /// Each player's morale factor in the match (the engine's copy, not the game's), by id.
+    type SideFactors = Vec<(String, f64)>;
+
+    /// The match's morale factors for the user's side and for the opponent's.
+    fn match_morale_factors(state: &StateManager) -> (SideFactors, SideFactors) {
+        state
+            .with_live_match(|session| {
+                let factors = |side| {
+                    session
+                        .match_state
+                        .team(side)
+                        .players
+                        .iter()
+                        .map(|player| (player.id.clone(), player.morale_factor))
+                        .collect::<Vec<_>>()
+                };
+                let user = session.user_side.expect("the user manages this match");
+                let other = match user {
+                    engine::Side::Home => engine::Side::Away,
+                    engine::Side::Away => engine::Side::Home,
+                };
+                (factors(user), factors(other))
+            })
+            .expect("a live match")
+    }
+
+    /// A live match the user plays at half-time, every player of every club at morale 50 from
+    /// kick-off, so each starts it at exactly the neutral factor.
+    fn state_at_half_time_with_every_player_at_morale_fifty() -> StateManager {
+        let state = StateManager::new();
+        let mut game = make_game_with_matchday();
+        game.players
+            .iter_mut()
+            .for_each(|player| player.morale = 50);
+        state.set_game(game);
+        live_match::start_live_match_with_identity(
+            &state,
+            ofm_core::state::Career::Active,
+            0,
+            "live",
+            false,
+            None,
+            None,
+        )
+        .unwrap();
+        live_match::step_live_match(&state, ofm_core::state::Career::Active, 60).unwrap();
+        let snapshot = live_match::get_match_snapshot(&state).unwrap();
+        assert_eq!(format!("{:?}", snapshot.phase), "HalfTime");
+        state
+    }
+
+    /// Given a match at half-time that every player began at morale 50 (the neutral factor, 1)
+    /// When a half-time talk is given through the shared seam (the command and the MCP tool)
+    /// Then each of the user's players in the match plays the second half at exactly the factor
+    ///      his new morale gives (the approved table), the morales the talk left them at are not all
+    ///      one value, and the opponent's players are untouched (#1213)
+    #[test]
+    fn a_half_time_talk_reaches_the_second_half() {
+        let state = state_at_half_time_with_every_player_at_morale_fifty();
+        let (before, _) = match_morale_factors(&state);
+        assert!(
+            before.iter().all(|(_, factor)| *factor == 1.0),
+            "the match began neutral"
+        );
+        let (_, opponent_before) = match_morale_factors(&state);
+
+        let talk =
+            super::apply_team_talk_on(&state, ofm_core::state::Career::Active, "motivational")
+                .unwrap();
+
+        let (user, opponent_after) = match_morale_factors(&state);
+        assert_eq!(
+            opponent_after, opponent_before,
+            "the opponent heard nothing"
+        );
+        let mut checked = 0;
+        let mut distinct_morales = std::collections::BTreeSet::new();
+        for change in &talk.changes {
+            let id = change["player_id"].as_str().unwrap();
+            let now = change["new_morale"].as_u64().unwrap();
+            let Some((_, factor)) = user.iter().find(|(player, _)| player == id) else {
+                continue; // a squad member who is not in the match
+            };
+            checked += 1;
+            distinct_morales.insert(now);
+            // The approved table, written out here as the oracle: 1 + 0.03 * (morale - 50) / 50.
+            let expected = 1.0 + 0.03 * (now as f64 - 50.0) / 50.0;
+            assert!(
+                (*factor - expected).abs() < 1e-12,
+                "{id}: morale {now} should give {expected}, the match has {factor}"
+            );
+        }
+        assert!(
+            checked >= 11,
+            "only {checked} of the match's players were checked"
+        );
+        assert!(
+            distinct_morales.len() >= 2,
+            "the talk left every player at one morale ({distinct_morales:?}), so a hand-over that \
+             wrote the same value for all would pass"
+        );
+        assert!(
+            user.iter().any(|(_, factor)| *factor != 1.0),
+            "the talk moved no factor in the match"
+        );
     }
 }

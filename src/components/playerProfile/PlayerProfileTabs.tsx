@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 
 import type { PlayerData, TeamData } from "../../store/gameStore";
 import type { PlayerRole } from "../../store/types";
+import { usePlayerCareer } from "../../hooks/usePlayerCareer";
 import { TabPanel, Tabs } from "../ui";
 import { visibleWageText } from "../../lib/playerKnowledge";
 import { isGoalkeeper } from "./PlayerProfile.attributes";
@@ -11,13 +12,12 @@ import { withClubNames } from "./PlayerProfile.movements";
 import { formatPlayerWage } from "./PlayerProfile.helpers";
 import type { buildPlayerProfileRelationship } from "./PlayerProfile.viewModel";
 import PlayerProfileAdvancedStatsCard from "./PlayerProfileAdvancedStatsCard";
-import PlayerProfileCareerHistoryCard from "./PlayerProfileCareerHistoryCard";
+import PlayerProfileCareerTable from "./PlayerProfileCareerTable";
 import PlayerProfileContractHistoryCard from "./PlayerProfileContractHistoryCard";
 import PlayerProfileContractSheet from "./PlayerProfileContractSheet";
 import PlayerProfileContractTimeline from "./PlayerProfileContractTimeline";
 import PlayerProfilePotentialOpinion from "./PlayerProfilePotentialOpinion";
 import PlayerProfileAttributesTab from "./attributes/PlayerProfileAttributesTab";
-import PlayerProfileMovementHistoryCard from "./PlayerProfileMovementHistoryCard";
 import PlayerProfileOverview from "./overview/PlayerProfileOverview";
 import ProfileLoadFailed from "./ProfileLoadFailed";
 import type { usePlayerProfileData } from "./usePlayerProfileData";
@@ -48,6 +48,8 @@ interface PlayerProfileTabsProps {
   teams: Pick<TeamData, "id" | "name">[];
   /** Changes when anything the club-wide previews read does (`clubStateKey`): they ask again. */
   clubKey: string;
+  /** Changes when his career does (`careerRevision`): the day, his stats, a move, another career. */
+  careerKey: string;
 }
 
 /** The four tabs of the profile and what each holds. */
@@ -65,6 +67,7 @@ export default function PlayerProfileTabs({
   onSelectTeam,
   teams,
   clubKey,
+  careerKey,
 }: PlayerProfileTabsProps) {
   const { t, i18n } = useTranslation();
   const tabsId = useId();
@@ -74,6 +77,8 @@ export default function PlayerProfileTabs({
   const { opinionAnswer, potentialOpinion } = knowledge;
   const movements = withClubNames(player.movement_history ?? [], teams);
   const contractHistory = buildContractHistory(movements, currentDate.slice(0, 10));
+  // His career is the backend's projection, asked again when its revision changes.
+  const career = usePlayerCareer(player.id, careerKey);
   const exactWeeklyWage =
     knowledge.visibleWage.kind === "exact" ? knowledge.visibleWage.weekly : null;
   // Asked for only while this tab is the open one: hidden tabs stay mounted, and the previews are
@@ -148,21 +153,18 @@ export default function PlayerProfileTabs({
         />
       </TabPanel>
 
-      <TabPanel
-        idPrefix={tabsId}
-        tabId="career"
-        hidden={hidden("career")}
-        className="grid grid-cols-1 gap-5"
-      >
-        <PlayerProfileAdvancedStatsCard summary={data.advancedStats} t={t} />
-
-        <PlayerProfileCareerHistoryCard career={player.career} t={t} />
-
-        <PlayerProfileMovementHistoryCard
-          movementHistory={movements}
-          language={i18n.language}
-          t={t}
-        />
+      <TabPanel idPrefix={tabsId} tabId="career" hidden={hidden("career")}>
+        <div className="@container">
+          <div className="grid grid-cols-1 items-start gap-5 @[56rem]:grid-cols-[minmax(0,1fr)_22rem]">
+            <PlayerProfileCareerTable
+              career={career}
+              language={i18n.language}
+              onOpenTeam={onSelectTeam}
+              t={t}
+            />
+            <PlayerProfileAdvancedStatsCard summary={data.advancedStats} t={t} />
+          </div>
+        </div>
       </TabPanel>
 
       <TabPanel

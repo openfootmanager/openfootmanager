@@ -65,15 +65,13 @@ describe("PlayerProfileContractHistoryCard", () => {
     expect(rows).toHaveLength(2);
     const [current, closed] = rows;
     expect(current.firstElementChild).toHaveTextContent(
-      'playerProfile.contractSheet.range {"start":"Jul 1, 2031","end":"Jun 30, 2033"}',
+      'playerProfile.contractSheet.range {"start":"1 Jul 2031","end":"30 Jun 2033"}',
     );
     expect(
       within(current).getByText("playerProfile.contractSheet.how.renewal"),
     ).toBeInTheDocument();
     expect(within(current).getByText(/10,000/)).toBeInTheDocument();
-    expect(closed.firstElementChild).toHaveTextContent(
-      '"start":"Jul 1, 2029","end":"Jun 30, 2031"',
-    );
+    expect(closed.firstElementChild).toHaveTextContent('"start":"1 Jul 2029","end":"30 Jun 2031"');
     expect(
       within(closed).getByText('playerProfile.contractSheet.how.transfer {"club":"South FC"}'),
     ).toBeInTheDocument();
@@ -167,7 +165,7 @@ describe("PlayerProfileContractHistoryCard", () => {
 
     expect(screen.getByText("playerProfile.movementLegacyContract")).toBeInTheDocument();
     expect(
-      screen.getByText('playerProfile.contractSheet.until {"end":"Jun 30, 2033"}'),
+      screen.getByText('playerProfile.contractSheet.until {"end":"30 Jun 2033"}'),
     ).toBeInTheDocument();
   });
 
@@ -197,9 +195,9 @@ describe("PlayerProfileContractHistoryCard", () => {
     ]);
 
     const closed = screen.getAllByRole("row")[2];
-    expect(closed).toHaveTextContent('"end":"Jun 30, 2032"');
+    expect(closed).toHaveTextContent('"end":"30 Jun 2032"');
     expect(
-      within(closed).getByText('playerProfile.contractSheet.replacedOn {"date":"Jan 15, 2031"}'),
+      within(closed).getByText('playerProfile.contractSheet.replacedOn {"date":"15 Jan 2031"}'),
     ).toBeInTheDocument();
   });
 
