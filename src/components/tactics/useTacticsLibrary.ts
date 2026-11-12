@@ -8,11 +8,13 @@ import {
   deleteCustomTactic,
   legacyTacticsImportPending,
   listCustomTactics,
+  renameCustomTactic,
   markLegacyTacticsImported,
   saveCurrentTactic,
   saveCustomTactic,
 } from "../../services/customTacticsService";
 import { getTacticsBlueprintStatus } from "../../services/squadService";
+import { resolveTranslatedErrorMessage } from "../../utils/errorMessage";
 import {
   TACTICS_PRESETS,
   findTacticsPresetBySetup,
@@ -56,6 +58,9 @@ export function useTacticsLibrary({
   // The library is the career's, kept in the save: it follows a change of club and a reload. It
   // starts empty and is filled from the save (and from an old browser library, once) below.
   const [customTactics, setCustomTactics] = useState<TacticsLibraryEntry[]>([]);
+  // The library as of the latest render, for a step that reads it after an await.
+  const latestCustomTactics = useRef(customTactics);
+  latestCustomTactics.current = customTactics;
   const [activeTacticId, setActiveTacticId] = useState<string | null>(
     initialPreset ? `preset:${initialPreset.id}` : null,
   );
@@ -167,7 +172,11 @@ export function useTacticsLibrary({
   // change (a shape the game cannot lay out, an id that is already gone), puts the library back as
   // the save has it.
   // Resolves whether the save accepted the change, once it has answered.
-  function changeSave(change: () => Promise<CustomTactic[]>): Promise<boolean> {
+  function changeSave(
+    change: () => Promise<CustomTactic[]>,
+    // Where a refusal goes: the screen's alert, or a dialog that asked and shows the reason itself.
+    reportRefusal: (error: unknown) => void = onWriteError,
+  ): Promise<boolean> {
     const askedIn = useGameStore.getState().careerEpoch;
     const stale = () => useGameStore.getState().careerEpoch !== askedIn;
     let accepted = true;
@@ -179,7 +188,7 @@ export function useTacticsLibrary({
               // The save refused the change: tell the screen, and put the library back as the
               // save has it.
               accepted = false;
-              if (!stale()) onWriteError(error);
+              if (!stale()) reportRefusal(error);
               return listCustomTactics().catch(() => {
                 if (!stale()) {
                   const confirmed = confirmedLibrary.current;
@@ -352,8 +361,10 @@ export function useTacticsLibrary({
       return;
     }
 
+    // The name as the library has it now: a rename that landed while this was applying stands.
+    const latest = latestCustomTactics.current.find((entry) => entry.id === nextTactic.id);
     setActiveTacticId(nextTactic.id);
-    setDraftTacticName(nextTactic.name);
+    setDraftTacticName((latest ?? nextTactic).name);
 
     if (isPreset) {
       setPresetAnchorId(nextTactic.id.replace("preset:", ""));
@@ -389,6 +400,8 @@ export function useTacticsLibrary({
   // stands in when nothing else matches.
   const canDeleteTactic =
     isActiveCustomTactic && customTactics.some((entry) => entry.id === activeTactic.id);
+  // The same tactics can be renamed: a preset's name is the game's, and the unsaved setup has none.
+  const canRenameTactic = canDeleteTactic;
 
   // The team keeps the formation and play style it has. With the tactic gone from the library the
   // setup shown falls back to the preset it matches, or to the current setup, applying nothing.
@@ -398,6 +411,22 @@ export function useTacticsLibrary({
     const { id } = activeTactic;
     setCustomTactics((current) => current.filter((entry) => entry.id !== id));
     changeSave(() => deleteCustomTactic(id.trim(), careerToken));
+  }
+
+  // Renames the saved tactic `id` (the one the dialog was opened for, which may no longer be the
+  // active one) through the same queue as every other library write. Unlike a delete the screen waits
+  // for the save's answer: it resolves null once the save accepted the name (or the career is no
+  // longer the open one), or the reason it refused (an empty name, one too long, a tactic that is
+  // gone), in the player's language, for the dialog that asked to show.
+  async function handleRenameTactic(id: string, name: string): Promise<string | null> {
+    let reason: string | null = null;
+    await changeSave(
+      () => renameCustomTactic(id.trim(), name, careerToken),
+      (error) => {
+        reason = resolveTranslatedErrorMessage(error);
+      },
+    );
+    return reason;
   }
 
   function handleSaveTactic(): Promise<boolean> {
@@ -472,5 +501,7 @@ export function useTacticsLibrary({
     handleSaveTactic,
     canDeleteTactic,
     handleDeleteTactic,
+    canRenameTactic,
+    handleRenameTactic,
   };
 }

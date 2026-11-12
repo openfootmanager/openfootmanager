@@ -1,4 +1,4 @@
-import { Check, Copy, MoreVertical, Plus, RotateCcw, Save, Trash2 } from "lucide-react";
+import { Check, Copy, MoreVertical, Pencil, Plus, RotateCcw, Save, Trash2 } from "lucide-react";
 import { useId, useRef, useState, type JSX } from "react";
 import { useTranslation } from "react-i18next";
 
@@ -6,6 +6,7 @@ import ContextMenu, { type ContextMenuHandle, type ContextMenuItem } from "../Co
 import { Badge, Button, Card, Select } from "../ui";
 import TacticPicker, { FIELD_LABEL, type TacticsLibraryEntry } from "./TacticPicker";
 import TacticsDeleteDialog from "./TacticsDeleteDialog";
+import TacticsRenameDialog from "./TacticsRenameDialog";
 import { useSavedCue } from "./useSavedCue";
 import { FORMATIONS } from "./TacticsTab.helpers";
 
@@ -24,6 +25,10 @@ interface TacticsCommandBarProps {
   onReset: () => void;
   /** Whether the active tactic is a saved custom one, the only kind that can be deleted. */
   canDelete: boolean;
+  /** Whether the active tactic is a saved custom one, the only kind that can be renamed. */
+  canRename: boolean;
+  /** Renames the saved tactic `id`: resolves null once the save accepted the name, or why it did not. */
+  onRename: (id: string, name: string) => Promise<string | null>;
   onCreateNew: () => void;
   onDelete: () => void;
   onDuplicate: () => void;
@@ -53,6 +58,8 @@ export default function TacticsCommandBar({
   canReset,
   onReset,
   canDelete,
+  canRename,
+  onRename,
   onCreateNew,
   onDelete,
   onDuplicate,
@@ -66,6 +73,8 @@ export default function TacticsCommandBar({
   const [pickerOpen, setPickerOpen] = useState(false);
   const statusId = useId();
   const [confirmingDelete, setConfirmingDelete] = useState(false);
+  // The tactic the dialog was opened for: the active one can change while it is open.
+  const [renaming, setRenaming] = useState<{ id: string; name: string } | null>(null);
   const actionsMenuRef = useRef<ContextMenuHandle | null>(null);
   const [actionsOpen, setActionsOpen] = useState(false);
 
@@ -91,6 +100,12 @@ export default function TacticsCommandBar({
       label: t("tactics.duplicateTactic"),
       icon: <Copy className="h-4 w-4" />,
       onClick: onDuplicate,
+    },
+    {
+      label: t("tactics.renameTactic"),
+      icon: <Pencil className="h-4 w-4" />,
+      onClick: () => setRenaming({ id: activeTactic.id, name: activeTactic.name }),
+      disabled: !canRename,
     },
     {
       label: t("tactics.resetTactic"),
@@ -213,6 +228,13 @@ export default function TacticsCommandBar({
           </span>
         </div>
       </div>
+      {renaming ? (
+        <TacticsRenameDialog
+          name={renaming.name}
+          onRename={(name) => onRename(renaming.id, name)}
+          onClose={() => setRenaming(null)}
+        />
+      ) : null}
       {confirmingDelete ? (
         <TacticsDeleteDialog
           name={activeTactic.name}
