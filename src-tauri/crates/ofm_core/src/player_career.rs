@@ -7,11 +7,13 @@
 //! - **The statistics season is the world's.** Every player's stats are recorded and reset at one
 //!   rollover, the rollover division's, so that division's calendar is everyone's statistics season
 //!   (`statistics_season`). The season in progress began on the day the stats were last reset
-//!   (`Game::last_season_rollover_on`), which is not always the calendar's start; earlier seasons
-//!   began on the calendar's start month and day.
+//!   (`Game::last_season_rollover_on`), which is not always the calendar's start; an earlier season
+//!   began on the day its rows recorded, and on the calendar's start month and day for rows from
+//!   before that was kept.
 //! - **A career row is one club stint**, and a stint with no appearance has no row, so the nth row of
-//!   a season is not the nth visit in his ledger. A row is matched to a visit by club, in order
-//!   (`place_rows`).
+//!   a season is not the nth visit in his ledger. A row that carries the days of its stint is placed
+//!   at the visit that began that day; one that does not (a save from before they were kept, whose
+//!   days cannot be recovered) is matched to a visit by club, in order (`place_rows`).
 //! - **The season in progress is split by club** (`SeasonStints`), so a player who changed club this
 //!   season has a row for each club, not one total on whichever holds him.
 
@@ -121,11 +123,11 @@ impl StatisticsSeason {
 
     /// The first day `season`'s stats counted: the real reset day for the season in progress,
     /// the calendar's start for any other. The game keeps only the latest reset day
-    /// (`last_season_rollover_on`, overwritten at every rollover) and the career rows carry no
-    /// dates, so a past season that began off the calendar (a rollover on the day the previous
-    /// season ended) is placed by the calendar's start: a stint that began between the real reset
-    /// and the calendar's start can sort after a move that preceded it. Recovering it needs the
-    /// reset day stored with each career row (#1402).
+    /// (`last_season_rollover_on`, overwritten at every rollover): a past season's own day is on
+    /// its career rows (`CareerEntry::season_began_on`, which `place_rows` reads first), and only a
+    /// row from before it was kept falls back here, to the calendar's start. That can sort a stint
+    /// that began between the real reset and the calendar's start after a move that preceded it
+    /// (order only; the figures are right), and cannot be recovered for such a row.
     fn began_on(&self, season: u32) -> NaiveDate {
         match self.current_began_on {
             Some(day) if season == self.current => day,
@@ -177,6 +179,11 @@ struct Visit {
 }
 
 impl Visit {
+    /// Whether `day` is in the visit: from the day he arrived up to, not including, the day he left.
+    fn contains(&self, day: NaiveDate) -> bool {
+        self.from <= day && self.until.is_none_or(|until| day < until)
+    }
+
     fn overlaps(&self, start: NaiveDate, end: Option<NaiveDate>) -> bool {
         end.is_none_or(|end| self.from < end) && self.until.is_none_or(|until| until > start)
     }
@@ -273,31 +280,86 @@ struct Placing {
     on_loan: bool,
 }
 
+/// The visit a row's own days name, if it carries any: the one at its club that began on the day
+/// its stint did. Visits are half-open (a visit that ended that day is not the one that began on
+/// it), so a loan out and the move back on one day, or two moves on one day, leave an empty visit
+/// that no row belongs to. A row that began with the season has no start day and is placed by the
+/// day its stint ended instead: the visit at its club that ended then, or the first of the visits
+/// there that run on to it (a loan's purchase splits one stint into two).
+fn visit_named_by_days(row: &StintRow, visits: &[&Visit]) -> Option<usize> {
+    let club = row.entry.team_id.as_str();
+    if let Some(from) = row.entry.from.as_deref().and_then(parse_day) {
+        return visits
+            .iter()
+            .position(|visit| visit.club_id == club && visit.contains(from));
+    }
+    let until = row.entry.until.as_deref().and_then(parse_day)?;
+    let mut index = visits
+        .iter()
+        .position(|visit| visit.club_id == club && visit.until == Some(until))?;
+    // A loan's purchase splits one stint at the club into two visits (the loan, then the permanent
+    // one) without closing it, so the stint that ends at the sale began in the first of them.
+    // Walk back over the club's visits that run on from one another, to where the season began.
+    while index > 0 {
+        let (before, this) = (visits[index - 1], visits[index]);
+        if before.club_id == club && before.until == Some(this.from) {
+            index -= 1;
+        } else {
+            break;
+        }
+    }
+    Some(index)
+}
+
 /// Each row's place: the day he arrived at the club for that spell, or the first day of the
-/// season if he was already there. Rows of one season are in the order they happened, and each
-/// takes the first visit at its club after the one the row before it took: a stint with no
-/// appearance has no row, so the rows are a subsequence of the season's visits, not all of them.
+/// season if he was already there.
 ///
-/// Only a club he visits twice in one season with a gap he played none of is ambiguous (#1402): the row
-/// takes the first visit, which is right unless the first spell was the one with no appearance.
+/// A row that carries the days of its stint is placed by them (`visit_named_by_days`). One that
+/// does not (every row of a save from before the days were kept) is placed by order: rows of one
+/// season are in the order they happened, and each takes the first visit at its club after the one
+/// the row before it took, since a stint with no appearance has no row and the rows are a
+/// subsequence of the season's visits, not all of them. That is ambiguous only for a club he
+/// visits twice in one season with a gap he played none of: the row takes the first visit, right
+/// unless the first spell was the one with no appearance, and nothing recovers it for such a row.
+///
+/// A season began on the day its rows recorded when they did, else on the calendar's start.
 fn place_rows(rows: &[StintRow], visits: &[Visit], seasons: &StatisticsSeason) -> Vec<Placing> {
+    let recorded: HashMap<u32, NaiveDate> = rows
+        .iter()
+        .filter_map(|row| {
+            let day = parse_day(row.entry.season_began_on.as_deref()?)?;
+            Some((row.entry.season, day))
+        })
+        .collect();
+    let window = |season: u32| {
+        let (calendar_start, calendar_end) = seasons.window(season);
+        let start = recorded.get(&season).copied().unwrap_or(calendar_start);
+        // The season ends when the next one began; the season in progress has no end.
+        let end =
+            calendar_end.map(|calendar| recorded.get(&(season + 1)).copied().unwrap_or(calendar));
+        (start, end)
+    };
     let mut cursors: HashMap<u32, usize> = HashMap::new();
     rows.iter()
         .map(|row| {
-            let (start, end) = seasons.window(row.entry.season);
+            let (start, end) = window(row.entry.season);
             let cursor = cursors.entry(row.entry.season).or_insert(0);
             let overlapping: Vec<&Visit> = visits
                 .iter()
                 .filter(|visit| visit.overlaps(start, end))
                 .collect();
-            let found = overlapping
-                .iter()
-                .enumerate()
-                .skip(*cursor)
-                .find(|(_, visit)| visit.club_id == row.entry.team_id);
-            match found {
-                Some((index, visit)) => {
+            let index = visit_named_by_days(row, &overlapping).or_else(|| {
+                overlapping
+                    .iter()
+                    .enumerate()
+                    .skip(*cursor)
+                    .find(|(_, visit)| visit.club_id == row.entry.team_id)
+                    .map(|(index, _)| index)
+            });
+            match index {
+                Some(index) => {
                     *cursor = index + 1;
+                    let visit = overlapping[index];
                     Placing {
                         when: visit.from.max(start),
                         on_loan: visit.on_loan,
@@ -482,6 +544,8 @@ fn in_progress_rows(
             appearances: 0,
             goals: 0,
             assists: 0,
+            from: stints.since.clone(),
+            ..Default::default()
         });
     }
     let current_exists = has_current_stint || !club_id.is_empty();
@@ -590,6 +654,7 @@ mod tests {
                 appearances,
                 goals,
                 assists,
+                ..Default::default()
             },
             in_progress: false,
         }
@@ -600,6 +665,19 @@ mod tests {
             in_progress: true,
             ..stint(season, club, appearances, goals, assists)
         }
+    }
+
+    /// The row with the days its stint began and ended, as the stints keep them (#1402).
+    fn on(mut row: StintRow, from: Option<&str>, until: Option<&str>) -> StintRow {
+        row.entry.from = from.map(str::to_string);
+        row.entry.until = until.map(str::to_string);
+        row
+    }
+
+    /// The row of a season whose stats began counting on `day`.
+    fn began(mut row: StintRow, day: &str) -> StintRow {
+        row.entry.season_began_on = Some(day.to_string());
+        row
     }
 
     fn moved(
@@ -933,6 +1011,254 @@ mod tests {
         );
     }
 
+    /// Given the same season, the single A row now carrying the day his second spell began
+    /// When the career is built
+    /// Then the row sits at that visit, below the loan line, where the 7 appearances were made
+    #[test]
+    fn a_row_with_its_start_day_sits_at_the_visit_that_began_that_day() {
+        let rows = [on(stint(2025, "a", 7, 2, 1), Some("2026-01-05"), None)];
+        let movements = [
+            moved(
+                "2025-08-01",
+                PlayerMovementKind::FreeAgentSigning,
+                None,
+                Some("a"),
+            ),
+            moved(
+                "2025-09-01",
+                PlayerMovementKind::LoanStart,
+                Some("a"),
+                Some("b"),
+            ),
+            moved(
+                "2026-01-05",
+                PlayerMovementKind::LoanReturn,
+                Some("b"),
+                Some("a"),
+            ),
+        ];
+
+        let career = career_of(&rows, &movements, &calendar(8));
+
+        assert_eq!(
+            read(&career),
+            ["2025 a 7", "move:LoanStart", "move:FreeAgentSigning"]
+        );
+    }
+
+    /// Given a loan out and the move back on the same day, so that the loan visit is empty and the
+    ///       first spell ends the day the second begins, and a single row from that day
+    /// When the career is built
+    /// Then visits are half-open: the row goes to the visit that STARTS that day, not the one that
+    ///      ended on it, and it is not a loan
+    #[test]
+    fn a_row_on_the_day_of_a_loan_out_and_back_goes_to_the_visit_that_starts_that_day() {
+        let rows = [on(stint(2025, "a", 4, 1, 0), Some("2025-09-01"), None)];
+        let movements = [
+            moved(
+                "2025-08-01",
+                PlayerMovementKind::InitialContract,
+                None,
+                Some("a"),
+            ),
+            moved(
+                "2025-09-01",
+                PlayerMovementKind::LoanStart,
+                Some("a"),
+                Some("b"),
+            ),
+            moved(
+                "2025-09-01",
+                PlayerMovementKind::LoanReturn,
+                Some("b"),
+                Some("a"),
+            ),
+        ];
+
+        let career = career_of(&rows, &movements, &calendar(8));
+
+        assert_eq!(
+            read(&career),
+            ["2025 a 4", "move:LoanStart", "move:InitialContract"]
+        );
+        assert!(!season_row(&career, 2025, "a").on_loan);
+    }
+
+    /// Given two moves on one day (a to b, then b to c, so b's visit is empty), and a return to b
+    ///       months later with a single b row from the day of the return
+    /// When the career is built
+    /// Then the row goes to the visit that began on the day of the return, not the empty one
+    ///      that began and ended on the earlier day
+    #[test]
+    fn a_row_after_two_moves_on_one_day_skips_the_empty_visit_between_them() {
+        let rows = [on(stint(2025, "b", 6, 1, 1), Some("2026-01-05"), None)];
+        let movements = [
+            moved(
+                "2025-08-01",
+                PlayerMovementKind::InitialContract,
+                None,
+                Some("a"),
+            ),
+            moved(
+                "2025-09-01",
+                PlayerMovementKind::PermanentTransfer,
+                Some("a"),
+                Some("b"),
+            ),
+            moved(
+                "2025-09-01",
+                PlayerMovementKind::PermanentTransfer,
+                Some("b"),
+                Some("c"),
+            ),
+            moved(
+                "2026-01-05",
+                PlayerMovementKind::PermanentTransfer,
+                Some("c"),
+                Some("b"),
+            ),
+        ];
+
+        let career = career_of(&rows, &movements, &calendar(8));
+
+        assert_eq!(
+            read(&career),
+            [
+                "2025 b 6",
+                "move:PermanentTransfer",
+                "move:PermanentTransfer",
+                "move:PermanentTransfer",
+                "move:InitialContract"
+            ]
+        );
+    }
+
+    /// Given a loan that began in January 2026, ran across the season reset (1 August 2026), was
+    ///       bought on 1 October (`LoanToBuy`, which does not close the stint), and ended in a sale
+    ///       to another club on 1 February 2027, with the rows dated: the 2026 season's row at the
+    ///       borrower has no start (the reset cleared it) and ends on the sale
+    /// When the career is built
+    /// Then that row stays where the season starts and is still a loan: it is resolved across the
+    ///      club's visits either side of the purchase, not placed at the permanent visit the
+    ///      purchase began, where it would jump to 1 October and lose its loan flag
+    #[test]
+    fn a_row_that_began_with_the_season_stays_a_loan_across_the_loans_purchase() {
+        let rows = [
+            on(stint(2025, "a", 7, 2, 1), None, Some("2026-01-10")),
+            on(stint(2025, "b", 5, 1, 0), Some("2026-01-10"), None),
+            on(stint(2026, "b", 12, 3, 2), None, Some("2027-02-01")),
+            on(now(2026, "c", 3, 0, 1), Some("2027-02-01"), None),
+        ];
+        let movements = [
+            moved(
+                "2025-08-01",
+                PlayerMovementKind::InitialContract,
+                None,
+                Some("a"),
+            ),
+            moved(
+                "2026-01-10",
+                PlayerMovementKind::LoanStart,
+                Some("a"),
+                Some("b"),
+            ),
+            moved(
+                "2026-10-01",
+                PlayerMovementKind::LoanToBuy,
+                Some("a"),
+                Some("b"),
+            ),
+            moved(
+                "2027-02-01",
+                PlayerMovementKind::PermanentTransfer,
+                Some("b"),
+                Some("c"),
+            ),
+        ];
+
+        let career = career_of(&rows, &movements, &calendar(8));
+
+        assert_eq!(
+            read(&career),
+            [
+                "2026 c 3 now",
+                "move:PermanentTransfer",
+                "move:LoanToBuy",
+                "2026 b 12",
+                "2025 b 5",
+                "move:LoanStart",
+                "2025 a 7",
+                "move:InitialContract"
+            ]
+        );
+        assert!(season_row(&career, 2026, "b").on_loan);
+        assert!(season_row(&career, 2025, "b").on_loan);
+    }
+
+    /// Given a player who arrived at his club on 5 January and has not yet appeared for it
+    /// When the season in progress is read as rows
+    /// Then the row for the club he is with is placed from the day he arrived, as a row with
+    ///      appearances is, and is the stint in progress
+    #[test]
+    fn the_row_of_a_club_before_his_first_appearance_carries_its_start_day() {
+        let stints = SeasonStints {
+            since: Some("2026-01-05".to_string()),
+            ..Default::default()
+        };
+
+        let rows = in_progress_rows(&stints, &PlayerSeasonStats::default(), 2026, "a", "A FC");
+
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].entry.from.as_deref(), Some("2026-01-05"));
+        assert!(rows[0].in_progress);
+    }
+
+    /// Given the 2025 season whose rows carry the day its stats really began (1 July 2025, before
+    ///       the calendar's 1 August), a free signing on 10 July and a loan on 20 July
+    /// When the career is built
+    /// Then the season begins on the recorded day, so the signing's row sits below the loan line
+    ///      (the stint that began between the reset and the calendar start no longer sorts after a
+    ///      move that preceded it)
+    #[test]
+    fn a_historical_season_begins_on_the_day_its_rows_recorded() {
+        let seasons = StatisticsSeason {
+            current: 2026,
+            current_began_on: Some(day("2026-06-20")),
+            start_month: 8,
+            start_day: 1,
+        };
+        let rows = [
+            began(stint(2025, "b", 4, 1, 0), "2025-07-01"),
+            began(stint(2025, "c", 2, 0, 1), "2025-07-01"),
+        ];
+        let movements = [
+            moved(
+                "2025-07-10",
+                PlayerMovementKind::FreeAgentSigning,
+                None,
+                Some("b"),
+            ),
+            moved(
+                "2025-07-20",
+                PlayerMovementKind::LoanStart,
+                Some("b"),
+                Some("c"),
+            ),
+        ];
+
+        let career = career_of(&rows, &movements, &seasons);
+
+        assert_eq!(
+            read(&career),
+            [
+                "2025 c 2",
+                "move:LoanStart",
+                "2025 b 4",
+                "move:FreeAgentSigning"
+            ]
+        );
+    }
+
     /// Given a loan that the borrower then buys, and a season after it
     /// When the career is built
     /// Then the season of the loan is a loan, the purchase ends the loan without moving him, and
@@ -1012,7 +1338,9 @@ mod tests {
                     goals: 5,
                     assists: 2,
                 },
+                ..Default::default()
             }],
+            ..Default::default()
         };
         let stats = PlayerSeasonStats {
             appearances: 24,
@@ -1486,6 +1814,7 @@ mod tests {
             appearances: 31,
             goals: 4,
             assists: 9,
+            ..Default::default()
         });
 
         let career = player_career(&world(), &player);

@@ -221,6 +221,10 @@ export interface CareerEntry {
   appearances: number;
   goals: number;
   assists: number;
+  /** `YYYY-MM-DD`: when the stint began, the stint's end, and the day the season's stats began. Left out when not kept (a save from before they were). Nothing on the screen reads them: the career projection places the rows. */
+  from?: string | null;
+  until?: string | null;
+  season_began_on?: string | null;
 }
 
 export type PlayerMovementKind =
