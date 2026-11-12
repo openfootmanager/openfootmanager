@@ -4,6 +4,8 @@ import { PLAYERS_OPENING_QUERY } from "../../components/players/playersOpeningQu
 import { readStyleGuideOptions } from "../styleGuide/styleGuideOptions";
 import { fixtureHandlers } from "./fixtureAnswers";
 import {
+  autoSetPieces,
+  autoSetPiecesFor,
   familiarity,
   gameState,
   playersPage,
@@ -13,6 +15,8 @@ import {
   squad,
   squadFitness,
   staff,
+  tacticsBlueprintStatus,
+  tacticsLineup,
   teamsDirectory,
 } from "./fixture.generated";
 import { UNANSWERED } from "./harnessIpc";
@@ -32,6 +36,59 @@ describe("fixture answers", () => {
     const cards = fixtureHandlers(readStyleGuideOptions("?view=cards"), "en");
     expect(cards.get_settings({})).toMatchObject({ settings: { list_view: "cards" } });
     expect(handlers.get_settings({})).toMatchObject({ settings: { list_view: "table" } });
+  });
+
+  /**
+   * Given the Tactics tab opening on the club's eleven
+   * When it asks for the blueprint status and the takers for that eleven, listed in another order
+   * Then the harness gives the backend's answers generated for that eleven; for any other set of
+   *      players it declines, so a changed eleven can't show the opening eleven's takers.
+   */
+  it("answers the Tactics tab's mount queries for the club's eleven only", () => {
+    expect(handlers.get_tactics_blueprint_status({})).toBe(tacticsBlueprintStatus);
+    expect(autoSetPiecesFor.length).toBeGreaterThan(0);
+    expect(handlers.auto_select_set_pieces({ playerIds: [...autoSetPiecesFor].reverse() })).toBe(
+      autoSetPieces,
+    );
+    expect(handlers.auto_select_set_pieces({ playerIds: autoSetPiecesFor.slice(1) })).toBe(
+      UNANSWERED,
+    );
+  });
+
+  /**
+   * Given a takers request that has the club's eleven's length but is not its eleven
+   * When the harness is asked
+   * Then it declines, as a backend that picks only from the ids it is given would not hand back the
+   *      opening eleven's takers for them: one scenario each, so a failure names the one that broke.
+   */
+  it.each([
+    ["one player named eleven times", (eleven: readonly string[]) => eleven.map(() => eleven[0])],
+    [
+      "one of the eleven swapped for a player outside it",
+      (eleven: readonly string[]) => [...eleven.slice(0, -1), "a-player-outside-the-eleven"],
+    ],
+    [
+      "two players named between them, one once and one ten times",
+      (eleven: readonly string[]) => [eleven[0], ...eleven.slice(1).map(() => eleven[1])],
+    ],
+  ])("declines a takers request of the right length naming %s", (_scenario, request) => {
+    expect(autoSetPiecesFor).toHaveLength(11);
+
+    expect(handlers.auto_select_set_pieces({ playerIds: request(autoSetPiecesFor) })).toBe(
+      UNANSWERED,
+    );
+  });
+
+  /**
+   * Given the Tactics tab opening on the club
+   * When it asks for the side the club would field
+   * Then the harness gives the backend's projection generated for the club: an eleven, a bench and
+   *      the reserves, each as the match would build them.
+   */
+  it("answers the club's tactics lineup", () => {
+    expect(handlers.get_tactics_lineup({})).toBe(tacticsLineup);
+    expect(tacticsLineup.eleven).toHaveLength(11);
+    expect(tacticsLineup.substitutes.length + tacticsLineup.reserves.length).toBeGreaterThan(0);
   });
 
   /** Given the user's club, when its squad is asked for, then the fixture's squad comes back. */

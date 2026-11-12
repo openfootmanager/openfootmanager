@@ -26,7 +26,7 @@ const WINDOWS = [
 ];
 
 /** The harness's pages (HARNESS_PAGES in src/dev/pageHarness/harnessPage.ts; a test holds them equal). */
-const PAGES = ["home", "squad", "players", "teams", "managers", "staff"];
+const PAGES = ["home", "squad", "players", "teams", "managers", "staff", "tactics"];
 
 /**
  * The player profile, which looks different for each way the club can know a player (HARNESS_PROFILES

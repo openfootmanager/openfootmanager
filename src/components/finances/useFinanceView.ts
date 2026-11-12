@@ -34,6 +34,8 @@ export function useFinanceView({
   const { t, i18n } = useTranslation();
   const {
     actionLoading,
+    answeringOfferId,
+    sponsorOfferErrors,
     facilityUpgradeError,
     boardSupportFeedback,
     sponsorPitchFeedback,
@@ -193,6 +195,8 @@ export function useFinanceView({
     marketingCampaignFeedback,
     sponsorOffers,
     handleSponsorOption,
+    answeringOfferId,
+    sponsorOfferErrors,
     facilities,
     financeData,
     facilityUpgradeError,

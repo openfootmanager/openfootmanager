@@ -6,6 +6,7 @@ use tauri::State;
 use domain::message::InboxMessage;
 use ofm_core::familiarity_projection::{familiarity_projection, FamiliarityProjection};
 use ofm_core::manager_standing::{manager_standing, ManagerStanding};
+use ofm_core::player_career::{player_career, PlayerCareer};
 use ofm_core::player_knowledge::{
     players_knowledge, potential_opinion, visible_wage, youth_prospect_opinions, PlayerKnowledge,
     VisibleWage,
@@ -181,6 +182,31 @@ pub async fn get_potential_opinion(
     player_id: String,
 ) -> Result<Option<PotentialOpinion>, String> {
     get_potential_opinion_internal(&state, &player_id)
+}
+
+/// One player's career for his profile: his seasons at each club newest first with every move
+/// written where it happened, the same rows summed by club, and his totals; null for an id no
+/// active player has. The projection is `ofm_core::player_career`: the screen draws it as given.
+#[tauri::command]
+pub async fn get_player_career(
+    state: State<'_, Arc<StateManager>>,
+    player_id: String,
+) -> Result<Option<PlayerCareer>, String> {
+    get_player_career_internal(&state, &player_id)
+}
+
+fn get_player_career_internal(
+    state: &StateManager,
+    player_id: &str,
+) -> Result<Option<PlayerCareer>, String> {
+    state
+        .get_game(|game| {
+            game.players
+                .iter()
+                .find(|player| player.id == player_id)
+                .map(|player| player_career(game, player))
+        })
+        .ok_or_else(|| NO_ACTIVE_GAME.to_string())
 }
 
 /// What one player is worth at each position he plays, for his profile: his rating, familiarity
@@ -364,6 +390,77 @@ mod tests {
             get_team_card_internal(&StateManager::new(), "club").unwrap_err(),
             NO_ACTIVE_GAME
         );
+    }
+
+    /// Given no active game, when the career adapter reads it, then the translated session error
+    /// is returned.
+    #[test]
+    fn the_career_adapter_reports_a_missing_session() {
+        assert_eq!(
+            get_player_career_internal(&StateManager::new(), "p").unwrap_err(),
+            NO_ACTIVE_GAME
+        );
+    }
+
+    /// Given a live session with a player who has one closed season, and an id no player has
+    /// When the career adapter reads each
+    /// Then the player's career carries that season in its totals, and the stranger has none
+    #[test]
+    fn the_career_adapter_reads_the_live_players_seasons_and_knows_no_stranger() {
+        use chrono::TimeZone;
+        use domain::manager::Manager;
+        use domain::player::{CareerEntry, Player, PlayerAttributes, Position};
+        let attrs: PlayerAttributes = serde_json::from_value(serde_json::json!({
+            "pace": 60, "stamina": 60, "strength": 60, "agility": 60, "passing": 60,
+            "shooting": 60, "tackling": 60, "dribbling": 60, "defending": 60,
+            "positioning": 60, "vision": 60, "decisions": 60, "composure": 60,
+            "aggression": 60, "teamwork": 60, "leadership": 60,
+            "handling": 60, "reflexes": 60, "aerial": 60
+        }))
+        .unwrap();
+        let mut player = Player::new(
+            "p".into(),
+            "P".into(),
+            "P".into(),
+            "2000-01-01".into(),
+            "GB".into(),
+            Position::Midfielder,
+            attrs,
+        );
+        player.career.push(CareerEntry {
+            season: 2025,
+            team_id: "north".into(),
+            team_name: "North".into(),
+            appearances: 30,
+            goals: 4,
+            assists: 2,
+        });
+        let manager = Manager::new(
+            "m".into(),
+            "M".into(),
+            "Gr".into(),
+            "1980-01-01".into(),
+            "GB".into(),
+        );
+        let state = StateManager::new();
+        state.set_game(ofm_core::game::Game::new(
+            ofm_core::clock::GameClock::new(
+                chrono::Utc.with_ymd_and_hms(2026, 9, 15, 12, 0, 0).unwrap(),
+            ),
+            manager,
+            vec![],
+            vec![player],
+            vec![],
+            vec![],
+        ));
+
+        let career = get_player_career_internal(&state, "p").unwrap().unwrap();
+
+        assert_eq!(career.totals.appearances, 30);
+        assert_eq!(career.totals.goals, 4);
+        assert!(get_player_career_internal(&state, "nobody")
+            .unwrap()
+            .is_none());
     }
 
     /// Given no active game, when the tactics lineup adapter reads it,
