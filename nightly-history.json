@@ -1,7 +1,165 @@
 {
   "schemaVersion": 1,
-  "updatedAt": "2026-11-12T07:10:37.588Z",
+  "updatedAt": "2026-11-12T07:43:18.169Z",
   "builds": [
+    {
+      "schemaVersion": 1,
+      "product": "Openfoot Manager",
+      "repository": "openfootmanager/openfootmanager",
+      "tag": "nightly-20261112-a747a3e",
+      "version": "0.3.0-nightly.20261112+a747a3e",
+      "commit": "a747a3e1502e5016beb0bf8ec3d48b5c2f6b3c7c",
+      "prerelease": true,
+      "publishedAt": "2026-11-12T07:42:50Z",
+      "releaseName": "Openfoot Manager Nightly 0.3.0-nightly.20261112+a747a3e",
+      "releaseUrl": "https://github.com/openfootmanager/openfootmanager/releases/tag/nightly-20261112-a747a3e",
+      "assets": [
+        {
+          "id": 738537010,
+          "name": "Openfoot.Manager_0.3.0_aarch64.AppImage",
+          "label": "Openfoot Manager_0.3.0_aarch64.AppImage",
+          "size": 89827848,
+          "contentType": "application/zip",
+          "downloadUrl": "https://github.com/openfootmanager/openfootmanager/releases/download/nightly-20261112-a747a3e/Openfoot.Manager_0.3.0_aarch64.AppImage",
+          "sha256": "89124b31726207c6d9ebbbdf5e99ba5712ec9f96ac364c1a69b6de438f7156b0",
+          "platform": "linux",
+          "arch": "arm64",
+          "kind": "portable",
+          "extension": ".appimage"
+        },
+        {
+          "id": 738536773,
+          "name": "Openfoot.Manager_0.3.0_arm64.deb",
+          "label": "Openfoot Manager_0.3.0_arm64.deb",
+          "size": 14353268,
+          "contentType": "application/zip",
+          "downloadUrl": "https://github.com/openfootmanager/openfootmanager/releases/download/nightly-20261112-a747a3e/Openfoot.Manager_0.3.0_arm64.deb",
+          "sha256": "ee2411ada85e8ea1aff811671262a2fface72a7c7c461bfca521a9c2066709d1",
+          "platform": "linux",
+          "arch": "arm64",
+          "kind": "package",
+          "extension": ".deb"
+        },
+        {
+          "id": 738536851,
+          "name": "Openfoot.Manager-0.3.0-1.aarch64.rpm",
+          "label": "Openfoot Manager-0.3.0-1.aarch64.rpm",
+          "size": 14354264,
+          "contentType": "application/zip",
+          "downloadUrl": "https://github.com/openfootmanager/openfootmanager/releases/download/nightly-20261112-a747a3e/Openfoot.Manager-0.3.0-1.aarch64.rpm",
+          "sha256": "b8a20a3fff538e6efc7cfdad26528ccefe97779f6c63080d106d991b7b711b78",
+          "platform": "linux",
+          "arch": "arm64",
+          "kind": "package",
+          "extension": ".rpm"
+        },
+        {
+          "id": 738538430,
+          "name": "Openfoot.Manager_0.3.0_amd64.AppImage",
+          "label": "Openfoot Manager_0.3.0_amd64.AppImage",
+          "size": 92408312,
+          "contentType": "application/zip",
+          "downloadUrl": "https://github.com/openfootmanager/openfootmanager/releases/download/nightly-20261112-a747a3e/Openfoot.Manager_0.3.0_amd64.AppImage",
+          "sha256": "276924c8dee066b44afecc0e924647426cd33ca8b6aa1fc17ad096c20676fb44",
+          "platform": "linux",
+          "arch": "x64",
+          "kind": "portable",
+          "extension": ".appimage"
+        },
+        {
+          "id": 738538319,
+          "name": "Openfoot.Manager_0.3.0_amd64.deb",
+          "label": "Openfoot Manager_0.3.0_amd64.deb",
+          "size": 14975882,
+          "contentType": "application/zip",
+          "downloadUrl": "https://github.com/openfootmanager/openfootmanager/releases/download/nightly-20261112-a747a3e/Openfoot.Manager_0.3.0_amd64.deb",
+          "sha256": "1a025839469888575811b2e1e164197006a140395c669a50b39bbbe029af69fd",
+          "platform": "linux",
+          "arch": "x64",
+          "kind": "package",
+          "extension": ".deb"
+        },
+        {
+          "id": 738538380,
+          "name": "Openfoot.Manager-0.3.0-1.x86_64.rpm",
+          "label": "Openfoot Manager-0.3.0-1.x86_64.rpm",
+          "size": 14976416,
+          "contentType": "application/zip",
+          "downloadUrl": "https://github.com/openfootmanager/openfootmanager/releases/download/nightly-20261112-a747a3e/Openfoot.Manager-0.3.0-1.x86_64.rpm",
+          "sha256": "c8793ff2de92dee523699a9813bce796c79e1cf4cf61701b9cb53aa2c110c841",
+          "platform": "linux",
+          "arch": "x64",
+          "kind": "package",
+          "extension": ".rpm"
+        },
+        {
+          "id": 738548008,
+          "name": "Openfoot.Manager_0.3.0_aarch64.dmg",
+          "label": "Openfoot Manager_0.3.0_aarch64.dmg",
+          "size": 13177989,
+          "contentType": "application/zip",
+          "downloadUrl": "https://github.com/openfootmanager/openfootmanager/releases/download/nightly-20261112-a747a3e/Openfoot.Manager_0.3.0_aarch64.dmg",
+          "sha256": "e5772d9dcb9759a212a67fd6716fc804759f6a260926b77ea33bdc1b16aa72f3",
+          "platform": "macos",
+          "arch": "arm64",
+          "kind": "installer",
+          "extension": ".dmg"
+        },
+        {
+          "id": 738550929,
+          "name": "Openfoot.Manager_0.3.0_x64.dmg",
+          "label": "Openfoot Manager_0.3.0_x64.dmg",
+          "size": 14398998,
+          "contentType": "application/zip",
+          "downloadUrl": "https://github.com/openfootmanager/openfootmanager/releases/download/nightly-20261112-a747a3e/Openfoot.Manager_0.3.0_x64.dmg",
+          "sha256": "d76747db845fb67a0b8867981521e8c07e86367339970360b1cd0fc858f823e0",
+          "platform": "macos",
+          "arch": "x64",
+          "kind": "installer",
+          "extension": ".dmg"
+        },
+        {
+          "id": 738545128,
+          "name": "Openfoot.Manager_0.3.0_x64_en-US.msi",
+          "label": "Openfoot Manager_0.3.0_x64_en-US.msi",
+          "size": 14049280,
+          "contentType": "application/zip",
+          "downloadUrl": "https://github.com/openfootmanager/openfootmanager/releases/download/nightly-20261112-a747a3e/Openfoot.Manager_0.3.0_x64_en-US.msi",
+          "sha256": "0a8d660a3300333fc96f6368c4d5161f9740c27ecb65280342a465f026724516",
+          "platform": "windows",
+          "arch": "x64",
+          "kind": "installer",
+          "extension": ".msi"
+        },
+        {
+          "id": 738545201,
+          "name": "Openfoot.Manager_0.3.0_x64-setup.exe",
+          "label": "Openfoot Manager_0.3.0_x64-setup.exe",
+          "size": 10581670,
+          "contentType": "application/zip",
+          "downloadUrl": "https://github.com/openfootmanager/openfootmanager/releases/download/nightly-20261112-a747a3e/Openfoot.Manager_0.3.0_x64-setup.exe",
+          "sha256": "61f0a10e08dfbfa0f69d2e71fc8561e08bc87dc01dda355687884258aef87419",
+          "platform": "windows",
+          "arch": "x64",
+          "kind": "installer",
+          "extension": ".exe"
+        }
+      ],
+      "previousTag": "nightly-20261112-9132489",
+      "compareUrl": "https://github.com/openfootmanager/openfootmanager/compare/nightly-20261112-9132489...nightly-20261112-a747a3e",
+      "checksumsUrl": "https://github.com/openfootmanager/openfootmanager/releases/download/nightly-20261112-a747a3e/nightly-checksums.txt",
+      "commitCount": 2,
+      "commits": [
+        {
+          "sha": "e3c5433f0",
+          "subject": "fix(tactics): only the latest library load turns Save on; Save says why it is off"
+        },
+        {
+          "sha": "6378d4fdf",
+          "subject": "fix(tactics): Save waits until the library's first load has settled"
+        }
+      ]
+    },
     {
       "schemaVersion": 1,
       "product": "Openfoot Manager",
@@ -7056,556 +7214,6 @@
         {
           "sha": "0b57b623",
           "subject": "fix(inbox): a response is sent once while its answer is on its way"
-        }
-      ]
-    },
-    {
-      "schemaVersion": 1,
-      "product": "Openfoot Manager",
-      "repository": "openfootmanager/openfootmanager",
-      "tag": "nightly-20261108-3bf9498",
-      "version": "0.3.0-nightly.20261108+3bf9498",
-      "commit": "3bf9498c1afda812d507d6ecde0a74683a48aa9e",
-      "prerelease": true,
-      "publishedAt": "2026-11-08T18:45:44Z",
-      "releaseName": "Openfoot Manager Nightly 0.3.0-nightly.20261108+3bf9498",
-      "releaseUrl": "https://github.com/openfootmanager/openfootmanager/releases/tag/nightly-20261108-3bf9498",
-      "assets": [
-        {
-          "id": 724843117,
-          "name": "Openfoot.Manager_0.3.0_aarch64.AppImage",
-          "label": "Openfoot Manager_0.3.0_aarch64.AppImage",
-          "size": 89360904,
-          "contentType": "application/zip",
-          "downloadUrl": "https://github.com/openfootmanager/openfootmanager/releases/download/nightly-20261108-3bf9498/Openfoot.Manager_0.3.0_aarch64.AppImage",
-          "sha256": "e606e59268321282823e8cb392f7b7326283340f2f806fb79f4df9c51fb223a8",
-          "platform": "linux",
-          "arch": "arm64",
-          "kind": "portable",
-          "extension": ".appimage"
-        },
-        {
-          "id": 724843042,
-          "name": "Openfoot.Manager_0.3.0_arm64.deb",
-          "label": "Openfoot Manager_0.3.0_arm64.deb",
-          "size": 13836436,
-          "contentType": "application/zip",
-          "downloadUrl": "https://github.com/openfootmanager/openfootmanager/releases/download/nightly-20261108-3bf9498/Openfoot.Manager_0.3.0_arm64.deb",
-          "sha256": "0b3534c1617a443ebe6af132f9f45cc76a56b173c1bd9c31f7c2b8201b446763",
-          "platform": "linux",
-          "arch": "arm64",
-          "kind": "package",
-          "extension": ".deb"
-        },
-        {
-          "id": 724843081,
-          "name": "Openfoot.Manager-0.3.0-1.aarch64.rpm",
-          "label": "Openfoot Manager-0.3.0-1.aarch64.rpm",
-          "size": 13837414,
-          "contentType": "application/zip",
-          "downloadUrl": "https://github.com/openfootmanager/openfootmanager/releases/download/nightly-20261108-3bf9498/Openfoot.Manager-0.3.0-1.aarch64.rpm",
-          "sha256": "56d65e1743108a74d273353bd898ff70decebafc16db26d904675af34216c495",
-          "platform": "linux",
-          "arch": "arm64",
-          "kind": "package",
-          "extension": ".rpm"
-        },
-        {
-          "id": 724841635,
-          "name": "Openfoot.Manager_0.3.0_amd64.AppImage",
-          "label": "Openfoot Manager_0.3.0_amd64.AppImage",
-          "size": 91884024,
-          "contentType": "application/zip",
-          "downloadUrl": "https://github.com/openfootmanager/openfootmanager/releases/download/nightly-20261108-3bf9498/Openfoot.Manager_0.3.0_amd64.AppImage",
-          "sha256": "1ced41cd871b3962f765a4dd900431aed2a2289a32d6be72195cbf5698388593",
-          "platform": "linux",
-          "arch": "x64",
-          "kind": "portable",
-          "extension": ".appimage"
-        },
-        {
-          "id": 724841543,
-          "name": "Openfoot.Manager_0.3.0_amd64.deb",
-          "label": "Openfoot Manager_0.3.0_amd64.deb",
-          "size": 14401456,
-          "contentType": "application/zip",
-          "downloadUrl": "https://github.com/openfootmanager/openfootmanager/releases/download/nightly-20261108-3bf9498/Openfoot.Manager_0.3.0_amd64.deb",
-          "sha256": "c6bb92993b3eb02a14fbec60a98db15697d18e091928c8e0162969858c740857",
-          "platform": "linux",
-          "arch": "x64",
-          "kind": "package",
-          "extension": ".deb"
-        },
-        {
-          "id": 724841595,
-          "name": "Openfoot.Manager-0.3.0-1.x86_64.rpm",
-          "label": "Openfoot Manager-0.3.0-1.x86_64.rpm",
-          "size": 14400388,
-          "contentType": "application/zip",
-          "downloadUrl": "https://github.com/openfootmanager/openfootmanager/releases/download/nightly-20261108-3bf9498/Openfoot.Manager-0.3.0-1.x86_64.rpm",
-          "sha256": "2864ef4a96490f70c9f500daa9bfa6c8bb1faee83d07600172accb424b53bb85",
-          "platform": "linux",
-          "arch": "x64",
-          "kind": "package",
-          "extension": ".rpm"
-        },
-        {
-          "id": 724858618,
-          "name": "Openfoot.Manager_0.3.0_aarch64.dmg",
-          "label": "Openfoot Manager_0.3.0_aarch64.dmg",
-          "size": 12669227,
-          "contentType": "application/zip",
-          "downloadUrl": "https://github.com/openfootmanager/openfootmanager/releases/download/nightly-20261108-3bf9498/Openfoot.Manager_0.3.0_aarch64.dmg",
-          "sha256": "0e673ceeedb88b209dadd8eeca69a5ef1654f6e0aec9131f39913d94cef827ba",
-          "platform": "macos",
-          "arch": "arm64",
-          "kind": "installer",
-          "extension": ".dmg"
-        },
-        {
-          "id": 724857798,
-          "name": "Openfoot.Manager_0.3.0_x64.dmg",
-          "label": "Openfoot Manager_0.3.0_x64.dmg",
-          "size": 13829034,
-          "contentType": "application/zip",
-          "downloadUrl": "https://github.com/openfootmanager/openfootmanager/releases/download/nightly-20261108-3bf9498/Openfoot.Manager_0.3.0_x64.dmg",
-          "sha256": "5108f887f301eb328c4e595ea19c83230cb528ef8f09e90f23c8a28ef9f59b8c",
-          "platform": "macos",
-          "arch": "x64",
-          "kind": "installer",
-          "extension": ".dmg"
-        },
-        {
-          "id": 724850438,
-          "name": "Openfoot.Manager_0.3.0_x64_en-US.msi",
-          "label": "Openfoot Manager_0.3.0_x64_en-US.msi",
-          "size": 13438976,
-          "contentType": "application/zip",
-          "downloadUrl": "https://github.com/openfootmanager/openfootmanager/releases/download/nightly-20261108-3bf9498/Openfoot.Manager_0.3.0_x64_en-US.msi",
-          "sha256": "79446e65905b3ef390c9814ed99ed60e076dc8289381de604b8fb726f7c279be",
-          "platform": "windows",
-          "arch": "x64",
-          "kind": "installer",
-          "extension": ".msi"
-        },
-        {
-          "id": 724850504,
-          "name": "Openfoot.Manager_0.3.0_x64-setup.exe",
-          "label": "Openfoot Manager_0.3.0_x64-setup.exe",
-          "size": 10214383,
-          "contentType": "application/zip",
-          "downloadUrl": "https://github.com/openfootmanager/openfootmanager/releases/download/nightly-20261108-3bf9498/Openfoot.Manager_0.3.0_x64-setup.exe",
-          "sha256": "09902cc96140f3c668c8094e8ed554def5a000b36c864a775cc8d850f7b42f22",
-          "platform": "windows",
-          "arch": "x64",
-          "kind": "installer",
-          "extension": ".exe"
-        }
-      ],
-      "previousTag": "nightly-20261104-46b03f2",
-      "compareUrl": "https://github.com/openfootmanager/openfootmanager/compare/nightly-20261104-46b03f2...nightly-20261108-3bf9498",
-      "checksumsUrl": "https://github.com/openfootmanager/openfootmanager/releases/download/nightly-20261108-3bf9498/nightly-checksums.txt",
-      "commitCount": 101,
-      "commits": [
-        {
-          "sha": "9b777def",
-          "subject": "fix(tactics): a custom-tactic save that is accepted clears an earlier alert; a refused write leaves the setup as it was"
-        },
-        {
-          "sha": "779dc66a",
-          "subject": "refactor(digest): needsAttention's priorities are typed against the generated MessagePriority"
-        },
-        {
-          "sha": "9d6d7b61",
-          "subject": "fix(tactics): every refused write has its alert test; a refused tactic save reports through the same alert"
-        },
-        {
-          "sha": "50809e9c",
-          "subject": "fix(i18n): the French crash message uses the file's apostrophe"
-        },
-        {
-          "sha": "b89f88f1",
-          "subject": "refactor(packages): one rule for a usable name pool"
-        },
-        {
-          "sha": "0895888d",
-          "subject": "fix(transfers): the talks-closed letter's card is the buying club; the offers filter uses LoanOffer::involves; the seller gets no letter (#1256 review)"
-        },
-        {
-          "sha": "32e5a444",
-          "subject": "fix(i18n): the key-shape check asks i18next for the namespaces instead of importing en.json"
-        },
-        {
-          "sha": "b4cbaaec",
-          "subject": "fix(time): translate simulation worker failures"
-        },
-        {
-          "sha": "f28835a5",
-          "subject": "test(time): cover simulation worker panic"
-        },
-        {
-          "sha": "3079637b",
-          "subject": "test(tactics): the TacticsTab suite's react-i18next mock carries the plugin the error banner's resolver registers"
-        },
-        {
-          "sha": "36f440f6",
-          "subject": "fix(i18n): the key-shape check reads en.json in dev and tests only, so a production bundle does not carry it"
-        },
-        {
-          "sha": "1f293085",
-          "subject": "test(mcp): the blocked-skip test asserts the blocker's severity and params"
-        },
-        {
-          "sha": "3b4cd411",
-          "subject": "fix(transfers): the user is told when another club's purchase ends their talks (#1256)"
-        },
-        {
-          "sha": "433ae227",
-          "subject": "test(i18n): the gate sees a missing key-shaped value behind exists() and behind a default that is a key; the deliberate drains assert their keys"
-        },
-        {
-          "sha": "2c5c6cad",
-          "subject": "fix(match): a hand-off to the waiting match is logged, never reported as a failed save"
-        },
-        {
-          "sha": "4857df0b",
-          "subject": "fix(digest): drop the import the helper made unused"
-        },
-        {
-          "sha": "070e016c",
-          "subject": "fix(editor): an asset id with a drive prefix is refused"
-        },
-        {
-          "sha": "44f11450",
-          "subject": "test(tactics): a later write that saves clears the alert"
-        },
-        {
-          "sha": "f5fdef3a",
-          "subject": "fix(tactics): a tactic write the backend refuses is shown, not only logged"
-        },
-        {
-          "sha": "6dec08b4",
-          "subject": "fix(ui): the dashboard alerts scroll themselves above a tab that fills the workspace"
-        },
-        {
-          "sha": "c2ba6c03",
-          "subject": "docs(saves): say what the job-offer cooldown column mirrors"
-        },
-        {
-          "sha": "2ac3ec90",
-          "subject": "fix(editor): a pick whose record the other editor deleted is dropped, not sent to its twin"
-        },
-        {
-          "sha": "517a0e58",
-          "subject": "fix(mcp): a skip whose 60th day is its match day arrived on it"
-        },
-        {
-          "sha": "b207895a",
-          "subject": "fix(saves): persist job offer cooldown"
-        },
-        {
-          "sha": "ff69ee77",
-          "subject": "test(db): reproduce job offer cooldown loss"
-        },
-        {
-          "sha": "40f244f8",
-          "subject": "test(i18n): a relegation notice names its division too; the JSDoc sits on resolveMessage again"
-        },
-        {
-          "sha": "6088301b",
-          "subject": "docs(mcp): match_finish simulates the rest of an unfinished match with the AI managing your side"
-        },
-        {
-          "sha": "3b9256e9",
-          "subject": "test(match): a saved role his slot refuses is left out even when his line admits it"
-        },
-        {
-          "sha": "180075fe",
-          "subject": "test(pages): the not-a-repository fixture is isolated from parent repositories and git's locale"
-        },
-        {
-          "sha": "ba7cbc03",
-          "subject": "test(tactics): no lineup change is saved before the backend's lineup has answered"
-        },
-        {
-          "sha": "0b4aeba9",
-          "subject": "docs(digest): needsAttention names its Rust source, #1273"
-        },
-        {
-          "sha": "2d75bb32",
-          "subject": "fix(time): Urgent mail stops a continue, as High mail does"
-        },
-        {
-          "sha": "ef22a2f2",
-          "subject": "fix(packages): a package directory started or inspected as a world gets the stack's world check"
-        },
-        {
-          "sha": "8978cfb9",
-          "subject": "test(sim): the club_strengths test is named for what it pins"
-        },
-        {
-          "sha": "5750960f",
-          "subject": "fix(editor): a pick whose row was rebuilt in its own session still finds its record by id"
-        },
-        {
-          "sha": "f3ab5cf9",
-          "subject": "fix(packages): a stack of patches alone has its club references checked too"
-        },
-        {
-          "sha": "e7443f9a",
-          "subject": "ci(pages): the untracked check prints git's own error when git cannot inspect the checkout"
-        },
-        {
-          "sha": "feb0ecb3",
-          "subject": "fix(ui): FormResultMark's mapping is typed, the dots test reads the mark, the style guide draws it"
-        },
-        {
-          "sha": "7b5fcf84",
-          "subject": "test(i18n): a default value that is the key itself does not exempt it"
-        },
-        {
-          "sha": "330dee13",
-          "subject": "test(i18n): the gate ignores a key asked with a default value; the resolver asks whether a param is a key before translating it"
-        },
-        {
-          "sha": "354a1347",
-          "subject": "test(i18n): a test that renders a key no locale has fails, naming the key"
-        },
-        {
-          "sha": "e984d24b",
-          "subject": "ci(pages): knip, and so preflight, generates the page fixture too, and concurrent generations do not share a partial file"
-        },
-        {
-          "sha": "bcdfd444",
-          "subject": "perf(sim): club_strengths rates a club named twice once, and costs nothing for no club"
-        },
-        {
-          "sha": "f87e947e",
-          "subject": "refactor(digest): one needsAttention(priority) for the digest and its pause"
-        },
-        {
-          "sha": "b1d503bd",
-          "subject": "refactor(ui): one FormResultMark draws a result for the form dots and the digest badge"
-        },
-        {
-          "sha": "c9159924",
-          "subject": "fix(i18n): a promotion or relegation notice names the division in the player's language"
-        },
-        {
-          "sha": "c0e506c7",
-          "subject": "fix(digest): an Urgent inbox message is listed in the digest and pauses the advance, as High does"
-        },
-        {
-          "sha": "2fd3ee4e",
-          "subject": "fix(ui): the digest's result badge shows the locale's form letter in role tokens"
-        },
-        {
-          "sha": "199d9720",
-          "subject": "docs(architecture): skip_to_match_day's row says what the command returns"
-        },
-        {
-          "sha": "15076519",
-          "subject": "fix(mcp): the agent's skip is read from what the skip reported, and every move refreshes the screens"
-        },
-        {
-          "sha": "7b47835e",
-          "subject": "perf(sim): club_strengths groups the players by club once"
-        },
-        {
-          "sha": "ff836bea",
-          "subject": "test(mcp): the skip's sacked and out-of-days outcomes are pinned, and the unreachable no-upcoming-match goes"
-        },
-        {
-          "sha": "52e014ab",
-          "subject": "test(season-harness): the gate tests tell an average from a per-world gate; doc nits (#869)"
-        },
-        {
-          "sha": "63f06919",
-          "subject": "refactor(tactics): the match-day selection carries the formation its eleven lines up in"
-        },
-        {
-          "sha": "3eb49f41",
-          "subject": "fix(sim): a club's strength is the side it would field, as kick-off picks it"
-        },
-        {
-          "sha": "93c66382",
-          "subject": "fix(sim): one team-strength rule, the saved XI in its slots first, for headlines and every scoreline"
-        },
-        {
-          "sha": "7461a2b9",
-          "subject": "test(mcp): the agent's skip stops on the day of a cup tie that comes before the league match"
-        },
-        {
-          "sha": "81333941",
-          "subject": "fix(editor): the open record and a pending asset pick are followed by identity only"
-        },
-        {
-          "sha": "54c70521",
-          "subject": "ci(pages): the untracked check fails when git cannot run, and the fixture is written atomically"
-        },
-        {
-          "sha": "7b09e7fc",
-          "subject": "test(news): the round-summary fixture keeps each player's rating with his attributes"
-        },
-        {
-          "sha": "cac1d8dc",
-          "subject": "ci(pages): the dev server and watch mode generate the page fixture too, and the example's test opt-in goes"
-        },
-        {
-          "sha": "34eefe12",
-          "subject": "fix(tactics): the lineup asks again when a player's positions change, and parity is pinned in every case"
-        },
-        {
-          "sha": "4d674c27",
-          "subject": "fix(editor): an asset file is filed under its entity's kind as well as its id"
-        },
-        {
-          "sha": "ca3fbd02",
-          "subject": "test(season-harness): the settled band judges the average of the seeds; season-10 A floor 5.3% (maintainer, 4 Nov) (#869)"
-        },
-        {
-          "sha": "b186a656",
-          "subject": "chore(dev): regenerate page harness fixture"
-        },
-        {
-          "sha": "935a4f3d",
-          "subject": "chore(types): generate the tactics lineup's wire types"
-        },
-        {
-          "sha": "af6a8a50",
-          "subject": "fix(mcp): an agent's skip to the match day stops where the screen's does"
-        },
-        {
-          "sha": "7cc57448",
-          "subject": "test(tactics): drive the dials as the listbox they are, and find the takers in the instructions panel"
-        },
-        {
-          "sha": "fc0ad24f",
-          "subject": "test(tactics): the preset tests open the with-the-ball section of the instructions panel"
-        },
-        {
-          "sha": "2e31afa1",
-          "subject": "refactor(tactics): give every phase's dial list one type"
-        },
-        {
-          "sha": "c1752273",
-          "subject": "fix(tactics): the lineup types derive what a player's role allows, and the token comes from the game"
-        },
-        {
-          "sha": "78e0a52b",
-          "subject": "fix(editor): the open record is found by the row it was, not by an id two rows may share"
-        },
-        {
-          "sha": "614b8d29",
-          "subject": "feat(tactics): on a narrow workbench the instructions open as a drawer"
-        },
-        {
-          "sha": "caf1b7e6",
-          "subject": "test(season-harness): S floors 0.7% at season 10 and 0.9% at season 15 (maintainer, 4 Nov) (#869)"
-        },
-        {
-          "sha": "345ca667",
-          "subject": "fix(news): an upset is judged on the eleven the scoreline is drawn from"
-        },
-        {
-          "sha": "9996e05b",
-          "subject": "feat(tactics): the Tactics tab fills the workspace, with the team instructions in a panel on the left"
-        },
-        {
-          "sha": "7b474f6f",
-          "subject": "feat(tactics): the Tactics screen shows the eleven the match will field, from the backend"
-        },
-        {
-          "sha": "036ff8ba",
-          "subject": "fix(packages): a patch's competitions may list its base database's clubs"
-        },
-        {
-          "sha": "82fb4f1f",
-          "subject": "fix(packages): a name pool missing its first names or surnames is warned about"
-        },
-        {
-          "sha": "00ebf845",
-          "subject": "fix(packages): a patch may sign players and staff for its base database's clubs"
-        },
-        {
-          "sha": "07fb862f",
-          "subject": "fix(editor): a player's edit is saved onto that player, not whoever took his row"
-        },
-        {
-          "sha": "99370917",
-          "subject": "fix(match): a role changed on the pre-match screen reaches the match"
-        },
-        {
-          "sha": "c354db21",
-          "subject": "test(match): a role changed on the pre-match screen reaches the match"
-        },
-        {
-          "sha": "95bb50b7",
-          "subject": "test(season-harness): season-10 floors re-based to S 0.8% / A 5.5%, and the settled-world band runs nightly (#869)"
-        },
-        {
-          "sha": "a4c07813",
-          "subject": "test(season-harness): the measurement also reads the tiers over club players only (#869)"
-        },
-        {
-          "sha": "1b628e31",
-          "subject": "chore(dev): regenerate page harness fixture"
-        },
-        {
-          "sha": "54430e3f",
-          "subject": "test(season-harness): one measurement test per shipped seed, and a measurement of what the opening free agents become (#869)"
-        },
-        {
-          "sha": "d9ef17da",
-          "subject": "test(season-harness): measure a generated world's concentration and tiers over seasons (#869)"
-        },
-        {
-          "sha": "09eb38dc",
-          "subject": "test(generator): drop a constant assertion clippy rejects (#869)"
-        },
-        {
-          "sha": "84297be1",
-          "subject": "fix(generator): unscaled is test-only; the opening wonderkid band admits 0.19% (#869)"
-        },
-        {
-          "sha": "3b5c75d8",
-          "subject": "chore(fixture): regenerate page harness fixture"
-        },
-        {
-          "sha": "eeccd07d",
-          "subject": "test(generator): the national top-up test follows the pool's shift (#869)"
-        },
-        {
-          "sha": "47f390f2",
-          "subject": "feat(generator): national pool at -2 with spread 0.5, club lift 1.2 (runs g1-22 to g1-24) (#869)"
-        },
-        {
-          "sha": "61b0c24c",
-          "subject": "refactor(generator): name the national pool's shift so it can be swept (#869)"
-        },
-        {
-          "sha": "d400ec34",
-          "subject": "feat(generator): national-team top-ups roll at the world's centre with a tight spread (#869)"
-        },
-        {
-          "sha": "6b656aa4",
-          "subject": "test(season-harness): pass the cached opening by reference (clippy needless_borrow) (#869)"
-        },
-        {
-          "sha": "2f66185c",
-          "subject": "test(season-harness): build each seed's opening world once for the concentration tests (#869)"
-        },
-        {
-          "sha": "366b5493",
-          "subject": "fix(player): re-rating a player at career open reconciles his wonderkid tag (#869)"
-        },
-        {
-          "sha": "015d3b03",
-          "subject": "feat(generator): the club standard score comes from the world's own reputations; final constants (#869)"
-        },
-        {
-          "sha": "22bdef78",
-          "subject": "feat(generator): a club's players are rolled around its reputation, the free-agent pool below it (#869)"
         }
       ]
     }
