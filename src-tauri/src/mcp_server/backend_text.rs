@@ -8,10 +8,11 @@
 //! `backendI18n.ts` is the reference. `src/utils/backendTextGolden.json` is the list of cases both
 //! resolvers are held to, so a change to one that the other does not follow fails CI. A news
 //! article's structured params (roundups, standings, scorers, press quotes, deals) are expanded
-//! into the lines of its body in [`news_params`]. What is deliberately not ported: a division's or
-//! competition's display name and country names. They stay as the params the backend sent, and the
-//! result says so in `details`.
+//! into the lines of its body in [`news_params`]; the names it works out first (a country's name,
+//! a division's or competition's display name, the club of a season award) are in [`names`]. What is
+//! deliberately not ported: another language's country names (see [`names`]).
 
+mod names;
 mod news_params;
 
 use std::collections::{BTreeMap, HashMap};
@@ -71,7 +72,8 @@ pub fn resolve_error(key: &str, params: &HashMap<String, String>) -> Option<Stri
 }
 
 pub fn resolve_message(message: &InboxMessage) -> ResolvedMessage {
-    let params = resolve_params(&message.i18n_params);
+    let named = names::division_change_params(message.subject_key.as_deref(), &message.i18n_params);
+    let params = resolve_params(&named);
     let details = structured_details(&message.i18n_params);
     ResolvedMessage {
         subject: resolve(message.subject_key.as_deref(), &message.subject, &params),
@@ -312,7 +314,10 @@ fn resolve_params(params: &Params) -> Params {
         let text = if is_translation_key(&value) {
             resolve(Some(value.as_str()), &value, &Params::new())
         } else {
-            date_param(&key, &money_param(&key, &value))
+            date_param(
+                &key,
+                &names::country_param(&key, &money_param(&key, &value)),
+            )
         };
         resolved.insert(key, text);
     }

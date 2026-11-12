@@ -25,8 +25,10 @@ import { resolveMessage, resolveNewsArticle } from "./backendI18n";
  *
  * A news article's structured params (roundups, standings, scorers, press quotes, deals) are
  * covered: the Rust resolver lays them out as the frontend does (`mcp_server/backend_text/news_params.rs`).
- * Not covered yet: a division's or competition's display name, and country names (#1388, C).
- * The Rust resolver leaves those unexpanded and says so in its output (`details`).
+ * So are the names worked out before the text: a country's name, a division's or competition's
+ * display name and the club a season award names (`mcp_server/backend_text/names.rs`, with the
+ * English country table `src/lib/countryNames.en.json`). Not covered: another language's country
+ * names, and an ISO alpha-3 code, which the screen reads and the table does not carry.
  */
 
 type GoldenMessage = {

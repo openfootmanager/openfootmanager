@@ -14,7 +14,7 @@
 use domain::news::NewsArticle;
 use serde_json::{Map, Number, Value};
 
-use super::{money_param, resolve, resolve_params, Params};
+use super::{money_param, names, resolve, resolve_params, Params};
 
 const PRESEASON_NO_RESULTS: &str = "be.news.preseasonDigest.bodyNoResults";
 const PRESEASON_WITH_RESULTS: &str = "be.news.preseasonDigest.bodyWithResults";
@@ -36,6 +36,8 @@ pub(super) fn expanded_params(article: &NewsArticle) -> Params {
     let headline_key = article.headline_key.as_deref().unwrap_or_default();
     let mut expanded = original.clone();
     for added in [
+        names::season_awards_teams(body_key, original),
+        names::report_competition(body_key, original),
         preseason_digest(body_key, original),
         roundup(body_key, original),
         standings(body_key, original),
