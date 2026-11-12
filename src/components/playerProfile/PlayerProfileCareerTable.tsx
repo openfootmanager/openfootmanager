@@ -1,19 +1,15 @@
 import { type ReactNode, useId, useState } from "react";
 
 import type { KnowledgeAnswer } from "../../hooks/useKnowledgeAnswer";
-import { formatExactMoney } from "../../lib/helpers";
-import { storedTeamLabel } from "../../lib/team";
 import type { CareerClubTotals } from "../../store/generated/CareerClubTotals";
 import type { CareerMoveLine } from "../../store/generated/CareerMoveLine";
 import type { CareerSeasonRow } from "../../store/generated/CareerSeasonRow";
 import type { CareerTotals } from "../../store/generated/CareerTotals";
 import type { PlayerCareer } from "../../store/generated/PlayerCareer";
-import type { PlayerMovementKind } from "../../store/generated/PlayerMovementKind";
 import { Badge, Card, CardBody, CardHeader, SegmentedControl } from "../ui";
-import { formatProfileDay } from "./PlayerProfile.helpers";
+import PlayerProfileCareerChart from "./PlayerProfileCareerChart";
+import { ClubName, moveSummary, seasonLabel, type TranslateFn } from "./careerParts";
 import ProfileLoadFailed from "./ProfileLoadFailed";
-
-type TranslateFn = (key: string, options?: Record<string, string | number>) => string;
 
 interface PlayerProfileCareerTableProps {
   career: KnowledgeAnswer<PlayerCareer | null>;
@@ -23,36 +19,11 @@ interface PlayerProfileCareerTableProps {
   t: TranslateFn;
 }
 
-type CareerView = "season" | "club";
+type CareerView = "season" | "club" | "chart";
 
 const SECTION = "playerProfile";
 
-/** A season as the game writes it: the year it starts and the two digits of the year it ends. */
-const seasonLabel = (season: number) => `${season}/${String(season + 1).slice(-2)}`;
-
-/**
- * What a move says, as the sentence its line starts with: who it was with, from the backend's
- * names. A kind the career has no line for (a renewal, a loan's return) never reaches here.
- */
-function moveText(line: CareerMoveLine, t: TranslateFn): string {
-  const unknown = t("common.unknown");
-  const from = line.from_club_name ?? unknown;
-  const to = line.to_club_name ?? unknown;
-  const kinds: Partial<Record<PlayerMovementKind, string>> = {
-    initial_contract: t(`${SECTION}.careerMove.initial`, { club: to }),
-    permanent_transfer: line.from_club_name
-      ? t(`${SECTION}.careerMove.transferFrom`, { club: from })
-      : t(`${SECTION}.careerMove.transferTo`, { club: to }),
-    loan_start: t(`${SECTION}.careerMove.loanTo`, { club: to }),
-    loan_to_buy: t(`${SECTION}.careerMove.boughtBy`, { club: to }),
-    free_agent_signing: t(`${SECTION}.careerMove.freeAgent`, { club: to }),
-    released: t(`${SECTION}.careerMove.releasedBy`, { club: from }),
-    retired: t(`${SECTION}.careerMove.retiredFrom`, { club: from }),
-  };
-  return kinds[line.movement] ?? "";
-}
-
-/** A move's line: the date, what happened, the fee and, for a loan, when it ends. */
+/** A move's line, spanning the table. */
 function MoveRow({
   line,
   language,
@@ -62,43 +33,12 @@ function MoveRow({
   language: string;
   t: TranslateFn;
 }) {
-  const parts = [formatProfileDay(line.date, language), moveText(line, t)];
-  if (line.loan_end) {
-    parts[1] = `${parts[1]} ${t(`${SECTION}.careerMove.loanUntil`, {
-      date: formatProfileDay(line.loan_end, language),
-    })}`;
-  }
-  if (line.fee) parts.push(formatExactMoney(line.fee));
   return (
     <tr className="bg-sunken">
       <td colSpan={5} className="px-3 py-2 text-caption text-fg-muted">
-        {parts.join(" · ")}
+        {moveSummary(line, language, t)}
       </td>
     </tr>
-  );
-}
-
-function ClubName({
-  id,
-  name,
-  onOpenTeam,
-  t,
-}: {
-  id: string;
-  name: string;
-  onOpenTeam?: (teamId: string) => void;
-  t: TranslateFn;
-}) {
-  const label = storedTeamLabel(name, t);
-  if (!onOpenTeam || !id) return <span className="font-semibold text-fg">{label}</span>;
-  return (
-    <button
-      type="button"
-      onClick={() => onOpenTeam(id)}
-      className="rounded font-semibold text-positive underline underline-offset-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 focus-visible:ring-offset-panel"
-    >
-      {label}
-    </button>
   );
 }
 
@@ -214,19 +154,34 @@ export default function PlayerProfileCareerTable({
   }
 
   const bySeason = view === "season";
+  const viewSwitch = (
+    <SegmentedControl
+      labelledBy={titleId}
+      options={[
+        { value: "season", label: t(`${SECTION}.careerBySeason`) },
+        { value: "club", label: t(`${SECTION}.careerByClub`) },
+        { value: "chart", label: t(`${SECTION}.careerViewChart`) },
+      ]}
+      value={view}
+      onChange={setView}
+    />
+  );
+  if (view === "chart") {
+    return (
+      <Card>
+        {header(viewSwitch)}
+        <PlayerProfileCareerChart
+          career={value}
+          language={language}
+          onOpenTeam={onOpenTeam}
+          t={t}
+        />
+      </Card>
+    );
+  }
   return (
     <Card>
-      {header(
-        <SegmentedControl
-          labelledBy={titleId}
-          options={[
-            { value: "season", label: t(`${SECTION}.careerBySeason`) },
-            { value: "club", label: t(`${SECTION}.careerByClub`) },
-          ]}
-          value={view}
-          onChange={setView}
-        />,
-      )}
+      {header(viewSwitch)}
       <CardBody className="px-0 pb-0">
         <div className="overflow-x-auto">
           <table aria-label={t(`${SECTION}.careerHistory`)} className="w-full text-body">
