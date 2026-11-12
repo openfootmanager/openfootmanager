@@ -2,6 +2,7 @@ import { invoke } from "@tauri-apps/api/core";
 
 import type { GameStateData } from "../store/gameStore";
 import type { TacticContents } from "../store/generated/TacticContents";
+import type { TacticDifferences } from "../store/generated/TacticDifferences";
 import { invokeForCareer } from "./careerInvoke";
 
 /** A tactic the player saved, as the save keeps it (camelCase on the wire). */
@@ -20,6 +21,14 @@ export interface CustomTactic {
 export async function listCustomTactics(): Promise<CustomTactic[]> {
   const tactics = await invoke<unknown>("list_custom_tactics");
   return Array.isArray(tactics) ? (tactics as CustomTactic[]) : [];
+}
+
+/**
+ * Which parts of the manager's tactic as it stands differ from the saved tactic `id`. The rule is the
+ * backend's (the tactic is the team's); the Tactics screen's unsaved badge reads it.
+ */
+export async function getCustomTacticDifferences(id: string): Promise<TacticDifferences> {
+  return invoke<TacticDifferences>("get_custom_tactic_differences", { id });
 }
 
 /**

@@ -280,6 +280,7 @@ pub fn run() {
             terminate_contract_now,
             set_formation,
             list_custom_tactics,
+            get_custom_tactic_differences,
             save_custom_tactic,
             save_current_tactic,
             apply_custom_tactic,

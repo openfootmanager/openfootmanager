@@ -252,6 +252,7 @@ All frontend↔backend communication goes through Tauri's `invoke()` mechanism. 
 | `set_play_style` | play_style | `Game` | Change play style |
 | `apply_tactic_preset` | formation, play_style | `Game` | Pick a tactic preset: formation + play style, and reset the phase blueprint to that style's default |
 | `list_custom_tactics` | - | `CustomTactic[]` | The tactics the player saved (career-scoped, in the save) |
+| `get_custom_tactic_differences` | id | `TacticDifferences` | Which parts of the manager's tactic (formation, style, instructions, eleven, roles, takers) differ from the saved tactic; the unsaved badge reads it |
 | `save_custom_tactic` | tactic, careerToken | `CustomTactic[]` | Add a saved tactic, or replace the one with the same id; returns the library |
 | `save_current_tactic` | tactic, careerToken | `CustomTactic[]` | Save the team's tactic as it stands, whole (#1189: formation, style, every instruction, the eleven slot by slot with their roles, the set-piece takers), under the draft's id and name; returns the library |
 | `apply_custom_tactic` | id, careerToken | `Game` | Put a saved tactic on the team: its formation and style, and for a tactic that holds them its instructions, eleven, roles and takers. A player who has left gives his slot and his armband back to the team's current choice |

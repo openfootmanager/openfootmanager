@@ -1,13 +1,20 @@
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
-import { StrictMode, useState } from "react";
+import { StrictMode } from "react";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { invoke } from "@tauri-apps/api/core";
 import { i18nReady } from "../../i18n";
-import type { GameStateData, PlayerData, TeamData } from "../../store/gameStore";
-import TacticsTab from "./TacticsTab";
 import { resetTacticsLineupCache } from "../../hooks/useTacticsLineupProjection";
-import type { CustomTactic } from "../../services/customTacticsService";
-import { createSeasonContext } from "../../test-utils/factories";
+import {
+  commandsCalled,
+  ControlledTacticsTab,
+  fakeBackend,
+  knobs,
+  mockedInvoke,
+  openActionsMenu,
+  openPhaseBlueprint,
+  resetHarness,
+  seedSavedTactics,
+} from "./TacticsTab.harness";
+import type { PlayerData } from "../../store/gameStore";
 
 /**
  * #365 — picking a tactic preset asks the backend for the whole preset
@@ -18,14 +25,9 @@ import { createSeasonContext } from "../../test-utils/factories";
  * game the (faked) backend returns.
  */
 
-// The players the backend's familiarity grades, and whether it has arrived (every player built here).
-const familiarityState = vi.hoisted(() => ({
-  arrived: true,
-  players: new Map<string, unknown>(),
-}));
-
 vi.mock("../../hooks/useFamiliarity", async () => {
   const { cannedFamiliarityModule } = await import("../../test-utils/familiarity");
+  const { familiarityState } = await import("../../test-utils/tacticsFamiliarityState");
   return cannedFamiliarityModule(
     (playerId) => familiarityState.players.get(playerId) as PlayerData | undefined,
     () => familiarityState.arrived,
@@ -38,240 +40,9 @@ vi.mock("../../hooks/usePositionGroups", async () => {
 });
 
 vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
-const mockedInvoke = vi.mocked(invoke);
 
-const buildPlayer = (id: string, position: string): PlayerData => ({
-  id,
-  match_name: id.toUpperCase(),
-  full_name: `Player ${id}`,
-  date_of_birth: "1998-01-01",
-  nationality: "GB",
-  position,
-  natural_position: position,
-  alternate_positions: [],
-  training_focus: null,
-  attributes: {
-    pace: 60,
-    stamina: 60,
-    strength: 60,
-    agility: 60,
-    passing: 60,
-    shooting: 60,
-    tackling: 60,
-    dribbling: 60,
-    defending: 60,
-    positioning: 60,
-    vision: 60,
-    decisions: 60,
-    composure: 60,
-    aggression: 60,
-    teamwork: 60,
-    leadership: 60,
-    handling: 60,
-    reflexes: 60,
-    aerial: 60,
-  },
-  condition: 100,
-  morale: 80,
-  injury: null,
-  team_id: "team1",
-  retired: false,
-  contract_end: "2027-06-30",
-  wage: 1000,
-  market_value: 100000,
-  stats: {
-    appearances: 0,
-    goals: 0,
-    assists: 0,
-    clean_sheets: 0,
-    yellow_cards: 0,
-    red_cards: 0,
-    avg_rating: 0,
-    minutes_played: 0,
-  },
-  career: [],
-  transfer_listed: false,
-  loan_listed: false,
-  transfer_offers: [],
-  traits: [],
-});
-
-const makePlayer = (...args: Parameters<typeof buildPlayer>): PlayerData => {
-  const player = buildPlayer(...args);
-  // The backend would grade him; the stand-in finds him here.
-  familiarityState.players.set(player.id, player);
-  return player;
-};
-
-const makeTeam = (): TeamData => ({
-  id: "team1",
-  name: "Test FC",
-  short_name: "TFC",
-  country: "England",
-  city: "Test City",
-  stadium_name: "Test Ground",
-  stadium_capacity: 20000,
-  finance: 1000000,
-  manager_id: "mgr1",
-  reputation: 50,
-  wage_budget: 100000,
-  transfer_budget: 500000,
-  season_income: 0,
-  season_expenses: 0,
-  formation: "4-4-2",
-  play_style: "Balanced",
-  training_focus: "General",
-  training_intensity: "Balanced",
-  training_schedule: "Balanced",
-  founded_year: 1900,
-  colors: { primary: "#00ff00", secondary: "#ffffff" },
-  starting_xi_ids: ["gk1", "d1", "d2", "d3", "d4", "m1", "m2", "m3", "m4", "f1", "f2"],
-  form: [],
-  history: [],
-});
-
-const makeGame = (): GameStateData => ({
-  season_context: createSeasonContext(),
-  clock: { current_date: "2026-08-01", start_date: "2026-08-01" },
-  manager: {
-    display_name: "Test Manager",
-    id: "mgr1",
-    first_name: "Test",
-    last_name: "Manager",
-    date_of_birth: "1980-01-01",
-    nationality: "GB",
-    reputation: 50,
-    satisfaction: 50,
-    fan_approval: 50,
-    team_id: "team1",
-    career_stats: {
-      matches_managed: 0,
-      wins: 0,
-      draws: 0,
-      losses: 0,
-      trophies: 0,
-      best_finish: null,
-    },
-    career_history: [],
-  },
-  teams: [makeTeam()],
-  players: [
-    makePlayer("gk1", "Goalkeeper"),
-    ...["d1", "d2", "d3", "d4"].map((id) => makePlayer(id, "Defender")),
-    ...["m1", "m2", "m3", "m4"].map((id) => makePlayer(id, "Midfielder")),
-    ...["f1", "f2"].map((id) => makePlayer(id, "Forward")),
-  ],
-  staff: [],
-  messages: [],
-  news: [],
-  league: null,
-  scouting_assignments: [],
-  board_objectives: [],
-});
-
-/** The faked backend: applies commands to its own copy and returns it. */
-let backend: GameStateData;
-/** The backend's verdict on whether the phase dials still equal the style's blueprint. */
-let blueprintModified = false;
 /** The measuring stand-in `narrowLineupRegion` installs, to put back. */
 let rectSpy: { mockRestore: () => void } | null = null;
-/** Commands the faked backend refuses with the career-changed error. */
-let refused = new Set<string>();
-/** The tactics the faked save holds, in the order made. */
-let savedTactics: CustomTactic[] = [];
-/** When set, the faked save answers `list_custom_tactics` only once this resolves. */
-let libraryListGate: Promise<void> | null = null;
-/** When set, each `list_custom_tactics` waits for its own release, pushed here in the order asked. */
-let libraryListReleases: Array<() => void> | null = null;
-/** Whether the next `list_custom_tactics` (after its gate) fails once. */
-let libraryListFailsOnce = false;
-
-/** Puts tactics in the faked save, as if the player had made them earlier. */
-function seedSavedTactics(
-  entries: Array<{
-    id: string;
-    name: string;
-    description: string;
-    formation: string;
-    playStyle: string;
-  }>,
-) {
-  savedTactics = entries.map((entry) => ({ ...entry, sourcePresetName: null }));
-}
-
-function fakeBackend(failPreset = false) {
-  mockedInvoke.mockImplementation(async (command: string, args?: unknown) => {
-    const params = (args ?? {}) as Record<string, string>;
-    if (refused.has(command)) throw "be.error.careerChanged";
-    if (command === "get_squad") return backend.players;
-    if (command === "auto_select_set_pieces") {
-      return { captain: "m1", penalty_taker: "f1", free_kick_taker: "m1", corner_taker: "d1" };
-    }
-    if (command === "list_custom_tactics") {
-      if (libraryListGate) await libraryListGate;
-      const releases = libraryListReleases;
-      if (releases) await new Promise<void>((release) => releases.push(release));
-      if (libraryListFailsOnce) {
-        libraryListFailsOnce = false;
-        throw new Error("the save did not answer");
-      }
-      return structuredClone(savedTactics);
-    }
-    if (command === "save_custom_tactic" || command === "save_current_tactic") {
-      const tactic = (args as { tactic: CustomTactic }).tactic;
-      const at = savedTactics.findIndex((saved) => saved.id === tactic.id);
-      if (at === -1) savedTactics.push(tactic);
-      else savedTactics[at] = tactic;
-      return structuredClone(savedTactics);
-    }
-    const team = backend.teams[0];
-    if (command === "get_tactics_blueprint_status") return { modified: blueprintModified };
-    if (command === "set_tactics_phase") {
-      team.tactics_phase = {
-        ...(team.tactics_phase as object),
-        width: params.width,
-      } as TeamData["tactics_phase"];
-      blueprintModified = true;
-    }
-    if (command === "apply_tactic_preset") {
-      if (failPreset) throw new Error("boom");
-      team.formation = params.formation;
-      team.play_style = params.playStyle;
-      // The real command puts the dials back to the style's blueprint.
-      team.tactics_phase = {} as TeamData["tactics_phase"];
-      blueprintModified = false;
-    }
-    if (command === "set_formation") team.formation = params.formation;
-    if (command === "set_play_style") team.play_style = params.playStyle;
-    // As the real command: the saved tactic's formation and style, and nothing else for one saved
-    // before tactics held their contents (these seeds hold none), so the dials stay the manager's.
-    if (command === "apply_custom_tactic") {
-      const saved = savedTactics.find((tactic) => tactic.id === params.id);
-      if (!saved) throw new Error("be.error.customTactic.notFound");
-      team.formation = saved.formation;
-      team.play_style = saved.playStyle;
-    }
-    return structuredClone(backend);
-  });
-}
-
-function ControlledTacticsTab() {
-  const [game, setGame] = useState(() => structuredClone(backend));
-  return <TacticsTab gameState={game} onSelectPlayer={vi.fn()} onGameUpdate={setGame} />;
-}
-
-/** The with-the-ball dials sit in a section of the instructions panel; open it when it is closed. */
-function openPhaseBlueprint() {
-  const toggle = screen.getByRole("button", { name: /With Ball/i });
-  if (toggle.getAttribute("aria-expanded") !== "true") fireEvent.click(toggle);
-}
-
-/** Opens the tactic bar's one actions menu (New, Duplicate, Reset to defaults, Delete). */
-function openActionsMenu() {
-  fireEvent.click(screen.getByRole("button", { name: "Tactic actions" }));
-}
-
-const commandsCalled = () => mockedInvoke.mock.calls.map(([command]) => command);
 
 // Every case mounts the whole TacticsTab with the real i18n and then drives several controls; that
 // takes 2-5 s on a CI runner under load, and vitest's default 5 s cut-off turned the slowest cases
@@ -295,13 +66,7 @@ describe("TacticsTab preset selection", { timeout: TACTICS_TAB_CASE_TIMEOUT_MS }
     localStorage.clear();
     resetTacticsLineupCache();
     mockedInvoke.mockReset();
-    blueprintModified = false;
-    savedTactics = [];
-    libraryListGate = null;
-    libraryListReleases = null;
-    libraryListFailsOnce = false;
-    refused = new Set();
-    backend = makeGame();
+    resetHarness();
   });
 
   /**
@@ -417,7 +182,7 @@ describe("TacticsTab preset selection", { timeout: TACTICS_TAB_CASE_TIMEOUT_MS }
    */
   it("keeps Save disabled until the library's first load has answered", async () => {
     let answerLoad!: () => void;
-    libraryListGate = new Promise<void>((resolve) => {
+    knobs.libraryListGate = new Promise<void>((resolve) => {
       answerLoad = resolve;
     });
     fakeBackend();
@@ -443,8 +208,8 @@ describe("TacticsTab preset selection", { timeout: TACTICS_TAB_CASE_TIMEOUT_MS }
    * Then Save stays disabled, and turns on only when the second has answered too.
    */
   it("keeps Save disabled until the latest of two overlapping library loads has answered", async () => {
-    libraryListReleases = [];
-    const releases = libraryListReleases;
+    knobs.libraryListReleases = [];
+    const releases = knobs.libraryListReleases;
     fakeBackend();
     render(
       <StrictMode>
@@ -472,10 +237,10 @@ describe("TacticsTab preset selection", { timeout: TACTICS_TAB_CASE_TIMEOUT_MS }
    */
   it("turns Save on when the library's first load fails, and a save then lands", async () => {
     let answerLoad!: () => void;
-    libraryListGate = new Promise<void>((resolve) => {
+    knobs.libraryListGate = new Promise<void>((resolve) => {
       answerLoad = resolve;
     });
-    libraryListFailsOnce = true;
+    knobs.libraryListFailsOnce = true;
     fakeBackend();
     render(<ControlledTacticsTab />);
     fireEvent.click(screen.getByRole("button", { name: "Choose tactic" }));
@@ -591,7 +356,7 @@ describe("TacticsTab preset selection", { timeout: TACTICS_TAB_CASE_TIMEOUT_MS }
         playStyle: "HighPress",
       },
     ]);
-    refused = new Set([command]);
+    knobs.refused = new Set([command]);
     fakeBackend();
     render(<ControlledTacticsTab />);
 
@@ -612,14 +377,14 @@ describe("TacticsTab preset selection", { timeout: TACTICS_TAB_CASE_TIMEOUT_MS }
    * Then the alert is gone and the screen shows what the backend holds.
    */
   it("clears the alert once a later write saves", async () => {
-    refused = new Set(["apply_tactic_preset"]);
+    knobs.refused = new Set(["apply_tactic_preset"]);
     fakeBackend();
     render(<ControlledTacticsTab />);
     fireEvent.click(screen.getByRole("button", { name: "Choose tactic" }));
     fireEvent.click(screen.getByRole("option", { name: /High Press/ }));
     await screen.findByRole("alert");
 
-    refused.clear();
+    knobs.refused.clear();
     fireEvent.click(screen.getByRole("button", { name: "Choose tactic" }));
     fireEvent.click(screen.getByRole("option", { name: /High Press/ }));
 
@@ -633,7 +398,7 @@ describe("TacticsTab preset selection", { timeout: TACTICS_TAB_CASE_TIMEOUT_MS }
    * Then the alert is gone: a write that saved, from the tactic library too, clears it.
    */
   it("clears the alert once a custom tactic save is accepted", async () => {
-    refused = new Set(["apply_tactic_preset"]);
+    knobs.refused = new Set(["apply_tactic_preset"]);
     fakeBackend();
     render(<ControlledTacticsTab />);
     fireEvent.click(screen.getByRole("button", { name: "Choose tactic" }));
@@ -785,11 +550,12 @@ describe("TacticsTab preset selection", { timeout: TACTICS_TAB_CASE_TIMEOUT_MS }
    * When they look at Reset
    * Then it is disabled, as the badge says Synced.
    */
-  it("disables Reset on an untouched preset", () => {
+  it("disables Reset on an untouched preset", async () => {
     fakeBackend();
     render(<ControlledTacticsTab />);
 
-    expect(screen.getByText("Synced")).toBeInTheDocument();
+    // The badge says Synced once the library has loaded (until then it says so is loading).
+    expect(await screen.findByText("Synced")).toBeInTheDocument();
     openActionsMenu();
     expect(screen.getByRole("menuitem", { name: "Reset to defaults" })).toBeDisabled();
   });
@@ -885,7 +651,7 @@ describe("TacticsTab preset selection", { timeout: TACTICS_TAB_CASE_TIMEOUT_MS }
   it("shows the unsaved-changes badge once a phase dial is tuned", async () => {
     fakeBackend();
     render(<ControlledTacticsTab />);
-    expect(screen.getByText("Synced")).toBeInTheDocument();
+    expect(await screen.findByText("Synced")).toBeInTheDocument();
 
     openPhaseBlueprint();
     const widthRow = screen.getByText("Width").parentElement as HTMLElement;

@@ -24,6 +24,7 @@ import {
   toLibraryEntries,
 } from "./TacticsCustomTactics.helpers";
 import type { TacticsLibraryEntry } from "./TacticPicker";
+import { useActiveSavedTacticDiffers } from "./useSavedTacticDiffers";
 
 interface UseTacticsLibraryArgs {
   gameState: GameStateData | null;
@@ -244,17 +245,21 @@ export function useTacticsLibrary({
     translatedPresetLibrary.find((entry) => entry.id === `preset:${matchedPreset?.id}`) ??
     currentSetupFallbackTactic;
   const isActiveCustomTactic = activeTactic?.type === "custom";
+
+  // A saved tactic holds the whole tactic (#1189): whether the team still equals it is the backend's
+  // rule, asked by `useActiveSavedTacticDiffers`. False for a preset or an unsaved setup.
+  const savedTacticDiffers = useActiveSavedTacticDiffers(activeTactic, customTactics, userTeam);
+
   const isActiveTacticDirty = Boolean(
     activeTactic &&
       (formation !== activeTactic.formation ||
         activePlayStyle !== activeTactic.playStyle ||
         (isActiveCustomTactic &&
           draftTacticName.trim().length > 0 &&
-          draftTacticName.trim() !== activeTactic.name)),
+          draftTacticName.trim() !== activeTactic.name) ||
+        savedTacticDiffers),
   );
-  // A saved tactic now holds its dials, eleven, roles and takers too (#1189), but this badge still
-  // compares a custom tactic by formation, style and name only; the tactic bar slice makes it read
-  // the whole tactic. A preset is also its blueprint, so tuned dials make it differ from the preset.
+  // A preset is also its blueprint, so tuned dials make it differ from the preset.
   const isCommandBarDirty = isActiveCustomTactic
     ? isActiveTacticDirty
     : isActiveTacticDirty || isPresetDirty || blueprintModified;
