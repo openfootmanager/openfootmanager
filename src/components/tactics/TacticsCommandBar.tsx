@@ -64,7 +64,7 @@ export default function TacticsCommandBar({
 }: TacticsCommandBarProps): JSX.Element {
   const { t } = useTranslation();
   const [pickerOpen, setPickerOpen] = useState(false);
-  const loadingId = useId();
+  const statusId = useId();
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const actionsMenuRef = useRef<ContextMenuHandle | null>(null);
   const [actionsOpen, setActionsOpen] = useState(false);
@@ -182,9 +182,19 @@ export default function TacticsCommandBar({
         </ContextMenu>
 
         <div className="ml-auto flex items-center gap-2">
-          <Badge variant={isDirty ? "accent" : "neutral"} size="sm">
-            {isDirty ? t("tactics.unsavedChanges") : t("tactics.synced")}
-          </Badge>
+          {/* Always on the page, so a change of what it says is announced. While the library loads it
+              says why Save is off. */}
+          <span id={statusId} aria-live="polite" className="inline-flex">
+            {libraryLoaded ? (
+              <Badge variant={isDirty ? "accent" : "neutral"} size="sm">
+                {isDirty ? t("tactics.unsavedChanges") : t("tactics.synced")}
+              </Badge>
+            ) : (
+              <Badge variant="neutral" size="sm">
+                {t("tactics.loadingTactics")}
+              </Badge>
+            )}
+          </span>
           <Button
             type="button"
             variant="accent"
@@ -192,18 +202,12 @@ export default function TacticsCommandBar({
             icon={showSavedCue && !isDirty ? <Check /> : <Save />}
             onClick={handleSaveClick}
             disabled={isSaveDisabled}
-            aria-describedby={libraryLoaded ? undefined : loadingId}
+            aria-describedby={libraryLoaded ? undefined : statusId}
             className="min-w-[9.5rem]"
           >
             {showSavedCue && !isDirty ? t("tactics.tacticSaved") : saveLabel}
           </Button>
           {/* The button's own text changing is not announced; this is. */}
-          {/* Why Save is off while the library loads; Save's description points here. */}
-          {libraryLoaded ? null : (
-            <span id={loadingId} className="sr-only">
-              {t("tactics.loadingTactics")}
-            </span>
-          )}
           <span aria-live="polite" className="sr-only">
             {showSavedCue && !isDirty ? t("tactics.tacticSaved") : ""}
           </span>

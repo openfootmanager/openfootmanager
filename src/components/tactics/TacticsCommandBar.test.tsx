@@ -409,11 +409,17 @@ describe("TacticsCommandBar", () => {
 
   /**
    * Given Save off while the library's first load is pending
-   * When a screen reader reads Save
-   * Then its description says the tactics are loading, and says nothing once they have.
+   * When the bar is read
+   * Then the status where the sync badge sits says the tactics are loading (visible, in a polite
+   *      status region that was there before it changed), Save is described by it, and the sync
+   *      badge is not shown; once loaded the status says Synced and Save has no such description.
    */
-  it("says why Save is off while the library loads", () => {
+  it("says why Save is off, in the status where the sync badge sits, while the library loads", () => {
     const { rerender } = renderCommandBar({ activeTactic: presetTactic, libraryLoaded: false });
+    const status = screen.getByText("tactics.loadingTactics").closest("[aria-live]") as HTMLElement;
+    expect(status).toHaveAttribute("aria-live", "polite");
+    expect(status).toHaveTextContent("tactics.loadingTactics");
+    expect(status).not.toHaveTextContent("tactics.synced");
     expect(
       screen.getByRole("button", { name: "tactics.saveAsTactic" }),
     ).toHaveAccessibleDescription("tactics.loadingTactics");
@@ -422,6 +428,7 @@ describe("TacticsCommandBar", () => {
       <TacticsCommandBar {...buildProps({ activeTactic: presetTactic, libraryLoaded: true })} />,
     );
 
+    expect(status).toHaveTextContent("tactics.synced");
     expect(
       screen.getByRole("button", { name: "tactics.saveAsTactic" }),
     ).not.toHaveAccessibleDescription();
