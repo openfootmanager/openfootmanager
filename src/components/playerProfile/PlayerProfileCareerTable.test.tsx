@@ -289,6 +289,85 @@ describe("PlayerProfileCareerTable by season", () => {
   });
 });
 
+describe("PlayerProfileCareerTable move lines", () => {
+  const move = (patch: Partial<Extract<CareerLine, { kind: "move" }>>): CareerLine => ({
+    kind: "move",
+    key: `m-${patch.movement}`,
+    date: "2027-01-10",
+    movement: "permanent_transfer",
+    from_club_name: null,
+    to_club_name: null,
+    fee: null,
+    loan_end: null,
+    ...patch,
+  });
+  const careerWith = (...lines: CareerLine[]): PlayerCareer => ({
+    by_season: lines,
+    by_club: [],
+    totals: { appearances: 0, goals: 0, assists: 0 },
+  });
+
+  /**
+   * Given a purchase after a loan, a free signing, a release and a retirement, each naming a club
+   *       the way the backend's line does (the club he went to, or the one he left)
+   * When the table is drawn
+   * Then each line says its own kind with the right club: bought by the borrower, signed with the
+   *      new club, released by and retired from the club he left
+   */
+  it.each([
+    [
+      "loan_to_buy",
+      { to_club_name: "Buyer FC", from_club_name: "Parent FC" },
+      "boughtBy",
+      "Buyer FC",
+    ],
+    ["free_agent_signing", { to_club_name: "Signer FC" }, "freeAgent", "Signer FC"],
+    ["released", { from_club_name: "Old FC" }, "releasedBy", "Old FC"],
+    ["retired", { from_club_name: "Last FC" }, "retiredFrom", "Last FC"],
+  ] as const)("writes a %s line with its own kind and club", (movement, clubs, key, club) => {
+    renderTable(answered(careerWith(move({ movement, ...clubs }))));
+
+    const line = screen.getByRole("row", { name: new RegExp(`careerMove\\.${key}`) });
+    expect(line).toHaveTextContent(`careerMove.${key} {"club":"${club}"}`);
+    expect(within(line).getAllByRole("cell")).toHaveLength(1);
+  });
+
+  /**
+   * Given a transfer with no origin club, and a purchase naming no club at all
+   * When the table is drawn
+   * Then the transfer says where he went, and a line with no club name says the club is unknown
+   */
+  it("falls back to the club he went to, then to unknown", () => {
+    renderTable(
+      answered(
+        careerWith(
+          move({ movement: "permanent_transfer", to_club_name: "New FC" }),
+          move({ key: "m-unknown", movement: "released" }),
+        ),
+      ),
+    );
+
+    expect(screen.getByRole("row", { name: /careerMove\.transferTo/ })).toHaveTextContent(
+      'transferTo {"club":"New FC"}',
+    );
+    expect(screen.getByRole("row", { name: /careerMove\.releasedBy/ })).toHaveTextContent(
+      'releasedBy {"club":"common.unknown"}',
+    );
+  });
+
+  /**
+   * Given a table wider than a narrow card
+   * When the table is drawn
+   * Then it scrolls inside the card (its wrapper scrolls sideways) rather than spilling out of it
+   */
+  it("scrolls inside the card at narrow widths", () => {
+    renderTable(answered(BOARD));
+
+    const table = screen.getByRole("table", { name: "playerProfile.careerHistory" });
+    expect(table.parentElement?.className).toContain("overflow-x-auto");
+  });
+});
+
 describe("PlayerProfileCareerTable by club", () => {
   /**
    * Given the backend's career
