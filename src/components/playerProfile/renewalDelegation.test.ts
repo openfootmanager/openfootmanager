@@ -56,18 +56,20 @@ describe("delegatedNegotiationPatch", () => {
   });
 
   /**
-   * Given a failed case, and one whose status the screen does not know, neither with a note key
-   * When each is turned into a change of the talks
-   * Then both close the talks as blocked and carry the plain note
+   * Given a case reported as failed, and one whose status the screen does not know, neither with a
+   *      note key
+   * When it is turned into a change of the talks
+   * Then the talks close as blocked and carry the plain note
    */
-  it("closes a failed or unrecognised case as blocked with the plain note", () => {
-    for (const status of ["failed", "something-new"]) {
+  it.each(["failed", "something-new"])(
+    "closes a case reported as %s as blocked with the plain note",
+    (status) => {
       expect(delegatedNegotiationPatch(reported(status))).toMatchObject({
         status: "blocked",
         sessionStatus: "blocked",
         isTerminal: true,
         error: "The assistant's note",
       });
-    }
-  });
+    },
+  );
 });

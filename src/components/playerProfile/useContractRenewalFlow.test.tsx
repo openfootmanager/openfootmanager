@@ -199,6 +199,97 @@ describe("useContractRenewalFlow: opening", () => {
     expect(result.current.renewalStatusMessage).toBe("playerProfile.renewalBlocked");
   });
 
+  async function submitOffer(result: { current: ReturnType<typeof useContractRenewalFlow> }) {
+    await act(async () => {
+      await result.current.handleRenewalSubmit();
+    });
+  }
+
+  /**
+   * Given talks the player accepted (over, said as accepted, on a 15,000 offer for 3 years)
+   * When the modal is closed and opened again
+   * Then the offer is back to his wage for two years, nothing is said, and the talks are not over
+   */
+  it("starts afresh when reopened after an accepted offer", async () => {
+    invoke.mockResolvedValue(response());
+    const { result } = setup();
+    open(result);
+    act(() => {
+      result.current.setRenewalWage("15000");
+      result.current.setRenewalLength("3");
+    });
+    await submitOffer(result);
+    expect(result.current.renewalIsTerminal).toBe(true);
+    act(() => result.current.closeRenewalModal());
+
+    open(result);
+
+    expect(result.current.renewalWage).toBe("12000");
+    expect(result.current.renewalLength).toBe("2");
+    expect(result.current.renewalStatusMessage).toBeNull();
+    expect(result.current.renewalIsTerminal).toBe(false);
+    expect(result.current.renewalSubmitDisabled).toBe(false);
+  });
+
+  /**
+   * Given talks in which the player countered with 18,000 for 4 years (the offer filled with them)
+   * When the modal is closed and opened again
+   * Then the offer is back to his wage for two years and the counter is no longer said
+   */
+  it("starts afresh when reopened after a counter-offer", async () => {
+    invoke.mockResolvedValue(
+      response({
+        outcome: "counter_offer",
+        suggested_wage: 18_000,
+        suggested_years: 4,
+        session_status: "open",
+        is_terminal: false,
+      }),
+    );
+    const { result } = setup();
+    open(result);
+    await submitOffer(result);
+    expect(result.current.renewalWage).toBe("18000");
+    expect(result.current.renewalStatusMessage).toContain("playerProfile.renewalCounter");
+    act(() => result.current.closeRenewalModal());
+
+    open(result);
+
+    expect(result.current.renewalWage).toBe("12000");
+    expect(result.current.renewalLength).toBe("2");
+    expect(result.current.renewalStatusMessage).toBeNull();
+  });
+
+  /**
+   * Given talks that carry a cooled-off notice and negotiation feedback
+   * When the modal is closed and opened again
+   * Then neither is held any more
+   */
+  it("starts afresh when reopened after a cooled-off notice and feedback", async () => {
+    const feedback = { summary: "Close" } as unknown as RenewalResponseData["feedback"];
+    invoke.mockResolvedValue(
+      response({
+        outcome: "rejected",
+        session_status: "open",
+        is_terminal: false,
+        cooled_off: true,
+        feedback,
+      }),
+    );
+    const { result } = setup();
+    open(result);
+    await submitOffer(result);
+    expect(result.current.renewalCooledOff).toBe(true);
+    expect(result.current.renewalFeedback).toBe(feedback);
+    act(() => result.current.closeRenewalModal());
+
+    open(result);
+
+    expect(result.current.renewalCooledOff).toBe(false);
+    expect(result.current.renewalFeedback).toBeNull();
+    expect(result.current.renewalStatusMessage).toBeNull();
+  });
+
   /**
    * Given an open modal
    * When it is closed
@@ -255,6 +346,28 @@ describe("useContractRenewalFlow: the financial projection", () => {
 
     expect(result.current.isRenewalWageValid).toBe(false);
     expect(result.current.renewalProjection).toBeNull();
+  });
+
+  /**
+   * Given a projection the policy refuses (over the wage budget) for 12,000, held
+   * When the wage is changed to 20,000 and that request fails
+   * Then the earlier projection is dropped: none is held, and the soft cap no longer restricts
+   *      submitting (the catch clears what an answer for another wage left)
+   */
+  it("drops the earlier projection when the request for the next wage fails", async () => {
+    projectionFor.mockImplementation((_id, wage) =>
+      wage === 12_000 ? Promise.resolve(projection(false)) : Promise.reject(new Error("offline")),
+    );
+    const { result } = setup();
+    open(result);
+    await waitFor(() => expect(result.current.renewalViolatesSoftCap).toBe(true));
+
+    act(() => result.current.setRenewalWage("20000"));
+
+    await waitFor(() => expect(result.current.renewalProjection).toBeNull());
+    expect(projectionFor).toHaveBeenCalledWith("p1", 20_000);
+    expect(result.current.renewalViolatesSoftCap).toBe(false);
+    expect(result.current.renewalSubmitDisabled).toBe(false);
   });
 
   /**
@@ -605,12 +718,13 @@ describe("useContractRenewalFlow: handing the talks to the assistant", () => {
   });
 
   /**
-   * Given a failed case, and a case with a status the screen does not know
-   * When the talks are delegated for each
-   * Then both close the talks, said as blocked
+   * Given a case the assistant reports as failed, and a case with a status the screen does not know
+   * When the talks are delegated
+   * Then the talks close, said as blocked, for each
    */
-  it("closes the talks after a failed or unrecognised delegation", async () => {
-    for (const status of ["failed", "something-new"]) {
+  it.each(["failed", "something-new"])(
+    "closes the talks after a delegation reported as %s",
+    async (status) => {
       invoke.mockResolvedValue(delegated(status) as never);
       const { result } = setup();
       open(result);
@@ -619,8 +733,8 @@ describe("useContractRenewalFlow: handing the talks to the assistant", () => {
 
       expect(result.current.renewalIsTerminal).toBe(true);
       expect(result.current.renewalStatusMessage).toBe("playerProfile.renewalBlocked");
-    }
-  });
+    },
+  );
 
   /**
    * Given a report that has no case for this player
