@@ -3200,6 +3200,7 @@ mod tests {
                 ofm_core::state::Career::Active,
                 "4-4-2",
                 "Balanced",
+                false,
             )
             .expect("the preset is applied");
         });
@@ -3400,6 +3401,7 @@ mod tests {
                     ofm_core::state::Career::Active,
                     "3-5-2",
                     "Defensive",
+                    false,
                 )
                 .expect("the preset is applied");
             },

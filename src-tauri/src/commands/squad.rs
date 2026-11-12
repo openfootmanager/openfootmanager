@@ -78,19 +78,11 @@ pub fn set_formation_internal(
 /// Distinct from `set_play_style_internal` on purpose: tweaking the style alone
 /// must not wipe dials a manager tuned by hand, but choosing a whole preset is
 /// a request for that preset's setup (#365).
+///
+/// With `keep_instructions` (the manager answered "Keep mine", or nothing of theirs would be
+/// replaced) the formation and play style are written in the same one mutation and the manager's own
+/// team instructions are left as they are. Nothing is written if the formation is refused.
 pub fn apply_tactic_preset_internal(
-    state: &StateManager,
-    career: Career,
-    formation: &str,
-    play_style: &str,
-) -> Result<Game, String> {
-    apply_preset_internal(state, career, formation, play_style, false)
-}
-
-/// A preset's formation and play style, in one write, with the manager's own team instructions left
-/// as they are when `keep_instructions` (the manager answered "Keep mine"); otherwise the whole
-/// preset, as [`apply_tactic_preset_internal`]. Nothing is written if the formation is refused.
-pub fn apply_preset_internal(
     state: &StateManager,
     career: Career,
     formation: &str,
@@ -124,7 +116,7 @@ pub fn apply_tactic_preset(
     career_token: u64,
 ) -> Result<Game, String> {
     info!("[cmd] apply_tactic_preset: {} / {}", formation, play_style);
-    apply_preset_internal(
+    apply_tactic_preset_internal(
         &state,
         Career::Token(career_token),
         &formation,
@@ -910,9 +902,9 @@ pub(crate) fn set_tactics_phase_internal(
 mod tests {
     use super::TacticsBlueprintStatus;
     use super::{
-        apply_preset_internal, apply_tactic_preset_internal, get_rating_tiers,
-        get_squad_fitness_internal, get_tactics_blueprint_status_internal, set_formation_internal,
-        set_play_style_internal, set_player_role_internal, set_player_squad_role_internal,
+        apply_tactic_preset_internal, get_rating_tiers, get_squad_fitness_internal,
+        get_tactics_blueprint_status_internal, set_formation_internal, set_play_style_internal,
+        set_player_role_internal, set_player_squad_role_internal,
         set_player_training_focus_internal, set_starting_xi_internal,
     };
     use chrono::{TimeZone, Utc};
@@ -1198,7 +1190,7 @@ mod tests {
     fn apply_tactic_preset_resets_the_blueprint_to_the_presets_style() {
         let state = state_with_custom_dials();
 
-        apply_tactic_preset_internal(&state, Career::Active, "3-4-3", "Defensive")
+        apply_tactic_preset_internal(&state, Career::Active, "3-4-3", "Defensive", false)
             .expect("preset applies");
 
         let team = stored_team(&state);
@@ -1226,7 +1218,7 @@ mod tests {
     #[test]
     fn a_style_blueprint_left_alone_is_not_modified() {
         let state = state_with_custom_dials();
-        apply_tactic_preset_internal(&state, Career::Active, "4-4-2", "Defensive")
+        apply_tactic_preset_internal(&state, Career::Active, "4-4-2", "Defensive", false)
             .expect("preset applies");
 
         assert_eq!(
@@ -1241,7 +1233,7 @@ mod tests {
     #[test]
     fn changing_the_style_alone_leaves_the_old_blueprint_modified() {
         let state = state_with_custom_dials();
-        apply_tactic_preset_internal(&state, Career::Active, "4-4-2", "Balanced")
+        apply_tactic_preset_internal(&state, Career::Active, "4-4-2", "Balanced", false)
             .expect("preset applies");
         set_play_style_internal(&state, Career::Active, "Attacking").expect("style applies");
 
@@ -1258,7 +1250,7 @@ mod tests {
     fn a_preset_applied_keeping_instructions_takes_only_the_formation_and_style() {
         let state = state_with_custom_dials();
 
-        apply_preset_internal(&state, Career::Active, "3-4-3", "Defensive", true)
+        apply_tactic_preset_internal(&state, Career::Active, "3-4-3", "Defensive", true)
             .expect("preset applies");
 
         let team = stored_team(&state);
@@ -1277,7 +1269,7 @@ mod tests {
         let before = stored_team(&state);
 
         assert_eq!(
-            apply_preset_internal(&state, Career::Active, "9-9-9", "Defensive", true).err(),
+            apply_tactic_preset_internal(&state, Career::Active, "9-9-9", "Defensive", true).err(),
             Some(ofm_core::custom_tactics::INVALID_FORMATION_ERROR.to_string())
         );
 
@@ -1293,7 +1285,7 @@ mod tests {
     #[test]
     fn the_blueprint_status_can_be_asked_about_the_style_a_preset_would_apply() {
         let state = state_with_custom_dials();
-        apply_tactic_preset_internal(&state, Career::Active, "4-4-2", "Defensive")
+        apply_tactic_preset_internal(&state, Career::Active, "4-4-2", "Defensive", false)
             .expect("preset applies");
 
         assert_eq!(
@@ -1352,7 +1344,7 @@ mod tests {
     fn re_picking_the_active_preset_restores_its_blueprint() {
         let state = state_with_custom_dials();
 
-        apply_tactic_preset_internal(&state, Career::Active, "4-4-2", "Balanced")
+        apply_tactic_preset_internal(&state, Career::Active, "4-4-2", "Balanced", false)
             .expect("preset applies");
 
         assert_eq!(
@@ -1369,7 +1361,8 @@ mod tests {
         let state = StateManager::new();
         state.set_game(make_game_with_dangling_team_id(make_player("1998-01-01")));
 
-        let result = apply_tactic_preset_internal(&state, Career::Active, "3-4-3", "Attacking");
+        let result =
+            apply_tactic_preset_internal(&state, Career::Active, "3-4-3", "Attacking", false);
 
         assert_eq!(result.err(), Some("be.error.teamNotFound".into()));
         let team = stored_team(&state);
@@ -1388,7 +1381,7 @@ mod tests {
         state.set_game(game);
 
         assert_eq!(
-            apply_tactic_preset_internal(&state, Career::Active, "3-4-3", "Attacking").err(),
+            apply_tactic_preset_internal(&state, Career::Active, "3-4-3", "Attacking", false).err(),
             Some("be.error.noTeamAssigned".into())
         );
     }
