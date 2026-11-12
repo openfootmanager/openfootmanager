@@ -181,6 +181,25 @@ describe("useContractRenewalFlow: opening", () => {
   });
 
   /**
+   * Given a block that ends today (the clock reads 1 August with a time of day)
+   * When the modal is opened
+   * Then it is still blocked: the block holds through the day it names
+   */
+  it("keeps the talks blocked through the day the block ends", () => {
+    const player = aPlayer({
+      morale_core: {
+        renewal_state: { status: "Blocked", manager_blocked_until: "2026-08-01" },
+      },
+    } as unknown as Partial<PlayerData>);
+    const { result } = setup({ player });
+
+    open(result);
+
+    expect(result.current.renewalIsTerminal).toBe(true);
+    expect(result.current.renewalStatusMessage).toBe("playerProfile.renewalBlocked");
+  });
+
+  /**
    * Given an open modal
    * When it is closed
    * Then it is shut; and while an offer is in flight, closing does nothing
