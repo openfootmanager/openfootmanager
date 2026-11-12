@@ -170,10 +170,11 @@ describe("useTacticsLibrary renaming a saved tactic", () => {
 
     rerender({ game: otherCareer });
     act(() => useGameStore.getState().setGameActive(true));
-    await waitFor(() => expect(customIds(result)).toEqual(["mine"]));
+    // The new career's load queues behind the write still out: the reply has to come first.
     await act(async () => renameReply.resolve([saved("a", "Away")]));
 
-    expect(customIds(result)).toEqual(["mine"]);
+    await waitFor(() => expect(customIds(result)).toEqual(["mine"]));
+    expect(result.current.tacticLibrary.some((entry) => entry.name === "Away")).toBe(false);
     expect(onWriteSaved).not.toHaveBeenCalled();
   });
 
@@ -204,18 +205,22 @@ describe("useTacticsLibrary renaming a saved tactic", () => {
   });
 
   /**
-   * Given a saved tactic being applied (Reset), its answer still out
+   * Given a saved tactic that is the active one, and Reset (applying it again) with its answer still out
    * When the tactic is renamed and the rename lands, and then the apply answers
    * Then the draft takes the new name from the library, not the one the apply started with: the
    *      tactic is not marked as changed (Update would undo the rename).
    */
-  it("keeps a rename that lands while the tactic is being applied", async () => {
-    const applyReply = deferred<unknown>();
+  it("keeps a rename that lands while the active tactic is being reset", async () => {
+    const resetReply = deferred<unknown>();
+    let applies = 0;
     let renamed = false;
     mockedInvoke.mockReset();
     mockedInvoke.mockImplementation(async (command: string) => {
       if (command === "list_custom_tactics") return [saved("a", renamed ? "Away" : "A")];
-      if (command === "apply_custom_tactic") return applyReply.promise;
+      if (command === "apply_custom_tactic") {
+        applies += 1;
+        return applies === 1 ? {} : resetReply.promise;
+      }
       if (command === "rename_custom_tactic") {
         renamed = true;
         return [saved("a", "Away")];
@@ -226,20 +231,21 @@ describe("useTacticsLibrary renaming a saved tactic", () => {
     await waitFor(() => expect(customIds(result)).toEqual(["a"]));
     const original = result.current.tacticLibrary.find((entry) => entry.id === "a");
     if (!original) throw new Error("the saved tactic is in the library");
+    await act(async () => {
+      await result.current.applyTacticSelection(original);
+    });
+    await waitFor(() => expect(result.current.activeTactic.id).toBe("a"));
 
     act(() => {
       void result.current.applyTacticSelection(original);
     });
-    await waitFor(() =>
-      expect(mockedInvoke).toHaveBeenCalledWith("apply_custom_tactic", expect.anything()),
-    );
+    await waitFor(() => expect(applies).toBe(2));
     await act(async () => {
       await result.current.handleRenameTactic("a", "Away");
     });
-    await act(async () => applyReply.resolve({}));
+    await act(async () => resetReply.resolve({}));
 
-    await waitFor(() => expect(result.current.activeTactic.id).toBe("a"));
-    expect(result.current.activeTactic.name).toBe("Away");
+    await waitFor(() => expect(result.current.activeTactic.name).toBe("Away"));
     expect(result.current.isCommandBarDirty).toBe(false);
   });
 });
