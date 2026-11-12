@@ -373,7 +373,7 @@ describe("TacticsTab preset selection", { timeout: TACTICS_TAB_CASE_TIMEOUT_MS }
       "a play style",
       "set_play_style",
       async () => {
-        fireEvent.click(screen.getByRole("combobox", { name: "Play Style" }));
+        fireEvent.click(screen.getByRole("combobox", { name: "Play style" }));
         fireEvent.click(screen.getByRole("option", { name: "Counter" }));
       },
     ],
@@ -533,7 +533,7 @@ describe("TacticsTab preset selection", { timeout: TACTICS_TAB_CASE_TIMEOUT_MS }
           "Saved custom",
         ),
       );
-      fireEvent.click(screen.getByRole("combobox", { name: "Play Style" }));
+      fireEvent.click(screen.getByRole("combobox", { name: "Play style" }));
       fireEvent.click(screen.getByRole("option", { name: /Balanced/ }));
       fireEvent.click(screen.getByRole("combobox", { name: "Formation" }));
       fireEvent.click(screen.getByRole("option", { name: "4-4-2" }));
@@ -555,7 +555,7 @@ describe("TacticsTab preset selection", { timeout: TACTICS_TAB_CASE_TIMEOUT_MS }
     fakeBackend();
     render(<ControlledTacticsTab />);
 
-    fireEvent.click(screen.getByRole("combobox", { name: "Play Style" }));
+    fireEvent.click(screen.getByRole("combobox", { name: "Play style" }));
     fireEvent.click(screen.getByRole("option", { name: /Defensive/ }));
 
     await waitFor(() => {
