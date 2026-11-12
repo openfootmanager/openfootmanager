@@ -111,11 +111,14 @@ pub fn apply_tactic_preset(
     apply_tactic_preset_internal(&state, Career::Token(career_token), &formation, &play_style)
 }
 
-/// Whether the manager's phase dials differ from the blueprint their play style implies.
+/// Whether the manager's phase dials differ from a play style's blueprint: their own style's, or,
+/// asked about a style, the one a preset of that style would put in their place.
 ///
 /// The Tactics screen's unsaved-changes badge compares formation and style on its own; this is the
 /// part only the backend can answer, because `blueprint_for` is the rule that defines a style's
-/// dials and the frontend holds no copy of it.
+/// dials and the frontend holds no copy of it. The screen asks it about a preset's style before
+/// applying the preset: if the dials already equal that blueprint nothing of the manager's would be
+/// replaced and it applies without asking.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct TacticsBlueprintStatus {
     pub modified: bool,
@@ -123,7 +126,16 @@ pub struct TacticsBlueprintStatus {
 
 pub fn get_tactics_blueprint_status_internal(
     state: &StateManager,
+    play_style: Option<&str>,
 ) -> Result<TacticsBlueprintStatus, String> {
+    let asked_style = play_style
+        .map(|style| {
+            serde_json::from_value::<domain::team::PlayStyle>(serde_json::Value::String(
+                style.to_string(),
+            ))
+            .map_err(|_| ofm_core::custom_tactics::INVALID_PLAY_STYLE_ERROR.to_string())
+        })
+        .transpose()?;
     state
         .get_game(|game| {
             let team_id = user_team_id(game)?;
@@ -132,9 +144,9 @@ pub fn get_tactics_blueprint_status_internal(
                 .iter()
                 .find(|team| team.id == team_id)
                 .ok_or_else(|| "be.error.managedTeamNotFound".to_string())?;
+            let style = asked_style.as_ref().unwrap_or(&team.play_style);
             Ok(TacticsBlueprintStatus {
-                modified: team.tactics_phase
-                    != ofm_core::ai_tactics::blueprint_for(&team.play_style),
+                modified: team.tactics_phase != ofm_core::ai_tactics::blueprint_for(style),
             })
         })
         .ok_or_else(|| "be.error.noActiveGameSession".to_string())?
@@ -143,8 +155,9 @@ pub fn get_tactics_blueprint_status_internal(
 #[tauri::command]
 pub fn get_tactics_blueprint_status(
     state: State<'_, Arc<StateManager>>,
+    play_style: Option<String>,
 ) -> Result<TacticsBlueprintStatus, String> {
-    get_tactics_blueprint_status_internal(&state)
+    get_tactics_blueprint_status_internal(&state, play_style.as_deref())
 }
 
 pub fn set_starting_xi_internal(
@@ -1180,7 +1193,7 @@ mod tests {
         let state = state_with_custom_dials();
 
         assert_eq!(
-            get_tactics_blueprint_status_internal(&state),
+            get_tactics_blueprint_status_internal(&state, None),
             Ok(TacticsBlueprintStatus { modified: true })
         );
     }
@@ -1195,7 +1208,7 @@ mod tests {
             .expect("preset applies");
 
         assert_eq!(
-            get_tactics_blueprint_status_internal(&state),
+            get_tactics_blueprint_status_internal(&state, None),
             Ok(TacticsBlueprintStatus { modified: false })
         );
     }
@@ -1211,8 +1224,40 @@ mod tests {
         set_play_style_internal(&state, Career::Active, "Attacking").expect("style applies");
 
         assert_eq!(
-            get_tactics_blueprint_status_internal(&state),
+            get_tactics_blueprint_status_internal(&state, None),
             Ok(TacticsBlueprintStatus { modified: true })
+        );
+    }
+
+    /// Given dials that are exactly the Defensive blueprint
+    /// When the blueprint status is asked about the Defensive style, and about the Attacking one
+    /// Then Defensive reports nothing would be replaced, and Attacking that the dials would be.
+    #[test]
+    fn the_blueprint_status_can_be_asked_about_the_style_a_preset_would_apply() {
+        let state = state_with_custom_dials();
+        apply_tactic_preset_internal(&state, Career::Active, "4-4-2", "Defensive")
+            .expect("preset applies");
+
+        assert_eq!(
+            get_tactics_blueprint_status_internal(&state, Some("Defensive")),
+            Ok(TacticsBlueprintStatus { modified: false })
+        );
+        assert_eq!(
+            get_tactics_blueprint_status_internal(&state, Some("Attacking")),
+            Ok(TacticsBlueprintStatus { modified: true })
+        );
+    }
+
+    /// Given a style name the game does not have
+    /// When the blueprint status is asked about it
+    /// Then it is refused with the invalid-play-style key.
+    #[test]
+    fn the_blueprint_status_refuses_a_style_the_game_does_not_have() {
+        let state = state_with_custom_dials();
+
+        assert_eq!(
+            get_tactics_blueprint_status_internal(&state, Some("Sideways")),
+            Err(ofm_core::custom_tactics::INVALID_PLAY_STYLE_ERROR.to_string())
         );
     }
 
@@ -1222,7 +1267,7 @@ mod tests {
     #[test]
     fn the_blueprint_status_needs_a_session() {
         assert_eq!(
-            get_tactics_blueprint_status_internal(&StateManager::new()),
+            get_tactics_blueprint_status_internal(&StateManager::new(), None),
             Err("be.error.noActiveGameSession".to_string())
         );
     }
