@@ -366,4 +366,88 @@ describe("useGameStore", () => {
       expect(useGameStore.getState().isDirty).toBe(false);
     });
   });
+
+  // A refetch that was slow (a `game-state-changed` the Dashboard asked for) can resolve after a
+  // newer game was already shown: the newest snapshot wins, whichever order they arrive in (#1394).
+  describe("snapshot order", () => {
+    const heldAt = (revision: number, career_token = 3) =>
+      makeGameState({ career_token, revision, news: [] });
+
+    /**
+     * Given the game at revision 6 is shown
+     * When the older snapshot (revision 5) of the same career resolves after it
+     * Then the screen keeps revision 6, and the dropped snapshot does not mark the game dirty.
+     */
+    it("keeps the newer game when an older snapshot arrives after it", () => {
+      const { setGameState, markClean } = useGameStore.getState();
+      setGameState(heldAt(6));
+      markClean();
+
+      setGameState(heldAt(5));
+
+      expect(useGameStore.getState().gameState?.revision).toBe(6);
+      expect(useGameStore.getState().isDirty).toBe(false);
+    });
+
+    /**
+     * Given two refetches started in order A (revision 5) then B (revision 6)
+     * When B resolves first and A last
+     * Then the game shown is B's.
+     */
+    it("shows the second of two refetches that resolve in reverse order", () => {
+      const { setGameState } = useGameStore.getState();
+
+      setGameState(heldAt(6));
+      setGameState(heldAt(5));
+
+      expect(useGameStore.getState().gameState?.revision).toBe(6);
+    });
+
+    /**
+     * Given revision 5 is shown
+     * When a newer snapshot, and then the same revision again, arrive
+     * Then both are applied (the same revision is the same content).
+     */
+    it("applies a newer snapshot and an equal one", () => {
+      const { setGameState } = useGameStore.getState();
+      setGameState(heldAt(5));
+
+      setGameState(heldAt(7));
+      expect(useGameStore.getState().gameState?.revision).toBe(7);
+      setGameState(heldAt(7));
+      expect(useGameStore.getState().gameState?.revision).toBe(7);
+    });
+
+    /**
+     * Given career 3 is shown at a high revision
+     * When a game of a later career (token 4, revision 0) is installed, then a late snapshot of
+     *      career 3 resolves
+     * Then the later career is shown and stays.
+     */
+    it("shows a later career at revision 0 and refuses a late snapshot of the earlier one", () => {
+      const { setGameState } = useGameStore.getState();
+      setGameState(heldAt(40, 3));
+
+      setGameState(heldAt(0, 4));
+      setGameState(heldAt(41, 3));
+
+      expect(useGameStore.getState().gameState?.career_token).toBe(4);
+      expect(useGameStore.getState().gameState?.revision).toBe(0);
+    });
+
+    /**
+     * Given the game was cleared (the player left it)
+     * When any snapshot arrives
+     * Then it is applied: nothing is held to be older than.
+     */
+    it("applies a snapshot after the game was cleared", () => {
+      const { setGameState, clearGame } = useGameStore.getState();
+      setGameState(heldAt(40, 3));
+      clearGame();
+
+      setGameState(heldAt(1, 3));
+
+      expect(useGameStore.getState().gameState?.revision).toBe(1);
+    });
+  });
 });
