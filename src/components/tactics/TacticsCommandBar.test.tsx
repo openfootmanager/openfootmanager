@@ -413,8 +413,29 @@ describe("TacticsCommandBar", () => {
       fireEvent.change(field, { target: { value: "  Away  " } });
       fireEvent.submit(field.closest("form") as HTMLFormElement);
 
-      await waitFor(() => expect(props.onRename).toHaveBeenCalledWith("Away"));
+      await waitFor(() => expect(props.onRename).toHaveBeenCalledWith("custom:1", "Away"));
       await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    });
+
+    /**
+     * Given the rename dialog open for one saved tactic
+     * When another saved tactic becomes the active one while it is open (applying it finished), and the
+     *      name is then submitted
+     * Then the tactic the dialog was opened for is renamed, not the one that is active now.
+     */
+    it("renames the tactic the dialog was opened for even if another becomes active", async () => {
+      const other = { ...customTactic, id: "custom:2", name: "Other" };
+      const props = buildProps({ tacticLibrary: [customTactic, other, presetTactic] });
+      const { rerender } = render(<TacticsCommandBar {...props} />);
+      openRename();
+      rerender(<TacticsCommandBar {...props} activeTactic={other} />);
+      const field = screen.getByRole("textbox", { name: "tactics.renameTacticLabel" });
+      expect(field).toHaveValue("My Tactic");
+
+      fireEvent.change(field, { target: { value: "Away" } });
+      fireEvent.submit(field.closest("form") as HTMLFormElement);
+
+      await waitFor(() => expect(props.onRename).toHaveBeenCalledWith("custom:1", "Away"));
     });
 
     /**

@@ -396,18 +396,18 @@ export function useTacticsLibrary({
     changeSave(() => deleteCustomTactic(id.trim(), careerToken));
   }
 
-  // Renames the active saved tactic. Unlike a delete the screen waits for the save's answer: it
-  // resolves null once the save accepted the name, or the reason it refused (an empty name, one too
-  // long), in the player's language, for the dialog that asked to show. It queues behind every other
+  // Renames the saved tactic `id` (the one the dialog was opened for, which may no longer be the
+  // active one). Unlike a delete the screen waits for the save's answer: it resolves null once the
+  // save accepted the name, or the reason it refused (an empty name, one too long, a tactic that is
+  // gone), in the player's language, for the dialog that asked to show. It queues behind every other
   // step, and does nothing for a career that is no longer the open one.
-  function handleRenameTactic(name: string): Promise<string | null> {
+  function handleRenameTactic(id: string, name: string): Promise<string | null> {
     const askedIn = useGameStore.getState().careerEpoch;
     const stale = () => useGameStore.getState().careerEpoch !== askedIn;
-    const id = activeTactic.id.trim();
     const answered = savesInOrder.current.then(async (): Promise<string | null> => {
-      if (stale() || !canRenameTactic) return null;
+      if (stale()) return null;
       try {
-        const saved = await renameCustomTactic(id, name, careerToken);
+        const saved = await renameCustomTactic(id.trim(), name, careerToken);
         if (!stale()) {
           setCustomTactics(confirmLibrary(saved, askedIn));
           onWriteSaved();

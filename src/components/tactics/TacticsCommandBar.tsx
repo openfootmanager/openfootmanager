@@ -27,8 +27,8 @@ interface TacticsCommandBarProps {
   canDelete: boolean;
   /** Whether the active tactic is a saved custom one, the only kind that can be renamed. */
   canRename: boolean;
-  /** Renames it: resolves null once the save accepted the name, or why it did not. */
-  onRename: (name: string) => Promise<string | null>;
+  /** Renames the saved tactic `id`: resolves null once the save accepted the name, or why it did not. */
+  onRename: (id: string, name: string) => Promise<string | null>;
   onCreateNew: () => void;
   onDelete: () => void;
   onDuplicate: () => void;
@@ -73,7 +73,8 @@ export default function TacticsCommandBar({
   const [pickerOpen, setPickerOpen] = useState(false);
   const statusId = useId();
   const [confirmingDelete, setConfirmingDelete] = useState(false);
-  const [renaming, setRenaming] = useState(false);
+  // The tactic the dialog was opened for: the active one can change while it is open.
+  const [renaming, setRenaming] = useState<{ id: string; name: string } | null>(null);
   const actionsMenuRef = useRef<ContextMenuHandle | null>(null);
   const [actionsOpen, setActionsOpen] = useState(false);
 
@@ -103,7 +104,7 @@ export default function TacticsCommandBar({
     {
       label: t("tactics.renameTactic"),
       icon: <Pencil className="h-4 w-4" />,
-      onClick: () => setRenaming(true),
+      onClick: () => setRenaming({ id: activeTactic.id, name: activeTactic.name }),
       disabled: !canRename,
     },
     {
@@ -229,9 +230,9 @@ export default function TacticsCommandBar({
       </div>
       {renaming ? (
         <TacticsRenameDialog
-          name={activeTactic.name}
-          onRename={onRename}
-          onClose={() => setRenaming(false)}
+          name={renaming.name}
+          onRename={(name) => onRename(renaming.id, name)}
+          onClose={() => setRenaming(null)}
         />
       ) : null}
       {confirmingDelete ? (
