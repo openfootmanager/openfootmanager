@@ -245,6 +245,13 @@ export function fakeBackend(failPreset = false) {
       }
       return structuredClone(savedTactics);
     }
+    if (command === "rename_custom_tactic") {
+      const saved = savedTactics.find((tactic) => tactic.id === params.id);
+      if (!saved) throw "be.error.customTactic.notFound";
+      if (!params.name.trim()) throw "be.error.customTactic.nameRequired";
+      saved.name = params.name;
+      return structuredClone(savedTactics);
+    }
     if (command === "save_custom_tactic" || command === "save_current_tactic") {
       const tactic = (args as { tactic: CustomTactic }).tactic;
       const at = savedTactics.findIndex((saved) => saved.id === tactic.id);

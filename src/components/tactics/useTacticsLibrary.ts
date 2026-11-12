@@ -8,11 +8,13 @@ import {
   deleteCustomTactic,
   legacyTacticsImportPending,
   listCustomTactics,
+  renameCustomTactic,
   markLegacyTacticsImported,
   saveCurrentTactic,
   saveCustomTactic,
 } from "../../services/customTacticsService";
 import { getTacticsBlueprintStatus } from "../../services/squadService";
+import { resolveTranslatedErrorMessage } from "../../utils/errorMessage";
 import {
   TACTICS_PRESETS,
   findTacticsPresetBySetup,
@@ -381,6 +383,8 @@ export function useTacticsLibrary({
   // stands in when nothing else matches.
   const canDeleteTactic =
     isActiveCustomTactic && customTactics.some((entry) => entry.id === activeTactic.id);
+  // The same tactics can be renamed: a preset's name is the game's, and the unsaved setup has none.
+  const canRenameTactic = canDeleteTactic;
 
   // The team keeps the formation and play style it has. With the tactic gone from the library the
   // setup shown falls back to the preset it matches, or to the current setup, applying nothing.
@@ -390,6 +394,31 @@ export function useTacticsLibrary({
     const { id } = activeTactic;
     setCustomTactics((current) => current.filter((entry) => entry.id !== id));
     changeSave(() => deleteCustomTactic(id.trim(), careerToken));
+  }
+
+  // Renames the active saved tactic. Unlike a delete the screen waits for the save's answer: it
+  // resolves null once the save accepted the name, or the reason it refused (an empty name, one too
+  // long), in the player's language, for the dialog that asked to show. It queues behind every other
+  // step, and does nothing for a career that is no longer the open one.
+  function handleRenameTactic(name: string): Promise<string | null> {
+    const askedIn = useGameStore.getState().careerEpoch;
+    const stale = () => useGameStore.getState().careerEpoch !== askedIn;
+    const id = activeTactic.id.trim();
+    const answered = savesInOrder.current.then(async (): Promise<string | null> => {
+      if (stale() || !canRenameTactic) return null;
+      try {
+        const saved = await renameCustomTactic(id, name, careerToken);
+        if (!stale()) {
+          setCustomTactics(confirmLibrary(saved, askedIn));
+          onWriteSaved();
+        }
+        return null;
+      } catch (error) {
+        return resolveTranslatedErrorMessage(error);
+      }
+    });
+    savesInOrder.current = answered.then(() => undefined);
+    return answered;
   }
 
   function handleSaveTactic(): Promise<boolean> {
@@ -464,5 +493,7 @@ export function useTacticsLibrary({
     handleSaveTactic,
     canDeleteTactic,
     handleDeleteTactic,
+    canRenameTactic,
+    handleRenameTactic,
   };
 }
