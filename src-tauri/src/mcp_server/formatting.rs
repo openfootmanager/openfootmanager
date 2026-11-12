@@ -4,14 +4,6 @@
 
 use std::collections::HashMap;
 
-/// The keys whose sentence has slots their parameters fill. Their text is the screen's own, from
-/// `en.json` through `backend_text::resolve_error` (the one resolver, not a second copy of the
-/// wording). A key with parameters and no entry here or in [`fixed_message`] stays raw.
-const PARAMETERISED_KEYS: [&str; 2] = [
-    "be.error.squadFloor.wouldLeaveShort",
-    "be.error.squadFloor.wouldLeaveSeniorsShort",
-];
-
 /// Translate a backend error (e.g. "be.error.noActiveGameSession", or a key followed by
 /// `?name=value&...`) into a human-readable message that helps agents self-correct.
 pub fn translate_error(error: &str) -> String {
@@ -21,15 +13,26 @@ pub fn translate_error(error: &str) -> String {
 }
 
 /// The readable message for `key` with its `params`, or `None` when nothing maps the key.
+///
+/// A key that carries parameters is the screen's own sentence from `en.json` through
+/// `backend_text::resolve_error`, the one resolver (not a second copy of the wording), with its
+/// parameters filled in and a parameter that is itself a key in words: a sentence written here for
+/// the bare key has no slot for them, so it would drop what the agent needs (a budget, a save id).
+/// A key without parameters is the sentence written here when there is one, else the same
+/// resolver. A key `en.json` has no text for stays raw, so a missing translation is visible rather
+/// than hidden.
 fn translate_error_with(key: &str, params: &HashMap<String, String>) -> Option<String> {
+    let screen_text = || crate::mcp_server::backend_text::resolve_error(key, params);
+    if !params.is_empty() {
+        if let Some(text) = screen_text() {
+            return Some(text);
+        }
+    }
     let fixed = fixed_message(key);
     if fixed != format!("Error: {key}") {
         return Some(fixed);
     }
-    if PARAMETERISED_KEYS.contains(&key) {
-        return crate::mcp_server::backend_text::resolve_error(key, params);
-    }
-    None
+    screen_text()
 }
 
 /// The messages that need no parameter; `Error: <key>` for a key with none.
@@ -310,14 +313,92 @@ mod tests {
         );
     }
 
-    /// Given a key with parameters that nothing maps (the package key the failure tests use)
+    /// Given a key with parameters that no mapping and no `en.json` entry covers
     /// When rendered for an agent
     /// Then it is still the key itself, so the unmapped case stays visible.
     #[test]
-    fn a_parameterised_key_with_no_mapping_stays_raw() {
-        let key = "be.error.package.unknownCountry?country=Peru";
+    fn a_parameterised_key_with_no_text_stays_raw() {
+        let key = "be.error.mcp.noSuchKeyAnywhere?country=Peru";
 
         assert_eq!(translate_error(key), format!("Error: {key}"));
+    }
+
+    /// Given the other parameterised errors the shared services return to a tool (a loan the
+    ///       borrower cannot afford, a save that is missing or too new, a scout with no free slot,
+    ///       a manager missing from a save, a facility upgrade the club cannot pay, the board's
+    ///       wage policy), each as the application reports it
+    /// When rendered for an agent
+    /// Then each is the screen's English sentence with its parameters filled in (money as the
+    ///      screen writes it), never the raw key or an unfilled slot (#1416)
+    #[test]
+    fn the_other_parameterised_refusals_read_in_words() {
+        for (error, expected) in [
+            (
+                "be.error.transfers.loanBorrowerCannotAffordWages?budget=50000",
+                "The borrowing club cannot afford this wage share. Its weekly wage budget is €50",
+            ),
+            (
+                "be.error.saveNotFound?saveId=slot-3",
+                "Save 'slot-3' not found.",
+            ),
+            (
+                "be.error.scouting.scoutAssignmentFull?currentCount=1&maxSlots=2",
+                "Scout is already assigned to another scouting task (1/2 assignments).",
+            ),
+            (
+                "be.error.saveLoad.incompatibleVersion?saveVersion=9&supported=7",
+                "(save v9; this build supports up to v7)",
+            ),
+            (
+                "be.error.gamePersistence.managerNotFound?managerId=mgr-1",
+                "Manager 'mgr-1' was not found in this save.",
+            ),
+            (
+                "be.error.finance.facilityUpgradeInsufficientFunds?amount=250000",
+                "Insufficient funds for this facility upgrade. Need €250",
+            ),
+            (
+                "be.error.contracts.boardWagePolicy?budget=50000",
+                "Keep weekly wages near €50",
+            ),
+        ] {
+            let rendered = translate_error(error);
+
+            assert!(
+                rendered.contains(expected),
+                "{error} renders as {rendered:?}"
+            );
+            assert!(
+                !rendered.contains("be.error.") && !rendered.contains("{{"),
+                "{error} renders as {rendered:?}"
+            );
+        }
+    }
+
+    /// Given the four keys that also have a sentence written for an agent, reported with no
+    ///       parameter (the bare key)
+    /// When rendered for an agent
+    /// Then it is that sentence, not `en.json`'s with an unfilled slot; with its parameter the
+    ///      same key is the screen's sentence (the test above), so neither is lost
+    #[test]
+    fn a_bare_key_with_a_written_sentence_keeps_it_and_leaves_no_slot() {
+        for (key, sentence) in [
+            ("be.error.saveNotFound", "Save not found. Check the save ID."),
+            (
+                "be.error.transfers.loanBorrowerCannotAffordWages",
+                "The borrowing club cannot afford this wage share: it would exceed its wage budget.",
+            ),
+            (
+                "be.error.contracts.boardWagePolicy",
+                "Board wage policy blocks this renewal: wage would exceed budget.",
+            ),
+            (
+                "be.error.finance.facilityUpgradeInsufficientFunds",
+                "Insufficient funds for facility upgrade.",
+            ),
+        ] {
+            assert_eq!(translate_error(key), sentence, "{key}");
+        }
     }
 
     /// Every live-match refusal key the screen can show (`be.error.liveMatch.*` in `en.json`, the
