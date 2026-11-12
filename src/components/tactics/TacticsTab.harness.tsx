@@ -263,10 +263,13 @@ export function fakeBackend(failPreset = false) {
     }
     const team = backend.teams[0];
     if (command === "get_tactics_blueprint_status") {
+      // The verdict is the backend's at the moment it was asked, as the real command's is: a gate
+      // holds the reply, not the question.
+      const modified = knobs.blueprintModified;
       if (params.playStyle && knobs.blueprintStatusGate) await knobs.blueprintStatusGate;
       if (knobs.blueprintStatusFailsForStyle && params.playStyle) throw new Error("no answer");
       if (params.playStyle) knobs.blueprintStatusAnswered += 1;
-      return { modified: knobs.blueprintModified };
+      return { modified };
     }
     if (command === "set_tactics_phase") {
       team.tactics_phase = {

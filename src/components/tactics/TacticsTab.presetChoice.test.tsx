@@ -259,10 +259,10 @@ describe("TacticsTab preset question", { timeout: TACTICS_TAB_CASE_TIMEOUT_MS },
 
   /**
    * Given a preset chosen and its lookup pending
-   * When the tab goes away and the career is replaced, and then the lookup answers
-   * Then nothing is applied: the choice was another career's.
+   * When the tab goes away (a tab switch), and then the lookup answers
+   * Then nothing is applied: the choice went with the tab.
    */
-  it("applies nothing from a lookup answered after the tab left and the career changed", async () => {
+  it("applies nothing from a lookup answered after the tab left", async () => {
     fakeBackend();
     const { unmount } = render(<ControlledTacticsTab />);
     let release!: () => void;
@@ -274,9 +274,6 @@ describe("TacticsTab preset question", { timeout: TACTICS_TAB_CASE_TIMEOUT_MS },
     await waitFor(() => expect(commandsCalled()).toContain("get_tactics_blueprint_status"));
 
     unmount();
-    act(() => {
-      useGameStore.setState((state) => ({ careerEpoch: state.careerEpoch + 1 }));
-    });
     await act(async () => {
       release();
       await waitFor(() => expect(knobs.blueprintStatusAnswered).toBe(1));
