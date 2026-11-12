@@ -78,6 +78,10 @@ pub fn preview_contract_termination(
         player_name: player.match_name.clone(),
         severance_cost: termination_severance_cost(player, current_date),
         squad_safety: project_user_team_release_safety(game, player_id)?,
+        // The same rule `terminate_contract_now` enforces, so the screen can refuse up front
+        // with the text the release would be refused with.
+        squad_floor_refusal: crate::squad_floor::ensure_departure_keeps_floor(game, player_id)
+            .err(),
     })
 }
 
@@ -92,7 +96,9 @@ pub fn terminate_contract_now(
     }
     // The matchday check above asks about today's fitness; the floor asks
     // whether the club has the players to register a side at all.
-    crate::squad_floor::ensure_departure_keeps_floor(game, player_id)?;
+    if let Some(refusal) = preview.squad_floor_refusal {
+        return Err(refusal);
+    }
 
     let player_index = owned_player_index(game, player_id)?;
     let team_id = game.players[player_index]

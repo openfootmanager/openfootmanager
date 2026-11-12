@@ -58,4 +58,6 @@ pub use world::*;
 pub use world_library::get_worlds_library;
 
 #[cfg(test)]
+pub(crate) mod game_json;
+#[cfg(test)]
 pub(crate) mod wrapper_testkit;

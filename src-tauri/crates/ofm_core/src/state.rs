@@ -141,7 +141,10 @@ impl StateManager {
             .clear();
     }
 
-    pub fn set_game(&self, game: Game) {
+    /// Installs `game` as the active one. Its revision starts at 0: an installed game is a new
+    /// career (or a loaded save) with its own token, and revisions only order snapshots of one.
+    pub fn set_game(&self, mut game: Game) {
+        game.revision = 0;
         self.forget_team_talks();
         set_option(&self.active_game, game);
     }
@@ -155,12 +158,21 @@ impl StateManager {
 
     /// Atomically read-modify-write the active game. The closure receives a mutable reference
     /// to the Game while the Mutex is held, preventing lost-update races between GUI and MCP.
+    ///
+    /// Every write raises `Game::revision` by one BEFORE the closure runs, so the game a closure
+    /// clones back to the screen carries the revision of its own write. A closure that then
+    /// refuses, or changes nothing, still raises it: the number only orders snapshots, and an
+    /// unchanged game at a higher revision is the same game. This is the one place a game is
+    /// written (the lock is private to this type), so nothing else has to remember to bump it.
     pub fn update_game<F, R>(&self, f: F) -> Option<R>
     where
         F: FnOnce(&mut Game) -> R,
     {
         let mut guard = self.active_game.lock().unwrap();
-        guard.as_mut().map(f)
+        guard.as_mut().map(|game| {
+            game.revision = game.revision.saturating_add(1);
+            f(game)
+        })
     }
 
     /// The one way to write the active game on a caller's behalf: [`StateManager::update_game`]
@@ -483,6 +495,57 @@ mod tests {
         let tokens: Vec<u64> = (0..3).map(|_| state.next_career_token()).collect();
 
         assert_eq!(tokens, [1, 2, 3]);
+    }
+
+    /// Given an installed game
+    /// When it is written three times through update_game_for
+    /// Then each write sees a revision one higher than the last, and the game the closure hands
+    ///      back carries the revision of its own write, so a screen can order what it receives.
+    #[test]
+    fn every_write_raises_the_revision_and_the_returned_game_carries_it() {
+        let state = StateManager::new();
+        state.set_game(make_game_with_fixture());
+
+        let returned: Vec<u64> = (0..3)
+            .map(|_| {
+                state
+                    .update_game_for(Career::Active, |game| game.clone().revision)
+                    .expect("an active game")
+            })
+            .collect();
+
+        assert_eq!(returned, [1, 2, 3]);
+        assert_eq!(state.get_game(|game| game.revision), Some(3));
+    }
+
+    /// Given a game that has been written to
+    /// When it is installed again with set_game (a new career or a loaded save)
+    /// Then it starts at revision 0, whatever the value it was handed carried.
+    #[test]
+    fn installing_a_game_starts_it_at_revision_zero() {
+        let state = StateManager::new();
+        let mut game = make_game_with_fixture();
+        game.revision = 41;
+
+        state.set_game(game);
+
+        assert_eq!(state.get_game(|game| game.revision), Some(0));
+    }
+
+    /// Given a game saved before the revision existed
+    /// When it is read back
+    /// Then it loads, at revision 0.
+    #[test]
+    fn a_game_without_a_revision_loads_at_zero() {
+        let mut value = serde_json::to_value(make_game_with_fixture()).expect("game serializes");
+        value
+            .as_object_mut()
+            .expect("a game is an object")
+            .remove("revision");
+
+        let game: Game = serde_json::from_value(value).expect("an old game loads");
+
+        assert_eq!(game.revision, 0);
     }
 
     #[test]

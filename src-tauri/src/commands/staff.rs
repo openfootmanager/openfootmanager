@@ -168,7 +168,7 @@ mod tests {
         let mut game = make_game_with_employed_staff();
         game.career_token = 2;
         state.set_game(game);
-        let before = serde_json::to_value(state.get_game(|g| g.clone()).unwrap()).unwrap();
+        let before = crate::commands::game_json::active_game_json(&state);
         let stale = Career::Token(1);
 
         let hire = hire_staff_internal(&state, stale, "staff-1").err();
@@ -176,7 +176,7 @@ mod tests {
 
         assert_eq!(hire, Some("be.error.careerChanged".to_string()));
         assert_eq!(release, Some("be.error.careerChanged".to_string()));
-        let after = serde_json::to_value(state.get_game(|g| g.clone()).unwrap()).unwrap();
+        let after = crate::commands::game_json::active_game_json(&state);
         assert_eq!(after, before);
     }
 

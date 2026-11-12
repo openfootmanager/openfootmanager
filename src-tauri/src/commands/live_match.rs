@@ -2248,9 +2248,7 @@ mod live_session_tests {
         let mut game = make_game_with_matchday();
         game.career_token = 3;
         state.set_game(game);
-        let game_json = |state: &StateManager| {
-            serde_json::to_value(state.get_game(|g| g.clone()).unwrap()).unwrap()
-        };
+        let game_json = crate::commands::game_json::active_game_json;
         let before = game_json(&state);
         let key = Some("be.error.careerChanged".to_string());
 
@@ -2563,7 +2561,7 @@ mod live_session_tests {
 
     fn checkpoint(state: &StateManager) -> Value {
         serde_json::json!({
-            "game": state.get_game(|game| serde_json::to_value(game).unwrap()),
+            "game": state.get_game(crate::commands::game_json::game_json),
             "stats": state.get_stats_state(|stats| serde_json::to_value(stats).unwrap()),
             "snapshot": live_match::get_match_snapshot(state).unwrap(),
             "identity": state.with_live_match(|session| (session.competition_id.clone(), session.fixture_id.clone(), session.fixture_index)),
@@ -2762,9 +2760,7 @@ mod live_session_tests {
         );
         state.update_game(|game| game.teams[0].finance += 1234);
         util::persist_active_game(&state, &mut saves, ofm_core::state::Career::Active).unwrap();
-        let expected = state
-            .get_game(|game| serde_json::to_value(game).unwrap())
-            .unwrap();
+        let expected = crate::commands::game_json::active_game_json(&state);
         assert_eq!(
             live_match::finish_live_match(&state, ofm_core::state::Career::Active)
                 .err()
@@ -2772,9 +2768,7 @@ mod live_session_tests {
             Some("be.error.noActiveLiveMatch")
         );
         assert_eq!(
-            state
-                .get_game(|game| serde_json::to_value(game).unwrap())
-                .unwrap(),
+            crate::commands::game_json::active_game_json(&state),
             expected
         );
         drop(saves);
@@ -2990,17 +2984,13 @@ mod live_session_tests {
         let state = StateManager::new();
         state.set_game(make_game_with_matchday());
         state.set_save_id("missing-save".to_string());
-        let expected = state
-            .get_game(|game| serde_json::to_value(game).unwrap())
-            .unwrap();
+        let expected = crate::commands::game_json::active_game_json(&state);
         let directory = save_directory();
         let path = directory.path();
         let mut saves = db::save_manager::SaveManager::init(path).unwrap();
         assert!(crate::application::saving::exit_to_menu(&state, &mut saves).is_err());
         assert_eq!(
-            state
-                .get_game(|game| serde_json::to_value(game).unwrap())
-                .unwrap(),
+            crate::commands::game_json::active_game_json(&state),
             expected
         );
         assert_eq!(state.get_save_id().as_deref(), Some("missing-save"));

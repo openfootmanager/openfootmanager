@@ -655,7 +655,7 @@ mod tests {
         let mut game = make_game();
         game.career_token = 2;
         state.set_game(game);
-        let before = serde_json::to_value(state.get_game(|g| g.clone()).unwrap()).unwrap();
+        let before = crate::commands::game_json::active_game_json(&state);
         let stale = Career::Token(1);
 
         let refusals = [
@@ -675,7 +675,7 @@ mod tests {
         for refusal in refusals {
             assert_eq!(refusal, Err("be.error.careerChanged".to_string()));
         }
-        let after = serde_json::to_value(state.get_game(|g| g.clone()).unwrap()).unwrap();
+        let after = crate::commands::game_json::active_game_json(&state);
         assert_eq!(after, before);
     }
 

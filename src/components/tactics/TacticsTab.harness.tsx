@@ -9,6 +9,11 @@ import { familiarityState } from "../../test-utils/tacticsFamiliarityState";
 import TacticsTab from "./TacticsTab";
 
 /**
+ * TEST-ONLY: imported by the Tactics tab's `*.test.tsx` suites and by nothing in production, so the
+ * `invoke` import below is the stand-in the suites mock, as the other component tests on develop mock
+ * `@tauri-apps/api/core` directly (the rule that keeps `invoke` in `src/services/` is about
+ * production components).
+ *
  * The Tactics tab's test harness: a controlled parent that really re-renders from the game a faked
  * backend returns, the faked backend's knobs, and the helpers its suites share. A suite mocks
  * `@tauri-apps/api/core` (so `invoke` here is its stand-in), the familiarity and position hooks, and

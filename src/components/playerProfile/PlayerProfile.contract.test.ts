@@ -107,6 +107,21 @@ describe("clubStateKey", () => {
   });
 
   /**
+   * Given a club whose academy defender is in the youth squad, which the squad floor's senior
+   *      count does not include
+   * When he is promoted to the senior squad (a role change, nothing else moves)
+   * Then the key changes, so a floor refusal the open Contract tab holds is asked for again, and
+   *      demoting him changes it back
+   */
+  it("changes when a player is promoted from the youth squad to the senior squad", () => {
+    const withRole = (squad_role: PlayerData["squad_role"]) =>
+      key({ players: [member({ id: "a" }), member({ id: "b", squad_role })] });
+
+    expect(withRole("Senior")).not.toBe(withRole("Youth"));
+    expect(withRole("Youth")).toBe(withRole("Youth"));
+  });
+
+  /**
    * Given the club's squad, staff and wage budget
    * When a player is signed, released, injured, renewed or given a new contract end, a staff member
    *      is hired, fired or has his wage changed, or the wage budget changes
