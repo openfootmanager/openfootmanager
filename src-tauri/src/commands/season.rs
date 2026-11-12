@@ -282,12 +282,12 @@ pub(crate) mod tests {
         let mut game = completed_checkpoint();
         game.career_token = 2;
         state.set_game(game);
-        let before = serde_json::to_value(state.get_game(|g| g.clone()).unwrap()).unwrap();
+        let before = crate::commands::game_json::active_game_json(&state);
 
         let result = advance_to_next_season_internal(&state, Career::Token(1));
 
         assert_eq!(result.err(), Some("be.error.careerChanged".to_string()));
-        let after = serde_json::to_value(state.get_game(|g| g.clone()).unwrap()).unwrap();
+        let after = crate::commands::game_json::active_game_json(&state);
         assert_eq!(after, before);
     }
 
@@ -332,18 +332,13 @@ pub(crate) mod tests {
         let mut game = completed_checkpoint();
         game.competitions[0].fixtures[0].status = FixtureStatus::Scheduled;
         game.league = Some(game.competitions[0].clone());
-        let before = serde_json::to_value(&game).unwrap();
+        let before = crate::commands::game_json::game_json(&game);
         state.set_game(game);
         assert_eq!(
             advance_to_next_season_internal(&state, Career::Active).unwrap_err(),
             "be.error.seasonNotComplete"
         );
-        assert_eq!(
-            state
-                .get_game(|game| serde_json::to_value(game).unwrap())
-                .unwrap(),
-            before
-        );
+        assert_eq!(crate::commands::game_json::active_game_json(&state), before);
     }
 
     /// Given a rolled-over season, when rollover is requested again,
@@ -353,19 +348,12 @@ pub(crate) mod tests {
         let state = StateManager::new();
         state.set_game(completed_checkpoint());
         advance_to_next_season_internal(&state, Career::Active).unwrap();
-        let before = state
-            .get_game(|game| serde_json::to_value(game).unwrap())
-            .unwrap();
+        let before = crate::commands::game_json::active_game_json(&state);
         assert_eq!(
             advance_to_next_season_internal(&state, Career::Active).unwrap_err(),
             "be.error.seasonNotComplete"
         );
-        assert_eq!(
-            state
-                .get_game(|game| serde_json::to_value(game).unwrap())
-                .unwrap(),
-            before
-        );
+        assert_eq!(crate::commands::game_json::active_game_json(&state), before);
     }
 
     /// Given a finished season whose failed objective triggers dismissal,

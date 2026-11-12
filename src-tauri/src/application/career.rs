@@ -100,6 +100,29 @@ mod tests {
         assert_ne!(first, 0);
     }
 
+    /// Given a game that has been written to (a clubless career at revision 5, the way a new game
+    ///       is before the user picks a club)
+    /// When it is installed for the screen
+    /// Then the game the screen holds carries the installed game's revision, not the old one:
+    ///      otherwise it would hold revision 5 and refuse the answers at revisions 1 to 4 that
+    ///      follow, as older than what it shows (#1394)
+    #[test]
+    fn the_game_shown_after_an_install_carries_the_installed_revision() {
+        let state = StateManager::new();
+        let mut game = game_managed_by("Alice");
+        game.revision = 5;
+
+        let shown = install_career_for_screen(&state, game, StatsState::default(), None);
+
+        let installed = state.get_game(|game| game.revision).unwrap();
+        assert_eq!(installed, 0);
+        assert_eq!(shown.revision, installed);
+        assert_eq!(
+            shown.career_token,
+            state.get_game(|game| game.career_token).unwrap()
+        );
+    }
+
     /// Given career A is installed and a load of career B is mid-install, holding the career lock
     /// When a snapshot is requested meanwhile
     /// Then it waits for the lock and returns career B's game with career B's save id, never A's

@@ -329,9 +329,7 @@ mod tests {
     }
 
     fn game_value(state: &StateManager) -> serde_json::Value {
-        state
-            .get_game(|game| serde_json::to_value(game).unwrap())
-            .unwrap()
+        crate::commands::game_json::active_game_json(state)
     }
 
     /// Given every required fixture completed, when the MCP adapter advances the season,
