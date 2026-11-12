@@ -2764,6 +2764,52 @@ fn player_career_entry_added() {
     assert_eq!(entry.assists, 10);
 }
 
+/// Given a world whose stats were last reset on 28 May 2000, and a player who arrived at his club
+///       on 20 December with 30 appearances since
+/// When the season rolls over
+/// Then his row carries the day he arrived and the day the season's stats BEGAN (the reset day the
+///      game held before this rollover overwrote it, not the new one), and his stint start is
+///      cleared only once the row has taken it (#1402)
+#[test]
+fn the_rollover_stamps_the_career_row_with_the_day_the_season_began() {
+    let mut game = make_completed_season_game();
+    game.last_season_rollover_on = Some("2000-05-28".to_string());
+    let p1 = game.players.iter_mut().find(|p| p.id == "p1").unwrap();
+    p1.season_stints = domain::career_stints::SeasonStints {
+        since: Some("2025-12-20".to_string()),
+        ..Default::default()
+    };
+
+    process_end_of_season(&mut game);
+
+    assert_ne!(
+        game.last_season_rollover_on.as_deref(),
+        Some("2000-05-28"),
+        "the rollover records its own day, so the test can tell the old one from the new"
+    );
+    let p1 = game.players.iter().find(|p| p.id == "p1").unwrap();
+    assert_eq!(p1.career.len(), 1);
+    let entry = &p1.career[0];
+    assert_eq!(entry.from.as_deref(), Some("2025-12-20"));
+    assert_eq!(entry.until, None);
+    assert_eq!(entry.season_began_on.as_deref(), Some("2000-05-28"));
+    assert_eq!(p1.season_stints.since, None);
+}
+
+/// Given a save whose game never kept a reset day (none before the first rollover)
+/// When the season rolls over
+/// Then the rows carry no season start, and the projection falls back to the calendar's.
+#[test]
+fn a_rollover_with_no_kept_reset_day_stamps_no_season_start() {
+    let mut game = make_completed_season_game();
+    game.last_season_rollover_on = None;
+
+    process_end_of_season(&mut game);
+
+    let p1 = game.players.iter().find(|p| p.id == "p1").unwrap();
+    assert_eq!(p1.career[0].season_began_on, None);
+}
+
 #[test]
 fn season_end_ages_players_and_retires_out_of_contract_veterans() {
     let mut game = make_completed_season_game();
