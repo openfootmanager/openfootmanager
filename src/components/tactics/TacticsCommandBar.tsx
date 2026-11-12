@@ -1,5 +1,5 @@
 import { Check, Copy, MoreVertical, Plus, RotateCcw, Save, Trash2 } from "lucide-react";
-import { useRef, useState, type JSX } from "react";
+import { useId, useRef, useState, type JSX } from "react";
 import { useTranslation } from "react-i18next";
 
 import ContextMenu, { type ContextMenuHandle, type ContextMenuItem } from "../ContextMenu";
@@ -64,6 +64,7 @@ export default function TacticsCommandBar({
 }: TacticsCommandBarProps): JSX.Element {
   const { t } = useTranslation();
   const [pickerOpen, setPickerOpen] = useState(false);
+  const loadingId = useId();
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const actionsMenuRef = useRef<ContextMenuHandle | null>(null);
   const [actionsOpen, setActionsOpen] = useState(false);
@@ -191,11 +192,18 @@ export default function TacticsCommandBar({
             icon={showSavedCue && !isDirty ? <Check /> : <Save />}
             onClick={handleSaveClick}
             disabled={isSaveDisabled}
+            aria-describedby={libraryLoaded ? undefined : loadingId}
             className="min-w-[9.5rem]"
           >
             {showSavedCue && !isDirty ? t("tactics.tacticSaved") : saveLabel}
           </Button>
           {/* The button's own text changing is not announced; this is. */}
+          {/* Why Save is off while the library loads; Save's description points here. */}
+          {libraryLoaded ? null : (
+            <span id={loadingId} className="sr-only">
+              {t("tactics.loadingTactics")}
+            </span>
+          )}
           <span aria-live="polite" className="sr-only">
             {showSavedCue && !isDirty ? t("tactics.tacticSaved") : ""}
           </span>

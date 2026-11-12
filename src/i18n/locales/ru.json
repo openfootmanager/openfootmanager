@@ -848,6 +848,7 @@
     "tacticName": "Название тактики",
     "identitySummary": "Сводка идентичности",
     "synced": "Синхронизировано",
+    "loadingTactics": "Загрузка ваших тактик…",
     "unsavedChanges": "Несохранённые изменения",
     "currentPlanCard": "Текущий план",
     "phaseBlueprint": "План по фазам",

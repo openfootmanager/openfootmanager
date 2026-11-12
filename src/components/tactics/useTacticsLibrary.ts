@@ -103,6 +103,10 @@ export function useTacticsLibrary({
   // Whether the first load (and the one-off import) of this career's library has settled. A save
   // asked before then would queue behind it, and record whatever the manager changed meanwhile.
   const [libraryLoaded, setLibraryLoaded] = useState(false);
+  // Which asking of the load is the latest. Effects can run twice with the same epoch (StrictMode,
+  // a token change), and each asking queues its own load behind the last: only the latest one
+  // settling means the queue holds no load, so an earlier one settling must not turn Save on.
+  const loadGeneration = useRef(0);
   const confirmedLibrary = useRef<{ epoch: number; entries: TacticsLibraryEntry[] } | null>(null);
   function confirmLibrary(tactics: CustomTactic[], epoch: number): TacticsLibraryEntry[] {
     const entries = toLibraryEntries(tactics);
@@ -122,6 +126,8 @@ export function useTacticsLibrary({
 
     const askedIn = useGameStore.getState().careerEpoch;
     const stale = () => useGameStore.getState().careerEpoch !== askedIn;
+    const generation = ++loadGeneration.current;
+    const isLatestLoad = () => !stale() && generation === loadGeneration.current;
     savesInOrder.current = savesInOrder.current
       .then(async () => {
         if (stale()) return;
@@ -145,11 +151,11 @@ export function useTacticsLibrary({
           if (imported.complete && !stale()) await markLegacyTacticsImported(careerToken);
         }
         if (!stale()) setCustomTactics(confirmLibrary(tactics, askedIn));
-        if (!stale()) setLibraryLoaded(true);
+        if (isLatestLoad()) setLibraryLoaded(true);
       })
       // A load that failed still ends the wait: Save is the way to put a tactic in the save.
       .catch(() => {
-        if (!stale()) setLibraryLoaded(true);
+        if (isLatestLoad()) setLibraryLoaded(true);
       });
   }, [managerId, careerStartDate, careerEpoch, careerToken]);
 

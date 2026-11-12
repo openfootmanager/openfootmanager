@@ -800,6 +800,7 @@
     "tacticName": "Název taktiky",
     "identitySummary": "Shrnutí identity",
     "synced": "Synchronizováno",
+    "loadingTactics": "Načítám vaše taktiky…",
     "unsavedChanges": "Neuložené změny",
     "currentPlanCard": "Aktuální plán",
     "phaseBlueprint": "Plán herní fáze",
