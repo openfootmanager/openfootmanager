@@ -12,7 +12,9 @@ import { useSettingsStore } from "../store/settingsStore";
  * The next language may not be so lucky.
  */
 const LANG_LOCALE: Record<SupportedLanguageCode, string> = {
-  en: "en-US",
+  // Day-month-year, as the design boards write it (maintainer ruling, 11 Nov 2026): en-GB, not
+  // en-US, which puts the month first.
+  en: "en-GB",
   es: "es-ES",
   // Deliberately unchanged: `pt` mapped here before `pt-BR` was a separate
   // language, and correcting it to pt-PT would change dates for existing
@@ -31,7 +33,7 @@ const LANG_LOCALE: Record<SupportedLanguageCode, string> = {
 
 export function getLocale(lang?: string): string {
   if (!lang) {
-    return "en-US";
+    return "en-GB";
   }
   return LANG_LOCALE[lang as SupportedLanguageCode] ?? lang;
 }

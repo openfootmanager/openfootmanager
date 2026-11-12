@@ -711,7 +711,7 @@ describe("PlayerProfile contract surfaces", () => {
 
     // The Contract tab holds the years left and the actions; the date and its risk are in Details.
     expect(screen.getByText("playerProfile.contractSheet.his")).toBeInTheDocument();
-    expect(screen.getByText(/until .*October 15, 2026/)).toBeInTheDocument();
+    expect(screen.getByText(/until .*15 October 2026/)).toBeInTheDocument();
     expect(screen.getByText("playerProfile.contractSheet.timeLeft")).toBeInTheDocument();
     expect(screen.queryByText("Contract Risk")).toBeNull();
     expect(screen.getAllByText("Critical").length).toBeGreaterThan(0);
@@ -1181,7 +1181,7 @@ describe("PlayerProfile contract surfaces", () => {
 
     await waitFor(() => {
       expect(screen.getByText("Offer accepted")).toBeInTheDocument();
-      expect(screen.getByText(/until .*August 1, 2029/)).toBeInTheDocument();
+      expect(screen.getByText(/until .*1 August 2029/)).toBeInTheDocument();
       expect(
         screen.getAllByText((_, element) => hasWeeklyWage(element?.textContent ?? "", "15,000"))
           .length,
