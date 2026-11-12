@@ -11,8 +11,7 @@ import { effectivePlayerRoles } from "./TacticsTab.helpers";
 import TacticsSetPieces from "./TacticsSetPieces";
 import TacticsWorkbench from "./TacticsWorkbench";
 import TacticsCommandBar from "./TacticsCommandBar";
-import TacticsCompareDialog from "./TacticsCompareDialog";
-import TacticsPresetDialog from "./TacticsPresetDialog";
+import TacticsDialogs from "./TacticsDialogs";
 import { usePresetChoice } from "./usePresetChoice";
 import { useTacticsLibrary } from "./useTacticsLibrary";
 import { useTacticsLineup } from "./useTacticsLineup";
@@ -202,27 +201,16 @@ export default function TacticsTab({
         />
       </TacticsWorkbench>
 
-      {presetChoice.pending ? (
-        <TacticsPresetDialog
-          name={presetChoice.pending.name}
-          onReplace={() => void presetChoice.replaceInstructions()}
-          onKeep={() => void presetChoice.keepInstructions()}
-          onCancel={presetChoice.cancel}
-        />
-      ) : null}
-
-      {/* Inspector modal — only when both players are selected for comparison */}
-      {selectedPlayer && comparePlayer && (
-        <TacticsCompareDialog
-          canConfirmSwap={canConfirmSwap}
-          comparePlayer={comparePlayer}
-          onClose={clearLineupSelection}
-          onConfirmSwap={() => {
-            void handleConfirmSwap();
-          }}
-          selectedPlayer={selectedPlayer}
-        />
-      )}
+      <TacticsDialogs
+        presetChoice={presetChoice}
+        selectedPlayer={selectedPlayer}
+        comparePlayer={comparePlayer}
+        canConfirmSwap={canConfirmSwap}
+        onCloseCompare={clearLineupSelection}
+        onConfirmSwap={() => {
+          void handleConfirmSwap();
+        }}
+      />
     </div>
   );
 }
