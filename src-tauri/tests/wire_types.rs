@@ -30,6 +30,8 @@ fn visit_wire_roots(visitor: &mut impl TypeVisitor) {
     visitor.visit::<ofm_core::slices::team_selection::TeamSelectionRatings>();
     // `get_potential_opinion` returns it; nothing in `Game` reaches it.
     visitor.visit::<ofm_core::potential_opinion::PotentialOpinion>();
+    // `get_player_career` returns it; nothing in `Game` reaches it.
+    visitor.visit::<ofm_core::player_career::PlayerCareer>();
     // `get_position_ratings` returns it; nothing in `Game` reaches it.
     visitor.visit::<ofm_core::position_ratings::PositionRatings>();
     // `get_familiarity` returns it; nothing in `Game` reaches it.

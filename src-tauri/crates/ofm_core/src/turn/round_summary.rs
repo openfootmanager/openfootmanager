@@ -126,7 +126,7 @@ pub fn build_round_summary(game: &Game, round: &LeagueRoundContext) -> Option<Ro
             &league.sorted_standings(),
         ),
         notable_upset: build_notable_upset(game, &completed_fixtures),
-        top_scorer_delta: build_top_scorer_delta(game, &completed_fixtures),
+        top_scorer_delta: build_top_scorer_delta(game, &league.id, &completed_fixtures),
     })
 }
 
@@ -246,13 +246,20 @@ fn build_notable_upset(game: &Game, fixtures: &[&Fixture]) -> Option<NotableUpse
         })
 }
 
-fn build_top_scorer_delta(game: &Game, fixtures: &[&Fixture]) -> Vec<TopScorerDelta> {
+/// The division's own top scorers, as its awards count them: each player's goals in this division's
+/// matches (`Player::division_stats`), not his season total across every competition. A player of
+/// another competition, whose season may be well under way, is not among them.
+fn build_top_scorer_delta(
+    game: &Game,
+    division_id: &str,
+    fixtures: &[&Fixture],
+) -> Vec<TopScorerDelta> {
     let round_goals = round_goal_counts(fixtures);
     let scorers: Vec<ScorerSnapshot> = game
         .players
         .iter()
         .filter_map(|player| {
-            let current_goals = player.stats.goals;
+            let current_goals = player.division_stats(division_id)?.goals;
             let round_goal_count = round_goals.get(&player.id).copied().unwrap_or(0);
             let previous_goals = current_goals.saturating_sub(round_goal_count);
 
@@ -262,7 +269,7 @@ fn build_top_scorer_delta(game: &Game, fixtures: &[&Fixture]) -> Vec<TopScorerDe
 
             Some(ScorerSnapshot {
                 player_id: player.id.clone(),
-                player_name: player.match_name.clone(),
+                player_name: scorer_display_name(&player.full_name, &player.match_name),
                 team_id: player.team_id.clone().unwrap_or_default(),
                 previous_goals,
                 current_goals,
@@ -293,6 +300,22 @@ fn build_top_scorer_delta(game: &Game, fixtures: &[&Fixture]) -> Vec<TopScorerDe
     });
 
     deltas
+}
+
+fn scorer_display_name(full_name: &str, match_name: &str) -> String {
+    let mut characters = match_name.chars();
+    let starts_with_initial =
+        characters.next().is_some_and(char::is_alphabetic) && characters.next() == Some('.');
+    let first_name = full_name.split_whitespace().next();
+    if starts_with_initial || first_name == match_name.split_whitespace().next() {
+        return match_name.to_string();
+    }
+
+    let initial = first_name.and_then(|first_name| first_name.chars().next());
+    match initial {
+        Some(initial) => format!("{initial}. {match_name}"),
+        None => match_name.to_string(),
+    }
 }
 
 fn scorer_ranks(

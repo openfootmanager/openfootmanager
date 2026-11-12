@@ -58,6 +58,7 @@ pub mod national_team;
 pub mod national_tournament;
 pub mod nations;
 pub mod news;
+pub mod player_career;
 pub mod player_events;
 pub mod player_identity;
 pub mod player_knowledge;
@@ -88,6 +89,7 @@ pub mod staff_tier;
 pub mod state;
 pub mod tactics_effects;
 pub mod tactics_lineup;
+pub mod team_talk_moment;
 #[cfg(test)]
 mod test_support;
 pub mod training;

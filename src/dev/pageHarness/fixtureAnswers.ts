@@ -13,6 +13,21 @@ function forUserClub(teamId: unknown, answer: () => unknown): unknown {
   return teamId === USER_CLUB ? answer() : UNANSWERED;
 }
 
+/**
+ * Whether a list of ids names exactly the players of `expected`, each once, in whatever order: the
+ * same length and every id there is not enough, as one player named eleven times has both.
+ */
+function sameIds(ids: unknown, expected: readonly string[]): boolean {
+  if (!Array.isArray(ids)) return false;
+  const given = new Set<unknown>(ids);
+  const wanted = new Set(expected);
+  return (
+    given.size === ids.length &&
+    given.size === wanted.size &&
+    ids.every((id) => typeof id === "string" && wanted.has(id))
+  );
+}
+
 /** The same JSON whatever the key order: the page builds its query by spreading, Rust by serde. */
 function canonicalJson(value: unknown): string {
   return JSON.stringify(value, (_key, inner: unknown) =>
@@ -84,6 +99,16 @@ function profileHandlers(profile: HarnessProfile): CommandHandlers {
     get_potential_opinion: ({ playerId }) => about(playerId, answer.opinion),
     get_position_ratings: ({ playerId }) => about(playerId, answer.positionRatings),
     get_scouted_report: ({ playerId }) => about(playerId, answer.scoutedReport),
+    // The previews the Contract tab loads: the backend answers them for a contract the club holds
+    // (the release one not for a player on loan) and refuses them otherwise.
+    preview_contract_termination: ({ playerId }) => {
+      const termination = answer.contractPreviews?.termination;
+      return playerId === answer.playerId && termination ? { preview: termination } : UNANSWERED;
+    },
+    preview_renewal_financial_impact: ({ playerId }) => {
+      const projection = answer.contractPreviews?.projection;
+      return playerId === answer.playerId && projection ? { projection } : UNANSWERED;
+    },
     get_retired_player: ({ playerId }) => about(playerId, answer.retiredPlayer),
     get_player_stats_overview: ({ playerId }) => about(playerId, answer.seasonStats),
     // The page asks for its last `limit` matches, latest first.
@@ -138,5 +163,14 @@ export function fixtureHandlers(
     get_teams_directory: ({ query }) =>
       forQuery(query, { search: null }, () => fixture.teamsDirectory),
     get_staff: ({ teamId }) => forUserClub(teamId, () => fixture.staff),
+    // A new career has no saved tactics of its own, and nothing from an older build to import.
+    list_custom_tactics: () => [],
+    legacy_tactics_import_pending: () => false,
+    // The side the club would field, as the backend projects it: the Tactics page's table and pitch.
+    get_tactics_lineup: () => fixture.tacticsLineup,
+    get_tactics_blueprint_status: () => fixture.tacticsBlueprintStatus,
+    // The takers the backend picked for the club's eleven: answered for that eleven only, in any order.
+    auto_select_set_pieces: ({ playerIds }) =>
+      sameIds(playerIds, fixture.autoSetPiecesFor) ? fixture.autoSetPieces : UNANSWERED,
   };
 }

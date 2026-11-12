@@ -697,7 +697,7 @@ impl PlayerMovementKind {
     /// Whether the club he plays for changes with this movement. A loan's purchase makes the
     /// borrower his owner without moving him, and a renewal, a retirement and an opening
     /// contract do not move him either.
-    pub(crate) fn changes_where_he_plays(&self) -> bool {
+    pub fn changes_where_he_plays(&self) -> bool {
         matches!(
             self,
             Self::PermanentTransfer
@@ -977,6 +977,13 @@ pub fn compute_traits(attrs: &PlayerAttributes, _position: &Position) -> Vec<Pla
 }
 
 impl Player {
+    /// This season's totals in the division `division_id` alone, as that division's tables and
+    /// awards count them: its own matches, not a cup run or another competition. `None` when he has
+    /// played none of its matches.
+    pub fn division_stats(&self, division_id: &str) -> Option<&PlayerSeasonStats> {
+        self.league_stats_by_competition.get(division_id)
+    }
+
     /// Starts his season totals over: the totals, and the split of them by club, which means
     /// nothing against fresh totals. The one place both are cleared together.
     pub fn reset_season_totals(&mut self) {

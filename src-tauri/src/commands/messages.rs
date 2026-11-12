@@ -4,7 +4,7 @@ use std::sync::Arc;
 use log::info;
 use tauri::State;
 
-use domain::message::InboxMessage;
+use domain::message::{ActionType, InboxMessage};
 use ofm_core::inbox_archive::{ArchiveCursor, ArchivedMessagesPage};
 use ofm_core::state::{Career, StateManager};
 
@@ -205,19 +205,41 @@ pub fn resolve_message_action_internal(
             // guard belongs here rather than in the MCP tool so the GUI obeys the
             // same rule through the same door.
             let today = game.clock.current_date.format("%Y-%m-%d").to_string();
-            let visible = game
-                .messages
-                .iter()
-                .find(|message| message.id == message_id)
-                .is_none_or(|message| {
-                    ofm_core::slices::inbox::message_is_visible(&message.date, &today)
-                });
+            // A message that is not in the inbox, or not there for the player yet, is refused with one
+            // and the same answer: an agent must not learn that a future message exists. No handler
+            // runs for it. (A sponsor handler, say, needs neither the message nor the action, and
+            // would sign a deal from its fallback amount for a message that was deleted.)
+            let Some(message) = game.messages.iter().find(|message| {
+                message.id == message_id
+                    && ofm_core::slices::inbox::message_is_visible(&message.date, &today)
+            }) else {
+                return Err("be.error.actionNotFound".to_string());
+            };
+            // An action answers once, and only an action the message has. Every handler below applies
+            // its effect (a morale hit, a signed sponsor) before it marks the action resolved, so a
+            // second answer would apply it again; the refusals here cover all of them, for the GUI and
+            // for an MCP agent alike.
+            match message.actions.iter().find(|action| action.id == action_id) {
+                None => return Err("be.error.actionNotFound".to_string()),
+                Some(action) if action.resolved => {
+                    return Err("be.error.actionAlreadyResolved".to_string());
+                }
+                // A choice is answered by one of its own options. With none, the plain branch would close
+                // it without signing, declining or applying anything and a later valid answer would
+                // find it resolved; with an option it does not offer, every handler would ignore it and
+                // the call would succeed having done nothing.
+                Some(action) => {
+                    if let ActionType::ChooseOption { options } = &action.action_type {
+                        let offered = option_id
+                            .is_some_and(|id| options.iter().any(|option| option.id == id));
+                        if !offered {
+                            return Err("be.error.actionOptionRequired".to_string());
+                        }
+                    }
+                }
+            }
             // Try to apply player conversation or random event response
-            let (effect, effect_i18n_key, effect_i18n_params) = if !visible {
-                // Treated exactly like an id that is not in the inbox, because
-                // from the player's side it is not: no effect, nothing resolved.
-                (None, None, None)
-            } else if let Some(opt) = option_id {
+            let (effect, effect_i18n_key, effect_i18n_params) = if let Some(opt) = option_id {
                 // Try player events first, then random events
                 let player_effect = ofm_core::player_events::apply_player_response(
                     game, message_id, action_id, opt,
@@ -269,8 +291,8 @@ pub fn resolve_message_action_internal(
                 }
                 (None, None, None)
             };
-            (game.clone(), effect, effect_i18n_key, effect_i18n_params)
-        })?;
+            Ok((game.clone(), effect, effect_i18n_key, effect_i18n_params))
+        })??;
 
     Ok(serde_json::json!({
         "game": game,
@@ -289,7 +311,8 @@ mod tests {
     };
     use chrono::{TimeZone, Utc};
     use domain::manager::Manager;
-    use domain::message::{ActionType, InboxMessage, MessageAction};
+    use domain::message::{ActionOption, ActionType, InboxMessage, MessageAction};
+    use domain::player::{Player, PlayerAttributes, Position};
     use domain::team::Team;
     use ofm_core::clock::GameClock;
     use ofm_core::game::Game;
@@ -449,19 +472,30 @@ mod tests {
         assert_eq!(after, before);
     }
 
+    /// Given a message dated ahead of the clock (the inbox list hides it, but an MCP agent can name
+    ///       its id)
+    /// When its action is resolved
+    /// Then it is refused as not found and the action stays unresolved: acting on it would let an
+    ///      agent resolve an event before the player can see it.
     #[test]
-    fn resolve_message_action_internal_ignores_a_message_dated_ahead_of_the_clock() {
-        // The inbox list hides future-dated mail, but this takes an id from the
-        // caller, and an MCP agent can name one the list never showed it. Acting
-        // on it would let an agent resolve an event before the player can see it.
+    fn resolve_message_action_internal_refuses_a_message_dated_ahead_of_the_clock() {
         let state = StateManager::new();
         let mut game = make_game();
         game.messages = vec![unresolved_action_message("future", "2026-09-01")];
         state.set_game(game);
 
-        resolve_message_action_internal(&state, Career::Active, "future", "action-future", None)
-            .expect("the call itself succeeds");
+        let refused = resolve_message_action_internal(
+            &state,
+            Career::Active,
+            "future",
+            "action-future",
+            None,
+        );
 
+        assert_eq!(
+            refused.map(|_| ()),
+            Err("be.error.actionNotFound".to_string())
+        );
         let stored = state.get_game(|game| game.clone()).expect("stored game");
         let action = &stored.messages[0].actions[0];
         assert!(
@@ -764,5 +798,491 @@ mod tests {
         let next = get_archived_messages_internal(&state, page.next_before, 1).unwrap();
         assert_eq!(next.items[0].id, "a");
         assert_eq!(next.next_before, None);
+    }
+
+    fn attributes() -> PlayerAttributes {
+        PlayerAttributes {
+            pace: 60,
+            stamina: 60,
+            strength: 60,
+            agility: 60,
+            passing: 60,
+            shooting: 60,
+            tackling: 60,
+            dribbling: 60,
+            defending: 60,
+            positioning: 60,
+            vision: 60,
+            decisions: 60,
+            composure: 60,
+            aggression: 60,
+            teamwork: 60,
+            leadership: 60,
+            handling: 30,
+            reflexes: 30,
+            aerial: 60,
+        }
+    }
+
+    fn squad_player(id: &str) -> Player {
+        let mut player = Player::new(
+            id.to_string(),
+            "Player".to_string(),
+            "Player".to_string(),
+            "1995-01-01".to_string(),
+            "England".to_string(),
+            Position::Forward,
+            attributes(),
+        );
+        player.team_id = Some("team-1".to_string());
+        player.morale = 80;
+        player
+    }
+
+    /// A message with one choose-an-option action, as a player event or a sponsor offer carries.
+    fn choice_message(id: &str, options: &[&str]) -> InboxMessage {
+        let mut message = actionable_message(id, "2026-08-20");
+        message.actions[0].action_type = ActionType::ChooseOption {
+            options: options
+                .iter()
+                .map(|option| ActionOption {
+                    id: option.to_string(),
+                    label: option.to_string(),
+                    description: String::new(),
+                    label_key: None,
+                    description_key: None,
+                })
+                .collect(),
+        };
+        message
+    }
+
+    const CONCERN: &str = "contract_concern_player-1_2026-08-20";
+    const CONCERN_ACTION: &str = "action-contract_concern_player-1_2026-08-20";
+
+    /// The user's club has a player with a contract concern and a teammate who hears of the answer.
+    fn state_with_a_contract_concern() -> StateManager {
+        let state = StateManager::new();
+        let mut game = make_game();
+        game.players = vec![squad_player("player-1"), squad_player("player-2")];
+        let mut message = choice_message(CONCERN, &["reassure", "noncommittal", "no_renewal"]);
+        message.context.player_id = Some("player-1".to_string());
+        game.messages = vec![message];
+        state.set_game(game);
+        state
+    }
+
+    fn morales(state: &StateManager) -> (u8, u8) {
+        state
+            .get_game(|game| (game.players[0].morale, game.players[1].morale))
+            .expect("game")
+    }
+
+    /// Given a contract concern answered "No renewal", which costs the player and every teammate morale
+    /// When the same answer arrives again (a second click, or an agent calling twice)
+    /// Then the second is refused with the already-resolved key and nobody loses morale twice.
+    #[test]
+    fn a_player_response_answered_twice_is_refused_and_applies_once() {
+        let state = state_with_a_contract_concern();
+        let before = morales(&state);
+        resolve_message_action_internal(
+            &state,
+            Career::Active,
+            CONCERN,
+            CONCERN_ACTION,
+            Some("no_renewal"),
+        )
+        .expect("the first answer applies");
+        let after_first = morales(&state);
+        assert!(
+            after_first.0 < before.0 && after_first.1 < before.1,
+            "the first answer costs the player and the teammate morale"
+        );
+
+        let second = resolve_message_action_internal(
+            &state,
+            Career::Active,
+            CONCERN,
+            CONCERN_ACTION,
+            Some("no_renewal"),
+        );
+
+        assert_eq!(
+            second.map(|_| ()),
+            Err("be.error.actionAlreadyResolved".to_string())
+        );
+        assert_eq!(morales(&state), after_first);
+    }
+
+    /// Given a contract concern answered "No renewal"
+    /// When a different answer, "Reassure", arrives for the same action
+    /// Then it is refused as well: the conversation had its answer, and morale is as the first left it.
+    #[test]
+    fn a_different_second_answer_to_the_same_action_is_refused() {
+        let state = state_with_a_contract_concern();
+        resolve_message_action_internal(
+            &state,
+            Career::Active,
+            CONCERN,
+            CONCERN_ACTION,
+            Some("no_renewal"),
+        )
+        .expect("the first answer applies");
+        let after_first = morales(&state);
+
+        let second = resolve_message_action_internal(
+            &state,
+            Career::Active,
+            CONCERN,
+            CONCERN_ACTION,
+            Some("reassure"),
+        );
+
+        assert_eq!(
+            second.map(|_| ()),
+            Err("be.error.actionAlreadyResolved".to_string())
+        );
+        assert_eq!(morales(&state), after_first);
+    }
+
+    /// Given a sponsor offer accepted, and some weeks of the deal since gone by
+    /// When "Accept" arrives again
+    /// Then it is refused and the deal's remaining weeks are not reset to a fresh twelve.
+    #[test]
+    fn a_sponsor_offer_accepted_twice_does_not_sign_the_deal_again() {
+        let state = StateManager::new();
+        let mut game = make_game();
+        let mut offer = choice_message("sponsor_2026-08-20", &["accept", "decline"]);
+        offer
+            .i18n_params
+            .insert("amount".to_string(), "400000".to_string());
+        offer
+            .i18n_params
+            .insert("sponsor".to_string(), "Acme".to_string());
+        game.messages = vec![offer];
+        state.set_game(game);
+        let remaining_weeks = |state: &StateManager| {
+            state
+                .get_game(|game| {
+                    game.teams[0]
+                        .sponsorship
+                        .as_ref()
+                        .map(|s| s.remaining_weeks)
+                })
+                .expect("game")
+        };
+        resolve_message_action_internal(
+            &state,
+            Career::Active,
+            "sponsor_2026-08-20",
+            "action-sponsor_2026-08-20",
+            Some("accept"),
+        )
+        .expect("the first accept signs the deal");
+        assert_eq!(remaining_weeks(&state), Some(12));
+        state
+            .update_game(|game| {
+                if let Some(sponsorship) = game.teams[0].sponsorship.as_mut() {
+                    sponsorship.remaining_weeks = 5;
+                }
+            })
+            .expect("game");
+
+        let second = resolve_message_action_internal(
+            &state,
+            Career::Active,
+            "sponsor_2026-08-20",
+            "action-sponsor_2026-08-20",
+            Some("accept"),
+        );
+
+        assert_eq!(
+            second.map(|_| ()),
+            Err("be.error.actionAlreadyResolved".to_string())
+        );
+        assert_eq!(remaining_weeks(&state), Some(5));
+    }
+
+    /// Given a plain action (no option to choose) already resolved
+    /// When it is resolved again
+    /// Then the caller is told it was already resolved, the same as for an answer with an effect.
+    #[test]
+    fn a_plain_action_resolved_twice_is_refused() {
+        let state = StateManager::new();
+        let mut game = make_game();
+        game.messages = vec![actionable_message("msg-1", "2026-08-20")];
+        state.set_game(game);
+        resolve_message_action_internal(&state, Career::Active, "msg-1", "action-msg-1", None)
+            .expect("the first resolve");
+
+        let second =
+            resolve_message_action_internal(&state, Career::Active, "msg-1", "action-msg-1", None);
+
+        assert_eq!(
+            second.map(|_| ()),
+            Err("be.error.actionAlreadyResolved".to_string())
+        );
+    }
+
+    /// Given a message with two actions, one of them resolved
+    /// When the other is resolved
+    /// Then it is not refused: only an action that was itself resolved is.
+    #[test]
+    fn resolving_one_action_leaves_the_messages_other_action_open() {
+        let state = StateManager::new();
+        let mut game = make_game();
+        let mut message = actionable_message("msg-1", "2026-08-20");
+        message.actions[0].resolved = true;
+        message.actions.push(MessageAction {
+            id: "second".to_string(),
+            label: "Second".to_string(),
+            action_type: ActionType::Acknowledge,
+            resolved: false,
+            label_key: None,
+        });
+        game.messages = vec![message];
+        state.set_game(game);
+
+        let resolved =
+            resolve_message_action_internal(&state, Career::Active, "msg-1", "second", None);
+
+        assert!(resolved.is_ok());
+    }
+
+    /// Given a sponsor offer accepted, its message since deleted and the deal since ended
+    /// When the same resolve is replayed (an MCP agent holding the old ids)
+    /// Then it is refused as not found and no fresh deal is signed from the handler's fallback
+    ///      amount and name: the handler never runs for a message that is not there.
+    #[test]
+    fn a_sponsor_offer_replayed_after_its_message_was_deleted_signs_nothing() {
+        let state = StateManager::new();
+        let mut game = make_game();
+        let mut offer = choice_message("sponsor_2026-08-20", &["accept", "decline"]);
+        offer
+            .i18n_params
+            .insert("amount".to_string(), "400000".to_string());
+        game.messages = vec![offer];
+        state.set_game(game);
+        resolve_message_action_internal(
+            &state,
+            Career::Active,
+            "sponsor_2026-08-20",
+            "action-sponsor_2026-08-20",
+            Some("accept"),
+        )
+        .expect("the first accept signs the deal");
+        delete_message_internal(&state, Career::Active, "sponsor_2026-08-20").expect("deleted");
+        state
+            .update_game(|game| game.teams[0].sponsorship = None)
+            .expect("game");
+
+        let replay = resolve_message_action_internal(
+            &state,
+            Career::Active,
+            "sponsor_2026-08-20",
+            "action-sponsor_2026-08-20",
+            Some("accept"),
+        );
+
+        assert_eq!(
+            replay.map(|_| ()),
+            Err("be.error.actionNotFound".to_string())
+        );
+        let sponsorship = state
+            .get_game(|game| game.teams[0].sponsorship.clone())
+            .expect("game");
+        assert!(
+            sponsorship.is_none(),
+            "no deal is signed for a deleted offer"
+        );
+    }
+
+    /// Given a player event whose action was answered
+    /// When an answer arrives naming an action id the message does not have
+    /// Then it is refused as not found before any effect: morale is as the first answer left it.
+    #[test]
+    fn an_unknown_action_on_an_answered_player_event_is_refused_and_applies_nothing() {
+        let state = state_with_a_contract_concern();
+        resolve_message_action_internal(
+            &state,
+            Career::Active,
+            CONCERN,
+            CONCERN_ACTION,
+            Some("reassure"),
+        )
+        .expect("the first answer applies");
+        let after_first = morales(&state);
+
+        let replay = resolve_message_action_internal(
+            &state,
+            Career::Active,
+            CONCERN,
+            "no-such-action",
+            Some("no_renewal"),
+        );
+
+        assert_eq!(
+            replay.map(|_| ()),
+            Err("be.error.actionNotFound".to_string())
+        );
+        assert_eq!(morales(&state), after_first);
+    }
+
+    /// Given an id that is in no message of the inbox
+    /// When it is resolved
+    /// Then the caller is told it was not found, rather than the call succeeding on nothing.
+    #[test]
+    fn resolving_a_message_that_is_not_in_the_inbox_is_refused() {
+        let state = StateManager::new();
+        state.set_game(make_game());
+
+        let refused = resolve_message_action_internal(
+            &state,
+            Career::Active,
+            "no-such-message",
+            "action-no-such-message",
+            None,
+        );
+
+        assert_eq!(
+            refused.map(|_| ()),
+            Err("be.error.actionNotFound".to_string())
+        );
+    }
+
+    /// Given a message dated ahead of the clock, whose action is already resolved
+    /// When it is resolved again
+    /// Then it is refused as not found, whatever its action says, and the game is exactly as it was.
+    #[test]
+    fn a_not_yet_visible_message_with_a_resolved_action_is_refused_as_not_found() {
+        let state = StateManager::new();
+        let mut game = make_game();
+        let mut future = unresolved_action_message("future", "2026-09-01");
+        future.actions[0].resolved = true;
+        game.messages = vec![future];
+        state.set_game(game);
+        let before = state
+            .get_game(|game| serde_json::to_value(game).expect("serialises"))
+            .expect("game");
+
+        let refused = resolve_message_action_internal(
+            &state,
+            Career::Active,
+            "future",
+            "action-future",
+            None,
+        );
+
+        assert_eq!(
+            refused.map(|_| ()),
+            Err("be.error.actionNotFound".to_string())
+        );
+        let after = state
+            .get_game(|game| serde_json::to_value(game).expect("serialises"))
+            .expect("game");
+        assert_eq!(after, before);
+    }
+
+    /// Given an agent that may see only what the manager can see
+    /// When it names an id that is not in the inbox, a message dated ahead of the clock (with its real
+    ///      action id, with an unknown one, and with its action already resolved)
+    /// Then every call gets the very same answer, so none of them tells it that a future message
+    ///      exists: sponsor offers and the like have guessable ids.
+    #[test]
+    fn a_not_yet_visible_message_answers_exactly_like_one_that_is_not_there() {
+        let state = StateManager::new();
+        let mut game = make_game();
+        let mut resolved_future = unresolved_action_message("future-resolved", "2026-09-01");
+        resolved_future.actions[0].resolved = true;
+        game.messages = vec![
+            unresolved_action_message("future", "2026-09-01"),
+            resolved_future,
+        ];
+        state.set_game(game);
+        let ask = |message: &str, action: &str, option: Option<&str>| {
+            resolve_message_action_internal(&state, Career::Active, message, action, option)
+                .map(|_| ())
+        };
+
+        let missing = ask("not-there", "action-not-there", None);
+
+        assert_eq!(missing, Err("be.error.actionNotFound".to_string()));
+        assert_eq!(ask("future", "action-future", None), missing);
+        assert_eq!(ask("future", "no-such-action", None), missing);
+        assert_eq!(ask("future", "action-future", Some("accept")), missing);
+        assert_eq!(
+            ask("future-resolved", "action-future-resolved", None),
+            missing
+        );
+    }
+
+    /// Given a sponsor offer, a choice between accepting and declining
+    /// When an agent resolves it without naming an option
+    /// Then it is refused and the offer stays pending, so a later answer with a valid option still
+    ///      works: leaving the option out must not burn the offer without signing or declining.
+    #[test]
+    fn a_choice_resolved_without_an_option_is_refused_and_stays_open() {
+        let state = StateManager::new();
+        let mut game = make_game();
+        game.messages = vec![choice_message("sponsor_2026-08-20", &["accept", "decline"])];
+        state.set_game(game);
+        let resolve = |option: Option<&str>| {
+            resolve_message_action_internal(
+                &state,
+                Career::Active,
+                "sponsor_2026-08-20",
+                "action-sponsor_2026-08-20",
+                option,
+            )
+            .map(|_| ())
+        };
+
+        let without_option = resolve(None);
+
+        assert_eq!(
+            without_option,
+            Err("be.error.actionOptionRequired".to_string())
+        );
+        let still_open = state
+            .get_game(|game| !game.messages[0].actions[0].resolved)
+            .expect("game");
+        assert!(still_open, "the offer is still pending");
+        assert_eq!(resolve(Some("accept")), Ok(()));
+    }
+
+    /// Given a sponsor offer, a choice between "accept" and "decline"
+    /// When an agent answers with an option the action does not offer ("typo")
+    /// Then it is refused, rather than succeeding with no effect, and the offer stays pending so a
+    ///      later valid answer works: every handler would ignore an unknown option.
+    #[test]
+    fn a_choice_resolved_with_an_option_it_does_not_offer_is_refused_and_stays_open() {
+        let state = StateManager::new();
+        let mut game = make_game();
+        game.messages = vec![choice_message("sponsor_2026-08-20", &["accept", "decline"])];
+        state.set_game(game);
+        let resolve = |option: &str| {
+            resolve_message_action_internal(
+                &state,
+                Career::Active,
+                "sponsor_2026-08-20",
+                "action-sponsor_2026-08-20",
+                Some(option),
+            )
+            .map(|_| ())
+        };
+
+        let typo = resolve("typo");
+
+        assert_eq!(typo, Err("be.error.actionOptionRequired".to_string()));
+        let still_open = state
+            .get_game(|game| {
+                (
+                    !game.messages[0].actions[0].resolved,
+                    game.teams[0].sponsorship.is_none(),
+                )
+            })
+            .expect("game");
+        assert_eq!(still_open, (true, true), "pending, and no deal signed");
+        assert_eq!(resolve("accept"), Ok(()));
     }
 }
