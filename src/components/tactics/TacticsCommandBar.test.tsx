@@ -364,11 +364,11 @@ describe("TacticsCommandBar", () => {
   it("shuts the tactic picker's list when the actions menu opens", () => {
     renderCommandBar();
     fireEvent.click(screen.getByRole("button", { name: "tactics.chooseTactic" }));
-    expect(screen.getByRole("listbox")).toBeInTheDocument();
+    expect(screen.getByRole("listbox", { name: "tactics.chooseTactic" })).toBeInTheDocument();
 
     openActionsMenu();
 
-    expect(screen.queryByRole("listbox")).toBeNull();
+    expect(screen.queryByRole("listbox", { name: "tactics.chooseTactic" })).toBeNull();
     expect(screen.getByRole("menu")).toBeInTheDocument();
   });
 
