@@ -250,6 +250,47 @@ mod tests {
         }
     }
 
+    /// Given the squad floor's refusal for a group, as the application reports it (the key, then
+    ///       the group as a key of its own)
+    /// When rendered for an agent
+    /// Then it is the screen's sentence with the group named in words, not the raw key (#1416)
+    #[test]
+    fn the_squad_floor_group_refusal_is_readable_with_its_group() {
+        let rendered = translate_error(
+            "be.error.squadFloor.wouldLeaveShort?group=common.positionGroups.Goalkeeper",
+        );
+
+        assert_eq!(
+            rendered,
+            "This player cannot leave: the squad would fall below the minimum a club must keep. \
+             Position group affected: Goalkeepers."
+        );
+    }
+
+    /// Given the squad floor's refusal for the senior count (the floor as a param)
+    /// When rendered for an agent
+    /// Then it is the screen's sentence with the number filled in.
+    #[test]
+    fn the_squad_floor_seniors_refusal_is_readable_with_its_floor() {
+        let rendered = translate_error("be.error.squadFloor.wouldLeaveSeniorsShort?floor=15");
+
+        assert_eq!(
+            rendered,
+            "This player cannot leave: the club would be left with fewer than 15 senior players, \
+             the minimum a club must keep."
+        );
+    }
+
+    /// Given a key with parameters that nothing maps (the package key the failure tests use)
+    /// When rendered for an agent
+    /// Then it is still the key itself, so the unmapped case stays visible.
+    #[test]
+    fn a_parameterised_key_with_no_mapping_stays_raw() {
+        let key = "be.error.package.unknownCountry?country=Peru";
+
+        assert_eq!(translate_error(key), format!("Error: {key}"));
+    }
+
     /// Every live-match refusal key the screen can show (`be.error.liveMatch.*` in `en.json`, the
     /// source of the locales) is a readable sentence for an agent, not a raw key: a key added
     /// there without an arm here fails this test by name.

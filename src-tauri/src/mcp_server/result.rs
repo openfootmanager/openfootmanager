@@ -189,6 +189,29 @@ mod tests {
         assert_eq!(data["error"]["params"]["n"], "2");
     }
 
+    /// Given the squad floor's refusal, a key with its group as a parameter
+    /// When it becomes a tool result
+    /// Then the text is the readable sentence with the group in words, and the structure still
+    ///      holds the key and the raw parameter, so an agent can read either (#1416).
+    #[test]
+    fn the_squad_floor_refusal_reads_in_words_and_keeps_its_key_and_params() {
+        let (data, text, is_error) = structured(Failure::from_backend_error(
+            "be.error.squadFloor.wouldLeaveShort?group=common.positionGroups.Defender",
+        ));
+
+        assert_eq!(is_error, Some(true));
+        assert_eq!(
+            text,
+            "This player cannot leave: the squad would fall below the minimum a club must keep. \
+             Position group affected: Defenders."
+        );
+        assert_eq!(data["error"]["key"], "be.error.squadFloor.wouldLeaveShort");
+        assert_eq!(
+            data["error"]["params"]["group"],
+            "common.positionGroups.Defender"
+        );
+    }
+
     /// Given a failure private to the MCP layer, in prose
     /// When it becomes a tool result
     /// Then the key is null and the prose is the message.
