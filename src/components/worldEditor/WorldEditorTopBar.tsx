@@ -137,7 +137,7 @@ export function WorldEditorTopBar({
           className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-gray-200 dark:border-navy-600 bg-white dark:bg-navy-700 text-xs font-heading font-bold uppercase tracking-wider text-gray-700 dark:text-gray-200 hover:border-primary-400 dark:hover:border-primary-500 hover:text-primary-600 dark:hover:text-primary-400 transition-all disabled:opacity-40"
         >
           {saveState === "saving" ? (
-            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+            <Loader2 className="w-3.5 h-3.5 motion-safe:animate-spin" />
           ) : saveState === "saved" ? (
             <Save className="w-3.5 h-3.5 text-green-500" />
           ) : saveState === "error" ? (
@@ -165,7 +165,7 @@ export function WorldEditorTopBar({
           className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-gray-200 dark:border-navy-600 bg-white dark:bg-navy-700 text-xs font-heading font-bold uppercase tracking-wider text-gray-700 dark:text-gray-200 hover:border-primary-400 dark:hover:border-primary-500 hover:text-primary-600 dark:hover:text-primary-400 transition-all disabled:opacity-50"
         >
           {isBusy ? (
-            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+            <Loader2 className="w-3.5 h-3.5 motion-safe:animate-spin" />
           ) : issueCount > 0 ? (
             <AlertCircle className="w-3.5 h-3.5 text-red-500" />
           ) : warningCount > 0 ? (
@@ -193,7 +193,7 @@ export function WorldEditorTopBar({
           className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-gradient-to-r from-accent-500 to-accent-600 hover:from-accent-600 hover:to-accent-700 text-white text-xs font-heading font-bold uppercase tracking-wider transition-all disabled:opacity-50"
         >
           {isBusy ? (
-            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+            <Loader2 className="w-3.5 h-3.5 motion-safe:animate-spin" />
           ) : (
             <Package className="w-3.5 h-3.5" />
           )}

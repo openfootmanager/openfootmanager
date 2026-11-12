@@ -65,7 +65,7 @@ export default function SavesList({
       <div className="flex flex-col gap-3 max-h-[60vh] overflow-y-auto pr-1">
         {isLoading ? (
           <div className="flex flex-col items-center gap-3 py-8 text-gray-500 dark:text-gray-400">
-            <Loader2 className="w-8 h-8 animate-spin text-primary-500" />
+            <Loader2 className="w-8 h-8 motion-safe:animate-spin text-primary-500" />
             <span className="text-sm font-heading uppercase tracking-wider">
               {t("menu.loadingSaves")}
             </span>
@@ -125,7 +125,7 @@ export default function SavesList({
                         {saveDisplayName(save.name)}
                       </span>
                       {loadingSaveId === save.id ? (
-                        <Loader2 className="w-4 h-4 text-primary-500 animate-spin flex-shrink-0" />
+                        <Loader2 className="w-4 h-4 text-primary-500 motion-safe:animate-spin flex-shrink-0" />
                       ) : (
                         <Play className="w-4 h-4 text-primary-500 opacity-0 group-hover:opacity-100 transition-all flex-shrink-0" />
                       )}

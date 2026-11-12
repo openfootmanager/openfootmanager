@@ -199,7 +199,7 @@ export function WorldEditorHome({
                 className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-primary-500 to-primary-600 hover:from-primary-600 hover:to-primary-700 text-white rounded-xl font-heading font-bold uppercase tracking-wide text-sm transition-all disabled:opacity-60 disabled:cursor-not-allowed"
               >
                 {isBusy ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <Loader2 className="w-4 h-4 motion-safe:animate-spin" />
                 ) : (
                   <ChevronRight className="w-4 h-4" />
                 )}

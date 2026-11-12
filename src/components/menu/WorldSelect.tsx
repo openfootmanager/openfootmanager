@@ -271,7 +271,7 @@ export default function GenerationStep({
         variant="primary"
         size="lg"
         className="w-full"
-        iconRight={isStarting ? <Loader2 className="animate-spin" /> : <ChevronRight />}
+        iconRight={isStarting ? <Loader2 className="motion-safe:animate-spin" /> : <ChevronRight />}
         onClick={onStart}
         disabled={isStarting}
       >
