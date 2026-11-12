@@ -48,6 +48,8 @@ interface PlayerProfileTabsProps {
   teams: Pick<TeamData, "id" | "name">[];
   /** Changes when anything the club-wide previews read does (`clubStateKey`): they ask again. */
   clubKey: string;
+  /** Changes when his career does (`careerRevision`): the day, his stats, a move, another career. */
+  careerKey: string;
 }
 
 /** The four tabs of the profile and what each holds. */
@@ -65,6 +67,7 @@ export default function PlayerProfileTabs({
   onSelectTeam,
   teams,
   clubKey,
+  careerKey,
 }: PlayerProfileTabsProps) {
   const { t, i18n } = useTranslation();
   const tabsId = useId();
@@ -74,12 +77,8 @@ export default function PlayerProfileTabs({
   const { opinionAnswer, potentialOpinion } = knowledge;
   const movements = withClubNames(player.movement_history ?? [], teams);
   const contractHistory = buildContractHistory(movements, currentDate.slice(0, 10));
-  // His career is the backend's projection; it changes with a new day (the season in progress),
-  // a move and a rollover, so those make the key.
-  const career = usePlayerCareer(
-    player.id,
-    [currentDate, player.team_id ?? "", player.career.length, movements.length].join("|"),
-  );
+  // His career is the backend's projection, asked again when its revision changes.
+  const career = usePlayerCareer(player.id, careerKey);
   const exactWeeklyWage =
     knowledge.visibleWage.kind === "exact" ? knowledge.visibleWage.weekly : null;
   // Asked for only while this tab is the open one: hidden tabs stay mounted, and the previews are

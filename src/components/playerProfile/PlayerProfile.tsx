@@ -6,6 +6,7 @@ import { getPlayerOvr } from "../../lib/helpers";
 import { naturalPositionOf } from "../../lib/positions";
 import { calcAgeOnDate } from "../../lib/valueFormatting";
 import type { GameStateData, PlayerData } from "../../store/gameStore";
+import { careerRevision } from "./PlayerProfile.careerKey";
 import { clubStateKey } from "./PlayerProfile.contract";
 import { getPlayerTeamName } from "./PlayerProfile.helpers";
 import { buildPlayerProfileRelationship } from "./PlayerProfile.viewModel";
@@ -165,6 +166,11 @@ export default function PlayerProfile({
         onSelectTeam={onSelectTeam}
         teams={gameState.teams}
         clubKey={clubStateKey(gameState, managerTeamId)}
+        careerKey={careerRevision(
+          gameState.career_token ?? 0,
+          player,
+          gameState.clock.current_date,
+        )}
       />
 
       <PlayerProfileModals

@@ -1077,11 +1077,16 @@ describe("PlayerProfile contract surfaces", () => {
       return defaultInvokeResponse(command);
     });
 
-    render(<PlayerProfile player={player} gameState={createGameState(player)} isOwnClub />);
-    fireEvent.click(screen.getByRole("tab", { name: "Career" }));
+    renderOnTab(
+      "Career tab",
+      <PlayerProfile player={player} gameState={createGameState(player)} isOwnClub />,
+    );
 
-    // The career arrives after the tab opens: the move is a line of the table, with its fee.
-    expect(await screen.findByText(/Transferred from Beta FC/)).toHaveTextContent("€1,250,000");
+    // The career arrives after the tab opens: the move is a line of the table, with its fee (the
+    // file's translator answers a key it does not know with the key).
+    expect(await screen.findByText(/playerProfile\.careerMove\.transferFrom/)).toHaveTextContent(
+      "€1,250,000",
+    );
     expect(screen.getByText("2025/26")).toBeInTheDocument();
   });
 
