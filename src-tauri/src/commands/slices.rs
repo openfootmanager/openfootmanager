@@ -434,6 +434,7 @@ mod tests {
             appearances: 30,
             goals: 4,
             assists: 2,
+            ..Default::default()
         });
         let manager = Manager::new(
             "m".into(),
@@ -459,6 +460,7 @@ mod tests {
             appearances: 20,
             goals: 5,
             assists: 1,
+            ..Default::default()
         });
         let state = StateManager::new();
         let mut game = ofm_core::game::Game::new(

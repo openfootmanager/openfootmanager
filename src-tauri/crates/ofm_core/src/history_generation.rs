@@ -587,6 +587,7 @@ fn upsert_player_career(game: &mut Game, season: u32, standings: &[StandingEntry
             appearances: player.stats.appearances,
             goals: player.stats.goals,
             assists: player.stats.assists,
+            ..Default::default()
         };
 
         if player
@@ -910,6 +911,7 @@ mod tests {
             appearances: 33,
             goals: 7,
             assists: 4,
+            ..Default::default()
         });
 
         game.manager.career_history.push(ManagerCareerEntry {
@@ -1075,6 +1077,7 @@ mod tests {
             appearances: 38,
             goals: 999,
             assists: 0,
+            ..Default::default()
         });
 
         generate_past_world_history(&mut game, 2032, 1);

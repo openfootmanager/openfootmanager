@@ -1307,6 +1307,149 @@ mod tests {
         );
     }
 
+    /// Given a player with a closed stint and a stint in progress that carry days, and a past
+    ///       season's career rows that carry theirs (`from`, `until`, `season_began_on`)
+    /// When he is saved to SQLite and read back by a fresh load of the table
+    /// Then every day is there: both are JSON columns, so the days travel with them and no column
+    ///      or migration is needed (#1402). A characterisation of that boundary.
+    #[test]
+    fn the_days_of_stints_and_career_rows_survive_sqlite() {
+        let db = test_db();
+        let mut player = sample_player("p-days", Some("team-b"));
+        player.stats.appearances = 12;
+        player
+            .record_movement(PlayerMovementEntry {
+                from_team_id: Some("team-a".to_string()),
+                from_team_name: Some("Alpha FC".to_string()),
+                to_team_id: Some("team-b".to_string()),
+                to_team_name: Some("Beta FC".to_string()),
+                ..PlayerMovementEntry::new("2026-01-12", PlayerMovementKind::PermanentTransfer)
+            })
+            .unwrap();
+        // A second move, after eight appearances at the club he arrived at on 12 January: that
+        // stint is closed with both days, the arrival's `since` being the one it began from.
+        player.stats.appearances = 20;
+        player
+            .record_movement(PlayerMovementEntry {
+                from_team_id: Some("team-b".to_string()),
+                from_team_name: Some("Beta FC".to_string()),
+                to_team_id: Some("team-c".to_string()),
+                to_team_name: Some("Gamma FC".to_string()),
+                ..PlayerMovementEntry::new("2026-03-01", PlayerMovementKind::PermanentTransfer)
+            })
+            .unwrap();
+        player.career.push(domain::player::CareerEntry {
+            season: 2025,
+            team_id: "team-a".to_string(),
+            team_name: "Alpha FC".to_string(),
+            appearances: 20,
+            goals: 5,
+            assists: 3,
+            from: Some("2025-09-01".to_string()),
+            until: Some("2026-01-05".to_string()),
+            season_began_on: Some("2025-07-01".to_string()),
+        });
+
+        upsert_player(db.conn(), &player).unwrap();
+        let loaded = load_all_players(db.conn()).unwrap();
+        let stored = loaded.iter().find(|stored| stored.id == player.id).unwrap();
+
+        assert_eq!(stored.career, player.career);
+        assert_eq!(stored.career[0].from.as_deref(), Some("2025-09-01"));
+        assert_eq!(stored.career[0].until.as_deref(), Some("2026-01-05"));
+        assert_eq!(
+            stored.career[0].season_began_on.as_deref(),
+            Some("2025-07-01")
+        );
+        assert_eq!(stored.season_stints, player.season_stints);
+        assert_eq!(stored.season_stints.since.as_deref(), Some("2026-03-01"));
+        let closed = &stored.season_stints.closed;
+        assert_eq!(closed.len(), 2);
+        assert_eq!(
+            (closed[0].from.as_deref(), closed[0].until.as_deref()),
+            (None, Some("2026-01-12"))
+        );
+        assert_eq!(
+            (closed[1].from.as_deref(), closed[1].until.as_deref()),
+            (Some("2026-01-12"), Some("2026-03-01"))
+        );
+    }
+
+    /// Given rows written before the days existed: a career row and a season's stints with none
+    /// When they are loaded
+    /// Then every day is `None`, and the figures are as they were: the placing falls back to the
+    ///      order of his visits for such a row.
+    #[test]
+    fn career_rows_and_stints_written_before_the_days_load_with_none() {
+        let db = test_db();
+        let player = sample_player("p-old-days", Some("team-a"));
+        upsert_player(db.conn(), &player).unwrap();
+        db.conn()
+            .execute(
+                "UPDATE players SET career = ?1, season_stints = ?2 WHERE id = 'p-old-days'",
+                [
+                    r#"[{"season":2025,"team_id":"team-a","team_name":"Alpha FC","appearances":3,"goals":1,"assists":0}]"#,
+                    r#"{"stats_at_arrival":{"appearances":2},"closed":[{"team_id":"team-a","team_name":"Alpha FC","tally":{"appearances":2}}]}"#,
+                ],
+            )
+            .unwrap();
+
+        let loaded = load_all_players(db.conn()).unwrap();
+        let stored = loaded.iter().find(|stored| stored.id == player.id).unwrap();
+
+        assert_eq!(stored.career.len(), 1);
+        assert_eq!(stored.career[0].appearances, 3);
+        assert_eq!(
+            (
+                &stored.career[0].from,
+                &stored.career[0].until,
+                &stored.career[0].season_began_on
+            ),
+            (&None, &None, &None)
+        );
+        assert_eq!(stored.season_stints.closed[0].tally.appearances, 2);
+        assert_eq!(
+            (
+                &stored.season_stints.closed[0].from,
+                &stored.season_stints.closed[0].until,
+                &stored.season_stints.since
+            ),
+            (&None, &None, &None)
+        );
+    }
+
+    /// Given a player whose rows carry no days
+    /// When he is saved
+    /// Then the stored JSON leaves the days out, so a save does not fill with nulls.
+    #[test]
+    fn days_that_are_not_there_are_not_stored() {
+        let db = test_db();
+        let mut player = sample_player("p-no-days", Some("team-a"));
+        player.career.push(domain::player::CareerEntry {
+            season: 2025,
+            team_id: "team-a".to_string(),
+            team_name: "Alpha FC".to_string(),
+            appearances: 3,
+            ..Default::default()
+        });
+
+        upsert_player(db.conn(), &player).unwrap();
+        let (career, stints): (String, String) = db
+            .conn()
+            .query_row(
+                "SELECT career, season_stints FROM players WHERE id = 'p-no-days'",
+                [],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )
+            .unwrap();
+
+        for text in [career, stints] {
+            for day in ["from", "until", "since", "season_began_on"] {
+                assert!(!text.contains(day), "{day} is stored in {text}");
+            }
+        }
+    }
+
     #[test]
     fn test_player_movement_history_roundtrip() {
         let db = test_db();

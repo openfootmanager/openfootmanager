@@ -268,6 +268,7 @@ impl Player {
                 &self.stats,
                 entry.from_team_id.as_deref().unwrap_or_default(),
                 entry.from_team_name.as_deref().unwrap_or_default(),
+                &entry.date,
             );
         }
         let changes_contract = entry.contract.is_some()
