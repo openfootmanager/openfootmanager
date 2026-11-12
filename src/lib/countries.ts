@@ -399,4 +399,52 @@ export function normaliseNationality(value: string): string {
   return trimmed;
 }
 
+/**
+ * The English country names the MCP server needs, from the tables the screen reads: every ISO
+ * country and football identity by code, and the three ways `normaliseNationality` reads any other
+ * value, in the order it tries them (`aliases`, then `demonyms`, then `names`). The Rust resolver
+ * (`mcp_server/backend_text`) reads this as `src/lib/countryNames.en.json`; `countryNames.test.ts`
+ * writes the file and holds it to the functions here, so neither can change without the other.
+ *
+ * English only, because MCP output is, and the backend writes codes or English names. `aliases` and
+ * `names` are lower case (the screen reads both without regard to case); `demonyms` are as
+ * written (the screen reads those exactly). A name is listed only when `normaliseNationality`
+ * reads it as that code: one an earlier rule takes for another country (`Ireland`) is left out.
+ */
+export function englishCountryTable(): {
+  codes: Record<string, string>;
+  aliases: Record<string, string>;
+  demonyms: Record<string, string>;
+  names: Record<string, string>;
+} {
+  // By code unit, not by locale: the file must be the same wherever it is written.
+  const sorted = (record: Record<string, string>): Record<string, string> =>
+    Object.fromEntries(Object.entries(record).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)));
+
+  const codes: Record<string, string> = {};
+  for (const code of Object.keys(countries.getAlpha2Codes())) {
+    codes[code] = countryName(code, "en");
+  }
+  for (const identity of Object.values(FOOTBALL_IDENTITIES)) {
+    codes[identity.code] = countryName(identity.code, "en");
+  }
+
+  const names: Record<string, string> = {};
+  for (const [code, listed] of Object.entries(countries.getNames("en", { select: "all" }))) {
+    for (const name of Array.isArray(listed) ? listed : [listed]) {
+      const key = name.trim().toLowerCase();
+      if (key && !(key in names) && normaliseNationality(name) === code) {
+        names[key] = code;
+      }
+    }
+  }
+
+  return {
+    codes: sorted(codes),
+    aliases: sorted(ALIAS_TO_CODE),
+    demonyms: sorted(DEMONYM_TO_CODE),
+    names: sorted(names),
+  };
+}
+
 export { countries };

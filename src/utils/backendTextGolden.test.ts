@@ -58,6 +58,18 @@ type GoldenCase =
   | { name: string; kind: "message"; input: GoldenMessage; expected?: unknown }
   | { name: string; kind: "article"; input: GoldenArticle; expected?: unknown };
 
+/** What a nationality param can be, as the backend and the old saves wrote it. */
+const NATIONALITIES: ReadonlyArray<readonly [what: string, value: string]> = [
+  ["an ISO country code", "BR"],
+  ["a football identity code", "ENG"],
+  ["an alias in lower case", "england"],
+  ["an alias in mixed case", "united Kingdom"],
+  ["an English country name", "Germany"],
+  ["a demonym written as the old saves wrote it", "Argentine"],
+  ["a demonym in a case the screen does not read", "argentine"],
+  ["a value that is no country", "Atlantis"],
+];
+
 const CASES: GoldenCase[] = [
   {
     name: "a message whose subject, body, sender and action label are keys with a plain param",
@@ -549,6 +561,160 @@ const CASES: GoldenCase[] = [
           { player: "J. Doe", fromTeam: "North", toTeam: "South", fee: "12500000" },
           { player: "A. Roe", fromTeam: "East", toTeam: "West", fee: "800000" },
         ]),
+      },
+    },
+  },
+  // Names (#1388, C): a country or nationality param is the country's name (the screen's
+  // `countryName`), a division or competition is named from its key, country and season, and a
+  // season-awards winner at no club carries the free-agent key.
+  ...NATIONALITIES.map(
+    ([what, nationality], index): GoldenCase => ({
+      name: `a nationality param that is ${what} reads as the country's name`,
+      kind: "message",
+      input: {
+        id: `intl_callup_${index}`,
+        subject_key: "be.msg.intlCallup.subject",
+        body_key: "be.msg.intlCallup.body",
+        i18n_params: { player: "J. Doe", nationality },
+      },
+    }),
+  ),
+  {
+    name: "a promotion names the division from its key, country and season",
+    kind: "message",
+    input: {
+      id: "promotion_2027",
+      subject_key: "be.msg.promotion.subject",
+      body_key: "be.msg.promotion.body",
+      i18n_params: {
+        division: "Germany Second Division",
+        season: "2027",
+        divisionKey: "tournaments.competitions.secondDivision",
+        divisionSeason: "2027",
+        divisionCountry: "DE",
+      },
+    },
+  },
+  {
+    name: "a relegation names a numbered division, and one whose country has no name of its own",
+    kind: "message",
+    input: {
+      id: "relegation_2027",
+      subject_key: "be.msg.relegation.subject",
+      body_key: "be.msg.relegation.body",
+      i18n_params: {
+        division: "Xland League",
+        season: "2027",
+        divisionKey: "tournaments.competitions.league",
+        divisionSeason: "2027",
+        divisionCountry: "XL",
+      },
+    },
+  },
+  {
+    name: "a promotion whose division has no key keeps the stored name",
+    kind: "message",
+    input: {
+      id: "promotion_2028",
+      subject_key: "be.msg.promotion.subject",
+      body_key: "be.msg.promotion.body",
+      i18n_params: { division: "The Premier Division", season: "2028" },
+    },
+  },
+  {
+    name: "a promotion to a numbered division with no tier keeps the stored name",
+    kind: "message",
+    input: {
+      id: "promotion_2029",
+      subject_key: "be.msg.promotion.subject",
+      body_key: "be.msg.promotion.body",
+      i18n_params: {
+        division: "Spain Division 3",
+        season: "2029",
+        divisionKey: "tournaments.competitions.tierDivision",
+        divisionSeason: "2029",
+        divisionCountry: "ES",
+      },
+    },
+  },
+  {
+    name: "a competition report names the competition from its key, country and season",
+    kind: "article",
+    input: {
+      id: "report_cup_1",
+      headline_key: "be.news.matchReport.reportCompetition.title",
+      body_key: "be.news.matchReport.reportCompetition.body",
+      source_key: "be.source.footballHerald",
+      i18n_params: {
+        home: "North",
+        away: "South",
+        homeGoals: "3",
+        awayGoals: "2",
+        competition: "Germany Cup",
+        competitionKey: "tournaments.competitions.nationalCup",
+        competitionCountry: "DE",
+        competitionSeason: "2026",
+        scorers: "",
+        scorersSection: "",
+        scorersData: "[]",
+      },
+    },
+  },
+  {
+    name: "a competition report with no key keeps the stored competition name",
+    kind: "article",
+    input: {
+      id: "report_cup_2",
+      headline_key: "be.news.matchReport.reportCompetition.title",
+      body_key: "be.news.matchReport.reportCompetition.body",
+      source_key: "be.source.footballHerald",
+      i18n_params: {
+        home: "East",
+        away: "West",
+        homeGoals: "1",
+        awayGoals: "1",
+        competition: "The Shield",
+        scorers: "",
+        scorersSection: "",
+        scorersData: "[]",
+      },
+    },
+  },
+  {
+    name: "a season-awards winner at no club, by any of its spellings, is a free agent",
+    kind: "article",
+    input: {
+      id: "awards_1",
+      headline_key: "be.news.seasonAwards.headline",
+      body_key: "be.news.seasonAwards.bodyBoth",
+      source_key: "be.source.leagueChronicle",
+      i18n_params: {
+        season: "2026",
+        goldenBootWinner: "J. Doe",
+        goldenBootTeam: "",
+        goldenBootGoals: "24",
+        potyWinner: "A. Roe",
+        potyTeam: "Free Agent",
+        potyRating: "7.9",
+      },
+    },
+  },
+  {
+    name: "a season-awards winner at a club keeps the club's name",
+    kind: "article",
+    input: {
+      id: "awards_2",
+      headline_key: "be.news.seasonAwards.headline",
+      body_key: "be.news.seasonAwards.bodyBoth",
+      source_key: "be.source.leagueChronicle",
+      i18n_params: {
+        season: "2026",
+        goldenBootWinner: "J. Doe",
+        goldenBootTeam: "North",
+        goldenBootGoals: "24",
+        potyWinner: "A. Roe",
+        potyTeam: "common.freeAgent",
+        potyRating: "7.9",
       },
     },
   },
