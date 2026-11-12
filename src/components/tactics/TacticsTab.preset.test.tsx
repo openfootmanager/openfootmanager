@@ -173,6 +173,8 @@ const makeGame = (): GameStateData => ({
 let backend: GameStateData;
 /** The backend's verdict on whether the phase dials still equal the style's blueprint. */
 let blueprintModified = false;
+/** Whether the faked backend fails when asked about the blueprint of a preset's style. */
+let blueprintStatusFailsForStyle = false;
 /** The measuring stand-in `narrowLineupRegion` installs, to put back. */
 let rectSpy: { mockRestore: () => void } | null = null;
 /** Commands the faked backend refuses with the career-changed error. */
@@ -243,7 +245,10 @@ function fakeBackend(failPreset = false) {
       return structuredClone(savedTactics);
     }
     const team = backend.teams[0];
-    if (command === "get_tactics_blueprint_status") return { modified: blueprintModified };
+    if (command === "get_tactics_blueprint_status") {
+      if (blueprintStatusFailsForStyle && params.playStyle) throw new Error("no answer");
+      return { modified: blueprintModified };
+    }
     if (command === "set_tactics_phase") {
       team.tactics_phase = {
         ...(team.tactics_phase as object),
@@ -314,6 +319,7 @@ describe("TacticsTab preset selection", { timeout: TACTICS_TAB_CASE_TIMEOUT_MS }
     resetTacticsLineupCache();
     mockedInvoke.mockReset();
     blueprintModified = false;
+    blueprintStatusFailsForStyle = false;
     savedTactics = [];
     libraryListGate = null;
     savedTacticDifferencesFail = false;
@@ -1058,7 +1064,140 @@ describe("TacticsTab preset selection", { timeout: TACTICS_TAB_CASE_TIMEOUT_MS }
 
     fireEvent.click(screen.getByRole("button", { name: "Choose tactic" }));
     fireEvent.click(screen.getByRole("option", { name: /Balanced Control/ }));
+    // The tuned dials would be replaced, so it asks first.
+    fireEvent.click(await screen.findByRole("button", { name: "Replace my instructions" }));
 
     await waitFor(() => expect(screen.getByText("Synced")).toBeInTheDocument());
+  });
+
+  /** Tunes the width dial, so the manager's instructions differ from every preset's blueprint. */
+  async function tuneAnInstruction() {
+    openPhaseBlueprint();
+    const widthRow = screen.getByText("Width").parentElement as HTMLElement;
+    fireEvent.click(within(widthRow).getByRole("combobox"));
+    fireEvent.click(screen.getByRole("option", { name: "Wide" }));
+    await waitFor(() => expect(screen.getByText("Unsaved changes")).toBeInTheDocument());
+  }
+
+  /** Picks the High Press preset from the tactic picker. */
+  function pickHighPress() {
+    fireEvent.click(screen.getByRole("button", { name: "Choose tactic" }));
+    fireEvent.click(screen.getByRole("option", { name: /High Press/ }));
+  }
+
+  /**
+   * Given the manager's instructions already equal the preset's blueprint
+   * When they pick the preset
+   * Then the backend was asked about the preset's play style, and it applies without a question.
+   */
+  it("applies a preset without asking when none of the manager's instructions would be replaced", async () => {
+    fakeBackend();
+    render(<ControlledTacticsTab />);
+
+    pickHighPress();
+
+    await waitFor(() => expect(commandsCalled()).toContain("apply_tactic_preset"));
+    expect(mockedInvoke).toHaveBeenCalledWith("get_tactics_blueprint_status", {
+      playStyle: "HighPress",
+    });
+    expect(screen.queryByRole("dialog")).toBeNull();
+  });
+
+  /**
+   * Given instructions the manager tuned
+   * When they pick a preset
+   * Then a dialog asks, and nothing is applied until they answer; "Replace my instructions" applies
+   *      the whole preset.
+   */
+  it("asks before a preset replaces tuned instructions, and Replace applies the whole preset", async () => {
+    fakeBackend();
+    render(<ControlledTacticsTab />);
+    await tuneAnInstruction();
+    mockedInvoke.mockClear();
+
+    pickHighPress();
+
+    const dialog = await screen.findByRole("dialog", { name: "Replace your team instructions?" });
+    expect(commandsCalled()).not.toContain("apply_tactic_preset");
+    fireEvent.click(within(dialog).getByRole("button", { name: "Replace my instructions" }));
+
+    await waitFor(() =>
+      expect(mockedInvoke).toHaveBeenCalledWith("apply_tactic_preset", {
+        careerToken: 0,
+        formation: "3-4-3",
+        playStyle: "HighPress",
+      }),
+    );
+    expect(screen.queryByRole("dialog")).toBeNull();
+  });
+
+  /**
+   * Given the question about tuned instructions
+   * When the manager answers "Keep mine"
+   * Then the preset's formation and play style are set, the preset command is not used (it would
+   *      replace the instructions), and the dials the manager tuned are still tuned.
+   */
+  it("takes only the formation and play style when the manager keeps their instructions", async () => {
+    fakeBackend();
+    render(<ControlledTacticsTab />);
+    await tuneAnInstruction();
+    mockedInvoke.mockClear();
+
+    pickHighPress();
+    fireEvent.click(await screen.findByRole("button", { name: "Keep mine" }));
+
+    await waitFor(() => expect(commandsCalled()).toContain("set_play_style"));
+    expect(mockedInvoke).toHaveBeenCalledWith("set_formation", {
+      careerToken: 0,
+      formation: "3-4-3",
+    });
+    expect(mockedInvoke).toHaveBeenCalledWith("set_play_style", {
+      careerToken: 0,
+      playStyle: "HighPress",
+    });
+    expect(commandsCalled()).not.toContain("apply_tactic_preset");
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(await screen.findByText("Unsaved changes")).toBeInTheDocument();
+  });
+
+  /**
+   * Given the question about tuned instructions
+   * When the manager cancels, and, in another round, presses Escape
+   * Then nothing is applied either time and the tactic is unchanged.
+   */
+  it.each([
+    ["Cancel", () => fireEvent.click(screen.getByRole("button", { name: "Cancel" }))],
+    ["Escape", () => fireEvent.keyDown(window, { key: "Escape" })],
+  ])("applies nothing when the question is answered with %s", async (_name, answer) => {
+    fakeBackend();
+    render(<ControlledTacticsTab />);
+    await tuneAnInstruction();
+    mockedInvoke.mockClear();
+
+    pickHighPress();
+    await screen.findByRole("dialog", { name: "Replace your team instructions?" });
+    answer();
+
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    expect(commandsCalled()).not.toContain("apply_tactic_preset");
+    expect(commandsCalled()).not.toContain("set_play_style");
+  });
+
+  /**
+   * Given a backend that cannot say whether the preset would replace the manager's instructions
+   * When they pick the preset
+   * Then it asks: nothing of theirs is replaced on a guess.
+   */
+  it("asks when the backend cannot say whether the preset would replace instructions", async () => {
+    blueprintStatusFailsForStyle = true;
+    fakeBackend();
+    render(<ControlledTacticsTab />);
+
+    pickHighPress();
+
+    expect(
+      await screen.findByRole("dialog", { name: "Replace your team instructions?" }),
+    ).toBeInTheDocument();
+    expect(commandsCalled()).not.toContain("apply_tactic_preset");
   });
 });

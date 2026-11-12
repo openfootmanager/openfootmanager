@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { invoke } from "@tauri-apps/api/core";
 
-import { getSquad, setPlayerSquadRole } from "./squadService";
+import { getSquad, getTacticsBlueprintStatus, setPlayerSquadRole } from "./squadService";
 
 vi.mock("@tauri-apps/api/core", () => ({
   invoke: vi.fn(),
@@ -12,6 +12,18 @@ const mockedInvoke = vi.mocked(invoke);
 describe("squadService", () => {
   beforeEach(() => {
     mockedInvoke.mockReset();
+  });
+
+  it("asks about the team's own style's blueprint, or about a given style's", async () => {
+    mockedInvoke.mockResolvedValue({ modified: true });
+
+    await getTacticsBlueprintStatus();
+    await getTacticsBlueprintStatus("HighPress");
+
+    expect(mockedInvoke).toHaveBeenNthCalledWith(1, "get_tactics_blueprint_status", undefined);
+    expect(mockedInvoke).toHaveBeenNthCalledWith(2, "get_tactics_blueprint_status", {
+      playStyle: "HighPress",
+    });
   });
 
   it("calls the set player squad role backend command", async () => {
