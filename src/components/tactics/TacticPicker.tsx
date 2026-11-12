@@ -97,10 +97,10 @@ export default function TacticPicker({
       return;
     }
     if (event.key !== "ArrowDown" && event.key !== "ArrowUp") return;
-    const stops = [
-      searchRef.current,
-      ...(wrapperRef.current?.querySelectorAll<HTMLButtonElement>('[role="option"]') ?? []),
-    ].filter((stop): stop is HTMLElement => stop !== null);
+    const stops: HTMLElement[] = [
+      ...(searchRef.current ? [searchRef.current] : []),
+      ...(wrapperRef.current?.querySelectorAll<HTMLElement>('[role="option"]') ?? []),
+    ];
     const at = stops.findIndex((stop) => stop === document.activeElement);
     const next =
       event.key === "ArrowDown" ? Math.min(at + 1, stops.length - 1) : Math.max(at - 1, 0);
@@ -128,12 +128,12 @@ export default function TacticPicker({
         onClick={() => onOpenChange(!open)}
         className="flex h-9 w-full items-center justify-between gap-3 rounded-lg border border-line-strong bg-panel px-3 text-left text-body text-fg hover:border-selected focus:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 focus-visible:ring-offset-page"
       >
-        {/* The name is the point, so it keeps the larger share of a narrow button; the summary shrinks. */}
+        {/* Both keep their own width until the button is too narrow; then the summary gives up twice as much, so the name stays readable. */}
         <span id={activeNameId} className="flex min-w-0 flex-1 items-center justify-between gap-3">
-          <span className="min-w-0 flex-[2_1_0] truncate font-heading font-bold">
+          <span className="min-w-0 shrink truncate font-heading font-bold">
             {activeTactic.name}
           </span>
-          <span className="min-w-0 flex-[1_1_0] truncate text-right text-caption text-fg-muted">
+          <span className="min-w-0 shrink-[2] truncate text-right text-caption text-fg-muted">
             {summarizeTactic(activeTactic, t)}
           </span>
         </span>
