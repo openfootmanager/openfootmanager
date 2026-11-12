@@ -106,7 +106,8 @@ describe("DashboardSimulatingModal digest date", () => {
    *      and never in the host's
    */
   it("writes the digest day in the game's language, not the host's", () => {
-    useDateTimeFormat(UsHostDateTimeFormat);
+    // A class is newable but not callable, which `DateTimeFormatConstructor` also requires.
+    useDateTimeFormat(UsHostDateTimeFormat as unknown as typeof Intl.DateTimeFormat);
 
     render(<DashboardSimulatingModal digestEntries={[entryWith([match()])]} />);
 
