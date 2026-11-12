@@ -1868,6 +1868,7 @@
     "careerChartNoMoveSince": "С предыдущего этапа переходов не было.",
     "careerChartMovesFirst": "С момента прихода",
     "careerChartNoMoveFirst": "С момента прихода переходов не было.",
+    "careerChartMovesAfter": "После этого этапа",
     "careerChartClubs": "Клубы",
     "careerChartLoanClub": "{{club}} (аренда)",
     "careerChartPrevious": "Предыдущий сезон",

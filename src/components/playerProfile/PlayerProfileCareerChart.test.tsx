@@ -128,8 +128,8 @@ function renderChart(onOpenTeam?: (teamId: string) => void) {
   );
 }
 
-/** Clicks a bar the way recharts reports it: the datum behind the bar. */
-const clickBar = (index: number) => act(() => handed.onClick?.({ key: handed.data[index].key }));
+/** Clicks a bar the way recharts reports it: the bar's rectangle, with the datum as its payload. */
+const clickBar = (index: number) => act(() => handed.onClick?.({ payload: handed.data[index] }));
 
 beforeEach(() => {
   handed.data = [];
@@ -519,10 +519,10 @@ describe("PlayerProfileCareerChart", () => {
   it("gives the plot a width for each season and scrolls it inside the card", () => {
     const { container } = renderChart();
 
-    const scroller = container.querySelector(".overflow-x-auto");
-    expect(scroller).not.toBeNull();
-    const plot = scroller?.firstElementChild as HTMLElement;
-    expect(plot.style.minWidth).toBe("14rem");
+    // The plot is the element with a minimum width; its parent is what scrolls.
+    const plot = container.querySelector<HTMLElement>('[style*="min-width"]');
+    expect(plot?.style.minWidth).toBe("14rem");
+    expect(plot?.parentElement?.className).toContain("overflow-x-auto");
   });
 
   /**

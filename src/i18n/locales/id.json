@@ -1869,6 +1869,7 @@
     "careerChartNoMoveSince": "Tidak ada kepindahan sejak periode sebelumnya.",
     "careerChartMovesFirst": "Sejak bergabung",
     "careerChartNoMoveFirst": "Tidak ada kepindahan sejak bergabung.",
+    "careerChartMovesAfter": "Setelah periode ini",
     "careerChartClubs": "Klub",
     "careerChartLoanClub": "{{club}} (pinjaman)",
     "careerChartPrevious": "Musim sebelumnya",

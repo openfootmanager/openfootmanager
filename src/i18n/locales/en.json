@@ -1869,6 +1869,7 @@
     "careerChartNoMoveSince": "No move since the previous spell.",
     "careerChartMovesFirst": "Since joining",
     "careerChartNoMoveFirst": "No move since joining.",
+    "careerChartMovesAfter": "After this spell",
     "careerChartClubs": "Clubs",
     "careerChartLoanClub": "{{club}} (loan)",
     "careerChartPrevious": "Previous season",

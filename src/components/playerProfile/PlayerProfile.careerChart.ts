@@ -39,7 +39,7 @@ export interface ChartBand {
 export interface CareerChart {
   /** Oldest first, the order a chart reads. */
   bars: ChartBar[];
-  /** The moves the career lists after its last season row (a release, a retirement). Scaffold: empty. */
+  /** The moves the career lists after its last season row (a release, a retirement), oldest first. */
   trailingMoves: CareerMoveLine[];
   bands: ChartBand[];
 }
@@ -93,5 +93,12 @@ export function buildCareerChart(career: PlayerCareer, metric: ChartMetric): Car
     });
   }
 
-  return { bars, bands: [...bandOf.values()], trailingMoves: [] };
+  // Moves newer than the newest season row land on no bar: a release or a retirement.
+  const newest = lines.findIndex((line) => line.kind === "season");
+  const trailingMoves: CareerMoveLine[] = [];
+  for (let index = Math.max(newest, 0) - 1; index >= 0; index -= 1) {
+    const line = lines[index];
+    if (line.kind === "move") trailingMoves.push(line);
+  }
+  return { bars, bands: [...bandOf.values()], trailingMoves };
 }

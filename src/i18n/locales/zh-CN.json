@@ -1868,6 +1868,7 @@
     "careerChartNoMoveSince": "自上一阶段起无转会。",
     "careerChartMovesFirst": "自加盟起",
     "careerChartNoMoveFirst": "自加盟起无转会。",
+    "careerChartMovesAfter": "此阶段之后",
     "careerChartClubs": "俱乐部",
     "careerChartLoanClub": "{{club}}（租借）",
     "careerChartPrevious": "上一赛季",

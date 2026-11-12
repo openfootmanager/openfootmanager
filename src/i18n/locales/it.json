@@ -1887,6 +1887,7 @@
     "careerChartNoMoveSince": "Nessun trasferimento dall'esperienza precedente.",
     "careerChartMovesFirst": "Dall'arrivo",
     "careerChartNoMoveFirst": "Nessun trasferimento dall'arrivo.",
+    "careerChartMovesAfter": "Dopo questa esperienza",
     "careerChartClubs": "Club",
     "careerChartLoanClub": "{{club}} (prestito)",
     "careerChartPrevious": "Stagione precedente",

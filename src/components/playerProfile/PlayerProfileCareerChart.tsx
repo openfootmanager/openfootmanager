@@ -7,9 +7,11 @@ import {
   LabelList,
   ResponsiveContainer,
   XAxis,
+  type XAxisTickContentProps,
   YAxis,
 } from "recharts";
 
+import type { CareerMoveLine } from "../../store/generated/CareerMoveLine";
 import type { PlayerCareer } from "../../store/generated/PlayerCareer";
 import { storedTeamLabel } from "../../lib/team";
 import { Badge, Button, SegmentedControl } from "../ui";
@@ -50,6 +52,7 @@ const METRIC_KEYS: Record<ChartMetric, string> = {
 function Readout({
   bar,
   isFirst,
+  after,
   language,
   onOpenTeam,
   t,
@@ -57,6 +60,8 @@ function Readout({
   bar: ChartBar;
   /** The first bar of the career: its moves are counted from joining, not from a previous spell. */
   isFirst: boolean;
+  /** The moves after the career's last season, for the latest bar only. */
+  after: CareerMoveLine[];
   language: string;
   onOpenTeam?: (teamId: string) => void;
   t: TranslateFn;
@@ -77,6 +82,9 @@ function Readout({
       </p>
       <p className="flex flex-wrap items-center gap-2">
         <ClubName id={bar.clubId} name={bar.clubName} onOpenTeam={onOpenTeam} t={t} />
+        {bar.inProgress ? (
+          <Badge variant="success">{t(`${SECTION}.careerInProgress`)}</Badge>
+        ) : null}
         {bar.onLoan ? <Badge variant="neutral">{t(`${SECTION}.careerOnLoan`)}</Badge> : null}
       </p>
       <dl className="grid grid-cols-3 gap-2">
@@ -103,21 +111,24 @@ function Readout({
           {t(`${SECTION}.careerChartNoMove${isFirst ? "First" : "Since"}`)}
         </p>
       )}
+      {after.length > 0 ? (
+        <div className="text-caption text-fg-muted">
+          <p className="font-semibold">{t(`${SECTION}.careerChartMovesAfter`)}</p>
+          <ul className="flex flex-col gap-1">
+            {after.map((move) => (
+              <li key={move.key}>{moveSummary(move, language, t)}</li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
     </section>
   );
 }
 
-/** What recharts reports for a clicked bar: the datum itself, or the datum as `payload`. */
-interface BarClick {
-  key?: string;
-  payload?: { key: string };
-}
-
-interface TickProps {
-  x: number;
-  y: number;
-  index: number;
-  payload: { value: string };
+/** The key of the datum behind a clicked bar: recharts hands the bar's rectangle, the datum as `payload`. */
+function datumKey(payload: unknown): string | null {
+  if (typeof payload !== "object" || payload === null || !("key" in payload)) return null;
+  return typeof payload.key === "string" ? payload.key : null;
 }
 
 /**
@@ -136,7 +147,7 @@ export default function PlayerProfileCareerChart({
   const theme = useChartTheme();
   const [metric, setMetric] = useState<ChartMetric>("goals");
   const [chosen, setChosen] = useState<string | null>(null);
-  const { bars, bands } = buildCareerChart(career, metric);
+  const { bars, bands, trailingMoves } = buildCareerChart(career, metric);
   // The latest season until another is chosen, and again if the chosen one is no longer there.
   const found = bars.findIndex((bar) => bar.key === chosen);
   const index = found >= 0 ? found : bars.length - 1;
@@ -156,29 +167,34 @@ export default function PlayerProfileCareerChart({
     bandIndex: bar.bandIndex,
   }));
   // A bar's tick is its season with its club's band under it.
-  const renderTick = ({ x, y, index: at, payload }: TickProps) => (
-    <g>
-      <text x={x} y={y + 12} textAnchor="middle" fill={theme.axisColor}>
-        {payload.value}
-      </text>
-      <rect
-        x={x - 14}
-        y={y + 20}
-        width={28}
-        height={5}
-        rx={2.5}
-        fill={bandFill(data[at]?.bandIndex ?? 0)}
-      />
-      <text x={x} y={y + 38} textAnchor="middle" fill={theme.axisColor}>
-        {(data[at]?.bandIndex ?? 0) + 1}
-      </text>
-    </g>
-  );
-  const choose = (entry: BarClick) => setChosen(entry.key ?? entry.payload?.key ?? null);
+  // The tick position is a number or a numeric string; the season label is the datum's.
+  const renderTick = ({ x, y, index: at, payload }: XAxisTickContentProps) => {
+    const left = Number(x);
+    const top = Number(y);
+    return (
+      <g>
+        <text x={left} y={top + 12} textAnchor="middle" fill={theme.axisColor}>
+          {String(payload.value)}
+        </text>
+        <rect
+          x={left - 14}
+          y={top + 20}
+          width={28}
+          height={5}
+          rx={2.5}
+          fill={bandFill(data[at]?.bandIndex ?? 0)}
+        />
+        <text x={left} y={top + 38} textAnchor="middle" fill={theme.axisColor}>
+          {(data[at]?.bandIndex ?? 0) + 1}
+        </text>
+      </g>
+    );
+  };
+  const choose = (payload: unknown) => setChosen(datumKey(payload));
   const step = (by: number) => setChosen(bars[index + by]?.key ?? selected.key);
 
   return (
-    <div className="flex flex-col gap-4 p-6">
+    <div className="@container flex flex-col gap-4 p-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <span id={titleId} className="text-caption font-semibold text-fg-muted">
           {t(`${SECTION}.careerChartTitle`)}
@@ -196,43 +212,52 @@ export default function PlayerProfileCareerChart({
       <div className="grid grid-cols-1 gap-4 @[40rem]:grid-cols-[minmax(0,1fr)_14rem]">
         <div className="flex min-w-0 flex-col gap-3">
           {/* The chart's text takes the role size from here: no size is written into the drawing. */}
-          <ChartContainer height={240} className="text-caption">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={data} margin={{ top: 16, right: 8, bottom: 8, left: 0 }}>
-                <CartesianGrid stroke={theme.gridColor} strokeDasharray="3 3" vertical={false} />
-                <XAxis
-                  dataKey="label"
-                  tick={renderTick}
-                  height={52}
-                  axisLine={{ stroke: theme.gridColor }}
-                  tickLine={false}
-                  interval={0}
-                />
-                <YAxis
-                  allowDecimals={false}
-                  tick={{ fill: theme.axisColor }}
-                  axisLine={false}
-                  tickLine={false}
-                  width={28}
-                />
-                <Bar
-                  dataKey="value"
-                  radius={[3, 3, 0, 0]}
-                  onClick={choose}
-                  isAnimationActive={false}
-                >
-                  {data.map((datum, at) => (
-                    <Cell
-                      key={datum.key}
-                      fill={at === index ? theme.primary : theme.axisColor}
-                      cursor="pointer"
+          <div className="overflow-x-auto">
+            <div style={{ minWidth: `${bars.length * 3.5}rem` }}>
+              <ChartContainer height={240} className="text-caption">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={data} margin={{ top: 16, right: 8, bottom: 8, left: 0 }}>
+                    <CartesianGrid
+                      stroke={theme.gridColor}
+                      strokeDasharray="3 3"
+                      vertical={false}
                     />
-                  ))}
-                  <LabelList dataKey="value" position="top" fill={theme.textColor} />
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          </ChartContainer>
+                    <XAxis
+                      dataKey="label"
+                      tick={renderTick}
+                      height={52}
+                      axisLine={{ stroke: theme.gridColor }}
+                      tickLine={false}
+                      interval={0}
+                    />
+                    <YAxis
+                      allowDecimals={false}
+                      tick={{ fill: theme.axisColor }}
+                      axisLine={false}
+                      tickLine={false}
+                      width={28}
+                    />
+                    <Bar
+                      dataKey="value"
+                      radius={[3, 3, 0, 0]}
+                      minPointSize={3}
+                      onClick={(item) => choose(item.payload)}
+                      isAnimationActive={false}
+                    >
+                      {data.map((datum, at) => (
+                        <Cell
+                          key={datum.key}
+                          fill={at === index ? theme.primary : theme.axisColor}
+                          cursor="pointer"
+                        />
+                      ))}
+                      <LabelList dataKey="value" position="top" fill={theme.textColor} />
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </ChartContainer>
+            </div>
+          </div>
           <div className="flex items-center justify-between gap-3">
             <ul
               aria-label={t(`${SECTION}.careerChartClubs`)}
@@ -271,6 +296,7 @@ export default function PlayerProfileCareerChart({
         <Readout
           bar={selected}
           isFirst={index === 0}
+          after={index === bars.length - 1 ? trailingMoves : []}
           language={language}
           onOpenTeam={onOpenTeam}
           t={t}

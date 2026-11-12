@@ -1868,6 +1868,7 @@
     "careerChartNoMoveSince": "Kein Wechsel seit der vorherigen Station.",
     "careerChartMovesFirst": "Seit seiner Ankunft",
     "careerChartNoMoveFirst": "Kein Wechsel seit seiner Ankunft.",
+    "careerChartMovesAfter": "Nach dieser Station",
     "careerChartClubs": "Vereine",
     "careerChartLoanClub": "{{club}} (Leihe)",
     "careerChartPrevious": "Vorherige Saison",

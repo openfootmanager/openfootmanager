@@ -1868,6 +1868,7 @@
     "careerChartNoMoveSince": "Aucun transfert depuis la période précédente.",
     "careerChartMovesFirst": "Depuis son arrivée",
     "careerChartNoMoveFirst": "Aucun transfert depuis son arrivée.",
+    "careerChartMovesAfter": "Après cette période",
     "careerChartClubs": "Clubs du joueur",
     "careerChartLoanClub": "{{club}} (prêt)",
     "careerChartPrevious": "Saison précédente",

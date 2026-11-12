@@ -1868,6 +1868,7 @@
     "careerChartNoMoveSince": "Sin traspasos desde la etapa anterior.",
     "careerChartMovesFirst": "Desde su llegada",
     "careerChartNoMoveFirst": "Sin traspasos desde su llegada.",
+    "careerChartMovesAfter": "Después de esta etapa",
     "careerChartClubs": "Clubes",
     "careerChartLoanClub": "{{club}} (cesión)",
     "careerChartPrevious": "Temporada anterior",

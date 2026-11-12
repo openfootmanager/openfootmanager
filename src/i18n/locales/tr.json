@@ -1869,6 +1869,7 @@
     "careerChartNoMoveSince": "Önceki dönemden beri transfer yok.",
     "careerChartMovesFirst": "Katıldığından beri",
     "careerChartNoMoveFirst": "Katıldığından beri transfer yok.",
+    "careerChartMovesAfter": "Bu dönemden sonra",
     "careerChartClubs": "Kulüpler",
     "careerChartLoanClub": "{{club}} (kiralık)",
     "careerChartPrevious": "Önceki sezon",
