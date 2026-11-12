@@ -11,7 +11,8 @@ import {
 } from "recharts";
 
 import type { PlayerCareer } from "../../store/generated/PlayerCareer";
-import { Button, SegmentedControl } from "../ui";
+import { storedTeamLabel } from "../../lib/team";
+import { Badge, Button, SegmentedControl } from "../ui";
 import { ChartContainer } from "../ui/charts/ChartContainer";
 import { useChartTheme } from "../ui/charts/chartTheme";
 import { buildCareerChart, type ChartBar, type ChartMetric } from "./PlayerProfile.careerChart";
@@ -71,8 +72,9 @@ function Readout({
       <p className="font-heading text-title font-bold tabular-nums text-fg">
         {seasonLabel(bar.season)}
       </p>
-      <p>
+      <p className="flex flex-wrap items-center gap-2">
         <ClubName id={bar.clubId} name={bar.clubName} onOpenTeam={onOpenTeam} t={t} />
+        {bar.onLoan ? <Badge variant="neutral">{t(`${SECTION}.careerOnLoan`)}</Badge> : null}
       </p>
       <dl className="grid grid-cols-3 gap-2">
         {figures.map(([label, value]) => (
@@ -82,9 +84,18 @@ function Readout({
           </div>
         ))}
       </dl>
-      <p className="text-caption text-fg-muted">
-        {bar.move ? moveSummary(bar.move, language, t) : t(`${SECTION}.careerChartNoMove`)}
-      </p>
+      {bar.movesBefore.length > 0 ? (
+        <div className="text-caption text-fg-muted">
+          <p className="font-semibold">{t(`${SECTION}.careerChartMovesBefore`)}</p>
+          <ul className="flex flex-col gap-1">
+            {bar.movesBefore.map((move) => (
+              <li key={move.key}>{moveSummary(move, language, t)}</li>
+            ))}
+          </ul>
+        </div>
+      ) : (
+        <p className="text-caption text-fg-muted">{t(`${SECTION}.careerChartNoMove`)}</p>
+      )}
     </section>
   );
 }
@@ -123,7 +134,13 @@ export default function PlayerProfileCareerChart({
   const found = bars.findIndex((bar) => bar.key === chosen);
   const index = found >= 0 ? found : bars.length - 1;
   const selected = bars[index];
-  if (!selected) return null;
+  if (!selected) {
+    return (
+      <div className="p-6">
+        <ChartContainer isEmpty height={160} />
+      </div>
+    );
+  }
 
   const data = bars.map((bar) => ({
     key: bar.key,
@@ -145,6 +162,9 @@ export default function PlayerProfileCareerChart({
         rx={2.5}
         fill={bandFill(data[at]?.bandIndex ?? 0)}
       />
+      <text x={x} y={y + 38} textAnchor="middle" fill={theme.axisColor}>
+        {(data[at]?.bandIndex ?? 0) + 1}
+      </text>
     </g>
   );
   const choose = (entry: BarClick) => setChosen(entry.key ?? entry.payload?.key ?? null);
@@ -176,7 +196,7 @@ export default function PlayerProfileCareerChart({
                 <XAxis
                   dataKey="label"
                   tick={renderTick}
-                  height={36}
+                  height={52}
                   axisLine={{ stroke: theme.gridColor }}
                   tickLine={false}
                   interval={0}
@@ -211,18 +231,20 @@ export default function PlayerProfileCareerChart({
               aria-label={t(`${SECTION}.careerChartClubs`)}
               className="flex flex-wrap gap-x-4 gap-y-1 text-caption text-fg-muted"
             >
-              {bands.map((band) => (
-                <li key={band.key} className="inline-flex items-center gap-1.5">
-                  <span
-                    aria-hidden="true"
-                    className="h-1.5 w-4 rounded-full"
-                    style={{ backgroundColor: bandFill(band.bandIndex) }}
-                  />
-                  {band.onLoan
-                    ? t(`${SECTION}.careerChartLoanClub`, { club: band.clubName })
-                    : band.clubName}
-                </li>
-              ))}
+              {bands.map((band) => {
+                const label = storedTeamLabel(band.clubName, t);
+                return (
+                  <li key={band.key} className="inline-flex items-center gap-1.5">
+                    <span
+                      aria-hidden="true"
+                      className="h-1.5 w-4 rounded-full"
+                      style={{ backgroundColor: bandFill(band.bandIndex) }}
+                    />
+                    <span className="font-semibold tabular-nums">{band.bandIndex + 1}</span>{" "}
+                    {band.onLoan ? t(`${SECTION}.careerChartLoanClub`, { club: label }) : label}
+                  </li>
+                );
+              })}
             </ul>
             <div className="flex shrink-0 gap-2">
               <Button variant="outline" size="sm" disabled={index <= 0} onClick={() => step(-1)}>

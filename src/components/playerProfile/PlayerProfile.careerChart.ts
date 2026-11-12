@@ -17,13 +17,13 @@ export interface ChartBar {
   assists: number;
   /** The figure the bar shows: the chosen metric's. */
   value: number;
-  /** Its height as a share of the tallest bar, 0 to 100. */
-  heightPct: number;
   /** Which club band it sits on: the order a club (or its loan) first appears in. */
   bandIndex: number;
-  /** The move that began this stint, when the career lists one right below it. */
-  move: CareerMoveLine | null;
-  /** The moves between the previous season and this one. Scaffold: empty. */
+  /**
+   * The moves the career lists between the previous season and this one, oldest first. Where they
+   * sit in the career is all this says: a move is not claimed to have begun this stint (a loan to a
+   * club he never played for sits before the later stint at his own).
+   */
   movesBefore: CareerMoveLine[];
 }
 
@@ -47,9 +47,8 @@ const metricValue = (row: CareerSeasonRow, metric: ChartMetric): number =>
 
 /**
  * The backend's career as bars for a chart: a bar for each season row, oldest first, valued by the
- * chosen metric, each carrying the move that began its stint (the line the backend puts right below
- * it) and the band of its club (a loan spell is a band of its own). Heights are a share of the
- * tallest bar, a drawing scale and nothing the game decides.
+ * chosen metric, each carrying the moves listed before it in the career and the band of its club (a
+ * loan spell is a band of its own). Nothing is judged or toned here.
  */
 export function buildCareerChart(career: PlayerCareer, metric: ChartMetric): CareerChart {
   const lines = career.by_season;
@@ -59,7 +58,12 @@ export function buildCareerChart(career: PlayerCareer, metric: ChartMetric): Car
   for (let index = lines.length - 1; index >= 0; index -= 1) {
     const line = lines[index];
     if (line.kind !== "season") continue;
-    const below = lines[index + 1];
+    const movesBefore: CareerMoveLine[] = [];
+    for (let below = index + 1; below < lines.length; below += 1) {
+      const next = lines[below];
+      if (next.kind !== "move") break;
+      movesBefore.unshift(next);
+    }
     const club = line.club_id || `name:${line.club_name}`;
     const bandKey = `${club}|${line.on_loan}`;
     if (!bandOf.has(bandKey)) {
@@ -82,16 +86,10 @@ export function buildCareerChart(career: PlayerCareer, metric: ChartMetric): Car
       goals: line.goals,
       assists: line.assists,
       value: metricValue(line, metric),
-      heightPct: 0,
       bandIndex: bandOf.get(bandKey)?.bandIndex ?? 0,
-      move: below?.kind === "move" ? below : null,
-      movesBefore: [],
+      movesBefore,
     });
   }
 
-  const tallest = Math.max(0, ...bars.map((bar) => bar.value));
-  return {
-    bars: bars.map((bar) => ({ ...bar, heightPct: tallest > 0 ? (bar.value / tallest) * 100 : 0 })),
-    bands: [...bandOf.values()],
-  };
+  return { bars, bands: [...bandOf.values()] };
 }
