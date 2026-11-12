@@ -6,9 +6,9 @@ use ofm_core::state::StateManager;
 
 /// Shared context available to all MCP tool handlers.
 #[derive(Clone)]
-pub struct McpContext {
+pub struct McpContext<R: tauri::Runtime = tauri::Wry> {
     pub state_manager: Arc<StateManager>,
     pub save_manager_state: Arc<SaveManagerState>,
-    pub app_handle: tauri::AppHandle,
+    pub app_handle: tauri::AppHandle<R>,
     pub config: McpConfig,
 }
