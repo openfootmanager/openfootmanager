@@ -24,7 +24,7 @@ import {
   toLibraryEntries,
 } from "./TacticsCustomTactics.helpers";
 import type { TacticsLibraryEntry } from "./TacticPicker";
-import { useSavedTacticDiffers } from "./useSavedTacticDiffers";
+import { useActiveSavedTacticDiffers } from "./useSavedTacticDiffers";
 
 interface UseTacticsLibraryArgs {
   gameState: GameStateData | null;
@@ -249,27 +249,9 @@ export function useTacticsLibrary({
     currentSetupFallbackTactic;
   const isActiveCustomTactic = activeTactic?.type === "custom";
 
-  // A saved tactic holds the whole tactic: its dials, eleven, roles and takers as well as its
-  // shape and style (#1189). Whether the team still equals it is the backend's rule
-  // (`tactic_differences`), asked again whenever the team's tactic or the library changes.
-  const savedActiveId =
-    isActiveCustomTactic && customTactics.some((entry) => entry.id === activeTactic.id)
-      ? activeTactic.id
-      : null;
-  const teamTacticKey = JSON.stringify([
-    userTeam?.formation,
-    userTeam?.play_style,
-    userTeam?.tactics_phase,
-    userTeam?.starting_xi_ids,
-    userTeam?.player_roles,
-    userTeam?.match_roles,
-  ]);
-  const savedTacticDiffers = useSavedTacticDiffers(
-    savedActiveId,
-    hasClub,
-    teamTacticKey,
-    customTactics,
-  );
+  // A saved tactic holds the whole tactic (#1189): whether the team still equals it is the backend's
+  // rule, asked by `useActiveSavedTacticDiffers`. False for a preset or an unsaved setup.
+  const savedTacticDiffers = useActiveSavedTacticDiffers(activeTactic, customTactics, userTeam);
 
   const isActiveTacticDirty = Boolean(
     activeTactic &&
@@ -278,7 +260,7 @@ export function useTacticsLibrary({
         (isActiveCustomTactic &&
           draftTacticName.trim().length > 0 &&
           draftTacticName.trim() !== activeTactic.name) ||
-        (savedActiveId !== null && savedTacticDiffers)),
+        savedTacticDiffers),
   );
   // A preset is also its blueprint, so tuned dials make it differ from the preset.
   const isCommandBarDirty = isActiveCustomTactic
