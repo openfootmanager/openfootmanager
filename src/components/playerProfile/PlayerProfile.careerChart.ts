@@ -23,6 +23,8 @@ export interface ChartBar {
   bandIndex: number;
   /** The move that began this stint, when the career lists one right below it. */
   move: CareerMoveLine | null;
+  /** The moves between the previous season and this one. Scaffold: empty. */
+  movesBefore: CareerMoveLine[];
 }
 
 /** A club (or a loan spell at one) the bands under the bars are coloured by. */
@@ -83,6 +85,7 @@ export function buildCareerChart(career: PlayerCareer, metric: ChartMetric): Car
       heightPct: 0,
       bandIndex: bandOf.get(bandKey)?.bandIndex ?? 0,
       move: below?.kind === "move" ? below : null,
+      movesBefore: [],
     });
   }
 

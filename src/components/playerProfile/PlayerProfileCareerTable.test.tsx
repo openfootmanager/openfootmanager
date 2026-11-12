@@ -1,4 +1,5 @@
 import { fireEvent, render, screen, within } from "@testing-library/react";
+import type { ReactNode } from "react";
 import { beforeAll, describe, expect, it, vi } from "vitest";
 
 import { i18nReady } from "../../i18n";
@@ -8,6 +9,22 @@ import type { CareerSeasonRow } from "../../store/generated/CareerSeasonRow";
 import type { PlayerCareer } from "../../store/generated/PlayerCareer";
 import { formatProfileDay } from "./PlayerProfile.helpers";
 import PlayerProfileCareerTable from "./PlayerProfileCareerTable";
+
+// The chart view draws with recharts, which has no layout under jsdom: what it is handed is the
+// chart's own test's business; here only that the card shows it.
+vi.mock("recharts", () => {
+  const Passthrough = ({ children }: { children?: ReactNode }) => <div>{children}</div>;
+  return {
+    ResponsiveContainer: Passthrough,
+    BarChart: Passthrough,
+    Bar: Passthrough,
+    Cell: () => null,
+    CartesianGrid: () => null,
+    LabelList: () => null,
+    XAxis: () => null,
+    YAxis: () => null,
+  };
+});
 
 beforeAll(async () => {
   await i18nReady;
@@ -286,6 +303,30 @@ describe("PlayerProfileCareerTable by season", () => {
     renderTable(answered(noClub), open);
     expect(screen.queryByRole("button", { name: "common.freeAgent" })).toBeNull();
     expect(screen.getByText("common.freeAgent")).toBeInTheDocument();
+  });
+});
+
+describe("PlayerProfileCareerTable chart view", () => {
+  /**
+   * Given the card on By season
+   * When Chart is chosen by its name, and then By season again
+   * Then the chart's readout stands where the table was (on the latest season), the table is gone,
+   *      and choosing By season brings the table back and takes the chart away
+   */
+  it("switches to the chart through the card and back", () => {
+    renderTable(answered(BOARD));
+
+    fireEvent.click(screen.getByRole("radio", { name: "playerProfile.careerViewChart" }));
+
+    expect(screen.getByRole("radio", { name: "playerProfile.careerViewChart" })).toBeChecked();
+    expect(screen.queryByRole("table")).toBeNull();
+    const readout = screen.getByRole("region", { name: "playerProfile.careerChartReadout" });
+    expect(within(readout).getByText("2026/27")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("radio", { name: "playerProfile.careerBySeason" }));
+
+    expect(screen.getByRole("table", { name: "playerProfile.careerHistory" })).toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "playerProfile.careerChartReadout" })).toBeNull();
   });
 });
 

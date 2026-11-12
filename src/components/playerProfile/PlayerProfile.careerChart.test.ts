@@ -19,7 +19,7 @@ const season = (
   ...patch,
 });
 
-const MOVE: CareerLine = {
+const MOVE: Extract<CareerLine, { kind: "move" }> = {
   kind: "move",
   key: "m",
   date: "2024-07-01",
@@ -83,35 +83,62 @@ describe("buildCareerChart", () => {
   });
 
   /**
-   * Given goals of 6, 8, 16 and 15
+   * Given a transfer line right below the first season at the new club
    * When the chart is built
-   * Then the tallest bar is 100 and the others are their share of it
+   * Then that season's bar lists it among the moves before it, and the others list none
    */
-  it("scales heights to the tallest bar", () => {
-    const heights = buildCareerChart(CAREER, "goals").bars.map((bar) => bar.heightPct);
+  it("lists the moves between the previous season and each bar", () => {
+    const { bars } = buildCareerChart(CAREER, "goals");
 
-    expect(heights).toEqual([37.5, 50, 100, 93.75]);
-  });
-
-  /** Given a career with no goal at all, then every height is 0, not a division by zero. */
-  it("gives every bar no height when every value is zero", () => {
-    const none: PlayerCareer = {
-      ...CAREER,
-      by_season: [season({ season: 2025, club_id: "north" })],
-    };
-
-    expect(buildCareerChart(none, "goals").bars.map((bar) => bar.heightPct)).toEqual([0]);
+    expect(bars.map((bar) => bar.movesBefore.map((move) => move.key))).toEqual([[], [], ["m"], []]);
   });
 
   /**
-   * Given a transfer line right below the first season at the new club
+   * Given club A, a loan line (to B, with no appearance for B, so no row) and a return to A
    * When the chart is built
-   * Then that season's bar carries the move, and the others carry none
+   * Then the loan line is a move before the later A bar and nothing more is claimed: the list says
+   *      when it happened in the career, not that it began that stint
    */
-  it("attaches the move that began a stint to its bar", () => {
-    const { bars } = buildCareerChart(CAREER, "goals");
+  it("says only where a move sits in the career, not which stint it began", () => {
+    const loan: CareerLine = { ...MOVE, key: "loan", movement: "loan_start" };
+    const career: PlayerCareer = {
+      ...CAREER,
+      by_season: [
+        season({ season: 2025, club_id: "a", key: "later" }),
+        loan,
+        season({ season: 2025, club_id: "a", key: "first" }),
+      ],
+    };
 
-    expect(bars.map((bar) => bar.move?.key ?? null)).toEqual([null, null, "m", null]);
+    const { bars } = buildCareerChart(career, "goals");
+
+    expect(bars.map((bar) => [bar.key, bar.movesBefore.map((move) => move.key)])).toEqual([
+      ["first", []],
+      ["later", ["loan"]],
+    ]);
+  });
+
+  /**
+   * Given two moves in a row below one season (newest listed first, as the backend lists them)
+   * When the chart is built
+   * Then both are before that bar, oldest first, as they happened
+   */
+  it("lists several moves before a bar oldest first", () => {
+    const older: CareerLine = { ...MOVE, key: "older", date: "2024-01-01" };
+    const newer: CareerLine = { ...MOVE, key: "newer", date: "2024-06-01" };
+    const career: PlayerCareer = {
+      ...CAREER,
+      by_season: [
+        season({ season: 2025, club_id: "a", key: "now" }),
+        newer,
+        older,
+        season({ season: 2023, club_id: "a", key: "then" }),
+      ],
+    };
+
+    const { bars } = buildCareerChart(career, "goals");
+
+    expect(bars[1].movesBefore.map((move) => move.key)).toEqual(["older", "newer"]);
   });
 
   /**

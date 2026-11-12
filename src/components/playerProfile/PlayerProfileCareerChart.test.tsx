@@ -231,14 +231,18 @@ describe("PlayerProfileCareerChart", () => {
   });
 
   /**
-   * Given a transfer that began the 2024/25 stint, and a season with no move
+   * Given a transfer that sits between the 2023/24 seasons and the 2024/25 one, and a season with
+   *       no move before it
    * When each is chosen
-   * Then the readout says the move (its date, what, the fee) or that there was none this season
+   * Then the readout lists the moves before the season (their date, what, the fee) under its
+   *      heading, or says there was none before it: chronology only, no claim about which stint a
+   *      move began
    */
-  it("says the move of the chosen season, or that there was none", () => {
+  it("lists the moves before the chosen season, or says there were none", () => {
     renderChart();
 
     clickBar(2);
+    expect(readout().getByText("playerProfile.careerChartMovesBefore")).toBeInTheDocument();
     expect(readout().getByText(new RegExp(formatProfileDay("2024-07-01", "en")))).toHaveTextContent(
       'transferFrom {"club":"Ashford"}',
     );
@@ -246,31 +250,33 @@ describe("PlayerProfileCareerChart", () => {
 
     clickBar(3);
     expect(readout().getByText("playerProfile.careerChartNoMove")).toBeInTheDocument();
+    expect(readout().queryByText("playerProfile.careerChartMovesBefore")).toBeNull();
   });
 
   /**
    * Given a club played for twice and a loan at another
    * When the chart is drawn
-   * Then the legend names each club once, with the loan marked as one, in the order they appear
+   * Then the legend names each club once under the number its ticks carry, with the loan marked as
+   *      one, in the order they appear: a club is never told apart by colour alone
    */
-  it("lists each club once in the legend, a loan as a loan", () => {
+  it("lists each club once in the legend, numbered, a loan as a loan", () => {
     renderChart();
 
     const legend = within(screen.getByRole("list", { name: "playerProfile.careerChartClubs" }));
     expect(legend.getAllByRole("listitem").map((item) => item.textContent)).toEqual([
-      "ash",
-      'playerProfile.careerChartLoanClub {"club":"west"}',
-      "north",
+      "1 ash",
+      '2 playerProfile.careerChartLoanClub {"club":"west"}',
+      "3 north",
     ]);
   });
 
   /**
    * Given the axis' tick renderer recharts is handed
    * When it draws the tick of each bar
-   * Then the tick is the bar's season with a band under it in its club's colour, and bars of one
-   *      club share a colour while a loan has its own
+   * Then the tick is the bar's season with a band under it in its club's colour and the club's
+   *      number, and bars of one club share both while a loan has its own
    */
-  it("draws each axis tick as the season with its club's band under it", () => {
+  it("draws each axis tick as the season with its club's band and number under it", () => {
     renderChart();
     const band = (index: number) => {
       const { container } = render(
@@ -278,19 +284,23 @@ describe("PlayerProfileCareerChart", () => {
           {handed.tick?.({ x: 10, y: 20, index, payload: { value: handed.data[index].label } })}
         </svg>,
       );
+      const texts = [...container.querySelectorAll("text")].map((text) => text.textContent);
       return {
-        text: container.querySelector("text")?.textContent,
+        season: texts[0],
+        number: texts[1],
         fill: container.querySelector("rect")?.getAttribute("fill"),
       };
     };
 
     const [ash, west, north24, north25] = [0, 1, 2, 3].map(band);
 
-    expect(ash.text).toBe("2023/24");
-    expect(north25.text).toBe("2025/26");
+    expect(ash.season).toBe("2023/24");
+    expect(north25.season).toBe("2025/26");
     expect(north24.fill).toBe(north25.fill);
     expect(new Set([ash.fill, west.fill, north24.fill]).size).toBe(3);
     expect(ash.fill).toMatch(/^var\(--color-/);
+    // The number is the legend's: the same club has the same one on every tick, a loan its own.
+    expect([ash, west, north24, north25].map((tick) => tick.number)).toEqual(["1", "2", "3", "3"]);
   });
 
   /**
@@ -310,5 +320,62 @@ describe("PlayerProfileCareerChart", () => {
     );
 
     expect(open).toHaveBeenCalledWith("north");
+  });
+
+  /**
+   * Given the loan season chosen
+   * When the readout is read
+   * Then it says the season was a loan, in words, as the table does; a season at the club's own
+   *      does not
+   */
+  it("says in the readout when the chosen season was a loan", () => {
+    renderChart();
+
+    clickBar(1);
+    expect(readout().getByText("playerProfile.careerOnLoan")).toBeInTheDocument();
+    clickBar(3);
+    expect(readout().queryByText("playerProfile.careerOnLoan")).toBeNull();
+  });
+
+  /**
+   * Given a season at no club (the backend sends an empty club name for it)
+   * When the chart is drawn
+   * Then the legend names it the way the readout does (the free-agent label), never an unnamed
+   *      swatch
+   */
+  it("names a spell at no club in the legend", () => {
+    render(
+      <PlayerProfileCareerChart
+        career={{
+          ...CAREER,
+          by_season: [season({ season: 2025, club_id: "", club_name: "" })],
+        }}
+        language="en"
+        t={t}
+      />,
+    );
+
+    const legend = within(screen.getByRole("list", { name: "playerProfile.careerChartClubs" }));
+    expect(legend.getAllByRole("listitem").map((item) => item.textContent)).toEqual([
+      "1 common.freeAgent",
+    ]);
+  });
+
+  /**
+   * Given a career with moves but no season row at all
+   * When the chart is drawn
+   * Then the chart says there is no data yet, not a blank card
+   */
+  it("shows the empty state for a career with no season", () => {
+    render(
+      <PlayerProfileCareerChart
+        career={{ ...CAREER, by_season: [CAREER.by_season[2]] }}
+        language="en"
+        t={t}
+      />,
+    );
+
+    expect(screen.getByText("No data yet")).toBeInTheDocument();
+    expect(screen.queryByRole("radiogroup")).toBeNull();
   });
 });
