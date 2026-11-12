@@ -336,13 +336,14 @@ describe("TacticsTab preset selection", { timeout: TACTICS_TAB_CASE_TIMEOUT_MS }
     render(<ControlledTacticsTab />);
     fireEvent.click(await screen.findByRole("button", { name: "Pitch" }));
     const panel = screen.getByRole("dialog", { name: "Pitch" });
-    const token = await within(panel).findByTestId("pitch-player-d1");
-    return within(token).getByRole("combobox");
+    // The pitch's role controls are the panel's comboboxes: any one will do.
+    return (await within(panel).findAllByRole("combobox"))[0];
   }
 
   /**
    * Given the pitch panel open in a narrow window, with the real pitch's role controls in it
-   * When Tab and Escape are pressed on a role control, and Enter and Space (which the control uses)
+   * When Enter and Space (which the control uses), then Tab and Escape are pressed on a role control
+   *      (Escape last: it closes the panel and detaches the control)
    * Then Tab and Escape reach the window, where the dialog traps Tab and closes on Escape, and Enter
    *      and Space do not, or the token under the control would be activated too.
    */
@@ -352,7 +353,7 @@ describe("TacticsTab preset selection", { timeout: TACTICS_TAB_CASE_TIMEOUT_MS }
     const listener = (event: KeyboardEvent) => seen.push(event.key);
     window.addEventListener("keydown", listener);
 
-    for (const key of ["Tab", "Escape", "Enter", " "]) {
+    for (const key of [" ", "Enter", "Tab", "Escape"]) {
       fireEvent.keyDown(control, { key });
     }
     window.removeEventListener("keydown", listener);
