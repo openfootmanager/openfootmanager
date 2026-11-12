@@ -375,6 +375,23 @@ describe("TacticsTab preset selection", { timeout: TACTICS_TAB_CASE_TIMEOUT_MS }
   });
 
   /**
+   * Given the pitch panel open and the pointer over a token, so its summary is showing
+   * When Escape is pressed on the token's role control, twice
+   * Then the first dismisses the summary only (the token claims it), and the second closes the panel.
+   */
+  it("spends the first Escape on a token's summary and the second on the pitch panel", async () => {
+    const control = await openPitchPanelRoleControl();
+    fireEvent.mouseOver(control);
+    control.focus();
+
+    fireEvent.keyDown(control, { key: "Escape" });
+    expect(screen.getByRole("dialog", { name: "Pitch" })).toBeInTheDocument();
+
+    fireEvent.keyDown(control, { key: "Escape" });
+    expect(screen.queryByRole("dialog", { name: "Pitch" })).not.toBeInTheDocument();
+  });
+
+  /**
    * Given a backend that refuses a tactic write (the career changed under the screen)
    * When the manager picks a preset, a saved tactic, a formation, a play style, a phase dial,
    *      swaps two starters, sets a player role or auto-selects the set-piece takers

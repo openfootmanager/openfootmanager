@@ -48,7 +48,7 @@ export type TacticsLineupState = Pick<
 interface TacticsLineupSectionProps {
   state: TacticsLineupState;
   /** The roles shown in the table and on the pitch: the match's own, not a stale stored one. */
-  playerRoles: Record<string, PlayerRole>;
+  playerRoles: Record<string, PlayerRole> | undefined;
   /** A role chosen in the table or on the pitch: one write, whose refusal the tab shows. */
   onRoleChange: (playerId: string, role: PlayerRole) => void;
   onSelectPlayer: (id: string, options?: PlayerSelectionOptions) => void;
