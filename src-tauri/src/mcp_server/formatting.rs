@@ -14,16 +14,25 @@ pub fn translate_error(error: &str) -> String {
 
 /// The readable message for `key` with its `params`, or `None` when nothing maps the key.
 ///
-/// A sentence written here for an agent comes first. Any other key is the screen's own sentence
-/// from `en.json` through `backend_text::resolve_error`, the one resolver (not a second copy of the
-/// wording), with its parameters filled in and a parameter that is itself a key in words. A key
-/// `en.json` has no text for stays raw, so a missing translation is visible rather than hidden.
+/// A key that carries parameters is the screen's own sentence from `en.json` through
+/// `backend_text::resolve_error`, the one resolver (not a second copy of the wording), with its
+/// parameters filled in and a parameter that is itself a key in words: a sentence written here for
+/// the bare key has no slot for them, so it would drop what the agent needs (a budget, a save id).
+/// A key without parameters is the sentence written here when there is one, else the same
+/// resolver. A key `en.json` has no text for stays raw, so a missing translation is visible rather
+/// than hidden.
 fn translate_error_with(key: &str, params: &HashMap<String, String>) -> Option<String> {
+    let screen_text = || crate::mcp_server::backend_text::resolve_error(key, params);
+    if !params.is_empty() {
+        if let Some(text) = screen_text() {
+            return Some(text);
+        }
+    }
     let fixed = fixed_message(key);
     if fixed != format!("Error: {key}") {
         return Some(fixed);
     }
-    crate::mcp_server::backend_text::resolve_error(key, params)
+    screen_text()
 }
 
 /// The messages that need no parameter; `Error: <key>` for a key with none.
@@ -363,6 +372,32 @@ mod tests {
                 !rendered.contains("be.error.") && !rendered.contains("{{"),
                 "{error} renders as {rendered:?}"
             );
+        }
+    }
+
+    /// Given the four keys that also have a sentence written for an agent, reported with no
+    ///       parameter (the bare key)
+    /// When rendered for an agent
+    /// Then it is that sentence, not `en.json`'s with an unfilled slot; with its parameter the
+    ///      same key is the screen's sentence (the test above), so neither is lost
+    #[test]
+    fn a_bare_key_with_a_written_sentence_keeps_it_and_leaves_no_slot() {
+        for (key, sentence) in [
+            ("be.error.saveNotFound", "Save not found. Check the save ID."),
+            (
+                "be.error.transfers.loanBorrowerCannotAffordWages",
+                "The borrowing club cannot afford this wage share: it would exceed its wage budget.",
+            ),
+            (
+                "be.error.contracts.boardWagePolicy",
+                "Board wage policy blocks this renewal: wage would exceed budget.",
+            ),
+            (
+                "be.error.finance.facilityUpgradeInsufficientFunds",
+                "Insufficient funds for facility upgrade.",
+            ),
+        ] {
+            assert_eq!(translate_error(key), sentence, "{key}");
         }
     }
 
