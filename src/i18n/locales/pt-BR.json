@@ -849,6 +849,7 @@
     "tacticName": "Nome da tática",
     "identitySummary": "Resumo de identidade",
     "synced": "Sincronizado",
+    "loadingTactics": "Carregando suas táticas…",
     "unsavedChanges": "Alterações não salvas",
     "currentPlanCard": "Plano atual",
     "phaseBlueprint": "Plano por fases",
