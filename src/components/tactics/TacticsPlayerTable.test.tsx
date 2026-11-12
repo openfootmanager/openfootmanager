@@ -119,6 +119,26 @@ describe("TacticsPlayerTable", () => {
   });
 
   /**
+   * Given the table, which folds Playable positions and Condition out of its columns when it is
+   *       narrow (a 960 window)
+   * When a row's details are opened
+   * Then the details hold those two and only those two, so folding a column never loses it.
+   */
+  it("keeps Playable positions and Condition in the row's details when they fold", () => {
+    renderTable();
+    const row = screen.getByTestId("xi-row-gk");
+
+    fireEvent.click(within(row).getByRole("button", { name: "common.detailsFor" }));
+
+    const details = row.nextElementSibling as HTMLElement;
+    expect(details).not.toHaveAttribute("hidden");
+    expect(within(details).getByText("tactics.playablePositions")).toBeInTheDocument();
+    expect(within(details).getByText("common.condition")).toBeInTheDocument();
+    expect(within(details).queryByText("common.morale")).toBeNull();
+    expect(within(details).queryByText("tactics.playerRoleLabel")).toBeNull();
+  });
+
+  /**
    * Given a striker the backend says is out of position at left-back
    * When the table is drawn
    * Then his row says so in words, not only in colour; the natural keeper's row doesn't.

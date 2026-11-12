@@ -115,7 +115,21 @@ describe("collecting the regions that scroll", () => {
 
     const { problems } = judged("[data-no-such-region]");
 
-    expect(problems).toEqual(["no region on the page matches the case's fit selector"]);
+    expect(problems).toEqual(["no visible region on the page matches the case's fit selector"]);
+  });
+
+  /**
+   * Given a case whose region is on the page but has no height (display: none, so its scroll and
+   *       client heights are both 0)
+   * When the regions are collected
+   * Then the case fails as having no visible region, rather than passing because 0 does not exceed 0.
+   */
+  it("fails a case whose region is on the page but not shown", () => {
+    page({ workspace: [0, 0], roster: [0, 0], workspaceStyle: "display:none" });
+
+    const { problems } = judged("[data-workspace]");
+
+    expect(problems).toEqual(["no visible region on the page matches the case's fit selector"]);
   });
 
   /**
