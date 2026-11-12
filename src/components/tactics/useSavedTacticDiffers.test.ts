@@ -3,7 +3,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { getCustomTacticDifferences } from "../../services/customTacticsService";
 import type { TacticDifferences } from "../../store/generated/TacticDifferences";
-import { useSavedTacticDiffers } from "./useSavedTacticDiffers";
+import type { TeamData } from "../../store/gameStore";
+import type { TacticsLibraryEntry } from "./TacticPicker";
+import { useActiveSavedTacticDiffers, useSavedTacticDiffers } from "./useSavedTacticDiffers";
 
 vi.mock("../../services/customTacticsService", () => ({ getCustomTacticDifferences: vi.fn() }));
 const asked = vi.mocked(getCustomTacticDifferences);
@@ -54,18 +56,21 @@ describe("useSavedTacticDiffers", () => {
 
   /**
    * Given a saved tactic and a club
-   * When the backend answers that only the takers differ
-   * Then it says "differs".
+   * When the backend answers that exactly one part differs (each of the six, in turn)
+   * Then, once the answer has settled, it says "differs".
    */
-  it("says differs when any one part differs", async () => {
-    asked.mockResolvedValue({ ...NOTHING, takers: true });
-    const { result } = renderHook(() => useSavedTacticDiffers("a", true, "team-1", library));
+  it.each(Object.keys(NOTHING) as (keyof TacticDifferences)[])(
+    "says differs when only the %s differs",
+    async (part) => {
+      const answer = held<TacticDifferences>();
+      asked.mockReturnValue(answer.promise);
+      const { result } = renderHook(() => useSavedTacticDiffers("a", true, "team-1", library));
 
-    await waitFor(() => expect(asked).toHaveBeenCalled());
-    await act(async () => {});
+      await act(async () => answer.resolve({ ...NOTHING, [part]: true }));
 
-    expect(result.current).toBe(true);
-  });
+      expect(result.current).toBe(true);
+    },
+  );
 
   /**
    * Given a saved tactic and a club
@@ -138,5 +143,76 @@ describe("useSavedTacticDiffers", () => {
 
     expect(result.current).toBe(false);
     expect(asked).not.toHaveBeenCalled();
+  });
+
+  describe("the team's tactic, read from the team", () => {
+    const saved: TacticsLibraryEntry = {
+      description: "",
+      formation: "4-4-2",
+      id: "a",
+      name: "Saved",
+      playStyle: "Balanced",
+      sourcePresetName: null,
+      type: "custom",
+    };
+    const savedTactics = [saved];
+    const team = {
+      formation: "4-4-2",
+      play_style: "Balanced",
+      tactics_phase: { width: "Normal" },
+      starting_xi_ids: ["p1", "p2"],
+      player_roles: { p1: "Standard" },
+      match_roles: { captain: "p1" },
+    } as unknown as TeamData;
+
+    /**
+     * Given a clean answer for the team's tactic as it is
+     * When any one of the team's fields the tactic holds changes (each, in turn)
+     * Then a new comparison is asked and, while it is pending, it says "differs": the field is part of
+     *      the question, so an answer to the old tactic is not reused for the new one.
+     */
+    it.each([
+      ["formation", { formation: "4-3-3" }],
+      ["play style", { play_style: "Attacking" }],
+      ["instructions", { tactics_phase: { width: "Wide" } }],
+      ["starting eleven", { starting_xi_ids: ["p2", "p1"] }],
+      ["player roles", { player_roles: { p1: "Stopper" } }],
+      ["takers", { match_roles: { captain: "p2" } }],
+    ])("asks again, pending as differing, when the %s changes", async (_name, change) => {
+      asked.mockResolvedValueOnce(NOTHING);
+      const { result, rerender } = renderHook(
+        ({ current }) => useActiveSavedTacticDiffers(saved, savedTactics, current),
+        { initialProps: { current: team } },
+      );
+      await waitFor(() => expect(result.current).toBe(false));
+      expect(asked).toHaveBeenCalledTimes(1);
+      const next = held<TacticDifferences>();
+      asked.mockReturnValue(next.promise);
+
+      rerender({ current: { ...team, ...change } as unknown as TeamData });
+
+      expect(result.current).toBe(true);
+      expect(asked).toHaveBeenCalledTimes(2);
+      await act(async () => next.resolve(NOTHING));
+      expect(result.current).toBe(false);
+    });
+
+    /**
+     * Given a preset (a tactic nothing is saved for) is active
+     * When the hook is read
+     * Then it says "same" and asks nothing.
+     */
+    it("asks nothing for a tactic the save does not hold", () => {
+      const { result } = renderHook(() =>
+        useActiveSavedTacticDiffers(
+          { ...saved, id: "preset:x", type: "preset" },
+          savedTactics,
+          team,
+        ),
+      );
+
+      expect(result.current).toBe(false);
+      expect(asked).not.toHaveBeenCalled();
+    });
   });
 });
