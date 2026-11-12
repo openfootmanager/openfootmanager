@@ -769,11 +769,12 @@ describe("TacticsTab preset selection", { timeout: TACTICS_TAB_CASE_TIMEOUT_MS }
    * When they look at Reset
    * Then it is disabled, as the badge says Synced.
    */
-  it("disables Reset on an untouched preset", () => {
+  it("disables Reset on an untouched preset", async () => {
     fakeBackend();
     render(<ControlledTacticsTab />);
 
-    expect(screen.getByText("Synced")).toBeInTheDocument();
+    // The badge says Synced once the library has loaded (until then it says so is loading).
+    expect(await screen.findByText("Synced")).toBeInTheDocument();
     openActionsMenu();
     expect(screen.getByRole("menuitem", { name: "Reset to defaults" })).toBeDisabled();
   });
@@ -869,7 +870,7 @@ describe("TacticsTab preset selection", { timeout: TACTICS_TAB_CASE_TIMEOUT_MS }
   it("shows the unsaved-changes badge once a phase dial is tuned", async () => {
     fakeBackend();
     render(<ControlledTacticsTab />);
-    expect(screen.getByText("Synced")).toBeInTheDocument();
+    expect(await screen.findByText("Synced")).toBeInTheDocument();
 
     openPhaseBlueprint();
     const widthRow = screen.getByText("Width").parentElement as HTMLElement;
