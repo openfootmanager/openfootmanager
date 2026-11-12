@@ -58,11 +58,17 @@ const ARTWORK_FILES: Record<string, string> = {
   "./components/ui/JerseyIcon.tsx": "paints a club's kit, with shading over the kit colours",
 };
 
-const SOURCES = import.meta.glob(["./**/*.{ts,tsx}", "!./**/*.test.{ts,tsx}"], {
-  query: "?raw",
-  import: "default",
-  eager: true,
-}) as Record<string, string>;
+// The rules police what ships. A `*.harness.*` or `*.mocks.*` file is test-only support (its
+// fixtures carry a club's colours as data, as a test of the screen must), imported by `*.test.*`
+// files and by nothing in production, so it is read like a test, not like a screen.
+const SOURCES = import.meta.glob(
+  ["./**/*.{ts,tsx}", "!./**/*.test.{ts,tsx}", "!./**/*.{harness,mocks}.{ts,tsx}"],
+  {
+    query: "?raw",
+    import: "default",
+    eager: true,
+  },
+) as Record<string, string>;
 
 /** Source with comments blanked out, keeping line numbers. URLs inside strings survive. */
 function withoutComments(source: string): string {
