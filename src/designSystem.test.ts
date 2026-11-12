@@ -21,6 +21,7 @@ const FINISHED_FOLDERS = [
   // The Contract tab's decision sheet and the list of contracts he has had.
   "./components/playerProfile/PlayerProfileContractSheet.tsx",
   "./components/playerProfile/PlayerProfileContractHistoryCard.tsx",
+  "./components/playerProfile/PlayerProfileCareerTable.tsx",
   "./components/playerProfile/PlayerProfileContractSummary.tsx",
   "./components/playerProfile/PlayerProfileContractDecisions.tsx",
   "./components/playerProfile/PlayerProfileWageBill.tsx",

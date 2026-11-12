@@ -5,6 +5,7 @@ import type {
   RenewalProjection,
 } from "../../services/contractService";
 import type { PlayerKnowledge, VisibleWage } from "../../services/scoutingService";
+import type { PlayerCareer } from "../../store/generated/PlayerCareer";
 import type { PositionRatings } from "../../store/generated/PositionRatings";
 import type { PotentialOpinion } from "../../store/generated/PotentialOpinion";
 import type { Position } from "../../store/generated/Position";
@@ -28,6 +29,8 @@ export interface ProfileCase {
   /** Latest first, as the backend returns them. Only the club's own player has played. */
   recentMatches: PlayerRecentMatchEntry[];
   seasonStats: PlayerAdvancedStatsSummary;
+  /** His career as the backend projects it; `null` where it answers null (a retiree). */
+  career: PlayerCareer | null;
   /** Laid over the world's player of this id, to show a state the generated career has none of. */
   playerPatch?: Partial<PlayerData>;
   /**
@@ -364,6 +367,93 @@ function contractPreviewsOf(player: PlayerData, canBeReleased: boolean) {
   };
 }
 
+const clubNameOf = (teamId: string | null) =>
+  gameState.teams.find((team) => team.id === teamId)?.name ?? "";
+
+/**
+ * A career the way the backend lists it, for the harness: a season in progress, two closed ones at
+ * his club, a transfer line (with a fee) and two at the club he came from, and his opening contract.
+ * Hand-made, because the harness has no Rust to project one; the shape is the wire type's.
+ */
+function careerOf(player: PlayerData, signedFrom: string | null): PlayerCareer {
+  const club = { id: player.team_id ?? "", name: clubNameOf(player.team_id) };
+  const before = { id: signedFrom ?? "", name: clubNameOf(signedFrom) };
+  const row = (
+    season: number,
+    at: { id: string; name: string },
+    figures: [number, number, number],
+    inProgress = false,
+  ) => ({
+    kind: "season" as const,
+    key: `${season}-${at.id}`,
+    season,
+    club_id: at.id,
+    club_name: at.name,
+    appearances: figures[0],
+    goals: figures[1],
+    assists: figures[2],
+    in_progress: inProgress,
+    on_loan: false,
+  });
+  const seasons = [
+    row(2031, club, [27, 9, 6], true),
+    row(2030, club, [33, 12, 8]),
+    row(2029, before, [30, 7, 4]),
+    row(2028, before, [14, 2, 1]),
+  ];
+  return {
+    by_season: [
+      seasons[0],
+      seasons[1],
+      {
+        kind: "move",
+        key: "transfer",
+        date: "2030-07-01",
+        movement: "permanent_transfer",
+        from_club_name: before.name,
+        to_club_name: club.name,
+        fee: 2_400_000,
+        loan_end: null,
+      },
+      seasons[2],
+      seasons[3],
+      {
+        kind: "move",
+        key: "opening",
+        date: "2028-07-01",
+        movement: "initial_contract",
+        from_club_name: null,
+        to_club_name: before.name,
+        fee: null,
+        loan_end: null,
+      },
+    ],
+    by_club: [
+      {
+        key: club.id,
+        club_id: club.id,
+        club_name: club.name,
+        first_season: 2030,
+        last_season: 2031,
+        appearances: 60,
+        goals: 21,
+        assists: 14,
+      },
+      {
+        key: before.id,
+        club_id: before.id,
+        club_name: before.name,
+        first_season: 2028,
+        last_season: 2029,
+        appearances: 44,
+        goals: 9,
+        assists: 5,
+      },
+    ],
+    totals: { appearances: 104, goals: 30, assists: 19 },
+  };
+}
+
 /** The club's own player as the club sees him: known, his wage exact, with ratings and a season. */
 function ownCase(player: PlayerData, signedFrom: string | null): ProfileCase {
   return {
@@ -376,6 +466,7 @@ function ownCase(player: PlayerData, signedFrom: string | null): ProfileCase {
     retiredPlayer: null,
     recentMatches: fiveMatches(),
     seasonStats: A_SEASON,
+    career: careerOf(player, signedFrom),
     playerPatch: { movement_history: ownHistory(player, signedFrom) },
     contractPreviews: contractPreviewsOf(player, true),
   };
@@ -398,6 +489,7 @@ export function profileCase(variant: HarnessProfile): ProfileCase {
     retiredPlayer: null,
     recentMatches: [],
     seasonStats: NO_SEASON_YET,
+    career: null,
   };
   switch (variant) {
     case "own":
@@ -410,6 +502,7 @@ export function profileCase(variant: HarnessProfile): ProfileCase {
         positionRatings: positionRatingsOf(own, { kind: "live" }),
         recentMatches: fiveMatches(),
         seasonStats: A_SEASON,
+        career: careerOf(own, rival.team_id),
         playerPatch: { movement_history: ownHistory(own, rival.team_id) },
         contractPreviews: contractPreviewsOf(own, true),
       };
@@ -423,6 +516,7 @@ export function profileCase(variant: HarnessProfile): ProfileCase {
         positionRatings: positionRatingsOf(keeper, { kind: "live" }),
         recentMatches: fiveMatches(),
         seasonStats: A_SEASON,
+        career: careerOf(keeper, null),
         contractPreviews: contractPreviewsOf(keeper, true),
       };
     case "injured":
@@ -465,6 +559,7 @@ export function profileCase(variant: HarnessProfile): ProfileCase {
         playerId: rival.id,
         knowledge: { kind: "known" },
         wage: { kind: "hidden" },
+        career: careerOf(rival, own.team_id),
         positionRatings: positionRatingsOf(rival, { kind: "live" }),
         // The current record is the renewal, which started on 1 July 2030.
         playerPatch: {
