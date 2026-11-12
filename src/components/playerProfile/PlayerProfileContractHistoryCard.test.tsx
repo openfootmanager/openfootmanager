@@ -71,9 +71,7 @@ describe("PlayerProfileContractHistoryCard", () => {
       within(current).getByText("playerProfile.contractSheet.how.renewal"),
     ).toBeInTheDocument();
     expect(within(current).getByText(/10,000/)).toBeInTheDocument();
-    expect(closed.firstElementChild).toHaveTextContent(
-      '"start":"1 Jul 2029","end":"30 Jun 2031"',
-    );
+    expect(closed.firstElementChild).toHaveTextContent('"start":"1 Jul 2029","end":"30 Jun 2031"');
     expect(
       within(closed).getByText('playerProfile.contractSheet.how.transfer {"club":"South FC"}'),
     ).toBeInTheDocument();
