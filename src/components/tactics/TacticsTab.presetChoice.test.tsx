@@ -1,16 +1,21 @@
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { useState } from "react";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { i18nReady } from "../../i18n";
 import { resetTacticsLineupCache } from "../../hooks/useTacticsLineupProjection";
-import { useGameStore, type PlayerData } from "../../store/gameStore";
+import { useGameStore, type GameStateData, type PlayerData } from "../../store/gameStore";
+import TacticsTab from "./TacticsTab";
 import {
   commandsCalled,
   ControlledTacticsTab,
+  currentGame,
   fakeBackend,
   knobs,
   mockedInvoke,
+  openActionsMenu,
   openPhaseBlueprint,
   resetHarness,
+  seedSavedTactics,
 } from "./TacticsTab.harness";
 
 /**
@@ -290,6 +295,107 @@ describe("TacticsTab preset question", { timeout: TACTICS_TAB_CASE_TIMEOUT_MS },
       expect(screen.getByRole("combobox", { name: control })).toHaveTextContent(option);
     },
   );
+
+  /** Holds the answer to the preset's lookup, and picks High Press: the lookup is out. */
+  async function pickHighPressWithTheLookupHeld() {
+    let release!: () => void;
+    knobs.blueprintStatusGate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    mockedInvoke.mockClear();
+    pickHighPress();
+    await waitFor(() => expect(commandsCalled()).toContain("get_tactics_blueprint_status"));
+    return release;
+  }
+
+  /** Lets the held lookup answer, and waits for the answer to be given and taken. */
+  async function releaseTheLookup(release: () => void) {
+    await act(async () => {
+      release();
+      await waitFor(() => expect(knobs.blueprintStatusAnswered).toBe(1));
+    });
+  }
+
+  const appliedHighPress = () =>
+    mockedInvoke.mock.calls.some(
+      ([command, args]) =>
+        command === "apply_tactic_preset" &&
+        (args as { playStyle?: string }).playStyle === "HighPress",
+    );
+
+  /**
+   * Given tuned instructions (so the lookup says High Press would replace them) and High Press's
+   *       lookup still out
+   * When the manager chooses Reset to defaults, and then the lookup answers
+   * Then the older choice is dropped: no question opens and High Press is not applied over the reset.
+   */
+  it("drops a pending preset choice when the manager resets", async () => {
+    fakeBackend();
+    render(<ControlledTacticsTab />);
+    await tuneAnInstruction();
+    const release = await pickHighPressWithTheLookupHeld();
+
+    openActionsMenu();
+    fireEvent.click(screen.getByRole("menuitem", { name: "Reset to defaults" }));
+    await waitFor(() => expect(commandsCalled()).toContain("apply_tactic_preset"));
+    await releaseTheLookup(release);
+
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(appliedHighPress()).toBe(false);
+  });
+
+  /**
+   * Given a saved tactic in the library and High Press's lookup still out
+   * When the manager chooses the saved tactic, and then the lookup answers
+   * Then the preset is dropped: the saved tactic applied, and High Press is not applied over it.
+   */
+  it("drops a pending preset choice when the manager chooses a saved tactic", async () => {
+    seedSavedTactics([
+      {
+        id: "custom:saved",
+        name: "Saved custom",
+        description: "",
+        formation: "4-4-2",
+        playStyle: "Balanced",
+      },
+    ]);
+    fakeBackend();
+    render(<ControlledTacticsTab />);
+    const release = await pickHighPressWithTheLookupHeld();
+
+    fireEvent.click(screen.getByRole("button", { name: "Choose tactic" }));
+    fireEvent.click(await screen.findByRole("option", { name: /Saved custom/ }));
+    await waitFor(() => expect(commandsCalled()).toContain("apply_custom_tactic"));
+    await releaseTheLookup(release);
+
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(appliedHighPress()).toBe(false);
+  });
+
+  /**
+   * Given High Press's lookup still out
+   * When the team's formation is changed from outside the tab (an MCP edit, a game refresh)
+   * Then the lookup's answer is stale: High Press is not applied over the outside change.
+   */
+  it("drops a pending preset choice when the setup is changed from outside the tab", async () => {
+    function ExternallyUpdatedTab({ external }: { external: GameStateData | null }) {
+      const [game, setGame] = useState(() => currentGame());
+      return (
+        <TacticsTab gameState={external ?? game} onSelectPlayer={vi.fn()} onGameUpdate={setGame} />
+      );
+    }
+    fakeBackend();
+    const { rerender } = render(<ExternallyUpdatedTab external={null} />);
+    const release = await pickHighPressWithTheLookupHeld();
+
+    const changed = currentGame();
+    changed.teams[0].formation = "5-3-2";
+    rerender(<ExternallyUpdatedTab external={changed} />);
+    await releaseTheLookup(release);
+
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(appliedHighPress()).toBe(false);
+  });
 
   /**
    * Given a preset chosen and its lookup pending

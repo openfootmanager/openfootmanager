@@ -192,6 +192,11 @@ export const knobs = {
 let backend: GameStateData;
 let savedTactics: CustomTactic[] = [];
 
+/** A copy of the faked backend's game as it stands, for a test that updates the tab from outside. */
+export function currentGame(): GameStateData {
+  return structuredClone(backend);
+}
+
 /** Puts the faked backend back as it starts: a fresh game, an empty save, every knob at rest. */
 export function resetHarness() {
   backend = makeGame();

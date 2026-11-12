@@ -106,8 +106,9 @@ export default function TacticsTab({
     onWriteSaved: () => setWriteError(null),
   });
 
-  const presetChoice = usePresetChoice((tactic, keepInstructions) =>
-    applyTacticSelection(tactic, { keepInstructions }),
+  const presetChoice = usePresetChoice(
+    (tactic, keepInstructions) => applyTacticSelection(tactic, { keepInstructions }),
+    `${formation}|${activePlayStyle}`,
   );
 
   if (!team) {
@@ -139,6 +140,7 @@ export default function TacticsTab({
         libraryLoaded={libraryLoaded}
         canReset={canResetTactic}
         onReset={() => {
+          presetChoice.invalidate();
           void handleResetTactic();
         }}
         canDelete={canDeleteTactic}
