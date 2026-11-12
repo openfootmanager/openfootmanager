@@ -5,6 +5,7 @@ import type {
   RenewalProjection,
 } from "../../services/contractService";
 import type { PlayerKnowledge, VisibleWage } from "../../services/scoutingService";
+import type { CareerLine } from "../../store/generated/CareerLine";
 import type { PlayerCareer } from "../../store/generated/PlayerCareer";
 import type { PositionRatings } from "../../store/generated/PositionRatings";
 import type { PotentialOpinion } from "../../store/generated/PotentialOpinion";
@@ -370,21 +371,74 @@ function contractPreviewsOf(player: PlayerData, canBeReleased: boolean) {
 const clubNameOf = (teamId: string | null) =>
   gameState.teams.find((team) => team.id === teamId)?.name ?? "";
 
+type SeasonLine = Extract<CareerLine, { kind: "season" }>;
+
+/** How a harness player's season in progress stands: at his club, on loan at another, or none. */
+interface CareerOptions {
+  current: "club" | "loan" | "none";
+  /** The borrower, for a loan. */
+  loanTo?: string | null;
+}
+
+/** The totals and the by-club sums of season rows, as the backend sums them (newest club first). */
+function summed(rows: SeasonLine[]): Pick<PlayerCareer, "by_club" | "totals"> {
+  const clubs = new Map<string, PlayerCareer["by_club"][number]>();
+  for (const row of [...rows].reverse()) {
+    const key = row.club_id || `name:${row.club_name}`;
+    const club = clubs.get(key);
+    if (club) {
+      club.last_season = row.season;
+      club.appearances += row.appearances;
+      club.goals += row.goals;
+      club.assists += row.assists;
+    } else {
+      clubs.set(key, {
+        key,
+        club_id: row.club_id,
+        club_name: row.club_name,
+        first_season: row.season,
+        last_season: row.season,
+        appearances: row.appearances,
+        goals: row.goals,
+        assists: row.assists,
+      });
+    }
+  }
+  return {
+    by_club: [...clubs.values()].sort((left, right) => right.last_season - left.last_season),
+    totals: rows.reduce(
+      (sum, row) => ({
+        appearances: sum.appearances + row.appearances,
+        goals: sum.goals + row.goals,
+        assists: sum.assists + row.assists,
+      }),
+      { appearances: 0, goals: 0, assists: 0 },
+    ),
+  };
+}
+
 /**
- * A career the way the backend lists it, for the harness: a season in progress, two closed ones at
- * his club, a transfer line (with a fee) and two at the club he came from, and his opening contract.
- * Hand-made, because the harness has no Rust to project one; the shape is the wire type's.
+ * A career the way the backend lists it, for the harness: the season in progress (at his club, on
+ * loan at another, or none for a player with no club), closed seasons, a transfer line (with a fee)
+ * and two seasons at the club he came from, and his opening contract. Hand-made, because the
+ * harness has no Rust to project one; the shape is the wire type's, and the sums are the backend's
+ * rule (`summed`).
  */
-function careerOf(player: PlayerData, signedFrom: string | null): PlayerCareer {
-  const club = { id: player.team_id ?? "", name: clubNameOf(player.team_id) };
+function careerOf(
+  player: PlayerData,
+  signedFrom: string | null,
+  options: CareerOptions = { current: "club" },
+): PlayerCareer {
+  const home = { id: player.team_id ?? "", name: clubNameOf(player.team_id) };
   const before = { id: signedFrom ?? "", name: clubNameOf(signedFrom) };
+  const borrower = options.loanTo ? { id: options.loanTo, name: clubNameOf(options.loanTo) } : null;
   const row = (
     season: number,
     at: { id: string; name: string },
     figures: [number, number, number],
-    inProgress = false,
-  ) => ({
-    kind: "season" as const,
+    extra: Partial<SeasonLine> = {},
+  ): SeasonLine => ({
+    kind: "season",
     key: `${season}-${at.id}`,
     season,
     club_id: at.id,
@@ -392,66 +446,75 @@ function careerOf(player: PlayerData, signedFrom: string | null): PlayerCareer {
     appearances: figures[0],
     goals: figures[1],
     assists: figures[2],
-    in_progress: inProgress,
+    in_progress: false,
     on_loan: false,
+    ...extra,
   });
-  const seasons = [
-    row(2031, club, [27, 9, 6], true),
-    row(2030, club, [33, 12, 8]),
+  // A player with no club last played at the club he left.
+  const latest = options.current === "none" ? before : home;
+  const current =
+    options.current === "club"
+      ? row(2031, home, [27, 9, 6], { in_progress: true })
+      : options.current === "loan" && borrower
+        ? row(2031, borrower, [9, 2, 1], { in_progress: true, on_loan: true })
+        : null;
+  const closed = [
+    row(2030, latest, [33, 12, 8]),
     row(2029, before, [30, 7, 4]),
     row(2028, before, [14, 2, 1]),
   ];
-  return {
-    by_season: [
-      seasons[0],
-      seasons[1],
-      {
-        kind: "move",
-        key: "transfer",
-        date: "2030-07-01",
-        movement: "permanent_transfer",
-        from_club_name: before.name,
-        to_club_name: club.name,
-        fee: 2_400_000,
-        loan_end: null,
-      },
-      seasons[2],
-      seasons[3],
-      {
-        kind: "move",
-        key: "opening",
-        date: "2028-07-01",
-        movement: "initial_contract",
-        from_club_name: null,
-        to_club_name: before.name,
-        fee: null,
-        loan_end: null,
-      },
-    ],
-    by_club: [
-      {
-        key: club.id,
-        club_id: club.id,
-        club_name: club.name,
-        first_season: 2030,
-        last_season: 2031,
-        appearances: 60,
-        goals: 21,
-        assists: 14,
-      },
-      {
-        key: before.id,
-        club_id: before.id,
-        club_name: before.name,
-        first_season: 2028,
-        last_season: 2029,
-        appearances: 44,
-        goals: 9,
-        assists: 5,
-      },
-    ],
-    totals: { appearances: 104, goals: 30, assists: 19 },
+  const transfer: CareerLine | null =
+    latest === before
+      ? null
+      : {
+          kind: "move",
+          key: "transfer",
+          date: "2030-07-01",
+          movement: "permanent_transfer",
+          from_club_name: before.name,
+          to_club_name: latest.name,
+          fee: 2_400_000,
+          loan_end: null,
+        };
+  const opening: CareerLine = {
+    kind: "move",
+    key: "opening",
+    date: "2028-07-01",
+    movement: "initial_contract",
+    from_club_name: null,
+    to_club_name: before.name,
+    fee: null,
+    loan_end: null,
   };
+  const lines: CareerLine[] = [
+    ...(current ? [current] : []),
+    closed[0],
+    ...(transfer ? [transfer] : []),
+    closed[1],
+    closed[2],
+    opening,
+  ];
+  const rows = lines.filter((line): line is SeasonLine => line.kind === "season");
+  return { by_season: lines, ...summed(rows) };
+}
+
+/** An archived retiree's career: his saved seasons, newest first, and nothing in progress. */
+function careerOfRetiree(entries: PlayerData["career"]): PlayerCareer {
+  const rows: SeasonLine[] = [...entries]
+    .sort((left, right) => right.season - left.season)
+    .map((entry, index) => ({
+      kind: "season",
+      key: `${entry.season}-${entry.team_id}-${index}`,
+      season: entry.season,
+      club_id: entry.team_id,
+      club_name: entry.team_name,
+      appearances: entry.appearances,
+      goals: entry.goals,
+      assists: entry.assists,
+      in_progress: false,
+      on_loan: false,
+    }));
+  return { by_season: rows, ...summed(rows) };
 }
 
 /** The club's own player as the club sees him: known, his wage exact, with ratings and a season. */
@@ -516,7 +579,7 @@ export function profileCase(variant: HarnessProfile): ProfileCase {
         positionRatings: positionRatingsOf(keeper, { kind: "live" }),
         recentMatches: fiveMatches(),
         seasonStats: A_SEASON,
-        career: careerOf(keeper, null),
+        career: careerOf(keeper, rival.team_id),
         contractPreviews: contractPreviewsOf(keeper, true),
       };
     case "injured":
@@ -536,6 +599,8 @@ export function profileCase(variant: HarnessProfile): ProfileCase {
         opinion: null,
         // The backend refuses to release a player who is on loan.
         contractPreviews: contractPreviewsOf(loaned, false),
+        // His season in progress is at the borrower, a loan; the parent's seasons are closed.
+        career: careerOf(loaned, rival.team_id, { current: "loan", loanTo: rival.team_id }),
         // On loan from the user's club to a rival: the profile's loan banner.
         playerPatch: {
           movement_history: loanedHistory(loaned, rival.team_id),
@@ -584,6 +649,7 @@ export function profileCase(variant: HarnessProfile): ProfileCase {
           scouted_on: SCOUTED_ON,
           current: true,
         }),
+        career: careerOf(scouted, rival.team_id),
         scoutedReport: {
           player_id: scouted.id,
           scouted_on: SCOUTED_ON,
@@ -597,6 +663,7 @@ export function profileCase(variant: HarnessProfile): ProfileCase {
         playerId: unknown.id,
         knowledge: { kind: "unknown" },
         wage: { kind: "hidden" },
+        career: careerOf(unknown, rival.team_id),
       };
     case "freeAgent":
       return {
@@ -604,6 +671,7 @@ export function profileCase(variant: HarnessProfile): ProfileCase {
         playerId: freeAgent.id,
         knowledge: { kind: "unknown" },
         wage: { kind: "hidden" },
+        career: careerOf(freeAgent, rival.team_id, { current: "none" }),
         playerPatch: { movement_history: freeAgentHistory(freeAgent, rival.team_id) },
       };
     case "retired":
@@ -613,6 +681,7 @@ export function profileCase(variant: HarnessProfile): ProfileCase {
         playerId: `${retiree.id}-retired`,
         knowledge: null,
         wage: null,
+        career: careerOfRetiree(retiree.career),
         retiredPlayer: {
           ...retiree,
           id: `${retiree.id}-retired`,
