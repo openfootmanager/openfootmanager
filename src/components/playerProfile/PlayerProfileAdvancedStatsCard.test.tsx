@@ -235,4 +235,95 @@ describe("PlayerProfileAdvancedStatsCard rows", () => {
       .map((bar) => bar.getAttribute("aria-valuenow"));
     expect(values).toEqual(["100", "0"]);
   });
+
+  /**
+   * Given a season whose six stats each have their own total, rate and percentile (no two alike)
+   * When the card renders
+   * Then each row shows exactly its own stat's total, rate, ordinal and bar value, in the card's
+   *      order: a row wired to another stat, or a percentile turned around (the backend's "a high
+   *      one always means he does well" is shown as given, fouls included), would show a figure
+   *      that is not its own
+   */
+  it.each([
+    {
+      row: 0,
+      label: "Shots",
+      total: "31",
+      rate: '{"value":"3.10"}',
+      kind: "per90",
+      ordinal: "61st",
+      bar: "61",
+    },
+    {
+      row: 1,
+      label: "Shots On Target",
+      total: "12",
+      rate: '{"value":"1.20"}',
+      kind: "per90",
+      ordinal: "62nd",
+      bar: "62",
+    },
+    {
+      row: 2,
+      label: "Passes",
+      total: "41 / 52",
+      rate: '{"value":"78.8%"}',
+      kind: "accurate",
+      ordinal: "63rd",
+      bar: "63",
+    },
+    {
+      row: 3,
+      label: "Tackles Won",
+      total: "23",
+      rate: '{"value":"2.30"}',
+      kind: "per90",
+      ordinal: "64th",
+      bar: "64",
+    },
+    {
+      row: 4,
+      label: "Interceptions",
+      total: "14",
+      rate: '{"value":"1.40"}',
+      kind: "per90",
+      ordinal: "65th",
+      bar: "65",
+    },
+    {
+      row: 5,
+      label: "Fouls Committed",
+      total: "17",
+      rate: '{"value":"1.70"}',
+      kind: "per90",
+      ordinal: "66th",
+      bar: "66",
+    },
+  ])("wires the $label row to its own stat", ({ row, label, total, rate, kind, ordinal, bar }) => {
+    render(
+      <PlayerProfileAdvancedStatsCard
+        summary={{
+          ...SUMMARY,
+          metrics: {
+            shots: { total: 31, per90: 3.1, percentile: 61 },
+            shotsOnTarget: { total: 12, per90: 1.2, percentile: 62 },
+            passes: { completed: 41, attempted: 52, accuracy: 78.8, percentile: 63 },
+            tacklesWon: { total: 23, per90: 2.3, percentile: 64 },
+            interceptions: { total: 14, per90: 1.4, percentile: 65 },
+            foulsCommitted: { total: 17, per90: 1.7, percentile: 66 },
+          },
+        }}
+        t={tShowing}
+      />,
+    );
+
+    const view = within(screen.getAllByRole("listitem")[row]);
+    expect(view.getByText(label)).toBeInTheDocument();
+    expect(view.getByText(total)).toBeInTheDocument();
+    expect(
+      view.getByText(`playerProfile.${kind === "per90" ? "per90Value" : "accurateValue"} ${rate}`),
+    ).toBeInTheDocument();
+    expect(view.getByText(ordinal)).toBeInTheDocument();
+    expect(view.getByRole("progressbar")).toHaveAttribute("aria-valuenow", bar);
+  });
 });
