@@ -1,35 +1,13 @@
-import {
-  Check,
-  Copy,
-  Trash2,
-  Crosshair,
-  Flag,
-  Plus,
-  RefreshCw,
-  RotateCcw,
-  Save,
-  Search,
-  Shield,
-  Target,
-  Zap,
-} from "lucide-react";
-import { useEffect, useMemo, useRef, useState, type JSX } from "react";
-import type { TFunction } from "i18next";
+import { Check, Copy, MoreVertical, Plus, RotateCcw, Save, Trash2 } from "lucide-react";
+import { useRef, useState, type JSX } from "react";
 import { useTranslation } from "react-i18next";
 
+import ContextMenu, { type ContextMenuHandle, type ContextMenuItem } from "../ContextMenu";
 import { Badge, Button, Card, Select } from "../ui";
+import TacticPicker, { FIELD_LABEL, type TacticsLibraryEntry } from "./TacticPicker";
 import TacticsDeleteDialog from "./TacticsDeleteDialog";
+import { useSavedCue } from "./useSavedCue";
 import { FORMATIONS } from "./TacticsTab.helpers";
-
-export interface TacticsLibraryEntry {
-  description: string;
-  formation: string;
-  id: string;
-  name: string;
-  playStyle: string;
-  sourcePresetName?: string | null;
-  type: "preset" | "custom";
-}
 
 interface TacticsCommandBarProps {
   activeTactic: TacticsLibraryEntry;
@@ -52,20 +30,14 @@ interface TacticsCommandBarProps {
   tacticLibrary: TacticsLibraryEntry[];
 }
 
-const SAVE_CUE_DURATION_MS = 2000;
-
 const PLAY_STYLES = [
-  { id: "Balanced", icon: <Target className="h-3.5 w-3.5" /> },
-  { id: "Attacking", icon: <Zap className="h-3.5 w-3.5" /> },
-  { id: "Defensive", icon: <Shield className="h-3.5 w-3.5" /> },
-  { id: "Possession", icon: <RefreshCw className="h-3.5 w-3.5" /> },
-  { id: "Counter", icon: <Crosshair className="h-3.5 w-3.5" /> },
-  { id: "HighPress", icon: <Flag className="h-3.5 w-3.5" /> },
+  "Balanced",
+  "Attacking",
+  "Defensive",
+  "Possession",
+  "Counter",
+  "HighPress",
 ] as const;
-
-function summarizeTactic(entry: TacticsLibraryEntry, t: TFunction): string {
-  return `${entry.formation} - ${t(`common.playStyles.${entry.playStyle}`, entry.playStyle)}`;
-}
 
 export default function TacticsCommandBar({
   activeTactic,
@@ -85,37 +57,10 @@ export default function TacticsCommandBar({
   tacticLibrary,
 }: TacticsCommandBarProps): JSX.Element {
   const { t } = useTranslation();
-  const [isOpen, setIsOpen] = useState(false);
-  const [search, setSearch] = useState("");
-  const [showSavedCue, setShowSavedCue] = useState(false);
+  const [pickerOpen, setPickerOpen] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
-  const wrapperRef = useRef<HTMLDivElement | null>(null);
-  const savedCueTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  const filteredLibrary = useMemo(() => {
-    const query = search.trim().toLowerCase();
-
-    if (!query) {
-      return tacticLibrary;
-    }
-
-    return tacticLibrary.filter((entry) =>
-      [
-        entry.name,
-        entry.description,
-        entry.formation,
-        entry.playStyle,
-        entry.sourcePresetName,
-        entry.type,
-      ]
-        .join(" ")
-        .toLowerCase()
-        .includes(query),
-    );
-  }, [search, tacticLibrary]);
-
-  const presetEntries = filteredLibrary.filter((entry) => entry.type === "preset");
-  const customEntries = filteredLibrary.filter((entry) => entry.type === "custom");
+  const actionsMenuRef = useRef<ContextMenuHandle | null>(null);
+  const [actionsOpen, setActionsOpen] = useState(false);
 
   const saveLabel =
     activeTactic.type === "custom" ? t("tactics.updateTactic") : t("tactics.saveAsTactic");
@@ -124,297 +69,130 @@ export default function TacticsCommandBar({
   // there always creates a new custom tactic, which is an observable action.
   const isSaveDisabled = activeTactic.type === "custom" && !isDirty;
 
-  useEffect(() => {
-    const handlePointerDown = (event: MouseEvent) => {
-      if (!wrapperRef.current?.contains(event.target as Node)) {
-        setIsOpen(false);
-      }
-    };
+  const { showSavedCue, save: handleSaveClick } = useSavedCue(activeTactic, onSave);
 
-    document.addEventListener("mousedown", handlePointerDown);
-    return () => document.removeEventListener("mousedown", handlePointerDown);
-  }, []);
-
-  useEffect(() => {
-    return () => {
-      if (savedCueTimeoutRef.current) {
-        clearTimeout(savedCueTimeoutRef.current);
-      }
-    };
-  }, []);
-
-  // The tactic and the save a cue would confirm: an answer that lands after the manager moved on
-  // (another tactic, a newer save) must not confirm the wrong one.
-  const activeTacticIdRef = useRef(activeTactic?.id);
-  activeTacticIdRef.current = activeTactic?.id;
-  const latestSaveRef = useRef(0);
-
-  async function handleSaveClick(): Promise<void> {
-    // The old cue belongs to the previous save: it goes while this one is pending.
-    setShowSavedCue(false);
-    if (savedCueTimeoutRef.current) {
-      clearTimeout(savedCueTimeoutRef.current);
-    }
-    const thisSave = ++latestSaveRef.current;
-    const savedTacticId = activeTactic?.id;
-    // Saving a preset makes a new custom tactic and the bar moves to it; saving a custom one keeps
-    // it active, so a different active tactic after the answer means the manager moved away.
-    const createsATactic = activeTactic?.type !== "custom";
-    const saved = await onSave();
-    if (!saved || thisSave !== latestSaveRef.current) return;
-    if (!createsATactic && activeTacticIdRef.current !== savedTacticId) return;
-    setShowSavedCue(true);
-
-    savedCueTimeoutRef.current = setTimeout(() => {
-      setShowSavedCue(false);
-    }, SAVE_CUE_DURATION_MS);
+  // The picker's list and the actions menu are never open together: a keyboard-chosen action does not
+  // produce the outside click that would shut the list.
+  function handleActionsOpenChange(open: boolean): void {
+    setActionsOpen(open);
+    if (open) setPickerOpen(false);
   }
+
+  const actionItems: ContextMenuItem[] = [
+    { label: t("tactics.newTactic"), icon: <Plus className="h-4 w-4" />, onClick: onCreateNew },
+    {
+      label: t("tactics.duplicateTactic"),
+      icon: <Copy className="h-4 w-4" />,
+      onClick: onDuplicate,
+    },
+    {
+      label: t("tactics.resetTactic"),
+      icon: <RotateCcw className="h-4 w-4" />,
+      onClick: onReset,
+      disabled: !canReset,
+    },
+    ...(canDelete
+      ? [
+          {
+            label: t("tactics.deleteTactic"),
+            icon: <Trash2 className="h-4 w-4" />,
+            onClick: () => setConfirmingDelete(true),
+            danger: true,
+          },
+        ]
+      : []),
+  ];
 
   return (
     <Card className="overflow-visible">
-      <div ref={wrapperRef} className="p-4 sm:p-5">
-        <div className="flex flex-col gap-4">
-          <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
-            <div className="min-w-0">
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="text-[11px] font-heading font-bold uppercase tracking-[0.24em] text-gray-500 dark:text-gray-400">
-                  {t("tactics.presetTactics")}
-                </span>
-                <Badge variant={activeTactic.type === "custom" ? "accent" : "success"} size="sm">
-                  {activeTactic.type === "custom"
-                    ? t("tactics.customTactic")
-                    : t("tactics.activePreset")}
-                </Badge>
-                <Badge variant={isDirty ? "accent" : "neutral"} size="sm">
-                  {isDirty ? t("tactics.unsavedChanges") : t("tactics.synced")}
-                </Badge>
-              </div>
-              <p className="mt-2 max-w-3xl text-sm text-gray-500 dark:text-gray-400">
-                {activeTactic.description}
-              </p>
-            </div>
+      {/* One row of controls (it wraps when the window is narrow): the tactic, its formation and style,
+          the actions that wait in a menu, and Save. */}
+      <div
+        role="group"
+        aria-label={t("tactics.tacticBar")}
+        data-region="tactics-bar"
+        className="flex flex-wrap items-end gap-3 px-4 py-3"
+      >
+        <TacticPicker
+          activeTactic={activeTactic}
+          library={tacticLibrary}
+          open={pickerOpen}
+          onOpenChange={setPickerOpen}
+          onSelect={onSelectTactic}
+        />
 
-            <div className="flex flex-wrap gap-2 xl:justify-end">
-              <Button type="button" variant="ghost" size="sm" icon={<Plus />} onClick={onCreateNew}>
-                {t("tactics.newTactic")}
-              </Button>
-              <Button type="button" variant="ghost" size="sm" icon={<Copy />} onClick={onDuplicate}>
-                {t("tactics.duplicateTactic")}
-              </Button>
-              {canDelete ? (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  icon={<Trash2 />}
-                  onClick={() => setConfirmingDelete(true)}
-                >
-                  {t("tactics.deleteTactic")}
-                </Button>
-              ) : null}
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                icon={<RotateCcw />}
-                onClick={onReset}
-                disabled={!canReset}
-              >
-                {t("tactics.resetTactic")}
-              </Button>
-              <Button
-                type="button"
-                variant="accent"
-                size="sm"
-                icon={showSavedCue && !isDirty ? <Check /> : <Save />}
-                onClick={handleSaveClick}
-                disabled={isSaveDisabled}
-                className="min-w-[9.5rem]"
-              >
-                {showSavedCue && !isDirty ? t("tactics.tacticSaved") : saveLabel}
-              </Button>
-              {/* The button's own text changing is not announced; this is. */}
-              <span aria-live="polite" className="sr-only">
-                {showSavedCue && !isDirty ? t("tactics.tacticSaved") : ""}
-              </span>
-            </div>
-          </div>
+        <div className="min-w-32 flex-[1_1_9rem]">
+          <span className={FIELD_LABEL}>{t("tactics.formation")}</span>
+          <Select
+            value={FORMATIONS.includes(formation) ? formation : FORMATIONS[0]}
+            onChange={(e) => onFormationChange(e.target.value)}
+            fullWidth
+            aria-label={t("tactics.formation")}
+          >
+            {FORMATIONS.map((f) => (
+              <option key={f} value={f}>
+                {f}
+              </option>
+            ))}
+          </Select>
+        </div>
 
-          <div className="grid gap-3 xl:grid-cols-[minmax(0,1.15fr)_minmax(18rem,0.85fr)_minmax(0,1.2fr)]">
-            <div className="relative rounded-2xl border border-gray-200/70 bg-gray-50/80 p-3 dark:border-white/8 dark:bg-navy-900/35">
-              <div className="mb-2 flex items-center justify-between gap-3">
-                <div className="text-[11px] font-heading font-bold uppercase tracking-[0.24em] text-gray-500 dark:text-gray-400">
-                  {t("tactics.chooseTactic")}
-                </div>
-                <div className="text-[10px] font-heading font-bold uppercase tracking-[0.18em] text-primary-500 dark:text-primary-300">
-                  {activeTactic.type === "custom" ? t("tactics.myTactics") : t("tactics.presets")}
-                </div>
-              </div>
+        <div className="min-w-32 flex-[1_1_10rem]">
+          <span className={FIELD_LABEL}>{t("tactics.playStyle")}</span>
+          <Select
+            value={activePlayStyle}
+            onChange={(e) => onPlayStyleChange(e.target.value)}
+            fullWidth
+            aria-label={t("tactics.playStyle")}
+          >
+            {PLAY_STYLES.map((style) => (
+              // Native <option> renders text only: an icon or span child is stripped by the browser.
+              <option key={style} value={style}>
+                {t(`common.playStyles.${style}`, style)}
+              </option>
+            ))}
+          </Select>
+        </div>
 
-              <button
-                type="button"
-                aria-label={t("tactics.chooseTactic")}
-                aria-expanded={isOpen}
-                aria-haspopup="listbox"
-                onClick={() => setIsOpen((open) => !open)}
-                className="flex w-full items-center justify-between rounded-xl border border-gray-200 bg-white px-3 py-3 text-left transition-colors hover:border-primary-300 dark:border-white/10 dark:bg-navy-800/90 dark:hover:border-primary-400"
-              >
-                <div className="min-w-0">
-                  <div className="truncate text-base font-heading font-bold text-gray-900 dark:text-gray-100">
-                    {activeTactic.name}
-                  </div>
-                  <div className="mt-1 truncate text-[11px] uppercase tracking-[0.18em] text-gray-500 dark:text-gray-400">
-                    {summarizeTactic(activeTactic, t)}
-                  </div>
-                </div>
-                <div className="shrink-0 rounded-full bg-primary-500/10 px-2 py-1 text-[10px] font-heading font-bold uppercase tracking-[0.18em] text-primary-500 dark:text-primary-300">
-                  {activeTactic.type === "custom" ? t("tactics.myTactics") : t("tactics.presets")}
-                </div>
-              </button>
+        <ContextMenu
+          items={actionItems}
+          ref={actionsMenuRef}
+          onOpenChange={handleActionsOpenChange}
+        >
+          <button
+            type="button"
+            aria-label={t("tactics.tacticActions")}
+            aria-haspopup="menu"
+            aria-expanded={actionsOpen}
+            onClick={(event) => {
+              const rect = event.currentTarget.getBoundingClientRect();
+              actionsMenuRef.current?.open(rect.left, rect.bottom + 4);
+            }}
+            className="grid h-9 w-9 shrink-0 place-items-center rounded-lg border border-line-strong bg-panel text-fg-muted hover:text-fg focus:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 focus-visible:ring-offset-page"
+          >
+            <MoreVertical aria-hidden="true" className="h-4 w-4" />
+          </button>
+        </ContextMenu>
 
-              {isOpen ? (
-                <div className="absolute left-0 right-0 top-full z-50 mt-2 rounded-2xl border border-gray-200 bg-white p-2 shadow-2xl dark:border-navy-600 dark:bg-navy-800">
-                  <div className="mb-2 flex items-center gap-2 rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 dark:border-navy-600 dark:bg-navy-700">
-                    <Search className="h-4 w-4 text-gray-400 dark:text-gray-500" />
-                    <input
-                      type="text"
-                      value={search}
-                      onChange={(event) => setSearch(event.target.value)}
-                      aria-label={t("tactics.searchTactics")}
-                      placeholder={t("tactics.searchTactics")}
-                      className="w-full bg-transparent text-sm text-gray-700 outline-none placeholder:text-gray-400 dark:text-gray-100"
-                    />
-                  </div>
-
-                  <div
-                    role="listbox"
-                    aria-label={t("tactics.chooseTactic")}
-                    className="max-h-80 space-y-3 overflow-y-auto p-1"
-                  >
-                    {customEntries.length > 0 ? (
-                      <div>
-                        <div className="mb-2 px-2 text-[11px] font-heading font-bold uppercase tracking-[0.22em] text-gray-500 dark:text-gray-400">
-                          {t("tactics.myTactics")}
-                        </div>
-                        <div className="space-y-1">
-                          {customEntries.map((entry) => (
-                            <button
-                              key={entry.id}
-                              type="button"
-                              role="option"
-                              aria-selected={entry.id === activeTactic.id}
-                              onClick={() => {
-                                onSelectTactic(entry.id);
-                                setIsOpen(false);
-                                setSearch("");
-                              }}
-                              className={`w-full rounded-xl border px-3 py-3 text-left transition-colors ${
-                                entry.id === activeTactic.id
-                                  ? "border-primary-300 bg-primary-50 dark:border-primary-400 dark:bg-primary-500/10"
-                                  : "border-transparent bg-gray-50 hover:border-gray-200 hover:bg-white dark:bg-navy-700/70 dark:hover:border-navy-500 dark:hover:bg-navy-700"
-                              }`}
-                            >
-                              <div className="flex items-start justify-between gap-3">
-                                <div className="min-w-0">
-                                  <div className="truncate text-sm font-heading font-bold text-gray-900 dark:text-gray-100">
-                                    {entry.name}
-                                  </div>
-                                  <div className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                                    {entry.description}
-                                  </div>
-                                </div>
-                                <span className="shrink-0 text-[11px] font-heading font-bold uppercase tracking-[0.18em] text-primary-500 dark:text-primary-300">
-                                  {summarizeTactic(entry, t)}
-                                </span>
-                              </div>
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    ) : null}
-
-                    <div>
-                      <div className="mb-2 px-2 text-[11px] font-heading font-bold uppercase tracking-[0.22em] text-gray-500 dark:text-gray-400">
-                        {t("tactics.presets")}
-                      </div>
-                      <div className="space-y-1">
-                        {presetEntries.map((entry) => (
-                          <button
-                            key={entry.id}
-                            type="button"
-                            role="option"
-                            aria-selected={entry.id === activeTactic.id}
-                            onClick={() => {
-                              onSelectTactic(entry.id);
-                              setIsOpen(false);
-                              setSearch("");
-                            }}
-                            className={`w-full rounded-xl border px-3 py-3 text-left transition-colors ${
-                              entry.id === activeTactic.id
-                                ? "border-primary-300 bg-primary-50 dark:border-primary-400 dark:bg-primary-500/10"
-                                : "border-transparent bg-gray-50 hover:border-gray-200 hover:bg-white dark:bg-navy-700/70 dark:hover:border-navy-500 dark:hover:bg-navy-700"
-                            }`}
-                          >
-                            <div className="flex items-start justify-between gap-3">
-                              <div className="min-w-0">
-                                <div className="truncate text-sm font-heading font-bold text-gray-900 dark:text-gray-100">
-                                  {entry.name}
-                                </div>
-                                <div className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                                  {entry.description}
-                                </div>
-                              </div>
-                              <span className="shrink-0 text-[11px] font-heading font-bold uppercase tracking-[0.18em] text-primary-500 dark:text-primary-300">
-                                {summarizeTactic(entry, t)}
-                              </span>
-                            </div>
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ) : null}
-            </div>
-
-            <div className="rounded-2xl border border-gray-200/70 bg-gray-50/80 p-3 dark:border-white/8 dark:bg-navy-900/35">
-              <div className="mb-2 text-[11px] font-heading font-bold uppercase tracking-[0.24em] text-gray-500 dark:text-gray-400">
-                {t("tactics.formation")}
-              </div>
-              <Select
-                value={FORMATIONS.includes(formation) ? formation : FORMATIONS[0]}
-                onChange={(e) => onFormationChange(e.target.value)}
-                fullWidth
-                aria-label={t("tactics.formation")}
-              >
-                {FORMATIONS.map((f) => (
-                  <option key={f} value={f}>
-                    {f}
-                  </option>
-                ))}
-              </Select>
-            </div>
-
-            <div className="rounded-2xl border border-gray-200/70 bg-gray-50/80 p-3 dark:border-white/8 dark:bg-navy-900/35">
-              <div className="mb-2 text-[11px] font-heading font-bold uppercase tracking-[0.24em] text-gray-500 dark:text-gray-400">
-                {t("tactics.playStyle")}
-              </div>
-              <Select
-                value={activePlayStyle}
-                onChange={(e) => onPlayStyleChange(e.target.value)}
-                fullWidth
-                aria-label={t("tactics.playStyle")}
-              >
-                {PLAY_STYLES.map((style) => (
-                  // Native <option> renders text only — an icon/span child is
-                  // stripped by the browser and warns in React, so use plain text.
-                  <option key={style.id} value={style.id}>
-                    {t(`common.playStyles.${style.id}`, style.id)}
-                  </option>
-                ))}
-              </Select>
-            </div>
-          </div>
+        <div className="ml-auto flex items-center gap-2">
+          <Badge variant={isDirty ? "accent" : "neutral"} size="sm">
+            {isDirty ? t("tactics.unsavedChanges") : t("tactics.synced")}
+          </Badge>
+          <Button
+            type="button"
+            variant="accent"
+            size="sm"
+            icon={showSavedCue && !isDirty ? <Check /> : <Save />}
+            onClick={handleSaveClick}
+            disabled={isSaveDisabled}
+            className="min-w-[9.5rem]"
+          >
+            {showSavedCue && !isDirty ? t("tactics.tacticSaved") : saveLabel}
+          </Button>
+          {/* The button's own text changing is not announced; this is. */}
+          <span aria-live="polite" className="sr-only">
+            {showSavedCue && !isDirty ? t("tactics.tacticSaved") : ""}
+          </span>
         </div>
       </div>
       {confirmingDelete ? (

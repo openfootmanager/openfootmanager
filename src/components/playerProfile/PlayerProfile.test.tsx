@@ -212,6 +212,8 @@ vi.mock("react-i18next", () => ({
       if (key === "playerProfile.interceptions") return "Interceptions";
       if (key === "playerProfile.foulsCommitted") return "Fouls Committed";
       if (key === "playerProfile.per90") return "Per 90";
+      if (key === "playerProfile.per90Value") return `${params?.value} per 90`;
+      if (key === "playerProfile.accurateValue") return `${params?.value} accurate`;
       if (key === "playerProfile.passAccuracy") return "Pass Accuracy";
       if (key === "playerProfile.percentile") return "Percentile";
       if (key === "playerProfile.percentileUnavailable") return "Percentile unavailable";
@@ -926,7 +928,7 @@ describe("PlayerProfile contract surfaces", () => {
       expect(screen.getByText("Advanced Stats")).toBeInTheDocument();
       expect(screen.getByText("Shots")).toBeInTheDocument();
       expect(screen.getAllByText("33").length).toBeGreaterThan(0);
-      expect(screen.getAllByText("80%").length).toBeGreaterThan(0);
+      expect(screen.getAllByText("80% accurate").length).toBeGreaterThan(0);
       expect(screen.getByText("88th")).toBeInTheDocument();
     });
   });
