@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import TacticsLineupFrame from "./TacticsLineupFrame";
 
@@ -7,18 +7,38 @@ vi.mock("react-i18next", () => ({
   useTranslation: () => ({ t: (key: string) => key }),
 }));
 
+let width = 0;
+const observers = new Set<() => void>();
+
 /** Makes every element measure `widthPx` wide, with a ResizeObserver that reports at once. */
 function measureAs(widthPx: number): void {
-  vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockReturnValue({
-    width: widthPx,
-  } as DOMRect);
+  width = widthPx;
+  vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(
+    () => ({ width }) as DOMRect,
+  );
   vi.stubGlobal(
     "ResizeObserver",
     class {
-      observe(): void {}
-      disconnect(): void {}
+      private readonly notify: () => void;
+      constructor(callback: () => void) {
+        this.notify = callback;
+      }
+      observe(): void {
+        observers.add(this.notify);
+      }
+      disconnect(): void {
+        observers.delete(this.notify);
+      }
     },
   );
+}
+
+/** The window is resized: every observer reports. */
+function resizeTo(widthPx: number): void {
+  width = widthPx;
+  act(() => {
+    for (const notify of observers) notify();
+  });
 }
 
 function renderFrame() {
@@ -27,6 +47,7 @@ function renderFrame() {
 
 describe("TacticsLineupFrame", () => {
   afterEach(() => {
+    observers.clear();
     vi.restoreAllMocks();
     vi.unstubAllGlobals();
   });
@@ -84,5 +105,45 @@ describe("TacticsLineupFrame", () => {
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     expect(screen.queryByText("the pitch")).not.toBeInTheDocument();
     expect(button).toHaveAttribute("aria-expanded", "false");
+  });
+
+  /**
+   * Given the narrow lineup region with the Pitch panel open
+   * When the Close button in it is pressed
+   * Then the panel closes (a touch window has no Escape key).
+   */
+  it("closes the panel with its own Close button", () => {
+    measureAs(600);
+    renderFrame();
+    fireEvent.click(screen.getByRole("button", { name: "tactics.pitch" }));
+
+    fireEvent.click(
+      within(screen.getByRole("dialog")).getByRole("button", { name: "common.close" }),
+    );
+
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  /**
+   * Given the Pitch panel open at a narrow width
+   * When the window widens until the pitch sits beside the table, and narrows again
+   * Then the panel does not come back: it was opened by a press that the wide layout ended.
+   */
+  it("does not reopen the panel when the layout goes wide and narrow again", () => {
+    measureAs(600);
+    renderFrame();
+    fireEvent.click(screen.getByRole("button", { name: "tactics.pitch" }));
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+
+    resizeTo(1000);
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(screen.getByText("the pitch")).toBeInTheDocument();
+    resizeTo(600);
+
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "tactics.pitch" })).toHaveAttribute(
+      "aria-expanded",
+      "false",
+    );
   });
 });

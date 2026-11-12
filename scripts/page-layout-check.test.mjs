@@ -293,7 +293,7 @@ describe("page layout check", () => {
    */
   it("fails a case whose region is missing from the page", () => {
     expect(judge({ ...clean, regionsFit: true, regionsMissing: true })).toEqual([
-      "no region on the page matches the case's fit selector",
+      "no visible region on the page matches the case's fit selector",
     ]);
   });
 

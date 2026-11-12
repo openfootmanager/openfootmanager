@@ -1,8 +1,8 @@
 import type { JSX, ReactNode } from "react";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useWidthAtLeast } from "../../hooks/useWidthAtLeast";
-import { Button, Dialog } from "../ui";
+import { Button, Dialog, DialogCloseButton } from "../ui";
 
 /** The width at which the pitch sits beside the table: room for the table's compact columns and the pitch (20rem). */
 const PITCH_BESIDE_REM = 60;
@@ -29,6 +29,12 @@ export default function TacticsLineupFrame({ table, pitch }: TacticsLineupFrameP
   const beside = useWidthAtLeast(frameRef, PITCH_BESIDE_REM);
   const [panelRequested, setPanelRequested] = useState(false);
   const panelOpen = !beside && panelRequested;
+
+  // A request made while narrow ends when the pitch comes beside the table: widening and narrowing
+  // again must not reopen the panel over the table without a press.
+  useEffect(() => {
+    if (beside) setPanelRequested(false);
+  }, [beside]);
 
   return (
     <div ref={frameRef} className="flex h-full min-h-0 flex-col gap-2">
@@ -60,9 +66,13 @@ export default function TacticsLineupFrame({ table, pitch }: TacticsLineupFrameP
           overlayClassName="bg-overlay"
           className="ml-auto h-full w-[22rem] max-w-[90vw] self-stretch overflow-y-auto"
         >
-          <h2 id={PITCH_TITLE_ID} className="sr-only">
-            {t("tactics.pitch")}
-          </h2>
+          <div className="flex items-center justify-between gap-2 pb-2">
+            <h2 id={PITCH_TITLE_ID} className="font-heading text-body font-bold text-fg">
+              {t("tactics.pitch")}
+            </h2>
+            {/* A touch window has no Escape key and a small backdrop: the panel closes from itself. */}
+            <DialogCloseButton onClose={() => setPanelRequested(false)} />
+          </div>
           {pitch}
         </Dialog>
       ) : null}

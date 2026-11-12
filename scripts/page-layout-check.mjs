@@ -163,7 +163,7 @@ export function judge({
     problems.push(`a region scrolls down inside the page: ${regionsOverflow.join(", ")}`);
   }
   if (regionsFit && regionsMissing) {
-    problems.push("no region on the page matches the case's fit selector");
+    problems.push("no visible region on the page matches the case's fit selector");
   }
   if (tablesFit && tablesScroll.length > 0) {
     problems.push(`table scrolls sideways inside its container: ${tablesScroll.join(", ")}`);
@@ -255,7 +255,11 @@ export function collectRegions(doc, styleOf, fitSelector) {
       return (overflowY === "auto" || overflowY === "scroll") && holdsMore(element);
     })
     .map(describe);
-  const targets = fitSelector ? [...doc.querySelectorAll(fitSelector)] : [];
+  // A region with no height (display: none, or squeezed to nothing) is not on the screen: it cannot
+  // pass for fitting because it has nothing to overflow.
+  const targets = fitSelector
+    ? [...doc.querySelectorAll(fitSelector)].filter((element) => element.clientHeight > 0)
+    : [];
   return {
     all,
     overflow: targets.filter(holdsMore).map(describe),
