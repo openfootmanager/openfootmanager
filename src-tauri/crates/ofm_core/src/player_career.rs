@@ -1120,6 +1120,68 @@ mod tests {
         );
     }
 
+    /// Given a loan that began in January 2026, ran across the season reset (1 August 2026), was
+    ///       bought on 1 October (`LoanToBuy`, which does not close the stint), and ended in a sale
+    ///       to another club on 1 February 2027, with the rows dated: the 2026 season's row at the
+    ///       borrower has no start (the reset cleared it) and ends on the sale
+    /// When the career is built
+    /// Then that row stays where the season starts and is still a loan: it is resolved across the
+    ///      club's visits either side of the purchase, not placed at the permanent visit the
+    ///      purchase began, where it would jump to 1 October and lose its loan flag
+    #[test]
+    fn a_row_that_began_with_the_season_stays_a_loan_across_the_loans_purchase() {
+        let rows = [
+            on(stint(2025, "a", 7, 2, 1), None, Some("2026-01-10")),
+            on(stint(2025, "b", 5, 1, 0), Some("2026-01-10"), None),
+            on(stint(2026, "b", 12, 3, 2), None, Some("2027-02-01")),
+            on(now(2026, "c", 3, 0, 1), Some("2027-02-01"), None),
+        ];
+        let movements = [
+            moved(
+                "2025-08-01",
+                PlayerMovementKind::InitialContract,
+                None,
+                Some("a"),
+            ),
+            moved(
+                "2026-01-10",
+                PlayerMovementKind::LoanStart,
+                Some("a"),
+                Some("b"),
+            ),
+            moved(
+                "2026-10-01",
+                PlayerMovementKind::LoanToBuy,
+                Some("a"),
+                Some("b"),
+            ),
+            moved(
+                "2027-02-01",
+                PlayerMovementKind::PermanentTransfer,
+                Some("b"),
+                Some("c"),
+            ),
+        ];
+
+        let career = career_of(&rows, &movements, &calendar(8));
+
+        assert_eq!(
+            read(&career),
+            [
+                "2026 c 3 now",
+                "move:PermanentTransfer",
+                "move:LoanToBuy",
+                "2026 b 12",
+                "2025 b 5",
+                "move:LoanStart",
+                "2025 a 7",
+                "move:InitialContract"
+            ]
+        );
+        assert!(season_row(&career, 2026, "b").on_loan);
+        assert!(season_row(&career, 2025, "b").on_loan);
+    }
+
     /// Given a player who arrived at his club on 5 January and has not yet appeared for it
     /// When the season in progress is read as rows
     /// Then the row for the club he is with is placed from the day he arrived, as a row with

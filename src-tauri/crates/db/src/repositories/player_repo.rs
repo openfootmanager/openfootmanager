@@ -1326,6 +1326,18 @@ mod tests {
                 ..PlayerMovementEntry::new("2026-01-12", PlayerMovementKind::PermanentTransfer)
             })
             .unwrap();
+        // A second move, after eight appearances at the club he arrived at on 12 January: that
+        // stint is closed with both days, the arrival's `since` being the one it began from.
+        player.stats.appearances = 20;
+        player
+            .record_movement(PlayerMovementEntry {
+                from_team_id: Some("team-b".to_string()),
+                from_team_name: Some("Beta FC".to_string()),
+                to_team_id: Some("team-c".to_string()),
+                to_team_name: Some("Gamma FC".to_string()),
+                ..PlayerMovementEntry::new("2026-03-01", PlayerMovementKind::PermanentTransfer)
+            })
+            .unwrap();
         player.career.push(domain::player::CareerEntry {
             season: 2025,
             team_id: "team-a".to_string(),
@@ -1350,10 +1362,16 @@ mod tests {
             Some("2025-07-01")
         );
         assert_eq!(stored.season_stints, player.season_stints);
-        assert_eq!(stored.season_stints.since.as_deref(), Some("2026-01-12"));
+        assert_eq!(stored.season_stints.since.as_deref(), Some("2026-03-01"));
+        let closed = &stored.season_stints.closed;
+        assert_eq!(closed.len(), 2);
         assert_eq!(
-            stored.season_stints.closed[0].until.as_deref(),
-            Some("2026-01-12")
+            (closed[0].from.as_deref(), closed[0].until.as_deref()),
+            (None, Some("2026-01-12"))
+        );
+        assert_eq!(
+            (closed[1].from.as_deref(), closed[1].until.as_deref()),
+            (Some("2026-01-12"), Some("2026-03-01"))
         );
     }
 
