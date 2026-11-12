@@ -23,8 +23,9 @@ import { resolveMessage, resolveNewsArticle } from "./backendI18n";
  *
  * (A run with the file missing writes it; under CI a missing or different file fails.)
  *
- * Not covered, on purpose: the params the frontend expands from structured JSON (roundups,
- * standings, scorers, press quotes), a division's or competition's display name, and country names.
+ * A news article's structured params (roundups, standings, scorers, press quotes, deals) are
+ * covered: the Rust resolver lays them out as the frontend does (`mcp_server/backend_text/news_params.rs`).
+ * Not covered yet: a division's or competition's display name, and country names (#1388, C).
  * The Rust resolver leaves those unexpanded and says so in its output (`details`).
  */
 
@@ -312,6 +313,293 @@ const CASES: GoldenCase[] = [
     name: "a news article with no keys is its plain text",
     kind: "article",
     input: { id: "news_2", headline: "Plain headline", body: "Plain body.", source: "Wire" },
+  },
+  // The structured params the screen lays out (#1388): each article carries a `*Data` JSON param
+  // the frontend expands into the lines of the body, and the backend's own plain `results` /
+  // `scorers` / `quotes` params for them are empty or only English fallbacks.
+  {
+    name: "a roundup lays out its results and names the biggest winner",
+    kind: "article",
+    input: {
+      id: "roundup_1",
+      headline_key: "be.news.roundup.headline0",
+      body_key: "be.news.roundup.body",
+      source_key: "be.source.leagueWire",
+      i18n_params: {
+        matchday: "12",
+        totalGoals: "9",
+        matchCount: "3",
+        results: "",
+        resultsData: JSON.stringify([
+          { home: "North", home_goals: 4, away: "South", away_goals: 1 },
+          { home: "East", home_goals: 0, away: "West", away_goals: 0 },
+          { home: "Hill", home_goals: 2, away: "Vale", away_goals: 2 },
+        ]),
+        biggestWinner: "North",
+      },
+    },
+  },
+  {
+    name: "a roundup with no biggest winner leaves that sentence out",
+    kind: "article",
+    input: {
+      id: "roundup_2",
+      headline_key: "be.news.roundup.headline1",
+      body_key: "be.news.roundup.body",
+      source_key: "be.source.footballHerald",
+      i18n_params: {
+        matchday: "3",
+        totalGoals: "0",
+        matchCount: "1",
+        results: "",
+        resultsData: JSON.stringify([{ home: "East", home_goals: 0, away: "West", away_goals: 0 }]),
+        biggestWinner: "",
+      },
+    },
+  },
+  {
+    name: "a preseason digest lays out its friendlies and one unbeaten club",
+    kind: "article",
+    input: {
+      id: "preseason_1",
+      headline_key: "be.news.preseasonDigest.headline",
+      body_key: "be.news.preseasonDigest.bodyWithResults",
+      source_key: "be.source.leagueChronicle",
+      i18n_params: {
+        weekStart: "2026-07-06",
+        resultCount: "2",
+        totalGoals: "5",
+        results: "",
+        resultsData: JSON.stringify([
+          { home: "North", home_goals: 3, away: "South", away_goals: 1 },
+          { home: "East", home_goals: 1, away: "West", away_goals: 0 },
+        ]),
+        unbeatenLine: "",
+        unbeatenTeamsData: JSON.stringify(["North"]),
+      },
+    },
+  },
+  {
+    name: "a preseason digest with no friendlies names two unbeaten clubs",
+    kind: "article",
+    input: {
+      id: "preseason_2",
+      headline_key: "be.news.preseasonDigest.headline",
+      body_key: "be.news.preseasonDigest.bodyNoResults",
+      source_key: "be.source.leagueChronicle",
+      i18n_params: {
+        weekStart: "2026-07-13",
+        resultCount: "0",
+        totalGoals: "0",
+        results: "",
+        unbeatenLine: "",
+        unbeatenTeamsData: JSON.stringify(["North", "East"]),
+      },
+    },
+  },
+  {
+    name: "a preseason digest lists three or more unbeaten clubs as a sentence",
+    kind: "article",
+    input: {
+      id: "preseason_3",
+      headline_key: "be.news.preseasonDigest.headline",
+      body_key: "be.news.preseasonDigest.bodyNoResults",
+      source_key: "be.source.leagueChronicle",
+      i18n_params: {
+        weekStart: "2026-07-20",
+        resultCount: "0",
+        totalGoals: "0",
+        results: "",
+        unbeatenLine: "",
+        unbeatenTeamsData: JSON.stringify(["North", "East", "Hill", "Vale"]),
+      },
+    },
+  },
+  {
+    name: "a standings update lays out its table",
+    kind: "article",
+    input: {
+      id: "standings_1",
+      headline_key: "be.news.standings.headline0",
+      body_key: "be.news.standings.body",
+      source_key: "be.source.leagueWire",
+      i18n_params: {
+        matchday: "8",
+        leader: "North",
+        standings: "",
+        standingsData: JSON.stringify([
+          { rank: 1, team: "North", points: 19, goal_difference: "+9" },
+          { rank: 2, team: "East", points: 17, goal_difference: "+4" },
+          { rank: 3, team: "Hill", points: 14, goal_difference: "-1" },
+        ]),
+      },
+    },
+  },
+  {
+    name: "a match report lists its scorers",
+    kind: "article",
+    input: {
+      id: "report_1",
+      headline_key: "be.news.matchReport.headline.homeWin.0",
+      body_key: "be.news.matchReport.body0",
+      source_key: "be.source.sportsGazette",
+      i18n_params: {
+        home: "North",
+        away: "South",
+        homeGoals: "2",
+        awayGoals: "1",
+        matchday: "5",
+        winner: "North",
+        loser: "South",
+        scorers: "",
+        scorersData: JSON.stringify([
+          { player: "J. Doe", minute: 12, team: "North" },
+          { player: "A. Roe", minute: 55, team: "South" },
+          { player: "J. Doe", minute: 88, team: "North" },
+        ]),
+      },
+    },
+  },
+  {
+    name: "a match report with no scorers has no goals section",
+    kind: "article",
+    input: {
+      id: "report_2",
+      headline_key: "be.news.matchReport.headline.draw.1",
+      body_key: "be.news.matchReport.body1.noScorers",
+      source_key: "be.source.matchDayPress",
+      i18n_params: {
+        home: "East",
+        away: "West",
+        homeGoals: "0",
+        awayGoals: "0",
+        matchday: "6",
+        scorers: "",
+        scorersData: "[]",
+      },
+    },
+  },
+  {
+    name: "a friendly report lists its scorers in a goals section",
+    kind: "article",
+    input: {
+      id: "report_3",
+      headline_key: "be.news.matchReport.reportFriendly.title",
+      body_key: "be.news.matchReport.reportFriendly.body",
+      source_key: "be.source.footballHerald",
+      i18n_params: {
+        home: "North",
+        away: "South",
+        homeGoals: "1",
+        awayGoals: "0",
+        scorers: "",
+        scorersSection: "",
+        scorersData: JSON.stringify([{ player: "J. Doe", minute: 33, team: "North" }]),
+      },
+    },
+  },
+  {
+    name: "a press conference with several quotes lists them",
+    kind: "article",
+    input: {
+      id: "press_1",
+      headline_key: "be.news.pressConference.headlinePressConf",
+      body_key: "be.news.pressConference.bodyMultiple",
+      source_key: "be.source.leagueWire",
+      i18n_params: {
+        team: "North",
+        result: "2-1",
+        quote: "We never stopped believing",
+        quotesData: JSON.stringify([
+          { fallback: "We never stopped believing" },
+          { fallback: "The lads showed real character" },
+        ]),
+      },
+    },
+  },
+  {
+    name: "a press conference with one quote shows it",
+    kind: "article",
+    input: {
+      id: "press_2",
+      headline_key: "be.news.pressConference.headlineManagerQuote",
+      body_key: "be.news.pressConference.bodySingle",
+      source_key: "be.source.leagueWire",
+      i18n_params: {
+        team: "South",
+        result: "0-3",
+        quote: "A tough afternoon",
+        quotesData: JSON.stringify([{ fallback: "A tough afternoon" }]),
+      },
+    },
+  },
+  {
+    name: "a friendly report with no scorers has no goals section",
+    kind: "article",
+    input: {
+      id: "report_4",
+      headline_key: "be.news.matchReport.reportFriendly.title",
+      body_key: "be.news.matchReport.reportFriendly.body",
+      source_key: "be.source.footballHerald",
+      i18n_params: {
+        home: "East",
+        away: "West",
+        homeGoals: "0",
+        awayGoals: "0",
+        scorers: "",
+        scorersSection: "",
+        scorersData: "[]",
+      },
+    },
+  },
+  {
+    // The quotes are what the manager picked, as the backend stores them: the response's own key
+    // and params, and the text in the language it was written in (here Portuguese) as the fallback
+    // and as `quote`. The screen resolves each quote from its key, so the English is the key's.
+    name: "a press conference whose quotes carry response keys reads them in English, not in the fallback's language",
+    kind: "article",
+    input: {
+      id: "press_3",
+      headline_key: "be.news.pressConference.headlinePressConf",
+      body_key: "be.news.pressConference.bodyMultiple",
+      source_key: "be.source.leagueWire",
+      i18n_params: {
+        team: "North",
+        result: "2-1",
+        quote: "Os jogadores trabalharam muito. Preparámos bem e executámos o plano de jogo.",
+        quotesData: JSON.stringify([
+          {
+            key: "match.press.result.responses.win.humble.text",
+            fallback:
+              "Os jogadores trabalharam muito. Preparámos bem e executámos o plano de jogo.",
+          },
+          {
+            key: "match.press.playerFocus.responses.praise.text",
+            fallback: "J. Doe tem sido fantástico. É um jogador-chave para nós.",
+            params: { playerName: "J. Doe" },
+          },
+        ]),
+      },
+    },
+  },
+  {
+    name: "a transfer roundup lays out its deals with the fee compact",
+    kind: "article",
+    input: {
+      id: "roundup_deals_1",
+      headline_key: "be.news.transferRoundup.headline",
+      body_key: "be.news.transferRoundup.body",
+      source_key: "be.source.transferIntelligence",
+      i18n_params: {
+        weekStart: "2026-08-03",
+        transferCount: "2",
+        deals: "",
+        dealsData: JSON.stringify([
+          { player: "J. Doe", fromTeam: "North", toTeam: "South", fee: "12500000" },
+          { player: "A. Roe", fromTeam: "East", toTeam: "West", fee: "800000" },
+        ]),
+      },
+    },
   },
 ];
 
