@@ -3,9 +3,6 @@ import { useTranslation } from "react-i18next";
 
 import { Button, Dialog } from "../ui";
 
-/** The longest a tactic's name can be: the save refuses a longer one (`MAX_NAME_CHARS`). */
-const NAME_MAX_LENGTH = 60;
-
 interface TacticsRenameDialogProps {
   /** The tactic's name now, to start from. */
   name: string;
@@ -17,8 +14,9 @@ interface TacticsRenameDialogProps {
 
 /**
  * Renames the active saved tactic. Focus starts in the name field with the name selected, Enter
- * saves, Escape and Cancel back out. The save's refusal is shown here, in the dialog, and the dialog
- * stays open for another try.
+ * saves, Escape and Cancel back out (not while the save is out). The save's refusal, which is the one
+ * rule on the name's length (it counts characters, not UTF-16 units), is shown here, in the dialog,
+ * and the dialog stays open for another try.
  */
 export default function TacticsRenameDialog({
   name,
@@ -51,7 +49,9 @@ export default function TacticsRenameDialog({
   return (
     <Dialog
       labelledBy="rename-tactic-title"
-      onClose={onClose}
+      // Not offered while the save is out: Escape or a click outside must not close a dialog whose
+      // answer is still to come, or the old answer would close one opened again meanwhile.
+      onClose={saving ? undefined : onClose}
       busy={saving}
       dismissOnBackdrop
       className="w-full max-w-md rounded-xl p-6"
@@ -68,7 +68,6 @@ export default function TacticsRenameDialog({
             ref={fieldRef}
             type="text"
             value={value}
-            maxLength={NAME_MAX_LENGTH}
             onChange={(event) => setValue(event.target.value)}
             aria-invalid={reason !== null}
             aria-describedby={reason !== null ? "rename-tactic-reason" : undefined}

@@ -439,6 +439,53 @@ describe("TacticsCommandBar", () => {
     });
 
     /**
+     * Given the rename dialog open and the save's answer still out
+     * When Escape is pressed and the backdrop is clicked
+     * Then the dialog stays open (a dialog whose answer is to come cannot be closed under it), and it
+     *      closes when the save accepts the name.
+     */
+    it("stays open while the save is out, and closes once it accepts the name", async () => {
+      let accept!: () => void;
+      const onRename = vi.fn().mockReturnValue(
+        new Promise<null>((resolve) => {
+          accept = () => resolve(null);
+        }),
+      );
+      renderCommandBar({ onRename });
+      openRename();
+      fireEvent.click(screen.getByRole("button", { name: "tactics.renameTacticConfirm" }));
+      await waitFor(() => expect(onRename).toHaveBeenCalled());
+
+      fireEvent.keyDown(window, { key: "Escape" });
+      fireEvent.click(screen.getByTestId("dialog-backdrop"));
+
+      expect(screen.getByRole("dialog", { name: "tactics.renameTacticTitle" })).toBeInTheDocument();
+      await act(async () => accept());
+      await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    });
+
+    /**
+     * Given a name of 31 characters that are each two UTF-16 units (62 units, 31 characters: within the
+     *       save's limit of 60 characters)
+     * When it is typed in the rename dialog and submitted
+     * Then the field has no length limit of its own (the browser would count units and cut it) and the
+     *      whole name goes to the save, whose refusal is the one rule on length.
+     */
+    it("leaves the name's length to the save, which counts characters", async () => {
+      const longName = "\u{1D538}".repeat(31);
+      const props = buildProps();
+      render(<TacticsCommandBar {...props} />);
+      openRename();
+      const field = screen.getByRole("textbox", { name: "tactics.renameTacticLabel" });
+
+      fireEvent.change(field, { target: { value: longName } });
+      fireEvent.submit(field.closest("form") as HTMLFormElement);
+
+      expect(field).not.toHaveAttribute("maxlength");
+      await waitFor(() => expect(props.onRename).toHaveBeenCalledWith("custom:1", longName));
+    });
+
+    /**
      * Given the rename dialog open and a save that refuses the name
      * When Rename is pressed
      * Then the reason is shown in the dialog as an alert tied to the field, and the dialog stays open
