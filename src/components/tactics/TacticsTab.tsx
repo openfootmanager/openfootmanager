@@ -152,6 +152,7 @@ export default function TacticsTab({
         onDelete={handleDeleteTactic}
         onDuplicate={handleDuplicateTactic}
         onFormationChange={(nextFormation) => {
+          // At the edit, not when its write lands: the setupKey check cannot see it until the reply.
           presetChoice.invalidate();
           void handleFormationChange(nextFormation);
         }}
