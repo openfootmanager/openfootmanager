@@ -27,7 +27,8 @@ interface TickProps {
 // the screen decides; recharts draws them.
 const handed = vi.hoisted(() => ({
   data: [] as Datum[],
-  onClick: undefined as ((entry: { key?: string; payload?: { key: string } }) => void) | undefined,
+  onClick: undefined as ((item: { payload?: Datum }) => void) | undefined,
+  minPointSize: undefined as number | undefined,
   cells: [] as { fill?: string }[],
   tick: undefined as ((props: TickProps) => ReactElement) | undefined,
   allowDecimals: undefined as boolean | undefined,
@@ -42,8 +43,13 @@ vi.mock("recharts", () => {
       handed.cells = [];
       return <div>{props.children}</div>;
     },
-    Bar: (props: { onClick?: typeof handed.onClick; children?: ReactNode }) => {
+    Bar: (props: {
+      onClick?: typeof handed.onClick;
+      minPointSize?: number;
+      children?: ReactNode;
+    }) => {
       handed.onClick = props.onClick;
+      handed.minPointSize = props.minPointSize;
       return <div>{props.children}</div>;
     },
     Cell: (props: { fill?: string }) => {
@@ -166,7 +172,7 @@ describe("PlayerProfileCareerChart", () => {
 
   /**
    * Given the chart on its latest season
-   * When a bar is clicked (recharts hands back the bar's datum, or the datum as `payload`)
+   * When a bar is clicked (recharts hands back the bar's rectangle, the datum as its `payload`)
    * Then the chosen fill and the readout follow it: the season, the club, apps, goals and assists
    */
   it("follows a clicked bar in the fill and in the readout", () => {
@@ -183,7 +189,7 @@ describe("PlayerProfileCareerChart", () => {
     expect(view.getByText("14")).toBeInTheDocument();
     expect(view.getByText("8")).toBeInTheDocument();
     expect(view.getByText("3")).toBeInTheDocument();
-    act(() => handed.onClick?.({ payload: { key: handed.data[0].key } }));
+    clickBar(0);
     expect(readout().getByText("ash")).toBeInTheDocument();
   });
 
@@ -453,5 +459,92 @@ describe("PlayerProfileCareerChart", () => {
     expect(view.getByText("playerProfile.careerChartMovesSince")).toBeInTheDocument();
     expect(view.getByText(/loanTo/)).toBeInTheDocument();
     expect(view.queryByText(/before this season/i)).toBeNull();
+  });
+
+  /**
+   * Given the season in progress (the latest bar) and a closed one
+   * When each is chosen
+   * Then the readout says the season is in progress, in words, as the table does, for the first
+   *      only
+   */
+  it("says in the readout when the chosen season is in progress", () => {
+    renderChart();
+
+    expect(readout().getByText("playerProfile.careerInProgress")).toBeInTheDocument();
+    clickBar(2);
+    expect(readout().queryByText("playerProfile.careerInProgress")).toBeNull();
+  });
+
+  /**
+   * Given a retirement after the last season row, on no bar
+   * When the latest bar is chosen, and then an earlier one
+   * Then the latest lists the retirement under "After this spell"; the earlier one does not
+   */
+  it("lists the moves after the last season under the latest bar", () => {
+    render(
+      <PlayerProfileCareerChart
+        career={{
+          ...CAREER,
+          by_season: [
+            {
+              kind: "move",
+              key: "retired",
+              date: "2027-06-30",
+              movement: "retired",
+              from_club_name: "North",
+              to_club_name: null,
+              fee: null,
+              loan_end: null,
+            },
+            ...CAREER.by_season,
+          ],
+        }}
+        language="en"
+        t={t}
+      />,
+    );
+
+    expect(readout().getByText("playerProfile.careerChartMovesAfter")).toBeInTheDocument();
+    expect(readout().getByText(/retiredFrom/)).toBeInTheDocument();
+    clickBar(0);
+    expect(readout().queryByText("playerProfile.careerChartMovesAfter")).toBeNull();
+  });
+
+  /**
+   * Given four seasons
+   * When the chart is drawn
+   * Then the plot has a minimum width for them (a width for each season) inside a container that
+   *      scrolls sideways, so the labels never overlap at narrow widths
+   */
+  it("gives the plot a width for each season and scrolls it inside the card", () => {
+    const { container } = renderChart();
+
+    const scroller = container.querySelector(".overflow-x-auto");
+    expect(scroller).not.toBeNull();
+    const plot = scroller?.firstElementChild as HTMLElement;
+    expect(plot.style.minWidth).toBe("14rem");
+  });
+
+  /**
+   * Given a season with no goals (a zero bar has no height to click)
+   * When the chart is drawn
+   * Then recharts is told to give each bar a minimum size, so a zero bar can still be chosen
+   */
+  it("gives a zero bar a minimum size so it can be clicked", () => {
+    renderChart();
+
+    expect(handed.minPointSize).toBeGreaterThan(0);
+  });
+
+  /**
+   * Given the chart in a card
+   * When it is drawn
+   * Then it is a container of its own, so its two-column breakpoint follows the card's width and
+   *      not the tab's
+   */
+  it("is a container of its own for its breakpoint", () => {
+    const { container } = renderChart();
+
+    expect(container.firstElementChild?.className).toContain("@container");
   });
 });

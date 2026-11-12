@@ -168,6 +168,42 @@ describe("buildCareerChart", () => {
   it("is empty without seasons", () => {
     expect(
       buildCareerChart({ by_season: [], by_club: [], totals: CAREER.totals }, "goals"),
-    ).toEqual({ bars: [], bands: [] });
+    ).toEqual({ bars: [], bands: [], trailingMoves: [] });
+  });
+
+  /**
+   * Given a release and then a retirement after the last season row (newest listed first)
+   * When the chart is built
+   * Then they are kept as trailing moves, oldest first: they land on no bar, and are not dropped
+   */
+  it("keeps the moves after the last season as trailing moves, oldest first", () => {
+    const released: CareerLine = {
+      ...MOVE,
+      key: "released",
+      movement: "released",
+      date: "2026-06-30",
+    };
+    const retired: CareerLine = {
+      ...MOVE,
+      key: "retired",
+      movement: "retired",
+      date: "2027-06-30",
+    };
+    const career: PlayerCareer = {
+      ...CAREER,
+      by_season: [retired, released, ...CAREER.by_season],
+    };
+
+    const chart = buildCareerChart(career, "goals");
+
+    expect(chart.trailingMoves.map((move) => move.key)).toEqual(["released", "retired"]);
+    expect(chart.bars.every((bar) => !bar.movesBefore.some((move) => move.key === "retired"))).toBe(
+      true,
+    );
+  });
+
+  /** Given no move after the last season, then there are no trailing moves. */
+  it("has no trailing moves when the career ends on a season", () => {
+    expect(buildCareerChart(CAREER, "goals").trailingMoves).toEqual([]);
   });
 });

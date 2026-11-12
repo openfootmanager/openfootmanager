@@ -39,6 +39,8 @@ export interface ChartBand {
 export interface CareerChart {
   /** Oldest first, the order a chart reads. */
   bars: ChartBar[];
+  /** The moves the career lists after its last season row (a release, a retirement). Scaffold: empty. */
+  trailingMoves: CareerMoveLine[];
   bands: ChartBand[];
 }
 
@@ -91,5 +93,5 @@ export function buildCareerChart(career: PlayerCareer, metric: ChartMetric): Car
     });
   }
 
-  return { bars, bands: [...bandOf.values()] };
+  return { bars, bands: [...bandOf.values()], trailingMoves: [] };
 }
