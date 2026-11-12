@@ -31,7 +31,9 @@ pub(crate) fn install_career(
 /// [`install_career`] for a game that goes to the screen straight away (a new game, a chosen
 /// club): returns the game as the screen must hold it, carrying the installed career's token.
 /// A screen holding the unstamped game would send token 0 with every tactics write and have each
-/// refused as another career's.
+/// refused as another career's. It carries the installed game's revision too: `set_game` starts an
+/// installed game at 0, and a screen holding the old number (a clubless career already written to,
+/// at 5) would drop the answers at revisions 1 to 4 that follow as older than what it shows.
 pub(crate) fn install_career_for_screen(
     state: &StateManager,
     game: Game,
@@ -40,6 +42,7 @@ pub(crate) fn install_career_for_screen(
 ) -> Game {
     let mut shown = game.clone();
     shown.career_token = install_career(state, game, stats, save_id);
+    shown.revision = 0;
     shown
 }
 
