@@ -3091,8 +3091,11 @@ mod live_session_tests {
         assert_eq!(checkpoint(&state), before);
     }
 
-    /// The match's own copy of each player's morale factor, by side (the engine's, not the game's).
-    fn match_morale_factors(state: &StateManager) -> (Vec<(String, f64)>, Vec<(String, f64)>) {
+    /// Each player's morale factor in the match (the engine's copy, not the game's), by id.
+    type SideFactors = Vec<(String, f64)>;
+
+    /// The match's morale factors for the user's side and for the opponent's.
+    fn match_morale_factors(state: &StateManager) -> (SideFactors, SideFactors) {
         state
             .with_live_match(|session| {
                 let factors = |side| {
@@ -3114,22 +3117,44 @@ mod live_session_tests {
             .expect("a live match")
     }
 
-    /// Given a match at half-time whose players started it at one morale and now hold another
-    ///       (set to 50, clear of both ends of the scale)
+    /// A live match the user plays at half-time, every player of every club at morale 50 from
+    /// kick-off, so each starts it at exactly the neutral factor.
+    fn state_at_half_time_with_every_player_at_morale_fifty() -> StateManager {
+        let state = StateManager::new();
+        let mut game = make_game_with_matchday();
+        game.players
+            .iter_mut()
+            .for_each(|player| player.morale = 50);
+        state.set_game(game);
+        live_match::start_live_match_with_identity(
+            &state,
+            ofm_core::state::Career::Active,
+            0,
+            "live",
+            false,
+            None,
+            None,
+        )
+        .unwrap();
+        live_match::step_live_match(&state, ofm_core::state::Career::Active, 60).unwrap();
+        let snapshot = live_match::get_match_snapshot(&state).unwrap();
+        assert_eq!(format!("{:?}", snapshot.phase), "HalfTime");
+        state
+    }
+
+    /// Given a match at half-time that every player began at morale 50 (the neutral factor, 1)
     /// When a half-time talk is given through the shared seam (the command and the MCP tool)
-    /// Then each of the user's players in the match plays the second half at the factor his new
-    ///      morale gives (above 1 for a lifted player, below for a lowered one, exactly 1 at 50),
-    ///      and the opponent's players are untouched (#1213)
+    /// Then each of the user's players in the match who the talk moved plays the second half at the
+    ///      factor his new morale gives (above 1 for a lifted player, below for a lowered one), one
+    ///      the talk left at 50 stays at exactly 1, and the opponent's players are untouched (#1213)
     #[test]
     fn a_half_time_talk_reaches_the_second_half() {
-        let state = state_at_half_time();
-        state
-            .update_game(|game| {
-                game.players
-                    .iter_mut()
-                    .for_each(|player| player.morale = 50)
-            })
-            .unwrap();
+        let state = state_at_half_time_with_every_player_at_morale_fifty();
+        let (before, _) = match_morale_factors(&state);
+        assert!(
+            before.iter().all(|(_, factor)| *factor == 1.0),
+            "the match began neutral"
+        );
         let (_, opponent_before) = match_morale_factors(&state);
 
         let talk =
