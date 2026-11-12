@@ -2,6 +2,7 @@ import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
 import type { ContractHistoryRow } from "./PlayerProfile.contractHistory";
+import { formatProfileDay } from "./PlayerProfile.helpers";
 import PlayerProfileContractTimeline from "./PlayerProfileContractTimeline";
 
 const t = (key: string, options?: Record<string, string | number>) =>
@@ -104,5 +105,82 @@ describe("PlayerProfileContractTimeline", () => {
     const { container } = renderTimeline([]);
 
     expect(container).toBeEmptyDOMElement();
+  });
+
+  /**
+   * Given a contract scheduled to 30 June 2033 that was terminated on 10 January 2031
+   * When the card is drawn
+   * Then its tooltip and the chart's accessible description give the day it really ended, never the
+   *      scheduled end the bar does not reach
+   */
+  it("says the day a contract really ended, not the day it was scheduled to", () => {
+    renderTimeline([
+      row({ end: "2033-06-30", endedBy: "terminated", endedOn: "2031-01-10", weeklyWage: 7_000 }),
+    ]);
+
+    const actual = formatProfileDay("2031-01-10", "en");
+    const scheduled = formatProfileDay("2033-06-30", "en");
+    const bar = screen.getByTitle(/North FC/);
+    expect(bar.title).toContain(actual);
+    expect(bar.title).not.toContain(scheduled);
+    const chart = screen.getByRole("img", { name: "playerProfile.contractSheet.overTimeLabel" });
+    expect(chart).toHaveAccessibleDescription(expect.stringContaining(actual));
+    expect(chart).not.toHaveAccessibleDescription(expect.stringContaining(scheduled));
+  });
+
+  /**
+   * Given a contract renewed early, so a later one took over on 15 January 2031 before its
+   *       scheduled end of 30 June 2032
+   * When the card is drawn
+   * Then the older contract's description ends on the day the renewal took over
+   */
+  it("ends an early-renewed contract's description on the day the renewal took over", () => {
+    renderTimeline([
+      row({ key: "b", start: "2031-01-15", end: "2034-06-30", inForce: true }),
+      row({ key: "a", end: "2032-06-30", replacedOn: "2031-01-15" }),
+    ]);
+
+    const [older] = screen.getAllByTitle(/North FC/);
+    expect(older.title).toContain(formatProfileDay("2031-01-15", "en"));
+    expect(older.title).not.toContain(formatProfileDay("2032-06-30", "en"));
+  });
+
+  /**
+   * Given two contracts and today, on an axis of whole years from 2029 to the end of 2033
+   * When the card is drawn
+   * Then each bar is placed and sized by its days (left and width in percent of the axis) and the
+   *      Today label sits at today's share of the axis, so removing the placement shows
+   */
+  it("places each bar and the Today label by their days on the axis", () => {
+    renderTimeline(ROWS);
+
+    const share = (from: string, to: string) =>
+      ((Date.parse(to) - Date.parse(from)) /
+        (Date.parse("2034-01-01") - Date.parse("2029-01-01"))) *
+      100;
+    const [older, newer] = screen.getAllByTitle(/North FC/);
+    const left = (element: HTMLElement) => Number.parseFloat(element.style.left);
+    const width = (element: HTMLElement) => Number.parseFloat(element.style.width);
+    expect(left(older)).toBeCloseTo(share("2029-01-01", "2029-07-01"), 2);
+    expect(width(older)).toBeCloseTo(share("2029-07-01", "2031-07-01"), 2);
+    expect(left(newer)).toBeCloseTo(share("2029-01-01", "2031-07-01"), 2);
+    expect(width(newer)).toBeCloseTo(share("2031-07-01", "2033-07-01"), 2);
+    const today = screen.getByText("playerProfile.contractSheet.today");
+    expect(left(today)).toBeCloseTo(share("2029-01-01", "2031-07-10"), 2);
+  });
+
+  /**
+   * Given a contract that has ended and one in force, for a club that may not see wages (so a bar
+   *       carries no text, and its outline is the only signal)
+   * When the card is drawn
+   * Then the historical bar is outlined in the subtle foreground token (about 5:1 on the panel in
+   *      both themes), not the faint line token (about 1.5:1)
+   */
+  it("outlines a historical bar in a token that reaches 3:1 on the track", () => {
+    renderTimeline(ROWS, false);
+
+    const [older] = screen.getAllByTitle(/North FC/);
+    expect(older.className).toContain("border-fg-subtle");
+    expect(older.className).not.toContain("border-line");
   });
 });
