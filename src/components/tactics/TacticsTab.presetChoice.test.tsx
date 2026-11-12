@@ -1,8 +1,8 @@
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { i18nReady } from "../../i18n";
 import { resetTacticsLineupCache } from "../../hooks/useTacticsLineupProjection";
-import type { PlayerData } from "../../store/gameStore";
+import { useGameStore, type PlayerData } from "../../store/gameStore";
 import {
   commandsCalled,
   ControlledTacticsTab,
@@ -115,10 +115,10 @@ describe("TacticsTab preset question", { timeout: TACTICS_TAB_CASE_TIMEOUT_MS },
   /**
    * Given the question about tuned instructions
    * When the manager answers "Keep mine"
-   * Then the preset's formation and play style are set, the preset command is not used (it would
-   *      replace the instructions), and the dials the manager tuned are still tuned.
+   * Then the preset is applied in one write that keeps their instructions (no separate formation and
+   *      style writes that could half-apply), and the dials the manager tuned are still tuned.
    */
-  it("takes only the formation and play style when the manager keeps their instructions", async () => {
+  it("applies the preset keeping the manager's instructions when they answer Keep mine", async () => {
     fakeBackend();
     render(<ControlledTacticsTab />);
     await tuneAnInstruction();
@@ -127,16 +127,16 @@ describe("TacticsTab preset question", { timeout: TACTICS_TAB_CASE_TIMEOUT_MS },
     pickHighPress();
     fireEvent.click(await screen.findByRole("button", { name: "Keep mine" }));
 
-    await waitFor(() => expect(commandsCalled()).toContain("set_play_style"));
-    expect(mockedInvoke).toHaveBeenCalledWith("set_formation", {
-      careerToken: 0,
-      formation: "3-4-3",
-    });
-    expect(mockedInvoke).toHaveBeenCalledWith("set_play_style", {
-      careerToken: 0,
-      playStyle: "HighPress",
-    });
-    expect(commandsCalled()).not.toContain("apply_tactic_preset");
+    await waitFor(() =>
+      expect(mockedInvoke).toHaveBeenCalledWith("apply_tactic_preset", {
+        careerToken: 0,
+        formation: "3-4-3",
+        keepInstructions: true,
+        playStyle: "HighPress",
+      }),
+    );
+    expect(commandsCalled()).not.toContain("set_formation");
+    expect(commandsCalled()).not.toContain("set_play_style");
     expect(screen.queryByRole("dialog")).toBeNull();
     expect(await screen.findByText("Unsaved changes")).toBeInTheDocument();
   });
@@ -165,6 +165,60 @@ describe("TacticsTab preset question", { timeout: TACTICS_TAB_CASE_TIMEOUT_MS },
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
     expect(commandsCalled()).not.toContain("apply_tactic_preset");
     expect(commandsCalled()).not.toContain("set_play_style");
+  });
+
+  /**
+   * Given a preset chosen and the backend's answer about it still pending
+   * When the manager chooses another preset whose answer comes at once (nothing tuned to replace), and
+   *      then the first answer arrives saying it would replace tuned instructions
+   * Then the first is dropped: no dialog opens for it and it is not applied over the second.
+   */
+  it("drops the answer to a choice the manager has since replaced", async () => {
+    fakeBackend();
+    render(<ControlledTacticsTab />);
+    await tuneAnInstruction();
+    let release!: () => void;
+    knobs.blueprintStatusGate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    mockedInvoke.mockClear();
+    pickHighPress();
+    await waitFor(() => expect(commandsCalled()).toContain("get_tactics_blueprint_status"));
+
+    knobs.blueprintStatusGate = null;
+    knobs.blueprintModified = false;
+    fireEvent.click(screen.getByRole("button", { name: "Choose tactic" }));
+    fireEvent.click(screen.getByRole("option", { name: /Balanced Control/ }));
+    await waitFor(() => expect(commandsCalled()).toContain("apply_tactic_preset"));
+    knobs.blueprintModified = true;
+    release();
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    });
+
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(
+      mockedInvoke.mock.calls.filter(([command]) => command === "apply_tactic_preset"),
+    ).toHaveLength(1);
+  });
+
+  /**
+   * Given the question open about tuned instructions
+   * When the career changes (another game is loaded)
+   * Then the question is withdrawn: an answer is never applied to a career it was not asked in.
+   */
+  it("withdraws the question when the career changes", async () => {
+    fakeBackend();
+    render(<ControlledTacticsTab />);
+    await tuneAnInstruction();
+    pickHighPress();
+    await screen.findByRole("dialog", { name: "Replace your team instructions?" });
+
+    act(() => {
+      useGameStore.setState((state) => ({ careerEpoch: state.careerEpoch + 1 }));
+    });
+
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
   });
 
   /**

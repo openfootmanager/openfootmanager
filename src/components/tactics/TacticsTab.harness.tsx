@@ -154,6 +154,8 @@ export const knobs = {
   blueprintModified: false,
   /** Whether the faked backend fails when asked about the blueprint of a preset's style. */
   blueprintStatusFailsForStyle: false,
+  /** When set, the faked backend answers about a preset style's blueprint only once this resolves. */
+  blueprintStatusGate: null as Promise<void> | null,
   /** Commands the faked backend refuses with the career-changed error. */
   refused: new Set<string>(),
   /** What the faked backend says the manager's tactic differs from a saved one in. */
@@ -189,6 +191,7 @@ export function resetHarness() {
   savedTactics = [];
   knobs.blueprintModified = false;
   knobs.blueprintStatusFailsForStyle = false;
+  knobs.blueprintStatusGate = null;
   knobs.refused = new Set();
   knobs.savedTacticDifferences = {
     formation: false,
@@ -252,6 +255,7 @@ export function fakeBackend(failPreset = false) {
     }
     const team = backend.teams[0];
     if (command === "get_tactics_blueprint_status") {
+      if (params.playStyle && knobs.blueprintStatusGate) await knobs.blueprintStatusGate;
       if (knobs.blueprintStatusFailsForStyle && params.playStyle) throw new Error("no answer");
       return { modified: knobs.blueprintModified };
     }
@@ -266,9 +270,11 @@ export function fakeBackend(failPreset = false) {
       if (failPreset) throw new Error("boom");
       team.formation = params.formation;
       team.play_style = params.playStyle;
-      // The real command puts the dials back to the style's blueprint.
-      team.tactics_phase = {} as TeamData["tactics_phase"];
-      knobs.blueprintModified = false;
+      // The real command puts the dials back to the style's blueprint, unless the manager kept theirs.
+      if (!(params as { keepInstructions?: boolean }).keepInstructions) {
+        team.tactics_phase = {} as TeamData["tactics_phase"];
+        knobs.blueprintModified = false;
+      }
     }
     if (command === "set_formation") team.formation = params.formation;
     if (command === "set_play_style") team.play_style = params.playStyle;

@@ -84,6 +84,19 @@ pub fn apply_tactic_preset_internal(
     formation: &str,
     play_style: &str,
 ) -> Result<Game, String> {
+    apply_preset_internal(state, career, formation, play_style, false)
+}
+
+/// A preset's formation and play style, in one write, with the manager's own team instructions left
+/// as they are when `keep_instructions` (the manager answered "Keep mine"); otherwise the whole
+/// preset, as [`apply_tactic_preset_internal`]. Nothing is written if the formation is refused.
+pub fn apply_preset_internal(
+    state: &StateManager,
+    career: Career,
+    formation: &str,
+    play_style: &str,
+    keep_instructions: bool,
+) -> Result<Game, String> {
     // One step against a role save, a swap or a kick-off: the commit and the hand-off to the match.
     let _operation = crate::application::live_session::operation();
     let game = mutate_active_game_for(state, career, |game| {
@@ -91,7 +104,9 @@ pub fn apply_tactic_preset_internal(
 
         let style = parse_play_style(play_style);
         let team = user_team_mut(game)?;
-        team.tactics_phase = ofm_core::ai_tactics::blueprint_for(&style);
+        if !keep_instructions {
+            team.tactics_phase = ofm_core::ai_tactics::blueprint_for(&style);
+        }
         team.play_style = style;
 
         Ok(())
@@ -105,10 +120,17 @@ pub fn apply_tactic_preset(
     state: State<'_, Arc<StateManager>>,
     formation: String,
     play_style: String,
+    keep_instructions: Option<bool>,
     career_token: u64,
 ) -> Result<Game, String> {
     info!("[cmd] apply_tactic_preset: {} / {}", formation, play_style);
-    apply_tactic_preset_internal(&state, Career::Token(career_token), &formation, &play_style)
+    apply_preset_internal(
+        &state,
+        Career::Token(career_token),
+        &formation,
+        &play_style,
+        keep_instructions.unwrap_or(false),
+    )
 }
 
 /// Whether the manager's phase dials differ from a play style's blueprint: their own style's, or,
@@ -888,9 +910,9 @@ pub(crate) fn set_tactics_phase_internal(
 mod tests {
     use super::TacticsBlueprintStatus;
     use super::{
-        apply_tactic_preset_internal, get_rating_tiers, get_squad_fitness_internal,
-        get_tactics_blueprint_status_internal, set_formation_internal, set_play_style_internal,
-        set_player_role_internal, set_player_squad_role_internal,
+        apply_preset_internal, apply_tactic_preset_internal, get_rating_tiers,
+        get_squad_fitness_internal, get_tactics_blueprint_status_internal, set_formation_internal,
+        set_play_style_internal, set_player_role_internal, set_player_squad_role_internal,
         set_player_training_focus_internal, set_starting_xi_internal,
     };
     use chrono::{TimeZone, Utc};
@@ -1227,6 +1249,42 @@ mod tests {
             get_tactics_blueprint_status_internal(&state, None),
             Ok(TacticsBlueprintStatus { modified: true })
         );
+    }
+
+    /// Given a manager with hand-tuned dials
+    /// When they apply a preset keeping their instructions
+    /// Then the preset's formation and play style are set in one write and the tuned dials stay.
+    #[test]
+    fn a_preset_applied_keeping_instructions_takes_only_the_formation_and_style() {
+        let state = state_with_custom_dials();
+
+        apply_preset_internal(&state, Career::Active, "3-4-3", "Defensive", true)
+            .expect("preset applies");
+
+        let team = stored_team(&state);
+        assert_eq!(team.formation, "3-4-3");
+        assert_eq!(team.play_style, PlayStyle::Defensive);
+        assert_eq!(team.tactics_phase.width, PitchWidth::Wide);
+        assert_eq!(team.tactics_phase.tempo, Tempo::Patient);
+    }
+
+    /// Given a manager with hand-tuned dials
+    /// When a preset whose formation the game cannot lay out is applied keeping their instructions
+    /// Then it is refused and neither the formation nor the play style changed: it is one write.
+    #[test]
+    fn a_refused_preset_kept_instructions_changes_neither_formation_nor_style() {
+        let state = state_with_custom_dials();
+        let before = stored_team(&state);
+
+        assert_eq!(
+            apply_preset_internal(&state, Career::Active, "9-9-9", "Defensive", true).err(),
+            Some(ofm_core::custom_tactics::INVALID_FORMATION_ERROR.to_string())
+        );
+
+        let team = stored_team(&state);
+        assert_eq!(team.formation, before.formation);
+        assert_eq!(team.play_style, before.play_style);
+        assert_eq!(team.tactics_phase, before.tactics_phase);
     }
 
     /// Given dials that are exactly the Defensive blueprint

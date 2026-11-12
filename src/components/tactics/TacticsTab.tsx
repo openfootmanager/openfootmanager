@@ -99,8 +99,8 @@ export default function TacticsTab({
     activePlayStyle,
     initialPreset,
     onApplyPreset: handleApplyTacticPreset,
-    onKeepInstructions: async (nextFormation, playStyle) =>
-      (await handleFormationChange(nextFormation)) && (await handlePlayStyleChange(playStyle)),
+    onKeepInstructions: (nextFormation, playStyle) =>
+      handleApplyTacticPreset(nextFormation, playStyle, { keepInstructions: true }),
     onGameUpdate,
     onWriteError,
     onWriteSaved: () => setWriteError(null),
