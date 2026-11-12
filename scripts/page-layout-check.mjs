@@ -60,7 +60,17 @@ const WORLD_LIBRARIES = ["populated", "empty"];
 
 /** Every page at every window; `page: undefined` is the style guide itself. */
 export const CASES = [
-  ...[undefined, ...PAGES].flatMap((page) => WINDOWS.map((window) => ({ page, ...window }))),
+  ...[undefined, ...PAGES].flatMap((page) =>
+    WINDOWS.map((window) => ({
+      page,
+      // The Tactics workbench never scrolls the page: its lineup region (the table and the pitch) has
+      // to show in the frame, and its table has to fit its columns, at every window.
+      ...(page === "tactics"
+        ? { regionsFit: '[data-region="tactics-lineup"]', tablesFit: true }
+        : {}),
+      ...window,
+    })),
+  ),
   ...PROFILES.flatMap((player) =>
     WINDOWS.map((window) => ({ page: "profile", player, ...window })),
   ),

@@ -6,6 +6,7 @@ import { useTranslation } from "react-i18next";
 import { setPlayerRole } from "../../services/squadService";
 import { resolveTranslatedErrorMessage } from "../../utils/errorMessage";
 
+import TacticsLineupFrame from "./TacticsLineupFrame";
 import TacticsPitch from "./TacticsPitch";
 import TacticsPlayerTable from "./TacticsPlayerTable";
 import { effectivePlayerRoles } from "./TacticsTab.helpers";
@@ -201,9 +202,8 @@ export default function TacticsTab({
           />
         }
       >
-        <div className="grid min-h-0 grid-cols-1 gap-4 xl:h-full xl:grid-cols-[minmax(0,1fr)_22rem] xl:items-start">
-          {/* The player table: the eleven by slot, then the substitutes and the reserves. */}
-          <div className="min-h-0 overflow-hidden rounded-lg border border-line bg-panel xl:h-full">
+        <TacticsLineupFrame
+          table={
             <TacticsPlayerTable
               starters={startingXI}
               others={bench}
@@ -231,52 +231,52 @@ export default function TacticsTab({
               onDragStart={handleDragStart}
               onDragEnd={resetDragState}
             />
-          </div>
-
-          {/* Center: pitch */}
-          <TacticsPitch
-            familiarity={familiarity}
-            lineupReady={lineupReady}
-            dragState={dragState}
-            formation={formation}
-            comparePlayerId={comparePlayerId}
-            hoveredSlot={hoveredSlot}
-            matchRoles={effectiveMatchRoles}
-            onRoleChange={changePlayerRole}
-            playerRoles={effectiveRoles}
-            tacticsPhase={team?.tactics_phase}
-            onAssignBestFit={(playerId) => {
-              void handleAssignBestFit(playerId);
-            }}
-            onAssignMatchRole={(role, playerId) => {
-              void handleAssignMatchRole(role, playerId);
-            }}
-            onClearSelection={clearLineupSelection}
-            onDemoteStarter={(playerId) => {
-              void handleDemoteStarter(playerId);
-            }}
-            onDragEnd={resetDragState}
-            onDragStart={handleDragStart}
-            onLineupPlayerClick={(playerId, section) => {
-              void handleLineupPlayerClick(playerId, section);
-            }}
-            onOpenPlayerProfile={(playerId) => {
-              onSelectPlayer(playerId);
-            }}
-            onPromoteBench={(playerId) => {
-              void handlePromoteBenchPlayer(playerId);
-            }}
-            onSlotDragLeave={handleSlotDragLeave}
-            onSlotDragOver={handleSlotDragOver}
-            onSlotDrop={(event, slotIndex) => {
-              void handleSlotDrop(event, slotIndex);
-            }}
-            outOfPositionCount={outOfPositionCount}
-            pitchSlots={pitchSlots}
-            selectedPlayer={selectedPlayer}
-            selectedPlayerId={selectedPlayerId}
-          />
-        </div>
+          }
+          pitch={
+            <TacticsPitch
+              familiarity={familiarity}
+              lineupReady={lineupReady}
+              dragState={dragState}
+              formation={formation}
+              comparePlayerId={comparePlayerId}
+              hoveredSlot={hoveredSlot}
+              matchRoles={effectiveMatchRoles}
+              onRoleChange={changePlayerRole}
+              playerRoles={effectiveRoles}
+              tacticsPhase={team?.tactics_phase}
+              onAssignBestFit={(playerId) => {
+                void handleAssignBestFit(playerId);
+              }}
+              onAssignMatchRole={(role, playerId) => {
+                void handleAssignMatchRole(role, playerId);
+              }}
+              onClearSelection={clearLineupSelection}
+              onDemoteStarter={(playerId) => {
+                void handleDemoteStarter(playerId);
+              }}
+              onDragEnd={resetDragState}
+              onDragStart={handleDragStart}
+              onLineupPlayerClick={(playerId, section) => {
+                void handleLineupPlayerClick(playerId, section);
+              }}
+              onOpenPlayerProfile={(playerId) => {
+                onSelectPlayer(playerId);
+              }}
+              onPromoteBench={(playerId) => {
+                void handlePromoteBenchPlayer(playerId);
+              }}
+              onSlotDragLeave={handleSlotDragLeave}
+              onSlotDragOver={handleSlotDragOver}
+              onSlotDrop={(event, slotIndex) => {
+                void handleSlotDrop(event, slotIndex);
+              }}
+              outOfPositionCount={outOfPositionCount}
+              pitchSlots={pitchSlots}
+              selectedPlayer={selectedPlayer}
+              selectedPlayerId={selectedPlayerId}
+            />
+          }
+        />
       </TacticsWorkbench>
 
       {/* Inspector modal — only when both players are selected for comparison */}

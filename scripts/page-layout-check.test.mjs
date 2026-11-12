@@ -346,6 +346,21 @@ describe("page layout check", () => {
   });
 
   /**
+   * Given the Tactics workbench, which never scrolls the page
+   * When the cases are listed
+   * Then every window judges its lineup region (the table and the pitch) and its table's columns,
+   * so a layout that squeezes the lineup to a sliver fails here
+   */
+  it("judges the Tactics lineup region and its table at every window", () => {
+    const tactics = CASES.filter((c) => c.page === "tactics");
+    expect(tactics.length).toBeGreaterThan(0);
+    for (const testCase of tactics) {
+      expect(testCase.regionsFit).toBe('[data-region="tactics-lineup"]');
+      expect(testCase.tablesFit).toBe(true);
+    }
+  });
+
+  /**
    * Given the player profile, which looks different for each state the club's knowledge of a player
    * can be in (its own, a rival, a scouted player, an unknown one, a retired one)
    * When the cases are listed
