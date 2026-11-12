@@ -21,23 +21,42 @@ export interface ClubStateInputs {
   teams: Pick<TeamData, "id" | "wage_budget">[];
 }
 
+const loanKey = (loan: PlayerData["active_loan"]): string =>
+  loan ? `${loan.parent_team_id}>${loan.loan_team_id}@${loan.wage_contribution_pct}` : "";
+
 /**
- * What the club-wide previews depend on, as one string. Scaffold: it still reads only the playing
- * squad; the real key replaces it.
+ * What the club-wide previews depend on, as one string: everything the club's wage bill and its
+ * squad-safety verdict read. That is its playing squad (who is in it, wages, contract ends,
+ * injuries), the players loaned out or in whose wage it pays a share of (the loan's clubs and
+ * share), its staff and their wages (`calc_wages` counts them), and its wage budget. A signing, a
+ * release, a hire or a loan made while the sheet is open, by the manager elsewhere or by an agent
+ * over MCP, changes it, so both previews are asked again; other clubs' people and the order of the
+ * lists do not.
+ *
+ * The game carries no revision counter to ask instead, so the key is built from the inputs.
  */
 export function clubStateKey(game: ClubStateInputs, teamId: string | null): string {
   if (!teamId) return "";
-  return game.players
-    .filter((player) => player.team_id === teamId)
+  const players = game.players
+    .filter(
+      (player) =>
+        player.team_id === teamId ||
+        player.active_loan?.parent_team_id === teamId ||
+        player.active_loan?.loan_team_id === teamId,
+    )
     .map((player) =>
       [
         player.id,
+        player.team_id ?? "",
         player.wage,
         player.contract_end ?? "",
         player.injury ? "injured" : "",
-        player.active_loan ? "loan" : "",
+        loanKey(player.active_loan),
       ].join(":"),
-    )
-    .sort()
-    .join("|");
+    );
+  const staff = game.staff
+    .filter((member) => member.team_id === teamId)
+    .map((member) => `staff:${member.id}:${member.wage}`);
+  const budget = game.teams.find((team) => team.id === teamId)?.wage_budget ?? "";
+  return `${[...players, ...staff].sort().join("|")}#${budget}`;
 }
