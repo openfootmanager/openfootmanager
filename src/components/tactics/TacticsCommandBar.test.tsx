@@ -1,7 +1,8 @@
-import { act, fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import TacticsCommandBar, { type TacticsLibraryEntry } from "./TacticsCommandBar";
+import type { TacticsLibraryEntry } from "./TacticPicker";
+import TacticsCommandBar from "./TacticsCommandBar";
 
 vi.mock("react-i18next", () => ({
   initReactI18next: { type: "3rdParty", init: () => undefined },
@@ -57,6 +58,11 @@ function buildProps(
     tacticLibrary: [customTactic, presetTactic],
     ...overrides,
   };
+}
+
+/** Opens the bar's one actions menu (New, Duplicate, Reset, Delete live in it). */
+function openActionsMenu() {
+  fireEvent.click(screen.getByRole("button", { name: "tactics.tacticActions" }));
 }
 
 function renderCommandBar(overrides: Partial<React.ComponentProps<typeof TacticsCommandBar>> = {}) {
@@ -281,7 +287,8 @@ describe("TacticsCommandBar", () => {
     const onReset = vi.fn();
     renderCommandBar({ activeTactic: presetTactic, canReset: true, onReset });
 
-    fireEvent.click(screen.getByRole("button", { name: "tactics.resetTactic" }));
+    openActionsMenu();
+    fireEvent.click(screen.getByRole("menuitem", { name: "tactics.resetTactic" }));
 
     expect(onReset).toHaveBeenCalledTimes(1);
   });
@@ -294,7 +301,93 @@ describe("TacticsCommandBar", () => {
   it("disables Reset when there is nothing to reset", () => {
     renderCommandBar({ activeTactic: customTactic, canReset: false });
 
-    expect(screen.getByRole("button", { name: "tactics.resetTactic" })).toBeDisabled();
+    openActionsMenu();
+    expect(screen.getByRole("menuitem", { name: "tactics.resetTactic" })).toBeDisabled();
+  });
+
+  /**
+   * Given a saved tactic
+   * When the bar renders
+   * Then the picker, the formation, the play style, the status, the actions menu and Save are all in
+   *      one group (one row of controls), and New, Duplicate, Reset and Delete are not on the bar:
+   *      they wait in the actions menu.
+   */
+  it("holds the picker, formation, play style, actions and Save in one group, the other actions in a menu", () => {
+    renderCommandBar();
+
+    const bar = screen.getByRole("group", { name: "tactics.tacticBar" });
+    for (const control of [
+      screen.getByRole("button", { name: "tactics.chooseTactic" }),
+      screen.getByRole("combobox", { name: "tactics.formation" }),
+      screen.getByRole("combobox", { name: "tactics.playStyle" }),
+      screen.getByRole("button", { name: "tactics.tacticActions" }),
+      screen.getByRole("button", { name: "tactics.updateTactic" }),
+    ]) {
+      expect(bar).toContainElement(control);
+    }
+    expect(screen.queryByRole("button", { name: "tactics.newTactic" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "tactics.duplicateTactic" })).toBeNull();
+    expect(screen.queryByRole("menuitem")).toBeNull();
+  });
+
+  /**
+   * Given a saved tactic
+   * When the actions menu is opened
+   * Then it offers New, Duplicate, Reset and Delete, and the button says it opened the menu.
+   */
+  it("opens the actions menu with New, Duplicate, Reset and Delete", () => {
+    renderCommandBar();
+    const trigger = screen.getByRole("button", { name: "tactics.tacticActions" });
+    expect(trigger).toHaveAttribute("aria-expanded", "false");
+
+    fireEvent.click(trigger);
+
+    expect(trigger).toHaveAttribute("aria-expanded", "true");
+    const menu = screen.getByRole("menu");
+    expect(
+      within(menu)
+        .getAllByRole("menuitem")
+        .map((item) => item.textContent),
+    ).toEqual([
+      "tactics.newTactic",
+      "tactics.duplicateTactic",
+      "tactics.resetTactic",
+      "tactics.deleteTactic",
+    ]);
+  });
+
+  /**
+   * Given the tactic picker's list open
+   * When the actions menu is opened (from the keyboard, where no outside press shuts the list)
+   * Then the list shuts: the two are never open together.
+   */
+  it("shuts the tactic picker's list when the actions menu opens", () => {
+    renderCommandBar();
+    fireEvent.click(screen.getByRole("button", { name: "tactics.chooseTactic" }));
+    expect(screen.getByRole("listbox", { name: "tactics.chooseTactic" })).toBeInTheDocument();
+
+    openActionsMenu();
+
+    expect(screen.queryByRole("listbox", { name: "tactics.chooseTactic" })).toBeNull();
+    expect(screen.getByRole("menu")).toBeInTheDocument();
+  });
+
+  /**
+   * Given the actions menu open
+   * When New is chosen, and in a fresh bar Duplicate
+   * Then each asks the screen for it, once.
+   */
+  it.each([
+    ["tactics.newTactic", "onCreateNew"],
+    ["tactics.duplicateTactic", "onDuplicate"],
+  ] as const)("runs %s from the actions menu", (item, handler) => {
+    const props = buildProps();
+    render(<TacticsCommandBar {...props} />);
+
+    openActionsMenu();
+    fireEvent.click(screen.getByRole("menuitem", { name: item }));
+
+    expect(props[handler]).toHaveBeenCalledTimes(1);
   });
 
   describe("deleting a custom tactic", () => {
@@ -307,7 +400,8 @@ describe("TacticsCommandBar", () => {
       const onDelete = vi.fn();
       renderCommandBar({ onDelete });
 
-      fireEvent.click(screen.getByRole("button", { name: "tactics.deleteTactic" }));
+      openActionsMenu();
+      fireEvent.click(screen.getByRole("menuitem", { name: "tactics.deleteTactic" }));
 
       const dialog = screen.getByRole("dialog");
       expect(dialog).toHaveTextContent("tactics.deleteTacticBody");
@@ -326,7 +420,8 @@ describe("TacticsCommandBar", () => {
     it("starts with focus on Cancel", () => {
       renderCommandBar();
 
-      fireEvent.click(screen.getByRole("button", { name: "tactics.deleteTactic" }));
+      openActionsMenu();
+      fireEvent.click(screen.getByRole("menuitem", { name: "tactics.deleteTactic" }));
 
       expect(screen.getByRole("button", { name: "common.cancel" })).toHaveFocus();
     });
@@ -339,7 +434,8 @@ describe("TacticsCommandBar", () => {
     it("a click on the backdrop cancels without deleting", () => {
       const onDelete = vi.fn();
       renderCommandBar({ onDelete });
-      fireEvent.click(screen.getByRole("button", { name: "tactics.deleteTactic" }));
+      openActionsMenu();
+      fireEvent.click(screen.getByRole("menuitem", { name: "tactics.deleteTactic" }));
 
       const backdrop = screen.getByTestId("dialog-backdrop");
       fireEvent.mouseDown(backdrop);
@@ -358,7 +454,8 @@ describe("TacticsCommandBar", () => {
       const onDelete = vi.fn();
       renderCommandBar({ onDelete });
 
-      fireEvent.click(screen.getByRole("button", { name: "tactics.deleteTactic" }));
+      openActionsMenu();
+      fireEvent.click(screen.getByRole("menuitem", { name: "tactics.deleteTactic" }));
       fireEvent.click(screen.getByRole("button", { name: "tactics.deleteTacticConfirm" }));
 
       expect(onDelete).toHaveBeenCalledTimes(1);
@@ -373,7 +470,8 @@ describe("TacticsCommandBar", () => {
     it("Escape backs out without deleting", () => {
       const onDelete = vi.fn();
       renderCommandBar({ onDelete });
-      fireEvent.click(screen.getByRole("button", { name: "tactics.deleteTactic" }));
+      openActionsMenu();
+      fireEvent.click(screen.getByRole("menuitem", { name: "tactics.deleteTactic" }));
 
       fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape" });
 
@@ -389,7 +487,8 @@ describe("TacticsCommandBar", () => {
     it("offers no Delete when nothing saved is active", () => {
       renderCommandBar({ activeTactic: presetTactic, canDelete: false });
 
-      expect(screen.queryByRole("button", { name: "tactics.deleteTactic" })).toBeNull();
+      openActionsMenu();
+      expect(screen.queryByRole("menuitem", { name: "tactics.deleteTactic" })).toBeNull();
     });
   });
 });

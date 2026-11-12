@@ -126,4 +126,123 @@ describe("ContextMenu", () => {
     expect(screen.getByRole("button", { name: "First" })).toHaveAttribute("aria-expanded", "false");
     expect(screen.getByRole("button", { name: "Second" })).toHaveAttribute("aria-expanded", "true");
   });
+
+  /**
+   * A menu whose second-to-last item is disabled, as the tactic actions' Delete can be, with the
+   * names the keyboard moves between.
+   */
+  function KeyboardMenu({ picked }: { picked: string[] }) {
+    const menu = useRef<ContextMenuHandle>(null);
+    const item = (label: string, disabled = false) => ({
+      label,
+      disabled,
+      onClick: () => picked.push(label),
+    });
+    return (
+      <ContextMenu
+        ref={menu}
+        items={[item("New"), item("Duplicate"), item("Reset", true), item("Delete")]}
+      >
+        <button
+          type="button"
+          onClick={(event) => {
+            event.stopPropagation();
+            menu.current?.open(10, 10);
+          }}
+        >
+          Actions
+        </button>
+      </ContextMenu>
+    );
+  }
+
+  async function openKeyboardMenu(picked: string[]) {
+    render(<KeyboardMenu picked={picked} />);
+    const trigger = screen.getByRole("button", { name: "Actions" });
+    trigger.focus();
+    fireEvent.click(trigger);
+    expect(await screen.findByRole("menuitem", { name: "New" })).toHaveFocus();
+    return trigger;
+  }
+
+  const press = (key: string) =>
+    fireEvent.keyDown(document.activeElement ?? document.body, { key });
+
+  /**
+   * Given an open menu with New focused and a disabled Reset between Duplicate and Delete
+   * When ArrowDown is pressed three times
+   * Then focus goes to Duplicate, skips the disabled Reset to Delete, and wraps to New.
+   */
+  it("moves focus down the enabled items with ArrowDown, skipping a disabled one and wrapping", async () => {
+    await openKeyboardMenu([]);
+
+    press("ArrowDown");
+    expect(screen.getByRole("menuitem", { name: "Duplicate" })).toHaveFocus();
+    press("ArrowDown");
+    expect(screen.getByRole("menuitem", { name: "Delete" })).toHaveFocus();
+    press("ArrowDown");
+    expect(screen.getByRole("menuitem", { name: "New" })).toHaveFocus();
+  });
+
+  /**
+   * Given an open menu with New focused
+   * When ArrowUp is pressed twice
+   * Then focus wraps to Delete (the last enabled item), then moves up to Duplicate past Reset.
+   */
+  it("moves focus up the enabled items with ArrowUp, wrapping from the first", async () => {
+    await openKeyboardMenu([]);
+
+    press("ArrowUp");
+    expect(screen.getByRole("menuitem", { name: "Delete" })).toHaveFocus();
+    press("ArrowUp");
+    expect(screen.getByRole("menuitem", { name: "Duplicate" })).toHaveFocus();
+  });
+
+  /**
+   * Given an open menu
+   * When End and then Home are pressed
+   * Then focus goes to the last enabled item and back to the first.
+   */
+  it("jumps to the last and first enabled items with End and Home", async () => {
+    await openKeyboardMenu([]);
+
+    press("End");
+    expect(screen.getByRole("menuitem", { name: "Delete" })).toHaveFocus();
+    press("Home");
+    expect(screen.getByRole("menuitem", { name: "New" })).toHaveFocus();
+  });
+
+  /**
+   * Given an open menu with New focused
+   * When ArrowDown moves to Duplicate and Enter is pressed (a button's Enter is a click)
+   * Then Duplicate runs, not New, and the menu closes with focus back on its trigger.
+   */
+  it("runs the item the arrow keys reached, and returns focus to the trigger", async () => {
+    const picked: string[] = [];
+    const trigger = await openKeyboardMenu(picked);
+
+    press("ArrowDown");
+    fireEvent.click(document.activeElement ?? document.body);
+
+    expect(picked).toEqual(["Duplicate"]);
+    await waitFor(() => expect(screen.queryByRole("menu")).toBeNull());
+    expect(trigger).toHaveFocus();
+  });
+
+  /**
+   * Given an open menu with Duplicate focused
+   * When Escape is pressed
+   * Then nothing runs, the menu closes, and focus returns to the trigger.
+   */
+  it("closes with Escape without running an item, focus back on the trigger", async () => {
+    const picked: string[] = [];
+    const trigger = await openKeyboardMenu(picked);
+
+    press("ArrowDown");
+    press("Escape");
+
+    await waitFor(() => expect(screen.queryByRole("menu")).toBeNull());
+    expect(picked).toEqual([]);
+    expect(trigger).toHaveFocus();
+  });
 });

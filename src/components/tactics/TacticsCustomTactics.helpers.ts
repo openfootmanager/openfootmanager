@@ -1,5 +1,5 @@
 import type { CustomTactic } from "../../services/customTacticsService";
-import type { TacticsLibraryEntry } from "./TacticsCommandBar";
+import type { TacticsLibraryEntry } from "./TacticPicker";
 
 /**
  * Custom tactics used to live in the browser's storage, one list per manager, start date AND

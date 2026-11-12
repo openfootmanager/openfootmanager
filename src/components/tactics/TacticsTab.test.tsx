@@ -331,7 +331,7 @@ describe("TacticsTab", () => {
       <TacticsTab gameState={makeGameState()} onSelectPlayer={vi.fn()} onGameUpdate={vi.fn()} />,
     );
 
-    expect(screen.getByText("tactics.presetTactics")).toBeInTheDocument();
+    expect(screen.getByRole("group", { name: "tactics.tacticBar" })).toBeInTheDocument();
     expect(screen.getByText("tactics.formation")).toBeInTheDocument();
     expect(screen.getByText("tactics.playStyle")).toBeInTheDocument();
     expect(screen.getAllByText(/preMatch\.substitutes/).length).toBeGreaterThan(0);
@@ -344,8 +344,7 @@ describe("TacticsTab", () => {
       <TacticsTab gameState={makeGameState()} onSelectPlayer={vi.fn()} onGameUpdate={vi.fn()} />,
     );
 
-    expect(screen.getByText("tactics.presetTactics")).toBeInTheDocument();
-    expect(screen.getByText("tactics.activePreset")).toBeInTheDocument();
+    expect(screen.getByRole("group", { name: "tactics.tacticBar" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "tactics.chooseTactic" })).toBeInTheDocument();
     expect(screen.getByRole("combobox", { name: "tactics.formation" })).toBeInTheDocument();
     expect(screen.getByRole("combobox", { name: "tactics.playStyle" })).toBeInTheDocument();
@@ -824,7 +823,8 @@ describe("TacticsTab", () => {
       <TacticsTab gameState={makeGameState()} onSelectPlayer={vi.fn()} onGameUpdate={vi.fn()} />,
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "tactics.duplicateTactic" }));
+    fireEvent.click(screen.getByRole("button", { name: "tactics.tacticActions" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "tactics.duplicateTactic" }));
 
     expect(screen.getByRole("button", { name: "tactics.updateTactic" })).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "tactics.chooseTactic" }));
@@ -861,7 +861,8 @@ describe("TacticsTab", () => {
       <TacticsTab gameState={gameState} onSelectPlayer={vi.fn()} onGameUpdate={vi.fn()} />,
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "tactics.duplicateTactic" }));
+    fireEvent.click(screen.getByRole("button", { name: "tactics.tacticActions" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "tactics.duplicateTactic" }));
     await waitFor(() =>
       expect(mockedInvoke).toHaveBeenCalledWith(
         "save_current_tactic",
@@ -894,7 +895,8 @@ describe("TacticsTab", () => {
     const { unmount } = render(
       <TacticsTab gameState={originalState} onSelectPlayer={vi.fn()} onGameUpdate={vi.fn()} />,
     );
-    fireEvent.click(screen.getByRole("button", { name: "tactics.duplicateTactic" }));
+    fireEvent.click(screen.getByRole("button", { name: "tactics.tacticActions" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "tactics.duplicateTactic" }));
     await waitFor(() =>
       expect(mockedInvoke).toHaveBeenCalledWith("save_current_tactic", expect.anything()),
     );

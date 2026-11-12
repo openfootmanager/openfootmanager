@@ -778,7 +778,7 @@
   "tactics": {
     "formationStyle": "Formación y Estilo",
     "formation": "Formación",
-    "playStyle": "Estilo de Juego",
+    "playStyle": "Estilo de juego",
     "lineupTab": "Alineación",
     "rolesTab": "Balón parado y roles",
     "playerRoles": {
@@ -828,7 +828,6 @@
     "selectPitchPlayer": "Selecciona a un jugador en la vista de alineación para revisar sus atributos.",
     "selectAnotherToSwap": "Selecciona un segundo jugador para compararlos y confirmar el cambio.",
     "teamIdentity": "Identidad del equipo",
-    "presetTactics": "Tácticas predefinidas",
     "presets": "Preajustes",
     "tacticLibrary": "Biblioteca de tácticas",
     "chooseTactic": "Elegir táctica",
@@ -841,6 +840,8 @@
     "deleteTacticBody": "«{{name}}» se quitará de la biblioteca. El equipo conserva su formación y su estilo de juego actuales.",
     "deleteTacticConfirm": "Eliminar",
     "resetTactic": "Restablecer valores",
+    "tacticBar": "Táctica",
+    "tacticActions": "Acciones de la táctica",
     "saveAsTactic": "Guardar como táctica",
     "updateTactic": "Actualizar táctica",
     "tacticSaved": "Guardado",
@@ -910,7 +911,6 @@
     "customTacticNumber": "Táctica personalizada {{count}}",
     "copyOfTactic": "Copia de {{name}}",
     "modifiedPreset": "Preajuste modificado",
-    "activePreset": "Preajuste activo",
     "customTactic": "Táctica personalizada",
     "layoutModes": {
       "pitch": "Foco en el campo",

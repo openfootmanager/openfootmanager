@@ -127,6 +127,31 @@ const ContextMenu = forwardRef<ContextMenuHandle, ContextMenuProps>(function Con
     };
   }, [visible, setOpen, closeAndRestoreFocus]);
 
+  /**
+   * ArrowDown/ArrowUp move focus through the enabled items (wrapping), Home and End jump to the ends;
+   * Enter and Space are the focused button's own click. A disabled item is not focusable, so the
+   * enabled ones are the whole list.
+   */
+  const moveFocus = useCallback((e: React.KeyboardEvent) => {
+    const keys = ["ArrowDown", "ArrowUp", "Home", "End"];
+    if (!keys.includes(e.key)) return;
+    const items = [
+      ...(menuRef.current?.querySelectorAll<HTMLButtonElement>(
+        'button[role="menuitem"]:not([disabled])',
+      ) ?? []),
+    ];
+    if (items.length === 0) return;
+    e.preventDefault();
+    const current = items.findIndex((item) => item === document.activeElement);
+    const last = items.length - 1;
+    let next: number;
+    if (e.key === "Home") next = 0;
+    else if (e.key === "End") next = last;
+    else if (e.key === "ArrowDown") next = current >= last ? 0 : current + 1;
+    else next = current <= 0 ? last : current - 1;
+    items[next]?.focus();
+  }, []);
+
   const trigger = isValidElement(children) ? (
     cloneElement(children, {
       onContextMenu: handleContextMenu,
@@ -145,22 +170,21 @@ const ContextMenu = forwardRef<ContextMenuHandle, ContextMenuProps>(function Con
           <div
             ref={menuRef}
             role="menu"
-            className="fixed z-50 min-w-[180px] bg-white dark:bg-navy-800 rounded-lg shadow-xl border border-gray-200 dark:border-navy-600 py-1 animate-in fade-in duration-100"
+            className="fixed z-50 min-w-[180px] rounded-lg border border-line bg-panel py-1 shadow-card animate-in fade-in duration-100"
             style={{ left: pos.x, top: pos.y }}
             onClick={(e) => e.stopPropagation()}
+            onKeyDown={moveFocus}
           >
             {items.map((item, i) =>
               item.divider ? (
-                <div key={i} className="border-t border-gray-100 dark:border-navy-600 my-1" />
+                <div key={i} className="my-1 border-t border-line" />
               ) : item.type === "label" ? (
                 <div
                   key={i}
-                  className="flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-gray-500 dark:text-gray-400"
+                  className="flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-fg-muted"
                 >
                   {item.icon && (
-                    <span className="h-4 w-4 flex-shrink-0 text-amber-500 dark:text-amber-400">
-                      {item.icon}
-                    </span>
+                    <span className="h-4 w-4 flex-shrink-0 text-warning">{item.icon}</span>
                   )}
                   <span>{item.label}</span>
                 </div>
@@ -174,14 +198,14 @@ const ContextMenu = forwardRef<ContextMenuHandle, ContextMenuProps>(function Con
                     closeAndRestoreFocus();
                   }}
                   disabled={item.disabled}
-                  className={`w-full text-left px-3 py-2 text-sm flex items-center gap-2.5 transition-colors ${
+                  className={`flex w-full items-center gap-2.5 px-3 py-2 text-left text-sm transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-focus ${
                     item.disabled
-                      ? "text-gray-300 dark:text-gray-600 cursor-not-allowed"
+                      ? "cursor-not-allowed text-fg-subtle"
                       : item.danger
-                        ? "text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20"
+                        ? "text-danger hover:bg-danger-tint"
                         : item.urgent
-                          ? "text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/20"
-                          : "text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-navy-700"
+                          ? "text-warning hover:bg-warning-tint"
+                          : "text-fg hover:bg-hover"
                   }`}
                 >
                   {item.icon && <span className="w-4 h-4 flex-shrink-0">{item.icon}</span>}
