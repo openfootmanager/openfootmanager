@@ -157,6 +157,12 @@ const makeGame = (): GameStateData => ({
 export const knobs = {
   /** The backend's verdict on whether the phase dials still equal the style's blueprint. */
   blueprintModified: false,
+  /** Whether the faked backend fails when asked about the blueprint of a preset's style. */
+  blueprintStatusFailsForStyle: false,
+  /** When set, the faked backend answers about a preset style's blueprint only once this resolves. */
+  blueprintStatusGate: null as Promise<void> | null,
+  /** How many times the faked backend has answered about a preset style's blueprint. */
+  blueprintStatusAnswered: 0,
   /** Commands the faked backend refuses with the career-changed error. */
   refused: new Set<string>(),
   /** What the faked backend says the manager's tactic differs from a saved one in. */
@@ -186,11 +192,19 @@ export const knobs = {
 let backend: GameStateData;
 let savedTactics: CustomTactic[] = [];
 
+/** A copy of the faked backend's game as it stands, for a test that updates the tab from outside. */
+export function currentGame(): GameStateData {
+  return structuredClone(backend);
+}
+
 /** Puts the faked backend back as it starts: a fresh game, an empty save, every knob at rest. */
 export function resetHarness() {
   backend = makeGame();
   savedTactics = [];
   knobs.blueprintModified = false;
+  knobs.blueprintStatusFailsForStyle = false;
+  knobs.blueprintStatusGate = null;
+  knobs.blueprintStatusAnswered = 0;
   knobs.refused = new Set();
   knobs.savedTacticDifferences = {
     formation: false,
@@ -260,7 +274,15 @@ export function fakeBackend(failPreset = false) {
       return structuredClone(savedTactics);
     }
     const team = backend.teams[0];
-    if (command === "get_tactics_blueprint_status") return { modified: knobs.blueprintModified };
+    if (command === "get_tactics_blueprint_status") {
+      // The verdict is the backend's at the moment it was asked, as the real command's is: a gate
+      // holds the reply, not the question.
+      const modified = knobs.blueprintModified;
+      if (params.playStyle && knobs.blueprintStatusGate) await knobs.blueprintStatusGate;
+      if (knobs.blueprintStatusFailsForStyle && params.playStyle) throw new Error("no answer");
+      if (params.playStyle) knobs.blueprintStatusAnswered += 1;
+      return { modified };
+    }
     if (command === "set_tactics_phase") {
       team.tactics_phase = {
         ...(team.tactics_phase as object),
@@ -272,9 +294,11 @@ export function fakeBackend(failPreset = false) {
       if (failPreset) throw new Error("boom");
       team.formation = params.formation;
       team.play_style = params.playStyle;
-      // The real command puts the dials back to the style's blueprint.
-      team.tactics_phase = {} as TeamData["tactics_phase"];
-      knobs.blueprintModified = false;
+      // The real command puts the dials back to the style's blueprint, unless the manager kept theirs.
+      if (!(params as { keepInstructions?: boolean }).keepInstructions) {
+        team.tactics_phase = {} as TeamData["tactics_phase"];
+        knobs.blueprintModified = false;
+      }
     }
     if (command === "set_formation") team.formation = params.formation;
     if (command === "set_play_style") team.play_style = params.playStyle;

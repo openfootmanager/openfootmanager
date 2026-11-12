@@ -34,6 +34,8 @@ interface UseTacticsLibraryArgs {
   activePlayStyle: string;
   initialPreset: TacticsPresetDefinition | null;
   onApplyPreset: (formation: string, playStyle: string) => Promise<boolean>;
+  /** A preset's formation and play style only: the manager's own instructions stay as they are. */
+  onKeepInstructions: (formation: string, playStyle: string) => Promise<boolean>;
   onGameUpdate: (game: GameStateData) => void;
   /** A write the backend refused: the screen tells the manager it did not save. */
   onWriteError: (error: unknown) => void;
@@ -47,6 +49,7 @@ export function useTacticsLibrary({
   activePlayStyle,
   initialPreset,
   onApplyPreset,
+  onKeepInstructions,
   onGameUpdate,
   onWriteError,
   onWriteSaved,
@@ -334,13 +337,18 @@ export function useTacticsLibrary({
     }
   }
 
-  async function applyTacticSelection(nextTactic: TacticsLibraryEntry): Promise<void> {
+  async function applyTacticSelection(
+    nextTactic: TacticsLibraryEntry,
+    options: { keepInstructions?: boolean } = {},
+  ): Promise<void> {
     const isPreset = nextTactic.type === "preset";
 
     // A preset is a whole setup: the backend sets its formation, play style and
-    // phase blueprint together (#365). A saved tactic is applied whole too.
+    // phase blueprint together (#365), unless the manager chose to keep their own instructions,
+    // which takes the formation and style only. A saved tactic is applied whole too.
+    const applyPreset = options.keepInstructions ? onKeepInstructions : onApplyPreset;
     const didApply = isPreset
-      ? await onApplyPreset(nextTactic.formation, nextTactic.playStyle)
+      ? await applyPreset(nextTactic.formation, nextTactic.playStyle)
       : await applySavedTactic(nextTactic);
     if (!didApply) {
       return;

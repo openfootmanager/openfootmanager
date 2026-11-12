@@ -12,6 +12,8 @@ import TacticsSetPieces from "./TacticsSetPieces";
 import TacticsWorkbench from "./TacticsWorkbench";
 import TacticsCommandBar from "./TacticsCommandBar";
 import TacticsCompareDialog from "./TacticsCompareDialog";
+import TacticsPresetDialog from "./TacticsPresetDialog";
+import { usePresetChoice } from "./usePresetChoice";
 import { useTacticsLibrary } from "./useTacticsLibrary";
 import { useTacticsLineup } from "./useTacticsLineup";
 
@@ -99,10 +101,17 @@ export default function TacticsTab({
     activePlayStyle,
     initialPreset,
     onApplyPreset: handleApplyTacticPreset,
+    onKeepInstructions: (nextFormation, playStyle) =>
+      handleApplyTacticPreset(nextFormation, playStyle, { keepInstructions: true }),
     onGameUpdate,
     onWriteError,
     onWriteSaved: () => setWriteError(null),
   });
+
+  const presetChoice = usePresetChoice(
+    (tactic, keepInstructions) => applyTacticSelection(tactic, { keepInstructions }),
+    `${formation}|${activePlayStyle}`,
+  );
 
   if (!team) {
     return <p className="text-gray-500 dark:text-gray-400">{t("common.noTeam")}</p>;
@@ -133,6 +142,7 @@ export default function TacticsTab({
         libraryLoaded={libraryLoaded}
         canReset={canResetTactic}
         onReset={() => {
+          presetChoice.invalidate();
           void handleResetTactic();
         }}
         canDelete={canDeleteTactic}
@@ -142,9 +152,11 @@ export default function TacticsTab({
         onDelete={handleDeleteTactic}
         onDuplicate={handleDuplicateTactic}
         onFormationChange={(nextFormation) => {
+          presetChoice.invalidate();
           void handleFormationChange(nextFormation);
         }}
         onPlayStyleChange={(playStyle) => {
+          presetChoice.invalidate();
           void handlePlayStyleChange(playStyle);
         }}
         onSave={handleSaveTactic}
@@ -154,7 +166,7 @@ export default function TacticsTab({
             return;
           }
 
-          void applyTacticSelection(nextTactic);
+          void presetChoice.choose(nextTactic);
         }}
         tacticLibrary={tacticLibrary}
       />
@@ -188,6 +200,15 @@ export default function TacticsTab({
           onSelectPlayer={onSelectPlayer}
         />
       </TacticsWorkbench>
+
+      {presetChoice.pending ? (
+        <TacticsPresetDialog
+          name={presetChoice.pending.name}
+          onReplace={() => void presetChoice.replaceInstructions()}
+          onKeep={() => void presetChoice.keepInstructions()}
+          onCancel={presetChoice.cancel}
+        />
+      ) : null}
 
       {/* Inspector modal — only when both players are selected for comparison */}
       {selectedPlayer && comparePlayer && (
