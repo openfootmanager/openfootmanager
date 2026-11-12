@@ -1,5 +1,5 @@
 import { Check, Copy, MoreVertical, Plus, RotateCcw, Save, Trash2 } from "lucide-react";
-import { useRef, useState, type JSX } from "react";
+import { useId, useRef, useState, type JSX } from "react";
 import { useTranslation } from "react-i18next";
 
 import ContextMenu, { type ContextMenuHandle, type ContextMenuItem } from "../ContextMenu";
@@ -14,6 +14,11 @@ interface TacticsCommandBarProps {
   activePlayStyle: string;
   formation: string;
   isDirty: boolean;
+  /**
+   * Whether the library's first load has settled. Save waits for it: a save asked while the load
+   * is pending queues behind it and records whatever the manager changed meanwhile.
+   */
+  libraryLoaded: boolean;
   /** Whether pressing Reset would change anything; the library decides, the bar renders. */
   canReset: boolean;
   onReset: () => void;
@@ -44,6 +49,7 @@ export default function TacticsCommandBar({
   activePlayStyle,
   formation,
   isDirty,
+  libraryLoaded,
   canReset,
   onReset,
   canDelete,
@@ -58,6 +64,7 @@ export default function TacticsCommandBar({
 }: TacticsCommandBarProps): JSX.Element {
   const { t } = useTranslation();
   const [pickerOpen, setPickerOpen] = useState(false);
+  const loadingId = useId();
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const actionsMenuRef = useRef<ContextMenuHandle | null>(null);
   const [actionsOpen, setActionsOpen] = useState(false);
@@ -67,7 +74,7 @@ export default function TacticsCommandBar({
   // Saving a synced custom tactic is a silent no-op — nothing has changed to
   // persist. Presets stay enabled even when isDirty is false because saving
   // there always creates a new custom tactic, which is an observable action.
-  const isSaveDisabled = activeTactic.type === "custom" && !isDirty;
+  const isSaveDisabled = !libraryLoaded || (activeTactic.type === "custom" && !isDirty);
 
   const { showSavedCue, save: handleSaveClick } = useSavedCue(activeTactic, onSave);
 
@@ -185,11 +192,18 @@ export default function TacticsCommandBar({
             icon={showSavedCue && !isDirty ? <Check /> : <Save />}
             onClick={handleSaveClick}
             disabled={isSaveDisabled}
+            aria-describedby={libraryLoaded ? undefined : loadingId}
             className="min-w-[9.5rem]"
           >
             {showSavedCue && !isDirty ? t("tactics.tacticSaved") : saveLabel}
           </Button>
           {/* The button's own text changing is not announced; this is. */}
+          {/* Why Save is off while the library loads; Save's description points here. */}
+          {libraryLoaded ? null : (
+            <span id={loadingId} className="sr-only">
+              {t("tactics.loadingTactics")}
+            </span>
+          )}
           <span aria-live="polite" className="sr-only">
             {showSavedCue && !isDirty ? t("tactics.tacticSaved") : ""}
           </span>

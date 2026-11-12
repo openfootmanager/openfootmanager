@@ -45,6 +45,7 @@ function buildProps(
     activePlayStyle: "Balanced",
     formation: "4-4-2",
     isDirty: false,
+    libraryLoaded: true,
     canDelete: true,
     onCreateNew: vi.fn(),
     onDelete: vi.fn(),
@@ -388,6 +389,42 @@ describe("TacticsCommandBar", () => {
     fireEvent.click(screen.getByRole("menuitem", { name: item }));
 
     expect(props[handler]).toHaveBeenCalledTimes(1);
+  });
+
+  /**
+   * Given a preset (whose Save is always on) while the library's first load is still pending
+   * When the bar renders, and again once the load has settled
+   * Then Save is disabled until it has: a save asked first would queue behind the load.
+   */
+  it("keeps Save disabled until the library's first load has settled", () => {
+    const { rerender } = renderCommandBar({ activeTactic: presetTactic, libraryLoaded: false });
+    expect(screen.getByRole("button", { name: "tactics.saveAsTactic" })).toBeDisabled();
+
+    rerender(
+      <TacticsCommandBar {...buildProps({ activeTactic: presetTactic, libraryLoaded: true })} />,
+    );
+
+    expect(screen.getByRole("button", { name: "tactics.saveAsTactic" })).toBeEnabled();
+  });
+
+  /**
+   * Given Save off while the library's first load is pending
+   * When a screen reader reads Save
+   * Then its description says the tactics are loading, and says nothing once they have.
+   */
+  it("says why Save is off while the library loads", () => {
+    const { rerender } = renderCommandBar({ activeTactic: presetTactic, libraryLoaded: false });
+    expect(
+      screen.getByRole("button", { name: "tactics.saveAsTactic" }),
+    ).toHaveAccessibleDescription("tactics.loadingTactics");
+
+    rerender(
+      <TacticsCommandBar {...buildProps({ activeTactic: presetTactic, libraryLoaded: true })} />,
+    );
+
+    expect(
+      screen.getByRole("button", { name: "tactics.saveAsTactic" }),
+    ).not.toHaveAccessibleDescription();
   });
 
   describe("deleting a custom tactic", () => {

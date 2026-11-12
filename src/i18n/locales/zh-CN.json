@@ -849,6 +849,7 @@
     "tacticName": "战术名称",
     "identitySummary": "风格摘要",
     "synced": "已同步",
+    "loadingTactics": "正在加载你的战术…",
     "unsavedChanges": "未保存的更改",
     "currentPlanCard": "当前计划",
     "phaseBlueprint": "阶段蓝图",

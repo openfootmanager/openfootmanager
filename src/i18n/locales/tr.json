@@ -801,6 +801,7 @@
     "tacticName": "Taktik adı",
     "identitySummary": "Kimlik özeti",
     "synced": "Senkronize",
+    "loadingTactics": "Taktikleriniz yükleniyor…",
     "unsavedChanges": "Kaydedilmemiş değişiklikler",
     "currentPlanCard": "Mevcut plan",
     "phaseBlueprint": "Faz şeması",

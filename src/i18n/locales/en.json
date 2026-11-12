@@ -801,6 +801,7 @@
     "tacticName": "Tactic name",
     "identitySummary": "Identity summary",
     "synced": "Synced",
+    "loadingTactics": "Loading your tactics…",
     "unsavedChanges": "Unsaved changes",
     "currentPlanCard": "Current plan",
     "phaseBlueprint": "Phase blueprint",
