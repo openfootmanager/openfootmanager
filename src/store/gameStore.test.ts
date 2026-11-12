@@ -410,12 +410,19 @@ describe("useGameStore", () => {
      */
     it("applies a newer snapshot and an equal one", () => {
       const { setGameState } = useGameStore.getState();
-      setGameState(heldAt(5));
+      // Same numbers, told apart by who the manager is: the revision alone could not say whether
+      // the second snapshot replaced the first or was dropped.
+      const named = (display_name: string, revision: number) => {
+        const base = heldAt(revision);
+        return { ...base, manager: { ...base.manager, display_name } };
+      };
+      setGameState(named("First", 5));
 
-      setGameState(heldAt(7));
+      setGameState(named("Second", 7));
       expect(useGameStore.getState().gameState?.revision).toBe(7);
-      setGameState(heldAt(7));
-      expect(useGameStore.getState().gameState?.revision).toBe(7);
+      expect(useGameStore.getState().gameState?.manager.display_name).toBe("Second");
+      setGameState(named("Third", 7));
+      expect(useGameStore.getState().gameState?.manager.display_name).toBe("Third");
     });
 
     /**
