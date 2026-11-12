@@ -120,7 +120,12 @@ impl StatisticsSeason {
     }
 
     /// The first day `season`'s stats counted: the real reset day for the season in progress,
-    /// the calendar's start for any other.
+    /// the calendar's start for any other. The game keeps only the latest reset day
+    /// (`last_season_rollover_on`, overwritten at every rollover) and the career rows carry no
+    /// dates, so a past season that began off the calendar (a rollover on the day the previous
+    /// season ended) is placed by the calendar's start: a stint that began between the real reset
+    /// and the calendar's start can sort after a move that preceded it. Recovering it needs the
+    /// reset day stored with each career row (#1402).
     pub fn began_on(&self, season: u32) -> NaiveDate {
         match self.current_began_on {
             Some(day) if season == self.current => day,
@@ -186,7 +191,11 @@ fn open_visit(visits: &mut Vec<Visit>, club: Option<&str>, day: NaiveDate, on_lo
 /// The clubs he has been at, in order, from his ledger. Where he plays changes exactly when
 /// `changes_where_he_plays` says it does; a loan's purchase ends the loan without moving him, and
 /// the opening contract starts his first spell. An entry with no date cannot place a visit.
-fn visits_from(movements: &[PlayerMovementEntry]) -> Vec<Visit> {
+///
+/// `active_loan` is authoritative for a loan in progress: a save older than the ledger's loan
+/// entries keeps a loanee with the loan and no `LoanStart`, and his stint at the borrower is then
+/// seeded from it (the parent's spell ends the day the loan began).
+fn visits_from(movements: &[PlayerMovementEntry], active_loan: Option<&ActiveLoan>) -> Vec<Visit> {
     let mut visits = Vec::new();
     for entry in movements {
         let Some(day) = parse_day(&entry.date) else {
@@ -216,6 +225,17 @@ fn visits_from(movements: &[PlayerMovementEntry]) -> Vec<Visit> {
             open_visit(&mut visits, to, day, false);
         } else if entry.kind == PlayerMovementKind::Retired {
             close_open(&mut visits, from, day);
+        }
+    }
+    if let Some(loan) = active_loan
+        && let Some(start) = parse_day(&loan.start_date)
+    {
+        let seeded = visits.iter().any(|visit| {
+            visit.club_id == loan.loan_team_id && visit.on_loan && visit.until.is_none()
+        });
+        if !seeded {
+            close_open(&mut visits, Some(&loan.parent_team_id), start);
+            open_visit(&mut visits, Some(&loan.loan_team_id), start, true);
         }
     }
     visits
@@ -345,8 +365,8 @@ fn club_totals<'a>(rows: impl Iterator<Item = &'a CareerSeasonRow>) -> Vec<Caree
         right
             .last_season
             .cmp(&left.last_season)
-            .then(right.first_season.cmp(&left.first_season))
             .then(right_latest.cmp(left_latest))
+            .then(right.first_season.cmp(&left.first_season))
     });
     clubs.into_iter().map(|(club, _)| club).collect()
 }
@@ -361,9 +381,9 @@ pub fn build_career(
     movements: &[PlayerMovementEntry],
     seasons: &StatisticsSeason,
     club_name: &dyn Fn(&str) -> Option<String>,
-    _active_loan: Option<&ActiveLoan>,
+    active_loan: Option<&ActiveLoan>,
 ) -> PlayerCareer {
-    let visits = visits_from(movements);
+    let visits = visits_from(movements, active_loan);
     let placings = place_rows(rows, &visits, seasons);
     let mut chronology: Vec<(NaiveDate, u8, usize, CareerLine)> = Vec::new();
     for (position, (row, placing)) in rows.iter().zip(placings).enumerate() {
