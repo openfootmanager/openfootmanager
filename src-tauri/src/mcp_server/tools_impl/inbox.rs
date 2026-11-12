@@ -109,18 +109,23 @@ pub fn inbox_get_archived(
     Ok(archived_messages_result(page))
 }
 
-/// The page as an agent reads it: the cursor split into the two values it passes back.
+/// The page as an agent reads it: each message's text through the one resolver the live inbox uses
+/// (mail written with keys has a blank plain subject and body), and the cursor split into the two
+/// values it passes back.
 fn archived_messages_result(page: ArchivedMessagesPage) -> ArchivedMessages {
     ArchivedMessages {
         messages: page
             .items
             .into_iter()
-            .map(|m| ArchivedMessage {
-                id: m.id,
-                subject: m.subject,
-                body: m.body,
-                category: format!("{:?}", m.category),
-                date: m.date,
+            .map(|m| {
+                let text = backend_text::resolve_message(&m);
+                ArchivedMessage {
+                    id: m.id,
+                    subject: text.subject,
+                    body: text.body,
+                    category: format!("{:?}", m.category),
+                    date: m.date,
+                }
             })
             .collect(),
         next_before_date: page.next_before.as_ref().map(|c| c.date.clone()),
