@@ -157,6 +157,9 @@ describe("TacticsTab preset question", { timeout: TACTICS_TAB_CASE_TIMEOUT_MS },
 
     pickHighPress();
     await screen.findByRole("dialog", { name: "Replace your team instructions?" });
+    // The dialog's keyboard handling and its initial focus are set in the effects that run just
+    // after it appears: Escape pressed before that finds no handler, so wait for the focus.
+    await waitFor(() => expect(screen.getByRole("button", { name: "Keep mine" })).toHaveFocus());
     answer();
 
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
