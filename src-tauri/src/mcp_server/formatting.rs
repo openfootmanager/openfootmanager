@@ -2,9 +2,38 @@
 //!
 //! Phase 2 starts with minimal structured text; Phase 5 upgrades to rich markdown.
 
-/// Translate a backend error key (e.g. "be.error.noActiveGameSession") into
-/// a human-readable message that helps agents self-correct.
-pub fn translate_error(key: &str) -> String {
+use std::collections::HashMap;
+
+/// The keys whose sentence has slots their parameters fill. Their text is the screen's own, from
+/// `en.json` through `backend_text::resolve_error` (the one resolver, not a second copy of the
+/// wording). A key with parameters and no entry here or in [`fixed_message`] stays raw.
+const PARAMETERISED_KEYS: [&str; 2] = [
+    "be.error.squadFloor.wouldLeaveShort",
+    "be.error.squadFloor.wouldLeaveSeniorsShort",
+];
+
+/// Translate a backend error (e.g. "be.error.noActiveGameSession", or a key followed by
+/// `?name=value&...`) into a human-readable message that helps agents self-correct.
+pub fn translate_error(error: &str) -> String {
+    let (key, query) = error.split_once('?').unwrap_or((error, ""));
+    let params = crate::mcp_server::result::text_params(query);
+    translate_error_with(key, &params).unwrap_or_else(|| format!("Error: {error}"))
+}
+
+/// The readable message for `key` with its `params`, or `None` when nothing maps the key.
+fn translate_error_with(key: &str, params: &HashMap<String, String>) -> Option<String> {
+    let fixed = fixed_message(key);
+    if fixed != format!("Error: {key}") {
+        return Some(fixed);
+    }
+    if PARAMETERISED_KEYS.contains(&key) {
+        return crate::mcp_server::backend_text::resolve_error(key, params);
+    }
+    None
+}
+
+/// The messages that need no parameter; `Error: <key>` for a key with none.
+fn fixed_message(key: &str) -> String {
     match key {
         "be.error.liveMatch.inProgress" => {
             "Finish the current match before saving, advancing, or starting another match."
@@ -248,6 +277,47 @@ mod tests {
             let rendered = translate_error(key);
             assert!(!rendered.contains(key), "{key} renders as {rendered:?}");
         }
+    }
+
+    /// Given the squad floor's refusal for a group, as the application reports it (the key, then
+    ///       the group as a key of its own)
+    /// When rendered for an agent
+    /// Then it is the screen's sentence with the group named in words, not the raw key (#1416)
+    #[test]
+    fn the_squad_floor_group_refusal_is_readable_with_its_group() {
+        let rendered = translate_error(
+            "be.error.squadFloor.wouldLeaveShort?group=common.positionGroups.Goalkeeper",
+        );
+
+        assert_eq!(
+            rendered,
+            "This player cannot leave: the squad would fall below the minimum a club must keep. \
+             Position group affected: Goalkeepers."
+        );
+    }
+
+    /// Given the squad floor's refusal for the senior count (the floor as a param)
+    /// When rendered for an agent
+    /// Then it is the screen's sentence with the number filled in.
+    #[test]
+    fn the_squad_floor_seniors_refusal_is_readable_with_its_floor() {
+        let rendered = translate_error("be.error.squadFloor.wouldLeaveSeniorsShort?floor=15");
+
+        assert_eq!(
+            rendered,
+            "This player cannot leave: the club would be left with fewer than 15 senior players, \
+             the minimum a club must keep."
+        );
+    }
+
+    /// Given a key with parameters that nothing maps (the package key the failure tests use)
+    /// When rendered for an agent
+    /// Then it is still the key itself, so the unmapped case stays visible.
+    #[test]
+    fn a_parameterised_key_with_no_mapping_stays_raw() {
+        let key = "be.error.package.unknownCountry?country=Peru";
+
+        assert_eq!(translate_error(key), format!("Error: {key}"));
     }
 
     /// Every live-match refusal key the screen can show (`be.error.liveMatch.*` in `en.json`, the

@@ -3,6 +3,7 @@ import { useId } from "react";
 import { Button, Dialog } from "../ui";
 import { formatExactMoney } from "../../lib/helpers";
 import type { ContractTerminationPreviewData } from "../../services/contractService";
+import { resolveTranslatedErrorMessage } from "../../utils/errorMessage";
 
 type TranslateFn = (key: string, options?: Record<string, string | number>) => string;
 
@@ -72,6 +73,11 @@ export default function PlayerProfileTerminationModal({
             {!preview.squad_safety.can_field_matchday_squad ? (
               <p className="mt-3 text-danger">{t("playerProfile.terminationUnsafe")}</p>
             ) : null}
+            {preview.squad_floor_refusal ? (
+              <p className="mt-3 text-danger">
+                {resolveTranslatedErrorMessage(preview.squad_floor_refusal)}
+              </p>
+            ) : null}
           </div>
         ) : (
           <p className="text-body text-fg-muted">{t("common.loading")}</p>
@@ -86,7 +92,11 @@ export default function PlayerProfileTerminationModal({
           <Button
             variant="outline"
             className="hover:bg-danger-tint"
-            disabled={submitting || !preview?.squad_safety.can_field_matchday_squad}
+            disabled={
+              submitting ||
+              !preview?.squad_safety.can_field_matchday_squad ||
+              Boolean(preview.squad_floor_refusal)
+            }
             onClick={onConfirm}
           >
             {/* The label carries the danger colour itself: the outline variant sets its own text colour,

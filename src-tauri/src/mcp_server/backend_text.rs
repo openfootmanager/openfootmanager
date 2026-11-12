@@ -60,6 +60,13 @@ pub struct ResolvedArticle {
     pub details: BTreeMap<String, Value>,
 }
 
+/// The English sentence for a backend error `key` with its `params`, as the screen words it
+/// (`resolveBackendError`): the locale file's text, params filled in, a param that is itself a key
+/// in words. `None` when the locale file has no text for `key`.
+pub fn resolve_error(key: &str, params: &HashMap<String, String>) -> Option<String> {
+    template_of(Some(key)).map(|template| interpolate(template, &resolve_params(params), false))
+}
+
 pub fn resolve_message(message: &InboxMessage) -> ResolvedMessage {
     let params = resolve_params(&message.i18n_params);
     let details = structured_details(&message.i18n_params);

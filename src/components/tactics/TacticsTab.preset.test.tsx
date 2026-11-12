@@ -1,6 +1,6 @@
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
-import { useState } from "react";
-import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { StrictMode, useState } from "react";
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { invoke } from "@tauri-apps/api/core";
 import { i18nReady } from "../../i18n";
 import type { GameStateData, PlayerData, TeamData } from "../../store/gameStore";
@@ -173,10 +173,18 @@ const makeGame = (): GameStateData => ({
 let backend: GameStateData;
 /** The backend's verdict on whether the phase dials still equal the style's blueprint. */
 let blueprintModified = false;
+/** The measuring stand-in `narrowLineupRegion` installs, to put back. */
+let rectSpy: { mockRestore: () => void } | null = null;
 /** Commands the faked backend refuses with the career-changed error. */
 let refused = new Set<string>();
 /** The tactics the faked save holds, in the order made. */
 let savedTactics: CustomTactic[] = [];
+/** When set, the faked save answers `list_custom_tactics` only once this resolves. */
+let libraryListGate: Promise<void> | null = null;
+/** When set, each `list_custom_tactics` waits for its own release, pushed here in the order asked. */
+let libraryListReleases: Array<() => void> | null = null;
+/** Whether the next `list_custom_tactics` (after its gate) fails once. */
+let libraryListFailsOnce = false;
 
 /** Puts tactics in the faked save, as if the player had made them earlier. */
 function seedSavedTactics(
@@ -199,7 +207,16 @@ function fakeBackend(failPreset = false) {
     if (command === "auto_select_set_pieces") {
       return { captain: "m1", penalty_taker: "f1", free_kick_taker: "m1", corner_taker: "d1" };
     }
-    if (command === "list_custom_tactics") return structuredClone(savedTactics);
+    if (command === "list_custom_tactics") {
+      if (libraryListGate) await libraryListGate;
+      const releases = libraryListReleases;
+      if (releases) await new Promise<void>((release) => releases.push(release));
+      if (libraryListFailsOnce) {
+        libraryListFailsOnce = false;
+        throw new Error("the save did not answer");
+      }
+      return structuredClone(savedTactics);
+    }
     if (command === "save_custom_tactic" || command === "save_current_tactic") {
       const tactic = (args as { tactic: CustomTactic }).tactic;
       const at = savedTactics.findIndex((saved) => saved.id === tactic.id);
@@ -267,12 +284,22 @@ describe("TacticsTab preset selection", { timeout: TACTICS_TAB_CASE_TIMEOUT_MS }
     await i18nReady;
   });
 
+  afterEach(() => {
+    // Only what narrowLineupRegion put in place: the file's other mocks are set once, above.
+    rectSpy?.mockRestore();
+    rectSpy = null;
+    vi.unstubAllGlobals();
+  });
+
   beforeEach(() => {
     localStorage.clear();
     resetTacticsLineupCache();
     mockedInvoke.mockReset();
     blueprintModified = false;
     savedTactics = [];
+    libraryListGate = null;
+    libraryListReleases = null;
+    libraryListFailsOnce = false;
     refused = new Set();
     backend = makeGame();
   });
@@ -302,6 +329,170 @@ describe("TacticsTab preset selection", { timeout: TACTICS_TAB_CASE_TIMEOUT_MS }
     await waitFor(() => {
       expect(screen.getByRole("button", { name: "Choose tactic" })).toHaveTextContent("High Press");
     });
+  });
+
+  /** Makes the lineup region 600px wide, so the pitch is behind its Pitch button. */
+  function narrowLineupRegion() {
+    rectSpy = vi
+      .spyOn(HTMLElement.prototype, "getBoundingClientRect")
+      .mockImplementation(
+        () => ({ width: 600, height: 400, top: 0, left: 0, right: 600, bottom: 400 }) as DOMRect,
+      );
+    vi.stubGlobal(
+      "ResizeObserver",
+      class {
+        observe(): void {}
+        disconnect(): void {}
+      },
+    );
+  }
+
+  /** Opens the pitch panel of a narrow window and returns a pitch token's role control in it. */
+  async function openPitchPanelRoleControl() {
+    narrowLineupRegion();
+    fakeBackend();
+    render(<ControlledTacticsTab />);
+    fireEvent.click(await screen.findByRole("button", { name: "Pitch" }));
+    const panel = screen.getByRole("dialog", { name: "Pitch" });
+    // The pitch's role controls are the panel's comboboxes: any one will do.
+    return (await within(panel).findAllByRole("combobox"))[0];
+  }
+
+  /**
+   * Given the pitch panel open in a narrow window, with the real pitch's role controls in it
+   * When Enter and Space (which the control uses), then Tab and Escape are pressed on a role control
+   *      (Escape last: it closes the panel and detaches the control)
+   * Then Tab and Escape reach the window, where the dialog traps Tab and closes on Escape, and Enter
+   *      and Space do not, or the token under the control would be activated too.
+   */
+  it("lets Tab and Escape from a pitch role control reach the dialog, but not Enter or Space", async () => {
+    const control = await openPitchPanelRoleControl();
+    const seen: string[] = [];
+    const listener = (event: KeyboardEvent) => seen.push(event.key);
+    window.addEventListener("keydown", listener);
+
+    for (const key of [" ", "Enter", "Tab", "Escape"]) {
+      fireEvent.keyDown(control, { key });
+    }
+    window.removeEventListener("keydown", listener);
+
+    expect(seen).toEqual(["Tab", "Escape"]);
+  });
+
+  /**
+   * Given the pitch panel open, and a role control focused whose list is closed
+   * When Escape is pressed
+   * Then the panel closes, as Escape does anywhere in a dialog.
+   */
+  it("closes the pitch panel on Escape from a closed role control", async () => {
+    const control = await openPitchPanelRoleControl();
+    control.focus();
+
+    fireEvent.keyDown(control, { key: "Escape" });
+
+    expect(screen.queryByRole("dialog", { name: "Pitch" })).not.toBeInTheDocument();
+  });
+
+  /**
+   * Given the pitch panel open and the pointer over a token, so its summary is showing
+   * When Escape is pressed on the token's role control, twice
+   * Then the first dismisses the summary only (the token claims it), and the second closes the panel.
+   */
+  it("spends the first Escape on a token's summary and the second on the pitch panel", async () => {
+    const control = await openPitchPanelRoleControl();
+    fireEvent.mouseOver(control);
+    control.focus();
+
+    fireEvent.keyDown(control, { key: "Escape" });
+    expect(screen.getByRole("dialog", { name: "Pitch" })).toBeInTheDocument();
+
+    fireEvent.keyDown(control, { key: "Escape" });
+    expect(screen.queryByRole("dialog", { name: "Pitch" })).not.toBeInTheDocument();
+  });
+
+  /**
+   * Given the save has not yet answered the library's first load
+   * When the manager picks a preset (whose Save is always on once the library is there)
+   * Then Save stays disabled, and turns on once the load has answered.
+   */
+  it("keeps Save disabled until the library's first load has answered", async () => {
+    let answerLoad!: () => void;
+    libraryListGate = new Promise<void>((resolve) => {
+      answerLoad = resolve;
+    });
+    fakeBackend();
+    render(<ControlledTacticsTab />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Choose tactic" }));
+    fireEvent.click(screen.getByRole("option", { name: /High Press/ }));
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Choose tactic" })).toHaveTextContent("High Press");
+    });
+    expect(screen.getByRole("button", { name: "Save as tactic" })).toBeDisabled();
+
+    answerLoad();
+
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Save as tactic" })).toBeEnabled(),
+    );
+  });
+
+  /**
+   * Given the screen under StrictMode, which asks for the library twice (two loads queued in order)
+   * When the first load answers while the second is still pending
+   * Then Save stays disabled, and turns on only when the second has answered too.
+   */
+  it("keeps Save disabled until the latest of two overlapping library loads has answered", async () => {
+    libraryListReleases = [];
+    const releases = libraryListReleases;
+    fakeBackend();
+    render(
+      <StrictMode>
+        <ControlledTacticsTab />
+      </StrictMode>,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Choose tactic" }));
+    fireEvent.click(screen.getByRole("option", { name: /High Press/ }));
+    await waitFor(() => expect(releases).toHaveLength(1));
+
+    releases[0]();
+    await waitFor(() => expect(releases).toHaveLength(2));
+
+    expect(screen.getByRole("button", { name: "Save as tactic" })).toBeDisabled();
+    releases[1]();
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Save as tactic" })).toBeEnabled(),
+    );
+  });
+
+  /**
+   * Given a first load of the library that fails
+   * When it fails
+   * Then Save turns on (it is how a tactic gets into the save), and a save is accepted.
+   */
+  it("turns Save on when the library's first load fails, and a save then lands", async () => {
+    let answerLoad!: () => void;
+    libraryListGate = new Promise<void>((resolve) => {
+      answerLoad = resolve;
+    });
+    libraryListFailsOnce = true;
+    fakeBackend();
+    render(<ControlledTacticsTab />);
+    fireEvent.click(screen.getByRole("button", { name: "Choose tactic" }));
+    fireEvent.click(screen.getByRole("option", { name: /High Press/ }));
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Choose tactic" })).toHaveTextContent("High Press");
+    });
+    expect(screen.getByRole("button", { name: "Save as tactic" })).toBeDisabled();
+
+    answerLoad();
+
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Save as tactic" })).toBeEnabled(),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Save as tactic" }));
+    await waitFor(() => expect(commandsCalled()).toContain("save_current_tactic"));
+    expect(screen.queryByRole("alert")).toBeNull();
   });
 
   /**

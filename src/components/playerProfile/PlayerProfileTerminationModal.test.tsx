@@ -21,6 +21,7 @@ function translate(key: string, params?: Record<string, string | number>): strin
 
 function buildPreview(
   overrides: Partial<ContractTerminationPreviewData["squad_safety"]> = {},
+  squadFloorRefusal: string | null = null,
 ): ContractTerminationPreviewData {
   return {
     player_id: "player-1",
@@ -36,6 +37,7 @@ function buildPreview(
       missing_reasons: [],
       ...overrides,
     },
+    squad_floor_refusal: squadFloorRefusal,
   };
 }
 
@@ -94,6 +96,24 @@ describe("PlayerProfileTerminationModal", () => {
 
     expect(
       screen.getByText("This release would leave the squad unable to field a matchday XI."),
+    ).toBeInTheDocument();
+
+    const confirm = screen.getByRole("button", { name: "Terminate Contract" });
+    expect(confirm).toBeDisabled();
+
+    fireEvent.click(confirm);
+    expect(onConfirm).not.toHaveBeenCalled();
+  });
+
+  // Given a release the squad floor would refuse, the dialog says why and refuses to confirm,
+  // instead of confirming and failing afterwards (#1398).
+  it("blocks confirmation, with the floor's reason, when the squad would fall below the floor", () => {
+    const { onConfirm } = renderModal({
+      preview: buildPreview({}, "be.error.squadFloor.wouldLeaveSeniorsShort?floor=15"),
+    });
+
+    expect(
+      screen.getByText(/the club would be left with fewer than 15 senior players/),
     ).toBeInTheDocument();
 
     const confirm = screen.getByRole("button", { name: "Terminate Contract" });

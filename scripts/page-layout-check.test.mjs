@@ -293,7 +293,7 @@ describe("page layout check", () => {
    */
   it("fails a case whose region is missing from the page", () => {
     expect(judge({ ...clean, regionsFit: true, regionsMissing: true })).toEqual([
-      "no region on the page matches the case's fit selector",
+      "no visible region on the page matches the case's fit selector",
     ]);
   });
 
@@ -343,6 +343,21 @@ describe("page layout check", () => {
         "style guide",
       ].sort(),
     );
+  });
+
+  /**
+   * Given the Tactics workbench, which never scrolls the page
+   * When the cases are listed
+   * Then every window judges its lineup region (the table and the pitch) and its table's columns,
+   * so a layout that squeezes the lineup to a sliver fails here
+   */
+  it("judges the Tactics lineup region and its table at every window", () => {
+    const tactics = CASES.filter((c) => c.page === "tactics");
+    expect(tactics.length).toBeGreaterThan(0);
+    for (const testCase of tactics) {
+      expect(testCase.regionsFit).toBe('[data-region="tactics-lineup"]');
+      expect(testCase.tablesFit).toBe(true);
+    }
   });
 
   /**

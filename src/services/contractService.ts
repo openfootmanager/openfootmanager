@@ -35,6 +35,11 @@ export interface ContractTerminationPreviewData {
   player_name: string;
   severance_cost: number;
   squad_safety: SquadSafetyReportData;
+  /**
+   * Why the squad floor would refuse the release, as the translation-key error the backend would
+   * return (`resolveBackendError` turns it into words); `null` when the club keeps the floor.
+   */
+  squad_floor_refusal: string | null;
 }
 
 /**
