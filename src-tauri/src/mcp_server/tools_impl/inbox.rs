@@ -447,4 +447,52 @@ mod tests {
         assert_eq!(result.next_before_date.as_deref(), Some("2030-01-01"));
         assert_eq!(result.next_before_id.as_deref(), Some("m1"));
     }
+
+    /// Given archived mail written with keys (its plain subject and body empty, as the backend
+    ///       writes most mail)
+    /// When it is turned into the agent's result
+    /// Then the subject and the body are the English the live inbox reads, not blank (#1388)
+    #[test]
+    fn archived_mail_written_with_keys_reads_in_words() {
+        let page = ArchivedMessagesPage {
+            items: vec![ofm_core::messages::board_expectations_message(
+                "Northfield",
+                "t1",
+                "2026-07-30",
+            )],
+            next_before: None,
+        };
+
+        let result = archived_messages_result(page);
+
+        assert!(
+            result.messages[0].subject.contains("Season Objectives"),
+            "{:?}",
+            result.messages[0].subject
+        );
+        assert!(
+            result.messages[0]
+                .body
+                .contains("The board has set the following expectations"),
+            "{:?}",
+            result.messages[0].body
+        );
+    }
+
+    /// Given an archived message and the same message in the live inbox
+    /// When each is turned into the agent's result
+    /// Then the two read the same: one resolver, not two
+    #[test]
+    fn an_archived_message_reads_as_it_did_in_the_live_inbox() {
+        let message =
+            ofm_core::messages::board_expectations_message("Northfield", "t1", "2026-07-30");
+        let live = inbox_message_result(&message);
+        let archived = archived_messages_result(ArchivedMessagesPage {
+            items: vec![message],
+            next_before: None,
+        });
+
+        assert_eq!(archived.messages[0].subject, live.subject);
+        assert_eq!(archived.messages[0].body, live.body);
+    }
 }
