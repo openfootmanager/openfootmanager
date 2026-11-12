@@ -496,6 +496,675 @@
         "body": "Plain body.",
         "source": "Wire"
       }
+    },
+    {
+      "name": "a roundup lays out its results and names the biggest winner",
+      "kind": "article",
+      "input": {
+        "id": "roundup_1",
+        "headline_key": "be.news.roundup.headline0",
+        "body_key": "be.news.roundup.body",
+        "source_key": "be.source.leagueWire",
+        "i18n_params": {
+          "matchday": "12",
+          "totalGoals": "9",
+          "matchCount": "3",
+          "results": "",
+          "resultsData": "[{\"home\":\"North\",\"home_goals\":4,\"away\":\"South\",\"away_goals\":1},{\"home\":\"East\",\"home_goals\":0,\"away\":\"West\",\"away_goals\":0},{\"home\":\"Hill\",\"home_goals\":2,\"away\":\"Vale\",\"away_goals\":2}]",
+          "biggestWinner": "North"
+        }
+      },
+      "expected": {
+        "headline": "Matchday 12 Round-Up: 9 Goals in Action-Packed Day",
+        "body": "Matchday 12 is in the books. Here are the full results:\n\n  North 4 - 1 South\n  East 0 - 0 West\n  Hill 2 - 2 Vale\n\n9 goals scored across 3 matches. North recorded the biggest win of the day.",
+        "source": "League Wire"
+      }
+    },
+    {
+      "name": "a roundup with no biggest winner leaves that sentence out",
+      "kind": "article",
+      "input": {
+        "id": "roundup_2",
+        "headline_key": "be.news.roundup.headline1",
+        "body_key": "be.news.roundup.body",
+        "source_key": "be.source.footballHerald",
+        "i18n_params": {
+          "matchday": "3",
+          "totalGoals": "0",
+          "matchCount": "1",
+          "results": "",
+          "resultsData": "[{\"home\":\"East\",\"home_goals\":0,\"away\":\"West\",\"away_goals\":0}]",
+          "biggestWinner": ""
+        }
+      },
+      "expected": {
+        "headline": "Premier Division Matchday 3: All the Results",
+        "body": "Matchday 3 is in the books. Here are the full results:\n\n  East 0 - 0 West\n\n0 goals scored across 1 matches.",
+        "source": "The Football Herald"
+      }
+    },
+    {
+      "name": "a preseason digest lays out its friendlies and one unbeaten club",
+      "kind": "article",
+      "input": {
+        "id": "preseason_1",
+        "headline_key": "be.news.preseasonDigest.headline",
+        "body_key": "be.news.preseasonDigest.bodyWithResults",
+        "source_key": "be.source.leagueChronicle",
+        "i18n_params": {
+          "weekStart": "2026-07-06",
+          "resultCount": "2",
+          "totalGoals": "5",
+          "results": "",
+          "resultsData": "[{\"home\":\"North\",\"home_goals\":3,\"away\":\"South\",\"away_goals\":1},{\"home\":\"East\",\"home_goals\":1,\"away\":\"West\",\"away_goals\":0}]",
+          "unbeatenLine": "",
+          "unbeatenTeamsData": "[\"North\"]"
+        }
+      },
+      "expected": {
+        "headline": "Preseason Digest — Week of 2026-07-06",
+        "body": "The latest preseason digest is here. 2 friendly result(s) were played across the division this week, producing 5 goal(s).\n\nResults:\n  North 3 - 1 South\n  East 1 - 0 West\n\nNorth remain unbeaten in preseason.",
+        "source": "League Chronicle"
+      }
+    },
+    {
+      "name": "a preseason digest with no friendlies names two unbeaten clubs",
+      "kind": "article",
+      "input": {
+        "id": "preseason_2",
+        "headline_key": "be.news.preseasonDigest.headline",
+        "body_key": "be.news.preseasonDigest.bodyNoResults",
+        "source_key": "be.source.leagueChronicle",
+        "i18n_params": {
+          "weekStart": "2026-07-13",
+          "resultCount": "0",
+          "totalGoals": "0",
+          "results": "",
+          "unbeatenLine": "",
+          "unbeatenTeamsData": "[\"North\",\"East\"]"
+        }
+      },
+      "expected": {
+        "headline": "Preseason Digest — Week of 2026-07-13",
+        "body": "The latest preseason digest is here. Training camps, selection decisions, and transfer business continue across the division as clubs prepare for opening day.\n\nNorth and East remain unbeaten in preseason.",
+        "source": "League Chronicle"
+      }
+    },
+    {
+      "name": "a preseason digest lists three or more unbeaten clubs as a sentence",
+      "kind": "article",
+      "input": {
+        "id": "preseason_3",
+        "headline_key": "be.news.preseasonDigest.headline",
+        "body_key": "be.news.preseasonDigest.bodyNoResults",
+        "source_key": "be.source.leagueChronicle",
+        "i18n_params": {
+          "weekStart": "2026-07-20",
+          "resultCount": "0",
+          "totalGoals": "0",
+          "results": "",
+          "unbeatenLine": "",
+          "unbeatenTeamsData": "[\"North\",\"East\",\"Hill\",\"Vale\"]"
+        }
+      },
+      "expected": {
+        "headline": "Preseason Digest — Week of 2026-07-20",
+        "body": "The latest preseason digest is here. Training camps, selection decisions, and transfer business continue across the division as clubs prepare for opening day.\n\nNorth, East, Hill, and Vale remain unbeaten in preseason.",
+        "source": "League Chronicle"
+      }
+    },
+    {
+      "name": "a standings update lays out its table",
+      "kind": "article",
+      "input": {
+        "id": "standings_1",
+        "headline_key": "be.news.standings.headline0",
+        "body_key": "be.news.standings.body",
+        "source_key": "be.source.leagueWire",
+        "i18n_params": {
+          "matchday": "8",
+          "leader": "North",
+          "standings": "",
+          "standingsData": "[{\"rank\":1,\"team\":\"North\",\"points\":19,\"goal_difference\":\"+9\"},{\"rank\":2,\"team\":\"East\",\"points\":17,\"goal_difference\":\"+4\"},{\"rank\":3,\"team\":\"Hill\",\"points\":14,\"goal_difference\":\"-1\"}]"
+        }
+      },
+      "expected": {
+        "headline": "North Lead the Way After Matchday 8",
+        "body": "After Matchday 8, North sit at the top of the Premier Division table.\n\nStandings:\n  1. North — 19 pts (GD: +9)\n  2. East — 17 pts (GD: +4)\n  3. Hill — 14 pts (GD: -1)",
+        "source": "League Wire"
+      }
+    },
+    {
+      "name": "a match report lists its scorers",
+      "kind": "article",
+      "input": {
+        "id": "report_1",
+        "headline_key": "be.news.matchReport.headline.homeWin.0",
+        "body_key": "be.news.matchReport.body0",
+        "source_key": "be.source.sportsGazette",
+        "i18n_params": {
+          "home": "North",
+          "away": "South",
+          "homeGoals": "2",
+          "awayGoals": "1",
+          "matchday": "5",
+          "winner": "North",
+          "loser": "South",
+          "scorers": "",
+          "scorersData": "[{\"player\":\"J. Doe\",\"minute\":12,\"team\":\"North\"},{\"player\":\"A. Roe\",\"minute\":55,\"team\":\"South\"},{\"player\":\"J. Doe\",\"minute\":88,\"team\":\"North\"}]"
+        }
+      },
+      "expected": {
+        "headline": "North 2 - 1 South: Hosts Triumph",
+        "body": "In Matchday 5 action, the match ended North 2 - 1 South. The result could have implications on the league standings as the season progresses.\n\nGoals: J. Doe (12', North), A. Roe (55', South), J. Doe (88', North)",
+        "source": "Sports Gazette"
+      }
+    },
+    {
+      "name": "a match report with no scorers has no goals section",
+      "kind": "article",
+      "input": {
+        "id": "report_2",
+        "headline_key": "be.news.matchReport.headline.draw.1",
+        "body_key": "be.news.matchReport.body1.noScorers",
+        "source_key": "be.source.matchDayPress",
+        "i18n_params": {
+          "home": "East",
+          "away": "West",
+          "homeGoals": "0",
+          "awayGoals": "0",
+          "matchday": "6",
+          "scorers": "",
+          "scorersData": "[]"
+        }
+      },
+      "expected": {
+        "headline": "East and West Share the Spoils",
+        "body": "The match ended East 0 - 0 West in a Matchday 6 clash. Both sides gave their all in an engaging contest.",
+        "source": "Match Day Press"
+      }
+    },
+    {
+      "name": "a friendly report lists its scorers in a goals section",
+      "kind": "article",
+      "input": {
+        "id": "report_3",
+        "headline_key": "be.news.matchReport.reportFriendly.title",
+        "body_key": "be.news.matchReport.reportFriendly.body",
+        "source_key": "be.source.footballHerald",
+        "i18n_params": {
+          "home": "North",
+          "away": "South",
+          "homeGoals": "1",
+          "awayGoals": "0",
+          "scorers": "",
+          "scorersSection": "",
+          "scorersData": "[{\"player\":\"J. Doe\",\"minute\":33,\"team\":\"North\"}]"
+        }
+      },
+      "expected": {
+        "headline": "North 1 - 0 South: Friendly report",
+        "body": "In friendly action, North 1 - 0 South. Both sides used the fixture to build sharpness before the competitive campaign.\n\nGoals: J. Doe (33', North)",
+        "source": "The Football Herald"
+      }
+    },
+    {
+      "name": "a press conference with several quotes lists them",
+      "kind": "article",
+      "input": {
+        "id": "press_1",
+        "headline_key": "be.news.pressConference.headlinePressConf",
+        "body_key": "be.news.pressConference.bodyMultiple",
+        "source_key": "be.source.leagueWire",
+        "i18n_params": {
+          "team": "North",
+          "result": "2-1",
+          "quote": "We never stopped believing",
+          "quotesData": "[{\"fallback\":\"We never stopped believing\"},{\"fallback\":\"The lads showed real character\"}]"
+        }
+      },
+      "expected": {
+        "headline": "Press Conference: \"We never stopped believing\" — North boss",
+        "body": "Speaking after the 2-1 result, the North manager addressed the press.\n\n• \"We never stopped believing\"\n• \"The lads showed real character\"\n\nThe conference covered the result, tactical approach, and what lies ahead for the team.",
+        "source": "League Wire"
+      }
+    },
+    {
+      "name": "a press conference with one quote shows it",
+      "kind": "article",
+      "input": {
+        "id": "press_2",
+        "headline_key": "be.news.pressConference.headlineManagerQuote",
+        "body_key": "be.news.pressConference.bodySingle",
+        "source_key": "be.source.leagueWire",
+        "i18n_params": {
+          "team": "South",
+          "result": "0-3",
+          "quote": "A tough afternoon",
+          "quotesData": "[{\"fallback\":\"A tough afternoon\"}]"
+        }
+      },
+      "expected": {
+        "headline": "South Manager: A tough afternoon",
+        "body": "The South manager spoke briefly after the 0-3 result.\n\n\"A tough afternoon\"",
+        "source": "League Wire"
+      }
+    },
+    {
+      "name": "a friendly report with no scorers has no goals section",
+      "kind": "article",
+      "input": {
+        "id": "report_4",
+        "headline_key": "be.news.matchReport.reportFriendly.title",
+        "body_key": "be.news.matchReport.reportFriendly.body",
+        "source_key": "be.source.footballHerald",
+        "i18n_params": {
+          "home": "East",
+          "away": "West",
+          "homeGoals": "0",
+          "awayGoals": "0",
+          "scorers": "",
+          "scorersSection": "",
+          "scorersData": "[]"
+        }
+      },
+      "expected": {
+        "headline": "East 0 - 0 West: Friendly report",
+        "body": "In friendly action, East 0 - 0 West. Both sides used the fixture to build sharpness before the competitive campaign.",
+        "source": "The Football Herald"
+      }
+    },
+    {
+      "name": "a press conference whose quotes carry response keys reads them in English, not in the fallback's language",
+      "kind": "article",
+      "input": {
+        "id": "press_3",
+        "headline_key": "be.news.pressConference.headlinePressConf",
+        "body_key": "be.news.pressConference.bodyMultiple",
+        "source_key": "be.source.leagueWire",
+        "i18n_params": {
+          "team": "North",
+          "result": "2-1",
+          "quote": "Os jogadores trabalharam muito. Preparámos bem e executámos o plano de jogo.",
+          "quotesData": "[{\"key\":\"match.press.result.responses.win.humble.text\",\"fallback\":\"Os jogadores trabalharam muito. Preparámos bem e executámos o plano de jogo.\"},{\"key\":\"match.press.playerFocus.responses.praise.text\",\"fallback\":\"J. Doe tem sido fantástico. É um jogador-chave para nós.\",\"params\":{\"playerName\":\"J. Doe\"}}]"
+        }
+      },
+      "expected": {
+        "headline": "Press Conference: \"The players worked hard. We prepared well and executed the game plan.\" — North boss",
+        "body": "Speaking after the 2-1 result, the North manager addressed the press.\n\n• \"The players worked hard. We prepared well and executed the game plan.\"\n• \"J. Doe has been fantastic. They're a key player for us and their work rate is exemplary.\"\n\nThe conference covered the result, tactical approach, and what lies ahead for the team.",
+        "source": "League Wire"
+      }
+    },
+    {
+      "name": "a transfer roundup lays out its deals with the fee compact",
+      "kind": "article",
+      "input": {
+        "id": "roundup_deals_1",
+        "headline_key": "be.news.transferRoundup.headline",
+        "body_key": "be.news.transferRoundup.body",
+        "source_key": "be.source.transferIntelligence",
+        "i18n_params": {
+          "weekStart": "2026-08-03",
+          "transferCount": "2",
+          "deals": "",
+          "dealsData": "[{\"player\":\"J. Doe\",\"fromTeam\":\"North\",\"toTeam\":\"South\",\"fee\":\"12500000\"},{\"player\":\"A. Roe\",\"fromTeam\":\"East\",\"toTeam\":\"West\",\"fee\":\"800000\"}]"
+        }
+      },
+      "expected": {
+        "headline": "Transfer Roundup — Week of 2026-08-03",
+        "body": "The transfer market stayed busy this week. 2 completed deal(s) stood out across the division.\n\n  J. Doe: North -> South (€12.5M)\n  A. Roe: East -> West (€800K)",
+        "source": "Transfer Intelligence"
+      }
+    },
+    {
+      "name": "a nationality param that is an ISO country code reads as the country's name",
+      "kind": "message",
+      "input": {
+        "id": "intl_callup_0",
+        "subject_key": "be.msg.intlCallup.subject",
+        "body_key": "be.msg.intlCallup.body",
+        "i18n_params": {
+          "player": "J. Doe",
+          "nationality": "BR"
+        }
+      },
+      "expected": {
+        "subject": "International Call-Up — J. Doe",
+        "body": "J. Doe has been called up to the Brazil national team for an upcoming international window.\n\nThis is a great honor for the player and reflects well on the club. They'll be in good spirits when they return, though keep an eye on their fatigue levels.",
+        "sender": "",
+        "sender_role": "",
+        "actions": []
+      }
+    },
+    {
+      "name": "a nationality param that is a football identity code reads as the country's name",
+      "kind": "message",
+      "input": {
+        "id": "intl_callup_1",
+        "subject_key": "be.msg.intlCallup.subject",
+        "body_key": "be.msg.intlCallup.body",
+        "i18n_params": {
+          "player": "J. Doe",
+          "nationality": "ENG"
+        }
+      },
+      "expected": {
+        "subject": "International Call-Up — J. Doe",
+        "body": "J. Doe has been called up to the England national team for an upcoming international window.\n\nThis is a great honor for the player and reflects well on the club. They'll be in good spirits when they return, though keep an eye on their fatigue levels.",
+        "sender": "",
+        "sender_role": "",
+        "actions": []
+      }
+    },
+    {
+      "name": "a nationality param that is an alias in lower case reads as the country's name",
+      "kind": "message",
+      "input": {
+        "id": "intl_callup_2",
+        "subject_key": "be.msg.intlCallup.subject",
+        "body_key": "be.msg.intlCallup.body",
+        "i18n_params": {
+          "player": "J. Doe",
+          "nationality": "england"
+        }
+      },
+      "expected": {
+        "subject": "International Call-Up — J. Doe",
+        "body": "J. Doe has been called up to the England national team for an upcoming international window.\n\nThis is a great honor for the player and reflects well on the club. They'll be in good spirits when they return, though keep an eye on their fatigue levels.",
+        "sender": "",
+        "sender_role": "",
+        "actions": []
+      }
+    },
+    {
+      "name": "a nationality param that is an alias in mixed case reads as the country's name",
+      "kind": "message",
+      "input": {
+        "id": "intl_callup_3",
+        "subject_key": "be.msg.intlCallup.subject",
+        "body_key": "be.msg.intlCallup.body",
+        "i18n_params": {
+          "player": "J. Doe",
+          "nationality": "united Kingdom"
+        }
+      },
+      "expected": {
+        "subject": "International Call-Up — J. Doe",
+        "body": "J. Doe has been called up to the United Kingdom national team for an upcoming international window.\n\nThis is a great honor for the player and reflects well on the club. They'll be in good spirits when they return, though keep an eye on their fatigue levels.",
+        "sender": "",
+        "sender_role": "",
+        "actions": []
+      }
+    },
+    {
+      "name": "a nationality param that is an English country name reads as the country's name",
+      "kind": "message",
+      "input": {
+        "id": "intl_callup_4",
+        "subject_key": "be.msg.intlCallup.subject",
+        "body_key": "be.msg.intlCallup.body",
+        "i18n_params": {
+          "player": "J. Doe",
+          "nationality": "Germany"
+        }
+      },
+      "expected": {
+        "subject": "International Call-Up — J. Doe",
+        "body": "J. Doe has been called up to the Germany national team for an upcoming international window.\n\nThis is a great honor for the player and reflects well on the club. They'll be in good spirits when they return, though keep an eye on their fatigue levels.",
+        "sender": "",
+        "sender_role": "",
+        "actions": []
+      }
+    },
+    {
+      "name": "a nationality param that is a demonym written as the old saves wrote it reads as the country's name",
+      "kind": "message",
+      "input": {
+        "id": "intl_callup_5",
+        "subject_key": "be.msg.intlCallup.subject",
+        "body_key": "be.msg.intlCallup.body",
+        "i18n_params": {
+          "player": "J. Doe",
+          "nationality": "Argentine"
+        }
+      },
+      "expected": {
+        "subject": "International Call-Up — J. Doe",
+        "body": "J. Doe has been called up to the Argentina national team for an upcoming international window.\n\nThis is a great honor for the player and reflects well on the club. They'll be in good spirits when they return, though keep an eye on their fatigue levels.",
+        "sender": "",
+        "sender_role": "",
+        "actions": []
+      }
+    },
+    {
+      "name": "a nationality param that is a demonym in a case the screen does not read reads as the country's name",
+      "kind": "message",
+      "input": {
+        "id": "intl_callup_6",
+        "subject_key": "be.msg.intlCallup.subject",
+        "body_key": "be.msg.intlCallup.body",
+        "i18n_params": {
+          "player": "J. Doe",
+          "nationality": "brazilian"
+        }
+      },
+      "expected": {
+        "subject": "International Call-Up — J. Doe",
+        "body": "J. Doe has been called up to the brazilian national team for an upcoming international window.\n\nThis is a great honor for the player and reflects well on the club. They'll be in good spirits when they return, though keep an eye on their fatigue levels.",
+        "sender": "",
+        "sender_role": "",
+        "actions": []
+      }
+    },
+    {
+      "name": "a nationality param that is a value that is no country reads as the country's name",
+      "kind": "message",
+      "input": {
+        "id": "intl_callup_7",
+        "subject_key": "be.msg.intlCallup.subject",
+        "body_key": "be.msg.intlCallup.body",
+        "i18n_params": {
+          "player": "J. Doe",
+          "nationality": "Atlantis"
+        }
+      },
+      "expected": {
+        "subject": "International Call-Up — J. Doe",
+        "body": "J. Doe has been called up to the Atlantis national team for an upcoming international window.\n\nThis is a great honor for the player and reflects well on the club. They'll be in good spirits when they return, though keep an eye on their fatigue levels.",
+        "sender": "",
+        "sender_role": "",
+        "actions": []
+      }
+    },
+    {
+      "name": "a promotion names the division from its key, country and season",
+      "kind": "message",
+      "input": {
+        "id": "promotion_2027",
+        "subject_key": "be.msg.promotion.subject",
+        "body_key": "be.msg.promotion.body",
+        "i18n_params": {
+          "division": "Germany Second Division",
+          "season": "2027",
+          "divisionKey": "tournaments.competitions.secondDivision",
+          "divisionSeason": "2027",
+          "divisionCountry": "DE"
+        }
+      },
+      "expected": {
+        "subject": "Promoted to the Germany Second Division!",
+        "body": "Congratulations! The club has earned promotion and will play in the Germany Second Division in Season 2027.\n\nThe board is thrilled with this achievement. Let's make sure we are ready for the step up.",
+        "sender": "",
+        "sender_role": "",
+        "actions": []
+      }
+    },
+    {
+      "name": "a relegation names a numbered division, and one whose country has no name of its own",
+      "kind": "message",
+      "input": {
+        "id": "relegation_2027",
+        "subject_key": "be.msg.relegation.subject",
+        "body_key": "be.msg.relegation.body",
+        "i18n_params": {
+          "division": "Xland League",
+          "season": "2027",
+          "divisionKey": "tournaments.competitions.league",
+          "divisionSeason": "2027",
+          "divisionCountry": "XL"
+        }
+      },
+      "expected": {
+        "subject": "Relegated to the XL League",
+        "body": "The club has been relegated and will play in the XL League in Season 2027.\n\nThe board is deeply disappointed. An immediate push for promotion is expected.",
+        "sender": "",
+        "sender_role": "",
+        "actions": []
+      }
+    },
+    {
+      "name": "a promotion whose division has no key keeps the stored name",
+      "kind": "message",
+      "input": {
+        "id": "promotion_2028",
+        "subject_key": "be.msg.promotion.subject",
+        "body_key": "be.msg.promotion.body",
+        "i18n_params": {
+          "division": "The Premier Division",
+          "season": "2028"
+        }
+      },
+      "expected": {
+        "subject": "Promoted to the The Premier Division!",
+        "body": "Congratulations! The club has earned promotion and will play in the The Premier Division in Season 2028.\n\nThe board is thrilled with this achievement. Let's make sure we are ready for the step up.",
+        "sender": "",
+        "sender_role": "",
+        "actions": []
+      }
+    },
+    {
+      "name": "a promotion to a numbered division with no tier keeps the stored name",
+      "kind": "message",
+      "input": {
+        "id": "promotion_2029",
+        "subject_key": "be.msg.promotion.subject",
+        "body_key": "be.msg.promotion.body",
+        "i18n_params": {
+          "division": "Spain Division 3",
+          "season": "2029",
+          "divisionKey": "tournaments.competitions.tierDivision",
+          "divisionSeason": "2029",
+          "divisionCountry": "ES"
+        }
+      },
+      "expected": {
+        "subject": "Promoted to the Spain Division 3!",
+        "body": "Congratulations! The club has earned promotion and will play in the Spain Division 3 in Season 2029.\n\nThe board is thrilled with this achievement. Let's make sure we are ready for the step up.",
+        "sender": "",
+        "sender_role": "",
+        "actions": []
+      }
+    },
+    {
+      "name": "a competition report names the competition from its key, country and season",
+      "kind": "article",
+      "input": {
+        "id": "report_cup_1",
+        "headline_key": "be.news.matchReport.reportCompetition.title",
+        "body_key": "be.news.matchReport.reportCompetition.body",
+        "source_key": "be.source.footballHerald",
+        "i18n_params": {
+          "home": "North",
+          "away": "South",
+          "homeGoals": "3",
+          "awayGoals": "2",
+          "competition": "Germany Cup",
+          "competitionKey": "tournaments.competitions.nationalCup",
+          "competitionCountry": "DE",
+          "competitionSeason": "2026",
+          "scorers": "",
+          "scorersSection": "",
+          "scorersData": "[]"
+        }
+      },
+      "expected": {
+        "headline": "North 3 - 2 South: Match report (Germany Cup)",
+        "body": "Germany Cup: the match ended North 3 - 2 South.",
+        "source": "The Football Herald"
+      }
+    },
+    {
+      "name": "a competition report with no key keeps the stored competition name",
+      "kind": "article",
+      "input": {
+        "id": "report_cup_2",
+        "headline_key": "be.news.matchReport.reportCompetition.title",
+        "body_key": "be.news.matchReport.reportCompetition.body",
+        "source_key": "be.source.footballHerald",
+        "i18n_params": {
+          "home": "East",
+          "away": "West",
+          "homeGoals": "1",
+          "awayGoals": "1",
+          "competition": "The Shield",
+          "scorers": "",
+          "scorersSection": "",
+          "scorersData": "[]"
+        }
+      },
+      "expected": {
+        "headline": "East 1 - 1 West: Match report (The Shield)",
+        "body": "The Shield: the match ended East 1 - 1 West.",
+        "source": "The Football Herald"
+      }
+    },
+    {
+      "name": "a season-awards winner at no club, by any of its spellings, is a free agent",
+      "kind": "article",
+      "input": {
+        "id": "awards_1",
+        "headline_key": "be.news.seasonAwards.headline",
+        "body_key": "be.news.seasonAwards.bodyBoth",
+        "source_key": "be.source.leagueChronicle",
+        "i18n_params": {
+          "season": "2026",
+          "goldenBootWinner": "J. Doe",
+          "goldenBootTeam": "",
+          "goldenBootGoals": "24",
+          "potyWinner": "A. Roe",
+          "potyTeam": "Free Agent",
+          "potyRating": "7.9"
+        }
+      },
+      "expected": {
+        "headline": "Season 2026 Awards",
+        "body": "Season 2026 concluded with J. Doe (Free Agent) lifting the Golden Boot with 24 goals. Player of the Year went to A. Roe (Free Agent) with an average rating of 7.9.",
+        "source": "League Chronicle"
+      }
+    },
+    {
+      "name": "a season-awards winner at a club keeps the club's name",
+      "kind": "article",
+      "input": {
+        "id": "awards_2",
+        "headline_key": "be.news.seasonAwards.headline",
+        "body_key": "be.news.seasonAwards.bodyBoth",
+        "source_key": "be.source.leagueChronicle",
+        "i18n_params": {
+          "season": "2026",
+          "goldenBootWinner": "J. Doe",
+          "goldenBootTeam": "North",
+          "goldenBootGoals": "24",
+          "potyWinner": "A. Roe",
+          "potyTeam": "common.freeAgent",
+          "potyRating": "7.9"
+        }
+      },
+      "expected": {
+        "headline": "Season 2026 Awards",
+        "body": "Season 2026 concluded with J. Doe (North) lifting the Golden Boot with 24 goals. Player of the Year went to A. Roe (Free Agent) with an average rating of 7.9.",
+        "source": "League Chronicle"
+      }
     }
   ]
 }
