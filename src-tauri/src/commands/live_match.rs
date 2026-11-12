@@ -235,15 +235,38 @@ fn give_team_talk_at(
         })
         .and_then(|talk| talk);
     match talk {
-        Ok(changes) => Ok(TeamTalkOutcome {
-            context: moment.context,
-            changes,
-        }),
+        Ok(changes) => {
+            hand_morale_to_the_match(state, career, &changes);
+            Ok(TeamTalkOutcome {
+                context: moment.context,
+                changes,
+            })
+        }
         Err(error) => {
             state.release_team_talk_moment(&moment.key);
             Err(error)
         }
     }
+}
+
+/// A talk's change of mood reaches the match in play: each player the talk moved plays the rest
+/// of it at the factor his new morale gives (`LiveMatchSession::refit_morale`). The game's lock
+/// is released by now and the session's is taken on its own, never both at once. A match of
+/// another career, or none (the talk after a match that is over), takes nothing.
+fn hand_morale_to_the_match(state: &StateManager, career: Career, changes: &[serde_json::Value]) {
+    let morales: Vec<(String, u8)> = changes
+        .iter()
+        .filter_map(|change| {
+            let id = change.get("player_id")?.as_str()?;
+            let morale = u8::try_from(change.get("new_morale")?.as_u64()?).ok()?;
+            Some((id.to_string(), morale))
+        })
+        .collect();
+    state.with_live_match(|session| {
+        if career.check_token(session.career_token).is_ok() {
+            session.refit_morale(&morales);
+        }
+    });
 }
 
 /// The moment a team talk would be given in now, how the match stands, and the career it was read
@@ -3066,5 +3089,79 @@ mod live_session_tests {
             Some(KEY)
         );
         assert_eq!(checkpoint(&state), before);
+    }
+
+    /// The match's own copy of each player's morale factor, by side (the engine's, not the game's).
+    fn match_morale_factors(state: &StateManager) -> (Vec<(String, f64)>, Vec<(String, f64)>) {
+        state
+            .with_live_match(|session| {
+                let factors = |side| {
+                    session
+                        .match_state
+                        .team(side)
+                        .players
+                        .iter()
+                        .map(|player| (player.id.clone(), player.morale_factor))
+                        .collect::<Vec<_>>()
+                };
+                let user = session.user_side.expect("the user manages this match");
+                let other = match user {
+                    engine::Side::Home => engine::Side::Away,
+                    engine::Side::Away => engine::Side::Home,
+                };
+                (factors(user), factors(other))
+            })
+            .expect("a live match")
+    }
+
+    /// Given a match at half-time whose players started it at one morale and now hold another
+    ///       (set to 50, clear of both ends of the scale)
+    /// When a half-time talk is given through the shared seam (the command and the MCP tool)
+    /// Then each of the user's players in the match plays the second half at the factor his new
+    ///      morale gives (above 1 for a lifted player, below for a lowered one, exactly 1 at 50),
+    ///      and the opponent's players are untouched (#1213)
+    #[test]
+    fn a_half_time_talk_reaches_the_second_half() {
+        let state = state_at_half_time();
+        state
+            .update_game(|game| {
+                game.players
+                    .iter_mut()
+                    .for_each(|player| player.morale = 50)
+            })
+            .unwrap();
+        let (_, opponent_before) = match_morale_factors(&state);
+
+        let talk =
+            super::apply_team_talk_on(&state, ofm_core::state::Career::Active, "motivational")
+                .unwrap();
+
+        let (user, opponent_after) = match_morale_factors(&state);
+        assert_eq!(
+            opponent_after, opponent_before,
+            "the opponent heard nothing"
+        );
+        let mut checked = 0;
+        for change in &talk.changes {
+            let id = change["player_id"].as_str().unwrap();
+            let now = change["new_morale"].as_u64().unwrap();
+            let Some((_, factor)) = user.iter().find(|(player, _)| player == id) else {
+                continue; // a squad member who is not in the match
+            };
+            checked += 1;
+            match now.cmp(&50) {
+                std::cmp::Ordering::Greater => assert!(*factor > 1.0, "{id}: {now} -> {factor}"),
+                std::cmp::Ordering::Less => assert!(*factor < 1.0, "{id}: {now} -> {factor}"),
+                std::cmp::Ordering::Equal => assert_eq!(*factor, 1.0, "{id}"),
+            }
+        }
+        assert!(
+            checked >= 11,
+            "only {checked} of the match's players were checked"
+        );
+        assert!(
+            user.iter().any(|(_, factor)| *factor != 1.0),
+            "the talk moved no factor in the match"
+        );
     }
 }
