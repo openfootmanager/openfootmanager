@@ -182,22 +182,22 @@ mod tests {
         assert_eq!(text, "No active game session. Start or load a game first.");
     }
 
-    /// Given a key with query parameters
+    /// Given a key with query parameters that no mapping and no `en.json` entry covers
     /// When it becomes a tool result
-    /// Then the key and the decoded parameters are separate fields.
+    /// Then the key and the decoded parameters are separate fields, and the text names both.
     #[test]
     fn a_keys_parameters_become_fields() {
         let (data, text, _) = structured(Failure::from_backend_error(
-            "be.error.package.unknownCountry?country=C%C3%B4te%20d%27Ivoire&n=2&=ignored",
+            "be.error.mcp.noSuchKeyAnywhere?country=C%C3%B4te%20d%27Ivoire&n=2&=ignored",
         ));
 
         assert_eq!(
             text,
-            "Error: be.error.package.unknownCountry (country=Côte d'Ivoire, n=2)"
+            "Error: be.error.mcp.noSuchKeyAnywhere (country=Côte d'Ivoire, n=2)"
         );
         assert_eq!(data["error"]["params"].as_object().unwrap().len(), 2);
 
-        assert_eq!(data["error"]["key"], "be.error.package.unknownCountry");
+        assert_eq!(data["error"]["key"], "be.error.mcp.noSuchKeyAnywhere");
         assert_eq!(data["error"]["params"]["country"], "Côte d'Ivoire");
         assert_eq!(data["error"]["params"]["n"], "2");
     }

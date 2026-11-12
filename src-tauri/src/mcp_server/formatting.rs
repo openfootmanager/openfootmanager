@@ -310,14 +310,66 @@ mod tests {
         );
     }
 
-    /// Given a key with parameters that nothing maps (the package key the failure tests use)
+    /// Given a key with parameters that no mapping and no `en.json` entry covers
     /// When rendered for an agent
     /// Then it is still the key itself, so the unmapped case stays visible.
     #[test]
-    fn a_parameterised_key_with_no_mapping_stays_raw() {
-        let key = "be.error.package.unknownCountry?country=Peru";
+    fn a_parameterised_key_with_no_text_stays_raw() {
+        let key = "be.error.mcp.noSuchKeyAnywhere?country=Peru";
 
         assert_eq!(translate_error(key), format!("Error: {key}"));
+    }
+
+    /// Given the other parameterised errors the shared services return to a tool (a loan the
+    ///       borrower cannot afford, a save that is missing or too new, a scout with no free slot,
+    ///       a manager missing from a save, a facility upgrade the club cannot pay, the board's
+    ///       wage policy), each as the application reports it
+    /// When rendered for an agent
+    /// Then each is the screen's English sentence with its parameters filled in (money as the
+    ///      screen writes it), never the raw key or an unfilled slot (#1416)
+    #[test]
+    fn the_other_parameterised_refusals_read_in_words() {
+        for (error, expected) in [
+            (
+                "be.error.transfers.loanBorrowerCannotAffordWages?budget=50000",
+                "The borrowing club cannot afford this wage share. Its weekly wage budget is €50",
+            ),
+            (
+                "be.error.saveNotFound?saveId=slot-3",
+                "Save 'slot-3' not found.",
+            ),
+            (
+                "be.error.scouting.scoutAssignmentFull?currentCount=1&maxSlots=2",
+                "Scout is already assigned to another scouting task (1/2 assignments).",
+            ),
+            (
+                "be.error.saveLoad.incompatibleVersion?saveVersion=9&supported=7",
+                "(save v9; this build supports up to v7)",
+            ),
+            (
+                "be.error.gamePersistence.managerNotFound?managerId=mgr-1",
+                "Manager 'mgr-1' was not found in this save.",
+            ),
+            (
+                "be.error.finance.facilityUpgradeInsufficientFunds?amount=250000",
+                "Insufficient funds for this facility upgrade. Need €250",
+            ),
+            (
+                "be.error.contracts.boardWagePolicy?budget=50000",
+                "Keep weekly wages near €50",
+            ),
+        ] {
+            let rendered = translate_error(error);
+
+            assert!(
+                rendered.contains(expected),
+                "{error} renders as {rendered:?}"
+            );
+            assert!(
+                !rendered.contains("be.error.") && !rendered.contains("{{"),
+                "{error} renders as {rendered:?}"
+            );
+        }
     }
 
     /// Every live-match refusal key the screen can show (`be.error.liveMatch.*` in `en.json`, the
