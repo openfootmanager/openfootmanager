@@ -2,6 +2,7 @@ import { render, screen, fireEvent } from "@testing-library/react";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 
 import { i18nReady } from "../../i18n";
+import { formatDateShort } from "../../lib/dateFormatting";
 import type { GameStateData, MessageData } from "../../store/gameStore";
 import {
   type AdvanceRecap,
@@ -14,6 +15,9 @@ import DashboardSimulatingModal from "./DashboardSimulatingModal";
 // jsdom has no scrollIntoView; the modal auto-scrolls the feed on new entries.
 Element.prototype.scrollIntoView = vi.fn();
 
+// The game's language, which a test can change: the digest's day is written in it.
+const game = vi.hoisted(() => ({ language: "en" }));
+
 vi.mock("react-i18next", () => ({
   // The modal pulls in utils/backendI18n → i18n/index, which registers the
   // react plugin at import time; a no-op plugin keeps that init happy.
@@ -23,7 +27,7 @@ vi.mock("react-i18next", () => ({
       if (key === "match.shootout.shootoutScore") return `Penalties: ${params?.h} - ${params?.a}`;
       return key;
     },
-    i18n: { language: "en" },
+    i18n: { language: game.language },
   }),
 }));
 
@@ -83,6 +87,7 @@ describe("DashboardSimulatingModal penalty shootouts", () => {
 
 describe("DashboardSimulatingModal digest date", () => {
   const RealDateTimeFormat = Intl.DateTimeFormat;
+  const realToLocaleDateString = Date.prototype.toLocaleDateString;
 
   /** A host whose own locale is American: a formatter asked for the "default" locale answers en-US. */
   class UsHostDateTimeFormat extends RealDateTimeFormat {
@@ -97,7 +102,29 @@ describe("DashboardSimulatingModal digest date", () => {
       writable: true,
     });
 
-  afterEach(() => useDateTimeFormat(RealDateTimeFormat));
+  /**
+   * `toLocaleDateString` does not go through the replaceable `Intl.DateTimeFormat`, so a host's
+   * default locale is stood in for on both paths a date can be written by: a regression to either
+   * `new Intl.DateTimeFormat(undefined, …)` or `date.toLocaleDateString(undefined, …)` then prints
+   * the American order, where an explicit locale does not.
+   */
+  function useAmericanHost() {
+    // A class is newable but not callable, which `DateTimeFormatConstructor` also requires.
+    useDateTimeFormat(UsHostDateTimeFormat as unknown as typeof Intl.DateTimeFormat);
+    Date.prototype.toLocaleDateString = function (
+      this: Date,
+      locales?: string | string[],
+      options?: Intl.DateTimeFormatOptions,
+    ) {
+      return realToLocaleDateString.call(this, locales ?? "en-US", options);
+    } as unknown as typeof Date.prototype.toLocaleDateString;
+  }
+
+  afterEach(() => {
+    useDateTimeFormat(RealDateTimeFormat);
+    Date.prototype.toLocaleDateString = realToLocaleDateString;
+    game.language = "en";
+  });
 
   /**
    * Given an English game on a host whose own locale is American
@@ -106,13 +133,28 @@ describe("DashboardSimulatingModal digest date", () => {
    *      and never in the host's
    */
   it("writes the digest day in the game's language, not the host's", () => {
-    // A class is newable but not callable, which `DateTimeFormatConstructor` also requires.
-    useDateTimeFormat(UsHostDateTimeFormat as unknown as typeof Intl.DateTimeFormat);
+    useAmericanHost();
 
     render(<DashboardSimulatingModal digestEntries={[entryWith([match()])]} />);
 
     expect(screen.getByText("10 Jul")).toBeInTheDocument();
     expect(screen.queryByText("Jul 10")).not.toBeInTheDocument();
+  });
+
+  /**
+   * Given a German game (whose day is written differently from the English fallback)
+   * When the digest of 10 July 2026 is drawn
+   * Then the day is the German one: dropping the game's language from the call would fall back to
+   *      English and print "10 Jul" here
+   */
+  it("passes the game's language, so a non-English game writes its own day", () => {
+    game.language = "de";
+    const german = formatDateShort("2026-07-10", "de");
+    expect(german).not.toBe(formatDateShort("2026-07-10", "en"));
+
+    render(<DashboardSimulatingModal digestEntries={[entryWith([match()])]} />);
+
+    expect(screen.getByText(german)).toBeInTheDocument();
   });
 });
 
