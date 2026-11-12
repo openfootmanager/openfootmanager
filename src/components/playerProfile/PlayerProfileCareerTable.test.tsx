@@ -182,10 +182,22 @@ describe("PlayerProfileCareerTable by season", () => {
       .slice(1);
     // The seasons, moves and the total row, in order.
     expect(rows).toHaveLength(BOARD.by_season.length + 1);
-    expect(cells(rows[0])[0]).toBe("2026/27");
-    expect(cells(rows[1])[0]).toBe("2025/26");
-    expect(cells(rows[3])[0]).toBe("2023/24");
-    expect(cells(rows[5])[0]).toBe("2023/24");
+    // Every row's identity in order: a season row is its season and club (with its badge), a move
+    // is its kind: the loan line sits between the loan season and the one he left.
+    const sequence = rows.slice(0, -1).map((row) => {
+      const cell = cells(row);
+      if (cell.length === 1) return `move:${/careerMove\.(\w+)/.exec(cell[0])?.[1]}`;
+      return `${cell[0]}|${cell[1]}`;
+    });
+    expect(sequence).toEqual([
+      "2026/27|NorthbridgeplayerProfile.careerInProgress",
+      "2025/26|Northbridge",
+      "move:transferFrom",
+      "2023/24|WestgateplayerProfile.careerOnLoan",
+      "move:loanTo",
+      "2023/24|Ashford",
+      "move:initial",
+    ]);
   });
 
   /**
@@ -213,7 +225,8 @@ describe("PlayerProfileCareerTable by season", () => {
     expect(screen.getAllByText("playerProfile.careerOnLoan")).toHaveLength(1);
     const inProgress = screen.getByRole("row", { name: /2026\/27/ });
     expect(within(inProgress).getByText("playerProfile.careerInProgress")).toBeInTheDocument();
-    const loan = screen.getByRole("row", { name: /Westgate/ });
+    // The season row, not the loan line that also names Westgate.
+    const loan = screen.getByRole("row", { name: /^2023\/24\s*Westgate/ });
     expect(within(loan).getByText("playerProfile.careerOnLoan")).toBeInTheDocument();
   });
 
