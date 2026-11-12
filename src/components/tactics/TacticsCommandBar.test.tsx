@@ -1,7 +1,8 @@
 import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import TacticsCommandBar, { type TacticsLibraryEntry } from "./TacticsCommandBar";
+import type { TacticsLibraryEntry } from "./TacticPicker";
+import TacticsCommandBar from "./TacticsCommandBar";
 
 vi.mock("react-i18next", () => ({
   initReactI18next: { type: "3rdParty", init: () => undefined },
@@ -353,6 +354,22 @@ describe("TacticsCommandBar", () => {
       "tactics.resetTactic",
       "tactics.deleteTactic",
     ]);
+  });
+
+  /**
+   * Given the tactic picker's list open
+   * When the actions menu is opened (from the keyboard, where no outside press shuts the list)
+   * Then the list shuts: the two are never open together.
+   */
+  it("shuts the tactic picker's list when the actions menu opens", () => {
+    renderCommandBar();
+    fireEvent.click(screen.getByRole("button", { name: "tactics.chooseTactic" }));
+    expect(screen.getByRole("listbox")).toBeInTheDocument();
+
+    openActionsMenu();
+
+    expect(screen.queryByRole("listbox")).toBeNull();
+    expect(screen.getByRole("menu")).toBeInTheDocument();
   });
 
   /**

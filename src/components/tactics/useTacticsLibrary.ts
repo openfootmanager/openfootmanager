@@ -23,7 +23,7 @@ import {
   toCustomTactic,
   toLibraryEntries,
 } from "./TacticsCustomTactics.helpers";
-import type { TacticsLibraryEntry } from "./TacticsCommandBar";
+import type { TacticsLibraryEntry } from "./TacticPicker";
 
 interface UseTacticsLibraryArgs {
   gameState: GameStateData | null;
