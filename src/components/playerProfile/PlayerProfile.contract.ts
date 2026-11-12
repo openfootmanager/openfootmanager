@@ -26,8 +26,8 @@ const loanKey = (loan: PlayerData["active_loan"]): string =>
 
 /**
  * What the club-wide previews depend on, as one string: everything the club's wage bill and its
- * squad-safety verdict read. That is its playing squad (who is in it, wages, contract ends,
- * injuries), the players loaned out or in whose wage it pays a share of (the loan's clubs and
+ * squad-safety verdict and the squad floor read. That is its playing squad (who is in it, wages,
+ * contract ends, injuries, whether each is in the senior or the youth squad), the players loaned out or in whose wage it pays a share of (the loan's clubs and
  * share), its staff and their wages (`calc_wages` counts them), its wage budget, its formation
  * (the squad-safety verdict reads it) and its cash (the runway reads it). A signing, a
  * release, a hire or a loan made while the sheet is open, by the manager elsewhere or by an agent
@@ -52,6 +52,8 @@ export function clubStateKey(game: ClubStateInputs, teamId: string | null): stri
         player.wage,
         player.contract_end ?? "",
         player.injury ? "injured" : "",
+        // The squad floor counts senior players only: a promotion from the academy moves it.
+        player.squad_role ?? "",
         loanKey(player.active_loan),
       ].join(":"),
     );

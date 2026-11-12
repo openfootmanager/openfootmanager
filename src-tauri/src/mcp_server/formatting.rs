@@ -2,9 +2,38 @@
 //!
 //! Phase 2 starts with minimal structured text; Phase 5 upgrades to rich markdown.
 
-/// Translate a backend error key (e.g. "be.error.noActiveGameSession") into
-/// a human-readable message that helps agents self-correct.
-pub fn translate_error(key: &str) -> String {
+use std::collections::HashMap;
+
+/// The keys whose sentence has slots their parameters fill. Their text is the screen's own, from
+/// `en.json` through `backend_text::resolve_error` (the one resolver, not a second copy of the
+/// wording). A key with parameters and no entry here or in [`fixed_message`] stays raw.
+const PARAMETERISED_KEYS: [&str; 2] = [
+    "be.error.squadFloor.wouldLeaveShort",
+    "be.error.squadFloor.wouldLeaveSeniorsShort",
+];
+
+/// Translate a backend error (e.g. "be.error.noActiveGameSession", or a key followed by
+/// `?name=value&...`) into a human-readable message that helps agents self-correct.
+pub fn translate_error(error: &str) -> String {
+    let (key, query) = error.split_once('?').unwrap_or((error, ""));
+    let params = crate::mcp_server::result::text_params(query);
+    translate_error_with(key, &params).unwrap_or_else(|| format!("Error: {error}"))
+}
+
+/// The readable message for `key` with its `params`, or `None` when nothing maps the key.
+fn translate_error_with(key: &str, params: &HashMap<String, String>) -> Option<String> {
+    let fixed = fixed_message(key);
+    if fixed != format!("Error: {key}") {
+        return Some(fixed);
+    }
+    if PARAMETERISED_KEYS.contains(&key) {
+        return crate::mcp_server::backend_text::resolve_error(key, params);
+    }
+    None
+}
+
+/// The messages that need no parameter; `Error: <key>` for a key with none.
+fn fixed_message(key: &str) -> String {
     match key {
         "be.error.liveMatch.inProgress" => {
             "Finish the current match before saving, advancing, or starting another match."

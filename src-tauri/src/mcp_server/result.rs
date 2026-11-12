@@ -1,6 +1,8 @@
 //! How a tool call fails. One value, [`Failure`], produces both the readable
 //! text and the `structuredContent`, so the two cannot drift apart.
 
+use std::collections::HashMap;
+
 use mcp_results::ToolResult;
 use rmcp::model::{CallToolResult, ContentBlock};
 use serde_json::{json, Map, Value};
@@ -30,7 +32,7 @@ impl Failure {
             };
         }
         let params = query_params(query);
-        let message = readable_message(key, &params);
+        let message = readable_message(error, key, &params);
         Self {
             key: Some(key.to_string()),
             params,
@@ -90,16 +92,27 @@ pub fn success(value: impl ToolResult) -> CallToolResult {
 }
 
 /// The mapped text for a key, or, for a key with no mapping, the key and its parameters.
-fn readable_message(key: &str, params: &Map<String, Value>) -> String {
-    let mapped = translate_error(key);
-    if mapped != format!("Error: {key}") || params.is_empty() {
+fn readable_message(error: &str, key: &str, params: &Map<String, Value>) -> String {
+    let mapped = translate_error(error);
+    if mapped != format!("Error: {error}") {
         return mapped;
+    }
+    if params.is_empty() {
+        return format!("Error: {key}");
     }
     let details: Vec<String> = params
         .iter()
         .map(|(name, value)| format!("{name}={}", value.as_str().unwrap_or_default()))
         .collect();
-    format!("{mapped} ({})", details.join(", "))
+    format!("Error: {key} ({})", details.join(", "))
+}
+
+/// A key's `?name=value&...` parameters as text, decoded.
+pub(crate) fn text_params(query: &str) -> HashMap<String, String> {
+    query_params(query)
+        .into_iter()
+        .map(|(name, value)| (name, value.as_str().unwrap_or_default().to_string()))
+        .collect()
 }
 
 fn query_params(query: &str) -> Map<String, Value> {
