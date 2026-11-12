@@ -510,12 +510,20 @@ fn preview_contract_termination_carries_the_squad_floor_refusal_the_release_woul
     assert_eq!(preview.squad_floor_refusal, Some(refusal));
 }
 
-/// Given a release that keeps the club at the floor
+/// Given a club of seventeen seniors, so that releasing a forward leaves sixteen (the floor is
+///       fifteen) and three forwards (the floor for the group is two)
 /// When the release is previewed
 /// Then the preview carries no floor refusal
 #[test]
 fn preview_contract_termination_has_no_floor_refusal_when_the_release_keeps_the_floor() {
-    let game = make_squad_game();
+    let mut game = make_squad_game();
+    game.players.extend([
+        make_player_with_position("gk-2", Position::Goalkeeper),
+        make_player_with_position("player-12", Position::Defender),
+        make_player_with_position("player-13", Position::Midfielder),
+        make_player_with_position("player-14", Position::Forward),
+        make_player_with_position("player-15", Position::Midfielder),
+    ]);
 
     let preview = preview_contract_termination(&game, "player-1").expect("preview");
 
