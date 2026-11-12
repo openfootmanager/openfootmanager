@@ -1826,6 +1826,7 @@
     "accurateValue": "точность {{value}}",
     "passAccuracy": "Точность передач",
     "percentile": "Процентиль",
+    "percentileBar": "{{stat}}: процентиль в группе сравнения",
     "percentileUnavailable": "Процентиль недоступен",
     "percentileGroup": "Сравнение с: {{position}} в {{league}}",
     "recentMatches": "Последние матчи",

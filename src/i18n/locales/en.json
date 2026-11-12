@@ -1826,6 +1826,7 @@
     "accurateValue": "{{value}} accurate",
     "passAccuracy": "Pass Accuracy",
     "percentile": "Percentile",
+    "percentileBar": "{{stat}}: percentile in the peer group",
     "percentileUnavailable": "Percentile unavailable",
     "percentileGroup": "Compared with: {{position}} in {{league}}",
     "recentMatches": "Recent Matches",

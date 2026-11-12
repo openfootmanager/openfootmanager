@@ -1,7 +1,7 @@
 import { useTranslation } from "react-i18next";
 import { competitionDisplayName } from "../../lib/competitionName";
 import { formatOrdinal } from "../../lib/ordinal";
-import { Card, CardBody, CardHeader } from "../ui";
+import { Card, CardBody, CardHeader, ProgressBar } from "../ui";
 import type { PlayerAdvancedStatsSummary } from "./PlayerProfile.helpers";
 
 type TranslateFn = (key: string, options?: Record<string, unknown>) => string;
@@ -32,7 +32,11 @@ function formatPercentage(value: number | null): string {
   return Number.isInteger(value) ? `${value}%` : `${value.toFixed(1)}%`;
 }
 
-/** One stat: its name with its rate in words under it, its total, and the backend's ordinal. */
+/**
+ * One stat: its name and total, a bar at the backend's percentile with its ordinal (a high
+ * percentile always means he does well; the number is drawn as given, never recomputed or judged),
+ * and its rate in words. A stat with no percentile has no bar and a dash.
+ */
 function AdvancedStatRow({
   label,
   rate,
@@ -40,6 +44,7 @@ function AdvancedStatRow({
   percentile,
   percentileLabel,
   percentileUnavailableLabel,
+  barLabel,
 }: {
   label: string;
   rate: string;
@@ -47,23 +52,29 @@ function AdvancedStatRow({
   percentile: number | null;
   percentileLabel: string;
   percentileUnavailableLabel: string;
+  barLabel: string;
 }) {
   const { t, i18n } = useTranslation();
   return (
-    <li className="flex items-start justify-between gap-3 py-3 first:pt-0 last:pb-0">
-      <div className="min-w-0">
-        <p className="text-body font-semibold text-fg">{label}</p>
-        <p className="text-caption tabular-nums text-fg-muted">{rate}</p>
+    <li className="flex flex-col gap-1.5 py-3 first:pt-0 last:pb-0">
+      <div className="flex items-baseline justify-between gap-3">
+        <p className="min-w-0 text-body font-semibold text-fg">{label}</p>
+        <p className="shrink-0 font-heading text-lead font-bold tabular-nums text-fg">{total}</p>
       </div>
-      <div className="shrink-0 text-right">
-        <p className="font-heading text-lead font-bold tabular-nums text-fg">{total}</p>
+      <div className="flex items-center gap-3">
+        <div className="min-w-0 flex-1">
+          {percentile === null ? null : (
+            <ProgressBar value={percentile} variant="muted" size="sm" label={barLabel} />
+          )}
+        </div>
         <p
           title={percentile === null ? percentileUnavailableLabel : percentileLabel}
-          className="text-caption tabular-nums text-fg-muted"
+          className="w-12 shrink-0 text-right text-caption font-semibold tabular-nums text-fg-muted"
         >
           {percentile === null ? "-" : formatOrdinal(percentile, i18n.language, t)}
         </p>
       </div>
+      <p className="text-caption tabular-nums text-fg-muted">{rate}</p>
     </li>
   );
 }
@@ -172,6 +183,7 @@ export default function PlayerProfileAdvancedStatsCard({
               percentile={row.percentile}
               percentileLabel={labels.percentile}
               percentileUnavailableLabel={labels.percentileUnavailable}
+              barLabel={t("playerProfile.percentileBar", { stat: row.label })}
             />
           ))}
         </ul>

@@ -1826,6 +1826,7 @@
     "accurateValue": "akurasi {{value}}",
     "passAccuracy": "Akurasi Umpan",
     "percentile": "Persentil",
+    "percentileBar": "{{stat}}: persentil dalam kelompok pembanding",
     "percentileUnavailable": "Persentil tidak tersedia",
     "percentileGroup": "Dibandingkan dengan: {{position}} di {{league}}",
     "recentMatches": "Pertandingan Terakhir",

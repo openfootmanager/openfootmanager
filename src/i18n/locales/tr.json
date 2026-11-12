@@ -1826,6 +1826,7 @@
     "accurateValue": "isabet {{value}}",
     "passAccuracy": "Pas İsabeti",
     "percentile": "Yüzdelik Dilim",
+    "percentileBar": "{{stat}}: karşılaştırma grubundaki yüzdelik",
     "percentileUnavailable": "Yüzdelik dilim mevcut değil",
     "percentileGroup": "Karşılaştırma: {{league}} içinde {{position}}",
     "recentMatches": "Son Maçlar",
