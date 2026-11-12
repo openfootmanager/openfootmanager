@@ -9,26 +9,10 @@ import { describe, expect, it } from "vitest";
  */
 const FINISHED_FOLDERS = [
   "./components/ui/",
-  // The profile's dialogs, banners, scout button and stat tile. Its Career and Contract cards join
-  // after their mockup round, and then these become the one folder.
-  "./components/playerProfile/PlayerProfileRenewalModal.tsx",
-  "./components/playerProfile/PlayerProfileTerminationModal.tsx",
-  "./components/playerProfile/PlayerProfileLoanStatusBanner.tsx",
-  "./components/playerProfile/PlayerProfileInjuryBanner.tsx",
-  "./components/playerProfile/PlayerProfileScoutAction.tsx",
-  "./components/playerProfile/PlayerProfileAdvancedStatsCard.tsx",
-  "./components/playerProfile/PlayerProfile.renewal.ts",
-  // The Contract tab's decision sheet and the list of contracts he has had.
-  "./components/playerProfile/PlayerProfileContractSheet.tsx",
-  "./components/playerProfile/PlayerProfileContractHistoryCard.tsx",
-  "./components/playerProfile/PlayerProfileCareerTable.tsx",
-  "./components/playerProfile/PlayerProfileCareerChart.tsx",
-  "./components/playerProfile/careerParts.tsx",
-  "./components/playerProfile/PlayerProfileContractTimeline.tsx",
-  "./components/playerProfile/PlayerProfileContractSummary.tsx",
-  "./components/playerProfile/PlayerProfileContractDecisions.tsx",
-  "./components/playerProfile/PlayerProfileWageBill.tsx",
-  "./components/playerProfile/contractSheetParts.tsx",
+  // The whole player profile: its dialogs, banners, scout button and stat tile, the Career and
+  // Contract tabs, and everything else under the folder. A file added there is checked from the
+  // first commit.
+  "./components/playerProfile/",
   // The dashboard shell. The rest of components/dashboard (its modals) joins with them, and these
   // four entries become the one folder.
   "./components/dashboard/DashboardAlerts.tsx",

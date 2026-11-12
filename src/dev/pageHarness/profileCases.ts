@@ -13,6 +13,7 @@ import type { Position } from "../../store/generated/Position";
 import type { PlayerData, PlayerMovementEntry, ScoutedPlayerView } from "../../store/types";
 import type { AttributeKey } from "../../store/generated/AttributeKey";
 import type { AttributeWeight } from "../../store/generated/AttributeWeight";
+import { naturalPositionOf } from "../../lib/positions";
 import { gameState, positionKeyAttributes, positionWeights } from "./fixture.generated";
 import type { HarnessProfile } from "./harnessPage";
 
@@ -99,20 +100,36 @@ const NO_SEASON_YET: PlayerAdvancedStatsSummary = {
   },
 };
 
-/** The same season with something in every cell, so the layout sees populated stats. */
-const A_SEASON: PlayerAdvancedStatsSummary = {
-  percentileEligible: false,
-  peerGroup: null,
-  seasonRatingRated: true,
-  metrics: {
-    shots: { total: 14, per90: 2.1, percentile: null },
-    shotsOnTarget: { total: 7, per90: 1.1, percentile: null },
-    passes: { completed: 212, attempted: 251, accuracy: 84.5, percentile: null },
-    tacklesWon: { total: 18, per90: 2.7, percentile: null },
-    interceptions: { total: 11, per90: 1.6, percentile: null },
-    foulsCommitted: { total: 6, per90: 0.9, percentile: null },
-  },
-};
+/**
+ * A player's season with something in every cell, and the percentiles the backend answers once he
+ * has minutes at a club in a league table: eligible, ranked among his league's players of his
+ * natural position. The peer group is the fixture's own league, so its name is a real one.
+ */
+function aSeasonFor(player: PlayerData): PlayerAdvancedStatsSummary {
+  const league = gameState.competitions.find((competition) => competition.kind === "League");
+  return {
+    percentileEligible: league !== undefined,
+    peerGroup: league
+      ? {
+          competitionId: league.id,
+          competitionName: league.name,
+          competitionNameKey: league.name_key ?? null,
+          countryId: league.country_id ?? null,
+          divisionTier: 1,
+          position: naturalPositionOf(player),
+        }
+      : null,
+    seasonRatingRated: true,
+    metrics: {
+      shots: { total: 14, per90: 2.1, percentile: 91 },
+      shotsOnTarget: { total: 7, per90: 1.1, percentile: 94 },
+      passes: { completed: 212, attempted: 251, accuracy: 84.5, percentile: 38 },
+      tacklesWon: { total: 18, per90: 2.7, percentile: 29 },
+      interceptions: { total: 11, per90: 1.6, percentile: 33 },
+      foulsCommitted: { total: 6, per90: 0.9, percentile: 45 },
+    },
+  };
+}
 
 /** Five matches against the rivals, latest first, with ratings enough for a trend line. */
 function fiveMatches(): PlayerRecentMatchEntry[] {
@@ -580,7 +597,7 @@ function ownCase(player: PlayerData, signedFrom: string | null): ProfileCase {
     scoutedReport: null,
     retiredPlayer: null,
     recentMatches: fiveMatches(),
-    seasonStats: A_SEASON,
+    seasonStats: aSeasonFor(player),
     career: ownCareer(player, signedFrom),
     playerPatch: { movement_history: ownHistory(player, signedFrom) },
     contractPreviews: contractPreviewsOf(player, true),
@@ -616,7 +633,7 @@ export function profileCase(variant: HarnessProfile): ProfileCase {
         opinion: opinionOf(own, { kind: "coaches" }),
         positionRatings: positionRatingsOf(own, { kind: "live" }),
         recentMatches: fiveMatches(),
-        seasonStats: A_SEASON,
+        seasonStats: aSeasonFor(own),
         career: ownCareer(own, rival.team_id),
         playerPatch: { movement_history: ownHistory(own, rival.team_id) },
         contractPreviews: contractPreviewsOf(own, true),
@@ -630,7 +647,7 @@ export function profileCase(variant: HarnessProfile): ProfileCase {
         opinion: opinionOf(keeper, { kind: "coaches" }),
         positionRatings: positionRatingsOf(keeper, { kind: "live" }),
         recentMatches: fiveMatches(),
-        seasonStats: A_SEASON,
+        seasonStats: aSeasonFor(keeper),
         career: plainCareer(keeper),
         contractPreviews: contractPreviewsOf(keeper, true),
       };
@@ -678,6 +695,7 @@ export function profileCase(variant: HarnessProfile): ProfileCase {
         wage: { kind: "hidden" },
         career: rivalCareer(rival, own.team_id),
         positionRatings: positionRatingsOf(rival, { kind: "live" }),
+        seasonStats: aSeasonFor(rival),
         // The current record is the renewal, which started on 1 July 2030.
         playerPatch: {
           movement_history: rivalHistory(rival, own.team_id),
