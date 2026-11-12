@@ -314,6 +314,9 @@ describe("DashboardWorkspaceContent", () => {
     expect(squad.getByText("alerts-mock")).not.toHaveAttribute("data-scrolls");
     expect(tabFillsWorkspace("Tactics")).toBe(true);
     expect(tabFillsWorkspace("Squad")).toBe(false);
+    // Both are the workspace the layout check measures (a dev check; the marker carries no behaviour).
+    expect(tacticsArea).toHaveAttribute("data-workspace");
+    expect(squadArea).toHaveAttribute("data-workspace");
   });
 
   it("renders alerts and tab content when no profile is selected", () => {
