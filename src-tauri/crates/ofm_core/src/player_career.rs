@@ -97,14 +97,14 @@ pub struct PlayerCareer {
 /// The world's statistics season, which rolls over with the user's division: the calendar every
 /// player's career rows are stamped with.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct StatisticsSeason {
+struct StatisticsSeason {
     /// The season in progress.
-    pub current: u32,
+    current: u32,
     /// The day its stats were reset, when the game knows it: the real boundary, which can differ
     /// from the calendar's start (a rollover is on the day the season ended).
-    pub current_began_on: Option<NaiveDate>,
-    pub start_month: u8,
-    pub start_day: u8,
+    current_began_on: Option<NaiveDate>,
+    start_month: u8,
+    start_day: u8,
 }
 
 impl StatisticsSeason {
@@ -126,7 +126,7 @@ impl StatisticsSeason {
     /// season ended) is placed by the calendar's start: a stint that began between the real reset
     /// and the calendar's start can sort after a move that preceded it. Recovering it needs the
     /// reset day stored with each career row (#1402).
-    pub fn began_on(&self, season: u32) -> NaiveDate {
+    fn began_on(&self, season: u32) -> NaiveDate {
         match self.current_began_on {
             Some(day) if season == self.current => day,
             Some(_) | None => self.calendar_start(season),
@@ -143,9 +143,9 @@ impl StatisticsSeason {
 
 /// A career row and whether it is the stint he is on now.
 #[derive(Debug, Clone, PartialEq)]
-pub struct StintRow {
-    pub entry: CareerEntry,
-    pub in_progress: bool,
+struct StintRow {
+    entry: CareerEntry,
+    in_progress: bool,
 }
 
 fn parse_day(text: &str) -> Option<NaiveDate> {
@@ -376,7 +376,7 @@ fn club_totals<'a>(rows: impl Iterator<Item = &'a CareerSeasonRow>) -> Vec<Caree
 ///
 /// On one day a move comes before the stint it began, so the line sits between the season he
 /// arrived and the one he left.
-pub fn build_career(
+fn build_career(
     rows: &[StintRow],
     movements: &[PlayerMovementEntry],
     seasons: &StatisticsSeason,
@@ -439,7 +439,7 @@ pub fn build_career(
 /// The season in progress as rows: a row for each club he has played for since it began (his stints
 /// are closed at every move), and one for the club he is with now even before his first
 /// appearance there. A player with no club and no appearance has none.
-pub fn in_progress_rows(
+fn in_progress_rows(
     stints: &SeasonStints,
     stats: &PlayerSeasonStats,
     season: u32,
@@ -472,7 +472,7 @@ pub fn in_progress_rows(
 
 /// The world's statistics season: the rollover division's calendar, and the day the stats were
 /// last reset. Without a division (a world with no league) the calendar is the default's.
-pub fn statistics_season(game: &Game) -> StatisticsSeason {
+fn statistics_season(game: &Game) -> StatisticsSeason {
     let began = game.last_season_rollover_on.as_deref().and_then(parse_day);
     match crate::end_of_season::rollover_division(game) {
         Some(league) => StatisticsSeason {
