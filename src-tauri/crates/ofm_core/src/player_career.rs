@@ -535,13 +535,17 @@ pub fn player_career(game: &Game, player: &Player) -> PlayerCareer {
             in_progress: false,
         })
         .collect();
-    rows.extend(in_progress_rows(
-        &player.season_stints,
-        &player.stats,
-        seasons.current,
-        &club_id,
-        &club_name,
-    ));
+    // A retired player has no season in progress: whatever stats he kept are his last season's,
+    // already in his career rows.
+    if !player.retired {
+        rows.extend(in_progress_rows(
+            &player.season_stints,
+            &player.stats,
+            seasons.current,
+            &club_id,
+            &club_name,
+        ));
+    }
     build_career(
         &rows,
         &player.movement_history,
@@ -558,8 +562,10 @@ mod tests {
     use domain::career_stints::{ClosedStint, StintTally};
     use domain::league::League;
     use domain::manager::Manager;
+    use domain::player::Position;
 
     use crate::clock::GameClock;
+    use crate::test_support::uniform_attributes;
 
     fn day(text: &str) -> NaiveDate {
         NaiveDate::parse_from_str(text, "%Y-%m-%d").unwrap()
@@ -1454,5 +1460,37 @@ mod tests {
             .collect();
         assert_eq!(clubs, [("", 19), ("Legacy FC", 8)]);
         assert_eq!(season_row(&career, 2024, "").club_name, "");
+    }
+
+    /// Given a retired player whose last season's stats were never reset (12 appearances), with a
+    ///       closed season of 31 and no club
+    /// When his career is built
+    /// Then he has no season in progress: only the closed season, and the totals are its own
+    #[test]
+    fn a_retired_player_has_no_season_in_progress() {
+        let mut player = Player::new(
+            "p".to_string(),
+            "P".to_string(),
+            "P".to_string(),
+            "1988-01-01".to_string(),
+            "GB".to_string(),
+            Position::Midfielder,
+            uniform_attributes(60),
+        );
+        player.retired = true;
+        player.stats.appearances = 12;
+        player.career.push(CareerEntry {
+            season: 2030,
+            team_id: "north".to_string(),
+            team_name: "North".to_string(),
+            appearances: 31,
+            goals: 4,
+            assists: 9,
+        });
+
+        let career = player_career(&world(), &player);
+
+        assert_eq!(read(&career), ["2030 north 31"]);
+        assert_eq!(career.totals.appearances, 31);
     }
 }
