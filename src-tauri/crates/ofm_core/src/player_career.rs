@@ -284,7 +284,8 @@ struct Placing {
 /// its stint did. Visits are half-open (a visit that ended that day is not the one that began on
 /// it), so a loan out and the move back on one day, or two moves on one day, leave an empty visit
 /// that no row belongs to. A row that began with the season has no start day and is placed by the
-/// day its stint ended instead: the visit at its club that ended then.
+/// day its stint ended instead: the visit at its club that ended then, or the first of the visits
+/// there that run on to it (a loan's purchase splits one stint into two).
 fn visit_named_by_days(row: &StintRow, visits: &[&Visit]) -> Option<usize> {
     let club = row.entry.team_id.as_str();
     if let Some(from) = row.entry.from.as_deref().and_then(parse_day) {
@@ -293,9 +294,21 @@ fn visit_named_by_days(row: &StintRow, visits: &[&Visit]) -> Option<usize> {
             .position(|visit| visit.club_id == club && visit.contains(from));
     }
     let until = row.entry.until.as_deref().and_then(parse_day)?;
-    visits
+    let mut index = visits
         .iter()
-        .position(|visit| visit.club_id == club && visit.until == Some(until))
+        .position(|visit| visit.club_id == club && visit.until == Some(until))?;
+    // A loan's purchase splits one stint at the club into two visits (the loan, then the permanent
+    // one) without closing it, so the stint that ends at the sale began in the first of them.
+    // Walk back over the club's visits that run on from one another, to where the season began.
+    while index > 0 {
+        let (before, this) = (visits[index - 1], visits[index]);
+        if before.club_id == club && before.until == Some(this.from) {
+            index -= 1;
+        } else {
+            break;
+        }
+    }
+    Some(index)
 }
 
 /// Each row's place: the day he arrived at the club for that spell, or the first day of the
