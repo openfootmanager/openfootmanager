@@ -15,7 +15,7 @@ import { PageHarness } from "./PageHarness";
 declare global {
   interface Window {
     /** What a screenshot or layout script reads once the page has settled. */
-    __pageHarness?: { unanswered: string[]; pastEdge: () => string[] };
+    __pageHarness?: { unanswered: string[]; calls: string[]; pastEdge: () => string[] };
   }
 }
 
@@ -36,7 +36,11 @@ export async function mountPageHarness(
   );
   mockWindows("main");
   mockIPC(ipc.handle, { shouldMockEvents: true });
-  window.__pageHarness = { unanswered: ipc.unanswered, pastEdge: () => elementsPastEdge(root) };
+  window.__pageHarness = {
+    unanswered: ipc.unanswered,
+    calls: ipc.calls,
+    pastEdge: () => elementsPastEdge(root),
+  };
 
   const manager = gameState.manager;
   const reactRoot = ReactDOM.createRoot(root);

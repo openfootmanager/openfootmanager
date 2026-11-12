@@ -1,18 +1,8 @@
 import type { NegotiationFeedbackPanelData } from "../NegotiationFeedbackPanel";
 import { formatExactMoney } from "../../lib/helpers";
 
-export interface RenewalProjection {
-  current_annual_wage_bill: number;
-  projected_annual_wage_bill: number;
-  annual_wage_budget: number;
-  annual_soft_cap: number;
-  current_weekly_wage_spend: number;
-  projected_weekly_wage_spend: number;
-  current_cash_runway_weeks: number | null;
-  projected_cash_runway_weeks: number | null;
-  currently_over_budget: boolean;
-  policy_allows: boolean;
-}
+export type { RenewalProjection } from "../../services/contractService";
+import type { RenewalProjection } from "../../services/contractService";
 
 export type NegotiationFeedbackData = NegotiationFeedbackPanelData;
 
