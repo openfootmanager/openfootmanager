@@ -185,8 +185,8 @@ pub async fn get_potential_opinion(
 }
 
 /// One player's career for his profile: his seasons at each club newest first with every move
-/// written where it happened, the same rows summed by club, and his totals; null for an id no
-/// active player has. The projection is `ofm_core::player_career`: the screen draws it as given.
+/// written where it happened, the same rows summed by club, and his totals; an archived retiree's
+/// is his saved seasons; null for an id neither an active player nor a retiree has. The projection is `ofm_core::player_career`: the screen draws it as given.
 #[tauri::command]
 pub async fn get_player_career(
     state: State<'_, Arc<StateManager>>,
@@ -201,10 +201,12 @@ fn get_player_career_internal(
 ) -> Result<Option<PlayerCareer>, String> {
     state
         .get_game(|game| {
-            game.players
-                .iter()
-                .find(|player| player.id == player_id)
-                .map(|player| player_career(game, player))
+            if let Some(player) = game.players.iter().find(|player| player.id == player_id) {
+                return Some(player_career(game, player));
+            }
+            // An archived retiree keeps his saved seasons: his profile still shows them.
+            ofm_core::retirees::find_retiree(game, player_id)
+                .map(|retiree| player_career(game, &retiree))
         })
         .ok_or_else(|| NO_ACTIVE_GAME.to_string())
 }

@@ -535,13 +535,17 @@ pub fn player_career(game: &Game, player: &Player) -> PlayerCareer {
             in_progress: false,
         })
         .collect();
-    rows.extend(in_progress_rows(
-        &player.season_stints,
-        &player.stats,
-        seasons.current,
-        &club_id,
-        &club_name,
-    ));
+    // A retired player has no season in progress: whatever stats he kept are his last season's,
+    // already in his career rows.
+    if !player.retired {
+        rows.extend(in_progress_rows(
+            &player.season_stints,
+            &player.stats,
+            seasons.current,
+            &club_id,
+            &club_name,
+        ));
+    }
     build_career(
         &rows,
         &player.movement_history,
