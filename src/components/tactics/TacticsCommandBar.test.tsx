@@ -438,13 +438,8 @@ describe("TacticsCommandBar", () => {
       await waitFor(() => expect(props.onRename).toHaveBeenCalledWith("custom:1", "Away"));
     });
 
-    /**
-     * Given the rename dialog open and the save's answer still out
-     * When Escape is pressed and the backdrop is clicked
-     * Then the dialog stays open (a dialog whose answer is to come cannot be closed under it), and it
-     *      closes when the save accepts the name.
-     */
-    it("stays open while the save is out, and closes once it accepts the name", async () => {
+    /** The rename dialog open, "Rename" pressed, and the save's answer held until `accept()`. */
+    async function openWithTheSaveOut() {
       let accept!: () => void;
       const onRename = vi.fn().mockReturnValue(
         new Promise<null>((resolve) => {
@@ -455,12 +450,57 @@ describe("TacticsCommandBar", () => {
       openRename();
       fireEvent.click(screen.getByRole("button", { name: "tactics.renameTacticConfirm" }));
       await waitFor(() => expect(onRename).toHaveBeenCalled());
+      return accept;
+    }
+
+    /**
+     * Given the rename dialog open and the save's answer still out
+     * When Escape is pressed
+     * Then the dialog stays open (a dialog whose answer is to come cannot be closed under it), and it
+     *      closes when the save accepts the name.
+     */
+    it("stays open on Escape while the save is out, and closes once it accepts the name", async () => {
+      const accept = await openWithTheSaveOut();
 
       fireEvent.keyDown(window, { key: "Escape" });
-      fireEvent.click(screen.getByTestId("dialog-backdrop"));
 
       expect(screen.getByRole("dialog", { name: "tactics.renameTacticTitle" })).toBeInTheDocument();
       await act(async () => accept());
+      await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    });
+
+    /**
+     * Given the rename dialog open and the save's answer still out
+     * When the backdrop is pressed and released (a mouse down on it, then the click: the dialog only
+     *      closes on a click that began on the backdrop)
+     * Then the dialog stays open until the save has answered.
+     */
+    it("stays open on a backdrop click while the save is out", async () => {
+      const accept = await openWithTheSaveOut();
+      const backdrop = screen.getByTestId("dialog-backdrop");
+
+      fireEvent.mouseDown(backdrop);
+      fireEvent.click(backdrop);
+
+      expect(screen.getByRole("dialog", { name: "tactics.renameTacticTitle" })).toBeInTheDocument();
+      await act(async () => accept());
+      await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    });
+
+    /**
+     * Given the rename dialog open and no save out
+     * When the backdrop is pressed and released
+     * Then the dialog closes: the backdrop does dismiss it when nothing is in flight (so the test above
+     *      is about the save, not about a backdrop that never closes anything).
+     */
+    it("closes on a backdrop click when no save is out", async () => {
+      renderCommandBar();
+      openRename();
+      const backdrop = screen.getByTestId("dialog-backdrop");
+
+      fireEvent.mouseDown(backdrop);
+      fireEvent.click(backdrop);
+
       await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
     });
 
