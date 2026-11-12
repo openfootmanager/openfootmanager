@@ -751,6 +751,51 @@
       }
     },
     {
+      "name": "a friendly report with no scorers has no goals section",
+      "kind": "article",
+      "input": {
+        "id": "report_4",
+        "headline_key": "be.news.matchReport.reportFriendly.title",
+        "body_key": "be.news.matchReport.reportFriendly.body",
+        "source_key": "be.source.footballHerald",
+        "i18n_params": {
+          "home": "East",
+          "away": "West",
+          "homeGoals": "0",
+          "awayGoals": "0",
+          "scorers": "",
+          "scorersSection": "",
+          "scorersData": "[]"
+        }
+      },
+      "expected": {
+        "headline": "East 0 - 0 West: Friendly report",
+        "body": "In friendly action, East 0 - 0 West. Both sides used the fixture to build sharpness before the competitive campaign.",
+        "source": "The Football Herald"
+      }
+    },
+    {
+      "name": "a press conference whose quotes carry response keys reads them in English, not in the fallback's language",
+      "kind": "article",
+      "input": {
+        "id": "press_3",
+        "headline_key": "be.news.pressConference.headlinePressConf",
+        "body_key": "be.news.pressConference.bodyMultiple",
+        "source_key": "be.source.leagueWire",
+        "i18n_params": {
+          "team": "North",
+          "result": "2-1",
+          "quote": "Os jogadores trabalharam muito. Preparámos bem e executámos o plano de jogo.",
+          "quotesData": "[{\"key\":\"match.press.result.responses.win.humble.text\",\"fallback\":\"Os jogadores trabalharam muito. Preparámos bem e executámos o plano de jogo.\"},{\"key\":\"match.press.playerFocus.responses.praise.text\",\"fallback\":\"J. Doe tem sido fantástico. É um jogador-chave para nós.\",\"params\":{\"playerName\":\"J. Doe\"}}]"
+        }
+      },
+      "expected": {
+        "headline": "Press Conference: \"The players worked hard. We prepared well and executed the game plan.\" — North boss",
+        "body": "Speaking after the 2-1 result, the North manager addressed the press.\n\n• \"The players worked hard. We prepared well and executed the game plan.\"\n• \"J. Doe has been fantastic. They're a key player for us and their work rate is exemplary.\"\n\nThe conference covered the result, tactical approach, and what lies ahead for the team.",
+        "source": "League Wire"
+      }
+    },
+    {
       "name": "a transfer roundup lays out its deals with the fee compact",
       "kind": "article",
       "input": {
