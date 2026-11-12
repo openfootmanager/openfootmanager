@@ -188,6 +188,8 @@ let savedTacticDifferences = {
   roles: false,
   takers: false,
 };
+/** When set, the faked backend answers how the tactic differs from a saved one only once this resolves. */
+let savedTacticDifferencesGate: Promise<void> | null = null;
 /** Whether the faked backend fails when asked how the tactic differs from a saved one. */
 let savedTacticDifferencesFail = false;
 /** When set, the faked save answers `list_custom_tactics` only once this resolves. */
@@ -219,6 +221,7 @@ function fakeBackend(failPreset = false) {
       return { captain: "m1", penalty_taker: "f1", free_kick_taker: "m1", corner_taker: "d1" };
     }
     if (command === "get_custom_tactic_differences") {
+      if (savedTacticDifferencesGate) await savedTacticDifferencesGate;
       if (savedTacticDifferencesFail) throw new Error("the save did not answer");
       return { ...savedTacticDifferences };
     }
@@ -314,6 +317,7 @@ describe("TacticsTab preset selection", { timeout: TACTICS_TAB_CASE_TIMEOUT_MS }
     savedTactics = [];
     libraryListGate = null;
     savedTacticDifferencesFail = false;
+    savedTacticDifferencesGate = null;
     savedTacticDifferences = {
       formation: false,
       playStyle: false,
@@ -487,6 +491,43 @@ describe("TacticsTab preset selection", { timeout: TACTICS_TAB_CASE_TIMEOUT_MS }
 
     expect(await screen.findByText("Unsaved changes")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Update tactic" })).toBeEnabled();
+  });
+
+  /**
+   * Given a saved tactic chosen, and the backend's answer to how the team's tactic differs from it
+   *       still pending
+   * When the screen shows the badge
+   * Then it does not read Synced and Update tactic is on (a pending question is not a clean answer);
+   *      once the backend answers that nothing differs, it reads Synced and Update is off.
+   */
+  it("does not call a saved tactic synced while the comparison is pending", async () => {
+    seedSavedTactics([
+      {
+        id: "custom:saved",
+        name: "Saved custom",
+        description: "",
+        formation: "4-4-2",
+        playStyle: "Balanced",
+      },
+    ]);
+    let answer!: () => void;
+    savedTacticDifferencesGate = new Promise<void>((resolve) => {
+      answer = resolve;
+    });
+    fakeBackend();
+    render(<ControlledTacticsTab />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Choose tactic" }));
+    fireEvent.click(await screen.findByRole("option", { name: /Saved custom/ }));
+
+    expect(await screen.findByText("Unsaved changes")).toBeInTheDocument();
+    expect(screen.queryByText("Synced")).toBeNull();
+    expect(screen.getByRole("button", { name: "Update tactic" })).toBeEnabled();
+
+    answer();
+
+    expect(await screen.findByText("Synced")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Update tactic" })).toBeDisabled();
   });
 
   /**
