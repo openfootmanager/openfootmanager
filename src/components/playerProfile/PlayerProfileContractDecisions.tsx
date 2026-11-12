@@ -1,5 +1,6 @@
 import { formatExactMoney } from "../../lib/helpers";
 import type { PlayerData } from "../../store/gameStore";
+import { resolveTranslatedErrorMessage } from "../../utils/errorMessage";
 import { Button, Card, CardBody, CardHeader } from "../ui";
 import { terminationBlockedBy } from "./PlayerProfile.contract";
 import { formatPlayerWage, formatProfileDay } from "./PlayerProfile.helpers";
@@ -164,6 +165,10 @@ function Terminate({
   const blocked = terminationBlockedBy(player);
   const termination = data.termination.status === "answered" ? data.termination.value : null;
   const squadUnsafe = termination !== null && !termination.squad_safety.can_field_matchday_squad;
+  // The floor is a second, separate refusal: a club can field its XI today and still be unable to
+  // let him go. The backend sends the reason as the error it would refuse with.
+  const floorRefusal = termination?.squad_floor_refusal ?? null;
+  const releaseRefused = squadUnsafe || floorRefusal !== null;
   const panel =
     blocked === "no_contract" ? (
       <p className="text-body text-fg-muted">{t(`${SECTION}.terminateNoContract`)}</p>
@@ -195,6 +200,9 @@ function Terminate({
           {squadUnsafe ? (
             <p className="text-body text-danger">{t("playerProfile.terminationUnsafe")}</p>
           ) : null}
+          {floorRefusal !== null ? (
+            <p className="text-body text-danger">{resolveTranslatedErrorMessage(floorRefusal)}</p>
+          ) : null}
         </>
       }
     >
@@ -202,7 +210,7 @@ function Terminate({
         variant="outline"
         size="sm"
         className="w-full border-danger hover:bg-danger-tint hover:border-danger"
-        disabled={actionSubmitting || blocked !== null || squadUnsafe}
+        disabled={actionSubmitting || blocked !== null || releaseRefused}
         onClick={onOpenTermination}
       >
         <span className="text-danger">{t("playerProfile.terminateContract")}</span>
