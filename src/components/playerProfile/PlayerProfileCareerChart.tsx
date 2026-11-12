@@ -49,11 +49,14 @@ const METRIC_KEYS: Record<ChartMetric, string> = {
 
 function Readout({
   bar,
+  isFirst,
   language,
   onOpenTeam,
   t,
 }: {
   bar: ChartBar;
+  /** The first bar of the career: its moves are counted from joining, not from a previous spell. */
+  isFirst: boolean;
   language: string;
   onOpenTeam?: (teamId: string) => void;
   t: TranslateFn;
@@ -86,7 +89,9 @@ function Readout({
       </dl>
       {bar.movesBefore.length > 0 ? (
         <div className="text-caption text-fg-muted">
-          <p className="font-semibold">{t(`${SECTION}.careerChartMovesBefore`)}</p>
+          <p className="font-semibold">
+            {t(`${SECTION}.careerChartMoves${isFirst ? "First" : "Since"}`)}
+          </p>
           <ul className="flex flex-col gap-1">
             {bar.movesBefore.map((move) => (
               <li key={move.key}>{moveSummary(move, language, t)}</li>
@@ -94,7 +99,9 @@ function Readout({
           </ul>
         </div>
       ) : (
-        <p className="text-caption text-fg-muted">{t(`${SECTION}.careerChartNoMove`)}</p>
+        <p className="text-caption text-fg-muted">
+          {t(`${SECTION}.careerChartNoMove${isFirst ? "First" : "Since"}`)}
+        </p>
       )}
     </section>
   );
@@ -261,7 +268,13 @@ export default function PlayerProfileCareerChart({
             </div>
           </div>
         </div>
-        <Readout bar={selected} language={language} onOpenTeam={onOpenTeam} t={t} />
+        <Readout
+          bar={selected}
+          isFirst={index === 0}
+          language={language}
+          onOpenTeam={onOpenTeam}
+          t={t}
+        />
       </div>
     </div>
   );
