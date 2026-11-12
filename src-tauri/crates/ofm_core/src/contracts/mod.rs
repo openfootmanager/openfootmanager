@@ -150,6 +150,10 @@ pub struct ContractTerminationPreview {
     pub player_name: String,
     pub severance_cost: i64,
     pub squad_safety: SquadSafetyReport,
+    /// Why the squad floor would refuse this release, as the translation-key error
+    /// `terminate_contract_now` returns; `None` when the club keeps the floor.
+    #[serde(default)]
+    pub squad_floor_refusal: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]

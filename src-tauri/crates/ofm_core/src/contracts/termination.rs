@@ -78,6 +78,7 @@ pub fn preview_contract_termination(
         player_name: player.match_name.clone(),
         severance_cost: termination_severance_cost(player, current_date),
         squad_safety: project_user_team_release_safety(game, player_id)?,
+        squad_floor_refusal: None,
     })
 }
 

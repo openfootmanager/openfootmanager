@@ -383,6 +383,7 @@ mod tests {
                         can_field_matchday_squad: false,
                         missing_reasons: vec![SquadSafetyIssue::IncompleteFormation],
                     },
+                    squad_floor_refusal: None,
                 },
             },
         );
