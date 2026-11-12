@@ -815,6 +815,356 @@
         "body": "The transfer market stayed busy this week. 2 completed deal(s) stood out across the division.\n\n  J. Doe: North -> South (€12.5M)\n  A. Roe: East -> West (€800K)",
         "source": "Transfer Intelligence"
       }
+    },
+    {
+      "name": "a nationality param that is an ISO country code reads as the country's name",
+      "kind": "message",
+      "input": {
+        "id": "intl_callup_0",
+        "subject_key": "be.msg.intlCallup.subject",
+        "body_key": "be.msg.intlCallup.body",
+        "i18n_params": {
+          "player": "J. Doe",
+          "nationality": "BR"
+        }
+      },
+      "expected": {
+        "subject": "International Call-Up — J. Doe",
+        "body": "J. Doe has been called up to the Brazil national team for an upcoming international window.\n\nThis is a great honor for the player and reflects well on the club. They'll be in good spirits when they return, though keep an eye on their fatigue levels.",
+        "sender": "",
+        "sender_role": "",
+        "actions": []
+      }
+    },
+    {
+      "name": "a nationality param that is a football identity code reads as the country's name",
+      "kind": "message",
+      "input": {
+        "id": "intl_callup_1",
+        "subject_key": "be.msg.intlCallup.subject",
+        "body_key": "be.msg.intlCallup.body",
+        "i18n_params": {
+          "player": "J. Doe",
+          "nationality": "ENG"
+        }
+      },
+      "expected": {
+        "subject": "International Call-Up — J. Doe",
+        "body": "J. Doe has been called up to the England national team for an upcoming international window.\n\nThis is a great honor for the player and reflects well on the club. They'll be in good spirits when they return, though keep an eye on their fatigue levels.",
+        "sender": "",
+        "sender_role": "",
+        "actions": []
+      }
+    },
+    {
+      "name": "a nationality param that is an alias in lower case reads as the country's name",
+      "kind": "message",
+      "input": {
+        "id": "intl_callup_2",
+        "subject_key": "be.msg.intlCallup.subject",
+        "body_key": "be.msg.intlCallup.body",
+        "i18n_params": {
+          "player": "J. Doe",
+          "nationality": "england"
+        }
+      },
+      "expected": {
+        "subject": "International Call-Up — J. Doe",
+        "body": "J. Doe has been called up to the England national team for an upcoming international window.\n\nThis is a great honor for the player and reflects well on the club. They'll be in good spirits when they return, though keep an eye on their fatigue levels.",
+        "sender": "",
+        "sender_role": "",
+        "actions": []
+      }
+    },
+    {
+      "name": "a nationality param that is an alias in mixed case reads as the country's name",
+      "kind": "message",
+      "input": {
+        "id": "intl_callup_3",
+        "subject_key": "be.msg.intlCallup.subject",
+        "body_key": "be.msg.intlCallup.body",
+        "i18n_params": {
+          "player": "J. Doe",
+          "nationality": "united Kingdom"
+        }
+      },
+      "expected": {
+        "subject": "International Call-Up — J. Doe",
+        "body": "J. Doe has been called up to the United Kingdom national team for an upcoming international window.\n\nThis is a great honor for the player and reflects well on the club. They'll be in good spirits when they return, though keep an eye on their fatigue levels.",
+        "sender": "",
+        "sender_role": "",
+        "actions": []
+      }
+    },
+    {
+      "name": "a nationality param that is an English country name reads as the country's name",
+      "kind": "message",
+      "input": {
+        "id": "intl_callup_4",
+        "subject_key": "be.msg.intlCallup.subject",
+        "body_key": "be.msg.intlCallup.body",
+        "i18n_params": {
+          "player": "J. Doe",
+          "nationality": "Germany"
+        }
+      },
+      "expected": {
+        "subject": "International Call-Up — J. Doe",
+        "body": "J. Doe has been called up to the Germany national team for an upcoming international window.\n\nThis is a great honor for the player and reflects well on the club. They'll be in good spirits when they return, though keep an eye on their fatigue levels.",
+        "sender": "",
+        "sender_role": "",
+        "actions": []
+      }
+    },
+    {
+      "name": "a nationality param that is a demonym written as the old saves wrote it reads as the country's name",
+      "kind": "message",
+      "input": {
+        "id": "intl_callup_5",
+        "subject_key": "be.msg.intlCallup.subject",
+        "body_key": "be.msg.intlCallup.body",
+        "i18n_params": {
+          "player": "J. Doe",
+          "nationality": "Argentine"
+        }
+      },
+      "expected": {
+        "subject": "International Call-Up — J. Doe",
+        "body": "J. Doe has been called up to the Argentina national team for an upcoming international window.\n\nThis is a great honor for the player and reflects well on the club. They'll be in good spirits when they return, though keep an eye on their fatigue levels.",
+        "sender": "",
+        "sender_role": "",
+        "actions": []
+      }
+    },
+    {
+      "name": "a nationality param that is a demonym in a case the screen does not read reads as the country's name",
+      "kind": "message",
+      "input": {
+        "id": "intl_callup_6",
+        "subject_key": "be.msg.intlCallup.subject",
+        "body_key": "be.msg.intlCallup.body",
+        "i18n_params": {
+          "player": "J. Doe",
+          "nationality": "brazilian"
+        }
+      },
+      "expected": {
+        "subject": "International Call-Up — J. Doe",
+        "body": "J. Doe has been called up to the brazilian national team for an upcoming international window.\n\nThis is a great honor for the player and reflects well on the club. They'll be in good spirits when they return, though keep an eye on their fatigue levels.",
+        "sender": "",
+        "sender_role": "",
+        "actions": []
+      }
+    },
+    {
+      "name": "a nationality param that is a value that is no country reads as the country's name",
+      "kind": "message",
+      "input": {
+        "id": "intl_callup_7",
+        "subject_key": "be.msg.intlCallup.subject",
+        "body_key": "be.msg.intlCallup.body",
+        "i18n_params": {
+          "player": "J. Doe",
+          "nationality": "Atlantis"
+        }
+      },
+      "expected": {
+        "subject": "International Call-Up — J. Doe",
+        "body": "J. Doe has been called up to the Atlantis national team for an upcoming international window.\n\nThis is a great honor for the player and reflects well on the club. They'll be in good spirits when they return, though keep an eye on their fatigue levels.",
+        "sender": "",
+        "sender_role": "",
+        "actions": []
+      }
+    },
+    {
+      "name": "a promotion names the division from its key, country and season",
+      "kind": "message",
+      "input": {
+        "id": "promotion_2027",
+        "subject_key": "be.msg.promotion.subject",
+        "body_key": "be.msg.promotion.body",
+        "i18n_params": {
+          "division": "Germany Second Division",
+          "season": "2027",
+          "divisionKey": "tournaments.competitions.secondDivision",
+          "divisionSeason": "2027",
+          "divisionCountry": "DE"
+        }
+      },
+      "expected": {
+        "subject": "Promoted to the Germany Second Division!",
+        "body": "Congratulations! The club has earned promotion and will play in the Germany Second Division in Season 2027.\n\nThe board is thrilled with this achievement. Let's make sure we are ready for the step up.",
+        "sender": "",
+        "sender_role": "",
+        "actions": []
+      }
+    },
+    {
+      "name": "a relegation names a numbered division, and one whose country has no name of its own",
+      "kind": "message",
+      "input": {
+        "id": "relegation_2027",
+        "subject_key": "be.msg.relegation.subject",
+        "body_key": "be.msg.relegation.body",
+        "i18n_params": {
+          "division": "Xland League",
+          "season": "2027",
+          "divisionKey": "tournaments.competitions.league",
+          "divisionSeason": "2027",
+          "divisionCountry": "XL"
+        }
+      },
+      "expected": {
+        "subject": "Relegated to the XL League",
+        "body": "The club has been relegated and will play in the XL League in Season 2027.\n\nThe board is deeply disappointed. An immediate push for promotion is expected.",
+        "sender": "",
+        "sender_role": "",
+        "actions": []
+      }
+    },
+    {
+      "name": "a promotion whose division has no key keeps the stored name",
+      "kind": "message",
+      "input": {
+        "id": "promotion_2028",
+        "subject_key": "be.msg.promotion.subject",
+        "body_key": "be.msg.promotion.body",
+        "i18n_params": {
+          "division": "The Premier Division",
+          "season": "2028"
+        }
+      },
+      "expected": {
+        "subject": "Promoted to the The Premier Division!",
+        "body": "Congratulations! The club has earned promotion and will play in the The Premier Division in Season 2028.\n\nThe board is thrilled with this achievement. Let's make sure we are ready for the step up.",
+        "sender": "",
+        "sender_role": "",
+        "actions": []
+      }
+    },
+    {
+      "name": "a promotion to a numbered division with no tier keeps the stored name",
+      "kind": "message",
+      "input": {
+        "id": "promotion_2029",
+        "subject_key": "be.msg.promotion.subject",
+        "body_key": "be.msg.promotion.body",
+        "i18n_params": {
+          "division": "Spain Division 3",
+          "season": "2029",
+          "divisionKey": "tournaments.competitions.tierDivision",
+          "divisionSeason": "2029",
+          "divisionCountry": "ES"
+        }
+      },
+      "expected": {
+        "subject": "Promoted to the Spain Division 3!",
+        "body": "Congratulations! The club has earned promotion and will play in the Spain Division 3 in Season 2029.\n\nThe board is thrilled with this achievement. Let's make sure we are ready for the step up.",
+        "sender": "",
+        "sender_role": "",
+        "actions": []
+      }
+    },
+    {
+      "name": "a competition report names the competition from its key, country and season",
+      "kind": "article",
+      "input": {
+        "id": "report_cup_1",
+        "headline_key": "be.news.matchReport.reportCompetition.title",
+        "body_key": "be.news.matchReport.reportCompetition.body",
+        "source_key": "be.source.footballHerald",
+        "i18n_params": {
+          "home": "North",
+          "away": "South",
+          "homeGoals": "3",
+          "awayGoals": "2",
+          "competition": "Germany Cup",
+          "competitionKey": "tournaments.competitions.nationalCup",
+          "competitionCountry": "DE",
+          "competitionSeason": "2026",
+          "scorers": "",
+          "scorersSection": "",
+          "scorersData": "[]"
+        }
+      },
+      "expected": {
+        "headline": "North 3 - 2 South: Match report (Germany Cup)",
+        "body": "Germany Cup: the match ended North 3 - 2 South.",
+        "source": "The Football Herald"
+      }
+    },
+    {
+      "name": "a competition report with no key keeps the stored competition name",
+      "kind": "article",
+      "input": {
+        "id": "report_cup_2",
+        "headline_key": "be.news.matchReport.reportCompetition.title",
+        "body_key": "be.news.matchReport.reportCompetition.body",
+        "source_key": "be.source.footballHerald",
+        "i18n_params": {
+          "home": "East",
+          "away": "West",
+          "homeGoals": "1",
+          "awayGoals": "1",
+          "competition": "The Shield",
+          "scorers": "",
+          "scorersSection": "",
+          "scorersData": "[]"
+        }
+      },
+      "expected": {
+        "headline": "East 1 - 1 West: Match report (The Shield)",
+        "body": "The Shield: the match ended East 1 - 1 West.",
+        "source": "The Football Herald"
+      }
+    },
+    {
+      "name": "a season-awards winner at no club, by any of its spellings, is a free agent",
+      "kind": "article",
+      "input": {
+        "id": "awards_1",
+        "headline_key": "be.news.seasonAwards.headline",
+        "body_key": "be.news.seasonAwards.bodyBoth",
+        "source_key": "be.source.leagueChronicle",
+        "i18n_params": {
+          "season": "2026",
+          "goldenBootWinner": "J. Doe",
+          "goldenBootTeam": "",
+          "goldenBootGoals": "24",
+          "potyWinner": "A. Roe",
+          "potyTeam": "Free Agent",
+          "potyRating": "7.9"
+        }
+      },
+      "expected": {
+        "headline": "Season 2026 Awards",
+        "body": "Season 2026 concluded with J. Doe (Free Agent) lifting the Golden Boot with 24 goals. Player of the Year went to A. Roe (Free Agent) with an average rating of 7.9.",
+        "source": "League Chronicle"
+      }
+    },
+    {
+      "name": "a season-awards winner at a club keeps the club's name",
+      "kind": "article",
+      "input": {
+        "id": "awards_2",
+        "headline_key": "be.news.seasonAwards.headline",
+        "body_key": "be.news.seasonAwards.bodyBoth",
+        "source_key": "be.source.leagueChronicle",
+        "i18n_params": {
+          "season": "2026",
+          "goldenBootWinner": "J. Doe",
+          "goldenBootTeam": "North",
+          "goldenBootGoals": "24",
+          "potyWinner": "A. Roe",
+          "potyTeam": "common.freeAgent",
+          "potyRating": "7.9"
+        }
+      },
+      "expected": {
+        "headline": "Season 2026 Awards",
+        "body": "Season 2026 concluded with J. Doe (North) lifting the Golden Boot with 24 goals. Player of the Year went to A. Roe (Free Agent) with an average rating of 7.9.",
+        "source": "League Chronicle"
+      }
     }
   ]
 }
