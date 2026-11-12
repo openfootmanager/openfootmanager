@@ -239,7 +239,8 @@ fn termination_preview(
                 })
                 .collect(),
         },
-        squad_floor_refusal: None,
+        // The key `contract_terminate` is refused with, so the preview and the action agree.
+        squad_floor_refusal: preview.squad_floor_refusal,
     }
 }
 

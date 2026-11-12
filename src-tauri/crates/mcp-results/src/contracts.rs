@@ -230,6 +230,12 @@ impl fmt::Display for TerminationPreview {
                 write!(f, "{label}")?;
             }
         }
+        if let Some(refusal) = &self.squad_floor_refusal {
+            write!(
+                f,
+                "\n**Squad Floor**: this release would be refused: {refusal}"
+            )?;
+        }
         write!(f, "\n\nThis is a preview — no contract was terminated.")
     }
 }
