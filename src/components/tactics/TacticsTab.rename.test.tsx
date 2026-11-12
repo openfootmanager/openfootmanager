@@ -54,6 +54,10 @@ async function chooseTheSavedTactic() {
   render(<ControlledTacticsTab />);
   fireEvent.click(screen.getByRole("button", { name: "Choose tactic" }));
   fireEvent.click(await screen.findByRole("option", { name: /Saved custom/ }));
+  // Applying a saved tactic is asynchronous, and Rename is off until it is the active one.
+  await waitFor(() =>
+    expect(screen.getByRole("button", { name: "Choose tactic" })).toHaveTextContent("Saved custom"),
+  );
 }
 
 describe("TacticsTab rename", { timeout: TACTICS_TAB_CASE_TIMEOUT_MS }, () => {
