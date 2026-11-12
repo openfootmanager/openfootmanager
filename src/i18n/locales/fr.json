@@ -1891,7 +1891,7 @@
       "lastSigned": "Dernière signature",
       "billLabel": "Masse salariale",
       "budgetLabel": "Budget salarial utilisé",
-      "runwayLabel": "Trésorerie disponible",
+      "runwayLabel": "Autonomie de trésorerie",
       "shareLabel": "Sa part de la masse salariale",
       "renewWhat": "Vous proposez un salaire et une durée, et il répond.",
       "letExpireWhat": "Il continue de jouer, puis part libre. Les négociations peuvent être rouvertes d'ici là.",

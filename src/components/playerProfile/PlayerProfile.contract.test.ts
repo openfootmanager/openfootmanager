@@ -82,12 +82,13 @@ describe("clubStateKey", () => {
   });
   const SQUAD = [member({ id: "a" }), member({ id: "b" })];
   const STAFF = [aide({ id: "s1" })];
-  const TEAMS = [{ id: "mine", wage_budget: 900_000 }];
+  const TEAM = { id: "mine", wage_budget: 900_000, formation: "4-4-2", finance: 5_000_000 };
+  const TEAMS = [TEAM];
   const key = (
     patch: Partial<{
       players: PlayerData[];
       staff: StaffData[];
-      teams: { id: string; wage_budget: number }[];
+      teams: (typeof TEAM)[];
     }> = {},
   ) => clubStateKey({ players: SQUAD, staff: STAFF, teams: TEAMS, ...patch }, "mine");
 
@@ -128,7 +129,10 @@ describe("clubStateKey", () => {
     ["a staff hire", { staff: [...STAFF, aide({ id: "s2", wage: 3_000 })] }],
     ["a staff dismissal", { staff: [] }],
     ["a staff member's new wage", { staff: [aide({ id: "s1", wage: 4_000 })] }],
-    ["a new wage budget", { teams: [{ id: "mine", wage_budget: 950_000 }] }],
+    ["a new wage budget", { teams: [{ ...TEAM, wage_budget: 950_000 }] }],
+    // The squad-safety verdict reads the formation; the cash runway reads the club's cash.
+    ["a new formation", { teams: [{ ...TEAM, formation: "4-3-3" }] }],
+    ["a change in the club's cash alone", { teams: [{ ...TEAM, finance: 4_000_000 }] }],
   ])("changes with %s", (_what, patch) => {
     expect(key(patch)).not.toBe(key());
   });
