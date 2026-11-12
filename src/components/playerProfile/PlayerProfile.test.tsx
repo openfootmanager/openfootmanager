@@ -468,6 +468,11 @@ function defaultInvokeResponse(command: string) {
     return null;
   }
 
+  // The career is the backend's projection; an empty one for a profile that is not about it.
+  if (command === "get_player_career") {
+    return { by_season: [], by_club: [], totals: { appearances: 0, goals: 0, assists: 0 } };
+  }
+
   return createGameState(createPlayer());
 }
 
@@ -1026,39 +1031,65 @@ describe("PlayerProfile contract surfaces", () => {
     });
   });
 
-  it("renders player movement history from transfers and loans", async () => {
-    const player = createPlayer({
-      movement_history: [
-        {
-          date: "2026-08-01",
-          kind: "permanent_transfer",
-          from_team_id: "team-2",
-          from_team_name: "Beta FC",
-          to_team_id: "team-1",
-          to_team_name: "Alpha FC",
-          fee: 1_250_000,
-          loan_end_date: null,
-        },
-        {
-          date: "2027-01-01",
-          kind: "loan_return",
-          from_team_id: "team-3",
-          from_team_name: "Gamma FC",
-          to_team_id: "team-1",
-          to_team_name: "Alpha FC",
-          fee: null,
-          loan_end_date: "2027-01-01",
-        },
-      ],
+  it("draws the career the backend projects on the Career tab, its moves as lines", async () => {
+    const player = createPlayer();
+    vi.mocked(invoke).mockImplementation(async (command: string) => {
+      if (command === "get_player_career") {
+        return {
+          by_season: [
+            {
+              kind: "season",
+              key: "2026-team-1",
+              season: 2026,
+              club_id: "team-1",
+              club_name: "Alpha FC",
+              appearances: 12,
+              goals: 3,
+              assists: 2,
+              in_progress: true,
+              on_loan: false,
+            },
+            {
+              kind: "move",
+              key: "move-1",
+              date: "2026-08-01",
+              movement: "permanent_transfer",
+              from_club_name: "Beta FC",
+              to_club_name: "Alpha FC",
+              fee: 1_250_000,
+              loan_end: null,
+            },
+            {
+              kind: "season",
+              key: "2025-team-2",
+              season: 2025,
+              club_id: "team-2",
+              club_name: "Beta FC",
+              appearances: 30,
+              goals: 9,
+              assists: 4,
+              in_progress: false,
+              on_loan: false,
+            },
+          ],
+          by_club: [],
+          totals: { appearances: 42, goals: 12, assists: 6 },
+        };
+      }
+      return defaultInvokeResponse(command);
     });
 
-    render(<PlayerProfile player={player} gameState={createGameState(player)} isOwnClub />);
+    renderOnTab(
+      "Career tab",
+      <PlayerProfile player={player} gameState={createGameState(player)} isOwnClub />,
+    );
 
-    expect(screen.getByText("Movement History")).toBeInTheDocument();
-    expect(screen.getByText("Gamma FC -> Alpha FC")).toBeInTheDocument();
-    expect(screen.getByText("Beta FC -> Alpha FC")).toBeInTheDocument();
-    expect(screen.getByText("Fee €1,250,000")).toBeInTheDocument();
-    expect(screen.getByText("Loan until Jan 1, 2027")).toBeInTheDocument();
+    // The career arrives after the tab opens: the move is a line of the table, with its fee (the
+    // file's translator answers a key it does not know with the key).
+    expect(await screen.findByText(/playerProfile\.careerMove\.transferFrom/)).toHaveTextContent(
+      "€1,250,000",
+    );
+    expect(screen.getByText("2025/26")).toBeInTheDocument();
   });
 
   it("validates renewal offers before submission", async () => {

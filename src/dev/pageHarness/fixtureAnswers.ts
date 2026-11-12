@@ -111,6 +111,7 @@ function profileHandlers(profile: HarnessProfile): CommandHandlers {
     },
     get_retired_player: ({ playerId }) => about(playerId, answer.retiredPlayer),
     get_player_stats_overview: ({ playerId }) => about(playerId, answer.seasonStats),
+    get_player_career: ({ playerId }) => about(playerId, answer.career),
     // The page asks for its last `limit` matches, latest first.
     get_player_match_history: ({ playerId, limit }) =>
       about(

@@ -144,6 +144,26 @@ async function answer(command: string) {
     };
   }
   if (command === "get_player_match_history") return [];
+  // The backend answers a retiree's saved seasons as his career, with none in progress.
+  if (command === "get_player_career") {
+    const rows = retiree.career.map((entry, index) => ({
+      kind: "season" as const,
+      key: `${entry.season}-${entry.team_id}-${index}`,
+      season: entry.season,
+      club_id: entry.team_id,
+      club_name: entry.team_name,
+      appearances: entry.appearances,
+      goals: entry.goals,
+      assists: entry.assists,
+      in_progress: false,
+      on_loan: false,
+    }));
+    return {
+      by_season: rows,
+      by_club: [],
+      totals: { appearances: 0, goals: 0, assists: 0 },
+    };
+  }
   return null;
 }
 
@@ -207,13 +227,15 @@ describe("the profile of a retired player", () => {
    * When his Career tab is opened
    * Then his career history is there to read
    */
-  it("keeps his career history readable", () => {
+  it("keeps his career history readable", async () => {
     renderRetiree();
 
     fireEvent.click(screen.getByRole("tab", { name: "Career" }));
 
+    // The career is the backend's answer, so it arrives after the tab opens.
     expect(
-      within(screen.getByRole("tabpanel", { name: "Career" })).getAllByText("Alpha FC").length,
+      (await within(screen.getByRole("tabpanel", { name: "Career" })).findAllByText("Alpha FC"))
+        .length,
     ).toBeGreaterThan(0);
   });
 
