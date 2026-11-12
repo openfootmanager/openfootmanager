@@ -38,6 +38,8 @@ pub(crate) struct PlayerSnap {
     pub injury_risk: f64,
     /// The factor on this player's match rating for the line he was picked from.
     pub familiarity: f64,
+    /// The factor on this player's match rating for his mood (`PlayerData::morale_factor`).
+    pub morale_factor: f64,
 }
 
 impl PlayerSnap {
@@ -74,6 +76,7 @@ impl PlayerSnap {
             role: PlayerRole::Standard,
             injury_risk: 1.0,
             familiarity: 1.0,
+            morale_factor: 1.0,
         }
     }
 
@@ -103,6 +106,7 @@ impl PlayerSnap {
             role: p.role,
             injury_risk: p.injury_risk,
             familiarity: p.familiarity_factor(),
+            morale_factor: p.morale_factor,
         }
     }
 
@@ -182,6 +186,29 @@ pub(crate) fn snap_from_squad<R: Rng>(
 /// substitute by it.
 pub(crate) fn condition_factor(condition: f64) -> f64 {
     0.6 + 0.4 * (condition / 100.0)
+}
+
+/// The most a player's mood may move his match rating either way. The caller's table is a few
+/// percent (ofm_core's is 3%); this is the room the engine allows it, so a table that is wrong
+/// cannot make a side unbeatable or hopeless.
+pub(crate) const MORALE_FACTOR_RANGE: (f64, f64) = (0.9, 1.1);
+
+/// `morale_factor` as the engine will use it: within `MORALE_FACTOR_RANGE`, and neutral for a value
+/// that is not a number. The neutral 1.0 comes back as exactly 1.0.
+pub(crate) fn clamp_morale_factor(morale_factor: f64) -> f64 {
+    if morale_factor.is_finite() {
+        morale_factor.clamp(MORALE_FACTOR_RANGE.0, MORALE_FACTOR_RANGE.1)
+    } else {
+        1.0
+    }
+}
+
+/// The factor on a player's match rating for what the caller knows about him that the engine cannot
+/// see: his `familiarity` with the line he plays in and his mood (`morale_factor`). The one place
+/// both engines apply them: the line averages of the instant engine and the live engine's duels
+/// and line averages. With a neutral mood it is exactly `familiarity`.
+pub(crate) fn rating_factor(familiarity: f64, morale_factor: f64) -> f64 {
+    familiarity * clamp_morale_factor(morale_factor)
 }
 
 pub(crate) fn trait_bonus(snap: &PlayerSnap, context: TraitContext) -> f64 {
@@ -889,6 +916,7 @@ mod emergency_keeper_tests {
             // Natural in his own line; in goal, half the player he is (a factor no real cost
             // reaches, so only the goalkeeping entry can produce it).
             line_familiarity: [0.5, 1.0, 1.0, 1.0],
+            morale_factor: 1.0,
             pace: 70,
             stamina: 70,
             strength: 70,
@@ -989,5 +1017,41 @@ mod forward_press_factor_tests {
 
         assert!(same(forward_press_factor(one.iter()), 1.0375));
         assert!(same(forward_press_factor(two.iter()), 1.075));
+    }
+}
+
+#[cfg(test)]
+mod rating_factor_tests {
+    use super::{MORALE_FACTOR_RANGE, rating_factor};
+
+    /// Given a neutral mood
+    /// When the rating factor is read
+    /// Then it is exactly the familiarity, bit for bit: a side that carries no morale plays as it
+    ///      always did
+    #[test]
+    fn a_neutral_mood_leaves_familiarity_exactly_as_it_was() {
+        for familiarity in [1.0, 0.9, 0.9666666666666667, 0.5] {
+            assert_eq!(rating_factor(familiarity, 1.0), familiarity);
+        }
+    }
+
+    /// Given a mood above or below neutral
+    /// When the rating factor is read
+    /// Then it is familiarity times mood: one factor for the two
+    #[test]
+    fn a_mood_multiplies_familiarity() {
+        assert!((rating_factor(0.9, 1.03) - 0.927).abs() < 1e-12);
+        assert!((rating_factor(1.0, 0.97) - 0.97).abs() < 1e-12);
+    }
+
+    /// Given a mood beyond what the engine allows, or one that is not a number
+    /// When the rating factor is read
+    /// Then the mood is held within the range, and a non-number counts as neutral
+    #[test]
+    fn a_mood_is_held_within_the_range_and_a_non_number_is_neutral() {
+        assert_eq!(rating_factor(1.0, 9.0), MORALE_FACTOR_RANGE.1);
+        assert_eq!(rating_factor(1.0, -1.0), MORALE_FACTOR_RANGE.0);
+        assert_eq!(rating_factor(1.0, f64::NAN), 1.0);
+        assert_eq!(rating_factor(1.0, f64::INFINITY), 1.0);
     }
 }

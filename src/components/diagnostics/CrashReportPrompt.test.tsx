@@ -38,7 +38,7 @@ describe("CrashReportPrompt", () => {
 
     const dialog = await screen.findByRole("dialog", { name: "crashPrompt.title" });
     expect(dialog).toHaveTextContent("crashPrompt.body");
-    expect(dialog).toHaveTextContent("October 2, 2026");
+    expect(dialog).toHaveTextContent("2 October 2026");
     expect(dialog).toHaveTextContent("0.3.0");
   });
 

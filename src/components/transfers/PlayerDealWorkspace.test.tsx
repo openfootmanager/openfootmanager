@@ -385,7 +385,7 @@ describe("saved player offers", () => {
     expect(within(history).getByText("Rejected")).toBeInTheDocument();
     expect(within(history).getByText("Round 1")).toBeInTheDocument();
     expect(within(history).getByText("€700,001")).toBeInTheDocument();
-    expect(within(history).getByText("Offer dated December 20, 2026.")).toBeInTheDocument();
+    expect(within(history).getByText("Offer dated 20 December 2026.")).toBeInTheDocument();
     expect(screen.getByText("Deal panel")).toBeInTheDocument();
   });
 
@@ -418,7 +418,7 @@ describe("saved player offers", () => {
     const history = screen.getByRole("region", { name: "Offer history" });
     expect(
       within(history).getByText(
-        "The terms are accepted. Registration is scheduled for January 2, 2027.",
+        "The terms are accepted. Registration is scheduled for 2 January 2027.",
       ),
     ).toBeInTheDocument();
     expect(within(history).getByText("€700,001")).toBeInTheDocument();
@@ -435,8 +435,8 @@ describe("saved player offers", () => {
       }),
     );
     const history = screen.getByRole("region", { name: "Offer history" });
-    expect(within(history).getByText("Loan 75% wages until June 30, 2027")).toBeInTheDocument();
-    expect(within(history).getByText("Loan starts on January 2, 2027.")).toBeInTheDocument();
+    expect(within(history).getByText("Loan 75% wages until 30 June 2027")).toBeInTheDocument();
+    expect(within(history).getByText("Loan starts on 2 January 2027.")).toBeInTheDocument();
     expect(within(history).getByText("Option €800,001")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Make Loan Offer" })).toBeDisabled();
     expect(screen.getByRole("button", { name: "Make Transfer Bid" })).toBeDisabled();

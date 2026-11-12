@@ -251,7 +251,7 @@ describe("formatProfileDay", () => {
    * Then each language writes it as it writes dates (short month, year), not as an ISO day
    */
   it("writes a day the way the language writes dates", () => {
-    expect(formatProfileDay("2033-06-30", "en")).toBe("Jun 30, 2033");
+    expect(formatProfileDay("2033-06-30", "en")).toBe("30 Jun 2033");
     expect(formatProfileDay("2033-06-30", "de")).toMatch(/30\.? ?Juni?\.? 2033|30\. Juni 2033/);
   });
 

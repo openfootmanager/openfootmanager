@@ -180,7 +180,7 @@
       },
       "expected": {
         "subject": "Loan agreed: P. Smith",
-        "body": "P. Smith will move on loan from North to South from August 1, 2026 until May 31, 2027. South will cover 50% of the wages. Purchase option: €4M.",
+        "body": "P. Smith will move on loan from North to South from 1 August 2026 until 31 May 2027. South will cover 50% of the wages. Purchase option: €4M.",
         "sender": "",
         "sender_role": "",
         "actions": []

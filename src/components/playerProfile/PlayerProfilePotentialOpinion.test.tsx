@@ -74,7 +74,7 @@ describe("PlayerProfilePotentialOpinion", () => {
     renderOpinion(scouted("Ann Scout", true));
 
     const region = within(opinionRegion("Scout's opinion"));
-    expect(region.getByText("Scouted by Ann Scout on September 1, 2026")).toBeInTheDocument();
+    expect(region.getByText("Scouted by Ann Scout on 1 September 2026")).toBeInTheDocument();
     expect(region.queryByText("Out of date")).not.toBeInTheDocument();
   });
 
@@ -99,7 +99,7 @@ describe("PlayerProfilePotentialOpinion", () => {
   it("gives the date alone when the report names no scout", () => {
     renderOpinion(scouted(null, true));
 
-    expect(screen.getByText("Scouted on September 1, 2026")).toBeInTheDocument();
+    expect(screen.getByText("Scouted on 1 September 2026")).toBeInTheDocument();
   });
 
   /**
