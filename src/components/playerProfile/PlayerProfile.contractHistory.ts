@@ -19,6 +19,8 @@ export interface ContractHistoryRow {
   source: ContractSource;
   /** The release that closed it, when one did and said why; `null` for a contract that was renewed or is in force. */
   endedBy: ReleaseReason | "retired" | null;
+  /** The day he was released or retired, when that closed it. */
+  endedOn: string | null;
   /** The day a later contract took over from it before its own end (a renewal signed early). */
   replacedOn: string | null;
   /** The contract he is on now: the last one, not closed by a release, and not yet past its end. */
@@ -47,6 +49,7 @@ export function buildContractHistory(
       const last = rows[rows.length - 1];
       if (last && !closed) {
         last.endedBy = entry.kind === "retired" ? "retired" : (entry.release_reason ?? null);
+        last.endedOn = entry.date;
         last.inForce = false;
         closed = true;
       }
@@ -72,6 +75,7 @@ export function buildContractHistory(
       weeklyWage: entry.contract.weekly_wage,
       source: entry.contract.source,
       endedBy: null,
+      endedOn: null,
       replacedOn: null,
       inForce: false,
     });

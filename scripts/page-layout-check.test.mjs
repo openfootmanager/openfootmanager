@@ -273,6 +273,51 @@ describe("page layout check", () => {
     expect(judge({ ...clean, tablesScroll: ["Your worlds"] })).toEqual([]);
   });
 
+  /**
+   * Given a case that asks its region to fit, and a measurement that found the region holding more
+   *       than it shows
+   * When the case is judged
+   * Then the region is named with its heights. (How it is measured is tested through the collector,
+   *      in page-layout-check.regions.test.mjs.)
+   */
+  it("names a region that overflows when the case asks it to fit", () => {
+    expect(judge({ ...clean, regionsFit: true, regionsOverflow: ["div (1180 > 640)"] })).toEqual([
+      "a region scrolls down inside the page: div (1180 > 640)",
+    ]);
+  });
+
+  /**
+   * Given a case that asks its region to fit, and a measurement that found no such region on the page
+   * When the case is judged
+   * Then it fails saying so, rather than passing because there was nothing to measure.
+   */
+  it("fails a case whose region is missing from the page", () => {
+    expect(judge({ ...clean, regionsFit: true, regionsMissing: true })).toEqual([
+      "no region on the page matches the case's fit selector",
+    ]);
+  });
+
+  /**
+   * Given a case that does not ask its region to fit, and a measurement with an overflowing region and
+   *       a missing one
+   * When the case is judged
+   * Then it passes: a list that scrolls in its panel is not judged by the gate.
+   */
+  it("does not judge a case that does not ask its region to fit", () => {
+    expect(
+      judge({ ...clean, regionsOverflow: ["div (1180 > 640)"], regionsMissing: true }),
+    ).toEqual([]);
+  });
+
+  /**
+   * Given a case that asks its region to fit, and a measurement of a region that fits
+   * When the case is judged
+   * Then it passes.
+   */
+  it("passes a case whose region fits", () => {
+    expect(judge({ ...clean, regionsFit: true, regionsOverflow: [] })).toEqual([]);
+  });
+
   /** Given a command the fixture didn't answer, or a page that never rendered, then it fails. */
   it("fails an unanswered command or a blank page", () => {
     expect(judge({ ...clean, unanswered: ["get_inbox"], rendered: false })).toEqual([

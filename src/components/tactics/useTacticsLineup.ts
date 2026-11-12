@@ -502,6 +502,8 @@ export function useTacticsLineup({ gameState, onGameUpdate, onWriteError }: UseT
     lineupReady: canGradeLineup,
     /** The one familiarity table the screen grades with (its count, its writers, its pitch). */
     familiarity,
+    // The backend's side, for the table's per-slot words (role, familiarity) and its groups.
+    lineup: backendLineup.lineup,
     team,
     formation,
     activePlayStyle,

@@ -850,6 +850,8 @@
     "unsavedChanges": "Alterações por guardar",
     "currentPlanCard": "Plano atual",
     "phaseBlueprint": "Plano por fases",
+    "reserves": "Reservas",
+    "playerTable": "Jogadores",
     "instructionsPanel": {
       "title": "Instruções da equipa",
       "show": "Mostrar as instruções da equipa",
@@ -1927,6 +1929,11 @@
       "renewClosedWhat": "As negociações do contrato estão encerradas. Reabre-as para o renovar.",
       "letExpireSetButton": "Definido para expirar",
       "replacedOn": "Substituído a {{date}}",
+      "overTime": "Contratos ao longo do tempo",
+      "overTimeNote": "Salário semanal de cada contrato. Um limite tracejado é um fim previsto que ainda não chegou.",
+      "overTimeNoteNoWage": "Um limite tracejado é um fim previsto que ainda não chegou.",
+      "overTimeLabel": "Cronologia dos seus contratos, com o dia de hoje assinalado",
+      "today": "Hoje",
       "yearsLeft": {
         "one": "{{years}} ano",
         "many": "{{years}} anos",

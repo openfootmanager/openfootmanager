@@ -850,6 +850,8 @@
     "unsavedChanges": "Ungespeicherte Änderungen",
     "currentPlanCard": "Aktueller Plan",
     "phaseBlueprint": "Phasenplan",
+    "reserves": "Reservisten",
+    "playerTable": "Spieler",
     "instructionsPanel": {
       "title": "Mannschaftsanweisungen",
       "show": "Mannschaftsanweisungen anzeigen",
@@ -1927,6 +1929,11 @@
       "renewClosedWhat": "Die Vertragsgespräche sind beendet. Öffne sie wieder, um ihn zu verlängern.",
       "letExpireSetButton": "Läuft aus",
       "replacedOn": "Ersetzt am {{date}}",
+      "overTime": "Verträge im Zeitverlauf",
+      "overTimeNote": "Wochengehalt je Vertrag. Ein gestrichelter Rand ist ein geplantes Ende, das noch nicht eingetreten ist.",
+      "overTimeNoteNoWage": "Ein gestrichelter Rand ist ein geplantes Ende, das noch nicht eingetreten ist.",
+      "overTimeLabel": "Zeitleiste seiner Verträge, mit markiertem heutigen Tag",
+      "today": "Heute",
       "yearsLeft": {
         "one": "{{years}} Jahr",
         "many": "{{years}} Jahre",

@@ -370,4 +370,42 @@ describe("buildContractHistory", () => {
 
     expect(rows[0].fromClubName).toBeNull();
   });
+
+  /**
+   * Given a contract closed by a termination in January 2031 and one closed by retirement
+   * When the history is built
+   * Then each row carries the day it was closed
+   */
+  it("records the day a release or a retirement closed a contract", () => {
+    const released = buildContractHistory(
+      [
+        signing("2029-07-01", "North FC", {
+          start: "2029-07-01",
+          end: "2033-06-30",
+          weekly_wage: 7000,
+        }),
+        {
+          date: "2031-01-10",
+          kind: "released",
+          from_team_id: "North FC",
+          release_reason: "terminated",
+        },
+      ],
+      TODAY,
+    );
+    const retired = buildContractHistory(
+      [
+        signing("2029-07-01", "North FC", {
+          start: "2029-07-01",
+          end: "2033-06-30",
+          weekly_wage: 7000,
+        }),
+        { date: "2031-06-30", kind: "retired", from_team_id: "North FC" },
+      ],
+      TODAY,
+    );
+
+    expect(released[0].endedOn).toBe("2031-01-10");
+    expect(retired[0].endedOn).toBe("2031-06-30");
+  });
 });

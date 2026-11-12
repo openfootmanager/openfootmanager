@@ -802,6 +802,8 @@
     "unsavedChanges": "Neuložené změny",
     "currentPlanCard": "Aktuální plán",
     "phaseBlueprint": "Plán herní fáze",
+    "reserves": "Rezervy",
+    "playerTable": "Hráči",
     "instructionsPanel": {
       "title": "Týmové pokyny",
       "show": "Zobrazit týmové pokyny",
@@ -1928,6 +1930,11 @@
       "renewClosedWhat": "Jednání o smlouvě jsou uzavřena. Znovu je otevřete, abyste ho mohli prodloužit.",
       "letExpireSetButton": "Nastaveno na vypršení",
       "replacedOn": "Nahrazena {{date}}",
+      "overTime": "Smlouvy v čase",
+      "overTimeNote": "Týdenní plat u každé smlouvy. Přerušovaný okraj je plánovaný konec, který ještě nenastal.",
+      "overTimeNoteNoWage": "Přerušovaný okraj je plánovaný konec, který ještě nenastal.",
+      "overTimeLabel": "Časová osa jeho smluv s vyznačeným dneškem",
+      "today": "Dnes",
       "yearsLeft": {
         "one": "{{years}} roku",
         "many": "{{years}} roku",
