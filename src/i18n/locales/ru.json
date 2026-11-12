@@ -1856,6 +1856,13 @@
       "releasedBy": "Отпущен из {{club}}",
       "retiredFrom": "Завершил карьеру в {{club}}"
     },
+    "careerViewChart": "График",
+    "careerChartTitle": "По сезонам",
+    "careerChartBar": "{{season}}, {{club}}: {{metric}} — {{value}}",
+    "careerChartReadout": "Выбранный сезон",
+    "careerChartNoMove": "В этом сезоне переходов не было.",
+    "careerChartClubs": "Клубы",
+    "careerChartLoanClub": "{{club}} (аренда)",
     "noCareer": "История карьеры пока пуста — это первый сезон.",
     "movementHistory": "История переходов",
     "noMovementHistory": "Трансферы и аренды пока не зафиксированы.",

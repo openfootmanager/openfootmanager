@@ -1857,6 +1857,13 @@
       "releasedBy": "Propuštěn z {{club}}",
       "retiredFrom": "Ukončil kariéru v {{club}}"
     },
+    "careerViewChart": "Graf",
+    "careerChartTitle": "Podle sezón",
+    "careerChartBar": "{{season}}, {{club}}: {{metric}} {{value}}",
+    "careerChartReadout": "Vybraná sezóna",
+    "careerChartNoMove": "V této sezóně žádný přestup.",
+    "careerChartClubs": "Kluby",
+    "careerChartLoanClub": "{{club}} (hostování)",
     "noCareer": "Zatím žádná historie kariéry — první sezóna.",
     "movementHistory": "Historie přestupů",
     "noMovementHistory": "Zatím nebyly zaznamenány žádné přestupy ani hostování.",

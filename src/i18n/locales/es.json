@@ -1856,6 +1856,13 @@
       "releasedBy": "Liberado por {{club}}",
       "retiredFrom": "Se retiró de {{club}}"
     },
+    "careerViewChart": "Gráfico",
+    "careerChartTitle": "Por temporada",
+    "careerChartBar": "{{season}}, {{club}}: {{value}} {{metric}}",
+    "careerChartReadout": "Temporada elegida",
+    "careerChartNoMove": "Sin traspaso esta temporada.",
+    "careerChartClubs": "Clubes",
+    "careerChartLoanClub": "{{club}} (cesión)",
     "noCareer": "Sin historial de carrera — primera temporada.",
     "movementHistory": "Historial de Movimientos",
     "noMovementHistory": "Aún no hay traspasos ni cesiones registrados.",

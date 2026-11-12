@@ -1856,6 +1856,13 @@
       "releasedBy": "被 {{club}} 释放",
       "retiredFrom": "从 {{club}} 退役"
     },
+    "careerViewChart": "图表",
+    "careerChartTitle": "每赛季",
+    "careerChartBar": "{{season}}，{{club}}：{{metric}} {{value}}",
+    "careerChartReadout": "所选赛季",
+    "careerChartNoMove": "本赛季无转会。",
+    "careerChartClubs": "俱乐部",
+    "careerChartLoanClub": "{{club}}（租借）",
     "noCareer": "暂无职业履历 — 首个赛季。",
     "movementHistory": "转会流动历史",
     "noMovementHistory": "还没有记录转会或租借流动。",

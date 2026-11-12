@@ -1857,6 +1857,13 @@
       "releasedBy": "{{club}} tarafından serbest bırakıldı",
       "retiredFrom": "{{club}} kulübünden emekli oldu"
     },
+    "careerViewChart": "Grafik",
+    "careerChartTitle": "Sezon bazında",
+    "careerChartBar": "{{season}}, {{club}}: {{value}} {{metric}}",
+    "careerChartReadout": "Seçilen sezon",
+    "careerChartNoMove": "Bu sezon transfer yok.",
+    "careerChartClubs": "Kulüpler",
+    "careerChartLoanClub": "{{club}} (kiralık)",
     "noCareer": "Henüz kariyer geçmişi yok — ilk sezon.",
     "movementHistory": "Transfer Geçmişi",
     "noMovementHistory": "Henüz kayıtlı transfer veya kiralama hareketi yok.",
