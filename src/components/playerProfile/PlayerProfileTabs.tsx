@@ -46,8 +46,8 @@ interface PlayerProfileTabsProps {
   onSelectTeam?: (id: string) => void;
   /** The game's clubs: a ledger entry that names its club by id alone is named from them. */
   teams: Pick<TeamData, "id" | "name">[];
-  /** Changes when the manager's squad does (`squadStateKey`): the club-wide previews ask again. */
-  squadKey: string;
+  /** Changes when anything the club-wide previews read does (`clubStateKey`): they ask again. */
+  clubKey: string;
 }
 
 /** The four tabs of the profile and what each holds. */
@@ -64,7 +64,7 @@ export default function PlayerProfileTabs({
   contractRisk,
   onSelectTeam,
   teams,
-  squadKey,
+  clubKey,
 }: PlayerProfileTabsProps) {
   const { t, i18n } = useTranslation();
   const tabsId = useId();
@@ -83,7 +83,7 @@ export default function PlayerProfileTabs({
     player,
     active: tab === "contract",
     ownsContract: isManagerOwnedProfile,
-    refreshKey: [currentDate, player.contract_end, player.wage, hasLetExpireIntent, squadKey].join(
+    refreshKey: [currentDate, player.contract_end, player.wage, hasLetExpireIntent, clubKey].join(
       "|",
     ),
   });
