@@ -666,7 +666,7 @@ pub struct PlayerSeasonStats {
     pub fouls_committed: u32,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, TS)]
 pub struct CareerEntry {
     pub season: u32,
     pub team_id: String,
@@ -674,6 +674,20 @@ pub struct CareerEntry {
     pub appearances: u32,
     pub goals: u32,
     pub assists: u32,
+    // The three days below are `YYYY-MM-DD`, the format of a movement's `date`. A row from before
+    // they were kept has none, and a package's rows need not carry them (#1402); `None` is left
+    // out of the file, so exports and the editor's files hold no nulls.
+    //
+    // The day he arrived at the club for this stint; `None` when he was there as the season began.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub from: Option<String>,
+    // The day he left the club; `None` while he was there at the season's end.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub until: Option<String>,
+    // The day the season's stats began counting (the real reset, which is not always the
+    // calendar's start); the same on every row of one season.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub season_began_on: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, TS)]
