@@ -2895,6 +2895,55 @@ mod live_session_tests {
         assert_eq!(squad_morale(&state), new_career_morale);
     }
 
+    /// Given a match at half-time and the lifecycle lock held (a team talk in flight: it reads the
+    ///       moment, writes the morale and hands it to the match under that lock)
+    /// When a step that would start the second half is asked for meanwhile
+    /// Then the step is seen reaching the lock, does not return while it is held and leaves the match
+    ///      at half-time, and once the lock is let go it starts the second half: a talk's hand-over
+    ///      is wholly before the second half, never after it has begun with the old factors (#1213)
+    #[test]
+    fn a_step_out_of_half_time_waits_for_a_team_talk_in_flight() {
+        let state = std::sync::Arc::new(state_at_half_time());
+        let talk = crate::application::live_session::operation();
+        let (attempt_tx, attempt_rx) = std::sync::mpsc::channel();
+        let (done_tx, done_rx) = std::sync::mpsc::channel();
+        let stepper = state.clone();
+        let handle = std::thread::spawn(move || {
+            crate::application::live_session::GATE_ATTEMPT
+                .with(|hook| *hook.borrow_mut() = Some(attempt_tx));
+            let result = live_match::step_live_match(&stepper, ofm_core::state::Career::Active, 1);
+            done_tx.send(result.map(|_| ())).unwrap();
+        });
+        let reached_the_lock = attempt_rx
+            .recv_timeout(std::time::Duration::from_secs(5))
+            .is_ok();
+        let returned_while_held = done_rx
+            .recv_timeout(std::time::Duration::from_millis(300))
+            .is_ok();
+        let phase_while_held = state
+            .with_live_match(|session| session.match_state.phase())
+            .unwrap();
+        drop(talk);
+        let result = done_rx.recv_timeout(std::time::Duration::from_secs(5));
+        handle.join().unwrap();
+        let phase_after = state
+            .with_live_match(|session| session.match_state.phase())
+            .unwrap();
+
+        assert!(reached_the_lock, "the step never took the lifecycle lock");
+        assert!(
+            !returned_while_held,
+            "the step returned while a talk held the lock"
+        );
+        assert_eq!(phase_while_held, engine::MatchPhase::HalfTime);
+        assert!(result.unwrap().is_ok());
+        assert_ne!(
+            phase_after,
+            engine::MatchPhase::HalfTime,
+            "the step ran after the lock"
+        );
+    }
+
     /// Given an idle saved career with changed finances, when returning to the menu,
     /// then the changes reach a fresh save reader before the active state is cleared.
     #[test]
@@ -3144,9 +3193,9 @@ mod live_session_tests {
 
     /// Given a match at half-time that every player began at morale 50 (the neutral factor, 1)
     /// When a half-time talk is given through the shared seam (the command and the MCP tool)
-    /// Then each of the user's players in the match who the talk moved plays the second half at the
-    ///      factor his new morale gives (above 1 for a lifted player, below for a lowered one), one
-    ///      the talk left at 50 stays at exactly 1, and the opponent's players are untouched (#1213)
+    /// Then each of the user's players in the match plays the second half at exactly the factor
+    ///      his new morale gives (the approved table), the morales the talk left them at are not all
+    ///      one value, and the opponent's players are untouched (#1213)
     #[test]
     fn a_half_time_talk_reaches_the_second_half() {
         let state = state_at_half_time_with_every_player_at_morale_fifty();
@@ -3167,6 +3216,7 @@ mod live_session_tests {
             "the opponent heard nothing"
         );
         let mut checked = 0;
+        let mut distinct_morales = std::collections::BTreeSet::new();
         for change in &talk.changes {
             let id = change["player_id"].as_str().unwrap();
             let now = change["new_morale"].as_u64().unwrap();
@@ -3174,15 +3224,22 @@ mod live_session_tests {
                 continue; // a squad member who is not in the match
             };
             checked += 1;
-            match now.cmp(&50) {
-                std::cmp::Ordering::Greater => assert!(*factor > 1.0, "{id}: {now} -> {factor}"),
-                std::cmp::Ordering::Less => assert!(*factor < 1.0, "{id}: {now} -> {factor}"),
-                std::cmp::Ordering::Equal => assert_eq!(*factor, 1.0, "{id}"),
-            }
+            distinct_morales.insert(now);
+            // The approved table, written out here as the oracle: 1 + 0.03 * (morale - 50) / 50.
+            let expected = 1.0 + 0.03 * (now as f64 - 50.0) / 50.0;
+            assert!(
+                (*factor - expected).abs() < 1e-12,
+                "{id}: morale {now} should give {expected}, the match has {factor}"
+            );
         }
         assert!(
             checked >= 11,
             "only {checked} of the match's players were checked"
+        );
+        assert!(
+            distinct_morales.len() >= 2,
+            "the talk left every player at one morale ({distinct_morales:?}), so a hand-over that \
+             wrote the same value for all would pass"
         );
         assert!(
             user.iter().any(|(_, factor)| *factor != 1.0),
