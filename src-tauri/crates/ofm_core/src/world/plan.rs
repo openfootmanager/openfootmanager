@@ -177,7 +177,7 @@ pub(super) fn build_foundation_competition_plan(
                         berths,
                         season_start_month: Some(month),
                         season_start_day: Some(1),
-                        name_key: None,
+                        name_key: Some(division_tier_name_key(tier, division_count).to_string()),
                         logo: None,
                         calendar: Some(SeasonCalendar {
                             division: Some(DivisionIdentity {
@@ -673,7 +673,7 @@ mod tests {
     }
 
     /// Given a split-season country with two tiers, when both calendar halves are planned, then
-    /// each half keeps its phase in the stored name and has the correct tier identity.
+    /// each half keeps its phase in the stored name and uses the localized key for its tier.
     #[test]
     fn generated_calendar_halves_declare_shared_family_and_distinct_windows() {
         let teams = (0..40)
@@ -707,8 +707,13 @@ mod tests {
             } else {
                 "closing"
             };
-            assert_eq!(definition.name_key, None);
             let tier = if definition.id.contains("d1") { 1 } else { 2 };
+            let expected_key = match tier {
+                1 => "tournaments.competitions.firstDivision",
+                2 => "tournaments.competitions.secondDivision",
+                _ => unreachable!("the split-season fixture has two tiers"),
+            };
+            assert_eq!(definition.name_key.as_deref(), Some(expected_key));
             assert!(
                 phase_names_by_tier
                     .entry(tier)

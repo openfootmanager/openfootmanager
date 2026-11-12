@@ -801,36 +801,54 @@ fn the_peer_group_is_the_players_own_league() {
     assert_eq!(overview.metrics.shots.percentile, Some(67));
 }
 
-/// Given a player in a third-tier league whose tier is stored in its calendar
+/// Given a player in a third-tier league with annual, opening or closing calendar phase
 /// When the stats command returns the player's overview
-/// Then the peer group carries that tier in Rust and in the frontend JSON
+/// Then the peer group carries the tier and phase in Rust and in the frontend JSON.
 #[test]
-fn the_peer_group_carries_the_leagues_calendar_tier() {
-    let mut game = make_game(vec![make_player("target", "team-3", Position::Striker)]);
-    let mut third_division = league("league-3", &["team-3", "team-4"]);
-    third_division.name = "Germany Division 3".to_string();
-    third_division.name_key = Some("tournaments.competitions.tierDivision".to_string());
-    third_division.country_id = Some("DE".to_string());
-    third_division.calendar = Some(CalendarMetadata {
-        season: SeasonCalendar {
-            division: Some(DivisionIdentity {
-                family_id: "germany-league".to_string(),
-                tier: 3,
-                phase: Default::default(),
-            }),
+fn peer_group_carries_the_leagues_calendar_tier_and_phase() {
+    for (phase, expected_phase) in [
+        (domain::competition_calendar::SeasonPhase::Annual, None),
+        (
+            domain::competition_calendar::SeasonPhase::Opening,
+            Some("opening"),
+        ),
+        (
+            domain::competition_calendar::SeasonPhase::Closing,
+            Some("closing"),
+        ),
+    ] {
+        let mut game = make_game(vec![make_player("target", "team-3", Position::Striker)]);
+        let mut third_division = league("league-3", &["team-3", "team-4"]);
+        third_division.name = "Germany Division 3".to_string();
+        third_division.name_key = Some("tournaments.competitions.tierDivision".to_string());
+        third_division.country_id = Some("DE".to_string());
+        third_division.calendar = Some(CalendarMetadata {
+            season: SeasonCalendar {
+                division: Some(DivisionIdentity {
+                    family_id: "germany-league".to_string(),
+                    tier: 3,
+                    phase,
+                }),
+                ..Default::default()
+            },
             ..Default::default()
-        },
-        ..Default::default()
-    });
-    game.competitions.push(third_division);
+        });
+        game.competitions.push(third_division);
 
-    let overview = overview_of(game, "target");
-
-    let group = overview.peer_group.as_ref().expect("a peer group");
-    assert_eq!(group.competition_id, "league-3");
-    assert_eq!(group.division_tier, Some(3));
-    let serialized = serde_json::to_value(&overview).unwrap();
-    assert_eq!(serialized["peerGroup"]["divisionTier"], 3);
+        let overview = overview_of(game, "target");
+        let group = overview.peer_group.as_ref().expect("a peer group");
+        assert_eq!(group.competition_id, "league-3");
+        assert_eq!(group.division_tier, Some(3));
+        assert_eq!(group.division_phase.as_deref(), expected_phase);
+        let serialized = serde_json::to_value(&overview).unwrap();
+        assert_eq!(serialized["peerGroup"]["divisionTier"], 3);
+        assert_eq!(
+            serialized["peerGroup"]
+                .get("divisionPhase")
+                .and_then(|value| value.as_str()),
+            expected_phase
+        );
+    }
 }
 
 /// Given two midfielders in one league, one with 10 fouls and one with 40 (and a third in between)

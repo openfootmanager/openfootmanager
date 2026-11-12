@@ -7,6 +7,7 @@ use super::search_text::{contains_folded, fold_needle};
 use crate::game::Game;
 use crate::nations::region_for_code;
 use crate::player_knowledge::KnowledgeView;
+use domain::league::League;
 use indices::{domestic_leagues, index_league_membership, index_players_by_team};
 use projection::project_card;
 use serde::{Deserialize, Serialize};
@@ -42,11 +43,20 @@ pub struct LeagueGroup {
     pub country_id: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub division_tier: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub division_phase: Option<String>,
     pub teams: Vec<TeamCard>,
 }
 
 /// Map key that groups teams by league identity and tier metadata.
-type LeagueKey = (String, String, Option<String>, Option<String>, Option<u32>);
+type LeagueKey = (
+    String,
+    String,
+    Option<String>,
+    Option<String>,
+    Option<u32>,
+    Option<String>,
+);
 
 #[derive(Debug, Serialize, PartialEq, Eq)]
 pub struct TeamCard {
@@ -174,31 +184,14 @@ pub fn query_directory(game: &Game, query: &TeamsDirectoryQuery) -> TeamsDirecto
         let region_id = league
             .and_then(|l| l.region_id.clone())
             .unwrap_or_else(|| region_for_code(&team.country).to_string());
-        let (league_id, league_name, league_name_key, league_country_id, division_tier) = league
-            .map(|l| {
-                let division = l
-                    .calendar
-                    .as_ref()
-                    .and_then(|calendar| calendar.season.division.as_ref());
-                (
-                    l.id.clone(),
-                    l.name.clone(),
-                    l.name_key.clone(),
-                    l.country_id.clone(),
-                    division
-                        .map(|identity| identity.tier)
-                        .filter(|tier| *tier > 0),
-                )
-            })
-            .unwrap_or_else(|| {
-                (
-                    UNGROUPED_LEAGUE_ID.to_string(),
-                    String::new(),
-                    None,
-                    None,
-                    None,
-                )
-            });
+        let (
+            league_id,
+            league_name,
+            league_name_key,
+            league_country_id,
+            division_tier,
+            division_phase,
+        ) = directory_league_metadata(league);
 
         let card = project_card(
             team,
@@ -220,6 +213,7 @@ pub fn query_directory(game: &Game, query: &TeamsDirectoryQuery) -> TeamsDirecto
                 league_name_key,
                 league_country_id,
                 division_tier,
+                division_phase,
             ))
             .or_default()
             .push(card);
@@ -234,15 +228,63 @@ pub fn query_directory(game: &Game, query: &TeamsDirectoryQuery) -> TeamsDirecto
     }
 }
 
+fn directory_league_metadata(league: Option<&League>) -> LeagueKey {
+    league
+        .map(|league| {
+            let division = league
+                .calendar
+                .as_ref()
+                .and_then(|calendar| calendar.season.division.as_ref());
+            (
+                league.id.clone(),
+                league.name.clone(),
+                league.name_key.clone(),
+                league.country_id.clone(),
+                division
+                    .map(|identity| identity.tier)
+                    .filter(|tier| *tier > 0),
+                division.and_then(|identity| match identity.phase {
+                    domain::competition_calendar::SeasonPhase::Annual => None,
+                    domain::competition_calendar::SeasonPhase::Opening => {
+                        Some("opening".to_string())
+                    }
+                    domain::competition_calendar::SeasonPhase::Closing => {
+                        Some("closing".to_string())
+                    }
+                }),
+            )
+        })
+        .unwrap_or_else(|| {
+            (
+                UNGROUPED_LEAGUE_ID.to_string(),
+                String::new(),
+                None,
+                None,
+                None,
+                None,
+            )
+        })
+}
+
 fn build_region_group(
     region_id: String,
     leagues_map: BTreeMap<LeagueKey, Vec<TeamCard>>,
 ) -> RegionGroup {
     let mut leagues: Vec<LeagueGroup> = leagues_map
         .into_iter()
-        .map(|((id, name, name_key, country_id, division_tier), teams)| {
-            build_league_group(id, name, name_key, country_id, division_tier, teams)
-        })
+        .map(
+            |((id, name, name_key, country_id, division_tier, division_phase), teams)| {
+                build_league_group(
+                    id,
+                    name,
+                    name_key,
+                    country_id,
+                    division_tier,
+                    division_phase,
+                    teams,
+                )
+            },
+        )
         .collect();
 
     leagues.sort_by(|a, b| match (a.id.as_str(), b.id.as_str()) {
@@ -266,6 +308,7 @@ fn build_league_group(
     name_key: Option<String>,
     country_id: Option<String>,
     division_tier: Option<u32>,
+    division_phase: Option<String>,
     mut teams: Vec<TeamCard>,
 ) -> LeagueGroup {
     teams.sort_by(|a, b| {
@@ -287,6 +330,7 @@ fn build_league_group(
         name_key,
         country_id,
         division_tier,
+        division_phase,
         teams,
     }
 }

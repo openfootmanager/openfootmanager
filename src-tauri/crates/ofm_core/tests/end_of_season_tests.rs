@@ -1157,16 +1157,26 @@ fn promoted_user_receives_a_promotion_message() {
     );
 }
 
-/// Given a generated division (stored under its English template name, carrying a name key)
+/// Given a generated closing division (stored under its English template name with a name key)
 /// When the user is promoted into it
-/// Then the notice also carries the key, country and edition, so the screen names the division in
-///      the player's language instead of the stored English name.
+/// Then the notice carries its key, country, edition and phase for localized display.
 #[test]
-fn promotion_message_carries_the_divisions_name_key_country_and_season() {
+fn promotion_message_carries_division_display_metadata() {
     let mut game = make_two_division_game("team3");
     for competition in game.competitions.iter_mut() {
         if competition.name == "ENG First Division" {
             competition.name_key = Some("tournaments.competitions.firstDivision".to_string());
+            competition.calendar = Some(CalendarMetadata {
+                season: domain::competition_calendar::SeasonCalendar {
+                    division: Some(domain::competition_calendar::DivisionIdentity {
+                        family_id: "eng-league".to_string(),
+                        tier: 1,
+                        phase: domain::competition_calendar::SeasonPhase::Closing,
+                    }),
+                    ..Default::default()
+                },
+                ..Default::default()
+            });
         }
     }
 
@@ -1191,6 +1201,10 @@ fn promotion_message_carries_the_divisions_name_key_country_and_season() {
     assert_eq!(
         msg.i18n_params.get("divisionSeason"),
         Some(&renewed.to_string())
+    );
+    assert_eq!(
+        msg.i18n_params.get("divisionPhase"),
+        Some(&"closing".to_string())
     );
     assert_eq!(
         msg.i18n_params.get("division"),
