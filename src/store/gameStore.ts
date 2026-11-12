@@ -2,6 +2,7 @@ import { create } from "zustand";
 import type { GameStateData, MessageData } from "./types";
 import type { SessionState, UserCompetitionSummary, StandingRow } from "../services/sessionService";
 import { isMessageVisible, isNewsArticleVisible } from "../utils/newsVisibility";
+import { isSnapshotNotOlder } from "./gameSnapshot";
 
 type FootballIdentityCarrier = {
   nationality: string;
@@ -185,6 +186,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
       careerEpoch: active ? state.careerEpoch + 1 : state.careerEpoch,
     })),
   setGameState: (state) => {
+    // An older snapshot (a slow refetch resolving after a newer game was shown) is dropped.
+    if (!isSnapshotNotOlder(get().gameState, state)) return;
     const normalized = normalizeGameStateNationalities(state);
     set({ gameState: normalized, sessionState: deriveSessionState(normalized), isDirty: true });
   },

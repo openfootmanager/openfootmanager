@@ -441,7 +441,7 @@ mod tests {
         let mut game = make_game();
         game.career_token = 2;
         state.set_game(game);
-        let before = serde_json::to_value(state.get_game(|g| g.clone()).unwrap()).unwrap();
+        let before = crate::commands::game_json::active_game_json(&state);
         let stale = Career::Token(1);
         let key = Err("be.error.careerChanged".to_string());
 
@@ -468,7 +468,7 @@ mod tests {
             key
         );
 
-        let after = serde_json::to_value(state.get_game(|g| g.clone()).unwrap()).unwrap();
+        let after = crate::commands::game_json::active_game_json(&state);
         assert_eq!(after, before);
     }
 
@@ -1161,9 +1161,7 @@ mod tests {
         future.actions[0].resolved = true;
         game.messages = vec![future];
         state.set_game(game);
-        let before = state
-            .get_game(|game| serde_json::to_value(game).expect("serialises"))
-            .expect("game");
+        let before = crate::commands::game_json::active_game_json(&state);
 
         let refused = resolve_message_action_internal(
             &state,
@@ -1177,9 +1175,7 @@ mod tests {
             refused.map(|_| ()),
             Err("be.error.actionNotFound".to_string())
         );
-        let after = state
-            .get_game(|game| serde_json::to_value(game).expect("serialises"))
-            .expect("game");
+        let after = crate::commands::game_json::active_game_json(&state);
         assert_eq!(after, before);
     }
 
