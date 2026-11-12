@@ -382,6 +382,7 @@ describe("TacticsTab", () => {
       expect(mockedInvoke).toHaveBeenCalledWith("apply_tactic_preset", {
         careerToken: 0,
         formation: "3-4-3",
+        keepInstructions: true,
         playStyle: "HighPress",
       });
     });
@@ -982,6 +983,7 @@ describe("TacticsTab", () => {
       expect(mockedInvoke).toHaveBeenCalledWith("apply_tactic_preset", {
         careerToken: 0,
         formation: "3-4-3",
+        keepInstructions: true,
         playStyle: "HighPress",
       });
     });

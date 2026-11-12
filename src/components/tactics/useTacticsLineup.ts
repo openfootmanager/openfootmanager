@@ -247,9 +247,10 @@ export function useTacticsLineup({ gameState, onGameUpdate, onWriteError }: UseT
   async function handleApplyTacticPreset(
     nextFormation: string,
     playStyle: string,
+    options: { keepInstructions?: boolean } = {},
   ): Promise<boolean> {
     try {
-      const updated = await applyTacticPreset(nextFormation, playStyle);
+      const updated = await applyTacticPreset(nextFormation, playStyle, options.keepInstructions);
       onGameUpdate(updated);
       return true;
     } catch (error) {
