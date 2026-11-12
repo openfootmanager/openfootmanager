@@ -134,28 +134,46 @@ describe("PlayerProfile renewal helpers", () => {
 
   /**
    * Given a player whose renewal state is Blocked until 1 September
-   * When it is read on 1 August (the clock's date written with a time), and on 1 September
-   * Then the block is active on both: it ends after the day it ends on
+   * When it is read on 1 August, on 1 September (the clock's date written with a time of day), and
+   *      on 2 September
+   * Then the block is active up to and including the day it names, and over after it
    */
-  it("treats a block as active until the end of the day it names", () => {
-    const player = blockedPlayer("Blocked", "2026-09-01");
-
-    expect(hasActiveManagerRenewalBlock(player, "2026-08-01T00:00:00Z")).toBe(true);
-    expect(hasActiveManagerRenewalBlock(player, "2026-09-01T12:00:00Z")).toBe(true);
-    expect(hasActiveManagerRenewalBlock(player, "2026-09-02T00:00:00Z")).toBe(false);
+  it.each([
+    ["1 August", "2026-08-01T00:00:00Z", true],
+    ["1 September, the day it ends", "2026-09-01T12:00:00Z", true],
+    ["2 September, the day after", "2026-09-02T00:00:00Z", false],
+  ])("a block until 1 September is read on %s: active is %s", (_label, today, active) => {
+    expect(hasActiveManagerRenewalBlock(blockedPlayer("Blocked", "2026-09-01"), today)).toBe(
+      active,
+    );
   });
 
   /**
-   * Given a Blocked state with no end date, a state that is not Blocked, and a player with no
-   *      morale at all
-   * When each is read
-   * Then only the undated block is active
+   * Given a Blocked state with no end date
+   * When it is read
+   * Then the block is active
    */
-  it("treats an undated block as active and anything else as none", () => {
+  it("treats an undated block as active", () => {
     expect(hasActiveManagerRenewalBlock(blockedPlayer("Blocked"), "2026-08-01")).toBe(true);
+  });
+
+  /**
+   * Given a renewal state that is not Blocked, even with an end date far ahead
+   * When it is read
+   * Then there is no block
+   */
+  it("treats a state that is not Blocked as no block", () => {
     expect(hasActiveManagerRenewalBlock(blockedPlayer("Open", "2099-01-01"), "2026-08-01")).toBe(
       false,
     );
+  });
+
+  /**
+   * Given a player with no morale information at all
+   * When it is read
+   * Then there is no block
+   */
+  it("treats a player with no morale as no block", () => {
     expect(hasActiveManagerRenewalBlock({} as PlayerData, "2026-08-01")).toBe(false);
   });
 });

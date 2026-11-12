@@ -158,26 +158,37 @@ describe("useContractRenewalFlow: opening", () => {
     expect(result.current.renewalSubmitDisabled).toBe(true);
   });
 
+  const blockedUntil = (until?: string) =>
+    aPlayer({
+      morale_core: {
+        renewal_state: { status: "Blocked", manager_blocked_until: until },
+      },
+    } as unknown as Partial<PlayerData>);
+
   /**
-   * Given a block that ended before today, and a block with no end date
-   * When the modal is opened for each
-   * Then the lapsed one is open for talks and the undated one is still blocked
+   * Given a block that ended before today
+   * When the modal is opened
+   * Then the talks are open: the block is over
    */
-  it("treats a lapsed block as over and an undated one as active", () => {
-    const blocked = (until?: string) =>
-      aPlayer({
-        morale_core: {
-          renewal_state: { status: "Blocked", manager_blocked_until: until },
-        },
-      } as unknown as Partial<PlayerData>);
+  it("opens for talks when the manager's block ended before today", () => {
+    const { result } = setup({ player: blockedUntil("2026-07-01") });
 
-    const lapsed = setup({ player: blocked("2026-07-01") });
-    open(lapsed.result);
-    const undated = setup({ player: blocked(undefined) });
-    open(undated.result);
+    open(result);
 
-    expect(lapsed.result.current.renewalIsTerminal).toBe(false);
-    expect(undated.result.current.renewalIsTerminal).toBe(true);
+    expect(result.current.renewalIsTerminal).toBe(false);
+  });
+
+  /**
+   * Given a block with no end date
+   * When the modal is opened
+   * Then the talks are over: an undated block is still active
+   */
+  it("opens blocked when the manager's block has no end date", () => {
+    const { result } = setup({ player: blockedUntil(undefined) });
+
+    open(result);
+
+    expect(result.current.renewalIsTerminal).toBe(true);
   });
 
   /**
@@ -333,18 +344,31 @@ describe("useContractRenewalFlow: the financial projection", () => {
   });
 
   /**
-   * Given a shut modal, and an open one whose wage is not a valid number
-   * When each is read
-   * Then nothing is asked for and there is no projection
+   * Given a modal that has not been opened
+   * When it is read
+   * Then nothing has been asked for
    */
-  it("asks for nothing while the modal is shut or the wage is not valid", () => {
-    const { result } = setup();
-    expect(projectionFor).not.toHaveBeenCalled();
+  it("asks for nothing while the modal is shut", () => {
+    setup();
 
+    expect(projectionFor).not.toHaveBeenCalled();
+  });
+
+  /**
+   * Given an open modal whose valid wage has already been asked about (counted after it opens)
+   * When the wage is changed to "0", which is not valid
+   * Then nothing more is asked for, and there is no projection
+   */
+  it("asks for nothing more once the wage is not a valid number", () => {
+    const { result } = setup();
     open(result);
+    const callsAfterOpening = projectionFor.mock.calls.length;
+    expect(callsAfterOpening).toBeGreaterThan(0);
+
     act(() => result.current.setRenewalWage("0"));
 
     expect(result.current.isRenewalWageValid).toBe(false);
+    expect(projectionFor.mock.calls.length).toBe(callsAfterOpening);
     expect(result.current.renewalProjection).toBeNull();
   });
 
