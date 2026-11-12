@@ -47,6 +47,7 @@ function Harness({ onSelect = () => {} }: { onSelect?: (id: string) => void }) {
       <button type="button" onClick={() => setOpen(false)}>
         shut from outside
       </button>
+      <input aria-label="next control" />
     </>
   );
 }
@@ -169,6 +170,26 @@ describe("TacticPicker", () => {
 
     expect(screen.queryByRole("listbox")).toBeNull();
     expect(elsewhere).toHaveFocus();
+  });
+
+  /**
+   * Given the open list with focus in it
+   * When focus moves to the next control (Tab out), and, in another case, between its own options
+   * Then it shuts for the first, without taking focus back, and stays open for the second.
+   */
+  it("shuts when focus leaves it, and not when focus moves inside it", () => {
+    render(<Harness />);
+    const search = openPicker();
+    const next = screen.getByRole("textbox", { name: "next control" });
+
+    fireEvent.blur(search, { relatedTarget: screen.getAllByRole("option")[0] });
+    expect(screen.getByRole("listbox")).toBeInTheDocument();
+
+    next.focus();
+    fireEvent.blur(search, { relatedTarget: next });
+
+    expect(screen.queryByRole("listbox")).toBeNull();
+    expect(next).toHaveFocus();
   });
 
   /**

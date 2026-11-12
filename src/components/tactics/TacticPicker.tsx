@@ -1,5 +1,14 @@
 import { Search } from "lucide-react";
-import { useEffect, useId, useMemo, useRef, useState, type JSX, type KeyboardEvent } from "react";
+import {
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+  type FocusEvent,
+  type JSX,
+  type KeyboardEvent,
+} from "react";
 import type { TFunction } from "i18next";
 import { useTranslation } from "react-i18next";
 
@@ -108,6 +117,13 @@ export default function TacticPicker({
     stops[next]?.focus();
   }
 
+  // Tabbing out leaves the list open over the next control, and Escape from there would not reach
+  // it. A blur to nowhere (the window lost focus, a click on bare page) is the pointer listener's.
+  function handleBlur(event: FocusEvent<HTMLDivElement>): void {
+    const next = event.relatedTarget;
+    if (open && next instanceof Node && !wrapperRef.current?.contains(next)) onOpenChange(false);
+  }
+
   function pick(id: string): void {
     onSelect(id);
     close();
@@ -116,7 +132,12 @@ export default function TacticPicker({
   return (
     // The keydown handler only routes keys from the controls inside it (search, options).
     // biome-ignore lint/a11y/noStaticElementInteractions: a key listener on the picker's wrapper; every control inside is focusable
-    <div ref={wrapperRef} onKeyDown={handleKeyDown} className="relative min-w-52 flex-[2_1_14rem]">
+    <div
+      ref={wrapperRef}
+      onKeyDown={handleKeyDown}
+      onBlur={handleBlur}
+      className="relative min-w-52 flex-[2_1_14rem]"
+    >
       <span className={FIELD_LABEL}>{t("tactics.chooseTactic")}</span>
       <button
         ref={triggerRef}
@@ -141,7 +162,8 @@ export default function TacticPicker({
 
       {open ? (
         <div className="absolute left-0 right-0 top-full z-50 mt-2 rounded-xl border border-line bg-panel p-2 shadow-card">
-          <div className="mb-2 flex items-center gap-2 rounded-lg border border-line bg-sunken px-3 py-2">
+          {/* The input has no outline of its own, so the box around it shows where typing goes. */}
+          <div className="mb-2 flex items-center gap-2 rounded-lg border border-line bg-sunken px-3 py-2 focus-within:ring-2 focus-within:ring-focus">
             <Search aria-hidden="true" className="h-4 w-4 text-fg-subtle" />
             <input
               ref={searchRef}
