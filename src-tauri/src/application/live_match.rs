@@ -359,17 +359,24 @@ pub fn step_live_match(
     minutes: u16,
 ) -> Result<Vec<engine::MinuteResult>, String> {
     log::debug!("[cmd] step_live_match: minutes={}", minutes);
-    // The step that kicks the match off takes the lifecycle gate, so a role save or a swap is
-    // wholly before or wholly after it. The phase is read and the step taken in one look at the
-    // session: a match already under way is stepped without the gate (it cannot un-start), and a
-    // match still waiting at kick-off is left alone, the gate is taken and the step retried under
-    // it, where nothing can replace the session (finishing and starting both hold the gate).
+    // The step that kicks the match off, and the one that starts a second half, take the lifecycle
+    // gate: a role save or a swap is wholly before or wholly after the first, and a team talk
+    // (which gives its morale to the match under the gate) wholly before the second. The phase is
+    // read and the step taken in one look at the session: a match already under way is stepped
+    // without the gate (it cannot un-start), and a match still waiting at kick-off or at an
+    // interval is left alone, the gate is taken and the step retried under it, where nothing can
+    // replace the session (finishing and starting both hold the gate) and no talk is half done.
     let mut gate = None;
     let results = loop {
         let stepped = state
             .with_live_match(|session| {
                 career.check_token(session.career_token)?;
-                let waiting = session.match_state.phase() == engine::MatchPhase::PreKickOff;
+                let waiting = matches!(
+                    session.match_state.phase(),
+                    engine::MatchPhase::PreKickOff
+                        | engine::MatchPhase::HalfTime
+                        | engine::MatchPhase::ExtraTimeHalfTime
+                );
                 if waiting && gate.is_none() {
                     return Ok::<_, String>(None);
                 }

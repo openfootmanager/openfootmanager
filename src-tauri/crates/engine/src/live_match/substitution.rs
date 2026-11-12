@@ -201,6 +201,29 @@ impl LiveMatchState {
         }
     }
 
+    /// Give `player_id`, in `side`'s eleven or on its bench, `morale_factor`, kept within the range
+    /// the engine allows (`PlayerData::morale_factor`). For a caller that learns a player's mood
+    /// mid-match (the half-time talk). Whether he was found: a player of the club who is not in
+    /// the match is not.
+    pub fn set_morale_factor(&mut self, side: Side, player_id: &str, morale_factor: f64) -> bool {
+        let (team, bench) = match side {
+            Side::Home => (&mut self.home, &mut self.home_bench),
+            Side::Away => (&mut self.away, &mut self.away_bench),
+        };
+        match team
+            .players
+            .iter_mut()
+            .chain(bench.iter_mut())
+            .find(|player| player.id == player_id)
+        {
+            Some(player) => {
+                player.morale_factor = crate::shared::clamp_morale_factor(morale_factor);
+                true
+            }
+            None => false,
+        }
+    }
+
     /// Give `player_id`, on `side`'s bench, `role`: the role he plays if he comes on. For a
     /// caller that knows a role the bench copy was built without (a role saved after the match
     /// was built). The caller checks the role at the bench position; substitution checks the
@@ -450,6 +473,7 @@ mod line_familiarity_tests {
             fitness: 100,
             injury_risk: 1.0,
             line_familiarity: [1.0; 4],
+            morale_factor: 1.0,
             pace: 70,
             stamina: 70,
             strength: 70,
@@ -809,5 +833,76 @@ mod substituted_role_tests {
             role_after_coming_on(Position::Defender, PlayerRole::AttackingFB),
             PlayerRole::AttackingFB
         );
+    }
+}
+
+#[cfg(test)]
+mod morale_factor_tests {
+    use super::line_familiarity_tests::{player, side};
+    use crate::live_match::LiveMatchState;
+    use crate::types::{MatchConfig, Position, Side};
+
+    fn state() -> LiveMatchState {
+        LiveMatchState::new(
+            side("h"),
+            side("a"),
+            MatchConfig::default(),
+            vec![player("h_sub", Position::Defender)],
+            vec![player("a_sub", Position::Defender)],
+            false,
+        )
+    }
+
+    /// Given a player in the eleven
+    /// When his morale factor is set
+    /// Then he takes it, and the other side's players are untouched
+    #[test]
+    fn a_player_in_the_eleven_takes_the_morale_factor_he_is_given() {
+        let mut state = state();
+
+        assert!(state.set_morale_factor(Side::Home, "h_d", 1.02));
+
+        assert_eq!(state.team(Side::Home).players[1].morale_factor, 1.02);
+        assert_eq!(state.team(Side::Home).players[0].morale_factor, 1.0);
+        assert_eq!(state.team(Side::Away).players[1].morale_factor, 1.0);
+    }
+
+    /// Given a player on the bench
+    /// When his morale factor is set
+    /// Then he takes it, so a substitute comes on in the mood the talk left him in
+    #[test]
+    fn a_player_on_the_bench_takes_the_morale_factor_he_is_given() {
+        let mut state = state();
+
+        assert!(state.set_morale_factor(Side::Home, "h_sub", 0.98));
+
+        assert_eq!(state.bench(Side::Home)[0].morale_factor, 0.98);
+    }
+
+    /// Given a player of the other side
+    /// When he is named for this side
+    /// Then he is not found and nothing changes
+    #[test]
+    fn a_player_of_the_other_side_is_not_found() {
+        let mut state = state();
+
+        assert!(!state.set_morale_factor(Side::Home, "a_sub", 1.02));
+
+        assert_eq!(state.bench(Side::Away)[0].morale_factor, 1.0);
+    }
+
+    /// Given a factor outside what the engine allows, or one that is not a number
+    /// When it is set
+    /// Then it is held within the range, and a non-number is neutral
+    #[test]
+    fn a_factor_outside_the_range_is_held_within_it() {
+        let mut state = state();
+
+        state.set_morale_factor(Side::Home, "h_d", 5.0);
+        assert_eq!(state.team(Side::Home).players[1].morale_factor, 1.1);
+        state.set_morale_factor(Side::Home, "h_d", -2.0);
+        assert_eq!(state.team(Side::Home).players[1].morale_factor, 0.9);
+        state.set_morale_factor(Side::Home, "h_d", f64::NAN);
+        assert_eq!(state.team(Side::Home).players[1].morale_factor, 1.0);
     }
 }

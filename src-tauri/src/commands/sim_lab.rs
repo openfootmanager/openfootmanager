@@ -599,6 +599,7 @@ fn make_player(
         fitness: rng.random_range(65u8..=90u8),
         injury_risk: 1.0,
         line_familiarity: [1.0; 4],
+        morale_factor: 1.0,
         pace: noise(base, rng),
         stamina: noise(base, rng),
         strength: noise(base, rng),

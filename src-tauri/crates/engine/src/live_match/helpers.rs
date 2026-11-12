@@ -54,8 +54,11 @@ impl LiveMatchState {
             .get(&player.id)
             .copied()
             .unwrap_or(50.0);
-        // Out of position, he plays like a weaker player (`PlayerData::line_familiarity`).
-        base_skill * condition_factor(condition) * player.familiarity
+        // Out of position, he plays like a weaker player (`PlayerData::line_familiarity`), and a
+        // happier one like a stronger (`PlayerData::morale_factor`): one factor for both.
+        base_skill
+            * condition_factor(condition)
+            * crate::shared::rating_factor(player.familiarity, player.morale_factor)
     }
 
     // -----------------------------------------------------------------------
@@ -334,6 +337,7 @@ mod commentary_detail_tests {
             fitness: 75,
             injury_risk: 1.0,
             line_familiarity: [1.0; 4],
+            morale_factor: 1.0,
             pace: 70,
             stamina: 70,
             strength: 70,
@@ -494,6 +498,7 @@ mod emergency_keeper_tests {
             // Natural in his own line; in goal, half the player he is (a factor no real cost
             // reaches, so only the goalkeeping entry can produce it).
             line_familiarity: [0.5, 1.0, 1.0, 1.0],
+            morale_factor: 1.0,
             pace: 70,
             stamina: 70,
             strength: 70,
@@ -624,6 +629,7 @@ mod short_handed_line_tests {
             fitness: 100,
             injury_risk: 1.0,
             line_familiarity: [1.0; 4],
+            morale_factor: 1.0,
             pace: 70,
             stamina: 70,
             strength: 70,

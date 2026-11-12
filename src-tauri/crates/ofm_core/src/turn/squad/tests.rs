@@ -1074,3 +1074,35 @@ fn an_ordinary_players_injury_risk_is_divided_by_the_seasons_mean() {
         "{risk}"
     );
 }
+
+/// Given two players alike but for morale, one at 20 and one at 90,
+/// When they are handed to the engine for a club match,
+/// Then they carry the morale factors of the table (below 1 for the unhappy one, above 1 for the
+/// happy one), so the world moves from kick-off: every club carries morale.
+#[test]
+fn a_players_morale_in_a_club_match_becomes_his_factor() {
+    let mut unhappy = mk("unhappy", 70, 100);
+    unhappy.morale = 20;
+    let mut happy = mk("happy", 70, 100);
+    happy.morale = 90;
+    let factor =
+        |player: &Player| to_engine_player(player, EnginePlayerRole::Standard, None).morale_factor;
+
+    assert_eq!(factor(&unhappy), super::morale_factor(20));
+    assert_eq!(factor(&happy), super::morale_factor(90));
+    assert!(factor(&unhappy) < 1.0 && factor(&happy) > 1.0);
+}
+
+/// Given a player at the middle of the morale scale,
+/// When he is handed to the engine for a club match,
+/// Then his factor is exactly neutral.
+#[test]
+fn a_player_at_the_middle_of_the_morale_scale_is_handed_over_neutral() {
+    let mut middling = mk("middling", 70, 100);
+    middling.morale = 50;
+
+    assert_eq!(
+        to_engine_player(&middling, EnginePlayerRole::Standard, None).morale_factor,
+        1.0
+    );
+}
