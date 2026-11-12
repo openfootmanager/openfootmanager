@@ -402,11 +402,8 @@ mod tests {
         );
     }
 
-    /// Given a live session with a player who has one closed season, and an id no player has
-    /// When the career adapter reads each
-    /// Then the player's career carries that season in its totals, and the stranger has none
-    #[test]
-    fn the_career_adapter_reads_the_live_players_seasons_and_knows_no_stranger() {
+    /// A live session holding one player, "p", with one closed season of 30 appearances.
+    fn session_with_a_career_player() -> StateManager {
         use chrono::TimeZone;
         use domain::manager::Manager;
         use domain::player::{CareerEntry, Player, PlayerAttributes, Position};
@@ -453,11 +450,29 @@ mod tests {
             vec![],
             vec![],
         ));
+        state
+    }
+
+    /// Given a live session with a player who has one closed season
+    /// When the career adapter reads him
+    /// Then his career carries that season in its totals
+    #[test]
+    fn the_career_adapter_reads_the_live_players_seasons() {
+        let state = session_with_a_career_player();
 
         let career = get_player_career_internal(&state, "p").unwrap().unwrap();
 
         assert_eq!(career.totals.appearances, 30);
         assert_eq!(career.totals.goals, 4);
+    }
+
+    /// Given a live session and an id no player has
+    /// When the career adapter reads it
+    /// Then there is no career (null), not an error
+    #[test]
+    fn the_career_adapter_knows_no_stranger() {
+        let state = session_with_a_career_player();
+
         assert!(get_player_career_internal(&state, "nobody")
             .unwrap()
             .is_none());
