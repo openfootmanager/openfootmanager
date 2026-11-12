@@ -4382,6 +4382,7 @@ fn make_retired_player(id: &str) -> domain::player::Player {
         appearances: 30,
         goals: 5,
         assists: 8,
+        ..Default::default()
     });
     p
 }
@@ -4626,6 +4627,7 @@ fn retired_this_season_after_thirteen_seasons(
             appearances: 30,
             goals: 0,
             assists: 0,
+            ..Default::default()
         })
         .collect();
     domain::retired_player::RetiredPlayer::from_player(

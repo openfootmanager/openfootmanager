@@ -226,6 +226,7 @@ mod tests {
             appearances: apps,
             goals,
             assists: goals / 2,
+            ..Default::default()
         }
     }
 

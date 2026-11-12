@@ -482,6 +482,7 @@ fn in_progress_rows(
             appearances: 0,
             goals: 0,
             assists: 0,
+            ..Default::default()
         });
     }
     let current_exists = has_current_stint || !club_id.is_empty();
@@ -590,6 +591,7 @@ mod tests {
                 appearances,
                 goals,
                 assists,
+                ..Default::default()
             },
             in_progress: false,
         }
@@ -1012,7 +1014,9 @@ mod tests {
                     goals: 5,
                     assists: 2,
                 },
+                ..Default::default()
             }],
+            ..Default::default()
         };
         let stats = PlayerSeasonStats {
             appearances: 24,
@@ -1486,6 +1490,7 @@ mod tests {
             appearances: 31,
             goals: 4,
             assists: 9,
+            ..Default::default()
         });
 
         let career = player_career(&world(), &player);
