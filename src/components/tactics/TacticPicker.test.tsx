@@ -73,9 +73,11 @@ describe("TacticPicker", () => {
     const search = openPicker();
 
     expect(trigger()).toHaveAttribute("aria-expanded", "true");
-    expect(
-      screen.getAllByRole("option").map((option) => option.textContent?.split(" description")[0]),
-    ).toEqual(["My Tactic", "Balanced Control", "High Press"]);
+    const options = screen.getAllByRole("option");
+    expect(options).toHaveLength(3);
+    ["My Tactic", "Balanced Control", "High Press"].forEach((name, index) => {
+      expect(options[index]).toHaveTextContent(`${name} description`);
+    });
     expect(search).toHaveFocus();
   });
 
