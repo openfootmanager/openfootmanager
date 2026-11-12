@@ -1,5 +1,6 @@
 import type { NegotiationFeedbackPanelData } from "../NegotiationFeedbackPanel";
 import { formatExactMoney } from "../../lib/helpers";
+import type { PlayerData } from "../../store/gameStore";
 
 export type { RenewalProjection } from "../../services/contractService";
 import type { RenewalProjection } from "../../services/contractService";
@@ -118,5 +119,19 @@ export function shouldDisableRenewalSubmit(state: RenewalSubmitState): boolean {
     !state.isRenewalWageValid ||
     !state.isRenewalLengthValid ||
     state.renewalViolatesSoftCap
+  );
+}
+
+/**
+ * Whether the manager is barred from renewing with this player today: his renewal state is
+ * `Blocked` and the block either has no end date or ends on or after today (compared as days).
+ */
+export function hasActiveManagerRenewalBlock(player: PlayerData, today: string): boolean {
+  const renewalState = player.morale_core?.renewal_state;
+  const blockedUntil = renewalState?.manager_blocked_until;
+
+  return (
+    renewalState?.status === "Blocked" &&
+    (!blockedUntil || blockedUntil.slice(0, 10) >= today.slice(0, 10))
   );
 }

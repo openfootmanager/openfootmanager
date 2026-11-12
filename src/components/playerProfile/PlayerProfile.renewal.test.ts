@@ -1,8 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { useSettingsStore } from "../../store/settingsStore";
+import type { PlayerData } from "../../store/gameStore";
 import {
   getRenewalStatusClassName,
   getRenewalStatusMessage,
+  hasActiveManagerRenewalBlock,
   shouldDisableRenewalSubmit,
 } from "./PlayerProfile.renewal";
 
@@ -123,5 +125,37 @@ describe("PlayerProfile renewal helpers", () => {
         renewalViolatesSoftCap: true,
       }),
     ).toBe(true);
+  });
+
+  const blockedPlayer = (status: string, until?: string) =>
+    ({
+      morale_core: { renewal_state: { status, manager_blocked_until: until } },
+    }) as unknown as PlayerData;
+
+  /**
+   * Given a player whose renewal state is Blocked until 1 September
+   * When it is read on 1 August (the clock's date written with a time), and on 1 September
+   * Then the block is active on both: it ends after the day it ends on
+   */
+  it("treats a block as active until the end of the day it names", () => {
+    const player = blockedPlayer("Blocked", "2026-09-01");
+
+    expect(hasActiveManagerRenewalBlock(player, "2026-08-01T00:00:00Z")).toBe(true);
+    expect(hasActiveManagerRenewalBlock(player, "2026-09-01T12:00:00Z")).toBe(true);
+    expect(hasActiveManagerRenewalBlock(player, "2026-09-02T00:00:00Z")).toBe(false);
+  });
+
+  /**
+   * Given a Blocked state with no end date, a state that is not Blocked, and a player with no
+   *      morale at all
+   * When each is read
+   * Then only the undated block is active
+   */
+  it("treats an undated block as active and anything else as none", () => {
+    expect(hasActiveManagerRenewalBlock(blockedPlayer("Blocked"), "2026-08-01")).toBe(true);
+    expect(hasActiveManagerRenewalBlock(blockedPlayer("Open", "2099-01-01"), "2026-08-01")).toBe(
+      false,
+    );
+    expect(hasActiveManagerRenewalBlock({} as PlayerData, "2026-08-01")).toBe(false);
   });
 });
