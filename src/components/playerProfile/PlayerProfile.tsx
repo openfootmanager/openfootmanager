@@ -6,6 +6,7 @@ import { getPlayerOvr } from "../../lib/helpers";
 import { naturalPositionOf } from "../../lib/positions";
 import { calcAgeOnDate } from "../../lib/valueFormatting";
 import type { GameStateData, PlayerData } from "../../store/gameStore";
+import { clubStateKey } from "./PlayerProfile.contract";
 import { getPlayerTeamName } from "./PlayerProfile.helpers";
 import { buildPlayerProfileRelationship } from "./PlayerProfile.viewModel";
 import PlayerProfileActionsMenu from "./PlayerProfileActionsMenu";
@@ -161,6 +162,9 @@ export default function PlayerProfile({
         knowledge={knowledge}
         actions={actions}
         contractRisk={{ level: contractRiskLevel, label: contractRiskLabel }}
+        onSelectTeam={onSelectTeam}
+        teams={gameState.teams}
+        clubKey={clubStateKey(gameState, managerTeamId)}
       />
 
       <PlayerProfileModals

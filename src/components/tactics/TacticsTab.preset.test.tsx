@@ -1,5 +1,5 @@
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
-import { useState } from "react";
+import { StrictMode, useState } from "react";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { invoke } from "@tauri-apps/api/core";
 import { i18nReady } from "../../i18n";
@@ -188,6 +188,10 @@ let savedTacticDifferences = {
 };
 /** When set, the faked save answers `list_custom_tactics` only once this resolves. */
 let libraryListGate: Promise<void> | null = null;
+/** When set, each `list_custom_tactics` waits for its own release, pushed here in the order asked. */
+let libraryListReleases: Array<() => void> | null = null;
+/** Whether the next `list_custom_tactics` (after its gate) fails once. */
+let libraryListFailsOnce = false;
 
 /** Puts tactics in the faked save, as if the player had made them earlier. */
 function seedSavedTactics(
@@ -213,6 +217,12 @@ function fakeBackend(failPreset = false) {
     if (command === "get_custom_tactic_differences") return { ...savedTacticDifferences };
     if (command === "list_custom_tactics") {
       if (libraryListGate) await libraryListGate;
+      const releases = libraryListReleases;
+      if (releases) await new Promise<void>((release) => releases.push(release));
+      if (libraryListFailsOnce) {
+        libraryListFailsOnce = false;
+        throw new Error("the save did not answer");
+      }
       return structuredClone(savedTactics);
     }
     if (command === "save_custom_tactic" || command === "save_current_tactic") {
@@ -297,6 +307,8 @@ describe("TacticsTab preset selection", { timeout: TACTICS_TAB_CASE_TIMEOUT_MS }
       roles: false,
       takers: false,
     };
+    libraryListReleases = null;
+    libraryListFailsOnce = false;
     refused = new Set();
     backend = makeGame();
   });
@@ -407,6 +419,64 @@ describe("TacticsTab preset selection", { timeout: TACTICS_TAB_CASE_TIMEOUT_MS }
     await waitFor(() => expect(commandsCalled()).toContain("get_custom_tactic_differences"));
     expect(await screen.findByText("Synced")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Update tactic" })).toBeDisabled();
+  });
+
+  /**
+   * Given the screen under StrictMode, which asks for the library twice (two loads queued in order)
+   * When the first load answers while the second is still pending
+   * Then Save stays disabled, and turns on only when the second has answered too.
+   */
+  it("keeps Save disabled until the latest of two overlapping library loads has answered", async () => {
+    libraryListReleases = [];
+    const releases = libraryListReleases;
+    fakeBackend();
+    render(
+      <StrictMode>
+        <ControlledTacticsTab />
+      </StrictMode>,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Choose tactic" }));
+    fireEvent.click(screen.getByRole("option", { name: /High Press/ }));
+    await waitFor(() => expect(releases).toHaveLength(1));
+
+    releases[0]();
+    await waitFor(() => expect(releases).toHaveLength(2));
+
+    expect(screen.getByRole("button", { name: "Save as tactic" })).toBeDisabled();
+    releases[1]();
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Save as tactic" })).toBeEnabled(),
+    );
+  });
+
+  /**
+   * Given a first load of the library that fails
+   * When it fails
+   * Then Save turns on (it is how a tactic gets into the save), and a save is accepted.
+   */
+  it("turns Save on when the library's first load fails, and a save then lands", async () => {
+    let answerLoad!: () => void;
+    libraryListGate = new Promise<void>((resolve) => {
+      answerLoad = resolve;
+    });
+    libraryListFailsOnce = true;
+    fakeBackend();
+    render(<ControlledTacticsTab />);
+    fireEvent.click(screen.getByRole("button", { name: "Choose tactic" }));
+    fireEvent.click(screen.getByRole("option", { name: /High Press/ }));
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Choose tactic" })).toHaveTextContent("High Press");
+    });
+    expect(screen.getByRole("button", { name: "Save as tactic" })).toBeDisabled();
+
+    answerLoad();
+
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Save as tactic" })).toBeEnabled(),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Save as tactic" }));
+    await waitFor(() => expect(commandsCalled()).toContain("save_current_tactic"));
+    expect(screen.queryByRole("alert")).toBeNull();
   });
 
   /**
