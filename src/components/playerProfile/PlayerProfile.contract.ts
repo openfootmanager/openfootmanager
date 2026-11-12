@@ -18,7 +18,7 @@ export function terminationBlockedBy(player: PlayerData): TerminationBlock | nul
 export interface ClubStateInputs {
   players: PlayerData[];
   staff: StaffData[];
-  teams: Pick<TeamData, "id" | "wage_budget">[];
+  teams: Pick<TeamData, "id" | "wage_budget" | "formation" | "finance">[];
 }
 
 const loanKey = (loan: PlayerData["active_loan"]): string =>

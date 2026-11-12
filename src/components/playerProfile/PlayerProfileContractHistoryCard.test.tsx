@@ -212,4 +212,29 @@ describe("PlayerProfileContractHistoryCard", () => {
 
     expect(screen.getByText("playerProfile.movementRetired")).toBeInTheDocument();
   });
+
+  /**
+   * Given a contract whose club the game cannot name (a ledger entry with an id and no name)
+   * When the card is drawn with a way to open clubs
+   * Then the row says the club is unknown in words and offers no link: never a button with no name
+   */
+  it("says an unnamed club is unknown and does not make it a link", () => {
+    renderCard([row({ key: "u", clubName: "", clubId: "gone", inForce: false })], {
+      onOpenTeam: vi.fn(),
+    });
+
+    expect(screen.getByText("common.unknown")).toBeInTheDocument();
+    expect(screen.queryByRole("button")).toBeNull();
+  });
+
+  /**
+   * Given the contracts he has had
+   * When the card is drawn
+   * Then the table has the accessible name of the visible heading, so a screen reader can find it
+   */
+  it("names its table after its heading", () => {
+    renderCard([RENEWED]);
+
+    expect(screen.getByRole("table", { name: "playerProfile.contractsHad" })).toBeInTheDocument();
+  });
 });
