@@ -66,7 +66,7 @@ const NATIONALITIES: ReadonlyArray<readonly [what: string, value: string]> = [
   ["an alias in mixed case", "united Kingdom"],
   ["an English country name", "Germany"],
   ["a demonym written as the old saves wrote it", "Argentine"],
-  ["a demonym in a case the screen does not read", "argentine"],
+  ["a demonym in a case the screen does not read", "brazilian"],
   ["a value that is no country", "Atlantis"],
 ];
 

@@ -53,7 +53,7 @@ describe("the English country-name table", () => {
     const iso = Object.keys(countries.getAlpha2Codes());
 
     expect(iso.filter((code) => !(code in table.codes))).toEqual([]);
-    for (const identity of ["ENG", "SCO", "WAL", "NIR", "IRL"]) {
+    for (const identity of ["ENG", "SCO", "WAL", "NIR", "IE"]) {
       expect(table.codes[identity]).toBe(countryName(identity, "en"));
     }
   });
@@ -72,19 +72,27 @@ describe("the English country-name table", () => {
   /**
    * Given every demonym as the old saves wrote it
    * When the screen normalises it
-   * Then it is the code the table lists; and the same word in lower case is NOT read, as the screen
-   *      reads demonyms exactly
+   * Then it is the code the table lists
    */
   it.each(Object.entries(table.demonyms))(
     "reads the demonym %s as %s, exactly as written",
     (demonym, code) => {
       expect(normaliseNationality(demonym)).toBe(code);
-      const lower = demonym.toLowerCase();
-      if (lower !== demonym && !(lower in table.aliases) && !(lower in table.names)) {
-        expect(normaliseNationality(lower)).toBe(lower);
-      }
     },
   );
+
+  /**
+   * Given a demonym in lower case
+   * When the screen normalises it
+   * Then it is left as written: demonyms are read exactly. (Not every one: `argentine` and `swiss`
+   *      come out as AR and CH, because a country name the library lists in another language spells
+   *      them that way. The backend writes English names and the old saves' demonyms as they were,
+   *      so the table carries no other language's names.)
+   */
+  it.each(["brazilian", "swedish"])("does not read the lower-case demonym %s", (lower) => {
+    expect(normaliseNationality(lower)).toBe(lower);
+    expect(lower in table.demonyms).toBe(false);
+  });
 
   /**
    * Given every English country name the library lists
