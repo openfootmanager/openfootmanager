@@ -485,6 +485,57 @@ mod tests {
         assert_eq!(tokens, [1, 2, 3]);
     }
 
+    /// Given an installed game
+    /// When it is written three times through update_game_for
+    /// Then each write sees a revision one higher than the last, and the game the closure hands
+    ///      back carries the revision of its own write, so a screen can order what it receives.
+    #[test]
+    fn every_write_raises_the_revision_and_the_returned_game_carries_it() {
+        let state = StateManager::new();
+        state.set_game(make_game_with_fixture());
+
+        let returned: Vec<u64> = (0..3)
+            .map(|_| {
+                state
+                    .update_game_for(Career::Active, |game| game.clone().revision)
+                    .expect("an active game")
+            })
+            .collect();
+
+        assert_eq!(returned, [1, 2, 3]);
+        assert_eq!(state.get_game(|game| game.revision), Some(3));
+    }
+
+    /// Given a game that has been written to
+    /// When it is installed again with set_game (a new career or a loaded save)
+    /// Then it starts at revision 0, whatever the value it was handed carried.
+    #[test]
+    fn installing_a_game_starts_it_at_revision_zero() {
+        let state = StateManager::new();
+        let mut game = make_game_with_fixture();
+        game.revision = 41;
+
+        state.set_game(game);
+
+        assert_eq!(state.get_game(|game| game.revision), Some(0));
+    }
+
+    /// Given a game saved before the revision existed
+    /// When it is read back
+    /// Then it loads, at revision 0.
+    #[test]
+    fn a_game_without_a_revision_loads_at_zero() {
+        let mut value = serde_json::to_value(make_game_with_fixture()).expect("game serializes");
+        value
+            .as_object_mut()
+            .expect("a game is an object")
+            .remove("revision");
+
+        let game: Game = serde_json::from_value(value).expect("an old game loads");
+
+        assert_eq!(game.revision, 0);
+    }
+
     #[test]
     fn save_id_lifecycle_supports_set_get_and_clear() {
         let state = StateManager::new();
