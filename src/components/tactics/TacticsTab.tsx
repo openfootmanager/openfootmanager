@@ -108,6 +108,7 @@ export default function TacticsTab({
     activeTactic,
     tacticLibrary,
     isCommandBarDirty,
+    libraryLoaded,
     canResetTactic,
     handleResetTactic,
     applyTacticSelection,
@@ -153,6 +154,7 @@ export default function TacticsTab({
         activePlayStyle={activePlayStyle}
         formation={formation}
         isDirty={isCommandBarDirty}
+        libraryLoaded={libraryLoaded}
         canReset={canResetTactic}
         onReset={() => {
           void handleResetTactic();

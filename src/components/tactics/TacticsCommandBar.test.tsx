@@ -45,6 +45,7 @@ function buildProps(
     activePlayStyle: "Balanced",
     formation: "4-4-2",
     isDirty: false,
+    libraryLoaded: true,
     canDelete: true,
     onCreateNew: vi.fn(),
     onDelete: vi.fn(),
@@ -491,4 +492,18 @@ describe("TacticsCommandBar", () => {
       expect(screen.queryByRole("menuitem", { name: "tactics.deleteTactic" })).toBeNull();
     });
   });
+}); /**
+ * Given a preset (whose Save is always on) while the library's first load is still pending
+ * When the bar renders, and again once the load has settled
+ * Then Save is disabled until it has: a save asked first would queue behind the load.
+ */
+it("keeps Save disabled until the library's first load has settled", () => {
+  const { rerender } = renderCommandBar({ activeTactic: presetTactic, libraryLoaded: false });
+  expect(screen.getByRole("button", { name: "tactics.saveAsTactic" })).toBeDisabled();
+
+  rerender(
+    <TacticsCommandBar {...buildProps({ activeTactic: presetTactic, libraryLoaded: true })} />,
+  );
+
+  expect(screen.getByRole("button", { name: "tactics.saveAsTactic" })).toBeEnabled();
 });

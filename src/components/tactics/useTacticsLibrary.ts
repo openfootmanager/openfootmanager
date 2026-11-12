@@ -100,6 +100,9 @@ export function useTacticsLibrary({
   // not put its older list over the save's newer one. Each step's reply is the whole list, so the
   // last step to finish is the library as the save has it.
   const savesInOrder = useRef<Promise<void>>(Promise.resolve());
+  // Whether the first load (and the one-off import) of this career's library has settled. A save
+  // asked before then would queue behind it, and record whatever the manager changed meanwhile.
+  const [libraryLoaded, setLibraryLoaded] = useState(false);
   const confirmedLibrary = useRef<{ epoch: number; entries: TacticsLibraryEntry[] } | null>(null);
   function confirmLibrary(tactics: CustomTactic[], epoch: number): TacticsLibraryEntry[] {
     const entries = toLibraryEntries(tactics);
@@ -114,6 +117,7 @@ export function useTacticsLibrary({
   const careerEpoch = useGameStore((state) => state.careerEpoch);
 
   useEffect(() => {
+    setLibraryLoaded(false);
     if (!managerId || !careerStartDate) return;
 
     const askedIn = useGameStore.getState().careerEpoch;
@@ -141,8 +145,12 @@ export function useTacticsLibrary({
           if (imported.complete && !stale()) await markLegacyTacticsImported(careerToken);
         }
         if (!stale()) setCustomTactics(confirmLibrary(tactics, askedIn));
+        if (!stale()) setLibraryLoaded(true);
       })
-      .catch(() => {});
+      // A load that failed still ends the wait: Save is the way to put a tactic in the save.
+      .catch(() => {
+        if (!stale()) setLibraryLoaded(true);
+      });
   }, [managerId, careerStartDate, careerEpoch, careerToken]);
 
   // The screen answers at once; the save's own list then replaces it, or, if the save refused the
@@ -434,6 +442,7 @@ export function useTacticsLibrary({
 
   return {
     activeTactic,
+    libraryLoaded,
     tacticLibrary,
     isCommandBarDirty,
     canResetTactic,

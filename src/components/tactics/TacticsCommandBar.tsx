@@ -14,6 +14,11 @@ interface TacticsCommandBarProps {
   activePlayStyle: string;
   formation: string;
   isDirty: boolean;
+  /**
+   * Whether the library's first load has settled. Save waits for it: a save asked while the load
+   * is pending queues behind it and records whatever the manager changed meanwhile.
+   */
+  libraryLoaded: boolean;
   /** Whether pressing Reset would change anything; the library decides, the bar renders. */
   canReset: boolean;
   onReset: () => void;
@@ -44,6 +49,7 @@ export default function TacticsCommandBar({
   activePlayStyle,
   formation,
   isDirty,
+  libraryLoaded,
   canReset,
   onReset,
   canDelete,
@@ -67,7 +73,7 @@ export default function TacticsCommandBar({
   // Saving a synced custom tactic is a silent no-op — nothing has changed to
   // persist. Presets stay enabled even when isDirty is false because saving
   // there always creates a new custom tactic, which is an observable action.
-  const isSaveDisabled = activeTactic.type === "custom" && !isDirty;
+  const isSaveDisabled = !libraryLoaded || (activeTactic.type === "custom" && !isDirty);
 
   const { showSavedCue, save: handleSaveClick } = useSavedCue(activeTactic, onSave);
 
