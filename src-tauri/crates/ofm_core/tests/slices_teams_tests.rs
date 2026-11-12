@@ -348,8 +348,11 @@ fn directory_groups_teams_under_their_domestic_league_and_region() {
     assert_eq!(league.teams.len(), 2);
 }
 
+/// Given a closing split-season division
+/// When its teams directory entry is serialized
+/// Then the tier and phase metadata remain available to display-name formatting.
 #[test]
-fn directory_preserves_division_tier() {
+fn directory_preserves_division_display_metadata() {
     let team = make_team("arg1", "Alpha FC", "ARG", "Buenos Aires");
     let mut league = make_domestic_league("arg-tier-3", "Argentina League", "ARG", None, &["arg1"]);
     league.name_key = Some("tournaments.competitions.tierDivision".to_string());
@@ -358,7 +361,7 @@ fn directory_preserves_division_tier() {
             division: Some(DivisionIdentity {
                 family_id: "arg-league".to_string(),
                 tier: 3,
-                phase: Default::default(),
+                phase: domain::competition_calendar::SeasonPhase::Closing,
             }),
             ..Default::default()
         },
@@ -370,8 +373,10 @@ fn directory_preserves_division_tier() {
 
     let league = &dir.regions[0].leagues[0];
     assert_eq!(league.division_tier, Some(3));
+    assert_eq!(league.division_phase.as_deref(), Some("closing"));
     let serialized = serde_json::to_value(league).unwrap();
     assert_eq!(serialized["division_tier"], 3);
+    assert_eq!(serialized["division_phase"], "closing");
 }
 
 #[test]

@@ -1,3 +1,4 @@
+import type { CompetitionSeasonPhase } from "../store/generated/CompetitionSeasonPhase";
 import type { TeamSelectionRatings } from "../store/generated/TeamSelectionRatings";
 export type { TeamSelectionRatings } from "../store/generated/TeamSelectionRatings";
 export type { ClubSquadRatings } from "../store/generated/ClubSquadRatings";
@@ -68,6 +69,7 @@ export interface LeagueGroup {
   name_key?: string | null;
   country_id?: string | null;
   division_tier?: number | null;
+  division_phase?: CompetitionSeasonPhase | null;
   teams: TeamCard[];
 }
 

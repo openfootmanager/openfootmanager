@@ -110,6 +110,35 @@ describe("PlayerProfileAdvancedStatsCard percentiles", () => {
   });
 
   /**
+   * Given a German opening-half peer group
+   * When the card renders in German
+   * Then its label includes the localized opening phase
+   */
+  it("localizes a split-season peer group's phase", async () => {
+    await changeAppLanguage("de");
+
+    render(
+      <PlayerProfileAdvancedStatsCard
+        summary={{
+          ...SUMMARY,
+          peerGroup: {
+            competitionId: "de-tier-3-opening",
+            competitionName: "Germany Division 3 Apertura",
+            competitionNameKey: "tournaments.competitions.tierDivision",
+            countryId: "DE",
+            divisionTier: 3,
+            divisionPhase: "opening",
+            position: "Striker",
+          },
+        }}
+        t={i18n.t}
+      />,
+    );
+
+    expect(await screen.findByText(/Deutschland 3\. Liga Eröffnungsturnier/)).toBeInTheDocument();
+  });
+
+  /**
    * Given the backend gives no peer group (a player with no league)
    * When the card renders
    * Then no group line is shown

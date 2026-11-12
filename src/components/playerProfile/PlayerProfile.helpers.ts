@@ -1,6 +1,7 @@
 import { formatDate } from "../../lib/dateFormatting";
 import type { PlayerData, TeamData } from "../../store/gameStore";
 import type { TOptions } from "i18next";
+import type { CompetitionSeasonPhase } from "../../store/generated/CompetitionSeasonPhase";
 import { weeklyWageAmount } from "../../lib/finance";
 import { formatVal, formatWeeklyWage, getContractYearsRemaining } from "../../lib/helpers";
 import { getAttributeValueClassName } from "../../lib/playerAttributeDisplay";
@@ -28,6 +29,7 @@ export interface PercentilePeerGroup {
   competitionNameKey: string | null;
   countryId: string | null;
   divisionTier?: number | null;
+  divisionPhase?: CompetitionSeasonPhase | null;
   /** A `Position` name such as `Striker`. */
   position: string;
 }

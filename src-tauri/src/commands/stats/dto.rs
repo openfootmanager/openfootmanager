@@ -38,6 +38,8 @@ pub struct PeerGroupDto {
     pub country_id: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub division_tier: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub division_phase: Option<String>,
     /// The natural position the peers share, as `Position`'s name (e.g. `Striker`).
     pub position: String,
 }
@@ -136,14 +138,18 @@ mod tests {
     use super::PeerGroupDto;
     use serde_json::json;
 
+    /// Given an opening split-season peer group
+    /// When its DTO is serialized
+    /// Then the frontend receives its division tier and phase.
     #[test]
-    fn peer_group_serializes_division_metadata_for_frontend_display() {
+    fn peer_group_serializes_split_season_metadata_for_frontend_display() {
         let peer_group = PeerGroupDto {
             competition_id: "arg-tier-3".to_string(),
             competition_name: "Argentina League".to_string(),
             competition_name_key: Some("tournaments.competitions.tierDivision".to_string()),
             country_id: Some("ARG".to_string()),
             division_tier: Some(3),
+            division_phase: Some("opening".to_string()),
             position: "Striker".to_string(),
         };
 
@@ -155,6 +161,7 @@ mod tests {
                 "competitionNameKey": "tournaments.competitions.tierDivision",
                 "countryId": "ARG",
                 "divisionTier": 3,
+                "divisionPhase": "opening",
                 "position": "Striker"
             })
         );

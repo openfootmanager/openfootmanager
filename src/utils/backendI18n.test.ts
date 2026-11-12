@@ -536,8 +536,9 @@ describe("resolveMessage", () => {
     expect(text).toBe("Season 1 prize money for 3rd place");
   });
 
-  // Given a promotion notice for a generated division (stored under its English template name),
-  // when rendered in German, then the division reads as the locale names it, not in English.
+  // Given a promotion notice for an opening division
+  // When rendered in German
+  // Then its localized tier and phase are shown
   it("names a promoted-to division in the player's language", async () => {
     const previousLanguage = i18n.language;
     await i18n.changeLanguage("de");
@@ -551,13 +552,16 @@ describe("resolveMessage", () => {
             divisionKey: "tournaments.competitions.secondDivision",
             divisionCountry: "DE",
             divisionSeason: "3",
+            divisionPhase: "opening",
             season: "3",
           },
         }),
       );
       expect(promotion.subject).toContain("Deutschland Zweite Division");
+      expect(promotion.subject).toContain("Eröffnungsturnier");
       expect(promotion.subject).not.toContain("Germany");
       expect(promotion.body).toContain("Deutschland Zweite Division");
+      expect(promotion.body).toContain("Eröffnungsturnier");
     } finally {
       await i18n.changeLanguage(previousLanguage);
     }

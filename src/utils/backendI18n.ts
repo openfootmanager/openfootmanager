@@ -7,6 +7,7 @@ import { formatOrdinal } from "../lib/ordinal";
 import { countryName } from "../lib/countries";
 import { storedTeamLabel } from "../lib/team";
 import { competitionDisplayName } from "../lib/competitionName";
+import type { CompetitionSeasonPhase } from "../store/generated/CompetitionSeasonPhase";
 import { useSettingsStore } from "../store/settingsStore";
 import type {
   MessageActionOption,
@@ -509,6 +510,10 @@ function normalizeReportCompetitionName(
   };
 }
 
+function parseDivisionPhase(value: string | undefined): CompetitionSeasonPhase | undefined {
+  return value === "annual" || value === "opening" || value === "closing" ? value : undefined;
+}
+
 function normalizeMatchReportParams(
   article: NewsArticle,
   params?: Record<string, string>,
@@ -643,6 +648,7 @@ function normalizeDivisionName(
   if (!isDivisionChange || !params?.divisionKey) return params;
 
   const season = Number(params.divisionSeason);
+  const phase = parseDivisionPhase(params.divisionPhase);
   return {
     ...params,
     division: competitionDisplayName(
@@ -651,6 +657,7 @@ function normalizeDivisionName(
         name_key: params.divisionKey,
         country_id: params.divisionCountry ?? null,
         season: Number.isFinite(season) ? season : undefined,
+        calendar: phase ? { season: { division: { phase } } } : undefined,
       },
       (key, options) => i18n.t(key, options),
     ),
