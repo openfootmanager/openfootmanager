@@ -368,6 +368,17 @@ describe("TacticsTab preset selection", { timeout: TACTICS_TAB_CASE_TIMEOUT_MS }
       },
     ],
     [
+      "a player role chosen in the table",
+      "set_player_role",
+      async () => {
+        const select = (await screen.findAllByRole("combobox")).find((control) =>
+          control.getAttribute("aria-label")?.startsWith("Role:"),
+        ) as HTMLElement;
+        fireEvent.click(select);
+        fireEvent.click(screen.getAllByRole("option")[1]);
+      },
+    ],
+    [
       "the auto-selected set-piece takers",
       "set_team_match_roles",
       async () => {

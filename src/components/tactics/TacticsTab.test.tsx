@@ -811,10 +811,12 @@ describe("TacticsTab", () => {
 
     render(<TacticsTab gameState={gameState} onSelectPlayer={vi.fn()} onGameUpdate={vi.fn()} />);
 
-    const benchCard = await screen.findByTestId("pitch-bench-player-d5");
+    // His positions are the row's "can play" badges, natural first.
+    await screen.findByTestId("pitch-bench-player-d5");
+    const benchRow = screen.getByTestId("bench-player-d5");
 
-    expect(within(benchCard).getByText("common.posAbbr.Defender")).toBeInTheDocument();
-    expect(within(benchCard).queryByText("common.posAbbr.Midfielder")).not.toBeInTheDocument();
+    expect(within(benchRow).getByText("common.posAbbr.Defender")).toBeInTheDocument();
+    expect(within(benchRow).queryByText("common.posAbbr.Midfielder")).not.toBeInTheDocument();
   });
 
   it("can duplicate the current setup into a custom tactic shell", () => {
@@ -996,7 +998,9 @@ describe("TacticsTab", () => {
     fireEvent.click(screen.getByTestId("pitch-player-f1"));
     fireEvent.click(screen.getByTestId("pitch-player-m1"));
 
-    expect(screen.getByText("common.positions.Forward")).toBeInTheDocument();
+    // The table names positions too (its badges' full names), so look in the comparison itself.
+    const comparison = within(screen.getByRole("dialog"));
+    expect(comparison.getAllByText("common.positions.Forward").length).toBeGreaterThan(0);
     expect(screen.queryByText("Forward")).not.toBeInTheDocument();
   });
 
@@ -1215,10 +1219,11 @@ describe("TacticsTab", () => {
 
     render(<TacticsTab gameState={gameState} onSelectPlayer={vi.fn()} onGameUpdate={vi.fn()} />);
 
-    expect(within(screen.getByTestId("xi-player-f1")).getByText("77")).toHaveClass(
+    // The rating is the row's RatingChip, whose box carries the tier's tone.
+    expect(within(screen.getByTestId("xi-row-f1")).getByText("77").parentElement).toHaveClass(
       ...ratingTierClass("A", "badge").split(" "),
     );
-    expect(within(screen.getByTestId("xi-player-d1")).getByText("76")).toHaveClass(
+    expect(within(screen.getByTestId("xi-row-d1")).getByText("76").parentElement).toHaveClass(
       ...ratingTierClass("B", "badge").split(" "),
     );
   });
@@ -1287,9 +1292,11 @@ describe("TacticsTab", () => {
 
     render(<TacticsTab gameState={gameState} onSelectPlayer={vi.fn()} onGameUpdate={vi.fn()} />);
 
-    const row = screen.getByTestId("xi-player-m4");
-    expect(within(row).getByText("common.posAbbr.RightMidfielder")).toBeInTheDocument();
-    expect(within(row).queryByText("common.posAbbr.Striker")).not.toBeInTheDocument();
+    // The row's position cell is the slot he plays in, not his natural position (his natural one is
+    // among the "can play" badges).
+    const positionCell = within(screen.getByTestId("xi-row-m4")).getAllByRole("cell")[1];
+    expect(positionCell).toHaveTextContent("common.posAbbr.RightMidfielder");
+    expect(positionCell).not.toHaveTextContent("common.posAbbr.Striker");
   });
 
   it("offers pitch roles for the deployed slot, not the natural position", () => {
@@ -1307,6 +1314,51 @@ describe("TacticsTab", () => {
     // Right-midfield roles are on offer; striker-only roles are not.
     expect(screen.getByRole("option", { name: "InvertedWinger" })).toBeInTheDocument();
     expect(screen.queryByRole("option", { name: "Poacher" })).not.toBeInTheDocument();
+  });
+
+  /**
+   * Given a striker standing at right-midfield whose stored role is Poacher, and a backend lineup
+   *       that says he plays Standard there (a poacher is a striker's role, which the slot does not
+   *       admit)
+   * When the Tactics screen shows him
+   * Then the table and the pitch both show Standard: the role the match will play, not the stale
+   *      stored one, so the two cannot disagree.
+   */
+  it("shows the same role for a starter in the table and on the pitch", async () => {
+    const gameState = makeOutOfPositionGameState();
+    gameState.teams = gameState.teams.map((team) => ({
+      ...team,
+      player_roles: { m4: "Poacher" },
+    }));
+    const roster = gameState.players.filter((p) => p.team_id === "team1");
+    const eleven = ["gk1", "d1", "d2", "d3", "d4", "m1", "m2", "m3", "m4", "f1", "f2"];
+    mockedInvoke.mockImplementation(async (command: string) => {
+      if (command === "get_squad") return roster;
+      if (command === "get_tactics_lineup") {
+        return {
+          formation: "4-4-2",
+          eleven: eleven.map((player_id) => ({
+            position: player_id === "m4" ? "RightMidfielder" : "CentralMidfielder",
+            player_id,
+            role: "Standard",
+            familiarity: player_id === "m4" ? "out_of_position" : "natural",
+          })),
+          substitutes: [],
+          reserves: [],
+        };
+      }
+      return gameState;
+    });
+
+    render(<TacticsTab gameState={gameState} onSelectPlayer={vi.fn()} onGameUpdate={vi.fn()} />);
+
+    const tableRole = await screen.findByRole("combobox", { name: /tactics.playerRoleLabel: M4/ });
+    const pitchRole = within(screen.getByTestId("pitch-player-m4")).getByRole("combobox");
+    // Each select is a button showing only its selected option's label (the options are drawn when it
+    // opens), so the whole text is the selected role: exactly Standard, once the lineup has loaded.
+    await waitFor(() => expect(tableRole).toHaveTextContent(/^tactics\.playerRoles\.Standard$/));
+    expect(pitchRole).toHaveTextContent(/^Standard$/);
+    expect(pitchRole).not.toHaveTextContent("Poacher");
   });
 
   it("does not promote an injured bench player into the starting XI", async () => {

@@ -802,6 +802,8 @@
     "unsavedChanges": "Perubahan belum disimpan",
     "currentPlanCard": "Rencana saat ini",
     "phaseBlueprint": "Cetak biru fase",
+    "reserves": "Tim cadangan",
+    "playerTable": "Pemain",
     "instructionsPanel": {
       "title": "Instruksi tim",
       "show": "Tampilkan instruksi tim",

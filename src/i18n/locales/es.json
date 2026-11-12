@@ -850,6 +850,8 @@
     "unsavedChanges": "Cambios sin guardar",
     "currentPlanCard": "Plan actual",
     "phaseBlueprint": "Plano por fases",
+    "reserves": "Reservas",
+    "playerTable": "Jugadores",
     "instructionsPanel": {
       "title": "Instrucciones de equipo",
       "show": "Mostrar las instrucciones de equipo",
