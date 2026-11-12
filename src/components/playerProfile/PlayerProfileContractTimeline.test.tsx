@@ -149,10 +149,11 @@ describe("PlayerProfileContractTimeline", () => {
    * Given two contracts and today, on an axis of whole years from 2029 to the end of 2033
    * When the card is drawn
    * Then each bar is placed and sized by its days (left and width in percent of the axis) and the
-   *      Today label sits at today's share of the axis, so removing the placement shows
+   *      Today label and its marker line sit at today's share of the axis, so removing the
+   *      placement shows
    */
   it("places each bar and the Today label by their days on the axis", () => {
-    renderTimeline(ROWS);
+    const { container } = renderTimeline(ROWS);
 
     const share = (from: string, to: string) =>
       ((Date.parse(to) - Date.parse(from)) /
@@ -167,6 +168,10 @@ describe("PlayerProfileContractTimeline", () => {
     expect(width(newer)).toBeCloseTo(share("2031-07-01", "2033-07-01"), 2);
     const today = screen.getByText("playerProfile.contractSheet.today");
     expect(left(today)).toBeCloseTo(share("2029-01-01", "2031-07-10"), 2);
+    // The marker line has a position of its own (the label's is clamped at the axis edges).
+    const marker = container.querySelector<HTMLElement>(".bg-info");
+    expect(marker).not.toBeNull();
+    expect(left(marker as HTMLElement)).toBeCloseTo(share("2029-01-01", "2031-07-10"), 2);
   });
 
   /**
