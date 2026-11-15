@@ -35,7 +35,7 @@ export default function ManageButton({
       onClick={onClick}
       iconRight={
         confirming ? (
-          <Loader2 aria-hidden="true" className="animate-spin" />
+          <Loader2 aria-hidden="true" className="motion-safe:animate-spin" />
         ) : (
           <ChevronRight aria-hidden="true" />
         )
