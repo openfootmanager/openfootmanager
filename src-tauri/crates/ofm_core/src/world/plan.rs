@@ -8,7 +8,12 @@
 use chrono::{DateTime, Datelike, Duration, TimeZone, Utc};
 
 use crate::game::Game;
-use domain::league::{CompetitionFormat, CompetitionScope, CompetitionType, FixtureCompetition};
+use crate::generator::{CompetitionDefinition, FormatDef, ParticipantSpec};
+use domain::competition_calendar::{CalendarDate, DivisionIdentity, SeasonCalendar, SeasonPhase};
+use domain::league::{
+    Berth, BerthRule, CompetitionFormat, CompetitionScope, CompetitionType, FixtureCompetition,
+};
+use std::collections::BTreeMap;
 
 use super::*;
 
@@ -59,43 +64,58 @@ pub fn team_season_anchor(game: &Game, team_id: &str) -> Option<DateTime<Utc>> {
         })
 }
 
-/// Build the generated world's competitions as `CompetitionDefinition`s with
-/// explicit participant lists, paired with their staggered start dates. Built-in
-/// competitions then flow through the same `build_explicit_competition` core as
-/// imported definitions (see [`build_foundation_competitions`]).
-///
-/// `game_start` is the game anchor (July 1 in normal years; June 1 in World Cup
-/// years so the WC opens in June). Each competition's start date is derived from
-/// its region's default season month via
-/// [`crate::generator::start_date_at_game_open`].
-pub(super) fn build_foundation_competition_plan(
-    game: &Game,
-    game_start: DateTime<Utc>,
-    division_size: usize,
-) -> Vec<(crate::generator::CompetitionDefinition, DateTime<Utc>)> {
-    use crate::generator::{CompetitionDefinition, FormatDef, ParticipantSpec};
-    use domain::competition_calendar::{
-        CalendarDate, DivisionIdentity, SeasonCalendar, SeasonPhase,
-    };
-    use domain::league::{Berth, BerthRule};
-    use std::collections::BTreeMap;
+type PlannedCompetition = (CompetitionDefinition, DateTime<Utc>);
 
-    // Default berth into the continental cup; reproduces the inferred field so a
-    // freshly generated world's qualification is unchanged.
-    let continental_berth = |rule: BerthRule| Berth {
-        target: CONTINENTAL_CHAMPIONS_CUP_ID.to_string(),
-        rule,
-        fallback_to: None,
-    };
+struct CountryPlanContext {
+    country: String,
+    country_slug: String,
+    country_label: String,
+    region_id: String,
+    league_month: u8,
+}
 
-    let make_format = |kind: CompetitionFormat| FormatDef {
+impl CountryPlanContext {
+    fn new(country: &str) -> Self {
+        let region_id = infer_region_id(country);
+        Self {
+            country: country.to_string(),
+            country_slug: country.to_lowercase(),
+            country_label: crate::nations::nation_display_name(country),
+            league_month: if country == "BR" {
+                1
+            } else {
+                default_season_month_for_region(&region_id)
+            },
+            region_id,
+        }
+    }
+}
+
+fn league_format(kind: CompetitionFormat) -> FormatDef {
+    FormatDef {
         kind,
         legs: None,
         group_size: None,
         qualifiers_per_group: None,
         best_third_qualifiers: None,
-    };
+    }
+}
 
+fn continental_berth(rule: BerthRule) -> Berth {
+    Berth {
+        target: CONTINENTAL_CHAMPIONS_CUP_ID.to_string(),
+        rule,
+        fallback_to: None,
+    }
+}
+
+/// Build the generated world's competitions with explicit participant lists and staggered starts.
+/// Built-in competitions then use the same resolver as imported definitions.
+pub(super) fn build_foundation_competition_plan(
+    game: &Game,
+    game_start: DateTime<Utc>,
+    division_size: usize,
+) -> Vec<PlannedCompetition> {
     let mut teams_by_country: BTreeMap<String, Vec<String>> = BTreeMap::new();
     for team in &game.teams {
         teams_by_country
@@ -103,365 +123,439 @@ pub(super) fn build_foundation_competition_plan(
             .or_default()
             .push(team.id.clone());
     }
-
     let reputation: std::collections::HashMap<&str, u32> = game
         .teams
         .iter()
         .map(|team| (team.id.as_str(), team.reputation))
         .collect();
 
-    let mut planned: Vec<(CompetitionDefinition, DateTime<Utc>)> = Vec::new();
+    let mut planned = Vec::new();
     let mut priority = 0u32;
     for (country, mut team_ids) in teams_by_country {
         if team_ids.len() < 2 {
             continue;
         }
-        // Strongest first so divisions are seeded by quality and cup byes go to
-        // the best clubs.
         team_ids.sort_by(|left, right| {
             reputation
                 .get(right.as_str())
                 .cmp(&reputation.get(left.as_str()))
                 .then_with(|| left.cmp(right))
         });
-        let region_id = infer_region_id(&country);
-        // Human-readable nation name for competition titles ("ES" → "Spain").
-        let country_label = crate::nations::nation_display_name(&country);
-        let country_slug = country.to_lowercase();
-
-        let league_month = if country == "BR" {
-            1
-        } else {
-            default_season_month_for_region(&region_id)
-        };
-        let (league_start, _) = crate::generator::start_date_at_game_open(
+        let context = CountryPlanContext::new(&country);
+        planned.extend(plan_country_competitions(
+            game,
             game_start,
-            league_month,
-            if country == "BR" { 28 } else { 1 },
-        );
-
-        let divisions = split_into_divisions(&team_ids, division_size);
-        let division_count = divisions.len();
-
-        if crate::nations::is_split_season_country(&country) {
-            // Split-season format: Apertura (first half, Feb) + Clausura (second
-            // half, Jul). Only the Clausura carries promotion/relegation berths
-            // since it closes the year.
-            let (apertura_start, _) = crate::generator::start_date_at_game_open(game_start, 2, 1);
-            let (clausura_start, _) = crate::generator::start_date_at_game_open(game_start, 7, 1);
-
-            for (tier, division_ids) in divisions.iter().enumerate() {
-                let clausura_berths = if tier == 0 {
-                    vec![continental_berth(BerthRule::PositionRange {
-                        from: 1,
-                        to: CONTINENTAL_QUALIFYING_POSITIONS,
-                    })]
-                } else {
-                    Vec::new()
-                };
-                let make_def = |id: &str, name: &str, month: u8, berths: Vec<Berth>, p: u32| {
-                    CompetitionDefinition {
-                        id: id.to_string(),
-                        name: name.to_string(),
-                        r#type: CompetitionType::League,
-                        scope: CompetitionScope::Domestic,
-                        region_id: Some(region_id.clone()),
-                        country_id: Some(country.clone()),
-                        required_region_ids: vec![region_id.clone()],
-                        priority: p,
-                        format: make_format(CompetitionFormat::LeagueTable),
-                        participants: ParticipantSpec {
-                            explicit: Some(division_ids.clone()),
-                            selector: None,
-                        },
-                        berths,
-                        season_start_month: Some(month),
-                        season_start_day: Some(1),
-                        name_key: Some(division_tier_name_key(tier, division_count).to_string()),
-                        logo: None,
-                        calendar: Some(SeasonCalendar {
-                            division: Some(DivisionIdentity {
-                                family_id: format!("{country_slug}-league"),
-                                tier: (tier + 1) as u32,
-                                phase: if month == 2 {
-                                    SeasonPhase::Opening
-                                } else {
-                                    SeasonPhase::Closing
-                                },
-                            }),
-                            window_end: Some(if month == 2 {
-                                CalendarDate { month: 6, day: 30 }
-                            } else {
-                                CalendarDate { month: 1, day: 31 }
-                            }),
-                        }),
-                    }
-                };
-                let tier_suffix = format!("d{}", tier + 1);
-                planned.push((
-                    make_def(
-                        &format!("{country_slug}-{tier_suffix}-apertura"),
-                        &format!(
-                            "{country_label} {} Apertura",
-                            division_tier_name(tier, division_count)
-                        ),
-                        2,
-                        Vec::new(),
-                        priority,
-                    ),
-                    apertura_start,
-                ));
-                priority += 1;
-                planned.push((
-                    make_def(
-                        &format!("{country_slug}-{tier_suffix}-clausura"),
-                        &format!(
-                            "{country_label} {} Clausura",
-                            division_tier_name(tier, division_count)
-                        ),
-                        7,
-                        clausura_berths,
-                        priority,
-                    ),
-                    clausura_start,
-                ));
-                priority += 1;
-            }
-        } else {
-            for (tier, division_ids) in divisions.iter().enumerate() {
-                let berths = if tier == 0 {
-                    vec![continental_berth(BerthRule::PositionRange {
-                        from: 1,
-                        to: CONTINENTAL_QUALIFYING_POSITIONS,
-                    })]
-                } else {
-                    Vec::new()
-                };
-                let actual_start = if country == "BR" && tier > 0 {
-                    crate::generator::start_date_at_game_open(game_start, 3, 21).0
-                } else {
-                    league_start
-                };
-                planned.push((
-                    CompetitionDefinition {
-                        id: format!("{country_slug}-d{}", tier + 1),
-                        name: division_name(&country_label, tier, division_count),
-                        r#type: CompetitionType::League,
-                        scope: CompetitionScope::Domestic,
-                        region_id: Some(region_id.clone()),
-                        country_id: Some(country.clone()),
-                        required_region_ids: vec![region_id.clone()],
-                        priority,
-                        format: make_format(CompetitionFormat::LeagueTable),
-                        participants: ParticipantSpec {
-                            explicit: Some(division_ids.clone()),
-                            selector: None,
-                        },
-                        berths,
-                        season_start_month: Some(if country == "BR" && tier > 0 {
-                            actual_start.month() as u8
-                        } else {
-                            league_month
-                        }),
-                        season_start_day: Some(if country == "BR" {
-                            if tier == 0 {
-                                28
-                            } else {
-                                actual_start.day() as u8
-                            }
-                        } else {
-                            1
-                        }),
-                        name_key: Some(division_tier_name_key(tier, division_count).to_string()),
-                        logo: None,
-                        calendar: Some(SeasonCalendar {
-                            division: Some(DivisionIdentity {
-                                family_id: format!("{country_slug}-league"),
-                                tier: (tier + 1) as u32,
-                                phase: SeasonPhase::Annual,
-                            }),
-                            window_end: None,
-                        }),
-                    },
-                    actual_start,
-                ));
-                priority += 1;
-            }
-        }
-
-        // National cup contested by every club in the country.
-        let cup_month = if crate::nations::is_split_season_country(&country) {
-            2
-        } else {
-            league_month
-        };
-        let (actual_cup_start, _) =
-            crate::generator::start_date_at_game_open(game_start, cup_month, 1);
-        let cup_actual_start = actual_cup_start + Duration::days(35);
-        planned.push((
-            CompetitionDefinition {
-                id: format!("{country_slug}-cup"),
-                name: format!("{country_label} Cup"),
-                r#type: CompetitionType::Cup,
-                scope: CompetitionScope::Domestic,
-                region_id: Some(region_id.clone()),
-                country_id: Some(country.clone()),
-                required_region_ids: vec![region_id.clone()],
-                priority,
-                format: make_format(CompetitionFormat::Knockout),
-                participants: ParticipantSpec {
-                    explicit: Some(team_ids.clone()),
-                    selector: None,
-                },
-                berths: vec![continental_berth(BerthRule::CupWinner)],
-                season_start_month: Some(cup_actual_start.month() as u8),
-                season_start_day: Some(cup_actual_start.day() as u8),
-                name_key: Some("tournaments.competitions.nationalCup".to_string()),
-                logo: None,
-                calendar: None,
-            },
-            cup_actual_start,
-        ));
-        priority += 1;
-
-        if country == "BR" {
-            let labels = [
-                (
-                    "southeast",
-                    "Southeast State Series",
-                    "competitionNames.brazilStateSoutheast",
-                ),
-                (
-                    "south",
-                    "South State Series",
-                    "competitionNames.brazilStateSouth",
-                ),
-                (
-                    "northeast",
-                    "Northeast State Series",
-                    "competitionNames.brazilStateNortheast",
-                ),
-                (
-                    "north-central-west",
-                    "North/Central-West State Series",
-                    "competitionNames.brazilStateNorthCentralWest",
-                ),
-            ];
-            let mut pools: BTreeMap<&str, Vec<String>> =
-                labels.iter().map(|(id, _, _)| (*id, Vec::new())).collect();
-            let mut unknown = Vec::new();
-            for team_id in &team_ids {
-                let city = game
-                    .teams
-                    .iter()
-                    .find(|team| &team.id == team_id)
-                    .map(|team| team.city.as_str())
-                    .unwrap_or("");
-                if let Some(pool) = brazil_state_region(city) {
-                    pools.get_mut(pool).unwrap().push(team_id.clone());
-                } else {
-                    unknown.push(team_id.clone());
-                }
-            }
-            unknown.sort();
-            for team_id in unknown {
-                let smallest = labels
-                    .iter()
-                    .map(|(id, _, _)| *id)
-                    .min_by_key(|id| (pools[*id].len(), *id))
-                    .unwrap();
-                pools.get_mut(smallest).unwrap().push(team_id);
-            }
-            let state_start = crate::generator::start_date_at_game_open(game_start, 1, 11).0;
-            for (id, name, name_key) in labels {
-                let participants = pools.remove(id).unwrap_or_default();
-                if participants.len() < 2 {
-                    continue;
-                }
-                planned.push((
-                    CompetitionDefinition {
-                        id: format!("br-state-{id}"),
-                        name: name.to_string(),
-                        r#type: CompetitionType::Cup,
-                        scope: CompetitionScope::Regional,
-                        region_id: Some(region_id.clone()),
-                        country_id: Some(country.clone()),
-                        required_region_ids: vec![region_id.clone()],
-                        priority,
-                        format: FormatDef {
-                            kind: CompetitionFormat::GroupAndKnockout,
-                            legs: Some(1),
-                            group_size: Some(domain::league::DEFAULT_GROUP_SIZE),
-                            qualifiers_per_group: Some(2),
-                            best_third_qualifiers: None,
-                        },
-                        participants: ParticipantSpec {
-                            explicit: Some(participants),
-                            selector: None,
-                        },
-                        berths: Vec::new(),
-                        season_start_month: Some(1),
-                        season_start_day: Some(11),
-                        name_key: Some(name_key.to_string()),
-                        logo: None,
-                        calendar: None,
-                    },
-                    state_start,
-                ));
-                priority += 1;
-            }
-        }
-    }
-
-    let continental_team_ids = select_continental_entrants(&game.teams, 2, 16);
-    if continental_team_ids.len() >= 4 {
-        let mut feeder_regions: Vec<String> = game
-            .teams
-            .iter()
-            .filter(|team| continental_team_ids.contains(&team.id))
-            .map(infer_team_region_id)
-            .collect();
-        feeder_regions.sort();
-        feeder_regions.dedup();
-        // With a big enough field, the continental cup opens with a group
-        // stage; smaller fields go straight to a knockout bracket.
-        let format_kind = if continental_team_ids.len() >= 8 {
-            CompetitionFormat::GroupAndKnockout
-        } else {
-            CompetitionFormat::Knockout
-        };
-        // Continental cup starts in October regardless of hemisphere (it draws
-        // from multiple regions and is keyed to the European calendar).
-        let (continental_start, _) = crate::generator::start_date_at_game_open(game_start, 10, 1);
-        planned.push((
-            CompetitionDefinition {
-                id: "continental-champions-cup".to_string(),
-                name: "Continental Champions Cup".to_string(),
-                r#type: CompetitionType::ContinentalClub,
-                scope: CompetitionScope::Continental,
-                name_key: Some("tournaments.competitions.continentalChampionsCup".to_string()),
-                region_id: None,
-                country_id: None,
-                required_region_ids: feeder_regions,
-                priority,
-                format: make_format(format_kind),
-                participants: ParticipantSpec {
-                    explicit: Some(continental_team_ids),
-                    selector: None,
-                },
-                berths: Vec::new(),
-                season_start_month: Some(10),
-                season_start_day: Some(1),
-                logo: None,
-                calendar: None,
-            },
-            continental_start,
+            division_size,
+            &context,
+            &team_ids,
+            &mut priority,
         ));
     }
-
+    if let Some(continental) = plan_continental_competition(game, game_start, priority) {
+        planned.push(continental);
+    }
     planned
 }
 
+fn plan_country_competitions(
+    game: &Game,
+    game_start: DateTime<Utc>,
+    division_size: usize,
+    context: &CountryPlanContext,
+    team_ids: &[String],
+    priority: &mut u32,
+) -> Vec<PlannedCompetition> {
+    let divisions = split_into_divisions(team_ids, division_size);
+    let mut planned = if crate::nations::is_split_season_country(&context.country) {
+        plan_split_season_leagues(game_start, context, &divisions, priority)
+    } else {
+        plan_annual_leagues(game_start, context, &divisions, priority)
+    };
+    planned.push(plan_national_cup(game_start, context, team_ids, priority));
+    if context.country == "BR" {
+        planned.extend(plan_brazil_state_series(
+            game, game_start, context, team_ids, priority,
+        ));
+    }
+    planned
+}
+
+fn plan_split_season_leagues(
+    game_start: DateTime<Utc>,
+    context: &CountryPlanContext,
+    divisions: &[Vec<String>],
+    priority: &mut u32,
+) -> Vec<PlannedCompetition> {
+    let (opening_start, _) = crate::generator::start_date_at_game_open(game_start, 2, 1);
+    let (closing_start, _) = crate::generator::start_date_at_game_open(game_start, 7, 1);
+    let division_count = divisions.len();
+    let mut planned = Vec::with_capacity(division_count * 2);
+
+    for (tier, division_ids) in divisions.iter().enumerate() {
+        let closing_berths = if tier == 0 {
+            vec![continental_berth(BerthRule::PositionRange {
+                from: 1,
+                to: CONTINENTAL_QUALIFYING_POSITIONS,
+            })]
+        } else {
+            Vec::new()
+        };
+        let opening = split_season_definition(
+            context,
+            division_ids,
+            tier,
+            division_count,
+            2,
+            Vec::new(),
+            *priority,
+        );
+        planned.push((opening, opening_start));
+        *priority += 1;
+        let closing = split_season_definition(
+            context,
+            division_ids,
+            tier,
+            division_count,
+            7,
+            closing_berths,
+            *priority,
+        );
+        planned.push((closing, closing_start));
+        *priority += 1;
+    }
+    planned
+}
+
+fn split_season_definition(
+    context: &CountryPlanContext,
+    division_ids: &[String],
+    tier: usize,
+    division_count: usize,
+    month: u8,
+    berths: Vec<Berth>,
+    priority: u32,
+) -> CompetitionDefinition {
+    let opening = month == 2;
+    let phase = if opening {
+        SeasonPhase::Opening
+    } else {
+        SeasonPhase::Closing
+    };
+    let phase_name = if opening { "Apertura" } else { "Clausura" };
+    let phase_id = if opening { "apertura" } else { "clausura" };
+    CompetitionDefinition {
+        id: format!("{}-d{}-{phase_id}", context.country_slug, tier + 1),
+        name: format!(
+            "{} {} {phase_name}",
+            context.country_label,
+            division_tier_name(tier, division_count)
+        ),
+        r#type: CompetitionType::League,
+        scope: CompetitionScope::Domestic,
+        region_id: Some(context.region_id.clone()),
+        country_id: Some(context.country.clone()),
+        required_region_ids: vec![context.region_id.clone()],
+        priority,
+        format: league_format(CompetitionFormat::LeagueTable),
+        participants: ParticipantSpec {
+            explicit: Some(division_ids.to_vec()),
+            selector: None,
+        },
+        berths,
+        season_start_month: Some(month),
+        season_start_day: Some(1),
+        name_key: Some(division_tier_name_key(tier, division_count).to_string()),
+        logo: None,
+        calendar: Some(SeasonCalendar {
+            division: Some(DivisionIdentity {
+                family_id: format!("{}-league", context.country_slug),
+                tier: (tier + 1) as u32,
+                phase,
+            }),
+            window_end: Some(if opening {
+                CalendarDate { month: 6, day: 30 }
+            } else {
+                CalendarDate { month: 1, day: 31 }
+            }),
+        }),
+    }
+}
+
+fn plan_annual_leagues(
+    game_start: DateTime<Utc>,
+    context: &CountryPlanContext,
+    divisions: &[Vec<String>],
+    priority: &mut u32,
+) -> Vec<PlannedCompetition> {
+    let (league_start, _) = crate::generator::start_date_at_game_open(
+        game_start,
+        context.league_month,
+        if context.country == "BR" { 28 } else { 1 },
+    );
+    let division_count = divisions.len();
+    let mut planned = Vec::with_capacity(division_count);
+    for (tier, division_ids) in divisions.iter().enumerate() {
+        let actual_start = if context.country == "BR" && tier > 0 {
+            crate::generator::start_date_at_game_open(game_start, 3, 21).0
+        } else {
+            league_start
+        };
+        let berths = if tier == 0 {
+            vec![continental_berth(BerthRule::PositionRange {
+                from: 1,
+                to: CONTINENTAL_QUALIFYING_POSITIONS,
+            })]
+        } else {
+            Vec::new()
+        };
+        let definition = annual_league_definition(
+            context,
+            division_ids,
+            tier,
+            division_count,
+            actual_start,
+            berths,
+            *priority,
+        );
+        planned.push((definition, actual_start));
+        *priority += 1;
+    }
+    planned
+}
+
+fn annual_league_definition(
+    context: &CountryPlanContext,
+    division_ids: &[String],
+    tier: usize,
+    division_count: usize,
+    actual_start: DateTime<Utc>,
+    berths: Vec<Berth>,
+    priority: u32,
+) -> CompetitionDefinition {
+    CompetitionDefinition {
+        id: format!("{}-d{}", context.country_slug, tier + 1),
+        name: division_name(&context.country_label, tier, division_count),
+        r#type: CompetitionType::League,
+        scope: CompetitionScope::Domestic,
+        region_id: Some(context.region_id.clone()),
+        country_id: Some(context.country.clone()),
+        required_region_ids: vec![context.region_id.clone()],
+        priority,
+        format: league_format(CompetitionFormat::LeagueTable),
+        participants: ParticipantSpec {
+            explicit: Some(division_ids.to_vec()),
+            selector: None,
+        },
+        berths,
+        season_start_month: Some(if context.country == "BR" && tier > 0 {
+            actual_start.month() as u8
+        } else {
+            context.league_month
+        }),
+        season_start_day: Some(if context.country == "BR" {
+            if tier == 0 {
+                28
+            } else {
+                actual_start.day() as u8
+            }
+        } else {
+            1
+        }),
+        name_key: Some(division_tier_name_key(tier, division_count).to_string()),
+        logo: None,
+        calendar: Some(SeasonCalendar {
+            division: Some(DivisionIdentity {
+                family_id: format!("{}-league", context.country_slug),
+                tier: (tier + 1) as u32,
+                phase: SeasonPhase::Annual,
+            }),
+            window_end: None,
+        }),
+    }
+}
+
+fn plan_national_cup(
+    game_start: DateTime<Utc>,
+    context: &CountryPlanContext,
+    team_ids: &[String],
+    priority: &mut u32,
+) -> PlannedCompetition {
+    let cup_month = if crate::nations::is_split_season_country(&context.country) {
+        2
+    } else {
+        context.league_month
+    };
+    let (actual_start, _) = crate::generator::start_date_at_game_open(game_start, cup_month, 1);
+    let cup_start = actual_start + Duration::days(35);
+    let definition = CompetitionDefinition {
+        id: format!("{}-cup", context.country_slug),
+        name: format!("{} Cup", context.country_label),
+        r#type: CompetitionType::Cup,
+        scope: CompetitionScope::Domestic,
+        region_id: Some(context.region_id.clone()),
+        country_id: Some(context.country.clone()),
+        required_region_ids: vec![context.region_id.clone()],
+        priority: *priority,
+        format: league_format(CompetitionFormat::Knockout),
+        participants: ParticipantSpec {
+            explicit: Some(team_ids.to_vec()),
+            selector: None,
+        },
+        berths: vec![continental_berth(BerthRule::CupWinner)],
+        season_start_month: Some(cup_start.month() as u8),
+        season_start_day: Some(cup_start.day() as u8),
+        name_key: Some("tournaments.competitions.nationalCup".to_string()),
+        logo: None,
+        calendar: None,
+    };
+    *priority += 1;
+    (definition, cup_start)
+}
+
+fn plan_brazil_state_series(
+    game: &Game,
+    game_start: DateTime<Utc>,
+    context: &CountryPlanContext,
+    team_ids: &[String],
+    priority: &mut u32,
+) -> Vec<PlannedCompetition> {
+    let labels = [
+        (
+            "southeast",
+            "Southeast State Series",
+            "competitionNames.brazilStateSoutheast",
+        ),
+        (
+            "south",
+            "South State Series",
+            "competitionNames.brazilStateSouth",
+        ),
+        (
+            "northeast",
+            "Northeast State Series",
+            "competitionNames.brazilStateNortheast",
+        ),
+        (
+            "north-central-west",
+            "North/Central-West State Series",
+            "competitionNames.brazilStateNorthCentralWest",
+        ),
+    ];
+    let mut pools: BTreeMap<&str, Vec<String>> =
+        labels.iter().map(|(id, _, _)| (*id, Vec::new())).collect();
+    let mut unknown = Vec::new();
+    for team_id in team_ids {
+        let city = game
+            .teams
+            .iter()
+            .find(|team| &team.id == team_id)
+            .map(|team| team.city.as_str())
+            .unwrap_or("");
+        if let Some(pool) = brazil_state_region(city) {
+            pools.get_mut(pool).unwrap().push(team_id.clone());
+        } else {
+            unknown.push(team_id.clone());
+        }
+    }
+    unknown.sort();
+    for team_id in unknown {
+        let smallest = labels
+            .iter()
+            .map(|(id, _, _)| *id)
+            .min_by_key(|id| (pools[*id].len(), *id))
+            .unwrap();
+        pools.get_mut(smallest).unwrap().push(team_id);
+    }
+    let state_start = crate::generator::start_date_at_game_open(game_start, 1, 11).0;
+    let mut planned = Vec::new();
+    for (id, name, name_key) in labels {
+        let participants = pools.remove(id).unwrap_or_default();
+        if participants.len() < 2 {
+            continue;
+        }
+        planned.push((
+            CompetitionDefinition {
+                id: format!("br-state-{id}"),
+                name: name.to_string(),
+                r#type: CompetitionType::Cup,
+                scope: CompetitionScope::Regional,
+                region_id: Some(context.region_id.clone()),
+                country_id: Some(context.country.clone()),
+                required_region_ids: vec![context.region_id.clone()],
+                priority: *priority,
+                format: FormatDef {
+                    kind: CompetitionFormat::GroupAndKnockout,
+                    legs: Some(1),
+                    group_size: Some(domain::league::DEFAULT_GROUP_SIZE),
+                    qualifiers_per_group: Some(2),
+                    best_third_qualifiers: None,
+                },
+                participants: ParticipantSpec {
+                    explicit: Some(participants),
+                    selector: None,
+                },
+                berths: Vec::new(),
+                season_start_month: Some(1),
+                season_start_day: Some(11),
+                name_key: Some(name_key.to_string()),
+                logo: None,
+                calendar: None,
+            },
+            state_start,
+        ));
+        *priority += 1;
+    }
+    planned
+}
+
+fn plan_continental_competition(
+    game: &Game,
+    game_start: DateTime<Utc>,
+    priority: u32,
+) -> Option<PlannedCompetition> {
+    let team_ids = select_continental_entrants(&game.teams, 2, 16);
+    if team_ids.len() < 4 {
+        return None;
+    }
+    let mut feeder_regions: Vec<String> = game
+        .teams
+        .iter()
+        .filter(|team| team_ids.contains(&team.id))
+        .map(infer_team_region_id)
+        .collect();
+    feeder_regions.sort();
+    feeder_regions.dedup();
+    let format_kind = if team_ids.len() >= 8 {
+        CompetitionFormat::GroupAndKnockout
+    } else {
+        CompetitionFormat::Knockout
+    };
+    let (start, _) = crate::generator::start_date_at_game_open(game_start, 10, 1);
+    Some((
+        CompetitionDefinition {
+            id: "continental-champions-cup".to_string(),
+            name: "Continental Champions Cup".to_string(),
+            r#type: CompetitionType::ContinentalClub,
+            scope: CompetitionScope::Continental,
+            name_key: Some("tournaments.competitions.continentalChampionsCup".to_string()),
+            region_id: None,
+            country_id: None,
+            required_region_ids: feeder_regions,
+            priority,
+            format: league_format(format_kind),
+            participants: ParticipantSpec {
+                explicit: Some(team_ids),
+                selector: None,
+            },
+            berths: Vec::new(),
+            season_start_month: Some(10),
+            season_start_day: Some(1),
+            logo: None,
+            calendar: None,
+        },
+        start,
+    ))
+}
 #[cfg(test)]
 mod tests {
     use super::*;

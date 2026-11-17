@@ -38,7 +38,7 @@ pub struct PeerGroupDto {
     pub country_id: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub division_tier: Option<u32>,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub division_phase: Option<String>,
     /// The natural position the peers share, as `Position`'s name (e.g. `Striker`).
     pub position: String,

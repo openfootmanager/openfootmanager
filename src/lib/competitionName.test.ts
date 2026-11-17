@@ -108,9 +108,9 @@ describe("competitionDisplayName", () => {
   /**
    * Given a saved split-season division from before name keys were added
    * When its name is rendered
-   * Then the stored generated identity selects localized tier and phase labels
+   * Then its stored name keeps the phase that distinguishes it from the other half
    */
-  it("localizes a legacy split-season name from its generated identity", () => {
+  it("keeps a legacy split-season name intact when no key was saved", () => {
     expect(
       competitionDisplayName(
         {
@@ -129,15 +129,15 @@ describe("competitionDisplayName", () => {
         },
         translate,
       ),
-    ).toBe("Primera División de Argentina Apertura");
+    ).toBe("Argentina First Division Apertura");
   });
 
   /**
-   * Given a legacy one-tier split-season league
+   * Given a saved one-tier split-season league from before name keys were added
    * When its name is rendered
-   * Then the generic league name and closing phase are localized
+   * Then its stored closing phase remains visible
    */
-  it("localizes a legacy one-tier split-season name", () => {
+  it("keeps a legacy one-tier split-season name intact", () => {
     expect(
       competitionDisplayName(
         {
@@ -156,7 +156,34 @@ describe("competitionDisplayName", () => {
         },
         translate,
       ),
-    ).toBe("Liga de Argentina Clausura");
+    ).toBe("Argentina League Clausura");
+  });
+
+  /**
+   * Given an authored competition that reuses generated-looking calendar identifiers
+   * When its name is rendered without a translation key
+   * Then its authored display name is preserved
+   */
+  it("preserves an authored name when its calendar resembles a generated split season", () => {
+    expect(
+      competitionDisplayName(
+        {
+          name: "Liga Profesional Apertura",
+          country_id: "AR",
+          calendar: {
+            definition_id: "ar-d1-apertura",
+            season: {
+              division: {
+                familyId: "ar-league",
+                tier: 1,
+                phase: "opening",
+              },
+            },
+          },
+        },
+        translate,
+      ),
+    ).toBe("Liga Profesional Apertura");
   });
 
   /**

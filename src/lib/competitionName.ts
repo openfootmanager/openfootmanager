@@ -31,7 +31,7 @@ export interface NamedCompetition {
  */
 export function competitionDisplayName(comp: NamedCompetition, t: TranslateFn): string {
   const division = comp.calendar?.season?.division;
-  const nameKey = comp.name_key ?? legacySplitSeasonNameKey(comp, division);
+  const nameKey = comp.name_key;
   if (!nameKey) {
     return comp.name ?? "";
   }
@@ -68,31 +68,6 @@ export function competitionDisplayName(comp: NamedCompetition, t: TranslateFn): 
         : undefined
     : undefined;
   return phaseKey ? `${localizedName} ${t(phaseKey)}`.trim() : localizedName;
-}
-
-function legacySplitSeasonNameKey(
-  comp: NamedCompetition,
-  division: NamedDivisionIdentity | null | undefined,
-): string | undefined {
-  const definitionId = comp.calendar?.definition_id;
-  const countrySlug = comp.country_id?.toLowerCase();
-  if (
-    !countrySlug ||
-    division?.familyId !== `${countrySlug}-league` ||
-    (!definitionId?.endsWith("-apertura") && !definitionId?.endsWith("-clausura")) ||
-    (division.phase !== "opening" && division.phase !== "closing")
-  ) {
-    return undefined;
-  }
-
-  if (division.tier === 1) {
-    return comp.name?.includes(" League ")
-      ? "tournaments.competitions.league"
-      : "tournaments.competitions.firstDivision";
-  }
-  return division.tier === 2
-    ? "tournaments.competitions.secondDivision"
-    : "tournaments.competitions.tierDivision";
 }
 
 /** Resolve only the identified competition; names are not unique. */

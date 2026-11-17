@@ -648,6 +648,7 @@ function normalizeDivisionName(
   if (!isDivisionChange || !params?.divisionKey) return params;
 
   const season = Number(params.divisionSeason);
+  const divisionTier = Number(params.divisionTier);
   const phase = parseDivisionPhase(params.divisionPhase);
   return {
     ...params,
@@ -657,6 +658,8 @@ function normalizeDivisionName(
         name_key: params.divisionKey,
         country_id: params.divisionCountry ?? null,
         season: Number.isFinite(season) ? season : undefined,
+        division_tier:
+          Number.isInteger(divisionTier) && divisionTier > 0 ? divisionTier : undefined,
         calendar: phase ? { season: { division: { phase } } } : undefined,
       },
       (key, options) => i18n.t(key, options),

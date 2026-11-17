@@ -1,5 +1,7 @@
 #[path = "end_of_season_tests/player_statistics.rs"]
 mod player_statistics;
+#[path = "end_of_season_tests/promotion_notices.rs"]
+mod promotion_notices;
 #[path = "end_of_season_tests/season_story.rs"]
 mod season_story;
 
@@ -1155,83 +1157,6 @@ fn promoted_user_receives_a_promotion_message() {
         msg.i18n_params.get("division"),
         Some(&"ENG First Division".to_string())
     );
-}
-
-/// Given a generated closing division (stored under its English template name with a name key)
-/// When the user is promoted into it
-/// Then the notice carries its key, country, edition and phase for localized display.
-#[test]
-fn promotion_message_carries_division_display_metadata() {
-    let mut game = make_two_division_game("team3");
-    for competition in game.competitions.iter_mut() {
-        if competition.name == "ENG First Division" {
-            competition.name_key = Some("tournaments.competitions.firstDivision".to_string());
-            competition.calendar = Some(CalendarMetadata {
-                season: domain::competition_calendar::SeasonCalendar {
-                    division: Some(domain::competition_calendar::DivisionIdentity {
-                        family_id: "eng-league".to_string(),
-                        tier: 1,
-                        phase: domain::competition_calendar::SeasonPhase::Closing,
-                    }),
-                    ..Default::default()
-                },
-                ..Default::default()
-            });
-        }
-    }
-
-    process_end_of_season(&mut game);
-
-    let renewed = ofm_core::end_of_season::club_league_table(&game, "team3")
-        .expect("the user still has a division")
-        .season;
-    let msg = game
-        .messages
-        .iter()
-        .find(|m| m.id == format!("promotion_{renewed}"))
-        .expect("promoted user must be told");
-    assert_eq!(
-        msg.i18n_params.get("divisionKey"),
-        Some(&"tournaments.competitions.firstDivision".to_string())
-    );
-    assert_eq!(
-        msg.i18n_params.get("divisionCountry"),
-        Some(&"ENG".to_string())
-    );
-    assert_eq!(
-        msg.i18n_params.get("divisionSeason"),
-        Some(&renewed.to_string())
-    );
-    assert_eq!(
-        msg.i18n_params.get("divisionPhase"),
-        Some(&"closing".to_string())
-    );
-    assert_eq!(
-        msg.i18n_params.get("division"),
-        Some(&"ENG First Division".to_string()),
-        "the stored name stays as the fallback"
-    );
-}
-
-/// Given a division with no name key (a hand-made one)
-/// When the user is promoted into it
-/// Then the notice carries only the stored name, as before.
-#[test]
-fn promotion_message_without_a_name_key_carries_no_key_params() {
-    let mut game = make_two_division_game("team3");
-
-    process_end_of_season(&mut game);
-
-    let renewed = ofm_core::end_of_season::club_league_table(&game, "team3")
-        .expect("the user still has a division")
-        .season;
-    let msg = game
-        .messages
-        .iter()
-        .find(|m| m.id == format!("promotion_{renewed}"))
-        .expect("promoted user must be told");
-    assert!(!msg.i18n_params.contains_key("divisionKey"));
-    assert!(!msg.i18n_params.contains_key("divisionCountry"));
 }
 
 /// The season preview article the rollover published, and the clubs it names.

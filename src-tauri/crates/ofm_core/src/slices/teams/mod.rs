@@ -43,7 +43,7 @@ pub struct LeagueGroup {
     pub country_id: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub division_tier: Option<u32>,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub division_phase: Option<String>,
     pub teams: Vec<TeamCard>,
 }
