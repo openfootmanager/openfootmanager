@@ -1,7 +1,26 @@
-import { describe, expect, it } from "vitest";
+import { render, screen } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
 
-import type { FixtureData } from "../../store/gameStore";
+import type { FixtureData, LeagueData } from "../../store/gameStore";
+import CompetitionsOverview from "./CompetitionsOverview";
 import { getCompetitionStatus } from "./CompetitionsOverview";
+
+vi.mock("react-i18next", () => ({
+  initReactI18next: { type: "3rdParty", init: () => undefined },
+  useTranslation: () => ({
+    t: (key: string, options?: Record<string, string | number>) => {
+      if (key === "nations.ar") return "Argentina";
+      if (key === "tournaments.competitions.tierDivision") {
+        return `${options?.country} Division ${options?.tier}`;
+      }
+      if (key === "tournaments.competitions.phaseOpening") return "Opening tournament";
+      if (key === "tournaments.competitions.phaseClosing") return "Closing tournament";
+      if (key === "schedule.season") return `Season ${options?.number}`;
+      if (key === "tournaments.competitions.statusNotStarted") return "Not started";
+      return key;
+    },
+  }),
+}));
 
 function fixture(
   status: "Scheduled" | "Completed",
@@ -111,5 +130,52 @@ describe("getCompetitionStatus", () => {
         standings: [],
       } as never),
     ).toBe("notStarted");
+  });
+});
+
+describe("CompetitionsOverview", () => {
+  /**
+   * Given opening and closing competitions in the same tier
+   * When their rows render
+   * Then each localized label keeps its season phase visible
+   */
+  it("shows the phase in split-season competition names", () => {
+    const competition = (id: string, phase: "opening" | "closing"): LeagueData => ({
+      id,
+      name: `Argentina Division 3 ${phase}`,
+      name_key: "tournaments.competitions.tierDivision",
+      country_id: "AR",
+      kind: "League",
+      scope: "Domestic",
+      season: 2032,
+      participant_ids: ["team-1"],
+      fixtures: [],
+      standings: [],
+      calendar: {
+        definition_id: `ar-d3-${phase}`,
+        edition_basis: { kind: "calendarYear" },
+        league_legs: 2,
+        matchday_gap_days: null,
+        season: { division: { familyId: "ar-league", tier: 3, phase } },
+      },
+    });
+
+    render(
+      <CompetitionsOverview
+        competitions={[
+          competition("ar-apertura", "opening"),
+          competition("ar-clausura", "closing"),
+        ]}
+        userTeamId="team-1"
+        onSelect={vi.fn()}
+      />,
+    );
+
+    expect(
+      screen.getByRole("button", { name: /Argentina Division 3 Opening tournament/ }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /Argentina Division 3 Closing tournament/ }),
+    ).toBeInTheDocument();
   });
 });

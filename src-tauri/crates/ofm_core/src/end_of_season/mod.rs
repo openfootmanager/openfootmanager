@@ -822,6 +822,21 @@ fn notify_user_division_change(
     // the frontend name it in the player's language (a hand-made division has no key).
     let division_key = new_division.name_key.clone();
     let division_country = new_division.country_id.clone();
+    let division_tier = new_division
+        .calendar
+        .as_ref()
+        .and_then(|calendar| calendar.season.division.as_ref())
+        .map(|division| division.tier)
+        .filter(|tier| *tier > 0);
+    let division_phase = new_division
+        .calendar
+        .as_ref()
+        .and_then(|calendar| calendar.season.division.as_ref())
+        .and_then(|division| match division.phase {
+            domain::competition_calendar::SeasonPhase::Annual => None,
+            domain::competition_calendar::SeasonPhase::Opening => Some("opening"),
+            domain::competition_calendar::SeasonPhase::Closing => Some("closing"),
+        });
     // The renewed edition's own label: a delayed edition renews to the calendar year, which is not
     // always last season plus one.
     let renewed_season = new_division.season;
@@ -837,8 +852,14 @@ fn notify_user_division_change(
     if let Some(key) = division_key {
         params.insert("divisionKey".to_string(), key);
         params.insert("divisionSeason".to_string(), renewed_season.to_string());
+        if let Some(tier) = division_tier {
+            params.insert("divisionTier".to_string(), tier.to_string());
+        }
         if let Some(country) = division_country {
             params.insert("divisionCountry".to_string(), country);
+        }
+        if let Some(phase) = division_phase {
+            params.insert("divisionPhase".to_string(), phase.to_string());
         }
     }
 

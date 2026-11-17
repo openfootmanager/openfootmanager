@@ -1,4 +1,11 @@
+import type { CompetitionSeasonPhase } from "../store/generated/CompetitionSeasonPhase";
+
 type TranslateFn = (key: string, options?: Record<string, unknown>) => string;
+type NamedDivisionIdentity = {
+  familyId?: string;
+  tier?: number | null;
+  phase?: CompetitionSeasonPhase;
+};
 
 /** The fields needed to render a competition's display name. */
 export interface NamedCompetition {
@@ -9,10 +16,9 @@ export interface NamedCompetition {
   country_id?: string | null;
   division_tier?: number | null;
   calendar?: {
+    definition_id?: string;
     season?: {
-      division?: {
-        tier?: number | null;
-      } | null;
+      division?: NamedDivisionIdentity | null;
     } | null;
   } | null;
 }
@@ -24,7 +30,9 @@ export interface NamedCompetition {
  * Falls back to the raw `name` when there is no key.
  */
 export function competitionDisplayName(comp: NamedCompetition, t: TranslateFn): string {
-  if (!comp.name_key) {
+  const division = comp.calendar?.season?.division;
+  const nameKey = comp.name_key;
+  if (!nameKey) {
     return comp.name ?? "";
   }
   const country = comp.country_id
@@ -32,21 +40,34 @@ export function competitionDisplayName(comp: NamedCompetition, t: TranslateFn): 
         defaultValue: comp.country_id,
       })
     : "";
-  const division = comp.calendar?.season?.division;
   const tier = comp.division_tier ?? division?.tier;
-  if (comp.name_key.endsWith(".tierDivision") && (!tier || tier < 1)) {
+  if (nameKey.endsWith(".tierDivision") && (!tier || tier < 1)) {
     return comp.name ?? "";
   }
   // Keep using name_key even without a country (e.g. the World Cup, which has a
   // key but no country_id) so its localized name still resolves. A missing key
   // or an absent `{{country}}` value falls back to the stored name and trims the
   // stray space a blank country would otherwise leave.
-  return t(comp.name_key, {
+  const localizedName = t(nameKey, {
     year: comp.season,
     country,
     tier,
     defaultValue: comp.name ?? "",
   }).trim();
+  const hasTierTemplate = [
+    "tournaments.competitions.league",
+    "tournaments.competitions.firstDivision",
+    "tournaments.competitions.secondDivision",
+    "tournaments.competitions.tierDivision",
+  ].includes(nameKey);
+  const phaseKey = hasTierTemplate
+    ? division?.phase === "opening"
+      ? "tournaments.competitions.phaseOpening"
+      : division?.phase === "closing"
+        ? "tournaments.competitions.phaseClosing"
+        : undefined
+    : undefined;
+  return phaseKey ? `${localizedName} ${t(phaseKey)}`.trim() : localizedName;
 }
 
 /** Resolve only the identified competition; names are not unique. */
