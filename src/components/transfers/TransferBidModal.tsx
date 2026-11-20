@@ -2,7 +2,13 @@ import { useTranslation } from "react-i18next";
 import { AlertTriangle } from "lucide-react";
 
 import type { PlayerData, TeamData, TransferOfferData } from "../../store/gameStore";
-import { formatDateFull, formatExactMoney, formatVal, getTeamName } from "../../lib/helpers";
+import {
+  formatDateFull,
+  formatExactMoney,
+  formatVal,
+  formatWeeklyWage,
+  getTeamName,
+} from "../../lib/helpers";
 import type {
   TransferBidProjectionData,
   TransferNegotiationResponseData,
@@ -176,17 +182,17 @@ export function TransferBidForm({
               <p className="text-xs text-gray-600 dark:text-gray-300">
                 {t("transfers.bidImpactWageBill", {
                   before: formatExactMoney(bidProjection.current_weekly_wage_spend),
-                  after: formatExactMoney(bidProjection.projected_weekly_wage_spend),
+                  after: formatWeeklyWage(bidProjection.projected_weekly_wage_spend),
                 })}
               </p>
               <p className="text-xs text-gray-600 dark:text-gray-300">
                 {t("transfers.bidImpactWeeklyWageBudget", {
-                  budget: formatExactMoney(bidProjection.weekly_wage_budget),
+                  budget: formatWeeklyWage(bidProjection.weekly_wage_budget),
                 })}
               </p>
               <p className="text-xs text-gray-600 dark:text-gray-300">
                 {t("transfers.bidImpactIncomingWage", {
-                  wage: formatExactMoney(bidProjection.incoming_player_weekly_wage),
+                  wage: formatWeeklyWage(bidProjection.incoming_player_weekly_wage),
                 })}
               </p>
               <p className="text-xs text-gray-600 dark:text-gray-300">

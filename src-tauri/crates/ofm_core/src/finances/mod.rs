@@ -1,10 +1,12 @@
 pub mod cash_flow;
+mod envelopes;
 pub mod gate;
 pub mod journal;
 mod league_position;
 mod weekly;
 
 pub use domain::finance::{CashJournal, CashKind};
+pub use envelopes::{EnvelopeReallocation, reallocate_board_envelopes};
 pub use journal::{
     PostRequest, backfill_opening_balances, credit_opening_cash, journal_matches_cash, post,
     post_all, validate_posts,

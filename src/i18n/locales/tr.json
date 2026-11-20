@@ -1217,6 +1217,12 @@
     "requestBoardSupport": "Destek Talep Et",
     "boardSupportUnavailable": "Yönetim desteği yalnızca borçlu veya yakın nakit krizi riski taşıyan kulüpler içindir.",
     "boardSupportSummary": "Yönetim {{amount}} tutarında acil kaynak onayladı. Transfer bütçesi {{transferBudgetReduction}} azaldı ve yönetim güveni {{satisfactionPenalty}} düştü.",
+    "reallocateEnvelopes": "Yönetim zarfları",
+    "reallocateEnvelopesDescription": "Haftalık maaş iznini transfer limitine karşı kaydır. Nakit hareket etmez.",
+    "raiseWageBudget": "Maaş bütçesini artır",
+    "raiseTransferBudget": "Transfer bütçesini artır",
+    "reallocateStep": "{{wage}} ⇔ {{transfer}} transfer limiti",
+    "reallocateSummary": "Maaş bütçesi {{wage}}. Transfer limiti {{transfer}}. Nakit değişmedi.",
     "wagePressure": "Maaş Baskısı",
     "wageBudgetUsed": "Maaş bütçesinin %{{percent}}'i kullanıldı",
     "contractRisk": "Sözleşme Riski",
@@ -1388,7 +1394,7 @@
     "dealRetired": "Bu oyuncu futbolu bıraktı.",
     "bidImpactWageBill": "Haftalık maaş gideri {{before}} → {{after}}",
     "bidImpactWeeklyWageBudget": "Haftalık maaş bütçesi {{budget}}",
-    "bidImpactIncomingWage": "Oyuncu maaşı {{wage}} / hafta",
+    "bidImpactIncomingWage": "Oyuncu maaşı {{wage}}",
     "bidBlockedPendingRegistration": "Bu oyuncu bir transferi kabul etti ve tescili bekliyor.",
     "centre": "Transfer Merkezi",
     "transferWindow": "{{team}} — Transfer Dönemi",
@@ -3187,6 +3193,8 @@
       "finance": {
         "boardSupportUnavailable": "Acil yönetim desteği yalnızca nakit rezervleri baskı altındayken kullanılabilir.",
         "boardSupportAlreadyUsed": "Yönetim bu sezon zaten acil destek onayladı.",
+        "reallocationInvalid": "Bu zarf kaydırması bir yönetim limitini sıfırın altına indirir.",
+        "reallocationBreachesReservations": "Bu kaydırma, kulübün zaten rezerve ettiği transfer izninden daha az bırakır.",
         "sponsorPitchUnavailable": "Sponsor arayışları yalnızca kulüp maaş veya nakit baskısı altındayken kullanılabilir.",
         "sponsorPitchPendingOffer": "Kararınızı bekleyen bir sponsor teklifi zaten var.",
         "sponsorPitchAlreadyAttemptedToday": "Ticari ekip bugün zaten sponsor arayışında bulundu.",
@@ -3247,7 +3255,8 @@
         "terminationWouldLeaveMatchdaySquadShort": "Bu sözleşmenin feshi, kadronuzu maç günü 11'i çıkaramayacak duruma düşürür",
         "noAssistantManagerAssigned": "Takımınıza atanmış yardımcı antrenör yok",
         "playerHasNoTeam": "Oyuncunun takımı yok",
-        "boardWagePolicy": "Yenileme, yönetimin maaş politikası tarafından engellendi. Toparlanmak için haftalık maaşları {{budget}} civarında tutun."
+        "boardWagePolicy": "Yenileme, yönetimin maaş politikası tarafından engellendi. Toparlanmak için haftalık maaşları {{budget}} civarında tutun.",
+        "boardHireWagePolicy": "İşe alım, yönetimin maaş politikası tarafından engellendi. Haftalık maaşları {{budget}} civarında tutun."
       },
       "scouting": {
         "scoutNotFound": "Gözlemci bulunamadı",

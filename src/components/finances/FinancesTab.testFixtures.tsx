@@ -281,6 +281,14 @@ export const translateFinanceTestKey = (key: string, params?: Record<string, str
     return `${params?.sponsor} will pay ${params?.amount} for ${params?.weeks} weeks`;
   if (key === "finances.boardSupportSummary")
     return `Board could inject ${params?.amount}, cut transfer budget by ${params?.transferBudgetReduction}, confidence -${params?.satisfactionPenalty}`;
+  if (key === "finances.reallocateEnvelopes") return "Board envelopes";
+  if (key === "finances.reallocateEnvelopesDescription")
+    return "Move weekly wage permission against the transfer limit.";
+  if (key === "finances.raiseWageBudget") return "Raise wage budget";
+  if (key === "finances.raiseTransferBudget") return "Raise transfer budget";
+  if (key === "finances.reallocateStep") return `${params?.wage} ⇔ ${params?.transfer} transfer`;
+  if (key === "finances.reallocateSummary")
+    return `Wage budget ${params?.wage}. Transfer limit ${params?.transfer}. Cash unchanged.`;
   if (key === "finances.cashFlow") return "Cash Flow";
   if (key === "finances.weeklyWageSpend") return "Weekly Wage Spend";
   if (key === "finances.weeklySponsorIncome") return "Weekly Sponsor Income";

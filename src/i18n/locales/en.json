@@ -1217,6 +1217,12 @@
     "requestBoardSupport": "Request Support",
     "boardSupportUnavailable": "Board support is reserved for clubs in debt or facing an imminent cash crunch.",
     "boardSupportSummary": "Board approved {{amount}} in emergency funding. Transfer budget reduced by {{transferBudgetReduction}} and board confidence fell by {{satisfactionPenalty}}.",
+    "reallocateEnvelopes": "Board envelopes",
+    "reallocateEnvelopesDescription": "Move weekly wage permission against the transfer limit. This does not move cash.",
+    "raiseWageBudget": "Raise wage budget",
+    "raiseTransferBudget": "Raise transfer budget",
+    "reallocateStep": "{{wage}} ⇔ {{transfer}} transfer",
+    "reallocateSummary": "Wage budget {{wage}}. Transfer limit {{transfer}}. Cash unchanged.",
     "wagePressure": "Wage Pressure",
     "wageBudgetUsed": "{{percent}}% of wage budget used",
     "contractRisk": "Contract Risk",
@@ -1388,7 +1394,7 @@
     "dealRetired": "This player has retired.",
     "bidImpactWageBill": "Weekly wage bill {{before}} → {{after}}",
     "bidImpactWeeklyWageBudget": "Weekly wage budget {{budget}}",
-    "bidImpactIncomingWage": "Incoming player wage {{wage}} / week",
+    "bidImpactIncomingWage": "Incoming player wage {{wage}}",
     "bidBlockedPendingRegistration": "This player has already agreed a transfer and is awaiting registration.",
     "centre": "Transfer Centre",
     "transferWindow": "{{team}} — Transfer Window",
@@ -3187,6 +3193,8 @@
       "finance": {
         "boardSupportUnavailable": "Emergency board support is only available when cash reserves are under pressure.",
         "boardSupportAlreadyUsed": "The board has already approved emergency support this season.",
+        "reallocationInvalid": "That envelope move would take a board limit below zero.",
+        "reallocationBreachesReservations": "That envelope move would leave less transfer permission than the club has already reserved.",
         "sponsorPitchUnavailable": "Sponsor pitches are only available when the club is under wage or cash pressure.",
         "sponsorPitchPendingOffer": "There is already a sponsor offer waiting for your decision.",
         "sponsorPitchAlreadyAttemptedToday": "The commercial team has already pitched sponsors today.",
@@ -3247,7 +3255,8 @@
         "terminationWouldLeaveMatchdaySquadShort": "Terminating this contract would leave your squad unable to field a matchday XI",
         "noAssistantManagerAssigned": "No assistant manager assigned to your team",
         "playerHasNoTeam": "Player has no team",
-        "boardWagePolicy": "Renewal blocked by board wage policy. Keep weekly wages near {{budget}} to recover."
+        "boardWagePolicy": "Renewal blocked by board wage policy. Keep weekly wages near {{budget}} to recover.",
+        "boardHireWagePolicy": "Hire blocked by board wage policy. Keep weekly wages near {{budget}}."
       },
       "scouting": {
         "scoutNotFound": "Scout not found",

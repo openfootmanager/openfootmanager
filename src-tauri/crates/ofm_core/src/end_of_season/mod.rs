@@ -1071,16 +1071,14 @@ pub fn process_end_of_season(game: &mut Game) -> EndOfSeasonSummary {
                     });
                 }
 
-                // Refresh the transfer envelope for the new season. Formula
-                // matches worldgen (generator/mod.rs:543): 15% of finance.
-                // Since `execute_transfer` debits the budget on every buy and
-                // no other path adds to it, without this refill the market
-                // would freeze after 2-3 seasons as every club drained to
-                // zero.
+                // Board rule: refill this season's transfer limit to 15% of
+                // cash, the same share worldgen uses. Settlement still debits
+                // or credits the live transfer-budget scalar, so without this
+                // refill the market would freeze after a few seasons.
                 // Clamp at zero — unlike worldgen (which only ever sees fresh
                 // positive finance), end-of-season runs on live state where a
                 // heavily indebted club can have negative `finance`. A
-                // negative envelope would still be rejected by
+                // negative limit would still be rejected by
                 // `make_transfer_bid`, but showing "€-1.2M transfer budget"
                 // in the UI reads worse than a hard zero.
                 team.transfer_budget = ((team.finance as f64 * 0.15) as i64).max(0);
@@ -1435,6 +1433,11 @@ fn convert_retired_players_to_candidates(game: &mut Game, season: u32) {
             );
             scout.nationality = r.nationality.clone();
             crate::football_identity::initialize_unattached_staff_identity(&mut scout);
+            scout.wage = crate::generator::generated_staff_weekly_wage(
+                &StaffRole::Scout,
+                crate::generator::UNATTACHED_STAFF_REPUTATION,
+                &scout.attributes,
+            );
             // team_id stays None (unattached market candidate)
             new_scouts.push(scout);
         }

@@ -35,6 +35,11 @@ pub type CatalogEntry = (
 );
 
 pub const CATALOG: &[CatalogEntry] = &[
+    (
+        "club_reallocate_board_envelopes",
+        &[("wage_delta_weekly", "integer")],
+        &["wage_delta_weekly"],
+    ),
     ("club_request_board_support", &[], &[]),
     ("club_request_marketing", &[], &[]),
     ("club_request_sponsor_pitch", &[], &[]),
@@ -363,6 +368,16 @@ fn object<const N: usize>(entries: [(&str, Option<Value>); N]) -> Value {
 }
 
 impl Client {
+    pub fn club_reallocate_board_envelopes(
+        &self,
+        wage_delta_weekly: i64,
+    ) -> Reply<club::BoardEnvelopesReallocated> {
+        self.call(
+            "club_reallocate_board_envelopes",
+            object([("wage_delta_weekly", Some(json!(wage_delta_weekly)))]),
+        )
+    }
+
     pub fn club_request_board_support(&self) -> Reply<club::BoardSupport> {
         self.call("club_request_board_support", object([]))
     }

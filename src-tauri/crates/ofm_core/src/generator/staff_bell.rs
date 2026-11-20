@@ -183,6 +183,7 @@ mod tests {
                     2026,
                     &names_def,
                     &mut rng,
+                    500,
                 ),
                 Pool::FreeAgent => generate_random_staff_unattached_from_def(
                     role.clone(),

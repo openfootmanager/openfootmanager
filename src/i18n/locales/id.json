@@ -1217,6 +1217,12 @@
     "requestBoardSupport": "Minta Dukungan",
     "boardSupportUnavailable": "Dukungan manajemen dicadangkan untuk klub yang berutang atau menghadapi kekurangan kas yang akan segera terjadi.",
     "boardSupportSummary": "Manajemen menyetujui {{amount}} dana darurat. Anggaran transfer berkurang {{transferBudgetReduction}} dan kepercayaan manajemen turun {{satisfactionPenalty}}.",
+    "reallocateEnvelopes": "Amplop dewan",
+    "reallocateEnvelopesDescription": "Pindahkan izin gaji mingguan terhadap batas transfer. Ini tidak memindahkan kas.",
+    "raiseWageBudget": "Naikkan anggaran gaji",
+    "raiseTransferBudget": "Naikkan anggaran transfer",
+    "reallocateStep": "{{wage}} ⇔ {{transfer}} batas transfer",
+    "reallocateSummary": "Anggaran gaji {{wage}}. Batas transfer {{transfer}}. Kas tidak berubah.",
     "wagePressure": "Tekanan Gaji",
     "wageBudgetUsed": "{{percent}}% dari anggaran gaji digunakan",
     "contractRisk": "Risiko Kontrak",
@@ -1388,7 +1394,7 @@
     "dealRetired": "Pemain ini sudah pensiun.",
     "bidImpactWageBill": "Beban gaji mingguan {{before}} → {{after}}",
     "bidImpactWeeklyWageBudget": "Anggaran gaji mingguan {{budget}}",
-    "bidImpactIncomingWage": "Gaji pemain masuk {{wage}} / minggu",
+    "bidImpactIncomingWage": "Gaji pemain masuk {{wage}}",
     "bidBlockedPendingRegistration": "Pemain ini telah menyetujui transfer dan sedang menunggu registrasi.",
     "centre": "Pusat Transfer",
     "transferWindow": "{{team}} — Jendela Transfer",
@@ -3187,6 +3193,8 @@
       "finance": {
         "boardSupportUnavailable": "Dukungan darurat manajemen hanya tersedia ketika cadangan kas sedang tertekan.",
         "boardSupportAlreadyUsed": "Manajemen telah menyetujui dukungan darurat musim ini.",
+        "reallocationInvalid": "Pemindahan amplop itu akan membuat batas dewan di bawah nol.",
+        "reallocationBreachesReservations": "Pemindahan itu akan menyisakan izin transfer lebih kecil daripada yang sudah direservasi klub.",
         "sponsorPitchUnavailable": "Penawaran sponsor hanya tersedia ketika klub sedang tertekan gaji atau kas.",
         "sponsorPitchPendingOffer": "Sudah ada tawaran sponsor yang menunggu keputusan kamu.",
         "sponsorPitchAlreadyAttemptedToday": "Tim komersial sudah melakukan penawaran kepada sponsor hari ini.",
@@ -3247,7 +3255,8 @@
         "terminationWouldLeaveMatchdaySquadShort": "Mengakhiri kontrak ini akan membuat skuad kamu tidak dapat menurunkan XI pertandingan",
         "noAssistantManagerAssigned": "Tidak ada asisten manajer yang ditugaskan ke tim kamu",
         "playerHasNoTeam": "Pemain tidak memiliki tim",
-        "boardWagePolicy": "Perpanjangan diblokir oleh kebijakan gaji manajemen. Jaga gaji mingguan di sekitar {{budget}} untuk pulih."
+        "boardWagePolicy": "Perpanjangan diblokir oleh kebijakan gaji manajemen. Jaga gaji mingguan di sekitar {{budget}} untuk pulih.",
+        "boardHireWagePolicy": "Perekrutan diblokir oleh kebijakan gaji manajemen. Jaga gaji mingguan di sekitar {{budget}}."
       },
       "scouting": {
         "scoutNotFound": "Scout tidak ditemukan",

@@ -14,6 +14,7 @@ import { getFinanceSnapshot, type FinanceSnapshotData } from "../../services/fin
 import { useTranslation } from "react-i18next";
 
 import { type TaggedFinanceSnapshotData, buildFinanceSnapshotKey } from "./FinancesTab.helpers";
+import { FinanceEnvelopeCard } from "./FinanceEnvelopeCard";
 import FinancesFacilitiesCard from "./FinancesFacilitiesCard";
 import FinancesPayrollTable from "./FinancesPayrollTable";
 
@@ -163,6 +164,8 @@ function FinancesTabLoaded(props: FinancesTabLoadedProps) {
 
       {/* Wage summary */}
       <FinanceWageSummary state={view} />
+
+      <FinanceEnvelopeCard state={view} />
 
       <FinanceCashFlowCard state={view} />
 

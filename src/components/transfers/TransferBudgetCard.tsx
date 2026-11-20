@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { formatVal } from "../../lib/helpers";
+import { formatExactMoney } from "../../lib/helpers";
 import { getFinanceSnapshot } from "../../services/financeService";
 
 interface TransferBudgetCardProps {
@@ -48,11 +48,11 @@ export function TransferBudgetCard({ teamId, revision }: TransferBudgetCardProps
         <dl>
           <dt className="text-caption text-fg-muted">{t("finances.availableTransferBudget")}</dt>
           <dd className="font-heading text-heading font-bold text-fg tabular-nums">
-            {current ? formatVal(current.available) : t("common.loading")}
+            {current ? formatExactMoney(current.available) : t("common.loading")}
           </dd>
           <dt className="text-caption text-fg-muted">{t("finances.committedTransferFees")}</dt>
           <dd className="text-body text-fg tabular-nums">
-            {current ? formatVal(current.committed) : t("common.loading")}
+            {current ? formatExactMoney(current.committed) : t("common.loading")}
           </dd>
         </dl>
       )}

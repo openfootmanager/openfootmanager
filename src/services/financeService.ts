@@ -1,5 +1,8 @@
 import { invoke } from "@tauri-apps/api/core";
 
+import type { GameStateData } from "../store/gameStore";
+import { invokeForCareer } from "./careerInvoke";
+
 export type FinanceHealthLevelData = "stable" | "watch" | "warning" | "critical";
 
 interface BackendTeamFinanceSnapshotData {
@@ -206,4 +209,20 @@ export async function getFinanceSnapshot(teamId?: string): Promise<FinanceSnapsh
     snapshot: mapSnapshot(response.snapshot),
     previews: mapPreviews(response.previews),
   };
+}
+
+export interface EnvelopeReallocationResponseData {
+  game: GameStateData;
+  result: {
+    wage_budget: number;
+    transfer_budget: number;
+  };
+}
+
+export async function reallocateBoardEnvelopes(
+  wageDeltaWeekly: number,
+): Promise<EnvelopeReallocationResponseData> {
+  return invokeForCareer<EnvelopeReallocationResponseData>("reallocate_board_envelopes", {
+    wageDeltaWeekly,
+  });
 }

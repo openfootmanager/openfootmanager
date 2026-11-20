@@ -1217,6 +1217,12 @@
     "requestBoardSupport": "Pedir apoio",
     "boardSupportUnavailable": "O apoio da direção está reservado a clubes em dívida ou perto de uma crise de caixa.",
     "boardSupportSummary": "A direção aprovou {{amount}} em financiamento de emergência. O orçamento de transferências cai {{transferBudgetReduction}} e a confiança baixa {{satisfactionPenalty}}.",
+    "reallocateEnvelopes": "Envelopes da direção",
+    "reallocateEnvelopesDescription": "Move a autorização salarial semanal contra o limite de transferências. Não move dinheiro.",
+    "raiseWageBudget": "Aumentar orçamento salarial",
+    "raiseTransferBudget": "Aumentar orçamento de transferências",
+    "reallocateStep": "{{wage}} ⇔ {{transfer}} transferências",
+    "reallocateSummary": "Orçamento salarial {{wage}}. Limite de transferências {{transfer}}. Dinheiro inalterado.",
     "wagePressure": "Pressão salarial",
     "wageBudgetUsed": "{{percent}}% do orçamento salarial utilizado",
     "contractRisk": "Risco contratual",
@@ -1388,7 +1394,7 @@
     "dealRetired": "Este jogador retirou-se.",
     "bidImpactWageBill": "Massa salarial semanal {{before}} → {{after}}",
     "bidImpactWeeklyWageBudget": "Orçamento salarial semanal {{budget}}",
-    "bidImpactIncomingWage": "Salário do jogador {{wage}} / semana",
+    "bidImpactIncomingWage": "Salário do jogador {{wage}}",
     "bidBlockedPendingRegistration": "Este jogador já acordou uma transferência e aguarda o registo.",
     "centre": "Centro de Transferências",
     "transferWindow": "{{team}} — Janela de Transferências",
@@ -3179,6 +3185,8 @@
       "finance": {
         "boardSupportUnavailable": "O apoio de emergência da direção só está disponível quando a tesouraria está sob pressão.",
         "boardSupportAlreadyUsed": "A direção já aprovou apoio de emergência nesta temporada.",
+        "reallocationInvalid": "Essa realocação deixaria um limite da direção abaixo de zero.",
+        "reallocationBreachesReservations": "Essa realocação deixaria menos permissão de transferências do que o clube já reservou.",
         "sponsorPitchUnavailable": "A procura de patrocinadores só está disponível quando o clube está sob pressão salarial ou de tesouraria.",
         "sponsorPitchPendingOffer": "Já existe uma oferta de patrocínio à espera da sua decisão.",
         "sponsorPitchAlreadyAttemptedToday": "A equipa comercial já procurou patrocinadores hoje.",
@@ -3239,7 +3247,8 @@
         "terminationWouldLeaveMatchdaySquadShort": "Rescindir este contrato deixaria o teu plantel sem condições para apresentar um onze em dia de jogo",
         "noAssistantManagerAssigned": "Nenhum treinador adjunto atribuído à tua equipa",
         "playerHasNoTeam": "O jogador não tem equipa",
-        "boardWagePolicy": "A renovação foi bloqueada pela política salarial da direção. Mantém os salários semanais perto de {{budget}} para recuperar."
+        "boardWagePolicy": "A renovação foi bloqueada pela política salarial da direção. Mantém os salários semanais perto de {{budget}} para recuperar.",
+        "boardHireWagePolicy": "A contratação foi bloqueada pela política salarial da direção. Mantém os salários semanais perto de {{budget}}."
       },
       "scouting": {
         "scoutNotFound": "Olheiro não encontrado",

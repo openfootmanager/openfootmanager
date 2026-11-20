@@ -76,6 +76,23 @@ impl fmt::Display for StaffReleased {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct BoardEnvelopesReallocated {
+    pub wage_budget: i64,
+    pub transfer_budget: i64,
+    pub finance: i64,
+}
+
+impl fmt::Display for BoardEnvelopesReallocated {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "## Board envelopes reallocated\n\n**Wage cap**: {}/wk\n**Transfer limit**: {}\n**Cash**: {} (unchanged)",
+            self.wage_budget, self.transfer_budget, self.finance
+        )
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct BoardSupport {
     pub support_amount: i64,
     pub transfer_budget_reduction: i64,
@@ -129,6 +146,7 @@ tool_results!(
     StaffList,
     StaffHired,
     StaffReleased,
+    BoardEnvelopesReallocated,
     BoardSupport,
     MarketingCampaign,
     SponsorPitch,
