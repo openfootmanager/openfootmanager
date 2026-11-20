@@ -656,14 +656,22 @@ pub fn process_available_staff_market(game: &mut crate::game::Game) -> bool {
 /// format, so a `< N` check would skip careers that loaded after that lock.
 /// Old saves sized the wage cap on player wages only; filling staff zeros would
 /// otherwise push those clubs through the 110% hire gate. Lift the cap to the
-/// new bill. Do not cut the transfer limit — this is a one-time repair, like
-/// the weekly-unit runway floor.
+/// new bill only for clubs that had unpaid employed staff. Do not cut the
+/// transfer limit — this is a one-time repair, like the weekly-unit runway floor.
 pub fn backfill_zero_staff_wages(game: &mut crate::game::Game) -> bool {
+    let clubs_to_repair: HashSet<String> = game
+        .staff
+        .iter()
+        .filter_map(|member| (member.wage == 0).then(|| member.team_id.clone()).flatten())
+        .collect();
     if !backfill_zero_staff_wages_on(&mut game.staff, &game.teams) {
         return false;
     }
     let bills = crate::finances::wage_bills_by_club(game);
     for team in &mut game.teams {
+        if !clubs_to_repair.contains(&team.id) {
+            continue;
+        }
         if let Some(&bill) = bills.get(&team.id) {
             team.wage_budget = team.wage_budget.max(bill);
         }
@@ -3551,6 +3559,37 @@ mod tests {
                 .wage,
             3_600
         );
+    }
+
+    /// Given one club with unpaid staff and another already over its wage cap
+    /// When save-load prices the unpaid zeros
+    /// Then only the unpaid club's cap is lifted to the new bill.
+    #[test]
+    fn backfill_zero_staff_wages_lifts_the_cap_only_for_clubs_that_had_unpaid_staff() {
+        let mut unpaid = make_import_staff("coach-a", Some("team-1"), StaffRole::Coach);
+        unpaid.attributes.coaching = 70;
+        let mut paid = make_import_staff("coach-b", Some("team-2"), StaffRole::Coach);
+        paid.wage = 5_000;
+        let mut game = make_staff_market_game(vec![unpaid, paid]);
+        game.teams.push(make_import_team("team-2", "Beta FC"));
+        game.teams[0].reputation = 500;
+        game.teams[0].wage_budget = 1_000;
+        game.teams[1].wage_budget = 2_000;
+
+        assert!(backfill_zero_staff_wages(&mut game));
+
+        let alpha = game
+            .teams
+            .iter()
+            .find(|team| team.id == "team-1")
+            .expect("alpha club");
+        let beta = game
+            .teams
+            .iter()
+            .find(|team| team.id == "team-2")
+            .expect("beta club");
+        assert_eq!(alpha.wage_budget, 3_600);
+        assert_eq!(beta.wage_budget, 2_000);
     }
 
     /// Given an imported world whose employed staff already have wages and whose unattached
