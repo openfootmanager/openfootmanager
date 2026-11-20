@@ -1218,7 +1218,7 @@
     "boardSupportUnavailable": "Помощь совета директоров доступна только клубам с долгами или на грани кассового разрыва.",
     "boardSupportSummary": "Совет директоров одобрил экстренное финансирование {{amount}}. Трансферный бюджет уменьшен на {{transferBudgetReduction}}, а доверие совета снизилось на {{satisfactionPenalty}}.",
     "reallocateEnvelopes": "Конверты совета",
-    "reallocateEnvelopesDescription": "Перенесите еженедельное зарплатное разрешение против трансферного лимита. Наличность не двигается.",
+    "reallocateEnvelopesDescription": "Перераспределите недельный зарплатный бюджет и трансферный лимит. Наличность без изменений.",
     "raiseWageBudget": "Повысить зарплатный бюджет",
     "raiseTransferBudget": "Повысить трансферный бюджет",
     "reallocateStep": "{{wage}} ⇔ {{transfer}} трансфер",
