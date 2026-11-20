@@ -12,6 +12,7 @@ use domain::manager::Manager;
 use domain::message::*;
 use domain::staff::{Staff, StaffAttributes, StaffRole};
 use domain::team::{FinancialTransaction, FinancialTransactionKind, TeamSeasonRecord};
+use std::collections::HashSet;
 
 mod berths;
 pub(crate) mod season_calendar;
@@ -874,6 +875,10 @@ pub fn apply_season_end_squad_turnover(game: &mut Game, date: chrono::NaiveDate,
     game.last_season_rollover_on = Some(date.format("%Y-%m-%d").to_string());
     crate::ai_contracts::plan_every_ai_squad(game);
     crate::youth_intake::apply_youth_intake(game, date, season);
+    // After every EOS journal post: later settlements, including on this calendar
+    // day, belong to the new season. Date-only comparison cannot split the day.
+    game.last_season_rollover_journal_len =
+        Some(u32::try_from(game.cash_journal.len()).unwrap_or(u32::MAX));
 }
 
 /// For a save from before the rollover day was kept: take it from the latest finished edition of a
@@ -1015,6 +1020,7 @@ pub fn process_end_of_season(game: &mut Game) -> EndOfSeasonSummary {
         .map(|division| division.tier)
         .unwrap_or(0);
     let mut user_prize_posted = false;
+    let mut renewed_envelope_clubs = HashSet::new();
     for division in divisions {
         let (division_standings, tier, season, competition_id) = (
             division.standings,
@@ -1073,10 +1079,10 @@ pub fn process_end_of_season(game: &mut Game) -> EndOfSeasonSummary {
 
                 // Refresh the transfer envelope for the new season. Formula
                 // matches worldgen (generator/mod.rs:543): 15% of finance.
-                // Since `execute_transfer` debits the budget on every buy and
-                // no other path adds to it, without this refill the market
-                // would freeze after 2-3 seasons as every club drained to
-                // zero.
+                // The live scalar is the season limit (spent is derived from
+                // the journal after `last_season_rollover_on`), so leftover
+                // unused room is discarded here on purpose — a new season,
+                // a new limit.
                 // Clamp at zero — unlike worldgen (which only ever sees fresh
                 // positive finance), end-of-season runs on live state where a
                 // heavily indebted club can have negative `finance`. A
@@ -1084,6 +1090,7 @@ pub fn process_end_of_season(game: &mut Game) -> EndOfSeasonSummary {
                 // `make_transfer_bid`, but showing "€-1.2M transfer budget"
                 // in the UI reads worse than a hard zero.
                 team.transfer_budget = ((team.finance as f64 * 0.15) as i64).max(0);
+                renewed_envelope_clubs.insert(team.id.clone());
             }
         }
 
@@ -1093,6 +1100,7 @@ pub fn process_end_of_season(game: &mut Game) -> EndOfSeasonSummary {
     // 5. Record player career entries and reset stats
     career_history::record_season_career_entries(game, season);
 
+    crate::transfers::fold_settled_spend_into_unrenewed_limits(game, &renewed_envelope_clubs);
     apply_season_end_squad_turnover(game, game.clock.current_date.date_naive(), season);
 
     player_statistics::reset_for_new_season(game);
@@ -2341,6 +2349,10 @@ mod tests {
         );
 
         assert_eq!(game.last_season_rollover_on.as_deref(), Some("2027-05-30"));
+        assert_eq!(
+            game.last_season_rollover_journal_len,
+            Some(game.cash_journal.len() as u32)
+        );
     }
 
     const MY_CLUB: &str = "mine";

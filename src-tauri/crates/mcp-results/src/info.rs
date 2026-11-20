@@ -52,6 +52,7 @@ pub struct GameSummary {
     pub league: Option<LeagueSnapshot>,
     pub balance: i64,
     pub wage_budget: i64,
+    /// Spendable transfer-fee room (season limit minus reserved minus spent).
     pub transfer_budget: i64,
     pub avg_condition: f64,
     pub avg_ovr: f64,

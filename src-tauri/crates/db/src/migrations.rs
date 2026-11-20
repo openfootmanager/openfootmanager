@@ -15,7 +15,7 @@ pub const MIGRATION_COUNT: usize = MIGRATIONS.len();
 /// **Lowering this is almost always wrong.** A save written by a release with N migrations
 /// reports `user_version = N` and expects every column those migrations added; a build with
 /// fewer can neither open it nor recreate it.
-const EXPECTED_MIGRATION_COUNT: usize = 67;
+const EXPECTED_MIGRATION_COUNT: usize = 68;
 
 // Compile-time rather than a test: adding or removing a migration should fail the build, not
 // merely turn a suite red.
@@ -204,6 +204,11 @@ const MIGRATIONS: &[(&str, &str)] = &[
     (
         "v067_player_season_stints.sql",
         include_str!("sql/v067_player_season_stints.sql"),
+    ),
+    // V68: Journal length at season end, so same-day post-rollover settlements count
+    (
+        "v068_rollover_journal_len.sql",
+        include_str!("sql/v068_rollover_journal_len.sql"),
     ),
 ];
 
@@ -753,6 +758,44 @@ mod tests {
         }
     }
 
+    /// Given a v067 save with a career row
+    /// When the save is migrated to v068 twice
+    /// Then the journal cursor is absent and the existing row is preserved.
+    #[test]
+    fn rollover_journal_len_v068_upgrades_a_v067_save_with_no_cursor_yet() {
+        let mut conn = Connection::open_in_memory().unwrap();
+        Migrations::new(
+            MIGRATIONS
+                .iter()
+                .take(67)
+                .map(|(_, sql)| M::up(sql))
+                .collect(),
+        )
+        .to_latest(&mut conn)
+        .unwrap();
+        conn.execute(
+            "INSERT INTO game_meta (save_id, save_name, manager_id, start_date, game_date) VALUES ('save', 'Old career', 'manager', '2033-02-01', '2033-06-30')",
+            [],
+        )
+        .unwrap();
+        assert!(
+            conn.prepare("SELECT last_season_rollover_journal_len FROM game_meta")
+                .is_err()
+        );
+
+        for _ in 0..2 {
+            all_migrations().to_latest(&mut conn).unwrap();
+            let row: (String, Option<u32>) = conn
+                .query_row(
+                    "SELECT save_name, last_season_rollover_journal_len FROM game_meta",
+                    [],
+                    |row| Ok((row.get(0)?, row.get(1)?)),
+                )
+                .expect("v068 must add the column to a real v067 save");
+            assert_eq!(row, ("Old career".to_string(), None));
+        }
+    }
+
     /// Given a real v060 save, written before the season rollover date was kept
     /// When it is migrated, twice
     /// Then its game_meta row reads "no rollover recorded" (NULL), so no scout report in it is
@@ -1179,6 +1222,7 @@ mod tests {
     ("v065_player_league_stats.sql", 0x877d34d1535c0e66),
     ("v066_player_competition_stats.sql", 0x80ce31187d396eed),
     ("v067_player_season_stints.sql", 0xf1b727b06deb6941),
+    ("v068_rollover_journal_len.sql", 0xb151b056dacfe23d),
     ];
 
     /// Given the migrations already shipped

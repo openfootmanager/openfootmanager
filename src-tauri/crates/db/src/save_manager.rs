@@ -654,6 +654,12 @@ impl SaveManager {
             needs_resave = true;
         }
 
+        if save_format_version < 10 {
+            // Pre-v10 saves stored remaining after settlement. Reconstruct the season
+            // limit once, after the rollover cutoff is set; a v10 save already holds it.
+            ofm_core::transfers::lift_transfer_budgets_by_settled_spend(&mut game);
+        }
+
         // A save written before the squad floor was enforced can open with
         // clubs already short of it. Before the stranded-fixture repair below:
         // that one scores fixtures from the squads, so it reads them repaired.
@@ -3560,6 +3566,34 @@ mod tests {
         assert_eq!(stored, Some(17));
         let loaded = SaveManager::init(&saves).unwrap().load_game(&id).unwrap();
         assert_eq!(loaded.days_since_last_job_offer, Some(17));
+    }
+
+    /// Given a career whose season ended with 7 journal posts
+    /// When it is saved and loaded by a fresh manager
+    /// Then the journal cursor survives
+    #[test]
+    fn rollover_journal_len_survives_save_and_load() {
+        let dir = tempfile::tempdir().unwrap();
+        let saves = dir.path().join("saves");
+        let mut game = sample_game();
+        game.last_season_rollover_on = Some("2027-05-25".to_string());
+        game.last_season_rollover_journal_len = Some(7);
+        let id = SaveManager::init(&saves)
+            .unwrap()
+            .create_save(&game, "Rollover")
+            .unwrap();
+
+        let reader = rusqlite::Connection::open(saves.join(format!("{id}.db"))).unwrap();
+        let stored: Option<u32> = reader
+            .query_row(
+                "SELECT last_season_rollover_journal_len FROM game_meta",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(stored, Some(7));
+        let loaded = SaveManager::init(&saves).unwrap().load_game(&id).unwrap();
+        assert_eq!(loaded.last_season_rollover_journal_len, Some(7));
     }
 
     /// Given a saved career with a job-offer cooldown

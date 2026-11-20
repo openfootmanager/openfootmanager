@@ -24,11 +24,12 @@ use ofm_core::clock::GameClock;
 use ofm_core::finances::calc_wages;
 use ofm_core::game::Game;
 use ofm_core::transfers::{
-    LoanOfferDecision, TransferNegotiationDecision, counter_loan_offer, counter_offer,
-    evaluate_transfer_market, exercise_loan_buy_option, generate_incoming_transfer_offers,
-    make_loan_offer, make_transfer_bid, process_loan_development_reports, process_loan_returns,
-    process_pending_loan_registrations, process_pending_transfer_registrations,
-    respond_to_loan_offer, respond_to_offer, seed_opening_ai_loan_market,
+    LoanOfferDecision, TransferNegotiationDecision, available_transfer_budget, counter_loan_offer,
+    counter_offer, evaluate_transfer_market, exercise_loan_buy_option,
+    generate_incoming_transfer_offers, make_loan_offer, make_transfer_bid,
+    process_loan_development_reports, process_loan_returns, process_pending_loan_registrations,
+    process_pending_transfer_registrations, project_transfer_bid_financial_impact,
+    respond_to_loan_offer, respond_to_offer, seed_opening_ai_loan_market, settled_transfer_spend,
 };
 
 fn default_attrs() -> PlayerAttributes {
@@ -443,14 +444,19 @@ fn accepted_closed_window_incoming_transfer_is_registered_when_the_window_opens(
 
     let seller = game.teams.iter().find(|team| team.id == "team-1").unwrap();
     assert_eq!(seller.finance, 6_400_000);
-    assert_eq!(seller.transfer_budget, 3_400_000);
+    assert_eq!(seller.transfer_budget, 2_000_000);
+    assert_eq!(available_transfer_budget(&game, seller), 3_400_000);
     let buyer = game.teams.iter().find(|team| team.id == "team-2").unwrap();
     assert_eq!(buyer.finance, 1_600_000);
-    assert_eq!(buyer.transfer_budget, 1_600_000);
+    assert_eq!(buyer.transfer_budget, 3_000_000);
+    assert_eq!(available_transfer_budget(&game, buyer), 1_600_000);
 }
 
+/// Given an accepted incoming sale
+/// When the fee is posted
+/// Then cash moves, the season limits stay put, and available room follows net spend
 #[test]
-fn accepted_incoming_transfer_credits_selling_team_transfer_budget() {
+fn accepted_incoming_transfer_credits_selling_team_available_budget() {
     let fee = 1_568_520;
     let starting_finance = 5_000_000;
     let starting_budget = 116_000;
@@ -475,11 +481,19 @@ fn accepted_incoming_transfer_credits_selling_team_transfer_budget() {
 
     let seller = game.teams.iter().find(|team| team.id == "team-1").unwrap();
     assert_eq!(seller.finance, starting_finance + fee as i64);
-    assert_eq!(seller.transfer_budget, starting_budget + fee as i64);
+    assert_eq!(seller.transfer_budget, starting_budget);
+    assert_eq!(
+        available_transfer_budget(&game, seller),
+        starting_budget + fee as i64
+    );
 
     let buyer = game.teams.iter().find(|team| team.id == "team-2").unwrap();
     assert_eq!(buyer.finance, buyer_starting_finance - fee as i64);
-    assert_eq!(buyer.transfer_budget, buyer_starting_budget - fee as i64);
+    assert_eq!(buyer.transfer_budget, buyer_starting_budget);
+    assert_eq!(
+        available_transfer_budget(&game, buyer),
+        buyer_starting_budget - fee as i64
+    );
 
     let player = game
         .players
@@ -1784,8 +1798,11 @@ fn transfer_succeeds_when_incoming_player_jersey_collides_with_buyer_squad() {
     );
 }
 
+/// Given a purchase of 950,000 from a 2,000,000 season limit
+/// When the transfer executes
+/// Then cash drops by the fee, the limit stays, and available room drops by the fee.
 #[test]
-fn executed_transfer_debits_the_buying_team_transfer_budget() {
+fn executed_transfer_does_not_mutate_the_season_limit() {
     let mut player = make_player("player-budget-debit");
     player.morale = 35;
     player.stats.appearances = 1;
@@ -1803,13 +1820,14 @@ fn executed_transfer_debits_the_buying_team_transfer_budget() {
         .expect("second bid should be accepted");
     assert_eq!(result.decision, TransferNegotiationDecision::Accepted);
 
-    // Both `finance` and `transfer_budget` must drop by the executed fee.
-    // Regression guard for the pre-fix bug where `transfer_budget` gated
-    // only the first bid and stayed constant thereafter, letting a team
-    // spend €100M in €15M chunks against a €15M budget.
     let buyer = game.teams.iter().find(|t| t.id == "team-1").unwrap();
     assert_eq!(buyer.finance, starting_finance - 950_000);
-    assert_eq!(buyer.transfer_budget, starting_budget - 950_000);
+    assert_eq!(buyer.transfer_budget, starting_budget);
+    assert_eq!(
+        available_transfer_budget(&game, buyer),
+        starting_budget - 950_000
+    );
+    assert_eq!(settled_transfer_spend(&game, "team-1"), 950_000);
 }
 
 /// Builds a loan-listed user player plus `ai_teams` extra clubs, all able to afford him.

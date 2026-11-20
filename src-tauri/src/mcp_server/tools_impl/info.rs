@@ -197,7 +197,7 @@ pub fn info_game_summary(ctx: Arc<McpContext>) -> Result<GameSummary, String> {
         league,
         balance: team.finance,
         wage_budget: team.wage_budget,
-        transfer_budget: team.transfer_budget,
+        transfer_budget: ofm_core::transfers::available_transfer_budget(&game, team),
         avg_condition: average(|p| p.condition),
         avg_ovr: average(|p| p.ovr),
         injured: squad.iter().filter(|p| p.injury.is_some()).count(),

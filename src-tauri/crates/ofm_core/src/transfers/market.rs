@@ -397,6 +397,7 @@ impl MarketSweep {
             .get(buyer_id)
             .copied()
             .unwrap_or(0);
+        let spent = settled_transfer_spend(game, buyer_id);
         let chosen = self.shortlist.iter().find(|target| {
             if target.owner_team_id == buyer_id || self.moved_player_ids.contains(&target.player_id)
             {
@@ -431,7 +432,7 @@ impl MarketSweep {
             ) {
                 return false;
             }
-            can_afford_fee(buyer_team, target.fee, committed_fees)
+            can_afford_fee(buyer_team, target.fee, committed_fees, spent)
                 && self
                     .player_index
                     .get(&target.player_id)
@@ -488,6 +489,7 @@ impl MarketSweep {
             buyer_id,
             &candidate.owner_team_id,
             candidate.fee,
+            0,
         )
         .and_then(|()| {
             close_open_offers_after_sale(game, &candidate.player_id, buyer_id, candidate.fee, None)

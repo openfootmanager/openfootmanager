@@ -3,7 +3,9 @@ use crate::clock::GameClock;
 use crate::game::Game;
 use chrono::{NaiveDate, TimeZone, Utc};
 use domain::manager::Manager;
-use domain::player::{LoanOfferStatus, Player, PlayerAttributes, Position, TransferOfferStatus};
+use domain::player::{
+    LoanOfferStatus, Player, PlayerAttributes, PlayerMovementKind, Position, TransferOfferStatus,
+};
 use domain::season::TransferWindowStatus;
 use domain::team::Team;
 
@@ -369,7 +371,7 @@ fn a_buyer_moves_on_from_a_target_its_board_would_refuse() {
     let modest = bargain("modest", "c", 20_000);
     let wage_for_a = |game: &Game, player: &Player| {
         i64::from(
-            super::execution::buyers_standard_terms(game, player, "a")
+            super::execution::buyers_standard_terms(game, player, "a", 0)
                 .expect("the buyer can be given a standard contract")
                 .1,
         )
@@ -507,14 +509,16 @@ fn the_user_is_told_once_when_another_clubs_purchase_ends_their_talks() {
         1,
         "one letter for the sale, not one per approach"
     );
-    let buyer = game.teams.iter().find(|team| team.id == "b").unwrap();
     let wanted = game.players.iter().find(|p| p.id == "wanted").unwrap();
+    let fee = wanted
+        .movement_history
+        .iter()
+        .find(|entry| entry.kind == PlayerMovementKind::PermanentTransfer)
+        .and_then(|entry| entry.fee)
+        .expect("the sale records its fee");
     assert_eq!(letters[0].i18n_params["player"], wanted.full_name);
     assert_eq!(letters[0].i18n_params["buyer"], "Beta FC");
-    assert_eq!(
-        letters[0].i18n_params["fee"],
-        (5_000_000 - buyer.transfer_budget).to_string()
-    );
+    assert_eq!(letters[0].i18n_params["fee"], fee.to_string());
     assert_eq!(letters[0].context.player_id.as_deref(), Some("wanted"));
     // The card is the club that signed him, not the user's own.
     assert_eq!(letters[0].context.team_id.as_deref(), Some("b"));
