@@ -63,6 +63,79 @@ fn a_transfer_never_leaves_the_player_unpaid() {
     );
 }
 
+/// Given a closed-window bid that is agreed
+/// When the offer is stored
+/// Then wage_offered is the buyer's standard wage, not zero
+#[test]
+fn an_agreed_purchase_stamps_the_buyers_wage_on_the_offer() {
+    let player = make_player("player-stamped-wage");
+    let mut game = make_game_with_player(player, vec![], 5_000_000, 2_000_000);
+    game.clock.current_date = Utc.with_ymd_and_hms(2026, 12, 20, 12, 0, 0).unwrap();
+    game.season_context.transfer_window.status = TransferWindowStatus::Closed;
+    game.season_context.transfer_window.opens_on = Some("2027-01-01".to_string());
+
+    make_transfer_bid(&mut game, "player-stamped-wage", 2_000_000)
+        .expect("an accepted closed-window bid schedules registration");
+
+    let offer = &game
+        .players
+        .iter()
+        .find(|player| player.id == "player-stamped-wage")
+        .unwrap()
+        .transfer_offers[0];
+    assert_eq!(offer.status, TransferOfferStatus::PendingRegistration);
+    assert!(
+        offer.wage_offered > 0 && offer.wage_offered.is_multiple_of(1_000),
+        "agreement stamps the buyer's standard wage, got {}",
+        offer.wage_offered
+    );
+}
+
+/// Given an agreed purchase whose offer names a non-zero wage
+/// When registration completes
+/// Then the new contract pays that wage
+#[test]
+fn registration_uses_the_wage_stamped_on_the_offer() {
+    let player = make_player("player-frozen-wage");
+    let mut game = make_game_with_player(player, vec![], 5_000_000, 2_000_000);
+    game.clock.current_date = Utc.with_ymd_and_hms(2026, 12, 20, 12, 0, 0).unwrap();
+    game.season_context.transfer_window.status = TransferWindowStatus::Closed;
+    game.season_context.transfer_window.opens_on = Some("2027-01-01".to_string());
+    make_transfer_bid(&mut game, "player-frozen-wage", 2_000_000)
+        .expect("an accepted closed-window bid schedules registration");
+
+    let stamped = game
+        .players
+        .iter()
+        .find(|player| player.id == "player-frozen-wage")
+        .unwrap()
+        .transfer_offers[0]
+        .wage_offered;
+    assert!(stamped > 0, "agreement must stamp a wage to freeze");
+    game.players
+        .iter_mut()
+        .find(|player| player.id == "player-frozen-wage")
+        .unwrap()
+        .transfer_offers[0]
+        .wage_offered = 12_345;
+
+    game.clock.current_date = Utc.with_ymd_and_hms(2027, 1, 1, 12, 0, 0).unwrap();
+    game.season_context.transfer_window.status = TransferWindowStatus::Open;
+    process_pending_transfer_registrations(&mut game);
+
+    let player = game
+        .players
+        .iter()
+        .find(|player| player.id == "player-frozen-wage")
+        .unwrap();
+    assert_eq!(player.wage(), 12_345);
+    let record = entry_of_kind(player, PlayerMovementKind::PermanentTransfer)
+        .contract
+        .as_ref()
+        .expect("the registered move made a contract");
+    assert_eq!(record.weekly_wage, 12_345);
+}
+
 /// Given an accepted purchase
 /// When the player registers with the buyer through the public entry point
 /// Then the new employment contract ends on 30 June of the agreed year.

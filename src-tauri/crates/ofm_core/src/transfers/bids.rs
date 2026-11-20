@@ -326,6 +326,7 @@ pub(crate) fn buyer_counter_offer_ceiling(
     ceiling.min(transfer_fee_ceiling(
         buyer_team,
         committed_transfer_fees(game, &buyer_team.id),
+        settled_transfer_spend(game, &buyer_team.id),
     ))
 }
 pub(crate) fn transfer_outcome(
@@ -377,7 +378,7 @@ pub fn project_transfer_bid_financial_impact(
     // What he would be paid at this club: the contract the transfer would give him, not
     // the one he is on. Falls back to his current wage only if the terms cannot be worked
     // out, since the preview is informational.
-    let standard_terms = buyers_standard_terms(game, player, &team.id).ok();
+    let standard_terms = buyers_standard_terms(game, player, &team.id, 0).ok();
     let incoming_wage = standard_terms
         .as_ref()
         .map_or_else(|| i64::from(player.wage()), |(_, wage, _)| i64::from(*wage));
@@ -546,8 +547,13 @@ fn prepare_outgoing_bid(
         .find(|t| t.id == user_team_id)
         .ok_or("be.error.managedTeamNotFound")?;
 
-    fee_block(my_team, fee, committed_transfer_fees(game, &my_team.id))
-        .map_err(|block| block.error_key().to_string())?;
+    fee_block(
+        my_team,
+        fee,
+        committed_transfer_fees(game, &my_team.id),
+        settled_transfer_spend(game, &my_team.id),
+    )
+    .map_err(|block| block.error_key().to_string())?;
 
     let owner_team = game
         .teams
@@ -617,8 +623,9 @@ fn agree_outgoing_transfer(
         TransferOfferStatus::PendingRegistration
     };
     let registration_date = (!register_immediately).then_some(registration_date_string.clone());
+    let agreed_wage = purchase_agreement_wage(game, player_id, &user_team_id);
     let offer_id = if let Some(p) = game.players.iter_mut().find(|p| p.id == player_id) {
-        upsert_transfer_offer(
+        let offer_id = upsert_transfer_offer(
             p,
             &user_team_id,
             fee,
@@ -628,7 +635,9 @@ fn agree_outgoing_transfer(
             round,
             None,
             registration_date,
-        )
+        );
+        stamp_offer_wage(p, &offer_id, agreed_wage);
+        offer_id
     } else {
         return Err("be.error.playerNotFound".into());
     };
@@ -797,28 +806,32 @@ pub fn respond_to_offer(
         registration_date_string,
         openness_score,
     } = prepare_incoming_response(game, player_id, offer_id, accept)?;
+    let agreed_wage = accept.then(|| purchase_agreement_wage(game, player_id, &from_team_id));
     // Update offer status
-    if let Some(p) = game.players.iter_mut().find(|p| p.id == player_id)
-        && let Some(o) = p.transfer_offers.iter_mut().find(|o| o.id == offer_id)
-    {
-        if accept {
-            o.status = if register_immediately {
-                TransferOfferStatus::Accepted
+    if let Some(p) = game.players.iter_mut().find(|p| p.id == player_id) {
+        if let Some(o) = p.transfer_offers.iter_mut().find(|o| o.id == offer_id) {
+            if accept {
+                o.status = if register_immediately {
+                    TransferOfferStatus::Accepted
+                } else {
+                    TransferOfferStatus::PendingRegistration
+                };
             } else {
-                TransferOfferStatus::PendingRegistration
+                close_transfer_offer(
+                    o,
+                    TransferOfferStatus::Rejected,
+                    &current_date.format("%Y-%m-%d").to_string(),
+                );
+            }
+            o.registration_date = if accept && !register_immediately {
+                Some(registration_date_string.clone())
+            } else {
+                None
             };
-        } else {
-            close_transfer_offer(
-                o,
-                TransferOfferStatus::Rejected,
-                &current_date.format("%Y-%m-%d").to_string(),
-            );
         }
-        o.registration_date = if accept && !register_immediately {
-            Some(registration_date_string.clone())
-        } else {
-            None
-        };
+        if let Some(wage) = agreed_wage {
+            stamp_offer_wage(p, offer_id, wage);
+        }
     }
 
     if accept {
@@ -913,6 +926,7 @@ fn prepare_incoming_response(
             buyer_team,
             fee,
             committed_transfer_fees(game, &buyer_team.id),
+            settled_transfer_spend(game, &buyer_team.id),
         )
         .map_err(|block| {
             if register_immediately
@@ -1024,8 +1038,11 @@ fn prepare_incoming_counter(
     let (tension, patience) = transfer_negotiation_metrics(round, stalled, respected_signal);
     let counter_ceiling =
         buyer_counter_offer_ceiling(game, current_date, player, offer.fee, buyer_team);
-    let budget_cap =
-        transfer_fee_ceiling(buyer_team, committed_transfer_fees(game, &buyer_team.id));
+    let budget_cap = transfer_fee_ceiling(
+        buyer_team,
+        committed_transfer_fees(game, &buyer_team.id),
+        settled_transfer_spend(game, &buyer_team.id),
+    );
     let goodwill_margin = if respected_signal { 50_000 } else { 0 };
     let accepted = requested_fee
         <= counter_ceiling
@@ -1072,38 +1089,45 @@ fn record_incoming_counter(
     let accepted = context.accepted;
     let counter_window = context.counter_window;
     let date = &context.date;
+    let agreed_wage =
+        accepted.then(|| purchase_agreement_wage(game, player_id, &context.buyer_team_id));
     if let Some(player) = game
         .players
         .iter_mut()
         .find(|player| player.id == player_id)
-        && let Some(offer) = player
+    {
+        if let Some(offer) = player
             .transfer_offers
             .iter_mut()
             .find(|offer| offer.id == offer_id)
-    {
-        if accepted {
-            offer.fee = requested_fee;
-            offer.status = if register_immediately {
-                TransferOfferStatus::Accepted
-            } else {
-                TransferOfferStatus::PendingRegistration
-            };
-            offer.last_manager_fee = Some(requested_fee);
-            offer.negotiation_round = round;
-            offer.suggested_counter_fee = None;
-            offer.registration_date = if register_immediately {
-                None
-            } else {
-                Some(registration_date_string.clone())
-            };
-        } else if requested_fee > counter_window {
-            close_transfer_offer(offer, TransferOfferStatus::Rejected, date);
-            offer.last_manager_fee = Some(requested_fee);
-            offer.negotiation_round = round;
-            offer.registration_date = None;
+        {
+            if accepted {
+                offer.fee = requested_fee;
+                offer.status = if register_immediately {
+                    TransferOfferStatus::Accepted
+                } else {
+                    TransferOfferStatus::PendingRegistration
+                };
+                offer.last_manager_fee = Some(requested_fee);
+                offer.negotiation_round = round;
+                offer.suggested_counter_fee = None;
+                offer.registration_date = if register_immediately {
+                    None
+                } else {
+                    Some(registration_date_string.clone())
+                };
+            } else if requested_fee > counter_window {
+                close_transfer_offer(offer, TransferOfferStatus::Rejected, date);
+                offer.last_manager_fee = Some(requested_fee);
+                offer.negotiation_round = round;
+                offer.registration_date = None;
+            }
+            // Both branches end the negotiation, so `date` keeps the arrival stamp. Only the
+            // counter-offer path below re-opens talks, and that one does bump it.
         }
-        // Both branches end the negotiation, so `date` keeps the arrival stamp. Only the
-        // counter-offer path below re-opens talks, and that one does bump it.
+        if let Some(wage) = agreed_wage {
+            stamp_offer_wage(player, offer_id, wage);
+        }
     }
 }
 fn complete_incoming_counter(

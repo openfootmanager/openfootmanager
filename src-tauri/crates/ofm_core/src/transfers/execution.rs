@@ -204,7 +204,9 @@ pub(super) fn transfer_buyer_can_register(game: &Game, buyer_team_id: &str, fee:
     game.teams
         .iter()
         .find(|team| team.id == buyer_team_id)
-        .is_some_and(|team| can_afford_fee(team, fee, 0))
+        .is_some_and(|team| {
+            can_afford_fee(team, fee, 0, settled_transfer_spend(game, buyer_team_id))
+        })
 }
 
 pub(super) fn ensure_transfer_cash_postable(
@@ -242,6 +244,7 @@ pub(super) fn buyers_standard_terms(
     game: &Game,
     player: &Player,
     buyer_team_id: &str,
+    offered_wage: u32,
 ) -> Result<(Team, u32, NaiveDate), String> {
     let buyer = game
         .teams
@@ -249,12 +252,55 @@ pub(super) fn buyers_standard_terms(
         .find(|team| team.id == buyer_team_id)
         .cloned()
         .ok_or("be.error.teamNotFound")?;
-    // No bid carries a wage yet (every `wage_offered` is 0), so none is passed; when one
-    // does, it is passed here.
-    let (wage, end) =
-        standard_contract_terms(player, &buyer, game.clock.current_date.date_naive(), 0)
-            .ok_or(ERR_UNABLE_TO_CALCULATE_CONTRACT_END_DATE)?;
+    // A bid that named a wage keeps it; a bid that named none (0) gets the wage
+    // the player would expect from this club on the day the terms are asked.
+    let (wage, end) = standard_contract_terms(
+        player,
+        &buyer,
+        game.clock.current_date.date_naive(),
+        offered_wage,
+    )
+    .ok_or(ERR_UNABLE_TO_CALCULATE_CONTRACT_END_DATE)?;
     Ok((buyer, wage, end))
+}
+
+/// The wage an agreement with `buyer_team_id` should freeze: the buyer's standard
+/// terms on the day talks close. Zero if those terms cannot be worked out.
+pub(super) fn purchase_agreement_wage(game: &Game, player_id: &str, buyer_team_id: &str) -> u32 {
+    game.players
+        .iter()
+        .find(|player| player.id == player_id)
+        .and_then(|player| buyers_standard_terms(game, player, buyer_team_id, 0).ok())
+        .map(|(_, wage, _)| wage)
+        .unwrap_or(0)
+}
+
+/// Freeze `wage` onto an agreed offer so delayed registration does not recompute
+/// it. A non-zero wage already on the offer is left alone.
+pub(super) fn stamp_offer_wage(player: &mut Player, offer_id: &str, wage: u32) {
+    if let Some(offer) = player
+        .transfer_offers
+        .iter_mut()
+        .find(|offer| offer.id == offer_id)
+        && offer.wage_offered == 0
+    {
+        offer.wage_offered = wage;
+    }
+}
+
+fn wage_offered_for_purchase(player: &Player, buyer_team_id: &str) -> u32 {
+    player
+        .transfer_offers
+        .iter()
+        .find(|offer| {
+            offer.from_team_id == buyer_team_id
+                && matches!(
+                    offer.status,
+                    TransferOfferStatus::Accepted | TransferOfferStatus::PendingRegistration
+                )
+        })
+        .map(|offer| offer.wage_offered)
+        .unwrap_or(0)
 }
 
 /// Whether the board would let `buyer` pay `player` his standard wage, for the sweep
@@ -276,8 +322,9 @@ pub(super) fn buyers_contract_terms(
     game: &Game,
     player: &Player,
     buyer_team_id: &str,
+    offered_wage: u32,
 ) -> Result<(Team, u32, NaiveDate), String> {
-    let (buyer, wage, end) = buyers_standard_terms(game, player, buyer_team_id)?;
+    let (buyer, wage, end) = buyers_standard_terms(game, player, buyer_team_id, offered_wage)?;
     if !purchase_wage_policy_verdict(game, &buyer, player, wage).permits() {
         return Err(renewal_wage_policy_error_message(&buyer));
     }
@@ -297,7 +344,7 @@ pub(super) fn ensure_buyer_can_pay_standard_wage(
         .iter()
         .find(|player| player.id == player_id)
         .ok_or("be.error.playerNotFound")?;
-    buyers_contract_terms(game, player, buyer_team_id).map(|_| ())
+    buyers_contract_terms(game, player, buyer_team_id, 0).map(|_| ())
 }
 
 /// Transfer a player between teams, adjusting finances.
@@ -347,11 +394,16 @@ pub(super) fn execute_transfer(
 
     // The buyer's terms, and the board's say on them, settled before any money moves so
     // that a refusal here cannot leave a half-done transfer.
-    let (buying_team, new_wage, new_contract_end) =
-        buyers_contract_terms(game, &player_snapshot, to_team_id)?;
+    let (buying_team, new_wage, new_contract_end) = buyers_contract_terms(
+        game,
+        &player_snapshot,
+        to_team_id,
+        wage_offered_for_purchase(&player_snapshot, to_team_id),
+    )?;
 
     let fee_i64 = i64::try_from(fee).map_err(|_| "be.error.finance.amountOverflow".to_string())?;
     let date = game.clock.current_date.date_naive();
+    // Cash only. The season limit stays put: spent is these TransferFee posts.
     crate::finances::post_all(
         game,
         &[
@@ -405,17 +457,13 @@ pub(super) fn execute_transfer(
         }
     }
 
-    // Envelope (transfer_budget) still mutates here. Cash is posted above.
-    // Transfer fees do not change season income/expenses (same as develop).
-    if let Some(t) = game.teams.iter_mut().find(|t| t.id == to_team_id) {
-        t.transfer_budget -= fee_i64;
-        if let Some(pos) = t.starting_xi_ids.iter().position(|id| id == player_id) {
-            t.starting_xi_ids.remove(pos);
-        }
+    if let Some(t) = game.teams.iter_mut().find(|t| t.id == to_team_id)
+        && let Some(pos) = t.starting_xi_ids.iter().position(|id| id == player_id)
+    {
+        t.starting_xi_ids.remove(pos);
     }
 
     if let Some(t) = game.teams.iter_mut().find(|t| t.id == from_team_id) {
-        t.transfer_budget += fee_i64;
         // A departing player gives up every role, not just his place in the XI. Trimming the XI by
         // hand here used to leave him as the old club's captain and penalty taker.
         t.remove_player_references(player_id);
@@ -1336,7 +1384,8 @@ mod tests {
             game.players[0].transfer_offers[0].status,
             TransferOfferStatus::Accepted
         );
-        assert_eq!(game.teams[0].transfer_budget, 200_000);
+        assert_eq!(game.teams[0].transfer_budget, 1_000_000);
+        assert_eq!(settled_transfer_spend(&game, "team1"), 800_000);
         let failed = game.players.last().unwrap();
         assert_eq!(failed.team_id.as_deref(), Some("team2"));
         assert_eq!(

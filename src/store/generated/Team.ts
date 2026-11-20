@@ -20,7 +20,13 @@ export type Team = { id: string, name: string, short_name: string, country: stri
  * Cash on hand, in integer euros. Equal to the sum of cash-journal posts
  * for this club once the journal has been seeded.
  */
-finance: number, manager_id: string | null, reputation: number, wage_budget: number, transfer_budget: number, season_income: number, season_expenses: number, financial_ledger: Array<FinancialTransaction>, sponsorship: Sponsorship | null, facilities: Facilities, formation: string, play_style: PlayStyle, 
+finance: number, manager_id: string | null, reputation: number, wage_budget: number, 
+/**
+ * Board season limit for transfer fees. Settlement posts cash; it does not
+ * debit this scalar. Available room is the limit minus reserved
+ * pending-registration fees minus net settled transfer-fee spend this season.
+ */
+transfer_budget: number, season_income: number, season_expenses: number, financial_ledger: Array<FinancialTransaction>, sponsorship: Sponsorship | null, facilities: Facilities, formation: string, play_style: PlayStyle, 
 /**
  * Per-player tactical role assignments. Keyed by player ID.
  * Missing entries default to the position's standard role.

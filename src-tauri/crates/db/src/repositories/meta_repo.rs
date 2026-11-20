@@ -88,7 +88,11 @@ fn default_emitted_events_json() -> String {
 /// v9 = retired players live in the `retired_players` archive, not in `game.players`; a pre-v9
 /// save has its flagged retirees moved there once on load, and an older build must not open a
 /// v9 save and find them gone.
-pub const CURRENT_SAVE_FORMAT_VERSION: u32 = 9;
+/// v10 = `Team.transfer_budget` is the season limit; available room is limit minus reserved
+/// pending-registration fees minus net settled TransferFeeOut/In this season. A pre-v10 save
+/// stored remaining after settlement, so on load the limit is reconstructed once as
+/// `remaining + spent_net`. Running that twice would double-count spend.
+pub const CURRENT_SAVE_FORMAT_VERSION: u32 = 10;
 
 /// Baseline for a save that predates the version field entirely (reads as the
 /// pre-gate format, so it gets migrated and restamped to current on load).

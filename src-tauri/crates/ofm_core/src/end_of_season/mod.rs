@@ -1073,10 +1073,10 @@ pub fn process_end_of_season(game: &mut Game) -> EndOfSeasonSummary {
 
                 // Refresh the transfer envelope for the new season. Formula
                 // matches worldgen (generator/mod.rs:543): 15% of finance.
-                // Since `execute_transfer` debits the budget on every buy and
-                // no other path adds to it, without this refill the market
-                // would freeze after 2-3 seasons as every club drained to
-                // zero.
+                // The live scalar is the season limit (spent is derived from
+                // the journal after `last_season_rollover_on`), so leftover
+                // unused room is discarded here on purpose — a new season,
+                // a new limit.
                 // Clamp at zero — unlike worldgen (which only ever sees fresh
                 // positive finance), end-of-season runs on live state where a
                 // heavily indebted club can have negative `finance`. A

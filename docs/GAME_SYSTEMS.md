@@ -499,9 +499,9 @@ Each team tracks financial state:
 
 | Field | Description |
 |-------|-------------|
-| `finance` | Current balance (can be negative) |
+| `finance` | Current balance (can be negative). Cash moves only through the journal. |
 | `wage_budget` | Weekly wage allowance |
-| `transfer_budget` | Available for transfers |
+| `transfer_budget` | Board season limit for transfer fees. Settlement does not change this scalar. Available room is the limit minus reserved pending-registration fees minus net settled `TransferFeeOut`/`TransferFeeIn` this season (after `last_season_rollover_on`). Sale proceeds raise available room through negative net spend. End of season sets a new limit at 15% of cash. |
 | `season_income` | Cumulative income this season |
 | `season_expenses` | Cumulative expenses this season |
 
@@ -528,7 +528,7 @@ The transfer system provides a market for buying, selling, and loaning players.
 Each player has:
 - `transfer_listed: bool` — Whether the player is available for transfer
 - `loan_listed: bool` — Whether the player is available for loan
-- `transfer_offers: Vec<TransferOffer>` — Pending offers
+- `transfer_offers: Vec<TransferOffer>` — Pending offers. An agreement stamps `wage_offered` with the buyer's standard wage so delayed registration uses the frozen wage. A stored 0 still means "use the standard terms on the registration day".
 
 ### Transfer Views (Frontend)
 

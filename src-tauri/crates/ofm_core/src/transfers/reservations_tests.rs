@@ -93,6 +93,7 @@ fn registration_consumes_its_reservation_and_pays_once() {
     process_pending_transfer_registrations(&mut game);
     assert_eq!(game.players[0].team_id.as_deref(), Some("team1"));
     assert_eq!(game.teams[0].finance, 2_999_999);
+    assert_eq!(game.teams[0].transfer_budget, 2_000_001);
     assert_eq!(
         project_transfer_bid_financial_impact(&game, &next, 0)
             .unwrap()
@@ -357,7 +358,11 @@ fn accept_counter_with_a_non_multiple_budget(deferred: bool) -> (Game, u64) {
 fn an_ai_counter_with_a_non_multiple_budget_can_be_accepted_immediately() {
     let (game, fee) = accept_counter_with_a_non_multiple_budget(false);
     assert_eq!(game.teams[1].finance, 5_000_000 - fee as i64);
-    assert_eq!(game.teams[1].transfer_budget, 1_000_000 - fee as i64);
+    assert_eq!(game.teams[1].transfer_budget, 1_000_000);
+    assert_eq!(
+        available_transfer_budget(&game, &game.teams[1]),
+        1_000_000 - fee as i64 - 379_999
+    );
     assert_eq!(committed_transfer_fees(&game, "team2"), 379_999);
 }
 
