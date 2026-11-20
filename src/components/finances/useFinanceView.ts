@@ -34,6 +34,7 @@ export function useFinanceView({
   const { t, i18n } = useTranslation();
   const {
     actionLoading,
+    reallocationLoading,
     answeringOfferId,
     sponsorOfferErrors,
     facilityUpgradeError,
@@ -169,6 +170,7 @@ export function useFinanceView({
     boardSupportPreviewText,
     canRequestBoardSupport,
     actionLoading,
+    reallocationLoading,
     handleRequestBoardSupport,
     boardSupportFeedback,
     previewsCurrent,

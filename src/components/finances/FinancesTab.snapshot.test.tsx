@@ -251,6 +251,8 @@ describe("FinancesTab backend snapshot", () => {
     const fresh = screen.getAllByRole("button", { name: "Upgrade" });
     expect(fresh.every((button) => !(button as HTMLButtonElement).disabled)).toBe(true);
     expect(screen.getByRole("button", { name: "finances.requestBoardSupport" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Raise wage budget" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Raise transfer budget" })).toBeEnabled();
 
     rerender(<FinancesTab gameState={createGameState({ finance: 123_456 })} />);
 
@@ -258,6 +260,8 @@ describe("FinancesTab backend snapshot", () => {
     const stale = screen.getAllByRole("button", { name: "Upgrade" });
     expect(stale.every((button) => (button as HTMLButtonElement).disabled)).toBe(true);
     expect(screen.getByRole("button", { name: "finances.requestBoardSupport" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Raise wage budget" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Raise transfer budget" })).toBeEnabled();
   });
 
   /**

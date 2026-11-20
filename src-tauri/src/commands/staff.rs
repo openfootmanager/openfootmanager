@@ -2,9 +2,7 @@ use log::info;
 use std::sync::Arc;
 use tauri::State;
 
-use ofm_core::contract_wage_policy::{
-    renewal_wage_policy_error_message, wage_policy_allows_projection,
-};
+use ofm_core::contract_wage_policy::{hire_wage_policy_allows, renewal_wage_policy_error_message};
 use ofm_core::finances::calc_wages;
 use ofm_core::game::Game;
 use ofm_core::state::{Career, StateManager};
@@ -53,7 +51,7 @@ pub fn hire_staff_internal(
                 .iter()
                 .find(|team| team.id == team_id)
                 .ok_or_else(|| "be.error.teamNotFound".to_string())?;
-            if !wage_policy_allows_projection(team, current_bill, projected_bill) {
+            if !hire_wage_policy_allows(team, projected_bill) {
                 return Err(renewal_wage_policy_error_message(team));
             }
         }
@@ -326,6 +324,34 @@ mod tests {
         state.set_game(game);
 
         let error = hire_staff_internal(&state, Career::Active, "staff-1").expect_err("over 110%");
+        assert!(error.starts_with("be.error.contracts.boardWagePolicy"));
+        let stored = state.get_game(|game| game.clone()).expect("stored game");
+        assert!(stored
+            .staff
+            .iter()
+            .find(|staff| staff.id == "staff-1")
+            .is_some_and(|staff| staff.team_id.is_none()));
+        assert_eq!(stored.teams[0].finance, 1_000_000);
+        assert_eq!(stored.teams[0].season_expenses, 0);
+    }
+
+    /// Given the weekly wage bill already sits on the board's 110% hire cap
+    /// When the manager hires another staff member
+    /// Then the hire is refused: staff hires do not get the renewal over-budget grace.
+    #[test]
+    fn hire_staff_internal_refuses_a_hire_when_already_on_the_wage_policy_cap() {
+        let state = StateManager::new();
+        let mut game = make_game();
+        game.teams[0].wage_budget = 10_000;
+        let mut employed = make_employed_staff();
+        employed.id = "staff-employed".to_string();
+        employed.wage = 11_000;
+        game.staff[0].wage = 1_000;
+        game.staff.push(employed);
+        state.set_game(game);
+
+        let error = hire_staff_internal(&state, Career::Active, "staff-1")
+            .expect_err("already on the 110% cap");
         assert!(error.starts_with("be.error.contracts.boardWagePolicy"));
         let stored = state.get_game(|game| game.clone()).expect("stored game");
         assert!(stored

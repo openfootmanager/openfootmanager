@@ -17,7 +17,8 @@ export function FinanceEnvelopeCard({
     | "t"
     | "financeSnapshot"
     | "myTeam"
-    | "actionLoading"
+    | "previewsCurrent"
+    | "reallocationLoading"
     | "handleReallocateBoardEnvelopes"
     | "reallocationFeedback"
   >;
@@ -26,17 +27,16 @@ export function FinanceEnvelopeCard({
     t,
     financeSnapshot,
     myTeam,
-    actionLoading,
+    previewsCurrent,
+    reallocationLoading,
     handleReallocateBoardEnvelopes,
     reallocationFeedback,
   } = state;
-  const busy = actionLoading === "reallocate-envelopes";
+  const busy = reallocationLoading;
   const wageBudget = myTeam.wage_budget;
   const transferBudget = myTeam.transfer_budget;
-  const raiseWageEnabled = canRaiseWageBudget(
-    transferBudget,
-    financeSnapshot.committedTransferFees,
-  );
+  const raiseWageEnabled =
+    previewsCurrent && canRaiseWageBudget(transferBudget, financeSnapshot.committedTransferFees);
   const raiseTransferEnabled = canRaiseTransferBudget(wageBudget);
 
   return (

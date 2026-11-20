@@ -13,6 +13,7 @@ function renderCard(
     committed?: number;
     onReallocate?: (wageDeltaWeekly: number) => Promise<void>;
     busy?: boolean;
+    previewsCurrent?: boolean;
   } = {},
 ) {
   const handleReallocateBoardEnvelopes = overrides.onReallocate ?? vi.fn(async () => {});
@@ -31,7 +32,8 @@ function renderCard(
           wage_budget: overrides.wageBudget ?? 120_000,
           transfer_budget: overrides.transferBudget ?? 300_000,
         } as never,
-        actionLoading: overrides.busy ? "reallocate-envelopes" : null,
+        reallocationLoading: overrides.busy ?? false,
+        previewsCurrent: overrides.previewsCurrent ?? true,
         handleReallocateBoardEnvelopes,
         reallocationFeedback: null,
       }}
@@ -81,5 +83,16 @@ describe("FinanceEnvelopeCard", () => {
     renderCard({ busy: true });
     expect(screen.getByRole("button", { name: "finances.raiseWageBudget" })).toBeDisabled();
     expect(screen.getByRole("button", { name: "finances.raiseTransferBudget" })).toBeDisabled();
+  });
+
+  /**
+   * Given the retained snapshot describes an older club state
+   * When a wage raise would otherwise be allowed from live limits plus that stale reserved-fee figure
+   * Then raise-wage waits; raise-transfer still uses the live wage cap.
+   */
+  it("disables a wage raise while the finance snapshot is stale", () => {
+    renderCard({ previewsCurrent: false, transferBudget: 300_000, committed: 0 });
+    expect(screen.getByRole("button", { name: "finances.raiseWageBudget" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "finances.raiseTransferBudget" })).toBeEnabled();
   });
 });

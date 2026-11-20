@@ -28,6 +28,10 @@ export function useFinanceActions(onGameUpdate?: (state: GameStateData) => void)
   // another action starts. The ref guards a second press before the state has rendered.
   const [answeringOfferId, setAnsweringOfferId] = useState<string | null>(null);
   const answeringOfferRef = useRef<string | null>(null);
+  // Envelope reallocation has the same shape: a shared `actionLoading` finally-null would re-enable
+  // the envelope controls when a facility upgrade (or any other finance action) finished first.
+  const [reallocationLoading, setReallocationLoading] = useState(false);
+  const reallocatingRef = useRef(false);
   // Why the backend refused the last answer to each sponsor offer, by the offer's message id: answering
   // one offer clears only its own entry.
   const [sponsorOfferErrors, setSponsorOfferErrors] = useState<Record<string, string>>({});
@@ -155,9 +159,10 @@ export function useFinanceActions(onGameUpdate?: (state: GameStateData) => void)
   }
 
   async function handleReallocateBoardEnvelopes(wageDeltaWeekly: number): Promise<void> {
-    const loadingKey = "reallocate-envelopes";
+    if (reallocatingRef.current) return;
+    reallocatingRef.current = true;
     setReallocationFeedback(null);
-    setActionLoading(loadingKey);
+    setReallocationLoading(true);
     try {
       const response = await reallocateBoardEnvelopes(wageDeltaWeekly);
       onGameUpdate?.(response.game);
@@ -175,7 +180,8 @@ export function useFinanceActions(onGameUpdate?: (state: GameStateData) => void)
         text: resolveBackendError(error),
       });
     } finally {
-      setActionLoading(null);
+      reallocatingRef.current = false;
+      setReallocationLoading(false);
     }
   }
 
@@ -238,6 +244,7 @@ export function useFinanceActions(onGameUpdate?: (state: GameStateData) => void)
   }
   return {
     actionLoading,
+    reallocationLoading,
     answeringOfferId,
     sponsorOfferErrors,
     facilityUpgradeError,
