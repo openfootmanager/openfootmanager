@@ -183,47 +183,46 @@ fn recent_loss_to_user_penalty(game: &Game, team_id: &str, since: Option<&str>) 
     let Some(user_team_id) = game.manager.team_id.as_deref() else {
         return 0;
     };
-    let Some(league) = &game.league else {
-        return 0;
-    };
 
     let current_date = game.clock.current_date.date_naive();
 
-    let recent_loss = league.fixtures.iter().any(|fixture| {
-        if !fixture.counts_for_league_standings()
-            || fixture.status != domain::league::FixtureStatus::Completed
-            || since.is_some_and(|since| played_before_he_took_charge(&fixture.date, since))
-        {
-            return false;
-        }
+    let recent_loss = game.competitions_in_play().iter().any(|league| {
+        league.fixtures.iter().any(|fixture| {
+            if !fixture.counts_for_league_standings()
+                || fixture.status != domain::league::FixtureStatus::Completed
+                || since.is_some_and(|since| played_before_he_took_charge(&fixture.date, since))
+            {
+                return false;
+            }
 
-        let involves_user_and_team = (fixture.home_team_id == team_id
-            && fixture.away_team_id == user_team_id)
-            || (fixture.home_team_id == user_team_id && fixture.away_team_id == team_id);
-        if !involves_user_and_team {
-            return false;
-        }
+            let involves_user_and_team = (fixture.home_team_id == team_id
+                && fixture.away_team_id == user_team_id)
+                || (fixture.home_team_id == user_team_id && fixture.away_team_id == team_id);
+            if !involves_user_and_team {
+                return false;
+            }
 
-        let Some(result) = fixture.result.as_ref() else {
-            return false;
-        };
+            let Some(result) = fixture.result.as_ref() else {
+                return false;
+            };
 
-        let fixture_date = NaiveDate::parse_from_str(&fixture.date, "%Y-%m-%d").ok();
-        let within_lookback = fixture_date
-            .map(|date| {
-                let days_ago = (current_date - date).num_days();
-                (0..=USER_RIVALRY_LOOKBACK_DAYS).contains(&days_ago)
-            })
-            .unwrap_or(false);
-        if !within_lookback {
-            return false;
-        }
+            let fixture_date = NaiveDate::parse_from_str(&fixture.date, "%Y-%m-%d").ok();
+            let within_lookback = fixture_date
+                .map(|date| {
+                    let days_ago = (current_date - date).num_days();
+                    (0..=USER_RIVALRY_LOOKBACK_DAYS).contains(&days_ago)
+                })
+                .unwrap_or(false);
+            if !within_lookback {
+                return false;
+            }
 
-        if fixture.home_team_id == team_id {
-            result.home_goals < result.away_goals
-        } else {
-            result.away_goals < result.home_goals
-        }
+            if fixture.home_team_id == team_id {
+                result.home_goals < result.away_goals
+            } else {
+                result.away_goals < result.home_goals
+            }
+        })
     });
 
     if recent_loss {
@@ -1672,6 +1671,27 @@ mod tests {
             ..Default::default()
         });
         game
+    }
+
+    /// Given the AI club beaten 1-0 in the user's league, which lives in competitions, while the
+    ///       legacy mirror holds a cup with no results
+    /// When its rivalry penalty is worked out
+    /// Then it is 10: a league defeat is not lost because the turn loop left a cup in the slot
+    #[test]
+    fn a_league_defeat_in_competitions_counts_when_the_mirror_is_a_cup() {
+        let mut game = rival_away_at_the_user(1, 0);
+        let league = game.league.take().expect("the helper builds a league");
+        game.competitions = vec![league];
+        let mut cup = League::new(
+            "cup1".to_string(),
+            "Cup".to_string(),
+            1,
+            &["team1".to_string(), "team2".to_string()],
+        );
+        cup.kind = domain::league::CompetitionType::Cup;
+        game.league = Some(cup);
+
+        assert_eq!(super::recent_loss_to_user_penalty(&game, "team2", None), 10);
     }
 
     /// Given the AI club beaten 1-0 away at the user's club today

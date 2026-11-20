@@ -9,7 +9,8 @@ mod responses;
 
 use chrono::{TimeZone, Utc};
 use domain::league::{
-    Fixture, FixtureCompetition, FixtureStatus, GoalEvent, League, MatchResult, StandingEntry,
+    CompetitionType, Fixture, FixtureCompetition, FixtureStatus, GoalEvent, League, MatchResult,
+    StandingEntry,
 };
 use domain::manager::Manager;
 use domain::message::{ActionOption, ActionType, MessageAction, MessageContext};

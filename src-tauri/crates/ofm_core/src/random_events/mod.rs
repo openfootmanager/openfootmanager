@@ -8,7 +8,7 @@ pub use responses::{RandomEventResponseEffect, apply_event_response};
 use crate::contracts::{ContractWarningStage, contract_warning_stage};
 use crate::game::Game;
 use crate::morale::apply_morale_change;
-use chrono::Datelike;
+use chrono::{Datelike, NaiveDate};
 use domain::message::*;
 use rand::RngExt;
 use std::collections::HashMap;
@@ -142,19 +142,11 @@ pub fn check_random_events(game: &mut Game) {
 
     // --- 4. International call-up (5% chance per day, only if match in next 7 days) ---
     {
-        let upcoming_match = game.league.as_ref().and_then(|l| {
-            let current = game.clock.current_date;
-            l.fixtures.iter().find(|f| {
-                f.status == domain::league::FixtureStatus::Scheduled
-                    && (f.home_team_id == user_team_id || f.away_team_id == user_team_id)
-                    && {
-                        if let Ok(d) = chrono::NaiveDate::parse_from_str(&f.date, "%Y-%m-%d") {
-                            let diff = (d - current.date_naive()).num_days();
-                            (1..=7).contains(&diff)
-                        } else {
-                            false
-                        }
-                    }
+        let current = game.clock.current_date;
+        let upcoming_match = game.user_next_scheduled_fixture().filter(|fixture| {
+            NaiveDate::parse_from_str(&fixture.date, "%Y-%m-%d").is_ok_and(|date| {
+                let diff = (date - current.date_naive()).num_days();
+                (1..=7).contains(&diff)
             })
         });
 
@@ -230,45 +222,45 @@ pub fn check_random_events(game: &mut Game) {
 
     // --- 7. Board confidence check (after 3+ consecutive losses, 100% trigger once) ---
     {
-        if let Some(league) = &game.league {
-            let completed: Vec<_> = league
-                .fixtures
+        let mut completed: Vec<_> = game
+            .competitions_in_play()
+            .iter()
+            .flat_map(|competition| competition.fixtures.iter())
+            .filter(|f| {
+                f.status == domain::league::FixtureStatus::Completed
+                    && (f.home_team_id == user_team_id || f.away_team_id == user_team_id)
+            })
+            .collect();
+        completed.sort_by(|a, b| a.date.cmp(&b.date).then(a.id.cmp(&b.id)));
+        if completed.len() >= 3 {
+            let last3 = &completed[completed.len() - 3..];
+            let losses = last3
                 .iter()
                 .filter(|f| {
-                    f.status == domain::league::FixtureStatus::Completed
-                        && (f.home_team_id == user_team_id || f.away_team_id == user_team_id)
-                })
-                .collect();
-            if completed.len() >= 3 {
-                let last3 = &completed[completed.len() - 3..];
-                let losses = last3
-                    .iter()
-                    .filter(|f| {
-                        if let Some(r) = &f.result {
-                            let user_goals = if f.home_team_id == user_team_id {
-                                r.home_goals
-                            } else {
-                                r.away_goals
-                            };
-                            let opp_goals = if f.home_team_id == user_team_id {
-                                r.away_goals
-                            } else {
-                                r.home_goals
-                            };
-                            user_goals < opp_goals
+                    if let Some(r) = &f.result {
+                        let user_goals = if f.home_team_id == user_team_id {
+                            r.home_goals
                         } else {
-                            false
-                        }
-                    })
-                    .count();
-                let last_loss_date = last3
-                    .last()
-                    .map(|f| f.date.clone())
-                    .unwrap_or(today.clone());
-                let msg_id = format!("board_confidence_{}", last_loss_date);
-                if losses >= 3 && !existing_ids.contains(&msg_id) {
-                    new_messages.push(builders_reports::board_confidence_message(&msg_id, &today));
-                }
+                            r.away_goals
+                        };
+                        let opp_goals = if f.home_team_id == user_team_id {
+                            r.away_goals
+                        } else {
+                            r.home_goals
+                        };
+                        user_goals < opp_goals
+                    } else {
+                        false
+                    }
+                })
+                .count();
+            let last_loss_date = last3
+                .last()
+                .map(|f| f.date.clone())
+                .unwrap_or(today.clone());
+            let msg_id = format!("board_confidence_{}", last_loss_date);
+            if losses >= 3 && !existing_ids.contains(&msg_id) {
+                new_messages.push(builders_reports::board_confidence_message(&msg_id, &today));
             }
         }
     }
