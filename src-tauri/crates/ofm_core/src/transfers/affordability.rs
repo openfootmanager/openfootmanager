@@ -95,6 +95,7 @@ fn settled_transfer_spend_in<'a>(
     posts
         .into_iter()
         .enumerate()
+        .skip(from_index.unwrap_or(0))
         .filter(|(_, post)| post.club_id == team_id)
         .filter(|(_, post)| {
             matches!(
@@ -444,12 +445,20 @@ mod tests {
         assert_eq!(available_transfer_budget(&game, &game.teams[0]), 100_000);
     }
 
-    /// Given a new season whose cutoff is today and whose journal cursor is the current length
+    /// Given a new season whose cutoff is today, a same-day fee already in the old prefix, and a cursor at that length
     /// When an 80k fee posts on that same calendar day
-    /// Then spent is 80k and available room is 20k of a 100k limit
+    /// Then spent is 80k (the prefix fee is excluded) and available room is 20k of a 100k limit
     #[test]
     fn a_settlement_on_the_rollover_day_after_the_cutoff_counts_in_the_new_season() {
-        let mut game = game_with_remaining(100_000, vec![]);
+        let mut game = game_with_remaining(
+            100_000,
+            vec![fee_post(
+                "club",
+                -50_000,
+                CashKind::TransferFeeOut,
+                "2026-05-20",
+            )],
+        );
         game.last_season_rollover_on = Some("2026-05-20".to_string());
         game.last_season_rollover_journal_len = Some(game.cash_journal.len() as u32);
         game.cash_journal.extend([fee_post(
