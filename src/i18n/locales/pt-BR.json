@@ -3247,7 +3247,8 @@
         "terminationWouldLeaveMatchdaySquadShort": "Encerrar este contrato deixaria seu elenco sem condições de escalar um onze no dia do jogo",
         "noAssistantManagerAssigned": "Nenhum auxiliar técnico foi atribuído ao seu time",
         "playerHasNoTeam": "O jogador não tem time",
-        "boardWagePolicy": "A renovação foi bloqueada pela política salarial da diretoria. Mantenha os salários semanais perto de {{budget}} para se recuperar."
+        "boardWagePolicy": "A renovação foi bloqueada pela política salarial da diretoria. Mantenha os salários semanais perto de {{budget}} para se recuperar.",
+        "boardHireWagePolicy": "A contratação foi bloqueada pela política salarial da diretoria. Mantenha os salários semanais perto de {{budget}}."
       },
       "scouting": {
         "scoutNotFound": "Olheiro não encontrado",

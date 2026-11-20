@@ -3255,7 +3255,8 @@
         "terminationWouldLeaveMatchdaySquadShort": "Terminating this contract would leave your squad unable to field a matchday XI",
         "noAssistantManagerAssigned": "No assistant manager assigned to your team",
         "playerHasNoTeam": "Player has no team",
-        "boardWagePolicy": "Renewal blocked by board wage policy. Keep weekly wages near {{budget}} to recover."
+        "boardWagePolicy": "Renewal blocked by board wage policy. Keep weekly wages near {{budget}} to recover.",
+        "boardHireWagePolicy": "Hire blocked by board wage policy. Keep weekly wages near {{budget}}."
       },
       "scouting": {
         "scoutNotFound": "Scout not found",

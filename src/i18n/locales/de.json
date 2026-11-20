@@ -3247,7 +3247,8 @@
         "terminationWouldLeaveMatchdaySquadShort": "Eine Vertragsauflösung würde deinen Kader daran hindern, am Spieltag eine Startelf zu stellen",
         "noAssistantManagerAssigned": "Kein Co-Trainer ist deinem Team zugewiesen",
         "playerHasNoTeam": "Der Spieler hat kein Team",
-        "boardWagePolicy": "Die Verlängerung wird durch die Gehaltspolitik des Vorstands blockiert. Halte die Wochengehälter nahe bei {{budget}}, um dich zu erholen."
+        "boardWagePolicy": "Die Verlängerung wird durch die Gehaltspolitik des Vorstands blockiert. Halte die Wochengehälter nahe bei {{budget}}, um dich zu erholen.",
+        "boardHireWagePolicy": "Die Einstellung wird durch die Gehaltspolitik des Vorstands blockiert. Halte die Wochengehälter nahe bei {{budget}}."
       },
       "scouting": {
         "scoutNotFound": "Scout nicht gefunden",

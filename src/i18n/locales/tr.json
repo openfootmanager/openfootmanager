@@ -3255,7 +3255,8 @@
         "terminationWouldLeaveMatchdaySquadShort": "Bu sözleşmenin feshi, kadronuzu maç günü 11'i çıkaramayacak duruma düşürür",
         "noAssistantManagerAssigned": "Takımınıza atanmış yardımcı antrenör yok",
         "playerHasNoTeam": "Oyuncunun takımı yok",
-        "boardWagePolicy": "Yenileme, yönetimin maaş politikası tarafından engellendi. Toparlanmak için haftalık maaşları {{budget}} civarında tutun."
+        "boardWagePolicy": "Yenileme, yönetimin maaş politikası tarafından engellendi. Toparlanmak için haftalık maaşları {{budget}} civarında tutun.",
+        "boardHireWagePolicy": "İşe alım, yönetimin maaş politikası tarafından engellendi. Haftalık maaşları {{budget}} civarında tutun."
       },
       "scouting": {
         "scoutNotFound": "Gözlemci bulunamadı",

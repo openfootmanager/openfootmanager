@@ -3255,7 +3255,8 @@
         "terminationWouldLeaveMatchdaySquadShort": "Mengakhiri kontrak ini akan membuat skuad kamu tidak dapat menurunkan XI pertandingan",
         "noAssistantManagerAssigned": "Tidak ada asisten manajer yang ditugaskan ke tim kamu",
         "playerHasNoTeam": "Pemain tidak memiliki tim",
-        "boardWagePolicy": "Perpanjangan diblokir oleh kebijakan gaji manajemen. Jaga gaji mingguan di sekitar {{budget}} untuk pulih."
+        "boardWagePolicy": "Perpanjangan diblokir oleh kebijakan gaji manajemen. Jaga gaji mingguan di sekitar {{budget}} untuk pulih.",
+        "boardHireWagePolicy": "Perekrutan diblokir oleh kebijakan gaji manajemen. Jaga gaji mingguan di sekitar {{budget}}."
       },
       "scouting": {
         "scoutNotFound": "Scout tidak ditemukan",

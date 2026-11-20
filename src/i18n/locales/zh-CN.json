@@ -3247,7 +3247,8 @@
         "terminationWouldLeaveMatchdaySquadShort": "终止这份合同会让你的阵容无法在比赛日排出首发十一人",
         "noAssistantManagerAssigned": "你的球队没有分配助理教练",
         "playerHasNoTeam": "该球员没有所属球队",
-        "boardWagePolicy": "这次续约被董事会薪资政策阻止。请将每周薪资控制在接近 {{budget}} 的水平以恢复状况。"
+        "boardWagePolicy": "这次续约被董事会薪资政策阻止。请将每周薪资控制在接近 {{budget}} 的水平以恢复状况。",
+        "boardHireWagePolicy": "这次聘用被董事会薪资政策阻止。请将每周薪资控制在接近 {{budget}} 的水平。"
       },
       "scouting": {
         "scoutNotFound": "未找到球探",

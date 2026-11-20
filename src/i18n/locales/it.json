@@ -3247,7 +3247,8 @@
         "terminationWouldLeaveMatchdaySquadShort": "Rescindere questo contratto lascerebbe la tua rosa senza la possibilità di schierare un undici nel giorno della partita",
         "noAssistantManagerAssigned": "Nessun vice allenatore assegnato alla tua squadra",
         "playerHasNoTeam": "Il giocatore non ha una squadra",
-        "boardWagePolicy": "Il rinnovo è bloccato dalla politica salariale del consiglio. Mantieni i salari settimanali vicino a {{budget}} per recuperare."
+        "boardWagePolicy": "Il rinnovo è bloccato dalla politica salariale del consiglio. Mantieni i salari settimanali vicino a {{budget}} per recuperare.",
+        "boardHireWagePolicy": "L'assunzione è bloccata dalla politica salariale del consiglio. Mantieni i salari settimanali vicino a {{budget}}."
       },
       "scouting": {
         "scoutNotFound": "Osservatore non trovato",

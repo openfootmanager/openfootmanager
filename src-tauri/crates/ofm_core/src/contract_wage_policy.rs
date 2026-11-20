@@ -245,6 +245,14 @@ pub fn renewal_wage_policy_error_message(team: &Team) -> String {
     )
 }
 
+pub fn hire_wage_policy_error_message(team: &Team) -> String {
+    backend_error_with_param(
+        "be.error.contracts.boardHireWagePolicy",
+        "budget",
+        team.wage_budget,
+    )
+}
+
 pub fn loan_borrower_wage_policy_error_message(borrower: &Team) -> String {
     backend_error_with_param(
         "be.error.transfers.loanBorrowerCannotAffordWages",
@@ -325,5 +333,17 @@ mod tests {
         let team = team_with_budget(10_000);
         assert!(wage_policy_allows_projection(&team, 11_000, 12_000));
         assert!(!hire_wage_policy_allows(&team, 12_000));
+    }
+
+    /// Given a hire the board wage policy refuses
+    /// When the hire path builds the error
+    /// Then the message uses the hire key and the club's weekly wage cap.
+    #[test]
+    fn hire_wage_policy_error_uses_the_hire_key() {
+        let team = team_with_budget(10_000);
+        assert_eq!(
+            hire_wage_policy_error_message(&team),
+            "be.error.contracts.boardHireWagePolicy?budget=10000"
+        );
     }
 }

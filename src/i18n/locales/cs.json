@@ -3255,7 +3255,8 @@
         "terminationWouldLeaveMatchdaySquadShort": "Ukončení této smlouvy by způsobilo, že váš kádr nebude schopen postavit zápasovou jedenáctku",
         "noAssistantManagerAssigned": "K vašemu týmu není přiřazen žádný asistent manažera",
         "playerHasNoTeam": "Hráč nemá žádný tým",
-        "boardWagePolicy": "Prodloužení smlouvy je zablokováno mzdovou politikou představenstva. Pro nápravu udržujte týdenní platy blízko částky {{budget}}."
+        "boardWagePolicy": "Prodloužení smlouvy je zablokováno mzdovou politikou představenstva. Pro nápravu udržujte týdenní platy blízko částky {{budget}}.",
+        "boardHireWagePolicy": "Nábor je zablokován mzdovou politikou představenstva. Udržujte týdenní platy blízko částky {{budget}}."
       },
       "scouting": {
         "scoutNotFound": "Skaut nebyl nalezen",

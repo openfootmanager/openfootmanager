@@ -2,7 +2,7 @@ use log::info;
 use std::sync::Arc;
 use tauri::State;
 
-use ofm_core::contract_wage_policy::{hire_wage_policy_allows, renewal_wage_policy_error_message};
+use ofm_core::contract_wage_policy::{hire_wage_policy_allows, hire_wage_policy_error_message};
 use ofm_core::finances::calc_wages;
 use ofm_core::game::Game;
 use ofm_core::state::{Career, StateManager};
@@ -52,7 +52,7 @@ pub fn hire_staff_internal(
                 .find(|team| team.id == team_id)
                 .ok_or_else(|| "be.error.teamNotFound".to_string())?;
             if !hire_wage_policy_allows(team, projected_bill) {
-                return Err(renewal_wage_policy_error_message(team));
+                return Err(hire_wage_policy_error_message(team));
             }
         }
 
@@ -324,7 +324,7 @@ mod tests {
         state.set_game(game);
 
         let error = hire_staff_internal(&state, Career::Active, "staff-1").expect_err("over 110%");
-        assert!(error.starts_with("be.error.contracts.boardWagePolicy"));
+        assert!(error.starts_with("be.error.contracts.boardHireWagePolicy"));
         let stored = state.get_game(|game| game.clone()).expect("stored game");
         assert!(stored
             .staff
@@ -352,7 +352,7 @@ mod tests {
 
         let error = hire_staff_internal(&state, Career::Active, "staff-1")
             .expect_err("already on the 110% cap");
-        assert!(error.starts_with("be.error.contracts.boardWagePolicy"));
+        assert!(error.starts_with("be.error.contracts.boardHireWagePolicy"));
         let stored = state.get_game(|game| game.clone()).expect("stored game");
         assert!(stored
             .staff

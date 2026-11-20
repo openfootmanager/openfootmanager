@@ -3247,7 +3247,8 @@
         "terminationWouldLeaveMatchdaySquadShort": "Rescindir este contrato dejaría a tu plantilla sin poder presentar un once para el día del partido",
         "noAssistantManagerAssigned": "No hay un segundo entrenador asignado a tu equipo",
         "playerHasNoTeam": "El jugador no tiene equipo",
-        "boardWagePolicy": "La renovación está bloqueada por la política salarial de la directiva. Mantén los salarios semanales cerca de {{budget}} para recuperarte."
+        "boardWagePolicy": "La renovación está bloqueada por la política salarial de la directiva. Mantén los salarios semanales cerca de {{budget}} para recuperarte.",
+        "boardHireWagePolicy": "La contratación está bloqueada por la política salarial de la directiva. Mantén los salarios semanales cerca de {{budget}}."
       },
       "scouting": {
         "scoutNotFound": "Ojeador no encontrado",
