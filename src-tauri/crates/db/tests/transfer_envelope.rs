@@ -3,7 +3,9 @@ use db::game_database::GameDatabase;
 use db::repositories::meta_repo;
 use db::save_manager::SaveManager;
 use domain::{
+    edition_archive::CompletedEdition,
     finance::{CashJournal, CashKind, CashPost},
+    league::League,
     manager::Manager,
     stats::StatsState,
     team::Team,
@@ -80,6 +82,16 @@ fn remaining_after_purchase_game() -> Game {
     game
 }
 
+fn stamp_format_9(dir: &std::path::Path, save_id: &str) {
+    let db = GameDatabase::open(&dir.join(format!("{save_id}.db"))).unwrap();
+    db.conn()
+        .execute(
+            "UPDATE game_meta SET save_format_version = 9 WHERE id = 'singleton'",
+            [],
+        )
+        .unwrap();
+}
+
 /// Given a format-9 save that stored remaining after settlement
 /// When it is loaded by a format-10 build
 /// Then each club's transfer_budget is lifted to the season limit once
@@ -95,15 +107,7 @@ fn a_pre_v10_save_lifts_remaining_to_the_season_limit() {
     drop(writer);
 
     let db_path = dir.path().join(format!("{save_id}.db"));
-    {
-        let db = GameDatabase::open(&db_path).unwrap();
-        db.conn()
-            .execute(
-                "UPDATE game_meta SET save_format_version = 9 WHERE id = 'singleton'",
-                [],
-            )
-            .unwrap();
-    }
+    stamp_format_9(dir.path(), &save_id);
 
     let mut reader = SaveManager::init(dir.path()).unwrap();
     let loaded = reader.load_game(&save_id).unwrap();
@@ -126,6 +130,73 @@ fn a_pre_v10_save_lifts_remaining_to_the_season_limit() {
         meta.save_format_version,
         meta_repo::CURRENT_SAVE_FORMAT_VERSION
     );
+    drop(reader);
+
+    let mut reread = SaveManager::init(dir.path()).unwrap();
+    let reloaded = reread.load_game(&save_id).unwrap();
+    let buyer = reloaded
+        .teams
+        .iter()
+        .find(|team| team.id == "buyer")
+        .unwrap();
+    let seller = reloaded
+        .teams
+        .iter()
+        .find(|team| team.id == "seller")
+        .unwrap();
+    assert_eq!(buyer.transfer_budget, 3_000_000);
+    assert_eq!(seller.transfer_budget, 3_000_000);
+    assert_eq!(available_transfer_budget(&reloaded, buyer), 1_500_000);
+    assert_eq!(available_transfer_budget(&reloaded, seller), 4_500_000);
+}
+
+/// Given a format-9 remaining save whose journal still has a prior-season fee, and no stored cutoff
+/// When it is loaded
+/// Then the lift waits for the rollover backfill, so only this season's spend is added
+#[test]
+fn a_pre_v10_save_lifts_only_this_seasons_spend_after_rollover_backfill() {
+    let mut game = remaining_after_purchase_game();
+    let clubs = ["buyer".to_string(), "seller".to_string()];
+    game.competitions
+        .push(League::new("eng-1".into(), "England".into(), 2026, &clubs));
+    game.edition_archive.push(CompletedEdition {
+        competition_id: "eng-1".into(),
+        season: 2025,
+        completed_on: "2026-05-30".into(),
+        champion_id: "buyer".into(),
+        participant_ids: clubs.to_vec(),
+        standings: vec![],
+        groups: vec![],
+        knockout_rounds: vec![],
+        fixtures: vec![],
+    });
+    game.cash_journal.extend([CashPost {
+        id: "buy-prior".into(),
+        club_id: "buyer".into(),
+        amount: -1_000_000,
+        kind: CashKind::TransferFeeOut,
+        date: "2026-04-01".into(),
+    }]);
+
+    let dir = tempfile::tempdir().unwrap();
+    let mut writer = SaveManager::init(dir.path()).unwrap();
+    let save_id = writer.create_save(&game, "Prior season spend").unwrap();
+    writer
+        .save_game_with_stats(&game, &StatsState::default(), &save_id)
+        .unwrap();
+    drop(writer);
+    stamp_format_9(dir.path(), &save_id);
+
+    let mut reader = SaveManager::init(dir.path()).unwrap();
+    let loaded = reader.load_game(&save_id).unwrap();
+    let buyer = loaded.teams.iter().find(|team| team.id == "buyer").unwrap();
+    assert_eq!(
+        loaded.last_season_rollover_on.as_deref(),
+        Some("2026-05-30")
+    );
+    assert_eq!(settled_transfer_spend(&loaded, "buyer"), 1_500_000);
+    assert_eq!(buyer.transfer_budget, 3_000_000);
+    assert_eq!(available_transfer_budget(&loaded, buyer), 1_500_000);
 }
 
 /// Given a format-10 save that already stores the season limit

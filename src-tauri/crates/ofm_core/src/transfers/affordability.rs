@@ -103,6 +103,30 @@ fn settled_transfer_spend_in<'a>(
         .fold(0i64, |spent, post| spent.saturating_sub(post.amount))
 }
 
+/// When the season cutoff advances but this club's limit was not renewed, fold
+/// net settled spend into the stored limit so available room stays the same once
+/// posts on or before the new cutoff drop out of spent.
+pub fn fold_settled_spend_into_unrenewed_limits(
+    game: &mut Game,
+    renewed: &std::collections::HashSet<String>,
+) {
+    let ids: Vec<String> = game
+        .teams
+        .iter()
+        .filter(|team| !renewed.contains(&team.id))
+        .map(|team| team.id.clone())
+        .collect();
+    for id in ids {
+        let spent = settled_transfer_spend(game, &id);
+        if spent == 0 {
+            continue;
+        }
+        if let Some(team) = game.teams.iter_mut().find(|team| team.id == id) {
+            team.transfer_budget = team.transfer_budget.saturating_sub(spent);
+        }
+    }
+}
+
 /// Reconstruct the season limit from a save that stored remaining after settlement:
 /// `remaining + spent_net = limit`. Gated by save format 10 so it cannot run twice.
 pub fn lift_transfer_budgets_by_settled_spend(game: &mut Game) -> bool {
@@ -389,5 +413,25 @@ mod tests {
         assert!(lift_transfer_budgets_by_settled_spend(&mut game));
         assert!(lift_transfer_budgets_by_settled_spend(&mut game));
         assert_eq!(game.teams[0].transfer_budget, 4_500_000);
+    }
+
+    /// Given a club whose limit was not renewed and a 400k purchase against a 500k limit
+    /// When spend is folded in and the cutoff then advances past that purchase
+    /// Then available room stays 100k
+    #[test]
+    fn folding_spend_into_the_limit_preserves_available_room_after_the_cutoff_advances() {
+        let mut game = game_with_remaining(
+            500_000,
+            vec![fee_post(
+                "club",
+                -400_000,
+                CashKind::TransferFeeOut,
+                "2026-04-01",
+            )],
+        );
+        fold_settled_spend_into_unrenewed_limits(&mut game, &std::collections::HashSet::new());
+        game.last_season_rollover_on = Some("2026-05-20".to_string());
+        assert_eq!(game.teams[0].transfer_budget, 100_000);
+        assert_eq!(available_transfer_budget(&game, &game.teams[0]), 100_000);
     }
 }

@@ -530,11 +530,6 @@ impl SaveManager {
                 // a new game is drawn from its seed.
                 game.legacy_world_cup_draw = true;
             }
-            if save_format_version < 10 {
-                // Pre-v10 saves stored remaining after settlement. Reconstruct the
-                // season limit once; a v10 save already holds the limit.
-                ofm_core::transfers::lift_transfer_budgets_by_settled_spend(&mut game);
-            }
             needs_resave = true;
         }
         // A save that had a sent-ledger and lost it (its cell did not read: `read_game` loaded it
@@ -657,6 +652,12 @@ impl SaveManager {
         if ofm_core::end_of_season::backfill_last_season_rollover(&mut game) {
             info!("[save_manager] backfilled the last season rollover day for save {save_id}");
             needs_resave = true;
+        }
+
+        if save_format_version < 10 {
+            // Pre-v10 saves stored remaining after settlement. Reconstruct the season
+            // limit once, after the rollover cutoff is set; a v10 save already holds it.
+            ofm_core::transfers::lift_transfer_budgets_by_settled_spend(&mut game);
         }
 
         // A save written before the squad floor was enforced can open with

@@ -34,8 +34,8 @@ mod notifications;
 mod registration;
 
 pub use affordability::{
-    available_transfer_budget, committed_transfer_fees, lift_transfer_budgets_by_settled_spend,
-    settled_transfer_spend,
+    available_transfer_budget, committed_transfer_fees, fold_settled_spend_into_unrenewed_limits,
+    lift_transfer_budgets_by_settled_spend, settled_transfer_spend,
 };
 pub(crate) use affordability::{can_afford_fee, fee_block, transfer_fee_ceiling};
 pub use bids::*;

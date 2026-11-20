@@ -136,6 +136,43 @@ fn registration_uses_the_wage_stamped_on_the_offer() {
     assert_eq!(record.weekly_wage, 12_345);
 }
 
+/// Given two pending-registration offers from the same buyer, the earlier one naming a decoy wage
+/// When only the later offer is due
+/// Then registration pays the executing offer's wage, not the first matching buyer's
+#[test]
+fn registration_uses_the_executing_offers_wage_when_the_buyer_has_two() {
+    let player = make_player("player-two-offers");
+    let mut game = make_game_with_player(player, vec![], 5_000_000, 2_000_000);
+    game.clock.current_date = Utc.with_ymd_and_hms(2026, 12, 20, 12, 0, 0).unwrap();
+    game.season_context.transfer_window.status = TransferWindowStatus::Closed;
+    game.season_context.transfer_window.opens_on = Some("2027-01-01".to_string());
+    make_transfer_bid(&mut game, "player-two-offers", 2_000_000)
+        .expect("an accepted closed-window bid schedules registration");
+
+    let player = game
+        .players
+        .iter_mut()
+        .find(|player| player.id == "player-two-offers")
+        .unwrap();
+    let mut decoy = player.transfer_offers[0].clone();
+    decoy.id = "decoy-offer".to_string();
+    decoy.wage_offered = 999;
+    decoy.registration_date = Some("2027-06-01".to_string());
+    player.transfer_offers.insert(0, decoy);
+    player.transfer_offers[1].wage_offered = 12_345;
+
+    game.clock.current_date = Utc.with_ymd_and_hms(2027, 1, 1, 12, 0, 0).unwrap();
+    game.season_context.transfer_window.status = TransferWindowStatus::Open;
+    process_pending_transfer_registrations(&mut game);
+
+    let player = game
+        .players
+        .iter()
+        .find(|player| player.id == "player-two-offers")
+        .unwrap();
+    assert_eq!(player.wage(), 12_345);
+}
+
 /// Given an accepted purchase
 /// When the player registers with the buyer through the public entry point
 /// Then the new employment contract ends on 30 June of the agreed year.

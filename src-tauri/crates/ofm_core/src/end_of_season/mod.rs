@@ -12,6 +12,7 @@ use domain::manager::Manager;
 use domain::message::*;
 use domain::staff::{Staff, StaffAttributes, StaffRole};
 use domain::team::{FinancialTransaction, FinancialTransactionKind, TeamSeasonRecord};
+use std::collections::HashSet;
 
 mod berths;
 pub(crate) mod season_calendar;
@@ -1015,6 +1016,7 @@ pub fn process_end_of_season(game: &mut Game) -> EndOfSeasonSummary {
         .map(|division| division.tier)
         .unwrap_or(0);
     let mut user_prize_posted = false;
+    let mut renewed_envelope_clubs = HashSet::new();
     for division in divisions {
         let (division_standings, tier, season, competition_id) = (
             division.standings,
@@ -1084,6 +1086,7 @@ pub fn process_end_of_season(game: &mut Game) -> EndOfSeasonSummary {
                 // `make_transfer_bid`, but showing "€-1.2M transfer budget"
                 // in the UI reads worse than a hard zero.
                 team.transfer_budget = ((team.finance as f64 * 0.15) as i64).max(0);
+                renewed_envelope_clubs.insert(team.id.clone());
             }
         }
 
@@ -1093,6 +1096,7 @@ pub fn process_end_of_season(game: &mut Game) -> EndOfSeasonSummary {
     // 5. Record player career entries and reset stats
     career_history::record_season_career_entries(game, season);
 
+    crate::transfers::fold_settled_spend_into_unrenewed_limits(game, &renewed_envelope_clubs);
     apply_season_end_squad_turnover(game, game.clock.current_date.date_naive(), season);
 
     player_statistics::reset_for_new_season(game);

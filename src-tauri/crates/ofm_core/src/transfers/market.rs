@@ -489,6 +489,7 @@ impl MarketSweep {
             buyer_id,
             &candidate.owner_team_id,
             candidate.fee,
+            0,
         )
         .and_then(|()| {
             close_open_offers_after_sale(game, &candidate.player_id, buyer_id, candidate.fee, None)

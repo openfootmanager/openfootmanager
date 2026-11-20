@@ -643,7 +643,14 @@ fn agree_outgoing_transfer(
     };
 
     if register_immediately {
-        execute_transfer(game, player_id, &user_team_id, &owner_team_id, fee)?;
+        execute_transfer(
+            game,
+            player_id,
+            &user_team_id,
+            &owner_team_id,
+            fee,
+            agreed_wage,
+        )?;
         close_open_offers_after_sale(game, player_id, &user_team_id, fee, Some(&offer_id))?;
     } else {
         reserve_player_for_pending_transfer(game, player_id, &offer_id)?;
@@ -836,7 +843,14 @@ pub fn respond_to_offer(
 
     if accept {
         if register_immediately {
-            execute_transfer(game, player_id, &from_team_id, &user_team_id, fee)?;
+            execute_transfer(
+                game,
+                player_id,
+                &from_team_id,
+                &user_team_id,
+                fee,
+                agreed_wage.unwrap_or(0),
+            )?;
             close_open_offers_after_sale(game, player_id, &from_team_id, fee, Some(offer_id))?;
         } else {
             reserve_player_for_pending_transfer(game, player_id, offer_id)?;
@@ -1155,6 +1169,7 @@ fn complete_incoming_counter(
             &buyer_team_id,
             &user_team_id,
             requested_fee,
+            wage_on_offer(game, player_id, offer_id),
         )?;
         close_open_offers_after_sale(
             game,

@@ -288,16 +288,15 @@ pub(super) fn stamp_offer_wage(player: &mut Player, offer_id: &str, wage: u32) {
     }
 }
 
-fn wage_offered_for_purchase(player: &Player, buyer_team_id: &str) -> u32 {
-    player
-        .transfer_offers
+pub(super) fn wage_on_offer(game: &Game, player_id: &str, offer_id: &str) -> u32 {
+    game.players
         .iter()
-        .find(|offer| {
-            offer.from_team_id == buyer_team_id
-                && matches!(
-                    offer.status,
-                    TransferOfferStatus::Accepted | TransferOfferStatus::PendingRegistration
-                )
+        .find(|player| player.id == player_id)
+        .and_then(|player| {
+            player
+                .transfer_offers
+                .iter()
+                .find(|offer| offer.id == offer_id)
         })
         .map(|offer| offer.wage_offered)
         .unwrap_or(0)
@@ -348,12 +347,14 @@ pub(super) fn ensure_buyer_can_pay_standard_wage(
 }
 
 /// Transfer a player between teams, adjusting finances.
+/// `offered_wage` is the executing agreement's wage; 0 means standard terms on this day.
 pub(super) fn execute_transfer(
     game: &mut Game,
     player_id: &str,
     to_team_id: &str,
     from_team_id: &str,
     fee: u64,
+    offered_wage: u32,
 ) -> Result<(), String> {
     // First, before anything moves: an agreement struck while the club had
     // players to spare can fall due after it has lost some.
@@ -394,12 +395,8 @@ pub(super) fn execute_transfer(
 
     // The buyer's terms, and the board's say on them, settled before any money moves so
     // that a refusal here cannot leave a half-done transfer.
-    let (buying_team, new_wage, new_contract_end) = buyers_contract_terms(
-        game,
-        &player_snapshot,
-        to_team_id,
-        wage_offered_for_purchase(&player_snapshot, to_team_id),
-    )?;
+    let (buying_team, new_wage, new_contract_end) =
+        buyers_contract_terms(game, &player_snapshot, to_team_id, offered_wage)?;
 
     let fee_i64 = i64::try_from(fee).map_err(|_| "be.error.finance.amountOverflow".to_string())?;
     let date = game.clock.current_date.date_naive();
@@ -444,7 +441,6 @@ pub(super) fn execute_transfer(
                 )
             },
         );
-        // Remove from any starting XI
     }
 
     if !departing_starter_ids.is_empty() {
@@ -620,7 +616,7 @@ pub(super) fn should_generate_major_transfer_news(
 ) -> bool {
     fee >= 1_000_000 || player.market_value >= 1_000_000
 }
-type DueTransferRegistration = (String, String, String, u64);
+type DueTransferRegistration = (String, String, String, u64, u32);
 
 fn due_transfer_registrations(
     game: &Game,
@@ -649,6 +645,7 @@ fn due_transfer_registrations(
                     offer.id.clone(),
                     offer.from_team_id.clone(),
                     offer.fee,
+                    offer.wage_offered,
                 ))
             })
         })
@@ -661,7 +658,7 @@ pub fn process_pending_transfer_registrations(game: &mut Game) {
     let user_team_id = game.manager.team_id.clone();
     let due_registrations = due_transfer_registrations(game, current_date, window_is_open);
 
-    for (player_id, offer_id, buyer_team_id, fee) in due_registrations {
+    for (player_id, offer_id, buyer_team_id, fee, offered_wage) in due_registrations {
         let player_snapshot = game
             .players
             .iter()
@@ -692,8 +689,15 @@ pub fn process_pending_transfer_registrations(game: &mut Game) {
             if !transfer_buyer_can_register(game, &buyer_team_id, fee) {
                 return Err(Failure::InsufficientFunds);
             }
-            execute_transfer(game, &player_id, &buyer_team_id, from_team_id, fee)
-                .map_err(|_| Failure::RegistrationBlocked)?;
+            execute_transfer(
+                game,
+                &player_id,
+                &buyer_team_id,
+                from_team_id,
+                fee,
+                offered_wage,
+            )
+            .map_err(|_| Failure::RegistrationBlocked)?;
             close_open_offers_after_sale(game, &player_id, &buyer_team_id, fee, Some(&offer_id))
                 .map_err(|_| Failure::RegistrationBlocked)
         })();
