@@ -45,6 +45,8 @@ export function useFinanceView({
     handleRequestBoardSupport,
     handleRequestSponsorPitch,
     handleRequestMarketingCampaign,
+    handleReallocateBoardEnvelopes,
+    reallocationFeedback,
     handleSponsorOption,
     handleDelegateRenewals: delegateRenewals,
   } = useFinanceActions(onGameUpdate);
@@ -201,6 +203,8 @@ export function useFinanceView({
     financeData,
     facilityUpgradeError,
     handleUpgradeFacility,
+    handleReallocateBoardEnvelopes,
+    reallocationFeedback,
     roster,
   };
 }

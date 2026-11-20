@@ -300,6 +300,19 @@ describe("formatExactMoney", () => {
     expect(formatExactMoney(125000)).toBe("$135,000");
     expect(formatExactMoney(-30000)).toBe("-$32,400");
   });
+
+  /** Given two nearby thousands, when they are formatted exactly, then they stay distinct. */
+  it("does not collapse nearby thousands the way formatVal does", () => {
+    useSettingsStore.setState({
+      settings: { ...useSettingsStore.getState().settings, currency: "EUR" },
+      currency: SUPPORTED_CURRENCIES.EUR,
+    });
+
+    expect(formatVal(6127)).toBe(formatVal(6300));
+    expect(formatExactMoney(6127)).not.toBe(formatExactMoney(6300));
+    expect(formatExactMoney(6127)).not.toContain("K");
+    expect(formatExactMoney(6300)).not.toContain("K");
+  });
 });
 
 describe("formatWeeklyAmount", () => {

@@ -383,7 +383,7 @@ it("refreshes commitments when a fresh slim career state has the same finance ke
     );
   const gameState = createGameState({}, [], []);
   const view = await renderFinances(<FinancesTab gameState={gameState} />);
-  expect(screen.getByText(/300/)).toBeInTheDocument();
+  expect(screen.getByText("€300K")).toBeInTheDocument();
   view.rerender(<FinancesTab gameState={{ ...gameState }} />);
-  expect(await screen.findByText(/220/)).toBeInTheDocument();
+  expect(await screen.findByText("€220K")).toBeInTheDocument();
 });

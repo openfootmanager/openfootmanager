@@ -4,8 +4,8 @@ use std::sync::Arc;
 use tauri::State;
 
 use ofm_core::finances::{
-    BoardSupportResult, FinanceActionPreviews, MarketingCampaignResult, SponsorPitchResult,
-    TeamFinanceSnapshot,
+    BoardSupportResult, EnvelopeReallocation, FinanceActionPreviews, MarketingCampaignResult,
+    SponsorPitchResult, TeamFinanceSnapshot,
 };
 use ofm_core::game::Game;
 use ofm_core::state::{Career, StateManager};
@@ -32,6 +32,12 @@ pub struct SponsorPitchCommandResponse {
 pub struct MarketingCampaignCommandResponse {
     pub game: Game,
     pub result: MarketingCampaignResult,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct EnvelopeReallocationCommandResponse {
+    pub game: Game,
+    pub result: EnvelopeReallocation,
 }
 
 #[tauri::command]
@@ -91,6 +97,15 @@ pub async fn request_marketing_campaign(
     career_token: u64,
 ) -> Result<MarketingCampaignCommandResponse, String> {
     request_marketing_campaign_internal(&state, Career::Token(career_token))
+}
+
+#[tauri::command]
+pub async fn reallocate_board_envelopes(
+    state: State<'_, Arc<StateManager>>,
+    career_token: u64,
+    wage_delta_weekly: i64,
+) -> Result<EnvelopeReallocationCommandResponse, String> {
+    reallocate_board_envelopes_internal(&state, Career::Token(career_token), wage_delta_weekly)
 }
 
 pub fn request_board_support_internal(
@@ -156,11 +171,38 @@ pub fn request_marketing_campaign_internal(
     })?
 }
 
+pub fn reallocate_board_envelopes_internal(
+    state: &StateManager,
+    career: Career,
+    wage_delta_weekly: i64,
+) -> Result<EnvelopeReallocationCommandResponse, String> {
+    info!(
+        "[cmd] reallocate_board_envelopes: wage_delta_weekly={}",
+        wage_delta_weekly
+    );
+
+    state.update_game_for(career, |game| {
+        let team_id = game
+            .manager
+            .team_id
+            .clone()
+            .ok_or("be.error.noTeamAssigned".to_string())?;
+
+        let result =
+            ofm_core::finances::reallocate_board_envelopes(game, &team_id, wage_delta_weekly)?;
+        Ok(EnvelopeReallocationCommandResponse {
+            game: game.clone(),
+            result,
+        })
+    })?
+}
+
 #[cfg(test)]
 mod tests {
     use super::{
-        get_finance_snapshot_internal, request_board_support_internal,
-        request_marketing_campaign_internal, request_sponsor_pitch_internal,
+        get_finance_snapshot_internal, reallocate_board_envelopes_internal,
+        request_board_support_internal, request_marketing_campaign_internal,
+        request_sponsor_pitch_internal,
     };
     use chrono::{TimeZone, Utc};
     use domain::manager::Manager;
@@ -262,6 +304,10 @@ mod tests {
         assert_eq!(request_sponsor_pitch_internal(&state, stale).err(), key);
         assert_eq!(
             request_marketing_campaign_internal(&state, stale).err(),
+            key
+        );
+        assert_eq!(
+            reallocate_board_envelopes_internal(&state, stale, 1_000).err(),
             key
         );
 
@@ -384,5 +430,40 @@ mod tests {
             .messages
             .iter()
             .any(|message| message.id == response.result.message_id));
+    }
+
+    /// Given a managed club with wage and transfer limits, when weekly wage
+    /// permission is raised, then cash is untouched and the transfer limit
+    /// falls by 52× the weekly delta.
+    #[test]
+    fn reallocate_board_envelopes_internal_moves_permission_not_cash() {
+        let state = StateManager::new();
+        state.set_game(make_game());
+        let finance_before = 500_000;
+
+        let response =
+            reallocate_board_envelopes_internal(&state, Career::Active, 5_000).expect("reallocate");
+        assert_eq!(response.game.teams[0].finance, finance_before);
+        assert_eq!(response.game.teams[0].wage_budget, 125_000);
+        assert_eq!(response.game.teams[0].transfer_budget, 40_000);
+        assert_eq!(response.result.wage_budget, 125_000);
+        assert_eq!(response.result.transfer_budget, 40_000);
+
+        let stored_game = state
+            .get_game(|current| current.clone())
+            .expect("stored game");
+        assert_eq!(stored_game.teams[0].finance, finance_before);
+        assert_eq!(stored_game.teams[0].wage_budget, 125_000);
+        assert_eq!(stored_game.teams[0].transfer_budget, 40_000);
+    }
+
+    /// Given no active career, when envelopes are reallocated, then the
+    /// no-session key is returned.
+    #[test]
+    fn reallocate_board_envelopes_internal_reports_no_session() {
+        let state = StateManager::new();
+        let error = reallocate_board_envelopes_internal(&state, Career::Active, 1_000)
+            .expect_err("no game");
+        assert_eq!(error, "be.error.noActiveGameSession");
     }
 }

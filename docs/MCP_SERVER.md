@@ -101,7 +101,7 @@ in `docs/ARCHITECTURE.md`.
 
 ## Tool Reference
 
-91 tools are available across 15 categories. Use the built-in `help_list_categories` and `help_find_tool` tools to discover tools at runtime.
+92 tools are available across 15 categories. Use the built-in `help_list_categories` and `help_find_tool` tools to discover tools at runtime.
 
 > **Adding a new tool?** Follow the checklist in `src-tauri/src/mcp_server/tools.rs` at `tool_catalog()` — register the route, add to the catalog, add the implementation, emit `game-state-changed` if it mutates state, update competition-mode disabled list if needed, and update this document.
 
@@ -205,12 +205,13 @@ The `initialize` result's `serverInfo.version` is the package version plus the s
 | `inbox_clear_old` | Clear old/processed messages |
 | `inbox_resolve_action` | Resolve a message action (job offers, scout reports, events); `message_id`, `action_id` and `option_id` are the ids `inbox_get_messages` lists; an action answers once, a second answer is refused with `be.error.actionAlreadyResolved`, and a message that is not there (or not visible yet, answered the same way so an agent learns nothing of future mail) or an action it lacks with `be.error.actionNotFound`; a choice resolved without one of its offered options (none, or one it does not offer) is refused with `be.error.actionOptionRequired` and stays pending |
 
-### Club & Staff (7 tools)
+### Club & Staff (8 tools)
 
 | Tool | Description |
 |------|-------------|
 | `club_upgrade_facility` | Upgrade a facility level |
 | `club_request_board_support` | Request financial support from the board |
+| `club_reallocate_board_envelopes` | Move weekly wage permission against the transfer limit without posting cash |
 | `club_request_marketing` | Request a marketing campaign for revenue |
 | `club_request_sponsor_pitch` | Request a new sponsor pitch |
 | `staff_get` | List all staff (your team + available unattached) |

@@ -600,6 +600,10 @@ impl SaveManager {
             needs_resave = true;
         }
 
+        if ofm_core::generator::backfill_zero_staff_wages(&mut game) {
+            needs_resave = true;
+        }
+
         if save_format_version < 6 && ofm_core::finances::apply_weekly_unit_runway_floor(&mut game)
         {
             needs_resave = true;

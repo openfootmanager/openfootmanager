@@ -2,6 +2,10 @@ use log::info;
 use std::sync::Arc;
 use tauri::State;
 
+use ofm_core::contract_wage_policy::{
+    renewal_wage_policy_error_message, wage_policy_allows_projection,
+};
+use ofm_core::finances::calc_wages;
 use ofm_core::game::Game;
 use ofm_core::state::{Career, StateManager};
 
@@ -41,9 +45,18 @@ pub fn hire_staff_internal(
             staff.wage
         };
 
-        // Deduct wage from team budget
-        let team = user_team_mut(game)?;
-        team.season_expenses += staff_wage as i64;
+        let current_bill = calc_wages(game, &team_id);
+        let projected_bill = current_bill.saturating_add(i64::from(staff_wage));
+        {
+            let team = game
+                .teams
+                .iter()
+                .find(|team| team.id == team_id)
+                .ok_or_else(|| "be.error.teamNotFound".to_string())?;
+            if !wage_policy_allows_projection(team, current_bill, projected_bill) {
+                return Err(renewal_wage_policy_error_message(team));
+            }
+        }
 
         game.staff
             .iter_mut()
@@ -244,7 +257,8 @@ mod tests {
             .count();
 
         assert_eq!(staff.team_id.as_deref(), Some("team-1"));
-        assert_eq!(team.season_expenses, 12_000);
+        assert_eq!(team.season_expenses, 0);
+        assert_eq!(team.finance, 1_000_000);
         assert_eq!(available_staff, 12);
         assert_eq!(
             response
@@ -265,13 +279,62 @@ mod tests {
             .find(|team| team.id == "team-1")
             .expect("stored team should exist");
         assert_eq!(stored_staff.team_id.as_deref(), Some("team-1"));
-        assert_eq!(stored_team.season_expenses, 12_000);
+        assert_eq!(stored_team.season_expenses, 0);
+        assert_eq!(stored_team.finance, 1_000_000);
         assert_eq!(
             stored_game
                 .available_staff_market_last_activity_date
                 .as_deref(),
             Some("2026-08-01")
         );
+    }
+
+    /// Given a weekly wage that lands exactly on the board's 110% cap
+    /// When the manager hires that staff member
+    /// Then the hire goes through and cash is not posted.
+    #[test]
+    fn hire_staff_internal_allows_a_hire_on_the_wage_policy_cap() {
+        let state = StateManager::new();
+        let mut game = make_game();
+        game.teams[0].wage_budget = 10_000;
+        game.staff[0].wage = 11_000;
+        state.set_game(game);
+
+        hire_staff_internal(&state, Career::Active, "staff-1").expect("on the 110% cap");
+        let stored = state.get_game(|game| game.clone()).expect("stored game");
+        assert_eq!(
+            stored
+                .staff
+                .iter()
+                .find(|staff| staff.id == "staff-1")
+                .and_then(|staff| staff.team_id.as_deref()),
+            Some("team-1")
+        );
+        assert_eq!(stored.teams[0].finance, 1_000_000);
+        assert_eq!(stored.teams[0].season_expenses, 0);
+    }
+
+    /// Given a weekly wage one euro past the board's 110% cap
+    /// When the manager hires that staff member
+    /// Then the hire is refused and the books are unchanged.
+    #[test]
+    fn hire_staff_internal_refuses_hire_over_wage_policy() {
+        let state = StateManager::new();
+        let mut game = make_game();
+        game.teams[0].wage_budget = 10_000;
+        game.staff[0].wage = 11_001;
+        state.set_game(game);
+
+        let error = hire_staff_internal(&state, Career::Active, "staff-1").expect_err("over 110%");
+        assert!(error.starts_with("be.error.contracts.boardWagePolicy"));
+        let stored = state.get_game(|game| game.clone()).expect("stored game");
+        assert!(stored
+            .staff
+            .iter()
+            .find(|staff| staff.id == "staff-1")
+            .is_some_and(|staff| staff.team_id.is_none()));
+        assert_eq!(stored.teams[0].finance, 1_000_000);
+        assert_eq!(stored.teams[0].season_expenses, 0);
     }
 
     #[test]
@@ -318,7 +381,7 @@ pub fn release_staff_internal(
 
         // Read and validate before writing anything: mutate_active_game mutates
         // the live game, so a write made before an error is returned would stick.
-        let staff_wage = {
+        {
             let staff = game
                 .staff
                 .iter()
@@ -328,12 +391,12 @@ pub fn release_staff_internal(
             if staff.team_id.as_deref() != Some(&team_id) {
                 return Err("be.error.staffMemberNotInTeam".to_string());
             }
+        }
 
-            staff.wage
-        };
-
-        let team = user_team_mut(game)?;
-        team.season_expenses = team.season_expenses.saturating_sub(staff_wage as i64);
+        // The managed club must still exist. user_team_mut is the command-layer
+        // lookup that reports teamNotFound for a dangling manager team_id; a
+        // skip would look like a successful release.
+        user_team_mut(game)?;
 
         game.staff
             .iter_mut()

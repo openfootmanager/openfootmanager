@@ -4419,6 +4419,31 @@ fn retired_player_creates_scout_candidate_with_deterministic_id() {
     );
 }
 
+/// Given a retired player converted to an unattached scout, when the season
+/// ends, then he is paid the closed scout formula at unattached reputation.
+#[test]
+fn retired_player_scout_receives_the_closed_weekly_wage() {
+    let mut game = make_completed_season_game();
+    game.players.push(make_retired_player("retiree_wage"));
+
+    process_end_of_season(&mut game);
+
+    let scout = game
+        .staff
+        .iter()
+        .find(|s| s.id == "staff_retired_scout_retiree_wage")
+        .expect("retired scout");
+    // Season-end aging can move the player's attributes before archival, so the
+    // closed scout formula is applied to the judging scores actually stored on
+    // the unattached scout, at unattached reputation 500.
+    let judging = scout
+        .attributes
+        .judging_ability
+        .max(scout.attributes.judging_potential);
+    assert_eq!(scout.wage, 1_000 + u32::from(judging) * 20 + 500 * 2);
+    assert_ne!(scout.wage, 0);
+}
+
 #[test]
 fn retiree_conversion_is_idempotent() {
     let mut game = make_completed_season_game();

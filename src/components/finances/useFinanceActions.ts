@@ -2,9 +2,10 @@ import { useRef, useState } from "react";
 
 import type { GameStateData } from "../../store/gameStore";
 
-import { formatExactMoney } from "../../lib/helpers";
+import { formatExactMoney, formatWeeklyWage } from "../../lib/helpers";
 
 import { invokeForCareer } from "../../services/careerInvoke";
+import { reallocateBoardEnvelopes } from "../../services/financeService";
 import { useTranslation } from "react-i18next";
 import { resolveBackendError } from "../../utils/backendI18n";
 import { resolveTranslatedErrorMessage } from "../../utils/errorMessage";
@@ -42,6 +43,10 @@ export function useFinanceActions(onGameUpdate?: (state: GameStateData) => void)
     text: string;
   } | null>(null);
   const [marketingCampaignFeedback, setMarketingCampaignFeedback] = useState<{
+    tone: "success" | "error";
+    text: string;
+  } | null>(null);
+  const [reallocationFeedback, setReallocationFeedback] = useState<{
     tone: "success" | "error";
     text: string;
   } | null>(null);
@@ -149,6 +154,31 @@ export function useFinanceActions(onGameUpdate?: (state: GameStateData) => void)
     }
   }
 
+  async function handleReallocateBoardEnvelopes(wageDeltaWeekly: number): Promise<void> {
+    const loadingKey = "reallocate-envelopes";
+    setReallocationFeedback(null);
+    setActionLoading(loadingKey);
+    try {
+      const response = await reallocateBoardEnvelopes(wageDeltaWeekly);
+      onGameUpdate?.(response.game);
+      setReallocationFeedback({
+        tone: "success",
+        text: t("finances.reallocateSummary", {
+          wage: formatWeeklyWage(response.result.wage_budget),
+          transfer: formatExactMoney(response.result.transfer_budget),
+        }),
+      });
+    } catch (error) {
+      console.error("Failed to reallocate board envelopes:", error);
+      setReallocationFeedback({
+        tone: "error",
+        text: resolveBackendError(error),
+      });
+    } finally {
+      setActionLoading(null);
+    }
+  }
+
   async function handleDelegateRenewals(playerIds: string[]): Promise<void> {
     if (playerIds.length === 0) {
       return;
@@ -214,11 +244,13 @@ export function useFinanceActions(onGameUpdate?: (state: GameStateData) => void)
     boardSupportFeedback,
     sponsorPitchFeedback,
     marketingCampaignFeedback,
+    reallocationFeedback,
     delegatedRenewalsSummary,
     handleUpgradeFacility,
     handleRequestBoardSupport,
     handleRequestSponsorPitch,
     handleRequestMarketingCampaign,
+    handleReallocateBoardEnvelopes,
     handleDelegateRenewals,
     handleSponsorOption,
   };
