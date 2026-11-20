@@ -74,6 +74,15 @@ fn an_agreed_purchase_stamps_the_buyers_wage_on_the_offer() {
     game.season_context.transfer_window.status = TransferWindowStatus::Closed;
     game.season_context.transfer_window.opens_on = Some("2027-01-01".to_string());
 
+    let expected_wage =
+        project_transfer_bid_financial_impact(&game, "player-stamped-wage", 2_000_000)
+            .expect("the bid is previewable")
+            .incoming_player_weekly_wage as u32;
+    assert!(
+        expected_wage > 0,
+        "the buyer's standard wage is the oracle for the stamp"
+    );
+
     make_transfer_bid(&mut game, "player-stamped-wage", 2_000_000)
         .expect("an accepted closed-window bid schedules registration");
 
@@ -84,11 +93,7 @@ fn an_agreed_purchase_stamps_the_buyers_wage_on_the_offer() {
         .unwrap()
         .transfer_offers[0];
     assert_eq!(offer.status, TransferOfferStatus::PendingRegistration);
-    assert!(
-        offer.wage_offered > 0 && offer.wage_offered.is_multiple_of(1_000),
-        "agreement stamps the buyer's standard wage, got {}",
-        offer.wage_offered
-    );
+    assert_eq!(offer.wage_offered, expected_wage);
 }
 
 /// Given an agreed purchase whose offer names a non-zero wage

@@ -875,6 +875,10 @@ pub fn apply_season_end_squad_turnover(game: &mut Game, date: chrono::NaiveDate,
     game.last_season_rollover_on = Some(date.format("%Y-%m-%d").to_string());
     crate::ai_contracts::plan_every_ai_squad(game);
     crate::youth_intake::apply_youth_intake(game, date, season);
+    // After every EOS journal post: later settlements, including on this calendar
+    // day, belong to the new season. Date-only comparison cannot split the day.
+    game.last_season_rollover_journal_len =
+        Some(u32::try_from(game.cash_journal.len()).unwrap_or(u32::MAX));
 }
 
 /// For a save from before the rollover day was kept: take it from the latest finished edition of a
@@ -2345,6 +2349,10 @@ mod tests {
         );
 
         assert_eq!(game.last_season_rollover_on.as_deref(), Some("2027-05-30"));
+        assert_eq!(
+            game.last_season_rollover_journal_len,
+            Some(game.cash_journal.len() as u32)
+        );
     }
 
     const MY_CLUB: &str = "mine";

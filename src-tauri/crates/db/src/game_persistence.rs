@@ -127,6 +127,7 @@ fn write_game_to_connection(
             gate_settled_from: game.gate_settled_from.clone(),
             last_season_rollover_on: game.last_season_rollover_on.clone(),
             days_since_last_job_offer: game.days_since_last_job_offer,
+            last_season_rollover_journal_len: game.last_season_rollover_journal_len,
             available_staff_market_last_activity_date: game
                 .available_staff_market_last_activity_date
                 .clone(),
@@ -394,6 +395,7 @@ impl GamePersistenceReader {
             legacy_tactics_imported: meta.legacy_tactics_imported,
             gate_settled_from: meta.gate_settled_from.clone(),
             last_season_rollover_on: meta.last_season_rollover_on.clone(),
+            last_season_rollover_journal_len: meta.last_season_rollover_journal_len,
             career_token: 0,
             revision: 0,
             clock,
@@ -594,6 +596,7 @@ mod tests {
             gate_settled_from: None,
             last_season_rollover_on: None,
             days_since_last_job_offer: None,
+            last_season_rollover_journal_len: None,
         }
     }
 
@@ -739,6 +742,31 @@ mod tests {
             assert_eq!(stored.as_deref(), rollover);
             assert_eq!(loaded.last_season_rollover_on.as_deref(), rollover);
         }
+    }
+
+    /// Given a career whose season ended with 7 journal posts
+    /// When it is saved and loaded
+    /// Then the journal cursor survives, so same-day post-rollover spend still counts
+    #[test]
+    fn the_rollover_journal_len_is_written_to_the_save() {
+        let db = GameDatabase::open_in_memory().unwrap();
+        let mut game = sample_game_with_clock(2027, 6);
+        game.last_season_rollover_on = Some("2027-05-25".to_string());
+        game.last_season_rollover_journal_len = Some(7);
+        GamePersistenceWriter::write_game(&db, &game, "save-1", "Career").unwrap();
+
+        let stored: Option<u32> = db
+            .conn()
+            .query_row(
+                "SELECT last_season_rollover_journal_len FROM game_meta",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        let loaded = GamePersistenceReader::read_game(&db).unwrap();
+
+        assert_eq!(stored, Some(7));
+        assert_eq!(loaded.last_season_rollover_journal_len, Some(7));
     }
 
     /// Given a career whose gates are settled from a date, with a gate paid for one fixture

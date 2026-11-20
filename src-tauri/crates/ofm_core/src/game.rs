@@ -203,6 +203,14 @@ pub struct Game {
     /// `game_meta.last_season_rollover_on`.
     #[serde(default)]
     pub last_season_rollover_on: Option<String>,
+    /// How many cash-journal posts existed when the last season ended. Posts at this index and
+    /// after belong to the new season, so a settlement on the rollover calendar day after the
+    /// cutoff advanced still counts. `None` until this career's first season end, and for a save
+    /// from before the field, which keeps the date-only cutoff until the next season end.
+    /// Persistence is `game_meta.last_season_rollover_journal_len`. Skipped on IPC: the live
+    /// backend Game is the source of truth, like the journal itself.
+    #[serde(skip)]
+    pub last_season_rollover_journal_len: Option<u32>,
     /// Names the career this game was installed as (`StateManager::next_career_token`). It travels
     /// to the screen with the game, and a command that writes on the screen's behalf hands it back
     /// to be checked against the active game inside the write. Not saved: a loaded game is
@@ -331,6 +339,7 @@ impl Game {
             legacy_tactics_imported: false,
             gate_settled_from: None,
             last_season_rollover_on: None,
+            last_season_rollover_journal_len: None,
             career_token: 0,
             revision: 0,
             archived_messages: Vec::new(),

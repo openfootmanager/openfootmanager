@@ -73,12 +73,16 @@ pub(crate) fn transfer_fee_ceiling(team: &Team, committed: i64, spent: i64) -> u
 }
 
 /// Net transfer-fee spend this season for `team_id`: purchases raise it, sales lower it.
-/// Posts on or before [`Game::last_season_rollover_on`] belong to the previous season.
+/// Posts on or before [`Game::last_season_rollover_on`] belong to the previous season,
+/// unless [`Game::last_season_rollover_journal_len`] is set: then posts at that index
+/// and after belong to the new season, including settlements on the rollover day.
 pub fn settled_transfer_spend(game: &Game, team_id: &str) -> i64 {
     settled_transfer_spend_in(
         game.cash_journal.iter(),
         team_id,
         game.last_season_rollover_on.as_deref(),
+        game.last_season_rollover_journal_len
+            .map(|len| len as usize),
     )
 }
 
@@ -86,21 +90,26 @@ fn settled_transfer_spend_in<'a>(
     posts: impl IntoIterator<Item = &'a CashPost>,
     team_id: &str,
     last_rollover: Option<&str>,
+    from_index: Option<usize>,
 ) -> i64 {
     posts
         .into_iter()
-        .filter(|post| post.club_id == team_id)
-        .filter(|post| {
+        .enumerate()
+        .filter(|(_, post)| post.club_id == team_id)
+        .filter(|(_, post)| {
             matches!(
                 post.kind,
                 CashKind::TransferFeeOut | CashKind::TransferFeeIn
             )
         })
-        .filter(|post| match last_rollover {
-            Some(day) => post.date.as_str() > day,
-            None => true,
+        .filter(|(index, post)| match from_index {
+            Some(from) => *index >= from,
+            None => match last_rollover {
+                Some(day) => post.date.as_str() > day,
+                None => true,
+            },
         })
-        .fold(0i64, |spent, post| spent.saturating_sub(post.amount))
+        .fold(0i64, |spent, (_, post)| spent.saturating_sub(post.amount))
 }
 
 /// When the season cutoff advances but this club's limit was not renewed, fold
@@ -324,7 +333,7 @@ mod tests {
             fee_post("club", -800, CashKind::TransferFeeOut, "2026-08-01"),
             fee_post("club", 500, CashKind::TransferFeeIn, "2026-08-10"),
         ];
-        assert_eq!(settled_transfer_spend_in(&posts, "club", None), 300);
+        assert_eq!(settled_transfer_spend_in(&posts, "club", None, None), 300);
     }
 
     /// Given a previous-season fee on the rollover day and a later one, when spent is derived,
@@ -337,7 +346,7 @@ mod tests {
             fee_post("other", -1_000, CashKind::TransferFeeOut, "2026-08-01"),
         ];
         assert_eq!(
-            settled_transfer_spend_in(&posts, "club", Some("2026-05-30")),
+            settled_transfer_spend_in(&posts, "club", Some("2026-05-30"), None),
             200
         );
     }
@@ -433,5 +442,23 @@ mod tests {
         game.last_season_rollover_on = Some("2026-05-20".to_string());
         assert_eq!(game.teams[0].transfer_budget, 100_000);
         assert_eq!(available_transfer_budget(&game, &game.teams[0]), 100_000);
+    }
+
+    /// Given a new season whose cutoff is today and whose journal cursor is the current length
+    /// When an 80k fee posts on that same calendar day
+    /// Then spent is 80k and available room is 20k of a 100k limit
+    #[test]
+    fn a_settlement_on_the_rollover_day_after_the_cutoff_counts_in_the_new_season() {
+        let mut game = game_with_remaining(100_000, vec![]);
+        game.last_season_rollover_on = Some("2026-05-20".to_string());
+        game.last_season_rollover_journal_len = Some(game.cash_journal.len() as u32);
+        game.cash_journal.extend([fee_post(
+            "club",
+            -80_000,
+            CashKind::TransferFeeOut,
+            "2026-05-20",
+        )]);
+        assert_eq!(settled_transfer_spend(&game, "club"), 80_000);
+        assert_eq!(available_transfer_budget(&game, &game.teams[0]), 20_000);
     }
 }

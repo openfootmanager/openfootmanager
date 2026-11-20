@@ -501,7 +501,7 @@ Each team tracks financial state:
 |-------|-------------|
 | `finance` | Current balance (can be negative). Cash moves only through the journal. |
 | `wage_budget` | Weekly wage allowance |
-| `transfer_budget` | Board season limit for transfer fees. Settlement does not change this scalar. Available room is the limit minus reserved pending-registration fees minus net settled `TransferFeeOut`/`TransferFeeIn` this season (after `last_season_rollover_on`). Sale proceeds raise available room through negative net spend. End of season sets a new limit at 15% of cash for clubs in finished leagues. Clubs whose league is still playing keep their available room: settled spend is folded into the stored limit before the season cutoff advances. |
+| `transfer_budget` | Board season limit for transfer fees. Settlement does not change this scalar. Available room is the limit minus reserved pending-registration fees minus net settled `TransferFeeOut`/`TransferFeeIn` this season (after `last_season_rollover_on`, or after `last_season_rollover_journal_len` once a season has ended in this build). Sale proceeds raise available room through negative net spend. End of season sets a new limit at 15% of cash for clubs in finished leagues. Clubs whose league is still playing keep their available room: settled spend is folded into the stored limit before the season cutoff advances. A fee posted on the rollover calendar day after that cutoff still counts toward the new season. |
 | `season_income` | Cumulative income this season |
 | `season_expenses` | Cumulative expenses this season |
 

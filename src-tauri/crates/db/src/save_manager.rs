@@ -3568,6 +3568,34 @@ mod tests {
         assert_eq!(loaded.days_since_last_job_offer, Some(17));
     }
 
+    /// Given a career whose season ended with 7 journal posts
+    /// When it is saved and loaded by a fresh manager
+    /// Then the journal cursor survives
+    #[test]
+    fn rollover_journal_len_survives_save_and_load() {
+        let dir = tempfile::tempdir().unwrap();
+        let saves = dir.path().join("saves");
+        let mut game = sample_game();
+        game.last_season_rollover_on = Some("2027-05-25".to_string());
+        game.last_season_rollover_journal_len = Some(7);
+        let id = SaveManager::init(&saves)
+            .unwrap()
+            .create_save(&game, "Rollover")
+            .unwrap();
+
+        let reader = rusqlite::Connection::open(saves.join(format!("{id}.db"))).unwrap();
+        let stored: Option<u32> = reader
+            .query_row(
+                "SELECT last_season_rollover_journal_len FROM game_meta",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(stored, Some(7));
+        let loaded = SaveManager::init(&saves).unwrap().load_game(&id).unwrap();
+        assert_eq!(loaded.last_season_rollover_journal_len, Some(7));
+    }
+
     /// Given a saved career with a job-offer cooldown
     /// When a new career is started from that save
     /// Then the new career has no cooldown from the previous career.
