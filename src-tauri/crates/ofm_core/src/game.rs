@@ -449,13 +449,15 @@ impl Game {
             .min_by(|a, b| a.date.cmp(&b.date).then(a.id.cmp(&b.id)))
     }
 
-    /// The only league a pre-competitions save has. `None` once `competitions` is populated:
-    /// the mirror is then a snapshot, never a source.
+    /// The only league a pre-competitions save has, if the user's club plays in it. `None` once
+    /// `competitions` is populated: the mirror is then a snapshot, never a source. `None` when the
+    /// manager is unemployed or their club is not in that copy.
     fn legacy_league_when_competitions_empty(&self) -> Option<&League> {
         self.competitions
             .is_empty()
             .then_some(self.league.as_ref())
             .flatten()
+            .filter(|league| self.user_club_takes_part_in(league))
     }
 
     /// Whether the user's club takes part in `competition`. `false` when they manage nobody.
@@ -839,6 +841,37 @@ mod tests {
             game.user_competition()
                 .map(|competition| competition.id.as_str()),
             Some("cup1")
+        );
+    }
+
+    /// Given a save with no competitions and a league sitting in the legacy slot, and no club
+    /// When the user's league and competition are asked
+    /// Then both are none: an unemployed manager has no competition
+    #[test]
+    fn user_league_is_none_when_the_manager_is_unemployed_even_with_a_legacy_copy() {
+        let game = game_with_only_a_legacy_league();
+
+        assert_eq!(game.user_league().map(|league| league.id.as_str()), None);
+        assert_eq!(
+            game.user_competition()
+                .map(|competition| competition.id.as_str()),
+            None
+        );
+    }
+
+    /// Given a save with no competitions and a league of team1 and team2 in the legacy slot
+    /// When the manager is hired at a club that league does not list
+    /// Then the user's league is none: that copy is not theirs
+    #[test]
+    fn user_league_is_none_when_the_hired_club_is_not_in_the_legacy_copy() {
+        let mut game = game_with_only_a_legacy_league();
+        game.manager.hire("team3".to_string());
+
+        assert_eq!(game.user_league().map(|league| league.id.as_str()), None);
+        assert_eq!(
+            game.user_competition()
+                .map(|competition| competition.id.as_str()),
+            None
         );
     }
 

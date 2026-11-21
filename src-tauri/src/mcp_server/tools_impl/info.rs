@@ -302,11 +302,13 @@ mod game_status_tests {
 
 #[cfg(test)]
 mod competition_mirror_tests {
-    use super::{game_summary_from, match_preview_from};
+    use super::{game_summary_from, match_preview_from, season_context_from};
     use crate::mcp_server::tools_impl::helpers::require_league;
     use chrono::TimeZone;
-    use domain::league::{CompetitionType, Fixture, FixtureStatus, League, StandingEntry};
-    use domain::manager::Manager;
+    use domain::league::{
+        CompetitionType, Fixture, FixtureStatus, League, MatchResult, StandingEntry,
+    };
+    use domain::manager::{Manager, ManagerCareerEntry};
     use domain::team::Team;
     use mcp_results::info::{MatchPreview, NextMatch};
     use ofm_core::clock::GameClock;
@@ -440,6 +442,88 @@ mod competition_mirror_tests {
                 assert_eq!(opponent, "Gamma FC");
                 assert!(!at_home);
                 assert_eq!(date, "2025-06-16");
+            }
+            MatchPreview::NoUpcomingFixtures {} => panic!("the cup tie is tomorrow"),
+        }
+    }
+
+    /// Given a sacked manager whose last club still contests a 2036 league in competitions
+    /// When the season context is asked
+    /// Then the season is 2036, the followed division, not 0 from user_league with no club
+    #[test]
+    fn the_season_number_follows_the_last_club_after_a_sacking() {
+        let mut game = game_with_cup_tomorrow();
+        game.manager.career_history.push(ManagerCareerEntry::open(
+            "alpha".to_string(),
+            "Alpha FC".to_string(),
+            "2024-07-01".to_string(),
+        ));
+        game.manager.fire("2025-06-01");
+
+        let context = season_context_from(&game);
+
+        assert_eq!(context.season, 2036);
+    }
+
+    fn completed(
+        id: &str,
+        date: &str,
+        home: &str,
+        away: &str,
+        home_goals: u8,
+        away_goals: u8,
+    ) -> Fixture {
+        Fixture {
+            id: id.to_string(),
+            date: date.to_string(),
+            home_team_id: home.to_string(),
+            away_team_id: away.to_string(),
+            status: FixtureStatus::Completed,
+            result: Some(MatchResult {
+                home_goals,
+                away_goals,
+                ..Default::default()
+            }),
+            ..Default::default()
+        }
+    }
+
+    /// Given a cup tie tomorrow against a club from another division, and that club's last result
+    ///       a 2-0 win in its own league
+    /// When the match preview is asked
+    /// Then the opponent's form is that win, and their position is first in their table
+    #[test]
+    fn the_match_preview_reads_a_cup_opponents_form_from_their_own_league() {
+        let mut game = game_with_cup_tomorrow();
+        let league = game.user_league().cloned();
+        game.league = league;
+        let mut their_league = League::new(
+            "league2".to_string(),
+            "Second Division".to_string(),
+            2036,
+            &["gamma".to_string(), "delta".to_string()],
+        );
+        their_league.standings = vec![
+            StandingEntry {
+                team_id: "gamma".to_string(),
+                points: 15,
+                ..StandingEntry::new("gamma".to_string())
+            },
+            StandingEntry::new("delta".to_string()),
+        ];
+        their_league.fixtures = vec![completed("gamma-win", "2025-06-08", "gamma", "delta", 2, 0)];
+        game.competitions.push(their_league);
+
+        let preview = match_preview_from(&game).expect("a club");
+
+        match preview {
+            MatchPreview::Upcoming {
+                opponent_form,
+                opponent_position,
+                ..
+            } => {
+                assert_eq!(opponent_form, "W");
+                assert_eq!(opponent_position, 1);
             }
             MatchPreview::NoUpcomingFixtures {} => panic!("the cup tie is tomorrow"),
         }
@@ -656,13 +740,16 @@ pub fn info_finances(ctx: Arc<McpContext>) -> Result<FinancialOverview, String> 
 
 pub fn info_season_context(ctx: Arc<McpContext>) -> Result<SeasonContext, String> {
     let game = require_game(&ctx.state_manager)?;
+    Ok(season_context_from(&game))
+}
 
-    Ok(SeasonContext {
+fn season_context_from(game: &Game) -> SeasonContext {
+    SeasonContext {
         phase: format!("{:?}", game.season_context.phase),
         transfer_window_open: game.season_context.transfer_window.status
             == domain::season::TransferWindowStatus::Open,
-        season: game.user_league().map_or(0, |league| league.season),
-    })
+        season: ofm_core::end_of_season::user_division(game).map_or(0, |league| league.season),
+    }
 }
 
 // ─── info_news ──────────────────────────────────────────────────────────────
@@ -709,7 +796,6 @@ fn match_preview_from(game: &Game) -> Result<MatchPreview, String> {
         .team_id
         .as_deref()
         .ok_or("be.error.noTeamAssigned")?;
-    let league = game.user_league();
 
     let Some(fixture) = game.user_next_scheduled_fixture() else {
         return Ok(MatchPreview::NoUpcomingFixtures {});
@@ -722,7 +808,14 @@ fn match_preview_from(game: &Game) -> Result<MatchPreview, String> {
         &fixture.home_team_id
     };
 
-    let results: Vec<(u8, u8)> = league
+    let opponent_league =
+        ofm_core::end_of_season::club_league_table(game, opponent_id).or_else(|| {
+            game.competitions
+                .is_empty()
+                .then_some(game.league.as_ref())
+                .flatten()
+        });
+    let results: Vec<(u8, u8)> = opponent_league
         .map(|league| completed_results(league, opponent_id).collect())
         .unwrap_or_default();
     let opponent_form = results
@@ -738,7 +831,7 @@ fn match_preview_from(game: &Game) -> Result<MatchPreview, String> {
         at_home,
         date: fixture.date.clone(),
         matchday: fixture.matchday,
-        opponent_position: league
+        opponent_position: opponent_league
             .map(|league| {
                 league
                     .sorted_standings()

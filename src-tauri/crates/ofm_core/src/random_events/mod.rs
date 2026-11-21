@@ -142,15 +142,7 @@ pub fn check_random_events(game: &mut Game) {
 
     // --- 4. International call-up (5% chance per day, only if match in next 7 days) ---
     {
-        let current = game.clock.current_date;
-        let upcoming_match = game.user_next_scheduled_fixture().filter(|fixture| {
-            NaiveDate::parse_from_str(&fixture.date, "%Y-%m-%d").is_ok_and(|date| {
-                let diff = (date - current.date_naive()).num_days();
-                (1..=7).contains(&diff)
-            })
-        });
-
-        if upcoming_match.is_some() && rng.random_range(0..50) == 0 {
+        if user_has_a_match_in_the_callup_window(game) && rng.random_range(0..50) == 0 {
             let eligible: Vec<&domain::player::Player> = game
                 .players
                 .iter()
@@ -236,23 +228,7 @@ pub fn check_random_events(game: &mut Game) {
             let last3 = &completed[completed.len() - 3..];
             let losses = last3
                 .iter()
-                .filter(|f| {
-                    if let Some(r) = &f.result {
-                        let user_goals = if f.home_team_id == user_team_id {
-                            r.home_goals
-                        } else {
-                            r.away_goals
-                        };
-                        let opp_goals = if f.home_team_id == user_team_id {
-                            r.away_goals
-                        } else {
-                            r.home_goals
-                        };
-                        user_goals < opp_goals
-                    } else {
-                        false
-                    }
-                })
+                .filter(|f| user_lost_the_fixture(f, &user_team_id))
                 .count();
             let last_loss_date = last3
                 .last()
@@ -358,6 +334,56 @@ fn choose_rival_interest_target<'a, R: rand::Rng + ?Sized>(
     eligible.last().copied()
 }
 
+const CALLUP_WINDOW_DAYS: i64 = 7;
+
+/// A scheduled user fixture between tomorrow and a week from today, in any competition they play.
+/// Today's match does not hide tomorrow's: the next-match accessor includes today, and this window
+/// starts at 1.
+fn user_has_a_match_in_the_callup_window(game: &Game) -> bool {
+    let Some(team_id) = game.manager.team_id.as_deref() else {
+        return false;
+    };
+    let today = game.clock.current_date.date_naive();
+    game.competitions_in_play()
+        .iter()
+        .flat_map(|competition| competition.fixtures.iter())
+        .any(|fixture| {
+            fixture.status == domain::league::FixtureStatus::Scheduled
+                && (fixture.home_team_id == team_id || fixture.away_team_id == team_id)
+                && NaiveDate::parse_from_str(&fixture.date, "%Y-%m-%d")
+                    .is_ok_and(|date| (1..=CALLUP_WINDOW_DAYS).contains(&(date - today).num_days()))
+        })
+}
+
+/// Whether the user's club lost this completed fixture: fewer goals, or a level score decided
+/// against them on penalties. A 1-1 with no shootout is not a loss.
+fn user_lost_the_fixture(fixture: &domain::league::Fixture, user_team_id: &str) -> bool {
+    let Some(result) = fixture.result.as_ref() else {
+        return false;
+    };
+    let (user_goals, opp_goals, user_penalties, opp_penalties) =
+        if fixture.home_team_id == user_team_id {
+            (
+                result.home_goals,
+                result.away_goals,
+                result.home_penalties,
+                result.away_penalties,
+            )
+        } else {
+            (
+                result.away_goals,
+                result.home_goals,
+                result.away_penalties,
+                result.home_penalties,
+            )
+        };
+    let lost_shootout = matches!(
+        (user_penalties, opp_penalties),
+        (Some(user), Some(opp)) if user < opp
+    );
+    user_goals < opp_goals || (user_goals == opp_goals && lost_shootout)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -450,5 +476,110 @@ mod tests {
             .count();
 
         assert!(picks >= 3_000, "{picks} of 10,000");
+    }
+
+    fn hired_game() -> crate::game::Game {
+        use chrono::TimeZone;
+        let clock = crate::clock::GameClock::new(
+            chrono::Utc.with_ymd_and_hms(2025, 6, 15, 12, 0, 0).unwrap(),
+        );
+        let mut manager = domain::manager::Manager::new(
+            "mgr1".to_string(),
+            "Test".to_string(),
+            "Manager".to_string(),
+            "1980-01-01".to_string(),
+            "England".to_string(),
+        );
+        manager.hire("team1".to_string());
+        crate::game::Game::new(clock, manager, vec![], vec![], vec![], vec![])
+    }
+
+    fn scheduled(id: &str, date: &str) -> domain::league::Fixture {
+        domain::league::Fixture {
+            id: id.to_string(),
+            date: date.to_string(),
+            home_team_id: "team1".to_string(),
+            away_team_id: "opp".to_string(),
+            status: domain::league::FixtureStatus::Scheduled,
+            ..Default::default()
+        }
+    }
+
+    fn completed_result(
+        home_goals: u8,
+        away_goals: u8,
+        penalties: Option<(u8, u8)>,
+    ) -> domain::league::MatchResult {
+        domain::league::MatchResult {
+            home_goals,
+            away_goals,
+            home_penalties: penalties.map(|(home, _)| home),
+            away_penalties: penalties.map(|(_, away)| away),
+            ..Default::default()
+        }
+    }
+
+    fn completed_home(
+        home_goals: u8,
+        away_goals: u8,
+        penalties: Option<(u8, u8)>,
+    ) -> domain::league::Fixture {
+        domain::league::Fixture {
+            home_team_id: "team1".to_string(),
+            away_team_id: "opp".to_string(),
+            status: domain::league::FixtureStatus::Completed,
+            result: Some(completed_result(home_goals, away_goals, penalties)),
+            ..Default::default()
+        }
+    }
+
+    /// Given a scheduled match today and another tomorrow
+    /// When the call-up window is asked
+    /// Then it is open: today's match does not hide tomorrow's
+    #[test]
+    fn a_match_tomorrow_opens_the_callup_window_even_when_one_is_today() {
+        let mut game = hired_game();
+        game.league = Some(domain::league::League {
+            fixtures: vec![
+                scheduled("today", "2025-06-15"),
+                scheduled("tomorrow", "2025-06-16"),
+            ],
+            ..Default::default()
+        });
+
+        assert!(user_has_a_match_in_the_callup_window(&game));
+    }
+
+    /// Given the only scheduled match is today
+    /// When the call-up window is asked
+    /// Then it is closed: the window starts tomorrow
+    #[test]
+    fn a_match_today_alone_does_not_open_the_callup_window() {
+        let mut game = hired_game();
+        game.league = Some(domain::league::League {
+            fixtures: vec![scheduled("today", "2025-06-15")],
+            ..Default::default()
+        });
+
+        assert!(!user_has_a_match_in_the_callup_window(&game));
+    }
+
+    /// Given a 1-1 cup tie the user lost on penalties
+    /// When the board counts it
+    /// Then it is a loss
+    #[test]
+    fn a_shootout_defeat_counts_as_a_loss() {
+        assert!(user_lost_the_fixture(
+            &completed_home(1, 1, Some((3, 5))),
+            "team1"
+        ));
+    }
+
+    /// Given a 1-1 with no shootout
+    /// When the board counts it
+    /// Then it is not a loss
+    #[test]
+    fn a_level_score_without_a_shootout_is_not_a_loss() {
+        assert!(!user_lost_the_fixture(&completed_home(1, 1, None), "team1"));
     }
 }
