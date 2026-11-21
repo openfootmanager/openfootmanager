@@ -110,10 +110,14 @@ fn full_game_state(state: &StateManager) -> Result<GameState, String> {
 
 pub fn info_game_summary(ctx: Arc<McpContext>) -> Result<GameSummary, String> {
     let game = require_game(&ctx.state_manager)?;
-    let team = user_team(&game)?;
+    game_summary_from(&game)
+}
+
+fn game_summary_from(game: &Game) -> Result<GameSummary, String> {
+    let team = user_team(game)?;
     let team_id = team.id.as_str();
 
-    let league = game.league.as_ref().map(|league| {
+    let league = game.user_league().map(|league| {
         let standings = league.sorted_standings();
         let standing = standings.iter().find(|s| s.team_id == team_id);
         // Newest five results, shown oldest first.
@@ -149,30 +153,18 @@ pub fn info_game_summary(ctx: Arc<McpContext>) -> Result<GameSummary, String> {
         }
     };
 
-    let today = game.clock.current_date.format("%Y-%m-%d").to_string();
-    let next_match = game.league.as_ref().and_then(|league| {
-        league
-            .fixtures
-            .iter()
-            .filter(|f| {
-                f.date >= today
-                    && f.status == FixtureStatus::Scheduled
-                    && (f.home_team_id == team_id || f.away_team_id == team_id)
-            })
-            .min_by_key(|f| f.date.clone())
-            .map(|f| {
-                let at_home = f.home_team_id == team_id;
-                let opponent_id = if at_home {
-                    &f.away_team_id
-                } else {
-                    &f.home_team_id
-                };
-                NextMatch {
-                    opponent: team_name_of(&game, opponent_id),
-                    at_home,
-                    date: f.date.clone(),
-                }
-            })
+    let next_match = game.user_next_scheduled_fixture().map(|fixture| {
+        let at_home = fixture.home_team_id == team_id;
+        let opponent_id = if at_home {
+            &fixture.away_team_id
+        } else {
+            &fixture.home_team_id
+        };
+        NextMatch {
+            opponent: team_name_of(game, opponent_id),
+            at_home,
+            date: fixture.date.clone(),
+        }
     });
 
     let window = &game.season_context.transfer_window;
@@ -305,6 +297,236 @@ mod game_status_tests {
             game_status_for(SeasonProgress::NoLeague),
             GameStatus::NoLeagueYet {}
         );
+    }
+}
+
+#[cfg(test)]
+mod competition_mirror_tests {
+    use super::{game_summary_from, match_preview_from, season_context_from};
+    use crate::mcp_server::tools_impl::helpers::require_league;
+    use chrono::TimeZone;
+    use domain::league::{
+        CompetitionType, Fixture, FixtureStatus, League, MatchResult, StandingEntry,
+    };
+    use domain::manager::{Manager, ManagerCareerEntry};
+    use domain::team::Team;
+    use mcp_results::info::{MatchPreview, NextMatch};
+    use ofm_core::clock::GameClock;
+    use ofm_core::game::Game;
+
+    fn team(id: &str, name: &str) -> Team {
+        Team::new(
+            id.to_string(),
+            name.to_string(),
+            name[..3].to_string(),
+            "England".to_string(),
+            "London".to_string(),
+            "Ground".to_string(),
+            20_000,
+        )
+    }
+
+    fn scheduled(id: &str, date: &str, home: &str, away: &str) -> Fixture {
+        Fixture {
+            id: id.to_string(),
+            date: date.to_string(),
+            home_team_id: home.to_string(),
+            away_team_id: away.to_string(),
+            status: FixtureStatus::Scheduled,
+            ..Default::default()
+        }
+    }
+
+    /// The manager of Alpha FC on 15 June 2025: a league match next week in the mirror, a cup
+    /// tie tomorrow in competitions.
+    fn game_with_cup_tomorrow() -> Game {
+        let clock = GameClock::new(chrono::Utc.with_ymd_and_hms(2025, 6, 15, 12, 0, 0).unwrap());
+        let mut manager = Manager::new(
+            "mgr".to_string(),
+            "A".to_string(),
+            "B".to_string(),
+            "1980-01-01".to_string(),
+            "England".to_string(),
+        );
+        manager.hire("alpha".to_string());
+        let mut league = League::new(
+            "league1".to_string(),
+            "First Division".to_string(),
+            2036,
+            &["alpha".to_string(), "beta".to_string()],
+        );
+        league.standings = vec![
+            StandingEntry {
+                team_id: "alpha".to_string(),
+                points: 10,
+                ..StandingEntry::new("alpha".to_string())
+            },
+            StandingEntry::new("beta".to_string()),
+        ];
+        league.fixtures = vec![scheduled("league-week", "2025-06-22", "alpha", "beta")];
+        let mut cup = League::new(
+            "cup1".to_string(),
+            "Cup".to_string(),
+            1,
+            &["alpha".to_string(), "gamma".to_string()],
+        );
+        cup.kind = CompetitionType::Cup;
+        cup.fixtures = vec![scheduled("cup-tie", "2025-06-16", "gamma", "alpha")];
+        let mut game = Game::new(
+            clock,
+            manager,
+            vec![
+                team("alpha", "Alpha FC"),
+                team("beta", "Beta FC"),
+                team("gamma", "Gamma FC"),
+            ],
+            vec![],
+            vec![],
+            vec![],
+        );
+        game.league = Some(cup.clone());
+        game.competitions = vec![league, cup];
+        game
+    }
+
+    /// Given a cup sitting in the legacy mirror and the user's domestic league in competitions
+    /// When an agent reads the game summary
+    /// Then the next match is the cup tie tomorrow, and the table is the domestic league
+    #[test]
+    fn the_game_summary_next_match_is_the_cup_tie_not_the_mirrored_league() {
+        let summary = game_summary_from(&game_with_cup_tomorrow()).expect("a club");
+
+        assert_eq!(
+            summary.next_match,
+            Some(NextMatch {
+                opponent: "Gamma FC".to_string(),
+                at_home: false,
+                date: "2025-06-16".to_string(),
+            })
+        );
+        let league = summary.league.expect("the domestic table");
+        assert_eq!(league.position, 1);
+        assert_eq!(league.points, 10);
+    }
+
+    /// Given a cup sitting in the legacy mirror and the user's domestic league in competitions
+    /// When the user's league is required
+    /// Then it is the domestic league, never the cup
+    #[test]
+    fn require_league_reads_the_users_league_not_a_cup_in_the_mirror() {
+        let game = game_with_cup_tomorrow();
+
+        let league = require_league(&game).expect("the domestic league");
+
+        assert_eq!(league.id, "league1");
+        assert_eq!(league.season, 2036);
+    }
+
+    /// Given a cup tie tomorrow in competitions and the domestic league sitting in the mirror
+    /// When the match preview is asked
+    /// Then it is the cup tie: a scan of the mirror alone would pick the later league match
+    #[test]
+    fn the_match_preview_is_the_earliest_fixture_in_any_competition() {
+        let mut game = game_with_cup_tomorrow();
+        let league = game.user_league().cloned();
+        game.league = league;
+        let preview = match_preview_from(&game).expect("a club");
+
+        match preview {
+            MatchPreview::Upcoming {
+                opponent,
+                at_home,
+                date,
+                ..
+            } => {
+                assert_eq!(opponent, "Gamma FC");
+                assert!(!at_home);
+                assert_eq!(date, "2025-06-16");
+            }
+            MatchPreview::NoUpcomingFixtures {} => panic!("the cup tie is tomorrow"),
+        }
+    }
+
+    /// Given a sacked manager whose last club still contests a 2036 league in competitions
+    /// When the season context is asked
+    /// Then the season is 2036, the followed division, not 0 from user_league with no club
+    #[test]
+    fn the_season_number_follows_the_last_club_after_a_sacking() {
+        let mut game = game_with_cup_tomorrow();
+        game.manager.career_history.push(ManagerCareerEntry::open(
+            "alpha".to_string(),
+            "Alpha FC".to_string(),
+            "2024-07-01".to_string(),
+        ));
+        game.manager.fire("2025-06-01");
+
+        let context = season_context_from(&game);
+
+        assert_eq!(context.season, 2036);
+    }
+
+    fn completed(
+        id: &str,
+        date: &str,
+        home: &str,
+        away: &str,
+        home_goals: u8,
+        away_goals: u8,
+    ) -> Fixture {
+        Fixture {
+            id: id.to_string(),
+            date: date.to_string(),
+            home_team_id: home.to_string(),
+            away_team_id: away.to_string(),
+            status: FixtureStatus::Completed,
+            result: Some(MatchResult {
+                home_goals,
+                away_goals,
+                ..Default::default()
+            }),
+            ..Default::default()
+        }
+    }
+
+    /// Given a cup tie tomorrow against a club from another division, and that club's last result
+    ///       a 2-0 win in its own league
+    /// When the match preview is asked
+    /// Then the opponent's form is that win, and their position is first in their table
+    #[test]
+    fn the_match_preview_reads_a_cup_opponents_form_from_their_own_league() {
+        let mut game = game_with_cup_tomorrow();
+        let league = game.user_league().cloned();
+        game.league = league;
+        let mut their_league = League::new(
+            "league2".to_string(),
+            "Second Division".to_string(),
+            2036,
+            &["gamma".to_string(), "delta".to_string()],
+        );
+        their_league.standings = vec![
+            StandingEntry {
+                team_id: "gamma".to_string(),
+                points: 15,
+                ..StandingEntry::new("gamma".to_string())
+            },
+            StandingEntry::new("delta".to_string()),
+        ];
+        their_league.fixtures = vec![completed("gamma-win", "2025-06-08", "gamma", "delta", 2, 0)];
+        game.competitions.push(their_league);
+
+        let preview = match_preview_from(&game).expect("a club");
+
+        match preview {
+            MatchPreview::Upcoming {
+                opponent_form,
+                opponent_position,
+                ..
+            } => {
+                assert_eq!(opponent_form, "W");
+                assert_eq!(opponent_position, 1);
+            }
+            MatchPreview::NoUpcomingFixtures {} => panic!("the cup tie is tomorrow"),
+        }
     }
 }
 
@@ -518,13 +740,16 @@ pub fn info_finances(ctx: Arc<McpContext>) -> Result<FinancialOverview, String> 
 
 pub fn info_season_context(ctx: Arc<McpContext>) -> Result<SeasonContext, String> {
     let game = require_game(&ctx.state_manager)?;
+    Ok(season_context_from(&game))
+}
 
-    Ok(SeasonContext {
+fn season_context_from(game: &Game) -> SeasonContext {
+    SeasonContext {
         phase: format!("{:?}", game.season_context.phase),
         transfer_window_open: game.season_context.transfer_window.status
             == domain::season::TransferWindowStatus::Open,
-        season: game.league.as_ref().map_or(0, |l| l.season),
-    })
+        season: ofm_core::end_of_season::user_division(game).map_or(0, |league| league.season),
+    }
 }
 
 // ─── info_news ──────────────────────────────────────────────────────────────
@@ -562,21 +787,17 @@ fn recent_news(news: &[domain::news::NewsArticle], today: &str) -> RecentNews {
 
 pub fn info_match_preview(ctx: Arc<McpContext>) -> Result<MatchPreview, String> {
     let game = require_game(&ctx.state_manager)?;
-    let league = require_league(&game)?;
+    match_preview_from(&game)
+}
+
+fn match_preview_from(game: &Game) -> Result<MatchPreview, String> {
     let team_id = game
         .manager
         .team_id
         .as_deref()
         .ok_or("be.error.noTeamAssigned")?;
 
-    let next_fixture = league
-        .fixtures
-        .iter()
-        .filter(|f| f.status != FixtureStatus::Completed)
-        .filter(|f| f.home_team_id == team_id || f.away_team_id == team_id)
-        .min_by_key(|f| &f.date);
-
-    let Some(fixture) = next_fixture else {
+    let Some(fixture) = game.user_next_scheduled_fixture() else {
         return Ok(MatchPreview::NoUpcomingFixtures {});
     };
 
@@ -587,7 +808,16 @@ pub fn info_match_preview(ctx: Arc<McpContext>) -> Result<MatchPreview, String> 
         &fixture.home_team_id
     };
 
-    let results: Vec<(u8, u8)> = completed_results(league, opponent_id).collect();
+    let opponent_league =
+        ofm_core::end_of_season::club_league_table(game, opponent_id).or_else(|| {
+            game.competitions
+                .is_empty()
+                .then_some(game.league.as_ref())
+                .flatten()
+        });
+    let results: Vec<(u8, u8)> = opponent_league
+        .map(|league| completed_results(league, opponent_id).collect())
+        .unwrap_or_default();
     let opponent_form = results
         .iter()
         .rev()
@@ -597,15 +827,19 @@ pub fn info_match_preview(ctx: Arc<McpContext>) -> Result<MatchPreview, String> 
         .join(" ");
 
     Ok(MatchPreview::Upcoming {
-        opponent: team_name_of(&game, opponent_id),
+        opponent: team_name_of(game, opponent_id),
         at_home,
         date: fixture.date.clone(),
         matchday: fixture.matchday,
-        opponent_position: league
-            .sorted_standings()
-            .iter()
-            .position(|st| st.team_id == *opponent_id)
-            .map_or(0, |p| p + 1),
+        opponent_position: opponent_league
+            .map(|league| {
+                league
+                    .sorted_standings()
+                    .iter()
+                    .position(|st| st.team_id == *opponent_id)
+                    .map_or(0, |p| p + 1)
+            })
+            .unwrap_or(0),
         opponent_form,
     })
 }
@@ -668,7 +902,13 @@ pub fn info_team_profile(ctx: Arc<McpContext>, team_id: String) -> Result<TeamPr
         .filter(|p| p.team_id.as_deref() == Some(team_id.as_str()))
         .count();
 
-    let league = game.league.as_ref().and_then(|league| {
+    let table = ofm_core::end_of_season::club_league_table(&game, &team_id).or_else(|| {
+        game.competitions
+            .is_empty()
+            .then_some(game.league.as_ref())
+            .flatten()
+    });
+    let league = table.and_then(|league| {
         let standings = league.sorted_standings();
         let position = standings.iter().position(|st| st.team_id == team_id)?;
         let s = &standings[position];
@@ -682,7 +922,7 @@ pub fn info_team_profile(ctx: Arc<McpContext>, team_id: String) -> Result<TeamPr
         })
     });
 
-    let recent_form = game.league.as_ref().and_then(|league| {
+    let recent_form = table.and_then(|league| {
         let results: Vec<(u8, u8)> = completed_results(league, &team_id).collect();
         let form = results
             .iter()

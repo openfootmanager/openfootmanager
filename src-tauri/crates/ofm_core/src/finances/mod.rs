@@ -642,10 +642,9 @@ fn announced_levers(game: &Game, season: u32, team_id: &str) -> std::collections
 }
 
 fn board_support_season(game: &Game) -> u32 {
-    game.league
-        .as_ref()
+    crate::end_of_season::user_division(game)
         .map(|league| league.season)
-        .unwrap_or(game.clock.current_date.year().max(0) as u32)
+        .unwrap_or_else(|| game.clock.current_date.year().max(0) as u32)
 }
 
 fn sponsor_pitch_available(snapshot: &TeamFinanceSnapshot) -> bool {
