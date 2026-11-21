@@ -516,7 +516,10 @@ impl Game {
                 competition.kind == CompetitionType::League
                     && self.user_club_takes_part_in(competition)
             })
-            .or_else(|| self.legacy_league_when_competitions_empty())
+            .or_else(|| {
+                self.legacy_league_when_competitions_empty()
+                    .filter(|league| league.kind == CompetitionType::League)
+            })
     }
 
     /// The competition the user's club plays in, preferring its domestic league.
@@ -812,6 +815,30 @@ mod tests {
         assert_eq!(
             game.user_league().map(|league| league.id.as_str()),
             Some("league1")
+        );
+    }
+
+    /// Given a save with no competitions and a cup sitting in the legacy slot, and the manager hired
+    /// When the user's league and competition are asked
+    /// Then the league is none (a cup is not a table) and the competition is that cup
+    #[test]
+    fn user_league_ignores_a_cup_left_as_the_only_legacy_copy() {
+        let mut game = game_with_only_a_legacy_league();
+        game.manager.hire("team1".to_string());
+        let mut cup = League::new(
+            "cup1".to_string(),
+            "Cup".to_string(),
+            1,
+            &["team1".to_string(), "team2".to_string()],
+        );
+        cup.kind = CompetitionType::Cup;
+        game.league = Some(cup);
+
+        assert_eq!(game.user_league().map(|league| league.id.as_str()), None);
+        assert_eq!(
+            game.user_competition()
+                .map(|competition| competition.id.as_str()),
+            Some("cup1")
         );
     }
 

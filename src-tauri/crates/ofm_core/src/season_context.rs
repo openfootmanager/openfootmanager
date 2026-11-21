@@ -227,6 +227,31 @@ mod tests {
         assert_eq!(context.season_start.as_deref(), Some("2026-08-01"));
     }
 
+    /// Given a manager who has never had a club, and a league sitting in the legacy mirror
+    /// When season context is derived
+    /// Then it is the default: a never-employed manager follows no division
+    #[test]
+    fn a_never_employed_manager_has_the_default_season_context() {
+        let league = make_league(vec![make_fixture(
+            "fx1",
+            "2026-08-01",
+            FixtureStatus::Scheduled,
+            1,
+        )]);
+        let mut game = make_game((2026, 7, 10), Some(league));
+        game.manager = Manager::new(
+            "mgr1".to_string(),
+            "Alex".to_string(),
+            "Manager".to_string(),
+            "1980-01-01".to_string(),
+            "England".to_string(),
+        );
+
+        let context = derive_season_context(&game);
+
+        assert_eq!(context, domain::season::SeasonContext::default());
+    }
+
     fn make_team(id: &str, name: &str) -> Team {
         Team::new(
             id.to_string(),
@@ -280,13 +305,14 @@ mod tests {
             Utc.with_ymd_and_hms(current_date.0, current_date.1, current_date.2, 12, 0, 0)
                 .unwrap(),
         );
-        let manager = Manager::new(
+        let mut manager = Manager::new(
             "mgr1".to_string(),
             "Alex".to_string(),
             "Manager".to_string(),
             "1980-01-01".to_string(),
             "England".to_string(),
         );
+        manager.hire("team1".to_string());
         let mut game = Game::new(
             clock,
             manager,

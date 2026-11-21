@@ -1007,34 +1007,24 @@ mod tests {
         finished_a_match(&mut baseline_game, "team2", "2026-06-20", "L");
 
         let mut rivalry_game = baseline_game.clone();
-        let league = League {
-            id: "league-1".to_string(),
-            name: "Test League".to_string(),
-            season: 1,
-            standings: vec![],
-            transfer_log: vec![],
-            transfer_rumours: vec![],
-            fixtures: vec![Fixture {
-                id: "fixture-user-rival".to_string(),
-                matchday: 1,
-                date: "2026-07-01".to_string(),
-                home_team_id: "team2".to_string(),
-                away_team_id: "team1".to_string(),
-                status: FixtureStatus::Completed,
-                result: Some(MatchResult {
-                    home_goals: 0,
-                    away_goals: 1,
-                    home_scorers: vec![],
-                    away_scorers: vec![],
-                    report: None,
-                    home_penalties: None,
-                    away_penalties: None,
-                }),
-                ..Fixture::default()
-            }],
-            ..Default::default()
-        };
-        rivalry_game.league = Some(league);
+        rivalry_game.competitions[0].fixtures.push(Fixture {
+            id: "fixture-user-rival".to_string(),
+            matchday: 1,
+            date: "2026-07-01".to_string(),
+            home_team_id: "team2".to_string(),
+            away_team_id: "team1".to_string(),
+            status: FixtureStatus::Completed,
+            result: Some(MatchResult {
+                home_goals: 0,
+                away_goals: 1,
+                home_scorers: vec![],
+                away_scorers: vec![],
+                report: None,
+                home_penalties: None,
+                away_penalties: None,
+            }),
+            ..Fixture::default()
+        });
 
         update_ai_manager_satisfaction(&mut baseline_game);
         update_ai_manager_satisfaction(&mut rivalry_game);

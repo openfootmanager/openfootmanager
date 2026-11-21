@@ -420,12 +420,15 @@ mod competition_mirror_tests {
         assert_eq!(league.season, 2036);
     }
 
-    /// Given a cup tie tomorrow in competitions and a league match next week in the mirror
+    /// Given a cup tie tomorrow in competitions and the domestic league sitting in the mirror
     /// When the match preview is asked
-    /// Then it is the cup tie
+    /// Then it is the cup tie: a scan of the mirror alone would pick the later league match
     #[test]
     fn the_match_preview_is_the_earliest_fixture_in_any_competition() {
-        let preview = match_preview_from(&game_with_cup_tomorrow()).expect("a club");
+        let mut game = game_with_cup_tomorrow();
+        let league = game.user_league().cloned();
+        game.league = league;
+        let preview = match_preview_from(&game).expect("a club");
 
         match preview {
             MatchPreview::Upcoming {
