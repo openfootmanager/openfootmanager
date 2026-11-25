@@ -377,6 +377,98 @@ const CASES: GoldenCase[] = [
       },
     },
   },
+  // A list with a null entry parses, but the screen reads a field of every entry, so it throws and
+  // keeps the params as the backend wrote them: its own `results`, `standings`, `scorers`, ...
+  {
+    name: "a roundup whose results data holds a null entry keeps the results the backend wrote",
+    kind: "article",
+    input: {
+      id: "roundup_4",
+      headline_key: "be.news.roundup.headline0",
+      body_key: "be.news.roundup.body",
+      source_key: "be.source.leagueWire",
+      i18n_params: {
+        matchday: "5",
+        totalGoals: "3",
+        matchCount: "1",
+        results: "  North 3 - 0 South",
+        resultsData: "[null]",
+        biggestWinner: "North",
+      },
+    },
+  },
+  {
+    name: "a standings update whose data holds a null entry keeps the standings the backend wrote",
+    kind: "article",
+    input: {
+      id: "standings_2",
+      headline_key: "be.news.standings.headline0",
+      body_key: "be.news.standings.body",
+      source_key: "be.source.leagueWire",
+      i18n_params: {
+        matchday: "8",
+        leader: "North",
+        standings: "  1. North — 19 pts (GD: +9)",
+        standingsData: JSON.stringify([
+          { rank: 1, team: "North", points: 19, goal_difference: "+9" },
+          null,
+        ]),
+      },
+    },
+  },
+  {
+    name: "a match report whose scorers data holds a null entry keeps the scorers the backend wrote",
+    kind: "article",
+    input: {
+      id: "report_4",
+      headline_key: "be.news.matchReport.headline.homeWin.0",
+      body_key: "be.news.matchReport.body0",
+      source_key: "be.source.sportsGazette",
+      i18n_params: {
+        home: "North",
+        away: "South",
+        homeGoals: "2",
+        awayGoals: "1",
+        matchday: "5",
+        winner: "North",
+        loser: "South",
+        scorers: "J. Doe (12', North)",
+        scorersData: "[null]",
+      },
+    },
+  },
+  {
+    name: "a press conference whose quotes data holds a null entry keeps the quote the backend wrote",
+    kind: "article",
+    input: {
+      id: "press_4",
+      headline_key: "be.news.pressConference.headlineManagerQuote",
+      body_key: "be.news.pressConference.bodySingle",
+      source_key: "be.source.leagueWire",
+      i18n_params: {
+        team: "South",
+        result: "0-3",
+        quote: "A tough afternoon",
+        quotesData: JSON.stringify([{ fallback: "Another quote" }, null]),
+      },
+    },
+  },
+  {
+    name: "a transfer roundup whose deals data holds a null entry keeps the deals the backend wrote",
+    kind: "article",
+    input: {
+      id: "roundup_deals_2",
+      headline_key: "be.news.transferRoundup.headline",
+      body_key: "be.news.transferRoundup.body",
+      source_key: "be.source.transferIntelligence",
+      i18n_params: {
+        weekStart: "2026-08-03",
+        transferCount: "1",
+        deals: "  J. Doe: North -> South (€12.5M)",
+        dealsData: JSON.stringify([null]),
+      },
+    },
+  },
   {
     name: "a preseason digest lays out its friendlies and one unbeaten club",
     kind: "article",
