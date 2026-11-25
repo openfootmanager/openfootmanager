@@ -391,6 +391,26 @@ const CASES: GoldenCase[] = [
       },
     },
   },
+  // An empty list is a list: it lays out nothing, and replaces the backend's own `results` (which a
+  // resolver that took an empty list for no list would keep).
+  {
+    name: "a roundup whose results data is an empty list lays out no results",
+    kind: "article",
+    input: {
+      id: "roundup_5",
+      headline_key: "be.news.roundup.headline0",
+      body_key: "be.news.roundup.body",
+      source_key: "be.source.leagueWire",
+      i18n_params: {
+        matchday: "5",
+        totalGoals: "0",
+        matchCount: "0",
+        results: "  North 3 - 0 South",
+        resultsData: "[]",
+        biggestWinner: "",
+      },
+    },
+  },
   // A list with a null entry parses, but the screen reads a field of every entry, so it throws and
   // keeps the params as the backend wrote them: its own `results`, `standings`, `scorers`, ...
   {
@@ -800,6 +820,58 @@ const CASES: GoldenCase[] = [
       },
     },
   },
+  // The tier and the phase of a division: a `tierDivision` name is built from the tier the notice
+  // carries, and a split-season phase follows the four names that have a tier in them.
+  ...(
+    [
+      [
+        "a promotion names a numbered division from the tier the notice carries",
+        "tournaments.competitions.tierDivision",
+        { divisionTier: "3" },
+      ],
+      [
+        "a promotion into an opening-tournament division says so after its name",
+        "tournaments.competitions.tierDivision",
+        { divisionTier: "3", divisionPhase: "opening" },
+      ],
+      [
+        "a promotion into a closing-tournament division says so after its name",
+        "tournaments.competitions.league",
+        { divisionPhase: "closing" },
+      ],
+      [
+        "a promotion into an annual division says nothing of a phase",
+        "tournaments.competitions.secondDivision",
+        { divisionPhase: "annual" },
+      ],
+      [
+        "a phase after a name with no tier in it is left out",
+        "tournaments.competitions.nationalCup",
+        { divisionPhase: "opening" },
+      ],
+      [
+        "a tier that is no whole number above zero names nothing, and the stored name stands",
+        "tournaments.competitions.tierDivision",
+        { divisionTier: "2.5", divisionPhase: "opening" },
+      ],
+    ] as const
+  ).map(([name, divisionKey, extra], index) => ({
+    name,
+    kind: "message" as const,
+    input: {
+      id: `division_tier_${index}`,
+      subject_key: "be.msg.promotion.subject",
+      body_key: "be.msg.promotion.body",
+      i18n_params: {
+        division: "Stored Name",
+        season: "2029",
+        divisionKey,
+        divisionSeason: "2029",
+        divisionCountry: "ES",
+        ...extra,
+      },
+    },
+  })),
   {
     name: "a competition report names the competition from its key, country and season",
     kind: "article",
