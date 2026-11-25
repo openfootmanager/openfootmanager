@@ -1,5 +1,7 @@
+import { useState } from "react";
 import type { GameStateData, PlayerSelectionOptions } from "../../store/gameStore";
 import type { PlayerData } from "../../store/types";
+import { DEFAULT_SQUAD_ROSTER_FILTERS } from "../squad/SquadRosterView.state";
 import PlayerProfile from "../playerProfile/PlayerProfile";
 import TeamProfile from "../teamProfile";
 import DashboardAlerts from "./DashboardAlerts";
@@ -37,6 +39,8 @@ export default function DashboardWorkspaceContent({
   isUnemployed,
 }: DashboardWorkspaceContentProps) {
   const { t } = useTranslation();
+  const careerToken = gameState.career_token;
+  const [squad, setSquad] = useState({ careerToken, filters: DEFAULT_SQUAD_ROSTER_FILTERS });
   const rosterPlayer = profileNavigation.selectedPlayerId
     ? (gameState.players.find((player) => player.id === profileNavigation.selectedPlayerId) ?? null)
     : null;
@@ -101,7 +105,13 @@ export default function DashboardWorkspaceContent({
       ) : null}
 
       {!selectedPlayer && !selectedTeam ? (
-        <DashboardTabContent viewModel={dashboardTabContentModel} />
+        <DashboardTabContent
+          viewModel={dashboardTabContentModel}
+          squadFilterControl={{
+            value: squad.careerToken === careerToken ? squad.filters : DEFAULT_SQUAD_ROSTER_FILTERS,
+            onChange: (filters) => setSquad({ careerToken, filters }),
+          }}
+        />
       ) : null}
     </div>
   );

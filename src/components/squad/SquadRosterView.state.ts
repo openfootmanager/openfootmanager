@@ -1,3 +1,45 @@
+import { useState } from "react";
+
+export type FilterScope =
+  | "all"
+  | "xi"
+  | "bench"
+  | "naturalFit"
+  | "needsCover"
+  | "outOfPosition"
+  | "injured";
+
+export interface SquadRosterFilters {
+  playerSearch: string;
+  positionFilter: string;
+  statusFilter: FilterScope;
+}
+
+export const DEFAULT_SQUAD_ROSTER_FILTERS: SquadRosterFilters = {
+  playerSearch: "",
+  positionFilter: "All",
+  statusFilter: "all",
+};
+
+export interface SquadRosterFilterControl {
+  value: SquadRosterFilters;
+  onChange: (filters: SquadRosterFilters) => void;
+}
+
+/** The dashboard owns filters when the roster can be replaced by a player profile. */
+export function useSquadRosterFilters(control?: SquadRosterFilterControl) {
+  const [localFilters, setLocalFilters] = useState(DEFAULT_SQUAD_ROSTER_FILTERS);
+  const filters = control?.value ?? localFilters;
+  const update = control?.onChange ?? setLocalFilters;
+  return {
+    ...filters,
+    setPlayerSearch: (playerSearch: string) => update({ ...filters, playerSearch }),
+    setPositionFilter: (positionFilter: string) => update({ ...filters, positionFilter }),
+    setStatusFilter: (statusFilter: FilterScope) => update({ ...filters, statusFilter }),
+    clearFilters: () => update(DEFAULT_SQUAD_ROSTER_FILTERS),
+  };
+}
+
 export type SquadListSortKey =
   | "jersey"
   | "name"

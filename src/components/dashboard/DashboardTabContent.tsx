@@ -2,6 +2,7 @@ import { lazy, Suspense, useState } from "react";
 import EndOfSeasonScreen, { type SeasonTransition } from "../EndOfSeasonScreen";
 import HomeTab from "../home/HomeTab";
 import type { DashboardTabContentModel } from "./dashboardTabContentModel";
+import type { SquadRosterFilterControl } from "../squad/SquadRosterView.state";
 
 const SquadTab = lazy(() => import("../squad/SquadTab"));
 const TacticsTab = lazy(() => import("../tactics/TacticsTab"));
@@ -24,6 +25,7 @@ const NewsTab = lazy(() => import("../news/NewsTab"));
 
 interface DashboardTabContentProps {
   viewModel: DashboardTabContentModel;
+  squadFilterControl?: SquadRosterFilterControl;
 }
 
 function DashboardTabFallback() {
@@ -34,7 +36,10 @@ function DashboardTabFallback() {
   );
 }
 
-export default function DashboardTabContent({ viewModel }: DashboardTabContentProps) {
+export default function DashboardTabContent({
+  viewModel,
+  squadFilterControl,
+}: DashboardTabContentProps) {
   const {
     activeTab,
     gameState,
@@ -87,6 +92,7 @@ export default function DashboardTabContent({ viewModel }: DashboardTabContentPr
         onGameUpdate={onGameUpdate}
         sortState={squadListSortState}
         onSortStateChange={onSquadListSortChange}
+        filterControl={squadFilterControl}
       />
     );
   } else if (activeTab === "Tactics") {

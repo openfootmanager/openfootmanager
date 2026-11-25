@@ -44,8 +44,11 @@ import { SquadNameAside, squadRosterColumns } from "./SquadRosterView.columns";
 import { squadRowMenuItems } from "./SquadRosterView.menu";
 import {
   DEFAULT_SQUAD_LIST_SORT_STATE,
+  type FilterScope,
   type SquadListSortKey,
   type SquadListSortState,
+  type SquadRosterFilterControl,
+  useSquadRosterFilters,
 } from "./SquadRosterView.state";
 import { useListView } from "../../hooks/useListView";
 import { contextMenuPoint } from "../../lib/contextMenuPoint";
@@ -63,16 +66,8 @@ interface SquadRosterViewProps {
   onMutationComplete?: (g: GameStateData) => void;
   sortState?: SquadListSortState;
   onSortStateChange?: (sortState: SquadListSortState) => void;
+  filterControl?: SquadRosterFilterControl;
 }
-
-type FilterScope =
-  | "all"
-  | "xi"
-  | "bench"
-  | "naturalFit"
-  | "needsCover"
-  | "outOfPosition"
-  | "injured";
 
 export default function SquadRosterView({
   players,
@@ -83,17 +78,24 @@ export default function SquadRosterView({
   onMutationComplete,
   sortState,
   onSortStateChange,
+  filterControl,
 }: SquadRosterViewProps) {
   const tierOf = useRatingTiers();
   const { t, i18n } = useTranslation();
   const [view, setView] = useListView();
-  const [playerSearch, setPlayerSearch] = useState("");
+  const {
+    playerSearch,
+    positionFilter,
+    statusFilter,
+    setPlayerSearch,
+    setPositionFilter,
+    setStatusFilter,
+    clearFilters,
+  } = useSquadRosterFilters(filterControl);
   // Ties each visible filter label to its control, so the control is announced by that label.
   const searchInputId = useId();
   const positionFilterId = useId();
   const statusFilterId = useId();
-  const [positionFilter, setPositionFilter] = useState("All");
-  const [statusFilter, setStatusFilter] = useState<FilterScope>("all");
   const [localSortState, setLocalSortState] = useState<SquadListSortState>(
     DEFAULT_SQUAD_LIST_SORT_STATE,
   );
@@ -473,11 +475,7 @@ export default function SquadRosterView({
           </div>
           <button
             type="button"
-            onClick={() => {
-              setPlayerSearch("");
-              setPositionFilter("All");
-              setStatusFilter("all");
-            }}
+            onClick={clearFilters}
             disabled={!hasActiveFilters}
             className={`px-3 py-2 rounded-lg text-xs font-heading font-bold uppercase tracking-wider transition-all ${
               hasActiveFilters
