@@ -367,6 +367,77 @@ describe("useGameStore", () => {
     });
   });
 
+  // The career epoch is what slow calls compare to know their career is still the open one. A career
+  // installed from outside the screens (the MCP `game_load_save` tool, then a `game-state-changed`
+  // refetch) never goes through setGameActive, so the snapshot's own career token has to count (#1438).
+  describe("career epoch", () => {
+    const career = (career_token: number, revision = 0) =>
+      makeGameState({ career_token, revision, news: [] });
+    const epoch = () => useGameStore.getState().careerEpoch;
+
+    /**
+     * Given a game shown, and a snapshot of a different career (a later career token) arriving
+     * When the store takes it
+     * Then the career epoch moves: what was asked in the old career must not show its answer in the
+     *      new one.
+     */
+    it("counts a career installed over the held one as a new career", () => {
+      useGameStore.setState({ gameState: null });
+      useGameStore.getState().setGameState(career(3));
+      const before = epoch();
+
+      useGameStore.getState().setGameState(career(4));
+
+      expect(epoch()).toBe(before + 1);
+    });
+
+    /**
+     * Given a game shown, and a later snapshot of the same career (a higher revision, or a repeat)
+     * When the store takes it
+     * Then the epoch stays: it is the same career still.
+     */
+    it("keeps the epoch for later snapshots of the same career", () => {
+      useGameStore.setState({ gameState: null });
+      useGameStore.getState().setGameState(career(3, 1));
+      const before = epoch();
+
+      useGameStore.getState().setGameState(career(3, 2));
+      useGameStore.getState().setGameState(career(3, 2));
+
+      expect(epoch()).toBe(before);
+    });
+
+    /**
+     * Given nothing shown yet (a window that just opened, or a game that was left)
+     * When the first snapshot arrives
+     * Then the epoch does not move for it: opening a game counts through setGameActive, once.
+     */
+    it("does not count the first game shown", () => {
+      useGameStore.setState({ gameState: null });
+      const before = epoch();
+
+      useGameStore.getState().setGameState(career(3));
+
+      expect(epoch()).toBe(before);
+    });
+
+    /**
+     * Given a game shown and an older career's snapshot (a lower token) arriving late
+     * When the store drops it
+     * Then the epoch does not move for a snapshot that was never shown.
+     */
+    it("does not count an older career's snapshot that is dropped", () => {
+      useGameStore.setState({ gameState: null });
+      useGameStore.getState().setGameState(career(4));
+      const before = epoch();
+
+      useGameStore.getState().setGameState(career(3));
+
+      expect(epoch()).toBe(before);
+      expect(useGameStore.getState().gameState?.career_token).toBe(4);
+    });
+  });
+
   // A refetch that was slow (a `game-state-changed` the Dashboard asked for) can resolve after a
   // newer game was already shown: the newest snapshot wins, whichever order they arrive in (#1394).
   describe("snapshot order", () => {
