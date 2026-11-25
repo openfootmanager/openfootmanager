@@ -292,7 +292,11 @@ fn press_conference(headline_key: &str, body_key: &str, params: &Params) -> Opti
             let key = quote.get("key").and_then(Value::as_str);
             let fallback = quote.get("fallback").and_then(Value::as_str).unwrap_or("");
             let quote_params = match quote.get("params") {
-                Some(Value::Object(object)) if object.values().any(throws_as_a_param) => {
+                Some(Value::Object(object)) if object.values().any(is_not_a_string_param) => {
+                    return None;
+                }
+                // Spread into an object on the screen, a list is read value by value alike.
+                Some(Value::Array(list)) if list.iter().any(is_not_a_string_param) => {
                     return None;
                 }
                 Some(Value::Object(object)) => string_params(object),
@@ -312,11 +316,15 @@ fn press_conference(headline_key: &str, body_key: &str, params: &Params) -> Opti
     ]))
 }
 
-/// Whether the screen throws on this value of a quote's params: `resolveParamValues` asks every
-/// value whether it is a key (`value.includes(".")`), which a string and an array can answer and a
-/// number, a boolean, a null or an object cannot. The article then keeps the params as written.
-fn throws_as_a_param(value: &Value) -> bool {
-    !matches!(value, Value::String(_) | Value::Array(_))
+/// Whether this value of a quote's params is read by the screen in a way the resolver does not
+/// follow. `resolveParamValues` asks every value whether it is a key (`value.includes(".")`): a
+/// number, a boolean, a null or an object throws there. An array gets past that, but a param named
+/// like a money figure, a country or a date is then read with `.trim()` (and the like), which it
+/// lacks, and any other array is laid out as its own text. The screen keeps the params as the
+/// backend wrote them when it throws, so the resolver does the same for every value that is not a
+/// string, the one kind every param name reads alike.
+fn is_not_a_string_param(value: &Value) -> bool {
+    !value.is_string()
 }
 
 fn string_params(object: &Map<String, Value>) -> Params {
