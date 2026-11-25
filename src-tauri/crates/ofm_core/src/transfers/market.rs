@@ -259,6 +259,7 @@ struct MarketSweep {
     cooled_clubs: std::collections::HashMap<String, HashSet<String>>,
     shortlist: Vec<MarketTarget>,
     reservations_by_club: std::collections::HashMap<String, i64>,
+    spent_by_club: std::collections::HashMap<String, i64>,
 }
 impl MarketSweep {
     fn new(game: &Game) -> Self {
@@ -320,6 +321,7 @@ impl MarketSweep {
             &position_depths,
         );
         let reservations_by_club = committed_transfer_fees_by_club(game);
+        let spent_by_club = settled_transfer_spend_by_club(game);
         Self {
             user_team_id,
             current_date,
@@ -337,6 +339,7 @@ impl MarketSweep {
             cooled_clubs,
             shortlist,
             reservations_by_club,
+            spent_by_club,
         }
     }
     fn offer_loan_to_user(&mut self, game: &mut Game, buyer_team: &Team) -> Option<String> {
@@ -397,7 +400,7 @@ impl MarketSweep {
             .get(buyer_id)
             .copied()
             .unwrap_or(0);
-        let spent = settled_transfer_spend(game, buyer_id);
+        let spent = self.spent_by_club.get(buyer_id).copied().unwrap_or(0);
         let chosen = self.shortlist.iter().find(|target| {
             if target.owner_team_id == buyer_id || self.moved_player_ids.contains(&target.player_id)
             {
@@ -505,6 +508,22 @@ impl MarketSweep {
                 candidate.owner_team_id.clone(),
                 calc_wages(game, &candidate.owner_team_id),
             );
+            let fee = i64::try_from(candidate.fee).unwrap_or(i64::MAX);
+            let buyer_spent = self
+                .spent_by_club
+                .get(buyer_id)
+                .copied()
+                .unwrap_or(0)
+                .saturating_add(fee);
+            let seller_spent = self
+                .spent_by_club
+                .get(&candidate.owner_team_id)
+                .copied()
+                .unwrap_or(0)
+                .saturating_sub(fee);
+            self.spent_by_club.insert(buyer_id.to_string(), buyer_spent);
+            self.spent_by_club
+                .insert(candidate.owner_team_id.clone(), seller_spent);
         }
     }
     fn visit_buyer(&mut self, game: &mut Game, buyer_id: &str) {

@@ -1,4 +1,5 @@
 use chrono::{TimeZone, Utc};
+use domain::finance::{CashJournal, CashKind, CashPost};
 use domain::league::League;
 use domain::manager::Manager;
 use domain::player::{Injury, Player, PlayerAttributes, Position};
@@ -682,6 +683,29 @@ fn in_budget_means_the_fee_fits_both_cash_and_transfer_budget() {
     let mut dear = PlayerSpec::new("dear", "Dear", Some("other"));
     dear.market_value = 4_000_000;
     let game = game_managing_mine(3_000_000, 5_000_000, vec![cheap.build(), dear.build()]);
+    let mut q = baseline_query();
+    q.in_budget = true;
+
+    assert_eq!(ids(&game, &q), vec!["cheap"]);
+}
+
+/// Given €3m cash, a €2m limit, €1.5m settled spend, and players worth €400k and €800k
+/// When in_budget is on
+/// Then only the €400k player remains: the filter reads settled spend from the journal
+#[test]
+fn in_budget_subtracts_settled_spend_from_the_season_limit() {
+    let mut cheap = PlayerSpec::new("cheap", "Cheap", Some("other"));
+    cheap.market_value = 400_000;
+    let mut dear = PlayerSpec::new("dear", "Dear", Some("other"));
+    dear.market_value = 800_000;
+    let mut game = game_managing_mine(3_000_000, 2_000_000, vec![cheap.build(), dear.build()]);
+    game.cash_journal = CashJournal::from_vec(vec![CashPost {
+        id: "spent".into(),
+        club_id: "mine".into(),
+        amount: -1_500_000,
+        kind: CashKind::TransferFeeOut,
+        date: "2026-06-01".into(),
+    }]);
     let mut q = baseline_query();
     q.in_budget = true;
 

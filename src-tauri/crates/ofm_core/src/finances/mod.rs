@@ -841,7 +841,10 @@ pub fn preview_board_support(game: &Game, team_id: &str) -> Result<BoardSupportR
     );
     let support_amount =
         (reserve_target - team.finance).clamp(BOARD_SUPPORT_MIN_AMOUNT, BOARD_SUPPORT_MAX_AMOUNT);
-    let transfer_budget_reduction = std::cmp::min(team.transfer_budget.max(0), support_amount / 2);
+    let unspent_permission = team
+        .transfer_budget
+        .saturating_sub(crate::transfers::settled_transfer_spend(game, team_id));
+    let transfer_budget_reduction = std::cmp::min(unspent_permission.max(0), support_amount / 2);
 
     Ok(BoardSupportResult {
         support_amount,
@@ -1070,7 +1073,7 @@ pub fn request_board_support(game: &mut Game, team_id: &str) -> Result<BoardSupp
         .iter_mut()
         .find(|team| team.id == team_id)
         .ok_or("be.error.managedTeamNotFound".to_string())?;
-    team.transfer_budget = (team.transfer_budget - transfer_budget_reduction).max(0);
+    team.transfer_budget -= transfer_budget_reduction;
     team.financial_ledger.push(FinancialTransaction {
         date: game.clock.current_date.format("%Y-%m-%d").to_string(),
         description: board_support_description(season),

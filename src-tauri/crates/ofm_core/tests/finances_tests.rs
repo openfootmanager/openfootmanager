@@ -14,6 +14,7 @@ use domain::team::{
 use ofm_core::clock::GameClock;
 use ofm_core::finances;
 use ofm_core::game::Game;
+use ofm_core::transfers::available_transfer_budget;
 
 // ---------------------------------------------------------------------------
 // Test helpers
@@ -367,6 +368,63 @@ fn request_board_support_recovers_cash_crisis_and_applies_board_costs() {
         FinancialTransactionKind::BoardSupport
     );
     assert!(game.teams[0].finance > 0);
+}
+
+fn post_transfer_fee(game: &mut Game, amount: i64, kind: finances::CashKind) {
+    let date = game.clock.current_date.date_naive();
+    finances::post(game, "team1", amount, kind, date).expect("fee posts");
+}
+
+/// Given a €300,000 season limit already spent and cash of −€25,000
+/// When the board grants emergency support
+/// Then the transfer cut is 0: unspent permission is gone, so the cut cannot take the spent room
+#[test]
+fn board_support_does_not_cut_a_limit_that_is_already_spent() {
+    let mut game = make_monday_game();
+    game.teams[0].finance = 275_000;
+    game.teams[0].transfer_budget = 300_000;
+    post_transfer_fee(&mut game, -300_000, finances::CashKind::TransferFeeOut);
+    assert_eq!(game.teams[0].finance, -25_000);
+
+    let result = finances::request_board_support(&mut game, "team1").expect("support");
+
+    assert_eq!(result.transfer_budget_reduction, 0);
+    assert_eq!(game.teams[0].transfer_budget, 300_000);
+    assert_eq!(
+        available_transfer_budget(&game, &game.teams[0]),
+        0,
+        "spent room must stay spent after the grant"
+    );
+}
+
+/// Given a zero season limit, €200,000 of sale proceeds, and cash of −€25,000
+/// When the board grants emergency support
+/// Then the cut is half the grant, taken from the unspent proceeds, not skipped because the limit is 0
+#[test]
+fn board_support_cuts_sale_proceeds_when_the_stored_limit_is_zero() {
+    let mut game = make_monday_game();
+    game.teams[0].finance = -225_000;
+    game.teams[0].transfer_budget = 0;
+    post_transfer_fee(&mut game, 200_000, finances::CashKind::TransferFeeIn);
+    assert_eq!(game.teams[0].finance, -25_000);
+
+    let preview = finances::preview_board_support(&game, "team1").expect("preview");
+    let result = finances::request_board_support(&mut game, "team1").expect("support");
+
+    assert!(result.support_amount >= 150_000);
+    assert_eq!(result.transfer_budget_reduction, result.support_amount / 2);
+    assert_eq!(
+        result.transfer_budget_reduction,
+        preview.transfer_budget_reduction
+    );
+    assert_eq!(
+        game.teams[0].transfer_budget,
+        -result.transfer_budget_reduction
+    );
+    assert_eq!(
+        available_transfer_budget(&game, &game.teams[0]),
+        200_000 - result.transfer_budget_reduction
+    );
 }
 
 #[test]

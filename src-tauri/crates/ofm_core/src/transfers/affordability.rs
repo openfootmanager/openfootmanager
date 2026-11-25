@@ -113,10 +113,48 @@ fn settled_transfer_spend_in<'a>(
         .fold(0i64, |spent, (_, post)| spent.saturating_sub(post.amount))
 }
 
+/// Net transfer-fee spend this season for every club, from one walk of the journal.
+/// The market sweep reads this once and updates it after each completed deal.
+pub(super) fn settled_transfer_spend_by_club(
+    game: &Game,
+) -> std::collections::HashMap<String, i64> {
+    let from_index = game
+        .last_season_rollover_journal_len
+        .map(|len| len as usize);
+    let last_rollover = game.last_season_rollover_on.as_deref();
+    let mut totals = std::collections::HashMap::new();
+    for (index, post) in game
+        .cash_journal
+        .iter()
+        .enumerate()
+        .skip(from_index.unwrap_or(0))
+    {
+        if !matches!(
+            post.kind,
+            CashKind::TransferFeeOut | CashKind::TransferFeeIn
+        ) {
+            continue;
+        }
+        let in_season = match from_index {
+            Some(from) => index >= from,
+            None => match last_rollover {
+                Some(day) => post.date.as_str() > day,
+                None => true,
+            },
+        };
+        if !in_season {
+            continue;
+        }
+        let spent = totals.entry(post.club_id.clone()).or_insert(0i64);
+        *spent = spent.saturating_sub(post.amount);
+    }
+    totals
+}
+
 /// When the season cutoff advances but this club's limit was not renewed, fold
 /// net settled spend into the stored limit so available room stays the same once
 /// posts on or before the new cutoff drop out of spent.
-pub fn fold_settled_spend_into_unrenewed_limits(
+pub(crate) fn fold_settled_spend_into_unrenewed_limits(
     game: &mut Game,
     renewed: &std::collections::HashSet<String>,
 ) {
@@ -324,6 +362,24 @@ mod tests {
             Err(FeeBlock::TransferBudgetCommitted)
         );
         assert_eq!(fee_block(&club(10_000, 1_000), 300, 400, 300), Ok(()));
+    }
+
+    /// Given fees for two clubs in one journal
+    /// When spend is aggregated once
+    /// Then each club's total matches walking that club alone
+    #[test]
+    fn one_journal_walk_totals_spend_per_club() {
+        let posts = vec![
+            fee_post("club", -800, CashKind::TransferFeeOut, "2026-08-01"),
+            fee_post("other", -200, CashKind::TransferFeeOut, "2026-08-01"),
+            fee_post("club", 100, CashKind::TransferFeeIn, "2026-08-10"),
+        ];
+        let game = game_with_remaining(5_000, posts);
+        let totals = settled_transfer_spend_by_club(&game);
+        assert_eq!(totals.get("club").copied(), Some(700));
+        assert_eq!(totals.get("other").copied(), Some(200));
+        assert_eq!(settled_transfer_spend(&game, "club"), 700);
+        assert_eq!(settled_transfer_spend(&game, "other"), 200);
     }
 
     /// Given sale proceeds in the journal, when spent is derived, then available room rises by

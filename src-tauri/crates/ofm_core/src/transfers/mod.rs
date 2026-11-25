@@ -24,7 +24,7 @@ use uuid::Uuid;
 
 mod affordability;
 mod bids;
-use affordability::committed_transfer_fees_by_club;
+use affordability::{committed_transfer_fees_by_club, settled_transfer_spend_by_club};
 mod consts;
 mod execution;
 mod lifecycle;
@@ -33,9 +33,10 @@ mod market;
 mod notifications;
 mod registration;
 
+pub(crate) use affordability::fold_settled_spend_into_unrenewed_limits;
 pub use affordability::{
-    available_transfer_budget, committed_transfer_fees, fold_settled_spend_into_unrenewed_limits,
-    lift_transfer_budgets_by_settled_spend, settled_transfer_spend,
+    available_transfer_budget, committed_transfer_fees, lift_transfer_budgets_by_settled_spend,
+    settled_transfer_spend,
 };
 pub(crate) use affordability::{can_afford_fee, fee_block, transfer_fee_ceiling};
 pub use bids::*;
