@@ -97,10 +97,11 @@ describe("the tactic bar's busy state across careers", () => {
 
   /**
    * Given a saved tactic A being applied (its reply held) in one career
-   * When the career changes, a saved tactic B is applied in the new one (its reply held), and A's
-   *      reply finally arrives
-   * Then the bar is open as soon as the career changes, busy again while B is out, still busy when
-   *      A's reply arrives (A cannot clear B), and open once B's reply arrives.
+   * When the career changes, a saved tactic B is applied in the new one, and then A's reply (still
+   *      held when B's request went out) finally arrives
+   * Then the bar is open as soon as the career changes, busy again while B is out, B's request is
+   *      sent without waiting for A, the bar is still busy when A's reply arrives (A cannot clear B),
+   *      and open once B's reply arrives.
    */
   it("reopens when the career changes, and an old apply's completion cannot clear a new one", async () => {
     const replies: Array<ReturnType<typeof deferred<unknown>>> = [];
@@ -125,9 +126,11 @@ describe("the tactic bar's busy state across careers", () => {
     expect(result.current.library.isTacticWriteOut).toBe(false);
     act(() => void result.current.library.applyTacticSelection(entry(result, "b")));
     expect(result.current.library.isTacticWriteOut).toBe(true);
-    await act(async () => replies[0].resolve({ marker: "a" }));
-    // A is done; B's turn comes and its request goes out. A's completion did not clear B.
+    // B's request goes out while A is still held: the new career's writes do not queue behind the
+    // old career's, whose reply may never come.
     await waitFor(() => expect(callsTo("apply_custom_tactic")).toHaveLength(2));
+    await act(async () => replies[0].resolve({ marker: "a" }));
+    // A's completion did not clear B.
     expect(result.current.library.isTacticWriteOut).toBe(true);
     await act(async () => replies[1].resolve({ marker: "b" }));
 
