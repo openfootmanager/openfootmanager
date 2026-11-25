@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+
 import { beforeAll, beforeEach, describe, expect, it } from "vitest";
 
 import { i18nReady } from "../i18n";
@@ -368,6 +370,24 @@ const CASES: GoldenCase[] = [
         results: "",
         resultsData: JSON.stringify([{ home: "East", home_goals: 0, away: "West", away_goals: 0 }]),
         biggestWinner: "",
+      },
+    },
+  },
+  {
+    name: "a roundup whose results data cannot be read keeps the results the backend wrote",
+    kind: "article",
+    input: {
+      id: "roundup_3",
+      headline_key: "be.news.roundup.headline0",
+      body_key: "be.news.roundup.body",
+      source_key: "be.source.leagueWire",
+      i18n_params: {
+        matchday: "5",
+        totalGoals: "3",
+        matchCount: "1",
+        results: "  North 3 - 0 South",
+        resultsData: '[{"home":"North","home_goals":3',
+        biggestWinner: "North",
       },
     },
   },
@@ -867,6 +887,18 @@ function resolvedText(testCase: GoldenCase): unknown {
   };
 }
 
+/** What `backendTextGolden.json` holds for the case of this name. */
+function writtenExpectation(name: string): unknown {
+  const written = JSON.parse(readFileSync("src/utils/backendTextGolden.json", "utf-8")) as {
+    cases: { name: string; expected: unknown }[];
+  };
+  const found = written.cases.find((testCase) => testCase.name === name);
+  if (!found) {
+    throw new Error(`backendTextGolden.json has no case named "${name}"`);
+  }
+  return found.expected;
+}
+
 const originalSettings = useSettingsStore.getState().settings;
 
 beforeAll(async () => {
@@ -897,5 +929,27 @@ describe("the backend text golden file", () => {
     await expect(`${JSON.stringify({ cases }, null, 2)}\n`).toMatchFileSnapshot(
       "./backendTextGolden.json",
     );
+  });
+
+  /**
+   * Given the cases this file lists
+   * When their names are read
+   * Then no two share one: the file and the Rust test find a case by its name
+   */
+  it("names every case once", () => {
+    const names = CASES.map((testCase) => testCase.name);
+
+    expect(names.filter((name, index) => names.indexOf(name) !== index)).toEqual([]);
+  });
+
+  /**
+   * Given one case this file lists
+   * When `backendI18n.ts` resolves it in English
+   * Then it is the text `backendTextGolden.json` holds for that case: each case is reported, and
+   *      can be rerun, by its own name. (After deleting the file, the first run writes it and the
+   *      second runs these.)
+   */
+  it.each(CASES.map((testCase) => [testCase.name, testCase] as const))("%s", (_name, testCase) => {
+    expect(expectedOf(testCase)).toEqual(writtenExpectation(testCase.name));
   });
 });

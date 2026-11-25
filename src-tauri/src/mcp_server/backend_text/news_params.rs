@@ -22,7 +22,11 @@ const ROUNDUP_BODY: &str = "be.news.roundup.body";
 const STANDINGS_BODY: &str = "be.news.standings.body";
 const TRANSFER_ROUNDUP_BODY: &str = "be.news.transferRoundup.body";
 const PRESS_CONFERENCE: &str = "be.news.pressConference.";
-const MATCH_REPORT_BODY: &str = "be.news.matchReport.body";
+/// Every match report body's key starts `be.news.matchReport.` and then `body` (`body`, `bodyDraw`,
+/// ...). Kept as a prefix and a word so that no literal here is a key `en.json` lacks, which
+/// `tests/backend_keys.rs` would read it as.
+const MATCH_REPORT: &str = "be.news.matchReport.";
+const MATCH_REPORT_BODY_WORD: &str = "body";
 const MATCH_REPORT_COPIES: [&str; 3] = [
     "be.news.matchReport.reportFriendly.body",
     "be.news.matchReport.reportPreseason.body",
@@ -232,8 +236,10 @@ fn standings(body_key: &str, params: &Params) -> Option<Params> {
 }
 
 fn match_report(body_key: &str, params: &Params) -> Option<Params> {
-    let is_match_report =
-        body_key.starts_with(MATCH_REPORT_BODY) || MATCH_REPORT_COPIES.contains(&body_key);
+    let is_match_report = body_key
+        .strip_prefix(MATCH_REPORT)
+        .is_some_and(|rest| rest.starts_with(MATCH_REPORT_BODY_WORD))
+        || MATCH_REPORT_COPIES.contains(&body_key);
     if !is_match_report {
         return None;
     }

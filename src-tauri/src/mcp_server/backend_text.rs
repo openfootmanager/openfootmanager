@@ -81,7 +81,7 @@ pub fn resolve_message(message: &InboxMessage) -> ResolvedMessage {
             message.body_key.as_deref(),
             &message.body,
             &params,
-            &details,
+            !details.is_empty(),
         ),
         sender: resolve(message.sender_key.as_deref(), &message.sender, &params),
         sender_role: resolve(
@@ -104,12 +104,7 @@ pub fn resolve_article(article: &NewsArticle) -> ResolvedArticle {
     let details = structured_details(&article.i18n_params);
     ResolvedArticle {
         headline: resolve(article.headline_key.as_deref(), &article.headline, &params),
-        body: resolve_body(
-            article.body_key.as_deref(),
-            &article.body,
-            &params,
-            &details,
-        ),
+        body: resolve_body(article.body_key.as_deref(), &article.body, &params, false),
         source: resolve(article.source_key.as_deref(), &article.source, &params),
         details,
     }
@@ -240,19 +235,15 @@ fn resolve(key: Option<&str>, fallback: &str, params: &Params) -> String {
     }
 }
 
-/// A body: as [`resolve`], except that when the message or article carries structured `details`
-/// (the `*Data` params the screen lays out itself), the template's own slots the params do not fill
-/// are dropped, since the details hold what they stood for. A news article's lists are expanded
-/// into their slots first ([`news_params`]), so for those only a slot with no list behind it is
-/// dropped. Only the template's slots: what a value contains, braces included, is never read.
-fn resolve_body(
-    key: Option<&str>,
-    fallback: &str,
-    params: &Params,
-    details: &BTreeMap<String, Value>,
-) -> String {
+/// A body: as [`resolve`], except that with `drop_unfilled` the template's own slots the params do
+/// not fill are dropped. A message that carries structured `details` (the `*Data` params the screen
+/// lays out itself) drops them, since the details hold what they stood for. A news article never
+/// does: its lists are expanded into their slots first ([`news_params`]), and a slot left empty
+/// stays as written, as on the screen, which is what `resultsData` it cannot read leaves behind.
+/// Only the template's slots: what a value contains, braces included, is never read.
+fn resolve_body(key: Option<&str>, fallback: &str, params: &Params, drop_unfilled: bool) -> String {
     match template_of(key) {
-        Some(template) => interpolate(template, params, !details.is_empty()),
+        Some(template) => interpolate(template, params, drop_unfilled),
         None => fallback.to_string(),
     }
 }

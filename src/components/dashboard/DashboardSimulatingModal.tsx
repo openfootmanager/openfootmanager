@@ -271,7 +271,7 @@ export default function DashboardSimulatingModal({
       <Dialog labelledBy={titleId} busy className="w-full max-w-sm rounded-2xl p-6">
         <div className="flex flex-col items-center text-center">
           <div className="flex h-14 w-14 items-center justify-center rounded-full bg-primary-100 text-primary-600 dark:bg-primary-500/15 dark:text-primary-300">
-            <Loader2 className="h-7 w-7 animate-spin" />
+            <Loader2 className="h-7 w-7 motion-safe:animate-spin" />
           </div>
           <h3
             id={titleId}
@@ -301,7 +301,7 @@ export default function DashboardSimulatingModal({
         <div className="flex items-center gap-3 pb-4 border-b border-gray-200 dark:border-navy-700 shrink-0">
           <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary-100 text-primary-600 dark:bg-primary-500/15 dark:text-primary-300">
             {isInProgress ? (
-              <Loader2 className="h-5 w-5 animate-spin" />
+              <Loader2 className="h-5 w-5 motion-safe:animate-spin" />
             ) : (
               <CheckCircle2 className="h-5 w-5" />
             )}
@@ -320,7 +320,7 @@ export default function DashboardSimulatingModal({
               className="flex items-center gap-1.5 rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-60 disabled:cursor-not-allowed dark:border-navy-600 dark:text-gray-300 dark:hover:bg-navy-700"
             >
               {isDigestAborting ? (
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                <Loader2 className="h-3.5 w-3.5 motion-safe:animate-spin" />
               ) : (
                 <XCircle className="h-3.5 w-3.5" />
               )}
@@ -343,7 +343,7 @@ export default function DashboardSimulatingModal({
 
           {isInProgress && (
             <div className="flex items-center gap-2 text-xs text-gray-400 dark:text-gray-500 py-1">
-              <Loader2 className="h-3 w-3 animate-spin" />
+              <Loader2 className="h-3 w-3 motion-safe:animate-spin" />
               {t("dashboard.digestSimulating")}
             </div>
           )}

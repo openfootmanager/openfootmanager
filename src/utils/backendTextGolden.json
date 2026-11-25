@@ -544,6 +544,29 @@
       }
     },
     {
+      "name": "a roundup whose results data cannot be read keeps the results the backend wrote",
+      "kind": "article",
+      "input": {
+        "id": "roundup_3",
+        "headline_key": "be.news.roundup.headline0",
+        "body_key": "be.news.roundup.body",
+        "source_key": "be.source.leagueWire",
+        "i18n_params": {
+          "matchday": "5",
+          "totalGoals": "3",
+          "matchCount": "1",
+          "results": "  North 3 - 0 South",
+          "resultsData": "[{\"home\":\"North\",\"home_goals\":3",
+          "biggestWinner": "North"
+        }
+      },
+      "expected": {
+        "headline": "Matchday 5 Round-Up: 3 Goals in Action-Packed Day",
+        "body": "Matchday 5 is in the books. Here are the full results:\n\n  North 3 - 0 South\n\n3 goals scored across 1 matches.{{biggestWinnerLine}}",
+        "source": "League Wire"
+      }
+    },
+    {
       "name": "a preseason digest lays out its friendlies and one unbeaten club",
       "kind": "article",
       "input": {
