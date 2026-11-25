@@ -64,6 +64,14 @@ fn items(data: &str) -> Option<Vec<Value>> {
     serde_json::from_str(data).ok()
 }
 
+/// A list of records the screen reads a field of, one by one. A list with a `null` entry parses,
+/// but on the screen that read throws and the article keeps the params as the backend wrote them,
+/// so here it is no list at all. (An entry that is a number or a string has no such field and does
+/// not throw there; those are left as they are.)
+fn records(data: &str) -> Option<Vec<Value>> {
+    items(data).filter(|list| list.iter().all(|entry| !entry.is_null()))
+}
+
 /// JavaScript's `String(value ?? "")` for what the backend writes: a string as it is, a number
 /// without a trailing `.0`, nothing as nothing.
 fn text_of(value: Option<&Value>) -> String {
@@ -101,7 +109,7 @@ fn params_of<const N: usize>(pairs: [(&str, String); N]) -> Params {
 }
 
 fn results_lines(data: &str, line_key: &str) -> Option<String> {
-    let results = items(data)?;
+    let results = records(data)?;
     let lines: Vec<String> = results
         .iter()
         .map(|result| {
@@ -209,7 +217,7 @@ fn standings(body_key: &str, params: &Params) -> Option<Params> {
     if body_key != STANDINGS_BODY {
         return None;
     }
-    let entries = items(present(params, "standingsData")?)?;
+    let entries = records(present(params, "standingsData")?)?;
     let lines: Vec<String> = entries
         .iter()
         .map(|entry| {
@@ -241,7 +249,7 @@ fn match_report(body_key: &str, params: &Params) -> Option<Params> {
     if !is_match_report {
         return None;
     }
-    let scorers = items(present(params, "scorersData")?)?;
+    let scorers = records(present(params, "scorersData")?)?;
     if scorers.is_empty() {
         return Some(params_of([
             ("scorers", String::new()),
@@ -275,7 +283,7 @@ fn press_conference(headline_key: &str, body_key: &str, params: &Params) -> Opti
     if !headline_key.starts_with(PRESS_CONFERENCE) && !body_key.starts_with(PRESS_CONFERENCE) {
         return None;
     }
-    let quotes = items(present(params, "quotesData")?)?;
+    let quotes = records(present(params, "quotesData")?)?;
     let said: Vec<String> = quotes
         .iter()
         .map(|quote| {
@@ -309,7 +317,7 @@ fn transfer_roundup(body_key: &str, params: &Params) -> Option<Params> {
     if body_key != TRANSFER_ROUNDUP_BODY {
         return None;
     }
-    let deals = items(present(params, "dealsData")?)?;
+    let deals = records(present(params, "dealsData")?)?;
     let lines: Vec<String> = deals
         .iter()
         .map(|deal| {
