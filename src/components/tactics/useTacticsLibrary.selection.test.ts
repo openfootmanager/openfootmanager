@@ -114,37 +114,15 @@ describe("useTacticsLibrary selection, characterized", () => {
    *      and using it applies that preset.
    */
   it("offers Reset against the preset a setup started from when only its play style differs", async () => {
-    mockedInvoke.mockReset();
-    mockedInvoke.mockImplementation(async (command: string) => {
-      if (
-        command === "list_custom_tactics" ||
-        command === "save_current_tactic" ||
-        command === "delete_custom_tactic"
-      ) {
-        return [];
-      }
-      return { modified: false };
+    emptySave();
+    const { result, rerender, onApplyPreset } = mountLibrary({
+      formation: "4-4-2",
+      playStyle: "Balanced",
     });
-    const onApplyPreset = vi.fn().mockResolvedValue(true);
-    const { result, rerender } = renderHook(
-      ({ playStyle }: { playStyle: string }) =>
-        useTacticsLibrary({
-          gameState: careerGame,
-          formation: "4-4-2",
-          activePlayStyle: playStyle,
-          initialPreset: null,
-          onApplyPreset,
-          onKeepInstructions: vi.fn(),
-          onGameUpdate: vi.fn(),
-          onWriteError: vi.fn(),
-          onWriteSaved: vi.fn(),
-        }),
-      { initialProps: { playStyle: "Balanced" } },
-    );
     await waitFor(() => expect(result.current.libraryLoaded).toBe(true));
     act(() => result.current.handleCreateCustomTactic());
     await waitFor(() => expect(result.current.canDeleteTactic).toBe(true));
-    rerender({ playStyle: "Defensive" });
+    rerender({ formation: "4-4-2", playStyle: "Defensive" });
     act(() => result.current.handleDeleteTactic());
     await waitFor(() => expect(result.current.canDeleteTactic).toBe(false));
     await act(async () => {});
