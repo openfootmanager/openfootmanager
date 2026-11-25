@@ -892,24 +892,12 @@ mod tests {
     }
 
     fn mark_player_let_expire(game: &mut Game, player_id: &str) {
-        let player = game
-            .players
+        game.players
             .iter_mut()
             .find(|player| player.id == player_id)
-            .unwrap();
-        player.stage_contract_end(Some("2025-08-01".to_string()));
-        player.morale_core.renewal_state = Some(ContractRenewalState {
-            status: RenewalSessionStatus::Blocked,
-            manager_blocked_until: None,
-            last_attempt_date: Some("2025-06-15".to_string()),
-            last_assistant_attempt_date: None,
-            last_outcome: None,
-            conversation_round: 0,
-            exit_intent: Some(ContractExitIntent::LetExpire {
-                set_on: "2025-06-15".to_string(),
-                reason: Some("test".to_string()),
-            }),
-        });
+            .unwrap()
+            .stage_contract_end(Some("2025-08-01".into()));
+        ofm_core::contracts::set_contract_exit_intent(game, player_id, None).unwrap();
     }
 
     #[test]
@@ -1111,16 +1099,17 @@ mod tests {
         );
     }
 
-    /// Given a saved career on Sunday 15 June 2025 with Auto-Save on
-    /// When the screen's skip to the next match day (skip_to_match_day) moves the game on
-    /// Then the save on disk reads the day the skip stopped on: any later day is a new week, and
-    ///      this command saves it through its own call, not the other two commands' (#1181 review).
+    /// Given an auto-saving career with its next fixture on Monday
+    /// When the player skips from Sunday to match day
+    /// Then the skip counts one day and saves the career at Monday.
     #[test]
     fn the_skip_to_match_day_saves_the_week_it_crosses() {
         use crate::commands::wrapper_testkit::WrapperApp;
-        let app = WrapperApp::new(make_game(11), true);
+        let (state, sunday) = state_with_a_cup_tie_in(1);
+        let monday = sunday + chrono::Duration::days(1);
+        let app = WrapperApp::new(state.get_game(Clone::clone).unwrap(), true);
 
-        tauri::async_runtime::block_on(super::skip_to_match_day(
+        let outcome = tauri::async_runtime::block_on(super::skip_to_match_day(
             app.state(),
             app.saves(),
             app.handle(),
@@ -1128,12 +1117,26 @@ mod tests {
         ))
         .expect("the skip runs");
 
-        let stopped_on = app
-            .state()
-            .get_game(|game| game.clock.current_date.date_naive())
-            .unwrap();
-        assert!(stopped_on > chrono::NaiveDate::from_ymd_opt(2025, 6, 15).unwrap());
-        assert_eq!(app.saved_game().clock.current_date.date_naive(), stopped_on);
+        assert_eq!(outcome["action"], "arrived");
+        assert_eq!(outcome["days_skipped"], 1);
+        assert_eq!(app.saved_game().clock.current_date, monday);
+    }
+
+    /// Given a healthy team with no fixtures
+    /// When the player skips to match day
+    /// Then the game advances exactly sixty days and reports no match reached.
+    #[test]
+    fn the_skip_caps_at_sixty_days_without_a_match() {
+        let mut game = make_game(30);
+        game.teams[0].starting_xi_ids.clear();
+        let end = game.clock.current_date + chrono::Duration::days(60);
+        let state = StateManager::new();
+        state.set_game(game);
+        let outcome =
+            super::skip_to_match_day_internal(&state, ofm_core::state::Career::Active).unwrap();
+        assert_eq!(outcome["days_skipped"], 60);
+        assert_eq!(outcome["reached_match_day"], false);
+        assert_eq!(state.get_game(|game| game.clock.current_date), Some(end));
     }
 
     /// Given a game with nobody injured, and one where two starters are injured
@@ -1443,7 +1446,6 @@ mod tests {
 
     /// A game whose user's club has a cup tie `cup_in_days` from today, in `game.competitions` only
     /// (the `game.league` mirror never holds a cup), and its next league match twenty days away.
-    #[cfg(feature = "mcp")]
     fn state_with_a_cup_tie_in(cup_in_days: i64) -> (StateManager, chrono::DateTime<chrono::Utc>) {
         let mut game = make_game_with_matchday();
         let start = game.clock.current_date;
@@ -1498,10 +1500,9 @@ mod tests {
         assert_eq!(clock_and_cup_tie(&state), (start, FixtureStatus::Scheduled));
     }
 
-    /// Given the game's date is the user's match day, and then a date with no match of his
-    /// When the skip's arrival is read
-    /// Then it reached the match day on the first and not on the second: a skip whose 60th day is
-    ///      its match day arrived on it (15076519 told the agent it had not reached a match)
+    /// Given a match day and a day without a match
+    /// When the skip recap checks arrival
+    /// Then only the match day counts as reaching the fixture.
     #[test]
     fn a_skip_ending_on_the_users_match_day_arrived_on_it_whichever_day_it_is() {
         let mut game = make_game_with_matchday();
