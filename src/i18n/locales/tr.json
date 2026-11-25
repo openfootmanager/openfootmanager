@@ -103,6 +103,7 @@
       "recommended": "Önerilen"
     },
     "installPackage": "Paket Yükle (.ofm)",
+    "installingPackage": "Paket yükleniyor…",
     "noInstalledPackages": "Yüklü paket yok",
     "removePackage": "Kaldır",
     "packageStackErrors": "Paket kombinasyonu hataları",

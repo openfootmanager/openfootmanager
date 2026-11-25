@@ -103,6 +103,7 @@
       "recommended": "Direkomendasikan"
     },
     "installPackage": "Pasang Paket (.ofm)",
+    "installingPackage": "Memasang paket…",
     "noInstalledPackages": "Belum ada paket yang terpasang",
     "removePackage": "Hapus",
     "packageStackErrors": "Kesalahan kombinasi paket",

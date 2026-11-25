@@ -280,7 +280,9 @@ export default function PackageBuildStep({
               ) : (
                 <PackagePlus className="w-3.5 h-3.5" />
               )}
-              {t("worldSelect.installPackage")}
+              {isInstallingPackage
+                ? t("worldSelect.installingPackage")
+                : t("worldSelect.installPackage")}
             </button>
           </div>
 

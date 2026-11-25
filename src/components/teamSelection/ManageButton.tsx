@@ -33,7 +33,13 @@ export default function ManageButton({
       disabled={disabled}
       aria-describedby={describedBy}
       onClick={onClick}
-      iconRight={confirming ? <Spinner decorative /> : <ChevronRight aria-hidden="true" />}
+      iconRight={
+        confirming ? (
+          <Spinner decorative className="h-4 w-4 border-2 border-current" />
+        ) : (
+          <ChevronRight aria-hidden="true" />
+        )
+      }
     >
       {label}
     </Button>

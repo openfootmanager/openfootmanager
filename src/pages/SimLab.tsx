@@ -311,8 +311,13 @@ export default function SimLab() {
 
           {!results && !running && <EmptyState />}
 
+          {/* Mounted while idle, so starting a run changes the live region's text. */}
+          <div role="status" className="sr-only">
+            {running ? `Simulating ${cfg.games.toLocaleString()} games…` : ""}
+          </div>
+
           {running && (
-            <div role="status" className="flex items-center gap-3 text-slate-400">
+            <div className="flex items-center gap-3 text-slate-400">
               <Spinner decorative className="w-5 h-5 border-2 border-blue-400" />
               Simulating {cfg.games.toLocaleString()} games…
             </div>

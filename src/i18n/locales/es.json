@@ -103,6 +103,7 @@
       "recommended": "Recomendado"
     },
     "installPackage": "Instalar paquete (.ofm)",
+    "installingPackage": "Instalando paquete…",
     "noInstalledPackages": "No hay paquetes instalados",
     "removePackage": "Eliminar",
     "packageStackErrors": "Errores de combinación de paquetes",
