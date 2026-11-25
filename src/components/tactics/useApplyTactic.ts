@@ -1,4 +1,4 @@
-import type { MutableRefObject } from "react";
+import { type MutableRefObject, useRef } from "react";
 
 import { type GameStateData, useGameStore } from "../../store/gameStore";
 import { applyCustomTactic } from "../../services/customTacticsService";
@@ -30,12 +30,29 @@ export function useApplyTactic({
   setDraftTacticName,
   setPresetAnchorId,
 }: UseApplyTacticArgs) {
+  // Saved tactics are applied one at a time, in the order they were asked. Each answer is the whole
+  // game, so two applies in flight whose replies arrive out of order would leave the screen showing
+  // the earlier one's game while the save holds the later one's.
+  const applying = useRef<Promise<unknown>>(Promise.resolve());
+
   // A saved tactic is put back whole by the backend: its formation and style, and for one that
   // holds them its instructions, eleven, roles and takers (#1189).
-  async function applySavedTactic(nextTactic: TacticsLibraryEntry): Promise<boolean> {
+  function applySavedTactic(nextTactic: TacticsLibraryEntry): Promise<boolean> {
+    // The career it is asked in, taken now and not when its turn comes: a turn that arrives after the
+    // career changed is the old career's, and sends nothing.
+    const askedIn = useGameStore.getState().careerEpoch;
+    const turn = applying.current.then(() => applySavedTacticNow(nextTactic, askedIn));
+    applying.current = turn.catch(() => undefined);
+    return turn;
+  }
+
+  async function applySavedTacticNow(
+    nextTactic: TacticsLibraryEntry,
+    askedIn: number,
+  ): Promise<boolean> {
     // An answer that lands after the career changed (the game left, another loaded) is the old
     // career's game: it must not replace the one now open, as `changeSave`'s steps don't.
-    const askedIn = useGameStore.getState().careerEpoch;
+    if (useGameStore.getState().careerEpoch !== askedIn) return false;
     try {
       const applied = await applyCustomTactic(nextTactic.id.trim(), careerToken);
       if (useGameStore.getState().careerEpoch !== askedIn) return false;
@@ -43,7 +60,9 @@ export function useApplyTactic({
       return true;
     } catch (error) {
       console.error("Failed to apply the saved tactic:", error);
-      onWriteError(error);
+      // A refusal that lands after the career changed is the old career's: the screen's alert is
+      // the open career's, as for the success path above.
+      if (useGameStore.getState().careerEpoch === askedIn) onWriteError(error);
       return false;
     }
   }
