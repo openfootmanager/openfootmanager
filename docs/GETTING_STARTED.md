@@ -63,6 +63,9 @@ The Dashboard is your command centre. It's organized into a **sidebar** with nav
 - **Schedule** — Your calendar of upcoming and past fixtures
 - **News** — Read match reports, league roundups, and standings updates
 
+To renew a contract, open a player from your squad and choose **Contract → Renew Contract**.
+Changing the offered wage clears the previous budget warning while the new projection loads.
+
 ---
 
 ## Day-to-Day Gameplay

@@ -375,8 +375,7 @@ describe("useContractRenewalFlow: the financial projection", () => {
   /**
    * Given a projection the policy refuses (over the wage budget) for 12,000, held
    * When the wage is changed to 20,000 and that request fails
-   * Then the earlier projection is dropped: none is held, and the soft cap no longer restricts
-   *      submitting (the catch clears what an answer for another wage left)
+   * Then the projection stays empty and the previous wage's soft cap no longer restricts submitting
    */
   it("drops the earlier projection when the request for the next wage fails", async () => {
     projectionFor.mockImplementation((_id, wage) =>
