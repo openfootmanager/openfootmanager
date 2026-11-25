@@ -139,12 +139,9 @@ describe("TacticsTab pitch", () => {
     const eleven = screen.getByRole("list", { name: /preMatch\.startingXI - 4-4-2/ });
     const items = within(eleven).getAllByRole("listitem");
     expect(items).toHaveLength(11);
-    expect(items[0].textContent).toMatch(
-      /^tactics\.slotSummary\(position=common\.positions\.\w+, /,
-    );
-    expect(items[0]).toHaveTextContent("player=GK1");
-    expect(items[0]).toHaveTextContent(
-      "squad.pitchTokenTooltip(condition=100, fit=squad.naturalFit)",
+    // The keeper's slot is the goalkeeper's: a position described as another would fail here.
+    expect(items[0].textContent).toBe(
+      "tactics.slotSummary(position=common.positions.Goalkeeper, player=GK1, summary=squad.pitchTokenTooltip(condition=100, fit=squad.naturalFit))",
     );
   });
 
@@ -171,6 +168,8 @@ describe("TacticsTab pitch", () => {
       /^tactics\.emptySlot\(position=/.test(item.textContent ?? ""),
     );
     expect(empty).toHaveLength(1);
+    // The slot left empty is the last one of 4-4-2, a striker's.
+    expect(empty[0].textContent).toBe("tactics.emptySlot(position=common.positions.Striker)");
     expect(items.filter((item) => /player=/.test(item.textContent ?? ""))).toHaveLength(10);
   });
 
