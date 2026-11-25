@@ -45,7 +45,6 @@ import {
 } from "../components/home/HomeTab.helpers";
 import {
   getDashboardAlerts,
-  getDashboardSearchResults,
   clubCompetitionLabel,
   getManagerTeamName,
   getTodayMatchFixture,
@@ -145,8 +144,6 @@ export default function Dashboard({
   );
   const [showExitConfirm, setShowExitConfirm] = useState(false);
   const [isExitingToMenu, setIsExitingToMenu] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [searchOpen, setSearchOpen] = useState(false);
   const [visitedOnboardingTabs, setVisitedOnboardingTabs] = useState<Set<string>>(
     new Set<string>(),
   );
@@ -484,26 +481,12 @@ export default function Dashboard({
     setProfileNavigation((currentState) => selectDashboardTeam(currentState, id));
   }
 
-  function handleSearchFocus(): void {
-    setSearchOpen(true);
-  }
-
-  function handleSearchBlur(): void {
-    setTimeout(() => setSearchOpen(false), 200);
-  }
-
-  function handleSearchQueryChange(query: string): void {
-    setSearchQuery(query);
-  }
-
   function handleSelectSearchPlayer(playerId: string): void {
     setProfileNavigation((currentState) => openDashboardSearchPlayer(currentState, playerId));
-    setSearchQuery("");
   }
 
   function handleSelectSearchTeam(teamId: string): void {
     setProfileNavigation((currentState) => openDashboardSearchTeam(currentState, teamId));
-    setSearchQuery("");
   }
 
   function handleToggleContinueMenu(): void {
@@ -551,7 +534,6 @@ export default function Dashboard({
     sessionState?.unread_messages_count ?? getUnreadMessagesCount(gameState);
   const myTeamName = getManagerTeamName(gameState);
   const myCompetitionName = clubCompetitionLabel(gameState, clubStanding.standing, t);
-  const searchResults = getDashboardSearchResults(gameState, searchQuery);
   const currentFinanceVerdict =
     financeVerdict?.teamId === gameState.manager.team_id ? financeVerdict.snapshot : null;
   const dashboardAlerts = getDashboardAlerts(
@@ -662,23 +644,17 @@ export default function Dashboard({
           isAdvancing={isAdvancing}
           isSaving={isSaving}
           matchMode={matchMode}
-          matchedPlayers={searchResults.matchedPlayers}
-          matchedTeams={searchResults.matchedTeams}
           modeMeta={MODE_META}
+          players={gameState.players}
           onBack={handleBack}
           onContinue={handleContinue}
           onSave={handleSave}
-          onSearchBlur={handleSearchBlur}
-          onSearchFocus={handleSearchFocus}
-          onSearchQueryChange={handleSearchQueryChange}
           onSelectMatchMode={handleSelectMatchMode}
           onSelectSearchPlayer={handleSelectSearchPlayer}
           onSelectSearchTeam={handleSelectSearchTeam}
           onSkipToMatchDay={handleSkipToMatchDay}
           onToggleContinueMenu={handleToggleContinueMenu}
           saveFlash={saveFlash}
-          searchOpen={searchOpen}
-          searchQuery={searchQuery}
           seasonComplete={seasonComplete}
           showContinueMenu={showContinueMenu}
           isUnemployed={isUnemployed ?? false}
