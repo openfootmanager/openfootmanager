@@ -21,20 +21,19 @@ vi.mock("../../components/tactics/TacticsTab", () => ({
 
 /**
  * Waits until the tab has stopped rendering: the stand-in is there (the tab is lazy-loaded, so its
- * first render comes late) and its count has not moved over a short wait.
+ * first render comes late) and its render count has not moved over a short wait. Bounded, so a tab
+ * that never stops rendering fails here instead of hanging the run.
  */
 async function waitForTabToSettle(): Promise<void> {
-  let previous = -1;
-  await waitFor(async () => {
-    const current = tacticsRenders.count;
+  await waitFor(() => expect(tacticsRenders.count).toBeGreaterThan(0));
+  let last = -1;
+  for (let attempt = 0; attempt < 40 && last !== tacticsRenders.count; attempt += 1) {
+    last = tacticsRenders.count;
     await act(async () => {
       await new Promise((resolve) => setTimeout(resolve, 50));
     });
-    expect(current).toBeGreaterThan(0);
-    expect(tacticsRenders.count).toBe(current);
-    expect(previous).toBe(current);
-    previous = current;
-  });
+  }
+  expect(tacticsRenders.count).toBe(last);
 }
 
 beforeAll(async () => {
