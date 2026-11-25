@@ -11,6 +11,7 @@ import {
 } from "../../services/customTacticsService";
 import {
   importLegacyTactics,
+  layPendingChanges,
   toCustomTactic,
   toLibraryEntries,
 } from "./TacticsCustomTactics.helpers";
@@ -80,13 +81,9 @@ export function useCustomTacticStore({
   );
   const operations = useRef(0);
   function withPending(entries: TacticsLibraryEntry[]): TacticsLibraryEntry[] {
-    const changes = [...pendingChanges.current.entries()];
-    if (changes.length === 0) return entries;
-    const pendingEntry = (id: string) => pendingChanges.current.get(id)?.entry ?? null;
-    const made = changes.flatMap(([, change]) => (change.entry ? [change.entry] : []));
-    const newest = made.filter((entry) => !entries.some((e) => e.id === entry.id)).reverse();
-    return [...newest, ...entries.map((e) => pendingEntry(e.id) ?? e)].filter(
-      (e) => !(pendingChanges.current.has(e.id) && pendingEntry(e.id) === null),
+    return layPendingChanges(
+      entries,
+      new Map([...pendingChanges.current].map(([id, change]) => [id, change.entry])),
     );
   }
   // The career whose library is on screen. A load for another career empties the picker at once,
