@@ -79,7 +79,7 @@ export function getManagerTeamName(gameState: GameStateData): string | null {
 }
 
 export function getDashboardSearchResults(
-  gameState: GameStateData,
+  gameState: Pick<GameStateData, "players" | "teams">,
   query: string,
 ): DashboardSearchResults {
   const normalizedQuery = query.trim().toLowerCase();

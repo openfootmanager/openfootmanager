@@ -91,6 +91,8 @@ const REQUIRED_KEYS = [
   "be.error.unknownFacilityType",
   "be.error.finance.boardSupportUnavailable",
   "be.error.finance.boardSupportAlreadyUsed",
+  "be.error.finance.reallocationInvalid",
+  "be.error.finance.reallocationBreachesReservations",
   "be.error.finance.sponsorPitchUnavailable",
   "be.error.finance.sponsorPitchPendingOffer",
   "be.error.finance.sponsorPitchAlreadyAttemptedToday",

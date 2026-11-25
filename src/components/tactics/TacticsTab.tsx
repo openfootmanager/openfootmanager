@@ -11,8 +11,7 @@ import { effectivePlayerRoles } from "./TacticsTab.helpers";
 import TacticsSetPieces from "./TacticsSetPieces";
 import TacticsWorkbench from "./TacticsWorkbench";
 import TacticsCommandBar from "./TacticsCommandBar";
-import TacticsCompareDialog from "./TacticsCompareDialog";
-import TacticsPresetDialog from "./TacticsPresetDialog";
+import TacticsDialogs from "./TacticsDialogs";
 import { usePresetChoice } from "./usePresetChoice";
 import { useTacticsLibrary } from "./useTacticsLibrary";
 import { useTacticsLineup } from "./useTacticsLineup";
@@ -55,7 +54,7 @@ export default function TacticsTab({
     selectedPlayer,
     comparePlayer,
     canConfirmSwap,
-    dragPreviewRef,
+    swapBlockedReason,
     handleFormationChange,
     handlePlayStyleChange,
     handleApplyTacticPreset,
@@ -93,6 +92,8 @@ export default function TacticsTab({
     handleSaveTactic,
     canDeleteTactic,
     handleDeleteTactic,
+    canRenameTactic,
+    handleRenameTactic,
   } = useTacticsLibrary({
     gameState,
     formation,
@@ -119,11 +120,6 @@ export default function TacticsTab({
     // The tab fills the workspace (it is one of `tabFillsWorkspace`'s): its regions scroll, the page
     // doesn't.
     <div className="flex min-h-0 w-full flex-1 flex-col gap-4">
-      <div
-        ref={dragPreviewRef}
-        aria-hidden="true"
-        className="pointer-events-none fixed -left-20 top-0 h-8 w-8 rounded-full border border-white/15 bg-navy-900/90 shadow-lg"
-      />
       {writeError ? (
         <p
           role="alert"
@@ -144,10 +140,13 @@ export default function TacticsTab({
           void handleResetTactic();
         }}
         canDelete={canDeleteTactic}
+        canRename={canRenameTactic}
+        onRename={handleRenameTactic}
         onCreateNew={handleCreateCustomTactic}
         onDelete={handleDeleteTactic}
         onDuplicate={handleDuplicateTactic}
         onFormationChange={(nextFormation) => {
+          // At the edit, not when its write lands: the setupKey check cannot see it until the reply.
           presetChoice.invalidate();
           void handleFormationChange(nextFormation);
         }}
@@ -197,27 +196,17 @@ export default function TacticsTab({
         />
       </TacticsWorkbench>
 
-      {presetChoice.pending ? (
-        <TacticsPresetDialog
-          name={presetChoice.pending.name}
-          onReplace={() => void presetChoice.replaceInstructions()}
-          onKeep={() => void presetChoice.keepInstructions()}
-          onCancel={presetChoice.cancel}
-        />
-      ) : null}
-
-      {/* Inspector modal — only when both players are selected for comparison */}
-      {selectedPlayer && comparePlayer && (
-        <TacticsCompareDialog
-          canConfirmSwap={canConfirmSwap}
-          comparePlayer={comparePlayer}
-          onClose={clearLineupSelection}
-          onConfirmSwap={() => {
-            void handleConfirmSwap();
-          }}
-          selectedPlayer={selectedPlayer}
-        />
-      )}
+      <TacticsDialogs
+        presetChoice={presetChoice}
+        selectedPlayer={selectedPlayer}
+        comparePlayer={comparePlayer}
+        canConfirmSwap={canConfirmSwap}
+        swapBlockedReason={swapBlockedReason}
+        onCloseCompare={clearLineupSelection}
+        onConfirmSwap={() => {
+          void handleConfirmSwap();
+        }}
+      />
     </div>
   );
 }

@@ -18,13 +18,26 @@ export function wireFacilityUpgrades(overrides: Record<string, unknown> = {}) {
   ].map((upgrade) => ({ ...upgrade, ...overrides }));
 }
 
+const wireEnvelopePreview = (wageDeltaWeekly: number, allowed = true) => ({
+  wage_delta_weekly: wageDeltaWeekly,
+  transfer_delta: -wageDeltaWeekly * 52,
+  next_wage_budget: 51_000,
+  next_transfer_budget: 248_000,
+  allowed,
+  block_reason: null,
+});
+
 /** A backend finance snapshot in wire shape; the tab renders exactly these figures. */
 export function wireSnapshot(
   overrides: Record<string, unknown> = {},
   previews: Record<string, unknown> = {},
 ) {
   return {
-    previews,
+    previews: {
+      raise_wage: wireEnvelopePreview(1_000),
+      raise_transfer: wireEnvelopePreview(-1_000),
+      ...previews,
+    },
     snapshot: {
       committed_transfer_fees: 0,
       available_transfer_budget: 300000,
@@ -281,6 +294,14 @@ export const translateFinanceTestKey = (key: string, params?: Record<string, str
     return `${params?.sponsor} will pay ${params?.amount} for ${params?.weeks} weeks`;
   if (key === "finances.boardSupportSummary")
     return `Board could inject ${params?.amount}, cut transfer budget by ${params?.transferBudgetReduction}, confidence -${params?.satisfactionPenalty}`;
+  if (key === "finances.reallocateEnvelopes") return "Board envelopes";
+  if (key === "finances.reallocateEnvelopesDescription")
+    return "Move weekly wage permission against the transfer limit.";
+  if (key === "finances.raiseWageBudget") return "Raise wage budget";
+  if (key === "finances.raiseTransferBudget") return "Raise transfer budget";
+  if (key === "finances.reallocateStep") return `${params?.wage} ⇔ ${params?.transfer} transfer`;
+  if (key === "finances.reallocateSummary")
+    return `Wage budget ${params?.wage}. Transfer limit ${params?.transfer}. Cash unchanged.`;
   if (key === "finances.cashFlow") return "Cash Flow";
   if (key === "finances.weeklyWageSpend") return "Weekly Wage Spend";
   if (key === "finances.weeklySponsorIncome") return "Weekly Sponsor Income";

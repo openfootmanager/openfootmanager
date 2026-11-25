@@ -2,6 +2,8 @@
 mod envelope_rollover;
 #[path = "end_of_season_tests/player_statistics.rs"]
 mod player_statistics;
+#[path = "end_of_season_tests/promotion_notices.rs"]
+mod promotion_notices;
 #[path = "end_of_season_tests/season_story.rs"]
 mod season_story;
 
@@ -1157,69 +1159,6 @@ fn promoted_user_receives_a_promotion_message() {
         msg.i18n_params.get("division"),
         Some(&"ENG First Division".to_string())
     );
-}
-
-/// Given a generated division (stored under its English template name, carrying a name key)
-/// When the user is promoted into it
-/// Then the notice also carries the key, country and edition, so the screen names the division in
-///      the player's language instead of the stored English name.
-#[test]
-fn promotion_message_carries_the_divisions_name_key_country_and_season() {
-    let mut game = make_two_division_game("team3");
-    for competition in game.competitions.iter_mut() {
-        if competition.name == "ENG First Division" {
-            competition.name_key = Some("tournaments.competitions.firstDivision".to_string());
-        }
-    }
-
-    process_end_of_season(&mut game);
-
-    let renewed = ofm_core::end_of_season::club_league_table(&game, "team3")
-        .expect("the user still has a division")
-        .season;
-    let msg = game
-        .messages
-        .iter()
-        .find(|m| m.id == format!("promotion_{renewed}"))
-        .expect("promoted user must be told");
-    assert_eq!(
-        msg.i18n_params.get("divisionKey"),
-        Some(&"tournaments.competitions.firstDivision".to_string())
-    );
-    assert_eq!(
-        msg.i18n_params.get("divisionCountry"),
-        Some(&"ENG".to_string())
-    );
-    assert_eq!(
-        msg.i18n_params.get("divisionSeason"),
-        Some(&renewed.to_string())
-    );
-    assert_eq!(
-        msg.i18n_params.get("division"),
-        Some(&"ENG First Division".to_string()),
-        "the stored name stays as the fallback"
-    );
-}
-
-/// Given a division with no name key (a hand-made one)
-/// When the user is promoted into it
-/// Then the notice carries only the stored name, as before.
-#[test]
-fn promotion_message_without_a_name_key_carries_no_key_params() {
-    let mut game = make_two_division_game("team3");
-
-    process_end_of_season(&mut game);
-
-    let renewed = ofm_core::end_of_season::club_league_table(&game, "team3")
-        .expect("the user still has a division")
-        .season;
-    let msg = game
-        .messages
-        .iter()
-        .find(|m| m.id == format!("promotion_{renewed}"))
-        .expect("promoted user must be told");
-    assert!(!msg.i18n_params.contains_key("divisionKey"));
-    assert!(!msg.i18n_params.contains_key("divisionCountry"));
 }
 
 /// The season preview article the rollover published, and the clubs it names.
@@ -4419,6 +4358,31 @@ fn retired_player_creates_scout_candidate_with_deterministic_id() {
         "unattached scout '{}' should exist after season end",
         scout_id
     );
+}
+
+/// Given a retired player converted to an unattached scout, when the season
+/// ends, then he is paid the closed scout formula at unattached reputation.
+#[test]
+fn retired_player_scout_receives_the_closed_weekly_wage() {
+    let mut game = make_completed_season_game();
+    game.players.push(make_retired_player("retiree_wage"));
+
+    process_end_of_season(&mut game);
+
+    let scout = game
+        .staff
+        .iter()
+        .find(|s| s.id == "staff_retired_scout_retiree_wage")
+        .expect("retired scout");
+    // Season-end aging can move the player's attributes before archival, so the
+    // closed scout formula is applied to the judging scores actually stored on
+    // the unattached scout, at unattached reputation 500.
+    let judging = scout
+        .attributes
+        .judging_ability
+        .max(scout.attributes.judging_potential);
+    assert_eq!(scout.wage, 1_000 + u32::from(judging) * 20 + 500 * 2);
+    assert_ne!(scout.wage, 0);
 }
 
 #[test]

@@ -5912,6 +5912,83 @@ colors:
         .unwrap()
     }
 
+    /// Given a package that replaces the generated coach and appends a second authored coach
+    /// When the world is built
+    /// Then the club's wage cap and cash runway cover the five-person bill, including both coaches.
+    #[test]
+    fn package_world_restamps_wage_budget_after_extra_authored_staff() {
+        use rand::SeedableRng;
+        let extra_coach = |id: &str| {
+            serde_json::from_value(serde_json::json!({
+                "id": id,
+                "firstName": "Extra",
+                "lastName": "Coach",
+                "club": "fc-test",
+                "nationality": "ENG",
+                "role": "Coach",
+                "dateOfBirth": "1975-01-01",
+                "attributes": {
+                    "coaching": 99,
+                    "judgingAbility": 10,
+                    "judgingPotential": 10,
+                    "physiotherapy": 10
+                }
+            }))
+            .expect("staff def")
+        };
+        let mut club = fixture_club("fc-test", "ENG", [500, 500]);
+        club.finance_range = Some([80_000, 80_000]);
+        let package = WorldPackage {
+            teams: vec![club, fixture_club("fc-other", "ENG", [500, 500])],
+            staff: vec![extra_coach("extra-coach-1"), extra_coach("extra-coach-2")],
+            ..Default::default()
+        };
+        let world = crate::generator::build_world_data_from_package_with_rng(
+            &package,
+            Some(2026),
+            &embedded(),
+            &mut rand::rngs::StdRng::seed_from_u64(1),
+        );
+        let team = world
+            .teams
+            .iter()
+            .find(|team| team.id == "fc-test")
+            .expect("authored club");
+        let staff_wages: i64 = world
+            .staff
+            .iter()
+            .filter(|member| member.team_id.as_deref() == Some("fc-test"))
+            .map(|member| i64::from(member.wage))
+            .sum();
+        let player_wages: i64 = world
+            .players
+            .iter()
+            .filter(|player| player.team_id.as_deref() == Some("fc-test"))
+            .map(|player| i64::from(player.wage()))
+            .sum();
+        let weekly = player_wages + staff_wages;
+        let extra_wages: Vec<u32> = world
+            .staff
+            .iter()
+            .filter(|member| member.id.starts_with("extra-coach-"))
+            .map(|member| member.wage)
+            .collect();
+        assert_eq!(extra_wages, vec![4_180, 4_180]);
+        assert_eq!(
+            world
+                .staff
+                .iter()
+                .filter(|member| member.team_id.as_deref() == Some("fc-test"))
+                .count(),
+            5
+        );
+        // reputation 500 → 93% usage target
+        let expected_budget = (weekly * 100 + 93 - 1) / 93;
+        assert_eq!(team.wage_budget, expected_budget);
+        assert!(weekly <= team.wage_budget);
+        assert!(team.finance >= weekly * crate::finances::MIN_OPENING_RUNWAY_WEEKS);
+    }
+
     fn fixture_competitions(value: serde_json::Value) -> Vec<CompetitionDefinition> {
         serde_json::from_value(value).unwrap()
     }

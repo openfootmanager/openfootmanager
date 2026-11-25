@@ -21,6 +21,7 @@ import { getTeamName, calcAge, formatWeeklyWage } from "../../lib/helpers";
 import { countryName } from "../../lib/countries";
 import { useTranslation } from "react-i18next";
 import { hireStaff, releaseStaff } from "../../services/staffService";
+import { resolveTranslatedErrorMessage } from "../../utils/errorMessage";
 import ContextMenu from "../ContextMenu";
 import type { DashboardNavigateContext } from "../dashboard/dashboardProfileNavigation";
 
@@ -61,6 +62,7 @@ export default function StaffTab({ gameState, onGameUpdate, onNavigate }: StaffT
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
   // The Table/Cards choice every list shares; `view` above is this page's own My staff/Available.
   const [listView, setListView] = useListView();
   /** The newest staff refresh asked for; an older one that answers late is dropped. */
@@ -109,10 +111,11 @@ export default function StaffTab({ gameState, onGameUpdate, onNavigate }: StaffT
 
   const handleHire = async (staffId: string) => {
     setActionLoading(staffId);
+    setActionError(null);
     try {
       await applyStaffUpdate(await hireStaff(staffId));
     } catch (err) {
-      console.error("Failed to hire staff:", err);
+      setActionError(resolveTranslatedErrorMessage(err));
     } finally {
       setActionLoading(null);
     }
@@ -120,10 +123,11 @@ export default function StaffTab({ gameState, onGameUpdate, onNavigate }: StaffT
 
   const handleRelease = async (staffId: string) => {
     setActionLoading(staffId);
+    setActionError(null);
     try {
       await applyStaffUpdate(await releaseStaff(staffId));
     } catch (err) {
-      console.error("Failed to release staff:", err);
+      setActionError(resolveTranslatedErrorMessage(err));
     } finally {
       setActionLoading(null);
     }
@@ -229,6 +233,15 @@ export default function StaffTab({ gameState, onGameUpdate, onNavigate }: StaffT
         </div>
         <ViewSwitch value={listView} onChange={setListView} />
       </div>
+
+      {actionError ? (
+        <p
+          role="alert"
+          className="mb-4 rounded-lg border border-line bg-danger-tint px-4 py-2 text-body font-medium text-danger"
+        >
+          {actionError}
+        </p>
+      ) : null}
 
       {/* Staff grid */}
       {filtered.length === 0 ? (

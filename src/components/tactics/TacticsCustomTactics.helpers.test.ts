@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 
 import type { CustomTactic } from "../../services/customTacticsService";
+import type { TacticsLibraryEntry } from "./TacticPicker";
 import {
   importLegacyTactics,
+  layPendingChanges,
   toCustomTactic,
   toLibraryEntries,
 } from "./TacticsCustomTactics.helpers";
@@ -281,5 +283,104 @@ describe("tactic mapping", () => {
       (await importLegacyTactics(MANAGER, START, [], fakeSave().save, fakeStorage())).complete,
     ).toBe(true);
     expect((await importLegacyTactics(MANAGER, START, [], refusing, storage)).complete).toBe(true);
+  });
+});
+
+describe("layPendingChanges", () => {
+  const entry = (id: string, name = id): TacticsLibraryEntry => ({
+    description: "",
+    formation: "4-4-2",
+    id,
+    name,
+    playStyle: "Balanced",
+    sourcePresetName: null,
+    type: "custom",
+  });
+  const ids = (entries: TacticsLibraryEntry[]) => entries.map((e) => e.id);
+
+  /**
+   * Given a reply and nothing pending
+   * When the pending changes are laid over it
+   * Then it is the reply itself.
+   */
+  it("returns the reply untouched when nothing is pending", () => {
+    const reply = [entry("a"), entry("b")];
+
+    expect(layPendingChanges(reply, new Map())).toBe(reply);
+  });
+
+  /**
+   * Given a reply that predates two tactics made after it (b, then c)
+   * When they are laid over it
+   * Then they are in front of what the reply holds, the newest first.
+   */
+  it("adds a tactic the reply lacks in front, the newest first", () => {
+    const pending = new Map<string, TacticsLibraryEntry | null>([
+      ["b", entry("b")],
+      ["c", entry("c")],
+    ]);
+
+    expect(ids(layPendingChanges([entry("a")], pending))).toEqual(["c", "b", "a"]);
+  });
+
+  /**
+   * Given a reply that holds a tactic as it was first saved, and the same tactic changed since
+   * When the change is laid over it
+   * Then it shows the changed version, in the place the reply has it.
+   */
+  it("shows a changed tactic's pending version in the reply's place", () => {
+    const pending = new Map<string, TacticsLibraryEntry | null>([["b", entry("b", "renamed")]]);
+
+    const laid = layPendingChanges([entry("a"), entry("b", "old"), entry("c")], pending);
+
+    expect(ids(laid)).toEqual(["a", "b", "c"]);
+    expect(laid[1].name).toBe("renamed");
+  });
+
+  /**
+   * Given a reply that still holds a tactic deleted since, and one the reply never held
+   * When the deletes are laid over it
+   * Then neither is shown.
+   */
+  it("leaves out a tactic with a pending delete, held by the reply or not", () => {
+    const pending = new Map<string, TacticsLibraryEntry | null>([
+      ["b", null],
+      ["ghost", null],
+    ]);
+
+    expect(ids(layPendingChanges([entry("a"), entry("b")], pending))).toEqual(["a"]);
+  });
+
+  /**
+   * Given a reply, and since it was asked for: one tactic made, one changed and one deleted
+   * When they are laid over it
+   * Then the made one is in front, the changed one shows its new version, the deleted one is gone,
+   *      and the rest keep the reply's order.
+   */
+  it("lays a mix of made, changed and deleted tactics over a reply", () => {
+    const pending = new Map<string, TacticsLibraryEntry | null>([
+      ["new", entry("new")],
+      ["b", entry("b", "changed")],
+      ["c", null],
+    ]);
+
+    const laid = layPendingChanges([entry("a"), entry("b"), entry("c"), entry("d")], pending);
+
+    expect(ids(laid)).toEqual(["new", "a", "b", "d"]);
+    expect(laid.find((e) => e.id === "b")?.name).toBe("changed");
+  });
+
+  /**
+   * Given a reply that already holds a tactic made since (its own save answered into it)
+   * When that tactic's pending entry is laid over it
+   * Then it is shown once, as the pending version.
+   */
+  it("shows a made tactic once when the reply already holds it", () => {
+    const pending = new Map<string, TacticsLibraryEntry | null>([["a", entry("a", "mine")]]);
+
+    const laid = layPendingChanges([entry("a", "from the save")], pending);
+
+    expect(laid).toHaveLength(1);
+    expect(laid[0].name).toBe("mine");
   });
 });

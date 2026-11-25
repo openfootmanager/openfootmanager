@@ -128,7 +128,7 @@ fn your_match_in(
 }
 
 fn standings_update(game: &ofm_core::game::Game) -> Option<StandingsUpdate> {
-    let league = game.league.as_ref()?;
+    let league = game.user_league()?;
     let team_id = game.manager.team_id.as_deref()?;
     let standings = league.sorted_standings();
     let position = standings.iter().position(|s| s.team_id == team_id)?;
@@ -332,6 +332,45 @@ mod tests {
         );
         league.standings = vec![entry("open", 8, 8), entry("tidy", 3, 1)];
         game.league = Some(league);
+
+        let update = standings_update(&game).expect("the manager's club is in the table");
+
+        assert_eq!(update.position, 1);
+        assert_eq!(update.goal_difference, 2);
+    }
+
+    /// Given the user's league in competitions, where they lead, and a cup in the mirror with no table
+    /// When the standings update is built
+    /// Then it is first from the domestic table, not missing because the slot holds a cup
+    #[test]
+    fn standings_update_reads_the_users_league_not_a_cup_in_the_mirror() {
+        let mut manager = Manager::new(
+            "mgr".to_string(),
+            "Test".to_string(),
+            "Manager".to_string(),
+            "1980-01-01".to_string(),
+            "England".to_string(),
+        );
+        manager.hire("tidy".to_string());
+        let clock = GameClock::new(chrono::Utc.with_ymd_and_hms(2030, 9, 1, 12, 0, 0).unwrap());
+        let mut game = Game::new(clock, manager, vec![], vec![], vec![], vec![]);
+        let mut league = League::new(
+            "league".to_string(),
+            "League".to_string(),
+            2030,
+            &["open".to_string(), "tidy".to_string()],
+        );
+        league.standings = vec![entry("open", 8, 8), entry("tidy", 3, 1)];
+        let mut cup = League::new(
+            "cup".to_string(),
+            "Cup".to_string(),
+            1,
+            &["tidy".to_string(), "open".to_string()],
+        );
+        cup.kind = domain::league::CompetitionType::Cup;
+        cup.standings.clear();
+        game.league = Some(cup);
+        game.competitions = vec![league];
 
         let update = standings_update(&game).expect("the manager's club is in the table");
 

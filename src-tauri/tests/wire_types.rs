@@ -25,6 +25,8 @@ const REGENERATE_VAR: &str = "OFM_UPDATE_TS_TYPES";
 /// them; a type is added here only when a command returns it and nothing listed already reaches it.
 fn visit_wire_roots(visitor: &mut impl TypeVisitor) {
     visitor.visit::<openfootmanager_lib::WorldsLibrary>();
+    // `reallocate_board_envelopes` returns it; nothing in `Game` reaches it.
+    visitor.visit::<openfootmanager_lib::EnvelopeReallocationCommandResponse>();
     visitor.visit::<ofm_core::game::Game>();
     visitor.visit::<ofm_core::slices::squad::SquadPlayer>();
     visitor.visit::<ofm_core::slices::team_selection::TeamSelectionRatings>();

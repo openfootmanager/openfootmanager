@@ -287,6 +287,14 @@ fn require_u32_param(
     )
 }
 
+/// Extract a required signed integer. Wage-envelope deltas may be negative.
+fn require_i64_param(
+    args: &Option<serde_json::Map<String, serde_json::Value>>,
+    key: &str,
+) -> Result<i64, CallToolResult> {
+    require_with(args, key, "must be an integer", |value| value.as_i64())
+}
+
 fn match_start_fixture_index(
     args: &Option<serde_json::Map<String, serde_json::Value>>,
 ) -> Result<u32, CallToolResult> {
@@ -536,6 +544,30 @@ pub fn build_tool_router(context: &Arc<McpContext>, disabled: &[String]) -> OfmT
         "club_request_sponsor_pitch",
         "Request sponsor pitch",
         tools_impl::club::club_request_sponsor_pitch
+    );
+    custom_tool!(
+        "club_reallocate_board_envelopes",
+        "Move weekly wage permission against the transfer limit without posting cash. Positive wage_delta_weekly raises the wage cap and cuts the transfer limit by 52× that amount.",
+        build_schema(
+            &[(
+                "wage_delta_weekly",
+                "integer",
+                "Weekly wage-cap change in euros (negative returns permission to transfers)"
+            )],
+            &["wage_delta_weekly"]
+        ),
+        ctx,
+        args,
+        {
+            let wage_delta_weekly = match require_i64_param(args, "wage_delta_weekly") {
+                Ok(v) => v,
+                Err(e) => return Ok(e),
+            };
+            match tools_impl::club::club_reallocate_board_envelopes(ctx, wage_delta_weekly) {
+                Ok(value) => Ok(success(value)),
+                Err(e) => Ok(err_result(&e)),
+            }
+        }
     );
     real_tool!(
         "scout_get_reports",
@@ -2178,6 +2210,11 @@ pub fn tool_catalog() -> Vec<(&'static str, &'static str, &'static str)> {
         // Club
         ("club_upgrade_facility", "Upgrade a club facility", "Club"),
         (
+            "club_reallocate_board_envelopes",
+            "Reallocate weekly wage permission against the transfer limit without moving cash",
+            "Club",
+        ),
+        (
             "club_request_board_support",
             "Request board support for transfer budget or wage bill",
             "Club",
@@ -2380,6 +2417,10 @@ mod tests {
                 "be.error.mcp.missingParameter"
             );
             assert_eq!(
+                key_of(require_i64_param(a, "p").unwrap_err()),
+                "be.error.mcp.missingParameter"
+            );
+            assert_eq!(
                 key_of(require_bool_param(a, "p").unwrap_err()),
                 "be.error.mcp.missingParameter"
             );
@@ -2400,6 +2441,11 @@ mod tests {
             key_of(require_u32_param(&huge, "p").unwrap_err()),
             "be.error.mcp.invalidParameter"
         );
+        assert_eq!(
+            key_of(require_i64_param(&wrong, "p").unwrap_err()),
+            "be.error.mcp.invalidParameter"
+        );
+        assert_eq!(require_i64_param(&negative, "p").ok(), Some(-1));
         assert_eq!(
             key_of(require_bool_param(&wrong, "p").unwrap_err()),
             "be.error.mcp.invalidParameter"

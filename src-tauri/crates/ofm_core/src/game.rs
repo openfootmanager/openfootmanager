@@ -432,7 +432,7 @@ impl Game {
         let Some(team_id) = self.manager.team_id.as_deref() else {
             return false;
         };
-        self.competitions.iter().any(|competition| {
+        self.competitions_in_play().iter().any(|competition| {
             competition.fixtures.iter().any(|fixture| {
                 fixture.date == date
                     && fixture.status == FixtureStatus::Scheduled
@@ -441,11 +441,34 @@ impl Game {
         })
     }
 
-    /// Index of the competition the user's club plays in, preferring its
-    /// domestic league. `None` when unemployed or no competition lists the club.
-    ///
-    /// Shared with the transfer log so a record involving the user's club lands in the same
-    /// competition `sync_legacy_league` mirrors, rather than one the mirror never shows.
+    /// The user's next scheduled fixture in any competition they play in, on or after today.
+    /// Cups and the domestic league share this answer, so a cup tie tomorrow is the next match
+    /// even while the legacy mirror still holds the league.
+    pub fn user_next_scheduled_fixture(&self) -> Option<&domain::league::Fixture> {
+        let team_id = self.manager.team_id.as_deref()?;
+        let today = self.clock.current_date.format("%Y-%m-%d").to_string();
+        self.competitions_in_play()
+            .iter()
+            .flat_map(|competition| competition.fixtures.iter())
+            .filter(|fixture| {
+                fixture.date.as_str() >= today.as_str()
+                    && fixture.status == FixtureStatus::Scheduled
+                    && (fixture.home_team_id == team_id || fixture.away_team_id == team_id)
+            })
+            .min_by(|a, b| a.date.cmp(&b.date).then(a.id.cmp(&b.id)))
+    }
+
+    /// The only league a pre-competitions save has, if the user's club plays in it. `None` once
+    /// `competitions` is populated: the mirror is then a snapshot, never a source. `None` when the
+    /// manager is unemployed or their club is not in that copy.
+    fn legacy_league_when_competitions_empty(&self) -> Option<&League> {
+        self.competitions
+            .is_empty()
+            .then_some(self.league.as_ref())
+            .flatten()
+            .filter(|league| self.user_club_takes_part_in(league))
+    }
+
     /// Whether the user's club takes part in `competition`. `false` when they manage nobody.
     fn user_club_takes_part_in(&self, competition: &League) -> bool {
         let Some(team_id) = self.manager.team_id.as_deref() else {
@@ -463,6 +486,11 @@ impl Game {
             || competition.participant_ids.iter().any(|id| id == team_id)
     }
 
+    /// Index of the competition the user's club plays in, preferring its
+    /// domestic league. `None` when unemployed or no competition lists the club.
+    ///
+    /// Shared with the transfer log so a record involving the user's club lands in the same
+    /// competition `sync_legacy_league` mirrors, rather than one the mirror never shows.
     pub(crate) fn user_competition_index(&self) -> Option<usize> {
         self.manager
             .team_id
@@ -493,9 +521,16 @@ impl Game {
     /// anything needing a league table: a knockout cup has no table, and its "matchday" is a round
     /// number from a different sequence, so borrowing it produces a digest describing nothing.
     pub fn user_league(&self) -> Option<&League> {
-        self.competitions.iter().find(|competition| {
-            competition.kind == CompetitionType::League && self.user_club_takes_part_in(competition)
-        })
+        self.competitions
+            .iter()
+            .find(|competition| {
+                competition.kind == CompetitionType::League
+                    && self.user_club_takes_part_in(competition)
+            })
+            .or_else(|| {
+                self.legacy_league_when_competitions_empty()
+                    .filter(|league| league.kind == CompetitionType::League)
+            })
     }
 
     /// The competition the user's club plays in, preferring its domestic league.
@@ -506,6 +541,7 @@ impl Game {
     pub fn user_competition(&self) -> Option<&League> {
         self.user_competition_index()
             .map(|index| &self.competitions[index])
+            .or_else(|| self.legacy_league_when_competitions_empty())
     }
 
     pub fn primary_competition(&self) -> Option<&League> {
@@ -749,5 +785,150 @@ mod tests {
         game.sync_legacy_league();
 
         assert_eq!(mirrored(&game), Some("first"));
+    }
+
+    /// Given a save with no competitions and only the legacy league, and the manager hired there
+    /// When the user's league is asked
+    /// Then it is that league: the only copy a pre-competitions save has
+    #[test]
+    fn user_league_reads_the_legacy_copy_when_competitions_are_empty() {
+        let mut game = game_with_only_a_legacy_league();
+        game.manager.hire("team1".to_string());
+
+        assert_eq!(
+            game.user_league().map(|league| league.id.as_str()),
+            Some("league1")
+        );
+    }
+
+    /// Given the user's domestic league in competitions and a cup sitting in the legacy mirror
+    /// When the user's league is asked
+    /// Then it is the domestic league, never the cup the turn loop left in the slot
+    #[test]
+    fn user_league_ignores_a_cup_left_in_the_mirror() {
+        let mut game = game_with_only_a_legacy_league();
+        game.manager.hire("team1".to_string());
+        let mut cup = League::new(
+            "cup1".to_string(),
+            "Cup".to_string(),
+            1,
+            &["team1".to_string(), "team2".to_string()],
+        );
+        cup.kind = CompetitionType::Cup;
+        game.league = Some(cup);
+        game.competitions = vec![League::new(
+            "league1".to_string(),
+            "Test League".to_string(),
+            1,
+            &["team1".to_string(), "team2".to_string()],
+        )];
+
+        assert_eq!(
+            game.user_league().map(|league| league.id.as_str()),
+            Some("league1")
+        );
+    }
+
+    /// Given a save with no competitions and a cup sitting in the legacy slot, and the manager hired
+    /// When the user's league and competition are asked
+    /// Then the league is none (a cup is not a table) and the competition is that cup
+    #[test]
+    fn user_league_ignores_a_cup_left_as_the_only_legacy_copy() {
+        let mut game = game_with_only_a_legacy_league();
+        game.manager.hire("team1".to_string());
+        let mut cup = League::new(
+            "cup1".to_string(),
+            "Cup".to_string(),
+            1,
+            &["team1".to_string(), "team2".to_string()],
+        );
+        cup.kind = CompetitionType::Cup;
+        game.league = Some(cup);
+
+        assert_eq!(game.user_league().map(|league| league.id.as_str()), None);
+        assert_eq!(
+            game.user_competition()
+                .map(|competition| competition.id.as_str()),
+            Some("cup1")
+        );
+    }
+
+    /// Given a save with no competitions and a league sitting in the legacy slot, and no club
+    /// When the user's league and competition are asked
+    /// Then both are none: an unemployed manager has no competition
+    #[test]
+    fn user_league_is_none_when_the_manager_is_unemployed_even_with_a_legacy_copy() {
+        let game = game_with_only_a_legacy_league();
+
+        assert_eq!(game.user_league().map(|league| league.id.as_str()), None);
+        assert_eq!(
+            game.user_competition()
+                .map(|competition| competition.id.as_str()),
+            None
+        );
+    }
+
+    /// Given a save with no competitions and a league of team1 and team2 in the legacy slot
+    /// When the manager is hired at a club that league does not list
+    /// Then the user's league is none: that copy is not theirs
+    #[test]
+    fn user_league_is_none_when_the_hired_club_is_not_in_the_legacy_copy() {
+        let mut game = game_with_only_a_legacy_league();
+        game.manager.hire("team3".to_string());
+
+        assert_eq!(game.user_league().map(|league| league.id.as_str()), None);
+        assert_eq!(
+            game.user_competition()
+                .map(|competition| competition.id.as_str()),
+            None
+        );
+    }
+
+    fn scheduled_fixture(id: &str, date: &str, home: &str, away: &str) -> domain::league::Fixture {
+        domain::league::Fixture {
+            id: id.to_string(),
+            date: date.to_string(),
+            home_team_id: home.to_string(),
+            away_team_id: away.to_string(),
+            status: FixtureStatus::Scheduled,
+            ..Default::default()
+        }
+    }
+
+    /// Given a cup tie tomorrow in competitions and a league match next week sitting in the mirror
+    /// When the next scheduled fixture is asked
+    /// Then it is the cup tie: the next match is the earliest in any competition the club plays
+    #[test]
+    fn the_next_scheduled_fixture_is_the_earliest_in_any_competition() {
+        let mut game = game_with_only_a_legacy_league();
+        game.manager.hire("team1".to_string());
+        let mut league = League::new(
+            "league1".to_string(),
+            "Test League".to_string(),
+            1,
+            &["team1".to_string(), "team2".to_string()],
+        );
+        league.fixtures = vec![scheduled_fixture(
+            "league-week",
+            "2025-06-22",
+            "team1",
+            "team2",
+        )];
+        let mut cup = League::new(
+            "cup1".to_string(),
+            "Cup".to_string(),
+            1,
+            &["team1".to_string(), "team2".to_string()],
+        );
+        cup.kind = CompetitionType::Cup;
+        cup.fixtures = vec![scheduled_fixture("cup-tie", "2025-06-16", "team2", "team1")];
+        game.league = Some(league.clone());
+        game.competitions = vec![league, cup];
+
+        let next = game
+            .user_next_scheduled_fixture()
+            .expect("the cup tie is tomorrow");
+        assert_eq!(next.id, "cup-tie");
+        assert_eq!(next.date, "2025-06-16");
     }
 }

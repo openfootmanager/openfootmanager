@@ -14,6 +14,17 @@ describe("staffService", () => {
     mockedInvoke.mockReset();
   });
 
+  /** Given the board refuses a hire, when the service is called, then the translation key is surfaced. */
+  it("surfaces backend errors from hire_staff", async () => {
+    mockedInvoke.mockRejectedValueOnce(
+      new Error("be.error.contracts.boardHireWagePolicy?budget=50000"),
+    );
+
+    await expect(hireStaff("staff-1")).rejects.toThrow(
+      "be.error.contracts.boardHireWagePolicy?budget=50000",
+    );
+  });
+
   it("calls the hire staff backend command", async () => {
     const response = { manager: { id: "manager-1" } };
     mockedInvoke.mockResolvedValueOnce(response);
