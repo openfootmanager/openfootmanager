@@ -327,16 +327,7 @@ fn rumour_league_mut(game: &mut Game) -> Option<&mut League> {
     if game.competitions.is_empty() {
         return game.league.as_mut();
     }
-    let mirrored = game.league.as_ref().map(|league| league.id.clone());
-    let index = game
-        .user_competition_index()
-        .or_else(|| {
-            let mirrored = mirrored.as_deref()?;
-            game.competitions
-                .iter()
-                .position(|competition| competition.id == mirrored)
-        })
-        .unwrap_or(0);
+    let index = game.mirror_competition_index()?;
     game.competitions.get_mut(index)
 }
 

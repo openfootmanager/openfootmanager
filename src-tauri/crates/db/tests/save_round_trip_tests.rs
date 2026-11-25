@@ -7,8 +7,9 @@
 //! the season harness's `reloaded` does, cannot see that.
 //!
 //! The career is the one the app builds: a generated world, a manager at its strongest club,
-//! competitions, calendar and berths from `begin_career`. It is read back at three moments: after
-//! the career starts, after the manager signs a free agent, and after a season has rolled over.
+//! competitions, calendar and berths from `begin_career`. It is read back after the career starts,
+//! after the manager signs a free agent, after a season has rolled over, and after a fee transfer
+//! completes (to the user's club and between two AI clubs).
 //!
 //! What is compared: the game itself; the five `#[serde(skip)]` fields the game keeps in tables of
 //! their own (`edition_archive`, `retired_players`, `retired_managers`, `archived_messages` and
@@ -585,7 +586,36 @@ fn a_career_after_a_fee_transfer_between_two_ai_clubs_loads_back_unchanged() {
         transfer.expect("two AI clubs complete a fee transfer within two played seasons");
     assert_ne!(transfer.from_team_id, transfer.to_team_id);
 
+    let rumour_ids: HashSet<String> = game
+        .competitions
+        .iter()
+        .flat_map(|competition| competition.transfer_rumours.iter())
+        .map(|rumour| rumour.id.clone())
+        .collect();
+    assert!(
+        !rumour_ids.is_empty(),
+        "the played weeks generated transfer rumours to round-trip"
+    );
+    assert!(
+        game.league
+            .as_ref()
+            .is_some_and(|league| !league.transfer_rumours.is_empty()),
+        "the legacy mirror carries the competition's rumours"
+    );
+
     assert_nothing_lost(&game, &stats, "after a fee transfer between two AI clubs");
+
+    let (loaded, _) = saved_and_loaded(&game, &stats);
+    let loaded_rumour_ids: HashSet<String> = loaded
+        .competitions
+        .iter()
+        .flat_map(|competition| competition.transfer_rumours.iter())
+        .map(|rumour| rumour.id.clone())
+        .collect();
+    assert_eq!(
+        loaded_rumour_ids, rumour_ids,
+        "the same rumour IDs survive a fresh load"
+    );
 }
 
 /// The harness's loop for one season: a day at a time until the season is complete, then the

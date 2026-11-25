@@ -388,18 +388,26 @@ impl Game {
         // competition (#1296). One who has never had a club still mirrors the first competition:
         // the season's rollover reads the mirror and must not freeze, and the screens show him
         // nothing of it.
-        if let Some(mirrored) = self
-            .user_competition_index()
-            .map(|index| self.competitions[index].clone())
-            .or_else(|| {
-                crate::end_of_season::followed_club(self)
-                    .and_then(|club| crate::end_of_season::club_league_table(self, club))
-                    .cloned()
-            })
-            .or_else(|| self.competitions.first().cloned())
-        {
-            self.league = Some(mirrored);
+        if let Some(index) = self.mirror_competition_index() {
+            self.league = Some(self.competitions[index].clone());
         }
+    }
+
+    /// Index of the competition the legacy mirror shows: the user's club's competition, else the
+    /// followed club's ladder table, else the first competition. `None` when there are none.
+    ///
+    /// One selector for every writer of the mirror, so a rumour filed against it lands in the
+    /// competition the next sync will mirror (#1449).
+    pub(crate) fn mirror_competition_index(&self) -> Option<usize> {
+        self.user_competition_index()
+            .or_else(|| {
+                let club = crate::end_of_season::followed_club(self)?;
+                let table = crate::end_of_season::club_league_table(self, club)?;
+                self.competitions
+                    .iter()
+                    .position(|competition| competition.id == table.id)
+            })
+            .or((!self.competitions.is_empty()).then_some(0))
     }
 
     /// Every competition the world is actually playing, legacy saves included.
@@ -776,6 +784,47 @@ mod tests {
         game.sync_legacy_league();
 
         assert_eq!(mirrored(&game), Some("first"));
+    }
+
+    /// Given a manager sacked from a club that played an opening and a closing table, and the
+    ///       stale mirror still holding the opening one
+    /// When the mirror is synced
+    /// Then it follows the later table, the one the followed-club selector prefers: the same
+    ///      competition the rumour writer files against.
+    #[test]
+    fn a_sacked_managers_mirror_follows_the_later_split_season_table() {
+        let mut game = two_division_world();
+        let mut opening = League::new(
+            "eng-opening".to_string(),
+            "Opening".to_string(),
+            1,
+            &["b1".to_string(), "b2".to_string()],
+        );
+        let mut closing = League::new(
+            "eng-closing".to_string(),
+            "Closing".to_string(),
+            1,
+            &["b1".to_string(), "b2".to_string()],
+        );
+        let completed = |competition: &str, id: &str, date: &str| domain::league::Fixture {
+            id: id.to_string(),
+            competition_id: competition.to_string(),
+            date: date.to_string(),
+            home_team_id: "b1".to_string(),
+            away_team_id: "b2".to_string(),
+            status: FixtureStatus::Completed,
+            ..Default::default()
+        };
+        opening.fixtures = vec![completed("eng-opening", "opening-1", "2025-01-15")];
+        closing.fixtures = vec![completed("eng-closing", "closing-1", "2025-05-20")];
+        game.league = Some(opening.clone());
+        game.competitions = vec![opening, closing];
+        sack_from(&mut game, "b1");
+
+        assert_eq!(game.mirror_competition_index(), Some(1));
+        game.sync_legacy_league();
+
+        assert_eq!(mirrored(&game), Some("eng-closing"));
     }
 
     /// Given a save with no competitions and only the legacy league, and the manager hired there
