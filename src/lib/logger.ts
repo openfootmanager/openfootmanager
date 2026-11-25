@@ -2,7 +2,7 @@ import { invoke } from "@tauri-apps/api/core";
 
 /**
  * Writes a message into the log file the Rust side writes (tauri-plugin-log: stdout and the log
- * directory, five 5 MB files kept).
+ * directory; a file is rotated at 5 MB and the old ones are kept).
  *
  * Until this existed nothing the frontend knew reached disk, so the log folder a bug report carries
  * described the backend and was silent about the render that broke. The plugin's JS package is not a
