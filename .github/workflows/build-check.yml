@@ -4,6 +4,7 @@ on:
   pull_request:
     branches:
       - develop
+      - hotfix-0.2.1
   workflow_dispatch:
 
 jobs:
