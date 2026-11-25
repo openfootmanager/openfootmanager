@@ -261,7 +261,7 @@ describe("FinancesTab backend snapshot", () => {
     expect(stale.every((button) => (button as HTMLButtonElement).disabled)).toBe(true);
     expect(screen.getByRole("button", { name: "finances.requestBoardSupport" })).toBeDisabled();
     expect(screen.getByRole("button", { name: "Raise wage budget" })).toBeDisabled();
-    expect(screen.getByRole("button", { name: "Raise transfer budget" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Raise transfer budget" })).toBeDisabled();
   });
 
   /**

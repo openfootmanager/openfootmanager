@@ -207,6 +207,8 @@ export function useFinanceView({
     handleUpgradeFacility,
     handleReallocateBoardEnvelopes,
     reallocationFeedback,
+    raiseWagePreview: recoveryPreviews?.raiseWage ?? null,
+    raiseTransferPreview: recoveryPreviews?.raiseTransfer ?? null,
     roster,
   };
 }

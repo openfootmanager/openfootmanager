@@ -2,6 +2,7 @@ use log::info;
 use serde::Serialize;
 use std::sync::Arc;
 use tauri::State;
+use ts_rs::TS;
 
 use ofm_core::finances::{
     BoardSupportResult, EnvelopeReallocation, FinanceActionPreviews, MarketingCampaignResult,
@@ -34,7 +35,7 @@ pub struct MarketingCampaignCommandResponse {
     pub result: MarketingCampaignResult,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, TS)]
 pub struct EnvelopeReallocationCommandResponse {
     pub game: Game,
     pub result: EnvelopeReallocation,

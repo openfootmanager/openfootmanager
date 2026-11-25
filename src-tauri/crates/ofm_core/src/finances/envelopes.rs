@@ -1,35 +1,50 @@
 //! Board wage/transfer envelopes: permission the board grants, not cash.
 
 use crate::game::Game;
+use serde::Serialize;
+use ts_rs::TS;
 
 const ERR_TEAM_NOT_FOUND: &str = "be.error.managedTeamNotFound";
 const ERR_REALLOCATION_INVALID: &str = "be.error.finance.reallocationInvalid";
 const ERR_REALLOCATION_RESERVATIONS: &str = "be.error.finance.reallocationBreachesReservations";
 
+/// One weekly wage step the board envelope controls move. Transfer permission
+/// moves by 52× this amount so `wage_limit * 52 + transfer_limit` is conserved.
+pub const ENVELOPE_WAGE_STEP_WEEKLY: i64 = 1_000;
+
 /// The wage and transfer limits after a reallocation. Cash is unchanged.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, TS)]
 pub struct EnvelopeReallocation {
     pub wage_budget: i64,
     pub transfer_budget: i64,
 }
 
-/// Move weekly wage permission by `wage_delta_weekly`. Conserves
-/// `wage_limit * 52 + transfer_limit`. Does not post cash.
+/// Whether one envelope step is allowed, and the limits it would leave.
 ///
-/// A positive delta raises the weekly wage cap and cuts the transfer limit by
-/// 52× that amount. The new transfer limit must still cover agreed
-/// `PendingRegistration` fees.
-pub fn reallocate_board_envelopes(
-    game: &mut Game,
+/// The Finances tab renders this and decides nothing: the same projection
+/// validates `reallocate_board_envelopes`.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Default)]
+pub struct EnvelopeReallocationPreview {
+    pub wage_delta_weekly: i64,
+    pub transfer_delta: i64,
+    pub next_wage_budget: i64,
+    pub next_transfer_budget: i64,
+    pub allowed: bool,
+    pub block_reason: Option<String>,
+}
+
+/// Projected envelopes after `wage_delta_weekly`, without mutating the club.
+pub fn projected_envelope_reallocation(
+    game: &Game,
     club_id: &str,
     wage_delta_weekly: i64,
 ) -> Result<EnvelopeReallocation, String> {
+    let team = game
+        .teams
+        .iter()
+        .find(|team| team.id == club_id)
+        .ok_or_else(|| ERR_TEAM_NOT_FOUND.to_string())?;
     if wage_delta_weekly == 0 {
-        let team = game
-            .teams
-            .iter()
-            .find(|team| team.id == club_id)
-            .ok_or_else(|| ERR_TEAM_NOT_FOUND.to_string())?;
         return Ok(EnvelopeReallocation {
             wage_budget: team.wage_budget,
             transfer_budget: team.transfer_budget,
@@ -39,11 +54,6 @@ pub fn reallocate_board_envelopes(
         .checked_mul(52)
         .ok_or_else(|| ERR_REALLOCATION_INVALID.to_string())?;
     let reserved = crate::transfers::committed_transfer_fees(game, club_id);
-    let team = game
-        .teams
-        .iter_mut()
-        .find(|team| team.id == club_id)
-        .ok_or_else(|| ERR_TEAM_NOT_FOUND.to_string())?;
     let new_wage = team
         .wage_budget
         .checked_add(wage_delta_weekly)
@@ -58,12 +68,72 @@ pub fn reallocate_board_envelopes(
     if new_transfer < reserved {
         return Err(ERR_REALLOCATION_RESERVATIONS.to_string());
     }
-    team.wage_budget = new_wage;
-    team.transfer_budget = new_transfer;
     Ok(EnvelopeReallocation {
         wage_budget: new_wage,
         transfer_budget: new_transfer,
     })
+}
+
+/// The verdict and next limits for one envelope step. Does not mutate.
+pub fn envelope_reallocation_preview(
+    game: &Game,
+    club_id: &str,
+    wage_delta_weekly: i64,
+) -> EnvelopeReallocationPreview {
+    let transfer_delta = wage_delta_weekly.saturating_mul(52);
+    let (next_wage_budget, next_transfer_budget) = game
+        .teams
+        .iter()
+        .find(|team| team.id == club_id)
+        .map(|team| {
+            (
+                team.wage_budget.saturating_add(wage_delta_weekly),
+                team.transfer_budget.saturating_sub(transfer_delta),
+            )
+        })
+        .unwrap_or((0, 0));
+    match projected_envelope_reallocation(game, club_id, wage_delta_weekly) {
+        Ok(next) => EnvelopeReallocationPreview {
+            wage_delta_weekly,
+            transfer_delta: -transfer_delta,
+            next_wage_budget: next.wage_budget,
+            next_transfer_budget: next.transfer_budget,
+            allowed: wage_delta_weekly != 0,
+            block_reason: None,
+        },
+        Err(reason) => EnvelopeReallocationPreview {
+            wage_delta_weekly,
+            transfer_delta: -transfer_delta,
+            next_wage_budget,
+            next_transfer_budget,
+            allowed: false,
+            block_reason: Some(reason),
+        },
+    }
+}
+
+/// Move weekly wage permission by `wage_delta_weekly`. Conserves
+/// `wage_limit * 52 + transfer_limit`. Does not post cash.
+///
+/// A positive delta raises the weekly wage cap and cuts the transfer limit by
+/// 52× that amount. The new transfer limit must still cover agreed
+/// `PendingRegistration` fees.
+pub fn reallocate_board_envelopes(
+    game: &mut Game,
+    club_id: &str,
+    wage_delta_weekly: i64,
+) -> Result<EnvelopeReallocation, String> {
+    let result = projected_envelope_reallocation(game, club_id, wage_delta_weekly)?;
+    if wage_delta_weekly != 0 {
+        let team = game
+            .teams
+            .iter_mut()
+            .find(|team| team.id == club_id)
+            .ok_or_else(|| ERR_TEAM_NOT_FOUND.to_string())?;
+        team.wage_budget = result.wage_budget;
+        team.transfer_budget = result.transfer_budget;
+    }
+    Ok(result)
 }
 
 #[cfg(test)]
@@ -261,5 +331,54 @@ mod tests {
         let mut game = make_game();
         let err = reallocate_board_envelopes(&mut game, "nobody", 1_000).unwrap_err();
         assert_eq!(err, ERR_TEAM_NOT_FOUND);
+    }
+
+    /// Given reserved fees a one-step wage raise would uncover
+    /// When the reallocation preview is read
+    /// Then raise-wage is refused with the reservations key and the club is unchanged.
+    #[test]
+    fn preview_refuses_a_wage_raise_that_would_breach_reservations() {
+        let mut game = make_game();
+        game.teams[0].transfer_budget = 300_000;
+        game.players
+            .push(listed_player(pending_registration("buyer", 300_000)));
+        let wage = game.teams[0].wage_budget;
+        let transfer = game.teams[0].transfer_budget;
+
+        let preview = envelope_reallocation_preview(&game, "buyer", ENVELOPE_WAGE_STEP_WEEKLY);
+
+        assert!(!preview.allowed);
+        assert_eq!(
+            preview.block_reason.as_deref(),
+            Some(ERR_REALLOCATION_RESERVATIONS)
+        );
+        assert_eq!(preview.wage_delta_weekly, ENVELOPE_WAGE_STEP_WEEKLY);
+        assert_eq!(preview.transfer_delta, -ENVELOPE_WAGE_STEP_WEEKLY * 52);
+        assert_eq!(preview.next_wage_budget, wage + ENVELOPE_WAGE_STEP_WEEKLY);
+        assert_eq!(
+            preview.next_transfer_budget,
+            transfer - ENVELOPE_WAGE_STEP_WEEKLY * 52
+        );
+        assert_eq!(game.teams[0].wage_budget, wage);
+        assert_eq!(game.teams[0].transfer_budget, transfer);
+        assert_eq!(game.teams[0].finance, 5_000_000);
+    }
+
+    /// Given a wage cap smaller than one step
+    /// When the transfer-raise preview is read
+    /// Then it is refused as invalid and the envelopes stay put.
+    #[test]
+    fn preview_refuses_a_transfer_raise_that_would_take_wages_below_zero() {
+        let mut game = make_game();
+        game.teams[0].wage_budget = 500;
+
+        let preview = envelope_reallocation_preview(&game, "buyer", -ENVELOPE_WAGE_STEP_WEEKLY);
+
+        assert!(!preview.allowed);
+        assert_eq!(
+            preview.block_reason.as_deref(),
+            Some(ERR_REALLOCATION_INVALID)
+        );
+        assert_eq!(game.teams[0].wage_budget, 500);
     }
 }

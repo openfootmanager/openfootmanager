@@ -2,12 +2,6 @@ import { Card, CardHeader, CardBody, Button } from "../ui";
 import { formatExactMoney, formatWeeklyWage } from "../../lib/helpers";
 
 import type { FinanceViewState } from "./useFinanceView";
-import {
-  ENVELOPE_TRANSFER_STEP,
-  ENVELOPE_WAGE_STEP_WEEKLY,
-  canRaiseTransferBudget,
-  canRaiseWageBudget,
-} from "./FinanceEnvelopeCard.helpers";
 
 export function FinanceEnvelopeCard({
   state,
@@ -15,29 +9,34 @@ export function FinanceEnvelopeCard({
   state: Pick<
     FinanceViewState,
     | "t"
-    | "financeSnapshot"
     | "myTeam"
-    | "previewsCurrent"
     | "reallocationLoading"
     | "handleReallocateBoardEnvelopes"
     | "reallocationFeedback"
+    | "raiseWagePreview"
+    | "raiseTransferPreview"
   >;
 }) {
   const {
     t,
-    financeSnapshot,
     myTeam,
-    previewsCurrent,
     reallocationLoading,
     handleReallocateBoardEnvelopes,
     reallocationFeedback,
+    raiseWagePreview,
+    raiseTransferPreview,
   } = state;
   const busy = reallocationLoading;
   const wageBudget = myTeam.wage_budget;
   const transferBudget = myTeam.transfer_budget;
-  const raiseWageEnabled =
-    previewsCurrent && canRaiseWageBudget(transferBudget, financeSnapshot.committedTransferFees);
-  const raiseTransferEnabled = canRaiseTransferBudget(wageBudget);
+  const raiseWageEnabled = Boolean(raiseWagePreview?.allowed) && !busy;
+  const raiseTransferEnabled = Boolean(raiseTransferPreview?.allowed) && !busy;
+  const stepWage = Math.abs(
+    raiseWagePreview?.wageDeltaWeekly ?? raiseTransferPreview?.wageDeltaWeekly ?? 0,
+  );
+  const stepTransfer = Math.abs(
+    raiseWagePreview?.transferDelta ?? raiseTransferPreview?.transferDelta ?? 0,
+  );
 
   return (
     <Card>
@@ -62,26 +61,36 @@ export function FinanceEnvelopeCard({
             </dd>
           </div>
         </dl>
-        <p className="mt-3 text-caption text-fg-muted">
-          {t("finances.reallocateStep", {
-            wage: formatWeeklyWage(ENVELOPE_WAGE_STEP_WEEKLY),
-            transfer: formatExactMoney(ENVELOPE_TRANSFER_STEP),
-          })}
-        </p>
+        {stepWage > 0 && stepTransfer > 0 ? (
+          <p className="mt-3 text-caption text-fg-muted">
+            {t("finances.reallocateStep", {
+              wage: formatWeeklyWage(stepWage),
+              transfer: formatExactMoney(stepTransfer),
+            })}
+          </p>
+        ) : null}
         <div className="mt-4 flex flex-col gap-2 sm:flex-row">
           <Button
             variant="outline"
             size="sm"
-            disabled={!raiseWageEnabled || busy}
-            onClick={() => void handleReallocateBoardEnvelopes(ENVELOPE_WAGE_STEP_WEEKLY)}
+            disabled={!raiseWageEnabled}
+            onClick={() => {
+              if (raiseWagePreview) {
+                void handleReallocateBoardEnvelopes(raiseWagePreview.wageDeltaWeekly);
+              }
+            }}
           >
             {t("finances.raiseWageBudget")}
           </Button>
           <Button
             variant="outline"
             size="sm"
-            disabled={!raiseTransferEnabled || busy}
-            onClick={() => void handleReallocateBoardEnvelopes(-ENVELOPE_WAGE_STEP_WEEKLY)}
+            disabled={!raiseTransferEnabled}
+            onClick={() => {
+              if (raiseTransferPreview) {
+                void handleReallocateBoardEnvelopes(raiseTransferPreview.wageDeltaWeekly);
+              }
+            }}
           >
             {t("finances.raiseTransferBudget")}
           </Button>

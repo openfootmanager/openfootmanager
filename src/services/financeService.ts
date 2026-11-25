@@ -1,5 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 
+import type { EnvelopeReallocationCommandResponse } from "../store/generated/EnvelopeReallocationCommandResponse";
 import type { GameStateData } from "../store/gameStore";
 import { invokeForCareer } from "./careerInvoke";
 
@@ -58,11 +59,22 @@ interface BackendFacilityUpgradePreviewData {
   block_reason: string | null;
 }
 
+interface BackendEnvelopeReallocationPreviewData {
+  wage_delta_weekly: number;
+  transfer_delta: number;
+  next_wage_budget: number;
+  next_transfer_budget: number;
+  allowed: boolean;
+  block_reason: string | null;
+}
+
 interface BackendFinanceActionPreviewsData {
   facility_upgrades?: BackendFacilityUpgradePreviewData[];
   board_support?: BackendBoardSupportPreviewData | null;
   sponsor_pitch?: BackendSponsorPitchPreviewData | null;
   marketing_campaign?: BackendMarketingCampaignPreviewData | null;
+  raise_wage?: BackendEnvelopeReallocationPreviewData;
+  raise_transfer?: BackendEnvelopeReallocationPreviewData;
 }
 
 export interface BackendFinanceSnapshotResponseData {
@@ -127,11 +139,22 @@ export interface FacilityUpgradePreviewData {
   blockReason: string | null;
 }
 
+export interface EnvelopeReallocationPreviewData {
+  wageDeltaWeekly: number;
+  transferDelta: number;
+  nextWageBudget: number;
+  nextTransferBudget: number;
+  allowed: boolean;
+  blockReason: string | null;
+}
+
 export interface FinanceRecoveryPreviewsData {
   facilityUpgrades: FacilityUpgradePreviewData[];
   boardSupport: BoardSupportPreviewData | null;
   sponsorPitch: SponsorPitchPreviewData | null;
   marketingCampaign: MarketingCampaignPreviewData | null;
+  raiseWage: EnvelopeReallocationPreviewData | null;
+  raiseTransfer: EnvelopeReallocationPreviewData | null;
 }
 
 export interface FinanceSnapshotData {
@@ -162,6 +185,20 @@ function mapSnapshot(snapshot: BackendTeamFinanceSnapshotData): TeamFinanceSnaps
       income: week.income,
       expenses: week.expenses,
     })),
+  };
+}
+
+function mapEnvelopePreview(
+  preview?: BackendEnvelopeReallocationPreviewData,
+): EnvelopeReallocationPreviewData | null {
+  if (!preview) return null;
+  return {
+    wageDeltaWeekly: preview.wage_delta_weekly,
+    transferDelta: preview.transfer_delta,
+    nextWageBudget: preview.next_wage_budget,
+    nextTransferBudget: preview.next_transfer_budget,
+    allowed: preview.allowed,
+    blockReason: preview.block_reason,
   };
 }
 
@@ -197,6 +234,8 @@ function mapPreviews(
           cooldownDays: previews.marketing_campaign.cooldown_days,
         }
       : null,
+    raiseWage: mapEnvelopePreview(previews?.raise_wage),
+    raiseTransfer: mapEnvelopePreview(previews?.raise_transfer),
   };
 }
 
@@ -211,13 +250,12 @@ export async function getFinanceSnapshot(teamId?: string): Promise<FinanceSnapsh
   };
 }
 
-export interface EnvelopeReallocationResponseData {
+export type EnvelopeReallocationResponseData = Omit<
+  EnvelopeReallocationCommandResponse,
+  "game"
+> & {
   game: GameStateData;
-  result: {
-    wage_budget: number;
-    transfer_budget: number;
-  };
-}
+};
 
 export async function reallocateBoardEnvelopes(
   wageDeltaWeekly: number,
