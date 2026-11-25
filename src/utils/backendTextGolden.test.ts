@@ -694,6 +694,86 @@ const CASES: GoldenCase[] = [
       },
     },
   },
+  // What else throws on the screen when a list's entries are not what the backend writes. Each is
+  // caught there and the article keeps the params the backend wrote, so each is a case:
+  // `parseMoneyValue(fee)` calls `.trim()`, which a missing, null or numeric fee does not have;
+  // `resolveParamValues(quote.params)` calls `.includes` on every value, which only a string (or an
+  // array) has; `Intl.ListFormat.format` throws on a team that is not a string.
+  ...(
+    [
+      ["missing", { player: "A. Roe", fromTeam: "East", toTeam: "West" }],
+      ["null", { player: "A. Roe", fromTeam: "East", toTeam: "West", fee: null }],
+      ["a number", { player: "A. Roe", fromTeam: "East", toTeam: "West", fee: 800000 }],
+    ] as const
+  ).map(([what, deal], index) => ({
+    name: `a transfer roundup with a deal whose fee is ${what} keeps the deals the backend wrote`,
+    kind: "article" as const,
+    input: {
+      id: `roundup_deals_fee_${index}`,
+      headline_key: "be.news.transferRoundup.headline",
+      body_key: "be.news.transferRoundup.body",
+      source_key: "be.source.transferIntelligence",
+      i18n_params: {
+        weekStart: "2026-08-03",
+        transferCount: "2",
+        // Not the line a fee of 800000 lays out (`(€800K)`), or a resolver that read the number as
+        // a fee would write the same text as one that kept this.
+        deals: "  J. Doe: North -> South (€12.5M)\n  A. Roe: East -> West (fee withheld)",
+        dealsData: JSON.stringify([
+          { player: "J. Doe", fromTeam: "North", toTeam: "South", fee: "12500000" },
+          deal,
+        ]),
+      },
+    },
+  })),
+  ...(
+    [
+      ["a number", 5],
+      ["null", null],
+    ] as const
+  ).map(([what, value], index) => ({
+    name: `a press conference with a quote whose param is ${what} keeps the quote the backend wrote`,
+    kind: "article" as const,
+    input: {
+      id: `press_param_${index}`,
+      headline_key: "be.news.pressConference.headlineManagerQuote",
+      body_key: "be.news.pressConference.bodySingle",
+      source_key: "be.source.leagueWire",
+      i18n_params: {
+        team: "South",
+        result: "0-3",
+        quote: "A tough afternoon",
+        quotesData: JSON.stringify([
+          {
+            key: "match.press.playerFocus.responses.praise.text",
+            fallback: "A tough afternoon",
+            params: { playerName: value },
+          },
+        ]),
+      },
+    },
+  })),
+  {
+    name: "a preseason digest with an unbeaten club that is no name keeps the lines the backend wrote",
+    kind: "article",
+    input: {
+      id: "preseason_5",
+      headline_key: "be.news.preseasonDigest.headline",
+      body_key: "be.news.preseasonDigest.bodyWithResults",
+      source_key: "be.source.leagueChronicle",
+      i18n_params: {
+        weekStart: "2026-07-06",
+        resultCount: "1",
+        totalGoals: "4",
+        results: "  North 3 - 1 South",
+        resultsData: JSON.stringify([
+          { home: "North", home_goals: 3, away: "South", away_goals: 1 },
+        ]),
+        unbeatenLine: "\n\nNorth and East remain unbeaten in preseason.",
+        unbeatenTeamsData: JSON.stringify(["North", 5]),
+      },
+    },
+  },
   {
     name: "a transfer roundup lays out its deals with the fee compact",
     kind: "article",
