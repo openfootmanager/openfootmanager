@@ -54,12 +54,20 @@ describe("TacticsTab preset question", { timeout: TACTICS_TAB_CASE_TIMEOUT_MS },
     resetHarness();
   });
 
-  /** Tunes the width dial, so the manager's instructions differ from every preset's blueprint. */
-  async function tuneAnInstruction() {
+  /**
+   * Tunes the width dial, so the manager's instructions differ from every preset's blueprint. While
+   * the bar is busy (a lookup is out) it shows the loading cue and not the badge, so the edit is
+   * awaited at the backend instead.
+   */
+  async function tuneAnInstruction({ whileBusy = false } = {}) {
     openPhaseBlueprint();
     const widthRow = screen.getByText("Width").parentElement as HTMLElement;
     fireEvent.click(within(widthRow).getByRole("combobox"));
     fireEvent.click(screen.getByRole("option", { name: "Wide" }));
+    if (whileBusy) {
+      await waitFor(() => expect(commandsCalled()).toContain("set_tactics_phase"));
+      return;
+    }
     await waitFor(() => expect(screen.getByText("Unsaved changes")).toBeInTheDocument());
   }
 
@@ -206,7 +214,7 @@ describe("TacticsTab preset question", { timeout: TACTICS_TAB_CASE_TIMEOUT_MS },
     pickHighPress();
     await waitFor(() => expect(commandsCalled()).toContain("get_tactics_blueprint_status"));
 
-    await tuneAnInstruction();
+    await tuneAnInstruction({ whileBusy: true });
     await act(async () => {
       release();
       await waitFor(() => expect(knobs.blueprintStatusAnswered).toBe(1));
