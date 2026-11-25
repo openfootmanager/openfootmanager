@@ -155,11 +155,11 @@ pub fn skip_to_match_day_internal(
     );
 
     let mut days_skipped = 0;
-    while days_skipped < 60 {
-        match skip_match_day_step(state, career, &start_date, days_skipped)? {
+    for day in 0..60 {
+        match skip_match_day_step(state, career, &start_date, day)? {
             MatchDaySkipStep::MatchDay => break,
             MatchDaySkipStep::Terminal(response) => return Ok(response),
-            MatchDaySkipStep::Advanced => days_skipped += 1,
+            MatchDaySkipStep::Advanced => days_skipped = day + 1,
         }
     }
 
