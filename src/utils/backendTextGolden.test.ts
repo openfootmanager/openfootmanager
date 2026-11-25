@@ -699,6 +699,28 @@ const CASES: GoldenCase[] = [
     },
   },
   {
+    // The stored section is stale text the backend wrote before the data said there were no goals:
+    // an empty list is a list, and clears it. A resolver that took the empty list for no list
+    // would keep the section.
+    name: "a friendly report whose scorers data is an empty list clears the goals section the backend wrote",
+    kind: "article",
+    input: {
+      id: "report_5",
+      headline_key: "be.news.matchReport.reportFriendly.title",
+      body_key: "be.news.matchReport.reportFriendly.body",
+      source_key: "be.source.footballHerald",
+      i18n_params: {
+        home: "East",
+        away: "West",
+        homeGoals: "0",
+        awayGoals: "0",
+        scorers: "J. Doe (12', East)",
+        scorersSection: "\n\nGoals: J. Doe (12', East)",
+        scorersData: "[]",
+      },
+    },
+  },
+  {
     // The quotes are what the manager picked, as the backend stores them: the response's own key
     // and params, and the text in the language it was written in (here Portuguese) as the fallback
     // and as `quote`. The screen resolves each quote from its key, so the English is the key's.
