@@ -178,14 +178,29 @@ describe("useTacticsLibrary selection, characterized", () => {
     return { ...hook, onApplyPreset };
   }
 
-  /** A save that holds nothing and accepts every write, and says the dials are as the style has them. */
+  /**
+   * A save that starts empty and keeps what it is given, as the real one does: a write answers with the
+   * whole list, so a tactic just made is in the library the hook shows next.
+   */
   function emptySave() {
+    const held: Array<{ id: string }> = [];
     mockedInvoke.mockReset();
-    mockedInvoke.mockImplementation(async (command: string) => {
-      if (
-        ["list_custom_tactics", "save_current_tactic", "delete_custom_tactic"].includes(command)
-      ) {
-        return [];
+    mockedInvoke.mockImplementation(async (command: string, args?: unknown) => {
+      if (command === "list_custom_tactics") return structuredClone(held);
+      if (command === "save_current_tactic") {
+        const tactic = (args as { tactic: { id: string } }).tactic;
+        const at = held.findIndex((entry) => entry.id === tactic.id);
+        if (at === -1) held.push(tactic);
+        else held[at] = tactic;
+        return structuredClone(held);
+      }
+      if (command === "delete_custom_tactic") {
+        const { id } = args as { id: string };
+        held.splice(
+          held.findIndex((entry) => entry.id === id),
+          1,
+        );
+        return structuredClone(held);
       }
       return { modified: false };
     });
@@ -198,7 +213,8 @@ describe("useTacticsLibrary selection, characterized", () => {
    * Given a setup that started as the Balanced Control preset, saved as a tactic without the manager
    *       having typed a name
    * When the tactic is saved
-   * Then it is named after the preset (the draft name follows the active tactic), not the generic name.
+   * Then it is named after the preset (the draft name follows the active tactic; the mocked `t` shows
+   *      the key it was given), not the generic name.
    */
   it("names a tactic saved from a preset after that preset", async () => {
     emptySave();
@@ -210,7 +226,7 @@ describe("useTacticsLibrary selection, characterized", () => {
     });
 
     const saves = mockedInvoke.mock.calls.filter(([c]) => c === "save_current_tactic");
-    expect(saves.map(savedNames)).toEqual(["balanced-control"]);
+    expect(saves.map(savedNames)).toEqual(["tactics.presetNames.balanced-control"]);
   });
 
   /**
@@ -245,7 +261,9 @@ describe("useTacticsLibrary selection, characterized", () => {
     act(() => result.current.handleDuplicateTactic());
 
     const copies = result.current.tacticLibrary.filter((entry) => entry.type === "custom");
-    expect(copies.map((entry) => entry.name)).toEqual(["tactics.copyOfTactic|balanced-control"]);
+    expect(copies.map((entry) => entry.name)).toEqual([
+      "tactics.copyOfTactic|tactics.presetNames.balanced-control",
+    ]);
   });
 
   /**
@@ -404,7 +422,7 @@ describe("useTacticsLibrary selection, characterized", () => {
     });
 
     expect(result.current.activeTactic.type).toBe("custom");
-    expect(result.current.activeTactic.name).toBe("balanced-control");
+    expect(result.current.activeTactic.name).toBe("tactics.presetNames.balanced-control");
   });
 
   /**
