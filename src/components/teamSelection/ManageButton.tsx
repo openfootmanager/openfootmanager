@@ -1,6 +1,6 @@
-import { ChevronRight, Loader2 } from "lucide-react";
+import { ChevronRight } from "lucide-react";
 
-import { Button } from "../ui";
+import { Button, Spinner } from "../ui";
 
 interface ManageButtonProps {
   /** What it reads: "Manage <club>", "Choose a club", or the confirming label. */
@@ -33,13 +33,7 @@ export default function ManageButton({
       disabled={disabled}
       aria-describedby={describedBy}
       onClick={onClick}
-      iconRight={
-        confirming ? (
-          <Loader2 aria-hidden="true" className="motion-safe:animate-spin" />
-        ) : (
-          <ChevronRight aria-hidden="true" />
-        )
-      }
+      iconRight={confirming ? <Spinner decorative /> : <ChevronRight aria-hidden="true" />}
     >
       {label}
     </Button>

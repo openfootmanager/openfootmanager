@@ -1,5 +1,6 @@
 import { useState, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { Spinner } from "../components/ui/Spinner";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -311,8 +312,8 @@ export default function SimLab() {
           {!results && !running && <EmptyState />}
 
           {running && (
-            <div className="flex items-center gap-3 text-slate-400">
-              <div className="w-5 h-5 border-2 border-blue-400 border-t-transparent rounded-full motion-safe:animate-spin" />
+            <div role="status" className="flex items-center gap-3 text-slate-400">
+              <Spinner decorative className="w-5 h-5 border-2 border-blue-400" />
               Simulating {cfg.games.toLocaleString()} games…
             </div>
           )}

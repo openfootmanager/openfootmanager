@@ -3,7 +3,6 @@ import {
   Calendar as CalendarIcon,
   ChevronDown,
   ChevronRight,
-  Loader2,
   Save,
   Search,
 } from "lucide-react";
@@ -12,7 +11,7 @@ import { useTranslation } from "react-i18next";
 
 import type { PlayerData, TeamData } from "../../store/gameStore";
 import type { MatchModeType } from "../../hooks/useAdvanceTime";
-import { ThemeToggle } from "../ui";
+import { Spinner, ThemeToggle } from "../ui";
 import DashboardSearch from "./DashboardSearch";
 import { FOCUS_RING, MENU_FOCUS } from "./dashboardStyles";
 
@@ -79,7 +78,7 @@ function getSaveButtonLabel(
 
 function renderSaveButtonIcon(isSaving: boolean): JSX.Element {
   if (isSaving) {
-    return <Loader2 className="h-4 w-4 motion-safe:animate-spin" />;
+    return <Spinner decorative className="h-4 w-4 border-2 border-current" />;
   }
 
   return <Save className="h-4 w-4" />;

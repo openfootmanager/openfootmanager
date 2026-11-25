@@ -5,7 +5,7 @@ import { useSettingsStore } from "./store/settingsStore";
 import i18n, { changeAppLanguage } from "./i18n";
 import { formatAppVersion } from "./lib/appVersion";
 import { rootFontSizeFor } from "./lib/uiScale";
-import { Spinner } from "./components/ui";
+import { Spinner } from "./components/ui/Spinner";
 import "./App.css";
 
 const MainMenu = lazy(() => import("./pages/MainMenu"));

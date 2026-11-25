@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
+import { Spinner } from "../ui/Spinner";
 import { invoke } from "@tauri-apps/api/core";
 import {
   X,
@@ -17,7 +18,6 @@ import {
   Shuffle,
   AlertTriangle,
   AlertCircle,
-  Loader2,
 } from "lucide-react";
 import { Button } from "../ui";
 import type { PackageInfo, PackageIssue, StackConflictInfo } from "./WorldSelect";
@@ -276,7 +276,7 @@ export default function PackageBuildStep({
               className="flex items-center gap-1 text-xs font-heading font-bold uppercase tracking-wider text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 disabled:opacity-50 transition-colors"
             >
               {isInstallingPackage ? (
-                <Loader2 className="w-3.5 h-3.5 motion-safe:animate-spin" />
+                <Spinner decorative className="w-3.5 h-3.5 border-2 border-current" />
               ) : (
                 <PackagePlus className="w-3.5 h-3.5" />
               )}

@@ -118,4 +118,27 @@ describe("SavesList", () => {
 
     expect(screen.getByRole("status")).toHaveTextContent("Loading...");
   });
+
+  /**
+   * Given the list is already shown and not loading
+   * When it starts loading
+   * Then the status region that was mounted before says so: its text changed, rather than a new
+   *      region appearing, which screen readers can miss.
+   */
+  it("announces loading when the list starts loading after it is shown", () => {
+    const props = {
+      saves: [save()],
+      confirmDeleteId: null,
+      onLoad: vi.fn(),
+      onDelete: vi.fn(),
+      onConfirmDelete: vi.fn(),
+      onClose: vi.fn(),
+    };
+    const { rerender } = render(<SavesList {...props} isLoading={false} />);
+    expect(screen.getByRole("status")).toHaveTextContent("");
+
+    rerender(<SavesList {...props} isLoading={true} />);
+
+    expect(screen.getByRole("status")).toHaveTextContent("Loading saves...");
+  });
 });

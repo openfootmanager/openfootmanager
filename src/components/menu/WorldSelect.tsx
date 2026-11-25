@@ -1,7 +1,7 @@
 import { useId } from "react";
 import { useTranslation } from "react-i18next";
-import { Button } from "../ui";
-import { X, ChevronRight, Globe, Users, ArrowLeft, Loader2, Trophy, Package } from "lucide-react";
+import { Button, Spinner } from "../ui";
+import { X, ChevronRight, Globe, Users, ArrowLeft, Trophy, Package } from "lucide-react";
 import type { CareerStartPhase } from "./CreateManagerForm";
 
 // ---------------------------------------------------------------------------
@@ -271,7 +271,13 @@ export default function GenerationStep({
         variant="primary"
         size="lg"
         className="w-full"
-        iconRight={isStarting ? <Loader2 className="motion-safe:animate-spin" /> : <ChevronRight />}
+        iconRight={
+          isStarting ? (
+            <Spinner decorative className="h-4 w-4 border-2 border-current" />
+          ) : (
+            <ChevronRight />
+          )
+        }
         onClick={onStart}
         disabled={isStarting}
       >

@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import type { JSX } from "react";
 import { useTranslation } from "react-i18next";
 import { Briefcase, Star, MapPin, RefreshCw } from "lucide-react";
-import { Card, CardHeader, CardBody } from "../ui";
+import { Card, CardHeader, CardBody, Spinner } from "../ui";
 import { getAvailableJobs, applyForJob, type JobOpportunity } from "../../services/jobService";
 import { getTeamName } from "../../lib/helpers";
 import type { GameStateData } from "../../store/gameStore";
@@ -137,8 +137,13 @@ export default function JobOpportunitiesCard({
             disabled={loading}
             className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
             title={t("jobs.refresh")}
+            aria-label={t("jobs.refresh")}
           >
-            <RefreshCw className={`w-3.5 h-3.5 ${loading ? "motion-safe:animate-spin" : ""}`} />
+            {loading ? (
+              <Spinner decorative className="w-3.5 h-3.5 border-2 border-current" />
+            ) : (
+              <RefreshCw className="w-3.5 h-3.5" />
+            )}
           </button>
         </div>
       </CardHeader>
@@ -157,7 +162,7 @@ export default function JobOpportunitiesCard({
 
         {loading && jobs.length === 0 ? (
           <div className="flex items-center justify-center py-6">
-            <div className="w-5 h-5 border-2 border-primary-500 border-t-transparent rounded-full motion-safe:animate-spin" />
+            <Spinner className="w-5 h-5 border-2 border-primary-500" />
           </div>
         ) : jobs.length === 0 ? (
           <p className="text-sm text-gray-400 dark:text-gray-500 text-center py-4">

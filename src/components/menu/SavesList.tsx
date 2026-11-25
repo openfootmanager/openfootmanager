@@ -64,11 +64,12 @@ export default function SavesList({
       </div>
 
       <div className="flex flex-col gap-3 max-h-[60vh] overflow-y-auto pr-1">
+        {/* Mounted before loading starts, so the changed text is announced (ARIA22). */}
+        <div role="status" className="sr-only">
+          {isLoading ? t("menu.loadingSaves") : loadingSaveId ? t("common.loading") : ""}
+        </div>
         {isLoading ? (
-          <div
-            role="status"
-            className="flex flex-col items-center gap-3 py-8 text-gray-500 dark:text-gray-400"
-          >
+          <div className="flex flex-col items-center gap-3 py-8 text-gray-500 dark:text-gray-400">
             <Spinner decorative className="w-8 h-8 border-4 border-primary-500" />
             <span className="text-sm font-heading uppercase tracking-wider">
               {t("menu.loadingSaves")}
@@ -129,7 +130,10 @@ export default function SavesList({
                         {saveDisplayName(save.name)}
                       </span>
                       {loadingSaveId === save.id ? (
-                        <Spinner className="w-4 h-4 flex-shrink-0 border-2 border-primary-500" />
+                        <Spinner
+                          decorative
+                          className="w-4 h-4 flex-shrink-0 border-2 border-primary-500"
+                        />
                       ) : (
                         <Play className="w-4 h-4 text-primary-500 opacity-0 group-hover:opacity-100 transition-all flex-shrink-0" />
                       )}
