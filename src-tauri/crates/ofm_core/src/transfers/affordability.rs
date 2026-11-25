@@ -171,37 +171,32 @@ pub(crate) fn fold_settled_spend_into_unrenewed_limits(
     game: &mut Game,
     renewed: &std::collections::HashSet<String>,
 ) {
-    let ids: Vec<String> = game
+    let spent_by_club = settled_transfer_spend_by_club(game);
+    for team in game
         .teams
-        .iter()
+        .iter_mut()
         .filter(|team| !renewed.contains(&team.id))
-        .map(|team| team.id.clone())
-        .collect();
-    for id in ids {
-        let spent = settled_transfer_spend(game, &id);
+    {
+        let spent = spent_by_club.get(&team.id).copied().unwrap_or(0);
         if spent == 0 {
             continue;
         }
-        if let Some(team) = game.teams.iter_mut().find(|team| team.id == id) {
-            team.transfer_budget = team.transfer_budget.saturating_sub(spent);
-        }
+        team.transfer_budget = team.transfer_budget.saturating_sub(spent);
     }
 }
 
 /// Reconstruct the season limit from a save that stored remaining after settlement:
 /// `remaining + spent_net = limit`. Gated by save format 10 so it cannot run twice.
 pub fn lift_transfer_budgets_by_settled_spend(game: &mut Game) -> bool {
-    let ids: Vec<String> = game.teams.iter().map(|team| team.id.clone()).collect();
+    let spent_by_club = settled_transfer_spend_by_club(game);
     let mut changed = false;
-    for id in ids {
-        let spent = settled_transfer_spend(game, &id);
+    for team in &mut game.teams {
+        let spent = spent_by_club.get(&team.id).copied().unwrap_or(0);
         if spent == 0 {
             continue;
         }
-        if let Some(team) = game.teams.iter_mut().find(|team| team.id == id) {
-            team.transfer_budget = team.transfer_budget.saturating_add(spent);
-            changed = true;
-        }
+        team.transfer_budget = team.transfer_budget.saturating_add(spent);
+        changed = true;
     }
     changed
 }
