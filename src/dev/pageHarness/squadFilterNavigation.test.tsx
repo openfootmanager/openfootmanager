@@ -39,7 +39,11 @@ async function openSquad() {
   const view = within(root);
   const position = () => view.getByRole("combobox", { name: "Pos" });
   const status = () => view.getByRole("combobox", { name: "Status" });
-  const search = () => view.getByPlaceholderText("Filter by player name or position");
+  const search = () => {
+    const workspace = root.querySelector<HTMLElement>("[data-workspace]");
+    if (!workspace) throw new Error("Expected a dashboard workspace");
+    return within(workspace).getByRole("textbox", { name: "Search" });
+  };
   await view.findByRole("combobox", { name: "Pos" });
   fireEvent.click(position());
   fireEvent.click(await screen.findByRole("option", { name: "GK" }));
