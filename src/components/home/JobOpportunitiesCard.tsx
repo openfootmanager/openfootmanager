@@ -138,7 +138,7 @@ export default function JobOpportunitiesCard({
             className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
             title={t("jobs.refresh")}
           >
-            <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
+            <RefreshCw className={`w-3.5 h-3.5 ${loading ? "motion-safe:animate-spin" : ""}`} />
           </button>
         </div>
       </CardHeader>
@@ -157,7 +157,7 @@ export default function JobOpportunitiesCard({
 
         {loading && jobs.length === 0 ? (
           <div className="flex items-center justify-center py-6">
-            <div className="w-5 h-5 border-2 border-primary-500 border-t-transparent rounded-full animate-spin" />
+            <div className="w-5 h-5 border-2 border-primary-500 border-t-transparent rounded-full motion-safe:animate-spin" />
           </div>
         ) : jobs.length === 0 ? (
           <p className="text-sm text-gray-400 dark:text-gray-500 text-center py-4">

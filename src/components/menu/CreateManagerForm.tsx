@@ -55,7 +55,7 @@ function NationalityFieldFallback({ error }: { error?: string }) {
           </span>
         </button>
         <div className="pointer-events-none absolute inset-y-0 right-3 flex items-center">
-          <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary-500 border-t-transparent" />
+          <div className="h-4 w-4 motion-safe:animate-spin rounded-full border-2 border-primary-500 border-t-transparent" />
         </div>
       </div>
       {error ? (
