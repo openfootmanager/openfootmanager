@@ -272,6 +272,9 @@ All frontend↔backend communication goes through Tauri's `invoke()` mechanism. 
 | `get_free_agent_opening_offer` | player_id | `{ weekly_wage, contract_years }` | The terms the contract form opens on for a free agent: the wage he expects from the manager's club, for the years a player his age expects (`expected_wage` and `expected_contract_years` in `ofm_core::contracts`). Never under the wage that would insult him; the manager may still offer less. Rejects a player at a club, a retired one, an unknown id, or a manager with no club |
 | `hire_staff` | staff_id | `Game` | Hire an unattached staff member |
 | `release_staff` | staff_id | `Game` | Release a staff member |
+| `get_finance_snapshot` | team_id? | snapshot | Canonical club finance snapshot |
+| `request_board_support` | careerToken | `{ game, result }` | Emergency cash from the board; once per season |
+| `reallocate_board_envelopes` | wage_delta_weekly, careerToken | `{ game, result }` | Move weekly wage permission against the transfer limit; does not post cash |
 
 ### Settings Commands
 

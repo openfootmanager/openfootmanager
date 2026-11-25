@@ -1,12 +1,12 @@
 //! MCP tool implementations: club
 
 use mcp_results::club::{
-    BoardSupport, FacilityUpgraded, MarketingCampaign, SponsorPitch, StaffHired, StaffList,
-    StaffMember, StaffReleased,
+    BoardEnvelopesReallocated, BoardSupport, FacilityUpgraded, MarketingCampaign, SponsorPitch,
+    StaffHired, StaffList, StaffMember, StaffReleased,
 };
 
 use crate::mcp_server::context::McpContext;
-use crate::mcp_server::tools_impl::helpers::{require_game, serde_label};
+use crate::mcp_server::tools_impl::helpers::{require_game, serde_label, user_team};
 use ofm_core::state::Career;
 use std::sync::Arc;
 
@@ -85,9 +85,29 @@ pub fn staff_release(ctx: Arc<McpContext>, staff_id: String) -> Result<StaffRele
     Ok(StaffReleased { staff_id })
 }
 
-// ─── season_check_complete ──────────────────────────────────────────────────
+// ─── club_reallocate_board_envelopes ────────────────────────────────────────
 
-// ─── club_request_board_support ─────────────────────────────────────────────
+pub fn club_reallocate_board_envelopes(
+    ctx: Arc<McpContext>,
+    wage_delta_weekly: i64,
+) -> Result<BoardEnvelopesReallocated, String> {
+    let response = crate::commands::finances::reallocate_board_envelopes_internal(
+        &ctx.state_manager,
+        Career::Active,
+        wage_delta_weekly,
+    )?;
+
+    {
+        use tauri::Emitter;
+        let _ = ctx.app_handle.emit("game-state-changed", ());
+    }
+
+    Ok(BoardEnvelopesReallocated {
+        wage_budget: response.result.wage_budget,
+        transfer_budget: response.result.transfer_budget,
+        finance: user_team(&response.game)?.finance,
+    })
+}
 
 pub fn club_request_board_support(ctx: Arc<McpContext>) -> Result<BoardSupport, String> {
     let response = crate::commands::finances::request_board_support_internal(

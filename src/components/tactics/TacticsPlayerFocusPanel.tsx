@@ -8,6 +8,7 @@ import { calcAge, getPlayerOvr } from "../../lib/helpers";
 import { naturalPositionOf } from "../../lib/positions";
 import type { PositionTable } from "../../lib/positionTable";
 import PlayerPositionBadge from "../PlayerPositionBadge";
+import type { SwapBlockedReason } from "./swapBlockedReason";
 import { usePositionTable } from "../../hooks/usePositionGroups";
 
 const ATTRIBUTE_GROUPS: {
@@ -45,6 +46,8 @@ export const TACTICS_INSPECTOR_TITLE_ID = "tactics-inspector-title";
 
 interface TacticsPlayerFocusPanelProps {
   canConfirmSwap: boolean;
+  /** Why Confirm swap is off, when there is a reason to tell the manager. */
+  swapBlockedReason?: SwapBlockedReason | null;
   comparePlayer: PlayerData | null;
   onClose?: () => void;
   onConfirmSwap: () => void;
@@ -137,13 +140,30 @@ function SinglePlayerAttributes({ player }: { player: PlayerData }) {
   );
 }
 
+const SWAP_REASON_ID = "tactics-swap-reason";
+
+/** The sentence for a reason, naming the bench player it is about. */
+function swapReasonText(
+  reason: SwapBlockedReason,
+  players: PlayerData[],
+  t: (key: string, options?: Record<string, unknown>) => string,
+): string {
+  if (reason.kind === "unchanged") return t("tactics.swapBlocked.unchanged");
+  const name = players.find((player) => player.id === reason.playerId)?.match_name ?? "";
+  return reason.kind === "unavailable"
+    ? t("tactics.swapBlocked.unavailable", { name })
+    : t("tactics.swapBlocked.unchecked", { name });
+}
+
 function CompareAttributes({
   canConfirmSwap,
+  swapBlockedReason,
   comparePlayer,
   onConfirmSwap,
   selectedPlayer,
 }: {
   canConfirmSwap: boolean;
+  swapBlockedReason: SwapBlockedReason | null;
   comparePlayer: PlayerData;
   onConfirmSwap: () => void;
   selectedPlayer: PlayerData;
@@ -162,10 +182,22 @@ function CompareAttributes({
         <PlayerSummary label={t("tactics.comparePlayer")} player={comparePlayer} />
       </div>
       <div className="flex flex-col gap-3 rounded-xl border border-gray-200 dark:border-navy-600 bg-gray-50 dark:bg-navy-800/70 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-        <p className="text-sm text-gray-600 dark:text-gray-300">
-          {t("tactics.compareSelectionHint")}
-        </p>
-        <Button type="button" size="sm" onClick={onConfirmSwap} disabled={!canConfirmSwap}>
+        {swapBlockedReason && !canConfirmSwap ? (
+          <p id={SWAP_REASON_ID} className="text-sm text-gray-600 dark:text-gray-300">
+            {swapReasonText(swapBlockedReason, [selectedPlayer, comparePlayer], t)}
+          </p>
+        ) : (
+          <p className="text-sm text-gray-600 dark:text-gray-300">
+            {t("tactics.compareSelectionHint")}
+          </p>
+        )}
+        <Button
+          type="button"
+          size="sm"
+          onClick={onConfirmSwap}
+          disabled={!canConfirmSwap}
+          aria-describedby={swapBlockedReason && !canConfirmSwap ? SWAP_REASON_ID : undefined}
+        >
           {t("tactics.confirmSwap")}
         </Button>
       </div>
@@ -236,6 +268,7 @@ function CompareAttributes({
 
 export default function TacticsPlayerFocusPanel({
   canConfirmSwap,
+  swapBlockedReason = null,
   comparePlayer,
   onClose,
   onConfirmSwap,
@@ -273,6 +306,7 @@ export default function TacticsPlayerFocusPanel({
           comparePlayer ? (
             <CompareAttributes
               canConfirmSwap={canConfirmSwap}
+              swapBlockedReason={swapBlockedReason}
               comparePlayer={comparePlayer}
               onConfirmSwap={onConfirmSwap}
               selectedPlayer={selectedPlayer}

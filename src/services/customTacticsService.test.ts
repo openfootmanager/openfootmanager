@@ -5,6 +5,7 @@ import {
   applyCustomTactic,
   deleteCustomTactic,
   getCustomTacticDifferences,
+  renameCustomTactic,
   legacyTacticsImportPending,
   listCustomTactics,
   markLegacyTacticsImported,
@@ -55,6 +56,25 @@ describe("customTacticsService", () => {
 
     await expect(getCustomTacticDifferences("a")).resolves.toEqual(differences);
     expect(mockedInvoke).toHaveBeenCalledWith("get_custom_tactic_differences", { id: "a" });
+  });
+
+  /**
+   * Given a saved tactic
+   * When it is renamed under a career token
+   * Then rename_custom_tactic is called with its id, the new name and the token, and the whole
+   *      library comes back.
+   */
+  it("renames a tactic and returns the whole list", async () => {
+    mockedInvoke.mockResolvedValueOnce([{ ...tactic, name: "Away" }]);
+
+    await expect(renameCustomTactic("a", "Away", 7)).resolves.toEqual([
+      { ...tactic, name: "Away" },
+    ]);
+    expect(mockedInvoke).toHaveBeenCalledWith("rename_custom_tactic", {
+      id: "a",
+      name: "Away",
+      careerToken: 7,
+    });
   });
 
   it("treats a reply that is not a list as no tactics", async () => {

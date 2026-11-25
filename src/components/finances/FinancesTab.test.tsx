@@ -143,6 +143,58 @@ describe("FinancesTab facilities", () => {
     expect(onGameUpdate).toHaveBeenCalledWith(updatedState);
   });
 
+  /**
+   * Given a board-envelope reallocation is still in flight
+   * When a facility upgrade finishes
+   * Then the envelope controls stay waiting: another finance action must not clear that wait.
+   */
+  it("keeps envelope controls waiting after another finance action finishes", async () => {
+    let resolveReallocate: (value: unknown) => void = () => {};
+    const reallocatePromise = new Promise((resolve) => {
+      resolveReallocate = resolve;
+    });
+    const updatedState = createGameState({ finance: 650000 });
+    mockedInvoke.mockImplementation((command) => {
+      if (command === "get_finance_snapshot") {
+        return Promise.resolve(wireSnapshot({}, { facility_upgrades: wireFacilityUpgrades() }));
+      }
+      if (command === "reallocate_board_envelopes") {
+        return reallocatePromise;
+      }
+      if (command === "upgrade_facility") {
+        return Promise.resolve(updatedState);
+      }
+      return Promise.reject(new Error(`Unexpected command: ${command}`));
+    });
+    const onGameUpdate = vi.fn();
+    await renderFinances(<FinancesTab gameState={createGameState()} onGameUpdate={onGameUpdate} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Raise wage budget" }));
+    await waitFor(() => {
+      expect(mockedInvoke).toHaveBeenCalledWith(
+        "reallocate_board_envelopes",
+        expect.objectContaining({ wageDeltaWeekly: 1_000 }),
+      );
+    });
+    expect(screen.getByRole("button", { name: "Raise wage budget" })).toBeDisabled();
+
+    fireEvent.click(screen.getAllByRole("button", { name: "Upgrade" })[0]);
+    await waitFor(() => {
+      expect(onGameUpdate).toHaveBeenCalledWith(updatedState);
+    });
+
+    expect(screen.getByRole("button", { name: "Raise wage budget" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Raise transfer budget" })).toBeDisabled();
+
+    resolveReallocate({
+      game: createGameState({ wage_budget: 51_000, transfer_budget: 248_000 }),
+      result: { wage_budget: 51_000, transfer_budget: 248_000 },
+    });
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Raise wage budget" })).toBeEnabled();
+    });
+  });
+
   it("renders active sponsorship and pending sponsor offers", async () => {
     const gameState = createGameState(
       {

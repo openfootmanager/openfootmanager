@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import type { PlayerData, TeamData, TransferOfferData } from "../../store/gameStore";
 import type { TransferBidProjectionData } from "../../services/transfersService";
-import { formatExactMoney } from "../../lib/helpers";
+import { formatExactMoney, formatWeeklyWage } from "../../lib/helpers";
 import TransferBidModal from "./TransferBidModal";
 
 // The language the mocked translation reports; a test sets it to read a date in another one.
@@ -283,10 +283,42 @@ describe("TransferBidModal", () => {
     // the same formatter the component uses, so the assertion stays locale-robust
     // while still catching abbreviation / interpolation / wrong-value regressions.
     expect(
-      screen.getByText(`Weekly wage bill ${formatExactMoney(1000)} -> ${formatExactMoney(2000)}`),
+      screen.getByText(`Weekly wage bill ${formatExactMoney(1000)} -> ${formatWeeklyWage(2000)}`),
     ).toBeInTheDocument();
-    expect(screen.getByText(`Weekly wage budget ${formatExactMoney(5000)}`)).toBeInTheDocument();
-    expect(screen.getByText(`Incoming wage ${formatExactMoney(1000)}`)).toBeInTheDocument();
+    expect(screen.getByText(`Weekly wage budget ${formatWeeklyWage(5000)}`)).toBeInTheDocument();
+    expect(screen.getByText(`Incoming wage ${formatWeeklyWage(1000)}`)).toBeInTheDocument();
+  });
+
+  /** Given nearby bid amounts formatVal would collapse, when the impact line renders, then both figures stay exact. */
+  it("keeps nearby bid amounts distinct on the impact line", () => {
+    render(
+      <TransferBidModal
+        bidTarget={createPlayer()}
+        teams={[createTeam(), createTeam({ id: "team-2", name: "Seller FC" })]}
+        bidAmount="6.127"
+        onBidAmountChange={vi.fn()}
+        myTeam={createTeam()}
+        bidFee={6127}
+        bidProjection={createProjection({
+          transfer_budget_before: 6300,
+          transfer_budget_after: 6127,
+        })}
+        bidFeedback={null}
+        activeBidOffer={null}
+        hasExistingOffer={false}
+        bidResult={null}
+        bidLoading={false}
+        bidSubmitDisabled={false}
+        onSubmit={vi.fn()}
+        onClose={vi.fn()}
+      />,
+    );
+
+    expect(
+      screen.getByText(`Transfer budget ${formatExactMoney(6300)} -> ${formatExactMoney(6127)}`),
+    ).toBeInTheDocument();
+    expect(formatExactMoney(6127)).not.toBe(formatExactMoney(6300));
+    expect(screen.queryByText(/€6K/)).not.toBeInTheDocument();
   });
 
   /**

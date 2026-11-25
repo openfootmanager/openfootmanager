@@ -9,6 +9,18 @@ export const EMPTY_MATCH_ROLES: TeamMatchRolesData = {
   corner_taker: null,
 };
 
+/**
+ * The label key for each match role: the one place a role is named, for the set-piece selectors and
+ * for the pitch's words for a screen reader (its drawing abbreviates them C, VC, PK, FK, CK).
+ */
+export const MATCH_ROLE_LABEL_KEYS: Record<keyof TeamMatchRolesData, string> = {
+  captain: "preMatch.captain",
+  vice_captain: "tactics.viceCaptain",
+  penalty_taker: "preMatch.penaltyTaker",
+  free_kick_taker: "preMatch.freeKickTaker",
+  corner_taker: "preMatch.cornerTaker",
+};
+
 /** The manager's assignment if that player is in the eleven, else the backend's pick (if he is). */
 function resolveAssignedRole(
   assignedId: string | null | undefined,

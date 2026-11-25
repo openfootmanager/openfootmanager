@@ -95,6 +95,32 @@ fn a_squad_player_with_thirty_percent_of_appearances_does_not_complain() {
     assert_eq!(days_with(&game, "bench_complaint_"), 0);
 }
 
+/// Given the benched forward, five completed cup ties in competitions, and a domestic league
+///       mirror with no completed matches
+/// When days of player events go by
+/// Then he complains on some of them: cup ties the club played count toward the five
+#[test]
+fn bench_complaints_count_cup_ties_when_the_mirror_has_no_matches() {
+    let mut cup = League::new(
+        "cup1".to_string(),
+        "Cup".to_string(),
+        1,
+        &["team1".to_string(), "team2".to_string()],
+    );
+    cup.kind = CompetitionType::Cup;
+    cup.fixtures = completed(5, "team1", "team2")
+        .into_iter()
+        .map(|mut fixture| {
+            fixture.competition = FixtureCompetition::Cup;
+            fixture
+        })
+        .collect();
+    let mut game = benched_forward_with(vec![], 0);
+    game.competitions = vec![cup];
+
+    assert!(days_with(&game, "bench_complaint_") > 0);
+}
+
 /// Given the benched forward and five completed home matches
 /// When 200 days of player events go by, one per seed
 /// Then he complains on between 5 and 45 of them: about one day in ten

@@ -5,6 +5,7 @@ use rand::{Rng, RngExt};
 
 use super::authored_player::{is_valid_date_of_birth, resolve_authored_contract};
 use super::definitions::{NamePool, NamesDefinition};
+use super::staff_wages::{UNATTACHED_STAFF_REPUTATION, assign_generated_staff_wage};
 use crate::contracts::{contract_end_after, iso};
 use crate::nations;
 use crate::player_rating::{
@@ -1141,6 +1142,7 @@ pub(super) fn generate_random_staff_from_def(
     opening_year: u32,
     names_def: &NamesDefinition,
     rng: &mut impl Rng,
+    club_reputation: u32,
 ) -> Staff {
     let (first_name, last_name) = pick_name_from_def(nationality, names_def, rng);
     let age = rng.random_range(30..60);
@@ -1157,6 +1159,7 @@ pub(super) fn generate_random_staff_from_def(
     let mut s = Staff::new(seeded_id(rng), first_name, last_name, dob, role, attributes);
     s.nationality = nationality.to_string();
     s.team_id = Some(team_id.to_string());
+    assign_generated_staff_wage(&mut s, club_reputation);
     s
 }
 
@@ -1182,6 +1185,7 @@ pub(super) fn generate_random_staff_unattached_from_def(
     let mut s = Staff::new(seeded_id(rng), first_name, last_name, dob, role, attributes);
     s.nationality = nationality.to_string();
     crate::football_identity::initialize_unattached_staff_identity(&mut s);
+    assign_generated_staff_wage(&mut s, UNATTACHED_STAFF_REPUTATION);
     s
 }
 
@@ -1197,6 +1201,7 @@ pub(super) fn generate_staff_from_authored_def(
     opening_year: u32,
     names_def: &NamesDefinition,
     rng: &mut impl Rng,
+    club_reputation: u32,
 ) -> Staff {
     let nationality = if def.nationality.is_empty() {
         "ENG"
@@ -1242,6 +1247,7 @@ pub(super) fn generate_staff_from_authored_def(
             opening_year,
             names_def,
             rng,
+            club_reputation,
         )
         .attributes
     });
@@ -1256,6 +1262,7 @@ pub(super) fn generate_staff_from_authored_def(
     s.team_id = team_id.map(|t| t.to_string());
     s.specialization = def.specialization.clone();
     s.set_known_as(def.known_as.clone());
+    assign_generated_staff_wage(&mut s, club_reputation);
     s
 }
 
@@ -2360,6 +2367,7 @@ mod tests {
                 2026,
                 &names_def,
                 &mut rand::rng(),
+                UNATTACHED_STAFF_REPUTATION,
             )
         };
 
@@ -2503,6 +2511,7 @@ mod tests {
             2026,
             &names_def,
             &mut rand::rngs::StdRng::seed_from_u64(7),
+            UNATTACHED_STAFF_REPUTATION,
         );
 
         assert_eq!(staff.date_of_birth, "1995-01-01");
