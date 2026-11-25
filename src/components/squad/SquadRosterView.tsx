@@ -44,6 +44,7 @@ import { SquadNameAside, squadRosterColumns } from "./SquadRosterView.columns";
 import { squadRowMenuItems } from "./SquadRosterView.menu";
 import {
   DEFAULT_SQUAD_LIST_SORT_STATE,
+  SQUAD_FIT_STATUS_OPTIONS,
   type FilterScope,
   type SquadListSortKey,
   type SquadListSortState,
@@ -463,13 +464,14 @@ export default function SquadRosterView({
               <option value="all">{t("common.allPlayers")}</option>
               <option value="xi">{t("preMatch.startingXI")}</option>
               <option value="bench">{t("preMatch.substitutes")}</option>
-              {/* The fit filters read the backend's lines and grade; until they arrive they would
-                  show an empty list, or drop players they should keep, so they are not offered. */}
-              {canGradeLineup ? <option value="naturalFit">{t("squad.naturalFit")}</option> : null}
-              {canGradeLineup ? <option value="needsCover">{t("squad.needsCover")}</option> : null}
-              {canGradeLineup ? (
-                <option value="outOfPosition">{t("squad.outOfPosition")}</option>
-              ) : null}
+              {/* Keep a retained fit choice visible while grading is unavailable. */}
+              {SQUAD_FIT_STATUS_OPTIONS.filter(
+                ([value]) => canGradeLineup || value === statusFilter,
+              ).map(([value, label]) => (
+                <option key={value} value={value} disabled={!canGradeLineup}>
+                  {t(label)}
+                </option>
+              ))}
               <option value="injured">{t("common.injured")}</option>
             </Select>
           </div>

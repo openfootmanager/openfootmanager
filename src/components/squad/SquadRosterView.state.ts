@@ -1,13 +1,17 @@
 import { useState } from "react";
 
+export const SQUAD_FIT_STATUS_OPTIONS = [
+  ["naturalFit", "squad.naturalFit"],
+  ["needsCover", "squad.needsCover"],
+  ["outOfPosition", "squad.outOfPosition"],
+] as const;
+
 export type FilterScope =
   | "all"
   | "xi"
   | "bench"
-  | "naturalFit"
-  | "needsCover"
-  | "outOfPosition"
-  | "injured";
+  | "injured"
+  | (typeof SQUAD_FIT_STATUS_OPTIONS)[number][0];
 
 export interface SquadRosterFilters {
   playerSearch: string;
