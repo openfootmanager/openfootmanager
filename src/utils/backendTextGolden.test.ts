@@ -754,6 +754,31 @@ const CASES: GoldenCase[] = [
     },
   })),
   {
+    // An array has `.includes`, so it gets past the key check, but a param named like a money
+    // figure is then read with `.trim()`, which an array does not have: the screen throws and keeps
+    // the quote the backend stored, where laying the key out would read "J. Doe has been fantastic".
+    name: "a press conference with a quote whose money param is an array keeps the quote the backend wrote",
+    kind: "article",
+    input: {
+      id: "press_param_array",
+      headline_key: "be.news.pressConference.headlineManagerQuote",
+      body_key: "be.news.pressConference.bodySingle",
+      source_key: "be.source.leagueWire",
+      i18n_params: {
+        team: "South",
+        result: "0-3",
+        quote: "A tough afternoon",
+        quotesData: JSON.stringify([
+          {
+            key: "match.press.playerFocus.responses.praise.text",
+            fallback: "A tough afternoon",
+            params: { playerName: "J. Doe", fee: [] },
+          },
+        ]),
+      },
+    },
+  },
+  {
     name: "a preseason digest with an unbeaten club that is no name keeps the lines the backend wrote",
     kind: "article",
     input: {
