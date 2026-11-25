@@ -50,6 +50,8 @@ const wire = (id: string, name = id) => ({
   playStyle: "Balanced",
 });
 
+// The picker lists a tactic where its name sorts, and a made tactic's name carries its random id, so
+// a test compares the set of ids, not their order.
 const customIds = (result: { current: ReturnType<typeof useTacticsLibrary> }) =>
   result.current.tacticLibrary.filter((entry) => entry.type === "custom").map((entry) => entry.id);
 
@@ -101,18 +103,20 @@ describe("useCustomTacticStore timing (#1438)", () => {
     await waitFor(() => expect(result.current.libraryLoaded).toBe(true));
 
     act(() => result.current.handleCreateCustomTactic());
+    const first = result.current.activeTactic.id;
     await waitFor(() => expect(callsTo("save_current_tactic")).toHaveLength(1));
     act(() => result.current.handleCreateCustomTactic());
-    const [second, first] = customIds(result);
-    expect(result.current.activeTactic.id).toBe(second);
+    const second = result.current.activeTactic.id;
+    expect(second).not.toBe(first);
+    expect([...customIds(result)].sort()).toEqual([first, second].sort());
 
     await act(async () => replies[0].resolve([wire(first)]));
 
-    expect(customIds(result)).toEqual([second, first]);
+    expect([...customIds(result)].sort()).toEqual([first, second].sort());
     expect(result.current.activeTactic.id).toBe(second);
     await waitFor(() => expect(callsTo("save_current_tactic")).toHaveLength(2));
     await act(async () => replies[1].resolve([wire(second), wire(first)]));
-    expect(customIds(result)).toEqual([second, first]);
+    expect([...customIds(result)].sort()).toEqual([first, second].sort());
     expect(result.current.activeTactic.id).toBe(second);
   });
 
