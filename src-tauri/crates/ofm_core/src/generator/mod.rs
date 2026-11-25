@@ -10,6 +10,7 @@ mod package_stack;
 mod package_warnings;
 pub mod scaffold;
 mod staff_bell;
+mod staff_wages;
 pub mod world_io;
 mod youth;
 
@@ -18,7 +19,6 @@ pub use competition_def::*;
 pub use definitions::*;
 pub use file_format::{load_definition_file, parse_definition_str};
 pub use generation::ReputationScale;
-pub(crate) use generation::{UNATTACHED_STAFF_REPUTATION, generated_staff_weekly_wage};
 pub use package::{
     ConfederationDef, ConflictSeverity, CountryDef, MAX_ARCHIVE_BYTES, PackageError, PackageInfo,
     PackageLock, PlayerCareerEntryDef, PlayerDef, RESERVED_PACKAGE_ID, StackConflict, StaffDef,
@@ -36,6 +36,8 @@ pub use scaffold::{
     EntityKind, entity_template, manifest_json, names_json, new_package_meta, scaffold_package,
     slugify,
 };
+pub use staff_wages::backfill_zero_staff_wages;
+pub(crate) use staff_wages::{UNATTACHED_STAFF_REPUTATION, generated_staff_weekly_wage};
 pub use world_io::*;
 pub(crate) use youth::generate_youth_intake_recruit;
 pub use youth::{generate_youth_academy_recruit, generate_youth_academy_recruit_with_nationality};
@@ -573,7 +575,7 @@ pub fn normalize_imported_world_for_career_start(world: &mut WorldData, opening_
     generate_missing_team_staff(world, opening_year, &mut rng);
     let _ =
         replenish_available_staff_market(&mut world.staff, &world.teams, opening_year, &mut rng);
-    let _ = price_zero_staff_wages_on(&mut world.staff, &world.teams);
+    let _ = staff_wages::price_zero_staff_wages_on(&mut world.staff, &world.teams);
     floor_imported_world_opening_cash(world);
 }
 
@@ -648,66 +650,6 @@ pub fn process_available_staff_market(game: &mut crate::game::Game) -> bool {
     top_up_unemployed_scouts(&mut game.staff, scouts_to_keep, current_year, &mut rng);
     game.available_staff_market_last_activity_date = Some(today);
     true
-}
-
-/// Fill `wage == 0` staff when any *employed* member is still unpaid.
-///
-/// Content-gated, not a save-format bump: the weekly-unit lock already restamped
-/// format, so a `< N` check would skip careers that loaded after that lock.
-/// Old saves sized the wage cap on player wages only; filling staff zeros would
-/// otherwise push those clubs through the 110% hire gate. Lift the cap to the
-/// new bill only for clubs that had unpaid employed staff. Do not cut the
-/// transfer limit — this is a one-time repair, like the weekly-unit runway floor.
-pub fn backfill_zero_staff_wages(game: &mut crate::game::Game) -> bool {
-    let clubs_to_repair: HashSet<String> = game
-        .staff
-        .iter()
-        .filter_map(|member| (member.wage == 0).then(|| member.team_id.clone()).flatten())
-        .collect();
-    if !backfill_zero_staff_wages_on(&mut game.staff, &game.teams) {
-        return false;
-    }
-    let bills = crate::finances::wage_bills_by_club(game);
-    for team in &mut game.teams {
-        if !clubs_to_repair.contains(&team.id) {
-            continue;
-        }
-        if let Some(&bill) = bills.get(&team.id) {
-            team.wage_budget = team.wage_budget.max(bill);
-        }
-    }
-    true
-}
-
-fn backfill_zero_staff_wages_on(staff: &mut [Staff], teams: &[Team]) -> bool {
-    let any_employed_zero = staff
-        .iter()
-        .any(|member| member.team_id.is_some() && member.wage == 0);
-    if !any_employed_zero {
-        return false;
-    }
-    price_zero_staff_wages_on(staff, teams)
-}
-
-fn price_zero_staff_wages_on(staff: &mut [Staff], teams: &[Team]) -> bool {
-    let reputation_by_team: std::collections::HashMap<&str, u32> = teams
-        .iter()
-        .map(|team| (team.id.as_str(), team.reputation))
-        .collect();
-    let mut changed = false;
-    for member in staff {
-        if member.wage != 0 {
-            continue;
-        }
-        let reputation = member
-            .team_id
-            .as_deref()
-            .and_then(|id| reputation_by_team.get(id).copied())
-            .unwrap_or(UNATTACHED_STAFF_REPUTATION);
-        member.wage = generated_staff_weekly_wage(&member.role, reputation, &member.attributes);
-        changed = true;
-    }
-    changed
 }
 
 /// Ensure the unemployed manager and scout pools each meet a floor of `team_count * 2`.
@@ -3532,24 +3474,27 @@ mod tests {
         assert_eq!(game.teams[0].wage_budget, 3_600);
     }
 
-    /// Given every employed staff member already has a wage
+    /// Given employed staff already have wages and an unattached candidate is still unpaid
     /// When the save is loaded
-    /// Then unattached zeros are left for market rotation to price later.
+    /// Then the candidate is priced and no club's wage cap is lifted.
     #[test]
-    fn backfill_zero_staff_wages_skips_when_employed_staff_are_already_paid() {
+    fn backfill_zero_staff_wages_prices_unattached_zeros_when_employed_staff_are_already_paid() {
         let mut employed = make_import_staff("coach", Some("team-1"), StaffRole::Coach);
         employed.wage = 3_600;
-        let unattached = make_import_staff("free", None, StaffRole::Scout);
+        let mut unattached = make_import_staff("free", None, StaffRole::Scout);
+        unattached.attributes.judging_ability = 80;
+        unattached.attributes.judging_potential = 80;
         let mut game = make_staff_market_game(vec![employed, unattached]);
+        game.teams[0].wage_budget = 1_000;
 
-        assert!(!backfill_zero_staff_wages(&mut game));
+        assert!(backfill_zero_staff_wages(&mut game));
         assert_eq!(
             game.staff
                 .iter()
                 .find(|staff| staff.id == "free")
                 .unwrap()
                 .wage,
-            0
+            3_600
         );
         assert_eq!(
             game.staff
@@ -3559,6 +3504,7 @@ mod tests {
                 .wage,
             3_600
         );
+        assert_eq!(game.teams[0].wage_budget, 1_000);
     }
 
     /// Given one club with unpaid staff and another already over its wage cap

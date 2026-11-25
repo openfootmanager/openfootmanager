@@ -1,10 +1,11 @@
 use domain::player::{Player, PlayerAttributes, Position};
-use domain::staff::{Staff, StaffAttributes, StaffRole};
+use domain::staff::{Staff, StaffRole};
 use domain::team::{PlayStyle, Team};
 use rand::{Rng, RngExt};
 
 use super::authored_player::{is_valid_date_of_birth, resolve_authored_contract};
 use super::definitions::{NamePool, NamesDefinition};
+use super::staff_wages::{UNATTACHED_STAFF_REPUTATION, assign_generated_staff_wage};
 use crate::contracts::{contract_end_after, iso};
 use crate::nations;
 use crate::player_rating::{
@@ -1132,31 +1133,6 @@ fn jersey_number_for_slot(index: usize) -> Option<u8> {
         _ => return None,
     };
     Some(n)
-}
-
-/// Reputation used to price unattached / market staff.
-pub(crate) const UNATTACHED_STAFF_REPUTATION: u32 = 500;
-
-/// Closed weekly wage for generated staff. Unattached market uses
-/// [`UNATTACHED_STAFF_REPUTATION`].
-pub(crate) fn generated_staff_weekly_wage(
-    role: &StaffRole,
-    club_reputation: u32,
-    attrs: &StaffAttributes,
-) -> u32 {
-    let (base, attr): (i64, u8) = match role {
-        StaffRole::AssistantManager => (2_500, attrs.coaching.max(attrs.judging_ability)),
-        StaffRole::Coach => (1_200, attrs.coaching),
-        StaffRole::Scout => (1_000, attrs.judging_ability.max(attrs.judging_potential)),
-        StaffRole::Physio => (1_000, attrs.physiotherapy),
-    };
-    let reputation_component = i64::from(club_reputation) * 2;
-    let attr_component = i64::from(attr) * 20;
-    (base + reputation_component + attr_component).max(500) as u32
-}
-
-fn assign_generated_staff_wage(staff: &mut Staff, club_reputation: u32) {
-    staff.wage = generated_staff_weekly_wage(&staff.role, club_reputation, &staff.attributes);
 }
 
 pub(super) fn generate_random_staff_from_def(
@@ -2539,66 +2515,6 @@ mod tests {
         );
 
         assert_eq!(staff.date_of_birth, "1995-01-01");
-    }
-
-    fn staff_attrs(
-        coaching: u8,
-        judging_ability: u8,
-        judging_potential: u8,
-        physiotherapy: u8,
-    ) -> StaffAttributes {
-        StaffAttributes {
-            coaching,
-            judging_ability,
-            judging_potential,
-            physiotherapy,
-        }
-    }
-
-    /// Given the closed staff-wage formula at reputation 500
-    /// When each role is priced from its rated attribute
-    /// Then the weekly wage is base + reputation×2 + attr×20.
-    #[test]
-    fn generated_staff_weekly_wage_matches_the_closed_formula() {
-        assert_eq!(
-            generated_staff_weekly_wage(
-                &StaffRole::AssistantManager,
-                500,
-                &staff_attrs(70, 70, 50, 30)
-            ),
-            4_900
-        );
-        assert_eq!(
-            generated_staff_weekly_wage(&StaffRole::Coach, 500, &staff_attrs(70, 50, 50, 30)),
-            3_600
-        );
-        assert_eq!(
-            generated_staff_weekly_wage(&StaffRole::Scout, 500, &staff_attrs(40, 80, 80, 20)),
-            3_600
-        );
-        assert_eq!(
-            generated_staff_weekly_wage(&StaffRole::Physio, 500, &staff_attrs(20, 20, 20, 60)),
-            3_200
-        );
-    }
-
-    /// Given unequal rated attributes and a club reputation other than 500
-    /// When an assistant and a scout are priced
-    /// Then the wage uses the higher of the pair and reputation×2.
-    #[test]
-    fn generated_staff_weekly_wage_uses_the_higher_rated_attribute_and_club_reputation() {
-        assert_eq!(
-            generated_staff_weekly_wage(
-                &StaffRole::AssistantManager,
-                800,
-                &staff_attrs(80, 40, 50, 30)
-            ),
-            5_700
-        );
-        assert_eq!(
-            generated_staff_weekly_wage(&StaffRole::Scout, 800, &staff_attrs(40, 40, 90, 20)),
-            4_400
-        );
     }
 
     /// The rating of 100 players authored at `overall`, one per seed.

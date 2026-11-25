@@ -919,7 +919,7 @@ fn is_mirrored_side_pair(left_position: &Position, right_position: &Position) ->
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::repositories::competition_repo;
+    use crate::repositories::{competition_repo, staff_repo, team_repo};
     use chrono::TimeZone;
     use domain::league::{Fixture, FixtureCompetition, FixtureStatus, League, StandingEntry};
     use domain::player::{Footedness, Player, PlayerAttributes, Position, SquadRole};
@@ -3326,6 +3326,118 @@ mod tests {
 
         let loaded = sm.load_game(&save_id).unwrap();
         assert_eq!(loaded.teams[0].finance, 1_000);
+    }
+
+    /// Given a settled current-format save whose employed coach is unpaid and whose wage cap is
+    /// below the new bill
+    /// When the save is loaded
+    /// Then the closed formula prices the coach, the cap covers the new bill, cash and the journal
+    /// stay put, and a fresh reader sees the repair on disk.
+    #[test]
+    fn loading_a_current_format_save_prices_unpaid_staff_and_persists_the_lifted_cap() {
+        // Let other load repairs settle first so this test's resave is the staff repair's own
+        // flag: employ the coach and pay him before create, load once, then inject wage 0 and a
+        // deficient cap behind load_game. Employing only at inject time would also trip football
+        // identity.
+        let dir = tempfile::tempdir().unwrap();
+        let saves_dir = dir.path().join("saves");
+        let mut sm = SaveManager::init(&saves_dir).unwrap();
+        let mut game = sample_game();
+        {
+            let coach = game
+                .staff
+                .iter_mut()
+                .find(|member| member.id == "staff-001")
+                .expect("sample staff");
+            coach.team_id = Some("team-001".to_string());
+            coach.wage = 999;
+        }
+        let save_id = sm.create_save(&game, "Unpaid Staff Career").unwrap();
+        let db_path = saves_dir.join(format!("{save_id}.db"));
+        sm.load_game(&save_id).unwrap();
+
+        const COACH_WAGE: u32 = 3_700; // Coach coaching 75, club reputation 500.
+        let (cash_before, journal_len_before, player_bill) = {
+            let db = GameDatabase::open_save(&db_path).unwrap();
+            let mut staff = staff_repo::load_all_staff(db.conn()).unwrap();
+            let coach = staff
+                .iter_mut()
+                .find(|member| member.id == "staff-001")
+                .expect("the settled save still has the coach");
+            assert_eq!(coach.team_id.as_deref(), Some("team-001"));
+            assert_ne!(coach.wage, 0, "the premise: settle left him paid");
+            coach.wage = 0;
+            staff_repo::replace_staff_list(db.conn(), &staff).unwrap();
+
+            let mut teams = team_repo::load_all_teams(db.conn()).unwrap();
+            let club = teams
+                .iter_mut()
+                .find(|team| team.id == "team-001")
+                .expect("the settled save has the club");
+            club.wage_budget = 1_000;
+            team_repo::upsert_teams(db.conn(), &teams).unwrap();
+
+            let injected = GamePersistenceReader::read_game(&db).unwrap();
+            let coach = injected
+                .staff
+                .iter()
+                .find(|member| member.id == "staff-001")
+                .expect("injected coach");
+            assert_eq!(coach.wage, 0, "the premise: the unpaid wage is on disk");
+            let club = injected
+                .teams
+                .iter()
+                .find(|team| team.id == "team-001")
+                .expect("injected club");
+            assert_eq!(club.wage_budget, 1_000);
+            let player_bill: i64 = injected
+                .players
+                .iter()
+                .filter(|player| player.team_id.as_deref() == Some("team-001"))
+                .map(|player| i64::from(player.wage()))
+                .sum();
+            (club.finance, injected.cash_journal.len(), player_bill)
+        };
+
+        sm.load_game(&save_id).unwrap();
+
+        let expected_cap = player_bill + i64::from(COACH_WAGE);
+        {
+            let db = GameDatabase::open_save(&db_path).unwrap();
+            let from_disk = GamePersistenceReader::read_game(&db).unwrap();
+            let coach = from_disk
+                .staff
+                .iter()
+                .find(|member| member.id == "staff-001")
+                .expect("the coach is still in the save");
+            let club = from_disk
+                .teams
+                .iter()
+                .find(|team| team.id == "team-001")
+                .expect("the club is still in the save");
+            assert_eq!(coach.wage, COACH_WAGE);
+            assert_eq!(club.wage_budget, expected_cap);
+            assert_eq!(club.finance, cash_before);
+            assert_eq!(from_disk.cash_journal.len(), journal_len_before);
+        }
+
+        sm.load_game(&save_id).unwrap();
+        let db = GameDatabase::open_save(&db_path).unwrap();
+        let again = GamePersistenceReader::read_game(&db).unwrap();
+        let coach_again = again
+            .staff
+            .iter()
+            .find(|member| member.id == "staff-001")
+            .expect("the coach survives a second load");
+        let club_again = again
+            .teams
+            .iter()
+            .find(|team| team.id == "team-001")
+            .expect("the club survives a second load");
+        assert_eq!(coach_again.wage, COACH_WAGE);
+        assert_eq!(club_again.wage_budget, expected_cap);
+        assert_eq!(club_again.finance, cash_before);
+        assert_eq!(again.cash_journal.len(), journal_len_before);
     }
 
     #[test]
