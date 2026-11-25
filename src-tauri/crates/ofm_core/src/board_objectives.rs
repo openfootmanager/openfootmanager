@@ -1,6 +1,7 @@
 use crate::end_of_season;
 use crate::finances;
 use crate::game::{BoardObjective, Game, ObjectiveType};
+use chrono::Datelike;
 use domain::league::{BerthRule, CompetitionType, FixtureStatus, League};
 use domain::message::*;
 use domain::team::Team;
@@ -264,7 +265,10 @@ pub fn generate_objectives(game: &mut Game) {
     // The ledger, not the mailbox: a message the player deleted was still sent.
     // Borrowed, not cloned — the ledger is never pruned, so it only grows.
     let existing_ids = &game.emitted_events;
-    let season = game.league.as_ref().map(|l| l.season).unwrap_or(1);
+    let season = game
+        .user_league()
+        .map(|league| league.season)
+        .unwrap_or_else(|| game.clock.current_date.year().max(0) as u32);
     let msg_id = board_message_id(season);
     if !existing_ids.contains(&msg_id) {
         let msg = build_objectives_message(&targets, season, today);
@@ -279,7 +283,7 @@ pub fn update_objective_progress(game: &mut Game) {
         None => return,
     };
 
-    let league = match &game.league {
+    let league = match game.user_league() {
         Some(l) => l,
         None => return,
     };
@@ -352,7 +356,8 @@ mod tests {
     use crate::game::{BoardObjective, Game, ObjectiveType};
     use chrono::{TimeZone, Utc};
     use domain::league::{
-        Fixture, FixtureCompetition, FixtureStatus, League, MatchResult, StandingEntry,
+        CompetitionType, Fixture, FixtureCompetition, FixtureStatus, League, MatchResult,
+        StandingEntry,
     };
     use domain::manager::Manager;
     use domain::message::{InboxMessage, MessageCategory, MessagePriority};
@@ -1269,5 +1274,125 @@ mod tests {
 
         assert_eq!(twenty_clubs, (22, 57));
         assert_eq!(wins_and_goals_in_a_league_of(1), twenty_clubs);
+    }
+
+    fn a_cup_in_the_mirror(game: &mut Game) {
+        let mut cup = League::new(
+            "cup1".to_string(),
+            "Cup".to_string(),
+            1,
+            &["team1".to_string(), "team2".to_string()],
+        );
+        cup.kind = CompetitionType::Cup;
+        cup.standings.clear();
+        game.league = Some(cup);
+    }
+
+    /// Given the user's league season 2036 in competitions and a cup of season 1 in the mirror
+    /// When the board sets its objectives
+    /// Then the briefing is for season 2036, never the cup the turn loop left in the slot
+    #[test]
+    fn board_objectives_are_keyed_on_the_users_league_season_not_the_mirror() {
+        let mut game = make_game(800, 2036, 4);
+        let league = game.league.take().expect("make_game builds a league");
+        game.competitions = vec![league];
+        a_cup_in_the_mirror(&mut game);
+
+        generate_objectives(&mut game);
+
+        let message = game
+            .messages
+            .iter()
+            .find(|message| message.id.starts_with("board_objectives_"))
+            .expect("a briefing");
+        assert_eq!(message.id, "board_objectives_2036");
+        assert_eq!(message.i18n_params.get("season"), Some(&"2036".to_string()));
+    }
+
+    fn played(
+        id: &str,
+        matchday: u32,
+        date: &str,
+        home: &str,
+        away: &str,
+        home_goals: u8,
+        away_goals: u8,
+    ) -> Fixture {
+        Fixture {
+            id: id.to_string(),
+            matchday,
+            date: date.to_string(),
+            home_team_id: home.to_string(),
+            away_team_id: away.to_string(),
+            competition: FixtureCompetition::League,
+            status: FixtureStatus::Completed,
+            result: Some(MatchResult {
+                home_goals,
+                away_goals,
+                home_scorers: vec![],
+                away_scorers: vec![],
+                report: None,
+                home_penalties: None,
+                away_penalties: None,
+            }),
+            ..Default::default()
+        }
+    }
+
+    /// Given a finished domestic season in competitions where every target is met, and a cup with
+    ///       no table sitting in the mirror
+    /// When objective progress is updated
+    /// Then every objective is met from the domestic table
+    #[test]
+    fn objective_progress_reads_the_users_league_not_a_cup_in_the_mirror() {
+        let mut game = make_game(60, 1, 2);
+        game.board_objectives = vec![
+            make_objective("obj_position", ObjectiveType::LeaguePosition, 1, false),
+            make_objective("obj_wins", ObjectiveType::Wins, 2, false),
+            make_objective("obj_goals", ObjectiveType::GoalsScored, 5, false),
+            make_objective("obj_finance", ObjectiveType::FinancialStability, 100, false),
+        ];
+        game.teams
+            .iter_mut()
+            .find(|team| team.id == "team1")
+            .unwrap()
+            .wage_budget = 300_000;
+        game.players.push(make_player("player-1", "team1", 220_000));
+        let mut league = game.league.take().expect("make_game builds a league");
+        league.standings = vec![
+            StandingEntry {
+                team_id: "team1".to_string(),
+                played: 2,
+                won: 2,
+                drawn: 0,
+                lost: 0,
+                goals_for: 5,
+                goals_against: 1,
+                points: 6,
+            },
+            StandingEntry {
+                team_id: "team2".to_string(),
+                played: 2,
+                won: 0,
+                drawn: 0,
+                lost: 2,
+                goals_for: 1,
+                goals_against: 5,
+                points: 0,
+            },
+        ];
+        league.fixtures = vec![
+            played("f1", 1, "2025-08-01", "team1", "team2", 2, 0),
+            played("f2", 2, "2025-08-08", "team2", "team1", 1, 3),
+        ];
+        game.competitions = vec![league];
+        a_cup_in_the_mirror(&mut game);
+
+        update_objective_progress(&mut game);
+
+        assert!(objective_by_id(&game, "obj_position").met);
+        assert!(objective_by_id(&game, "obj_wins").met);
+        assert!(objective_by_id(&game, "obj_goals").met);
+        assert!(objective_by_id(&game, "obj_finance").met);
     }
 }
