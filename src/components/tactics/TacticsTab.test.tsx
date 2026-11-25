@@ -1,26 +1,28 @@
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { invoke, type InvokeArgs } from "@tauri-apps/api/core";
-import type { GameStateData, PlayerData, TeamData } from "../../store/gameStore";
+import type { GameStateData, PlayerData } from "../../store/gameStore";
 import type { CustomTactic } from "../../services/customTacticsService";
 import TacticsTab from "./TacticsTab";
 import { resetTacticsLineupCache } from "../../hooks/useTacticsLineupProjection";
 import { ratingTierClass } from "../../lib/ratingTier";
-import { createSeasonContext } from "../../test-utils/factories";
+import {
+  familiarityState,
+  focusableIn,
+  makeGameState,
+  makePlayer,
+  makeTeam,
+  swapBenchDefenderIn,
+} from "../../test-utils/tacticsTabFixtures";
 
 // Whether the backend's position table has arrived; a test says it has not.
 const positionTableState = vi.hoisted(() => ({ arrived: true }));
 
-// The players the backend's familiarity grades, and whether it has arrived (every player built here).
-const familiarityState = vi.hoisted(() => ({
-  arrived: true,
-  players: new Map<string, unknown>(),
-}));
-
 vi.mock("../../hooks/useFamiliarity", async () => {
   const { cannedFamiliarityModule } = await import("../../test-utils/familiarity");
+  const { familiarityState } = await import("../../test-utils/tacticsTabFixtures");
   return cannedFamiliarityModule(
-    (playerId) => familiarityState.players.get(playerId) as PlayerData | undefined,
+    (playerId) => familiarityState.players.get(playerId),
     () => familiarityState.arrived,
   );
 });
@@ -70,217 +72,6 @@ vi.mock("@tauri-apps/api/core", () => ({
 
 const mockedInvoke = vi.mocked(invoke);
 
-const buildPlayer = (
-  id: string,
-  position: string,
-  overrides: Partial<PlayerData> = {},
-): PlayerData => ({
-  id,
-  match_name: id.toUpperCase(),
-  full_name: `Player ${id}`,
-  date_of_birth: "1998-01-01",
-  nationality: "GB",
-  position,
-  natural_position: position,
-  alternate_positions: [],
-  training_focus: null,
-  attributes: {
-    pace: 60,
-    stamina: 60,
-    strength: 60,
-    agility: 60,
-    passing: 60,
-    shooting: 60,
-    tackling: 60,
-    dribbling: 60,
-    defending: 60,
-    positioning: 60,
-    vision: 60,
-    decisions: 60,
-    composure: 60,
-    aggression: 60,
-    teamwork: 60,
-    leadership: 60,
-    handling: 60,
-    reflexes: 60,
-    aerial: 60,
-  },
-  condition: 100,
-  morale: 80,
-  injury: null,
-  // The backend's verdict for the match day (a healthy senior is eligible); a test that needs a
-  // different verdict says so.
-  match_day_eligible: true,
-  team_id: "team1",
-  retired: false,
-  contract_end: "2027-06-30",
-  wage: 1000,
-  market_value: 100000,
-  stats: {
-    appearances: 0,
-    goals: 0,
-    assists: 0,
-    clean_sheets: 0,
-    yellow_cards: 0,
-    red_cards: 0,
-    avg_rating: 0,
-    minutes_played: 0,
-  },
-  career: [],
-  transfer_listed: false,
-  loan_listed: false,
-  transfer_offers: [],
-  traits: [],
-  ...overrides,
-});
-
-const makePlayer = (...args: Parameters<typeof buildPlayer>): PlayerData => {
-  const player = buildPlayer(...args);
-  // The backend would grade him; the stand-in finds him here.
-  familiarityState.players.set(player.id, player);
-  return player;
-};
-
-const makeTeam = (overrides: Partial<TeamData> = {}): TeamData => ({
-  id: "team1",
-  name: "Test FC",
-  short_name: "TFC",
-  country: "England",
-  city: "Test City",
-  stadium_name: "Test Ground",
-  stadium_capacity: 20000,
-  finance: 1000000,
-  manager_id: "mgr1",
-  reputation: 50,
-  wage_budget: 100000,
-  transfer_budget: 500000,
-  season_income: 0,
-  season_expenses: 0,
-  formation: "4-4-2",
-  play_style: "Balanced",
-  training_focus: "General",
-  training_intensity: "Balanced",
-  training_schedule: "Balanced",
-  founded_year: 1900,
-  colors: { primary: "#00ff00", secondary: "#ffffff" },
-  starting_xi_ids: [],
-  form: [],
-  history: [],
-  ...overrides,
-});
-
-const makeGameState = (): GameStateData => {
-  const players = [
-    makePlayer("gk1", "Goalkeeper"),
-    makePlayer("d1", "Center Back", {
-      attributes: {
-        pace: 50,
-        stamina: 60,
-        strength: 70,
-        agility: 55,
-        passing: 52,
-        shooting: 35,
-        tackling: 75,
-        dribbling: 45,
-        defending: 78,
-        positioning: 68,
-        vision: 50,
-        decisions: 63,
-        composure: 64,
-        aggression: 71,
-        teamwork: 62,
-        leadership: 60,
-        handling: 10,
-        reflexes: 10,
-        aerial: 15,
-      },
-    }),
-    makePlayer("d2", "Defender"),
-    makePlayer("d3", "Defender"),
-    makePlayer("d4", "Defender"),
-    makePlayer("m1", "Midfielder", {
-      attributes: {
-        pace: 70,
-        stamina: 74,
-        strength: 58,
-        agility: 75,
-        passing: 79,
-        shooting: 66,
-        tackling: 61,
-        dribbling: 77,
-        defending: 57,
-        positioning: 72,
-        vision: 80,
-        decisions: 78,
-        composure: 73,
-        aggression: 52,
-        teamwork: 81,
-        leadership: 64,
-        handling: 10,
-        reflexes: 10,
-        aerial: 10,
-      },
-    }),
-    makePlayer("m2", "Midfielder"),
-    makePlayer("m3", "Midfielder"),
-    makePlayer("m4", "Midfielder"),
-    makePlayer("f1", "Forward"),
-    makePlayer("f2", "Forward"),
-    makePlayer("d5", "Defender", { match_name: "Bench DEF" }),
-  ];
-
-  return {
-    season_context: createSeasonContext(),
-    clock: {
-      current_date: "2026-08-01",
-      start_date: "2026-08-01",
-    },
-    manager: {
-      display_name: "Test Manager",
-      id: "mgr1",
-      first_name: "Test",
-      last_name: "Manager",
-      date_of_birth: "1980-01-01",
-      nationality: "GB",
-      reputation: 50,
-      satisfaction: 50,
-      fan_approval: 50,
-      team_id: "team1",
-      career_stats: {
-        matches_managed: 0,
-        wins: 0,
-        draws: 0,
-        losses: 0,
-        trophies: 0,
-        best_finish: null,
-      },
-      career_history: [],
-    },
-    teams: [
-      makeTeam({
-        starting_xi_ids: ["gk1", "d1", "d2", "d3", "d4", "m1", "m2", "m3", "m4", "f1", "f2"],
-      }),
-    ],
-    players,
-    staff: [],
-    messages: [],
-    news: [],
-    league: null,
-    scouting_assignments: [],
-    board_objectives: [],
-  };
-};
-
-/**
- * Swaps the bench defender d5 in for the centre back d1 the way the screen offers it: pick one in
- * the table, pick the other, then confirm in the comparison.
- */
-const swapBenchDefenderIn = () => {
-  fireEvent.click(screen.getByTestId("pitch-bench-player-d5"));
-  fireEvent.click(screen.getByTestId("xi-player-d1"));
-  fireEvent.click(screen.getByRole("button", { name: "tactics.confirmSwap" }));
-};
-
 describe("TacticsTab", () => {
   beforeEach(() => {
     localStorage.clear();
@@ -292,74 +83,6 @@ describe("TacticsTab", () => {
       if (command === "get_squad") return defaultRoster;
       return defaultGameState;
     });
-  });
-
-  /** Given a tactics pitch token, when its player name is hovered,
-   * then the full summary appears outside the clipped pitch. */
-  it("shows a tactics token summary when its name is hovered", async () => {
-    render(
-      <TacticsTab gameState={makeGameState()} onSelectPlayer={vi.fn()} onGameUpdate={vi.fn()} />,
-    );
-    await act(async () => {}); // the squad has answered, so the summary states the fit
-    const control = screen.getByTestId("pitch-player-gk1");
-    fireEvent.mouseEnter(within(control).getByText("GK1"));
-    const tooltip = screen.getByRole("tooltip");
-    expect(tooltip).toHaveTextContent("squad.pitchTokenTooltip");
-    expect(control).not.toContainElement(tooltip);
-  });
-
-  /**
-   * Given the pitch with its eleven
-   * When it is drawn
-   * Then it has no controls and no tab stops, and says each slot in words for a screen reader:
-   *      the position, the player and, once graded, his fit.
-   */
-  it("shows the pitch without controls and describes each slot in words", async () => {
-    render(
-      <TacticsTab gameState={makeGameState()} onSelectPlayer={vi.fn()} onGameUpdate={vi.fn()} />,
-    );
-    await act(async () => {}); // the squad has answered, so the words state the fit
-
-    const token = screen.getByTestId("pitch-player-gk1");
-    expect(within(token).queryByRole("button")).toBeNull();
-    expect(within(token).queryByRole("combobox")).toBeNull();
-    expect(token).not.toHaveAttribute("tabindex");
-    expect(token).not.toHaveAttribute("draggable");
-
-    const eleven = screen.getByRole("list", { name: /preMatch\.startingXI - 4-4-2/ });
-    expect(within(eleven).getAllByRole("listitem")).toHaveLength(11);
-    expect(within(eleven).getAllByRole("listitem")[0]).toHaveTextContent("tactics.slotSummary");
-  });
-
-  /**
-   * Given the goalkeeper is the captain and the penalty taker
-   * When the pitch is drawn
-   * Then the drawing's C and PK markers are in words in his slot's entry and not in anyone else's:
-   *      the drawing is hidden from a screen reader, so the list is where he learns who holds them.
-   */
-  it("says the match roles a starter holds in the pitch's list", async () => {
-    const gameState = makeGameState();
-    gameState.teams[0].match_roles = {
-      captain: "gk1",
-      vice_captain: null,
-      penalty_taker: "gk1",
-      free_kick_taker: null,
-      corner_taker: null,
-    };
-    mockedInvoke.mockImplementation(async (command: string) => {
-      if (command === "get_squad") return gameState.players.filter((p) => p.team_id === "team1");
-      return gameState;
-    });
-
-    render(<TacticsTab gameState={gameState} onSelectPlayer={vi.fn()} onGameUpdate={vi.fn()} />);
-    await act(async () => {});
-
-    const items = within(screen.getByRole("list", { name: /preMatch\.startingXI/ })).getAllByRole(
-      "listitem",
-    );
-    expect(items[0]).toHaveTextContent("preMatch.captain");
-    expect(items[0]).toHaveTextContent("preMatch.penaltyTaker");
-    expect(items[1]).not.toHaveTextContent("preMatch.captain");
   });
 
   it("renders the top tactical controls plus bench player in the left panel", () => {
@@ -554,167 +277,6 @@ describe("TacticsTab", () => {
   });
 
   /**
-   * Given the keeper and a centre back swapped, but neither held by the backend's projection
-   * When the pitch is drawn
-   * Then nobody is ringed and the count reads zero: a player with no grade is not out of position.
-   */
-  it("counts nobody out of position for players the projection does not hold", async () => {
-    const state = makeGameState();
-    state.teams[0].starting_xi_ids = [
-      "d1",
-      "gk1",
-      "d2",
-      "d3",
-      "d4",
-      "m1",
-      "m2",
-      "m3",
-      "m4",
-      "f1",
-      "f2",
-    ];
-    familiarityState.players.delete("gk1");
-    familiarityState.players.delete("d1");
-
-    const { container } = render(
-      <TacticsTab gameState={state} onSelectPlayer={vi.fn()} onGameUpdate={vi.fn()} />,
-    );
-    await act(async () => {}); // the squad has answered for this revision
-
-    expect(screen.getByText("0 squad.outOfPosition")).toBeInTheDocument();
-    expect(container.querySelectorAll(".ring-warning-solid")).toHaveLength(0);
-    // And no mid-grade mark either: a player the projection does not hold is not "adapted".
-    for (const id of ["d1", "gk1"]) {
-      const token = screen.getByTestId(`pitch-player-${id}`);
-      expect(within(token).queryByTestId("familiarity-dot")).toBeNull();
-    }
-  });
-
-  /**
-   * Given the unswapped XI, where the keeper stands in his own slot
-   * When the pitch is drawn with the backend's familiarity
-   * Then his token wears no familiarity mark: a natural slot is the quiet default.
-   */
-  it("marks a natural token with nothing", async () => {
-    render(
-      <TacticsTab gameState={makeGameState()} onSelectPlayer={vi.fn()} onGameUpdate={vi.fn()} />,
-    );
-    await act(async () => {}); // the squad has answered, so a mark would show
-
-    const keeper = screen.getByTestId("pitch-player-gk1");
-    expect(within(keeper).queryByTestId("familiarity-dot")).toBeNull();
-  });
-
-  /**
-   * Given the keeper and a centre back swapped, with the familiarity arrived and not arrived
-   * When the pitch is drawn
-   * Then arrived, two tokens are ringed out of position and the badge counts them; not arrived,
-   *      no token is ringed and no count is claimed: a missing grade is not a verdict.
-   */
-  it("rings no token and counts nothing before the familiarity has loaded", async () => {
-    const swapped = () => {
-      const state = makeGameState();
-      state.teams[0].starting_xi_ids = [
-        "d1",
-        "gk1",
-        "d2",
-        "d3",
-        "d4",
-        "m1",
-        "m2",
-        "m3",
-        "m4",
-        "f1",
-        "f2",
-      ];
-      return state;
-    };
-    const { container, unmount } = render(
-      <TacticsTab gameState={swapped()} onSelectPlayer={vi.fn()} onGameUpdate={vi.fn()} />,
-    );
-    await act(async () => {}); // the squad has answered for this revision
-    expect(container.querySelectorAll(".ring-warning-solid")).toHaveLength(2);
-    unmount();
-
-    familiarityState.arrived = false;
-    try {
-      const { container: waiting } = render(
-        <TacticsTab gameState={swapped()} onSelectPlayer={vi.fn()} onGameUpdate={vi.fn()} />,
-      );
-
-      expect(waiting.querySelectorAll(".ring-warning-solid")).toHaveLength(0);
-      expect(screen.queryByText(/^\d+ squad\.outOfPosition$/)).toBeNull();
-      // Nor does the swapped pair wear an "adapted" mark: no grade is no verdict, not a mid one.
-      for (const id of ["d1", "gk1"]) {
-        const token = screen.getByTestId(`pitch-player-${id}`);
-        expect(within(token).queryByTestId("familiarity-dot")).toBeNull();
-      }
-    } finally {
-      familiarityState.arrived = true;
-    }
-  });
-
-  /**
-   * Given a squad with the keeper and a centre back swapped (each deployed in the other's line)
-   * When the pitch is drawn with the backend's familiarity
-   * Then the out-of-position count reads two, the grade the backend gives them.
-   */
-  it("marks a starter out of position from the backend's familiarity", async () => {
-    const state = makeGameState();
-    state.teams[0].starting_xi_ids = [
-      "d1",
-      "gk1",
-      "d2",
-      "d3",
-      "d4",
-      "m1",
-      "m2",
-      "m3",
-      "m4",
-      "f1",
-      "f2",
-    ];
-
-    render(<TacticsTab gameState={state} onSelectPlayer={vi.fn()} onGameUpdate={vi.fn()} />);
-    await act(async () => {}); // the squad has answered for this revision
-
-    expect(screen.getByText("2 squad.outOfPosition")).toBeInTheDocument();
-  });
-
-  /**
-   * Given the keeper and a centre back swapped and the familiarity arrived, but get_squad not
-   *       answered for this revision
-   * When the pitch is drawn
-   * Then no token is ringed: the pitch states no fit while its count and its writers wait.
-   */
-  it("rings no token while the squad has not answered, though the familiarity has", async () => {
-    const state = makeGameState();
-    state.teams[0].starting_xi_ids = [
-      "d1",
-      "gk1",
-      "d2",
-      "d3",
-      "d4",
-      "m1",
-      "m2",
-      "m3",
-      "m4",
-      "f1",
-      "f2",
-    ];
-    mockedInvoke.mockReset();
-    mockedInvoke.mockReturnValue(new Promise(() => {}));
-
-    const { container } = render(
-      <TacticsTab gameState={state} onSelectPlayer={vi.fn()} onGameUpdate={vi.fn()} />,
-    );
-    await act(async () => {});
-
-    expect(container.querySelectorAll(".ring-warning-solid")).toHaveLength(0);
-    expect(screen.queryByText(/^\d+ squad\.outOfPosition$/)).toBeNull();
-  });
-
-  /**
    * Given get_squad has not answered for this revision
    * When the tactics screen is drawn
    * Then it says why lineup changes are not available yet, and says nothing once the squad has
@@ -800,44 +362,6 @@ describe("TacticsTab", () => {
         playerIds: ["gk1", "d5", "d2", "d3", "d4", "m1", "m2", "m3", "m4", "f1", "f2"],
       });
     });
-  });
-
-  it("offers no dragging anywhere: the table picks and the pitch only shows", () => {
-    render(
-      <TacticsTab gameState={makeGameState()} onSelectPlayer={vi.fn()} onGameUpdate={vi.fn()} />,
-    );
-
-    expect(screen.queryByTestId("bench-player-drag-handle-d5")).not.toBeInTheDocument();
-    expect(screen.queryByTestId("xi-player-drag-handle-d1")).not.toBeInTheDocument();
-    expect(screen.getByTestId("pitch-bench-player-d5")).not.toHaveAttribute("draggable");
-  });
-
-  it("shows a bench player's natural position on the pitch bench cards when it differs from position", async () => {
-    const gameState = makeGameState();
-    gameState.players = gameState.players.map((player) =>
-      player.id === "d5"
-        ? {
-            ...player,
-            position: "Midfielder",
-            natural_position: "Defender",
-          }
-        : player,
-    );
-    // Override so get_squad returns the modified players (d5 with Midfielder
-    // position), ensuring the natural position display is tested post-fetch.
-    mockedInvoke.mockImplementation(async (command: string) => {
-      if (command === "get_squad") return gameState.players.filter((p) => p.team_id === "team1");
-      return gameState;
-    });
-
-    render(<TacticsTab gameState={gameState} onSelectPlayer={vi.fn()} onGameUpdate={vi.fn()} />);
-
-    // His positions are the row's "can play" badges, natural first.
-    await screen.findByTestId("pitch-bench-player-d5");
-    const benchRow = screen.getByTestId("bench-player-d5");
-
-    expect(within(benchRow).getByText("common.posAbbr.Defender")).toBeInTheDocument();
-    expect(within(benchRow).queryByText("common.posAbbr.Midfielder")).not.toBeInTheDocument();
   });
 
   it("can duplicate the current setup into a custom tactic shell", () => {
@@ -1249,103 +773,6 @@ describe("TacticsTab", () => {
     );
   });
 
-  /**
-   * Given a club whose saved eleven names the forward "f2", and a backend whose lineup fields
-   *       the bench defender "d5" in that slot instead (as the match would, for its own reasons)
-   * When the Tactics screen shows the eleven
-   * Then it shows the backend's eleven, "d5" and not "f2": the screen picks no side of its own.
-   */
-  it("shows the eleven the backend says the match will field", async () => {
-    const gameState = makeGameState();
-    const roster = gameState.players.filter((p) => p.team_id === "team1");
-    const eleven = ["gk1", "d1", "d2", "d3", "d4", "m1", "m2", "m3", "m4", "f1", "d5"];
-    mockedInvoke.mockImplementation(async (command: string) => {
-      if (command === "get_squad") return roster;
-      if (command === "get_tactics_lineup") {
-        return {
-          formation: "4-4-2",
-          eleven: eleven.map((player_id) => ({
-            position: "Striker",
-            player_id,
-            role: "Standard",
-            familiarity: "natural",
-          })),
-          substitutes: ["f2"],
-          reserves: [],
-        };
-      }
-      return gameState;
-    });
-
-    render(<TacticsTab gameState={gameState} onSelectPlayer={vi.fn()} onGameUpdate={vi.fn()} />);
-
-    expect(await screen.findByTestId("xi-player-d5")).toBeInTheDocument();
-    expect(screen.queryByTestId("xi-player-f2")).not.toBeInTheDocument();
-    // The pitch draws the same eleven as the table.
-    expect(screen.getByTestId("pitch-player-d5")).toBeInTheDocument();
-    expect(screen.queryByTestId("pitch-player-f2")).not.toBeInTheDocument();
-  });
-
-  /**
-   * Given the backend's lineup has answered once, and its next answer (after a save) never comes
-   * When the bench defender is swapped in for the centre back through the table
-   * Then the pitch shows him at once and no longer shows the centre back: it draws the eleven the
-   *      table shows, change included, and does not blank while the new answer is awaited.
-   */
-  it("shows a swap on the pitch before the backend's next answer arrives", async () => {
-    const gameState = makeGameState();
-    const roster = gameState.players.filter((p) => p.team_id === "team1");
-    const saved = gameState.teams[0].starting_xi_ids ?? [];
-    const lineup = {
-      formation: "4-4-2",
-      eleven: saved.map((player_id) => ({
-        position: "Striker",
-        player_id,
-        role: "Standard",
-        familiarity: "natural",
-      })),
-      substitutes: ["d5"],
-      reserves: [],
-    };
-    let lineupAsks = 0;
-    mockedInvoke.mockImplementation(async (command: string) => {
-      if (command === "get_squad") return roster;
-      if (command === "get_tactics_lineup") {
-        lineupAsks += 1;
-        return lineupAsks === 1 ? lineup : new Promise(() => {});
-      }
-      return gameState;
-    });
-
-    const { rerender } = render(
-      <TacticsTab gameState={gameState} onSelectPlayer={vi.fn()} onGameUpdate={vi.fn()} />,
-    );
-    await screen.findByTestId("xi-player-d1");
-    expect(screen.getByTestId("pitch-player-d1")).toBeInTheDocument();
-
-    swapBenchDefenderIn();
-    await waitFor(() => {
-      expect(mockedInvoke).toHaveBeenCalledWith("set_starting_xi", expect.anything());
-    });
-    // The save's result comes back: a new revision, whose lineup the backend never answers.
-    const swapped = saved.map((id) => (id === "d1" ? "d5" : id));
-    rerender(
-      <TacticsTab
-        gameState={{
-          ...gameState,
-          teams: [{ ...gameState.teams[0], starting_xi_ids: swapped }],
-        }}
-        onSelectPlayer={vi.fn()}
-        onGameUpdate={vi.fn()}
-      />,
-    );
-    await act(async () => {});
-
-    expect(lineupAsks).toBe(2);
-    expect(screen.getByTestId("pitch-player-d5")).toBeInTheDocument();
-    expect(screen.queryByTestId("pitch-player-d1")).not.toBeInTheDocument();
-  });
-
   it("shows all starting XI players in the left panel list", () => {
     render(
       <TacticsTab gameState={makeGameState()} onSelectPlayer={vi.fn()} onGameUpdate={vi.fn()} />,
@@ -1445,8 +872,11 @@ describe("TacticsTab", () => {
     // opens), so the whole text is the selected role: exactly Standard, once the lineup has loaded.
     await waitFor(() => expect(tableRole).toHaveTextContent(/^tactics\.playerRoles\.Standard$/));
     expect(tableRole).not.toHaveTextContent("Poacher");
-    // And the pitch's token carries no control to disagree with it.
-    expect(within(screen.getByTestId("pitch-player-m4")).queryByRole("combobox")).toBeNull();
+    // And the pitch's token carries no control to disagree with it: its drawing is hidden from the
+    // accessibility tree, so look past that (`hidden`) and at anything a keyboard could reach.
+    const token = screen.getByTestId("pitch-player-m4");
+    expect(within(token).queryByRole("combobox", { hidden: true })).toBeNull();
+    expect(focusableIn(token)).toEqual([]);
   });
 
   it("does not promote an injured bench player into the starting XI", async () => {
