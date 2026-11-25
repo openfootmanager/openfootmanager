@@ -1,6 +1,7 @@
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
-import { describe, expect, it, vi, beforeEach } from "vitest";
+import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { i18nReady } from "../../i18n";
 import type { GameStateData, StaffData, TeamData } from "../../store/gameStore";
 import type { RatingTier } from "../../services/squadService";
 import { useSettingsStore } from "../../store/settingsStore";
@@ -180,6 +181,10 @@ function setListView(view: "table" | "cards") {
 }
 
 describe("StaffTab", () => {
+  beforeAll(async () => {
+    await i18nReady;
+  });
+
   beforeEach(() => {
     setListView("cards");
     invokeMock.mockReset();
@@ -543,6 +548,41 @@ describe("StaffTab", () => {
 
     expect(screen.getByText("Sam Scout")).toBeInTheDocument();
     expect(screen.queryByText("Pat Physio")).not.toBeInTheDocument();
+  });
+
+  /**
+   * Given an available hire the board refuses because the wage bill would pass its cap
+   * When the manager tries to hire him
+   * Then the page shows the backend's hire-policy message and does not update the club.
+   */
+  it("shows the board's hire wage-policy refusal", async () => {
+    const scout = createStaff({
+      id: "staff-2",
+      first_name: "Sam",
+      last_name: "Scout",
+      display_name: "Sam Scout",
+      role: "Scout",
+      team_id: null,
+    });
+    const onGameUpdate = vi.fn();
+    invokeMock.mockImplementation(async (command: string) => {
+      if (command === "hire_staff") {
+        throw new Error("be.error.contracts.boardHireWagePolicy?budget=50000");
+      }
+      if (command === "get_staff") return makeStaffSlice([scout]);
+      return createGameState([scout]);
+    });
+
+    render(<StaffTab gameState={createGameState([scout])} onGameUpdate={onGameUpdate} />);
+
+    fireEvent.click(await screen.findByRole("button", { name: /Available 1/i }));
+    fireEvent.click(screen.getByRole("button", { name: "Hire staff" }));
+
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent(
+      "Hire blocked by board wage policy. Keep weekly wages near €50,000.",
+    );
+    expect(onGameUpdate).not.toHaveBeenCalled();
   });
 
   it("hires an available staff member and forwards the updated state", async () => {
