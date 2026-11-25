@@ -5,31 +5,28 @@ import type { RenewalProjectionData } from "./PlayerProfile.renewal";
 
 /**
  * The club's finances if `wage` were offered to the player: asked for while `enabled` (the modal is
- * open and the wage is a number), held until the wage changes, and dropped if the answer for an
- * earlier wage arrives after it, or after the modal is shut. A failed request holds nothing.
+ * open and the wage is a number). Only a response for the current player and wage is displayed.
+ * Responses that arrive after their request is superseded or the modal closes are discarded.
  */
 export function useRenewalProjection(playerId: string, wage: number, enabled: boolean) {
-  const [projection, setProjection] = useState<RenewalProjectionData["projection"] | null>(null);
+  const [response, setResponse] = useState<{
+    playerId: string;
+    wage: number;
+    projection: RenewalProjectionData["projection"];
+  } | null>(null);
 
   useEffect(() => {
+    setResponse(null);
     if (!enabled) {
-      setProjection(null);
       return;
     }
 
     let cancelled = false;
 
     const loadProjection = async (): Promise<void> => {
-      try {
-        const result = await previewRenewalProjection(playerId, wage);
-
-        if (!cancelled) {
-          setProjection(result.projection ?? null);
-        }
-      } catch {
-        if (!cancelled) {
-          setProjection(null);
-        }
+      const result = await previewRenewalProjection(playerId, wage).catch(() => null);
+      if (!cancelled && result?.projection) {
+        setResponse({ playerId, wage, projection: result.projection });
       }
     };
 
@@ -41,8 +38,12 @@ export function useRenewalProjection(playerId: string, wage: number, enabled: bo
   }, [enabled, playerId, wage]);
 
   const clearProjection = useCallback(() => {
-    setProjection(null);
+    setResponse(null);
   }, []);
 
+  const projection =
+    enabled && response?.playerId === playerId && response.wage === wage
+      ? response.projection
+      : null;
   return { projection, clearProjection };
 }

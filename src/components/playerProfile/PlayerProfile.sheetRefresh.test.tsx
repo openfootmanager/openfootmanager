@@ -1,6 +1,7 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { invoke } from "@tauri-apps/api/core";
+import type { InvokeArgs } from "@tauri-apps/api/core";
 
 import { i18nReady } from "../../i18n";
 import type { GameStateData, PlayerData, StaffData } from "../../store/gameStore";
@@ -174,5 +175,62 @@ describe("the Contract tab's previews follow the club, not only the player", () 
     await new Promise((resolve) => setTimeout(resolve, 50));
     expect(projectionAsks()).toBe(1);
     expect(terminationAsks()).toBe(1);
+  });
+});
+
+describe("the renewal dialog's budget preview", () => {
+  /**
+   * Given an offer whose preview exceeds the budget
+   * When the manager changes the wage and optionally returns to the same amount
+   * Then the old restriction stays cleared while the new request is pending
+   */
+  it.each([
+    { scenario: "after lowering the wage", wages: [15_000] },
+    { scenario: "after returning to the original wage", wages: [15_000, 60_000] },
+  ])("clears the old budget warning $scenario", async ({ wages }) => {
+    const pending = new Promise<never>(() => undefined);
+    let highWageAnswered = false;
+    vi.mocked(invoke).mockImplementation(async (command: string, payload?: InvokeArgs) => {
+      if (command === "preview_renewal_financial_impact") {
+        const wage = (payload as { weeklyWage?: number } | undefined)?.weeklyWage;
+        if (wage === 60_000 && !highWageAnswered) {
+          highWageAnswered = true;
+          return { projection: { ...PROJECTION, policy_allows: false } };
+        }
+        if (wage === 15_000 || wage === 60_000) return pending;
+      }
+      return answer(command);
+    });
+
+    const player = createPlayer();
+    render(
+      <PlayerProfile
+        player={player}
+        gameState={gameWith(player, [])}
+        isOwnClub
+        onGameUpdate={() => {}}
+        onSelectTeam={() => {}}
+      />,
+    );
+    fireEvent.click(screen.getByRole("tab", { name: "Contract" }));
+    fireEvent.click(screen.getByRole("button", { name: "Renew Contract" }));
+    const input = screen.getByLabelText("Offered Wage");
+    const submit = screen.getByRole("button", { name: "Submit Offer" });
+    const warning = "Offer exceeds the board wage pressure limit";
+    fireEvent.change(input, { target: { value: "60000" } });
+    expect(await screen.findByText(warning)).toBeInTheDocument();
+    expect(submit).toBeDisabled();
+
+    for (const wage of wages) {
+      fireEvent.change(input, { target: { value: String(wage) } });
+      expect(invoke).toHaveBeenLastCalledWith("preview_renewal_financial_impact", {
+        playerId: player.id,
+        weeklyWage: wage,
+      });
+    }
+
+    expect(submit).toBeEnabled();
+    expect(screen.queryByText(warning)).not.toBeInTheDocument();
+    expect(screen.queryByText("Projected financial impact")).not.toBeInTheDocument();
   });
 });
