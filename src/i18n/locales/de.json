@@ -3966,9 +3966,10 @@
       },
       "seasonPreview": {
         "headline0": "Saisonvorschau: {{teamCount}} Teams Kämpfen um den Titel",
-        "headline1": "Die Erste Division Saison Steht Bevor",
+        "headline1": "{{competition}}: Die Saison steht bevor",
         "headline2": "Kann {{favourite}} den Titel Holen? Saisonvorschau",
-        "body": "Die Erste Division steht vor dem Start mit {{teamCount}} Teams im Titelkampf.\n\nDie Voraussagen sehen {{favourite}} als Favorit, aber {{darkHorse}} könnte die Überraschung dieser Saison sein.\n\nMit neuen Trainern bei einigen Vereinen verspricht diese Saison eine der wettbewerbsintensivsten der jüngeren Geschichte zu werden. Jeder Punkt wird im Titelkampf zählen.\n\nTeams: {{teamList}}"
+        "body": "{{competition}} steht vor dem Start mit {{teamCount}} Teams im Titelkampf.\n\nDie Voraussagen sehen {{favourite}} als Favorit, aber {{darkHorse}} könnte die Überraschung dieser Saison sein.\n\nMit neuen Trainern bei einigen Vereinen verspricht diese Saison eine der wettbewerbsintensivsten der jüngeren Geschichte zu werden. Jeder Punkt wird im Titelkampf zählen.\n\nTeams: {{teamList}}",
+        "leagueFallback": "Die Liga"
       },
       "managerialChange": {
         "headline": "{{team}} trennt sich von {{manager}}",

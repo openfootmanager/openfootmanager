@@ -1136,7 +1136,22 @@ mod info_news_tests {
                 "2026-02-14",
             ),
             ofm_core::news::season_preview_article(
-                &["North".to_string(), "South".to_string()],
+                &ofm_core::news::PreviewDivision {
+                    name: "Premier League",
+                    name_key: None,
+                    country_id: None,
+                    season: 2026,
+                },
+                &[
+                    ofm_core::news::PreviewClub {
+                        name: "North".to_string(),
+                        strength: 70.0,
+                    },
+                    ofm_core::news::PreviewClub {
+                        name: "South".to_string(),
+                        strength: 65.0,
+                    },
+                ],
                 "2026-02-14",
             ),
         ];

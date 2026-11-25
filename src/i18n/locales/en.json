@@ -3966,9 +3966,10 @@
       },
       "seasonPreview": {
         "headline0": "Season Preview: {{teamCount}} Teams Battle for Glory",
-        "headline1": "Premier Division Season Set to Begin",
+        "headline1": "{{competition}}: Season Set to Begin",
         "headline2": "Can {{favourite}} Claim the Title? Season Preview",
-        "body": "The Premier Division is set to kick off with {{teamCount}} teams vying for the title.\n\nPre-season predictions have {{favourite}} as the early favourites, but {{darkHorse}} could be the dark horse to watch this campaign.\n\nWith new managers taking the reins at some clubs, this season promises to be one of the most competitive in recent memory. Every point will matter as the race for the title heats up.\n\nTeams: {{teamList}}"
+        "body": "{{competition}} is set to kick off with {{teamCount}} teams vying for the title.\n\nPre-season predictions have {{favourite}} as the early favourites, but {{darkHorse}} could be the dark horse to watch this campaign.\n\nWith new managers taking the reins at some clubs, this season promises to be one of the most competitive in recent memory. Every point will matter as the race for the title heats up.\n\nTeams: {{teamList}}",
+        "leagueFallback": "The league"
       },
       "managerialChange": {
         "headline": "{{team}} sack {{manager}}",

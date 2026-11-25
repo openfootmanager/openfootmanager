@@ -3966,9 +3966,10 @@
       },
       "seasonPreview": {
         "headline0": "Vista previa de la temporada: {{teamCount}} equipos luchan por el título",
-        "headline1": "La temporada de Primera División está a punto de comenzar",
+        "headline1": "{{competition}}: la temporada está a punto de comenzar",
         "headline2": "¿Puede {{favourite}} proclamarse campeón? Vista previa de la temporada",
-        "body": "La Primera División arranca con {{teamCount}} equipos luchando por el título.\n\nLas predicciones de pretemporada señalan a {{favourite}} como el gran favorito, pero {{darkHorse}} podría ser el tapado a vigilar esta campaña.\n\nCon nuevos entrenadores en algunos clubes, esta temporada promete ser una de las más competitivas en memoria reciente. Cada punto contará cuando la lucha por el título se intensifique.\n\nEquipos: {{teamList}}"
+        "body": "{{competition}} arranca con {{teamCount}} equipos luchando por el título.\n\nLas predicciones de pretemporada señalan a {{favourite}} como el gran favorito, pero {{darkHorse}} podría ser el tapado a vigilar esta campaña.\n\nCon nuevos entrenadores en algunos clubes, esta temporada promete ser una de las más competitivas en memoria reciente. Cada punto contará cuando la lucha por el título se intensifique.\n\nEquipos: {{teamList}}",
+        "leagueFallback": "La liga"
       },
       "managerialChange": {
         "headline": "{{team}} destituye a {{manager}}",

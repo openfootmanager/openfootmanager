@@ -1185,21 +1185,29 @@ pub fn process_end_of_season(game: &mut Game) -> EndOfSeasonSummary {
     // The preview is of the user's division as the new season has it, after promotion and
     // relegation; the world's other clubs are not in the race it previews (#1179).
     let preview_date = game.clock.current_date.to_rfc3339();
-    if shows_a_league {
-        let division_club_names: Vec<String> = user_division(game)
-            .map(|division| {
-                division
-                    .participant_ids
-                    .iter()
-                    .filter_map(|club_id| game.teams.iter().find(|team| &team.id == club_id))
-                    .map(|team| team.name.clone())
-                    .collect()
+    if shows_a_league && let Some(division) = user_division(game) {
+        let participant_ids = division.participant_ids.clone();
+        let strengths =
+            crate::catchup::club_strengths(game, participant_ids.iter().map(String::as_str));
+        let clubs: Vec<crate::news::PreviewClub> = participant_ids
+            .iter()
+            .filter_map(|club_id| game.teams.iter().find(|team| &team.id == club_id))
+            .map(|team| crate::news::PreviewClub {
+                name: team.name.clone(),
+                strength: crate::catchup::strength_in(&strengths, &team.id),
             })
-            .unwrap_or_default();
-        game.news.push(crate::news::season_preview_article(
-            &division_club_names,
+            .collect();
+        let preview = crate::news::season_preview_article(
+            &crate::news::PreviewDivision {
+                name: &division.name,
+                name_key: division.name_key.as_deref(),
+                country_id: division.country_id.as_deref(),
+                season: division.season,
+            },
+            &clubs,
             &preview_date,
-        ));
+        );
+        game.news.push(preview);
     }
 
     // 8. Send end-of-season messages

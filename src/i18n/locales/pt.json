@@ -3966,9 +3966,10 @@
       },
       "seasonPreview": {
         "headline0": "Antevisão da Época: {{teamCount}} Equipas Lutam pela Glória",
-        "headline1": "Época da Primeira Divisão Prestes a Começar",
+        "headline1": "{{competition}}: Época Prestes a Começar",
         "headline2": "Pode o {{favourite}} Conquistar o Título? Antevisão da Época",
-        "body": "A Primeira Divisão está pronta para arrancar com {{teamCount}} equipas a disputar o título.\n\nAs previsões de pré-época apontam o {{favourite}} como favorito, mas o {{darkHorse}} pode ser a surpresa desta campanha.\n\nCom novos treinadores a assumir o comando em alguns clubes, esta época promete ser uma das mais competitivas da memória recente. Cada ponto vai contar na corrida pelo título.\n\nEquipas: {{teamList}}"
+        "body": "{{competition}} está pronta para arrancar com {{teamCount}} equipas a disputar o título.\n\nAs previsões de pré-época apontam o {{favourite}} como favorito, mas o {{darkHorse}} pode ser a surpresa desta campanha.\n\nCom novos treinadores a assumir o comando em alguns clubes, esta época promete ser uma das mais competitivas da memória recente. Cada ponto vai contar na corrida pelo título.\n\nEquipas: {{teamList}}",
+        "leagueFallback": "A liga"
       },
       "managerialChange": {
         "headline": "{{team}} despede {{manager}}",
