@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { TacticsLibraryEntry } from "./TacticPicker";
@@ -47,6 +47,8 @@ function buildProps(
     isDirty: false,
     libraryLoaded: true,
     canDelete: true,
+    canRename: true,
+    onRename: vi.fn().mockResolvedValue(null),
     onCreateNew: vi.fn(),
     onDelete: vi.fn(),
     onDuplicate: vi.fn(),
@@ -334,9 +336,9 @@ describe("TacticsCommandBar", () => {
   /**
    * Given a saved tactic
    * When the actions menu is opened
-   * Then it offers New, Duplicate, Reset and Delete, and the button says it opened the menu.
+   * Then it offers New, Duplicate, Rename, Reset and Delete, and the button says it opened the menu.
    */
-  it("opens the actions menu with New, Duplicate, Reset and Delete", () => {
+  it("opens the actions menu with New, Duplicate, Rename, Reset and Delete", () => {
     renderCommandBar();
     const trigger = screen.getByRole("button", { name: "tactics.tacticActions" });
     expect(trigger).toHaveAttribute("aria-expanded", "false");
@@ -352,9 +354,239 @@ describe("TacticsCommandBar", () => {
     ).toEqual([
       "tactics.newTactic",
       "tactics.duplicateTactic",
+      "tactics.renameTactic",
       "tactics.resetTactic",
       "tactics.deleteTactic",
     ]);
+  });
+
+  describe("renaming a saved tactic", () => {
+    const openRename = () => {
+      openActionsMenu();
+      fireEvent.click(screen.getByRole("menuitem", { name: "tactics.renameTactic" }));
+    };
+
+    /**
+     * Given a preset, or a setup that was never saved, is active
+     * When the actions menu is opened
+     * Then Rename is offered but off: only a saved tactic has a name of its own.
+     */
+    it("keeps Rename off when nothing saved is active", () => {
+      renderCommandBar({ activeTactic: presetTactic, canRename: false });
+
+      openActionsMenu();
+
+      expect(screen.getByRole("menuitem", { name: "tactics.renameTactic" })).toBeDisabled();
+    });
+
+    /**
+     * Given a saved tactic is active
+     * When Rename is chosen
+     * Then a dialog named for renaming opens with the tactic's name in the field, selected, and focus
+     *      in the field.
+     */
+    it("opens a dialog with the name in a focused, selected field", async () => {
+      renderCommandBar();
+
+      openRename();
+
+      const dialog = screen.getByRole("dialog", { name: "tactics.renameTacticTitle" });
+      const field = within(dialog).getByRole("textbox", { name: "tactics.renameTacticLabel" });
+      expect(field).toHaveValue("My Tactic");
+      await waitFor(() => expect(field).toHaveFocus());
+      expect((field as HTMLInputElement).selectionStart).toBe(0);
+      expect((field as HTMLInputElement).selectionEnd).toBe("My Tactic".length);
+    });
+
+    /**
+     * Given the rename dialog open
+     * When a new name (with stray spaces) is typed and Enter is pressed in the field
+     * Then the screen is asked to rename to the trimmed name, and the dialog closes once the save has
+     *      accepted it.
+     */
+    it("saves the trimmed name on Enter and closes", async () => {
+      const props = buildProps();
+      render(<TacticsCommandBar {...props} />);
+      openRename();
+      const field = screen.getByRole("textbox", { name: "tactics.renameTacticLabel" });
+
+      fireEvent.change(field, { target: { value: "  Away  " } });
+      fireEvent.submit(field.closest("form") as HTMLFormElement);
+
+      await waitFor(() => expect(props.onRename).toHaveBeenCalledWith("custom:1", "Away"));
+      await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    });
+
+    /**
+     * Given the rename dialog open for one saved tactic
+     * When another saved tactic becomes the active one while it is open (applying it finished), and the
+     *      name is then submitted
+     * Then the tactic the dialog was opened for is renamed, not the one that is active now.
+     */
+    it("renames the tactic the dialog was opened for even if another becomes active", async () => {
+      const other = { ...customTactic, id: "custom:2", name: "Other" };
+      const props = buildProps({ tacticLibrary: [customTactic, other, presetTactic] });
+      const { rerender } = render(<TacticsCommandBar {...props} />);
+      openRename();
+      rerender(<TacticsCommandBar {...props} activeTactic={other} />);
+      const field = screen.getByRole("textbox", { name: "tactics.renameTacticLabel" });
+      expect(field).toHaveValue("My Tactic");
+
+      fireEvent.change(field, { target: { value: "Away" } });
+      fireEvent.submit(field.closest("form") as HTMLFormElement);
+
+      await waitFor(() => expect(props.onRename).toHaveBeenCalledWith("custom:1", "Away"));
+    });
+
+    /** The rename dialog open, "Rename" pressed, and the save's answer held until `accept()`. */
+    async function openWithTheSaveOut() {
+      let accept!: () => void;
+      const onRename = vi.fn().mockReturnValue(
+        new Promise<null>((resolve) => {
+          accept = () => resolve(null);
+        }),
+      );
+      renderCommandBar({ onRename });
+      openRename();
+      fireEvent.click(screen.getByRole("button", { name: "tactics.renameTacticConfirm" }));
+      await waitFor(() => expect(onRename).toHaveBeenCalled());
+      return accept;
+    }
+
+    /**
+     * Given the rename dialog open and the save's answer still out
+     * When Escape is pressed
+     * Then the dialog stays open (a dialog whose answer is to come cannot be closed under it), and it
+     *      closes when the save accepts the name.
+     */
+    it("stays open on Escape while the save is out, and closes once it accepts the name", async () => {
+      const accept = await openWithTheSaveOut();
+
+      fireEvent.keyDown(window, { key: "Escape" });
+
+      expect(screen.getByRole("dialog", { name: "tactics.renameTacticTitle" })).toBeInTheDocument();
+      await act(async () => accept());
+      await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    });
+
+    /**
+     * Given the rename dialog open and the save's answer still out
+     * When the backdrop is pressed and released (a mouse down on it, then the click: the dialog only
+     *      closes on a click that began on the backdrop)
+     * Then the dialog stays open until the save has answered.
+     */
+    it("stays open on a backdrop click while the save is out", async () => {
+      const accept = await openWithTheSaveOut();
+      const backdrop = screen.getByTestId("dialog-backdrop");
+
+      fireEvent.mouseDown(backdrop);
+      fireEvent.click(backdrop);
+
+      expect(screen.getByRole("dialog", { name: "tactics.renameTacticTitle" })).toBeInTheDocument();
+      await act(async () => accept());
+      await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    });
+
+    /**
+     * Given the rename dialog open and no save out
+     * When the backdrop is pressed and released
+     * Then the dialog closes: the backdrop does dismiss it when nothing is in flight (so the test above
+     *      is about the save, not about a backdrop that never closes anything).
+     */
+    it("closes on a backdrop click when no save is out", async () => {
+      renderCommandBar();
+      openRename();
+      const backdrop = screen.getByTestId("dialog-backdrop");
+
+      fireEvent.mouseDown(backdrop);
+      fireEvent.click(backdrop);
+
+      await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    });
+
+    /**
+     * Given a name of 31 characters that are each two UTF-16 units (62 units, 31 characters: within the
+     *       save's limit of 60 characters)
+     * When it is typed in the rename dialog and submitted
+     * Then the field has no length limit of its own (the browser would count units and cut it) and the
+     *      whole name goes to the save, whose refusal is the one rule on length.
+     */
+    it("leaves the name's length to the save, which counts characters", async () => {
+      const longName = "\u{1D538}".repeat(31);
+      const props = buildProps();
+      render(<TacticsCommandBar {...props} />);
+      openRename();
+      const field = screen.getByRole("textbox", { name: "tactics.renameTacticLabel" });
+
+      fireEvent.change(field, { target: { value: longName } });
+      fireEvent.submit(field.closest("form") as HTMLFormElement);
+
+      expect(field).not.toHaveAttribute("maxlength");
+      await waitFor(() => expect(props.onRename).toHaveBeenCalledWith("custom:1", longName));
+    });
+
+    /**
+     * Given the rename dialog open and a save that refuses the name
+     * When Rename is pressed
+     * Then the reason is shown in the dialog as an alert tied to the field, and the dialog stays open
+     *      with what was typed.
+     */
+    it("shows the save's reason and stays open when the name is refused", async () => {
+      const onRename = vi.fn().mockResolvedValue("That name is too long.");
+      renderCommandBar({ onRename });
+      openRename();
+      const field = screen.getByRole("textbox", { name: "tactics.renameTacticLabel" });
+      fireEvent.change(field, { target: { value: "Away" } });
+
+      fireEvent.click(screen.getByRole("button", { name: "tactics.renameTacticConfirm" }));
+
+      const alert = await screen.findByRole("alert");
+      expect(alert).toHaveTextContent("That name is too long.");
+      expect(field).toHaveAttribute("aria-invalid", "true");
+      expect(field).toHaveAccessibleDescription("That name is too long.");
+      expect(screen.getByRole("dialog", { name: "tactics.renameTacticTitle" })).toBeInTheDocument();
+      expect(field).toHaveValue("Away");
+    });
+
+    /**
+     * Given the rename dialog open
+     * When the name is emptied
+     * Then Rename is off and submitting asks nothing of the save.
+     */
+    it("does not ask the save to rename to an empty name", () => {
+      const props = buildProps();
+      render(<TacticsCommandBar {...props} />);
+      openRename();
+      const field = screen.getByRole("textbox", { name: "tactics.renameTacticLabel" });
+
+      fireEvent.change(field, { target: { value: "   " } });
+      fireEvent.submit(field.closest("form") as HTMLFormElement);
+
+      expect(screen.getByRole("button", { name: "tactics.renameTacticConfirm" })).toBeDisabled();
+      expect(props.onRename).not.toHaveBeenCalled();
+    });
+
+    /**
+     * Given the rename dialog open
+     * When Escape is pressed, and, in another round, Cancel
+     * Then the dialog closes and nothing is renamed.
+     */
+    it.each([
+      ["Escape", () => fireEvent.keyDown(window, { key: "Escape" })],
+      ["Cancel", () => fireEvent.click(screen.getByRole("button", { name: "common.cancel" }))],
+    ])("backs out with %s without renaming", async (_name, back) => {
+      const props = buildProps();
+      render(<TacticsCommandBar {...props} />);
+      openRename();
+      await waitFor(() =>
+        expect(screen.getByRole("textbox", { name: "tactics.renameTacticLabel" })).toHaveFocus(),
+      );
+
+      back();
+
+      await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+      expect(props.onRename).not.toHaveBeenCalled();
+    });
   });
 
   /**

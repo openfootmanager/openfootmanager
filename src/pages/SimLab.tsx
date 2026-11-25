@@ -312,7 +312,7 @@ export default function SimLab() {
 
           {running && (
             <div className="flex items-center gap-3 text-slate-400">
-              <div className="w-5 h-5 border-2 border-blue-400 border-t-transparent rounded-full animate-spin" />
+              <div className="w-5 h-5 border-2 border-blue-400 border-t-transparent rounded-full motion-safe:animate-spin" />
               Simulating {cfg.games.toLocaleString()} games…
             </div>
           )}
