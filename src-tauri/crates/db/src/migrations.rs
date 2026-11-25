@@ -15,7 +15,7 @@ pub const MIGRATION_COUNT: usize = MIGRATIONS.len();
 /// **Lowering this is almost always wrong.** A save written by a release with N migrations
 /// reports `user_version = N` and expects every column those migrations added; a build with
 /// fewer can neither open it nor recreate it.
-const EXPECTED_MIGRATION_COUNT: usize = 67;
+const EXPECTED_MIGRATION_COUNT: usize = 68;
 
 // Compile-time rather than a test: adding or removing a migration should fail the build, not
 // merely turn a suite red.
@@ -204,6 +204,11 @@ const MIGRATIONS: &[(&str, &str)] = &[
     (
         "v067_player_season_stints.sql",
         include_str!("sql/v067_player_season_stints.sql"),
+    ),
+    // V68: A slot's own position within its line, where the manager moved it (CM to DM)
+    (
+        "v068_team_slot_positions.sql",
+        include_str!("sql/v068_team_slot_positions.sql"),
     ),
 ];
 
@@ -1179,6 +1184,7 @@ mod tests {
     ("v065_player_league_stats.sql", 0x877d34d1535c0e66),
     ("v066_player_competition_stats.sql", 0x80ce31187d396eed),
     ("v067_player_season_stints.sql", 0xf1b727b06deb6941),
+    ("v068_team_slot_positions.sql", 0x0c1fa04fa9056b87),
     ];
 
     /// Given the migrations already shipped

@@ -13,7 +13,7 @@ use ts_rs::TS;
 
 use crate::game::Game;
 use crate::match_day_eligibility::club_players;
-use crate::player_rating::{Familiarity, familiarity, formation_slots};
+use crate::player_rating::{Familiarity, familiarity, team_slots_for};
 use crate::turn::squad::{effective_role, match_day_selection};
 
 const NO_TEAM_ERROR: &str = "be.error.noTeamAssigned";
@@ -54,7 +54,7 @@ pub fn tactics_lineup(game: &Game) -> Result<TacticsLineup, String> {
         .ok_or(MANAGED_TEAM_NOT_FOUND_ERROR)?;
     let club = club_players(&game.players, team_id);
     let selection = match_day_selection(game, team_id, &club, None);
-    let positions = formation_slots(&selection.formation);
+    let positions = team_slots_for(Some(team), &selection.formation);
     let eleven: Vec<LineupSlot> = selection
         .eleven
         .iter()
@@ -89,6 +89,7 @@ pub fn tactics_lineup(game: &Game) -> Result<TacticsLineup, String> {
 mod tests {
     use super::*;
     use crate::clock::GameClock;
+    use crate::player_rating::formation_slots;
     use crate::test_support::uniform_attributes;
     use crate::world::test_fixtures::{manager_for, nation_team};
     use chrono::{TimeZone, Utc};
@@ -211,6 +212,35 @@ mod tests {
         assert_eq!(lineup.eleven[1].familiarity, Familiarity::OutOfPosition);
         assert_eq!(lineup.eleven[2].role, PlayerRole::Stopper);
         assert_eq!(lineup.eleven[3].role, PlayerRole::Standard);
+    }
+
+    /// Given the centre midfielder "s6" in the slot the manager moved from centre midfield to
+    ///       defensive midfield
+    /// When the lineup is read
+    /// Then that slot is a defensive midfielder's, he stands there as "can play" (same line, not
+    ///      his own position), and every other slot is the formation's own.
+    #[test]
+    fn a_slot_the_manager_moved_within_its_line_shows_its_new_position() {
+        let mut game = game();
+        let mut moved = formation_slots("4-4-2");
+        moved[6] = Position::DefensiveMidfielder;
+        game.teams[0].slot_positions = moved;
+
+        let lineup = tactics_lineup(&game).unwrap();
+
+        assert_eq!(lineup.eleven[6].player_id, "s6");
+        assert_eq!(lineup.eleven[6].position, Position::DefensiveMidfielder);
+        assert_eq!(lineup.eleven[6].familiarity, Familiarity::CanPlay);
+        let mut expected = formation_slots("4-4-2");
+        expected[6] = Position::DefensiveMidfielder;
+        assert_eq!(
+            lineup
+                .eleven
+                .iter()
+                .map(|slot| slot.position.clone())
+                .collect::<Vec<_>>(),
+            expected
+        );
     }
 
     /// Given a club with no saved eleven (a new career, or the page harness's world)

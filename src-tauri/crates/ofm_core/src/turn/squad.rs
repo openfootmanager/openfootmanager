@@ -1,6 +1,7 @@
 use crate::game::Game;
 use crate::player_rating::{
     effective_rating_for_assignment, formation_slots, natural_ovr, positional_fit_for_assignment,
+    team_slots_for,
 };
 use crate::stable_hash::stable_hash;
 use domain::player::Position as DomainPosition;
@@ -62,7 +63,7 @@ pub(crate) fn build_team_with_bench_from(
 
     let selection = match_day_selection(game, team_id, club, lookups);
     let formation = selection.formation;
-    let slots = formation_slots(&formation);
+    let slots = team_slots_for(team, &formation);
     let starting_xi = selection
         .eleven
         .into_iter()
@@ -868,11 +869,13 @@ pub(crate) fn slot_at_simulated_line(slot: &DomainPosition, line: Position) -> D
     }
 }
 
-pub(crate) fn admitted_roles_for_formation(
-    formation: &str,
+/// The roles each slot admits, given the line each starter plays in: `slots` is the side's own
+/// (`team_slots_for`), so a slot the manager moved admits what its new position admits.
+pub(crate) fn admitted_roles_for_slots(
+    slots: &[DomainPosition],
     lines: &[Position],
 ) -> Vec<Vec<EnginePlayerRole>> {
-    formation_slots(formation)
+    slots
         .iter()
         .zip(lines)
         .map(|(slot, line)| admitted_engine_roles(&slot_at_simulated_line(slot, *line)).collect())

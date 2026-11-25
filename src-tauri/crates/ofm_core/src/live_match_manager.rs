@@ -4,11 +4,11 @@
 // live path and the instant path both build their sides from there, so there is
 // one answer to "who is playing" rather than one per code path.
 use crate::custom_tactics::INVALID_FORMATION_ERROR;
-use crate::player_rating::{formation_slots, parse_formation};
+use crate::player_rating::{formation_slots, parse_formation, team_slots_for};
 use crate::turn::matchday_lookups::MatchdayLookups;
 pub use crate::turn::squad::auto_select_set_pieces;
 use crate::turn::squad::{
-    admitted_roles_for_formation, build_team_with_bench_from, domain_to_engine_role,
+    admitted_roles_for_slots, build_team_with_bench_from, domain_to_engine_role,
     domain_to_engine_tactics, engine_line, line_familiarity, morale_factor, set_piece_takers_among,
     slot_admits_engine_role, slot_at_simulated_line,
 };
@@ -130,6 +130,15 @@ pub enum MatchMode {
 const SHOOTOUT_ORDER_NOT_YOUR_SIDE: &str = "be.error.liveMatch.shootoutOrderNotYourSide";
 const NOT_YOUR_SIDE: &str = "be.error.liveMatch.notYourSide";
 
+/// The slots a side fields, as its club set them when the match was built: its formation's, each
+/// moved within its line where the manager moved it (`team_slots_for`). Held with the formation they
+/// were taken for, because a formation changed in play is the formation's own again.
+#[derive(Debug, Clone)]
+struct SideSlots {
+    formation: String,
+    slots: Vec<DomainPosition>,
+}
+
 pub struct LiveMatchSession {
     pub match_state: LiveMatchState,
     pub rng: ChaCha12Rng,
@@ -177,6 +186,9 @@ pub struct LiveMatchSession {
     saved_roles: HashMap<String, DomainPlayerRole>,
     /// The role intended for each player, including a session choice temporarily suppressed by a slot.
     intended_roles: HashMap<String, engine::PlayerRole>,
+    /// What each side's slots were when the match was built: see `SideSlots`.
+    home_slots: SideSlots,
+    away_slots: SideSlots,
 }
 
 impl LiveMatchSession {
@@ -312,11 +324,26 @@ impl LiveMatchSession {
         Ok(())
     }
 
+    /// `side`'s slots now: as its club set them when the match was built while it plays that
+    /// formation, the formation's own after a change of shape.
+    fn slots_of(&self, side: Side) -> Vec<DomainPosition> {
+        let held = match side {
+            Side::Home => &self.home_slots,
+            Side::Away => &self.away_slots,
+        };
+        let formation = &self.match_state.team(side).formation;
+        if &held.formation == formation {
+            held.slots.clone()
+        } else {
+            formation_slots(formation)
+        }
+    }
+
     /// The formation slot `player_id` fills in `side`'s eleven: entry i plays slot i.
     fn slot_of(&self, side: Side, player_id: &str) -> Option<DomainPosition> {
         let team = self.match_state.team(side);
         let index = team.players.iter().position(|p| p.id == player_id)?;
-        let slot = formation_slots(&team.formation).get(index)?.clone();
+        let slot = self.slots_of(side).get(index)?.clone();
         Some(slot_at_simulated_line(&slot, team.players[index].position))
     }
 
@@ -389,11 +416,12 @@ impl LiveMatchSession {
         if self.match_state.phase() != MatchPhase::PreKickOff {
             return;
         }
+        let slots = self.slots_of(side);
         let team = self.match_state.team(side);
         let starters: Vec<(String, DomainPosition)> = team
             .players
             .iter()
-            .zip(formation_slots(&team.formation))
+            .zip(slots)
             .map(|(player, slot)| (player.id.clone(), slot))
             .collect();
         for (player_id, slot) in starters {
@@ -432,11 +460,12 @@ impl LiveMatchSession {
 
     /// Apply the intended role only while the player's current slot admits it.
     fn normalize_formation_roles(&mut self, side: Side) {
+        let slots = self.slots_of(side);
         let team = self.match_state.team(side);
         let roles: Vec<_> = team
             .players
             .iter()
-            .zip(formation_slots(&team.formation))
+            .zip(slots)
             .map(|(player, slot)| {
                 let slot = slot_at_simulated_line(&slot, player.position);
                 let intended = self
@@ -688,9 +717,10 @@ impl LiveMatchSession {
     }
 
     fn sync_slot_roles(&mut self, side: Side) {
+        let slots = self.slots_of(side);
         let team = self.match_state.team(side);
         let lines: Vec<_> = team.players.iter().map(|p| p.position).collect();
-        let roles = admitted_roles_for_formation(&team.formation, &lines);
+        let roles = admitted_roles_for_slots(&slots, &lines);
         self.match_state.set_slot_roles(side, roles);
     }
 }
@@ -937,10 +967,20 @@ fn create_live_match_with(
         away_bench,
         allows_extra_time,
     );
-    for side in [Side::Home, Side::Away] {
+    let side_slots = |side: Side, team_id: &str| {
+        let formation = match_state.team(side).formation.clone();
+        let slots = team_slots_for(
+            game.teams.iter().find(|team| team.id == team_id),
+            &formation,
+        );
+        SideSlots { formation, slots }
+    };
+    let home_slots = side_slots(Side::Home, &home_team_id);
+    let away_slots = side_slots(Side::Away, &away_team_id);
+    for (side, held) in [(Side::Home, &home_slots), (Side::Away, &away_slots)] {
         let team = match_state.team(side);
         let lines: Vec<_> = team.players.iter().map(|p| p.position).collect();
-        let roles = admitted_roles_for_formation(&team.formation, &lines);
+        let roles = admitted_roles_for_slots(&held.slots, &lines);
         match_state.set_slot_roles(side, roles);
     }
     apply_saved_match_roles(
@@ -997,6 +1037,8 @@ fn create_live_match_with(
         squad_players,
         saved_roles,
         intended_roles,
+        home_slots,
+        away_slots,
     })
 }
 

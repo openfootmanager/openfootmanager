@@ -32,6 +32,8 @@ pub fn upsert_team(conn: &Connection, t: &Team) -> Result<(), String> {
         .map_err(|_| GAME_PERSISTENCE_WRITE_ERROR.to_string())?;
     let tactics_phase_json = serde_json::to_string(&t.tactics_phase)
         .map_err(|_| GAME_PERSISTENCE_WRITE_ERROR.to_string())?;
+    let slot_positions_json = serde_json::to_string(&t.slot_positions)
+        .map_err(|_| GAME_PERSISTENCE_WRITE_ERROR.to_string())?;
     let play_style_str = format!("{:?}", t.play_style);
     let kit_pattern_str = t.kit_pattern.to_string();
     let training_focus_str = format!("{:?}", t.training_focus);
@@ -46,8 +48,8 @@ pub fn upsert_team(conn: &Connection, t: &Team) -> Result<(), String> {
          training_focus, training_intensity, training_schedule,
          founded_year, colors_primary, colors_secondary,
          starting_xi_ids, match_roles, form, history, training_groups, financial_ledger, sponsorship, facilities, media_json, kit_pattern,
-         player_roles_json, tactics_phase_json)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23, ?24, ?25, ?26, ?27, ?28, ?29, ?30, ?31, ?32, ?33, ?34, ?35)",
+         player_roles_json, tactics_phase_json, slot_positions_json)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23, ?24, ?25, ?26, ?27, ?28, ?29, ?30, ?31, ?32, ?33, ?34, ?35, ?36)",
         params![
             t.id,
             t.name,
@@ -84,6 +86,7 @@ pub fn upsert_team(conn: &Connection, t: &Team) -> Result<(), String> {
             kit_pattern_str,
             player_roles_json,
             tactics_phase_json,
+            slot_positions_json,
         ],
     )
     .map_err(|_| GAME_PERSISTENCE_WRITE_ERROR.to_string())?;
@@ -157,6 +160,7 @@ fn row_to_team(conn: &Connection, row: &rusqlite::Row) -> rusqlite::Result<Team>
     let kit_pattern_str: String = row.get::<_, String>(32)?;
     let player_roles_json: String = row.get(33).unwrap_or_else(|_| "{}".to_string());
     let tactics_phase_json: String = row.get(34).unwrap_or_else(|_| "{}".to_string());
+    let slot_positions_json: String = row.get(35).unwrap_or_else(|_| "[]".to_string());
 
     Ok(Team {
         id: id.clone(),
@@ -211,6 +215,7 @@ fn row_to_team(conn: &Connection, row: &rusqlite::Row) -> rusqlite::Result<Team>
         match_roles: json_column::read(conn, cell("match_roles"), &match_roles_json),
         player_roles: read_player_roles(conn, cell("player_roles_json"), &player_roles_json),
         tactics_phase: read_tactics_phase(conn, cell("tactics_phase_json"), &tactics_phase_json),
+        slot_positions: json_column::read(conn, cell("slot_positions_json"), &slot_positions_json),
         form: json_column::read(conn, cell("form"), &form_json),
         history: json_column::read(conn, cell("history"), &history_json),
     })
@@ -301,7 +306,8 @@ pub fn load_all_teams(conn: &Connection) -> Result<Vec<Team>, String> {
                     founded_year, colors_primary, colors_secondary,
                     starting_xi_ids, match_roles, form, history, training_groups, financial_ledger, sponsorship, facilities,
                     COALESCE(media_json, '{}'), COALESCE(kit_pattern, 'Solid'),
-                    COALESCE(player_roles_json, '{}'), COALESCE(tactics_phase_json, '{}')
+                    COALESCE(player_roles_json, '{}'), COALESCE(tactics_phase_json, '{}'),
+                    COALESCE(slot_positions_json, '[]')
              FROM teams",
         )
         .map_err(|_| GAME_PERSISTENCE_LOAD_ERROR.to_string())?;
@@ -328,7 +334,8 @@ pub fn load_team(conn: &Connection, id: &str) -> Result<Option<Team>, String> {
                     founded_year, colors_primary, colors_secondary,
                     starting_xi_ids, match_roles, form, history, training_groups, financial_ledger, sponsorship, facilities,
                     COALESCE(media_json, '{}'), COALESCE(kit_pattern, 'Solid'),
-                    COALESCE(player_roles_json, '{}'), COALESCE(tactics_phase_json, '{}')
+                    COALESCE(player_roles_json, '{}'), COALESCE(tactics_phase_json, '{}'),
+                    COALESCE(slot_positions_json, '[]')
              FROM teams WHERE id = ?1",
         )
         .map_err(|_| GAME_PERSISTENCE_LOAD_ERROR.to_string())?;
@@ -875,6 +882,65 @@ mod tests {
         assert_eq!(
             loaded.tactics_phase.pressing_intensity,
             PressingIntensity::Aggressive
+        );
+    }
+
+    /// Given a team whose manager moved two slots within their lines (a centre midfielder to a
+    ///       defensive midfielder, a left back to a left wing-back)
+    /// When it is saved and read back by a fresh load
+    /// Then the slot positions are as they were saved (a column left out of the INSERT or the SELECT
+    ///      would read back empty).
+    #[test]
+    fn test_team_slot_positions_roundtrip() {
+        use domain::player::Position;
+        let db = test_db();
+        let mut team = sample_team("team-001", "Slots FC");
+        team.formation = "4-4-2".to_string();
+        team.slot_positions = vec![
+            Position::Goalkeeper,
+            Position::LeftWingBack,
+            Position::CenterBack,
+            Position::CenterBack,
+            Position::RightBack,
+            Position::LeftMidfielder,
+            Position::DefensiveMidfielder,
+            Position::CentralMidfielder,
+            Position::RightMidfielder,
+            Position::Striker,
+            Position::Striker,
+        ];
+
+        upsert_team(db.conn(), &team).unwrap();
+        let loaded = load_team(db.conn(), "team-001").unwrap().unwrap();
+        let all = load_all_teams(db.conn()).unwrap();
+
+        assert_eq!(loaded.slot_positions, team.slot_positions);
+        assert_eq!(all[0].slot_positions, team.slot_positions);
+    }
+
+    /// Given a team whose slot positions hold a value that is not a position
+    /// When it is loaded
+    /// Then it reads as having none (every slot its formation's own), and the cell is kept in
+    ///      unreadable_records rather than silently lost.
+    #[test]
+    fn a_slot_position_list_that_does_not_read_reads_as_none_and_keeps_the_cell() {
+        let db = test_db();
+        upsert_team(db.conn(), &sample_team("team-001", "Bad FC")).unwrap();
+        db.conn()
+            .execute(
+                "UPDATE teams SET slot_positions_json = '[\"NotAPosition\"]' WHERE id = 'team-001'",
+                [],
+            )
+            .unwrap();
+
+        let loaded = load_team(db.conn(), "team-001").unwrap().unwrap();
+
+        assert!(loaded.slot_positions.is_empty());
+        let kept = kept_cells(db.conn());
+        assert_eq!(kept.len(), 1, "{kept:?}");
+        assert_eq!(
+            (kept[0].1.as_str(), kept[0].2.as_str()),
+            ("team-001", "slot_positions_json")
         );
     }
 

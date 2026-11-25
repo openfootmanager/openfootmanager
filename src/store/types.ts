@@ -177,6 +177,11 @@ export interface TeamData {
   match_roles?: TeamMatchRolesData;
   player_roles?: Record<string, PlayerRole>;
   tactics_phase?: TacticsPhaseSettings;
+  /**
+   * A slot's own position where the manager moved it within its line, one per slot of `formation`;
+   * empty (or absent, in a save from before it) means every slot is the formation's own.
+   */
+  slot_positions?: string[];
   form: string[];
   history: TeamSeasonRecord[];
 }

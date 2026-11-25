@@ -5,6 +5,7 @@ import type { KitPattern } from "./KitPattern";
 import type { MatchRoles } from "./MatchRoles";
 import type { PlayStyle } from "./PlayStyle";
 import type { PlayerRole } from "./PlayerRole";
+import type { Position } from "./Position";
 import type { Sponsorship } from "./Sponsorship";
 import type { TacticsPhaseSettings } from "./TacticsPhaseSettings";
 import type { TeamColors } from "./TeamColors";
@@ -25,4 +26,11 @@ finance: number, manager_id: string | null, reputation: number, wage_budget: num
  * Per-player tactical role assignments. Keyed by player ID.
  * Missing entries default to the position's standard role.
  */
-player_roles: { [key in string]: PlayerRole }, tactics_phase: TacticsPhaseSettings, training_focus: TrainingFocus, training_intensity: TrainingIntensity, training_schedule: TrainingSchedule, founded_year: number, colors: TeamColors, kit_pattern: KitPattern, media: TeamMedia, training_groups: Array<TrainingGroup>, starting_xi_ids: Array<string>, match_roles: MatchRoles, form: Array<string>, history: Array<TeamSeasonRecord>, };
+player_roles: { [key in string]: PlayerRole }, tactics_phase: TacticsPhaseSettings, 
+/**
+ * A slot's own position where the manager moved it within its line (a centre midfielder asked to
+ * play as a defensive midfielder): one per slot of `formation`, in the order the formation lists
+ * its slots. Empty means every slot is the formation's own, as in a save from before this field.
+ * A change of formation clears it.
+ */
+slot_positions: Array<Position>, training_focus: TrainingFocus, training_intensity: TrainingIntensity, training_schedule: TrainingSchedule, founded_year: number, colors: TeamColors, kit_pattern: KitPattern, media: TeamMedia, training_groups: Array<TrainingGroup>, starting_xi_ids: Array<string>, match_roles: MatchRoles, form: Array<string>, history: Array<TeamSeasonRecord>, };

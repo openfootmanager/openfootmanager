@@ -562,3 +562,59 @@ fn a_shape_the_game_cannot_lay_out_is_refused_and_changes_nothing() {
     assert_eq!(session.match_state.team(Side::Home).formation, "4-4-2");
     assert_eq!(familiarity_of(&session, "alpha_lm"), before);
 }
+
+/// The user's match at kick-off, with alpha built from `alpha` and its centre-midfield slot
+/// (index 6) moved, or not, to defensive midfield.
+fn at_kick_off_with_the_slot_moved(alpha: Vec<Player>, moved: bool) -> LiveMatchSession {
+    let mut game = game(1, alpha);
+    if moved {
+        let mut slots = ofm_core::player_rating::formation_slots("4-4-2");
+        slots[6] = Position::DefensiveMidfielder;
+        game.teams
+            .iter_mut()
+            .find(|team| team.id == "alpha")
+            .expect("alpha is in the game")
+            .slot_positions = slots;
+    }
+    live_match_manager::create_live_match(&game, 0, MatchMode::Live, false)
+        .expect("the fixture starts")
+}
+
+/// Given alpha's natural 4-4-2 with the manager having moved the first central-midfield slot to
+/// defensive midfield, and a natural defensive midfielder on the bench,
+/// When the manager swaps him in for the central midfielder before kick-off,
+/// Then he plays midfield at his own position's factor, 1.0: the slot he took is a defensive
+/// midfield slot, not a central one.
+#[test]
+fn a_bench_player_swapped_into_a_slot_the_manager_moved_plays_at_that_positions_factor() {
+    let mut alpha = natural_side("alpha");
+    alpha.push(player("alpha", "dm", Position::DefensiveMidfielder));
+    let mut session = at_kick_off_with_the_slot_moved(alpha, true);
+
+    swap(&mut session, "alpha_cm1", "alpha_dm").expect("the swap is valid");
+
+    assert_eq!(session.snapshot().home_team.players[6].id, "alpha_dm");
+    let midfield = familiarity_of(&session, "alpha_dm")[MID];
+    assert!(
+        (midfield - 1.0).abs() < 1e-12,
+        "a defensive midfielder at a moved defensive-midfield slot plays midfield at {midfield}"
+    );
+}
+
+/// The same swap with no slot moved: the slot is the formation's central midfield, a position a
+/// defensive midfielder can play (1 - 0.10 / 3), so the moved slot above is what made the
+/// difference.
+#[test]
+fn the_same_swap_into_a_central_midfield_slot_plays_at_a_can_play_factor() {
+    let mut alpha = natural_side("alpha");
+    alpha.push(player("alpha", "dm", Position::DefensiveMidfielder));
+    let mut session = at_kick_off_with_the_slot_moved(alpha, false);
+
+    swap(&mut session, "alpha_cm1", "alpha_dm").expect("the swap is valid");
+
+    let midfield = familiarity_of(&session, "alpha_dm")[MID];
+    assert!(
+        (midfield - CAN_PLAY).abs() < 1e-12,
+        "a defensive midfielder at central midfield plays midfield at {midfield}"
+    );
+}
