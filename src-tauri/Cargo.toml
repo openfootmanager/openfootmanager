@@ -1,6 +1,6 @@
 [package]
 name = "openfootmanager"
-version = "0.2.0"
+version = "0.2.1"
 description = "Openfoot Manager"
 authors = ["Sturdy Robot (admin@esportsmanager.net)"]
 edition = "2021"
