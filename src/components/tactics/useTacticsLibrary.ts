@@ -55,7 +55,13 @@ export function useTacticsLibrary({
     changeSave,
     persistTactic,
     careerToken,
-  } = useCustomTacticStore({ gameState, onWriteError, onWriteSaved });
+  } = useCustomTacticStore({
+    managerId: gameState?.manager.id ?? null,
+    careerStartDate: gameState?.clock.start_date ?? null,
+    careerToken: gameState?.career_token ?? 0,
+    onWriteError,
+    onWriteSaved,
+  });
   const {
     translatedPresetLibrary,
     tacticLibrary,

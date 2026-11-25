@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 
-import { type GameStateData, useGameStore } from "../../store/gameStore";
+import { useGameStore } from "../../store/gameStore";
 import {
   type CustomTactic,
   legacyTacticsImportPending,
@@ -17,7 +17,11 @@ import {
 import type { TacticsLibraryEntry } from "./TacticPicker";
 
 interface UseCustomTacticStoreArgs {
-  gameState: GameStateData | null;
+  /** The career's identity: the manager, and the date its game began. Null with no game open. */
+  managerId: string | null;
+  careerStartDate: string | null;
+  /** Handed back with every write so the backend can refuse one meant for another career. */
+  careerToken: number;
   /** A write the backend refused: the screen tells the manager it did not save. */
   onWriteError: (error: unknown) => void;
   /** A custom-tactic save or delete the backend accepted: the screen drops an earlier alert. */
@@ -27,10 +31,13 @@ interface UseCustomTacticStoreArgs {
 /**
  * The career's saved tactics as the screen holds them, and everything that talks to the save about
  * them: the first load, the one-off import of an old browser library, and the writes (`changeSave`),
- * which all run one at a time, in the order they were asked, and only for the career that asked.
+ * which all run one at a time, in the order they were asked. It takes only the career's identity, not
+ * the game: what it reads of the game is the manager, the career token and the start date.
  */
 export function useCustomTacticStore({
-  gameState,
+  managerId,
+  careerStartDate,
+  careerToken,
   onWriteError,
   onWriteSaved,
 }: UseCustomTacticStoreArgs) {
@@ -40,10 +47,6 @@ export function useCustomTacticStore({
   // The library as of the latest render, for a step that reads it after an await.
   const latestCustomTactics = useRef(customTactics);
   latestCustomTactics.current = customTactics;
-  const managerId = gameState?.manager.id ?? null;
-  // Handed back with every write so the backend can refuse one meant for another career.
-  const careerToken = gameState?.career_token ?? 0;
-  const careerStartDate = gameState?.clock.start_date ?? null;
 
   // Everything that talks to the save about the library runs one step at a time, in the order it
   // was asked: the first load, the import of an old browser library, and every save. Replies from
@@ -64,10 +67,13 @@ export function useCustomTacticStore({
     confirmedLibrary.current = { epoch, entries };
     return entries;
   }
-  // The commands act on whichever game is active, and carry no career with them. A step still
+  // The commands act on whichever game is active, and a read carries no career with it. A step still
   // waiting in the queue when the career changes (another game loaded or the game left) would
   // write one career's tactic into the next, so each step remembers the store's career epoch it
-  // was asked in and does nothing once that is no longer the current one. Leaving this screen
+  // was asked in and, once that is no longer the current one, is skipped if it has not started and
+  // changes nothing on the screen if it has. What it does not do is stop a call already on its way:
+  // the writes carry the career token, which the backend checks, but a read (the list asked after a
+  // refused write) is not career-scoped; its answer is dropped, not prevented. Leaving this screen
   // while the same career stays open changes nothing: the step is still that career's.
   const careerEpoch = useGameStore((state) => state.careerEpoch);
 

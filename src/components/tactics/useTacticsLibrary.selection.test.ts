@@ -53,14 +53,14 @@ const careerGame = {
 const listCalls = () => mockedInvoke.mock.calls.filter(([c]) => c === "list_custom_tactics");
 
 describe("useTacticsLibrary loading, characterized", () => {
-  /**
-   * Given a write still out, a second load of the same career queued behind it (the game's career
-   *       token changed), and then another career replacing the open one
-   * When the write answers
-   * Then the queued load of the replaced career never asks the save for its list: it was asked in a
-   *      career that is no longer the open one. Only the new career's own load does.
-   */
-  it("does not run a queued load once its career has been replaced", async () => {
+  const otherCareer = {
+    ...careerGame,
+    manager: { id: "mgr2", team_id: null },
+  } as unknown as GameStateData;
+  const sameCareerNewToken = { ...careerGame, career_token: 1 } as unknown as GameStateData;
+
+  /** The hook over a game a test can replace, with one save write held until the test releases it. */
+  async function mountWithAHeldWrite() {
     const saveReply = deferred<unknown[]>();
     mockedInvoke.mockReset();
     mockedInvoke.mockImplementation(async (command: string) => {
@@ -68,12 +68,7 @@ describe("useTacticsLibrary loading, characterized", () => {
       if (command === "save_current_tactic") return saveReply.promise;
       return { modified: false };
     });
-    const otherCareer = {
-      ...careerGame,
-      manager: { id: "mgr2", team_id: null },
-    } as unknown as GameStateData;
-    const sameCareerNewToken = { ...careerGame, career_token: 1 } as unknown as GameStateData;
-    const { result, rerender } = renderHook(
+    const hook = renderHook(
       ({ game }: { game: GameStateData }) =>
         useTacticsLibrary({
           gameState: game,
@@ -89,17 +84,51 @@ describe("useTacticsLibrary loading, characterized", () => {
       { initialProps: { game: careerGame } },
     );
     await waitFor(() => expect(listCalls()).toHaveLength(1));
-    act(() => result.current.handleCreateCustomTactic());
+    await waitFor(() => expect(hook.result.current.libraryLoaded).toBe(true));
+    act(() => hook.result.current.handleCreateCustomTactic());
     await waitFor(() =>
       expect(mockedInvoke.mock.calls.some(([c]) => c === "save_current_tactic")).toBe(true),
     );
+    return { ...hook, release: () => act(async () => saveReply.resolve([])) };
+  }
+
+  /**
+   * Given a write still out, and the game's career token changing behind it (the same career, a new
+   *       token)
+   * When the write answers
+   * Then the library is asked for again, and is loaded once that answer is in: a queued reload of the
+   *      career that is still open runs.
+   */
+  it("runs a queued reload when only the career token changed", async () => {
+    const { result, rerender, release } = await mountWithAHeldWrite();
+
+    rerender({ game: sameCareerNewToken });
+    expect(result.current.libraryLoaded).toBe(false);
+    await release();
+
+    await waitFor(() => expect(listCalls()).toHaveLength(2));
+    await waitFor(() => expect(result.current.libraryLoaded).toBe(true));
+  });
+
+  /**
+   * Given a write still out, a second load of the same career queued behind it (the game's career
+   *       token changed), and then another career replacing the open one
+   * When the write answers
+   * Then the queued load of the replaced career never asks the save for its list: it was asked in a
+   *      career that is no longer the open one. Only the new career's own load does, and it is that
+   *      load whose settling marks the library loaded (the hook turns "loaded" on only for its
+   *      latest asking), so the one call after the release is the open career's.
+   */
+  it("does not run a queued load once its career has been replaced", async () => {
+    const { result, rerender, release } = await mountWithAHeldWrite();
+
     rerender({ game: sameCareerNewToken });
     rerender({ game: otherCareer });
     act(() => useGameStore.getState().setGameActive(true));
+    expect(result.current.libraryLoaded).toBe(false);
+    await release();
 
-    await act(async () => saveReply.resolve([]));
-
-    await waitFor(() => expect(listCalls()).toHaveLength(2));
+    await waitFor(() => expect(result.current.libraryLoaded).toBe(true));
     await act(async () => {});
     expect(listCalls()).toHaveLength(2);
   });
@@ -123,8 +152,7 @@ describe("useTacticsLibrary selection, characterized", () => {
     act(() => result.current.handleCreateCustomTactic());
     await waitFor(() => expect(result.current.canDeleteTactic).toBe(true));
     rerender({ formation: "4-4-2", playStyle: "Defensive" });
-    act(() => result.current.handleDeleteTactic());
-    await waitFor(() => expect(result.current.canDeleteTactic).toBe(false));
+    await deleteTheActiveTactic(result);
     await act(async () => {});
 
     // The unsaved setup now stands in, and it is not changed from itself: the badge is clean, so the
@@ -189,6 +217,24 @@ describe("useTacticsLibrary selection, characterized", () => {
     });
   }
 
+  /**
+   * Deletes the saved tactic that is active, and waits for the save to have been asked to delete
+   * that very tactic: removing it from the picker alone (the optimistic step) does not count.
+   */
+  async function deleteTheActiveTactic(result: { current: ReturnType<typeof useTacticsLibrary> }) {
+    const id = result.current.activeTactic.id;
+    act(() => result.current.handleDeleteTactic());
+    await waitFor(() =>
+      expect(
+        mockedInvoke.mock.calls.some(
+          ([command, args]) =>
+            command === "delete_custom_tactic" && (args as { id?: string } | undefined)?.id === id,
+        ),
+      ).toBe(true),
+    );
+    await waitFor(() => expect(result.current.canDeleteTactic).toBe(false));
+  }
+
   const savedNames = (name: (typeof mockedInvoke.mock.calls)[number]) =>
     (name[1] as { tactic?: { name?: string } } | undefined)?.tactic?.name;
 
@@ -250,26 +296,39 @@ describe("useTacticsLibrary selection, characterized", () => {
   });
 
   /**
-   * Given a setup that matches no preset (4-4-2 Defensive), a preset applied, a tactic made from it
-   *       and then deleted
+   * Given a setup that matches no preset (4-4-2 Defensive), a preset applied (the screen's setup
+   *       becomes the preset's), the setup then edited away from it, a tactic made and then deleted
    * When the manager looks at Reset
    * Then it is offered against the preset that was applied, and using it applies that preset: an
    *      applied preset is remembered as the setup's anchor.
    */
   it("remembers an applied preset as the one Reset goes back to", async () => {
     emptySave();
-    const { result, onApplyPreset } = mountLibrary({ formation: "4-4-2", playStyle: "Defensive" });
+    // The screen's callback publishes the game, so the setup becomes the preset's: the host does the same.
+    let host: (props: Props) => void = () => {};
+    const onApplyPreset = vi.fn(async (formation: string, playStyle: string) => {
+      host({ formation, playStyle });
+      return true;
+    });
+    const { result, rerender } = mountLibrary(
+      { formation: "4-4-2", playStyle: "Defensive" },
+      onApplyPreset,
+    );
+    host = rerender;
     await waitFor(() => expect(result.current.libraryLoaded).toBe(true));
     const wingPlay = result.current.tacticLibrary.find((entry) => entry.id === "preset:wing-play");
     if (!wingPlay) throw new Error("the wing play preset is in the library");
     await act(async () => {
       await result.current.applyTacticSelection(wingPlay);
     });
+    expect(onApplyPreset).toHaveBeenCalledWith("4-3-3", "Attacking");
+    // Then the manager edits the setup away from it (a play style no preset has at 4-3-3).
+    rerender({ formation: "4-3-3", playStyle: "Defensive" });
     act(() => result.current.handleCreateCustomTactic());
     await waitFor(() => expect(result.current.canDeleteTactic).toBe(true));
-    act(() => result.current.handleDeleteTactic());
-    await waitFor(() => expect(result.current.canDeleteTactic).toBe(false));
+    await deleteTheActiveTactic(result);
 
+    expect(result.current.activeTactic.id).toBe("current:setup");
     expect(result.current.canResetTactic).toBe(true);
     onApplyPreset.mockClear();
     await act(async () => {
