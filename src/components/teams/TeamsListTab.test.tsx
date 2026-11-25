@@ -16,7 +16,7 @@ vi.mock("@tauri-apps/api/core", () => ({
 // when `t` changes, so a new one each render would refetch without end.
 vi.mock("react-i18next", () => {
   const translation = {
-    t: (key: string, fallback?: string | { defaultValue?: string }) => {
+    t: (key: string, fallback?: string | Record<string, string>) => {
       const labels: Record<string, string> = {
         "teams.yourTeam": "Your Team",
         "common.position": "Position",
@@ -33,6 +33,9 @@ vi.mock("react-i18next", () => {
         "teams.searchPlaceholder": "Search clubs",
         "teams.noResults": "No clubs match your search.",
         "teams.otherClubs": "Other clubs",
+        "nations.arg": "Argentina",
+        "tournaments.competitions.tierDivision": "{{country}} Division {{tier}}",
+        "tournaments.competitions.phaseOpening": "Opening tournament",
         "be.error.noActiveGameSession": "No active game session",
         "common.won": "W",
         "common.wonFull": "Won",
@@ -43,6 +46,13 @@ vi.mock("react-i18next", () => {
         "common.drawn": "D",
         "common.lost": "L",
       };
+      if (
+        key === "tournaments.competitions.tierDivision" &&
+        fallback &&
+        typeof fallback === "object"
+      ) {
+        return `${fallback.country} Division ${fallback.tier}`;
+      }
       if (labels[key]) return labels[key];
       if (fallback && typeof fallback === "object") {
         return fallback.defaultValue ?? key;
@@ -246,6 +256,38 @@ describe("TeamsListTab", () => {
     expect(headings[0]).toHaveTextContent("Beta FC");
     expect(headings[1]).toHaveTextContent("Alpha FC");
     expect(screen.getByText("Your Team")).toBeInTheDocument();
+  });
+
+  /**
+   * Given a split-season league in the teams directory
+   * When its group label renders
+   * Then it includes the localized tier name and phase
+   */
+  it("shows a split-season phase in the teams directory", async () => {
+    const directory: TeamsDirectory = {
+      regions: [
+        {
+          id: "south-america",
+          team_count: 1,
+          leagues: [
+            {
+              id: "arg-d3-apertura",
+              name: "Argentina Division 3 Apertura",
+              name_key: "tournaments.competitions.tierDivision",
+              country_id: "ARG",
+              division_tier: 3,
+              division_phase: "opening",
+              teams: [buildCard({ id: "team-1", name: "Alpha FC", league_pos: 1 })],
+            },
+          ],
+        },
+      ],
+    };
+    mockedInvoke.mockResolvedValue(directory);
+
+    render(<TeamsListTab gameState={gameStateWithManagerTeam("team-1")} onSelectTeam={vi.fn()} />);
+
+    expect(await screen.findByText("Argentina Division 3 Opening tournament")).toBeInTheDocument();
   });
 
   /**
