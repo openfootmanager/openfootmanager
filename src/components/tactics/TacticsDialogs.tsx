@@ -1,6 +1,7 @@
 import type { JSX } from "react";
 
 import type { PlayerData } from "../../store/gameStore";
+import type { SwapBlockedReason } from "./swapBlockedReason";
 import TacticsCompareDialog from "./TacticsCompareDialog";
 import TacticsPresetDialog from "./TacticsPresetDialog";
 import type { usePresetChoice } from "./usePresetChoice";
@@ -14,6 +15,7 @@ interface TacticsDialogsProps {
   selectedPlayer: PlayerData | null | undefined;
   comparePlayer: PlayerData | null | undefined;
   canConfirmSwap: boolean;
+  swapBlockedReason: SwapBlockedReason | null;
   onCloseCompare: () => void;
   onConfirmSwap: () => void;
 }
@@ -24,6 +26,7 @@ export default function TacticsDialogs({
   selectedPlayer,
   comparePlayer,
   canConfirmSwap,
+  swapBlockedReason,
   onCloseCompare,
   onConfirmSwap,
 }: TacticsDialogsProps): JSX.Element {
@@ -42,6 +45,7 @@ export default function TacticsDialogs({
       {selectedPlayer && comparePlayer ? (
         <TacticsCompareDialog
           canConfirmSwap={canConfirmSwap}
+          swapBlockedReason={swapBlockedReason}
           comparePlayer={comparePlayer}
           onClose={onCloseCompare}
           onConfirmSwap={onConfirmSwap}

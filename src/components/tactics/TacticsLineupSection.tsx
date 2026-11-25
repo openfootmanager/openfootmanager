@@ -25,9 +25,6 @@ export type TacticsLineupState = Pick<
   | "formation"
   | "familiarity"
   | "lineupReady"
-  | "dragState"
-  | "hoveredSlot"
-  | "selectedPlayer"
   | "selectedPlayerId"
   | "comparePlayerId"
   | "effectiveMatchRoles"
@@ -36,27 +33,22 @@ export type TacticsLineupState = Pick<
   | "handleAssignBestFit"
   | "handleAssignMatchRole"
   | "handleDemoteStarter"
-  | "handleDragStart"
   | "handleLineupPlayerClick"
   | "handlePromoteBenchPlayer"
-  | "handleSlotDragLeave"
-  | "handleSlotDragOver"
-  | "handleSlotDrop"
-  | "resetDragState"
 >;
 
 interface TacticsLineupSectionProps {
   state: TacticsLineupState;
-  /** The roles shown in the table and on the pitch: the match's own, not a stale stored one. */
+  /** The roles shown in the table: the match's own, not a stale stored one. */
   playerRoles: Record<string, PlayerRole> | undefined;
-  /** A role chosen in the table or on the pitch: one write, whose refusal the tab shows. */
+  /** A role chosen in the table: one write, whose refusal the tab shows. */
   onRoleChange: (playerId: string, role: PlayerRole) => void;
   onSelectPlayer: (id: string, options?: PlayerSelectionOptions) => void;
 }
 
 /**
- * The lineup region of the Tactics tab: the player table and the pitch inside their frame, with the
- * callbacks that turn their events into the lineup state's operations (each is a promise the
+ * The lineup region of the Tactics tab: the player table, where every change is made, and the pitch
+ * that only shows the eleven, inside their frame, with the table's callbacks that turn their events into the lineup state's operations (each is a promise the
  * screen does not wait on).
  */
 export default function TacticsLineupSection({
@@ -74,9 +66,6 @@ export default function TacticsLineupSection({
     formation,
     familiarity,
     lineupReady,
-    dragState,
-    hoveredSlot,
-    selectedPlayer,
     selectedPlayerId,
     comparePlayerId,
     effectiveMatchRoles,
@@ -85,13 +74,8 @@ export default function TacticsLineupSection({
     handleAssignBestFit,
     handleAssignMatchRole,
     handleDemoteStarter,
-    handleDragStart,
     handleLineupPlayerClick,
     handlePromoteBenchPlayer,
-    handleSlotDragLeave,
-    handleSlotDragOver,
-    handleSlotDrop,
-    resetDragState,
   } = state;
 
   return (
@@ -120,52 +104,23 @@ export default function TacticsLineupSection({
           onDemoteStarter={(playerId) => {
             void handleDemoteStarter(playerId);
           }}
-          onClearSelection={clearLineupSelection}
-          onDragStart={handleDragStart}
-          onDragEnd={resetDragState}
-        />
-      }
-      pitch={
-        <TacticsPitch
-          familiarity={familiarity}
-          lineupReady={lineupReady}
-          dragState={dragState}
-          formation={formation}
-          comparePlayerId={comparePlayerId}
-          hoveredSlot={hoveredSlot}
-          matchRoles={effectiveMatchRoles}
-          onRoleChange={onRoleChange}
-          playerRoles={playerRoles}
-          tacticsPhase={team?.tactics_phase}
           onAssignBestFit={(playerId) => {
             void handleAssignBestFit(playerId);
           }}
-          onAssignMatchRole={(role, playerId) => {
-            void handleAssignMatchRole(role, playerId);
-          }}
           onClearSelection={clearLineupSelection}
-          onDemoteStarter={(playerId) => {
-            void handleDemoteStarter(playerId);
-          }}
-          onDragEnd={resetDragState}
-          onDragStart={handleDragStart}
-          onLineupPlayerClick={(playerId, section) => {
-            void handleLineupPlayerClick(playerId, section);
-          }}
-          onOpenPlayerProfile={(playerId) => {
-            onSelectPlayer(playerId);
-          }}
-          onPromoteBench={(playerId) => {
-            void handlePromoteBenchPlayer(playerId);
-          }}
-          onSlotDragLeave={handleSlotDragLeave}
-          onSlotDragOver={handleSlotDragOver}
-          onSlotDrop={(event, slotIndex) => {
-            void handleSlotDrop(event, slotIndex);
-          }}
+        />
+      }
+      pitch={
+        // The pitch shows the eleven; every change is made in the table.
+        <TacticsPitch
+          familiarity={familiarity}
+          lineupReady={lineupReady}
+          formation={formation}
+          comparePlayerId={comparePlayerId}
+          matchRoles={effectiveMatchRoles}
+          tacticsPhase={team?.tactics_phase}
           outOfPositionCount={outOfPositionCount}
           pitchSlots={pitchSlots}
-          selectedPlayer={selectedPlayer}
           selectedPlayerId={selectedPlayerId}
         />
       }

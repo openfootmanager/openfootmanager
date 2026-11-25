@@ -54,7 +54,7 @@ export default function TacticsTab({
     selectedPlayer,
     comparePlayer,
     canConfirmSwap,
-    dragPreviewRef,
+    swapBlockedReason,
     handleFormationChange,
     handlePlayStyleChange,
     handleApplyTacticPreset,
@@ -120,11 +120,6 @@ export default function TacticsTab({
     // The tab fills the workspace (it is one of `tabFillsWorkspace`'s): its regions scroll, the page
     // doesn't.
     <div className="flex min-h-0 w-full flex-1 flex-col gap-4">
-      <div
-        ref={dragPreviewRef}
-        aria-hidden="true"
-        className="pointer-events-none fixed -left-20 top-0 h-8 w-8 rounded-full border border-white/15 bg-navy-900/90 shadow-lg"
-      />
       {writeError ? (
         <p
           role="alert"
@@ -206,6 +201,7 @@ export default function TacticsTab({
         selectedPlayer={selectedPlayer}
         comparePlayer={comparePlayer}
         canConfirmSwap={canConfirmSwap}
+        swapBlockedReason={swapBlockedReason}
         onCloseCompare={clearLineupSelection}
         onConfirmSwap={() => {
           void handleConfirmSwap();

@@ -3,7 +3,7 @@ import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 
 import { i18nReady } from "../../i18n";
 import { condBgColor } from "../../lib/playerConditionDisplay";
-import { PitchToken, type PitchFitTone } from "./PitchToken";
+import { PitchToken, pitchTokenSummary, type PitchFitTone } from "./PitchToken";
 
 /**
  * #330 — each channel of the token says one thing: the ring is position fit,
@@ -228,5 +228,31 @@ describe("PitchToken summary reachability", () => {
     });
 
     expect(screen.queryByRole("tooltip")).not.toBeInTheDocument();
+  });
+});
+
+describe("pitchTokenSummary", () => {
+  /** A `t` that shows which key was asked for and with what values. */
+  const t = (key: string, options?: Record<string, unknown>) =>
+    options
+      ? `${key}(${Object.entries(options)
+          .map(([name, value]) => `${name}=${String(value)}`)
+          .join(", ")})`
+      : key;
+
+  /**
+   * Given a graded player and one the lineup cannot grade yet
+   * When the summary is asked for
+   * Then a graded one says his rounded condition and his fit, and one with no verdict says his
+   *      condition alone: the one formatter for the token's hover and the pitch's list for a screen
+   *      reader.
+   */
+  it.each([
+    ["exact", 87.6, "squad.pitchTokenTooltip(condition=88, fit=squad.naturalFit)"],
+    ["adapted", 40.2, "squad.pitchTokenTooltip(condition=40, fit=squad.adaptedFit)"],
+    ["out", 100, "squad.pitchTokenTooltip(condition=100, fit=squad.outOfPosition)"],
+    ["empty", 63.5, "squad.pitchTokenConditionOnly(condition=64)"],
+  ] as const)("reads %s at condition %s", (fitTone, condition, expected) => {
+    expect(pitchTokenSummary(t, condition, fitTone)).toBe(expected);
   });
 });
