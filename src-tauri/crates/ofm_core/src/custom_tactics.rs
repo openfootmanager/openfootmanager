@@ -190,7 +190,7 @@ pub fn apply_custom_tactic(game: &mut Game, id: &str) -> Result<Vec<String>, Str
         .find(|team| team.id == team_id)
         .ok_or_else(|| MANAGED_TEAM_NOT_FOUND_ERROR.to_string())?;
 
-    team.formation = tactic.formation.clone();
+    team.change_formation(&tactic.formation);
     team.play_style = play_style;
     let Some(contents) = tactic.contents else {
         return Ok(Vec::new());
@@ -849,6 +849,29 @@ mod whole_tactic_tests {
         assert_eq!(team.starting_xi_ids, before.starting_xi_ids);
         assert_eq!(team.player_roles, before.player_roles);
         assert_eq!(team.match_roles, before.match_roles);
+    }
+
+    /// Given a club that moved a slot of its 4-4-2 to defensive midfield, and a saved tactic of 4-3-3
+    /// When the tactic is applied
+    /// Then the moved slot is gone with the old shape: the club's slots are the new formation's own.
+    #[test]
+    fn applying_a_tactic_of_another_formation_clears_the_slots_the_manager_moved() {
+        let mut game = game();
+        set_up(&mut game);
+        let mut slots = crate::player_rating::formation_slots("4-4-2");
+        slots[6] = domain::player::Position::DefensiveMidfielder;
+        team(&mut game).slot_positions = slots;
+        let mut other = draft("other", "Other");
+        other.formation = "4-3-3".into();
+        game.custom_tactics.push(other);
+
+        apply_custom_tactic(&mut game, "other").unwrap();
+
+        assert!(game.teams[0].slot_positions.is_empty());
+        assert_eq!(
+            crate::player_rating::team_slots(&game.teams[0]),
+            crate::player_rating::formation_slots("4-3-3")
+        );
     }
 
     /// Given a saved tactic whose centre-back "s2" (a stopper, the vice-captain) has since left,

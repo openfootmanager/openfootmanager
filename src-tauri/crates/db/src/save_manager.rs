@@ -11,8 +11,8 @@ use ofm_core::game::Game;
 use ofm_core::generator;
 use ofm_core::player_identity;
 use ofm_core::player_rating::{
-    effective_rating_for_assignment, formation_row_lengths, formation_slots,
-    reconcile_wonderkid_trait, refresh_player_derived,
+    effective_rating_for_assignment, formation_row_lengths, reconcile_wonderkid_trait,
+    refresh_player_derived, team_slots,
 };
 
 use crate::game_database::GameDatabase;
@@ -854,7 +854,7 @@ fn canonicalize_team_starting_xi_ids(
     players_by_id: &HashMap<String, Player>,
 ) -> bool {
     let row_lengths = formation_row_lengths(&team.formation);
-    let slots = formation_slots(&team.formation);
+    let slots = team_slots(team);
     let mut row_start_index = 0;
     let mut changed = false;
 

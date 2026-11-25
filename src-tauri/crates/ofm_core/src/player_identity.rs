@@ -1,5 +1,5 @@
 use crate::game::Game;
-use crate::player_rating::{formation_slots, natural_ovr};
+use crate::player_rating::{natural_ovr, team_slots};
 use domain::player::{Footedness, Player, Position, default_weak_foot};
 use std::collections::HashMap;
 
@@ -139,7 +139,7 @@ fn build_assigned_slot_map(game: &Game) -> HashMap<String, Position> {
     let mut slot_map = HashMap::new();
 
     for team in &game.teams {
-        let slots = formation_slots(&team.formation);
+        let slots = team_slots(team);
         for (index, player_id) in team.starting_xi_ids.iter().enumerate() {
             if let Some(slot) = slots.get(index) {
                 slot_map.insert(player_id.clone(), slot.clone());

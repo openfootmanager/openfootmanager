@@ -399,6 +399,87 @@ fn user_team_starter_keeps_saved_slot_when_xi_compacts() {
     assert_eq!(keepers, 1, "the XI must still contain a goalkeeper");
 }
 
+/// A user club of eleven natural players for 4-4-2, one per slot in the slot's own position, with
+/// `slot_positions` as the manager left them (empty: the formation's own).
+fn kick_off_game_with(slot_positions: Vec<DomainPos>) -> Game {
+    use crate::clock::GameClock;
+    use chrono::{TimeZone, Utc};
+    use domain::manager::Manager;
+    use domain::team::Team;
+
+    let slots = crate::player_rating::formation_slots("4-4-2");
+    let players: Vec<Player> = slots
+        .iter()
+        .enumerate()
+        .map(|(index, position)| {
+            let mut player = mk_pos(&format!("p{index}"), position.clone(), 70, 100);
+            player.team_id = Some("user".to_string());
+            player
+        })
+        .collect();
+    let mut team = Team::new(
+        "user".to_string(),
+        "User FC".to_string(),
+        "USR".to_string(),
+        "England".to_string(),
+        "London".to_string(),
+        "Ground".to_string(),
+        25_000,
+    );
+    team.formation = "4-4-2".to_string();
+    team.starting_xi_ids = (0..slots.len()).map(|index| format!("p{index}")).collect();
+    team.slot_positions = slot_positions;
+    let mut manager = Manager::new(
+        "mgr".to_string(),
+        "Test".to_string(),
+        "Manager".to_string(),
+        "1980-01-01".to_string(),
+        "England".to_string(),
+    );
+    manager.hire("user".to_string());
+    let clock = GameClock::new(Utc.with_ymd_and_hms(2026, 8, 1, 12, 0, 0).unwrap());
+    Game::new(clock, manager, vec![team], players, vec![], vec![])
+}
+
+/// Given 4-4-2 with a natural central midfielder in the first central-midfield slot (index 6), and
+///       the same side with that slot moved by the manager to defensive midfield
+/// When the side is built for kick-off, before any command
+/// Then in the moved arm the starter carries the defensive-midfield slot's familiarity (a central
+///      midfielder there "can play": 1 - 0.10 / 3), and in the unmoved arm he is at home (1.0): the
+///      builder reads the club's own slots, not the formation's.
+#[test]
+fn a_starter_in_a_slot_the_manager_moved_kicks_off_at_that_slots_familiarity() {
+    /// The entry of `line_familiarity` the midfield reads.
+    const MID: usize = 2;
+    const CAN_PLAY: f64 = 1.0 - 0.10 / 3.0;
+    let mut moved_slots = crate::player_rating::formation_slots("4-4-2");
+    moved_slots[6] = DomainPos::DefensiveMidfielder;
+
+    let (moved, _) = build_team_with_bench(&kick_off_game_with(moved_slots), "user");
+    let (unmoved, _) = build_team_with_bench(&kick_off_game_with(Vec::new()), "user");
+
+    let moved_starter = moved
+        .players
+        .iter()
+        .find(|p| p.id == "p6")
+        .expect("p6 starts");
+    let unmoved_starter = unmoved
+        .players
+        .iter()
+        .find(|p| p.id == "p6")
+        .expect("p6 starts");
+    assert!(
+        (moved_starter.line_familiarity[MID] - CAN_PLAY).abs() < 1e-12,
+        "at the moved slot he starts at {}",
+        moved_starter.line_familiarity[MID]
+    );
+    assert!(
+        (unmoved_starter.line_familiarity[MID] - 1.0).abs() < 1e-12,
+        "at his own slot he starts at {}",
+        unmoved_starter.line_familiarity[MID]
+    );
+}
+
 // ---------------------------------------------------------------------------
 // Load management on a congested run
 // ---------------------------------------------------------------------------

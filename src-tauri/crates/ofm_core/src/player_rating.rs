@@ -25,7 +25,46 @@ pub fn formation_slots(formation: &str) -> Vec<Position> {
 /// encode the deployed slot.
 pub fn deployed_position(team: &domain::team::Team, player_id: &str) -> Option<Position> {
     let slot_index = team.starting_xi_ids.iter().position(|id| id == player_id)?;
-    formation_slots(&team.formation).get(slot_index).cloned()
+    team_slots(team).get(slot_index).cloned()
+}
+
+/// The slots `team` fields, in the order `formation_slots` lists them: its formation's, each with
+/// the position the manager moved it to where they did (`Team::slot_positions`, a centre
+/// midfielder asked to play as a defensive midfielder).
+///
+/// An override is taken only as a whole and only within a line: a list that is not one per slot of
+/// the formation (a save from before the formation changed, or no override at all) gives the
+/// formation's own slots, and one slot that names another line's position keeps its own. A slot
+/// never leaves its line, so the match engine, which knows lines and not slots, plays the side as it
+/// always has; what moves is the slot's position-specific rating, familiarity and roles.
+pub fn team_slots(team: &domain::team::Team) -> Vec<Position> {
+    slots_with_overrides(formation_slots(&team.formation), &team.slot_positions)
+}
+
+/// The slots of `formation` as `team` fields them when it plays that formation, else as the
+/// formation lists them (a club with no overrides, or one playing another shape than its own).
+pub fn team_slots_for(team: Option<&domain::team::Team>, formation: &str) -> Vec<Position> {
+    match team {
+        Some(team) if team.formation == formation => team_slots(team),
+        _ => formation_slots(formation),
+    }
+}
+
+fn slots_with_overrides(slots: Vec<Position>, overrides: &[Position]) -> Vec<Position> {
+    if overrides.len() != slots.len() {
+        return slots;
+    }
+    slots
+        .into_iter()
+        .zip(overrides)
+        .map(|(own, moved)| {
+            if own.to_group_position() == moved.to_group_position() {
+                moved.clone()
+            } else {
+                own
+            }
+        })
+        .collect()
 }
 
 /// Refresh a player's derived fields: `ovr`, `potential`, and `traits`.
@@ -1466,6 +1505,93 @@ mod tests {
         assert_eq!(deployed_position(&team, "rb"), Some(Position::RightBack));
         // Not in the starting XI -> no deployed slot.
         assert_eq!(deployed_position(&team, "bench"), None);
+    }
+
+    fn slots_team() -> domain::team::Team {
+        let mut team = domain::team::Team::new(
+            "t1".to_string(),
+            "Test FC".to_string(),
+            "TFC".to_string(),
+            "England".to_string(),
+            "London".to_string(),
+            "Ground".to_string(),
+            25_000,
+        );
+        team.formation = "4-4-2".to_string();
+        team.starting_xi_ids = (0..11).map(|i| format!("p{i}")).collect();
+        team
+    }
+
+    /// Given a team that has moved no slot
+    /// When its slots are read
+    /// Then they are its formation's own.
+    #[test]
+    fn a_team_with_no_slot_positions_fields_its_formations_slots() {
+        let team = slots_team();
+
+        assert_eq!(team_slots(&team), formation_slots("4-4-2"));
+    }
+
+    /// Given a centre midfielder slot (index 6) moved to a defensive midfielder, and a left back
+    ///       slot (index 1) moved to a left wing-back
+    /// When the team's slots and a player's deployed position are read
+    /// Then exactly those two slots changed, and the player in slot 6 is deployed as a defensive
+    ///      midfielder.
+    #[test]
+    fn a_slot_position_moves_its_slot_within_the_line() {
+        let mut team = slots_team();
+        let mut moved = formation_slots("4-4-2");
+        moved[1] = Position::LeftWingBack;
+        moved[6] = Position::DefensiveMidfielder;
+        team.slot_positions = moved.clone();
+
+        let slots = team_slots(&team);
+
+        assert_eq!(slots, moved);
+        assert_eq!(slots[5], Position::LeftMidfielder);
+        assert_eq!(
+            deployed_position(&team, "p6"),
+            Some(Position::DefensiveMidfielder)
+        );
+        assert_eq!(deployed_position(&team, "p1"), Some(Position::LeftWingBack));
+    }
+
+    /// Given a slot position that is another line's (a striker for a defender), and a list that is
+    ///       not one per slot
+    /// When the slots are read
+    /// Then the stray slot keeps its own position, and the wrong-length list is ignored whole.
+    #[test]
+    fn a_slot_position_from_another_line_or_a_list_of_the_wrong_length_is_ignored() {
+        let mut team = slots_team();
+        let mut stray = formation_slots("4-4-2");
+        stray[2] = Position::Striker;
+        stray[7] = Position::DefensiveMidfielder;
+        team.slot_positions = stray;
+
+        let slots = team_slots(&team);
+
+        assert_eq!(slots[2], Position::CenterBack);
+        assert_eq!(slots[7], Position::DefensiveMidfielder);
+        team.slot_positions = vec![Position::Goalkeeper; 3];
+        assert_eq!(team_slots(&team), formation_slots("4-4-2"));
+    }
+
+    /// Given a team that has moved a slot, asked for in its own formation and in another one
+    /// When `team_slots_for` reads them
+    /// Then its own formation has the move and another formation is the formation's own.
+    #[test]
+    fn team_slots_for_applies_the_overrides_only_to_the_teams_own_formation() {
+        let mut team = slots_team();
+        let mut moved = formation_slots("4-4-2");
+        moved[6] = Position::DefensiveMidfielder;
+        team.slot_positions = moved.clone();
+
+        assert_eq!(team_slots_for(Some(&team), "4-4-2"), moved);
+        assert_eq!(
+            team_slots_for(Some(&team), "4-3-3"),
+            formation_slots("4-3-3")
+        );
+        assert_eq!(team_slots_for(None, "4-4-2"), formation_slots("4-4-2"));
     }
 
     #[test]

@@ -31,7 +31,7 @@ fn apply_formation(game: &mut Game, formation: &str) -> Result<(), String> {
     // bucket overwrite corrupted role validation and match simulation
     // (issue #257).
     let team = user_team_mut(game)?;
-    team.formation = formation.to_string();
+    team.change_formation(formation);
 
     reconcile_player_roles(game, &team_id);
 
@@ -641,7 +641,9 @@ pub(crate) fn reconcile_player_roles(game: &mut Game, team_id: &str) {
         return;
     }
 
-    let slots = ofm_core::player_rating::formation_slots(&team.formation);
+    // The slots the club fields, a moved one as the manager moved it: a role valid for that slot is
+    // kept, as the match will play it.
+    let slots = ofm_core::player_rating::team_slots(team);
     // Validate EVERY assigned role, not just starters: a role that was valid in
     // a player's slot must be cleared once they are benched (validated against
     // their natural position there), otherwise the stale assignment persists and
@@ -1485,6 +1487,65 @@ mod tests {
         assert_eq!(
             game.teams[0].player_roles.get("player-1"),
             Some(&PlayerRole::Standard)
+        );
+    }
+
+    /// Given a defensive-midfield role (an anchor man) assigned to the starter of a slot the manager
+    ///       moved from central to defensive midfield
+    /// When the roles are reconciled with the same eleven (as a save of an unchanged XI does)
+    /// Then the role stays: it is valid for the slot he plays, as the club has set it.
+    #[test]
+    fn reconcile_player_roles_keeps_a_role_valid_for_a_slot_the_manager_moved() {
+        use domain::team::PlayerRole;
+
+        let mut game = make_game(make_player("1998-01-01"));
+        {
+            let team = &mut game.teams[0];
+            team.formation = "4-4-2".to_string();
+            let mut slots = ofm_core::player_rating::formation_slots("4-4-2");
+            slots[6] = Position::DefensiveMidfielder;
+            team.slot_positions = slots;
+            // player-1 starts in the slot the manager moved (index 6).
+            team.starting_xi_ids = (0..6)
+                .map(|index| format!("filler-{index}"))
+                .chain(std::iter::once("player-1".to_string()))
+                .collect();
+            team.player_roles
+                .insert("player-1".to_string(), PlayerRole::AnchorMan);
+        }
+
+        super::reconcile_player_roles(&mut game, "team-1");
+
+        assert_eq!(
+            game.teams[0].player_roles.get("player-1"),
+            Some(&PlayerRole::AnchorMan)
+        );
+    }
+
+    /// Given a club with a slot moved to defensive midfield in 4-4-2
+    /// When the manager changes the formation (to 4-3-3), and then to 4-3-3 again
+    /// Then the moved slot is gone at the change (every formation has eleven slots, so a stale list
+    ///      would otherwise be read as the new formation's own), and a repeat of the same formation
+    ///      changes nothing.
+    #[test]
+    fn changing_the_formation_clears_the_slots_the_manager_moved() {
+        let mut game = make_game(make_player("1998-01-01"));
+        let mut slots = ofm_core::player_rating::formation_slots("4-4-2");
+        slots[6] = Position::DefensiveMidfielder;
+        game.teams[0].formation = "4-4-2".to_string();
+        game.teams[0].slot_positions = slots.clone();
+
+        super::apply_formation(&mut game, "4-4-2").expect("the formation is valid");
+        assert_eq!(
+            game.teams[0].slot_positions, slots,
+            "the same shape keeps them"
+        );
+        super::apply_formation(&mut game, "4-3-3").expect("the formation is valid");
+
+        assert!(game.teams[0].slot_positions.is_empty());
+        assert_eq!(
+            ofm_core::player_rating::team_slots(&game.teams[0]),
+            ofm_core::player_rating::formation_slots("4-3-3")
         );
     }
 

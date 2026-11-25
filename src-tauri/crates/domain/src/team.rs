@@ -1,3 +1,4 @@
+use crate::player::Position;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use ts_rs::TS;
@@ -42,6 +43,12 @@ pub struct Team {
     pub player_roles: HashMap<String, PlayerRole>,
     #[serde(default)]
     pub tactics_phase: TacticsPhaseSettings,
+    /// A slot's own position where the manager moved it within its line (a centre midfielder asked to
+    /// play as a defensive midfielder): one per slot of `formation`, in the order the formation lists
+    /// its slots. Empty means every slot is the formation's own, as in a save from before this field.
+    /// A change of formation clears it.
+    #[serde(default)]
+    pub slot_positions: Vec<Position>,
 
     // Training
     #[serde(default)]
@@ -459,6 +466,17 @@ impl Default for Facilities {
 }
 
 impl Team {
+    /// Plays `formation` from now on. A change of shape clears `slot_positions`: every formation has
+    /// eleven slots, so the length check could not tell a list kept from the old shape from one made
+    /// for the new, and slot 7 of the old 4-4-2 would be read as slot 7 of the 4-3-3. Naming the
+    /// shape the team already plays changes nothing.
+    pub fn change_formation(&mut self, formation: &str) {
+        if self.formation != formation {
+            self.formation = formation.to_string();
+            self.slot_positions.clear();
+        }
+    }
+
     pub fn new(
         id: String,
         name: String,
@@ -492,6 +510,7 @@ impl Team {
             play_style: PlayStyle::Balanced,
             player_roles: HashMap::new(),
             tactics_phase: TacticsPhaseSettings::default(),
+            slot_positions: Vec::new(),
             training_focus: TrainingFocus::default(),
             training_intensity: TrainingIntensity::default(),
             training_schedule: TrainingSchedule::default(),
@@ -529,5 +548,70 @@ impl Team {
 fn clear_match_role_if_matches(role: &mut Option<String>, player_id: &str) {
     if role.as_deref() == Some(player_id) {
         *role = None;
+    }
+}
+
+#[cfg(test)]
+mod slot_positions_tests {
+    use super::*;
+
+    fn team() -> Team {
+        Team::new(
+            "t1".to_string(),
+            "Test FC".to_string(),
+            "TFC".to_string(),
+            "England".to_string(),
+            "London".to_string(),
+            "Ground".to_string(),
+            25_000,
+        )
+    }
+
+    /// Given a team saved before slot positions existed (its JSON has no such field)
+    /// When it is read
+    /// Then it has none: every slot is its formation's own.
+    #[test]
+    fn a_team_saved_before_slot_positions_has_none() {
+        let mut json = serde_json::to_value(team()).unwrap();
+        json.as_object_mut().unwrap().remove("slot_positions");
+
+        let read: Team = serde_json::from_value(json).unwrap();
+
+        assert!(read.slot_positions.is_empty());
+    }
+
+    /// Given a team with a slot moved within its line
+    /// When it is written and read back
+    /// Then the slot positions are as they were.
+    #[test]
+    fn slot_positions_survive_a_serde_round_trip() {
+        let mut moved = team();
+        moved.slot_positions = vec![Position::Goalkeeper, Position::DefensiveMidfielder];
+
+        let read: Team = serde_json::from_str(&serde_json::to_string(&moved).unwrap()).unwrap();
+
+        assert_eq!(read.slot_positions, moved.slot_positions);
+    }
+
+    /// Given a team with a slot moved in its 4-4-2
+    /// When it changes formation, and then names the shape it plays
+    /// Then the moved slots are cleared at the change and a repeat of the same shape keeps what was
+    ///      set after it.
+    #[test]
+    fn a_change_of_formation_clears_the_moved_slots_and_a_repeat_keeps_them() {
+        let mut moved = team();
+        moved.formation = "4-4-2".to_string();
+        moved.slot_positions = vec![Position::Goalkeeper; 11];
+
+        moved.change_formation("4-4-2");
+        assert_eq!(
+            moved.slot_positions.len(),
+            11,
+            "the same shape changes nothing"
+        );
+        moved.change_formation("4-3-3");
+
+        assert_eq!(moved.formation, "4-3-3");
+        assert!(moved.slot_positions.is_empty());
     }
 }
