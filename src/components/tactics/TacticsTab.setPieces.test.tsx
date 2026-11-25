@@ -310,6 +310,9 @@ describe("TacticsTab set pieces and match roles", () => {
     const saved = mockedInvoke.mock.calls.find(([c]) => c === "set_team_match_roles")?.[1] as {
       matchRoles: Record<string, string | null>;
     };
+    // The manager picked D3 as corner taker, and only that is saved: the other takers on screen are the
+    // backend's fallback picks, which are not written.
+    expect(saved.matchRoles.corner_taker).toBe("d3");
     expect(saved.matchRoles.captain).toBeNull();
     expect(saved.matchRoles.penalty_taker).toBeNull();
     expect(saved.matchRoles.free_kick_taker).toBeNull();

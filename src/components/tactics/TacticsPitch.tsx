@@ -7,7 +7,7 @@ import type { FamiliarityTable } from "../../hooks/useFamiliarity";
 import type { PositionTable } from "../../lib/positionTable";
 import { usePositionTable } from "../../hooks/usePositionGroups";
 import type { PlayerData, TeamMatchRolesData } from "../../store/gameStore";
-import { Badge, Card, PitchToken, fitLabelKey, type PitchFitTone } from "../ui";
+import { Badge, Card, PitchToken, pitchTokenSummary, type PitchFitTone } from "../ui";
 import {
   getSquadTacticalFit,
   translatePositionAbbreviation,
@@ -170,11 +170,7 @@ export default function TacticsPitch({
     if (!slot.player) return { text: t("tactics.emptySlot", { position }), roles: [] };
 
     const fitTone = getFitTone(slot.player, slot.position, positionTable, familiarity, lineupReady);
-    const fitKey = fitLabelKey(fitTone);
-    const condition = Math.round(slot.player.condition);
-    const summary = fitKey
-      ? t("squad.pitchTokenTooltip", { condition, fit: t(fitKey) })
-      : t("squad.pitchTokenConditionOnly", { condition });
+    const summary = pitchTokenSummary(t, slot.player.condition, fitTone);
 
     return {
       text: t("tactics.slotSummary", {
