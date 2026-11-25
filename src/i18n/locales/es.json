@@ -2,7 +2,7 @@
   "app": {
     "name": "OpenFoot Manager",
     "publisher": "Sturdy Robot",
-    "version": "v0.2.0-alpha"
+    "version": "v0.2.1-alpha"
   },
   "menu": {
     "newGame": "Nuevo Juego",
@@ -2711,5 +2711,12 @@
     "goals": "Goles",
     "rating": "Valoración",
     "winRate": "Porcentaje de victorias"
+  },
+  "errorBoundary": {
+    "title": "Algo ha salido mal",
+    "description": "Esta pantalla ha sufrido un error del que no ha podido recuperarse. Prueba primero a reintentar: recargar reinicia el juego y se pierde el progreso no guardado.",
+    "retry": "Reintentar",
+    "reload": "Recargar el juego",
+    "menu": "Volver al menú principal"
   }
 }

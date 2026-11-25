@@ -4,6 +4,7 @@ on:
   pull_request:
     branches:
       - develop
+      - hotfix-0.2.1
   workflow_dispatch:
 
 jobs:
@@ -17,7 +18,8 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: lts/*
+          # Node 22, not lts/*: Node 26 breaks jsdom's localStorage, and this tree's tests were written for 22.
+          node-version: 22
           cache: npm
 
       - name: Install frontend dependencies
@@ -44,7 +46,8 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: lts/*
+          # Node 22, not lts/*: Node 26 breaks jsdom's localStorage, and this tree's tests were written for 22.
+          node-version: 22
           cache: npm
 
       - name: Install frontend dependencies

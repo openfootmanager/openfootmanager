@@ -73,7 +73,7 @@ export function getPlayerBadgeVariant(
 }
 
 export function getDashboardSearchResults(
-  gameState: GameStateData,
+  gameState: Pick<GameStateData, "players" | "teams">,
   query: string,
 ): DashboardSearchResults {
   const normalizedQuery = query.trim().toLowerCase();

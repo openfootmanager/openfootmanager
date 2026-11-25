@@ -2,7 +2,7 @@
   "app": {
     "name": "OpenFoot Manager",
     "publisher": "Sturdy Robot",
-    "version": "v0.2.0-alpha"
+    "version": "v0.2.1-alpha"
   },
   "menu": {
     "newGame": "Nouvelle Partie",
@@ -2681,5 +2681,12 @@
     "goals": "Buts",
     "rating": "Note",
     "winRate": "Taux de victoire"
+  },
+  "errorBoundary": {
+    "title": "Une erreur est survenue",
+    "description": "Cet écran a rencontré une erreur dont il n'a pas pu se remettre. Essayez d'abord de réessayer — recharger redémarre le jeu et la progression non sauvegardée est perdue.",
+    "retry": "Réessayer",
+    "reload": "Recharger le jeu",
+    "menu": "Retour au menu principal"
   }
 }

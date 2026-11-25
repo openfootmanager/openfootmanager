@@ -32,7 +32,6 @@ import {
 } from "../components/home/HomeTab.helpers";
 import {
   getDashboardAlerts,
-  getDashboardSearchResults,
   getManagerTeamName,
   getTodayMatchFixture,
   getUnreadMessagesCount,
@@ -96,8 +95,6 @@ export default function Dashboard(): JSX.Element {
   );
   const [showExitConfirm, setShowExitConfirm] = useState(false);
   const [isExitingToMenu, setIsExitingToMenu] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [searchOpen, setSearchOpen] = useState(false);
   const [visitedOnboardingTabs, setVisitedOnboardingTabs] = useState<
     Set<string>
   >(new Set<string>());
@@ -325,30 +322,16 @@ export default function Dashboard(): JSX.Element {
     );
   }
 
-  function handleSearchFocus(): void {
-    setSearchOpen(true);
-  }
-
-  function handleSearchBlur(): void {
-    setTimeout(() => setSearchOpen(false), 200);
-  }
-
-  function handleSearchQueryChange(query: string): void {
-    setSearchQuery(query);
-  }
-
   function handleSelectSearchPlayer(playerId: string): void {
     setProfileNavigation((currentState) =>
       openDashboardSearchPlayer(currentState, playerId),
     );
-    setSearchQuery("");
   }
 
   function handleSelectSearchTeam(teamId: string): void {
     setProfileNavigation((currentState) =>
       openDashboardSearchTeam(currentState, teamId),
     );
-    setSearchQuery("");
   }
 
   function handleToggleContinueMenu(): void {
@@ -383,7 +366,6 @@ export default function Dashboard(): JSX.Element {
   );
   const unreadMessagesCount = getUnreadMessagesCount(gameState);
   const myTeamName = getManagerTeamName(gameState);
-  const searchResults = getDashboardSearchResults(gameState, searchQuery);
   const dashboardAlerts = getDashboardAlerts(gameState, hasMatchToday, t);
   const hasProfileHistory = hasDashboardProfileHistory(profileNavigation);
   const activeTabLabel = TAB_TRANSLATION_KEYS[profileNavigation.activeTab]
@@ -455,23 +437,17 @@ export default function Dashboard(): JSX.Element {
           isAdvancing={isAdvancing}
           isSaving={isSaving}
           matchMode={matchMode}
-          matchedPlayers={searchResults.matchedPlayers}
-          matchedTeams={searchResults.matchedTeams}
+          players={gameState.players}
           modeMeta={MODE_META}
           onBack={handleBack}
           onContinue={handleContinue}
           onSave={handleSave}
-          onSearchBlur={handleSearchBlur}
-          onSearchFocus={handleSearchFocus}
-          onSearchQueryChange={handleSearchQueryChange}
           onSelectMatchMode={handleSelectMatchMode}
           onSelectSearchPlayer={handleSelectSearchPlayer}
           onSelectSearchTeam={handleSelectSearchTeam}
           onSkipToMatchDay={handleSkipToMatchDay}
           onToggleContinueMenu={handleToggleContinueMenu}
           saveFlash={saveFlash}
-          searchOpen={searchOpen}
-          searchQuery={searchQuery}
           seasonComplete={seasonComplete}
           showContinueMenu={showContinueMenu}
           isUnemployed={isUnemployed ?? false}

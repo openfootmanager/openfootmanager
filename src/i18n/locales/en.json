@@ -2,7 +2,7 @@
   "app": {
     "name": "OpenFoot Manager",
     "publisher": "Sturdy Robot",
-    "version": "v0.2.0-alpha"
+    "version": "v0.2.1-alpha"
   },
   "menu": {
     "newGame": "New Game",
@@ -2677,5 +2677,12 @@
     "goals": "Goals",
     "rating": "Rating",
     "winRate": "Win rate"
+  },
+  "errorBoundary": {
+    "title": "Something went wrong",
+    "description": "This screen hit an error it couldn't recover from. Try again first — reloading restarts the game and any unsaved progress is lost.",
+    "retry": "Try again",
+    "reload": "Reload the game",
+    "menu": "Back to the main menu"
   }
 }
