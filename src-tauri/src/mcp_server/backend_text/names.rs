@@ -19,7 +19,7 @@ use std::sync::OnceLock;
 
 use serde::Deserialize;
 
-use super::{english, interpolate, Params};
+use super::{english, interpolate, resolve, Params};
 
 const COUNTRY_NAMES: &str = include_str!("../../../../src/lib/countryNames.en.json");
 
@@ -100,20 +100,46 @@ fn normalised_nationality(value: &str) -> String {
     }
 }
 
-/// `competitionDisplayName` for a name key, in English: the key's text with the season and the
-/// country's name filled in. A stored name stands when there is no key, when a `...tierDivision`
-/// key has no tier to name (none of these messages carries one), or when the locale file has no
-/// text for the key.
-fn competition_display_name(
-    stored: &str,
-    name_key: &str,
-    country_id: Option<&str>,
+/// What `competitionDisplayName` is given: the stored name and the key it is named from, and the
+/// parts a template can read.
+struct NamedCompetition<'a> {
+    stored: &'a str,
+    name_key: &'a str,
+    country_id: Option<&'a str>,
     season: Option<String>,
-) -> String {
+    /// A division's tier, when the notice carries one (a whole number above zero).
+    tier: Option<i64>,
+    /// `opening` or `closing` for a split-season division; any other phase names nothing.
+    phase: Option<&'a str>,
+}
+
+/// The names with a tier in them, which a split-season division's phase is appended to.
+const TIER_TEMPLATES: [&str; 4] = [
+    "tournaments.competitions.league",
+    "tournaments.competitions.firstDivision",
+    "tournaments.competitions.secondDivision",
+    "tournaments.competitions.tierDivision",
+];
+const PHASE_OPENING: &str = "tournaments.competitions.phaseOpening";
+const PHASE_CLOSING: &str = "tournaments.competitions.phaseClosing";
+
+/// `competitionDisplayName` for a name key, in English: the key's text with the season, the
+/// country's name and the tier filled in, and the phase of a split-season division after it. A
+/// stored name stands when there is no key, when a `...tierDivision` key has no tier to name, or
+/// when the locale file has no text for the key.
+fn competition_display_name(competition: &NamedCompetition) -> String {
+    let NamedCompetition {
+        stored,
+        name_key,
+        country_id,
+        season,
+        tier,
+        phase,
+    } = competition;
     if name_key.is_empty() {
         return stored.to_string();
     }
-    if name_key.ends_with(".tierDivision") {
+    if name_key.ends_with(".tierDivision") && tier.is_none() {
         return stored.to_string();
     }
     let country = match country_id.filter(|id| !id.is_empty()) {
@@ -127,26 +153,55 @@ fn competition_display_name(
     params.insert("country".to_string(), country);
     // The screen passes the year to the translation even when there is none, and a value that is
     // not there reads as nothing ("World Cup"), unlike a param the call never names.
-    params.insert("year".to_string(), season.unwrap_or_default());
-    let template = english().get(name_key).map_or(stored, String::as_str);
-    interpolate(template, &params, false).trim().to_string()
+    params.insert("year".to_string(), season.clone().unwrap_or_default());
+    params.insert(
+        "tier".to_string(),
+        tier.map(|tier| tier.to_string()).unwrap_or_default(),
+    );
+    let template = english().get(*name_key).map_or(*stored, String::as_str);
+    let name = interpolate(template, &params, false).trim().to_string();
+    let phase_key = match *phase {
+        Some("opening") => PHASE_OPENING,
+        Some("closing") => PHASE_CLOSING,
+        _ => return name,
+    };
+    if !TIER_TEMPLATES.contains(name_key) {
+        return name;
+    }
+    let phase_name = resolve(Some(phase_key), phase_key, &Params::new());
+    format!("{name} {phase_name}").trim().to_string()
 }
 
-/// JavaScript's `Number(text)` kept when it is finite, written as `String(number)` would: an empty
-/// text is 0, a text that is no number is nothing.
-fn season_year(text: Option<&String>) -> Option<String> {
+/// JavaScript's `Number(text)` for a param: nothing when the param is not there or is no number,
+/// 0 for an empty text.
+fn number_of(text: Option<&String>) -> Option<f64> {
     let number: f64 = match text?.trim() {
         "" => 0.0,
         digits => digits.parse().ok()?,
     };
-    if !number.is_finite() {
-        return None;
-    }
+    number.is_finite().then_some(number)
+}
+
+/// `Number(text)` kept when it is finite, written as `String(number)` would.
+fn season_year(text: Option<&String>) -> Option<String> {
+    let number = number_of(text)?;
     Some(if number.fract() == 0.0 && number.abs() < 1e15 {
         format!("{}", number as i64)
     } else {
         number.to_string()
     })
+}
+
+/// A tier the notice carries: a whole number above zero, else none.
+fn division_tier(text: Option<&String>) -> Option<i64> {
+    let number = number_of(text)?;
+    (number.fract() == 0.0 && number > 0.0 && number < 1e15).then_some(number as i64)
+}
+
+/// The phase of a split-season division, when the notice names one the screen knows.
+fn division_phase(text: Option<&String>) -> Option<&str> {
+    text.map(String::as_str)
+        .filter(|phase| ["annual", "opening", "closing"].contains(phase))
 }
 
 /// A promotion or relegation names the division the club moved to by its name key, country and
@@ -163,12 +218,14 @@ pub(super) fn division_change_params(subject_key: Option<&str>, params: &Params)
     let stored = params.get("division").map_or("", String::as_str);
     named.insert(
         "division".to_string(),
-        competition_display_name(
+        competition_display_name(&NamedCompetition {
             stored,
             name_key,
-            params.get("divisionCountry").map(String::as_str),
-            season_year(params.get("divisionSeason")),
-        ),
+            country_id: params.get("divisionCountry").map(String::as_str),
+            season: season_year(params.get("divisionSeason")),
+            tier: division_tier(params.get("divisionTier")),
+            phase: division_phase(params.get("divisionPhase")),
+        }),
     );
     named
 }
@@ -180,12 +237,14 @@ pub(super) fn report_competition(body_key: &str, params: &Params) -> Option<Para
     }
     let name_key = params.get("competitionKey").filter(|key| !key.is_empty())?;
     let stored = params.get("competition").map_or("", String::as_str);
-    let name = competition_display_name(
+    let name = competition_display_name(&NamedCompetition {
         stored,
         name_key,
-        params.get("competitionCountry").map(String::as_str),
-        season_year(params.get("competitionSeason")),
-    );
+        country_id: params.get("competitionCountry").map(String::as_str),
+        season: season_year(params.get("competitionSeason")),
+        tier: None,
+        phase: None,
+    });
     Some(Params::from([("competition".to_string(), name)]))
 }
 
