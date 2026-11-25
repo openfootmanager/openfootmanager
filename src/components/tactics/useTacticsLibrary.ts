@@ -85,7 +85,7 @@ export function useTacticsLibrary({
     userTeam,
     blueprintModified,
   });
-  const applyTacticSelection = useApplyTactic({
+  const { applyTacticSelection, appliesSettled } = useApplyTactic({
     onApplyPreset,
     onKeepInstructions,
     onGameUpdate,
@@ -225,6 +225,7 @@ export function useTacticsLibrary({
     canResetTactic,
     handleResetTactic,
     applyTacticSelection,
+    appliesSettled,
     handleCreateCustomTactic,
     handleDuplicateTactic,
     handleSaveTactic,

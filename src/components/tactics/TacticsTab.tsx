@@ -87,6 +87,7 @@ export default function TacticsTab({
     canResetTactic,
     handleResetTactic,
     applyTacticSelection,
+    appliesSettled,
     handleCreateCustomTactic,
     handleDuplicateTactic,
     handleSaveTactic,
@@ -110,6 +111,7 @@ export default function TacticsTab({
   const presetChoice = usePresetChoice(
     (tactic, keepInstructions) => applyTacticSelection(tactic, { keepInstructions }),
     `${formation}|${activePlayStyle}`,
+    appliesSettled,
   );
 
   if (!team) {

@@ -93,5 +93,11 @@ export function useApplyTactic({
     }
   }
 
-  return applyTacticSelection;
+  /**
+   * Resolves once every apply asked so far has landed (or been refused): what a decision about the
+   * team's instructions has to wait for, since a saved tactic changes them when it lands.
+   */
+  const appliesSettled = (): Promise<void> => enqueue(async () => undefined);
+
+  return { applyTacticSelection, appliesSettled };
 }
