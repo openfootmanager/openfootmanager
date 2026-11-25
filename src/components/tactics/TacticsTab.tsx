@@ -112,6 +112,7 @@ export default function TacticsTab({
   const presetChoice = usePresetChoice(
     (tactic, keepInstructions) => applyTacticSelection(tactic, { keepInstructions }),
     setupKey(formation, activePlayStyle),
+    runAfterApplies,
   );
   const isBusy = isTacticWriteOut || presetChoice.lookingUp;
 

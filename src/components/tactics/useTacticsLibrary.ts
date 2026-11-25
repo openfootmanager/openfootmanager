@@ -73,7 +73,7 @@ export function useTacticsLibrary({
     isDeletePending,
     draftTacticName,
     setActiveTacticId,
-    setPendingDelete,
+    beginPendingDelete,
     setDraftTacticName,
     presetAnchorId,
     setPresetAnchorId,
@@ -136,11 +136,9 @@ export function useTacticsLibrary({
     if (!canDeleteTactic) return;
 
     const { id } = activeTactic;
-    setPendingDelete(activeTactic);
+    const endPendingDelete = beginPendingDelete(activeTactic);
     setCustomTactics((current) => current.filter((entry) => entry.id !== id));
-    void changeSave(() => deleteCustomTactic(id.trim(), careerToken)).then(() =>
-      setPendingDelete((pending) => (pending?.id === id ? null : pending)),
-    );
+    void changeSave(() => deleteCustomTactic(id.trim(), careerToken)).then(endPendingDelete);
   }
 
   // Renames the saved tactic `id` (the one the dialog was opened for, which may no longer be the

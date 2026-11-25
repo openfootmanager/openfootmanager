@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 
-import type { TeamData } from "../../store/gameStore";
+import { type TeamData, useGameStore } from "../../store/gameStore";
 import {
   TACTICS_PRESETS,
   findTacticsPresetBySetup,
@@ -45,8 +45,22 @@ export function useTacticSelection({
   const [presetAnchorId, setPresetAnchorId] = useState<string | null>(initialPreset?.id ?? null);
   // A saved tactic whose delete the save has not answered yet. It is gone from the picker at once, but
   // it stays the active one until the save has accepted (the command bar keeps showing it, and the
-  // selection does not fall back to a preset for it): a refused delete puts the tactic back.
-  const [pendingDelete, setPendingDelete] = useState<TacticsLibraryEntry | null>(null);
+  // selection does not fall back to a preset for it): a refused delete puts the tactic back. Held with
+  // the career it began in: a delete still out when the career changed is the old career's, and it
+  // neither keeps this career's controls off nor shows its tactic here.
+  const careerEpoch = useGameStore((state) => state.careerEpoch);
+  const [pendingDeleteOp, setPendingDeleteOp] = useState<{
+    entry: TacticsLibraryEntry;
+    epoch: number;
+  } | null>(null);
+  const pendingDelete = pendingDeleteOp?.epoch === careerEpoch ? pendingDeleteOp.entry : null;
+
+  /** Starts a pending delete of `entry`; the function it returns ends it (only that one). */
+  function beginPendingDelete(entry: TacticsLibraryEntry): () => void {
+    const operation = { entry, epoch: useGameStore.getState().careerEpoch };
+    setPendingDeleteOp(operation);
+    return () => setPendingDeleteOp((current) => (current === operation ? null : current));
+  }
 
   const matchedPreset = findTacticsPresetBySetup(formation, activePlayStyle);
   const anchoredPreset = presetAnchorId
@@ -173,7 +187,7 @@ export function useTacticSelection({
     draftTacticName,
     setActiveTacticId,
     isDeletePending: pendingDelete !== null,
-    setPendingDelete,
+    beginPendingDelete,
     setDraftTacticName,
     presetAnchorId,
     setPresetAnchorId,

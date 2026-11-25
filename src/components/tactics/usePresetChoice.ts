@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { getTacticsBlueprintStatus } from "../../services/squadService";
 import { useGameStore } from "../../store/gameStore";
 import type { TacticsLibraryEntry } from "./TacticPicker";
+import { useCareerBusy } from "./useCareerBusy";
 
 /**
  * Choosing a tactic from the picker. A saved tactic applies at once. A preset brings its own
@@ -34,6 +35,11 @@ export function usePresetChoice(
   apply: (tactic: TacticsLibraryEntry, keepInstructions: boolean) => Promise<void>,
   /** The formation and play style the team has now: a change under a pending lookup makes it stale. */
   setupKey: string,
+  /**
+   * Runs a write after the ones already queued (`useApplyTactic`'s `runAfterApplies`): a lookup is
+   * asked behind a formation or play style write still out, so it is about the setup that write leaves.
+   */
+  runAfterApplies: <T>(write: () => Promise<T>) => Promise<T | undefined>,
 ): {
   /** The preset waiting for the manager's answer, if any. */
   pending: TacticsLibraryEntry | null;
@@ -51,8 +57,9 @@ export function usePresetChoice(
   // The setup as of the latest render, read when a lookup answers.
   const currentSetup = useRef(setupKey);
   currentSetup.current = setupKey;
-  // The lookups out (a counter, not a flag: a choice dropped for a newer one still ends its own).
-  const [lookups, setLookups] = useState(0);
+  // The lookups out, counted under the career that asked them (a choice dropped for a newer one still
+  // ends its own, and one of an earlier career does not keep this one's controls off).
+  const { busy: lookingUp, begin: beginLookup } = useCareerBusy();
   const careerEpoch = useGameStore((state) => state.careerEpoch);
 
   useEffect(() => {
@@ -75,17 +82,23 @@ export function usePresetChoice(
     const askedIn = useGameStore.getState().careerEpoch;
     setPending(null);
     if (tactic.type !== "preset") return apply(tactic, false);
-    const askedSetup = currentSetup.current;
+    const endLookup = beginLookup();
+    let askedSetup = currentSetup.current;
     let wouldReplace = true;
-    setLookups((count) => count + 1);
     try {
-      // An answer that is not an object is a stand-in with nothing to say: nothing to ask about.
-      const status = await getTacticsBlueprintStatus(tactic.playStyle);
+      // Asked after a formation or play style write that is still out has landed, and about the setup
+      // it left: its game reaches the screen in a later task, so the setup is read after one.
+      const status = await runAfterApplies(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        askedSetup = currentSetup.current;
+        // An answer that is not an object is a stand-in with nothing to say: nothing to ask about.
+        return getTacticsBlueprintStatus(tactic.playStyle);
+      });
       wouldReplace = Boolean(status?.modified);
     } catch {
       wouldReplace = true;
     } finally {
-      setLookups((count) => count - 1);
+      endLookup();
     }
     if (thisChoice !== latestChoice.current) return;
     if (useGameStore.getState().careerEpoch !== askedIn) return;
@@ -104,7 +117,7 @@ export function usePresetChoice(
 
   return {
     pending,
-    lookingUp: lookups > 0,
+    lookingUp,
     choose,
     invalidate: () => {
       latestChoice.current += 1;

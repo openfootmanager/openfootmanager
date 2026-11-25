@@ -4,6 +4,7 @@ import { type GameStateData, useGameStore } from "../../store/gameStore";
 import { createWriteQueue } from "../../lib/writeQueue";
 import { applyCustomTactic } from "../../services/customTacticsService";
 import type { TacticsLibraryEntry } from "./TacticPicker";
+import { useCareerBusy } from "./useCareerBusy";
 
 interface UseApplyTacticArgs {
   onApplyPreset: (formation: string, playStyle: string) => Promise<boolean>;
@@ -37,7 +38,7 @@ export function useApplyTactic({
   // bar also turns its controls off while one is out (`isApplying`), so a second change is not
   // offered; the queue is what keeps the order if one still gets through.
   const [enqueue] = useState(createWriteQueue);
-  const [applying, setApplying] = useState(0);
+  const { busy: isApplying, begin: beginApply } = useCareerBusy();
 
   // A saved tactic is put back whole by the backend: its formation and style, and for one that
   // holds them its instructions, eleven, roles and takers (#1189).
@@ -75,7 +76,7 @@ export function useApplyTactic({
     // phase blueprint together (#365), unless the manager chose to keep their own instructions,
     // which takes the formation and style only. A saved tactic is applied whole too.
     const applyPreset = options.keepInstructions ? onKeepInstructions : onApplyPreset;
-    setApplying((count) => count + 1);
+    const endApply = beginApply();
     try {
       const didApply = await enqueue(async () => {
         if (stale()) return false;
@@ -87,7 +88,7 @@ export function useApplyTactic({
       });
       if (didApply) selectApplied(nextTactic, isPreset);
     } finally {
-      setApplying((count) => count - 1);
+      endApply();
     }
   }
 
@@ -116,5 +117,5 @@ export function useApplyTactic({
     );
   }
 
-  return { applyTacticSelection, runAfterApplies, isApplying: applying > 0 };
+  return { applyTacticSelection, runAfterApplies, isApplying };
 }
