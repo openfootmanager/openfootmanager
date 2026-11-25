@@ -1,4 +1,4 @@
-import { type MutableRefObject, useState } from "react";
+import { type MutableRefObject, useRef } from "react";
 
 import { type GameStateData, useGameStore } from "../../store/gameStore";
 import { createWriteQueue } from "../../lib/writeQueue";
@@ -37,7 +37,17 @@ export function useApplyTactic({
   // would leave the screen showing the earlier one's game while the save holds the later one's. The
   // bar also turns its controls off while one is out (`isApplying`), so a second change is not
   // offered; the queue is what keeps the order if one still gets through.
-  const [enqueue] = useState(createWriteQueue);
+  // One queue per career: a new career starts a fresh chain, so its writes never wait behind a reply
+  // of the career that has left (which may never come). The old career's tasks are still guarded by
+  // their own epoch (`stale`), and run nothing if they are reached after the change.
+  const queue = useRef<{ epoch: number; enqueue: ReturnType<typeof createWriteQueue> } | null>(
+    null,
+  );
+  function enqueueIn<T>(epoch: number, task: () => Promise<T>): Promise<T> {
+    if (queue.current && queue.current.epoch > epoch) return task();
+    if (queue.current?.epoch !== epoch) queue.current = { epoch, enqueue: createWriteQueue() };
+    return queue.current.enqueue(task);
+  }
   const { busy: isApplying, begin: beginApply } = useCareerBusy();
 
   // A saved tactic is put back whole by the backend: its formation and style, and for one that
@@ -78,7 +88,7 @@ export function useApplyTactic({
     const applyPreset = options.keepInstructions ? onKeepInstructions : onApplyPreset;
     const endApply = beginApply();
     try {
-      const didApply = await enqueue(async () => {
+      const didApply = await enqueueIn(askedIn, async () => {
         if (stale()) return false;
         if (isPreset) {
           const landed = await applyPreset(nextTactic.formation, nextTactic.playStyle);
@@ -112,7 +122,7 @@ export function useApplyTactic({
    */
   function runAfterApplies<T>(write: () => Promise<T>): Promise<T | undefined> {
     const askedIn = useGameStore.getState().careerEpoch;
-    return enqueue(async () =>
+    return enqueueIn(askedIn, async () =>
       useGameStore.getState().careerEpoch === askedIn ? write() : undefined,
     );
   }
