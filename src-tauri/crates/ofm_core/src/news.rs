@@ -900,11 +900,11 @@ pub fn injury_news_article(
 #[cfg(test)]
 mod tests {
     use super::{
-        league_roundup_article, season_awards_article, season_preview_article,
-        standings_update_article,
+        PreviewClub, PreviewDivision, league_roundup_article, season_awards_article,
+        season_preview_article, standings_update_article,
     };
     use crate::season_awards::{AwardEntry, SeasonAwards};
-    use domain::news::NewsCategory;
+    use domain::news::{NewsArticle, NewsCategory};
 
     fn empty_awards() -> SeasonAwards {
         SeasonAwards {
