@@ -49,7 +49,7 @@ The Dashboard is your command centre. It's organized into a **sidebar** with nav
 - **Manager** — Your career stats: matches managed, win rate, trophies
 
 **Club:**
-- **Squad** — Your full player roster with attributes, condition, value, and overall rating
+- **Squad** — Your full player roster with attributes, condition, value, and overall rating. Filters stay selected when you return from a player's profile. Use **Clear** to reset them.
 - **Tactics** — Set your formation and play style, view the pitch layout
 - **Training** — Choose training focus, intensity, and weekly schedule
 - **Staff** — Manage your coaching and medical staff (hire and release)
