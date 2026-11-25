@@ -2063,6 +2063,9 @@
     "recentMatches": "Partite recenti",
     "teamStyle": "Stile di gioco"
   },
+  "simLab": {
+    "simulatingGames": "Simulazione partite: {{games}}"
+  },
   "settings": {
     "title": "Impostazioni",
     "display": "Visualizzazione",

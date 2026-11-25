@@ -2044,6 +2044,9 @@
     "recentMatches": "Nedávné zápasy",
     "teamStyle": "Týmový styl"
   },
+  "simLab": {
+    "simulatingGames": "Simulace zápasů: {{games}}"
+  },
   "settings": {
     "title": "Nastavení",
     "display": "Zobrazení",

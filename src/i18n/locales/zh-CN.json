@@ -2044,6 +2044,9 @@
     "recentMatches": "近期比赛",
     "teamStyle": "球队风格"
   },
+  "simLab": {
+    "simulatingGames": "正在模拟比赛：{{games}}"
+  },
   "settings": {
     "title": "设置",
     "display": "显示",

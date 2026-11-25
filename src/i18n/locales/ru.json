@@ -2044,6 +2044,9 @@
     "recentMatches": "Последние матчи",
     "teamStyle": "Стиль игры"
   },
+  "simLab": {
+    "simulatingGames": "Симуляция матчей: {{games}}"
+  },
   "settings": {
     "title": "Настройки",
     "display": "Отображение",

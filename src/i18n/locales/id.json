@@ -2044,6 +2044,9 @@
     "recentMatches": "Pertandingan Terakhir",
     "teamStyle": "Gaya Tim"
   },
+  "simLab": {
+    "simulatingGames": "Simulasi pertandingan: {{games}}"
+  },
   "settings": {
     "title": "Pengaturan",
     "display": "Tampilan",
