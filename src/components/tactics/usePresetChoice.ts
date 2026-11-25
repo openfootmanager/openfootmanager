@@ -23,7 +23,9 @@ import type { TacticsLibraryEntry } from "./TacticPicker";
  *   answers;
  * - the career changing (compared when the lookup answers, and the epoch effect), and the tab
  *   unmounting.
- * An edit of the instructions alone does not end it: the preset then applies keeping them.
+ * An edit of the instructions alone does not end it: the preset then applies keeping them. A lookup
+ * for a preset waits for the applies already asked (`appliesSettled`) before it asks, so it is about
+ * the instructions they leave.
  *
  * `apply(tactic, keepInstructions)` does the writing: `keepInstructions` takes the preset's formation
  * and play style and leaves the manager's instructions alone.
@@ -32,6 +34,8 @@ export function usePresetChoice(
   apply: (tactic: TacticsLibraryEntry, keepInstructions: boolean) => Promise<void>,
   /** The formation and play style the team has now: a change under a pending lookup makes it stale. */
   setupKey: string,
+  /** Resolves when every apply asked so far has landed: a preset's question waits for them. */
+  appliesSettled: () => Promise<void>,
 ): {
   /** The preset waiting for the manager's answer, if any. */
   pending: TacticsLibraryEntry | null;
@@ -67,9 +71,23 @@ export function usePresetChoice(
     // Writes carry no career of their own, so a choice is also dropped if the career changed while
     // its lookup was out, even though the tab stayed mounted.
     const askedIn = useGameStore.getState().careerEpoch;
-    const askedSetup = currentSetup.current;
     setPending(null);
     if (tactic.type !== "preset") return apply(tactic, false);
+    // Whether a preset would replace the manager's instructions is a question about the instructions
+    // the team has when it is applied. Saved tactics still queued or in flight change them when they
+    // land (and the setup with them), so the question waits for them: asked at the click it would be
+    // answered against what the backend held before they landed.
+    await appliesSettled();
+    if (thisChoice !== latestChoice.current) return;
+    if (useGameStore.getState().careerEpoch !== askedIn) return;
+    // The setup the lookup is about is the one the earlier applies left. Their game updates have been
+    // handed to the store, but the screen renders them in a later task: yield one, so the setup read
+    // below is the rendered one, not the one before them (read early, the lookup's own wait would then
+    // see the setup "change" and drop the choice).
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    if (thisChoice !== latestChoice.current) return;
+    if (useGameStore.getState().careerEpoch !== askedIn) return;
+    const askedSetup = currentSetup.current;
     let wouldReplace = true;
     try {
       // An answer that is not an object is a stand-in with nothing to say: nothing to ask about.

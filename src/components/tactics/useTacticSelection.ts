@@ -43,6 +43,10 @@ export function useTacticSelection({
       : t("tactics.customTactic"),
   );
   const [presetAnchorId, setPresetAnchorId] = useState<string | null>(initialPreset?.id ?? null);
+  // A saved tactic whose delete the save has not answered yet. It is gone from the picker at once,
+  // but the selection must not fall back to a preset for it until the save has accepted: a refused
+  // delete puts the tactic back, and it should still be the active one.
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
 
   const matchedPreset = findTacticsPresetBySetup(formation, activePlayStyle);
   const anchoredPreset = presetAnchorId
@@ -117,11 +121,12 @@ export function useTacticSelection({
     const nextActivePresetId = `preset:${matchedPreset.id}`;
     setActiveTacticId((current) =>
       tacticLibrary.find((entry) => entry.id === current)?.type === "custom" ||
-      current === nextActivePresetId
+      current === nextActivePresetId ||
+      current === pendingDeleteId
         ? current
         : nextActivePresetId,
     );
-  }, [matchedPreset, presetAnchorId, tacticLibrary]);
+  }, [matchedPreset, presetAnchorId, tacticLibrary, pendingDeleteId]);
 
   useEffect(() => {
     if (!activeTactic) {
@@ -166,6 +171,7 @@ export function useTacticSelection({
     isCommandBarDirty,
     draftTacticName,
     setActiveTacticId,
+    setPendingDeleteId,
     setDraftTacticName,
     presetAnchorId,
     setPresetAnchorId,
