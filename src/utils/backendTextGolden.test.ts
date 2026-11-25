@@ -731,6 +731,35 @@ const CASES: GoldenCase[] = [
       },
     },
   },
+  // No competition name in the locale file reads the season yet, so these use the one template that
+  // has a year in it (`hallOfFameWorld.worldCupEdition`) as the name key: what the season text
+  // makes of a number, of nothing written, and of no season at all.
+  ...[
+    ["a season", "2026"],
+    ["a blank season", ""],
+    ["no season", undefined],
+  ].map(([what, season], index) => ({
+    name: `a competition report whose name key reads the year, with ${what}, names the year as the screen reads it`,
+    kind: "article" as const,
+    input: {
+      id: `report_year_${index}`,
+      headline_key: "be.news.matchReport.reportCompetition.title",
+      body_key: "be.news.matchReport.reportCompetition.body",
+      source_key: "be.source.footballHerald",
+      i18n_params: {
+        home: "North",
+        away: "South",
+        homeGoals: "0",
+        awayGoals: "0",
+        competition: "Stored Cup",
+        competitionKey: "hallOfFameWorld.worldCupEdition",
+        ...(season === undefined ? {} : { competitionSeason: season }),
+        scorers: "",
+        scorersSection: "",
+        scorersData: "[]",
+      },
+    },
+  })),
   {
     name: "a season-awards winner at no club, by any of its spellings, is a free agent",
     kind: "article",
