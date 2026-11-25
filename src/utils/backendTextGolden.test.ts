@@ -779,6 +779,30 @@ const CASES: GoldenCase[] = [
     },
   },
   {
+    // The screen spreads a list of params into an object (`{ ...params }`), so its values are read
+    // one by one like an object's, and a number throws at `.includes` the same way.
+    name: "a press conference with a quote whose params are a list holding a number keeps the quote the backend wrote",
+    kind: "article",
+    input: {
+      id: "press_param_list",
+      headline_key: "be.news.pressConference.headlineManagerQuote",
+      body_key: "be.news.pressConference.bodySingle",
+      source_key: "be.source.leagueWire",
+      i18n_params: {
+        team: "South",
+        result: "0-3",
+        quote: "A tough afternoon",
+        quotesData: JSON.stringify([
+          {
+            key: "match.press.playerFocus.responses.praise.text",
+            fallback: "A tough afternoon",
+            params: [5],
+          },
+        ]),
+      },
+    },
+  },
+  {
     name: "a preseason digest with an unbeaten club that is no name keeps the lines the backend wrote",
     kind: "article",
     input: {
