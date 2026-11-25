@@ -825,6 +825,11 @@
     "selectSecondPlayer": "Selecciona un segundo jugador en la vista de alineación para comparar atributos y preparar el cambio.",
     "compareSelectionHint": "Revisa a ambos jugadores abajo y confirma el cambio cuando estés listo.",
     "confirmSwap": "Confirmar cambio",
+    "swapBlocked": {
+      "unavailable": "{{name}} no puede ser elegido para el próximo partido, así que este cambio no es posible.",
+      "unchecked": "Comprobando si {{name}} puede ser elegido…",
+      "unchanged": "Este cambio dejaría el once inicial como está."
+    },
     "selectPitchPlayer": "Selecciona a un jugador en la vista de alineación para revisar sus atributos.",
     "selectAnotherToSwap": "Selecciona un segundo jugador para compararlos y confirmar el cambio.",
     "teamIdentity": "Identidad del equipo",

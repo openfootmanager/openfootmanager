@@ -948,6 +948,11 @@
     "selectSecondPlayer": "Vyberte v přehledu sestavy druhého hráče pro porovnání atributů a přípravu výměny.",
     "compareSelectionHint": "Prohlédněte si oba hráče níže a jakmile budete připraveni, potvrďte výměnu.",
     "confirmSwap": "Potvrdit výměnu",
+    "swapBlocked": {
+      "unavailable": "{{name}} nemůže být pro příští zápas nominován, takže tuto výměnu nelze provést.",
+      "unchecked": "Ověřuje se, zda může být {{name}} nominován…",
+      "unchanged": "Tato výměna by nechala základní sestavu beze změny."
+    },
     "selectPitchPlayer": "Vyberte hráče v přehledu sestavy pro zobrazení jeho atributů.",
     "selectAnotherToSwap": "Vyberte druhého hráče pro jejich porovnání a potvrzení výměny.",
     "tableView": "Tabulkové zobrazení",

@@ -1472,6 +1472,37 @@ describe("TacticsTab", () => {
   });
 
   /**
+   * Given an injured bench player the backend has ruled out of the match day
+   * When the manager picks him and a starter to compare
+   * Then Confirm swap is off and the comparison says why, instead of leaving a dead button
+   */
+  it("says why a swap with an injured bench player cannot be confirmed", async () => {
+    const gameState = makeGameState();
+    gameState.players = gameState.players.map((player) =>
+      player.id === "d5"
+        ? {
+            ...player,
+            injury: { name: "Hamstring strain", days_remaining: 7 },
+            match_day_eligible: false,
+          }
+        : player,
+    );
+    mockedInvoke.mockImplementation(async (command: string) =>
+      command === "get_squad" ? gameState.players.filter((p) => p.team_id === "team1") : {},
+    );
+
+    render(<TacticsTab gameState={gameState} onSelectPlayer={vi.fn()} onGameUpdate={vi.fn()} />);
+
+    fireEvent.click(await screen.findByTestId("pitch-bench-player-d5"));
+    fireEvent.click(screen.getByTestId("xi-player-d1"));
+
+    const confirm = await screen.findByRole("button", { name: "tactics.confirmSwap" });
+    expect(confirm).toBeDisabled();
+    expect(screen.getByText("tactics.swapBlocked.unavailable")).toBeInTheDocument();
+    expect(confirm).toHaveAccessibleDescription("tactics.swapBlocked.unavailable");
+  });
+
+  /**
    * Given an injury crisis in which the backend fields an injured player anyway
    * When the manager opens his bench context menu
    * Then he can be promoted: the lineup follows the backend's match-day verdict, not its own

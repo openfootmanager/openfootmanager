@@ -948,6 +948,11 @@
     "selectSecondPlayer": "Pilih pemain kedua di tampilan susunan untuk membandingkan atribut dan menyiapkan pertukaran.",
     "compareSelectionHint": "Tinjau kedua pemain di bawah ini, lalu konfirmasi pertukaran saat siap.",
     "confirmSwap": "Konfirmasi pertukaran",
+    "swapBlocked": {
+      "unavailable": "{{name}} tidak bisa dipilih untuk pertandingan berikutnya, jadi pertukaran ini tidak bisa dilakukan.",
+      "unchecked": "Memeriksa apakah {{name}} bisa dipilih…",
+      "unchanged": "Pertukaran ini tidak akan mengubah susunan pemain utama."
+    },
     "selectPitchPlayer": "Pilih pemain di tampilan susunan untuk memeriksa atributnya.",
     "selectAnotherToSwap": "Pilih pemain kedua untuk membandingkan dan mengonfirmasi pertukaran.",
     "tableView": "Tampilan tabel",

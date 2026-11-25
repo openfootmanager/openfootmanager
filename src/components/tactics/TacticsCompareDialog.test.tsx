@@ -6,7 +6,11 @@ import TacticsCompareDialog from "./TacticsCompareDialog";
 
 vi.mock("react-i18next", () => ({
   initReactI18next: { type: "3rdParty", init: () => undefined },
-  useTranslation: () => ({ t: (key: string) => key, i18n: { language: "en" } }),
+  useTranslation: () => ({
+    t: (key: string, options?: Record<string, unknown>) =>
+      options?.name ? `${key}|${String(options.name)}` : key,
+    i18n: { language: "en" },
+  }),
 }));
 
 // The rating tiers and position groups are asked of the backend; none answers in a test.
@@ -56,5 +60,76 @@ describe("TacticsCompareDialog", () => {
     );
 
     expect(screen.getByRole("button", { name: "common.close" })).toBeInTheDocument();
+  });
+
+  /**
+   * Given a swap the backend rules out because the bench player is injured or suspended
+   * When the comparison is open
+   * Then Confirm swap is off, and the reason beside it names that player, tied to the button
+   */
+  it("says why Confirm swap is off for an unavailable bench player", () => {
+    render(
+      <TacticsCompareDialog
+        selectedPlayer={createPlayer({ id: "a", match_name: "A. One" })}
+        comparePlayer={createPlayer({ id: "b", match_name: "B. Two" })}
+        canConfirmSwap={false}
+        swapBlockedReason={{ kind: "unavailable", playerId: "b" }}
+        onConfirmSwap={vi.fn()}
+        onClose={vi.fn()}
+      />,
+    );
+
+    const confirm = screen.getByRole("button", { name: "tactics.confirmSwap" });
+    expect(confirm).toBeDisabled();
+    const reason = screen.getByText("tactics.swapBlocked.unavailable|B. Two");
+    expect(confirm).toHaveAccessibleDescription("tactics.swapBlocked.unavailable|B. Two");
+    expect(reason).toBeInTheDocument();
+    expect(screen.queryByText("tactics.compareSelectionHint")).not.toBeInTheDocument();
+  });
+
+  /**
+   * Given a swap that would change nothing, and one whose bench player's verdict has not come yet
+   * When each comparison is open
+   * Then each says its own reason, and neither says the player is unavailable
+   */
+  it.each([
+    [{ kind: "unchanged" } as const, "tactics.swapBlocked.unchanged"],
+    [{ kind: "unchecked", playerId: "a" } as const, "tactics.swapBlocked.unchecked|A. One"],
+  ])("says the reason %j for a swap that is off", (reason, text) => {
+    render(
+      <TacticsCompareDialog
+        selectedPlayer={createPlayer({ id: "a", match_name: "A. One" })}
+        comparePlayer={createPlayer({ id: "b", match_name: "B. Two" })}
+        canConfirmSwap={false}
+        swapBlockedReason={reason}
+        onConfirmSwap={vi.fn()}
+        onClose={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText(text)).toBeInTheDocument();
+    expect(screen.queryByText(/swapBlocked.unavailable/)).not.toBeInTheDocument();
+  });
+
+  /**
+   * Given a swap that can be confirmed
+   * When the comparison is open
+   * Then the usual hint stands, no reason is shown, and Confirm swap is on
+   */
+  it("shows the hint, not a reason, when the swap can be confirmed", () => {
+    render(
+      <TacticsCompareDialog
+        selectedPlayer={createPlayer({ id: "a" })}
+        comparePlayer={createPlayer({ id: "b" })}
+        canConfirmSwap
+        swapBlockedReason={null}
+        onConfirmSwap={vi.fn()}
+        onClose={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText("tactics.compareSelectionHint")).toBeInTheDocument();
+    expect(screen.queryByText(/swapBlocked/)).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "tactics.confirmSwap" })).toBeEnabled();
   });
 });

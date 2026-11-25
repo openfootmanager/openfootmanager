@@ -825,6 +825,11 @@
     "selectSecondPlayer": "Wähle in der Aufstellungsansicht einen zweiten Spieler aus, um Attribute zu vergleichen und den Tausch vorzubereiten.",
     "compareSelectionHint": "Prüfe beide Spieler unten und bestätige den Tausch, wenn du bereit bist.",
     "confirmSwap": "Tausch bestätigen",
+    "swapBlocked": {
+      "unavailable": "{{name}} kann für das nächste Spiel nicht aufgestellt werden, daher ist dieser Tausch nicht möglich.",
+      "unchecked": "Es wird geprüft, ob {{name}} aufgestellt werden kann …",
+      "unchanged": "Dieser Tausch würde die Startelf unverändert lassen."
+    },
     "selectPitchPlayer": "Wähle einen Spieler in der Aufstellungsansicht aus, um seine Attribute zu prüfen.",
     "selectAnotherToSwap": "Wähle einen zweiten Spieler aus, um ihn zu vergleichen und den Tausch zu bestätigen.",
     "teamIdentity": "Teamidentität",

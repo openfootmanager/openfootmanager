@@ -948,6 +948,11 @@
     "selectSecondPlayer": "Özellikleri karşılaştırmak ve değişime hazırlanmak için diziliş ekranında ikinci bir oyuncu seçin.",
     "compareSelectionHint": "Aşağıda iki oyuncuyu inceleyin, hazır olduğunuzda değişimi onaylayın.",
     "confirmSwap": "Değişimi onayla",
+    "swapBlocked": {
+      "unavailable": "{{name}} bir sonraki maç için seçilemiyor, bu yüzden bu değişiklik yapılamaz.",
+      "unchecked": "{{name}} oyuncusunun seçilip seçilemeyeceği kontrol ediliyor…",
+      "unchanged": "Bu değişiklik ilk on bir kadrosunu aynen bırakır."
+    },
     "selectPitchPlayer": "Özelliklerini incelemek için dizilişte bir oyuncu seçin.",
     "selectAnotherToSwap": "Karşılaştırmak ve değişimi onaylamak için ikinci bir oyuncu seçin.",
     "tableView": "Tablo görünümü",

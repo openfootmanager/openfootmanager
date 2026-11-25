@@ -55,6 +55,7 @@ export default function TacticsTab({
     selectedPlayer,
     comparePlayer,
     canConfirmSwap,
+    swapBlockedReason,
     handleFormationChange,
     handlePlayStyleChange,
     handleApplyTacticPreset,
@@ -204,6 +205,7 @@ export default function TacticsTab({
       {selectedPlayer && comparePlayer && (
         <TacticsCompareDialog
           canConfirmSwap={canConfirmSwap}
+          swapBlockedReason={swapBlockedReason}
           comparePlayer={comparePlayer}
           onClose={clearLineupSelection}
           onConfirmSwap={() => {

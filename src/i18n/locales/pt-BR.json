@@ -825,6 +825,11 @@
     "selectSecondPlayer": "Selecione um segundo jogador na visão da escalação para comparar atributos e preparar a troca.",
     "compareSelectionHint": "Analise os dois jogadores abaixo e confirme a troca quando estiver pronto.",
     "confirmSwap": "Confirmar troca",
+    "swapBlocked": {
+      "unavailable": "{{name}} não pode ser escalado para a próxima partida, então esta troca não é possível.",
+      "unchecked": "Verificando se {{name}} pode ser escalado…",
+      "unchanged": "Esta troca deixaria o time titular como está."
+    },
     "selectPitchPlayer": "Selecione um jogador na visão da escalação para analisar seus atributos.",
     "selectAnotherToSwap": "Selecione um segundo jogador para compará-los e confirmar a troca.",
     "teamIdentity": "Identidade do time",

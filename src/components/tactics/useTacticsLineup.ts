@@ -32,6 +32,7 @@ import {
   type SquadSection,
   lineupReady,
 } from "../squad/SquadTab.helpers";
+import { swapVerdict } from "./swapBlockedReason";
 import {
   buildTacticsPitchSlots,
   buildTacticsRoster,
@@ -152,36 +153,24 @@ export function useTacticsLineup({ gameState, onGameUpdate, onWriteError }: UseT
     selectedPlayerId,
   );
 
-  const canConfirmSwap = useMemo(() => {
-    if (!selectedPlayerId || !selectedPlayerSection || !comparePlayerId || !comparePlayerSection) {
-      return false;
-    }
-
-    if (
-      (selectedPlayerSection === "bench" &&
-        !isPlayerEligibleForLineup(selectedPlayerId ? playersById.get(selectedPlayerId) : null)) ||
-      (comparePlayerSection === "bench" &&
-        !isPlayerEligibleForLineup(comparePlayerId ? playersById.get(comparePlayerId) : null))
-    ) {
-      return false;
-    }
-
-    const nextXiIds = applyLineupSwap(
-      startingXiIds,
-      { id: selectedPlayerId, from: selectedPlayerSection },
-      comparePlayerId,
-      comparePlayerSection,
-    );
-
-    return !!nextXiIds && nextXiIds.join(",") !== startingXiIds.join(",");
-  }, [
-    comparePlayerId,
-    comparePlayerSection,
-    playersById,
-    selectedPlayerId,
-    selectedPlayerSection,
-    startingXiIds,
-  ]);
+  // One rule for the Confirm swap button and for the line that says why it is off.
+  const swap = useMemo(
+    () =>
+      swapVerdict({
+        selected:
+          selectedPlayer && selectedPlayerSection
+            ? { player: selectedPlayer, section: selectedPlayerSection }
+            : null,
+        compare:
+          comparePlayer && comparePlayerSection
+            ? { player: comparePlayer, section: comparePlayerSection }
+            : null,
+        startingXiIds,
+      }),
+    [comparePlayer, comparePlayerSection, selectedPlayer, selectedPlayerSection, startingXiIds],
+  );
+  const canConfirmSwap = swap.canConfirm;
+  const swapBlockedReason = swap.reason;
 
   // No count is claimed before the lineup can be graded: a "0" there would read as "all in place".
   const outOfPositionCount = canGradeLineup
@@ -349,12 +338,7 @@ export function useTacticsLineup({ gameState, onGameUpdate, onWriteError }: UseT
       return;
     }
 
-    if (
-      (selectedPlayerSection === "bench" &&
-        !isPlayerEligibleForLineup(selectedPlayerId ? playersById.get(selectedPlayerId) : null)) ||
-      (comparePlayerSection === "bench" &&
-        !isPlayerEligibleForLineup(comparePlayerId ? playersById.get(comparePlayerId) : null))
-    ) {
+    if (!canConfirmSwap) {
       return;
     }
 
@@ -425,6 +409,7 @@ export function useTacticsLineup({ gameState, onGameUpdate, onWriteError }: UseT
     selectedPlayerId,
     comparePlayerId,
     canConfirmSwap,
+    swapBlockedReason,
     handleFormationChange,
     handlePlayStyleChange,
     handleApplyTacticPreset,

@@ -825,6 +825,11 @@
     "selectSecondPlayer": "在首发视图中选择第二名球员以对比属性并准备互换。",
     "compareSelectionHint": "查看下方两名球员,准备好后确认互换。",
     "confirmSwap": "确认互换",
+    "swapBlocked": {
+      "unavailable": "{{name}} 无法入选下一场比赛,因此无法进行这次互换。",
+      "unchecked": "正在确认 {{name}} 是否可以入选……",
+      "unchanged": "这次互换不会改变首发阵容。"
+    },
     "selectPitchPlayer": "在首发视图中选择一名球员以查看其属性。",
     "selectAnotherToSwap": "选择第二名球员进行对比并确认互换。",
     "teamIdentity": "球队风格身份",

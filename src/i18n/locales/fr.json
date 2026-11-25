@@ -825,6 +825,11 @@
     "selectSecondPlayer": "Sélectionnez un deuxième joueur dans la vue de composition pour comparer les attributs et préparer l'échange.",
     "compareSelectionHint": "Examinez les deux joueurs ci-dessous puis confirmez l'échange quand vous êtes prêt.",
     "confirmSwap": "Confirmer l'échange",
+    "swapBlocked": {
+      "unavailable": "{{name}} ne peut pas être retenu pour le prochain match : cet échange est impossible.",
+      "unchecked": "Vérification de la disponibilité de {{name}}…",
+      "unchanged": "Cet échange laisserait le onze de départ inchangé."
+    },
     "selectPitchPlayer": "Sélectionnez un joueur dans la vue de composition pour examiner ses attributs.",
     "selectAnotherToSwap": "Sélectionnez un deuxième joueur pour les comparer et confirmer l'échange.",
     "teamIdentity": "Identité de l'équipe",

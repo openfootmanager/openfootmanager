@@ -948,6 +948,11 @@
     "selectSecondPlayer": "Select a second player in the lineup view to compare attributes and prepare the swap.",
     "compareSelectionHint": "Review both players below, then confirm the swap when you're ready.",
     "confirmSwap": "Confirm swap",
+    "swapBlocked": {
+      "unavailable": "{{name}} can't be picked for the next match, so this swap can't be made.",
+      "unchecked": "Checking whether {{name}} can be picked…",
+      "unchanged": "This swap would leave the starting eleven as it is."
+    },
     "selectPitchPlayer": "Select a player in the lineup view to inspect their attributes.",
     "selectAnotherToSwap": "Select a second player to compare them and confirm the swap.",
     "tableView": "Table view",

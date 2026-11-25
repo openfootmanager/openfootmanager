@@ -844,6 +844,11 @@
     "selectSecondPlayer": "Seleziona un secondo giocatore nella vista formazione per confrontare gli attributi e preparare lo scambio.",
     "compareSelectionHint": "Controlla i due giocatori qui sotto, poi conferma lo scambio quando sei pronto.",
     "confirmSwap": "Conferma scambio",
+    "swapBlocked": {
+      "unavailable": "{{name}} non può essere convocato per la prossima partita, quindi questo scambio non è possibile.",
+      "unchecked": "Verifica in corso: {{name}} può essere convocato?",
+      "unchanged": "Questo scambio lascerebbe invariata la formazione titolare."
+    },
     "selectPitchPlayer": "Seleziona un giocatore nella vista formazione per ispezionare i suoi attributi.",
     "selectAnotherToSwap": "Seleziona un secondo giocatore per confrontarli e confermare lo scambio.",
     "teamIdentity": "Identità della squadra",
