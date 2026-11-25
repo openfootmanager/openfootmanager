@@ -152,10 +152,12 @@ fn preseason_digest(body_key: &str, params: &Params) -> Option<Params> {
 
 /// The preseason digest's sentence about the clubs still unbeaten: none, one, two, or a list.
 fn unbeaten_line(data: &str) -> Option<String> {
+    // `Intl.ListFormat.format` throws on a team that is no string, and the screen then keeps the
+    // params as the backend wrote them.
     let teams: Vec<String> = items(data)?
         .iter()
-        .map(|team| text_of(Some(team)))
-        .collect();
+        .map(|team| team.as_str().map(str::to_string))
+        .collect::<Option<_>>()?;
     Some(match teams.as_slice() {
         [] => String::new(),
         [team] => resolve(
@@ -289,13 +291,17 @@ fn press_conference(headline_key: &str, body_key: &str, params: &Params) -> Opti
         .map(|quote| {
             let key = quote.get("key").and_then(Value::as_str);
             let fallback = quote.get("fallback").and_then(Value::as_str).unwrap_or("");
-            let quote_params = quote
-                .get("params")
-                .and_then(Value::as_object)
-                .map(string_params)
-                .unwrap_or_default();
-            resolve(key, fallback, &resolve_params(&quote_params))
+            let quote_params = match quote.get("params") {
+                Some(Value::Object(object)) if object.values().any(throws_as_a_param) => {
+                    return None;
+                }
+                Some(Value::Object(object)) => string_params(object),
+                _ => Params::new(),
+            };
+            Some(resolve(key, fallback, &resolve_params(&quote_params)))
         })
+        .collect::<Option<Vec<String>>>()?
+        .into_iter()
         .filter(|quote| !quote.is_empty())
         .collect();
     let first = said.first()?.clone();
@@ -304,6 +310,13 @@ fn press_conference(headline_key: &str, body_key: &str, params: &Params) -> Opti
         ("quote", first),
         ("quotes", bulleted.join("\n")),
     ]))
+}
+
+/// Whether the screen throws on this value of a quote's params: `resolveParamValues` asks every
+/// value whether it is a key (`value.includes(".")`), which a string and an array can answer and a
+/// number, a boolean, a null or an object cannot. The article then keeps the params as written.
+fn throws_as_a_param(value: &Value) -> bool {
+    !matches!(value, Value::String(_) | Value::Array(_))
 }
 
 fn string_params(object: &Map<String, Value>) -> Params {
@@ -322,8 +335,10 @@ fn transfer_roundup(body_key: &str, params: &Params) -> Option<Params> {
         .iter()
         .map(|deal| {
             let mut fields = deal.as_object().map(string_params).unwrap_or_default();
-            // The screen writes the fee compact, as it writes every money param of a message.
-            let fee = money_param("fee", &text_of(deal.get("fee")));
+            // The screen writes the fee compact, as it writes every money param of a message. It
+            // reads the fee with `.trim()`, which only a string has: a deal with no fee, or one
+            // that is null or a number, throws there and the article keeps its own deals.
+            let fee = money_param("fee", deal.get("fee")?.as_str()?);
             fields.insert("fee".to_string(), fee.clone());
             let fallback = format!(
                 "  {}: {} -> {} ({})",
@@ -332,8 +347,12 @@ fn transfer_roundup(body_key: &str, params: &Params) -> Option<Params> {
                 text_of(deal.get("toTeam")),
                 fee
             );
-            resolve(Some("be.news.transferRoundup.dealLine"), &fallback, &fields)
+            Some(resolve(
+                Some("be.news.transferRoundup.dealLine"),
+                &fallback,
+                &fields,
+            ))
         })
-        .collect();
+        .collect::<Option<Vec<String>>>()?;
     Some(params_of([("deals", lines.join("\n"))]))
 }
