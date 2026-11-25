@@ -267,6 +267,36 @@ describe("TacticsTab preset question", { timeout: TACTICS_TAB_CASE_TIMEOUT_MS },
     );
 
   /**
+   * Given a formation edit whose reply the backend holds (the write is made), and a preset chosen
+   *       meanwhile (the bar is not busy for an edit's own write)
+   * When the edit's reply lands
+   * Then the preset is asked about after it, about the setup it left, and applied: it is not dropped
+   *      as a choice whose setup changed under it.
+   */
+  it("applies a preset chosen while a formation write is out, once that write has landed", async () => {
+    let release!: () => void;
+    knobs.setFormationReplyGate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    fakeBackend();
+    render(<ControlledTacticsTab />);
+    fireEvent.click(screen.getByRole("combobox", { name: "Formation" }));
+    fireEvent.click(screen.getByRole("option", { name: "5-3-2" }));
+    await waitFor(() => expect(commandsCalled()).toContain("set_formation"));
+
+    pickHighPress();
+    // The lookup waits for the write: it is not asked while the write is still out.
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    });
+    expect(commandsCalled()).not.toContain("get_tactics_blueprint_status");
+    await act(async () => release());
+
+    await waitFor(() => expect(commandsCalled()).toContain("apply_tactic_preset"));
+    expect(appliedHighPress()).toBe(true);
+  });
+
+  /**
    * Given High Press's lookup still out
    * When the team's formation is changed from outside the tab (an MCP edit, a game refresh)
    * Then the lookup's answer is stale: High Press is not applied over the outside change.

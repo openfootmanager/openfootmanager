@@ -190,6 +190,13 @@ export const knobs = {
   applyCustomTacticGate: null as Promise<void> | null,
   /** When set, the faked save answers `delete_custom_tactic` only once this resolves. */
   deleteCustomTacticGate: null as Promise<void> | null,
+  /**
+   * When set, the faked backend applies a saved tactic at once (its game stamped with the revision it
+   * made) and delivers the reply only once this resolves: a reply that arrives late.
+   */
+  applyCustomTacticReplyGate: null as Promise<void> | null,
+  /** The same for `set_formation`: the write is done at once, its reply held. */
+  setFormationReplyGate: null as Promise<void> | null,
 };
 
 /** The faked backend's own copy of the game, and the tactics its save holds, in the order made. */
@@ -226,6 +233,8 @@ export function resetHarness() {
   knobs.libraryListFailsOnce = false;
   knobs.applyCustomTacticGate = null;
   knobs.deleteCustomTacticGate = null;
+  knobs.applyCustomTacticReplyGate = null;
+  knobs.setFormationReplyGate = null;
 }
 
 /** Puts tactics in the faked save, as if the player had made them earlier. */
@@ -240,6 +249,15 @@ export function seedSavedTactics(
 ) {
   savedTactics = entries.map((entry) => ({ ...entry, sourcePresetName: null }));
 }
+
+/** The commands that write the game: each makes a new revision of it. */
+const WRITES = new Set([
+  "set_tactics_phase",
+  "apply_tactic_preset",
+  "set_formation",
+  "set_play_style",
+  "apply_custom_tactic",
+]);
 
 export function fakeBackend(failPreset = false) {
   mockedInvoke.mockImplementation(async (command: string, args?: unknown) => {
@@ -322,7 +340,17 @@ export function fakeBackend(failPreset = false) {
       team.formation = saved.formation;
       team.play_style = saved.playStyle;
     }
-    return structuredClone(backend);
+    // Every write the backend makes is a new revision of the game, and its reply carries it, as the
+    // real one does: the store orders the games it is given by it.
+    if (WRITES.has(command)) backend.revision = (backend.revision ?? 0) + 1;
+    const reply = structuredClone(backend);
+    if (command === "apply_custom_tactic" && knobs.applyCustomTacticReplyGate) {
+      await knobs.applyCustomTacticReplyGate;
+    }
+    if (command === "set_formation" && knobs.setFormationReplyGate) {
+      await knobs.setFormationReplyGate;
+    }
+    return reply;
   });
 }
 
