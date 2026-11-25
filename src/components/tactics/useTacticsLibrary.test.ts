@@ -754,6 +754,11 @@ describe("useTacticsLibrary saving and applying the whole tactic (#1189)", () =>
     act(() => {
       applying = result.current.applyTacticSelection(result.current.tacticLibrary[0]);
     });
+    // The request has to be on its way before the career changes: this pins the guard after the
+    // await (a request never sent proves nothing about it).
+    await waitFor(() =>
+      expect(mockedInvoke).toHaveBeenCalledWith("apply_custom_tactic", expect.anything()),
+    );
     act(() => useGameStore.getState().clearGame());
     await act(async () => {
       answer.resolve(appliedGame);
