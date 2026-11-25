@@ -567,6 +567,29 @@
       }
     },
     {
+      "name": "a roundup whose results data is an empty list lays out no results",
+      "kind": "article",
+      "input": {
+        "id": "roundup_5",
+        "headline_key": "be.news.roundup.headline0",
+        "body_key": "be.news.roundup.body",
+        "source_key": "be.source.leagueWire",
+        "i18n_params": {
+          "matchday": "5",
+          "totalGoals": "0",
+          "matchCount": "0",
+          "results": "  North 3 - 0 South",
+          "resultsData": "[]",
+          "biggestWinner": ""
+        }
+      },
+      "expected": {
+        "headline": "Matchday 5 Round-Up: 0 Goals in Action-Packed Day",
+        "body": "Matchday 5 is in the books. Here are the full results:\n\n\n\n0 goals scored across 0 matches.",
+        "source": "League Wire"
+      }
+    },
+    {
       "name": "a roundup whose results data holds a null entry keeps the results the backend wrote",
       "kind": "article",
       "input": {
@@ -910,6 +933,30 @@
       }
     },
     {
+      "name": "a friendly report whose scorers data is an empty list clears the goals section the backend wrote",
+      "kind": "article",
+      "input": {
+        "id": "report_5",
+        "headline_key": "be.news.matchReport.reportFriendly.title",
+        "body_key": "be.news.matchReport.reportFriendly.body",
+        "source_key": "be.source.footballHerald",
+        "i18n_params": {
+          "home": "East",
+          "away": "West",
+          "homeGoals": "0",
+          "awayGoals": "0",
+          "scorers": "J. Doe (12', East)",
+          "scorersSection": "\n\nGoals: J. Doe (12', East)",
+          "scorersData": "[]"
+        }
+      },
+      "expected": {
+        "headline": "East 0 - 0 West: Friendly report",
+        "body": "In friendly action, East 0 - 0 West. Both sides used the fixture to build sharpness before the competitive campaign.",
+        "source": "The Football Herald"
+      }
+    },
+    {
       "name": "a press conference whose quotes carry response keys reads them in English, not in the fallback's language",
       "kind": "article",
       "input": {
@@ -1195,6 +1242,152 @@
       "expected": {
         "subject": "Promoted to the Spain Division 3!",
         "body": "Congratulations! The club has earned promotion and will play in the Spain Division 3 in Season 2029.\n\nThe board is thrilled with this achievement. Let's make sure we are ready for the step up.",
+        "sender": "",
+        "sender_role": "",
+        "actions": []
+      }
+    },
+    {
+      "name": "a promotion names a numbered division from the tier the notice carries",
+      "kind": "message",
+      "input": {
+        "id": "division_tier_0",
+        "subject_key": "be.msg.promotion.subject",
+        "body_key": "be.msg.promotion.body",
+        "i18n_params": {
+          "division": "Stored Name",
+          "season": "2029",
+          "divisionKey": "tournaments.competitions.tierDivision",
+          "divisionSeason": "2029",
+          "divisionCountry": "ES",
+          "divisionTier": "3"
+        }
+      },
+      "expected": {
+        "subject": "Promoted to the Spain Division 3!",
+        "body": "Congratulations! The club has earned promotion and will play in the Spain Division 3 in Season 2029.\n\nThe board is thrilled with this achievement. Let's make sure we are ready for the step up.",
+        "sender": "",
+        "sender_role": "",
+        "actions": []
+      }
+    },
+    {
+      "name": "a promotion into an opening-tournament division says so after its name",
+      "kind": "message",
+      "input": {
+        "id": "division_tier_1",
+        "subject_key": "be.msg.promotion.subject",
+        "body_key": "be.msg.promotion.body",
+        "i18n_params": {
+          "division": "Stored Name",
+          "season": "2029",
+          "divisionKey": "tournaments.competitions.tierDivision",
+          "divisionSeason": "2029",
+          "divisionCountry": "ES",
+          "divisionTier": "3",
+          "divisionPhase": "opening"
+        }
+      },
+      "expected": {
+        "subject": "Promoted to the Spain Division 3 Opening tournament!",
+        "body": "Congratulations! The club has earned promotion and will play in the Spain Division 3 Opening tournament in Season 2029.\n\nThe board is thrilled with this achievement. Let's make sure we are ready for the step up.",
+        "sender": "",
+        "sender_role": "",
+        "actions": []
+      }
+    },
+    {
+      "name": "a promotion into a closing-tournament division says so after its name",
+      "kind": "message",
+      "input": {
+        "id": "division_tier_2",
+        "subject_key": "be.msg.promotion.subject",
+        "body_key": "be.msg.promotion.body",
+        "i18n_params": {
+          "division": "Stored Name",
+          "season": "2029",
+          "divisionKey": "tournaments.competitions.league",
+          "divisionSeason": "2029",
+          "divisionCountry": "ES",
+          "divisionPhase": "closing"
+        }
+      },
+      "expected": {
+        "subject": "Promoted to the Spain League Closing tournament!",
+        "body": "Congratulations! The club has earned promotion and will play in the Spain League Closing tournament in Season 2029.\n\nThe board is thrilled with this achievement. Let's make sure we are ready for the step up.",
+        "sender": "",
+        "sender_role": "",
+        "actions": []
+      }
+    },
+    {
+      "name": "a promotion into an annual division says nothing of a phase",
+      "kind": "message",
+      "input": {
+        "id": "division_tier_3",
+        "subject_key": "be.msg.promotion.subject",
+        "body_key": "be.msg.promotion.body",
+        "i18n_params": {
+          "division": "Stored Name",
+          "season": "2029",
+          "divisionKey": "tournaments.competitions.secondDivision",
+          "divisionSeason": "2029",
+          "divisionCountry": "ES",
+          "divisionPhase": "annual"
+        }
+      },
+      "expected": {
+        "subject": "Promoted to the Spain Second Division!",
+        "body": "Congratulations! The club has earned promotion and will play in the Spain Second Division in Season 2029.\n\nThe board is thrilled with this achievement. Let's make sure we are ready for the step up.",
+        "sender": "",
+        "sender_role": "",
+        "actions": []
+      }
+    },
+    {
+      "name": "a phase after a name with no tier in it is left out",
+      "kind": "message",
+      "input": {
+        "id": "division_tier_4",
+        "subject_key": "be.msg.promotion.subject",
+        "body_key": "be.msg.promotion.body",
+        "i18n_params": {
+          "division": "Stored Name",
+          "season": "2029",
+          "divisionKey": "tournaments.competitions.nationalCup",
+          "divisionSeason": "2029",
+          "divisionCountry": "ES",
+          "divisionPhase": "opening"
+        }
+      },
+      "expected": {
+        "subject": "Promoted to the Spain Cup!",
+        "body": "Congratulations! The club has earned promotion and will play in the Spain Cup in Season 2029.\n\nThe board is thrilled with this achievement. Let's make sure we are ready for the step up.",
+        "sender": "",
+        "sender_role": "",
+        "actions": []
+      }
+    },
+    {
+      "name": "a tier that is no whole number above zero names nothing, and the stored name stands",
+      "kind": "message",
+      "input": {
+        "id": "division_tier_5",
+        "subject_key": "be.msg.promotion.subject",
+        "body_key": "be.msg.promotion.body",
+        "i18n_params": {
+          "division": "Stored Name",
+          "season": "2029",
+          "divisionKey": "tournaments.competitions.tierDivision",
+          "divisionSeason": "2029",
+          "divisionCountry": "ES",
+          "divisionTier": "2.5",
+          "divisionPhase": "opening"
+        }
+      },
+      "expected": {
+        "subject": "Promoted to the Stored Name!",
+        "body": "Congratulations! The club has earned promotion and will play in the Stored Name in Season 2029.\n\nThe board is thrilled with this achievement. Let's make sure we are ready for the step up.",
         "sender": "",
         "sender_role": "",
         "actions": []
