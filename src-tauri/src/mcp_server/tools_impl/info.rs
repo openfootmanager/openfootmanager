@@ -409,6 +409,25 @@ mod competition_mirror_tests {
         assert_eq!(league.points, 10);
     }
 
+    /// Given the domestic league sitting in the mirror (next week vs Beta) and a cup tie tomorrow
+    /// When an agent reads the game summary
+    /// Then the next match is the cup: a scan of the mirror alone would pick next week's league
+    #[test]
+    fn the_game_summary_chooses_tomorrows_cup_over_next_weeks_mirrored_league() {
+        let mut game = game_with_cup_tomorrow();
+        game.league = game.user_league().cloned();
+        let summary = game_summary_from(&game).expect("a club");
+
+        assert_eq!(
+            summary.next_match,
+            Some(NextMatch {
+                opponent: "Gamma FC".to_string(),
+                at_home: false,
+                date: "2025-06-16".to_string(),
+            })
+        );
+    }
+
     /// Given a cup sitting in the legacy mirror and the user's domestic league in competitions
     /// When the user's league is required
     /// Then it is the domestic league, never the cup

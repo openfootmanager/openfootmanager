@@ -564,6 +564,33 @@ mod tests {
         assert!(!user_has_a_match_in_the_callup_window(&game));
     }
 
+    /// Given a cup tie tomorrow in competitions, and the mirrored league's next match a fortnight away
+    /// When the call-up window is asked
+    /// Then it is open: a scan of the mirror alone would miss the cup
+    #[test]
+    fn a_cup_tomorrow_opens_the_callup_window_when_the_mirrored_league_is_a_fortnight_away() {
+        let mut game = hired_game();
+        let mut league = domain::league::League::new(
+            "league1".to_string(),
+            "League".to_string(),
+            1,
+            &["team1".to_string(), "opp".to_string()],
+        );
+        league.fixtures = vec![scheduled("league-week", "2025-06-29")];
+        let mut cup = domain::league::League::new(
+            "cup1".to_string(),
+            "Cup".to_string(),
+            1,
+            &["team1".to_string(), "opp".to_string()],
+        );
+        cup.kind = domain::league::CompetitionType::Cup;
+        cup.fixtures = vec![scheduled("cup-tie", "2025-06-16")];
+        game.league = Some(league.clone());
+        game.competitions = vec![league, cup];
+
+        assert!(user_has_a_match_in_the_callup_window(&game));
+    }
+
     /// Given a 1-1 cup tie the user lost on penalties
     /// When the board counts it
     /// Then it is a loss
