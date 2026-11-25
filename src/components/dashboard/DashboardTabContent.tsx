@@ -1,4 +1,5 @@
 import { lazy, Suspense, useState } from "react";
+import { Spinner } from "../ui";
 import EndOfSeasonScreen, { type SeasonTransition } from "../EndOfSeasonScreen";
 import HomeTab from "../home/HomeTab";
 import type { DashboardTabContentModel } from "./dashboardTabContentModel";
@@ -29,7 +30,7 @@ interface DashboardTabContentProps {
 function DashboardTabFallback() {
   return (
     <div className="flex min-h-48 items-center justify-center">
-      <div className="h-8 w-8 motion-safe:animate-spin rounded-full border-4 border-primary-500 border-t-transparent" />
+      <Spinner className="h-8 w-8 border-4 border-primary-500" />
     </div>
   );
 }

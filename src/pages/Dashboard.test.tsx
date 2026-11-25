@@ -941,3 +941,14 @@ describe("Dashboard", () => {
     expect(navigateMock).not.toHaveBeenCalledWith("/select-team");
   });
 });
+
+describe("Dashboard: loading", () => {
+  /** Given no game state yet, when the dashboard renders, then it says the game state is loading. */
+  it("announces that the game state is loading", () => {
+    gameState = undefined as unknown as typeof gameState;
+
+    render(<Dashboard />);
+
+    expect(screen.getByRole("status")).toHaveTextContent("Loading game state...");
+  });
+});

@@ -1,7 +1,8 @@
 import { useTranslation } from "react-i18next";
 import { formatDate } from "../../lib/helpers";
 import { resolveBackendText } from "../../utils/backendI18n";
-import { Play, Clock, Trash2, X, Loader2 } from "lucide-react";
+import { Play, Clock, Trash2, X } from "lucide-react";
+import { Spinner } from "../ui";
 
 /**
  * A save created by the game stores its name as a translation key plus the
@@ -64,8 +65,11 @@ export default function SavesList({
 
       <div className="flex flex-col gap-3 max-h-[60vh] overflow-y-auto pr-1">
         {isLoading ? (
-          <div className="flex flex-col items-center gap-3 py-8 text-gray-500 dark:text-gray-400">
-            <Loader2 className="w-8 h-8 motion-safe:animate-spin text-primary-500" />
+          <div
+            role="status"
+            className="flex flex-col items-center gap-3 py-8 text-gray-500 dark:text-gray-400"
+          >
+            <Spinner decorative className="w-8 h-8 border-4 border-primary-500" />
             <span className="text-sm font-heading uppercase tracking-wider">
               {t("menu.loadingSaves")}
             </span>
@@ -125,7 +129,7 @@ export default function SavesList({
                         {saveDisplayName(save.name)}
                       </span>
                       {loadingSaveId === save.id ? (
-                        <Loader2 className="w-4 h-4 text-primary-500 motion-safe:animate-spin flex-shrink-0" />
+                        <Spinner className="w-4 h-4 flex-shrink-0 border-2 border-primary-500" />
                       ) : (
                         <Play className="w-4 h-4 text-primary-500 opacity-0 group-hover:opacity-100 transition-all flex-shrink-0" />
                       )}

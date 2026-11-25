@@ -350,6 +350,19 @@ describe("MainMenu", () => {
     resetCountryResourcesCache();
   });
 
+  /**
+   * Given the create-manager panel has not loaded
+   * When the player chooses New Game
+   * Then a loading status is announced while the panel arrives.
+   */
+  it("announces a loading status while the panel loads", () => {
+    render(<MainMenu />);
+
+    fireEvent.click(screen.getByText("menu.newGame"));
+
+    expect(screen.getByRole("status")).toHaveTextContent("common.loading");
+  });
+
   it.each(["es", "de", "fr", "it", "pt", "pt-BR"])(
     "stores the nationality as an ISO code and continues the flow in %s",
     async (language: string) => {

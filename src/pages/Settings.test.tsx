@@ -185,3 +185,12 @@ describe("Settings: the choices", () => {
     await waitFor(() => expect(lastSaved()).toMatchObject({ [field]: byDefault }));
   });
 });
+
+describe("Settings: loading", () => {
+  /** Given the settings have not loaded, when the page renders, then it says it is loading. */
+  it("announces that the settings are loading", () => {
+    renderSettings();
+
+    expect(screen.getByRole("status")).toHaveTextContent("common.loading");
+  });
+});

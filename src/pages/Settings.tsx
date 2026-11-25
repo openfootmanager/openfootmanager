@@ -4,7 +4,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { useTranslation } from "react-i18next";
 import { useSettingsStore, type AppSettings } from "../store/settingsStore";
 import { useTheme } from "../context/ThemeContext";
-import { SegmentedControl, Switch, ThemeToggle, Select } from "../components/ui";
+import { SegmentedControl, Spinner, Switch, ThemeToggle, Select } from "../components/ui";
 import { SUPPORTED_LANGUAGES, changeAppLanguage } from "../i18n";
 import { formatAppVersion } from "../lib/appVersion";
 import { Section, SettingRow } from "./Settings.components";
@@ -130,7 +130,7 @@ export default function Settings() {
   if (!loaded) {
     return (
       <div className="min-h-screen bg-gray-100 dark:bg-navy-900 flex items-center justify-center transition-colors">
-        <div className="w-8 h-8 border-4 border-primary-500 border-t-transparent rounded-full motion-safe:animate-spin" />
+        <Spinner className="w-8 h-8 border-4 border-primary-500" />
       </div>
     );
   }
