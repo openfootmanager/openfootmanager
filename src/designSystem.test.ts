@@ -17,6 +17,9 @@ const FINISHED_FOLDERS = [
   // four entries become the one folder.
   "./components/dashboard/DashboardAlerts.tsx",
   "./components/dashboard/DashboardHeader.tsx",
+  // The header's search and the class names it shares with the header.
+  "./components/dashboard/DashboardSearch.tsx",
+  "./components/dashboard/dashboardStyles.ts",
   "./components/dashboard/DashboardSidebar.tsx",
   "./components/dashboard/DashboardWorkspaceContent.tsx",
   "./pages/Dashboard.tsx",
