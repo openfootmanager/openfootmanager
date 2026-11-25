@@ -85,7 +85,9 @@ function mountWithPresetChoice(callbacks: {
       `${setup.formation}|${setup.playStyle}`,
       library.appliesSettled,
     );
-    return { library, presetChoice };
+    // `externalChange` stands for a change of the setup from outside the tab (an MCP edit, a game
+    // refresh): nothing the tab's own applies delivered.
+    return { library, presetChoice, externalChange: setSetup };
   });
 }
 
@@ -109,7 +111,12 @@ describe("a preset chosen while saved tactics are being applied (#1447)", () => 
     const replies: Array<ReturnType<typeof deferred<unknown>>> = [];
     let instructionsDifferFromBlueprint = false;
     mockedInvoke.mockImplementation(async (command: string, args?: unknown) => {
-      if (command === "list_custom_tactics") return [wire("a", "Away"), wire("b", "Home")];
+      if (command === "list_custom_tactics") {
+        return [
+          wire("a", "Away"),
+          { ...wire("b", "Home"), formation: "4-3-3", playStyle: "Attacking" },
+        ];
+      }
       if (command === "legacy_tactics_import_pending") return false;
       if (command === "apply_custom_tactic") {
         const reply = deferred<unknown>();
@@ -158,6 +165,54 @@ describe("a preset chosen while saved tactics are being applied (#1447)", () => 
     });
 
     expect(result.current.presetChoice.pending?.id).toBe("preset:wing-play");
+    expect(onKeepInstructions).not.toHaveBeenCalled();
+    expect(onApplyPreset).not.toHaveBeenCalled();
+  });
+
+  /**
+   * Given saved tactic A being applied (its answer held), a preset chosen behind it, and then the
+   *       setup changed from outside the tab while the choice waits (not by A: nothing the tab's own
+   *       applies delivered)
+   * When A answers
+   * Then the preset choice is dropped, as one whose setup changed under it always is: the newer
+   *      formation must not be overwritten by an older choice, and the manager is not asked.
+   */
+  it("drops a preset choice when the setup changes from outside the tab while it waits", async () => {
+    const replies: Array<ReturnType<typeof deferred<unknown>>> = [];
+    mockedInvoke.mockImplementation(async (command: string) => {
+      if (command === "list_custom_tactics") return [wire("a", "Away")];
+      if (command === "legacy_tactics_import_pending") return false;
+      if (command === "apply_custom_tactic") {
+        const reply = deferred<unknown>();
+        replies.push(reply);
+        return reply.promise;
+      }
+      if (command === "get_tactics_blueprint_status") return { modified: true };
+      return { modified: false };
+    });
+    const onKeepInstructions = vi.fn(async () => true);
+    const onApplyPreset = vi.fn(async () => true);
+    const { result } = mountWithPresetChoice({ onApplyPreset, onKeepInstructions });
+    await waitFor(() => expect(customIds({ current: result.current.library })).toEqual(["a"]));
+    const entry = (id: string) => {
+      const found = result.current.library.tacticLibrary.find((e) => e.id === id);
+      if (!found) throw new Error(`${id} is in the library`);
+      return found;
+    };
+
+    const asked: Array<Promise<void>> = [];
+    act(() => {
+      asked.push(result.current.library.applyTacticSelection(entry("a")));
+      asked.push(result.current.presetChoice.choose(entry("preset:wing-play")));
+    });
+    await waitFor(() => expect(callsTo("apply_custom_tactic")).toHaveLength(1));
+    act(() => result.current.externalChange({ formation: "3-5-2", playStyle: "Possession" }));
+    await act(async () => replies[0].resolve({ marker: "after a" }));
+    await act(async () => {
+      await Promise.all(asked);
+    });
+
+    expect(result.current.presetChoice.pending).toBeNull();
     expect(onKeepInstructions).not.toHaveBeenCalled();
     expect(onApplyPreset).not.toHaveBeenCalled();
   });
