@@ -64,6 +64,7 @@ export const SCREEN_WRITE_COMMANDS = [
   "clear_old_messages",
   "resolve_message_action",
   "request_board_support",
+  "reallocate_board_envelopes",
   "request_sponsor_pitch",
   "request_marketing_campaign",
   "apply_for_job",

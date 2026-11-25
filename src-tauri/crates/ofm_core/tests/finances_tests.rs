@@ -6,7 +6,9 @@ use domain::league::{
     Fixture, FixtureCompetition, FixtureStatus, League, MatchResult, StandingEntry,
 };
 use domain::manager::Manager;
-use domain::player::{ActiveLoan, Player, PlayerAttributes, Position};
+use domain::player::{
+    ActiveLoan, Player, PlayerAttributes, Position, TransferOffer, TransferOfferStatus,
+};
 use domain::staff::{Staff, StaffAttributes, StaffRole};
 use domain::team::{
     FinancialTransaction, FinancialTransactionKind, Sponsorship, SponsorshipBonusCriterion, Team,
@@ -454,6 +456,47 @@ fn facility_upgrade_previews_report_cost_and_availability_for_a_healthy_club() {
     assert_eq!(training.next_cost, 500_000);
     assert!(training.can_afford);
     assert_eq!(training.block_reason, None);
+}
+
+/// Given reserved fees a one-step wage raise would uncover
+/// When finance previews are read
+/// Then raise-wage is refused with the reservations key, raise-transfer is allowed, and cash is untouched.
+#[test]
+fn envelope_previews_refuse_a_wage_raise_that_would_breach_reservations() {
+    let mut game = make_monday_game();
+    game.teams[0].transfer_budget = 300_000;
+    game.teams[0].wage_budget = 200_000;
+    game.players[0].transfer_offers.push(TransferOffer {
+        id: "offer-1".to_string(),
+        from_team_id: "team1".to_string(),
+        fee: 300_000,
+        wage_offered: 0,
+        last_manager_fee: None,
+        negotiation_round: 1,
+        suggested_counter_fee: None,
+        status: TransferOfferStatus::PendingRegistration,
+        date: "2025-06-16".to_string(),
+        registration_date: None,
+        closed_on: None,
+        registration_failure_reason: None,
+    });
+
+    let previews = finances::finance_action_previews(&game, "team1").expect("previews");
+
+    assert!(!previews.raise_wage.allowed);
+    assert_eq!(
+        previews.raise_wage.block_reason.as_deref(),
+        Some("be.error.finance.reallocationBreachesReservations")
+    );
+    assert_eq!(
+        previews.raise_wage.wage_delta_weekly,
+        finances::ENVELOPE_WAGE_STEP_WEEKLY
+    );
+    assert!(previews.raise_transfer.allowed);
+    assert_eq!(previews.raise_transfer.block_reason, None);
+    assert_eq!(game.teams[0].wage_budget, 200_000);
+    assert_eq!(game.teams[0].transfer_budget, 300_000);
+    assert_eq!(game.teams[0].finance, 5_000_000);
 }
 
 /// Given a club whose wage bill is over its budget and which cannot afford an upgrade

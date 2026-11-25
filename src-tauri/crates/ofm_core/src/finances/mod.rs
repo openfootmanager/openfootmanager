@@ -1,10 +1,15 @@
 pub mod cash_flow;
+mod envelopes;
 pub mod gate;
 pub mod journal;
 mod league_position;
 mod weekly;
 
 pub use domain::finance::{CashJournal, CashKind};
+pub use envelopes::{
+    ENVELOPE_WAGE_STEP_WEEKLY, EnvelopeReallocation, EnvelopeReallocationPreview,
+    envelope_reallocation_preview, projected_envelope_reallocation, reallocate_board_envelopes,
+};
 pub use journal::{
     PostRequest, backfill_opening_balances, credit_opening_cash, journal_matches_cash, post,
     post_all, validate_posts,
@@ -128,6 +133,8 @@ pub struct FinanceActionPreviews {
     pub sponsor_pitch: Option<SponsorPitchPreview>,
     pub marketing_campaign: Option<MarketingCampaignPreview>,
     pub facility_upgrades: Vec<FacilityUpgradePreview>,
+    pub raise_wage: EnvelopeReallocationPreview,
+    pub raise_transfer: EnvelopeReallocationPreview,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -970,6 +977,8 @@ pub fn finance_action_previews(game: &Game, team_id: &str) -> Option<FinanceActi
         sponsor_pitch: preview_sponsor_pitch(game, team_id).ok(),
         marketing_campaign: preview_marketing_campaign(game, team_id).ok(),
         facility_upgrades: facility_upgrade_previews(team, &snapshot),
+        raise_wage: envelope_reallocation_preview(game, team_id, ENVELOPE_WAGE_STEP_WEEKLY),
+        raise_transfer: envelope_reallocation_preview(game, team_id, -ENVELOPE_WAGE_STEP_WEEKLY),
     })
 }
 
