@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import type { MatchModeType } from "../../hooks/useAdvanceTime";
@@ -89,6 +89,13 @@ function createPlayer(overrides: Partial<PlayerData> = {}): PlayerData {
   } as PlayerData;
 }
 
+/** Focuses the header's search field and types into it, as a player does. */
+function typeInSearch(text: string) {
+  const field = screen.getByRole("textbox", { name: "common.search" });
+  fireEvent.focus(field);
+  fireEvent.change(field, { target: { value: text } });
+}
+
 function createModeMeta(): Record<MatchModeType, DashboardMatchModeMeta> {
   return {
     live: {
@@ -126,29 +133,24 @@ describe("DashboardHeader", () => {
         isUnemployed={false}
         isSaving={false}
         matchMode="live"
-        matchedPlayers={[createPlayer()]}
-        matchedTeams={teams}
+        players={[createPlayer()]}
         modeMeta={createModeMeta()}
         onBack={vi.fn()}
         onContinue={vi.fn()}
         onSave={vi.fn()}
-        onSearchBlur={vi.fn()}
-        onSearchFocus={vi.fn()}
-        onSearchQueryChange={vi.fn()}
         onSelectMatchMode={vi.fn()}
         onSelectSearchPlayer={onSelectSearchPlayer}
         onSelectSearchTeam={onSelectSearchTeam}
         onSkipToMatchDay={vi.fn()}
         onToggleContinueMenu={vi.fn()}
         saveFlash={false}
-        searchOpen
-        searchQuery="jo"
         seasonComplete={false}
         showContinueMenu={false}
         teams={teams}
       />,
     );
 
+    typeInSearch("jo");
     fireEvent.contextMenu(screen.getByTestId("dashboard-search-player-player-1"));
     fireEvent.click(screen.getByRole("menuitem", { name: "View team" }));
 
@@ -173,23 +175,17 @@ describe("DashboardHeader", () => {
         isUnemployed={false}
         isSaving={false}
         matchMode="live"
-        matchedPlayers={[]}
-        matchedTeams={[]}
+        players={[]}
         modeMeta={createModeMeta()}
         onBack={vi.fn()}
         onContinue={vi.fn()}
         onSave={vi.fn()}
-        onSearchBlur={vi.fn()}
-        onSearchFocus={vi.fn()}
-        onSearchQueryChange={vi.fn()}
         onSelectMatchMode={vi.fn()}
         onSelectSearchPlayer={vi.fn()}
         onSelectSearchTeam={vi.fn()}
         onSkipToMatchDay={vi.fn()}
         onToggleContinueMenu={vi.fn()}
         saveFlash={false}
-        searchOpen={false}
-        searchQuery=""
         seasonComplete={false}
         showContinueMenu={false}
         teams={[]}
@@ -221,23 +217,17 @@ describe("DashboardHeader", () => {
         isUnemployed={false}
         isSaving={false}
         matchMode="live"
-        matchedPlayers={[]}
-        matchedTeams={[]}
+        players={[]}
         modeMeta={createModeMeta()}
         onBack={onBack}
         onContinue={vi.fn()}
         onSave={vi.fn()}
-        onSearchBlur={vi.fn()}
-        onSearchFocus={vi.fn()}
-        onSearchQueryChange={vi.fn()}
         onSelectMatchMode={vi.fn()}
         onSelectSearchPlayer={vi.fn()}
         onSelectSearchTeam={vi.fn()}
         onSkipToMatchDay={vi.fn()}
         onToggleContinueMenu={vi.fn()}
         saveFlash={false}
-        searchOpen={false}
-        searchQuery=""
         seasonComplete={false}
         showContinueMenu={false}
         teams={teams}
@@ -288,29 +278,24 @@ describe("DashboardHeader", () => {
           isUnemployed={false}
           isSaving={false}
           matchMode="live"
-          matchedPlayers={[createPlayer({ position: "Midfielder", natural_position: position })]}
-          matchedTeams={teams}
+          players={[createPlayer({ position: "Midfielder", natural_position: position })]}
           modeMeta={createModeMeta()}
           onBack={vi.fn()}
           onContinue={vi.fn()}
           onSave={vi.fn()}
-          onSearchBlur={vi.fn()}
-          onSearchFocus={vi.fn()}
-          onSearchQueryChange={vi.fn()}
           onSelectMatchMode={vi.fn()}
           onSelectSearchPlayer={vi.fn()}
           onSelectSearchTeam={vi.fn()}
           onSkipToMatchDay={vi.fn()}
           onToggleContinueMenu={vi.fn()}
           saveFlash={false}
-          searchOpen
-          searchQuery="jo"
           seasonComplete={false}
           showContinueMenu={false}
           teams={teams}
         />,
       );
 
+      typeInSearch("jo");
       await waitFor(() =>
         expect(screen.getByText(abbreviation).parentElement).toHaveClass(expectedClass),
       );
@@ -331,23 +316,17 @@ function renderHeader(overrides: Partial<React.ComponentProps<typeof DashboardHe
       isUnemployed={false}
       isSaving={false}
       matchMode="live"
-      matchedPlayers={[]}
-      matchedTeams={[]}
+      players={[]}
       modeMeta={createModeMeta()}
       onBack={vi.fn()}
       onContinue={vi.fn()}
       onSave={vi.fn()}
-      onSearchBlur={vi.fn()}
-      onSearchFocus={vi.fn()}
-      onSearchQueryChange={vi.fn()}
       onSelectMatchMode={vi.fn()}
       onSelectSearchPlayer={vi.fn()}
       onSelectSearchTeam={vi.fn()}
       onSkipToMatchDay={vi.fn()}
       onToggleContinueMenu={vi.fn()}
       saveFlash={false}
-      searchOpen={false}
-      searchQuery=""
       seasonComplete={false}
       showContinueMenu={false}
       teams={teams}
@@ -370,36 +349,38 @@ describe("DashboardHeader search", () => {
    */
   it.each([
     ["team", /^Alpha FC/, "onSelectSearchTeam", "team-1"],
-    ["player", /John Striker/, "onSelectSearchPlayer", "player-1"],
+    ["player", /Alan Striker/, "onSelectSearchPlayer", "player-1"],
   ] as const)(
     "keeps the results open while the focus moves into a %s result, and picks it",
     (_kind, name, handler, id) => {
-      const handlers = { onSelectSearchTeam: vi.fn(), onSelectSearchPlayer: vi.fn() };
-      const onSearchBlur = vi.fn();
-      renderHeader({
-        searchOpen: true,
-        searchQuery: "al",
-        matchedTeams: [createTeam()],
-        matchedPlayers: [createPlayer()],
-        ...handlers,
-        onSearchBlur,
-      });
-      fireEvent.click(screen.getByRole("button", { name: "common.search" }));
-      const field = screen.getByRole("textbox", { name: "common.search" });
-      const result = screen.getByRole("button", { name });
+      vi.useFakeTimers();
+      try {
+        const handlers = { onSelectSearchTeam: vi.fn(), onSelectSearchPlayer: vi.fn() };
+        renderHeader({
+          players: [createPlayer({ full_name: "Alan Striker", match_name: "A. Striker" })],
+          ...handlers,
+        });
+        fireEvent.click(screen.getByRole("button", { name: "common.search" }));
+        typeInSearch("al");
+        const field = screen.getByRole("textbox", { name: "common.search" });
+        const result = screen.getByRole("button", { name });
 
-      fireEvent.blur(field, { relatedTarget: result });
-      result.focus();
+        fireEvent.blur(field, { relatedTarget: result });
+        result.focus();
+        act(() => vi.advanceTimersByTime(1000));
 
-      expect(result).toHaveFocus();
-      expect(result.tagName).toBe("BUTTON");
-      expect(field.closest("[data-search-field]")).not.toHaveClass("hidden");
-      expect(onSearchBlur).not.toHaveBeenCalled();
-      fireEvent.click(result);
-      expect(handlers[handler]).toHaveBeenCalledWith(id);
-      const other =
-        handler === "onSelectSearchTeam" ? "onSelectSearchPlayer" : "onSelectSearchTeam";
-      expect(handlers[other]).not.toHaveBeenCalled();
+        expect(result).toHaveFocus();
+        expect(result.tagName).toBe("BUTTON");
+        expect(field.closest("[data-search-field]")).not.toHaveClass("hidden");
+        expect(screen.getByRole("button", { name })).toBeInTheDocument();
+        fireEvent.click(result);
+        expect(handlers[handler]).toHaveBeenCalledWith(id);
+        const other =
+          handler === "onSelectSearchTeam" ? "onSelectSearchPlayer" : "onSelectSearchTeam";
+        expect(handlers[other]).not.toHaveBeenCalled();
+      } finally {
+        vi.useRealTimers();
+      }
     },
   );
 
@@ -410,7 +391,8 @@ describe("DashboardHeader search", () => {
    * so the field would blur and the results vanish before the click lands).
    */
   it("keeps the focus in the field when a result is pressed with the mouse", () => {
-    renderHeader({ searchOpen: true, searchQuery: "jo", matchedPlayers: [createPlayer()] });
+    renderHeader({ players: [createPlayer()] });
+    typeInSearch("jo");
     const result = screen.getByRole("button", { name: /John Striker/ });
 
     expect(fireEvent.mouseDown(result)).toBe(false);
@@ -422,15 +404,44 @@ describe("DashboardHeader search", () => {
    * Then the field folds back to its button and the results close.
    */
   it("folds the field when the focus leaves the search", () => {
-    const onSearchBlur = vi.fn();
-    renderHeader({ onSearchBlur });
+    renderHeader({ players: [createPlayer()] });
     fireEvent.click(screen.getByRole("button", { name: "common.search" }));
     const field = screen.getByRole("textbox", { name: "common.search" });
 
     fireEvent.blur(field, { relatedTarget: null });
 
     expect(field.closest("[data-search-field]")).toHaveClass("hidden");
-    expect(onSearchBlur).toHaveBeenCalledTimes(1);
+  });
+
+  /**
+   * Given results showing for a typed name
+   * When the field loses the focus to nothing (the window, the bare page)
+   * Then the results stay for 200 ms, so a click that is already on its way still lands, and then
+   *      close; and picking a result clears the query.
+   */
+  it("closes the results 200 ms after the focus leaves, and empties the box on a pick", () => {
+    vi.useFakeTimers();
+    try {
+      const onSelectSearchPlayer = vi.fn();
+      renderHeader({ players: [createPlayer()], onSelectSearchPlayer });
+      typeInSearch("jo");
+      const field = screen.getByRole("textbox", { name: "common.search" }) as HTMLInputElement;
+      expect(screen.getByRole("button", { name: /John Striker/ })).toBeInTheDocument();
+
+      fireEvent.blur(field, { relatedTarget: null });
+      act(() => vi.advanceTimersByTime(199));
+      expect(screen.getByRole("button", { name: /John Striker/ })).toBeInTheDocument();
+      act(() => vi.advanceTimersByTime(1));
+      expect(screen.queryByRole("button", { name: /John Striker/ })).toBeNull();
+
+      fireEvent.focus(field);
+      expect(screen.getByRole("button", { name: /John Striker/ })).toBeInTheDocument();
+      fireEvent.click(screen.getByRole("button", { name: /John Striker/ }));
+      expect(onSelectSearchPlayer).toHaveBeenCalledWith("player-1");
+      expect(field.value).toBe("");
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
 
