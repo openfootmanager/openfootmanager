@@ -6,10 +6,13 @@
 //! module does the same in English (the only language MCP output is written in).
 //!
 //! `backendI18n.ts` is the reference. `src/utils/backendTextGolden.json` is the list of cases both
-//! resolvers are held to, so a change to one that the other does not follow fails CI. What is
-//! deliberately not ported: the params the frontend expands out of structured JSON (roundups,
-//! standings, scorers, press quotes), a division's or competition's display name, and country
-//! names. They stay as the params the backend sent, and the result says so in `details`.
+//! resolvers are held to, so a change to one that the other does not follow fails CI. A news
+//! article's structured params (roundups, standings, scorers, press quotes, deals) are expanded
+//! into the lines of its body in [`news_params`]. What is deliberately not ported: a division's or
+//! competition's display name and country names. They stay as the params the backend sent, and the
+//! result says so in `details`.
+
+mod news_params;
 
 use std::collections::{BTreeMap, HashMap};
 use std::sync::OnceLock;
@@ -76,7 +79,7 @@ pub fn resolve_message(message: &InboxMessage) -> ResolvedMessage {
             message.body_key.as_deref(),
             &message.body,
             &params,
-            &details,
+            !details.is_empty(),
         ),
         sender: resolve(message.sender_key.as_deref(), &message.sender, &params),
         sender_role: resolve(
@@ -94,16 +97,12 @@ pub fn resolve_message(message: &InboxMessage) -> ResolvedMessage {
 }
 
 pub fn resolve_article(article: &NewsArticle) -> ResolvedArticle {
-    let params = resolve_params(&article.i18n_params);
+    // The screen expands the structured params first, then resolves every param value.
+    let params = resolve_params(&news_params::expanded_params(article));
     let details = structured_details(&article.i18n_params);
     ResolvedArticle {
         headline: resolve(article.headline_key.as_deref(), &article.headline, &params),
-        body: resolve_body(
-            article.body_key.as_deref(),
-            &article.body,
-            &params,
-            &details,
-        ),
+        body: resolve_body(article.body_key.as_deref(), &article.body, &params, false),
         source: resolve(article.source_key.as_deref(), &article.source, &params),
         details,
     }
@@ -234,18 +233,15 @@ fn resolve(key: Option<&str>, fallback: &str, params: &Params) -> String {
     }
 }
 
-/// A body: as [`resolve`], except that when the message or article carries structured `details`
-/// (the lists the screen would lay out itself), the template's own slots the params do not fill
-/// are dropped, since the details hold what they stood for. Only the template's: what a value
-/// contains, braces included, is never read.
-fn resolve_body(
-    key: Option<&str>,
-    fallback: &str,
-    params: &Params,
-    details: &BTreeMap<String, Value>,
-) -> String {
+/// A body: as [`resolve`], except that with `drop_unfilled` the template's own slots the params do
+/// not fill are dropped. A message that carries structured `details` (the `*Data` params the screen
+/// lays out itself) drops them, since the details hold what they stood for. A news article never
+/// does: its lists are expanded into their slots first ([`news_params`]), and a slot left empty
+/// stays as written, as on the screen, which is what `resultsData` it cannot read leaves behind.
+/// Only the template's slots: what a value contains, braces included, is never read.
+fn resolve_body(key: Option<&str>, fallback: &str, params: &Params, drop_unfilled: bool) -> String {
     match template_of(key) {
-        Some(template) => interpolate(template, params, !details.is_empty()),
+        Some(template) => interpolate(template, params, drop_unfilled),
         None => fallback.to_string(),
     }
 }
@@ -484,9 +480,10 @@ fn grouped(magnitude: u64) -> String {
 
 // ─── What the sentence cannot say ───────────────────────────────────────────
 
-/// The params the backend sends as structured JSON (`resultsData`, `standingsData`, ...), which
-/// the screen lays out itself and this module does not. Handed over whole, so the agent reads
-/// them as data and the sentence does not carry raw JSON.
+/// The params the backend sends as structured JSON (`resultsData`, `standingsData`, ...), which the
+/// screen lays out itself. A news article's are laid out into its sentence by [`news_params`]; all
+/// of them are also handed over whole, so the agent can read them as data and the sentence does not
+/// carry raw JSON.
 fn structured_details(params: &Params) -> BTreeMap<String, Value> {
     params
         .iter()

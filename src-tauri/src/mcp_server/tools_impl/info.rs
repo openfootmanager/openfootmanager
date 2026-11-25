@@ -1197,12 +1197,12 @@ mod info_news_tests {
     }
 
     /// Given a roundup whose result lines name a club "{{United}} FC" (a mod's club name), with its
-    ///       structured results present so the body's own unfilled slots are dropped
+    ///       structured results present
     /// When an agent reads the news
-    /// Then the club's name stays as it was written: only the template's unfilled slots go, never
-    ///      braces that came from a value
+    /// Then the club's name stays as it was written: braces that came from a value are never read
+    ///      as a slot of the template
     #[test]
-    fn a_club_name_with_braces_survives_the_removal_of_unfilled_slots() {
+    fn a_club_name_with_braces_is_never_read_as_a_slot() {
         let news = vec![ofm_core::news::league_roundup_article(
             "league",
             3,
