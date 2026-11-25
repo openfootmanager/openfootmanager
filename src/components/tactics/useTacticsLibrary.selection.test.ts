@@ -147,7 +147,12 @@ describe("useTacticsLibrary selection, characterized", () => {
     rerender({ playStyle: "Defensive" });
     act(() => result.current.handleDeleteTactic());
     await waitFor(() => expect(result.current.canDeleteTactic).toBe(false));
+    await act(async () => {});
 
+    // The unsaved setup now stands in, and it is not changed from itself: the badge is clean, so the
+    // only reason left to offer Reset is that it differs from the preset it started from.
+    expect(result.current.activeTactic.id).toBe("current:setup");
+    expect(result.current.isCommandBarDirty).toBe(false);
     expect(result.current.canResetTactic).toBe(true);
     await act(async () => {
       await result.current.handleResetTactic();
