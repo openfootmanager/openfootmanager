@@ -1,4 +1,5 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
+import type { ComponentProps } from "react";
 import { describe, expect, it, vi } from "vitest";
 
 import type { MatchModeType } from "../../hooks/useAdvanceTime";
@@ -120,33 +121,114 @@ describe("DashboardHeader", () => {
                 isUnemployed={false}
                 isSaving={false}
                 matchMode="live"
-                matchedPlayers={[createPlayer()]}
-                matchedTeams={teams}
+                players={[createPlayer()]}
                 modeMeta={createModeMeta()}
                 onBack={vi.fn()}
                 onContinue={vi.fn()}
                 onSave={vi.fn()}
-                onSearchBlur={vi.fn()}
-                onSearchFocus={vi.fn()}
-                onSearchQueryChange={vi.fn()}
                 onSelectMatchMode={vi.fn()}
                 onSelectSearchPlayer={onSelectSearchPlayer}
                 onSelectSearchTeam={onSelectSearchTeam}
                 onSkipToMatchDay={vi.fn()}
                 onToggleContinueMenu={vi.fn()}
                 saveFlash={false}
-                searchOpen
-                searchQuery="jo"
                 seasonComplete={false}
                 showContinueMenu={false}
                 teams={teams}
             />,
         );
 
+        const field = screen.getByPlaceholderText("Search");
+        fireEvent.focus(field);
+        fireEvent.change(field, { target: { value: "jo" } });
         fireEvent.contextMenu(screen.getByTestId("dashboard-search-player-player-1"));
         fireEvent.click(screen.getByRole("button", { name: "View team" }));
 
         expect(onSelectSearchTeam).toHaveBeenCalledWith("team-1");
         expect(onSelectSearchPlayer).not.toHaveBeenCalled();
     });
+
+    /**
+     * Given results showing for a typed name
+     * When the field loses the focus
+     * Then the results stay for 200 ms, so a press that is already on its way still lands, and then
+     *      close.
+     */
+    it("closes the results 200 ms after the focus leaves", () => {
+        vi.useFakeTimers();
+        try {
+            renderSearchHeader({ players: [createPlayer()] });
+            const field = screen.getByPlaceholderText("Search");
+            fireEvent.focus(field);
+            fireEvent.change(field, { target: { value: "jo" } });
+            expect(screen.getByTestId("dashboard-search-player-player-1")).toBeInTheDocument();
+
+            fireEvent.blur(field);
+            act(() => vi.advanceTimersByTime(199));
+            expect(screen.getByTestId("dashboard-search-player-player-1")).toBeInTheDocument();
+            act(() => vi.advanceTimersByTime(1));
+            expect(screen.queryByTestId("dashboard-search-player-player-1")).toBeNull();
+
+            fireEvent.focus(field);
+            expect(screen.getByTestId("dashboard-search-player-player-1")).toBeInTheDocument();
+        } finally {
+            vi.useRealTimers();
+        }
+    });
+
+    /**
+     * Given results showing for a typed name, a player and a team among them
+     * When the player presses one of them
+     * Then the pick is handed up, the box is emptied, and the results are gone.
+     */
+    it.each([
+        ["player", "dashboard-search-player-player-1", "onSelectSearchPlayer", "player-1"],
+        ["team", "dashboard-search-team-team-1", "onSelectSearchTeam", "team-1"],
+    ] as const)("hands up a %s pick and empties the box", (_kind, testId, handler, id) => {
+        const handlers = { onSelectSearchPlayer: vi.fn(), onSelectSearchTeam: vi.fn() };
+        renderSearchHeader({
+            players: [createPlayer()],
+            teams: [createTeam({ name: "Alpha FC", short_name: "JOH" })],
+            ...handlers,
+        });
+        const field = screen.getByPlaceholderText("Search") as HTMLInputElement;
+        fireEvent.focus(field);
+        fireEvent.change(field, { target: { value: "jo" } });
+
+        fireEvent.mouseDown(screen.getByTestId(testId));
+
+        expect(handlers[handler]).toHaveBeenCalledWith(id);
+        expect(field.value).toBe("");
+        expect(screen.queryByTestId(testId)).toBeNull();
+    });
 });
+
+function renderSearchHeader(overrides: Partial<ComponentProps<typeof DashboardHeader>> = {}) {
+    return render(
+        <DashboardHeader
+            activeTabLabel="Dashboard"
+            currentDate="2026-08-10"
+            hasProfileHistory={false}
+            hasMatchToday={false}
+            isAdvancing={false}
+            isUnemployed={false}
+            isSaving={false}
+            matchMode="live"
+            players={[]}
+            modeMeta={createModeMeta()}
+            onBack={vi.fn()}
+            onContinue={vi.fn()}
+            onSave={vi.fn()}
+            onSelectMatchMode={vi.fn()}
+            onSelectSearchPlayer={vi.fn()}
+            onSelectSearchTeam={vi.fn()}
+            onSkipToMatchDay={vi.fn()}
+            onToggleContinueMenu={vi.fn()}
+            saveFlash={false}
+            seasonComplete={false}
+            showContinueMenu={false}
+            teams={[createTeam()]}
+            {...overrides}
+        />,
+    );
+}
