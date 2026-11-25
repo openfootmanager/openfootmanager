@@ -70,6 +70,7 @@ export function useTacticsLibrary({
     isActiveTacticDirty,
     isPresetDirty,
     isCommandBarDirty,
+    isDeletePending,
     draftTacticName,
     setActiveTacticId,
     setPendingDelete,
@@ -85,7 +86,7 @@ export function useTacticsLibrary({
     userTeam,
     blueprintModified,
   });
-  const { applyTacticSelection, appliesSettled, runAfterApplies } = useApplyTactic({
+  const { applyTacticSelection, runAfterApplies, isApplying } = useApplyTactic({
     onApplyPreset,
     onKeepInstructions,
     onGameUpdate,
@@ -225,8 +226,10 @@ export function useTacticsLibrary({
     canResetTactic,
     handleResetTactic,
     applyTacticSelection,
-    appliesSettled,
     runAfterApplies,
+    // A tactic write is out (an apply, or a delete the save has not answered): the bar offers no second
+    // change of the tactic until it has landed.
+    isTacticWriteOut: isApplying || isDeletePending,
     handleCreateCustomTactic,
     handleDuplicateTactic,
     handleSaveTactic,

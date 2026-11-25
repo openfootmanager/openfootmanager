@@ -23,9 +23,9 @@ import type { TacticsLibraryEntry } from "./TacticPicker";
  *   answers;
  * - the career changing (compared when the lookup answers, and the epoch effect), and the tab
  *   unmounting.
- * An edit of the instructions alone does not end it: the preset then applies keeping them. A lookup
- * for a preset waits for the applies already asked (`appliesSettled`) before it asks, so it is about
- * the instructions they leave.
+ * An edit of the instructions alone does not end it: the preset then applies keeping them. While a
+ * lookup is out `lookingUp` is true, and the bar turns its controls off (as it does while a tactic
+ * is applying or a delete is out), so no second change of the tactic is offered meanwhile.
  *
  * `apply(tactic, keepInstructions)` does the writing: `keepInstructions` takes the preset's formation
  * and play style and leaves the manager's instructions alone.
@@ -34,11 +34,11 @@ export function usePresetChoice(
   apply: (tactic: TacticsLibraryEntry, keepInstructions: boolean) => Promise<void>,
   /** The formation and play style the team has now: a change under a pending lookup makes it stale. */
   setupKey: string,
-  /** Resolves when every apply asked so far has landed: a preset's question waits for them. */
-  appliesSettled: () => Promise<ReadonlySet<string>>,
 ): {
   /** The preset waiting for the manager's answer, if any. */
   pending: TacticsLibraryEntry | null;
+  /** Whether a lookup is out: the bar is busy until the backend has answered. */
+  lookingUp: boolean;
   choose: (tactic: TacticsLibraryEntry) => Promise<void>;
   /** The manager changed the setup a preset writes (the formation, the play style, a Reset): a lookup still out is stale. */
   invalidate: () => void;
@@ -51,12 +51,8 @@ export function usePresetChoice(
   // The setup as of the latest render, read when a lookup answers.
   const currentSetup = useRef(setupKey);
   currentSetup.current = setupKey;
-  // Every setup the screen has rendered since a choice began waiting, to tell the changes the earlier
-  // applies made from one that came from elsewhere.
-  const seenSetups = useRef(new Set<string>());
-  useEffect(() => {
-    seenSetups.current.add(setupKey);
-  }, [setupKey]);
+  // The lookups out (a counter, not a flag: a choice dropped for a newer one still ends its own).
+  const [lookups, setLookups] = useState(0);
   const careerEpoch = useGameStore((state) => state.careerEpoch);
 
   useEffect(() => {
@@ -79,36 +75,17 @@ export function usePresetChoice(
     const askedIn = useGameStore.getState().careerEpoch;
     setPending(null);
     if (tactic.type !== "preset") return apply(tactic, false);
-    // Whether a preset would replace the manager's instructions is a question about the instructions
-    // the team has when it is applied. Saved tactics still queued or in flight change them when they
-    // land (and the setup with them), so the question waits for them: asked at the click it would be
-    // answered against what the backend held before they landed.
-    const clickedSetup = currentSetup.current;
-    seenSetups.current = new Set([clickedSetup]);
-    const leftByApplies = await appliesSettled();
-    if (thisChoice !== latestChoice.current) return;
-    if (useGameStore.getState().careerEpoch !== askedIn) return;
-    // The setup the lookup is about is the one the earlier applies left. Their game updates have been
-    // handed to the store, but the screen renders them in a later task: yield one, so the setup read
-    // below is the rendered one, not the one before them (read early, the lookup's own wait would then
-    // see the setup "change" and drop the choice).
-    await new Promise((resolve) => setTimeout(resolve, 0));
-    if (thisChoice !== latestChoice.current) return;
-    if (useGameStore.getState().careerEpoch !== askedIn) return;
-    // A setup that is neither the one at the click nor one the earlier applies left came from outside
-    // the tab: the choice was about an older setup than the one on screen, so it is dropped (as one
-    // whose setup changes during the lookup always is) rather than overwrite what is newer.
-    for (const seen of seenSetups.current) {
-      if (seen !== clickedSetup && !leftByApplies.has(seen)) return;
-    }
     const askedSetup = currentSetup.current;
     let wouldReplace = true;
+    setLookups((count) => count + 1);
     try {
       // An answer that is not an object is a stand-in with nothing to say: nothing to ask about.
       const status = await getTacticsBlueprintStatus(tactic.playStyle);
       wouldReplace = Boolean(status?.modified);
     } catch {
       wouldReplace = true;
+    } finally {
+      setLookups((count) => count - 1);
     }
     if (thisChoice !== latestChoice.current) return;
     if (useGameStore.getState().careerEpoch !== askedIn) return;
@@ -127,6 +104,7 @@ export function usePresetChoice(
 
   return {
     pending,
+    lookingUp: lookups > 0,
     choose,
     invalidate: () => {
       latestChoice.current += 1;

@@ -20,6 +20,11 @@ interface TacticsCommandBarProps {
    * is pending queues behind it and records whatever the manager changed meanwhile.
    */
   libraryLoaded: boolean;
+  /**
+   * Whether a write to the team's tactic is out (an apply, a delete, a preset's lookup). Every control
+   * that could start another change is off until it has landed, so two changes never interleave.
+   */
+  busy: boolean;
   /** Whether pressing Reset would change anything; the library decides, the bar renders. */
   canReset: boolean;
   onReset: () => void;
@@ -55,6 +60,7 @@ export default function TacticsCommandBar({
   formation,
   isDirty,
   libraryLoaded,
+  busy,
   canReset,
   onReset,
   canDelete,
@@ -83,7 +89,7 @@ export default function TacticsCommandBar({
   // Saving a synced custom tactic is a silent no-op — nothing has changed to
   // persist. Presets stay enabled even when isDirty is false because saving
   // there always creates a new custom tactic, which is an observable action.
-  const isSaveDisabled = !libraryLoaded || (activeTactic.type === "custom" && !isDirty);
+  const isSaveDisabled = !libraryLoaded || busy || (activeTactic.type === "custom" && !isDirty);
 
   const { showSavedCue, save: handleSaveClick } = useSavedCue(activeTactic, onSave);
 
@@ -133,6 +139,7 @@ export default function TacticsCommandBar({
         role="group"
         aria-label={t("tactics.tacticBar")}
         data-region="tactics-bar"
+        aria-busy={busy}
         className="flex flex-wrap items-end gap-3 px-4 py-3"
       >
         <TacticPicker
@@ -141,6 +148,7 @@ export default function TacticsCommandBar({
           open={pickerOpen}
           onOpenChange={setPickerOpen}
           onSelect={onSelectTactic}
+          disabled={busy}
         />
 
         <div className="min-w-32 flex-[1_1_9rem]">
@@ -149,6 +157,7 @@ export default function TacticsCommandBar({
             value={FORMATIONS.includes(formation) ? formation : FORMATIONS[0]}
             onChange={(e) => onFormationChange(e.target.value)}
             fullWidth
+            disabled={busy}
             aria-label={t("tactics.formation")}
           >
             {FORMATIONS.map((f) => (
@@ -165,6 +174,7 @@ export default function TacticsCommandBar({
             value={activePlayStyle}
             onChange={(e) => onPlayStyleChange(e.target.value)}
             fullWidth
+            disabled={busy}
             aria-label={t("tactics.playStyle")}
           >
             {PLAY_STYLES.map((style) => (
@@ -186,11 +196,12 @@ export default function TacticsCommandBar({
             aria-label={t("tactics.tacticActions")}
             aria-haspopup="menu"
             aria-expanded={actionsOpen}
+            disabled={busy}
             onClick={(event) => {
               const rect = event.currentTarget.getBoundingClientRect();
               actionsMenuRef.current?.open(rect.left, rect.bottom + 4);
             }}
-            className="grid h-9 w-9 shrink-0 place-items-center rounded-lg border border-line-strong bg-panel text-fg-muted hover:text-fg focus:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 focus-visible:ring-offset-page"
+            className="grid h-9 w-9 shrink-0 place-items-center rounded-lg border border-line-strong bg-panel text-fg-muted hover:text-fg focus:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 focus-visible:ring-offset-page disabled:cursor-not-allowed disabled:opacity-50"
           >
             <MoreVertical aria-hidden="true" className="h-4 w-4" />
           </button>
@@ -200,7 +211,7 @@ export default function TacticsCommandBar({
           {/* Always on the page, so a change of what it says is announced. While the library loads it
               says why Save is off. */}
           <span id={statusId} aria-live="polite" className="inline-flex">
-            {libraryLoaded ? (
+            {libraryLoaded && !busy ? (
               <Badge variant={isDirty ? "accent" : "neutral"} size="sm">
                 {isDirty ? t("tactics.unsavedChanges") : t("tactics.synced")}
               </Badge>
@@ -217,7 +228,7 @@ export default function TacticsCommandBar({
             icon={showSavedCue && !isDirty ? <Check /> : <Save />}
             onClick={handleSaveClick}
             disabled={isSaveDisabled}
-            aria-describedby={libraryLoaded ? undefined : statusId}
+            aria-describedby={libraryLoaded && !busy ? undefined : statusId}
             className="min-w-[9.5rem]"
           >
             {showSavedCue && !isDirty ? t("tactics.tacticSaved") : saveLabel}

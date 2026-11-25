@@ -29,6 +29,8 @@ interface TacticPickerProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSelect: (id: string) => void;
+  /** The picker cannot be opened: a write to the tactic is out. */
+  disabled?: boolean;
 }
 
 /** The caption above a field of the tactic bar (the bar uses it for its own fields too). */
@@ -64,6 +66,7 @@ export default function TacticPicker({
   open,
   onOpenChange,
   onSelect,
+  disabled = false,
 }: TacticPickerProps): JSX.Element {
   const { t } = useTranslation();
   const [search, setSearch] = useState("");
@@ -146,8 +149,9 @@ export default function TacticPicker({
         aria-describedby={activeNameId}
         aria-expanded={open}
         aria-haspopup="listbox"
+        disabled={disabled}
         onClick={() => onOpenChange(!open)}
-        className="flex h-9 w-full items-center justify-between gap-3 rounded-lg border border-line-strong bg-panel px-3 text-left text-body text-fg hover:border-selected focus:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 focus-visible:ring-offset-page"
+        className="flex h-9 w-full items-center justify-between gap-3 rounded-lg border border-line-strong bg-panel px-3 text-left text-body text-fg hover:border-selected focus:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 focus-visible:ring-offset-page disabled:cursor-not-allowed disabled:opacity-50"
       >
         {/* Both keep their own width until the button is too narrow; then the summary gives up twice as much, so the name stays readable. */}
         <span id={activeNameId} className="flex min-w-0 flex-1 items-center justify-between gap-3">

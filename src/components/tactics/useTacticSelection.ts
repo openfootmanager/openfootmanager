@@ -172,6 +172,7 @@ export function useTacticSelection({
     isCommandBarDirty,
     draftTacticName,
     setActiveTacticId,
+    isDeletePending: pendingDelete !== null,
     setPendingDelete,
     setDraftTacticName,
     presetAnchorId,

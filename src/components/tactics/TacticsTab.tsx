@@ -87,8 +87,8 @@ export default function TacticsTab({
     canResetTactic,
     handleResetTactic,
     applyTacticSelection,
-    appliesSettled,
     runAfterApplies,
+    isTacticWriteOut,
     handleCreateCustomTactic,
     handleDuplicateTactic,
     handleSaveTactic,
@@ -112,8 +112,8 @@ export default function TacticsTab({
   const presetChoice = usePresetChoice(
     (tactic, keepInstructions) => applyTacticSelection(tactic, { keepInstructions }),
     setupKey(formation, activePlayStyle),
-    appliesSettled,
   );
+  const isBusy = isTacticWriteOut || presetChoice.lookingUp;
 
   if (!team) {
     return <p className="text-gray-500 dark:text-gray-400">{t("common.noTeam")}</p>;
@@ -142,6 +142,7 @@ export default function TacticsTab({
         formation={formation}
         isDirty={isCommandBarDirty}
         libraryLoaded={libraryLoaded}
+        busy={isBusy}
         canReset={canResetTactic}
         onReset={() => {
           presetChoice.invalidate();

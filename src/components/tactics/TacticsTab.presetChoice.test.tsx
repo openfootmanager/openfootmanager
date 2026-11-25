@@ -12,10 +12,8 @@ import {
   fakeBackend,
   knobs,
   mockedInvoke,
-  openActionsMenu,
   openPhaseBlueprint,
   resetHarness,
-  seedSavedTactics,
 } from "./TacticsTab.harness";
 
 /**
@@ -173,43 +171,6 @@ describe("TacticsTab preset question", { timeout: TACTICS_TAB_CASE_TIMEOUT_MS },
   });
 
   /**
-   * Given a preset chosen and the backend's answer about it still pending
-   * When the manager chooses another preset whose answer comes at once (nothing tuned to replace), and
-   *      then the first answer arrives saying it would replace tuned instructions
-   * Then the first is dropped: no dialog opens for it and it is not applied over the second.
-   */
-  it("drops the answer to a choice the manager has since replaced", async () => {
-    fakeBackend();
-    render(<ControlledTacticsTab />);
-    await tuneAnInstruction();
-    let release!: () => void;
-    knobs.blueprintStatusGate = new Promise<void>((resolve) => {
-      release = resolve;
-    });
-    mockedInvoke.mockClear();
-    pickHighPress();
-    await waitFor(() => expect(commandsCalled()).toContain("get_tactics_blueprint_status"));
-
-    knobs.blueprintStatusGate = null;
-    knobs.blueprintModified = false;
-    fireEvent.click(screen.getByRole("button", { name: "Choose tactic" }));
-    fireEvent.click(screen.getByRole("option", { name: /Balanced Control/ }));
-    await waitFor(() => expect(commandsCalled()).toContain("apply_tactic_preset"));
-    knobs.blueprintModified = true;
-    // The first lookup answers now, after the second choice was applied: wait for that answer to
-    // be given and for the screen to take it.
-    await act(async () => {
-      release();
-      await waitFor(() => expect(knobs.blueprintStatusAnswered).toBe(2));
-    });
-
-    expect(screen.queryByRole("dialog")).toBeNull();
-    expect(
-      mockedInvoke.mock.calls.filter(([command]) => command === "apply_tactic_preset"),
-    ).toHaveLength(1);
-  });
-
-  /**
    * Given the question open about tuned instructions
    * When the career changes (another game is loaded)
    * Then the question is withdrawn: an answer is never applied to a career it was not asked in.
@@ -262,40 +223,6 @@ describe("TacticsTab preset question", { timeout: TACTICS_TAB_CASE_TIMEOUT_MS },
     expect(await screen.findByText("Unsaved changes")).toBeInTheDocument();
   });
 
-  /**
-   * Given a preset chosen, and its lookup (nothing of the manager's to replace) still pending
-   * When the manager commits their own formation, or play style, edit before the lookup answers
-   * Then the answer does not apply the older preset over the newer edit: the edit stands.
-   */
-  it.each([
-    ["Formation", "4-3-3", "set_formation"],
-    ["Play style", "Attacking", "set_play_style"],
-  ])(
-    "does not apply a preset over a %s edit made while its lookup is pending",
-    async (control, option, command) => {
-      fakeBackend();
-      render(<ControlledTacticsTab />);
-      let release!: () => void;
-      knobs.blueprintStatusGate = new Promise<void>((resolve) => {
-        release = resolve;
-      });
-      mockedInvoke.mockClear();
-      pickHighPress();
-      await waitFor(() => expect(commandsCalled()).toContain("get_tactics_blueprint_status"));
-
-      fireEvent.click(screen.getByRole("combobox", { name: control }));
-      fireEvent.click(screen.getByRole("option", { name: option }));
-      await waitFor(() => expect(commandsCalled()).toContain(command));
-      await act(async () => {
-        release();
-        await waitFor(() => expect(knobs.blueprintStatusAnswered).toBe(1));
-      });
-
-      expect(commandsCalled()).not.toContain("apply_tactic_preset");
-      expect(screen.getByRole("combobox", { name: control })).toHaveTextContent(option);
-    },
-  );
-
   /** Holds the answer to the preset's lookup, and picks High Press: the lookup is out. */
   async function pickHighPressWithTheLookupHeld() {
     let release!: () => void;
@@ -322,55 +249,6 @@ describe("TacticsTab preset question", { timeout: TACTICS_TAB_CASE_TIMEOUT_MS },
         command === "apply_tactic_preset" &&
         (args as { playStyle?: string }).playStyle === "HighPress",
     );
-
-  /**
-   * Given tuned instructions (so the lookup says High Press would replace them) and High Press's
-   *       lookup still out
-   * When the manager chooses Reset to defaults, and then the lookup answers
-   * Then the older choice is dropped: no question opens and High Press is not applied over the reset.
-   */
-  it("drops a pending preset choice when the manager resets", async () => {
-    fakeBackend();
-    render(<ControlledTacticsTab />);
-    await tuneAnInstruction();
-    const release = await pickHighPressWithTheLookupHeld();
-
-    openActionsMenu();
-    fireEvent.click(screen.getByRole("menuitem", { name: "Reset to defaults" }));
-    await waitFor(() => expect(commandsCalled()).toContain("apply_tactic_preset"));
-    await releaseTheLookup(release);
-
-    expect(screen.queryByRole("dialog")).toBeNull();
-    expect(appliedHighPress()).toBe(false);
-  });
-
-  /**
-   * Given a saved tactic in the library and High Press's lookup still out
-   * When the manager chooses the saved tactic, and then the lookup answers
-   * Then the preset is dropped: the saved tactic applied, and High Press is not applied over it.
-   */
-  it("drops a pending preset choice when the manager chooses a saved tactic", async () => {
-    seedSavedTactics([
-      {
-        id: "custom:saved",
-        name: "Saved custom",
-        description: "",
-        formation: "4-4-2",
-        playStyle: "Balanced",
-      },
-    ]);
-    fakeBackend();
-    render(<ControlledTacticsTab />);
-    const release = await pickHighPressWithTheLookupHeld();
-
-    fireEvent.click(screen.getByRole("button", { name: "Choose tactic" }));
-    fireEvent.click(await screen.findByRole("option", { name: /Saved custom/ }));
-    await waitFor(() => expect(commandsCalled()).toContain("apply_custom_tactic"));
-    await releaseTheLookup(release);
-
-    expect(screen.queryByRole("dialog")).toBeNull();
-    expect(appliedHighPress()).toBe(false);
-  });
 
   /**
    * Given High Press's lookup still out

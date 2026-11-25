@@ -46,6 +46,7 @@ function buildProps(
     formation: "4-4-2",
     isDirty: false,
     libraryLoaded: true,
+    busy: false,
     canDelete: true,
     canRename: true,
     onRename: vi.fn().mockResolvedValue(null),
@@ -73,6 +74,36 @@ function renderCommandBar(overrides: Partial<React.ComponentProps<typeof Tactics
 }
 
 describe("TacticsCommandBar", () => {
+  /**
+   * Given a bar told a write to the tactic is out
+   * When it renders
+   * Then the picker, both selects, the actions menu and Save are off, the bar is aria-busy and says it
+   *      is loading; with nothing out, none of that.
+   */
+  it("turns every control that could change the tactic off while busy, and says why", () => {
+    const { rerender } = renderCommandBar({ busy: true });
+    const group = screen.getByRole("group", { name: "tactics.tacticBar" });
+
+    expect(group).toHaveAttribute("aria-busy", "true");
+    expect(screen.getByRole("button", { name: "tactics.chooseTactic" })).toBeDisabled();
+    expect(screen.getByRole("combobox", { name: "tactics.formation" })).toBeDisabled();
+    expect(screen.getByRole("combobox", { name: "tactics.playStyle" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "tactics.tacticActions" })).toBeDisabled();
+    expect(screen.getByText("tactics.loadingTactics")).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /tactics\.(updateTactic|saveAsTactic)/ }),
+    ).toBeDisabled();
+
+    rerender(<TacticsCommandBar {...buildProps({ busy: false, isDirty: true })} />);
+
+    expect(group).toHaveAttribute("aria-busy", "false");
+    expect(screen.getByRole("button", { name: "tactics.chooseTactic" })).toBeEnabled();
+    expect(screen.getByRole("combobox", { name: "tactics.formation" })).toBeEnabled();
+    expect(screen.getByRole("combobox", { name: "tactics.playStyle" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "tactics.tacticActions" })).toBeEnabled();
+    expect(screen.queryByText("tactics.loadingTactics")).toBeNull();
+  });
+
   it("disables the save button when the active custom tactic is already synced", () => {
     renderCommandBar({ activeTactic: customTactic, isDirty: false });
 
