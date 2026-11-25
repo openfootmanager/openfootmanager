@@ -188,6 +188,8 @@ export const knobs = {
   libraryListFailsOnce: false,
   /** When set, the faked backend applies a saved tactic only once this resolves (the request is out). */
   applyCustomTacticGate: null as Promise<void> | null,
+  /** When set, the faked save answers `delete_custom_tactic` only once this resolves. */
+  deleteCustomTacticGate: null as Promise<void> | null,
 };
 
 /** The faked backend's own copy of the game, and the tactics its save holds, in the order made. */
@@ -223,6 +225,7 @@ export function resetHarness() {
   knobs.libraryListReleases = null;
   knobs.libraryListFailsOnce = false;
   knobs.applyCustomTacticGate = null;
+  knobs.deleteCustomTacticGate = null;
 }
 
 /** Puts tactics in the faked save, as if the player had made them earlier. */
@@ -260,6 +263,11 @@ export function fakeBackend(failPreset = false) {
         knobs.libraryListFailsOnce = false;
         throw new Error("the save did not answer");
       }
+      return structuredClone(savedTactics);
+    }
+    if (command === "delete_custom_tactic") {
+      if (knobs.deleteCustomTacticGate) await knobs.deleteCustomTacticGate;
+      savedTactics = savedTactics.filter((tactic) => tactic.id !== params.id);
       return structuredClone(savedTactics);
     }
     if (command === "rename_custom_tactic") {
